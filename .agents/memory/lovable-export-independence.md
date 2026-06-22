@@ -51,3 +51,37 @@ success wins.
 
 **Why:** The whole point of the project was to drop the Lovable dependency; leaving the gateway in
 place silently breaks all AI generation when only the provider key is present.
+
+## Missing images/videos: the `*.asset.json` / `__l5e` trap
+
+**Symptom:** A Lovable-exported app renders as an "empty UI skeleton" — text and layout but no
+photos/videos. The exported repo ships `*.asset.json` manifest files (e.g.
+`josh-blue-orange.jpg.asset.json`) imported in components and consumed as `src={img.url}`. Their
+`url` field is a root-relative path `/__l5e/assets-v1/<asset_id>/<file>` that is ONLY served by
+Lovable's dev plugin/CDN. On a plain Vite/TanStack host those paths 404, so every manifest-backed
+image/video is broken. Hardcoded `/__l5e/...` strings (videos in landing components) and full
+`https://<project>.lovable.app/__l5e/...` URLs (server-side smoke tests) have the same root.
+
+**Fix that needs ZERO code changes:** the Lovable preview stays live at
+`https://<project>.lovable.app` — verify with curl (assets return 200). Mirror every referenced
+asset into `public/__l5e/assets-v1/<id>/<file>` so the existing `.url` paths resolve locally. Vite
+serves `public/` at root (dev) and copies it into the build output (`dist/client` here), so it works
+in prod too. **You must restart the dev server** after adding files — Vite snapshots the public dir
+at startup and otherwise keeps 404ing new files (robots.txt served but new files didn't, until
+restart).
+
+**Discovery gotcha:** collect URLs from two sources — (a) parse each `*.asset.json`'s `url` field
+(clean paths), and (b) grep source for hardcoded `/__l5e/...`. Use `rg -o --no-filename`; without
+`--no-filename`, rg prefixes matches with `path:` producing malformed "URLs" that fail and look like
+missing assets when they are really just dupes of the clean set.
+
+**Download gotcha:** the Lovable CDN drops connections ("fetch failed", NOT 404) under load — high
+concurrency + large videos throttles it after ~70 files. Use low concurrency (≤3), inter-request
+delay, retries with backoff, and make the script idempotent (skip existing size>0 files) so re-runs
+only retry the remainder.
+
+**Verifying render:** the external/headless screenshot service shows a false broken-image icon on a
+stacked opacity-transition slideshow (captures mid-load). Don't trust it alone — confirm with: all
+assets return 200 + `image/*` content-type via the dev domain, `file --mime-type` on disk shows only
+real media (no HTML error pages saved), and a STATIC image-grid page (e.g. a UGC avatar grid)
+renders cleanly.
