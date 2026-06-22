@@ -1,29 +1,25 @@
-// Replicate via Lovable connector gateway.
-// Auth: Bearer LOVABLE_API_KEY + X-Connection-Api-Key: REPLICATE_API_KEY.
-// Both headers are required — the gateway swaps the connection key for the
-// real Replicate token before forwarding upstream.
+// Replicate — direct API (api.replicate.com).
+// Auth: Bearer REPLICATE_API_KEY. Calls Replicate directly so the app runs
+// independent of any Lovable gateway or Lovable account.
 
-const GATEWAY = "https://connector-gateway.lovable.dev/replicate/v1";
+const REPLICATE_API = "https://api.replicate.com/v1";
 
-/** Replicate connector key. Accept either the secret-tool name or the
- *  auto-injected connector name so this works regardless of how the project
- *  linked Replicate. */
+/** Replicate API token. Prefer the standard REPLICATE_API_KEY. Only fall back
+ *  to an auto-injected connector key if it's a native Replicate token (r8_…);
+ *  a Lovable connector identifier would not authenticate against the direct API. */
 export function getReplicateKey(): string | undefined {
-  return (
-    process.env.LOVABLE_CONNECTOR_REPLICATE_API_KEY ||
-    process.env.REPLICATE_API_KEY ||
-    undefined
-  );
+  const direct = process.env.REPLICATE_API_KEY;
+  if (direct) return direct;
+  const conn = process.env.LOVABLE_CONNECTOR_REPLICATE_API_KEY;
+  if (conn && conn.startsWith("r8_")) return conn;
+  return undefined;
 }
 
 function authHeaders(): Record<string, string> {
-  const lov = process.env.LOVABLE_API_KEY;
   const rep = getReplicateKey();
-  if (!lov) throw new Error("LOVABLE_API_KEY missing");
-  if (!rep) throw new Error("Replicate connector not linked (REPLICATE_API_KEY missing)");
+  if (!rep) throw new Error("REPLICATE_API_KEY missing");
   return {
-    Authorization: `Bearer ${lov}`,
-    "X-Connection-Api-Key": rep,
+    Authorization: `Bearer ${rep}`,
     "Content-Type": "application/json",
   };
 }
@@ -45,7 +41,7 @@ export async function replicateRun(
   input: Record<string, unknown>,
   timeoutMs = 600_000,
 ): Promise<PollResp> {
-  const create = await fetch(`${GATEWAY}/models/${model}/predictions`, {
+  const create = await fetch(`${REPLICATE_API}/models/${model}/predictions`, {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({ input }),
@@ -61,7 +57,7 @@ export async function replicateRun(
   while (Date.now() - started < timeoutMs) {
     await new Promise((r) => setTimeout(r, delay));
     delay = Math.min(delay + 1000, 6000);
-    const poll = await fetch(`${GATEWAY}/predictions/${created.id}`, {
+    const poll = await fetch(`${REPLICATE_API}/predictions/${created.id}`, {
       headers: authHeaders(),
     });
     if (!poll.ok) {

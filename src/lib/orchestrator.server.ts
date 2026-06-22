@@ -1,7 +1,7 @@
 // Aurora Orchestration Layer (server-only)
 // Providers:
 //   - lovable     → Lovable AI Gateway (Gemini image/text)
-//   - replicate   → Replicate via Lovable connector gateway (Seedream, Seedance, Kling, Flux, Wav2Lip)
+//   - replicate   → Replicate direct API (Seedream, Seedance, Kling, Flux, Wav2Lip)
 //   - huggingface → HF Inference (flux-schnell, sdxl)
 //   - sync        → Sync.so direct API (lipsync)
 //   - gpuWorker   → admin-registered HTTP workers (RunPod / vast / salad / self-hosted)
