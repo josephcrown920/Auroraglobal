@@ -40,7 +40,7 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
       { id: "fal-video",       name: "fal.ai",                  kind: "video",     envKey: "FAL_KEY",                              configured: has("FAL_KEY"),                   free: false, notes: "not yet wired into orchestrator" },
       // lipsync
       { id: "sync",            name: "Sync.so",                 kind: "lipsync",   envKey: "SYNC_API_KEY",                         configured: has("SYNC_API_KEY"),              free: false, notes: "lipsync-2 (primary)" },
-      { id: "replicate-lipsync", name: "Replicate",             kind: "lipsync",   envKey: "LOVABLE_CONNECTOR_REPLICATE_API_KEY",  configured: hasReplicate,                     free: false, notes: "sync-1.6.0 · wav2lip (fallback)" },
+      { id: "replicate-lipsync", name: "Replicate",             kind: "lipsync",   envKey: "LOVABLE_CONNECTOR_REPLICATE_API_KEY",  configured: hasReplicate,                     free: false, notes: "sync/lipsync-2 · cog-wav2lip (fallback)" },
       { id: "fal-lipsync",     name: "fal.ai",                  kind: "lipsync",   envKey: "FAL_KEY",                              configured: has("FAL_KEY"),                   free: false, notes: "not yet wired into orchestrator" },
       // inference (text)
       { id: "openrouter",      name: "OpenRouter",              kind: "inference", envKey: "OPENROUTER_API_KEY",                   configured: has("OPENROUTER_API_KEY"),        free: false, notes: "preferred text gateway (cheap)" },

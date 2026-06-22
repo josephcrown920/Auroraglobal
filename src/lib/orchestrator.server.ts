@@ -378,10 +378,10 @@ const REPLICATE_MAP: Record<string, ReplicateEntry> = {
   "sora-2":                 { slug: "openai/sora-2",                 kind: "video", cost: 0.50,
     build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { input_reference: firstImg(r) } : {}) }) },
   // ── lipsync (fallback after sync.so direct) ──
-  "fal-ai/sync-lipsync/v2": { slug: "sync/sync-1.6.0",              kind: "lipsync", cost: 0.30,
+  "fal-ai/sync-lipsync/v2": { slug: "sync/lipsync-2",               kind: "lipsync", cost: 0.30,
     build: (r) => ({ video: r.videoUrl, audio: r.audioUrl }) },
-  "fal-ai/wav2lip":         { slug: "cudanexus/wav2lip",            kind: "lipsync", cost: 0.10,
-    build: (r) => ({ video: r.videoUrl, audio: r.audioUrl }) },
+  "fal-ai/wav2lip":         { slug: "devxpy/cog-wav2lip",          kind: "lipsync", cost: 0.10,
+    build: (r) => ({ face: r.videoUrl, audio: r.audioUrl }) },
 };
 
 const replicate: ProviderAdapter = {
