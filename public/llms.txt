@@ -1,0 +1,22 @@
+# Aurora Studio
+
+> AI performance shots, music-video stills, lip-sync clips and UGC ads — generated from a single selfie using the world's top image and video models in one canvas.
+
+Aurora bundles Seedance 2.0, Kling 3.0, Nano Banana Pro, Seedream 4.5 and Sync 1.9 lip-sync into a unified credit-based studio. Creators upload a reference, pick a scene, color and workflow, and get cinematic results in seconds.
+
+## Pages
+
+- [Home](/): Product overview, showcase, pricing, FAQ.
+- [Canvas](/canvas): Node-based orchestration playground with trending workflows and the Aurora agent.
+- [Colors Studio](/colors): Pick a color and scene (studio, indoor, rooftop, street) and shoot a portrait.
+- [UGC Studio](/ugc): Scroll-stopping UGC ads from one selfie.
+- [Workflows](/workflows): Save, share and re-run generation graphs.
+- [Gallery](/gallery): Public gallery of community generations.
+- [Gifts](/gifts): Gift Aurora credits to another creator.
+- [Affiliate](/affiliate): Earn 20% recurring on referred credit purchases.
+- [Contact](/contact): Reach the Aurora team.
+
+## Optional
+
+- [Terms](/legal/terms): Terms of service.
+- [Privacy](/legal/privacy): Privacy policy.

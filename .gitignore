@@ -1,49 +1,47 @@
-# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# compiled output
-dist
-tmp
-out-tsc
-*.tsbuildinfo
-.expo
-.expo-shared
-
-# dependencies
 node_modules
+dist
+dist-ssr
+.output
+.vinxi
+.tanstack/**
+.nitro
+*.local
 
-# IDEs and editors
-/.idea
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
+# Wrangler / Cloudflare
+.wrangler/
+.dev.vars
 
-# IDE - VSCode
+# Editor
 .vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
 !.vscode/extensions.json
-
-# misc
-/.sass-cache
-/connect.lock
-/coverage
-/libpeerconnection.log
-npm-debug.log
-yarn-error.log
-testem.log
-/typings
-
-# System Files
+.idea
 .DS_Store
-Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
-.cursor/rules/nx-rules.mdc
-.github/instructions/nx.instructions.md
-
-# Replit
-.cache/
-.local/
+# Secrets — NEVER commit. Real values live in Lovable Cloud → Secrets.
+# Only `.env.example` (template, no real values) is allowed in git.
+# Covers Kling (KLING_ACCESS_KEY / KLING_SECRET_KEY) and every other runtime
+# secret documented in docs/ENV.md and docs/KLING_SECRETS.md.
+.env
+.env.*
+!.env.example
+*.env
+*.env.local
+secrets.json
+secrets.*.json
+kling.json
+kling.*.json
+**/kling-credentials*

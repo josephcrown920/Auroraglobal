@@ -1,45 +1,48 @@
-# [Project name]
+# Aurora Studio — Replit Setup
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+AI content/video generation app (TanStack Start + Cloudflare Workers SSR + Supabase),
+originally generated in Lovable. Bun-based.
 
-## Run & Operate
+## Source of truth
+This project was consolidated from 3 GitHub repos of the same Lovable app. The repo
+**`aurora-sparkle-charm`** was selected as the single source of truth (most routes,
+most source files, most DB migrations, newest features). The other two contributed:
+- One contributed no unique code.
+- One contributed a single missing feature: **Visual Edit** (one-click / prompt-based
+  image edits in the gallery), which was cherry-picked in:
+  - `src/components/gallery/VisualEditDialog.tsx`
+  - `editGeneration` + `EditSchema` server fn in `src/lib/studio.functions.ts`
+  - wired into `src/routes/gallery.tsx` (Wand2 button on image cards)
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+## How it runs here
+- Dev server: `bunx vite dev --host 0.0.0.0 --port 8080` (workflow "Start application").
+- Port 8080 maps to external 80. Must bind IPv4 (`0.0.0.0`) — the sandbox has no IPv6.
+- `vite.config.ts` adds a `vite.server` block (`host: 0.0.0.0`, `allowedHosts: true`)
+  so the proxied Replit preview host is accepted.
+- The original Replit monorepo scaffold was moved to `.scaffold-backup/` during import.
 
-## Stack
+## Backend
+The app connects to a remote Supabase project (ref `bjjcpiwglvigrpixryvg`). The DB
+schema, storage buckets ("studio"), auth, and RLS live in Supabase cloud, not Replit.
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+### Required environment variables
+Set automatically (public, derived from project ref):
+- `VITE_SUPABASE_URL`, `SUPABASE_URL` = `https://bjjcpiwglvigrpixryvg.supabase.co`
 
-## Where things live
+Must be provided by the user:
+- `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_ANON_KEY`
+  — all the same value: the Supabase anon/publishable key (public, RLS-enforced).
+- `SUPABASE_SERVICE_ROLE_KEY` — Supabase service role key (secret).
+- `LOVABLE_API_KEY` — Lovable AI gateway key (powers image generation + Visual Edit).
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
-
-## Architecture decisions
-
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
-
-## Product
-
-_Describe the high-level user-facing capabilities of this app once they exist._
+### Optional, per-feature providers (only needed for those features)
+- Image: `GEMINI_API_KEY`, `HF_TOKEN`, `REPLICATE_API_KEY` / `LOVABLE_CONNECTOR_REPLICATE_API_KEY`, `FAL_KEY`
+- Video/avatar/lipsync: `KLING_ACCESS_KEY`, `KLING_SECRET_KEY`, `HEYGEN_API_KEY`, `SYNC_API_KEY`
+- LLM routing: `OPENROUTER_API_KEY`, `OPENAI_API_KEY`
+- Payments: `PAYSTACK_SECRET_KEY`
+- Email: `RESEND_API_KEY`, `AURORA_FROM_EMAIL`, `SITE_URL`
+- Admin panel: `ADMIN_USERNAME`, `ADMIN_PASSCODE`
 
 ## User preferences
-
-_Populate as you build — explicit user instructions worth remembering across sessions._
-
-## Gotchas
-
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- User is non-technical. Explain in plain language; avoid jargon.
+- Goal was: pick the best of 3 repos, merge missing features, and run it fully in Replit.
