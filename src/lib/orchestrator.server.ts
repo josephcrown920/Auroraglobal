@@ -331,20 +331,55 @@ const geminiDirect: ProviderAdapter = {
 };
 
 // ─── Replicate ───────────────────────────────────────────────────────────────
-// Map our model keys → Replicate official model slugs (owner/name).
-const REPLICATE_MAP: Record<string, { slug: string; kind: GenerateKind; cost: number }> = {
-  // images
-  "fal-ai/seedream-4":      { slug: "bytedance/seedream-4",        kind: "image", cost: 0.04 },
-  "fal-ai/seedream-4.5":    { slug: "bytedance/seedream-4",        kind: "image", cost: 0.05 },
-  "replicate/flux-schnell": { slug: "black-forest-labs/flux-schnell", kind: "image", cost: 0.003 },
-  // video (image-to-video)
-  "seedance-2.0":           { slug: "bytedance/seedance-1-pro",    kind: "video", cost: 0.40 },
-  "seedance-2.0-fast":      { slug: "bytedance/seedance-1-lite",   kind: "video", cost: 0.20 },
-  "kling-3.0":              { slug: "kwaivgi/kling-v2.1",          kind: "video", cost: 0.60 },
-  "kling-3.0-omni":         { slug: "kwaivgi/kling-v2.1-master",   kind: "video", cost: 0.70 },
-  // lipsync (fallback after sync.so direct)
-  "fal-ai/sync-lipsync/v2": { slug: "sync/sync-1.6.0",             kind: "lipsync", cost: 0.30 },
-  "fal-ai/wav2lip":         { slug: "cudanexus/wav2lip",           kind: "lipsync", cost: 0.10 },
+// Map our model keys → Replicate official model slugs (owner/name) + a per-model
+// input builder. Each Replicate model has a DIFFERENT input schema, so we build
+// inputs per-model instead of guessing by slug prefix:
+//   seedance → image + integer duration   kling → start_image + enum duration
+//   wan i2v  → image + enum duration       veo   → optional image (no duration)
+//   sora     → input_reference (no duration)  nano-banana/seedream → image_input[]
+const durEnum = (d?: number) => ((d ?? 5) >= 10 ? "10" : "5");
+const durInt = (d?: number) => Math.max(3, Math.min(12, d ?? 5));
+const firstImg = (r: GenerateRequest) => r.imageUrls?.[0];
+
+type ReplicateEntry = {
+  slug: string;
+  kind: GenerateKind;
+  cost: number;
+  build: (r: GenerateRequest) => Record<string, unknown>;
+};
+
+const REPLICATE_MAP: Record<string, ReplicateEntry> = {
+  // ── images ──
+  "google/nano-banana":     { slug: "google/nano-banana",            kind: "image", cost: 0.039,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(r.imageUrls?.length ? { image_input: r.imageUrls } : {}) }) },
+  "fal-ai/seedream-4":      { slug: "bytedance/seedream-4",          kind: "image", cost: 0.04,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(r.imageUrls?.length ? { image_input: r.imageUrls } : {}) }) },
+  "fal-ai/seedream-4.5":    { slug: "bytedance/seedream-4",          kind: "image", cost: 0.05,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(r.imageUrls?.length ? { image_input: r.imageUrls } : {}) }) },
+  "replicate/flux-schnell": { slug: "black-forest-labs/flux-schnell", kind: "image", cost: 0.003,
+    build: (r) => ({ prompt: r.prompt ?? "" }) },
+  // ── video (image-to-video) ──
+  "seedance-2.0":           { slug: "bytedance/seedance-1-pro",      kind: "video", cost: 0.40,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { image: firstImg(r) } : {}), duration: durInt(r.duration) }) },
+  "seedance-2.0-fast":      { slug: "bytedance/seedance-1-lite",     kind: "video", cost: 0.20,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { image: firstImg(r) } : {}), duration: durInt(r.duration) }) },
+  "wan-2.5":                { slug: "wan-video/wan-2.5-i2v",         kind: "video", cost: 0.45,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { image: firstImg(r) } : {}), duration: durEnum(r.duration) }) },
+  "kling-3.0":              { slug: "kwaivgi/kling-v2.1",            kind: "video", cost: 0.60,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { start_image: firstImg(r) } : {}), duration: durEnum(r.duration), ...(r.imageUrls?.[1] ? { end_image: r.imageUrls[1] } : {}) }) },
+  "kling-3.0-omni":         { slug: "kwaivgi/kling-v2.1-master",     kind: "video", cost: 0.70,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { start_image: firstImg(r) } : {}), duration: durEnum(r.duration), ...(r.imageUrls?.[1] ? { end_image: r.imageUrls[1] } : {}) }) },
+  "veo-3-fast":             { slug: "google/veo-3-fast",             kind: "video", cost: 0.40,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { image: firstImg(r) } : {}) }) },
+  "veo-3":                  { slug: "google/veo-3",                  kind: "video", cost: 0.75,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { image: firstImg(r) } : {}) }) },
+  "sora-2":                 { slug: "openai/sora-2",                 kind: "video", cost: 0.50,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { input_reference: firstImg(r) } : {}) }) },
+  // ── lipsync (fallback after sync.so direct) ──
+  "fal-ai/sync-lipsync/v2": { slug: "sync/sync-1.6.0",              kind: "lipsync", cost: 0.30,
+    build: (r) => ({ video: r.videoUrl, audio: r.audioUrl }) },
+  "fal-ai/wav2lip":         { slug: "cudanexus/wav2lip",            kind: "lipsync", cost: 0.10,
+    build: (r) => ({ video: r.videoUrl, audio: r.audioUrl }) },
 };
 
 const replicate: ProviderAdapter = {
@@ -359,30 +394,7 @@ const replicate: ProviderAdapter = {
   async run(r) {
     const m = r.model ? REPLICATE_MAP[r.model] : null;
     if (!m) throw new Error(`No Replicate mapping for model: ${r.model}`);
-
-    const input: Record<string, unknown> = {};
-    if (r.prompt) input.prompt = r.prompt;
-
-    if (m.kind === "image") {
-      // Seedream-4 takes image_input (array). Flux-schnell takes only prompt.
-      if (m.slug.startsWith("bytedance/seedream") && r.imageUrls?.length) {
-        input.image_input = r.imageUrls;
-      }
-    } else if (m.kind === "video") {
-      if (r.imageUrls?.[0]) {
-        if (m.slug.startsWith("bytedance/seedance")) input.image = r.imageUrls[0];
-        else input.start_image = r.imageUrls[0]; // kling
-      }
-      if (r.duration) input.duration = r.duration;
-      if (m.slug.startsWith("kwaivgi/kling")) {
-        input.mode = "standard";
-        input.aspect_ratio = "16:9";
-      }
-    } else if (m.kind === "lipsync") {
-      input.video = r.videoUrl;
-      input.audio = r.audioUrl;
-    }
-
+    const input = m.build(r);
     const result = await replicateRun(m.slug, input, 600_000);
     const url = pickReplicateUrl(result.output);
     return { url, endpoint: `replicate:${m.slug}` };
@@ -552,39 +564,88 @@ async function log(opts: {
   } catch { /* no-op */ }
 }
 
+// ─── Model-level fallback ────────────────────────────────────────────────────
+// On top of provider fallback: if the requested model's providers all fail, try
+// a bounded, cheapest-first list of alternate same-kind models (all reachable on
+// the Replicate key). Capped so paid video generations never run away on cost.
+const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
+  image:   ["google/nano-banana", "replicate/flux-schnell", "fal-ai/seedream-4"],
+  video:   ["seedance-2.0-fast", "seedance-2.0", "wan-2.5", "kling-3.0", "veo-3-fast", "sora-2"],
+  lipsync: ["fal-ai/sync-lipsync/v2", "fal-ai/wav2lip"],
+  upscale: [],
+};
+const FALLBACK_CAP: Record<GenerateKind, number> = { image: 3, video: 2, lipsync: 2, upscale: 1 };
+
+function getCandidateModels(req: GenerateRequest): string[] {
+  const base = FALLBACK_MODELS[req.kind] ?? [];
+  const ordered = [req.model, ...base].filter((m): m is string => !!m);
+  const cap = Math.max(1, FALLBACK_CAP[req.kind] ?? 2);
+  return Array.from(new Set(ordered)).slice(0, cap);
+}
+
+// Request-level problems that every provider/model would hit identically — abort
+// fast instead of burning fallback attempts. Provider auth (401/403) is
+// deliberately EXCLUDED: a bad Gemini/Lovable key must fall through to Replicate.
+const FATAL_RE = /url (?:host|scheme) not allowed|invalid url|not your|unsafe/i;
+
+// Provider-down / quota signals worth briefly circuit-breaking the provider for.
+// Model-specific input errors (e.g. 400/422) are NOT here, so one bad model never
+// blacklists a healthy provider for other requests.
+const PROVIDER_DOWN_RE = /\b(429|5\d\d|402)\b|timeout|timed out|econnreset|econnrefused|etimedout|fetch failed|socket hang up|capacity|temporarily unavailable|rate limit/i;
+
 export async function orchestrate(rawReq: GenerateRequest): Promise<GenerateResult> {
   // Sign private-studio refs once, up front, so every adapter sees a fetchable URL.
   const req = await signStudioRefs(rawReq);
-  const all = PRIORITY[req.kind];
-  const adapters = all.filter((a) => a.supports(req) && isHealthy(a.name));
-  if (adapters.length === 0) {
+  const candidates = getCandidateModels(req);
+  // Snapshot provider health ONCE. Without this, a failure on the first candidate
+  // model marks its provider (e.g. Replicate) unhealthy and skips it for every
+  // remaining candidate — which would defeat model-level fallback inside a single
+  // request, since most candidates share the Replicate provider.
+  const healthyAtStart = new Set(
+    PRIORITY[req.kind].filter((a) => isHealthy(a.name)).map((a) => a.name),
+  );
+  let lastErr: Error | null = null;
+  let triedAny = false;
+
+  for (const modelKey of candidates) {
+    const r: GenerateRequest = { ...req, model: modelKey };
+    const adapters = PRIORITY[r.kind].filter((a) => a.supports(r) && healthyAtStart.has(a.name));
+    if (adapters.length === 0) continue;
+
+    for (const adapter of adapters) {
+      triedAny = true;
+      const start = Date.now();
+      try {
+        const { url, endpoint } = await withRetry(() => adapter.run(r), 2);
+        const latency = Date.now() - start;
+        const cost = adapter.estimateCost(r);
+        markSuccess(adapter.name);
+        await log({ provider: adapter.name, endpoint, kind: r.kind, status: "ok",
+          latencyMs: latency, costUsd: cost, userId: r.userId, refId: r.refId });
+        return { url, provider: adapter.name, endpoint, latencyMs: latency, costUsd: cost };
+      } catch (e) {
+        const latency = Date.now() - start;
+        const msg = e instanceof Error ? e.message : String(e);
+        lastErr = e instanceof Error ? e : new Error(msg);
+        // Only back a provider off for genuine provider-down/quota signals, so a
+        // single bad model never blacklists a healthy provider for other requests.
+        if (PROVIDER_DOWN_RE.test(msg)) markFailure(adapter.name);
+        await log({ provider: adapter.name, endpoint: modelKey, kind: r.kind,
+          status: "error", latencyMs: latency, costUsd: 0, error: msg.slice(0, 500),
+          userId: r.userId, refId: r.refId });
+        if (FATAL_RE.test(msg)) throw lastErr; // bad request — every model fails the same
+      }
+    }
+  }
+
+  if (!triedAny) {
+    const all = PRIORITY[req.kind];
     const reasons = all.map((a) => {
       if (!a.supports(req)) return `${a.name}: missing config/key for model "${req.model ?? "?"}"`;
       if (!isHealthy(a.name)) return `${a.name}: cooling down after recent failure`;
       return `${a.name}: ok`;
     }).join("; ");
     throw new Error(`No provider available for ${req.kind} → ${reasons}`);
-  }
-  let lastErr: Error | null = null;
-  for (const adapter of adapters) {
-    const start = Date.now();
-    try {
-      const { url, endpoint } = await withRetry(() => adapter.run(req), 2);
-      const latency = Date.now() - start;
-      const cost = adapter.estimateCost(req);
-      markSuccess(adapter.name);
-      await log({ provider: adapter.name, endpoint, kind: req.kind, status: "ok",
-        latencyMs: latency, costUsd: cost, userId: req.userId, refId: req.refId });
-      return { url, provider: adapter.name, endpoint, latencyMs: latency, costUsd: cost };
-    } catch (e) {
-      const latency = Date.now() - start;
-      const msg = e instanceof Error ? e.message : String(e);
-      lastErr = e instanceof Error ? e : new Error(msg);
-      markFailure(adapter.name);
-      await log({ provider: adapter.name, endpoint: req.model ?? "unknown", kind: req.kind,
-        status: "error", latencyMs: latency, costUsd: 0, error: msg.slice(0, 500),
-        userId: req.userId, refId: req.refId });
-    }
   }
   throw lastErr ?? new Error("All providers failed");
 }

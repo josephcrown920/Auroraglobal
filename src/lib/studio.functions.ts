@@ -4,7 +4,6 @@ import { z } from "zod";
 import { orchestrate } from "./orchestrator.server";
 import { fetchToBytes } from "./replicate.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { assertTrustedUrl } from "./url-guard";
 
 const COST_IMAGE = 1;
 const COST_VIDEO = 5;
@@ -63,40 +62,15 @@ async function refundCredits(userId: string, amount: number, refId: string) {
 export { trackServer };
 
 
-const LOVABLE_IMAGE_MODELS = new Set([
-  "google/gemini-2.5-flash-image",
-  "google/gemini-3.1-flash-image-preview",
-  "google/gemini-3-pro-image-preview",
-]);
-
 const GenerateSchema = z.object({
   prompt: z.string().min(3).max(2000),
   imageUrls: z.array(z.string().url()).min(1).max(6),
   motionVideoUrl: z.string().url().optional().nullable(),
-  model: z.string().default("google/gemini-2.5-flash-image"),
+  // Default runs on the Replicate key alone (Gemini 2.5 Flash image, a.k.a.
+  // Nano Banana). If a Gemini/Lovable key is added later, picking those models
+  // uses them first and falls back to Replicate automatically.
+  model: z.string().default("google/nano-banana"),
 });
-
-async function urlToInlineData(url: string): Promise<string> {
-  assertTrustedUrl(url);
-  const fetchUrl = await signStudioUrlIfPrivate(url);
-  const res = await fetch(fetchUrl);
-  if (!res.ok) throw new Error(`Failed to fetch image: ${url}`);
-  const buf = await res.arrayBuffer();
-  const b64 = Buffer.from(buf).toString("base64");
-  const ct = res.headers.get("content-type") || "image/jpeg";
-  return `data:${ct};base64,${b64}`;
-}
-
-// Studio bucket is private — convert any `/object/public/studio/...` URL we
-// own into a short-lived signed URL so server-side fetches succeed.
-const PUBLIC_STUDIO_RE = /\/storage\/v1\/object\/public\/studio\/(.+)$/;
-async function signStudioUrlIfPrivate(url: string): Promise<string> {
-  const m = url.match(PUBLIC_STUDIO_RE);
-  if (!m) return url;
-  const path = decodeURIComponent(m[1].split("?")[0]);
-  const { data } = await supabaseAdmin.storage.from("studio").createSignedUrl(path, 60 * 60);
-  return data?.signedUrl ?? url;
-}
 
 export const generatePerformanceShot = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -123,62 +97,22 @@ export const generatePerformanceShot = createServerFn({ method: "POST" })
     await chargeCredits(userId, COST_IMAGE, "image_generation", row.id);
 
     try {
-      let bytes: Buffer;
-      let mime: string;
-      let ext: string;
-
-      if (LOVABLE_IMAGE_MODELS.has(data.model)) {
-        const apiKey = process.env.LOVABLE_API_KEY;
-        if (!apiKey) throw new Error("AI gateway not configured");
-        const inline = await Promise.all(data.imageUrls.map(urlToInlineData));
-        const userContent: Array<Record<string, unknown>> = [
-          { type: "text", text: data.prompt },
-          ...inline.map((url) => ({ type: "image_url", image_url: { url } })),
-        ];
-        const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
-          body: JSON.stringify({
-            model: data.model,
-            messages: [{ role: "user", content: userContent }],
-            modalities: ["image", "text"],
-          }),
-        });
-        if (!aiRes.ok) {
-          const errText = await aiRes.text();
-          if (aiRes.status === 429) throw new Error("Rate limit reached. Please try again in a moment.");
-          if (aiRes.status === 402) throw new Error("AI credits exhausted. Add credits in workspace settings.");
-          throw new Error(`AI error: ${errText.slice(0, 200)}`);
-        }
-        const json = await aiRes.json();
-        const msgOut = json?.choices?.[0]?.message;
-        const imgUrl: string | undefined = msgOut?.images?.[0]?.image_url?.url ?? msgOut?.images?.[0]?.url;
-        if (!imgUrl) throw new Error("No image returned from model");
-        const m = imgUrl.match(/^data:(.+?);base64,(.+)$/);
-        if (!m) throw new Error("Unexpected image format");
-        mime = m[1];
-        ext = mime.split("/")[1]?.split("+")[0] || "png";
-        bytes = Buffer.from(m[2], "base64");
-      } else {
-        // Route everything else (Seedream, FLUX, etc) through the orchestrator.
-        const out = await orchestrate({
-          kind: "image",
-          model: data.model,
-          prompt: data.prompt,
-          imageUrls: data.imageUrls,
-          userId,
-          refId: row.id,
-        });
-        const got = await fetchToBytes(out.url);
-        bytes = got.bytes;
-        mime = got.mime || "image/png";
-        ext = mime.split("/")[1]?.split("+")[0] || "png";
-      }
-
+      // All image models route through the orchestrator, which tries the chosen
+      // model/provider first and falls back to the next one automatically.
+      const out = await orchestrate({
+        kind: "image",
+        model: data.model,
+        prompt: data.prompt,
+        imageUrls: data.imageUrls,
+        userId,
+        refId: row.id,
+      });
+      const { bytes, mime } = await fetchToBytes(out.url);
+      const ext = (mime || "image/png").split("/")[1]?.split("+")[0] || "png";
       const path = `${userId}/results/${row.id}.${ext}`;
       const { error: upErr } = await supabase.storage
         .from("studio")
-        .upload(path, bytes, { contentType: mime, upsert: true });
+        .upload(path, bytes, { contentType: mime || "image/png", upsert: true });
       if (upErr) throw new Error(upErr.message);
       const publicUrl = supabase.storage.from("studio").getPublicUrl(path).data.publicUrl;
       await supabase
@@ -332,41 +266,20 @@ export const generateSplitReality = createServerFn({ method: "POST" })
       await chargeCredits(userId, COST_IMAGE, `split_${variant}`, row.id);
 
       try {
-        const apiKey = process.env.LOVABLE_API_KEY;
-        if (!apiKey) throw new Error("AI gateway not configured");
-        const inline = await Promise.all(data.imageUrls.map(urlToInlineData));
-        const userContent: Array<Record<string, unknown>> = [
-          { type: "text", text: prompt + (data.basePrompt ? " " + data.basePrompt : "") },
-          ...inline.map((url) => ({ type: "image_url", image_url: { url } })),
-        ];
-        const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
-          body: JSON.stringify({
-            model,
-            messages: [{ role: "user", content: userContent }],
-            modalities: ["image", "text"],
-          }),
+        const out = await orchestrate({
+          kind: "image",
+          model,
+          prompt: prompt + (data.basePrompt ? " " + data.basePrompt : ""),
+          imageUrls: data.imageUrls,
+          userId,
+          refId: row.id,
         });
-        if (!aiRes.ok) {
-          const errText = await aiRes.text();
-          if (aiRes.status === 429) throw new Error("Rate limit reached.");
-          if (aiRes.status === 402) throw new Error("AI credits exhausted.");
-          throw new Error(`AI error: ${errText.slice(0, 200)}`);
-        }
-        const json = await aiRes.json();
-        const msgOut = json?.choices?.[0]?.message;
-        const imgUrl: string | undefined = msgOut?.images?.[0]?.image_url?.url ?? msgOut?.images?.[0]?.url;
-        if (!imgUrl) throw new Error("No image returned");
-        const m = imgUrl.match(/^data:(.+?);base64,(.+)$/);
-        if (!m) throw new Error("Unexpected image format");
-        const mime = m[1];
-        const ext = mime.split("/")[1]?.split("+")[0] || "png";
-        const bytes = Buffer.from(m[2], "base64");
+        const { bytes, mime } = await fetchToBytes(out.url);
+        const ext = (mime || "image/png").split("/")[1]?.split("+")[0] || "png";
         const path = `${userId}/results/${row.id}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from("studio")
-          .upload(path, bytes, { contentType: mime, upsert: true });
+          .upload(path, bytes, { contentType: mime || "image/png", upsert: true });
         if (upErr) throw new Error(upErr.message);
         const publicUrl = supabase.storage.from("studio").getPublicUrl(path).data.publicUrl;
         await supabase.from("generations").update({ status: "complete", result_image_url: publicUrl }).eq("id", row.id);
@@ -527,43 +440,20 @@ export const editGeneration = createServerFn({ method: "POST" })
     await chargeCredits(userId, COST_IMAGE, "image_edit", row.id);
 
     try {
-      const apiKey = process.env.LOVABLE_API_KEY;
-      if (!apiKey) throw new Error("AI gateway not configured");
-      const inline = await urlToInlineData(src.result_image_url);
-      const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
-        body: JSON.stringify({
-          model,
-          messages: [{
-            role: "user",
-            content: [
-              { type: "text", text: combinedPrompt },
-              { type: "image_url", image_url: { url: inline } },
-            ],
-          }],
-          modalities: ["image", "text"],
-        }),
+      const out = await orchestrate({
+        kind: "image",
+        model,
+        prompt: combinedPrompt,
+        imageUrls: [src.result_image_url],
+        userId,
+        refId: row.id,
       });
-      if (!aiRes.ok) {
-        const errText = await aiRes.text();
-        if (aiRes.status === 429) throw new Error("Rate limit reached. Try again in a moment.");
-        if (aiRes.status === 402) throw new Error("AI credits exhausted.");
-        throw new Error(`AI error: ${errText.slice(0, 200)}`);
-      }
-      const json = await aiRes.json();
-      const msgOut = json?.choices?.[0]?.message;
-      const imgUrl: string | undefined = msgOut?.images?.[0]?.image_url?.url ?? msgOut?.images?.[0]?.url;
-      if (!imgUrl) throw new Error("No image returned from model");
-      const m = imgUrl.match(/^data:(.+?);base64,(.+)$/);
-      if (!m) throw new Error("Unexpected image format");
-      const mime = m[1];
-      const ext = mime.split("/")[1]?.split("+")[0] || "png";
-      const bytes = Buffer.from(m[2], "base64");
+      const { bytes, mime } = await fetchToBytes(out.url);
+      const ext = (mime || "image/png").split("/")[1]?.split("+")[0] || "png";
       const path = `${userId}/results/${row.id}.${ext}`;
       const { error: upErr } = await supabase.storage
         .from("studio")
-        .upload(path, bytes, { contentType: mime, upsert: true });
+        .upload(path, bytes, { contentType: mime || "image/png", upsert: true });
       if (upErr) throw new Error(upErr.message);
       const publicUrl = supabase.storage.from("studio").getPublicUrl(path).data.publicUrl;
       await supabase.from("generations").update({ status: "complete", result_image_url: publicUrl }).eq("id", row.id);

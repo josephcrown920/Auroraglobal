@@ -16,16 +16,36 @@ The prediction paths (`POST /models/{owner}/{name}/predictions`, `GET /predictio
 identical on the real Replicate API, so only the base URL + auth header change.
 
 **Also check** for features hardcoded to `ai.gateway.lovable.dev` with a `Lovable-API-Key` header.
-In this app those are the Google-Gemini image features (default photo style, Split Reality, Visual
-Edit) and they bypass the provider orchestrator entirely — they need a Lovable key OR a direct
-`GEMINI_API_KEY` to run independent. Also note: the studio image flow only routes NON-Lovable
-models through the orchestrator, so the default model must be a Replicate one for "generate" to work
-without a Lovable key.
+In this app those WERE the Google-Gemini image features (default photo style, Split Reality, Visual
+Edit) — they used to bypass the orchestrator and call the Lovable gateway directly. They have since
+been rewritten to route ALL image generation through `orchestrate({kind:"image"})`, and the studio
+default image model is a Replicate one (`google/nano-banana`), so "generate" works on the Replicate
+key alone. A Gemini/Lovable key is now optional (used first only if the user picks a Gemini model).
+
+**Model + provider fallback design (orchestrator.server.ts):** two layers. (1) PROVIDER chain per
+model (gemini→hf→replicate→lovable→gpu→fal, gated by `supports()`); (2) MODEL candidates —
+`getCandidateModels()` = [requested, ...FALLBACK_MODELS[kind]] deduped + capped (image 3, video 2,
+lipsync 2). `orchestrate()` outer-loops candidate models, inner-loops the provider chain, first
+success wins.
+- **Gotcha (cost a rev to find):** most candidate models share ONE provider (Replicate). The health
+  circuit-breaker (`markFailure`→cooldown→`isHealthy`) will skip that shared provider for the rest of
+  the SAME request after the first model fails, silently defeating model fallback. Fix: snapshot
+  `isHealthy` ONCE at the top of `orchestrate()` and filter candidates against that snapshot; and
+  only `markFailure` on real provider-down signals (5xx/429/402/timeout), not model-input errors.
+- Keep `FATAL_RE` (abort-early) to REQUEST-level problems only (unsafe/invalid URL, "not your"). Do
+  NOT put provider auth (401/403) there — a bad Gemini/Lovable key must fall THROUGH to Replicate.
+- **Per-model Replicate input schemas differ** — build inputs per-model (a `build(r)` fn per entry),
+  never a shared shape. Verify each with `GET https://api.replicate.com/v1/models/{owner}/{name}`:
+  seedance=image+integer duration; kling=start_image+enum duration; wan-i2v=image+enum duration;
+  veo/sora omit duration (image/input_reference optional); nano-banana/seedream=image_input[] array.
 
 **Gotchas:**
 - Replicate `Prefer: wait` long-poll is killed by Cloudflare with a 502 after ~30-60s from this
   environment. Use create + poll (short requests) instead — which is what the app code does.
-- A valid `r8_…` token can still 402 ("insufficient credit") — key validity ≠ funded account.
+- A valid `r8_…` token can still 402 ("insufficient credit") — key validity ≠ funded account. A
+  402 (not 401/422) on a smoke test confirms the key+input are valid and only billing is missing.
+- **No free video.** WAN / Veo / Sora / Kling / Seedance all cost real Replicate credit. Only
+  Gemini free-tier, HuggingFace, or Lovable-credit image paths are cheap/free. Tell the user this.
 - The `code_execution` sandbox has no `process.env` and no `python3`; validate secret-using calls
   from the bash shell with `node` for parsing. Secrets ARE present in the bash shell env.
 
