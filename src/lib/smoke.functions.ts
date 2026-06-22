@@ -111,7 +111,7 @@ export const runSmokeTest = createServerFn({ method: "POST" })
           imageUrls: [imageUrl!],
           duration: 5,
           resolution: "480p",
-          model: "kling-v2.1",
+          model: "seedance-2.0-fast",
           userId: context.userId,
           refId: run.id,
         });
@@ -185,19 +185,20 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       await writeCheck(run.id, 7, STEPS[6], r7);
       total += r7.cost_usd;
 
-      // 8. Motion control — Kling video gen with start+end frame interpolation
+      // 8. Motion control — Seedance image-to-video (animates from the start frame).
+      // Note: true start+end-frame interpolation is a Kling-only feature; Seedance uses the first frame.
       const r8 = imageUrl ? await runStep(async () => {
         const out = await orchestrate({
           kind: "video",
-          prompt: "smoke test: motion control — smooth interpolation between start and end frame, cinematic",
-          imageUrls: [imageUrl!, imageUrl!], // start + end (same frame is a valid smoke check)
+          prompt: "smoke test: motion control — cinematic motion from the reference frame",
+          imageUrls: [imageUrl!],
           duration: 5,
           resolution: "480p",
-          model: "kling-v2.1",
+          model: "seedance-2.0-fast",
           userId: context.userId,
           refId: run.id,
         });
-        return { url: out.url, cost: out.costUsd, raw: { provider: out.provider, mode: "start+end-frame" } };
+        return { url: out.url, cost: out.costUsd, raw: { provider: out.provider, mode: "seedance-i2v" } };
       }) : { status: "skip" as const, latency_ms: 0, cost_usd: 0, error: "Skipped — image gen failed" };
       await writeCheck(run.id, 8, STEPS[7], r8);
       total += r8.cost_usd;

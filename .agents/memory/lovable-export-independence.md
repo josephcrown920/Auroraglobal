@@ -85,3 +85,18 @@ stacked opacity-transition slideshow (captures mid-load). Don't trust it alone �
 assets return 200 + `image/*` content-type via the dev domain, `file --mime-type` on disk shows only
 real media (no HTML error pages saved), and a STATIC image-grid page (e.g. a UGC avatar grid)
 renders cleanly.
+
+## Real video/lipsync provider = Replicate (NOT fal) + per-clip cost
+
+The video models advertise `fal-ai/...` endpoint strings in `models.ts`, but the orchestrator's
+`REPLICATE_MAP` keys off the model VALUE and runs them on **Replicate** slugs. With only
+`REPLICATE_API_KEY` set (no `FAL_KEY`/`KLING_*`), the video chain `[klingDirect, replicate, …]` lands
+on the `replicate` adapter. So ONE Replicate key powers image + video + lipsync. Price with
+Replicate's rates, not fal's.
+- `seedance-2.0` → `bytedance/seedance-1-pro` ≈ **$0.12–0.15/sec** (~$0.60–0.75 per 5s clip).
+- `seedance-2.0-fast` → `bytedance/seedance-1-lite` ≈ **~$0.01/sec** (~$0.05 per 5s clip) — ~13× cheaper.
+- `kling-3.0/omni` → `kwaivgi/kling-v2.1[-master]`; only Kling builds pass `end_image` (true
+  start+end-frame "motion control" is Kling-only — Seedance just animates the first frame).
+- image `google/nano-banana` ≈ $0.04; lipsync `sync/sync-1.6.0` billed by GPU time (~$0.1–0.3/short clip).
+**Why:** an earlier cost estimate in this project quoted fal's Seedance prices (~$0.18/720p), which is
+wrong for this app — it bills Replicate. For cheap testing/default, prefer `seedance-2.0-fast`.
