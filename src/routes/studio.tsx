@@ -767,7 +767,7 @@ function StudioPage() {
                   <span className="opacity-50">·</span>
                   ETA: <span className="text-foreground font-medium">~60–180s</span>
                 </span>
-                <span className="opacity-70">{videoModel.startsWith("kling") ? "Kling 3.0" : "Seedance 2.0"}</span>
+                <span className="opacity-70">{getModelMeta(videoModel).short}</span>
               </div>
               <Button disabled={videoMut.isPending} onClick={() => videoMut.mutate()} variant="secondary" className="w-full">
                 {videoMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Rendering video…</> : <><Film className="size-4 mr-2" /> Generate video · 5 Aurora</>}

@@ -136,7 +136,7 @@ const VideoSchema = z.object({
   prompt: z.string().min(2).max(1000),
   duration: z.number().int().min(3).max(12).default(5),
   resolution: z.enum(["480p", "720p", "1080p"]).default("720p"),
-  modelKey: z.string().default("seedance-2.0"),
+  modelKey: z.string().default("seedance-2.0-fast"),
   /** Optional motion / camera control preset (e.g. zoom_in, pan_left, orbit). */
   cameraMovement: z.string().max(40).optional().nullable(),
   /** Optional end-frame image URL (Kling supports start+end frame interpolation). */

@@ -109,7 +109,9 @@ function klingJwt(accessKey: string, secretKey: string): string {
 const KLING_BASE = "https://api.klingai.com";
 const klingDirect: ProviderAdapter = {
   name: "kling",
-  supports: (r) => r.kind === "video" && !!process.env.KLING_ACCESS_KEY && !!process.env.KLING_SECRET_KEY,
+  // Only handle EXPLICIT Kling model requests — never hijack a Seedance/Veo/Sora
+  // video request just because Kling creds happen to be set (would silently cost more).
+  supports: (r) => r.kind === "video" && (r.model?.startsWith("kling") ?? false) && !!process.env.KLING_ACCESS_KEY && !!process.env.KLING_SECRET_KEY,
   estimateCost: () => 0.30,
   async run(r) {
     const token = klingJwt(process.env.KLING_ACCESS_KEY!, process.env.KLING_SECRET_KEY!);
@@ -359,9 +361,9 @@ const REPLICATE_MAP: Record<string, ReplicateEntry> = {
   "replicate/flux-schnell": { slug: "black-forest-labs/flux-schnell", kind: "image", cost: 0.003,
     build: (r) => ({ prompt: r.prompt ?? "" }) },
   // ── video (image-to-video) ──
-  "seedance-2.0":           { slug: "bytedance/seedance-1-pro",      kind: "video", cost: 0.40,
+  "seedance-2.0":           { slug: "bytedance/seedance-1-pro",      kind: "video", cost: 0.65,
     build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { image: firstImg(r) } : {}), duration: durInt(r.duration) }) },
-  "seedance-2.0-fast":      { slug: "bytedance/seedance-1-lite",     kind: "video", cost: 0.20,
+  "seedance-2.0-fast":      { slug: "bytedance/seedance-1-lite",     kind: "video", cost: 0.05,
     build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { image: firstImg(r) } : {}), duration: durInt(r.duration) }) },
   "wan-2.5":                { slug: "wan-video/wan-2.5-i2v",         kind: "video", cost: 0.45,
     build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { image: firstImg(r) } : {}), duration: durEnum(r.duration) }) },

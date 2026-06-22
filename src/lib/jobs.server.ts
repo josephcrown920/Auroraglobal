@@ -104,7 +104,7 @@ async function runTiktokRemixChild(job: JobRow) {
     imageUrls: p.sourceImageUrl ? [p.sourceImageUrl] : undefined,
     videoUrl: p.sourceVideoUrl,
     duration: p.duration ?? 5,
-    model: "kling-3.0",
+    model: "seedance-2.0-fast",
     userId: job.user_id,
     refId: job.id,
   });

@@ -93,7 +93,7 @@ function UGCStudio() {
     mutationFn: async () => {
       if (!resultImage) throw new Error("Generate the shot first.");
       const prompt = `${preset.name}: ${productPrompt.trim()}. Natural micro-movements, subtle handheld, lifelike expression. Avatar: ${avatar.name}.`;
-      return await genVid({ data: { imageUrl: resultImage, prompt, duration: 5, resolution: "720p", modelKey: "seedance-2.0" } });
+      return await genVid({ data: { imageUrl: resultImage, prompt, duration: 5, resolution: "720p", modelKey: "seedance-2.0-fast" } });
     },
     onSuccess: (r) => { if (r?.videoUrl) setResultVideo(r.videoUrl); toast.success("UGC video rendered."); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Video failed"),
