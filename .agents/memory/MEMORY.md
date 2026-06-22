@@ -1,2 +1,3 @@
 - [Replit vite sandbox binding](replit-vite-sandbox.md) — Lovable vite-tanstack-config binds IPv6 `::` (sandbox fails) & blocks the proxy host; fix via vite passthrough host:0.0.0.0 + allowedHosts:true.
 - [Replit secrets mirroring](replit-secrets-mirroring.md) — secret values can't be read/copied; request public or duplicated values as env-type (readable) so they can be mirrored into other env names.
+- [Lovable overlapping snapshot migrations](lovable-overlapping-snapshot-migrations.md) — Lovable exports interleave multiple full-rebuild snapshots → linear `supabase db push` collides; baseline everything before the LAST snapshot as applied, then push snapshot+deltas.
