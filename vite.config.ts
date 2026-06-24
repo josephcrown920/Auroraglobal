@@ -18,6 +18,24 @@ export default defineConfig({
     server: {
       host: "0.0.0.0",
       allowedHosts: true,
+      // Sandbox has a 65k inotify watch ceiling. Vite/TanStack otherwise watch the
+      // entire repo (node_modules ~36k files, backups, vcs) and exhaust it, which
+      // breaks sibling dev servers (e.g. the Expo mobile artifact). Watching source
+      // is all we need for HMR; node_modules is excluded by Vite's default anyway.
+      watch: {
+        ignored: [
+          "**/node_modules/**",
+          "**/.git/**",
+          "**/artifacts/**",
+          "**/.scaffold-backup/**",
+          "**/.local/**",
+          "**/dist/**",
+          "**/dist-ssr/**",
+          "**/.tanstack/**",
+          "**/.cache/**",
+          "**/.wrangler/**",
+        ],
+      },
     },
   },
 });
