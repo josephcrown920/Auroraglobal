@@ -30,15 +30,19 @@ export const upsertWorker = createServerFn({ method: "POST" })
     priority: z.number().int().default(100),
     max_concurrency: z.number().int().min(1).max(64).default(4),
     status: z.enum(["active", "paused", "draining"]).default("active"),
+    protocol: z.enum(["custom", "runpod"]).default("custom"),
+    worker_role: z.enum(["comfyui", "kling", "lipsync", "motion", ""]).optional().nullable().transform(v => v || null),
   }).parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     if (data.id) {
       const { id, ...patch } = data;
-      await supabaseAdmin.from("gpu_workers").update(patch).eq("id", id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await supabaseAdmin.from("gpu_workers").update(patch as any).eq("id", id);
       return { id };
     }
-    const { data: row } = await supabaseAdmin.from("gpu_workers").insert(data).select("id").single();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: row } = await supabaseAdmin.from("gpu_workers").insert(data as any).select("id").single();
     return { id: row?.id };
   });
 

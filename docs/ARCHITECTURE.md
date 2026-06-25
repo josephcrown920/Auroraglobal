@@ -22,14 +22,38 @@ The agent (`src/lib/agent.functions.ts`) uses this for structured JSON outputs.
 
 ## Media orchestrator
 
-`src/lib/orchestrator.server.ts` routes `image | video | lipsync | upscale` requests to:
+`src/lib/orchestrator.server.ts` routes `image | video | lipsync | upscale` requests through a priority chain (tried in order per kind):
 
-1. **Lovable AI** (image gen via gateway)
-2. **fal.ai** (Seedance, Seedream, Kling endpoints mapped in `FAL_ENDPOINTS`)
-3. **GPU workers** (rows in `gpu_workers`, dispatched to their `/generate` endpoint, tracked in `worker_jobs`)
-4. **Replicate / RunPod** (placeholder adapters)
+| Kind | Chain |
+|------|-------|
+| image | Gemini direct → HuggingFace → Replicate → Lovable → GPU workers → Fal |
+| video | Kling direct → Replicate → GPU workers → Fal |
+| lipsync | Sync.so → HeyGen → Replicate → GPU workers → Fal |
+| upscale | Replicate → GPU workers → Fal |
 
-Each provider has in-memory health tracking with cooldown on failure. Every attempt is logged to `provider_logs` with latency + cost.
+Each provider has in-memory health tracking with exponential cooldown on failure. Every attempt is logged to `provider_logs` with latency + cost. A model-level fallback list (`FALLBACK_MODELS`) re-tries cheaper same-kind models before giving up.
+
+### GPU worker pool (`gpu_workers` table)
+
+Workers are registered through `/admin` and dispatched by the `gpuWorker` adapter. Two request contracts are supported, selected per-worker via the `protocol` column:
+
+| `protocol` | Request shape | Response |
+|---|---|---|
+| `custom` (default) | `POST /generate` flat JSON body | `{ url }` |
+| `runpod` | `POST /runsync` (preferred) or `POST /run` + `GET /status/{id}` with `{ input: { kind, prompt, image_urls, audio_url, video_url, model, duration, resolution } }` | RunPod output shape |
+
+Both styles coexist in the same registry and failover chain. Use `priority` to model the Python pipeline's primary → dedicated → serverless ordering: dedicated workers at lower priority numbers, serverless/auto-scale endpoints at higher priority (e.g. 200) so they act as the last-resort tier.
+
+**Worker roles** (optional `worker_role` column) map to capabilities as follows — this is a display/routing hint; capabilities drive actual routing:
+
+| `worker_role` | capabilities |
+|---|---|
+| `comfyui` | image, upscale |
+| `kling` | video |
+| `lipsync` | lipsync |
+| `motion` | video |
+
+**Health tracking** is lazy/at-dispatch: workers whose `last_heartbeat` is older than 5 minutes are skipped. No background daemon is needed — the admin "Ping" button and successful/failed dispatches both refresh the heartbeat. `auth_token` RLS is preserved (revoked from `authenticated` and `anon`).
 
 ## Payments
 

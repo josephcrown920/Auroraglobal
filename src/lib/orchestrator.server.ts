@@ -445,6 +445,102 @@ const huggingface: ProviderAdapter = {
 };
 
 // ─── GPU worker pool ─────────────────────────────────────────────────────────
+// Supports two request contracts selectable per worker via the `protocol` column:
+//
+//  custom  (default) — POST /generate with flat body → { url }
+//  runpod            — POST /runsync (or /run + status polling) with
+//                      { input: { kind, prompt, image_urls, audio_url,
+//                                 video_url, model, duration, resolution } }
+//
+// Worker roles (comfyui → image/upscale, kling → video, lipsync, motion → video)
+// are expressed through the existing capabilities column. The worker_role column
+// is a display/routing hint only — routing still uses capabilities.
+//
+// Health staleness: workers whose last_heartbeat is older than STALE_MS are
+// skipped at dispatch time (lazy check — no background daemon required).
+
+const STALE_MS = 5 * 60_000; // 5 minutes
+
+/** Extract an output URL from either a custom or RunPod response shape. */
+function extractWorkerUrl(json: unknown): string | undefined {
+  if (!json || typeof json !== "object") return undefined;
+  const j = json as Record<string, unknown>;
+  // Custom /generate shape
+  if (typeof j.url === "string") return j.url;
+  if (typeof j.output_url === "string") return j.output_url;
+  // RunPod /runsync / /run status shape: output may be a string, an object with url, or similar
+  const out = j.output ?? j.outputs;
+  if (typeof out === "string") return out;
+  if (out && typeof out === "object") {
+    const o = out as Record<string, unknown>;
+    if (typeof o.url === "string") return o.url;
+    if (typeof o.video_url === "string") return o.video_url;
+    if (typeof o.image_url === "string") return o.image_url;
+    if (typeof o.image === "string") return o.image;
+    // output may be an array of URLs
+    if (Array.isArray(out) && typeof out[0] === "string") return out[0];
+  }
+  return undefined;
+}
+
+/** Send via RunPod native contract: tries /runsync first; falls back to /run + polling. */
+async function runpodDispatch(
+  baseUrl: string,
+  authToken: string | null,
+  input: Record<string, unknown>,
+  timeoutMs = 300_000,
+): Promise<string> {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (authToken) headers.authorization = `Bearer ${authToken}`;
+
+  // Prefer /runsync (synchronous) — simpler and sufficient for dedicated endpoints.
+  const runsyncRes = await fetch(baseUrl + "/runsync", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ input }),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+
+  if (runsyncRes.ok) {
+    const json = await runsyncRes.json();
+    const url = extractWorkerUrl(json);
+    if (url) return url;
+    throw new Error(`RunPod /runsync: no output url in response`);
+  }
+
+  // /runsync not available (404/405) — fall back to async /run + status polling.
+  if (runsyncRes.status !== 404 && runsyncRes.status !== 405) {
+    throw new Error(`RunPod /runsync ${runsyncRes.status}: ${(await runsyncRes.text()).slice(0, 200)}`);
+  }
+
+  const runRes = await fetch(baseUrl + "/run", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ input }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!runRes.ok) throw new Error(`RunPod /run ${runRes.status}: ${(await runRes.text()).slice(0, 200)}`);
+  const runJson = (await runRes.json()) as { id?: string };
+  const jobId = runJson.id;
+  if (!jobId) throw new Error("RunPod /run: no job id returned");
+
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    await new Promise((s) => setTimeout(s, 4_000));
+    const statusRes = await fetch(baseUrl + `/status/${jobId}`, { headers, signal: AbortSignal.timeout(10_000) });
+    if (!statusRes.ok) continue;
+    const statusJson = await statusRes.json() as { status?: string; output?: unknown; error?: string };
+    const status = statusJson.status;
+    if (status === "COMPLETED") {
+      const url = extractWorkerUrl({ output: statusJson.output });
+      if (url) return url;
+      throw new Error("RunPod /run: COMPLETED but no output url");
+    }
+    if (status === "FAILED") throw new Error(`RunPod job failed: ${statusJson.error ?? "unknown"}`);
+  }
+  throw new Error("RunPod /run: poll timeout");
+}
+
 const gpuWorker: ProviderAdapter = {
   name: "runpod",
   supports: (r) => ["image", "video", "lipsync", "upscale"].includes(r.kind),
@@ -457,31 +553,47 @@ const gpuWorker: ProviderAdapter = {
       .contains("capabilities", [r.kind])
       .order("priority", { ascending: true })
       .order("in_flight", { ascending: true })
-      .limit(5);
+      .limit(10);
     if (!workers || workers.length === 0) throw new Error("No GPU workers available");
+    const now = Date.now();
     let lastErr: Error | null = null;
     for (const w of workers) {
       if (w.in_flight >= w.max_concurrency) continue;
+      // Lazy heartbeat staleness check: skip workers that haven't been pinged recently.
+      if (w.last_heartbeat && now - new Date(w.last_heartbeat).getTime() > STALE_MS) continue;
       const started = Date.now();
+      const protocol: string = (w as Record<string, unknown>).protocol as string ?? "custom";
+      const baseUrl = w.endpoint_url.replace(/\/$/, "");
       try {
         await supabaseAdmin.from("gpu_workers").update({ in_flight: w.in_flight + 1 }).eq("id", w.id);
-        const res = await fetch(w.endpoint_url.replace(/\/$/, "") + "/generate", {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            ...(w.auth_token ? { authorization: `Bearer ${w.auth_token}` } : {}),
-          },
-          body: JSON.stringify({
+        let url: string;
+        if (protocol === "runpod") {
+          const input: Record<string, unknown> = {
             kind: r.kind, prompt: r.prompt, image_urls: r.imageUrls,
             audio_url: r.audioUrl, video_url: r.videoUrl,
             model: r.model, duration: r.duration, resolution: r.resolution,
-          }),
-          signal: AbortSignal.timeout(300_000),
-        });
-        if (!res.ok) throw new Error(`worker ${w.name} -> ${res.status}`);
-        const json = (await res.json()) as { url?: string; output_url?: string };
-        const url = json.url ?? json.output_url;
-        if (!url) throw new Error(`worker ${w.name} returned no url`);
+          };
+          url = await runpodDispatch(baseUrl, w.auth_token ?? null, input);
+        } else {
+          const res = await fetch(baseUrl + "/generate", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              ...(w.auth_token ? { authorization: `Bearer ${w.auth_token}` } : {}),
+            },
+            body: JSON.stringify({
+              kind: r.kind, prompt: r.prompt, image_urls: r.imageUrls,
+              audio_url: r.audioUrl, video_url: r.videoUrl,
+              model: r.model, duration: r.duration, resolution: r.resolution,
+            }),
+            signal: AbortSignal.timeout(300_000),
+          });
+          if (!res.ok) throw new Error(`worker ${w.name} -> ${res.status}`);
+          const json = await res.json();
+          const extracted = extractWorkerUrl(json);
+          if (!extracted) throw new Error(`worker ${w.name} returned no url`);
+          url = extracted;
+        }
         await supabaseAdmin.from("worker_jobs").insert({
           worker_id: w.id, user_id: r.userId ?? null, kind: r.kind,
           status: "ok", latency_ms: Date.now() - started, ref_id: r.refId ?? null,
