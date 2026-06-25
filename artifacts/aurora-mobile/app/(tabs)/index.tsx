@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
 import { ActivityIndicator, FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -12,19 +13,40 @@ import { useColors } from "@/hooks/useColors";
 
 const TAB_BAR_H = Platform.OS === "ios" ? 88 : 68;
 
+const KIND_EMOJI: Record<string, string> = {
+  image: "🎨",
+  video: "🎬",
+  lipsync: "🎭",
+  upscale: "⬆️",
+};
+
 function GenerationCard({ item }: { item: GenerationRow }) {
   const C = useColors();
   const imgUrl = item.result_image_url ?? null;
+  const vidUrl = item.result_video_url ?? null;
   const succeeded = item.status === "succeeded";
+  const emoji = KIND_EMOJI[item.kind] ?? "✨";
+
   return (
     <View style={[styles.card, { backgroundColor: C.card, borderColor: C.border }]}>
+      {/* Thumbnail / placeholder */}
       {imgUrl ? (
         <Image source={{ uri: imgUrl }} style={styles.cardImage} contentFit="cover" transition={300} />
+      ) : vidUrl ? (
+        <Pressable
+          style={[styles.cardImage, styles.videoThumb, { backgroundColor: C.secondary }]}
+          onPress={() => Linking.openURL(vidUrl)}
+        >
+          <Text style={styles.thumbEmoji}>{emoji}</Text>
+          <Text style={[styles.thumbLabel, { color: C.primary }]}>▶ Play</Text>
+        </Pressable>
       ) : (
-        <View style={[styles.cardImage, { backgroundColor: C.secondary, alignItems: "center", justifyContent: "center" }]}>
-          <Text style={{ fontSize: 28 }}>{succeeded ? "🎨" : "⏳"}</Text>
+        <View style={[styles.cardImage, styles.videoThumb, { backgroundColor: C.secondary }]}>
+          <Text style={styles.thumbEmoji}>{succeeded ? emoji : "⏳"}</Text>
         </View>
       )}
+
+      {/* Meta */}
       <View style={styles.cardBody}>
         {!!item.prompt && (
           <Text style={[styles.cardPrompt, { color: C.foreground }]} numberOfLines={2}>
@@ -93,10 +115,7 @@ export default function GalleryScreen() {
           <Text style={[styles.statusText, { color: C.destructive }]}>
             {error instanceof Error ? error.message : "Failed to load"}
           </Text>
-          <Pressable
-            onPress={() => refetch()}
-            style={[styles.actionBtn, { backgroundColor: C.secondary }]}
-          >
+          <Pressable onPress={() => refetch()} style={[styles.actionBtn, { backgroundColor: C.secondary }]}>
             <Text style={{ color: C.primary, fontFamily: "Inter_500Medium" }}>Try again</Text>
           </Pressable>
         </View>
@@ -105,7 +124,7 @@ export default function GalleryScreen() {
           <Text style={{ fontSize: 52 }}>🎨</Text>
           <Text style={[styles.emptyTitle, { color: C.foreground }]}>No creations yet</Text>
           <Text style={[styles.emptySubtitle, { color: C.mutedForeground }]}>
-            Tap Create to generate your first image
+            Tap Create to generate your first image, video, or lipsync
           </Text>
           <Pressable
             onPress={() => router.push("/(tabs)/create")}
@@ -152,6 +171,9 @@ const styles = StyleSheet.create({
   actionBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10, marginTop: 8 },
   card: { flex: 1, borderRadius: 12, borderWidth: 1, overflow: "hidden" },
   cardImage: { width: "100%", aspectRatio: 1 },
+  videoThumb: { alignItems: "center", justifyContent: "center", gap: 6 },
+  thumbEmoji: { fontSize: 36 },
+  thumbLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
   cardBody: { padding: 10, gap: 6 },
   cardPrompt: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 16 },
   cardMeta: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
