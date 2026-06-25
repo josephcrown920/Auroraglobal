@@ -20,6 +20,10 @@ author = "agent"
 task = "workflow.run"
 args = "Start application"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Aurora Mobile"
+
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
@@ -31,6 +35,17 @@ outputType = "webview"
 task = "shell.exec"
 args = "bunx vite dev --host 0.0.0.0 --port 8080"
 waitForPort = 8080
+
+[[workflows.workflow]]
+name = "Aurora Mobile"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd artifacts/aurora-mobile && PORT=8099 bun run dev"
 
 [agent]
 stack = "PNPM_WORKSPACE"
@@ -56,3 +71,5 @@ SUPABASE_URL = "https://tpzmvbczwahxajujvnrq.supabase.co"
 VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_SGO6FEm9zbgYEOsFqlSX8Q_dFVMJf4x"
 SUPABASE_PUBLISHABLE_KEY = "sb_publishable_SGO6FEm9zbgYEOsFqlSX8Q_dFVMJf4x"
 SUPABASE_ANON_KEY = "sb_publishable_SGO6FEm9zbgYEOsFqlSX8Q_dFVMJf4x"
+EXPO_PUBLIC_SUPABASE_URL = "https://tpzmvbczwahxajujvnrq.supabase.co"
+EXPO_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_SGO6FEm9zbgYEOsFqlSX8Q_dFVMJf4x"
