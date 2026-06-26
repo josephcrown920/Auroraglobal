@@ -32,6 +32,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as RTokenRouteImport } from './routes/r.$token'
 import { Route as LegalSlugRouteImport } from './routes/legal.$slug'
 import { Route as CliAuthorizeRouteImport } from './routes/cli.authorize'
+import { Route as ApiMcpRouteImport } from './routes/api/mcp'
 import { Route as AdminSmokeRouteImport } from './routes/admin.smoke'
 import { Route as AdminOrchestrationRouteImport } from './routes/admin.orchestration'
 import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/public/paystack-webhook'
@@ -155,6 +156,11 @@ const CliAuthorizeRoute = CliAuthorizeRouteImport.update({
   path: '/cli/authorize',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMcpRoute = ApiMcpRouteImport.update({
+  id: '/api/mcp',
+  path: '/api/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminSmokeRoute = AdminSmokeRouteImport.update({
   id: '/smoke',
   path: '/smoke',
@@ -215,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/workflows': typeof WorkflowsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
   '/admin/smoke': typeof AdminSmokeRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/cli/authorize': typeof CliAuthorizeRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/r/$token': typeof RTokenRoute
@@ -247,6 +254,7 @@ export interface FileRoutesByTo {
   '/workflows': typeof WorkflowsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
   '/admin/smoke': typeof AdminSmokeRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/cli/authorize': typeof CliAuthorizeRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/r/$token': typeof RTokenRoute
@@ -280,6 +288,7 @@ export interface FileRoutesById {
   '/workflows': typeof WorkflowsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
   '/admin/smoke': typeof AdminSmokeRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/cli/authorize': typeof CliAuthorizeRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/r/$token': typeof RTokenRoute
@@ -314,6 +323,7 @@ export interface FileRouteTypes {
     | '/workflows'
     | '/admin/orchestration'
     | '/admin/smoke'
+    | '/api/mcp'
     | '/cli/authorize'
     | '/legal/$slug'
     | '/r/$token'
@@ -346,6 +356,7 @@ export interface FileRouteTypes {
     | '/workflows'
     | '/admin/orchestration'
     | '/admin/smoke'
+    | '/api/mcp'
     | '/cli/authorize'
     | '/legal/$slug'
     | '/r/$token'
@@ -378,6 +389,7 @@ export interface FileRouteTypes {
     | '/workflows'
     | '/admin/orchestration'
     | '/admin/smoke'
+    | '/api/mcp'
     | '/cli/authorize'
     | '/legal/$slug'
     | '/r/$token'
@@ -409,6 +421,7 @@ export interface RootRouteChildren {
   TiktokRoute: typeof TiktokRoute
   UgcRoute: typeof UgcRoute
   WorkflowsRoute: typeof WorkflowsRoute
+  ApiMcpRoute: typeof ApiMcpRoute
   CliAuthorizeRoute: typeof CliAuthorizeRoute
   LegalSlugRoute: typeof LegalSlugRoute
   RTokenRoute: typeof RTokenRoute
@@ -582,6 +595,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CliAuthorizeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mcp': {
+      id: '/api/mcp'
+      path: '/api/mcp'
+      fullPath: '/api/mcp'
+      preLoaderRoute: typeof ApiMcpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/smoke': {
       id: '/admin/smoke'
       path: '/smoke'
@@ -667,6 +687,7 @@ const rootRouteChildren: RootRouteChildren = {
   TiktokRoute: TiktokRoute,
   UgcRoute: UgcRoute,
   WorkflowsRoute: WorkflowsRoute,
+  ApiMcpRoute: ApiMcpRoute,
   CliAuthorizeRoute: CliAuthorizeRoute,
   LegalSlugRoute: LegalSlugRoute,
   RTokenRoute: RTokenRoute,

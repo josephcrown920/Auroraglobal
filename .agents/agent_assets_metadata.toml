@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "uuVDpq4W7VbbIZdWQslyD"
+uri = "file://notebooks/hybrid_ai_inference_colab.zip"
+type = "unspecified"
+title = "Hybrid AI Inference Engine — Colab Notebook (.ipynb in zip)"
