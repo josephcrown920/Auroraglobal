@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { probeWorkerHealth } from "@/lib/gpu-worker-health";
 import { z } from "zod";
 
 async function assertAdmin(userId: string) {
@@ -35,17 +36,19 @@ export const upsertWorker = createServerFn({ method: "POST" })
     status: z.enum(["active", "paused", "draining"]).default("active"),
     // RunPod-native contract opt-in (defaults keep legacy POST /generate workers working).
     protocol: z.enum(["custom", "runpod"]).default("custom"),
-    worker_role: z.enum(["comfyui", "kling", "lipsync", "motion"]).optional().nullable(),
+    worker_role: z.enum(["comfyui", "kling", "lipsync", "motion", ""]).optional().nullable().transform(v => v || null),
     runpod_sync: z.boolean().default(false),
   }).parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     if (data.id) {
       const { id, ...patch } = data;
-      await supabaseAdmin.from("gpu_workers").update(patch).eq("id", id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await supabaseAdmin.from("gpu_workers").update(patch as any).eq("id", id);
       return { id };
     }
-    const { data: row } = await supabaseAdmin.from("gpu_workers").insert(data).select("id").single();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: row } = await supabaseAdmin.from("gpu_workers").insert(data as any).select("id").single();
     return { id: row?.id };
   });
 
@@ -66,18 +69,16 @@ export const pingWorker = createServerFn({ method: "POST" })
     const { data: w } = await supabaseAdmin.from("gpu_workers").select("*").eq("id", data.id).single();
     if (!w) throw new Error("Not found");
     const started = Date.now();
-    try {
-      const res = await fetch(w.endpoint_url.replace(/\/$/, "") + "/health", {
-        headers: w.auth_token ? { authorization: `Bearer ${w.auth_token}` } : {},
-        signal: AbortSignal.timeout(8_000),
-      });
-      const ok = res.ok;
-      await supabaseAdmin.from("gpu_workers").update({
-        last_heartbeat: new Date().toISOString(),
-        status: ok ? "active" : "paused",
-      }).eq("id", w.id);
-      return { ok, status: res.status, latency_ms: Date.now() - started };
-    } catch (e) {
-      return { ok: false, error: e instanceof Error ? e.message : String(e), latency_ms: Date.now() - started };
+    const result = await probeWorkerHealth(w);
+    const latency_ms = Date.now() - started;
+    // Network error / timeout: no response received — report without flipping
+    // the stored status (we can't tell active vs paused from a transient blip).
+    if (result.unreachable) {
+      return { ok: false, error: result.error, latency_ms };
     }
+    await supabaseAdmin.from("gpu_workers").update({
+      last_heartbeat: new Date().toISOString(),
+      status: result.ok ? "active" : "paused",
+    }).eq("id", w.id);
+    return { ok: result.ok, status: result.status, detail: result.detail, error: result.error, latency_ms };
   });

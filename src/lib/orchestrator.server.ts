@@ -485,6 +485,8 @@ function extractWorkerUrl(payload: unknown, depth = 0): string | undefined {
   return undefined;
 }
 
+const STALE_MS = 5 * 60_000; // 5 minutes
+
 // Flat job params shared by both contracts (runpod wraps these under `input`).
 function workerInput(r: GenerateRequest): Record<string, unknown> {
   return {
@@ -565,17 +567,20 @@ const gpuWorker: ProviderAdapter = {
       .contains("capabilities", [r.kind])
       .order("priority", { ascending: true })
       .order("in_flight", { ascending: true })
-      .limit(5);
+      .limit(10);
     if (!workers || workers.length === 0) throw new Error("No GPU workers available");
-    let lastErr: Error | null = null;
-    for (const w of workers) {
-      if (w.in_flight >= w.max_concurrency) continue;
-      const started = Date.now();
-      try {
-        await supabaseAdmin.from("gpu_workers").update({ in_flight: w.in_flight + 1 }).eq("id", w.id);
-        const base = w.endpoint_url.replace(/\/$/, "");
-        const deadline = started + WORKER_TIMEOUT_MS;
-        const payload = w.protocol === "runpod"
+      const now = Date.now();
+      let lastErr: Error | null = null;
+      for (const w of workers) {
+        if (w.in_flight >= w.max_concurrency) continue;
+        // Lazy heartbeat staleness check: skip workers that haven't been pinged recently.
+        if (w.last_heartbeat && now - new Date(w.last_heartbeat).getTime() > STALE_MS) continue;
+        const started = Date.now();
+        try {
+          await supabaseAdmin.from("gpu_workers").update({ in_flight: w.in_flight + 1 }).eq("id", w.id);
+          const base = w.endpoint_url.replace(/\/$/, "");
+          const deadline = started + WORKER_TIMEOUT_MS;
+          const payload = w.protocol === "runpod"
           ? await dispatchRunpod(base, w, r, deadline)
           : await dispatchCustom(base, w, r, deadline);
         const url = extractWorkerUrl(payload)
