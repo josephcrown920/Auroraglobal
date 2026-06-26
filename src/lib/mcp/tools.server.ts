@@ -1,0 +1,305 @@
+// Aurora MCP tool implementations, wired into THIS app's real backend.
+//
+// - Single items (generate_video, image_to_video) self-POST to the synchronous
+//   /api/public/generate endpoint with the caller's bearer token, so all credit
+//   reservation, SSRF guarding and audit logging happen in one place. The result
+//   URL is returned directly (no polling).
+// - bulk_generate enqueues onto the existing public.jobs queue via the
+//   create_generation_and_reserve RPC (atomic credit reservation + generations
+//   row + job row); the jobs/tick worker renders them. Returns job IDs.
+
+import { z } from "zod";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { selectVideoModel, selectImageModel, inferAspectRatio } from "./model-selector";
+import { listAvatars, getAvatarByName, createAvatar } from "./avatars.server";
+import type { ToolResult } from "./types";
+
+export type ToolCtx = { userId: string; bearer: string; origin: string };
+
+function ok(data: unknown): ToolResult {
+  return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+}
+function err(msg: string): ToolResult {
+  return { content: [{ type: "text", text: JSON.stringify({ error: msg }) }], isError: true };
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function rpc(name: string, args: Record<string, unknown>) {
+  const client = supabaseAdmin as unknown as {
+    rpc: (n: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+  };
+  return client.rpc(name, args);
+}
+
+// Self-call the app's synchronous public generate endpoint with the caller's token.
+async function callGenerate(
+  ctx: ToolCtx,
+  body: Record<string, unknown>,
+): Promise<{ url: string; provider: string }> {
+  const res = await fetch(`${ctx.origin}/api/public/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${ctx.bearer}` },
+    body: JSON.stringify(body),
+  });
+  let json: any = null;
+  try {
+    json = await res.json();
+  } catch {
+    /* non-JSON error body */
+  }
+  if (!res.ok || !json || json.ok === false) {
+    throw new Error((json && json.error) || `generate failed (HTTP ${res.status})`);
+  }
+  return { url: json.url, provider: json.provider };
+}
+
+function clampDuration(d?: number): number {
+  const v = d ?? 5;
+  return Math.max(3, Math.min(12, v));
+}
+
+// ─── Schemas ──────────────────────────────────────────────────────────────────
+
+export const generateVideoSchema = z.object({
+  prompt: z.string().describe("What the video should show"),
+  model: z.string().optional().describe("kling-2.5 | kling-2.5-turbo | heygen-v2 | wan-2.1 | hailuo-v2 | sora-turbo. Auto-selected if omitted."),
+  aspect_ratio: z.enum(["9:16", "16:9", "1:1", "4:5"]).optional().describe("Default: 9:16"),
+  duration: z.number().int().optional().describe("Seconds (3–12). Default: 5"),
+  avatar_name: z.string().optional().describe('Aurora persona name (e.g. "Sophia")'),
+});
+
+export const bulkGenerateSchema = z.object({
+  avatar_name: z.string().describe("Avatar/persona name to generate for"),
+  prompt_template: z.string().describe("Base prompt. Variations are created automatically."),
+  count: z.number().int().min(1).max(50).describe("Number of posts to generate"),
+  aspect_ratio: z.enum(["9:16", "16:9", "1:1", "4:5"]).optional().describe("Default: 4:5 for IG"),
+  vary_locations: z.array(z.string()).optional().describe("Locations to cycle through"),
+  vary_outfits: z.array(z.string()).optional().describe("Outfits to cycle through"),
+  vary_moods: z.array(z.string()).optional().describe("Moods/expressions to cycle through"),
+  vary_lighting: z.array(z.string()).optional().describe("Lighting styles to cycle through"),
+});
+
+export const imageToVideoSchema = z.object({
+  image_url: z.string().url().describe("URL of the source image"),
+  prompt: z.string().describe("Motion / animation prompt"),
+  model: z.string().optional().describe("Video model. Auto-selected if omitted."),
+  duration: z.number().int().optional().describe("Seconds (3–12). Default: 5"),
+  aspect_ratio: z.enum(["9:16", "16:9", "1:1", "4:5"]).optional(),
+});
+
+export const listAvatarsSchema = z.object({
+  limit: z.number().int().optional().default(20).describe("Max avatars to return"),
+});
+
+export const getJobStatusSchema = z.object({
+  job_id: z.string().describe("Job ID (from aurora_bulk_generate) or a past generation ID"),
+});
+
+export const createAvatarSchema = z.object({
+  name: z.string().min(1).describe("Persona name, e.g. \"Sophia\""),
+  image_urls: z.array(z.string().url()).optional().describe("Reference image URLs (used for LoRA training when keys are configured, and as preview)"),
+  style: z.string().optional().describe("e.g. professional | casual | athletic"),
+  trigger_word: z.string().optional().describe("LoRA trigger word (default: style)"),
+  lipsync: z.boolean().optional().describe("Also train a Sync.so lip-sync model (requires SYNC_API_KEY)"),
+});
+
+// ─── Tools ──────────────────────────────────────────────────────────────────
+
+export async function generateVideoTool(args: z.infer<typeof generateVideoSchema>, ctx: ToolCtx): Promise<ToolResult> {
+  try {
+    const selection = selectVideoModel(args.prompt, args.model);
+    const aspect = args.aspect_ratio ?? inferAspectRatio(args.prompt);
+    const duration = clampDuration(args.duration);
+
+    let prompt = args.prompt;
+    if (args.avatar_name) {
+      const avatar = await getAvatarByName(ctx.userId, args.avatar_name);
+      if (!avatar) return err(`Avatar "${args.avatar_name}" not found`);
+      if (avatar.trigger_word) prompt = `${prompt}, ${avatar.trigger_word}`;
+    }
+    prompt = `${prompt} [${aspect} aspect ratio]`;
+
+    const result = await callGenerate(ctx, { kind: "video", prompt, duration });
+    return ok({
+      status: "completed",
+      url: result.url,
+      provider: result.provider,
+      suggested_model: selection.model,
+      model_reason: selection.reason,
+      aspect_ratio: aspect,
+      duration: `${duration}s`,
+      estimated_credits: selection.estimatedCredits,
+      message: `Rendered with ${result.provider} · ${duration}s · ${aspect}`,
+    });
+  } catch (e) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+export async function imageToVideoTool(args: z.infer<typeof imageToVideoSchema>, ctx: ToolCtx): Promise<ToolResult> {
+  try {
+    const selection = selectVideoModel(args.prompt, args.model);
+    const aspect = args.aspect_ratio ?? inferAspectRatio(args.prompt);
+    const duration = clampDuration(args.duration);
+    const prompt = `${args.prompt} [${aspect} aspect ratio]`;
+
+    const result = await callGenerate(ctx, { kind: "video", prompt, imageUrls: [args.image_url], duration });
+    return ok({
+      status: "completed",
+      url: result.url,
+      provider: result.provider,
+      suggested_model: selection.model,
+      model_reason: selection.reason,
+      aspect_ratio: aspect,
+      duration: `${duration}s`,
+      estimated_credits: selection.estimatedCredits,
+      message: `Animated image with ${result.provider} · ${duration}s · ${aspect}`,
+    });
+  } catch (e) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+function pick(arr: string[] | undefined, i: number): string | undefined {
+  return arr && arr.length ? arr[i % arr.length] : undefined;
+}
+
+export async function bulkGenerateTool(args: z.infer<typeof bulkGenerateSchema>, ctx: ToolCtx): Promise<ToolResult> {
+  try {
+    const avatar = await getAvatarByName(ctx.userId, args.avatar_name);
+    if (!avatar) return err(`Avatar "${args.avatar_name}" not found`);
+    const aspect = args.aspect_ratio ?? "4:5";
+    const sel = selectImageModel(args.prompt_template);
+
+    const jobs: string[] = [];
+    let creditError: string | null = null;
+    for (let i = 0; i < args.count; i++) {
+      const segs = [args.prompt_template];
+      const loc = pick(args.vary_locations, i);
+      const outfit = pick(args.vary_outfits, i);
+      const mood = pick(args.vary_moods, i);
+      const light = pick(args.vary_lighting, i);
+      if (loc) segs.push(`at ${loc}`);
+      if (outfit) segs.push(`wearing ${outfit}`);
+      if (mood) segs.push(`${mood} mood`);
+      if (light) segs.push(`${light} lighting`);
+      if (avatar.trigger_word) segs.push(avatar.trigger_word);
+      segs.push(`[${aspect} aspect ratio]`);
+      const prompt = segs.join(", ");
+
+      const payload = { kind: "image", prompt };
+      const { data, error } = await rpc("create_generation_and_reserve", {
+        _user: ctx.userId,
+        _kind: "image",
+        _prompt: prompt,
+        _amount: 1,
+        _payload: payload,
+      });
+      if (error) {
+        creditError = /insufficient_credits/i.test(error.message) ? "Not enough credits" : error.message;
+        break;
+      }
+      const row = (Array.isArray(data) ? data[0] : data) as { job_id: string };
+      jobs.push(row.job_id);
+    }
+
+    return ok({
+      jobs,
+      total_jobs: jobs.length,
+      requested: args.count,
+      total_credits: jobs.length, // 1 credit per image
+      suggested_model: sel.model,
+      avatar: { id: avatar.id, name: avatar.name },
+      aspect_ratio: aspect,
+      ...(creditError ? { warning: `Stopped early: ${creditError}` } : {}),
+      message: `Queued ${jobs.length}/${args.count} images for ${avatar.name}. Track with aurora_get_job_status.`,
+    });
+  } catch (e) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+export async function listAvatarsTool(args: z.infer<typeof listAvatarsSchema>, ctx: ToolCtx): Promise<ToolResult> {
+  try {
+    const avatars = await listAvatars(ctx.userId, args.limit ?? 20);
+    return ok({
+      avatars: avatars.map((a) => ({
+        id: a.id,
+        name: a.name,
+        handle: a.handle,
+        style: a.style,
+        training_status: a.training_status,
+        preview_url: a.preview_url,
+      })),
+      total: avatars.length,
+    });
+  } catch (e) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+export async function getJobStatusTool(args: z.infer<typeof getJobStatusSchema>, ctx: ToolCtx): Promise<ToolResult> {
+  try {
+    if (!UUID_RE.test(args.job_id)) return err("job_id must be a valid UUID");
+
+    const { data: job } = await supabaseAdmin
+      .from("jobs")
+      .select("id, status, result, error, generation_id, kind")
+      .eq("id", args.job_id)
+      .eq("user_id", ctx.userId)
+      .maybeSingle();
+    if (job) {
+      const result = (job.result ?? {}) as { url?: string; provider?: string };
+      return ok({
+        job_id: job.id,
+        status: job.status,
+        output_url: result.url ?? null,
+        provider: result.provider ?? null,
+        kind: job.kind,
+        error: job.error ?? null,
+      });
+    }
+
+    const { data: gen } = await supabaseAdmin
+      .from("generations")
+      .select("id, status, result_image_url, result_video_url, model, kind, error")
+      .eq("id", args.job_id)
+      .eq("user_id", ctx.userId)
+      .maybeSingle();
+    if (gen) {
+      return ok({
+        job_id: gen.id,
+        status: gen.status,
+        output_url: gen.result_video_url ?? gen.result_image_url ?? null,
+        model: gen.model,
+        kind: gen.kind,
+        error: gen.error ?? null,
+      });
+    }
+
+    return err(`No job or generation found for id ${args.job_id}`);
+  } catch (e) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+export async function createAvatarTool(args: z.infer<typeof createAvatarSchema>, ctx: ToolCtx): Promise<ToolResult> {
+  try {
+    const avatar = await createAvatar(ctx.userId, args);
+    const trained = avatar.training_status !== "completed";
+    return ok({
+      id: avatar.id,
+      name: avatar.name,
+      handle: avatar.handle,
+      style: avatar.style,
+      training_status: avatar.training_status,
+      preview_url: avatar.preview_url,
+      message: trained
+        ? `Persona "${avatar.name}" created; LoRA training is ${avatar.training_status}.`
+        : `Persona "${avatar.name}" created and ready to use.`,
+    });
+  } catch (e) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
