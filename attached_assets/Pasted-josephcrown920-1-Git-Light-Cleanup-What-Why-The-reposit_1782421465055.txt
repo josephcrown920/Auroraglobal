@@ -1,0 +1,40 @@
+josephcrown920
+#1 - Git Light Cleanup
+
+What & Why
+
+The repository's history is tangled across 4 local branches, and pushes to the user's GitHub (origin = github.com/josephcrown920/Auroraprime) are unreliable as a result. The branch that pushes to GitHub (main) is STALE — it is missing the latest work (the machine page and the new motion-control demo videos). The complete, up-to-date work lives on the replit-agent branch. The user chose a LIGHT cleanup: consolidate everything onto a single up-to-date main and delete the stray branches, WITHOUT rewriting history (the large video files stay in history; the repo stays large). This makes future GitHub pushes clean and predictable.
+
+Done looks like
+
+There is ONE working branch, main, containing the complete latest work.
+main's files include the machine page (src/routes/machine.tsx) and the motion-control demo videos (public/videos/motion-demo-1..4.mp4) — i.e. nothing from the newest work is lost.
+The stray branches Maine, Newest, and replit-agent no longer exist locally.
+The app still builds and runs after the working tree updates to the complete code.
+History is left intact (large files remain in history — this is expected and accepted).
+Out of scope
+
+Rewriting history / purging the large video blobs (the user explicitly chose to keep them — do NOT run filter-branch/filter-repo/gc-prune).
+Force-pushing to GitHub. Do not force-push.
+The actual push to GitHub — the user performs that themselves via Replit's Git pane after this cleanup. (Credentials for origin are not available in this environment.)
+Any RunPod / GPU pipeline work (tracked separately).
+Steps
+
+Confirm replit-agent is a safe superset of main. Verify that main has zero commits that are not already contained in replit-agent (i.e. main is an ancestor of replit-agent), so moving main up to replit-agent is a fast-forward that loses no work. If this is NOT true, stop and report instead of merging blindly.
+Consolidate onto main. Fast-forward main to the tip of replit-agent so main becomes the complete, up-to-date branch. Do not create merge commits or rewrite history.
+Verify the work is present. Confirm the resulting main tree contains src/routes/machine.tsx and public/videos/motion-demo-1..4.mp4, plus the existing routes (tiktok.tsx, motion.tsx) and orchestrator code.
+Delete the stray branches. Remove the local branches Maine, Newest, and replit-agent. Leave the platform's gitsafe-backup remote alone.
+Verify the app. Restart the application workflow and confirm it serves without errors now that the working tree reflects the complete code.
+Report state for the user's push. Summarize the final single-branch state so the user can push main to GitHub from Replit's Git pane. Note that if GitHub rejects the push due to remote divergence, that is a separate follow-up (no force-push was performed).
+Critical constraints
+
+LIGHT cleanup only: NO history rewriting, NO force-push, NO gc prune. Large files intentionally remain in history.
+Must not lose any work: the consolidation must be a fast-forward of main to replit-agent. If a fast-forward is not possible, stop and report.
+Do not touch the gitsafe-backup remote/refs (platform-managed backup).
+Relevant files
+
+src/routes/machine.tsx
+src/routes/motion.tsx
+src/routes/tiktok.tsx
+src/lib/orchestrator.server.ts
+public/videos/

@@ -206,6 +206,14 @@ function AdminPage() {
   );
 }
 
+function heartbeatAge(ts: string | null | undefined): string {
+  if (!ts) return "never";
+  const ageMs = Date.now() - new Date(ts).getTime();
+  if (ageMs < 60_000) return `${Math.round(ageMs / 1000)}s ago`;
+  if (ageMs < 3_600_000) return `${Math.round(ageMs / 60_000)}m ago`;
+  return `${Math.round(ageMs / 3_600_000)}h ago`;
+}
+
 function WorkersPanel() {
   const listFn = useServerFn(listWorkers);
   const saveFn = useServerFn(upsertWorker);
@@ -213,7 +221,13 @@ function WorkersPanel() {
   const pingFn = useServerFn(pingWorker);
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ["workers"], queryFn: () => listFn() });
-  const blank = { name: "", endpoint_url: "", auth_token: "", region: "global", capabilities: "image,video", priority: 100, max_concurrency: 4, protocol: "custom", worker_role: "", runpod_sync: false };
+  const blank = { 
+    name: "", endpoint_url: "", auth_token: "", region: "global", 
+    capabilities: "image,video", priority: 100, max_concurrency: 4, 
+    protocol: "custom" as "custom" | "runpod", 
+    worker_role: "" as string, 
+    runpod_sync: false 
+  };
   const [form, setForm] = useState(blank);
   const reset = () => setForm(blank);
   return (
@@ -227,16 +241,24 @@ function WorkersPanel() {
           <Input placeholder="Region" value={form.region} onChange={e => setForm({ ...form, region: e.target.value })} />
           <Input placeholder="Capabilities (comma: image,video,lipsync,upscale)" value={form.capabilities} onChange={e => setForm({ ...form, capabilities: e.target.value })} />
           <Input type="number" placeholder="Max concurrency" value={form.max_concurrency} onChange={e => setForm({ ...form, max_concurrency: parseInt(e.target.value || "4") })} />
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.protocol} onChange={e => setForm({ ...form, protocol: e.target.value })}>
-            <option value="custom">Protocol: custom (POST /generate)</option>
-            <option value="runpod">Protocol: runpod (/run · /runsync)</option>
+          <select 
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" 
+            value={form.protocol} 
+            onChange={e => setForm({ ...form, protocol: e.target.value as "custom" | "runpod" })}
+          >
+            <option value="custom">Protocol: Custom (POST /generate)</option>
+            <option value="runpod">Protocol: RunPod (/runsync or /run)</option>
           </select>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.worker_role} onChange={e => setForm({ ...form, worker_role: e.target.value })}>
-            <option value="">Role: (none)</option>
-            <option value="comfyui">Role: comfyui</option>
-            <option value="kling">Role: kling</option>
-            <option value="lipsync">Role: lipsync</option>
-            <option value="motion">Role: motion</option>
+          <select 
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" 
+            value={form.worker_role} 
+            onChange={e => setForm({ ...form, worker_role: e.target.value })}
+          >
+            <option value="">Role: (auto from capabilities)</option>
+            <option value="comfyui">comfyui — image / upscale</option>
+            <option value="kling">kling — video</option>
+            <option value="lipsync">lipsync</option>
+            <option value="motion">motion — video</option>
           </select>
           {form.protocol === "runpod" && (
             <label className="flex items-center gap-2 text-sm text-muted-foreground sm:col-span-2">
@@ -254,30 +276,56 @@ function WorkersPanel() {
           } });
           toast.success("Worker added"); reset(); qc.invalidateQueries({ queryKey: ["workers"] });
         }} disabled={!form.name || !form.endpoint_url}>Add worker</Button>
-        <p className="text-xs text-muted-foreground"><strong>custom</strong>: worker exposes <code>POST /generate</code> (returns <code>{`{ url }`}</code>) + <code>GET /health</code>. <strong>runpod</strong>: <code>POST /run</code> (poll <code>GET /status/&#123;id&#125;</code>) or <code>/runsync</code>, body <code>{`{ input }`}</code>, bearer auth.</p>
+        <div className="text-xs text-muted-foreground space-y-1">
+          <p><strong>Custom contract:</strong> <code>POST /generate</code> with flat JSON body → <code>{"{ url }"}</code>. Also requires <code>GET /health</code>.</p>
+          <p><strong>RunPod contract:</strong> <code>POST /runsync</code> (preferred) or <code>POST /run</code> + <code>{"GET /status/{id}"}</code> with body <code>{"{ input: { kind, prompt, image_urls, audio_url, video_url, model, duration, resolution } }"}</code>. Auth token sent as <code>Authorization: Bearer …</code>.</p>
+          <p>Lower <strong>priority</strong> number = tried first. Use higher priority (e.g. 200) for serverless/auto-scale fallback workers.</p>
+        </div>
       </section>
       {isLoading ? <div className="text-sm text-muted-foreground">Loading…</div> : (
         <div className="rounded-xl border border-border overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-card/60 text-xs uppercase tracking-wider text-muted-foreground">
-              <tr><th className="text-left p-3">Name</th><th className="text-left p-3">Endpoint</th><th className="text-left p-3">Caps</th><th className="text-left p-3">Proto</th><th className="text-right p-3">Load</th><th className="text-left p-3">Status</th><th className="p-3"></th></tr>
+              <tr>
+                <th className="text-left p-3">Name</th>
+                <th className="text-left p-3">Endpoint</th>
+                <th className="text-left p-3">Caps</th>
+                <th className="text-left p-3">Protocol</th>
+                <th className="text-right p-3">Load</th>
+                <th className="text-left p-3">Heartbeat</th>
+                <th className="text-left p-3">Status</th>
+                <th className="p-3"></th>
+              </tr>
             </thead>
             <tbody>
-              {(data?.workers ?? []).map(w => (
-                <tr key={w.id} className="border-t border-border">
-                  <td className="p-3">{w.name}</td>
-                  <td className="p-3 font-mono text-xs truncate max-w-[260px]">{w.endpoint_url}</td>
-                  <td className="p-3 text-xs">{(w.capabilities ?? []).join(", ")}</td>
-                  <td className="p-3 text-xs">{w.protocol}{w.protocol === "runpod" && w.runpod_sync ? " · sync" : ""}{w.worker_role ? ` · ${w.worker_role}` : ""}</td>
-                  <td className="p-3 text-right">{w.in_flight}/{w.max_concurrency}</td>
-                  <td className={`p-3 text-xs ${w.status === "active" ? "text-emerald-500" : "text-muted-foreground"}`}>{w.status}</td>
-                  <td className="p-3 text-right">
-                    <Button size="sm" variant="ghost" onClick={async () => { const r = await pingFn({ data: { id: w.id } }); toast(r.ok ? `OK · ${r.latency_ms}ms` : `Down: ${r.error ?? r.status}`); qc.invalidateQueries({ queryKey: ["workers"] }); }}><Activity className="size-4" /></Button>
-                    <Button size="sm" variant="ghost" onClick={async () => { if (!confirm("Delete?")) return; await delFn({ data: { id: w.id } }); qc.invalidateQueries({ queryKey: ["workers"] }); }}><Trash2 className="size-4" /></Button>
-                  </td>
-                </tr>
-              ))}
-              {(data?.workers ?? []).length === 0 && <tr><td colSpan={7} className="p-6 text-center text-muted-foreground text-sm">No workers registered. Add your GPU orchestrator endpoint above to enable failover.</td></tr>}
+              {(data?.workers ?? []).map(w => {
+                const staleMs = w.last_heartbeat ? Date.now() - new Date(w.last_heartbeat).getTime() : Infinity;
+                const isStale = staleMs > 5 * 60_000;
+                const protocol = (w as Record<string, unknown>).protocol as string ?? "custom";
+                const role = (w as Record<string, unknown>).worker_role as string | null;
+                const runpodSync = (w as Record<string, unknown>).runpod_sync as boolean;
+                return (
+                  <tr key={w.id} className="border-t border-border">
+                    <td className="p-3">
+                      {w.name}
+                      {role ? <span className="ml-1 text-xs text-muted-foreground">({role})</span> : null}
+                    </td>
+                    <td className="p-3 font-mono text-xs truncate max-w-[220px]">{w.endpoint_url}</td>
+                    <td className="p-3 text-xs">{(w.capabilities ?? []).join(", ")}</td>
+                    <td className="p-3 text-xs">{protocol}{protocol === "runpod" && runpodSync ? " · sync" : ""}</td>
+                    <td className="p-3 text-right">{w.in_flight}/{w.max_concurrency}</td>
+                    <td className={`p-3 text-xs ${isStale ? "text-amber-500" : "text-emerald-500"}`}>
+                      {heartbeatAge(w.last_heartbeat)}
+                    </td>
+                    <td className={`p-3 text-xs ${w.status === "active" ? "text-emerald-500" : "text-muted-foreground"}`}>{w.status}</td>
+                    <td className="p-3 text-right">
+                      <Button size="sm" variant="ghost" onClick={async () => { const r = await pingFn({ data: { id: w.id } }); toast(r.ok ? `OK · ${r.latency_ms}ms${r.detail ? ` · ${r.detail}` : ""}` : `Down: ${r.error ?? r.status}`); qc.invalidateQueries({ queryKey: ["workers"] }); }}><Activity className="size-4" /></Button>
+                      <Button size="sm" variant="ghost" onClick={async () => { if (!confirm("Delete?")) return; await delFn({ data: { id: w.id } }); qc.invalidateQueries({ queryKey: ["workers"] }); }}><Trash2 className="size-4" /></Button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {(data?.workers ?? []).length === 0 && <tr><td colSpan={8} className="p-6 text-center text-muted-foreground text-sm">No workers registered. Add your GPU orchestrator endpoint above to enable failover.</td></tr>}
             </tbody>
           </table>
         </div>
