@@ -1109,6 +1109,14 @@ export type Database = {
         Args: { _amount: number; _reason: string; _ref: string; _user: string }
         Returns: boolean
       }
+      gpu_worker_inflight_dec: {
+        Args: { _worker: string }
+        Returns: number
+      }
+      gpu_worker_inflight_inc: {
+        Args: { _worker: string }
+        Returns: number
+      }
       grant_credits: {
         Args: { _amount: number; _reason: string; _ref: string; _user: string }
         Returns: undefined
