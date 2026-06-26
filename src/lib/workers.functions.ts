@@ -14,7 +14,10 @@ export const listWorkers = createServerFn({ method: "GET" })
     await assertAdmin(context.userId);
     const { data } = await supabaseAdmin.from("gpu_workers").select("*").order("priority");
     const { data: jobs } = await supabaseAdmin.from("worker_jobs").select("*").order("created_at", { ascending: false }).limit(50);
-    return { workers: data ?? [], jobs: jobs ?? [] };
+    // Never ship the per-worker auth_token (RunPod API key / bearer) to the client;
+    // expose only whether one is set so the admin UI can show "configured".
+    const workers = (data ?? []).map(({ auth_token, ...w }) => ({ ...w, has_auth_token: !!auth_token }));
+    return { workers, jobs: jobs ?? [] };
   });
 
 export const upsertWorker = createServerFn({ method: "POST" })
@@ -30,6 +33,10 @@ export const upsertWorker = createServerFn({ method: "POST" })
     priority: z.number().int().default(100),
     max_concurrency: z.number().int().min(1).max(64).default(4),
     status: z.enum(["active", "paused", "draining"]).default("active"),
+    // RunPod-native contract opt-in (defaults keep legacy POST /generate workers working).
+    protocol: z.enum(["custom", "runpod"]).default("custom"),
+    worker_role: z.enum(["comfyui", "kling", "lipsync", "motion"]).optional().nullable(),
+    runpod_sync: z.boolean().default(false),
   }).parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);

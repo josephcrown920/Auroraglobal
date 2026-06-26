@@ -23,7 +23,7 @@ Aurora uses Lovable Cloud (Supabase Postgres). All schema changes go through SQL
 | `generations` | Image / video / lipsync / upscale outputs | self |
 | `lipsync_jobs` | Sync.so lip-sync jobs | self |
 | `workflows` | Saved canvas graphs | self; public flag for sharing |
-| `gpu_workers` | Registered Inference.ai/RunPod workers | admin |
+| `gpu_workers` | Registered GPU workers; `protocol` = `custom` (POST /generate) or `runpod` (/run·/runsync), `runpod_sync` + `worker_role` metadata | admin |
 | `worker_jobs` | Worker job log | admin read; server insert |
 | `provider_logs` | Per-call provider latency/cost/error | admin read; server insert |
 | `events` | Analytics events | anyone insert; admin read |

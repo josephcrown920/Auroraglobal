@@ -445,6 +445,114 @@ const huggingface: ProviderAdapter = {
 };
 
 // ─── GPU worker pool ─────────────────────────────────────────────────────────
+// Admin-registered HTTP workers (RunPod / vast / salad / self-hosted). Each row
+// declares the request contract it speaks via `protocol`:
+//   custom → POST {endpoint}/generate  with a flat body, returns { url } | { output_url }
+//   runpod → RunPod serverless: POST {endpoint}/run (async, poll GET /status/{id})
+//            or POST {endpoint}/runsync (when runpod_sync), body wrapped as { input }
+// Routing stays capability-based; `protocol` only changes HOW a worker is called,
+// so legacy /generate workers and the provider failover chain keep working.
+const WORKER_TIMEOUT_MS = 300_000;
+const RUNPOD_POLL_MS = 2_500;
+const RUNPOD_DONE = "COMPLETED";
+const RUNPOD_FAILED = new Set(["FAILED", "CANCELLED", "TIMED_OUT"]);
+
+type WorkerRow = {
+  id: string; name: string; endpoint_url: string; auth_token: string | null;
+  in_flight: number; max_concurrency: number; protocol: string; runpod_sync: boolean;
+};
+
+// Robustly pull an output URL out of whatever shape a worker returns: a bare
+// string, an array, { url }/{ output_url }/{ image_url }/… , or nested under
+// output/result/data/images/etc. (RunPod handlers wrap results under `output`).
+function extractWorkerUrl(payload: unknown, depth = 0): string | undefined {
+  if (payload == null || depth > 6) return undefined;
+  if (typeof payload === "string") return payload.startsWith("http") ? payload : undefined;
+  if (Array.isArray(payload)) {
+    for (const item of payload) { const u = extractWorkerUrl(item, depth + 1); if (u) return u; }
+    return undefined;
+  }
+  if (typeof payload === "object") {
+    const o = payload as Record<string, unknown>;
+    for (const k of ["url", "output_url", "image_url", "video_url", "audio_url", "result_url", "signed_url", "delivery_url"]) {
+      const v = o[k];
+      if (typeof v === "string" && v.startsWith("http")) return v;
+    }
+    for (const k of ["output", "result", "data", "response", "image", "video", "images", "videos", "outputs", "assets"]) {
+      if (k in o) { const u = extractWorkerUrl(o[k], depth + 1); if (u) return u; }
+    }
+  }
+  return undefined;
+}
+
+// Flat job params shared by both contracts (runpod wraps these under `input`).
+function workerInput(r: GenerateRequest): Record<string, unknown> {
+  return {
+    kind: r.kind, prompt: r.prompt, image_urls: r.imageUrls,
+    audio_url: r.audioUrl, video_url: r.videoUrl,
+    model: r.model, duration: r.duration, resolution: r.resolution,
+  };
+}
+
+// custom contract: flat POST /generate (legacy behaviour, unchanged on the wire).
+async function dispatchCustom(base: string, w: WorkerRow, r: GenerateRequest, deadline: number): Promise<unknown> {
+  const res = await fetch(`${base}/generate`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...(w.auth_token ? { authorization: `Bearer ${w.auth_token}` } : {}) },
+    body: JSON.stringify(workerInput(r)),
+    signal: AbortSignal.timeout(Math.max(1_000, deadline - Date.now())),
+  });
+  if (!res.ok) throw new Error(`worker ${w.name} -> ${res.status}`);
+  return res.json();
+}
+
+// runpod contract: { input } to /runsync (sync) or /run + poll /status/{id} (async).
+async function dispatchRunpod(base: string, w: WorkerRow, r: GenerateRequest, deadline: number): Promise<unknown> {
+  const headers = { "content-type": "application/json", ...(w.auth_token ? { authorization: `Bearer ${w.auth_token}` } : {}) };
+  const body = JSON.stringify({ input: workerInput(r) });
+  if (w.runpod_sync) {
+    const res = await fetch(`${base}/runsync`, { method: "POST", headers, body, signal: AbortSignal.timeout(Math.max(1_000, deadline - Date.now())) });
+    if (!res.ok) throw new Error(`worker ${w.name} /runsync -> ${res.status}`);
+    const j = (await res.json()) as { status?: string; output?: unknown; error?: unknown };
+    if (RUNPOD_FAILED.has((j.status ?? "").toUpperCase())) throw new Error(`worker ${w.name} ${j.status}: ${String(j.error ?? "").slice(0, 200)}`);
+    return j.output ?? j;
+  }
+  const submit = await fetch(`${base}/run`, { method: "POST", headers, body, signal: AbortSignal.timeout(Math.min(30_000, Math.max(1_000, deadline - Date.now()))) });
+  if (!submit.ok) throw new Error(`worker ${w.name} /run -> ${submit.status}`);
+  const sj = (await submit.json()) as { id?: string; status?: string; output?: unknown };
+  if ((sj.status ?? "").toUpperCase() === RUNPOD_DONE && sj.output !== undefined) return sj.output;
+  const jobId = sj.id;
+  if (!jobId) throw new Error(`worker ${w.name} /run returned no job id`);
+  while (Date.now() < deadline) {
+    await new Promise((s) => setTimeout(s, Math.min(RUNPOD_POLL_MS, Math.max(0, deadline - Date.now()))));
+    if (Date.now() >= deadline) break;
+    let pj: { status?: string; output?: unknown; error?: unknown };
+    try {
+      const st = await fetch(`${base}/status/${encodeURIComponent(jobId)}`, { headers, signal: AbortSignal.timeout(Math.min(15_000, Math.max(1_000, deadline - Date.now()))) });
+      if (!st.ok) continue;
+      pj = (await st.json()) as { status?: string; output?: unknown; error?: unknown };
+    } catch {
+      continue; // transient network/timeout polling status → keep polling the same job (don't resubmit)
+    }
+    const status = (pj.status ?? "").toUpperCase();
+    if (status === RUNPOD_DONE) return pj.output ?? pj;
+    if (RUNPOD_FAILED.has(status)) throw new Error(`worker ${w.name} ${status}: ${String(pj.error ?? "").slice(0, 200)}`);
+    // IN_QUEUE / IN_PROGRESS → keep polling until the deadline.
+  }
+  throw new Error(`worker ${w.name} runpod poll timeout`);
+}
+
+// Legacy custom workers may return a relative or non-http string in url/output_url;
+// preserve that exact behaviour rather than tightening it with extractWorkerUrl.
+function legacyCustomUrl(payload: unknown): string | undefined {
+  if (payload && typeof payload === "object") {
+    const o = payload as Record<string, unknown>;
+    const v = o.url ?? o.output_url;
+    if (typeof v === "string" && v.length > 0) return v;
+  }
+  return undefined;
+}
+
 const gpuWorker: ProviderAdapter = {
   name: "runpod",
   supports: (r) => ["image", "video", "lipsync", "upscale"].includes(r.kind),
@@ -465,22 +573,13 @@ const gpuWorker: ProviderAdapter = {
       const started = Date.now();
       try {
         await supabaseAdmin.from("gpu_workers").update({ in_flight: w.in_flight + 1 }).eq("id", w.id);
-        const res = await fetch(w.endpoint_url.replace(/\/$/, "") + "/generate", {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            ...(w.auth_token ? { authorization: `Bearer ${w.auth_token}` } : {}),
-          },
-          body: JSON.stringify({
-            kind: r.kind, prompt: r.prompt, image_urls: r.imageUrls,
-            audio_url: r.audioUrl, video_url: r.videoUrl,
-            model: r.model, duration: r.duration, resolution: r.resolution,
-          }),
-          signal: AbortSignal.timeout(300_000),
-        });
-        if (!res.ok) throw new Error(`worker ${w.name} -> ${res.status}`);
-        const json = (await res.json()) as { url?: string; output_url?: string };
-        const url = json.url ?? json.output_url;
+        const base = w.endpoint_url.replace(/\/$/, "");
+        const deadline = started + WORKER_TIMEOUT_MS;
+        const payload = w.protocol === "runpod"
+          ? await dispatchRunpod(base, w, r, deadline)
+          : await dispatchCustom(base, w, r, deadline);
+        const url = extractWorkerUrl(payload)
+          ?? (w.protocol !== "runpod" ? legacyCustomUrl(payload) : undefined);
         if (!url) throw new Error(`worker ${w.name} returned no url`);
         await supabaseAdmin.from("worker_jobs").insert({
           worker_id: w.id, user_id: r.userId ?? null, kind: r.kind,

@@ -26,10 +26,19 @@ The agent (`src/lib/agent.functions.ts`) uses this for structured JSON outputs.
 
 1. **Lovable AI** (image gen via gateway)
 2. **fal.ai** (Seedance, Seedream, Kling endpoints mapped in `FAL_ENDPOINTS`)
-3. **GPU workers** (rows in `gpu_workers`, dispatched to their `/generate` endpoint, tracked in `worker_jobs`)
-4. **Replicate / RunPod** (placeholder adapters)
+3. **GPU workers** (rows in `gpu_workers`, tracked in `worker_jobs`)
+4. **Replicate** (placeholder adapter)
 
 Each provider has in-memory health tracking with cooldown on failure. Every attempt is logged to `provider_logs` with latency + cost.
+
+### GPU worker contracts
+
+A `gpu_workers` row declares the request contract it speaks via its `protocol` column, so the orchestrator can call heterogeneous backends without a separate service:
+
+- **`custom`** (default) — `POST {endpoint}/generate` with a flat JSON body, returns `{ url }` / `{ output_url }`. This is the original contract; existing workers keep working unchanged.
+- **`runpod`** — RunPod Serverless. The flat params are wrapped as `{ "input": {...} }` and sent to `POST {endpoint}/run` (async — the job id is then polled at `GET {endpoint}/status/{id}` until terminal), or to `POST {endpoint}/runsync` when the row sets `runpod_sync = true`. Status flow follows RunPod's `IN_QUEUE → IN_PROGRESS → COMPLETED` (terminal failures: `FAILED | CANCELLED | TIMED_OUT`). The `auth_token` is sent as `Authorization: Bearer`.
+
+Both contracts share `extractWorkerUrl()`, which finds the output URL whether it's a bare string, an array, a top-level `url`/`output_url`, or nested under RunPod's `output`. Routing stays capability-based (`capabilities` + `priority` + `in_flight`); `protocol` only changes *how* a chosen worker is invoked. `worker_role` (`comfyui | kling | lipsync | motion`) is operator metadata only and does not affect routing.
 
 ## Payments
 

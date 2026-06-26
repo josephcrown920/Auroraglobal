@@ -384,8 +384,11 @@ export type Database = {
           models: string[]
           name: string
           priority: number
+          protocol: string
           region: string | null
+          runpod_sync: boolean
           status: string
+          worker_role: string | null
         }
         Insert: {
           auth_token?: string | null
@@ -399,8 +402,11 @@ export type Database = {
           models?: string[]
           name: string
           priority?: number
+          protocol?: string
           region?: string | null
+          runpod_sync?: boolean
           status?: string
+          worker_role?: string | null
         }
         Update: {
           auth_token?: string | null
@@ -414,8 +420,11 @@ export type Database = {
           models?: string[]
           name?: string
           priority?: number
+          protocol?: string
           region?: string | null
+          runpod_sync?: boolean
           status?: string
+          worker_role?: string | null
         }
         Relationships: []
       }
