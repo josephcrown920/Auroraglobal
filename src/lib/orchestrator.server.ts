@@ -576,8 +576,10 @@ const gpuWorker: ProviderAdapter = {
         // Lazy heartbeat staleness check: skip workers that haven't been pinged recently.
         if (w.last_heartbeat && now - new Date(w.last_heartbeat).getTime() > STALE_MS) continue;
         const started = Date.now();
+        let incremented = false;
         try {
-          await supabaseAdmin.from("gpu_workers").update({ in_flight: w.in_flight + 1 }).eq("id", w.id);
+          await supabaseAdmin.rpc("gpu_worker_inflight_inc", { _worker: w.id });
+          incremented = true;
           const base = w.endpoint_url.replace(/\/$/, "");
           const deadline = started + WORKER_TIMEOUT_MS;
           const payload = w.protocol === "runpod"
@@ -598,9 +600,9 @@ const gpuWorker: ProviderAdapter = {
           status: "error", latency_ms: Date.now() - started, error: lastErr.message.slice(0, 500),
         });
       } finally {
-        await supabaseAdmin.from("gpu_workers")
-          .update({ in_flight: Math.max(0, w.in_flight), last_heartbeat: new Date().toISOString() })
-          .eq("id", w.id);
+        if (incremented) {
+          await supabaseAdmin.rpc("gpu_worker_inflight_dec", { _worker: w.id });
+        }
       }
     }
     throw lastErr ?? new Error("All GPU workers failed");
