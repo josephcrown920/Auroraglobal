@@ -17,12 +17,19 @@ function creditCost(kind: string): number {
       return 3;
     case "video":
     case "tiktok_remix_child":
+    case "motion":
       return 5;
+    case "performance_reskin":
+      return 8;
     default:
       return 1;
   }
 }
 
+// Note: "motion" / "performance_reskin" are intentionally NOT enqueueable here.
+// They require a motion-capable GPU worker and must go through the dedicated,
+// preflighted server fns (generateMimicMotion / generatePerformanceReskin) so a
+// "no motion backend" request never reserves credits.
 const EnqueueInput = z.object({
   kind: z.enum(["image", "video", "lipsync", "upscale"]),
   prompt: z.string().max(2000).optional(),

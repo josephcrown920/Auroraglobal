@@ -12,9 +12,17 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { selectVideoModel, selectImageModel, inferAspectRatio } from "./model-selector";
 import { listAvatars, getAvatarByName, createAvatar } from "./avatars.server";
+import { hasActiveWorkerForKind } from "@/lib/orchestrator.server";
+import { buildMimicMotionRequest, MOTION_TYPES, CAMERA_MOVEMENTS } from "@/lib/motion-workflows.server";
+import { assertTrustedUrl } from "@/lib/url-guard";
 import type { ToolResult } from "./types";
 
 export type ToolCtx = { userId: string; bearer: string; origin: string };
+
+// Surfaced verbatim when no GPU worker advertises the "motion" capability; no
+// credits are reserved when this fires.
+const NO_MOTION_BACKEND_MSG =
+  "No motion-capable GPU backend is connected yet. Connect a GPU worker with the \"motion\" capability to enable MimicMotion and Performance Shots.";
 
 function ok(data: unknown): ToolResult {
   return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
@@ -102,6 +110,25 @@ export const createAvatarSchema = z.object({
   style: z.string().optional().describe("e.g. professional | casual | athletic"),
   trigger_word: z.string().optional().describe("LoRA trigger word (default: style)"),
   lipsync: z.boolean().optional().describe("Also train a Sync.so lip-sync model (requires SYNC_API_KEY)"),
+});
+
+export const animateFromDrivingVideoSchema = z.object({
+  image_url: z.string().url().describe("URL of the reference image — the subject to animate"),
+  driving_video_url: z.string().url().describe("URL of the driving video whose motion is transferred onto the subject"),
+  prompt: z.string().optional().describe("Optional style/scene prompt"),
+  motion_type: z.enum(MOTION_TYPES).optional().describe("How faithfully/energetically the subject follows the driving motion. Default: faithful"),
+  camera_movement: z.enum(CAMERA_MOVEMENTS).optional().describe("Virtual camera move applied on top. Default: static"),
+});
+
+export const performanceReskinSchema = z.object({
+  performance_video_url: z.string().url().describe("URL of the source performance video to reskin"),
+  avatar_image_url: z.string().url().describe("URL of the avatar/persona reference image to apply onto the performer"),
+  outfit: z.string().optional().describe("Outfit to dress the avatar in"),
+  location: z.string().optional().describe("Scene/location for the reskinned shot"),
+  audio_url: z.string().url().optional().describe("Optional audio track to lip-sync the result to (otherwise source audio is preserved)"),
+  prompt: z.string().optional().describe("Optional extra style prompt"),
+  motion_type: z.enum(MOTION_TYPES).optional(),
+  camera_movement: z.enum(CAMERA_MOVEMENTS).optional(),
 });
 
 // ─── Tools ──────────────────────────────────────────────────────────────────
@@ -279,6 +306,84 @@ export async function getJobStatusTool(args: z.infer<typeof getJobStatusSchema>,
     }
 
     return err(`No job or generation found for id ${args.job_id}`);
+  } catch (e) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+export async function animateFromDrivingVideoTool(args: z.infer<typeof animateFromDrivingVideoSchema>, ctx: ToolCtx): Promise<ToolResult> {
+  try {
+    try {
+      assertTrustedUrl(args.image_url);
+      assertTrustedUrl(args.driving_video_url);
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e));
+    }
+    if (!(await hasActiveWorkerForKind("motion"))) return err(NO_MOTION_BACKEND_MSG);
+
+    const payload = buildMimicMotionRequest({
+      imageUrl: args.image_url,
+      drivingVideoUrl: args.driving_video_url,
+      prompt: args.prompt,
+      params: { motionType: args.motion_type, cameraMovement: args.camera_movement },
+    });
+    const { data, error } = await rpc("create_generation_and_reserve", {
+      _user: ctx.userId,
+      _kind: "motion",
+      _prompt: args.prompt ?? "Motion transfer",
+      _amount: 5,
+      _payload: payload as unknown as Record<string, unknown>,
+    });
+    if (error) return err(/insufficient_credits/i.test(error.message) ? "Not enough credits" : error.message);
+    const row = (Array.isArray(data) ? data[0] : data) as { job_id: string; generation_id: string };
+    return ok({
+      job_id: row.job_id,
+      generation_id: row.generation_id,
+      status: "queued",
+      credits: 5,
+      message: "MimicMotion job queued. Track with aurora_get_job_status.",
+    });
+  } catch (e) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+export async function performanceReskinTool(args: z.infer<typeof performanceReskinSchema>, ctx: ToolCtx): Promise<ToolResult> {
+  try {
+    try {
+      assertTrustedUrl(args.performance_video_url);
+      assertTrustedUrl(args.avatar_image_url);
+      if (args.audio_url) assertTrustedUrl(args.audio_url);
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e));
+    }
+    if (!(await hasActiveWorkerForKind("motion"))) return err(NO_MOTION_BACKEND_MSG);
+
+    const payload = {
+      performanceVideoUrl: args.performance_video_url,
+      avatarImageUrl: args.avatar_image_url,
+      outfit: args.outfit,
+      location: args.location,
+      audioUrl: args.audio_url,
+      prompt: args.prompt,
+      params: { motionType: args.motion_type, cameraMovement: args.camera_movement },
+    };
+    const { data, error } = await rpc("create_generation_and_reserve", {
+      _user: ctx.userId,
+      _kind: "performance_reskin",
+      _prompt: args.prompt ?? "Performance reskin",
+      _amount: 8,
+      _payload: payload as unknown as Record<string, unknown>,
+    });
+    if (error) return err(/insufficient_credits/i.test(error.message) ? "Not enough credits" : error.message);
+    const row = (Array.isArray(data) ? data[0] : data) as { job_id: string; generation_id: string };
+    return ok({
+      job_id: row.job_id,
+      generation_id: row.generation_id,
+      status: "queued",
+      credits: 8,
+      message: "Performance Shot job queued. Track with aurora_get_job_status.",
+    });
   } catch (e) {
     return err(e instanceof Error ? e.message : String(e));
   }

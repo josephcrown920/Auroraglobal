@@ -19,7 +19,7 @@ import {
 } from "./inference/protocols";
 import type { InferenceInput, TaskType } from "./inference/types";
 
-export type GenerateKind = "image" | "video" | "lipsync" | "upscale";
+export type GenerateKind = "image" | "video" | "lipsync" | "upscale" | "motion";
 
 // ─── Studio bucket signing ───────────────────────────────────────────────────
 // The `studio` bucket is PRIVATE. When we hand a reference URL to an external
@@ -613,8 +613,8 @@ export async function dispatchHfspace(base: string, w: WorkerRow, r: GenerateReq
 
 const gpuWorker: ProviderAdapter = {
   name: "runpod",
-  supports: (r) => ["image", "video", "lipsync", "upscale"].includes(r.kind),
-  estimateCost: (r) => (r.kind === "video" ? 0.05 : 0.01),
+  supports: (r) => ["image", "video", "lipsync", "upscale", "motion"].includes(r.kind),
+  estimateCost: (r) => (r.kind === "video" || r.kind === "motion" ? 0.05 : 0.01),
   async run(r) {
     const { data: workers } = await supabaseAdmin
       .from("gpu_workers")
@@ -679,6 +679,8 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   video:   [klingDirect, replicate, gpuWorker, falFallback],
   lipsync: [sync, heygen, replicate, gpuWorker, falFallback],
   upscale: [replicate, gpuWorker, falFallback],
+  // Motion transfer (MimicMotion) has no hosted provider — GPU/ComfyUI workers only.
+  motion:  [gpuWorker],
 };
 
 // ─── Unified model registry ──────────────────────────────────────────────────
@@ -718,6 +720,19 @@ export function resolveModel(modelKey: string | undefined | null): ModelEntry | 
   return MODEL_REGISTRY[modelKey] ?? null;
 }
 
+// Preflight: is there at least one active GPU worker that advertises this kind?
+// Used by motion/reskin server fns + MCP tools to fail fast with a friendly
+// "no backend configured" message BEFORE reserving any credits.
+export async function hasActiveWorkerForKind(kind: GenerateKind): Promise<boolean> {
+  const { count, error } = await supabaseAdmin
+    .from("gpu_workers")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "active")
+    .contains("capabilities", [kind]);
+  if (error) return false;
+  return (count ?? 0) > 0;
+}
+
 async function log(opts: {
   provider: string; endpoint: string; kind: GenerateKind;
   status: "ok" | "error"; latencyMs: number; costUsd: number;
@@ -741,8 +756,9 @@ const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   video:   ["seedance-2.0-fast", "seedance-2.0", "wan-2.5", "kling-3.0", "veo-3-fast", "sora-2"],
   lipsync: ["fal-ai/sync-lipsync/v2", "fal-ai/wav2lip"],
   upscale: [],
+  motion:  [],
 };
-const FALLBACK_CAP: Record<GenerateKind, number> = { image: 3, video: 2, lipsync: 2, upscale: 1 };
+const FALLBACK_CAP: Record<GenerateKind, number> = { image: 3, video: 2, lipsync: 2, upscale: 1, motion: 1 };
 
 function getCandidateModels(req: GenerateRequest): string[] {
   const base = FALLBACK_MODELS[req.kind] ?? [];
