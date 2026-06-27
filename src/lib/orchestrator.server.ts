@@ -246,17 +246,19 @@ const falFallback: ProviderAdapter = {
 
 // ─── Health tracking ─────────────────────────────────────────────────────────
 const HEALTH = new Map<string, { failures: number; cooldownUntil: number }>();
-function isHealthy(p: string) {
+// Exported for unit tests (see orchestrator.fallback.test.ts). Not part of the
+// public API — callers should rely on orchestrate()/getProviderHealthSnapshot().
+export function isHealthy(p: string) {
   const h = HEALTH.get(p);
   return !h || Date.now() > h.cooldownUntil;
 }
-function markFailure(p: string) {
+export function markFailure(p: string) {
   const h = HEALTH.get(p) ?? { failures: 0, cooldownUntil: 0 };
   h.failures += 1;
   h.cooldownUntil = Date.now() + Math.min(120, 5 * Math.pow(3, h.failures - 1)) * 1000;
   HEALTH.set(p, h);
 }
-function markSuccess(p: string) { HEALTH.set(p, { failures: 0, cooldownUntil: 0 }); }
+export function markSuccess(p: string) { HEALTH.set(p, { failures: 0, cooldownUntil: 0 }); }
 
 /** Public snapshot of in-memory health state (used by the orchestration dashboard). */
 export function getProviderHealthSnapshot() {

@@ -1,0 +1,382 @@
+import { afterAll, afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import type { GenerateRequest } from "./orchestrator.server";
+
+// ─── Module mocks (must be registered before orchestrator is imported) ─────────
+// orchestrate() reaches into Supabase (worker pool + logging) and the provider
+// SDK wrappers. Stub them all so the only thing the tests drive is the
+// decision/fallback logic itself. Network is mocked via global fetch where a
+// provider hits it directly (lovable, fal).
+
+// Mutable provider-SDK behaviour, reset per test.
+let getReplicateKeyImpl: () => string | undefined = () => undefined;
+let replicateRunImpl: (
+  slug: string,
+  input: unknown,
+  t?: number,
+) => Promise<{ output: unknown }> = async () => {
+  throw new Error("replicateRun not configured for this test");
+};
+let syncLipsyncImpl: (opts: {
+  videoUrl: string;
+  audioUrl: string;
+  model?: string;
+}) => Promise<string> = async () => {
+  throw new Error("syncLipsync not configured for this test");
+};
+
+// A chainable, awaitable Supabase query stub. Every builder method returns the
+// same builder; awaiting it resolves to an empty result set (so the GPU-worker
+// pool always reports "no workers" and falls through), and inserts are no-ops.
+function makeQuery(result: unknown) {
+  const b: Record<string, unknown> = {};
+  for (const m of [
+    "select",
+    "eq",
+    "neq",
+    "contains",
+    "order",
+    "limit",
+    "insert",
+    "update",
+    "delete",
+    "upsert",
+    "single",
+    "maybeSingle",
+    "head",
+    "gte",
+    "lte",
+  ]) {
+    b[m] = () => b;
+  }
+  (b as { then: unknown }).then = (resolve: (v: unknown) => unknown) => resolve(result);
+  return b;
+}
+const supabaseStub = {
+  from: () => makeQuery({ data: [], error: null, count: 0 }),
+  rpc: async () => ({ data: null, error: null }),
+  storage: {
+    from: () => ({
+      createSignedUrl: async () => ({
+        data: { signedUrl: "https://signed.example/x" },
+        error: null,
+      }),
+      upload: async () => ({ data: { path: "p" }, error: null }),
+      getPublicUrl: () => ({ data: { publicUrl: "https://pub.example/x" } }),
+    }),
+  },
+};
+
+mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: supabaseStub }));
+mock.module("./replicate.server", () => ({
+  getReplicateKey: () => getReplicateKeyImpl(),
+  replicateRun: (slug: string, input: unknown, t?: number) => replicateRunImpl(slug, input, t),
+  pickReplicateUrl: (output: unknown) =>
+    typeof output === "string" ? output : ((output as { url?: string })?.url ?? ""),
+}));
+mock.module("./sync.server", () => ({
+  syncLipsync: (opts: { videoUrl: string; audioUrl: string; model?: string }) =>
+    syncLipsyncImpl(opts),
+}));
+mock.module("./hf.server", () => ({
+  hfTextToImage: async () => ({ bytes: Buffer.from(""), contentType: "image/png" }),
+  HF_ROUTER_BASE: "https://router.huggingface.co/v1",
+}));
+
+const { orchestrate, markFailure, markSuccess, isHealthy, getProviderHealthSnapshot } =
+  await import("./orchestrator.server");
+
+// ─── fetch + clock helpers (same pattern as orchestrator.server.test.ts) ───────
+
+type FetchCall = { url: string; init: RequestInit | undefined };
+
+function fakeResponse(opts: {
+  ok?: boolean;
+  status?: number;
+  json?: unknown;
+  text?: string;
+}): Response {
+  const status = opts.status ?? (opts.ok === false ? 500 : 200);
+  return {
+    ok: opts.ok ?? (status >= 200 && status < 300),
+    status,
+    json: async () => opts.json,
+    text: async () => opts.text ?? "",
+  } as unknown as Response;
+}
+
+function installFetch(
+  handler: (call: { url: string; init?: RequestInit; index: number }) => Response,
+) {
+  const calls: FetchCall[] = [];
+  const fn = mock((input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input.toString();
+    calls.push({ url, init });
+    return Promise.resolve(handler({ url, init, index: calls.length - 1 }));
+  });
+  globalThis.fetch = fn as unknown as typeof fetch;
+  return { calls };
+}
+
+const realNow = Date.now;
+const realSetTimeout = globalThis.setTimeout;
+let fakeNow = 0;
+function installFakeClock(start = 1_000_000) {
+  fakeNow = start;
+  Date.now = () => fakeNow;
+  globalThis.setTimeout = ((cb: (...a: unknown[]) => void, ms?: number) => {
+    fakeNow += ms ?? 0;
+    return realSetTimeout(cb, 0);
+  }) as unknown as typeof setTimeout;
+}
+function restoreClock() {
+  Date.now = realNow;
+  globalThis.setTimeout = realSetTimeout;
+}
+
+// Provider env keys touched by these tests — snapshot + restore so we never leak
+// fake credentials into other test files sharing the process.
+const ENV_KEYS = [
+  "LOVABLE_API_KEY",
+  "FAL_KEY",
+  "GEMINI_API_KEY",
+  "HF_TOKEN",
+  "KLING_ACCESS_KEY",
+  "KLING_SECRET_KEY",
+  "HEYGEN_API_KEY",
+  "SYNC_API_KEY",
+  "REPLICATE_API_KEY",
+  "LOVABLE_CONNECTOR_REPLICATE_API_KEY",
+] as const;
+const PROVIDER_NAMES = [
+  "lovable",
+  "gemini",
+  "replicate",
+  "huggingface",
+  "sync",
+  "runpod",
+  "kling",
+  "heygen",
+  "fal",
+];
+const savedEnv: Record<string, string | undefined> = {};
+for (const k of ENV_KEYS) savedEnv[k] = process.env[k];
+
+const realFetch = globalThis.fetch;
+
+// ─── orchestrate(): provider + model fallback ─────────────────────────────────
+
+describe("orchestrate fallback", () => {
+  beforeEach(() => {
+    for (const k of ENV_KEYS) delete process.env[k];
+    for (const p of PROVIDER_NAMES) markSuccess(p); // reset health to healthy
+    getReplicateKeyImpl = () => undefined;
+    replicateRunImpl = async () => {
+      throw new Error("replicateRun not configured");
+    };
+    syncLipsyncImpl = async () => {
+      throw new Error("syncLipsync not configured");
+    };
+  });
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    restoreClock();
+  });
+
+  const LOVABLE_URL = "ai.gateway.lovable.dev";
+  const FAL_URL = "fal.run";
+
+  it("returns the first healthy provider's result without trying later ones", async () => {
+    process.env.LOVABLE_API_KEY = "lk";
+    const { calls } = installFetch(({ url }) => {
+      if (url.includes(LOVABLE_URL))
+        return fakeResponse({
+          json: {
+            choices: [{ message: { images: [{ image_url: { url: "https://img/lovable.png" } }] } }],
+          },
+        });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    const req: GenerateRequest = {
+      kind: "image",
+      prompt: "hi",
+      model: "google/gemini-2.5-flash-image",
+    };
+    const res = await orchestrate(req);
+
+    expect(res.provider).toBe("lovable");
+    expect(res.url).toBe("https://img/lovable.png");
+    // Only lovable was hit — the GPU pool and Fal were never reached.
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toContain(LOVABLE_URL);
+  });
+
+  it("falls through to the next provider when the first one throws", async () => {
+    process.env.LOVABLE_API_KEY = "lk";
+    process.env.FAL_KEY = "fk";
+    const { calls } = installFetch(({ url }) => {
+      if (url.includes(LOVABLE_URL))
+        return fakeResponse({ ok: false, status: 400, text: "bad gateway input" });
+      if (url.includes(FAL_URL))
+        return fakeResponse({ json: { images: [{ url: "https://img/fal.png" }] } });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    const req: GenerateRequest = { kind: "image", prompt: "hi" };
+    const res = await orchestrate(req);
+
+    // lovable failed, the GPU pool reported no workers, Fal (last resort) won.
+    expect(res.provider).toBe("fal");
+    expect(res.url).toBe("https://img/fal.png");
+    expect(calls.some((c) => c.url.includes(LOVABLE_URL))).toBe(true);
+    expect(calls.some((c) => c.url.includes(FAL_URL))).toBe(true);
+  });
+
+  it("falls across FALLBACK_MODELS (same Replicate provider) and respects FALLBACK_CAP", async () => {
+    process.env.REPLICATE_API_KEY = "r8_test";
+    getReplicateKeyImpl = () => "r8_test";
+    const slugs: string[] = [];
+    replicateRunImpl = async (slug) => {
+      slugs.push(slug);
+      if (slug === "bytedance/seedance-1-lite") throw new Error("Replicate model crashed");
+      return { output: "https://replicate.out/seedance.mp4" };
+    };
+
+    const req: GenerateRequest = { kind: "video", prompt: "a dragon" };
+    const res = await orchestrate(req);
+
+    expect(res.provider).toBe("replicate");
+    expect(res.endpoint).toBe("replicate:bytedance/seedance-1-pro");
+    expect(res.url).toBe("https://replicate.out/seedance.mp4");
+    // FALLBACK_CAP.video === 2 → exactly the first two video models were tried.
+    expect(slugs).toEqual(["bytedance/seedance-1-lite", "bytedance/seedance-1-pro"]);
+  });
+
+  it("throws an explanatory 'no provider available' error when nothing can serve the request", async () => {
+    // No provider keys, Replicate key absent, and the GPU pool cooled down.
+    markFailure("runpod");
+    const req: GenerateRequest = { kind: "image", model: "google/gemini-2.5-flash-image" };
+    await expect(orchestrate(req)).rejects.toThrow(/No provider available for image/);
+  });
+
+  it("aborts immediately on a FATAL request error without burning later fallbacks", async () => {
+    process.env.LOVABLE_API_KEY = "lk";
+    process.env.FAL_KEY = "fk";
+    const { calls } = installFetch(({ url }) => {
+      if (url.includes(LOVABLE_URL))
+        return fakeResponse({ ok: false, status: 400, text: "unsafe url host not allowed" });
+      if (url.includes(FAL_URL))
+        return fakeResponse({ json: { images: [{ url: "https://img/fal.png" }] } });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    const req: GenerateRequest = {
+      kind: "image",
+      prompt: "hi",
+      model: "google/gemini-2.5-flash-image",
+    };
+    await expect(orchestrate(req)).rejects.toThrow(/unsafe/);
+    // Fal must NOT have been attempted — the request is fatal for every provider.
+    expect(calls.some((c) => c.url.includes(FAL_URL))).toBe(false);
+  });
+
+  it("does NOT cool down a provider after a non-provider-down failure", async () => {
+    process.env.LOVABLE_API_KEY = "lk";
+    process.env.FAL_KEY = "fk";
+    installFetch(({ url }) => {
+      if (url.includes(LOVABLE_URL))
+        return fakeResponse({ ok: false, status: 400, text: "bad input shape" });
+      if (url.includes(FAL_URL))
+        return fakeResponse({ json: { images: [{ url: "https://img/fal.png" }] } });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    await orchestrate({ kind: "image", prompt: "hi" });
+    // A 400 input error is provider-agnostic noise, not a provider outage.
+    expect(isHealthy("lovable")).toBe(true);
+    expect(getProviderHealthSnapshot()["lovable"]?.failures ?? 0).toBe(0);
+  });
+
+  it("cools down a provider after a PROVIDER_DOWN failure", async () => {
+    installFakeClock();
+    process.env.LOVABLE_API_KEY = "lk";
+    process.env.FAL_KEY = "fk";
+    installFetch(({ url }) => {
+      if (url.includes(LOVABLE_URL))
+        return fakeResponse({ ok: false, status: 503, text: "service unavailable" });
+      if (url.includes(FAL_URL))
+        return fakeResponse({ json: { images: [{ url: "https://img/fal.png" }] } });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    const res = await orchestrate({ kind: "image", prompt: "hi" });
+    expect(res.provider).toBe("fal"); // still served by falling through
+    // A 503 is a genuine outage signal → lovable is circuit-broken.
+    expect(isHealthy("lovable")).toBe(false);
+    const snap = getProviderHealthSnapshot()["lovable"];
+    expect(snap.failures).toBe(1);
+    expect(snap.cooldownMs).toBeGreaterThan(0);
+  });
+});
+
+// ─── In-memory health tracking ────────────────────────────────────────────────
+
+describe("provider health tracking", () => {
+  beforeEach(() => installFakeClock(1_000_000));
+  afterEach(() => restoreClock());
+
+  it("markFailure opens a cooldown that isHealthy respects until it expires", () => {
+    markSuccess("hp");
+    expect(isHealthy("hp")).toBe(true);
+
+    markFailure("hp"); // failures=1 → 5s cooldown
+    expect(isHealthy("hp")).toBe(false);
+    fakeNow += 4_999;
+    expect(isHealthy("hp")).toBe(false);
+    fakeNow += 2; // now past cooldownUntil
+    expect(isHealthy("hp")).toBe(true);
+  });
+
+  it("escalates the cooldown with repeated failures, capped at 120s", () => {
+    markSuccess("esc");
+    markFailure("esc");
+    expect(getProviderHealthSnapshot()["esc"]).toMatchObject({ failures: 1, cooldownMs: 5_000 });
+    markFailure("esc");
+    expect(getProviderHealthSnapshot()["esc"]).toMatchObject({ failures: 2, cooldownMs: 15_000 });
+    markFailure("esc");
+    expect(getProviderHealthSnapshot()["esc"].cooldownMs).toBe(45_000);
+    markFailure("esc"); // 5*27=135 → capped
+    expect(getProviderHealthSnapshot()["esc"].cooldownMs).toBe(120_000);
+  });
+
+  it("markSuccess clears failures and cooldown", () => {
+    markFailure("rs");
+    markFailure("rs");
+    expect(isHealthy("rs")).toBe(false);
+
+    markSuccess("rs");
+    expect(isHealthy("rs")).toBe(true);
+    expect(getProviderHealthSnapshot()["rs"]).toMatchObject({
+      failures: 0,
+      cooldownMs: 0,
+      ready: true,
+    });
+  });
+
+  it("getProviderHealthSnapshot flips ready false→true as the cooldown expires", () => {
+    markSuccess("snp");
+    markFailure("snp");
+    expect(getProviderHealthSnapshot()["snp"].ready).toBe(false);
+
+    fakeNow += 6_000;
+    expect(getProviderHealthSnapshot()["snp"].ready).toBe(true);
+    expect(getProviderHealthSnapshot()["snp"].cooldownMs).toBe(0);
+  });
+});
+
+afterAll(() => {
+  for (const k of ENV_KEYS) {
+    if (savedEnv[k] === undefined) delete process.env[k];
+    else process.env[k] = savedEnv[k];
+  }
+});
