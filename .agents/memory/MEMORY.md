@@ -9,6 +9,7 @@
 - [Test setup (Bun runner)](test-setup.md) — `bun test src/` runs `*.test.ts`; they're excluded from tsconfig (no `bun:test` types); eslint is not type-aware; export privates to test them.
 - [Cron endpoints pattern](cron-endpoints.md) — scheduled work = protected `/api/public/*` route authed via anon-key `apikey` header (NOT CRON_SECRET); scheduling is external (no pg_cron in dev/migrations).
 - [Aurora MCP server](aurora-mcp-server.md) — hand-rolled stateless JSON-RPC at /api/mcp (MCP SDK is Node-only, won't run on Workers); tools reuse /api/public/generate + jobs RPC; avatars live in DB but not in generated types.ts.
+- [Worker endpoint normalization](worker-endpoint-normalization.md) — every path appending to a worker endpoint_url (dispatch + health) must normalizeWorkerBase() in lockstep, else `.../generate/generate`.
 - [Credit reservation flow](credit-reservation-flow.md) — all spend goes through reserveOrchestrateRecord; Supabase RPCs resolve {error} (don't throw); commit-fail must NOT release (would refund a delivered render).
 - [Landing video hydration warning](aurora-landing-video-hydration.md) — React "attributes didn't match" console.error is from muted/autoplay `<video>` across MANY landing components; pre-existing & benign, not a per-component regression.
 - [SSR curl checks](replit-ssr-curl-checks.md) — verify rendered HTML via curl localhost:8080; $REPLIT_DEV_DOMAIN returns 0 bytes (mTLS proxy) & shell curl -o file writes fail — capture into a shell var.

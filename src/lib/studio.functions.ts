@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { orchestrate, hasActiveWorkerForKind } from "./orchestrator.server";
+import { buildLatentSyncRequest } from "./lipsync-workflows.server";
 import { fetchToBytes } from "./replicate.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertTrustedUrl } from "./url-guard";
@@ -311,7 +312,7 @@ export const generateSplitReality = createServerFn({ method: "POST" })
 const LipSyncSchema = z.object({
   videoUrl: z.string().url(),
   audioUrl: z.string().url(),
-  model: z.enum(["fal-ai/sync-lipsync/v2", "fal-ai/wav2lip"]).default("fal-ai/sync-lipsync/v2"),
+  model: z.enum(["fal-ai/sync-lipsync/v2", "fal-ai/wav2lip", "latentsync"]).default("fal-ai/sync-lipsync/v2"),
 });
 
 export const lipSyncVideo = createServerFn({ method: "POST" })
@@ -320,11 +321,21 @@ export const lipSyncVideo = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const model = data.model;
+    const selfHosted = model === "latentsync";
+    if (selfHosted && !(await hasActiveWorkerForKind("lipsync"))) {
+      throw new Error(
+        "No self-hosted LatentSync worker is online. Register a GPU worker with the 'lipsync' capability in Admin → Workers, or pick Sync 1.9 / Wav2Lip.",
+      );
+    }
+    const promptLabel =
+      model === "fal-ai/wav2lip" ? "lip sync (wav2lip)"
+      : model === "latentsync" ? "lip sync (latentsync · self-hosted)"
+      : "lip sync (sync 1.9)";
     const { data: row, error: insErr } = await supabase
       .from("generations")
       .insert({
         user_id: userId,
-        prompt: model === "fal-ai/wav2lip" ? "lip sync (wav2lip)" : "lip sync (sync 1.9)",
+        prompt: promptLabel,
         status: "processing",
         kind: "video",
         model,
@@ -336,13 +347,20 @@ export const lipSyncVideo = createServerFn({ method: "POST" })
     if (insErr || !row) throw new Error(insErr?.message || "Insert failed");
     await chargeCredits(userId, COST_LIPSYNC, "lipsync", row.id);
     try {
+      // Self-hosted LatentSync carries a ComfyUI graph + flat params so it runs
+      // on every worker protocol; hosted engines never get these.
+      const selfHostedParts = selfHosted
+        ? buildLatentSyncRequest({ videoUrl: data.videoUrl, audioUrl: data.audioUrl })
+        : undefined;
       const out = await orchestrate({
         kind: "lipsync",
         model,
+        selfHostedOnly: selfHosted,
         videoUrl: data.videoUrl,
         audioUrl: data.audioUrl,
         userId,
         refId: row.id,
+        ...(selfHostedParts ?? {}),
       });
       const { bytes, mime } = await fetchToBytes(out.url);
       const path = `${userId}/videos/${row.id}.mp4`;

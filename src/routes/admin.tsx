@@ -315,6 +315,71 @@ function heartbeatAge(ts: string | null | undefined): string {
 
 type WorkerProtocol = "custom" | "runpod" | "comfyui" | "hfspace" | "vast";
 
+// Per-platform connect recipes shown in the Register panel. These point at the
+// ready-to-run templates in the repo `workers/` dir (LatentSync = lipsync,
+// MimicMotion = motion) so an operator can stand a worker up end-to-end.
+const WORKER_RECIPES: Record<WorkerProtocol, {
+  label: string; template: string; endpoint: string; caps: string; steps: string[];
+}> = {
+  custom: {
+    label: "Custom — self-hosted FastAPI (GPU VM / Colab)",
+    template: "workers/aurora_worker.py",
+    endpoint: "https://<host>:8000/generate",
+    caps: "lipsync,motion",
+    steps: [
+      "Run workers/setup.sh to clone LatentSync + MimicMotion and fetch weights (~24GB, 24GB-VRAM GPU).",
+      "Start it: uvicorn aurora_worker:app --host 0.0.0.0 --port 8000 --app-dir workers",
+      "Expose the port (or use the Colab/Kaggle tunnel) and paste the …/generate URL above.",
+      "Optional: set AURORA_WORKER_TOKEN on the box and the same value as the Auth bearer token here.",
+    ],
+  },
+  vast: {
+    label: "Vast.ai — rented GPU box (same /generate contract)",
+    template: "workers/aurora_worker.py",
+    endpoint: "https://<vast-host>:<port>/generate",
+    caps: "lipsync,motion",
+    steps: [
+      "Rent a 24GB+ GPU instance and open an external port.",
+      "Run workers/setup.sh, then start aurora_worker:app on that port.",
+      "Register the instance's public …/generate URL above.",
+    ],
+  },
+  runpod: {
+    label: "RunPod Serverless",
+    template: "workers/runpod/ (Dockerfile + handler.py)",
+    endpoint: "https://api.runpod.ai/v2/<endpoint-id>",
+    caps: "lipsync,motion",
+    steps: [
+      "docker build -f workers/runpod/Dockerfile -t <you>/aurora-worker workers && push it.",
+      "Create a Serverless endpoint (24GB+ GPU, ≥40GB disk) from that image.",
+      "Set the Auth bearer token to your RunPod API key.",
+      "Tick the /runsync box below for short clips; leave off to poll /status.",
+    ],
+  },
+  comfyui: {
+    label: "ComfyUI — Aurora ships the graph",
+    template: "workers/comfyui/ (LatentSync + MimicMotion graphs)",
+    endpoint: "https://<host>:8188",
+    caps: "lipsync,motion",
+    steps: [
+      "Install ComfyUI + the LatentSync & MimicMotion custom-node packs (see workers/comfyui/README).",
+      "Start it: python main.py --listen 0.0.0.0 --port 8188",
+      "Aurora sends the prompt graph for you — just keep the node class names matching the JSONs.",
+    ],
+  },
+  hfspace: {
+    label: "Hugging Face Space — one task per Space",
+    template: "workers/hf-space/ (Gradio app.py)",
+    endpoint: "https://<user>-<space>.hf.space",
+    caps: "lipsync  OR  motion",
+    steps: [
+      "Create a Gradio Space (GPU) with app.py + aurora_worker.py + setup.sh.",
+      "Set AURORA_TASK=lipsync or AURORA_TASK=motion (Gradio is arity-locked to one task).",
+      "Register with the MATCHING capability; add an HF token only if the Space is private.",
+    ],
+  },
+};
+
 function WorkersPanel() {
   const listFn = useServerFn(listWorkers);
   const saveFn = useServerFn(upsertWorker);
@@ -340,7 +405,7 @@ function WorkersPanel() {
           <Input placeholder="Endpoint URL (https://…)" value={form.endpoint_url} onChange={e => setForm({ ...form, endpoint_url: e.target.value })} />
           <Input placeholder="Auth bearer token (optional)" value={form.auth_token} onChange={e => setForm({ ...form, auth_token: e.target.value })} />
           <Input placeholder="Region" value={form.region} onChange={e => setForm({ ...form, region: e.target.value })} />
-          <Input placeholder="Capabilities (comma: image,video,lipsync,upscale)" value={form.capabilities} onChange={e => setForm({ ...form, capabilities: e.target.value })} />
+          <Input placeholder="Capabilities (comma: image,video,lipsync,motion,upscale)" value={form.capabilities} onChange={e => setForm({ ...form, capabilities: e.target.value })} />
           <Input type="number" placeholder="Max concurrency" value={form.max_concurrency} onChange={e => setForm({ ...form, max_concurrency: parseInt(e.target.value || "4") })} />
           <select 
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" 
@@ -380,11 +445,33 @@ function WorkersPanel() {
           } });
           toast.success("Worker added"); reset(); qc.invalidateQueries({ queryKey: ["workers"] });
         }} disabled={!form.name || !form.endpoint_url}>Add worker</Button>
+        {(() => {
+          const r = WORKER_RECIPES[form.protocol];
+          return (
+            <div className="rounded-lg border border-border bg-background/40 p-3 text-xs space-y-2">
+              <p className="font-medium text-foreground">{r.label} — connect recipe</p>
+              <div className="grid sm:grid-cols-3 gap-1">
+                <p>Template: <code>{r.template}</code></p>
+                <p>Endpoint: <code>{r.endpoint}</code></p>
+                <p>Capabilities: <code>{r.caps}</code></p>
+              </div>
+              <ol className="list-decimal pl-4 space-y-0.5 text-muted-foreground">
+                {r.steps.map((s, i) => <li key={i}>{s}</li>)}
+              </ol>
+              <p className="text-muted-foreground">
+                <strong>lipsync</strong> (LatentSync) and <strong>motion</strong> (MimicMotion) are
+                self-hosted only — there is no hosted fallback, so a worker with these capabilities
+                must be online for those features. Set <strong>Role</strong> to override the task
+                inferred from capabilities. See <code>workers/CONTRACT.md</code> for the full job contract.
+              </p>
+            </div>
+          );
+        })()}
         <div className="text-xs text-muted-foreground space-y-1">
           <p><strong>Custom / Vast.ai:</strong> <code>POST /generate</code> with flat JSON body → <code>{"{ url }"}</code>. Health: <code>GET /health</code>. Use this for Colab+ngrok, a Vast.ai box, or any self-hosted server.</p>
           <p><strong>RunPod:</strong> <code>POST /runsync</code> (preferred) or <code>POST /run</code> + <code>{"GET /status/{id}"}</code> with body <code>{"{ input: { kind, prompt, image_urls, audio_url, video_url, model, duration, resolution } }"}</code>. Auth token sent as <code>Authorization: Bearer …</code>.</p>
-          <p><strong>ComfyUI:</strong> raw ComfyUI server — <code>POST /prompt</code> with a workflow graph, poll <code>{"/history/{id}"}</code>, fetch <code>/view</code>. Health: <code>GET /system_stats</code>. (Workflow wiring lands with image/video gen.)</p>
-          <p><strong>HF Space:</strong> a Gradio Space — calls <code>{"/gradio_api/call/predict"}</code> over SSE. Health: <code>GET /</code>.</p>
+          <p><strong>ComfyUI:</strong> raw ComfyUI server — <code>POST /prompt</code> with a workflow graph, poll <code>{"/history/{id}"}</code>, fetch <code>/view</code>. Health: <code>GET /system_stats</code>. Aurora ships the LatentSync/MimicMotion graphs.</p>
+          <p><strong>HF Space:</strong> a Gradio Space — calls <code>{"/gradio_api/call/predict"}</code> over SSE. Health: <code>GET /</code>. One Space serves one task.</p>
           <p>Lower <strong>priority</strong> number = tried first. Use higher priority (e.g. 200) for serverless/auto-scale fallback workers.</p>
         </div>
       </section>

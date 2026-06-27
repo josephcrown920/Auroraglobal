@@ -1,4 +1,4 @@
-modules = ["nodejs-24", "python-3.11", "postgresql-16"]
+modules = ["nodejs-24", "python-3.11"]
 
 [deployment]
 router = "application"
@@ -27,7 +27,6 @@ args = "test"
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
-mode = "parallel"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
@@ -46,7 +45,7 @@ task = "shell.exec"
 args = "bun test src/"
 
 [workflows.workflow.metadata]
-isValidation = true
+outputType = "console"
 
 [agent]
 stack = "PNPM_WORKSPACE"
@@ -55,23 +54,3 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
-
-[[ports]]
-localPort = 8080
-externalPort = 80
-
-[[ports]]
-localPort = 8081
-externalPort = 8081
-
-[userenv]
-
-[userenv.shared]
-VITE_SUPABASE_URL = "https://tpzmvbczwahxajujvnrq.supabase.co"
-SUPABASE_URL = "https://tpzmvbczwahxajujvnrq.supabase.co"
-VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_SGO6FEm9zbgYEOsFqlSX8Q_dFVMJf4x"
-SUPABASE_PUBLISHABLE_KEY = "sb_publishable_SGO6FEm9zbgYEOsFqlSX8Q_dFVMJf4x"
-SUPABASE_ANON_KEY = "sb_publishable_SGO6FEm9zbgYEOsFqlSX8Q_dFVMJf4x"
-
-[nix]
-channel = "stable-25_05"

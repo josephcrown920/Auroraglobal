@@ -5,7 +5,7 @@ export type ModelMeta = {
   value: string;
   label: string;
   short: string;
-  group: "Lovable AI" | "Replicate" | "Hugging Face" | "Sync";
+  group: "Lovable AI" | "Replicate" | "Hugging Face" | "Sync" | "Self-hosted";
   icon: LucideIcon;
   color: string;
   bg: string;
@@ -247,7 +247,21 @@ export const WAV2LIP_MODEL: ModelMeta = {
   category: "lipsync",
 };
 
-export const LIPSYNC_MODEL_LIST: ModelMeta[] = [LIPSYNC_MODEL, WAV2LIP_MODEL];
+export const LATENTSYNC_MODEL: ModelMeta = {
+  value: "latentsync",
+  endpoint: "latentsync",
+  label: "LatentSync (self-hosted)",
+  short: "LatentSync",
+  group: "Self-hosted",
+  icon: Cpu,
+  color: "text-sky-400",
+  bg: "bg-sky-500/15 border-sky-500/30",
+  tagline: "Runs on your registered GPU worker · no hosted API",
+  status: "live",
+  category: "lipsync",
+};
+
+export const LIPSYNC_MODEL_LIST: ModelMeta[] = [LIPSYNC_MODEL, WAV2LIP_MODEL, LATENTSYNC_MODEL];
 
 const ALL: Record<string, ModelMeta> = Object.fromEntries(
   [...MODEL_LIST, ...VIDEO_MODEL_LIST, ...LIPSYNC_MODEL_LIST].map((m) => [m.value, m]),
