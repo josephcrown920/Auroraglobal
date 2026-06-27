@@ -9,7 +9,7 @@ import { runInference, providerStatus } from "./inference";
 import type { ProviderId } from "./inference/types";
 
 const RunInput = z.object({
-  provider: z.enum(["runpod", "huggingface", "custom"]),
+  provider: z.enum(["runpod", "huggingface", "custom", "vast", "comfyui"]),
   audioUrl: z.string().url(),
   mediaUrl: z.string().url(),
   mode: z.enum(["image", "video"]),
@@ -20,11 +20,15 @@ export const runLipSync = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     try {
       const result = await runInference(data.provider as ProviderId, {
+        task: "lipsync",
         audioUrl: data.audioUrl,
         mediaUrl: data.mediaUrl,
         mode: data.mode,
+        ...(data.mode === "video"
+          ? { videoUrl: data.mediaUrl }
+          : { imageUrls: [data.mediaUrl] }),
       });
-      return { ok: true as const, videoUrl: result.videoUrl };
+      return { ok: true as const, videoUrl: result.videoUrl ?? result.outputUrl };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       return { ok: false as const, error: message };

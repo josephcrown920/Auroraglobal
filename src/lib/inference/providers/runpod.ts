@@ -1,22 +1,24 @@
 // RunPod Serverless adapter.
 // Uses the /runsync endpoint, which blocks until the worker finishes (or 30s).
-// For longer jobs switch to /run + poll /status/{id}.
+// For longer jobs switch to /run + poll /status/{id} (see the worker registry).
 //
 // Required env:
 //   RUNPOD_API_KEY      — your RunPod API key
 //   RUNPOD_ENDPOINT_ID  — the serverless endpoint ID (e.g. "abc123xyz")
 //
-// Worker contract (your handler.py on RunPod must accept):
-//   { input: { audio_url, media_url, mode: "image" | "video" } }
-// And return:
-//   { output: { video_url } }   — or { output: { video_base64 } }
+// Worker contract (your handler.py on RunPod receives the generalized job under
+// `input`): { input: { task, prompt?, image_urls?, audio_url?, video_url?, mode?,
+// params?, workflow?, workflow_inputs? } } and returns a payload containing an
+// output URL (e.g. { output: { video_url } } or { output: { image_url } }).
 
 import type { InferenceInput, InferenceResult, ProviderAdapter } from "../types";
+import { extractOutputUrl, jobBody, toResult } from "../protocols";
 
 export const runpodAdapter: ProviderAdapter = {
   id: "runpod",
   label: "RunPod Serverless",
   requiredEnv: ["RUNPOD_API_KEY", "RUNPOD_ENDPOINT_ID"],
+  tasks: ["image", "video", "lipsync", "motion"],
 
   async run(input: InferenceInput): Promise<InferenceResult> {
     const apiKey = process.env.RUNPOD_API_KEY;
@@ -31,34 +33,22 @@ export const runpodAdapter: ProviderAdapter = {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        input: {
-          audio_url: input.audioUrl,
-          media_url: input.mediaUrl,
-          mode: input.mode,
-        },
-      }),
+      body: JSON.stringify({ input: jobBody(input) }),
     });
 
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`RunPod ${res.status}: ${text.slice(0, 300)}`);
     }
-    const json = (await res.json()) as {
-      status?: string;
-      output?: { video_url?: string; video_base64?: string };
-      error?: string;
-    };
+    const json = (await res.json()) as { status?: string; output?: unknown; error?: string };
 
     if (json.error) throw new Error(`RunPod error: ${json.error}`);
     if (json.status && json.status !== "COMPLETED") {
       throw new Error(`RunPod status: ${json.status} — increase timeout or use /run + polling.`);
     }
 
-    const videoUrl = json.output?.video_url;
-    if (!videoUrl) {
-      throw new Error("RunPod response missing output.video_url");
-    }
-    return { videoUrl, raw: json };
+    const outputUrl = extractOutputUrl(json.output) ?? extractOutputUrl(json);
+    if (!outputUrl) throw new Error("RunPod response missing an output url");
+    return toResult(outputUrl, input, json);
   },
 };

@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import {
+  dispatchComfyui,
   dispatchCustom,
+  dispatchHfspace,
   dispatchRunpod,
   extractWorkerUrl,
   legacyCustomUrl,
@@ -49,6 +51,17 @@ function fakeResponse(opts: {
     json: async () => opts.json,
     text: async () => opts.text ?? "",
   } as unknown as Response;
+}
+
+/** A fake SSE Response whose body streams `text` once (for Gradio /call SSE). */
+function sseResponse(text: string): Response {
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(text));
+      controller.close();
+    },
+  });
+  return { ok: true, status: 200, body: stream } as unknown as Response;
 }
 
 /**
@@ -377,5 +390,60 @@ describe("dispatchRunpod", () => {
     await expect(
       dispatchRunpod("https://api.runpod.ai/v2/abc", w, baseReq, Date.now() + 10_000),
     ).rejects.toThrow(/poll timeout/);
+  });
+});
+
+// ─── dispatchComfyui ──────────────────────────────────────────────────────────
+
+describe("dispatchComfyui", () => {
+  it("throws explicitly when the request carries no comfyWorkflow (no silent fallback)", async () => {
+    const w = makeWorker({ protocol: "comfyui" });
+    await expect(
+      dispatchComfyui("https://comfy.example.com", w, baseReq, Date.now() + 60_000),
+    ).rejects.toThrow(/requires a workflow/);
+  });
+
+  it("submits the graph to /prompt then resolves a /view url from /history", async () => {
+    installFakeClock();
+    try {
+      const { calls } = installFetch(({ url }) => {
+        if (url.endsWith("/prompt")) return fakeResponse({ json: { prompt_id: "p1" } });
+        // GET /history/p1 — a finished job with one image output.
+        return fakeResponse({
+          json: { p1: { outputs: { "9": { images: [{ filename: "out.png", subfolder: "", type: "output" }] } } } },
+        });
+      });
+      const req: GenerateRequest = { ...baseReq, comfyWorkflow: { "1": { class_type: "KSampler", inputs: {} } } };
+      const w = makeWorker({ protocol: "comfyui" });
+
+      const payload = await dispatchComfyui("https://comfy.example.com", w, req, Date.now() + 60_000);
+
+      expect(extractWorkerUrl(payload)).toBe(
+        "https://comfy.example.com/view?filename=out.png&subfolder=&type=output",
+      );
+      expect(calls[0].url).toBe("https://comfy.example.com/prompt");
+      expect(calls[1].url).toBe("https://comfy.example.com/history/p1");
+    } finally {
+      restoreClock();
+    }
+  });
+});
+
+// ─── dispatchHfspace ──────────────────────────────────────────────────────────
+
+describe("dispatchHfspace", () => {
+  it("calls the Gradio predict fn and extracts the url from the complete event", async () => {
+    const { calls } = installFetch(({ url }) => {
+      if (url.endsWith("/gradio_api/call/predict")) return fakeResponse({ json: { event_id: "ev1" } });
+      // SSE stream for GET /gradio_api/call/predict/ev1
+      return sseResponse('event: complete\ndata: [{"url":"http://cdn/space.png"}]\n\n');
+    });
+    const w = makeWorker({ protocol: "hfspace", auth_token: "hf_tok" });
+
+    const payload = await dispatchHfspace("https://my-space.hf.space", w, baseReq, Date.now() + 60_000);
+
+    expect(extractWorkerUrl(payload)).toBe("http://cdn/space.png");
+    expect(calls[0].url).toBe("https://my-space.hf.space/gradio_api/call/predict");
+    expect(calls[1].url).toBe("https://my-space.hf.space/gradio_api/call/predict/ev1");
   });
 });
