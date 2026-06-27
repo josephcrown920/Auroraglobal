@@ -54,7 +54,7 @@ function DashboardPage() {
           <img src={auroraLogo.url} alt="Aurora" className="size-8 rounded-xl object-contain" />
           Aurora Studio
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
           <Link to="/studio" className="text-sm px-4 py-2 rounded-full text-primary-foreground" style={{ background: "var(--gradient-hero)" }}>
             Open Studio <ArrowRight className="inline size-3.5" />
           </Link>

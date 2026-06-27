@@ -360,7 +360,7 @@ function StudioPage() {
           <img src={auroraLogo.url} alt="Aurora" className="size-8 rounded-xl object-contain" />
           Aurora Studio
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-card/60 text-sm">
             <Coins className="size-3.5 text-primary" />
             <span className="font-medium">{profile?.credits ?? "—"}</span>
