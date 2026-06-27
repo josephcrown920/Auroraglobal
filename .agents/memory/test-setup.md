@@ -21,3 +21,16 @@ typecheck them. To test module-private helpers (e.g. orchestrator
 For poll-loop code that sleeps on real timers against a deadline, install a fake
 clock that advances a virtual `Date.now()` by each `setTimeout` delay — keeps the
 deadline math intact while running instantly.
+
+To test `orchestrate()` (the provider/model fallback engine): `SUPABASE_URL` is
+set in the sandbox, so a top-level import of orchestrator.server eagerly builds a
+real Supabase client → real network on use. Stub deps with bun `mock.module(...)`
++ a top-level `await import("./orchestrator.server")` AFTER the mocks (static
+imports hoist above mock.module, so they'd bind the real module). Mock
+`@/integrations/supabase/client.server` (a chainable, awaitable query builder
+whose terminal resolves `{data:[],...}` makes the GPU pool report "no workers"),
+plus `./replicate.server`, `./sync.server`, `./hf.server`. Shape the priority
+chain per test via `process.env` provider keys; reset the shared in-memory HEALTH
+map between tests by calling exported `markSuccess(name)` for every provider name.
+Note `gpuWorker.supports()` returns true for EVERY kind, so it's always in the
+chain unless cooled down or the (stubbed) worker query is empty.
