@@ -143,7 +143,7 @@ export function McpConnector() {
               ))}
             </div>
             <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/45">
-              8 images · 60 credits · ~38s
+              8 images · 60 Aura · ~38s
             </p>
           </div>
         </div>
@@ -229,7 +229,7 @@ export function McpConnector() {
                 </span>
               </div>
               <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-emerald-400/80">
-                ✓ 50 credits
+                ✓ 50 Aura
               </p>
             </div>
           </div>
@@ -252,7 +252,7 @@ export function McpConnector() {
             one-click consent prompt — no API keys to paste. Claude Desktop, Cursor and other MCP
             clients can use the same URL plus a personal API key. Once connected, the assistant can
             list your avatars, generate images and videos, produce talking UGC ads, spin up full
-            campaigns, edit existing assets, and check your credit balance from a normal chat.
+            campaigns, edit existing assets, and check your Aura balance from a normal chat.
           </p>
         </div>
 

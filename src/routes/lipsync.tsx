@@ -43,7 +43,7 @@ function LipSyncStudioPage() {
             {[
               { icon: Upload, t: "1. Upload clip", d: "Any talking head, 5-30s" },
               { icon: Music2, t: "2. Add vocal", d: "MP3 / WAV stem" },
-              { icon: Wand2, t: "3. Run sync", d: "3 credits · ~45s" },
+              { icon: Wand2, t: "3. Run sync", d: "3 Aura · ~45s" },
             ].map((s, i) => (
               <div
                 key={s.t}
@@ -290,7 +290,7 @@ function LipSyncForm() {
             )}
           </button>
           <p className="text-xs text-white/50">
-            {engine === "sync-v2" ? "3 credits · ~45s" : "2 credits · ~25s"}
+            {engine === "sync-v2" ? "3 Aura · ~45s" : "2 Aura · ~25s"}
           </p>
         </div>
 

@@ -55,7 +55,7 @@ async function chargeCredits(userId: string, amount: number, reason: string, ref
     _ref: refId,
   });
   if (error) throw new Error(error.message);
-  if (data === false) throw new Error("Not enough credits. Buy more from the Credits panel.");
+  if (data === false) throw new Error("Not enough Aura. Buy more from the Aura panel.");
 }
 
 async function refundCredits(userId: string, amount: number, refId: string) {
@@ -532,7 +532,7 @@ async function reserveGenerationJob(
   });
   if (error) {
     if (/insufficient_credits/i.test(error.message)) {
-      throw new Error("Not enough credits. Buy more from the Credits panel.");
+      throw new Error("Not enough Aura. Buy more from the Aura panel.");
     }
     throw new Error(error.message);
   }

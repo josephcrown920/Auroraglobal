@@ -89,7 +89,7 @@ const FEATURES = [
   { name: "Split Reality", desc: "Two cinematic grades, one render, side-by-side.", to: "/canvas", icon: SplitSquareHorizontal, glow: "from-cyan-500/30 to-blue-500/10" },
   { name: "UGC Ads", desc: "Talent + product → looping social ads.", to: "/ugc", icon: Film, glow: "from-amber-500/30 to-orange-500/10" },
   { name: "Gallery", desc: "Browse the community's best Aurora shots.", to: "/gallery", icon: ImageIcon, glow: "from-indigo-500/30 to-violet-500/10" },
-  { name: "Gifts", desc: "Send Aurora credits to a friend.", to: "/gifts", icon: Wand2, glow: "from-rose-500/30 to-pink-500/10" },
+  { name: "Gifts", desc: "Send Aura to a friend.", to: "/gifts", icon: Wand2, glow: "from-rose-500/30 to-pink-500/10" },
 ];
 
 export function FeaturesGrid() {

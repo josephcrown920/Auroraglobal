@@ -17,7 +17,7 @@ export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
       { title: "My Dashboard — Aurora" },
-      { name: "description", content: "Manage your Aurora balance, billing, recent generations and account settings." },
+      { name: "description", content: "Manage your Aura balance, billing, recent generations and account settings." },
       { name: "robots", content: "noindex" },
     ],
     links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/dashboard" }],
@@ -72,11 +72,11 @@ function DashboardPage() {
           <h1 className="text-4xl md:text-5xl font-semibold tracking-tight">
             Welcome back, <span style={{ background: "var(--gradient-hero)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{profile?.display_name || user.email?.split("@")[0]}.</span>
           </h1>
-          <p className="mt-2 text-muted-foreground">Your gallery, your Aurora, your history — all in one place.</p>
+          <p className="mt-2 text-muted-foreground">Your gallery, your Aura, your history — all in one place.</p>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard icon={Coins} label="Aurora" value={profile?.credits ?? "—"} />
+          <StatCard icon={Coins} label="Aura" value={profile?.credits ?? "—"} />
           <StatCard icon={ImageIcon} label="Images" value={images.length} />
           <StatCard icon={Film} label="Videos" value={videos.length} />
           <StatCard icon={Sparkles} label="Total shoots" value={items.length} />

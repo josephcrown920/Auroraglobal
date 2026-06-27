@@ -3,8 +3,8 @@ import { ChevronDown } from "lucide-react";
 
 const FAQS = [
   {
-    q: "How does Aurora (our credit) work?",
-    a: "1 Aurora ≈ 1 image. Videos cost 5 Aurora (5s) or 10 Aurora (10s). Lip-sync is 1 Aurora per second. Aurora never expires and rolls across every model.",
+    q: "How does Aura (our credit) work?",
+    a: "1 Aura ≈ 1 image. Videos cost 5 Aura (5s) or 10 Aura (10s). Lip-sync is 1 Aura per second. Aura never expires and rolls across every model.",
   },
   {
     q: "Can I use the results commercially?",
@@ -20,11 +20,11 @@ const FAQS = [
   },
   {
     q: "What if I'm not happy?",
-    a: "7-day refund on any unused Aurora, no questions asked. Email us and we'll return your remaining balance.",
+    a: "7-day refund on any unused Aura, no questions asked. Email us and we'll return your remaining balance.",
   },
   {
     q: "Is there a free trial?",
-    a: "Yes — every new account gets 5 free Aurora the moment you sign in. Enough to test image generation and decide if Aurora is for you.",
+    a: "Yes — every new account gets 5 free Aura the moment you sign in. Enough to test image generation and decide if Aurora is for you.",
   },
 ];
 

@@ -14,12 +14,12 @@ export function AffiliateRewardSection() {
             Get rewarded for growing the <em className="not-italic bg-gradient-to-r from-emerald-300 to-cyan-300 bg-clip-text text-transparent">Aurora</em> community.
           </h2>
           <p className="mt-4 max-w-xl text-base leading-7 text-white/70 md:text-lg">
-            Share your custom referral link, onboard other creators, and stack free credits to power your next viral hit.
+            Share your custom referral link, onboard other creators, and stack free Aura to power your next viral hit.
           </p>
 
           <ul className="mt-6 grid gap-3 text-sm text-white/80">
-            <Reward icon={<Coins className="size-4" />} title="+5 Aurora credits" body="instantly, for every new creator who signs up with your link." />
-            <Reward icon={<Gift className="size-4" />} title="+20 bonus credits" body="when your referral makes their first paid purchase." />
+            <Reward icon={<Coins className="size-4" />} title="+5 Aura" body="instantly, for every new creator who signs up with your link." />
+            <Reward icon={<Gift className="size-4" />} title="+20 bonus Aura" body="when your referral makes their first paid purchase." />
             <Reward icon={<Users className="size-4" />} title="Referral Tiers" body="Unlock higher daily rendering limits as your referral network grows." />
           </ul>
 
@@ -34,9 +34,9 @@ export function AffiliateRewardSection() {
         </div>
 
         <div className="grid gap-3">
-          <Tile big label="Per signup" value="+5" suffix="credits" />
+          <Tile big label="Per signup" value="+5" suffix="Aura" />
           <div className="grid grid-cols-2 gap-3">
-            <Tile label="First payment" value="+20" suffix="credits" />
+            <Tile label="First payment" value="+20" suffix="Aura" />
             <Tile label="Unlock" value="Tiers" suffix="limits" />
           </div>
           <div className="rounded-xl border border-white/10 bg-black/40 p-4 text-xs text-white/55">

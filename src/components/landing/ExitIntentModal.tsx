@@ -70,7 +70,7 @@ export function ExitIntentModal() {
           <Sparkles className="size-3" /> Wait — before you go
         </span>
         <h3 className="mt-4 text-2xl md:text-3xl font-semibold leading-tight text-white">
-          50% off your <span className="bg-gradient-to-r from-violet-300 to-fuchsia-300 bg-clip-text text-transparent">first credit pack</span>
+          50% off your <span className="bg-gradient-to-r from-violet-300 to-fuchsia-300 bg-clip-text text-transparent">first Aura pack</span>
         </h3>
         <p className="mt-2 text-sm text-white/70">
           Try Aurora at half price. Code applied automatically at checkout when you start in the next hour.

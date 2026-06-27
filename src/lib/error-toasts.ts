@@ -9,8 +9,8 @@ export function handleGenerationError(error: unknown) {
   const msg = error instanceof Error ? error.message : "Generation failed";
 
   if (msg.includes("insufficient credits")) {
-    toast.error("Not enough Aurora. Top up to generate.", {
-      action: { label: "Buy Aurora", onClick: () => window.location.href = "/dashboard/billing" },
+    toast.error("Not enough Aura. Top up to generate.", {
+      action: { label: "Buy Aura", onClick: () => window.location.href = "/dashboard/billing" },
     });
   } else if (msg.includes("rate limit")) {
     toast.error("Too many requests. Wait a moment and try again.");

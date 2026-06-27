@@ -161,7 +161,7 @@ export function FinishedWorkflowsGallery({
 
               <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
                 <Stat label="Nodes" value={String(active.nodes)} />
-                <Stat label="Credits" value={`${active.credits}`} />
+                <Stat label="Aura" value={`${active.credits}`} />
               </div>
 
               <div className="mt-5">
@@ -230,7 +230,7 @@ export function FinishedWorkflowsGallery({
                   <div className="absolute bottom-0 inset-x-0 p-2 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
                     <p className="text-[10px] uppercase tracking-wider text-emerald-300/90">{wf.category}</p>
                     <p className="text-sm font-semibold text-white leading-tight">{wf.name}</p>
-                    <p className="text-[10px] text-white/55 mt-0.5">{wf.nodes} nodes · {wf.credits} credits</p>
+                    <p className="text-[10px] text-white/55 mt-0.5">{wf.nodes} nodes · {wf.credits} Aura</p>
                   </div>
                 </div>
               </button>

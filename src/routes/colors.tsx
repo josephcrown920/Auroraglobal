@@ -472,12 +472,12 @@ function ColorsStudio() {
             </div>
             {workflow === "single" && (
               <Button disabled={singleMut.isPending || refs.length === 0} onClick={() => singleMut.mutate()} className="w-full h-11" style={{ background: "var(--gradient-hero)" }}>
-                {singleMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting…</> : <><Wand2 className="size-4 mr-2" /> Generate · 1 Aurora · ~15s</>}
+                {singleMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting…</> : <><Wand2 className="size-4 mr-2" /> Generate · 1 Aura · ~15s</>}
               </Button>
             )}
             {workflow === "triptych" && (
               <Button disabled={tripletMut.isPending || refs.length === 0 || tripletColors.length !== 3} onClick={() => tripletMut.mutate()} className="w-full h-11" style={{ background: "var(--gradient-hero)" }}>
-                {tripletMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting 3×…</> : <><Wand2 className="size-4 mr-2" /> Generate triptych · 3 Aurora</>}
+                {tripletMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting 3×…</> : <><Wand2 className="size-4 mr-2" /> Generate triptych · 3 Aura</>}
               </Button>
             )}
             {workflow === "all-setups" && (

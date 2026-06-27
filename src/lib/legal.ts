@@ -52,10 +52,10 @@ export const LEGAL: Record<LegalDoc["slug"], LegalDoc> = {
         ],
       },
       {
-        heading: "5. Credits, payments & refunds",
+        heading: "5. Aura, payments & refunds",
         body: [
-          "Generations consume credits. Credit prices are listed in-app in US dollars. Credits are non-transferable and have no cash value once issued.",
-          "See the Refund Policy for details. In short: unused credits purchased within the last 14 days may be refunded on request, minus any credits already consumed.",
+          "Generations consume Aura. Aura prices are listed in-app in US dollars. Aura is non-transferable and has no cash value once issued.",
+          "See the Refund Policy for details. In short: unused Aura purchased within the last 14 days may be refunded on request, minus any Aura already consumed.",
         ],
       },
       {
@@ -95,8 +95,8 @@ export const LEGAL: Record<LegalDoc["slug"], LegalDoc> = {
         body: [
           "Account data — email address, display name, and (if you sign in via a third-party provider) the basic profile information they share.",
           "Uploads — reference photos, audio, and videos you submit. Stored in our private object storage, accessible only to you and our backend.",
-          "Generations — prompts, model used, output URLs, credit cost, status. Used to display your gallery and support refunds / debugging.",
-          "Payments — handled by Paystack. We store the reference, amount, status and credits granted, never your full card number.",
+          "Generations — prompts, model used, output URLs, Aura cost, status. Used to display your gallery and support refunds / debugging.",
+          "Payments — handled by Paystack. We store the reference, amount, status and Aura granted, never your full card number.",
           "Product analytics — page views, button clicks, generation events, session id. Used to improve the product. We do not track you across third-party sites.",
           "Webhooks — if you register a webhook, we store the URL and delivery logs for debugging.",
         ],
@@ -174,19 +174,19 @@ export const LEGAL: Record<LegalDoc["slug"], LegalDoc> = {
   refunds: {
     slug: "refunds",
     title: "Refund Policy",
-    summary: "Unused credits purchased in the last 14 days are refundable. Generations that fail on our side are auto-refunded.",
+    summary: "Unused Aura purchased in the last 14 days is refundable. Generations that fail on our side are auto-refunded.",
     sections: [
       {
         heading: "Failed generations",
         body: [
-          "If a generation fails because of a provider or platform error, the credits used are automatically refunded to your balance. You don't need to ask.",
+          "If a generation fails because of a provider or platform error, the Aura used is automatically refunded to your balance. You don't need to ask.",
         ],
       },
       {
-        heading: "Unused credits",
+        heading: "Unused Aura",
         body: [
-          "You can request a refund for unused credits purchased within the last 14 days. Refund amount = (unused credits / purchased credits) × purchase price.",
-          "Credits acquired via gift cards or promotions are not refundable for cash but can be re-issued as a new gift card on request.",
+          "You can request a refund for unused Aura purchased within the last 14 days. Refund amount = (unused Aura / purchased Aura) × purchase price.",
+          "Aura acquired via gift cards or promotions is not refundable for cash but can be re-issued as a new gift card on request.",
         ],
       },
       {
