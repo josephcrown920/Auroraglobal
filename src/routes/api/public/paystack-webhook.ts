@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createHmac, timingSafeEqual } from "crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { computeProfitSplit } from "@/lib/profit-split";
 
 export const Route = createFileRoute("/api/public/paystack-webhook")({
   server: {
@@ -25,7 +26,7 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
         const reference = event.data.reference;
         const { data: payment } = await supabaseAdmin
           .from("payments")
-          .select("id, user_id, credits_granted, status, currency")
+          .select("id, user_id, credits_granted, status, currency, amount_kobo")
           .eq("reference", reference)
           .maybeSingle();
         if (!payment) return new Response("not found", { status: 200 });
@@ -37,7 +38,16 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
           _reason: "purchase",
           _ref: payment.id,
         });
-        await supabaseAdmin.from("payments").update({ status: "succeeded", raw: event }).eq("id", payment.id);
+        // Record the profit / credit-funding split for this payment so owner
+        // earnings can be aggregated later (single source of truth in profit-split).
+        const split = computeProfitSplit(payment.amount_kobo);
+        await supabaseAdmin.from("payments").update({
+          status: "succeeded",
+          raw: event,
+          profit_amount_minor: split.profit_minor,
+          credit_funding_amount_minor: split.credit_funding_minor,
+          split_profit_pct: split.profit_pct,
+        }).eq("id", payment.id);
 
         // Affiliate conversion: if the buyer was referred, record a conversion event
         // with a 20% (default) commission. The referral code is stored in payment.raw.ref

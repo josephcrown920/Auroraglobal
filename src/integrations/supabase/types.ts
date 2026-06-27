@@ -597,12 +597,15 @@ export type Database = {
         Row: {
           amount_kobo: number
           created_at: string
+          credit_funding_amount_minor: number | null
           credits_granted: number
           currency: string
           id: string
+          profit_amount_minor: number | null
           provider: string
           raw: Json | null
           reference: string
+          split_profit_pct: number | null
           status: string
           updated_at: string
           user_id: string
@@ -610,12 +613,15 @@ export type Database = {
         Insert: {
           amount_kobo: number
           created_at?: string
+          credit_funding_amount_minor?: number | null
           credits_granted?: number
           currency?: string
           id?: string
+          profit_amount_minor?: number | null
           provider?: string
           raw?: Json | null
           reference: string
+          split_profit_pct?: number | null
           status?: string
           updated_at?: string
           user_id: string
@@ -623,12 +629,15 @@ export type Database = {
         Update: {
           amount_kobo?: number
           created_at?: string
+          credit_funding_amount_minor?: number | null
           credits_granted?: number
           currency?: string
           id?: string
+          profit_amount_minor?: number | null
           provider?: string
           raw?: Json | null
           reference?: string
+          split_profit_pct?: number | null
           status?: string
           updated_at?: string
           user_id?: string

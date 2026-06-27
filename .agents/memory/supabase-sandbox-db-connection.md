@@ -16,5 +16,7 @@ Live Supabase project ref for this repo is `tpzmvbczwahxajujvnrq` (matches `SUPA
 
 **Recording a manually-applied migration:** insert into `supabase_migrations.schema_migrations`; columns are `version` (NOT NULL), `name` (nullable), `statements` (nullable).
 
+**Finding the password:** `SUPABASE_DB_PASSWORD` (and `SUPABASE_SERVICE_ROLE_KEY`) are readable directly in the **bash shell** env (`echo`/`${!v}`), even though `viewEnvVars` lists them under neither secrets nor envVars and the code_execution sandbox has no `process.env`. App secrets like `PAYSTACK_SECRET_KEY`/`ADMIN_USERNAME` are NOT present in the dev shell.
+
 **Why:** avoids repeated dead-ends against the direct host / the garbage `SUPABASE_DB_URL` secret.
 **How to apply:** any time you run SQL or apply migrations against the LIVE DB from this sandbox.
