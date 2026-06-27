@@ -47,6 +47,8 @@ export type RenderOutcome =
       ok: true;
       generationId: string;
       url: string;
+      /** Populated for the `text` modality (no URL output). */
+      text?: string;
       provider: string;
       endpoint: string;
       latencyMs: number;
@@ -61,14 +63,21 @@ async function buildDefaultDeps(): Promise<RenderDeps> {
     rpc: (name, args) => client.rpc(name, args),
     orchestrate,
     insertGeneration: async (row) => {
-      const { data, error } = await supabaseAdmin.from("generations").insert(row).select("id").single();
+      const { data, error } = await supabaseAdmin
+        .from("generations")
+        .insert(row)
+        .select("id")
+        .single();
       if (error) throw new Error(error.message);
       return { id: data.id };
     },
   };
 }
 
-export async function reserveOrchestrateRecord(input: RenderInput, deps?: RenderDeps): Promise<RenderOutcome> {
+export async function reserveOrchestrateRecord(
+  input: RenderInput,
+  deps?: RenderDeps,
+): Promise<RenderOutcome> {
   const d = deps ?? (await buildDefaultDeps());
   const reservationRef = crypto.randomUUID();
   let reservedAmount = 0;
@@ -106,10 +115,13 @@ export async function reserveOrchestrateRecord(input: RenderInput, deps?: Render
       mode: "performance",
       status: "succeeded",
       input_images: input.imageUrls ?? [],
-      audio_url: input.audioUrl ?? null,
+      // For the `audio` modality there is no input audio — store the generated
+      // mp3 here; for lipsync this stays the driving (input) audio.
+      audio_url: input.kind === "audio" ? result.url : (input.audioUrl ?? null),
       model: result.provider,
       result_image_url: input.kind === "image" ? result.url : null,
       result_video_url: input.kind === "video" || input.kind === "lipsync" ? result.url : null,
+      result_text: input.kind === "text" ? (result.text ?? null) : null,
       credits_cost: input.cost,
       session_id: input.sessionId ?? null,
       agent_shot_id: input.agentShotId ?? null,
@@ -138,6 +150,7 @@ export async function reserveOrchestrateRecord(input: RenderInput, deps?: Render
       ok: true,
       generationId: gen.id,
       url: result.url,
+      text: result.text,
       provider: result.provider,
       endpoint: result.endpoint,
       latencyMs: result.latencyMs,

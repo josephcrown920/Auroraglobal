@@ -8,7 +8,7 @@ import { reserveOrchestrateRecord } from "@/lib/generate-core.server";
 import { assertTrustedUrl } from "@/lib/url-guard";
 
 const Schema = z.object({
-  kind: z.enum(["image", "video", "lipsync", "upscale"]),
+  kind: z.enum(["image", "video", "lipsync", "upscale", "text", "audio"]),
   prompt: z.string().max(2000).optional(),
   imageUrls: z.array(z.string().url()).max(6).optional(),
   audioUrl: z.string().url().optional(),
@@ -18,7 +18,19 @@ const Schema = z.object({
   model: z.string().max(120).optional(),
   // CLI ergonomics: `aurora video --from latest --motion orbit --seconds 10`
   from: z.enum(["latest"]).optional(),
-  motion: z.enum(["orbit", "push-in", "pull-out", "pan-left", "pan-right", "tilt-up", "tilt-down", "static", "handheld"]).optional(),
+  motion: z
+    .enum([
+      "orbit",
+      "push-in",
+      "pull-out",
+      "pan-left",
+      "pan-right",
+      "tilt-up",
+      "tilt-down",
+      "static",
+      "handheld",
+    ])
+    .optional(),
   seconds: z.number().int().min(3).max(12).optional(),
   // Pluggable-backend passthrough: free-form provider params + a generic ComfyUI
   // workflow graph (+ per-node input patches) for `comfyui`-protocol workers.
@@ -37,6 +49,10 @@ function creditCost(kind: GenerateKind): number {
       return 3;
     case "video":
       return 5;
+    case "text":
+      return 1;
+    case "audio":
+      return 2;
     case "motion":
       // Motion runs async on the job queue, never on this synchronous endpoint
       // (it is excluded from the request Schema). Present for type exhaustiveness.
@@ -81,7 +97,10 @@ export const Route = createFileRoute("/api/public/generate")({
         try {
           userId = await authUserId(request);
           if (!userId) {
-            return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: cors });
+            return new Response(JSON.stringify({ error: "Unauthorized" }), {
+              status: 401,
+              headers: cors,
+            });
           }
           const body = await request.json();
           const data = Schema.parse(body);
@@ -110,7 +129,10 @@ export const Route = createFileRoute("/api/public/generate")({
             }
             if (!data.imageUrls?.length && !data.videoUrl) {
               return new Response(
-                JSON.stringify({ ok: false, error: "No previous generation found for --from latest" }),
+                JSON.stringify({
+                  ok: false,
+                  error: "No previous generation found for --from latest",
+                }),
                 { status: 400, headers: cors },
               );
             }
@@ -171,6 +193,7 @@ export const Route = createFileRoute("/api/public/generate")({
             JSON.stringify({
               ok: true,
               url: outcome.url,
+              text: outcome.text,
               provider: outcome.provider,
               endpoint: outcome.endpoint,
               latencyMs: outcome.latencyMs,
@@ -181,7 +204,10 @@ export const Route = createFileRoute("/api/public/generate")({
         } catch (e) {
           // Credit release on failure is handled inside reserveOrchestrateRecord.
           const msg = e instanceof Error ? e.message : "Unknown error";
-          return new Response(JSON.stringify({ ok: false, error: msg }), { status: 400, headers: cors });
+          return new Response(JSON.stringify({ ok: false, error: msg }), {
+            status: 400,
+            headers: cors,
+          });
         }
       },
     },
