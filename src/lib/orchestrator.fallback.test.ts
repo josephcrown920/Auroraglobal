@@ -252,11 +252,35 @@ describe("orchestrate fallback", () => {
     expect(slugs).toEqual(["bytedance/seedance-1-lite", "bytedance/seedance-1-pro"]);
   });
 
+  it("returns generated text from a text-modality provider (Pollinations, keyless)", async () => {
+    const { calls } = installFetch(({ url }) => {
+      if (url.includes("text.pollinations.ai"))
+        return fakeResponse({ text: "a generated haiku about the sea" });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    const req: GenerateRequest = {
+      kind: "text",
+      prompt: "write a haiku",
+      model: "pollinations/openai",
+    };
+    const res = await orchestrate(req);
+
+    expect(res.provider).toBe("pollinations");
+    expect(res.text).toBe("a generated haiku about the sea");
+    // Free text providers don't produce a media URL.
+    expect(res.url).toBe("");
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toContain("text.pollinations.ai");
+  });
+
   it("throws an explanatory 'no provider available' error when nothing can serve the request", async () => {
-    // No provider keys, Replicate key absent, and the GPU pool cooled down.
+    // Audio has no keyless provider: ElevenLabs needs a key (absent) and the only
+    // other option is a `tts` GPU worker, and the pool is cooled down here.
+    // (Image/text can't reach this state anymore — Pollinations is free + keyless.)
     markFailure("runpod");
-    const req: GenerateRequest = { kind: "image", model: "google/gemini-2.5-flash-image" };
-    await expect(orchestrate(req)).rejects.toThrow(/No provider available for image/);
+    const req: GenerateRequest = { kind: "audio", model: "elevenlabs/tts" };
+    await expect(orchestrate(req)).rejects.toThrow(/No provider available for audio/);
   });
 
   it("aborts immediately on a FATAL request error without burning later fallbacks", async () => {

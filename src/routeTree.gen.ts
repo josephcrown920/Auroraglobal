@@ -19,6 +19,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as NexusarbRouteImport } from './routes/nexusarb'
 import { Route as MotionRouteImport } from './routes/motion'
 import { Route as LipsyncRouteImport } from './routes/lipsync'
+import { Route as OrchestrateRouteImport } from './routes/orchestrate'
 import { Route as GiftsRouteImport } from './routes/gifts'
 import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -93,6 +94,11 @@ const MotionRoute = MotionRouteImport.update({
 const LipsyncRoute = LipsyncRouteImport.update({
   id: '/lipsync',
   path: '/lipsync',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrchestrateRoute = OrchestrateRouteImport.update({
+  id: '/orchestrate',
+  path: '/orchestrate',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GiftsRoute = GiftsRouteImport.update({
@@ -237,6 +243,7 @@ export interface FileRoutesByFullPath {
   '/gallery': typeof GalleryRoute
   '/gifts': typeof GiftsRoute
   '/lipsync': typeof LipsyncRoute
+  '/orchestrate': typeof OrchestrateRoute
   '/motion': typeof MotionRoute
   '/nexusarb': typeof NexusarbRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -274,6 +281,7 @@ export interface FileRoutesByTo {
   '/gallery': typeof GalleryRoute
   '/gifts': typeof GiftsRoute
   '/lipsync': typeof LipsyncRoute
+  '/orchestrate': typeof OrchestrateRoute
   '/motion': typeof MotionRoute
   '/nexusarb': typeof NexusarbRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -312,6 +320,7 @@ export interface FileRoutesById {
   '/gallery': typeof GalleryRoute
   '/gifts': typeof GiftsRoute
   '/lipsync': typeof LipsyncRoute
+  '/orchestrate': typeof OrchestrateRoute
   '/motion': typeof MotionRoute
   '/nexusarb': typeof NexusarbRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -351,6 +360,7 @@ export interface FileRouteTypes {
     | '/gallery'
     | '/gifts'
     | '/lipsync'
+    | '/orchestrate'
     | '/motion'
     | '/nexusarb'
     | '/sitemap.xml'
@@ -388,6 +398,7 @@ export interface FileRouteTypes {
     | '/gallery'
     | '/gifts'
     | '/lipsync'
+    | '/orchestrate'
     | '/motion'
     | '/nexusarb'
     | '/sitemap.xml'
@@ -425,6 +436,7 @@ export interface FileRouteTypes {
     | '/gallery'
     | '/gifts'
     | '/lipsync'
+    | '/orchestrate'
     | '/motion'
     | '/nexusarb'
     | '/sitemap.xml'
@@ -463,6 +475,7 @@ export interface RootRouteChildren {
   GalleryRoute: typeof GalleryRoute
   GiftsRoute: typeof GiftsRoute
   LipsyncRoute: typeof LipsyncRoute
+  OrchestrateRoute: typeof OrchestrateRoute
   MotionRoute: typeof MotionRoute
   NexusarbRoute: typeof NexusarbRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -554,6 +567,13 @@ declare module '@tanstack/react-router' {
       path: '/lipsync'
       fullPath: '/lipsync'
       preLoaderRoute: typeof LipsyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orchestrate': {
+      id: '/orchestrate'
+      path: '/orchestrate'
+      fullPath: '/orchestrate'
+      preLoaderRoute: typeof OrchestrateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/gifts': {
@@ -761,6 +781,7 @@ const rootRouteChildren: RootRouteChildren = {
   GalleryRoute: GalleryRoute,
   GiftsRoute: GiftsRoute,
   LipsyncRoute: LipsyncRoute,
+  OrchestrateRoute: OrchestrateRoute,
   MotionRoute: MotionRoute,
   NexusarbRoute: NexusarbRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,

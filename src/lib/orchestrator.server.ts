@@ -20,7 +20,7 @@ import {
 } from "./inference/protocols";
 import type { InferenceInput, TaskType } from "./inference/types";
 
-export type GenerateKind = "image" | "video" | "lipsync" | "upscale" | "motion";
+export type GenerateKind = "image" | "video" | "lipsync" | "upscale" | "motion" | "text" | "audio";
 
 // ─── Studio bucket signing ───────────────────────────────────────────────────
 // The `studio` bucket is PRIVATE. When we hand a reference URL to an external
@@ -33,9 +33,7 @@ async function signIfStudio(url: string | undefined | null): Promise<string | un
   const m = url.match(PUBLIC_STUDIO_RE);
   if (!m) return url;
   const path = decodeURIComponent(m[1].split("?")[0]);
-  const { data, error } = await supabaseAdmin.storage
-    .from("studio")
-    .createSignedUrl(path, 60 * 60); // 1 hour
+  const { data, error } = await supabaseAdmin.storage.from("studio").createSignedUrl(path, 60 * 60); // 1 hour
   if (error || !data?.signedUrl) return url; // fall back; provider will surface error
   return data.signedUrl;
 }
@@ -81,6 +79,8 @@ export type GenerateRequest = {
 
 export type GenerateResult = {
   url: string;
+  /** For the `text` modality: the generated text (no URL output). */
+  text?: string;
   provider: string;
   endpoint: string;
   latencyMs: number;
@@ -108,16 +108,36 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 2): Promise<T> {
 }
 
 type ProviderAdapter = {
-  name: "lovable" | "gemini" | "replicate" | "huggingface" | "sync" | "runpod" | "kling" | "heygen" | "fal";
+  name:
+    | "lovable"
+    | "gemini"
+    | "replicate"
+    | "huggingface"
+    | "sync"
+    | "runpod"
+    | "kling"
+    | "heygen"
+    | "fal"
+    // free / general-router providers
+    | "pollinations"
+    | "runware"
+    | "runway"
+    | "elevenlabs"
+    // keyed text providers
+    | "groq"
+    | "mistral"
+    | "openai"
+    | "gemini-text"
+    | "lovable-text"
+    | "hf-text";
   supports: (req: GenerateRequest) => boolean;
   estimateCost: (req: GenerateRequest) => number;
-  run: (req: GenerateRequest) => Promise<{ url: string; endpoint: string }>;
+  run: (req: GenerateRequest) => Promise<{ url: string; endpoint: string; text?: string }>;
 };
 
 // ─── Kling direct (JWT signed) ───────────────────────────────────────────────
 function klingJwt(accessKey: string, secretKey: string): string {
-  const enc = (o: object) =>
-    Buffer.from(JSON.stringify(o)).toString("base64url");
+  const enc = (o: object) => Buffer.from(JSON.stringify(o)).toString("base64url");
   const header = enc({ alg: "HS256", typ: "JWT" });
   const now = Math.floor(Date.now() / 1000);
   const payload = enc({ iss: accessKey, exp: now + 1800, nbf: now - 5 });
@@ -132,8 +152,12 @@ const klingDirect: ProviderAdapter = {
   name: "kling",
   // Only handle EXPLICIT Kling model requests — never hijack a Seedance/Veo/Sora
   // video request just because Kling creds happen to be set (would silently cost more).
-  supports: (r) => r.kind === "video" && (r.model?.startsWith("kling") ?? false) && !!process.env.KLING_ACCESS_KEY && !!process.env.KLING_SECRET_KEY,
-  estimateCost: () => 0.30,
+  supports: (r) =>
+    r.kind === "video" &&
+    (r.model?.startsWith("kling") ?? false) &&
+    !!process.env.KLING_ACCESS_KEY &&
+    !!process.env.KLING_SECRET_KEY,
+  estimateCost: () => 0.3,
   async run(r) {
     const token = klingJwt(process.env.KLING_ACCESS_KEY!, process.env.KLING_SECRET_KEY!);
     const isImg2Vid = !!r.imageUrls?.[0];
@@ -151,7 +175,8 @@ const klingDirect: ProviderAdapter = {
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
     });
-    if (!create.ok) throw new Error(`Kling ${create.status}: ${(await create.text()).slice(0, 200)}`);
+    if (!create.ok)
+      throw new Error(`Kling ${create.status}: ${(await create.text()).slice(0, 200)}`);
     const created = await create.json();
     const taskId = created?.data?.task_id;
     if (!taskId) throw new Error("Kling returned no task_id");
@@ -170,7 +195,8 @@ const klingDirect: ProviderAdapter = {
         if (!url) throw new Error("Kling: no video url");
         return { url, endpoint: `kling:${path}` };
       }
-      if (status === "failed") throw new Error(`Kling failed: ${pj?.data?.task_status_msg ?? "unknown"}`);
+      if (status === "failed")
+        throw new Error(`Kling failed: ${pj?.data?.task_status_msg ?? "unknown"}`);
     }
     throw new Error("Kling poll timeout");
   },
@@ -180,7 +206,7 @@ const klingDirect: ProviderAdapter = {
 const heygen: ProviderAdapter = {
   name: "heygen",
   supports: (r) => r.kind === "lipsync" && !!process.env.HEYGEN_API_KEY,
-  estimateCost: () => 0.40,
+  estimateCost: () => 0.4,
   async run(r) {
     if (!r.videoUrl || !r.audioUrl) throw new Error("heygen: video+audio required");
     const key = process.env.HEYGEN_API_KEY!;
@@ -189,7 +215,8 @@ const heygen: ProviderAdapter = {
       headers: { "Content-Type": "application/json", "X-Api-Key": key },
       body: JSON.stringify({ video_url: r.videoUrl, audio_url: r.audioUrl }),
     });
-    if (!create.ok) throw new Error(`HeyGen ${create.status}: ${(await create.text()).slice(0, 200)}`);
+    if (!create.ok)
+      throw new Error(`HeyGen ${create.status}: ${(await create.text()).slice(0, 200)}`);
     const cj = await create.json();
     const videoId = cj?.data?.video_id ?? cj?.video_id;
     if (!videoId) throw new Error("HeyGen returned no video_id");
@@ -216,20 +243,28 @@ const heygen: ProviderAdapter = {
 // ─── Fal (LAST fallback — user prefers other providers) ──────────────────────
 const FAL_MAP: Record<string, { path: string; kind: GenerateKind; cost: number }> = {
   "fal-fallback/flux-schnell": { path: "fal-ai/flux/schnell", kind: "image", cost: 0.005 },
-  "fal-fallback/kling-video":  { path: "fal-ai/kling-video/v1/standard/image-to-video", kind: "video", cost: 0.40 },
-  "fal-fallback/sync-lipsync": { path: "fal-ai/sync-lipsync", kind: "lipsync", cost: 0.30 },
+  "fal-fallback/kling-video": {
+    path: "fal-ai/kling-video/v1/standard/image-to-video",
+    kind: "video",
+    cost: 0.4,
+  },
+  "fal-fallback/sync-lipsync": { path: "fal-ai/sync-lipsync", kind: "lipsync", cost: 0.3 },
 };
 const falFallback: ProviderAdapter = {
   name: "fal",
   // Only activates when explicitly addressed OR when nothing else handles the kind
   supports: (r) => !!process.env.FAL_KEY,
-  estimateCost: (r) => (r.kind === "video" ? 0.40 : r.kind === "lipsync" ? 0.30 : 0.005),
+  estimateCost: (r) => (r.kind === "video" ? 0.4 : r.kind === "lipsync" ? 0.3 : 0.005),
   async run(r) {
     const key = process.env.FAL_KEY!;
     const fallback =
-      r.kind === "image" ? "fal-ai/flux/schnell" :
-      r.kind === "video" ? "fal-ai/kling-video/v1/standard/image-to-video" :
-      r.kind === "lipsync" ? "fal-ai/sync-lipsync" : null;
+      r.kind === "image"
+        ? "fal-ai/flux/schnell"
+        : r.kind === "video"
+          ? "fal-ai/kling-video/v1/standard/image-to-video"
+          : r.kind === "lipsync"
+            ? "fal-ai/sync-lipsync"
+            : null;
     const path = (r.model && FAL_MAP[r.model]?.path) || fallback;
     if (!path) throw new Error(`Fal: no path for kind ${r.kind}`);
     const input: Record<string, unknown> = {};
@@ -245,8 +280,7 @@ const falFallback: ProviderAdapter = {
     });
     if (!res.ok) throw new Error(`Fal ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const j = await res.json();
-    const url =
-      j?.video?.url ?? j?.image?.url ?? j?.images?.[0]?.url ?? j?.url ?? j?.output;
+    const url = j?.video?.url ?? j?.image?.url ?? j?.images?.[0]?.url ?? j?.url ?? j?.output;
     if (!url || typeof url !== "string") throw new Error("Fal: no output url");
     return { url, endpoint: `fal:${path}` };
   },
@@ -266,7 +300,9 @@ export function markFailure(p: string) {
   h.cooldownUntil = Date.now() + Math.min(120, 5 * Math.pow(3, h.failures - 1)) * 1000;
   HEALTH.set(p, h);
 }
-export function markSuccess(p: string) { HEALTH.set(p, { failures: 0, cooldownUntil: 0 }); }
+export function markSuccess(p: string) {
+  HEALTH.set(p, { failures: 0, cooldownUntil: 0 });
+}
 
 /** Public snapshot of in-memory health state (used by the orchestration dashboard). */
 export function getProviderHealthSnapshot() {
@@ -282,7 +318,6 @@ export function getProviderHealthSnapshot() {
   return out;
 }
 
-
 // ─── Lovable (Gemini via gateway) — USED LAST so paid credits stay preserved ─
 const lovable: ProviderAdapter = {
   name: "lovable",
@@ -291,13 +326,18 @@ const lovable: ProviderAdapter = {
   async run(r) {
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
-    const endpoint = r.model && r.model.startsWith("google/") ? r.model : "google/gemini-2.5-flash-image";
+    const endpoint =
+      r.model && r.model.startsWith("google/") ? r.model : "google/gemini-2.5-flash-image";
     const content: Array<Record<string, unknown>> = [{ type: "text", text: r.prompt ?? "" }];
     for (const url of r.imageUrls ?? []) content.push({ type: "image_url", image_url: { url } });
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
-      body: JSON.stringify({ model: endpoint, messages: [{ role: "user", content }], modalities: ["image", "text"] }),
+      body: JSON.stringify({
+        model: endpoint,
+        messages: [{ role: "user", content }],
+        modalities: ["image", "text"],
+      }),
     });
     if (!res.ok) throw new Error(`Lovable AI ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const json = await res.json();
@@ -325,25 +365,36 @@ const geminiDirect: ProviderAdapter = {
         const buf = Buffer.from(await fetched.arrayBuffer());
         const mime = fetched.headers.get("content-type") || "image/png";
         parts.push({ inline_data: { mime_type: mime, data: buf.toString("base64") } });
-      } catch { /* skip bad ref */ }
+      } catch {
+        /* skip bad ref */
+      }
     }
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ parts }], generationConfig: { responseModalities: ["IMAGE", "TEXT"] } }),
+        body: JSON.stringify({
+          contents: [{ parts }],
+          generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
+        }),
       },
     );
     if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const json = await res.json();
     const cParts = json?.candidates?.[0]?.content?.parts ?? [];
     const img = cParts.find((p: Record<string, unknown>) => p.inline_data || p.inlineData) as
-      | { inline_data?: { data?: string; mime_type?: string }; inlineData?: { data?: string; mimeType?: string } }
+      | {
+          inline_data?: { data?: string; mime_type?: string };
+          inlineData?: { data?: string; mimeType?: string };
+        }
       | undefined;
     const inline = img?.inline_data ?? img?.inlineData;
     if (!inline?.data) throw new Error("Gemini returned no image");
-    const mime = (inline as { mime_type?: string }).mime_type || (inline as { mimeType?: string }).mimeType || "image/png";
+    const mime =
+      (inline as { mime_type?: string }).mime_type ||
+      (inline as { mimeType?: string }).mimeType ||
+      "image/png";
     const ext = mime.split("/")[1] || "png";
     const path = `${r.userId ?? "system"}/gemini/${crypto.randomUUID()}.${ext}`;
     const { error } = await supabaseAdmin.storage
@@ -375,36 +426,126 @@ type ReplicateEntry = {
 
 const REPLICATE_MAP: Record<string, ReplicateEntry> = {
   // ── images ──
-  "google/nano-banana":     { slug: "google/nano-banana",            kind: "image", cost: 0.039,
-    build: (r) => ({ prompt: r.prompt ?? "", ...(r.imageUrls?.length ? { image_input: r.imageUrls } : {}) }) },
-  "fal-ai/seedream-4":      { slug: "bytedance/seedream-4",          kind: "image", cost: 0.04,
-    build: (r) => ({ prompt: r.prompt ?? "", ...(r.imageUrls?.length ? { image_input: r.imageUrls } : {}) }) },
-  "fal-ai/seedream-4.5":    { slug: "bytedance/seedream-4",          kind: "image", cost: 0.05,
-    build: (r) => ({ prompt: r.prompt ?? "", ...(r.imageUrls?.length ? { image_input: r.imageUrls } : {}) }) },
-  "replicate/flux-schnell": { slug: "black-forest-labs/flux-schnell", kind: "image", cost: 0.003,
-    build: (r) => ({ prompt: r.prompt ?? "" }) },
+  "google/nano-banana": {
+    slug: "google/nano-banana",
+    kind: "image",
+    cost: 0.039,
+    build: (r) => ({
+      prompt: r.prompt ?? "",
+      ...(r.imageUrls?.length ? { image_input: r.imageUrls } : {}),
+    }),
+  },
+  "fal-ai/seedream-4": {
+    slug: "bytedance/seedream-4",
+    kind: "image",
+    cost: 0.04,
+    build: (r) => ({
+      prompt: r.prompt ?? "",
+      ...(r.imageUrls?.length ? { image_input: r.imageUrls } : {}),
+    }),
+  },
+  "fal-ai/seedream-4.5": {
+    slug: "bytedance/seedream-4",
+    kind: "image",
+    cost: 0.05,
+    build: (r) => ({
+      prompt: r.prompt ?? "",
+      ...(r.imageUrls?.length ? { image_input: r.imageUrls } : {}),
+    }),
+  },
+  "replicate/flux-schnell": {
+    slug: "black-forest-labs/flux-schnell",
+    kind: "image",
+    cost: 0.003,
+    build: (r) => ({ prompt: r.prompt ?? "" }),
+  },
   // ── video (image-to-video) ──
-  "seedance-2.0":           { slug: "bytedance/seedance-1-pro",      kind: "video", cost: 0.65,
-    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { image: firstImg(r) } : {}), duration: durInt(r.duration) }) },
-  "seedance-2.0-fast":      { slug: "bytedance/seedance-1-lite",     kind: "video", cost: 0.05,
-    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { image: firstImg(r) } : {}), duration: durInt(r.duration) }) },
-  "wan-2.5":                { slug: "wan-video/wan-2.5-i2v",         kind: "video", cost: 0.45,
-    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { image: firstImg(r) } : {}), duration: durEnum(r.duration) }) },
-  "kling-3.0":              { slug: "kwaivgi/kling-v2.1",            kind: "video", cost: 0.60,
-    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { start_image: firstImg(r) } : {}), duration: durEnum(r.duration), ...(r.imageUrls?.[1] ? { end_image: r.imageUrls[1] } : {}) }) },
-  "kling-3.0-omni":         { slug: "kwaivgi/kling-v2.1-master",     kind: "video", cost: 0.70,
-    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { start_image: firstImg(r) } : {}), duration: durEnum(r.duration), ...(r.imageUrls?.[1] ? { end_image: r.imageUrls[1] } : {}) }) },
-  "veo-3-fast":             { slug: "google/veo-3-fast",             kind: "video", cost: 0.40,
-    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { image: firstImg(r) } : {}) }) },
-  "veo-3":                  { slug: "google/veo-3",                  kind: "video", cost: 0.75,
-    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { image: firstImg(r) } : {}) }) },
-  "sora-2":                 { slug: "openai/sora-2",                 kind: "video", cost: 0.50,
-    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { input_reference: firstImg(r) } : {}) }) },
+  "seedance-2.0": {
+    slug: "bytedance/seedance-1-pro",
+    kind: "video",
+    cost: 0.65,
+    build: (r) => ({
+      prompt: r.prompt ?? "",
+      ...(firstImg(r) ? { image: firstImg(r) } : {}),
+      duration: durInt(r.duration),
+    }),
+  },
+  "seedance-2.0-fast": {
+    slug: "bytedance/seedance-1-lite",
+    kind: "video",
+    cost: 0.05,
+    build: (r) => ({
+      prompt: r.prompt ?? "",
+      ...(firstImg(r) ? { image: firstImg(r) } : {}),
+      duration: durInt(r.duration),
+    }),
+  },
+  "wan-2.5": {
+    slug: "wan-video/wan-2.5-i2v",
+    kind: "video",
+    cost: 0.45,
+    build: (r) => ({
+      prompt: r.prompt ?? "",
+      ...(firstImg(r) ? { image: firstImg(r) } : {}),
+      duration: durEnum(r.duration),
+    }),
+  },
+  "kling-3.0": {
+    slug: "kwaivgi/kling-v2.1",
+    kind: "video",
+    cost: 0.6,
+    build: (r) => ({
+      prompt: r.prompt ?? "",
+      ...(firstImg(r) ? { start_image: firstImg(r) } : {}),
+      duration: durEnum(r.duration),
+      ...(r.imageUrls?.[1] ? { end_image: r.imageUrls[1] } : {}),
+    }),
+  },
+  "kling-3.0-omni": {
+    slug: "kwaivgi/kling-v2.1-master",
+    kind: "video",
+    cost: 0.7,
+    build: (r) => ({
+      prompt: r.prompt ?? "",
+      ...(firstImg(r) ? { start_image: firstImg(r) } : {}),
+      duration: durEnum(r.duration),
+      ...(r.imageUrls?.[1] ? { end_image: r.imageUrls[1] } : {}),
+    }),
+  },
+  "veo-3-fast": {
+    slug: "google/veo-3-fast",
+    kind: "video",
+    cost: 0.4,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { image: firstImg(r) } : {}) }),
+  },
+  "veo-3": {
+    slug: "google/veo-3",
+    kind: "video",
+    cost: 0.75,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { image: firstImg(r) } : {}) }),
+  },
+  "sora-2": {
+    slug: "openai/sora-2",
+    kind: "video",
+    cost: 0.5,
+    build: (r) => ({
+      prompt: r.prompt ?? "",
+      ...(firstImg(r) ? { input_reference: firstImg(r) } : {}),
+    }),
+  },
   // ── lipsync (fallback after sync.so direct) ──
-  "fal-ai/sync-lipsync/v2": { slug: "sync/lipsync-2",               kind: "lipsync", cost: 0.30,
-    build: (r) => ({ video: r.videoUrl, audio: r.audioUrl }) },
-  "fal-ai/wav2lip":         { slug: "devxpy/cog-wav2lip",          kind: "lipsync", cost: 0.10,
-    build: (r) => ({ face: r.videoUrl, audio: r.audioUrl }) },
+  "fal-ai/sync-lipsync/v2": {
+    slug: "sync/lipsync-2",
+    kind: "lipsync",
+    cost: 0.3,
+    build: (r) => ({ video: r.videoUrl, audio: r.audioUrl }),
+  },
+  "fal-ai/wav2lip": {
+    slug: "devxpy/cog-wav2lip",
+    kind: "lipsync",
+    cost: 0.1,
+    build: (r) => ({ face: r.videoUrl, audio: r.audioUrl }),
+  },
 };
 
 const replicate: ProviderAdapter = {
@@ -415,7 +556,7 @@ const replicate: ProviderAdapter = {
     const m = REPLICATE_MAP[r.model];
     return !!m && m.kind === r.kind;
   },
-  estimateCost: (r) => (r.model && REPLICATE_MAP[r.model]?.cost) || 0.10,
+  estimateCost: (r) => (r.model && REPLICATE_MAP[r.model]?.cost) || 0.1,
   async run(r) {
     const m = r.model ? REPLICATE_MAP[r.model] : null;
     if (!m) throw new Error(`No Replicate mapping for model: ${r.model}`);
@@ -433,7 +574,11 @@ const sync: ProviderAdapter = {
   estimateCost: () => 0.25,
   async run(r) {
     if (!r.videoUrl || !r.audioUrl) throw new Error("sync: video+audio required");
-    const url = await syncLipsync({ videoUrl: r.videoUrl, audioUrl: r.audioUrl, model: "lipsync-2" });
+    const url = await syncLipsync({
+      videoUrl: r.videoUrl,
+      audioUrl: r.audioUrl,
+      model: "lipsync-2",
+    });
     return { url, endpoint: "sync:lipsync-2" };
   },
 };
@@ -441,7 +586,7 @@ const sync: ProviderAdapter = {
 // ─── Hugging Face ────────────────────────────────────────────────────────────
 const HF_ENDPOINTS: Record<string, { endpoint: string; kind: GenerateKind; cost: number }> = {
   "hf/flux-schnell": { endpoint: "black-forest-labs/FLUX.1-schnell", kind: "image", cost: 0.003 },
-  "hf/sdxl":         { endpoint: "stabilityai/stable-diffusion-xl-base-1.0", kind: "image", cost: 0.004 },
+  "hf/sdxl": { endpoint: "stabilityai/stable-diffusion-xl-base-1.0", kind: "image", cost: 0.004 },
 };
 const huggingface: ProviderAdapter = {
   name: "huggingface",
@@ -467,6 +612,339 @@ const huggingface: ProviderAdapter = {
   },
 };
 
+// ─── Text generation (free-first chain) ──────────────────────────────────────
+// A new `text` modality. Pollinations (no key, free) leads; keyed OpenAI-compatible
+// providers Aurora may already hold credentials for follow, cheapest first. Each
+// text model key maps to exactly one adapter, so model-level fallback walks the
+// chain provider-by-provider.
+type TextModelEntry = { adapter: ProviderAdapter["name"]; providerModel: string; cost: number };
+const TEXT_MODELS: Record<string, TextModelEntry> = {
+  "pollinations/openai": { adapter: "pollinations", providerModel: "openai", cost: 0 },
+  "groq/llama-3.3-70b": { adapter: "groq", providerModel: "llama-3.3-70b-versatile", cost: 0.001 },
+  "gemini/gemini-2.0-flash": {
+    adapter: "gemini-text",
+    providerModel: "gemini-2.0-flash",
+    cost: 0.001,
+  },
+  "mistral/mistral-small": {
+    adapter: "mistral",
+    providerModel: "mistral-small-latest",
+    cost: 0.001,
+  },
+  "openai/gpt-4o-mini": { adapter: "openai", providerModel: "gpt-4o-mini", cost: 0.002 },
+  "hf/llama-3.1-8b": {
+    adapter: "hf-text",
+    providerModel: "meta-llama/Llama-3.1-8B-Instruct",
+    cost: 0.001,
+  },
+  "lovable/gemini-2.5-flash": {
+    adapter: "lovable-text",
+    providerModel: "google/gemini-2.5-flash",
+    cost: 0.002,
+  },
+};
+
+/** POST an OpenAI-compatible /chat/completions request and return the message text. */
+async function openAIChat(opts: {
+  url: string;
+  apiKey: string;
+  model: string;
+  prompt: string;
+  authStyle: "bearer" | "lovable";
+}): Promise<string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (opts.authStyle === "lovable") headers["Lovable-API-Key"] = opts.apiKey;
+  else headers.Authorization = `Bearer ${opts.apiKey}`;
+  const res = await fetch(opts.url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ model: opts.model, messages: [{ role: "user", content: opts.prompt }] }),
+  });
+  if (!res.ok) throw new Error(`${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const j = await res.json();
+  const text: unknown = j?.choices?.[0]?.message?.content;
+  if (!text || typeof text !== "string") throw new Error("provider returned no text");
+  return text;
+}
+
+/** Build a keyed OpenAI-compatible text adapter (groq/mistral/openai/hf/lovable). */
+function makeTextAdapter(cfg: {
+  name: ProviderAdapter["name"];
+  envKey: string;
+  url: string;
+  authStyle: "bearer" | "lovable";
+}): ProviderAdapter {
+  return {
+    name: cfg.name,
+    supports: (r) =>
+      r.kind === "text" &&
+      !!process.env[cfg.envKey] &&
+      (r.model ? TEXT_MODELS[r.model]?.adapter === cfg.name : false),
+    estimateCost: (r) => (r.model ? TEXT_MODELS[r.model]?.cost : undefined) ?? 0.001,
+    async run(r) {
+      const m = r.model ? TEXT_MODELS[r.model] : null;
+      if (!m) throw new Error(`No text model mapping for "${r.model}"`);
+      const text = await openAIChat({
+        url: cfg.url,
+        apiKey: process.env[cfg.envKey]!,
+        model: m.providerModel,
+        prompt: r.prompt ?? "",
+        authStyle: cfg.authStyle,
+      });
+      return { url: "", endpoint: `${cfg.name}:${m.providerModel}`, text };
+    },
+  };
+}
+
+const groqText = makeTextAdapter({
+  name: "groq",
+  envKey: "GROQ_API_KEY",
+  url: "https://api.groq.com/openai/v1/chat/completions",
+  authStyle: "bearer",
+});
+const mistralText = makeTextAdapter({
+  name: "mistral",
+  envKey: "MISTRAL_API_KEY",
+  url: "https://api.mistral.ai/v1/chat/completions",
+  authStyle: "bearer",
+});
+const openaiText = makeTextAdapter({
+  name: "openai",
+  envKey: "OPENAI_API_KEY",
+  url: "https://api.openai.com/v1/chat/completions",
+  authStyle: "bearer",
+});
+const hfText = makeTextAdapter({
+  name: "hf-text",
+  envKey: "HF_TOKEN",
+  url: "https://router.huggingface.co/v1/chat/completions",
+  authStyle: "bearer",
+});
+const lovableText = makeTextAdapter({
+  name: "lovable-text",
+  envKey: "LOVABLE_API_KEY",
+  url: "https://ai.gateway.lovable.dev/v1/chat/completions",
+  authStyle: "lovable",
+});
+
+// Gemini uses its own generateContent API (not OpenAI-compatible).
+const geminiText: ProviderAdapter = {
+  name: "gemini-text",
+  supports: (r) =>
+    r.kind === "text" &&
+    !!process.env.GEMINI_API_KEY &&
+    (r.model ? TEXT_MODELS[r.model]?.adapter === "gemini-text" : false),
+  estimateCost: (r) => (r.model ? TEXT_MODELS[r.model]?.cost : undefined) ?? 0.001,
+  async run(r) {
+    const key = process.env.GEMINI_API_KEY!;
+    const m = r.model ? TEXT_MODELS[r.model] : null;
+    const model = m?.providerModel ?? "gemini-2.0-flash";
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: r.prompt ?? "" }] }] }),
+      },
+    );
+    if (!res.ok) throw new Error(`Gemini text ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const j = await res.json();
+    const parts: Array<{ text?: string }> = j?.candidates?.[0]?.content?.parts ?? [];
+    const text = parts
+      .map((p) => p.text)
+      .filter(Boolean)
+      .join("");
+    if (!text) throw new Error("Gemini text returned empty");
+    return { url: "", endpoint: `gemini-text:${model}`, text };
+  },
+};
+
+// ─── Free image providers ────────────────────────────────────────────────────
+// Pollinations (no key) leads the image chain; Runware (keyed) is a cheap hosted
+// alternative. Both upload the bytes to the studio bucket so results live where
+// every other provider's results do.
+type FreeImageEntry = { adapter: "pollinations" | "runware"; model: string; cost: number };
+const FREE_IMAGE_MODELS: Record<string, FreeImageEntry> = {
+  "pollinations/flux": { adapter: "pollinations", model: "flux", cost: 0 },
+  "runware/flux-schnell": { adapter: "runware", model: "runware:100@1", cost: 0.0006 },
+};
+
+async function uploadBytesToStudio(
+  userId: string | null | undefined,
+  folder: string,
+  bytes: Uint8Array,
+  contentType: string,
+  ext: string,
+): Promise<string> {
+  const path = `${userId ?? "system"}/${folder}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabaseAdmin.storage
+    .from("studio")
+    .upload(path, bytes, { contentType, upsert: false });
+  if (error) throw new Error(`${folder} upload failed: ${error.message}`);
+  const { data } = supabaseAdmin.storage.from("studio").getPublicUrl(path);
+  return data.publicUrl;
+}
+
+const pollinations: ProviderAdapter = {
+  name: "pollinations",
+  supports: (r) => {
+    if (r.kind === "text")
+      return r.model ? TEXT_MODELS[r.model]?.adapter === "pollinations" : false;
+    if (r.kind === "image")
+      return r.model ? FREE_IMAGE_MODELS[r.model]?.adapter === "pollinations" : false;
+    return false;
+  },
+  estimateCost: () => 0,
+  async run(r) {
+    if (r.kind === "text") {
+      const m = r.model ? TEXT_MODELS[r.model] : null;
+      const model = m?.providerModel ?? "openai";
+      const res = await fetch(
+        `https://text.pollinations.ai/${encodeURIComponent(r.prompt ?? "")}?model=${encodeURIComponent(model)}`,
+      );
+      if (!res.ok)
+        throw new Error(`Pollinations text ${res.status}: ${(await res.text()).slice(0, 150)}`);
+      const text = await res.text();
+      if (!text) throw new Error("Pollinations returned empty text");
+      return { url: "", endpoint: `pollinations:${model}`, text };
+    }
+    const m = r.model ? FREE_IMAGE_MODELS[r.model] : null;
+    const model = m?.model ?? "flux";
+    const u = new URL(`https://image.pollinations.ai/prompt/${encodeURIComponent(r.prompt ?? "")}`);
+    u.searchParams.set("width", "1024");
+    u.searchParams.set("height", "1024");
+    u.searchParams.set("model", model);
+    u.searchParams.set("nologo", "true");
+    const res = await fetch(u.toString());
+    if (!res.ok)
+      throw new Error(`Pollinations image ${res.status}: ${(await res.text()).slice(0, 150)}`);
+    const contentType = res.headers.get("content-type") || "image/jpeg";
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const url = await uploadBytesToStudio(
+      r.userId,
+      "pollinations",
+      bytes,
+      contentType,
+      contentType.split("/")[1] || "jpg",
+    );
+    return { url, endpoint: `pollinations:${model}` };
+  },
+};
+
+const runware: ProviderAdapter = {
+  name: "runware",
+  supports: (r) =>
+    r.kind === "image" &&
+    !!process.env.RUNWARE_API_KEY &&
+    (r.model ? FREE_IMAGE_MODELS[r.model]?.adapter === "runware" : false),
+  estimateCost: (r) => (r.model ? FREE_IMAGE_MODELS[r.model]?.cost : undefined) ?? 0.001,
+  async run(r) {
+    const key = process.env.RUNWARE_API_KEY!;
+    const m = r.model ? FREE_IMAGE_MODELS[r.model] : null;
+    const body = [
+      {
+        taskType: "imageInference",
+        taskUUID: crypto.randomUUID(),
+        positivePrompt: r.prompt ?? "",
+        model: m?.model ?? "runware:100@1",
+        width: 1024,
+        height: 1024,
+        numberResults: 1,
+      },
+    ];
+    const res = await fetch("https://api.runware.ai/v1", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`Runware ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const j = await res.json();
+    const url: unknown = j?.data?.[0]?.imageURL ?? j?.data?.[0]?.imageUrl;
+    if (!url || typeof url !== "string") throw new Error("Runware returned no image");
+    return { url, endpoint: `runware:${m?.model ?? "runware:100@1"}` };
+  },
+};
+
+// ─── Runway video (official REST, image-to-video) ────────────────────────────
+const RUNWAY_MODELS: Record<string, { model: string; cost: number }> = {
+  "runway/gen4-turbo": { model: "gen4_turbo", cost: 0.5 },
+  "runway/gen3a-turbo": { model: "gen3a_turbo", cost: 0.4 },
+};
+const runway: ProviderAdapter = {
+  name: "runway",
+  supports: (r) =>
+    r.kind === "video" &&
+    !!process.env.RUNWAY_API_KEY &&
+    (r.model ? !!RUNWAY_MODELS[r.model] : false),
+  estimateCost: (r) => (r.model ? RUNWAY_MODELS[r.model]?.cost : undefined) ?? 0.5,
+  async run(r) {
+    const key = process.env.RUNWAY_API_KEY!;
+    const m = r.model ? RUNWAY_MODELS[r.model] : null;
+    const img = firstImg(r);
+    if (!img) throw new Error("Runway requires a start image (image-to-video)");
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${key}`,
+      "X-Runway-Version": "2024-11-06",
+    };
+    const create = await fetch("https://api.dev.runwayml.com/v1/image_to_video", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model: m?.model ?? "gen4_turbo",
+        promptImage: img,
+        promptText: r.prompt ?? "",
+        duration: r.duration ?? 5,
+        ratio: "1280:720",
+      }),
+    });
+    if (!create.ok)
+      throw new Error(`Runway ${create.status}: ${(await create.text()).slice(0, 200)}`);
+    const cj = await create.json();
+    const id = cj?.id;
+    if (!id) throw new Error("Runway returned no task id");
+    const deadline = Date.now() + 10 * 60_000;
+    while (Date.now() < deadline) {
+      await new Promise((s) => setTimeout(s, 6000));
+      const st = await fetch(`https://api.dev.runwayml.com/v1/tasks/${id}`, { headers });
+      if (!st.ok) continue;
+      const sj = await st.json();
+      const status = sj?.status;
+      if (status === "SUCCEEDED") {
+        const url = Array.isArray(sj?.output) ? sj.output[0] : undefined;
+        if (!url) throw new Error("Runway: no output url");
+        return { url, endpoint: `runway:${m?.model ?? "gen4_turbo"}` };
+      }
+      if (status === "FAILED")
+        throw new Error(
+          `Runway failed: ${String(sj?.failure ?? sj?.failureCode ?? "unknown").slice(0, 200)}`,
+        );
+    }
+    throw new Error("Runway poll timeout");
+  },
+};
+
+// ─── ElevenLabs (TTS / audio) ────────────────────────────────────────────────
+const elevenlabs: ProviderAdapter = {
+  name: "elevenlabs",
+  supports: (r) => r.kind === "audio" && !!process.env.ELEVENLABS_API_KEY,
+  estimateCost: () => 0.01,
+  async run(r) {
+    const key = process.env.ELEVENLABS_API_KEY!;
+    const voiceId =
+      (typeof r.params?.voiceId === "string" && r.params.voiceId) || "21m00Tcm4TlvDq8ikWAM";
+    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "xi-api-key": key },
+      body: JSON.stringify({ text: r.prompt ?? "", model_id: "eleven_multilingual_v2" }),
+    });
+    if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const url = await uploadBytesToStudio(r.userId, "tts", bytes, "audio/mpeg", "mp3");
+    return { url, endpoint: `elevenlabs:${voiceId}` };
+  },
+};
+
 // ─── GPU worker pool ─────────────────────────────────────────────────────────
 // Admin-registered HTTP workers (RunPod / vast / salad / self-hosted). Each row
 // declares the request contract it speaks via `protocol`:
@@ -484,8 +962,14 @@ const RUNPOD_DONE = "COMPLETED";
 const RUNPOD_FAILED = new Set(["FAILED", "CANCELLED", "TIMED_OUT"]);
 
 export type WorkerRow = {
-  id: string; name: string; endpoint_url: string; auth_token: string | null;
-  in_flight: number; max_concurrency: number; protocol: string; runpod_sync: boolean;
+  id: string;
+  name: string;
+  endpoint_url: string;
+  auth_token: string | null;
+  in_flight: number;
+  max_concurrency: number;
+  protocol: string;
+  runpod_sync: boolean;
 };
 
 // Robustly pull an output URL out of whatever shape a worker returns: a bare
@@ -495,17 +979,43 @@ export function extractWorkerUrl(payload: unknown, depth = 0): string | undefine
   if (payload == null || depth > 6) return undefined;
   if (typeof payload === "string") return payload.startsWith("http") ? payload : undefined;
   if (Array.isArray(payload)) {
-    for (const item of payload) { const u = extractWorkerUrl(item, depth + 1); if (u) return u; }
+    for (const item of payload) {
+      const u = extractWorkerUrl(item, depth + 1);
+      if (u) return u;
+    }
     return undefined;
   }
   if (typeof payload === "object") {
     const o = payload as Record<string, unknown>;
-    for (const k of ["url", "output_url", "image_url", "video_url", "audio_url", "result_url", "signed_url", "delivery_url"]) {
+    for (const k of [
+      "url",
+      "output_url",
+      "image_url",
+      "video_url",
+      "audio_url",
+      "result_url",
+      "signed_url",
+      "delivery_url",
+    ]) {
       const v = o[k];
       if (typeof v === "string" && v.startsWith("http")) return v;
     }
-    for (const k of ["output", "result", "data", "response", "image", "video", "images", "videos", "outputs", "assets"]) {
-      if (k in o) { const u = extractWorkerUrl(o[k], depth + 1); if (u) return u; }
+    for (const k of [
+      "output",
+      "result",
+      "data",
+      "response",
+      "image",
+      "video",
+      "images",
+      "videos",
+      "outputs",
+      "assets",
+    ]) {
+      if (k in o) {
+        const u = extractWorkerUrl(o[k], depth + 1);
+        if (u) return u;
+      }
     }
   }
   return undefined;
@@ -516,9 +1026,14 @@ const STALE_MS = 5 * 60_000; // 5 minutes
 // Flat job params shared by both contracts (runpod wraps these under `input`).
 function workerInput(r: GenerateRequest): Record<string, unknown> {
   return {
-    kind: r.kind, prompt: r.prompt, image_urls: r.imageUrls,
-    audio_url: r.audioUrl, video_url: r.videoUrl,
-    model: r.model, duration: r.duration, resolution: r.resolution,
+    kind: r.kind,
+    prompt: r.prompt,
+    image_urls: r.imageUrls,
+    audio_url: r.audioUrl,
+    video_url: r.videoUrl,
+    model: r.model,
+    duration: r.duration,
+    resolution: r.resolution,
     ...(r.params ? { params: r.params } : {}),
     ...(r.comfyWorkflow ? { workflow: r.comfyWorkflow } : {}),
     ...(r.comfyInputs ? { workflow_inputs: r.comfyInputs } : {}),
@@ -526,10 +1041,18 @@ function workerInput(r: GenerateRequest): Record<string, unknown> {
 }
 
 // custom contract: flat POST /generate (legacy behaviour, unchanged on the wire).
-export async function dispatchCustom(base: string, w: WorkerRow, r: GenerateRequest, deadline: number): Promise<unknown> {
+export async function dispatchCustom(
+  base: string,
+  w: WorkerRow,
+  r: GenerateRequest,
+  deadline: number,
+): Promise<unknown> {
   const res = await fetch(`${base}/generate`, {
     method: "POST",
-    headers: { "content-type": "application/json", ...(w.auth_token ? { authorization: `Bearer ${w.auth_token}` } : {}) },
+    headers: {
+      "content-type": "application/json",
+      ...(w.auth_token ? { authorization: `Bearer ${w.auth_token}` } : {}),
+    },
     body: JSON.stringify(workerInput(r)),
     signal: AbortSignal.timeout(Math.max(1_000, deadline - Date.now())),
   });
@@ -538,28 +1061,52 @@ export async function dispatchCustom(base: string, w: WorkerRow, r: GenerateRequ
 }
 
 // runpod contract: { input } to /runsync (sync) or /run + poll /status/{id} (async).
-export async function dispatchRunpod(base: string, w: WorkerRow, r: GenerateRequest, deadline: number): Promise<unknown> {
-  const headers = { "content-type": "application/json", ...(w.auth_token ? { authorization: `Bearer ${w.auth_token}` } : {}) };
+export async function dispatchRunpod(
+  base: string,
+  w: WorkerRow,
+  r: GenerateRequest,
+  deadline: number,
+): Promise<unknown> {
+  const headers = {
+    "content-type": "application/json",
+    ...(w.auth_token ? { authorization: `Bearer ${w.auth_token}` } : {}),
+  };
   const body = JSON.stringify({ input: workerInput(r) });
   if (w.runpod_sync) {
-    const res = await fetch(`${base}/runsync`, { method: "POST", headers, body, signal: AbortSignal.timeout(Math.max(1_000, deadline - Date.now())) });
+    const res = await fetch(`${base}/runsync`, {
+      method: "POST",
+      headers,
+      body,
+      signal: AbortSignal.timeout(Math.max(1_000, deadline - Date.now())),
+    });
     if (!res.ok) throw new Error(`worker ${w.name} /runsync -> ${res.status}`);
     const j = (await res.json()) as { status?: string; output?: unknown; error?: unknown };
-    if (RUNPOD_FAILED.has((j.status ?? "").toUpperCase())) throw new Error(`worker ${w.name} ${j.status}: ${String(j.error ?? "").slice(0, 200)}`);
+    if (RUNPOD_FAILED.has((j.status ?? "").toUpperCase()))
+      throw new Error(`worker ${w.name} ${j.status}: ${String(j.error ?? "").slice(0, 200)}`);
     return j.output ?? j;
   }
-  const submit = await fetch(`${base}/run`, { method: "POST", headers, body, signal: AbortSignal.timeout(Math.min(30_000, Math.max(1_000, deadline - Date.now()))) });
+  const submit = await fetch(`${base}/run`, {
+    method: "POST",
+    headers,
+    body,
+    signal: AbortSignal.timeout(Math.min(30_000, Math.max(1_000, deadline - Date.now()))),
+  });
   if (!submit.ok) throw new Error(`worker ${w.name} /run -> ${submit.status}`);
   const sj = (await submit.json()) as { id?: string; status?: string; output?: unknown };
   if ((sj.status ?? "").toUpperCase() === RUNPOD_DONE && sj.output !== undefined) return sj.output;
   const jobId = sj.id;
   if (!jobId) throw new Error(`worker ${w.name} /run returned no job id`);
   while (Date.now() < deadline) {
-    await new Promise((s) => setTimeout(s, Math.min(RUNPOD_POLL_MS, Math.max(0, deadline - Date.now()))));
+    await new Promise((s) =>
+      setTimeout(s, Math.min(RUNPOD_POLL_MS, Math.max(0, deadline - Date.now()))),
+    );
     if (Date.now() >= deadline) break;
     let pj: { status?: string; output?: unknown; error?: unknown };
     try {
-      const st = await fetch(`${base}/status/${encodeURIComponent(jobId)}`, { headers, signal: AbortSignal.timeout(Math.min(15_000, Math.max(1_000, deadline - Date.now()))) });
+      const st = await fetch(`${base}/status/${encodeURIComponent(jobId)}`, {
+        headers,
+        signal: AbortSignal.timeout(Math.min(15_000, Math.max(1_000, deadline - Date.now()))),
+      });
       if (!st.ok) continue;
       pj = (await st.json()) as { status?: string; output?: unknown; error?: unknown };
     } catch {
@@ -567,7 +1114,8 @@ export async function dispatchRunpod(base: string, w: WorkerRow, r: GenerateRequ
     }
     const status = (pj.status ?? "").toUpperCase();
     if (status === RUNPOD_DONE) return pj.output ?? pj;
-    if (RUNPOD_FAILED.has(status)) throw new Error(`worker ${w.name} ${status}: ${String(pj.error ?? "").slice(0, 200)}`);
+    if (RUNPOD_FAILED.has(status))
+      throw new Error(`worker ${w.name} ${status}: ${String(pj.error ?? "").slice(0, 200)}`);
     // IN_QUEUE / IN_PROGRESS → keep polling until the deadline.
   }
   throw new Error(`worker ${w.name} runpod poll timeout`);
@@ -587,7 +1135,14 @@ export function legacyCustomUrl(payload: unknown): string | undefined {
 // Map a GenerateRequest onto the generalized inference job consumed by the shared
 // protocol helpers (Gradio / ComfyUI). `upscale` maps to the `image` task.
 function toInferenceInput(r: GenerateRequest): InferenceInput {
-  const task: TaskType = r.kind === "upscale" ? "image" : r.kind;
+  const task: TaskType =
+    r.kind === "upscale"
+      ? "image"
+      : r.kind === "audio"
+        ? "tts"
+        : r.kind === "text"
+          ? "image" /* never reached: text never dispatches to a GPU worker */
+          : r.kind;
   return {
     task,
     prompt: r.prompt,
@@ -602,8 +1157,14 @@ function toInferenceInput(r: GenerateRequest): InferenceInput {
 
 // comfyui contract: submit a ComfyUI graph, poll /history, resolve a /view URL.
 // The job must carry `comfyWorkflow` (wired by Task #13); fails explicitly if not.
-export async function dispatchComfyui(base: string, w: WorkerRow, r: GenerateRequest, deadline: number): Promise<unknown> {
-  if (!r.comfyWorkflow) throw new Error(`worker ${w.name}: comfyui protocol requires a workflow (none in request)`);
+export async function dispatchComfyui(
+  base: string,
+  w: WorkerRow,
+  r: GenerateRequest,
+  deadline: number,
+): Promise<unknown> {
+  if (!r.comfyWorkflow)
+    throw new Error(`worker ${w.name}: comfyui protocol requires a workflow (none in request)`);
   const url = await runComfyWorkflow({
     baseUrl: base,
     token: w.auth_token ?? undefined,
@@ -615,59 +1176,88 @@ export async function dispatchComfyui(base: string, w: WorkerRow, r: GenerateReq
 }
 
 // hfspace contract: call the Space's Gradio `predict` fn over the SSE flow.
-export async function dispatchHfspace(base: string, w: WorkerRow, r: GenerateRequest, deadline: number): Promise<unknown> {
-  const result = await callGradioSpace(base, "predict", w.auth_token ?? undefined, gradioData(toInferenceInput(r)), deadline);
+export async function dispatchHfspace(
+  base: string,
+  w: WorkerRow,
+  r: GenerateRequest,
+  deadline: number,
+): Promise<unknown> {
+  const result = await callGradioSpace(
+    base,
+    "predict",
+    w.auth_token ?? undefined,
+    gradioData(toInferenceInput(r)),
+    deadline,
+  );
   const url = extractGradioUrl(result, base);
   return url ? { url } : result;
 }
 
+// A GPU worker advertises capabilities by kind, except TTS audio which workers
+// declare as the `tts` capability (matching the inference-layer TaskType).
+function workerCapability(kind: GenerateKind): string {
+  return kind === "audio" ? "tts" : kind;
+}
+
 const gpuWorker: ProviderAdapter = {
   name: "runpod",
-  supports: (r) => ["image", "video", "lipsync", "upscale", "motion"].includes(r.kind),
+  supports: (r) => ["image", "video", "lipsync", "upscale", "motion", "audio"].includes(r.kind),
   estimateCost: (r) => (r.kind === "video" || r.kind === "motion" ? 0.05 : 0.01),
   async run(r) {
     const { data: workers } = await supabaseAdmin
       .from("gpu_workers")
       .select("*")
       .eq("status", "active")
-      .contains("capabilities", [r.kind])
+      .contains("capabilities", [workerCapability(r.kind)])
       .order("priority", { ascending: true })
       .order("in_flight", { ascending: true })
       .limit(10);
     if (!workers || workers.length === 0) throw new Error("No GPU workers available");
-      const now = Date.now();
-      let lastErr: Error | null = null;
-      for (const w of workers) {
-        if (w.in_flight >= w.max_concurrency) continue;
-        // Lazy heartbeat staleness check: skip workers that haven't been pinged recently.
-        if (w.last_heartbeat && now - new Date(w.last_heartbeat).getTime() > STALE_MS) continue;
-        const started = Date.now();
-        let incremented = false;
-        try {
-          await supabaseAdmin.rpc("gpu_worker_inflight_inc", { _worker: w.id });
-          incremented = true;
-          const base = normalizeWorkerBase(w.endpoint_url);
-          const deadline = started + WORKER_TIMEOUT_MS;
-          const payload =
-            w.protocol === "runpod" ? await dispatchRunpod(base, w, r, deadline)
-            : w.protocol === "comfyui" ? await dispatchComfyui(base, w, r, deadline)
-            : w.protocol === "hfspace" ? await dispatchHfspace(base, w, r, deadline)
-            : await dispatchCustom(base, w, r, deadline);
+    const now = Date.now();
+    let lastErr: Error | null = null;
+    for (const w of workers) {
+      if (w.in_flight >= w.max_concurrency) continue;
+      // Lazy heartbeat staleness check: skip workers that haven't been pinged recently.
+      if (w.last_heartbeat && now - new Date(w.last_heartbeat).getTime() > STALE_MS) continue;
+      const started = Date.now();
+      let incremented = false;
+      try {
+        await supabaseAdmin.rpc("gpu_worker_inflight_inc", { _worker: w.id });
+        incremented = true;
+        const base = normalizeWorkerBase(w.endpoint_url);
+        const deadline = started + WORKER_TIMEOUT_MS;
+        const payload =
+          w.protocol === "runpod"
+            ? await dispatchRunpod(base, w, r, deadline)
+            : w.protocol === "comfyui"
+              ? await dispatchComfyui(base, w, r, deadline)
+              : w.protocol === "hfspace"
+                ? await dispatchHfspace(base, w, r, deadline)
+                : await dispatchCustom(base, w, r, deadline);
         // custom & vast workers may return a relative/non-http url; preserve it.
         const isCustomLike =
           w.protocol !== "runpod" && w.protocol !== "comfyui" && w.protocol !== "hfspace";
-        const url = extractWorkerUrl(payload) ?? (isCustomLike ? legacyCustomUrl(payload) : undefined);
+        const url =
+          extractWorkerUrl(payload) ?? (isCustomLike ? legacyCustomUrl(payload) : undefined);
         if (!url) throw new Error(`worker ${w.name} returned no url`);
         await supabaseAdmin.from("worker_jobs").insert({
-          worker_id: w.id, user_id: r.userId ?? null, kind: r.kind,
-          status: "ok", latency_ms: Date.now() - started, ref_id: r.refId ?? null,
+          worker_id: w.id,
+          user_id: r.userId ?? null,
+          kind: r.kind,
+          status: "ok",
+          latency_ms: Date.now() - started,
+          ref_id: r.refId ?? null,
         });
         return { url, endpoint: `gpu:${w.name}` };
       } catch (e) {
         lastErr = e instanceof Error ? e : new Error(String(e));
         await supabaseAdmin.from("worker_jobs").insert({
-          worker_id: w.id, user_id: r.userId ?? null, kind: r.kind,
-          status: "error", latency_ms: Date.now() - started, error: lastErr.message.slice(0, 500),
+          worker_id: w.id,
+          user_id: r.userId ?? null,
+          kind: r.kind,
+          status: "error",
+          latency_ms: Date.now() - started,
+          error: lastErr.message.slice(0, 500),
         });
       } finally {
         if (incremented) {
@@ -685,12 +1275,25 @@ const gpuWorker: ProviderAdapter = {
 // for free image generation. Kling direct (JWT) handles video without Replicate.
 // HeyGen handles lipsync as a quality alternative to sync.so.
 const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
-  image:   [geminiDirect, huggingface, replicate, lovable, gpuWorker, falFallback],
-  video:   [klingDirect, replicate, gpuWorker, falFallback],
+  image: [
+    pollinations,
+    geminiDirect,
+    huggingface,
+    runware,
+    replicate,
+    lovable,
+    gpuWorker,
+    falFallback,
+  ],
+  video: [klingDirect, replicate, runway, gpuWorker, falFallback],
   lipsync: [sync, heygen, replicate, gpuWorker, falFallback],
   upscale: [replicate, gpuWorker, falFallback],
   // Motion transfer (MimicMotion) has no hosted provider — GPU/ComfyUI workers only.
-  motion:  [gpuWorker],
+  motion: [gpuWorker],
+  // Text: free Pollinations first, then keyed providers cheapest-first.
+  text: [pollinations, groqText, geminiText, mistralText, hfText, openaiText, lovableText],
+  // Audio/TTS: ElevenLabs when keyed, otherwise a self-hosted `tts` GPU worker.
+  audio: [elevenlabs, gpuWorker],
 };
 
 // ─── Unified model registry ──────────────────────────────────────────────────
@@ -706,17 +1309,22 @@ export type ModelEntry = {
 export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
   const out: Record<string, ModelEntry> = {
     // Lovable AI gateway (Gemini image)
-    "google/gemini-2.5-flash-image":          { provider: "lovable", kind: "image", cost: 0.002 },
-    "google/gemini-3.1-flash-image-preview":  { provider: "lovable", kind: "image", cost: 0.002 },
-    "google/gemini-3-pro-image-preview":      { provider: "lovable", kind: "image", cost: 0.01  },
+    "google/gemini-2.5-flash-image": { provider: "lovable", kind: "image", cost: 0.002 },
+    "google/gemini-3.1-flash-image-preview": { provider: "lovable", kind: "image", cost: 0.002 },
+    "google/gemini-3-pro-image-preview": { provider: "lovable", kind: "image", cost: 0.01 },
     // Kling direct (JWT)
-    "kling-v1":                               { provider: "kling",   kind: "video", cost: 0.30 },
+    "kling-v1": { provider: "kling", kind: "video", cost: 0.3 },
     // HeyGen lipsync
-    "heygen/lipsync":                         { provider: "heygen",  kind: "lipsync", cost: 0.40 },
+    "heygen/lipsync": { provider: "heygen", kind: "lipsync", cost: 0.4 },
     // Sync.so direct lipsync
-    "sync/lipsync-2":                         { provider: "sync",    kind: "lipsync", cost: 0.25 },
+    "sync/lipsync-2": { provider: "sync", kind: "lipsync", cost: 0.25 },
     // Self-hosted LatentSync — runs on the registered GPU worker pool only.
-    "latentsync":                             { provider: gpuWorker.name, kind: "lipsync", cost: 0.01 },
+    latentsync: { provider: gpuWorker.name, kind: "lipsync", cost: 0.01 },
+    // Runway video (official REST, image-to-video)
+    "runway/gen4-turbo": { provider: "runway", kind: "video", cost: 0.5 },
+    "runway/gen3a-turbo": { provider: "runway", kind: "video", cost: 0.4 },
+    // ElevenLabs TTS (sentinel — adapter ignores the model key, picks voice via params)
+    "elevenlabs/tts": { provider: "elevenlabs", kind: "audio", cost: 0.01 },
   };
   for (const [k, v] of Object.entries(REPLICATE_MAP))
     out[k] = { provider: "replicate", kind: v.kind, cost: v.cost };
@@ -724,6 +1332,10 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     out[k] = { provider: "huggingface", kind: v.kind, cost: v.cost };
   for (const [k, v] of Object.entries(FAL_MAP))
     out[k] = { provider: "fal", kind: v.kind, cost: v.cost };
+  for (const [k, v] of Object.entries(FREE_IMAGE_MODELS))
+    out[k] = { provider: v.adapter, kind: "image", cost: v.cost };
+  for (const [k, v] of Object.entries(TEXT_MODELS))
+    out[k] = { provider: v.adapter, kind: "text", cost: v.cost };
   return out;
 })();
 
@@ -740,23 +1352,37 @@ export async function hasActiveWorkerForKind(kind: GenerateKind): Promise<boolea
     .from("gpu_workers")
     .select("id", { count: "exact", head: true })
     .eq("status", "active")
-    .contains("capabilities", [kind]);
+    .contains("capabilities", [workerCapability(kind)]);
   if (error) return false;
   return (count ?? 0) > 0;
 }
 
 async function log(opts: {
-  provider: string; endpoint: string; kind: GenerateKind;
-  status: "ok" | "error"; latencyMs: number; costUsd: number;
-  error?: string; userId?: string | null; refId?: string | null;
+  provider: string;
+  endpoint: string;
+  kind: GenerateKind;
+  status: "ok" | "error";
+  latencyMs: number;
+  costUsd: number;
+  error?: string;
+  userId?: string | null;
+  refId?: string | null;
 }) {
   try {
     await supabaseAdmin.from("provider_logs").insert({
-      provider: opts.provider, endpoint: opts.endpoint, kind: opts.kind,
-      status: opts.status, latency_ms: opts.latencyMs, cost_usd: opts.costUsd,
-      error: opts.error ?? null, user_id: opts.userId ?? null, ref_id: opts.refId ?? null,
+      provider: opts.provider,
+      endpoint: opts.endpoint,
+      kind: opts.kind,
+      status: opts.status,
+      latency_ms: opts.latencyMs,
+      cost_usd: opts.costUsd,
+      error: opts.error ?? null,
+      user_id: opts.userId ?? null,
+      ref_id: opts.refId ?? null,
     });
-  } catch { /* no-op */ }
+  } catch {
+    /* no-op */
+  }
 }
 
 // ─── Model-level fallback ────────────────────────────────────────────────────
@@ -764,13 +1390,30 @@ async function log(opts: {
 // a bounded, cheapest-first list of alternate same-kind models (all reachable on
 // the Replicate key). Capped so paid video generations never run away on cost.
 const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
-  image:   ["google/nano-banana", "replicate/flux-schnell", "fal-ai/seedream-4"],
-  video:   ["seedance-2.0-fast", "seedance-2.0", "wan-2.5", "kling-3.0", "veo-3-fast", "sora-2"],
+  image: ["pollinations/flux", "google/nano-banana", "replicate/flux-schnell", "fal-ai/seedream-4"],
+  video: ["seedance-2.0-fast", "seedance-2.0", "wan-2.5", "kling-3.0", "veo-3-fast", "sora-2"],
   lipsync: ["fal-ai/sync-lipsync/v2", "fal-ai/wav2lip"],
   upscale: [],
-  motion:  [],
+  motion: [],
+  // Free Pollinations first, then keyed text providers cheapest-first.
+  text: [
+    "pollinations/openai",
+    "groq/llama-3.3-70b",
+    "gemini/gemini-2.0-flash",
+    "lovable/gemini-2.5-flash",
+  ],
+  // Sentinel so the candidate loop runs; both audio adapters ignore the model key.
+  audio: ["elevenlabs/tts"],
 };
-const FALLBACK_CAP: Record<GenerateKind, number> = { image: 3, video: 2, lipsync: 2, upscale: 1, motion: 1 };
+const FALLBACK_CAP: Record<GenerateKind, number> = {
+  image: 4,
+  video: 2,
+  lipsync: 2,
+  upscale: 1,
+  motion: 1,
+  text: 4,
+  audio: 1,
+};
 
 export function getCandidateModels(req: GenerateRequest): string[] {
   // Self-hosted requests pin to the single requested model — no cross-model
@@ -790,7 +1433,8 @@ const FATAL_RE = /url (?:host|scheme) not allowed|invalid url|not your|unsafe/i;
 // Provider-down / quota signals worth briefly circuit-breaking the provider for.
 // Model-specific input errors (e.g. 400/422) are NOT here, so one bad model never
 // blacklists a healthy provider for other requests.
-const PROVIDER_DOWN_RE = /\b(429|5\d\d|402)\b|timeout|timed out|econnreset|econnrefused|etimedout|fetch failed|socket hang up|capacity|temporarily unavailable|rate limit/i;
+const PROVIDER_DOWN_RE =
+  /\b(429|5\d\d|402)\b|timeout|timed out|econnreset|econnrefused|etimedout|fetch failed|socket hang up|capacity|temporarily unavailable|rate limit/i;
 
 export async function orchestrate(rawReq: GenerateRequest): Promise<GenerateResult> {
   // Sign private-studio refs once, up front, so every adapter sees a fetchable URL.
@@ -817,13 +1461,21 @@ export async function orchestrate(rawReq: GenerateRequest): Promise<GenerateResu
       triedAny = true;
       const start = Date.now();
       try {
-        const { url, endpoint } = await withRetry(() => adapter.run(r), 2);
+        const { url, endpoint, text } = await withRetry(() => adapter.run(r), 2);
         const latency = Date.now() - start;
         const cost = adapter.estimateCost(r);
         markSuccess(adapter.name);
-        await log({ provider: adapter.name, endpoint, kind: r.kind, status: "ok",
-          latencyMs: latency, costUsd: cost, userId: r.userId, refId: r.refId });
-        return { url, provider: adapter.name, endpoint, latencyMs: latency, costUsd: cost };
+        await log({
+          provider: adapter.name,
+          endpoint,
+          kind: r.kind,
+          status: "ok",
+          latencyMs: latency,
+          costUsd: cost,
+          userId: r.userId,
+          refId: r.refId,
+        });
+        return { url, provider: adapter.name, endpoint, latencyMs: latency, costUsd: cost, text };
       } catch (e) {
         const latency = Date.now() - start;
         const msg = e instanceof Error ? e.message : String(e);
@@ -831,9 +1483,17 @@ export async function orchestrate(rawReq: GenerateRequest): Promise<GenerateResu
         // Only back a provider off for genuine provider-down/quota signals, so a
         // single bad model never blacklists a healthy provider for other requests.
         if (PROVIDER_DOWN_RE.test(msg)) markFailure(adapter.name);
-        await log({ provider: adapter.name, endpoint: modelKey, kind: r.kind,
-          status: "error", latencyMs: latency, costUsd: 0, error: msg.slice(0, 500),
-          userId: r.userId, refId: r.refId });
+        await log({
+          provider: adapter.name,
+          endpoint: modelKey,
+          kind: r.kind,
+          status: "error",
+          latencyMs: latency,
+          costUsd: 0,
+          error: msg.slice(0, 500),
+          userId: r.userId,
+          refId: r.refId,
+        });
         if (FATAL_RE.test(msg)) throw lastErr; // bad request — every model fails the same
       }
     }
@@ -841,11 +1501,14 @@ export async function orchestrate(rawReq: GenerateRequest): Promise<GenerateResu
 
   if (!triedAny) {
     const all = PRIORITY[req.kind];
-    const reasons = all.map((a) => {
-      if (!a.supports(req)) return `${a.name}: missing config/key for model "${req.model ?? "?"}"`;
-      if (!isHealthy(a.name)) return `${a.name}: cooling down after recent failure`;
-      return `${a.name}: ok`;
-    }).join("; ");
+    const reasons = all
+      .map((a) => {
+        if (!a.supports(req))
+          return `${a.name}: missing config/key for model "${req.model ?? "?"}"`;
+        if (!isHealthy(a.name)) return `${a.name}: cooling down after recent failure`;
+        return `${a.name}: ok`;
+      })
+      .join("; ");
     throw new Error(`No provider available for ${req.kind} → ${reasons}`);
   }
   throw lastErr ?? new Error("All providers failed");
