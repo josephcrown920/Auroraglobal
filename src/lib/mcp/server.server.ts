@@ -14,6 +14,8 @@ import {
   createAvatarSchema, createAvatarTool,
   animateFromDrivingVideoSchema, animateFromDrivingVideoTool,
   performanceReskinSchema, performanceReskinTool,
+  ugcAdSchema, generateUgcAdTool,
+  campaignSchema, generateCampaignTool,
   type ToolCtx,
 } from "./tools.server";
 
@@ -71,6 +73,18 @@ const TOOLS: ToolDef[] = [
     description:
       "Performance Shot: reskin a real performance video onto an Aurora avatar — restyle the performer with an avatar image, outfit and location, transfer the original motion, and optionally lip-sync to an audio track. Runs async on a GPU backend — returns a job ID. Errors clearly if no motion-capable GPU worker is connected.",
     schema: performanceReskinSchema,
+  },
+  {
+    name: "aurora_generate_ugc_ad",
+    description:
+      "Generate a talking UGC ad for a named Aurora persona. Give an avatar_name plus the product/action and (optionally) a scene; the full pipeline runs async — script (auto-written) → voice → still → image-to-video → lip-sync. Voice + lip-sync apply when TTS is configured, otherwise a silent animated clip is produced. Returns a job ID; track with aurora_get_job_status (video_url + a meta block).",
+    schema: ugcAdSchema,
+  },
+  {
+    name: "aurora_generate_campaign",
+    description:
+      "Generate a coordinated UGC campaign for a named Aurora persona: N matched image+video sets that vary outfit, location, mood and lighting from one prompt_template. Each set returns BOTH an image and a video. Runs async — returns queued job IDs to track with aurora_get_job_status. Ideal for filling a content calendar in one call.",
+    schema: campaignSchema,
   },
 ];
 
@@ -137,6 +151,10 @@ export async function callTool(name: string, args: unknown, ctx: ToolCtx): Promi
       return animateFromDrivingVideoTool(animateFromDrivingVideoSchema.parse(args), ctx);
     case "aurora_performance_reskin":
       return performanceReskinTool(performanceReskinSchema.parse(args), ctx);
+    case "aurora_generate_ugc_ad":
+      return generateUgcAdTool(ugcAdSchema.parse(args), ctx);
+    case "aurora_generate_campaign":
+      return generateCampaignTool(campaignSchema.parse(args), ctx);
     default:
       return { content: [{ type: "text", text: JSON.stringify({ error: `Unknown tool: ${name}` }) }], isError: true };
   }

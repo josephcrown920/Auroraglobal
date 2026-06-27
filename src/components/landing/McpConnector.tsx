@@ -110,8 +110,8 @@ export function McpConnector() {
           </span>
         </h2>
         <p className="mt-4 max-w-2xl text-base leading-7 text-white/72 md:text-lg">
-          Connect Aurora to Claude and generate avatar images, videos, and full
-          campaigns right from your conversations. <strong className="text-white">6 tools, one
+          Connect Aurora to Claude and generate avatar images, videos, talking UGC
+          ads and full campaigns right from your conversations. <strong className="text-white">10 tools, one
           connection</strong> — manage avatars, generate, edit and automate, all from a chat.
         </p>
 
@@ -251,8 +251,8 @@ export function McpConnector() {
             on your account domain. On claude.ai you add it as a custom connector and approve a
             one-click consent prompt — no API keys to paste. Claude Desktop, Cursor and other MCP
             clients can use the same URL plus a personal API key. Once connected, the assistant can
-            list your avatars, generate images and videos, edit existing assets, and check your
-            credit balance from a normal chat.
+            list your avatars, generate images and videos, produce talking UGC ads, spin up full
+            campaigns, edit existing assets, and check your credit balance from a normal chat.
           </p>
         </div>
 

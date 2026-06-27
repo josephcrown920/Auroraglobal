@@ -1,0 +1,173 @@
+// Shared, server-only helpers for the UGC ad + UGC campaign pipelines.
+// Pure functions + the LLM script generator. The actual multi-stage rendering
+// lives in the jobs worker (jobs.server.ts), which reuses these builders so the
+// MCP tools, the /ugc page and the queue all produce consistent prompts.
+
+import { z } from "zod";
+import { generateWithFallback } from "./llm-fallback.server";
+
+// ─── Credit costs ─────────────────────────────────────────────────────────────
+// A talking UGC ad chains image → image-to-video → (optional) lip-sync, so it is
+// priced like the multi-stage Performance Shot. A campaign set is one image plus
+// one short clip.
+export const COST_UGC_AD = 8;
+export const COST_CAMPAIGN_ITEM = 6;
+
+// Default Hugging Face text-to-speech model. Only used when HF_TOKEN is present;
+// callers can override per request. Kept generic/widely-available on purpose.
+export const UGC_TTS_MODEL = "facebook/mms-tts-eng";
+
+// ─── Script generation ────────────────────────────────────────────────────────
+
+const UGCScriptSchema = z.object({
+  hook: z.string().describe("A 1-line scroll-stopping opener spoken to camera"),
+  body: z.string().describe("1-2 sentences of authentic first-person product talk"),
+  cta: z.string().describe("A short call to action"),
+});
+
+export type UGCScript = { hook: string; body: string; cta: string; full: string };
+
+/**
+ * Write a short UGC ad script. Tries the configured LLM fallback chain and, when
+ * no LLM key is configured (or every provider fails), returns a deterministic
+ * templated script so the pipeline still produces a real, functional ad. The
+ * `source` field makes the degradation explicit to callers.
+ */
+export async function generateUGCScript(input: {
+  avatarName?: string;
+  productPrompt: string;
+  sceneHint?: string;
+  durationSec?: number;
+}): Promise<{ script: UGCScript; source: "llm" | "template"; provider?: string }> {
+  const dur = input.durationSec ?? 8;
+  const wordTarget = Math.max(18, Math.round(dur * 2.6)); // ~2.6 spoken words/sec
+  try {
+    const { provider, output } = await generateWithFallback({
+      system:
+        "You are a short-form UGC ad scriptwriter. Write punchy, authentic, first-person spoken copy a creator would actually say to camera. No stage directions, no emojis, no hashtags, no quotation marks.",
+      prompt: `Write a ${dur}-second UGC ad script (about ${wordTarget} words total) for ${
+        input.avatarName ? `creator "${input.avatarName}"` : "a creator"
+      } promoting: ${input.productPrompt}.${
+        input.sceneHint ? ` Scene: ${input.sceneHint}.` : ""
+      } Return a hook, body and call to action. Keep it natural and spoken, like a real TikTok or Reel.`,
+      schema: UGCScriptSchema,
+    });
+    const full = [output.hook, output.body, output.cta]
+      .map((s) => (s ?? "").trim())
+      .filter(Boolean)
+      .join(" ");
+    return { script: { ...output, full }, source: "llm", provider };
+  } catch {
+    return { script: templateScript(input), source: "template" };
+  }
+}
+
+function templateScript(input: { avatarName?: string; productPrompt: string }): UGCScript {
+  const who = input.avatarName ? `Hey, it's ${input.avatarName}.` : "Okay, real talk.";
+  const hook = `${who} I had to show you this.`;
+  const body = `I've been using ${input.productPrompt} and honestly it changed my routine — it just works and fits right into my day.`;
+  const cta = `Tap the link and try it for yourself. You'll thank me later.`;
+  return { hook, body, cta, full: `${hook} ${body} ${cta}` };
+}
+
+// ─── Prompt builders ──────────────────────────────────────────────────────────
+
+export function buildUGCImagePrompt(input: {
+  avatarName?: string;
+  vibe?: string | null;
+  sceneHint?: string;
+  productPrompt: string;
+  aspect?: string;
+}): string {
+  const aspect = input.aspect ?? "9:16";
+  return [
+    "Hyper-realistic UGC iPhone-style photo",
+    input.sceneHint || "casual natural setting, soft window light",
+    input.avatarName
+      ? `featuring AI creator "${input.avatarName}"${input.vibe ? ` (${input.vibe})` : ""}`
+      : null,
+    `product/action: ${input.productPrompt}`,
+    "native social-media aesthetic, photoreal skin texture, no logos, no on-screen text",
+    `[${aspect} aspect ratio]`,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+export function buildUGCMotionPrompt(input: {
+  avatarName?: string;
+  sceneName?: string;
+  productPrompt: string;
+}): string {
+  return [
+    input.sceneName ? `${input.sceneName}:` : "",
+    input.productPrompt,
+    "natural micro-movements, subtle handheld camera, lifelike facial expression, talking to camera",
+    input.avatarName ? `creator ${input.avatarName}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+}
+
+// ─── Campaign variations ──────────────────────────────────────────────────────
+
+function pick(arr: string[] | undefined, i: number): string | undefined {
+  return arr && arr.length ? arr[i % arr.length] : undefined;
+}
+
+export type CampaignVariation = {
+  index: number;
+  label: string;
+  imagePrompt: string;
+  motionPrompt: string;
+};
+
+/**
+ * Expand a base prompt into N coordinated variations, cycling through the
+ * supplied outfit/location/mood/lighting arrays (same approach as bulk-generate).
+ * Each variation carries both an image prompt and a matched motion prompt for the
+ * image-to-video stage.
+ */
+export function buildCampaignVariations(input: {
+  base: string;
+  count: number;
+  aspect?: string;
+  triggerWord?: string;
+  avatarName?: string;
+  locations?: string[];
+  outfits?: string[];
+  moods?: string[];
+  lighting?: string[];
+  motionPrompt?: string;
+}): CampaignVariation[] {
+  const aspect = input.aspect ?? "9:16";
+  const out: CampaignVariation[] = [];
+  for (let i = 0; i < input.count; i++) {
+    const loc = pick(input.locations, i);
+    const outfit = pick(input.outfits, i);
+    const mood = pick(input.moods, i);
+    const light = pick(input.lighting, i);
+
+    const segs = [input.base];
+    if (input.avatarName) segs.push(`featuring AI creator "${input.avatarName}"`);
+    if (loc) segs.push(`at ${loc}`);
+    if (outfit) segs.push(`wearing ${outfit}`);
+    if (mood) segs.push(`${mood} mood`);
+    if (light) segs.push(`${light} lighting`);
+    if (input.triggerWord) segs.push(input.triggerWord);
+    segs.push("hyper-realistic UGC photo, photoreal skin, native social aesthetic, no on-screen text");
+    segs.push(`[${aspect} aspect ratio]`);
+
+    const labelParts = [outfit, loc, mood].filter(Boolean) as string[];
+    out.push({
+      index: i,
+      label: labelParts.length ? labelParts.join(" · ") : `Variation ${i + 1}`,
+      imagePrompt: segs.join(", "),
+      motionPrompt:
+        input.motionPrompt?.trim() ||
+        `subtle natural motion, ${[outfit, loc].filter(Boolean).join(", ") || input.base}, lifelike, handheld`,
+    });
+  }
+  return out;
+}

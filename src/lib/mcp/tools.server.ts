@@ -15,6 +15,7 @@ import { listAvatars, getAvatarByName, createAvatar } from "./avatars.server";
 import { hasActiveWorkerForKind } from "@/lib/orchestrator.server";
 import { buildMimicMotionRequest, MOTION_TYPES, CAMERA_MOVEMENTS } from "@/lib/motion-workflows.server";
 import { assertTrustedUrl } from "@/lib/url-guard";
+import { COST_UGC_AD, COST_CAMPAIGN_ITEM, buildCampaignVariations } from "@/lib/ugc.server";
 import type { ToolResult } from "./types";
 
 export type ToolCtx = { userId: string; bearer: string; origin: string };
@@ -277,13 +278,22 @@ export async function getJobStatusTool(args: z.infer<typeof getJobStatusSchema>,
       .eq("user_id", ctx.userId)
       .maybeSingle();
     if (job) {
-      const result = (job.result ?? {}) as { url?: string; provider?: string };
+      const result = (job.result ?? {}) as {
+        url?: string;
+        provider?: string;
+        imageUrl?: string;
+        videoUrl?: string;
+        meta?: unknown;
+      };
       return ok({
         job_id: job.id,
         status: job.status,
         output_url: result.url ?? null,
+        image_url: result.imageUrl ?? null,
+        video_url: result.videoUrl ?? null,
         provider: result.provider ?? null,
         kind: job.kind,
+        ...(result.meta ? { meta: result.meta } : {}),
         error: job.error ?? null,
       });
     }
@@ -299,6 +309,8 @@ export async function getJobStatusTool(args: z.infer<typeof getJobStatusSchema>,
         job_id: gen.id,
         status: gen.status,
         output_url: gen.result_video_url ?? gen.result_image_url ?? null,
+        image_url: gen.result_image_url ?? null,
+        video_url: gen.result_video_url ?? null,
         model: gen.model,
         kind: gen.kind,
         error: gen.error ?? null,
@@ -403,6 +415,151 @@ export async function createAvatarTool(args: z.infer<typeof createAvatarSchema>,
       message: trained
         ? `Persona "${avatar.name}" created; LoRA training is ${avatar.training_status}.`
         : `Persona "${avatar.name}" created and ready to use.`,
+    });
+  } catch (e) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+// ─── UGC ad + campaign ────────────────────────────────────────────────────────
+
+export const ugcAdSchema = z.object({
+  avatar_name: z.string().describe("Aurora persona to feature (must have a reference image)"),
+  product: z.string().min(2).max(1000).describe("Product / action the creator promotes, e.g. 'unboxing a matte skincare bottle'"),
+  scene: z.string().max(600).optional().describe("Scene/setting hint, e.g. 'iPhone selfie in a sunlit kitchen'"),
+  duration: z.number().int().optional().describe("Seconds (3–12). Default: 8"),
+  aspect_ratio: z.enum(["9:16", "16:9", "1:1", "4:5"]).optional().describe("Default: 9:16"),
+  voice_model: z.string().max(120).optional().describe("HF text-to-speech model id (used only when HF_TOKEN is configured)"),
+});
+
+export const campaignSchema = z.object({
+  avatar_name: z.string().describe("Avatar/persona the campaign features"),
+  prompt_template: z.string().min(2).describe("Base creative prompt; variations are layered on automatically"),
+  count: z.number().int().min(1).max(20).describe("Number of matched image+video sets (1–20)"),
+  vary_locations: z.array(z.string()).optional().describe("Locations to cycle through"),
+  vary_outfits: z.array(z.string()).optional().describe("Outfits to cycle through"),
+  vary_moods: z.array(z.string()).optional().describe("Moods/expressions to cycle through"),
+  vary_lighting: z.array(z.string()).optional().describe("Lighting styles to cycle through"),
+  aspect_ratio: z.enum(["9:16", "16:9", "1:1", "4:5"]).optional().describe("Default: 9:16"),
+  duration: z.number().int().optional().describe("Clip seconds (3–12). Default: 5"),
+  motion_prompt: z.string().max(600).optional().describe("Shared motion direction for each set's video"),
+});
+
+export async function generateUgcAdTool(args: z.infer<typeof ugcAdSchema>, ctx: ToolCtx): Promise<ToolResult> {
+  try {
+    const avatar = await getAvatarByName(ctx.userId, args.avatar_name);
+    if (!avatar) return err(`Avatar "${args.avatar_name}" not found`);
+    if (!avatar.preview_url) {
+      return err(`Avatar "${avatar.name}" has no reference image — recreate it with image_urls so it can appear in the ad.`);
+    }
+    try {
+      assertTrustedUrl(avatar.preview_url);
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e));
+    }
+    const duration = clampDuration(args.duration);
+    const aspect = args.aspect_ratio ?? "9:16";
+
+    const payload = {
+      avatarImageUrl: avatar.preview_url,
+      avatarName: avatar.name,
+      vibe: avatar.style,
+      sceneHint: args.scene,
+      sceneName: args.scene,
+      productPrompt: args.product,
+      aspect,
+      duration,
+      voiceModel: args.voice_model,
+    };
+    const { data, error } = await rpc("create_generation_and_reserve", {
+      _user: ctx.userId,
+      _kind: "ugc_ad",
+      _prompt: `UGC ad: ${args.product} — ${avatar.name}`,
+      _amount: COST_UGC_AD,
+      _payload: payload,
+    });
+    if (error) return err(/insufficient_credits/i.test(error.message) ? "Not enough credits" : error.message);
+    const row = (Array.isArray(data) ? data[0] : data) as { job_id: string; generation_id: string };
+    return ok({
+      job_id: row.job_id,
+      generation_id: row.generation_id,
+      status: "queued",
+      credits: COST_UGC_AD,
+      avatar: { id: avatar.id, name: avatar.name },
+      aspect_ratio: aspect,
+      duration: `${duration}s`,
+      message:
+        `Talking UGC ad queued for ${avatar.name}. The script is auto-written; voice + lip-sync are applied when TTS is configured, otherwise a silent animated clip is produced. Track with aurora_get_job_status (returns video_url + a meta block describing the script source).`,
+    });
+  } catch (e) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+export async function generateCampaignTool(args: z.infer<typeof campaignSchema>, ctx: ToolCtx): Promise<ToolResult> {
+  try {
+    const avatar = await getAvatarByName(ctx.userId, args.avatar_name);
+    if (!avatar) return err(`Avatar "${args.avatar_name}" not found`);
+    if (!avatar.preview_url) {
+      return err(`Avatar "${avatar.name}" has no reference image — recreate it with image_urls so it can appear in the campaign.`);
+    }
+    try {
+      assertTrustedUrl(avatar.preview_url);
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e));
+    }
+    const aspect = args.aspect_ratio ?? "9:16";
+    const duration = clampDuration(args.duration);
+
+    const variations = buildCampaignVariations({
+      base: args.prompt_template,
+      count: args.count,
+      aspect,
+      triggerWord: avatar.trigger_word ?? undefined,
+      avatarName: avatar.name,
+      locations: args.vary_locations,
+      outfits: args.vary_outfits,
+      moods: args.vary_moods,
+      lighting: args.vary_lighting,
+      motionPrompt: args.motion_prompt,
+    });
+
+    const jobs: Array<{ job_id: string; label: string }> = [];
+    let creditError: string | null = null;
+    for (const v of variations) {
+      const payload = {
+        avatarImageUrl: avatar.preview_url ?? undefined,
+        imagePrompt: v.imagePrompt,
+        motionPrompt: v.motionPrompt,
+        duration,
+        label: v.label,
+      };
+      const { data, error } = await rpc("create_generation_and_reserve", {
+        _user: ctx.userId,
+        _kind: "ugc_campaign_item",
+        _prompt: `UGC campaign · ${avatar.name} · ${v.label}`,
+        _amount: COST_CAMPAIGN_ITEM,
+        _payload: payload,
+      });
+      if (error) {
+        creditError = /insufficient_credits/i.test(error.message) ? "Not enough credits" : error.message;
+        break;
+      }
+      const row = (Array.isArray(data) ? data[0] : data) as { job_id: string };
+      jobs.push({ job_id: row.job_id, label: v.label });
+    }
+
+    return ok({
+      jobs,
+      total_jobs: jobs.length,
+      requested: args.count,
+      credits_per_set: COST_CAMPAIGN_ITEM,
+      total_credits: jobs.length * COST_CAMPAIGN_ITEM,
+      avatar: { id: avatar.id, name: avatar.name },
+      aspect_ratio: aspect,
+      ...(creditError ? { warning: `Stopped early: ${creditError}` } : {}),
+      message:
+        `Queued ${jobs.length}/${args.count} matched image+video sets for ${avatar.name}. Each set returns BOTH an image and a video (image_url + video_url). Track with aurora_get_job_status.`,
     });
   } catch (e) {
     return err(e instanceof Error ? e.message : String(e));
