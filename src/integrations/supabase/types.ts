@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_sessions: {
+        Row: {
+          brief: string
+          created_at: string
+          id: string
+          iterations: Json
+          messages: Json
+          plan: Json
+          status: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brief?: string
+          created_at?: string
+          id?: string
+          iterations?: Json
+          messages?: Json
+          plan?: Json
+          status?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          brief?: string
+          created_at?: string
+          id?: string
+          iterations?: Json
+          messages?: Json
+          plan?: Json
+          status?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       affiliate_events: {
         Row: {
           amount_usd: number | null
@@ -279,6 +318,8 @@ export type Database = {
           prompt: string
           result_image_url: string | null
           result_video_url: string | null
+          session_id: string | null
+          agent_shot_id: string | null
           share_token: string | null
           status: string
           tags: string[]
@@ -302,6 +343,8 @@ export type Database = {
           prompt: string
           result_image_url?: string | null
           result_video_url?: string | null
+          session_id?: string | null
+          agent_shot_id?: string | null
           share_token?: string | null
           status?: string
           tags?: string[]
@@ -325,6 +368,8 @@ export type Database = {
           prompt?: string
           result_image_url?: string | null
           result_video_url?: string | null
+          session_id?: string | null
+          agent_shot_id?: string | null
           share_token?: string | null
           status?: string
           tags?: string[]

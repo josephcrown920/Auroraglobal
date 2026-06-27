@@ -3,7 +3,8 @@
 // then delegates to the orchestrator.
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { orchestrate, type GenerateKind } from "@/lib/orchestrator.server";
+import { type GenerateKind } from "@/lib/orchestrator.server";
+import { reserveOrchestrateRecord } from "@/lib/generate-core.server";
 import { assertTrustedUrl } from "@/lib/url-guard";
 
 const Schema = z.object({
@@ -76,8 +77,6 @@ export const Route = createFileRoute("/api/public/generate")({
           "Access-Control-Allow-Origin": "*",
         };
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        let reservedAmount = 0;
-        const reservationRef = crypto.randomUUID();
         let userId: string | null = null;
         try {
           userId = await authUserId(request);
@@ -142,24 +141,11 @@ export const Route = createFileRoute("/api/public/generate")({
           if (data.audioUrl) assertTrustedUrl(data.audioUrl);
           if (data.videoUrl) assertTrustedUrl(data.videoUrl);
 
-          // Reserve credits atomically (held in profiles.credits_reserved)
+          // Reserve credits → orchestrate → record → commit (shared core; also
+          // used by the Aurora Agent per-shot renderer so the credit flow never drifts).
           const cost = creditCost(data.kind as GenerateKind);
-          const rpcClient = supabaseAdmin as unknown as {
-            rpc: (n: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
-          };
-          const { data: reserved, error: resErr } = await rpcClient.rpc("reserve_credits", {
-            _user: userId,
-            _amount: cost,
-            _reason: `public_generate_${data.kind}`,
-            _ref: reservationRef,
-          });
-          if (resErr) throw new Error(resErr.message);
-          if (!reserved) {
-            return new Response(JSON.stringify({ error: "Insufficient credits" }), { status: 402, headers: cors });
-          }
-          reservedAmount = cost;
-
-          const result = await orchestrate({
+          const outcome = await reserveOrchestrateRecord({
+            userId,
             kind: data.kind as GenerateKind,
             prompt: data.prompt,
             imageUrls: data.imageUrls,
@@ -171,57 +157,29 @@ export const Route = createFileRoute("/api/public/generate")({
             params: data.params,
             comfyWorkflow: data.comfyWorkflow,
             comfyInputs: data.comfyInputs,
-            userId,
+            cost,
+            reason: `public_generate_${data.kind}`,
           });
-
-          // Audit trail
-          await supabaseAdmin.from("generations").insert({
-            user_id: userId,
-            prompt: data.prompt ?? "",
-            kind: data.kind,
-            mode: "performance",
-            status: "succeeded",
-            input_images: data.imageUrls ?? [],
-            audio_url: data.audioUrl ?? null,
-            model: result.provider,
-            result_image_url: data.kind === "image" ? result.url : null,
-            result_video_url: data.kind === "video" || data.kind === "lipsync" ? result.url : null,
-            credits_cost: cost,
-          });
-
-          // Commit reservation now that the job succeeded
-          await rpcClient.rpc("commit_reservation", {
-            _user: userId,
-            _amount: reservedAmount,
-            _reason: `public_generate_${data.kind}`,
-            _ref: reservationRef,
-          });
-          reservedAmount = 0;
+          if (!outcome.ok) {
+            return new Response(JSON.stringify({ error: outcome.error }), {
+              status: outcome.insufficient ? 402 : 400,
+              headers: cors,
+            });
+          }
 
           return new Response(
             JSON.stringify({
               ok: true,
-              url: result.url,
-              provider: result.provider,
-              endpoint: result.endpoint,
-              latencyMs: result.latencyMs,
-              estimatedCostUsd: result.costUsd,
+              url: outcome.url,
+              provider: outcome.provider,
+              endpoint: outcome.endpoint,
+              latencyMs: outcome.latencyMs,
+              estimatedCostUsd: outcome.costUsd,
             }),
             { status: 200, headers: cors },
           );
         } catch (e) {
-          // Release reservation on failure
-          if (reservedAmount > 0 && userId) {
-            const rpcClient = supabaseAdmin as unknown as {
-              rpc: (n: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
-            };
-            await rpcClient.rpc("release_reservation", {
-              _user: userId,
-              _amount: reservedAmount,
-              _reason: "release_public_generate",
-              _ref: reservationRef,
-            });
-          }
+          // Credit release on failure is handled inside reserveOrchestrateRecord.
           const msg = e instanceof Error ? e.message : "Unknown error";
           return new Response(JSON.stringify({ ok: false, error: msg }), { status: 400, headers: cors });
         }
