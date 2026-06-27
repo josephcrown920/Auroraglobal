@@ -17,6 +17,7 @@ import {
   LayoutTemplate,
   Gift,
   Users,
+  TrendingUp,
   type LucideIcon,
 } from "lucide-react";
 
@@ -43,6 +44,7 @@ const FEATURES: Feature[] = [
   { to: "/gallery", label: "Gallery", icon: Images },
   { to: "/gifts", label: "Gifts", icon: Gift },
   { to: "/affiliate", label: "Affiliate", icon: Users },
+  { to: "/nexusarb", label: "NexusARB (Sim)", icon: TrendingUp },
 ];
 
 // Top features surfaced as one-tap bottom tabs (the rest live behind "More").

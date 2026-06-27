@@ -16,6 +16,7 @@ import { Route as StudioRouteImport } from './routes/studio'
 import { Route as SplitRealityRouteImport } from './routes/split-reality'
 import { Route as SpinRouteImport } from './routes/spin'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as NexusarbRouteImport } from './routes/nexusarb'
 import { Route as MotionRouteImport } from './routes/motion'
 import { Route as LipsyncRouteImport } from './routes/lipsync'
 import { Route as GiftsRouteImport } from './routes/gifts'
@@ -77,6 +78,11 @@ const SpinRoute = SpinRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NexusarbRoute = NexusarbRouteImport.update({
+  id: '/nexusarb',
+  path: '/nexusarb',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MotionRoute = MotionRouteImport.update({
@@ -232,6 +238,7 @@ export interface FileRoutesByFullPath {
   '/gifts': typeof GiftsRoute
   '/lipsync': typeof LipsyncRoute
   '/motion': typeof MotionRoute
+  '/nexusarb': typeof NexusarbRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/spin': typeof SpinRoute
   '/split-reality': typeof SplitRealityRoute
@@ -268,6 +275,7 @@ export interface FileRoutesByTo {
   '/gifts': typeof GiftsRoute
   '/lipsync': typeof LipsyncRoute
   '/motion': typeof MotionRoute
+  '/nexusarb': typeof NexusarbRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/spin': typeof SpinRoute
   '/split-reality': typeof SplitRealityRoute
@@ -305,6 +313,7 @@ export interface FileRoutesById {
   '/gifts': typeof GiftsRoute
   '/lipsync': typeof LipsyncRoute
   '/motion': typeof MotionRoute
+  '/nexusarb': typeof NexusarbRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/spin': typeof SpinRoute
   '/split-reality': typeof SplitRealityRoute
@@ -343,6 +352,7 @@ export interface FileRouteTypes {
     | '/gifts'
     | '/lipsync'
     | '/motion'
+    | '/nexusarb'
     | '/sitemap.xml'
     | '/spin'
     | '/split-reality'
@@ -379,6 +389,7 @@ export interface FileRouteTypes {
     | '/gifts'
     | '/lipsync'
     | '/motion'
+    | '/nexusarb'
     | '/sitemap.xml'
     | '/spin'
     | '/split-reality'
@@ -415,6 +426,7 @@ export interface FileRouteTypes {
     | '/gifts'
     | '/lipsync'
     | '/motion'
+    | '/nexusarb'
     | '/sitemap.xml'
     | '/spin'
     | '/split-reality'
@@ -452,6 +464,7 @@ export interface RootRouteChildren {
   GiftsRoute: typeof GiftsRoute
   LipsyncRoute: typeof LipsyncRoute
   MotionRoute: typeof MotionRoute
+  NexusarbRoute: typeof NexusarbRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SpinRoute: typeof SpinRoute
   SplitRealityRoute: typeof SplitRealityRoute
@@ -520,6 +533,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nexusarb': {
+      id: '/nexusarb'
+      path: '/nexusarb'
+      fullPath: '/nexusarb'
+      preLoaderRoute: typeof NexusarbRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/motion': {
@@ -742,6 +762,7 @@ const rootRouteChildren: RootRouteChildren = {
   GiftsRoute: GiftsRoute,
   LipsyncRoute: LipsyncRoute,
   MotionRoute: MotionRoute,
+  NexusarbRoute: NexusarbRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SpinRoute: SpinRoute,
   SplitRealityRoute: SplitRealityRoute,
