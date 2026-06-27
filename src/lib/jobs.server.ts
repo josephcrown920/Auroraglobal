@@ -6,6 +6,7 @@
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { orchestrate, type GenerateKind, type GenerateRequest } from "./orchestrator.server";
+import { buildMimicMotionRequest, type MotionParams } from "./motion-workflows.server";
 
 type JobRow = {
   id: string;
@@ -68,7 +69,7 @@ async function finishJob(job: JobRow, opts: {
 // kind == "image" | "video" | "lipsync" | "upscale" → run orchestrator
 // kind == "tiktok_remix_child" → run a single TikTok variant (image-to-video)
 
-const MEDIA_KINDS = new Set<GenerateKind>(["image", "video", "lipsync", "upscale"]);
+const MEDIA_KINDS = new Set<GenerateKind>(["image", "video", "lipsync", "upscale", "motion"]);
 
 async function runMediaJob(job: JobRow): Promise<{ url: string; provider: string; endpoint: string }> {
   const req = job.payload as Partial<GenerateRequest>;
@@ -125,6 +126,70 @@ async function runTiktokRemixChild(job: JobRow) {
   return { url: result.url, provider: result.provider, endpoint: result.endpoint };
 }
 
+// Performance Shot: reskin a real performance video onto an avatar. Multi-stage,
+// each stage reusing the orchestrator so it routes across all configured backends:
+//   1. render a styled still of the avatar (outfit / location) — `image`
+//   2. drive that still with the performance video — `motion` (MimicMotion)
+//   3. (optional) relip to a supplied audio track — `lipsync`
+// Stages 2 and 3 are video-producing; the final clip is what we save.
+async function runPerformanceReskin(job: JobRow) {
+  const p = job.payload as {
+    performanceVideoUrl: string;
+    avatarImageUrl: string;
+    outfit?: string;
+    location?: string;
+    audioUrl?: string;
+    prompt?: string;
+    params?: MotionParams;
+  };
+  if (!p.performanceVideoUrl || !p.avatarImageUrl) {
+    throw new Error("performance_reskin requires performanceVideoUrl and avatarImageUrl");
+  }
+
+  // Stage 1 — styled avatar still. Outfit/location are STRUCTURED inputs folded
+  // into the image prompt here (not motion params).
+  const styleSegs = [
+    p.prompt?.trim() || "full-body portrait of the same person, photorealistic",
+    p.outfit ? `wearing ${p.outfit}` : null,
+    p.location ? `at ${p.location}` : null,
+    "natural lighting, sharp focus",
+  ].filter(Boolean) as string[];
+  const still = await orchestrate({
+    kind: "image",
+    prompt: styleSegs.join(", "),
+    imageUrls: [p.avatarImageUrl],
+    userId: job.user_id,
+    refId: job.id,
+  });
+
+  // Stage 2 — drive the styled still with the performance video (MimicMotion).
+  const motion = await orchestrate({
+    ...buildMimicMotionRequest({
+      imageUrl: still.url,
+      drivingVideoUrl: p.performanceVideoUrl,
+      prompt: p.prompt,
+      params: p.params,
+    }),
+    userId: job.user_id,
+    refId: job.id,
+  });
+
+  // Stage 3 — optional lip-sync to a supplied audio track. When no audio is
+  // given we rely on the motion worker to preserve the source performance audio.
+  let final = motion;
+  if (p.audioUrl) {
+    final = await orchestrate({
+      kind: "lipsync",
+      videoUrl: motion.url,
+      audioUrl: p.audioUrl,
+      userId: job.user_id,
+      refId: job.id,
+    });
+  }
+
+  return { url: final.url, provider: final.provider, endpoint: final.endpoint };
+}
+
 export async function processOneJob(workerId: string): Promise<{ processed: boolean; jobId?: string; status?: string; error?: string }> {
   const job = await claimNext(workerId);
   if (!job) return { processed: false };
@@ -133,14 +198,20 @@ export async function processOneJob(workerId: string): Promise<{ processed: bool
     let out: { url: string; provider: string; endpoint: string };
     if (job.kind === "tiktok_remix_child") {
       out = await runTiktokRemixChild(job);
+    } else if (job.kind === "performance_reskin") {
+      out = await runPerformanceReskin(job);
     } else {
       out = await runMediaJob(job);
     }
 
     // Update generations row
-    const isVideo = (job.payload as { kind?: string })?.kind === "video"
+    const payloadKind = (job.payload as { kind?: string })?.kind;
+    const isVideo = payloadKind === "video"
+      || payloadKind === "motion"
       || job.kind === "video"
       || job.kind === "tiktok_remix_child"
+      || job.kind === "performance_reskin"
+      || job.kind === "motion"
       || job.kind === "lipsync";
     await markGeneration(job.id, job.generation_id, {
       status: "succeeded",

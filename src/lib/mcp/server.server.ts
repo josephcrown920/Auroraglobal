@@ -12,6 +12,8 @@ import {
   listAvatarsSchema, listAvatarsTool,
   getJobStatusSchema, getJobStatusTool,
   createAvatarSchema, createAvatarTool,
+  animateFromDrivingVideoSchema, animateFromDrivingVideoTool,
+  performanceReskinSchema, performanceReskinTool,
   type ToolCtx,
 } from "./tools.server";
 
@@ -57,6 +59,18 @@ const TOOLS: ToolDef[] = [
     description:
       "Create a new Aurora persona. Provide a name (and optional reference image URLs, style, trigger word). LoRA training runs only if HeyGen/Sync keys are configured; otherwise a ready-to-use persona record is created.",
     schema: createAvatarSchema,
+  },
+  {
+    name: "aurora_animate_from_driving_video",
+    description:
+      "Animate a still image with the motion of a driving video (MimicMotion / pose transfer). Provide a reference image URL and a driving video URL; motion intensity and camera move are structured options. Runs async on a GPU backend — returns a job ID to track with aurora_get_job_status. Errors clearly if no motion-capable GPU worker is connected.",
+    schema: animateFromDrivingVideoSchema,
+  },
+  {
+    name: "aurora_performance_reskin",
+    description:
+      "Performance Shot: reskin a real performance video onto an Aurora avatar — restyle the performer with an avatar image, outfit and location, transfer the original motion, and optionally lip-sync to an audio track. Runs async on a GPU backend — returns a job ID. Errors clearly if no motion-capable GPU worker is connected.",
+    schema: performanceReskinSchema,
   },
 ];
 
@@ -119,6 +133,10 @@ export async function callTool(name: string, args: unknown, ctx: ToolCtx): Promi
       return getJobStatusTool(getJobStatusSchema.parse(args), ctx);
     case "aurora_create_avatar":
       return createAvatarTool(createAvatarSchema.parse(args), ctx);
+    case "aurora_animate_from_driving_video":
+      return animateFromDrivingVideoTool(animateFromDrivingVideoSchema.parse(args), ctx);
+    case "aurora_performance_reskin":
+      return performanceReskinTool(performanceReskinSchema.parse(args), ctx);
     default:
       return { content: [{ type: "text", text: JSON.stringify({ error: `Unknown tool: ${name}` }) }], isError: true };
   }

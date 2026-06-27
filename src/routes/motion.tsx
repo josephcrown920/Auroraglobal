@@ -6,11 +6,13 @@ import { useAuth } from "@/hooks/use-auth";
 import { UploadSlot } from "@/components/studio/UploadSlot";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, ArrowLeft, Loader2, Film, Wand2, Camera } from "lucide-react";
+import { Sparkles, ArrowLeft, Loader2, Film, Wand2, Camera, Clapperboard, Users } from "lucide-react";
 import { toast } from "sonner";
 import {
   generatePerformanceShot,
   generateVideoFromImage,
+  generateMimicMotion,
+  generatePerformanceReskin,
   listGenerations,
 } from "@/lib/studio.functions";
 import { VIDEO_MODEL_LIST } from "@/lib/models";
@@ -57,11 +59,36 @@ const CAMERA_MOVES = [
   { v: "tilt_down", label: "Tilt down" },
 ];
 
+// Structured motion vocabularies — mirror motion-workflows.server.ts (kept local so
+// this client route never imports a .server module). The server re-validates them.
+const MOTION_TYPES_UI = [
+  { v: "faithful", label: "Faithful" },
+  { v: "expressive", label: "Expressive" },
+  { v: "subtle", label: "Subtle" },
+  { v: "exaggerated", label: "Exaggerated" },
+];
+const MOTION_CAMERA = [
+  { v: "static", label: "Static" },
+  { v: "orbit", label: "Orbit" },
+  { v: "push-in", label: "Push in" },
+  { v: "pull-out", label: "Pull out" },
+  { v: "pan-left", label: "Pan left" },
+  { v: "pan-right", label: "Pan right" },
+  { v: "tilt-up", label: "Tilt up" },
+  { v: "tilt-down", label: "Tilt down" },
+  { v: "handheld", label: "Handheld" },
+];
+
+type Mode = "pose" | "transfer" | "reskin";
+
 function MotionStudio() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
 
+  const [mode, setMode] = useState<Mode>("pose");
+
+  // Pose → Video (existing two-step flow)
   const [selfie, setSelfie] = useState<string | null>(null);
   const [outfit, setOutfit] = useState<string | null>(null);
   const [poseRef, setPoseRef] = useState<string | null>(null);
@@ -76,12 +103,32 @@ function MotionStudio() {
   const [imageError, setImageError] = useState<string | null>(null);
   const [videoError, setVideoError] = useState<string | null>(null);
 
+  // Motion Transfer (MimicMotion)
+  const [mtImage, setMtImage] = useState<string | null>(null);
+  const [mtVideo, setMtVideo] = useState<string | null>(null);
+  const [mtMotion, setMtMotion] = useState("faithful");
+  const [mtCamera, setMtCamera] = useState("static");
+  const [mtPrompt, setMtPrompt] = useState("");
+  const [mtError, setMtError] = useState<string | null>(null);
+
+  // Performance Shot (video-driven avatar reskin)
+  const [rsVideo, setRsVideo] = useState<string | null>(null);
+  const [rsAvatar, setRsAvatar] = useState<string | null>(null);
+  const [rsAudio, setRsAudio] = useState<string | null>(null);
+  const [rsOutfit, setRsOutfit] = useState("");
+  const [rsLocation, setRsLocation] = useState("");
+  const [rsMotion, setRsMotion] = useState("faithful");
+  const [rsCamera, setRsCamera] = useState("static");
+  const [rsError, setRsError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth" });
   }, [user, loading, navigate]);
 
   const genFn = useServerFn(generatePerformanceShot);
   const videoFn = useServerFn(generateVideoFromImage);
+  const motionFn = useServerFn(generateMimicMotion);
+  const reskinFn = useServerFn(generatePerformanceReskin);
   const listFn = useServerFn(listGenerations);
 
   const { data: history } = useQuery({
@@ -158,6 +205,60 @@ function MotionStudio() {
     },
   });
 
+  // Motion Transfer — async via GPU job queue
+  const transferMut = useMutation({
+    mutationFn: async () => {
+      if (!mtImage) throw new Error("Add a reference image");
+      if (!mtVideo) throw new Error("Add a driving video");
+      return await motionFn({
+        data: {
+          imageUrl: mtImage,
+          drivingVideoUrl: mtVideo,
+          prompt: mtPrompt || undefined,
+          params: { motionType: mtMotion, cameraMovement: mtCamera },
+        },
+      });
+    },
+    onMutate: () => setMtError(null),
+    onSuccess: () => {
+      toast.success("Motion transfer queued — it'll appear in Recent when ready");
+      qc.invalidateQueries({ queryKey: ["motion-gens"] });
+    },
+    onError: (e) => {
+      const msg = e instanceof Error ? e.message : "Motion transfer failed";
+      setMtError(msg);
+      toast.error(msg);
+    },
+  });
+
+  // Performance Shot — async via GPU job queue
+  const reskinMut = useMutation({
+    mutationFn: async () => {
+      if (!rsVideo) throw new Error("Add a performance video");
+      if (!rsAvatar) throw new Error("Add an avatar image");
+      return await reskinFn({
+        data: {
+          performanceVideoUrl: rsVideo,
+          avatarImageUrl: rsAvatar,
+          outfit: rsOutfit || undefined,
+          location: rsLocation || undefined,
+          audioUrl: rsAudio || undefined,
+          params: { motionType: rsMotion, cameraMovement: rsCamera },
+        },
+      });
+    },
+    onMutate: () => setRsError(null),
+    onSuccess: () => {
+      toast.success("Performance Shot queued — it'll appear in Recent when ready");
+      qc.invalidateQueries({ queryKey: ["motion-gens"] });
+    },
+    onError: (e) => {
+      const msg = e instanceof Error ? e.message : "Performance Shot failed";
+      setRsError(msg);
+      toast.error(msg);
+    },
+  });
+
   if (loading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -193,6 +294,46 @@ function MotionStudio() {
   const imgState = stageMut.isPending ? "running" : imageError ? "error" : stagedImage ? "ok" : "idle";
   const vidState = animateMut.isPending ? "running" : videoError ? "error" : videoUrl ? "ok" : "idle";
 
+  const motionControls = (
+    motionVal: string,
+    onMotion: (v: string) => void,
+    cameraVal: string,
+    onCamera: (v: string) => void,
+  ) => (
+    <div className="grid grid-cols-2 gap-3">
+      <div className="space-y-2">
+        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Motion</label>
+        <Select value={motionVal} onValueChange={onMotion}>
+          <SelectTrigger className="bg-card/60"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {MOTION_TYPES_UI.map((m) => <SelectItem key={m.v} value={m.v}>{m.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground inline-flex items-center gap-1.5"><Camera className="size-3.5" /> Camera</label>
+        <Select value={cameraVal} onValueChange={onCamera}>
+          <SelectTrigger className="bg-card/60"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {MOTION_CAMERA.map((c) => <SelectItem key={c.v} value={c.v}>{c.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+
+  const tabBtn = (m: Mode, label: string, Icon: typeof Film) => (
+    <button
+      type="button"
+      onClick={() => setMode(m)}
+      className={`flex items-center justify-center gap-2 text-xs md:text-sm font-medium px-3 py-2.5 rounded-xl border transition-colors ${
+        mode === m ? "border-primary bg-primary/15 text-foreground" : "border-border bg-card/60 text-muted-foreground hover:border-primary/40"
+      }`}
+    >
+      <Icon className="size-4" /> {label}
+    </button>
+  );
+
   return (
     <main className="min-h-screen bg-background">
       <header className="flex items-center justify-between px-6 md:px-10 py-4 border-b border-border bg-card/40 backdrop-blur-xl">
@@ -211,117 +352,217 @@ function MotionStudio() {
       </header>
       <ConnectReplicateBanner />
 
-
       <div className="max-w-7xl mx-auto p-5 md:p-10 grid lg:grid-cols-[1fr_1fr] gap-8">
         <section className="space-y-5">
           <div>
             <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
               Direct the <span style={{ background: "var(--gradient-hero)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>motion</span>.
             </h1>
-            <p className="text-muted-foreground text-sm mt-1">Pose + camera move = a clip. Two steps, two retry buttons.</p>
-          </div>
-
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Stage a pose</p>
-            <div className="grid grid-cols-3 gap-2">
-              <UploadSlot userId={user.id} label="You" hint="Selfie" value={selfie} onChange={setSelfie} />
-              <UploadSlot userId={user.id} label="Outfit" hint="Wear" value={outfit} onChange={setOutfit} />
-              <UploadSlot userId={user.id} label="Pose ref" hint="Reference photo" value={poseRef} onChange={setPoseRef} />
-            </div>
-          </div>
-
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
-              Or skip staging — interpolate between two frames
+            <p className="text-muted-foreground text-sm mt-1">
+              {mode === "pose" && "Pose + camera move = a clip. Two steps, two retry buttons."}
+              {mode === "transfer" && "Drive a still image with the motion of any video (MimicMotion)."}
+              {mode === "reskin" && "Reskin a real performance video onto your avatar — outfit, location, optional lip-sync."}
             </p>
-            <div className="grid grid-cols-2 gap-2">
-              <UploadSlot userId={user.id} label="First frame" hint="Start image" value={startFrame} onChange={setStartFrame} />
-              <UploadSlot userId={user.id} label="Last frame" hint="End image (Kling)" value={endFrame} onChange={setEndFrame} />
-            </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Pose preset</label>
-            <div className="flex flex-wrap gap-2">
-              {POSE_PRESETS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setPose(p)}
-                  className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${pose.id === p.id ? "border-primary bg-primary/15 text-foreground" : "border-border bg-card/60 hover:border-primary/40"}`}
+          <div className="grid grid-cols-3 gap-2">
+            {tabBtn("pose", "Pose → Video", Wand2)}
+            {tabBtn("transfer", "Motion Transfer", Clapperboard)}
+            {tabBtn("reskin", "Performance Shot", Users)}
+          </div>
+
+          {/* ── Pose → Video ─────────────────────────────────────────── */}
+          {mode === "pose" && (
+            <>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Stage a pose</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <UploadSlot userId={user.id} label="You" hint="Selfie" value={selfie} onChange={setSelfie} />
+                  <UploadSlot userId={user.id} label="Outfit" hint="Wear" value={outfit} onChange={setOutfit} />
+                  <UploadSlot userId={user.id} label="Pose ref" hint="Reference photo" value={poseRef} onChange={setPoseRef} />
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+                  Or skip staging — interpolate between two frames
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <UploadSlot userId={user.id} label="First frame" hint="Start image" value={startFrame} onChange={setStartFrame} />
+                  <UploadSlot userId={user.id} label="Last frame" hint="End image (Kling)" value={endFrame} onChange={setEndFrame} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Pose preset</label>
+                <div className="flex flex-wrap gap-2">
+                  {POSE_PRESETS.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setPose(p)}
+                      className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${pose.id === p.id ? "border-primary bg-primary/15 text-foreground" : "border-border bg-card/60 hover:border-primary/40"}`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground inline-flex items-center gap-1.5"><Camera className="size-3.5" /> Camera move</label>
+                <Select value={cameraMovement} onValueChange={setCameraMovement}>
+                  <SelectTrigger className="bg-card/60"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CAMERA_MOVES.map((c) => <SelectItem key={c.v} value={c.v}>{c.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <BringItToLifePreview active={cameraMovement} onPick={setCameraMovement} />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Video model</label>
+                <Select value={videoModel} onValueChange={setVideoModel}>
+                  <SelectTrigger className="bg-card/60"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {VIDEO_MODEL_LIST.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>
+                        <div className="flex flex-col">
+                          <span>{m.label}</span>
+                          <span className="text-[10px] text-muted-foreground">{m.tagline}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Textarea rows={2} value={videoPrompt} onChange={(e) => setVideoPrompt(e.target.value)} className="resize-none bg-card/60 text-sm" />
+
+              <div className="grid grid-cols-2 gap-2">
+                {stepBadge("1. Stage pose (image)", imgState as "idle" | "running" | "ok" | "error", imageError)}
+                {stepBadge("2. Animate (video)", vidState as "idle" | "running" | "ok" | "error", videoError)}
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  disabled={stageMut.isPending || !selfie}
+                  onClick={() => stageMut.mutate()}
+                  className="flex-1 h-12"
+                  style={{ background: "var(--gradient-hero)" }}
                 >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
+                  {stageMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Staging…</> : <><Wand2 className="size-4 mr-2" /> {imageError ? "Retry pose" : stagedImage ? "Re-stage" : "Stage pose · 1 Aurora"}</>}
+                </Button>
+                <Button
+                  disabled={animateMut.isPending || (!stagedImage && !startFrame)}
+                  onClick={() => animateMut.mutate()}
+                  variant="secondary"
+                  className="flex-1 h-12"
+                >
+                  {animateMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Rendering…</> : <><Film className="size-4 mr-2" /> {videoError ? "Retry animate" : "Animate · 5 Aurora"}</>}
+                </Button>
+              </div>
+            </>
+          )}
 
-          <div className="space-y-2">
-            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground inline-flex items-center gap-1.5"><Camera className="size-3.5" /> Camera move</label>
-            <Select value={cameraMovement} onValueChange={setCameraMovement}>
-              <SelectTrigger className="bg-card/60"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {CAMERA_MOVES.map((c) => <SelectItem key={c.v} value={c.v}>{c.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <BringItToLifePreview active={cameraMovement} onPick={setCameraMovement} />
-          </div>
+          {/* ── Motion Transfer (MimicMotion) ─────────────────────────── */}
+          {mode === "transfer" && (
+            <>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Reference + driving video</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <UploadSlot userId={user.id} label="Subject" hint="Still image" value={mtImage} onChange={setMtImage} />
+                  <UploadSlot userId={user.id} kind="video" accept="video/*" label="Driving video" hint="Motion source" value={mtVideo} onChange={setMtVideo} />
+                </div>
+              </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Video model</label>
-            <Select value={videoModel} onValueChange={setVideoModel}>
-              <SelectTrigger className="bg-card/60"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {VIDEO_MODEL_LIST.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>
-                    <div className="flex flex-col">
-                      <span>{m.label}</span>
-                      <span className="text-[10px] text-muted-foreground">{m.tagline}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              {motionControls(mtMotion, setMtMotion, mtCamera, setMtCamera)}
 
-          <Textarea rows={2} value={videoPrompt} onChange={(e) => setVideoPrompt(e.target.value)} className="resize-none bg-card/60 text-sm" />
+              <div className="space-y-2">
+                <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Style prompt (optional)</label>
+                <Textarea rows={2} value={mtPrompt} onChange={(e) => setMtPrompt(e.target.value)} placeholder="cinematic lighting, 4K…" className="resize-none bg-card/60 text-sm" />
+              </div>
 
-          {/* Pipeline status */}
-          <div className="grid grid-cols-2 gap-2">
-            {stepBadge("1. Stage pose (image)", imgState as "idle" | "running" | "ok" | "error", imageError)}
-            {stepBadge("2. Animate (video)", vidState as "idle" | "running" | "ok" | "error", videoError)}
-          </div>
+              {mtError && (
+                <div className="rounded-xl border border-destructive/50 bg-destructive/10 px-3 py-2.5 text-xs text-foreground">{mtError}</div>
+              )}
 
-          <div className="flex gap-2">
-            <Button
-              disabled={stageMut.isPending || !selfie}
-              onClick={() => stageMut.mutate()}
-              className="flex-1 h-12"
-              style={{ background: "var(--gradient-hero)" }}
-            >
-              {stageMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Staging…</> : <><Wand2 className="size-4 mr-2" /> {imageError ? "Retry pose" : stagedImage ? "Re-stage" : "Stage pose · 1 Aurora"}</>}
-            </Button>
-            <Button
-              disabled={animateMut.isPending || (!stagedImage && !startFrame)}
-              onClick={() => animateMut.mutate()}
-              variant="secondary"
-              className="flex-1 h-12"
-            >
-              {animateMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Rendering…</> : <><Film className="size-4 mr-2" /> {videoError ? "Retry animate" : "Animate · 5 Aurora"}</>}
-            </Button>
-          </div>
+              <Button
+                disabled={transferMut.isPending || !mtImage || !mtVideo}
+                onClick={() => transferMut.mutate()}
+                className="w-full h-12"
+                style={{ background: "var(--gradient-hero)" }}
+              >
+                {transferMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Queuing…</> : <><Clapperboard className="size-4 mr-2" /> Transfer motion · 5 Aurora</>}
+              </Button>
+              <p className="text-xs text-muted-foreground">Runs on a GPU backend and appears in Recent when ready.</p>
+            </>
+          )}
+
+          {/* ── Performance Shot (reskin) ─────────────────────────────── */}
+          {mode === "reskin" && (
+            <>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Performance + avatar</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <UploadSlot userId={user.id} kind="video" accept="video/*" label="Performance" hint="Source video" value={rsVideo} onChange={setRsVideo} />
+                  <UploadSlot userId={user.id} label="Avatar" hint="Persona image" value={rsAvatar} onChange={setRsAvatar} />
+                  <UploadSlot userId={user.id} kind="video" accept="audio/*,video/*" label="Audio" hint="Optional lip-sync" value={rsAudio} onChange={setRsAudio} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Outfit (optional)</label>
+                  <input
+                    value={rsOutfit}
+                    onChange={(e) => setRsOutfit(e.target.value)}
+                    placeholder="black leather jacket"
+                    className="w-full h-10 rounded-md border border-border bg-card/60 px-3 text-sm outline-none focus:border-primary/60"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Location (optional)</label>
+                  <input
+                    value={rsLocation}
+                    onChange={(e) => setRsLocation(e.target.value)}
+                    placeholder="neon-lit rooftop at night"
+                    className="w-full h-10 rounded-md border border-border bg-card/60 px-3 text-sm outline-none focus:border-primary/60"
+                  />
+                </div>
+              </div>
+
+              {motionControls(rsMotion, setRsMotion, rsCamera, setRsCamera)}
+
+              {rsError && (
+                <div className="rounded-xl border border-destructive/50 bg-destructive/10 px-3 py-2.5 text-xs text-foreground">{rsError}</div>
+              )}
+
+              <Button
+                disabled={reskinMut.isPending || !rsVideo || !rsAvatar}
+                onClick={() => reskinMut.mutate()}
+                className="w-full h-12"
+                style={{ background: "var(--gradient-hero)" }}
+              >
+                {reskinMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Queuing…</> : <><Users className="size-4 mr-2" /> Create Performance Shot · 8 Aurora</>}
+              </Button>
+              <p className="text-xs text-muted-foreground">Runs on a GPU backend and appears in Recent when ready.</p>
+            </>
+          )}
         </section>
 
         <aside className="space-y-4">
           <div className="rounded-3xl overflow-hidden border border-border bg-card/60 backdrop-blur-xl aspect-[4/5] relative">
-            {videoUrl ? (
+            {mode === "pose" && videoUrl ? (
               <video src={videoUrl} className="w-full h-full object-cover" controls playsInline autoPlay loop muted />
-            ) : stagedImage ? (
+            ) : mode === "pose" && stagedImage ? (
               <img src={stagedImage} alt="Staged pose" className="w-full h-full object-cover" />
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground p-8 text-center">
                 <Sparkles className="size-10 text-primary/50" />
-                <p className="text-sm">Your motion clip will appear here.</p>
+                <p className="text-sm">
+                  {mode === "pose" ? "Your motion clip will appear here." : "Queued jobs render on a GPU backend — watch the Recent strip below."}
+                </p>
               </div>
             )}
           </div>

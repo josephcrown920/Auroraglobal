@@ -1,13 +1,22 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import { orchestrate } from "./orchestrator.server";
+import { orchestrate, hasActiveWorkerForKind } from "./orchestrator.server";
 import { fetchToBytes } from "./replicate.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { assertTrustedUrl } from "./url-guard";
+import { buildMimicMotionRequest, MOTION_TYPES, CAMERA_MOVEMENTS } from "./motion-workflows.server";
 
 const COST_IMAGE = 1;
 const COST_VIDEO = 5;
 const COST_LIPSYNC = 3;
+const COST_MOTION = 5;
+const COST_RESKIN = 8;
+
+// Shown when no GPU worker advertises the "motion" capability. Surfaced verbatim
+// to the UI / MCP caller; credits are never reserved when this fires.
+const NO_MOTION_BACKEND_MSG =
+  "No motion-capable GPU backend is connected yet. Connect a GPU worker with the \"motion\" capability to enable MimicMotion and Performance Shots.";
 
 async function isAdmin(userId: string): Promise<boolean> {
   const { data } = await supabaseAdmin
@@ -379,7 +388,9 @@ export const listGallery = createServerFn({ method: "GET" })
     const { data, error } = await supabase
       .from("generations")
       .select("id, prompt, kind, model, result_image_url, result_video_url, is_favorite, tags, created_at")
-      .eq("status", "complete")
+      // Sync fns finish as "complete"; async queue jobs (motion, performance_reskin,
+      // tiktok_remix_child) finish as "succeeded" — include both so all gens land here.
+      .in("status", ["complete", "succeeded"])
       .order("is_favorite", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(200);
@@ -464,4 +475,129 @@ export const editGeneration = createServerFn({ method: "POST" })
       await refundCredits(userId, COST_IMAGE, row.id);
       throw new Error(msg);
     }
+  });
+
+// ─── Motion (MimicMotion) + Performance Shot ─────────────────────────────────
+// Both run async on the GPU job queue (no hosted provider), so the server fn only
+// preflights for a motion-capable backend, then atomically reserves credits and
+// enqueues. The jobs/tick worker renders them; results surface via listGenerations.
+
+const MotionParamsSchema = z
+  .object({
+    motionType: z.enum(MOTION_TYPES).optional(),
+    cameraMovement: z.enum(CAMERA_MOVEMENTS).optional(),
+    fps: z.number().int().min(8).max(30).optional(),
+    frames: z.number().int().min(16).max(240).optional(),
+    steps: z.number().int().min(10).max(50).optional(),
+    cfg: z.number().min(1).max(10).optional(),
+    seed: z.number().int().optional(),
+    preserveFace: z.boolean().optional(),
+  })
+  .optional();
+
+const MotionTransferSchema = z.object({
+  imageUrl: z.string().url(),
+  drivingVideoUrl: z.string().url(),
+  prompt: z.string().max(2000).optional(),
+  params: MotionParamsSchema,
+});
+
+const PerformanceReskinSchema = z.object({
+  performanceVideoUrl: z.string().url(),
+  avatarImageUrl: z.string().url(),
+  outfit: z.string().max(400).optional(),
+  location: z.string().max(400).optional(),
+  audioUrl: z.string().url().optional(),
+  prompt: z.string().max(2000).optional(),
+  params: MotionParamsSchema,
+});
+
+// Atomic credit reservation + generations row + job row, via the shared RPC.
+async function reserveGenerationJob(
+  userId: string,
+  kind: string,
+  prompt: string,
+  amount: number,
+  payload: Record<string, unknown>,
+): Promise<{ jobId: string; generationId: string }> {
+  const client = supabaseAdmin as unknown as {
+    rpc: (n: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+  };
+  const { data, error } = await client.rpc("create_generation_and_reserve", {
+    _user: userId,
+    _kind: kind,
+    _prompt: prompt,
+    _amount: amount,
+    _payload: payload,
+  });
+  if (error) {
+    if (/insufficient_credits/i.test(error.message)) {
+      throw new Error("Not enough credits. Buy more from the Credits panel.");
+    }
+    throw new Error(error.message);
+  }
+  const row = (Array.isArray(data) ? data[0] : data) as { job_id: string; generation_id: string };
+  return { jobId: row.job_id, generationId: row.generation_id };
+}
+
+export const generateMimicMotion = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => MotionTransferSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    assertTrustedUrl(data.imageUrl);
+    assertTrustedUrl(data.drivingVideoUrl);
+
+    if (!(await hasActiveWorkerForKind("motion"))) {
+      throw new Error(NO_MOTION_BACKEND_MSG);
+    }
+
+    const req = buildMimicMotionRequest({
+      imageUrl: data.imageUrl,
+      drivingVideoUrl: data.drivingVideoUrl,
+      prompt: data.prompt,
+      params: data.params,
+    });
+    const out = await reserveGenerationJob(
+      userId,
+      "motion",
+      data.prompt ?? "Motion transfer",
+      COST_MOTION,
+      req as unknown as Record<string, unknown>,
+    );
+    await trackServer("motion_transfer_enqueued", userId, { jobId: out.jobId });
+    return out;
+  });
+
+export const generatePerformanceReskin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => PerformanceReskinSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    assertTrustedUrl(data.performanceVideoUrl);
+    assertTrustedUrl(data.avatarImageUrl);
+    if (data.audioUrl) assertTrustedUrl(data.audioUrl);
+
+    if (!(await hasActiveWorkerForKind("motion"))) {
+      throw new Error(NO_MOTION_BACKEND_MSG);
+    }
+
+    const payload = {
+      performanceVideoUrl: data.performanceVideoUrl,
+      avatarImageUrl: data.avatarImageUrl,
+      outfit: data.outfit,
+      location: data.location,
+      audioUrl: data.audioUrl,
+      prompt: data.prompt,
+      params: data.params,
+    };
+    const out = await reserveGenerationJob(
+      userId,
+      "performance_reskin",
+      data.prompt ?? "Performance reskin",
+      COST_RESKIN,
+      payload as Record<string, unknown>,
+    );
+    await trackServer("performance_reskin_enqueued", userId, { jobId: out.jobId });
+    return out;
   });

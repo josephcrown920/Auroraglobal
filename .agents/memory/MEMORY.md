@@ -8,4 +8,5 @@
 - [gpu_workers.auth_token protection](gpu-workers-auth-token.md) — column REVOKE is a no-op vs table GRANT; real safeguard is service-role-only access + strip token from listWorkers (has_auth_token bool).
 - [Test setup (Bun runner)](test-setup.md) — `bun test src/` runs `*.test.ts`; they're excluded from tsconfig (no `bun:test` types); eslint is not type-aware; export privates to test them.
 - [Aurora MCP server](aurora-mcp-server.md) — hand-rolled stateless JSON-RPC at /api/mcp (MCP SDK is Node-only, won't run on Workers); tools reuse /api/public/generate + jobs RPC; avatars live in DB but not in generated types.ts.
+- [Orchestrator candidate-model sentinel](orchestrator-candidate-sentinel.md) — a GenerateKind with empty FALLBACK_MODELS needs a sentinel model on the request, or getCandidateModels yields [] and orchestrate() never reaches its adapter.
 - [Aurora GPU pluggability axes](aurora-gpu-pluggability-axes.md) — two backend layers (env inference/ + DB gpu_workers) share protocols.ts wire logic; adding a protocol means touching BOTH; explicit-failure, no silent fallback.

@@ -36,6 +36,10 @@ function creditCost(kind: GenerateKind): number {
       return 3;
     case "video":
       return 5;
+    case "motion":
+      // Motion runs async on the job queue, never on this synchronous endpoint
+      // (it is excluded from the request Schema). Present for type exhaustiveness.
+      return 5;
   }
 }
 
