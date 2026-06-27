@@ -1,5 +1,15 @@
 import { Link } from "@tanstack/react-router";
 import { Flame, Play, TrendingUp, Heart, MessageCircle, Share2, Eye, ArrowRight, Music2 } from "lucide-react";
+import joshPerf from "@/assets/josh-performance-still-v1.jpg";
+import showcase2 from "@/assets/showcase-2.jpg";
+import ugc3 from "@/assets/ugc-avatar-3.jpg";
+import colorsNeon from "@/assets/colors-studio-neonbath.jpg";
+
+// Hosted real renders — URLs come from public/videos/*.asset.json
+const VID_LIP_PERFORMANCE = "/__l5e/assets-v1/f99bf1e3-686c-4b7f-80b3-cd49af93e510/lipsync-performance.mp4";
+const VID_LIP_DEMO = "/__l5e/assets-v1/7ed0c81b-e8c4-4b2d-bd9f-6c7d5d47a8a9/lipsync-demo.mp4";
+const VID_LIP_USER = "/__l5e/assets-v1/92a40de3-9f88-479f-8049-86e91cac06ce/lipsync-user-demo.mp4";
+const VID_SPLIT = "/__l5e/assets-v1/82946f74-8322-4f16-ab37-164aec7fecfb/split-reality-demo.mp4";
 
 const STATS = [
   { label: "Views generated", value: "120M+", icon: <Eye className="size-4" /> },
@@ -9,10 +19,10 @@ const STATS = [
 ];
 
 const CLIPS = [
-  { handle: "@joshmadethis", caption: "POV: my first single just dropped 🌌", likes: "412K", color: "from-pink-500 via-fuchsia-500 to-violet-600" },
-  { handle: "@neonkidd", caption: "He thought it was just a photoshoot…", likes: "1.2M", color: "from-violet-500 via-indigo-500 to-blue-600" },
-  { handle: "@ayagrade", caption: "Made this in 30s with Aurora 🤯", likes: "289K", color: "from-rose-500 via-pink-500 to-fuchsia-600" },
-  { handle: "@studiokyo", caption: "Trying the viral neon-cyc trend", likes: "658K", color: "from-cyan-500 via-sky-500 to-violet-600" },
+  { handle: "@joshmadethis", caption: "POV: my first single just dropped 🌌", likes: "412K", video: VID_LIP_PERFORMANCE, poster: joshPerf },
+  { handle: "@neonkidd", caption: "He thought it was just a photoshoot…", likes: "1.2M", video: VID_LIP_DEMO, poster: showcase2 },
+  { handle: "@ayagrade", caption: "Made this in 30s with Aurora 🤯", likes: "289K", video: VID_LIP_USER, poster: ugc3 },
+  { handle: "@studiokyo", caption: "Trying the viral neon-cyc trend", likes: "658K", video: VID_SPLIT, poster: colorsNeon },
 ];
 
 export function TikTokSection() {
@@ -80,8 +90,17 @@ export function TikTokSection() {
               key={c.handle}
               className="group relative aspect-[9/16] overflow-hidden rounded-2xl border border-white/10 bg-black"
             >
-              <div className={`absolute inset-0 bg-gradient-to-br ${c.color}`} />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.35),transparent_60%)]" />
+              <video
+                src={c.video}
+                poster={c.poster}
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                className="absolute inset-0 size-full object-cover"
+              />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.20),transparent_60%)]" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
 
               <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
