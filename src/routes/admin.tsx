@@ -3,10 +3,11 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { adminOverview, adminGrantCredits } from "@/lib/admin.functions";
+import { adminOverview, adminGrantCredits, adminEarnings } from "@/lib/admin.functions";
 import { listWorkers, upsertWorker, deleteWorker, pingWorker } from "@/lib/workers.functions";
+import { PROFIT_SPLIT_PCT } from "@/lib/profit-split";
 import { ModelBadge } from "@/components/ModelBadge";
-import { Shield, Sparkles, Loader2, Users, DollarSign, ImagePlay, Coins, ArrowRight, Server, Trash2, Activity } from "lucide-react";
+import { Shield, Sparkles, Loader2, Users, DollarSign, ImagePlay, Coins, ArrowRight, Server, Trash2, Activity, TrendingUp, Gift } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,7 +48,7 @@ function AdminPage() {
   });
 
 
-  const [tab, setTab] = useState<"gens" | "users" | "payments" | "workers">("gens");
+  const [tab, setTab] = useState<"gens" | "users" | "payments" | "earnings" | "workers">("gens");
   const [grantUser, setGrantUser] = useState("");
   const [grantAmount, setGrantAmount] = useState(100);
 
@@ -108,7 +109,7 @@ function AdminPage() {
           <Stat icon={Users} label="Users" value={s?.totalUsers ?? "—"} />
           <Stat icon={ImagePlay} label="Generations" value={s?.totalGens ?? "—"} sub={`${s?.totalImages ?? 0} img · ${s?.totalVideos ?? 0} vid`} />
           <Stat icon={DollarSign} label="Revenue (USD)" value={s ? `$${s.totalRevenueUsd.toFixed(2)}` : "—"} />
-          <Stat icon={Coins} label="Margin (60%)" value={s ? `$${(s.totalRevenueUsd * 0.6).toFixed(2)}` : "—"} />
+          <Stat icon={Coins} label={`Margin (${PROFIT_SPLIT_PCT}%)`} value={s ? `$${(s.totalRevenueUsd * (PROFIT_SPLIT_PCT / 100)).toFixed(2)}` : "—"} />
         </div>
 
         {/* Grant credits */}
@@ -124,7 +125,7 @@ function AdminPage() {
 
         {/* Tabs */}
         <div className="flex gap-2 border-b border-border">
-          {(["gens", "users", "payments", "workers"] as const).map((t) => (
+          {(["gens", "users", "payments", "earnings", "workers"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 text-sm capitalize border-b-2 -mb-px transition-colors ${tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
               {t === "gens" ? "Generations" : t === "workers" ? "GPU Workers" : t}
             </button>
@@ -200,9 +201,107 @@ function AdminPage() {
             </table>
           </div>
         )}
+        {tab === "earnings" && <EarningsPanel />}
         {tab === "workers" && <WorkersPanel />}
       </div>
     </main>
+  );
+}
+
+const EARNINGS_RANGES = [
+  { value: "7d", label: "Last 7 days" },
+  { value: "30d", label: "Last 30 days" },
+  { value: "90d", label: "Last 90 days" },
+  { value: "all", label: "All time" },
+] as const;
+type EarningsRangeValue = (typeof EARNINGS_RANGES)[number]["value"];
+
+function EarningsPanel() {
+  const earningsFn = useServerFn(adminEarnings);
+  const [range, setRange] = useState<EarningsRangeValue>("30d");
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-earnings", range],
+    queryFn: () => earningsFn({ data: { range } }),
+    refetchInterval: 30_000,
+  });
+
+  const t = data?.totals;
+  const usd = (n: number | undefined) => (n == null ? "—" : `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Owner earnings</h2>
+        <div className="flex gap-1 rounded-full border border-border bg-card/40 p-1">
+          {EARNINGS_RANGES.map((r) => (
+            <button
+              key={r.value}
+              onClick={() => setRange(r.value)}
+              className={`px-3 py-1 text-xs rounded-full transition-colors ${range === r.value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Stat icon={DollarSign} label="Revenue" value={usd(t?.revenueUsd)} sub={`${t?.transactions ?? 0} purchases`} />
+        <Stat icon={TrendingUp} label={`Profit (${data?.profitPct ?? PROFIT_SPLIT_PCT}%)`} value={usd(t?.profitUsd)} sub="Your earnings" />
+        <Stat icon={Coins} label={`Credit funding (${data?.creditFundingPct ?? 100 - PROFIT_SPLIT_PCT}%)`} value={usd(t?.creditFundingUsd)} sub="Funds generations" />
+        <Stat icon={Gift} label="Aura distributed" value={t ? t.creditsDistributed.toLocaleString() : "—"} sub="Granted to customers" />
+      </div>
+
+      {/* Split breakdown bar */}
+      {data && (
+        <section className="rounded-2xl border border-border bg-card/40 p-5 space-y-3">
+          <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Payment split</h3>
+          <div className="flex h-8 rounded-lg overflow-hidden">
+            <div className="flex items-center justify-center text-xs font-medium text-primary-foreground" style={{ width: `${data.profitPct}%`, background: "var(--gradient-hero)" }}>
+              {data.profitPct}% profit
+            </div>
+            <div className="flex items-center justify-center text-xs font-medium bg-muted text-muted-foreground" style={{ width: `${data.creditFundingPct}%` }}>
+              {data.creditFundingPct}% credits
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section>
+        <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground mb-2">Recent customers</h3>
+        <div className="rounded-xl border border-border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-card/60 text-xs uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="text-left p-3">When</th>
+                <th className="text-left p-3">Customer</th>
+                <th className="text-right p-3">Paid</th>
+                <th className="text-right p-3">Profit</th>
+                <th className="text-right p-3">Aura</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(data?.recentPurchases ?? []).map((p) => (
+                <tr key={p.id} className="border-t border-border hover:bg-card/40">
+                  <td className="p-3 text-xs">{new Date(p.created_at).toLocaleString()}</td>
+                  <td className="p-3">
+                    <div>{p.email ?? "—"}</div>
+                    {p.display_name && <div className="text-xs text-muted-foreground">{p.display_name}</div>}
+                  </td>
+                  <td className="p-3 text-right">{p.currency} {(p.amount_minor / 100).toFixed(2)}</td>
+                  <td className="p-3 text-right text-emerald-500">${(p.profit_minor / 100).toFixed(2)}</td>
+                  <td className="p-3 text-right">{p.credits_granted}</td>
+                </tr>
+              ))}
+              {!isLoading && (data?.recentPurchases ?? []).length === 0 && (
+                <tr><td colSpan={5} className="p-6 text-center text-muted-foreground text-sm">No purchases in this range yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {isLoading && <div className="text-sm text-muted-foreground mt-2">Loading…</div>}
+      </section>
+    </div>
   );
 }
 

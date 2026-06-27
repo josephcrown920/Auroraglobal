@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { computeProfitSplit } from "@/lib/profit-split";
 import { z } from "zod";
 
 /**
@@ -56,7 +57,7 @@ export async function processPaymentSuccess(
   // Fetch payment record
   const { data: payment, error: payErr } = await supabaseAdmin
     .from("payments")
-    .select("id, user_id, credits_granted, status, currency")
+    .select("id, user_id, credits_granted, status, currency, amount_kobo")
     .eq("reference", reference)
     .maybeSingle();
 
@@ -76,10 +77,17 @@ export async function processPaymentSuccess(
     _ref: payment.id,
   });
 
-  // Mark payment as succeeded
+  // Mark payment as succeeded and persist the owner profit / credit-funding split.
+  const split = computeProfitSplit(payment.amount_kobo);
   await supabaseAdmin
     .from("payments")
-    .update({ status: "succeeded", raw: event })
+    .update({
+      status: "succeeded",
+      raw: event,
+      profit_amount_minor: split.profit_minor,
+      credit_funding_amount_minor: split.credit_funding_minor,
+      split_profit_pct: split.profit_pct,
+    })
     .eq("id", payment.id);
 
   // Track affiliate conversion if buyer was referred
