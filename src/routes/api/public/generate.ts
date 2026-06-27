@@ -19,6 +19,11 @@ const Schema = z.object({
   from: z.enum(["latest"]).optional(),
   motion: z.enum(["orbit", "push-in", "pull-out", "pan-left", "pan-right", "tilt-up", "tilt-down", "static", "handheld"]).optional(),
   seconds: z.number().int().min(3).max(12).optional(),
+  // Pluggable-backend passthrough: free-form provider params + a generic ComfyUI
+  // workflow graph (+ per-node input patches) for `comfyui`-protocol workers.
+  params: z.record(z.unknown()).optional(),
+  comfyWorkflow: z.unknown().optional(),
+  comfyInputs: z.record(z.unknown()).optional(),
 });
 
 function creditCost(kind: GenerateKind): number {
@@ -159,6 +164,9 @@ export const Route = createFileRoute("/api/public/generate")({
             duration: data.duration,
             resolution: data.resolution,
             model: data.model,
+            params: data.params,
+            comfyWorkflow: data.comfyWorkflow,
+            comfyInputs: data.comfyInputs,
             userId,
           });
 

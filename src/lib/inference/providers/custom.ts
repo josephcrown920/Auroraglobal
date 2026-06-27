@@ -10,14 +10,21 @@
 //   { task, prompt?, image_urls?, audio_url?, video_url?, mode?, params?, workflow?, workflow_inputs? }
 // Expected response: any JSON containing an output URL (url / output_url / video_url / image_url / …).
 
-import type { InferenceInput, InferenceResult, ProviderAdapter } from "../types";
-import { extractOutputUrl, postFlatJob, toResult } from "../protocols";
+import type { InferenceInput, InferenceResult, ProbeResult, ProviderAdapter } from "../types";
+import { extractOutputUrl, postFlatJob, probeReachable, toResult } from "../protocols";
 
 export const customAdapter: ProviderAdapter = {
   id: "custom",
   label: "Custom URL (Colab / ngrok / self-hosted)",
   requiredEnv: ["CUSTOM_INFERENCE_URL"],
   tasks: ["image", "video", "lipsync", "motion"],
+
+  async probeHealth(timeoutMs?: number): Promise<ProbeResult | null> {
+    const url = process.env.CUSTOM_INFERENCE_URL;
+    if (!url) return null;
+    // Flat POST endpoint has no health route — any HTTP response means it's up.
+    return probeReachable(url, { token: process.env.CUSTOM_INFERENCE_TOKEN, timeoutMs });
+  },
 
   async run(input: InferenceInput): Promise<InferenceResult> {
     const url = process.env.CUSTOM_INFERENCE_URL;

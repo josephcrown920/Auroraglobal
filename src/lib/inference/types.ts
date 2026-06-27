@@ -60,4 +60,17 @@ export interface ProviderAdapter {
   tasks: TaskType[];
   /** Run inference and return the result. Throws explicitly on failure. */
   run(input: InferenceInput): Promise<InferenceResult>;
+  /**
+   * Optional liveness probe against the configured endpoint. Returns `null` when
+   * the backend isn't configured (nothing to probe), otherwise `{ ok }` —
+   * `ok:false` means it didn't answer healthy / was unreachable.
+   */
+  probeHealth?(timeoutMs?: number): Promise<ProbeResult | null>;
+}
+
+/** Result of a backend liveness probe. */
+export interface ProbeResult {
+  ok: boolean;
+  status?: number;
+  error?: string;
 }
