@@ -457,7 +457,7 @@ const RUNPOD_POLL_MS = 2_500;
 const RUNPOD_DONE = "COMPLETED";
 const RUNPOD_FAILED = new Set(["FAILED", "CANCELLED", "TIMED_OUT"]);
 
-type WorkerRow = {
+export type WorkerRow = {
   id: string; name: string; endpoint_url: string; auth_token: string | null;
   in_flight: number; max_concurrency: number; protocol: string; runpod_sync: boolean;
 };
@@ -465,7 +465,7 @@ type WorkerRow = {
 // Robustly pull an output URL out of whatever shape a worker returns: a bare
 // string, an array, { url }/{ output_url }/{ image_url }/… , or nested under
 // output/result/data/images/etc. (RunPod handlers wrap results under `output`).
-function extractWorkerUrl(payload: unknown, depth = 0): string | undefined {
+export function extractWorkerUrl(payload: unknown, depth = 0): string | undefined {
   if (payload == null || depth > 6) return undefined;
   if (typeof payload === "string") return payload.startsWith("http") ? payload : undefined;
   if (Array.isArray(payload)) {
@@ -497,7 +497,7 @@ function workerInput(r: GenerateRequest): Record<string, unknown> {
 }
 
 // custom contract: flat POST /generate (legacy behaviour, unchanged on the wire).
-async function dispatchCustom(base: string, w: WorkerRow, r: GenerateRequest, deadline: number): Promise<unknown> {
+export async function dispatchCustom(base: string, w: WorkerRow, r: GenerateRequest, deadline: number): Promise<unknown> {
   const res = await fetch(`${base}/generate`, {
     method: "POST",
     headers: { "content-type": "application/json", ...(w.auth_token ? { authorization: `Bearer ${w.auth_token}` } : {}) },
@@ -509,7 +509,7 @@ async function dispatchCustom(base: string, w: WorkerRow, r: GenerateRequest, de
 }
 
 // runpod contract: { input } to /runsync (sync) or /run + poll /status/{id} (async).
-async function dispatchRunpod(base: string, w: WorkerRow, r: GenerateRequest, deadline: number): Promise<unknown> {
+export async function dispatchRunpod(base: string, w: WorkerRow, r: GenerateRequest, deadline: number): Promise<unknown> {
   const headers = { "content-type": "application/json", ...(w.auth_token ? { authorization: `Bearer ${w.auth_token}` } : {}) };
   const body = JSON.stringify({ input: workerInput(r) });
   if (w.runpod_sync) {
@@ -546,7 +546,7 @@ async function dispatchRunpod(base: string, w: WorkerRow, r: GenerateRequest, de
 
 // Legacy custom workers may return a relative or non-http string in url/output_url;
 // preserve that exact behaviour rather than tightening it with extractWorkerUrl.
-function legacyCustomUrl(payload: unknown): string | undefined {
+export function legacyCustomUrl(payload: unknown): string | undefined {
   if (payload && typeof payload === "object") {
     const o = payload as Record<string, unknown>;
     const v = o.url ?? o.output_url;

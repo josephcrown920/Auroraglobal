@@ -6,4 +6,5 @@
 - [Lovable overlapping snapshot migrations](lovable-overlapping-snapshot-migrations.md) — Lovable exports interleave multiple full-rebuild snapshots → linear `supabase db push` collides; baseline everything before the LAST snapshot as applied, then push snapshot+deltas.
 - [Supabase sandbox DB access](supabase-sandbox-db-connection.md) — direct host is IPv6-only (no sandbox egress) & SUPABASE_DB_URL is garbage; use the session pooler. Live ref tpzmvbczwahxajujvnrq.
 - [gpu_workers.auth_token protection](gpu-workers-auth-token.md) — column REVOKE is a no-op vs table GRANT; real safeguard is service-role-only access + strip token from listWorkers (has_auth_token bool).
+- [Test setup (Bun runner)](test-setup.md) — `bun test src/` runs `*.test.ts`; they're excluded from tsconfig (no `bun:test` types); eslint is not type-aware; export privates to test them.
 - [Aurora MCP server](aurora-mcp-server.md) — hand-rolled stateless JSON-RPC at /api/mcp (MCP SDK is Node-only, won't run on Workers); tools reuse /api/public/generate + jobs RPC; avatars live in DB but not in generated types.ts.
