@@ -5,10 +5,11 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { generatePerformanceShot, generateVideoFromImage } from "@/lib/studio.functions";
+import { generateUGCAd, getGenerationStatus } from "@/lib/ugc-generation.functions";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Smartphone, Camera, ShoppingBag, Coffee, Dumbbell, Sparkles, Check, Loader2, Wand2, Film } from "lucide-react";
+import { Smartphone, Camera, ShoppingBag, Coffee, Dumbbell, Sparkles, Check, Loader2, Wand2, Film, AudioLines } from "lucide-react";
 import avatarMaya from "@/assets/ugc/maya.jpg.asset.json";
 import avatarLuna from "@/assets/ugc/luna.jpg.asset.json";
 import avatarAva from "@/assets/ugc/ava.jpg.asset.json";
@@ -77,13 +78,20 @@ function UGCStudio() {
 
   const genShot = useServerFn(generatePerformanceShot);
   const genVid = useServerFn(generateVideoFromImage);
+  const genAd = useServerFn(generateUGCAd);
+  const genStatus = useServerFn(getGenerationStatus);
+
+  // Avatar images are bundled as relative asset paths; the async pipeline needs
+  // an absolute, fetchable URL for both validation and the provider fetch.
+  const toAbsolute = (u: string) =>
+    /^https?:\/\//.test(u) ? u : new URL(u, window.location.origin).href;
 
   const imageMut = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("Please sign in first.");
       if (!productPrompt.trim()) throw new Error("Describe your product (e.g. holding a glossy red lipstick).");
       const prompt = `Hyper-realistic UGC iPhone-style shot. ${preset.hint} Featuring AI creator "${avatar.name}" (${avatar.vibe}). Product/action: ${productPrompt.trim()}. Native social media aesthetic, photoreal skin, no logos, 9:16 framing.`;
-      return await genShot({ data: { prompt, imageUrls: [avatar.img], model: "google/gemini-2.5-flash-image" } });
+      return await genShot({ data: { prompt, imageUrls: [toAbsolute(avatar.img)], model: "google/gemini-2.5-flash-image" } });
     },
     onSuccess: (r) => { setResultImage(r.resultUrl); setResultVideo(null); toast.success("UGC shot ready — make it move next."); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Generation failed"),
@@ -99,7 +107,43 @@ function UGCStudio() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Video failed"),
   });
 
-  const busy = imageMut.isPending || videoMut.isPending;
+  // Full talking UGC ad: enqueue the async pipeline, then poll the generation row
+  // until the clip is ready (script → voice → still → video → lip-sync server-side).
+  const adMut = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("Please sign in first.");
+      if (!productPrompt.trim()) throw new Error("Describe your product (e.g. holding a glossy red lipstick).");
+      const { generationId } = await genAd({
+        data: {
+          avatarImageUrl: toAbsolute(avatar.img),
+          avatarName: avatar.name,
+          vibe: avatar.vibe,
+          presetHint: preset.hint,
+          presetName: preset.name,
+          productPrompt: productPrompt.trim(),
+          aspect: "9:16",
+          duration: 8,
+        },
+      });
+      setResultImage(null);
+      setResultVideo(null);
+      for (let i = 0; i < 75; i++) {
+        await new Promise((r) => setTimeout(r, 5000));
+        const s = await genStatus({ data: { generationId } });
+        if (s.status === "succeeded") {
+          if (s.imageUrl) setResultImage(s.imageUrl);
+          if (s.videoUrl) return { videoUrl: s.videoUrl };
+          throw new Error("Ad finished but produced no video.");
+        }
+        if (s.status === "failed") throw new Error(s.error || "Ad generation failed.");
+      }
+      throw new Error("Still rendering — check your dashboard in a moment.");
+    },
+    onSuccess: (r) => { setResultVideo(r.videoUrl); toast.success("Talking UGC ad ready."); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Ad failed"),
+  });
+
+  const busy = imageMut.isPending || videoMut.isPending || adMut.isPending;
 
   return (
     <main className="min-h-screen bg-background">
@@ -220,11 +264,14 @@ function UGCStudio() {
                   <Button onClick={() => videoMut.mutate()} disabled={busy || !resultImage} variant="outline" className="w-full sm:w-auto">
                     {videoMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Animating…</> : <><Film className="size-4 mr-2" /> Animate · 5 Aurora</>}
                   </Button>
+                  <Button onClick={() => adMut.mutate()} disabled={busy} variant="secondary" className="w-full sm:w-auto">
+                    {adMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Producing ad…</> : <><AudioLines className="size-4 mr-2" /> Generate talking ad · 8 Aurora</>}
+                  </Button>
                 </>
               )}
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Avatar <strong className="text-foreground">{avatar.name}</strong> · scene <strong className="text-foreground">{preset.name}</strong>. Generates a still first, then click Animate to render a ~5s clip.
+              Avatar <strong className="text-foreground">{avatar.name}</strong> · scene <strong className="text-foreground">{preset.name}</strong>. Generate a still then Animate it, or run <strong className="text-foreground">Generate talking ad</strong> for the full script → voice → video → lip-sync pipeline in one click (voice &amp; lip-sync apply when configured, otherwise a silent clip).
             </p>
           </div>
           <div className="rounded-xl border border-border bg-background/40 aspect-[9/16] overflow-hidden grid place-items-center relative">

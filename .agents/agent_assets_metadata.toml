@@ -18,3 +18,15 @@ id = "HdmGqLeVOXApEQMpERxk2"
 uri = "file://attached_assets/image_search/option_B_bottom_tab_bar.png"
 type = "image"
 title = "Option B — Bottom tab bar: always visible along the bottom for one-tap switching between top features"
+
+[[outputs]]
+id = "3AxZfX3GBZ7wgTegDjjKt"
+uri = "file://.local/tasks/avatar-video-master-workflow.md"
+type = "text"
+title = "Talking-Avatar Master Workflow"
+
+[[outputs]]
+id = "B7PyI_1fKZSUcNxrwjGHn"
+uri = "file://.local/tasks/talking-avatar-master-workflow-full.md"
+type = "text"
+title = "Talking-Avatar Master Workflow (Full Edition)"

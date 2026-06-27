@@ -22,6 +22,7 @@ import { Route as GiftsRouteImport } from './routes/gifts'
 import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as ConnectRouteImport } from './routes/connect'
 import { Route as ColorsRouteImport } from './routes/colors'
 import { Route as ClipsRouteImport } from './routes/clips'
 import { Route as CanvasRouteImport } from './routes/canvas'
@@ -105,6 +106,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const ContactRoute = ContactRouteImport.update({
   id: '/contact',
   path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConnectRoute = ConnectRouteImport.update({
+  id: '/connect',
+  path: '/connect',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ColorsRoute = ColorsRouteImport.update({
@@ -212,6 +218,7 @@ export interface FileRoutesByFullPath {
   '/canvas': typeof CanvasRoute
   '/clips': typeof ClipsRoute
   '/colors': typeof ColorsRoute
+  '/connect': typeof ConnectRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
   '/gallery': typeof GalleryRoute
@@ -246,6 +253,7 @@ export interface FileRoutesByTo {
   '/canvas': typeof CanvasRoute
   '/clips': typeof ClipsRoute
   '/colors': typeof ColorsRoute
+  '/connect': typeof ConnectRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
   '/gallery': typeof GalleryRoute
@@ -281,6 +289,7 @@ export interface FileRoutesById {
   '/canvas': typeof CanvasRoute
   '/clips': typeof ClipsRoute
   '/colors': typeof ColorsRoute
+  '/connect': typeof ConnectRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
   '/gallery': typeof GalleryRoute
@@ -317,6 +326,7 @@ export interface FileRouteTypes {
     | '/canvas'
     | '/clips'
     | '/colors'
+    | '/connect'
     | '/contact'
     | '/dashboard'
     | '/gallery'
@@ -351,6 +361,7 @@ export interface FileRouteTypes {
     | '/canvas'
     | '/clips'
     | '/colors'
+    | '/connect'
     | '/contact'
     | '/dashboard'
     | '/gallery'
@@ -385,6 +396,7 @@ export interface FileRouteTypes {
     | '/canvas'
     | '/clips'
     | '/colors'
+    | '/connect'
     | '/contact'
     | '/dashboard'
     | '/gallery'
@@ -420,6 +432,7 @@ export interface RootRouteChildren {
   CanvasRoute: typeof CanvasRoute
   ClipsRoute: typeof ClipsRoute
   ColorsRoute: typeof ColorsRoute
+  ConnectRoute: typeof ConnectRoute
   ContactRoute: typeof ContactRoute
   DashboardRoute: typeof DashboardRoute
   GalleryRoute: typeof GalleryRoute
@@ -536,6 +549,13 @@ declare module '@tanstack/react-router' {
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connect': {
+      id: '/connect'
+      path: '/connect'
+      fullPath: '/connect'
+      preLoaderRoute: typeof ConnectRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/colors': {
@@ -694,6 +714,7 @@ const rootRouteChildren: RootRouteChildren = {
   CanvasRoute: CanvasRoute,
   ClipsRoute: ClipsRoute,
   ColorsRoute: ColorsRoute,
+  ConnectRoute: ConnectRoute,
   ContactRoute: ContactRoute,
   DashboardRoute: DashboardRoute,
   GalleryRoute: GalleryRoute,

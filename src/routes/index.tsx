@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Sparkles, ArrowRight, BookOpen, Wand2, Palette, Megaphone } from "lucide-react";
+import { Sparkles, ArrowRight, BookOpen, Wand2, Palette, Megaphone, Plug } from "lucide-react";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import { useServerFn } from "@tanstack/react-start";
 import { trackAffiliateClick } from "@/lib/affiliate.functions";
@@ -153,6 +153,9 @@ function Index() {
             </Link>
             <Link to="/lipsync" className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline">
               <Wand2 className="size-3.5" /> Lip Sync
+            </Link>
+            <Link to="/connect" className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline">
+              <Plug className="size-3.5" /> Connect Claude
             </Link>
             {user ? (
               <Link to="/dashboard" className="px-3 py-1.5 text-sm rounded-full border border-white/15 text-white/90 hover:bg-white/5 no-underline">Dashboard</Link>

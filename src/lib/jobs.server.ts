@@ -7,6 +7,26 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { orchestrate, type GenerateKind, type GenerateRequest } from "./orchestrator.server";
 import { buildMimicMotionRequest, type MotionParams } from "./motion-workflows.server";
+import { hfTextToSpeech } from "./hf.server";
+import {
+  generateUGCScript,
+  buildUGCImagePrompt,
+  buildUGCMotionPrompt,
+  UGC_TTS_MODEL,
+} from "./ugc.server";
+
+// Result envelope for every job runner. Single-media runners populate `url`;
+// the campaign runner additionally sets both `imageUrl` and `videoUrl` so the
+// matched pair lands on one generations row. `meta` surfaces graceful
+// degradation (template script, skipped voice / lip-sync) to callers.
+type JobOutput = {
+  url: string;
+  provider: string;
+  endpoint: string;
+  imageUrl?: string;
+  videoUrl?: string;
+  meta?: Record<string, unknown>;
+};
 
 type JobRow = {
   id: string;
@@ -190,34 +210,223 @@ async function runPerformanceReskin(job: JobRow) {
   return { url: final.url, provider: final.provider, endpoint: final.endpoint };
 }
 
+// ─── Studio upload helper ─────────────────────────────────────────────────────
+// Only used to stash generated TTS audio so the lip-sync stage can reference it;
+// `orchestrate` re-signs studio refs before handing them to a provider. Final
+// image/video results are returned as the raw provider URL — exactly like every
+// other runner (runRemix / runMediaJob / runPerformanceReskin) — because the
+// `studio` bucket is private and its `getPublicUrl` is not client-readable.
+
+async function uploadBytesToStudio(
+  path: string,
+  bytes: Uint8Array | Buffer,
+  contentType: string,
+): Promise<string> {
+  const { error } = await supabaseAdmin.storage
+    .from("studio")
+    .upload(path, bytes, { contentType, upsert: true });
+  if (error) throw new Error(`studio upload failed: ${error.message}`);
+  return supabaseAdmin.storage.from("studio").getPublicUrl(path).data.publicUrl;
+}
+
+// UGC ad: avatar + scene + product → talking native ad. Multi-stage, each stage
+// reusing the orchestrator so it routes across every configured backend:
+//   1. script        — LLM (template fallback when no LLM key)
+//   2. voice         — HF text-to-speech (skipped when no HF_TOKEN)
+//   3. styled still  — `image` (avatar reference + scene + product)
+//   4. image→video   — `video`
+//   5. lip-sync      — `lipsync` (only when voice audio was produced)
+// The final clip is saved; degradation is surfaced in `meta`.
+async function runUGCAd(job: JobRow): Promise<JobOutput> {
+  const p = job.payload as {
+    avatarImageUrl?: string;
+    avatarName?: string;
+    vibe?: string | null;
+    sceneHint?: string;
+    sceneName?: string;
+    productPrompt: string;
+    aspect?: string;
+    duration?: number;
+    voiceModel?: string;
+  };
+  if (!p.productPrompt) throw new Error("ugc_ad requires productPrompt");
+  const duration = Math.max(3, Math.min(12, p.duration ?? 8));
+
+  // Stage 1 — script
+  const { script, source: scriptSource, provider: scriptProvider } = await generateUGCScript({
+    avatarName: p.avatarName,
+    productPrompt: p.productPrompt,
+    sceneHint: p.sceneHint,
+    durationSec: duration,
+  });
+
+  // Stage 2 — voice (optional)
+  let audioUrl: string | undefined;
+  let ttsSkipped: string | null = null;
+  if (process.env.HF_TOKEN) {
+    try {
+      const tts = await hfTextToSpeech(p.voiceModel || UGC_TTS_MODEL, script.full);
+      audioUrl = await uploadBytesToStudio(
+        `${job.user_id}/audio/${job.id}.flac`,
+        Buffer.from(tts.bytes),
+        tts.contentType,
+      );
+    } catch (e) {
+      ttsSkipped = `tts_failed: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  } else {
+    ttsSkipped = "no HF_TOKEN configured";
+  }
+
+  // Stage 3 — styled still featuring the avatar
+  const still = await orchestrate({
+    kind: "image",
+    model: "google/nano-banana",
+    prompt: buildUGCImagePrompt({
+      avatarName: p.avatarName,
+      vibe: p.vibe,
+      sceneHint: p.sceneHint,
+      productPrompt: p.productPrompt,
+      aspect: p.aspect,
+    }),
+    imageUrls: p.avatarImageUrl ? [p.avatarImageUrl] : undefined,
+    userId: job.user_id,
+    refId: job.id,
+  });
+
+  // Stage 4 — animate the still
+  const clip = await orchestrate({
+    kind: "video",
+    model: "seedance-2.0-fast",
+    prompt: buildUGCMotionPrompt({
+      avatarName: p.avatarName,
+      sceneName: p.sceneName,
+      productPrompt: p.productPrompt,
+    }),
+    imageUrls: [still.url],
+    duration,
+    userId: job.user_id,
+    refId: job.id,
+  });
+
+  // Stage 5 — lip-sync only when we produced voice audio. If no lip-sync provider
+  // is configured (or the stage fails), degrade EXPLICITLY to the silent animated
+  // clip instead of failing the whole job; the reason is surfaced in `meta`.
+  let final = clip;
+  let lipsyncSkipped: string | boolean = true;
+  if (audioUrl) {
+    try {
+      final = await orchestrate({
+        kind: "lipsync",
+        videoUrl: clip.url,
+        audioUrl,
+        userId: job.user_id,
+        refId: job.id,
+      });
+      lipsyncSkipped = false;
+    } catch (e) {
+      final = clip;
+      lipsyncSkipped = `lipsync_failed: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  }
+
+  return {
+    url: final.url,
+    videoUrl: final.url,
+    provider: final.provider,
+    endpoint: final.endpoint,
+    meta: {
+      script: script.full,
+      script_source: scriptSource,
+      ...(scriptProvider ? { script_provider: scriptProvider } : {}),
+      tts_skipped: ttsSkipped,
+      lipsync_skipped: lipsyncSkipped,
+      duration,
+    },
+  };
+}
+
+// UGC campaign item: one matched image + video set for a named avatar. The still
+// and its animation are saved together on a single generations row.
+async function runCampaignItem(job: JobRow): Promise<JobOutput> {
+  const p = job.payload as {
+    avatarImageUrl?: string;
+    imagePrompt: string;
+    motionPrompt?: string;
+    duration?: number;
+    label?: string;
+  };
+  if (!p.imagePrompt) throw new Error("ugc_campaign_item requires imagePrompt");
+  const duration = Math.max(3, Math.min(12, p.duration ?? 5));
+
+  const still = await orchestrate({
+    kind: "image",
+    model: "google/nano-banana",
+    prompt: p.imagePrompt,
+    imageUrls: p.avatarImageUrl ? [p.avatarImageUrl] : undefined,
+    userId: job.user_id,
+    refId: job.id,
+  });
+  const imageUrl = still.url;
+
+  const clip = await orchestrate({
+    kind: "video",
+    model: "seedance-2.0-fast",
+    prompt: p.motionPrompt || `subtle natural motion, ${p.imagePrompt}`,
+    imageUrls: [still.url],
+    duration,
+    userId: job.user_id,
+    refId: job.id,
+  });
+  const videoUrl = clip.url;
+
+  return {
+    url: videoUrl,
+    imageUrl,
+    videoUrl,
+    provider: clip.provider,
+    endpoint: clip.endpoint,
+    meta: { label: p.label ?? null, duration },
+  };
+}
+
 export async function processOneJob(workerId: string): Promise<{ processed: boolean; jobId?: string; status?: string; error?: string }> {
   const job = await claimNext(workerId);
   if (!job) return { processed: false };
 
   try {
-    let out: { url: string; provider: string; endpoint: string };
+    let out: JobOutput;
     if (job.kind === "tiktok_remix_child") {
       out = await runTiktokRemixChild(job);
     } else if (job.kind === "performance_reskin") {
       out = await runPerformanceReskin(job);
+    } else if (job.kind === "ugc_ad") {
+      out = await runUGCAd(job);
+    } else if (job.kind === "ugc_campaign_item") {
+      out = await runCampaignItem(job);
     } else {
       out = await runMediaJob(job);
     }
 
-    // Update generations row
-    const payloadKind = (job.payload as { kind?: string })?.kind;
-    const isVideo = payloadKind === "video"
-      || payloadKind === "motion"
-      || job.kind === "video"
-      || job.kind === "tiktok_remix_child"
-      || job.kind === "performance_reskin"
-      || job.kind === "motion"
-      || job.kind === "lipsync";
-    await markGeneration(job.id, job.generation_id, {
-      status: "succeeded",
-      model: out.provider,
-      [isVideo ? "result_video_url" : "result_image_url"]: out.url,
-    });
+    // Update generations row. A matched image+video result (campaign sets) fills
+    // both URL columns; everything else routes to one column by media type.
+    const genPatch: Record<string, unknown> = { status: "succeeded", model: out.provider };
+    if (out.imageUrl && out.videoUrl) {
+      genPatch.result_image_url = out.imageUrl;
+      genPatch.result_video_url = out.videoUrl;
+    } else {
+      const payloadKind = (job.payload as { kind?: string })?.kind;
+      const isVideo = payloadKind === "video"
+        || payloadKind === "motion"
+        || job.kind === "video"
+        || job.kind === "tiktok_remix_child"
+        || job.kind === "performance_reskin"
+        || job.kind === "ugc_ad"
+        || job.kind === "motion"
+        || job.kind === "lipsync";
+      genPatch[isVideo ? "result_video_url" : "result_image_url"] = out.url;
+    }
+    await markGeneration(job.id, job.generation_id, genPatch);
 
     // Commit credit reservation
     if (job.credits_reserved > 0) {
