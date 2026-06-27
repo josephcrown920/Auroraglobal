@@ -37,6 +37,7 @@ import { Route as AdminSmokeRouteImport } from './routes/admin.smoke'
 import { Route as AdminOrchestrationRouteImport } from './routes/admin.orchestration'
 import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/public/paystack-webhook'
 import { Route as ApiPublicGenerateRouteImport } from './routes/api/public/generate'
+import { Route as ApiPublicWorkersHealthRouteImport } from './routes/api/public/workers/health'
 import { Route as ApiPublicJobsTickRouteImport } from './routes/api/public/jobs/tick'
 import { Route as ApiPublicCliDeviceStartRouteImport } from './routes/api/public/cli/device/start'
 import { Route as ApiPublicCliDevicePollRouteImport } from './routes/api/public/cli/device/poll'
@@ -182,6 +183,11 @@ const ApiPublicGenerateRoute = ApiPublicGenerateRouteImport.update({
   path: '/api/public/generate',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWorkersHealthRoute = ApiPublicWorkersHealthRouteImport.update({
+  id: '/api/public/workers/health',
+  path: '/api/public/workers/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicJobsTickRoute = ApiPublicJobsTickRouteImport.update({
   id: '/api/public/jobs/tick',
   path: '/api/public/jobs/tick',
@@ -228,6 +234,7 @@ export interface FileRoutesByFullPath {
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
+  '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
   '/api/public/cli/device/start': typeof ApiPublicCliDeviceStartRoute
 }
@@ -261,6 +268,7 @@ export interface FileRoutesByTo {
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
+  '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
   '/api/public/cli/device/start': typeof ApiPublicCliDeviceStartRoute
 }
@@ -295,6 +303,7 @@ export interface FileRoutesById {
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
+  '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
   '/api/public/cli/device/start': typeof ApiPublicCliDeviceStartRoute
 }
@@ -330,6 +339,7 @@ export interface FileRouteTypes {
     | '/api/public/generate'
     | '/api/public/paystack-webhook'
     | '/api/public/jobs/tick'
+    | '/api/public/workers/health'
     | '/api/public/cli/device/poll'
     | '/api/public/cli/device/start'
   fileRoutesByTo: FileRoutesByTo
@@ -363,6 +373,7 @@ export interface FileRouteTypes {
     | '/api/public/generate'
     | '/api/public/paystack-webhook'
     | '/api/public/jobs/tick'
+    | '/api/public/workers/health'
     | '/api/public/cli/device/poll'
     | '/api/public/cli/device/start'
   id:
@@ -396,6 +407,7 @@ export interface FileRouteTypes {
     | '/api/public/generate'
     | '/api/public/paystack-webhook'
     | '/api/public/jobs/tick'
+    | '/api/public/workers/health'
     | '/api/public/cli/device/poll'
     | '/api/public/cli/device/start'
   fileRoutesById: FileRoutesById
@@ -428,6 +440,7 @@ export interface RootRouteChildren {
   ApiPublicGenerateRoute: typeof ApiPublicGenerateRoute
   ApiPublicPaystackWebhookRoute: typeof ApiPublicPaystackWebhookRoute
   ApiPublicJobsTickRoute: typeof ApiPublicJobsTickRoute
+  ApiPublicWorkersHealthRoute: typeof ApiPublicWorkersHealthRoute
   ApiPublicCliDevicePollRoute: typeof ApiPublicCliDevicePollRoute
   ApiPublicCliDeviceStartRoute: typeof ApiPublicCliDeviceStartRoute
 }
@@ -630,6 +643,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicGenerateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/workers/health': {
+      id: '/api/public/workers/health'
+      path: '/api/public/workers/health'
+      fullPath: '/api/public/workers/health'
+      preLoaderRoute: typeof ApiPublicWorkersHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/jobs/tick': {
       id: '/api/public/jobs/tick'
       path: '/api/public/jobs/tick'
@@ -694,6 +714,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicGenerateRoute: ApiPublicGenerateRoute,
   ApiPublicPaystackWebhookRoute: ApiPublicPaystackWebhookRoute,
   ApiPublicJobsTickRoute: ApiPublicJobsTickRoute,
+  ApiPublicWorkersHealthRoute: ApiPublicWorkersHealthRoute,
   ApiPublicCliDevicePollRoute: ApiPublicCliDevicePollRoute,
   ApiPublicCliDeviceStartRoute: ApiPublicCliDeviceStartRoute,
 }

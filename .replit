@@ -1,4 +1,4 @@
-modules = ["nodejs-24", "python-3.11"]
+modules = ["nodejs-24", "python-3.11", "postgresql-16"]
 
 [deployment]
 router = "application"
@@ -57,3 +57,6 @@ SUPABASE_URL = "https://tpzmvbczwahxajujvnrq.supabase.co"
 VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_SGO6FEm9zbgYEOsFqlSX8Q_dFVMJf4x"
 SUPABASE_PUBLISHABLE_KEY = "sb_publishable_SGO6FEm9zbgYEOsFqlSX8Q_dFVMJf4x"
 SUPABASE_ANON_KEY = "sb_publishable_SGO6FEm9zbgYEOsFqlSX8Q_dFVMJf4x"
+
+[nix]
+channel = "stable-25_05"
