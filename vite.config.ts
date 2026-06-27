@@ -5,6 +5,13 @@
 //     error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... } }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { cartographer } from "@replit/vite-plugin-cartographer";
+
+// Replit Visual Edits: inject source-mapping metadata (data-replit-metadata) so the
+// click-to-edit tool can resolve any element to its exact JSX source line.
+// Gated on REPL_ID — only active inside the Replit dev environment; absent from
+// production Cloudflare builds where REPL_ID is not set.
+const replitPlugins = process.env.REPL_ID ? [cartographer()] : [];
 
 // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
 // @cloudflare/vite-plugin builds from this — wrangler.jsonc main alone is insufficient.
@@ -19,5 +26,6 @@ export default defineConfig({
       host: "0.0.0.0",
       allowedHosts: true,
     },
+    plugins: replitPlugins,
   },
 });
