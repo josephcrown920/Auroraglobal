@@ -58,7 +58,7 @@ Both styles coexist in the same registry and failover chain. Use `priority` to m
 | `lipsync` | lipsync |
 | `motion` | video |
 
-**Health tracking** is lazy/at-dispatch: workers whose `last_heartbeat` is older than 5 minutes are skipped. No background daemon is needed — the admin "Ping" button and successful/failed dispatches both refresh the heartbeat. `auth_token` RLS is preserved (revoked from `authenticated` and `anon`).
+**Health tracking** is lazy/at-dispatch plus a periodic sweep: workers whose `last_heartbeat` is older than 5 minutes are skipped at dispatch, the admin "Ping" button and successful/failed dispatches refresh the heartbeat, and the cron endpoint `POST /api/public/workers/health` runs `checkGPUWorkerHealth` on a schedule to probe every `custom`/`runpod` worker and flip it `active`/`paused` (skipping admin `draining`/`paused` states) without anyone clicking Ping. `auth_token` RLS is preserved (revoked from `authenticated` and `anon`).
 
 ### GPU worker contracts
 
@@ -75,4 +75,9 @@ Paystack handles NGN credit purchases. Webhook at `/api/public/paystack-webhook`
 
 ## Cron
 
-Public cron-style endpoints under `/api/public/*` are protected by the shared `CRON_SECRET` header. Use the stable URL `project--07d08629-5cb9-4317-a630-4f3e2c0ce79f.lovable.app` when wiring external schedulers.
+Public cron-style endpoints under `/api/public/*` are triggered by an external scheduler (Supabase pg_cron) and authenticated with the Supabase anon/publishable key sent as the `apikey` header (same pattern as `/api/public/jobs/tick`). Use the stable URL `project--07d08629-5cb9-4317-a630-4f3e2c0ce79f.lovable.app` when wiring external schedulers.
+
+| Endpoint | Suggested schedule | Purpose |
+|---|---|---|
+| `POST /api/public/jobs/tick` | every ~minute | Drain the `public.jobs` queue |
+| `POST /api/public/workers/health` | every ~5 minutes | Probe GPU workers and auto-flip `active`/`paused` |
