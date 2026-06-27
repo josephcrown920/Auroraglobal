@@ -79,19 +79,19 @@ function subjectFor(template: string, data: Record<string, unknown>): string {
   switch (template) {
     case "welcome-5-credits":
     case "signup_welcome":
-      return "Welcome to Aurora — 5 free credits inside";
+      return "Welcome to Aurora — 5 free Aura inside";
     case "onboarding_done":
       return "You're all set on Aurora";
     case "render-complete":
       return `Your ${(data.kind as string) || "render"} is ready`;
     case "low-credit-nudge":
-      return "Your Aurora credits are running low";
+      return "Your Aura is running low";
     case "weekly-digest":
       return "Your week on Aurora";
     case "payment-receipt":
-      return `Receipt — ${data.creditsGranted ?? ""} Aurora credits`;
+      return `Receipt — ${data.creditsGranted ?? ""} Aura`;
     case "gift-redeemed":
-      return "You received Aurora credits";
+      return "You received Aura";
     case "password_reset_acknowledged":
       return "Your Aurora password was reset";
     default:
@@ -107,22 +107,22 @@ function renderTemplate(template: string, data: Record<string, unknown>): string
   switch (template) {
     case "welcome-5-credits":
     case "signup_welcome":
-      body = `<p>Welcome to Aurora Studio. You've got <strong>5 free credits</strong> to play with — enough to render your first performance shot.</p>`;
+      body = `<p>Welcome to Aurora Studio. You've got <strong>5 free Aura</strong> to play with — enough to render your first performance shot.</p>`;
       break;
     case "render-complete":
       body = `<p>Your <strong>${escapeHtml(String(data.kind ?? "render"))}</strong> just finished cooking. Hop back in to grab it.</p>`;
       break;
     case "low-credit-nudge":
-      body = `<p>You've only got <strong>${Number(data.creditsRemaining ?? 0)}</strong> credits left. Top up to keep the streak going.</p>`;
+      body = `<p>You've only got <strong>${Number(data.creditsRemaining ?? 0)}</strong> Aura left. Top up to keep the streak going.</p>`;
       break;
     case "weekly-digest":
       body = `<p>This week: <strong>${Number(data.images ?? 0)}</strong> images, <strong>${Number(data.videos ?? 0)}</strong> videos, <strong>${Number(data.lipsyncs ?? 0)}</strong> lip-syncs. Keep going.</p>`;
       break;
     case "payment-receipt":
-      body = `<p>Thanks for the top-up. <strong>${Number(data.creditsGranted ?? 0)}</strong> credits added (${escapeHtml(String(data.currency ?? ""))} ${escapeHtml(String(data.amount ?? ""))}). Ref: ${escapeHtml(String(data.reference ?? ""))}.</p>`;
+      body = `<p>Thanks for the top-up. <strong>${Number(data.creditsGranted ?? 0)}</strong> Aura added (${escapeHtml(String(data.currency ?? ""))} ${escapeHtml(String(data.amount ?? ""))}). Ref: ${escapeHtml(String(data.reference ?? ""))}.</p>`;
       break;
     case "gift-redeemed":
-      body = `<p>${escapeHtml(String(data.fromUser ?? "A friend"))} just sent you <strong>${Number(data.creditsRedeemed ?? 0)}</strong> Aurora credits. Enjoy.</p>`;
+      body = `<p>${escapeHtml(String(data.fromUser ?? "A friend"))} just sent you <strong>${Number(data.creditsRedeemed ?? 0)}</strong> Aura. Enjoy.</p>`;
       break;
     case "password_reset_acknowledged":
       body = `<p>Your password was reset. If this wasn't you, contact support immediately.</p>`;

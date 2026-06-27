@@ -68,7 +68,7 @@ export function ServicesGrid() {
       </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs text-white/50">
-        <span className="inline-flex items-center gap-1.5"><CreditCard className="size-3.5 text-violet-300" /> Credit-based · no per-model surcharge</span>
+        <span className="inline-flex items-center gap-1.5"><CreditCard className="size-3.5 text-violet-300" /> Aura-based · no per-model surcharge</span>
         <span className="hidden sm:inline text-white/20">·</span>
         <span className="inline-flex items-center gap-1.5"><Camera className="size-3.5 text-violet-300" /> Commercial license on every plan</span>
       </div>

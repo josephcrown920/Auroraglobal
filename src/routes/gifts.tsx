@@ -16,9 +16,9 @@ export const Route = createFileRoute("/gifts")({
   head: () => ({
     meta: [
       { title: "Gift Cards — Aurora" },
-      { name: "description", content: "Gift Aurora to another creator, or redeem a gift card to top up your own balance." },
+      { name: "description", content: "Gift Aura to another creator, or redeem a gift card to top up your own balance." },
       { property: "og:title", content: "Aurora Gift Cards" },
-      { property: "og:description", content: "Gift Aurora to a creator, or redeem a card on your account." },
+      { property: "og:description", content: "Gift Aura to a creator, or redeem a card on your account." },
       { property: "og:url", content: "https://aurorastudiostar.lovable.app/gifts" },
     ],
     links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/gifts" }],
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/gifts")({
 
 type Design = "aurora" | "midnight" | "neon" | "rose";
 const DESIGNS: Record<Design, { name: string; bg: string; ring: string; text: string }> = {
-  aurora: { name: "Aurora", bg: "bg-gradient-to-br from-violet-500 via-fuchsia-500 to-amber-400", ring: "ring-violet-400/40", text: "text-white" },
+  aurora: { name: "Aura", bg: "bg-gradient-to-br from-violet-500 via-fuchsia-500 to-amber-400", ring: "ring-violet-400/40", text: "text-white" },
   midnight: { name: "Midnight", bg: "bg-gradient-to-br from-slate-900 via-indigo-900 to-cyan-900", ring: "ring-indigo-400/40", text: "text-white" },
   neon: { name: "Neon", bg: "bg-gradient-to-br from-emerald-400 via-cyan-400 to-fuchsia-500", ring: "ring-emerald-400/40", text: "text-black" },
   rose: { name: "Rose", bg: "bg-gradient-to-br from-rose-300 via-pink-400 to-amber-200", ring: "ring-rose-400/40", text: "text-rose-950" },
@@ -68,7 +68,7 @@ function GiftCardArt({
           </div>
           <div className="text-right">
             <div className="text-3xl font-bold leading-none">{credits}</div>
-            <div className="text-[10px] uppercase tracking-wider opacity-80">Aurora</div>
+            <div className="text-[10px] uppercase tracking-wider opacity-80">Aura</div>
           </div>
         </div>
         {note && <p className="text-xs italic opacity-90 line-clamp-2">"{note}"</p>}
@@ -103,7 +103,7 @@ function GiftsPage() {
   const redeemMut = useMutation({
     mutationFn: async () => redeemFn({ data: { code: redeemCode } }),
     onSuccess: (r) => {
-      toast.success(`+${r.credits} Aurora added`);
+      toast.success(`+${r.credits} Aura added`);
       setRedeemCode("");
       qc.invalidateQueries({ queryKey: ["profile"] });
     },
@@ -216,7 +216,7 @@ function GiftsPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <label className="text-xs space-y-1">
-                    <span className="text-muted-foreground">Credits</span>
+                    <span className="text-muted-foreground">Aura</span>
                     <Input type="number" value={issueCredits} onChange={(e) => setIssueCredits(parseInt(e.target.value || "0"))} />
                   </label>
                   <label className="text-xs space-y-1">

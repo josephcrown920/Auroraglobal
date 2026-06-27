@@ -65,7 +65,7 @@ export const generateUGCAd = createServerFn({ method: "POST" })
       _payload: payload,
     });
     if (error) {
-      throw new Error(/insufficient_credits/i.test(error.message) ? "Not enough credits" : error.message);
+      throw new Error(/insufficient_credits/i.test(error.message) ? "Not enough Aura" : error.message);
     }
     const row = (Array.isArray(rows) ? rows[0] : rows) as { job_id: string; generation_id: string };
     return {

@@ -451,7 +451,7 @@ function MotionStudio() {
                   className="flex-1 h-12"
                   style={{ background: "var(--gradient-hero)" }}
                 >
-                  {stageMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Staging…</> : <><Wand2 className="size-4 mr-2" /> {imageError ? "Retry pose" : stagedImage ? "Re-stage" : "Stage pose · 1 Aurora"}</>}
+                  {stageMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Staging…</> : <><Wand2 className="size-4 mr-2" /> {imageError ? "Retry pose" : stagedImage ? "Re-stage" : "Stage pose · 1 Aura"}</>}
                 </Button>
                 <Button
                   disabled={animateMut.isPending || (!stagedImage && !startFrame)}
@@ -459,7 +459,7 @@ function MotionStudio() {
                   variant="secondary"
                   className="flex-1 h-12"
                 >
-                  {animateMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Rendering…</> : <><Film className="size-4 mr-2" /> {videoError ? "Retry animate" : "Animate · 5 Aurora"}</>}
+                  {animateMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Rendering…</> : <><Film className="size-4 mr-2" /> {videoError ? "Retry animate" : "Animate · 5 Aura"}</>}
                 </Button>
               </div>
             </>
@@ -493,7 +493,7 @@ function MotionStudio() {
                 className="w-full h-12"
                 style={{ background: "var(--gradient-hero)" }}
               >
-                {transferMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Queuing…</> : <><Clapperboard className="size-4 mr-2" /> Transfer motion · 5 Aurora</>}
+                {transferMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Queuing…</> : <><Clapperboard className="size-4 mr-2" /> Transfer motion · 5 Aura</>}
               </Button>
               <p className="text-xs text-muted-foreground">Runs on a GPU backend and appears in Recent when ready.</p>
             </>
@@ -544,7 +544,7 @@ function MotionStudio() {
                 className="w-full h-12"
                 style={{ background: "var(--gradient-hero)" }}
               >
-                {reskinMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Queuing…</> : <><Users className="size-4 mr-2" /> Create Performance Shot · 8 Aurora</>}
+                {reskinMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Queuing…</> : <><Users className="size-4 mr-2" /> Create Performance Shot · 8 Aura</>}
               </Button>
               <p className="text-xs text-muted-foreground">Runs on a GPU backend and appears in Recent when ready.</p>
             </>

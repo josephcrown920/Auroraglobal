@@ -53,7 +53,7 @@ function AdminPage() {
 
   const grantMut = useMutation({
     mutationFn: async () => grantFn({ data: { userId: grantUser, amount: grantAmount } }),
-    onSuccess: () => { toast.success("Credits granted"); qc.invalidateQueries({ queryKey: ["admin-overview"] }); },
+    onSuccess: () => { toast.success("Aura granted"); qc.invalidateQueries({ queryKey: ["admin-overview"] }); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
@@ -113,7 +113,7 @@ function AdminPage() {
 
         {/* Grant credits */}
         <section className="rounded-2xl border border-border bg-card/40 p-5 space-y-3">
-          <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Grant credits</h2>
+          <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Grant Aura</h2>
           <div className="flex flex-wrap gap-2">
             <Input placeholder="user_id (uuid)" value={grantUser} onChange={(e) => setGrantUser(e.target.value)} className="flex-1 min-w-[260px]" />
             <Input type="number" value={grantAmount} onChange={(e) => setGrantAmount(parseInt(e.target.value || "0"))} className="w-32" />
@@ -163,7 +163,7 @@ function AdminPage() {
           <div className="rounded-xl border border-border overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-card/60 text-xs uppercase tracking-wider text-muted-foreground">
-                <tr><th className="text-left p-3">Email</th><th className="text-left p-3">Name</th><th className="text-right p-3">Credits</th><th className="text-right p-3">Spent</th><th className="text-left p-3">User ID</th></tr>
+                <tr><th className="text-left p-3">Email</th><th className="text-left p-3">Name</th><th className="text-right p-3">Aura</th><th className="text-right p-3">Spent</th><th className="text-left p-3">User ID</th></tr>
               </thead>
               <tbody>
                 {(data?.users ?? []).map((u) => (
@@ -184,7 +184,7 @@ function AdminPage() {
           <div className="rounded-xl border border-border overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-card/60 text-xs uppercase tracking-wider text-muted-foreground">
-                <tr><th className="text-left p-3">When</th><th className="text-left p-3">Reference</th><th className="text-right p-3">Amount</th><th className="text-right p-3">Credits</th><th className="text-left p-3">Status</th></tr>
+                <tr><th className="text-left p-3">When</th><th className="text-left p-3">Reference</th><th className="text-right p-3">Amount</th><th className="text-right p-3">Aura</th><th className="text-left p-3">Status</th></tr>
               </thead>
               <tbody>
                 {(data?.payments ?? []).map((p) => (

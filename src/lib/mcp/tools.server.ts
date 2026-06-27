@@ -225,7 +225,7 @@ export async function bulkGenerateTool(args: z.infer<typeof bulkGenerateSchema>,
         _payload: payload,
       });
       if (error) {
-        creditError = /insufficient_credits/i.test(error.message) ? "Not enough credits" : error.message;
+        creditError = /insufficient_credits/i.test(error.message) ? "Not enough Aura" : error.message;
         break;
       }
       const row = (Array.isArray(data) ? data[0] : data) as { job_id: string };
@@ -346,7 +346,7 @@ export async function animateFromDrivingVideoTool(args: z.infer<typeof animateFr
       _amount: 5,
       _payload: payload as unknown as Record<string, unknown>,
     });
-    if (error) return err(/insufficient_credits/i.test(error.message) ? "Not enough credits" : error.message);
+    if (error) return err(/insufficient_credits/i.test(error.message) ? "Not enough Aura" : error.message);
     const row = (Array.isArray(data) ? data[0] : data) as { job_id: string; generation_id: string };
     return ok({
       job_id: row.job_id,
@@ -387,7 +387,7 @@ export async function performanceReskinTool(args: z.infer<typeof performanceResk
       _amount: 8,
       _payload: payload as unknown as Record<string, unknown>,
     });
-    if (error) return err(/insufficient_credits/i.test(error.message) ? "Not enough credits" : error.message);
+    if (error) return err(/insufficient_credits/i.test(error.message) ? "Not enough Aura" : error.message);
     const row = (Array.isArray(data) ? data[0] : data) as { job_id: string; generation_id: string };
     return ok({
       job_id: row.job_id,
@@ -478,7 +478,7 @@ export async function generateUgcAdTool(args: z.infer<typeof ugcAdSchema>, ctx: 
       _amount: COST_UGC_AD,
       _payload: payload,
     });
-    if (error) return err(/insufficient_credits/i.test(error.message) ? "Not enough credits" : error.message);
+    if (error) return err(/insufficient_credits/i.test(error.message) ? "Not enough Aura" : error.message);
     const row = (Array.isArray(data) ? data[0] : data) as { job_id: string; generation_id: string };
     return ok({
       job_id: row.job_id,
@@ -542,7 +542,7 @@ export async function generateCampaignTool(args: z.infer<typeof campaignSchema>,
         _payload: payload,
       });
       if (error) {
-        creditError = /insufficient_credits/i.test(error.message) ? "Not enough credits" : error.message;
+        creditError = /insufficient_credits/i.test(error.message) ? "Not enough Aura" : error.message;
         break;
       }
       const row = (Array.isArray(data) ? data[0] : data) as { job_id: string };

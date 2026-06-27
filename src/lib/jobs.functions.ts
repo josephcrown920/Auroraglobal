@@ -66,7 +66,7 @@ export const enqueueGenerationJob = createServerFn({ method: "POST" })
     });
     if (error) {
       if (/insufficient_credits/i.test(error.message)) {
-        throw new Error("Not enough credits");
+        throw new Error("Not enough Aura");
       }
       throw new Error(error.message);
     }

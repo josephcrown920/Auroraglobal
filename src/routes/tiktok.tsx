@@ -164,7 +164,7 @@ function TiktokRemixPage() {
               />
               <span className="w-10 text-right font-bold text-white">{count}</span>
             </div>
-            <p className="mt-1 text-[11px] text-white/40">Each cut reserves 5 credits. Reservations are released if a job fails.</p>
+            <p className="mt-1 text-[11px] text-white/40">Each cut reserves 5 Aura. Reservations are released if a job fails.</p>
           </div>
 
           <button

@@ -11,15 +11,15 @@ import { track } from "@/lib/tracking";
 const META: Record<PlanKey, { name: string; tagline: string; features: string[]; icon: typeof Sparkles; highlight?: boolean }> = {
   starter: {
     name: "Starter", tagline: "Test-drive the studio.", icon: Sparkles,
-    features: ["80 Aurora (~16 images)", "All image models", "Lip-sync up to 8s", "Standard queue"],
+    features: ["80 Aura (~16 images)", "All image models", "Lip-sync up to 8s", "Standard queue"],
   },
   creator: {
     name: "Creator", tagline: "Built for daily posting.", icon: Zap, highlight: true,
-    features: ["240 Aurora (~48 videos)", "All image + video models", "Priority queue", "Commercial license", "Gallery sharing"],
+    features: ["240 Aura (~48 videos)", "All image + video models", "Priority queue", "Commercial license", "Gallery sharing"],
   },
   studio: {
     name: "Studio", tagline: "For agencies + power users.", icon: Crown,
-    features: ["640 Aurora (~130 videos)", "Every model, including Seedance Pro", "Top-priority queue", "Team sharing", "White-glove onboarding"],
+    features: ["640 Aura (~130 videos)", "Every model, including Seedance Pro", "Top-priority queue", "Team sharing", "White-glove onboarding"],
   },
 };
 
@@ -56,10 +56,10 @@ export function PricingSection() {
       <div className="text-center max-w-2xl mx-auto mb-8">
         <p className="text-xs uppercase tracking-[0.2em] text-violet-300/80 mb-2">Pricing</p>
         <h2 className="text-3xl md:text-5xl font-semibold tracking-tight">
-          Simple Aurora. <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-pink-200 bg-clip-text text-transparent">No subscriptions.</span>
+          Simple Aura. <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-pink-200 bg-clip-text text-transparent">No subscriptions.</span>
         </h2>
         <p className="text-white/65 mt-3 text-sm md:text-base">
-          One Aurora ≈ one image. Videos and lip-sync from 5 Aurora. Aurora never expires.
+          One Aura ≈ one image. Videos and lip-sync from 5 Aura. Aura never expires.
         </p>
       </div>
 
@@ -100,7 +100,7 @@ export function PricingSection() {
                   <span className="text-4xl md:text-5xl font-semibold tracking-tight">{price.display}</span>
                   <span className="text-xs text-white/50">one-time</span>
                 </div>
-                <p className="text-sm text-violet-200 mt-1">{p.credits} Aurora</p>
+                <p className="text-sm text-violet-200 mt-1">{p.credits} Aura</p>
                 <p className="text-[11px] text-white/40">{perCreditDisplay(key, currency)}</p>
               </div>
               <ul className="space-y-2 text-sm text-white/80">
@@ -132,7 +132,7 @@ export function PricingSection() {
       </div>
 
       <p className="text-center text-xs text-white/40 mt-8">
-        Secure payments by Paystack · USD billing · 7-day refund on unused Aurora ·{" "}
+        Secure payments by Paystack · USD billing · 7-day refund on unused Aura ·{" "}
         <Link to="/gifts" className="underline hover:text-white/70">Gift cards available</Link>
       </p>
     </section>

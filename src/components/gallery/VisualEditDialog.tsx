@@ -33,7 +33,7 @@ export function VisualEditDialog({
     mutationFn: async (p: string) => editFn({ data: { sourceId, editPrompt: p } }),
     onSuccess: (res) => {
       setResultUrl(res.resultUrl);
-      toast.success("Edit complete · 1 credit");
+      toast.success("Edit complete · 1 Aura");
       qc.invalidateQueries({ queryKey: ["gallery"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Edit failed"),
@@ -46,7 +46,7 @@ export function VisualEditDialog({
       <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Wand2 className="size-4 text-primary" /> Visual edit</DialogTitle>
-          <DialogDescription>Tweak this shot with a prompt or a one-click preset. Each edit costs 1 credit and saves as a new gallery entry.</DialogDescription>
+          <DialogDescription>Tweak this shot with a prompt or a one-click preset. Each edit costs 1 Aura and saves as a new gallery entry.</DialogDescription>
         </DialogHeader>
 
         <div className="grid md:grid-cols-2 gap-4">

@@ -312,7 +312,7 @@ function SplitRealityPage() {
             <p className="text-muted-foreground text-sm mt-1">
               We run two image generations in parallel from the same references:
               a documentary mirror-selfie on one side, and a moody cinematic
-              close-up on the other. 2 credits · ~20–30s.
+              close-up on the other. 2 Aura · ~20–30s.
             </p>
           </div>
 
@@ -362,7 +362,7 @@ function SplitRealityPage() {
               </>
             ) : (
               <>
-                <Wand2 className="size-5 mr-2" /> Generate both realities · 2 credits
+                <Wand2 className="size-5 mr-2" /> Generate both realities · 2 Aura
               </>
             )}
           </Button>

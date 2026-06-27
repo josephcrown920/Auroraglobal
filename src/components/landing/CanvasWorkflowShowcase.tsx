@@ -95,7 +95,7 @@ export function CanvasWorkflowShowcase() {
                   <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/95 via-black/55 to-transparent">
                     <p className="text-[9px] uppercase tracking-widest text-emerald-300/90">{wf.category}</p>
                     <p className="text-sm font-semibold text-white leading-tight">{wf.name}</p>
-                    <p className="text-[10px] text-white/55 mt-0.5">{wf.nodes} nodes · {wf.credits} credits</p>
+                    <p className="text-[10px] text-white/55 mt-0.5">{wf.nodes} nodes · {wf.credits} Aura</p>
                   </div>
                 </div>
               </Link>

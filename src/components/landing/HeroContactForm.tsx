@@ -66,7 +66,7 @@ export function HeroContactForm({ greeting }: { greeting: string }) {
             onClick={() => void track("hero_cta_click", { variant: "primary" })}
             className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-medium text-white no-underline bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:opacity-95 shadow-xl shadow-violet-500/30"
           >
-            <Play className="size-4" /> Start free — 5 Aurora
+            <Play className="size-4" /> Start free — 5 Aura
           </Link>
           <a href="#services" className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-medium text-white/90 border border-white/15 hover:bg-white/5 no-underline">
             See what's inside <ArrowRight className="size-4" />
@@ -95,7 +95,7 @@ export function HeroContactForm({ greeting }: { greeting: string }) {
             <div className="flex flex-col items-center text-center py-8 gap-3">
               <CheckCircle2 className="size-10 text-emerald-300" />
               <div className="text-base font-medium text-white">Got it — we'll be in touch.</div>
-              <div className="text-sm text-white/60">In the meantime, claim your 5 free Aurora and start exploring.</div>
+              <div className="text-sm text-white/60">In the meantime, claim your 5 free Aura and start exploring.</div>
               <Link to="/studio" className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-white no-underline bg-gradient-to-r from-violet-500 to-fuchsia-500">
                 Open Performance Studio <ArrowRight className="size-4" />
               </Link>

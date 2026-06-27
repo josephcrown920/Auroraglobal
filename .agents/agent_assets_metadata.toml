@@ -30,3 +30,9 @@ id = "B7PyI_1fKZSUcNxrwjGHn"
 uri = "file://.local/tasks/talking-avatar-master-workflow-full.md"
 type = "text"
 title = "Talking-Avatar Master Workflow (Full Edition)"
+
+[[outputs]]
+id = "8k9BKlx6R-DgrRqTn12Gj"
+uri = "file://.local/tasks/self-hosting-gpu-guide.md"
+type = "text"
+title = "Self-Hosting the GPU Layer"

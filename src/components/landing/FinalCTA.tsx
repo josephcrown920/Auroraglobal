@@ -14,7 +14,7 @@ export function FinalCTA() {
 
         <div className="relative max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-violet-400/30 bg-violet-500/10 text-violet-200 text-xs mb-6">
-            <Sparkles className="size-3.5" /> 5 free Aurora on signup
+            <Sparkles className="size-3.5" /> 5 free Aura on signup
           </div>
           <h2 className="text-4xl md:text-6xl font-semibold tracking-tight leading-[1.05]">
             Your next campaign
