@@ -342,6 +342,7 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
                 <SelectContent>
                   <SelectItem value="fal-ai/sync-lipsync/v2" className="text-xs">Sync 1.9 (premium)</SelectItem>
                   <SelectItem value="fal-ai/wav2lip" className="text-xs">Wav2Lip (fast)</SelectItem>
+                  <SelectItem value="latentsync" className="text-xs">LatentSync (self-hosted)</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-[10px] text-muted-foreground">
@@ -733,7 +734,7 @@ function CanvasPage() {
             const res = await lipFn({ data: {
               videoUrl,
               audioUrl: audios[0],
-              model: (n.data.model as "fal-ai/sync-lipsync/v2" | "fal-ai/wav2lip") ?? "fal-ai/sync-lipsync/v2",
+              model: (n.data.model as "fal-ai/sync-lipsync/v2" | "fal-ai/wav2lip" | "latentsync") ?? "fal-ai/sync-lipsync/v2",
             } });
             resolved.set(id, { url: res.videoUrl, kind: "lipsync" });
             update(id, { status: "done", url: res.videoUrl });

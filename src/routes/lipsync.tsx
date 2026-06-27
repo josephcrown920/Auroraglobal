@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { LipSyncDemo } from "@/components/landing/LipSyncDemo";
-import { Mic2, ArrowRight, Upload, Music2, Wand2, Download, Loader2, Play, Pause, CheckCircle2, X, Zap, Sparkles } from "lucide-react";
+import { Mic2, ArrowRight, Upload, Music2, Wand2, Download, Loader2, Play, Pause, CheckCircle2, X, Zap, Sparkles, Server } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -21,7 +21,7 @@ export const Route = createFileRoute("/lipsync")({
 });
 
 type JobStatus = "idle" | "uploading" | "syncing" | "rendering" | "done" | "error";
-type Engine = "sync-v2" | "wav2lip";
+type Engine = "sync-v2" | "wav2lip" | "latentsync";
 
 function LipSyncStudioPage() {
   return (
@@ -254,10 +254,11 @@ function LipSyncForm() {
         {/* Engine toggle */}
         <div className="mt-6">
           <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-2">Engine</p>
-          <div className="grid grid-cols-2 gap-2 rounded-full bg-white/5 border border-white/10 p-1">
+          <div className="grid grid-cols-3 gap-2 rounded-full bg-white/5 border border-white/10 p-1">
             {([
               { id: "sync-v2", label: "Studio", sub: "Sync 1.9 · film-grade", icon: Sparkles },
               { id: "wav2lip", label: "Fast", sub: "Wav2Lip · cheaper", icon: Zap },
+              { id: "latentsync", label: "Self-hosted", sub: "LatentSync · your GPU", icon: Server },
             ] as const).map(o => (
               <button
                 key={o.id}
@@ -290,7 +291,7 @@ function LipSyncForm() {
             )}
           </button>
           <p className="text-xs text-white/50">
-            {engine === "sync-v2" ? "3 Aura · ~45s" : "2 Aura · ~25s"}
+            {engine === "sync-v2" ? "3 Aura · ~45s" : engine === "wav2lip" ? "2 Aura · ~25s" : "Runs on your GPU worker"}
           </p>
         </div>
 
@@ -336,7 +337,7 @@ function LipSyncForm() {
                 </span>
               </button>
             </div>
-            <p className="mt-2 text-[11px] text-white/50">Rendered with {engine === "sync-v2" ? "Sync 1.9 (Studio)" : "Wav2Lip (Fast)"}.</p>
+            <p className="mt-2 text-[11px] text-white/50">Rendered with {engine === "sync-v2" ? "Sync 1.9 (Studio)" : engine === "wav2lip" ? "Wav2Lip (Fast)" : "LatentSync (self-hosted)"}.</p>
           </div>
         )}
       </div>

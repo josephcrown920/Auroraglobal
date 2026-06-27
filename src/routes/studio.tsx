@@ -11,7 +11,7 @@ import tutorialStudioRefs from "@/assets/tutorial-studio-refs.jpg.asset.json";
 import tutorialStudioFinal from "@/assets/tutorial-studio-final.jpg.asset.json";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Wand2, LogOut, Loader2, Download, Camera, Film, Mic2, Coins, Zap, LayoutDashboard, Shield, Workflow } from "lucide-react";
+import { Sparkles, Wand2, LogOut, Loader2, Download, Camera, Film, Mic2, Coins, Zap, LayoutDashboard, Shield, Workflow, Server } from "lucide-react";
 import { toast } from "sonner";
 import { generatePerformanceShot, listGenerations, generateVideoFromImage, lipSyncVideo } from "@/lib/studio.functions";
 import { getMyProfile, createPaystackCheckout } from "@/lib/billing.functions";
@@ -105,7 +105,7 @@ function StudioPage() {
   const [endFrameUrl, setEndFrameUrl] = useState<string | null>(null);
   const [videoPrompt, setVideoPrompt] = useState("subject performing and singing expressively, natural body movement, camera locked");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [lipsyncModel, setLipsyncModel] = useState<"fal-ai/sync-lipsync/v2" | "fal-ai/wav2lip">("fal-ai/sync-lipsync/v2");
+  const [lipsyncModel, setLipsyncModel] = useState<"fal-ai/sync-lipsync/v2" | "fal-ai/wav2lip" | "latentsync">("fal-ai/sync-lipsync/v2");
 
   const [onboardOpen, setOnboardOpen] = useState(false);
 
@@ -787,11 +787,12 @@ function StudioPage() {
                 <Mic2 className="size-4 text-primary" />
                 <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Lip sync to your audio</h3>
               </div>
-              <p className="text-xs text-muted-foreground">Upload your song/vocal and we'll sync the lips on your latest video. Choose between Sync 1.9 (premium, more natural) and Wav2Lip (classic, faster & cheaper).</p>
-              <div className="grid grid-cols-2 gap-2">
+              <p className="text-xs text-muted-foreground">Upload your song/vocal and we'll sync the lips on your latest video. Sync 1.9 (premium, more natural), Wav2Lip (classic, faster & cheaper), or LatentSync on your own registered GPU worker.</p>
+              <div className="grid grid-cols-3 gap-2">
                 {[
-                  { v: "fal-ai/sync-lipsync/v2" as const, label: "Sync 1.9", hint: "Premium · natural" },
-                  { v: "fal-ai/wav2lip" as const, label: "Wav2Lip", hint: "Classic · fast" },
+                  { v: "fal-ai/sync-lipsync/v2" as const, label: "Sync 1.9", hint: "Premium · natural", icon: Sparkles },
+                  { v: "fal-ai/wav2lip" as const, label: "Wav2Lip", hint: "Classic · fast", icon: Zap },
+                  { v: "latentsync" as const, label: "Self-hosted", hint: "LatentSync · your GPU", icon: Server },
                 ].map((opt) => (
                   <button
                     key={opt.v}
@@ -799,7 +800,7 @@ function StudioPage() {
                     onClick={() => setLipsyncModel(opt.v)}
                     className={`text-left rounded-xl border p-2.5 transition-colors ${lipsyncModel === opt.v ? "border-primary/60 bg-primary/10" : "border-border bg-background/60 hover:border-primary/30"}`}
                   >
-                    <div className="text-sm font-medium">{opt.label}</div>
+                    <div className="text-sm font-medium flex items-center gap-1.5"><opt.icon className="size-3.5" />{opt.label}</div>
                     <div className="text-[10px] text-muted-foreground">{opt.hint}</div>
                   </button>
                 ))}

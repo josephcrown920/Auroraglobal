@@ -8,7 +8,7 @@ export const startLipsync = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({
     videoUrl: z.string().url(),
     audioUrl: z.string().url(),
-    engine: z.enum(["sync-v2", "wav2lip"]).default("sync-v2"),
+    engine: z.enum(["sync-v2", "wav2lip", "latentsync"]).default("sync-v2"),
   }).parse(d))
   .handler(async ({ data, context }) => {
     return runLipsyncJob({

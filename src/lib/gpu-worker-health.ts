@@ -42,6 +42,19 @@ function num(v: unknown): number {
 }
 
 /**
+ * Normalize a registered worker `endpoint_url` to its base origin so the
+ * protocol-specific path can be appended cleanly. Strips trailing slashes and a
+ * trailing `/generate` segment, because the custom/Vast worker actually *serves*
+ * its job route at `.../generate` — operators (and our Colab/Kaggle templates)
+ * naturally register that full URL. Without this, dispatch would POST to
+ * `.../generate/generate` and the health probe would GET `.../generate/health`.
+ * RunPod/ComfyUI/HF URLs never end in `/generate`, so this is a no-op for them.
+ */
+export function normalizeWorkerBase(url: string): string {
+  return url.replace(/\/+$/, "").replace(/\/generate$/i, "");
+}
+
+/**
  * Interpret a RunPod Serverless `/health` response.
  *
  * RunPod returns `{ jobs: {...}, workers: { idle, initializing, ready,
@@ -88,7 +101,7 @@ export async function probeWorkerHealth(
   timeoutMs = 8_000,
 ): Promise<WorkerProbeResult> {
   const protocol = worker.protocol ?? "custom";
-  const baseUrl = worker.endpoint_url.replace(/\/$/, "");
+  const baseUrl = normalizeWorkerBase(worker.endpoint_url);
   const headers: Record<string, string> = worker.auth_token
     ? { authorization: `Bearer ${worker.auth_token}` }
     : {};

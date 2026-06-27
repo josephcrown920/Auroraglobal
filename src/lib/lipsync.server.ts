@@ -1,12 +1,19 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { orchestrate } from "./orchestrator.server";
+import { orchestrate, hasActiveWorkerForKind } from "./orchestrator.server";
+import { buildLatentSyncRequest } from "./lipsync-workflows.server";
 
-type Engine = "sync-v2" | "wav2lip";
+export type Engine = "sync-v2" | "wav2lip" | "latentsync";
 
+// Engine → model key. "latentsync" is self-hosted: it carries no hosted-API
+// model, so it routes ONLY to the registered GPU worker pool (capability lipsync).
 const MODEL: Record<Engine, string> = {
   "sync-v2": "fal-ai/sync-lipsync/v2",
   "wav2lip": "fal-ai/wav2lip",
+  "latentsync": "latentsync",
 };
+
+// Engines that must run on the user's own GPU worker pool (no hosted fallback).
+const SELF_HOSTED: ReadonlySet<Engine> = new Set<Engine>(["latentsync"]);
 
 export async function runLipsyncJob(opts: {
   userId: string;
@@ -14,6 +21,13 @@ export async function runLipsyncJob(opts: {
   audioUrl: string;
   engine: Engine;
 }) {
+  const selfHosted = SELF_HOSTED.has(opts.engine);
+  if (selfHosted && !(await hasActiveWorkerForKind("lipsync"))) {
+    throw new Error(
+      "No self-hosted LatentSync worker is online. Register a GPU worker with the 'lipsync' capability in Admin → Workers, or pick the Studio/Fast engine.",
+    );
+  }
+
   const { data: row, error: insertErr } = await supabaseAdmin
     .from("lipsync_jobs")
     .insert({
@@ -28,13 +42,21 @@ export async function runLipsyncJob(opts: {
   if (insertErr || !row) throw new Error(insertErr?.message ?? "Failed to create job");
 
   try {
+    // Self-hosted LatentSync carries a ComfyUI graph + flat params so it runs on
+    // every worker protocol (comfyui reads the graph; custom/runpod/hfspace read
+    // the flat fields). Hosted engines never get these.
+    const selfHostedParts = selfHosted
+      ? buildLatentSyncRequest({ videoUrl: opts.videoUrl, audioUrl: opts.audioUrl })
+      : undefined;
     const out = await orchestrate({
       kind: "lipsync",
       model: MODEL[opts.engine],
+      selfHostedOnly: selfHosted,
       videoUrl: opts.videoUrl,
       audioUrl: opts.audioUrl,
       userId: opts.userId,
       refId: row.id,
+      ...(selfHostedParts ?? {}),
     });
     await supabaseAdmin
       .from("lipsync_jobs")

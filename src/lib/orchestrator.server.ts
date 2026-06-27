@@ -11,6 +11,7 @@ import { replicateRun, pickReplicateUrl, getReplicateKey } from "./replicate.ser
 import { syncLipsync } from "./sync.server";
 import { hfTextToImage } from "./hf.server";
 import { isTrustedUrl } from "./url-guard";
+import { normalizeWorkerBase } from "./gpu-worker-health";
 import {
   callGradioSpace,
   extractGradioUrl,
@@ -69,6 +70,13 @@ export type GenerateRequest = {
   comfyWorkflow?: unknown;
   /** `"nodeId.inputName": value` patches applied to the ComfyUI graph. */
   comfyInputs?: Record<string, unknown>;
+  /**
+   * Force the request onto the self-hosted GPU worker pool only (capability =
+   * `kind`), skipping every hosted provider. Set by the "self-hosted" engines
+   * (e.g. LatentSync lip-sync) so the explicit choice never silently falls back
+   * to a paid hosted API. Fails explicitly when no matching worker is online.
+   */
+  selfHostedOnly?: boolean;
 };
 
 export type GenerateResult = {
@@ -638,7 +646,7 @@ const gpuWorker: ProviderAdapter = {
         try {
           await supabaseAdmin.rpc("gpu_worker_inflight_inc", { _worker: w.id });
           incremented = true;
-          const base = w.endpoint_url.replace(/\/$/, "");
+          const base = normalizeWorkerBase(w.endpoint_url);
           const deadline = started + WORKER_TIMEOUT_MS;
           const payload =
             w.protocol === "runpod" ? await dispatchRunpod(base, w, r, deadline)
@@ -707,6 +715,8 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     "heygen/lipsync":                         { provider: "heygen",  kind: "lipsync", cost: 0.40 },
     // Sync.so direct lipsync
     "sync/lipsync-2":                         { provider: "sync",    kind: "lipsync", cost: 0.25 },
+    // Self-hosted LatentSync — runs on the registered GPU worker pool only.
+    "latentsync":                             { provider: gpuWorker.name, kind: "lipsync", cost: 0.01 },
   };
   for (const [k, v] of Object.entries(REPLICATE_MAP))
     out[k] = { provider: "replicate", kind: v.kind, cost: v.cost };
@@ -762,7 +772,10 @@ const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
 };
 const FALLBACK_CAP: Record<GenerateKind, number> = { image: 3, video: 2, lipsync: 2, upscale: 1, motion: 1 };
 
-function getCandidateModels(req: GenerateRequest): string[] {
+export function getCandidateModels(req: GenerateRequest): string[] {
+  // Self-hosted requests pin to the single requested model — no cross-model
+  // fallback (the worker pool serves the kind, not a specific hosted model).
+  if (req.selfHostedOnly) return req.model ? [req.model] : [];
   const base = FALLBACK_MODELS[req.kind] ?? [];
   const ordered = [req.model, ...base].filter((m): m is string => !!m);
   const cap = Math.max(1, FALLBACK_CAP[req.kind] ?? 2);
@@ -795,7 +808,9 @@ export async function orchestrate(rawReq: GenerateRequest): Promise<GenerateResu
 
   for (const modelKey of candidates) {
     const r: GenerateRequest = { ...req, model: modelKey };
-    const adapters = PRIORITY[r.kind].filter((a) => a.supports(r) && healthyAtStart.has(a.name));
+    let adapters = PRIORITY[r.kind].filter((a) => a.supports(r) && healthyAtStart.has(a.name));
+    // Self-hosted requests run ONLY on the GPU worker pool — never a hosted API.
+    if (req.selfHostedOnly) adapters = adapters.filter((a) => a === gpuWorker);
     if (adapters.length === 0) continue;
 
     for (const adapter of adapters) {

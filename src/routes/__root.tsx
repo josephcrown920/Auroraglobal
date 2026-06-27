@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
   redirect,
@@ -155,14 +156,24 @@ function RootComponent() {
   usePageViewTracking();
   useEffect(() => { captureRefFromUrl(); }, []);
 
+  // NexusARB is an intentionally isolated, off-domain page: suppress all Aurora
+  // chrome (chatbot, mobile nav, referral attacher, admin hotkey) so it stays
+  // self-contained. Its route renders its own slim back-to-Aurora bar.
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isIsolated = pathname === "/nexusarb" || pathname.startsWith("/nexusarb/");
+
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
       <Toaster />
-      <AuroraChatbot />
-      <AdminHotkey />
-      <ReferralAttacher />
-      <MobileNav />
+      {!isIsolated && (
+        <>
+          <AuroraChatbot />
+          <AdminHotkey />
+          <ReferralAttacher />
+          <MobileNav />
+        </>
+      )}
     </QueryClientProvider>
   );
 }
