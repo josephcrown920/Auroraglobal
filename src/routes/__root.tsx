@@ -69,7 +69,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=1280" },
+      { name: "viewport", content: "width=device-width, initial-scale=1" },
       { name: "author", content: "Aurora Studio" },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "Aurora Studio" },
@@ -140,11 +140,6 @@ function RootShell({ children }: { children: React.ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){var DW=1280;function fit(){var s=Math.min(1,window.innerWidth/DW);document.documentElement.style.setProperty('--fit-scale',String(s));var b=document.body;if(b){var h=b.scrollHeight;document.documentElement.style.height=(h*s)+'px';}}fit();window.addEventListener('resize',fit);if(typeof ResizeObserver!=='undefined'){var ro=new ResizeObserver(fit);window.addEventListener('load',function(){if(document.body)ro.observe(document.body);});}setInterval(fit,1000);})();`,
-          }}
-        />
       </head>
       <body>
         {children}
