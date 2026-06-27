@@ -153,14 +153,6 @@
   html {
     overflow-x: hidden;
   }
-
-  /* Force the entire app to render at a fixed 1280px desktop layout,
-     then visually scale it down to fit narrower viewports (no horizontal scroll). */
-  body {
-    width: 1280px;
-    transform-origin: top left;
-    transform: scale(var(--fit-scale, 1));
-  }
 }
 
 @keyframes mc-bar {

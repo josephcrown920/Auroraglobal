@@ -6,3 +6,15 @@ id = "uuVDpq4W7VbbIZdWQslyD"
 uri = "file://notebooks/hybrid_ai_inference_colab.zip"
 type = "unspecified"
 title = "Hybrid AI Inference Engine — Colab Notebook (.ipynb in zip)"
+
+[[outputs]]
+id = "tWPBmCjqHr_TffepxKXGn"
+uri = "file://attached_assets/image_search/option_A_slide_out_drawer.png"
+type = "image"
+title = "Option A — Slide-out drawer (hamburger menu): hidden until you tap the menu icon, then slides in over the page"
+
+[[outputs]]
+id = "HdmGqLeVOXApEQMpERxk2"
+uri = "file://attached_assets/image_search/option_B_bottom_tab_bar.png"
+type = "image"
+title = "Option B — Bottom tab bar: always visible along the bottom for one-tap switching between top features"
