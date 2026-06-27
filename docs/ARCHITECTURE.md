@@ -35,7 +35,6 @@ The agent (`src/lib/agent.functions.ts`) uses this for structured JSON outputs.
 | video | Kling direct → Replicate → GPU workers → Fal |
 | lipsync | Sync.so → HeyGen → Replicate → GPU workers → Fal |
 | upscale | Replicate → GPU workers → Fal |
-
 Each provider has in-memory health tracking with exponential cooldown on failure. Every attempt is logged to `provider_logs` with latency + cost. A model-level fallback list (`FALLBACK_MODELS`) re-tries cheaper same-kind models before giving up.
 
 ### GPU worker pool (`gpu_workers` table)
