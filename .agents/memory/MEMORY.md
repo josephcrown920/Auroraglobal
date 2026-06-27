@@ -9,6 +9,7 @@
 - [Test setup (Bun runner)](test-setup.md) — `bun test src/` runs `*.test.ts`; they're excluded from tsconfig (no `bun:test` types); eslint is not type-aware; export privates to test them.
 - [Cron endpoints pattern](cron-endpoints.md) — scheduled work = protected `/api/public/*` route authed via anon-key `apikey` header (NOT CRON_SECRET); scheduling is external (no pg_cron in dev/migrations).
 - [Aurora MCP server](aurora-mcp-server.md) — hand-rolled stateless JSON-RPC at /api/mcp (MCP SDK is Node-only, won't run on Workers); tools reuse /api/public/generate + jobs RPC; avatars live in DB but not in generated types.ts.
+- [SSR curl checks](replit-ssr-curl-checks.md) — verify rendered HTML via curl localhost:8080; $REPLIT_DEV_DOMAIN returns 0 bytes (mTLS proxy) & shell curl -o file writes fail — capture into a shell var.
 - [Aura currency naming](aura-currency-naming.md) — currency DISPLAYS as "Aura" but is coded/stored as credits/ics; "Aurora" is the brand — rename display copy only, never DB/RPC/brand.
 - [Studio bucket result URLs](studio-bucket-result-urls.md) — studio bucket is private + no read-time signing; runners must return raw provider URLs (orchestrate signs only request refs), never re-persist results via getPublicUrl.
 - [Orchestrator candidate-model sentinel](orchestrator-candidate-sentinel.md) — a GenerateKind with empty FALLBACK_MODELS needs a sentinel model on the request, or getCandidateModels yields [] and orchestrate() never reaches its adapter.

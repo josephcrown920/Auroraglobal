@@ -16,6 +16,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { usePageViewTracking } from "@/hooks/use-tracking";
 import { AuroraChatbot } from "@/components/AuroraChatbot";
 import { AdminHotkey } from "@/components/AdminHotkey";
+import { MobileNav } from "@/components/MobileNav";
 import { useEffect } from "react";
 import { captureRefFromUrl } from "@/lib/referral";
 import { ReferralAttacher } from "@/components/ReferralAttacher";
@@ -161,6 +162,7 @@ function RootComponent() {
       <AuroraChatbot />
       <AdminHotkey />
       <ReferralAttacher />
+      <MobileNav />
     </QueryClientProvider>
   );
 }

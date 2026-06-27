@@ -91,7 +91,7 @@ export function AuroraChatbot() {
         type="button"
         aria-label={open ? "Close chat" : "Open chat with Aurora Concierge"}
         onClick={() => setOpen((o) => !o)}
-        className="fixed bottom-5 right-5 z-50 size-14 rounded-full flex items-center justify-center text-white shadow-2xl shadow-violet-900/50 bg-gradient-to-br from-violet-500 to-fuchsia-500 hover:scale-105 transition-transform"
+        className="fixed bottom-[calc(5rem_+_env(safe-area-inset-bottom))] right-5 z-50 size-14 rounded-full flex items-center justify-center text-white shadow-2xl shadow-violet-900/50 bg-gradient-to-br from-violet-500 to-fuchsia-500 hover:scale-105 transition-transform md:bottom-5"
       >
         {open ? <X className="size-6" /> : <MessageCircle className="size-6" />}
         {!open && (
