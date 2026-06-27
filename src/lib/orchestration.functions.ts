@@ -1,8 +1,30 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { getProviderHealthSnapshot } from "./orchestrator.server";
+import { getProviderHealthSnapshot, type GenerateKind } from "./orchestrator.server";
+import { reserveOrchestrateRecord } from "./generate-core.server";
+import { assertTrustedUrl } from "./url-guard";
 import { providerHealth, providerStatus } from "./inference";
+
+// ─── AI Router: credit cost per modality ─────────────────────────────────────
+// Mirrors src/routes/api/public/generate.ts so the UI router and the public API
+// charge identically.
+export function orchestrationCreditCost(kind: GenerateKind): number {
+  switch (kind) {
+    case "image":
+    case "upscale":
+    case "text":
+      return 1;
+    case "audio":
+      return 2;
+    case "lipsync":
+      return 3;
+    case "video":
+    case "motion":
+      return 5;
+  }
+}
 
 // ─── Provider health (which keys are configured) ─────────────────────────────
 // Mirrors the priority chains in src/lib/orchestrator.server.ts.
@@ -10,7 +32,7 @@ import { providerHealth, providerStatus } from "./inference";
 type ProviderRow = {
   id: string;
   name: string;
-  kind: "image" | "video" | "lipsync" | "inference";
+  kind: "image" | "video" | "lipsync" | "inference" | "text" | "audio";
   envKey: string;
   configured: boolean;
   free: boolean;
@@ -22,7 +44,9 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     // Admin gate
     const { data: roles } = await supabaseAdmin
-      .from("user_roles").select("role").eq("user_id", context.userId);
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId);
     const isAdmin = roles?.some((r) => r.role === "admin");
     if (!isAdmin) throw new Error("Forbidden");
 
@@ -31,22 +55,199 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
 
     const providers: ProviderRow[] = [
       // image — order = orchestrator PRIORITY (Lovable LAST)
-      { id: "gemini",          name: "Gemini direct",           kind: "image",     envKey: "GEMINI_API_KEY",                       configured: has("GEMINI_API_KEY"),            free: true,  notes: "gemini-2.5-flash-image-preview (free tier)" },
-      { id: "replicate-image", name: "Replicate",               kind: "image",     envKey: "LOVABLE_CONNECTOR_REPLICATE_API_KEY",  configured: hasReplicate,                     free: false, notes: "seedream-4 · flux-schnell" },
-      { id: "hf",              name: "HuggingFace Inference",   kind: "image",     envKey: "HF_TOKEN",                             configured: has("HF_TOKEN"),                  free: true,  notes: "flux-schnell · sdxl" },
-      { id: "lovable",         name: "Lovable AI (last)",       kind: "image",     envKey: "LOVABLE_API_KEY",                      configured: has("LOVABLE_API_KEY"),           free: false, notes: "fallback only — credits used last" },
+      {
+        id: "pollinations-image",
+        name: "Pollinations",
+        kind: "image",
+        envKey: "",
+        configured: true,
+        free: true,
+        notes: "flux (no key — first in image chain)",
+      },
+      {
+        id: "gemini",
+        name: "Gemini direct",
+        kind: "image",
+        envKey: "GEMINI_API_KEY",
+        configured: has("GEMINI_API_KEY"),
+        free: true,
+        notes: "gemini-2.5-flash-image-preview (free tier)",
+      },
+      {
+        id: "hf",
+        name: "HuggingFace Inference",
+        kind: "image",
+        envKey: "HF_TOKEN",
+        configured: has("HF_TOKEN"),
+        free: true,
+        notes: "flux-schnell · sdxl",
+      },
+      {
+        id: "runware",
+        name: "Runware",
+        kind: "image",
+        envKey: "RUNWARE_API_KEY",
+        configured: has("RUNWARE_API_KEY"),
+        free: false,
+        notes: "flux-schnell (cheap hosted)",
+      },
+      {
+        id: "replicate-image",
+        name: "Replicate",
+        kind: "image",
+        envKey: "LOVABLE_CONNECTOR_REPLICATE_API_KEY",
+        configured: hasReplicate,
+        free: false,
+        notes: "seedream-4 · flux-schnell",
+      },
+      {
+        id: "lovable",
+        name: "Lovable AI (last)",
+        kind: "image",
+        envKey: "LOVABLE_API_KEY",
+        configured: has("LOVABLE_API_KEY"),
+        free: false,
+        notes: "fallback only — credits used last",
+      },
       // video
-      { id: "replicate-video", name: "Replicate",               kind: "video",     envKey: "LOVABLE_CONNECTOR_REPLICATE_API_KEY",  configured: hasReplicate,                     free: false, notes: "kling-v2.1 · seedance-1-pro/lite" },
-      { id: "kling-direct",    name: "Kling direct",            kind: "video",     envKey: "KLING_ACCESS_KEY",                     configured: has("KLING_ACCESS_KEY") && has("KLING_SECRET_KEY"), free: false, notes: "JWT — not yet wired into orchestrator" },
-      { id: "fal-video",       name: "fal.ai",                  kind: "video",     envKey: "FAL_KEY",                              configured: has("FAL_KEY"),                   free: false, notes: "not yet wired into orchestrator" },
+      {
+        id: "replicate-video",
+        name: "Replicate",
+        kind: "video",
+        envKey: "LOVABLE_CONNECTOR_REPLICATE_API_KEY",
+        configured: hasReplicate,
+        free: false,
+        notes: "kling-v2.1 · seedance-1-pro/lite",
+      },
+      {
+        id: "kling-direct",
+        name: "Kling direct",
+        kind: "video",
+        envKey: "KLING_ACCESS_KEY",
+        configured: has("KLING_ACCESS_KEY") && has("KLING_SECRET_KEY"),
+        free: false,
+        notes: "JWT — explicit kling requests only",
+      },
+      {
+        id: "runway",
+        name: "Runway",
+        kind: "video",
+        envKey: "RUNWAY_API_KEY",
+        configured: has("RUNWAY_API_KEY"),
+        free: false,
+        notes: "gen4-turbo · gen3a-turbo (image-to-video)",
+      },
+      {
+        id: "fal-video",
+        name: "fal.ai",
+        kind: "video",
+        envKey: "FAL_KEY",
+        configured: has("FAL_KEY"),
+        free: false,
+        notes: "final fallback only",
+      },
       // lipsync
-      { id: "sync",            name: "Sync.so",                 kind: "lipsync",   envKey: "SYNC_API_KEY",                         configured: has("SYNC_API_KEY"),              free: false, notes: "lipsync-2 (primary)" },
-      { id: "replicate-lipsync", name: "Replicate",             kind: "lipsync",   envKey: "LOVABLE_CONNECTOR_REPLICATE_API_KEY",  configured: hasReplicate,                     free: false, notes: "sync/lipsync-2 · cog-wav2lip (fallback)" },
-      { id: "fal-lipsync",     name: "fal.ai",                  kind: "lipsync",   envKey: "FAL_KEY",                              configured: has("FAL_KEY"),                   free: false, notes: "not yet wired into orchestrator" },
-      // inference (text)
-      { id: "openrouter",      name: "OpenRouter",              kind: "inference", envKey: "OPENROUTER_API_KEY",                   configured: has("OPENROUTER_API_KEY"),        free: false, notes: "preferred text gateway (cheap)" },
-      { id: "openai",          name: "OpenAI direct",           kind: "inference", envKey: "OPENAI_API_KEY",                       configured: has("OPENAI_API_KEY"),            free: false, notes: "gpt-4o · gpt-4o-mini" },
-      { id: "lovable-text",    name: "Lovable AI Gateway",      kind: "inference", envKey: "LOVABLE_API_KEY",                      configured: has("LOVABLE_API_KEY"),           free: false, notes: "fallback only — credits used last" },
+      {
+        id: "sync",
+        name: "Sync.so",
+        kind: "lipsync",
+        envKey: "SYNC_API_KEY",
+        configured: has("SYNC_API_KEY"),
+        free: false,
+        notes: "lipsync-2 (primary)",
+      },
+      {
+        id: "replicate-lipsync",
+        name: "Replicate",
+        kind: "lipsync",
+        envKey: "LOVABLE_CONNECTOR_REPLICATE_API_KEY",
+        configured: hasReplicate,
+        free: false,
+        notes: "sync/lipsync-2 · cog-wav2lip (fallback)",
+      },
+      {
+        id: "fal-lipsync",
+        name: "fal.ai",
+        kind: "lipsync",
+        envKey: "FAL_KEY",
+        configured: has("FAL_KEY"),
+        free: false,
+        notes: "final fallback only",
+      },
+      // text (AI router)
+      {
+        id: "pollinations",
+        name: "Pollinations",
+        kind: "text",
+        envKey: "",
+        configured: true,
+        free: true,
+        notes: "openai model (no key — first in text chain)",
+      },
+      {
+        id: "groq",
+        name: "Groq",
+        kind: "text",
+        envKey: "GROQ_API_KEY",
+        configured: has("GROQ_API_KEY"),
+        free: false,
+        notes: "llama-3.3-70b-versatile",
+      },
+      {
+        id: "gemini-text",
+        name: "Gemini text",
+        kind: "text",
+        envKey: "GEMINI_API_KEY",
+        configured: has("GEMINI_API_KEY"),
+        free: false,
+        notes: "gemini-2.0-flash",
+      },
+      {
+        id: "mistral",
+        name: "Mistral",
+        kind: "text",
+        envKey: "MISTRAL_API_KEY",
+        configured: has("MISTRAL_API_KEY"),
+        free: false,
+        notes: "mistral-small-latest",
+      },
+      {
+        id: "openai",
+        name: "OpenAI direct",
+        kind: "text",
+        envKey: "OPENAI_API_KEY",
+        configured: has("OPENAI_API_KEY"),
+        free: false,
+        notes: "gpt-4o-mini",
+      },
+      {
+        id: "hf-text",
+        name: "HuggingFace text",
+        kind: "text",
+        envKey: "HF_TOKEN",
+        configured: has("HF_TOKEN"),
+        free: false,
+        notes: "Llama-3.1-8B-Instruct",
+      },
+      {
+        id: "lovable-text",
+        name: "Lovable AI Gateway",
+        kind: "text",
+        envKey: "LOVABLE_API_KEY",
+        configured: has("LOVABLE_API_KEY"),
+        free: false,
+        notes: "fallback only — credits used last",
+      },
+      // audio / TTS
+      {
+        id: "elevenlabs",
+        name: "ElevenLabs",
+        kind: "audio",
+        envKey: "ELEVENLABS_API_KEY",
+        configured: has("ELEVENLABS_API_KEY"),
+        free: false,
+        notes: "eleven_multilingual_v2 (else GPU tts worker)",
+      },
     ];
 
     // GPU workers (admin-registered) — always last in every chain
@@ -67,8 +268,9 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
     // Aggregate stats per provider
     const stats: Record<string, { ok: number; err: number; avgMs: number; cost: number }> = {};
     for (const l of logs ?? []) {
-      const s = stats[l.provider] ??= { ok: 0, err: 0, avgMs: 0, cost: 0 };
-      if (l.status === "ok") s.ok++; else s.err++;
+      const s = (stats[l.provider] ??= { ok: 0, err: 0, avgMs: 0, cost: 0 });
+      if (l.status === "ok") s.ok++;
+      else s.err++;
       s.avgMs = (s.avgMs * (s.ok + s.err - 1) + (l.latency_ms ?? 0)) / (s.ok + s.err);
       s.cost += Number(l.cost_usd ?? 0);
     }
@@ -77,14 +279,23 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
     const providersWithHealth = providers.map((p) => {
       // map dashboard id → orchestrator adapter name
       const adapterName =
-        p.id === "gemini" ? "gemini" :
-        p.id === "lovable" ? "lovable" :
-        p.id === "hf" ? "huggingface" :
-        p.id === "sync" ? "sync" :
-        p.id === "kling-direct" ? "kling" :
-        p.id === "fal-video" || p.id === "fal-lipsync" ? "fal" :
-        p.id.startsWith("replicate") ? "replicate" :
-        p.id;
+        p.id === "gemini"
+          ? "gemini"
+          : p.id === "lovable"
+            ? "lovable"
+            : p.id === "hf"
+              ? "huggingface"
+              : p.id === "sync"
+                ? "sync"
+                : p.id === "kling-direct"
+                  ? "kling"
+                  : p.id === "pollinations-image"
+                    ? "pollinations"
+                    : p.id === "fal-video" || p.id === "fal-lipsync"
+                      ? "fal"
+                      : p.id.startsWith("replicate")
+                        ? "replicate"
+                        : p.id;
       const h = health[adapterName];
       return {
         ...p,
@@ -111,8 +322,13 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
     const gpuHealthMap = await providerHealth();
     const gpuBackends = gpuStatus.map((b) => {
       const h = gpuHealthMap[b.id];
-      const health: "online" | "offline" | "unconfigured" | "unknown" =
-        !b.configured ? "unconfigured" : h == null ? "unknown" : h.ok ? "online" : "offline";
+      const health: "online" | "offline" | "unconfigured" | "unknown" = !b.configured
+        ? "unconfigured"
+        : h == null
+          ? "unknown"
+          : h.ok
+            ? "online"
+            : "offline";
       return {
         ...b,
         health,
@@ -120,5 +336,81 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
       };
     });
 
-    return { providers: providersWithHealth, workers: workers ?? [], stats, summary, recent: (logs ?? []).slice(0, 50), gpuBackends };
+    return {
+      providers: providersWithHealth,
+      workers: workers ?? [],
+      stats,
+      summary,
+      recent: (logs ?? []).slice(0, 50),
+      gpuBackends,
+    };
+  });
+
+// ─── AI Router: generate via the unified orchestrator ────────────────────────
+// Authenticated entry point used by the /orchestrate page. Reuses the shared
+// reserve → orchestrate → record → commit core so credits + provider fallback
+// behave exactly like the public API.
+const OrchestrateSchema = z.object({
+  kind: z.enum(["image", "video", "text", "audio"]),
+  prompt: z.string().max(4000).optional(),
+  imageUrls: z.array(z.string().url()).max(6).optional(),
+  duration: z.number().int().min(3).max(12).optional(),
+  model: z.string().max(120).optional(),
+  voiceId: z.string().max(120).optional(),
+});
+
+export const orchestrateGenerate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => OrchestrateSchema.parse(d))
+  .handler(async ({ context, data }) => {
+    // SSRF guard for any reference image URLs.
+    for (const url of data.imageUrls ?? []) assertTrustedUrl(url);
+
+    const kind = data.kind as GenerateKind;
+    const cost = orchestrationCreditCost(kind);
+    const outcome = await reserveOrchestrateRecord({
+      userId: context.userId,
+      kind,
+      prompt: data.prompt,
+      imageUrls: data.imageUrls,
+      duration: data.duration,
+      model: data.model,
+      params: data.voiceId ? { voiceId: data.voiceId } : undefined,
+      cost,
+      reason: `orchestrate_${kind}`,
+    });
+    if (!outcome.ok) {
+      return {
+        ok: false as const,
+        error: outcome.error,
+        insufficient: outcome.insufficient ?? false,
+      };
+    }
+    return {
+      ok: true as const,
+      generationId: outcome.generationId,
+      url: outcome.url,
+      text: outcome.text ?? null,
+      provider: outcome.provider,
+      endpoint: outcome.endpoint,
+      latencyMs: outcome.latencyMs,
+      costUsd: outcome.costUsd,
+      creditsCost: cost,
+    };
+  });
+
+// ─── AI Router: list the caller's recent orchestrations ──────────────────────
+export const listOrchestrations = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: rows } = await supabaseAdmin
+      .from("generations")
+      .select(
+        "id,kind,prompt,model,status,result_image_url,result_video_url,audio_url,result_text,credits_cost,created_at",
+      )
+      .eq("user_id", context.userId)
+      .in("kind", ["image", "video", "text", "audio"])
+      .order("created_at", { ascending: false })
+      .limit(24);
+    return { items: rows ?? [] };
   });

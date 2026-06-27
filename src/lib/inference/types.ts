@@ -6,7 +6,7 @@
 export type ProviderId = "runpod" | "huggingface" | "custom" | "vast" | "comfyui";
 
 /** Generation task types a backend can serve. */
-export type TaskType = "image" | "video" | "lipsync" | "motion";
+export type TaskType = "image" | "video" | "lipsync" | "motion" | "tts";
 
 /** Whether a legacy lip-sync `mediaUrl` is an image or a video. */
 export type InputMode = "image" | "video";
