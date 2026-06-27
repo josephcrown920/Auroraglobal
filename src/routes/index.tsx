@@ -142,6 +142,9 @@ function Index() {
             <Link to="/canvas" className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline">
               <Sparkles className="size-3.5" /> Canvas
             </Link>
+            <Link to="/agent" className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline">
+              <Sparkles className="size-3.5" /> Agent
+            </Link>
             <Link to="/ugc" className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline">
               <Megaphone className="size-3.5" /> UGC
             </Link>
