@@ -83,6 +83,9 @@ async function runMediaJob(job: JobRow): Promise<{ url: string; provider: string
     duration: req.duration,
     resolution: req.resolution,
     model: req.model,
+    params: req.params,
+    comfyWorkflow: req.comfyWorkflow,
+    comfyInputs: req.comfyInputs,
     userId: job.user_id,
     refId: job.id,
   });

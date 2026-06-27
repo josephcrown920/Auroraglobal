@@ -64,6 +64,32 @@ function remainingMs(deadline?: number): number {
   return Math.max(1_000, deadline - Date.now());
 }
 
+/**
+ * Lightweight liveness probe used by the admin status panel. By default a host
+ * that answers *any* HTTP status counts as reachable (`ok:true`) — useful for
+ * flat POST endpoints (Colab/Vast) that have no health route and would 405/404
+ * a GET while still being up. Pass `expectOk` for endpoints that expose a real
+ * health/liveness path (ComfyUI /system_stats, HF Space root, RunPod /health).
+ * Network errors / timeouts return `{ ok:false }`.
+ */
+export async function probeReachable(
+  url: string,
+  opts: { token?: string; expectOk?: boolean; timeoutMs?: number } = {},
+): Promise<{ ok: boolean; status?: number; error?: string }> {
+  const headers: Record<string, string> = {};
+  if (opts.token) headers.authorization = `Bearer ${opts.token}`;
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers,
+      signal: AbortSignal.timeout(opts.timeoutMs ?? 5_000),
+    });
+    return { ok: opts.expectOk ? res.ok : true, status: res.status };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 // ─── Flat HTTP (Colab / ngrok / Vast.ai / self-hosted custom servers) ─────────
 /** POST a flat job body to an HTTP endpoint and return the parsed JSON. */
 export async function postFlatJob(

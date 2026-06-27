@@ -11,14 +11,22 @@
 // params?, workflow?, workflow_inputs? } } and returns a payload containing an
 // output URL (e.g. { output: { video_url } } or { output: { image_url } }).
 
-import type { InferenceInput, InferenceResult, ProviderAdapter } from "../types";
-import { extractOutputUrl, jobBody, toResult } from "../protocols";
+import type { InferenceInput, InferenceResult, ProbeResult, ProviderAdapter } from "../types";
+import { extractOutputUrl, jobBody, probeReachable, toResult } from "../protocols";
 
 export const runpodAdapter: ProviderAdapter = {
   id: "runpod",
   label: "RunPod Serverless",
   requiredEnv: ["RUNPOD_API_KEY", "RUNPOD_ENDPOINT_ID"],
   tasks: ["image", "video", "lipsync", "motion"],
+
+  async probeHealth(timeoutMs?: number): Promise<ProbeResult | null> {
+    const apiKey = process.env.RUNPOD_API_KEY;
+    const endpointId = process.env.RUNPOD_ENDPOINT_ID;
+    if (!apiKey || !endpointId) return null;
+    // RunPod serverless exposes /health (auth required) — require a 2xx.
+    return probeReachable(`https://api.runpod.ai/v2/${endpointId}/health`, { token: apiKey, expectOk: true, timeoutMs });
+  },
 
   async run(input: InferenceInput): Promise<InferenceResult> {
     const apiKey = process.env.RUNPOD_API_KEY;

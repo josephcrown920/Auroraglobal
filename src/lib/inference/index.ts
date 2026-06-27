@@ -79,4 +79,26 @@ export function providerStatus(): Array<{
   });
 }
 
+/**
+ * Probe the live health of every configured backend in parallel (bounded by
+ * `timeoutMs`). Unconfigured backends are reported as `null` (nothing to probe,
+ * no network call made). Used by the admin/orchestration status panel so the
+ * user can plug an endpoint in and watch it come online.
+ */
+export async function providerHealth(
+  timeoutMs = 5_000,
+): Promise<Record<ProviderId, { ok: boolean; status?: number; error?: string } | null>> {
+  const entries = await Promise.all(
+    Object.values(adapters).map(async (a) => {
+      try {
+        const r = a.probeHealth ? await a.probeHealth(timeoutMs) : null;
+        return [a.id, r] as const;
+      } catch (e) {
+        return [a.id, { ok: false, error: e instanceof Error ? e.message : String(e) }] as const;
+      }
+    }),
+  );
+  return Object.fromEntries(entries) as Record<ProviderId, { ok: boolean; status?: number; error?: string } | null>;
+}
+
 export type { InferenceInput, InferenceResult, ProviderId, TaskType } from "./types";

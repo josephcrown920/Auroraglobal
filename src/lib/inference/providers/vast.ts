@@ -10,14 +10,21 @@
 //
 // Request body / response: identical to the custom adapter (see custom.ts).
 
-import type { InferenceInput, InferenceResult, ProviderAdapter } from "../types";
-import { extractOutputUrl, postFlatJob, toResult } from "../protocols";
+import type { InferenceInput, InferenceResult, ProbeResult, ProviderAdapter } from "../types";
+import { extractOutputUrl, postFlatJob, probeReachable, toResult } from "../protocols";
 
 export const vastAdapter: ProviderAdapter = {
   id: "vast",
   label: "Vast.ai (self-hosted HTTP)",
   requiredEnv: ["VAST_INFERENCE_URL"],
   tasks: ["image", "video", "lipsync", "motion"],
+
+  async probeHealth(timeoutMs?: number): Promise<ProbeResult | null> {
+    const url = process.env.VAST_INFERENCE_URL;
+    if (!url) return null;
+    // Flat POST endpoint has no health route — any HTTP response means it's up.
+    return probeReachable(url, { token: process.env.VAST_INFERENCE_TOKEN, timeoutMs });
+  },
 
   async run(input: InferenceInput): Promise<InferenceResult> {
     const url = process.env.VAST_INFERENCE_URL;

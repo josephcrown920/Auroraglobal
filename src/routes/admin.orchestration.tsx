@@ -137,7 +137,7 @@ function OrchestrationDashboard() {
               })}
             </div>
 
-            {/* Pluggable GPU backends — env-configured standalone inference/ layer (Task #12) */}
+            {/* Pluggable GPU backends — env-configured standalone inference/ layer */}
             <div className="rounded-xl border border-border bg-card/40 mb-8">
               <div className="px-5 py-3 border-b border-border flex items-center justify-between">
                 <span className="text-sm font-semibold flex items-center gap-2"><Server className="size-4 text-muted-foreground" /> Pluggable GPU backends</span>
@@ -163,6 +163,28 @@ function OrchestrationDashboard() {
                     {b.configured
                       ? <div className="text-[10px] font-mono text-emerald-400">configured</div>
                       : <div className="text-[10px] font-mono text-amber-400 truncate" title={`missing: ${b.missing.join(", ")}`}>missing: {b.missing.join(", ") || "—"}</div>}
+                    <div className="flex items-center gap-1.5" title={b.healthDetail ?? undefined}>
+                      <span className={
+                        "size-1.5 rounded-full shrink-0 " + (
+                          b.health === "online" ? "bg-emerald-400"
+                          : b.health === "offline" ? "bg-red-400"
+                          : b.health === "unknown" ? "bg-amber-400"
+                          : "bg-muted-foreground/40")
+                      } />
+                      <span className={
+                        "text-[10px] font-mono truncate " + (
+                          b.health === "online" ? "text-emerald-400"
+                          : b.health === "offline" ? "text-red-400"
+                          : b.health === "unknown" ? "text-amber-400"
+                          : "text-muted-foreground")
+                      }>
+                        {b.health === "online" ? "health: online"
+                          : b.health === "offline" ? "health: offline"
+                          : b.health === "unknown" ? "health: unknown"
+                          : "health: not configured"}
+                        {b.healthDetail ? ` · ${b.healthDetail}` : ""}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>

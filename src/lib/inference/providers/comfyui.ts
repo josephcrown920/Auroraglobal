@@ -11,14 +11,21 @@
 // The job must carry `comfyWorkflow` (the graph JSON). Optional `comfyInputs`
 // patches values in by "nodeId.inputName" key before submitting.
 
-import type { InferenceInput, InferenceResult, ProviderAdapter } from "../types";
-import { runComfyWorkflow, toResult } from "../protocols";
+import type { InferenceInput, InferenceResult, ProbeResult, ProviderAdapter } from "../types";
+import { probeReachable, runComfyWorkflow, toResult } from "../protocols";
 
 export const comfyuiAdapter: ProviderAdapter = {
   id: "comfyui",
   label: "ComfyUI (self-hosted workflow API)",
   requiredEnv: ["COMFYUI_URL"],
   tasks: ["image", "video", "lipsync", "motion"],
+
+  async probeHealth(timeoutMs?: number): Promise<ProbeResult | null> {
+    const base = process.env.COMFYUI_URL?.replace(/\/$/, "");
+    if (!base) return null;
+    // ComfyUI exposes liveness at /system_stats — require a 2xx.
+    return probeReachable(`${base}/system_stats`, { token: process.env.COMFYUI_TOKEN, expectOk: true, timeoutMs });
+  },
 
   async run(input: InferenceInput): Promise<InferenceResult> {
     const baseUrl = process.env.COMFYUI_URL;

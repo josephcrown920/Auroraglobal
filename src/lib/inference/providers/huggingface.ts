@@ -10,14 +10,21 @@
 // lip-sync that is (audio, media, mode); for other tasks it is
 // (prompt, image, audio, video). See `gradioData` in ../protocols.ts.
 
-import type { InferenceInput, InferenceResult, ProviderAdapter } from "../types";
-import { callGradioSpace, extractGradioUrl, gradioData, toResult } from "../protocols";
+import type { InferenceInput, InferenceResult, ProbeResult, ProviderAdapter } from "../types";
+import { callGradioSpace, extractGradioUrl, gradioData, probeReachable, toResult } from "../protocols";
 
 export const huggingfaceAdapter: ProviderAdapter = {
   id: "huggingface",
   label: "Hugging Face Space (Gradio)",
   requiredEnv: ["HF_SPACE_URL"],
   tasks: ["image", "video", "lipsync", "motion"],
+
+  async probeHealth(timeoutMs?: number): Promise<ProbeResult | null> {
+    const base = process.env.HF_SPACE_URL?.replace(/\/$/, "");
+    if (!base) return null;
+    // The Gradio app root answers 2xx when the Space is awake.
+    return probeReachable(`${base}/`, { token: process.env.HF_TOKEN, expectOk: true, timeoutMs });
+  },
 
   async run(input: InferenceInput): Promise<InferenceResult> {
     const spaceUrl = process.env.HF_SPACE_URL?.replace(/\/$/, "");

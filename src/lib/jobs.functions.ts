@@ -32,6 +32,10 @@ const EnqueueInput = z.object({
   duration: z.number().int().min(3).max(12).optional(),
   resolution: z.enum(["480p", "720p", "1080p"]).optional(),
   model: z.string().max(120).optional(),
+  // Pluggable-backend passthrough (carried in the job payload → orchestrate).
+  params: z.record(z.unknown()).optional(),
+  comfyWorkflow: z.unknown().optional(),
+  comfyInputs: z.record(z.unknown()).optional(),
 });
 
 export const enqueueGenerationJob = createServerFn({ method: "POST" })
