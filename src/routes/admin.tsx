@@ -214,6 +214,8 @@ function heartbeatAge(ts: string | null | undefined): string {
   return `${Math.round(ageMs / 3_600_000)}h ago`;
 }
 
+type WorkerProtocol = "custom" | "runpod" | "comfyui" | "hfspace" | "vast";
+
 function WorkersPanel() {
   const listFn = useServerFn(listWorkers);
   const saveFn = useServerFn(upsertWorker);
@@ -224,7 +226,7 @@ function WorkersPanel() {
   const blank = { 
     name: "", endpoint_url: "", auth_token: "", region: "global", 
     capabilities: "image,video", priority: 100, max_concurrency: 4, 
-    protocol: "custom" as "custom" | "runpod", 
+    protocol: "custom" as WorkerProtocol, 
     worker_role: "" as string, 
     runpod_sync: false 
   };
@@ -244,10 +246,13 @@ function WorkersPanel() {
           <select 
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" 
             value={form.protocol} 
-            onChange={e => setForm({ ...form, protocol: e.target.value as "custom" | "runpod" })}
+            onChange={e => setForm({ ...form, protocol: e.target.value as WorkerProtocol })}
           >
-            <option value="custom">Protocol: Custom (POST /generate)</option>
+            <option value="custom">Protocol: Custom — Colab / ngrok / self-hosted (POST /generate)</option>
+            <option value="vast">Protocol: Vast.ai — self-hosted HTTP (POST /generate)</option>
             <option value="runpod">Protocol: RunPod (/runsync or /run)</option>
+            <option value="comfyui">Protocol: ComfyUI (/prompt + /history)</option>
+            <option value="hfspace">Protocol: HF Space — Gradio (/gradio_api)</option>
           </select>
           <select 
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" 
@@ -277,8 +282,10 @@ function WorkersPanel() {
           toast.success("Worker added"); reset(); qc.invalidateQueries({ queryKey: ["workers"] });
         }} disabled={!form.name || !form.endpoint_url}>Add worker</Button>
         <div className="text-xs text-muted-foreground space-y-1">
-          <p><strong>Custom contract:</strong> <code>POST /generate</code> with flat JSON body → <code>{"{ url }"}</code>. Also requires <code>GET /health</code>.</p>
-          <p><strong>RunPod contract:</strong> <code>POST /runsync</code> (preferred) or <code>POST /run</code> + <code>{"GET /status/{id}"}</code> with body <code>{"{ input: { kind, prompt, image_urls, audio_url, video_url, model, duration, resolution } }"}</code>. Auth token sent as <code>Authorization: Bearer …</code>.</p>
+          <p><strong>Custom / Vast.ai:</strong> <code>POST /generate</code> with flat JSON body → <code>{"{ url }"}</code>. Health: <code>GET /health</code>. Use this for Colab+ngrok, a Vast.ai box, or any self-hosted server.</p>
+          <p><strong>RunPod:</strong> <code>POST /runsync</code> (preferred) or <code>POST /run</code> + <code>{"GET /status/{id}"}</code> with body <code>{"{ input: { kind, prompt, image_urls, audio_url, video_url, model, duration, resolution } }"}</code>. Auth token sent as <code>Authorization: Bearer …</code>.</p>
+          <p><strong>ComfyUI:</strong> raw ComfyUI server — <code>POST /prompt</code> with a workflow graph, poll <code>{"/history/{id}"}</code>, fetch <code>/view</code>. Health: <code>GET /system_stats</code>. (Workflow wiring lands with image/video gen.)</p>
+          <p><strong>HF Space:</strong> a Gradio Space — calls <code>{"/gradio_api/call/predict"}</code> over SSE. Health: <code>GET /</code>.</p>
           <p>Lower <strong>priority</strong> number = tried first. Use higher priority (e.g. 200) for serverless/auto-scale fallback workers.</p>
         </div>
       </section>

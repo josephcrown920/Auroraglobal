@@ -34,8 +34,10 @@ export const upsertWorker = createServerFn({ method: "POST" })
     priority: z.number().int().default(100),
     max_concurrency: z.number().int().min(1).max(64).default(4),
     status: z.enum(["active", "paused", "draining"]).default("active"),
-    // RunPod-native contract opt-in (defaults keep legacy POST /generate workers working).
-    protocol: z.enum(["custom", "runpod"]).default("custom"),
+    // Wire protocol the worker speaks. Defaults to the legacy flat POST /generate
+    // (`custom`); `vast` shares that contract. `runpod`/`comfyui`/`hfspace` change
+    // HOW the worker is called — routing stays capability-based (see orchestrator).
+    protocol: z.enum(["custom", "runpod", "comfyui", "hfspace", "vast"]).default("custom"),
     worker_role: z.enum(["comfyui", "kling", "lipsync", "motion", ""]).optional().nullable().transform(v => v || null),
     runpod_sync: z.boolean().default(false),
   }).parse(d))

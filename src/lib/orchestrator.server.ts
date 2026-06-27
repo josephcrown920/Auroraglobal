@@ -11,6 +11,13 @@ import { replicateRun, pickReplicateUrl, getReplicateKey } from "./replicate.ser
 import { syncLipsync } from "./sync.server";
 import { hfTextToImage } from "./hf.server";
 import { isTrustedUrl } from "./url-guard";
+import {
+  callGradioSpace,
+  extractGradioUrl,
+  gradioData,
+  runComfyWorkflow,
+} from "./inference/protocols";
+import type { InferenceInput, TaskType } from "./inference/types";
 
 export type GenerateKind = "image" | "video" | "lipsync" | "upscale";
 
@@ -56,6 +63,12 @@ export type GenerateRequest = {
   cameraMovement?: string | null;
   userId?: string | null;
   refId?: string | null;
+  /** Free-form provider/model params forwarded to the worker (seed, fps, steps, …). */
+  params?: Record<string, unknown>;
+  /** A ComfyUI prompt graph (JSON) for `comfyui`-protocol workers (wired by #13). */
+  comfyWorkflow?: unknown;
+  /** `"nodeId.inputName": value` patches applied to the ComfyUI graph. */
+  comfyInputs?: Record<string, unknown>;
 };
 
 export type GenerateResult = {
@@ -447,9 +460,12 @@ const huggingface: ProviderAdapter = {
 // ─── GPU worker pool ─────────────────────────────────────────────────────────
 // Admin-registered HTTP workers (RunPod / vast / salad / self-hosted). Each row
 // declares the request contract it speaks via `protocol`:
-//   custom → POST {endpoint}/generate  with a flat body, returns { url } | { output_url }
-//   runpod → RunPod serverless: POST {endpoint}/run (async, poll GET /status/{id})
-//            or POST {endpoint}/runsync (when runpod_sync), body wrapped as { input }
+//   custom  → POST {endpoint}/generate  with a flat body, returns { url } | { output_url }
+//   vast    → same flat /generate contract as custom (a Vast.ai box runs your server)
+//   runpod  → RunPod serverless: POST {endpoint}/run (async, poll GET /status/{id})
+//             or POST {endpoint}/runsync (when runpod_sync), body wrapped as { input }
+//   comfyui → POST {endpoint}/prompt with a ComfyUI graph, poll /history, /view the asset
+//   hfspace → call the Space's Gradio predict fn over the /gradio_api SSE flow
 // Routing stays capability-based; `protocol` only changes HOW a worker is called,
 // so legacy /generate workers and the provider failover chain keep working.
 const WORKER_TIMEOUT_MS = 300_000;
@@ -493,6 +509,9 @@ function workerInput(r: GenerateRequest): Record<string, unknown> {
     kind: r.kind, prompt: r.prompt, image_urls: r.imageUrls,
     audio_url: r.audioUrl, video_url: r.videoUrl,
     model: r.model, duration: r.duration, resolution: r.resolution,
+    ...(r.params ? { params: r.params } : {}),
+    ...(r.comfyWorkflow ? { workflow: r.comfyWorkflow } : {}),
+    ...(r.comfyInputs ? { workflow_inputs: r.comfyInputs } : {}),
   };
 }
 
@@ -555,6 +574,43 @@ export function legacyCustomUrl(payload: unknown): string | undefined {
   return undefined;
 }
 
+// Map a GenerateRequest onto the generalized inference job consumed by the shared
+// protocol helpers (Gradio / ComfyUI). `upscale` maps to the `image` task.
+function toInferenceInput(r: GenerateRequest): InferenceInput {
+  const task: TaskType = r.kind === "upscale" ? "image" : r.kind;
+  return {
+    task,
+    prompt: r.prompt,
+    imageUrls: r.imageUrls,
+    audioUrl: r.audioUrl,
+    videoUrl: r.videoUrl,
+    params: r.params,
+    comfyWorkflow: r.comfyWorkflow,
+    comfyInputs: r.comfyInputs,
+  };
+}
+
+// comfyui contract: submit a ComfyUI graph, poll /history, resolve a /view URL.
+// The job must carry `comfyWorkflow` (wired by Task #13); fails explicitly if not.
+export async function dispatchComfyui(base: string, w: WorkerRow, r: GenerateRequest, deadline: number): Promise<unknown> {
+  if (!r.comfyWorkflow) throw new Error(`worker ${w.name}: comfyui protocol requires a workflow (none in request)`);
+  const url = await runComfyWorkflow({
+    baseUrl: base,
+    token: w.auth_token ?? undefined,
+    workflow: r.comfyWorkflow,
+    inputs: r.comfyInputs,
+    deadline,
+  });
+  return { url };
+}
+
+// hfspace contract: call the Space's Gradio `predict` fn over the SSE flow.
+export async function dispatchHfspace(base: string, w: WorkerRow, r: GenerateRequest, deadline: number): Promise<unknown> {
+  const result = await callGradioSpace(base, "predict", w.auth_token ?? undefined, gradioData(toInferenceInput(r)), deadline);
+  const url = extractGradioUrl(result, base);
+  return url ? { url } : result;
+}
+
 const gpuWorker: ProviderAdapter = {
   name: "runpod",
   supports: (r) => ["image", "video", "lipsync", "upscale"].includes(r.kind),
@@ -582,11 +638,15 @@ const gpuWorker: ProviderAdapter = {
           incremented = true;
           const base = w.endpoint_url.replace(/\/$/, "");
           const deadline = started + WORKER_TIMEOUT_MS;
-          const payload = w.protocol === "runpod"
-          ? await dispatchRunpod(base, w, r, deadline)
-          : await dispatchCustom(base, w, r, deadline);
-        const url = extractWorkerUrl(payload)
-          ?? (w.protocol !== "runpod" ? legacyCustomUrl(payload) : undefined);
+          const payload =
+            w.protocol === "runpod" ? await dispatchRunpod(base, w, r, deadline)
+            : w.protocol === "comfyui" ? await dispatchComfyui(base, w, r, deadline)
+            : w.protocol === "hfspace" ? await dispatchHfspace(base, w, r, deadline)
+            : await dispatchCustom(base, w, r, deadline);
+        // custom & vast workers may return a relative/non-http url; preserve it.
+        const isCustomLike =
+          w.protocol !== "runpod" && w.protocol !== "comfyui" && w.protocol !== "hfspace";
+        const url = extractWorkerUrl(payload) ?? (isCustomLike ? legacyCustomUrl(payload) : undefined);
         if (!url) throw new Error(`worker ${w.name} returned no url`);
         await supabaseAdmin.from("worker_jobs").insert({
           worker_id: w.id, user_id: r.userId ?? null, kind: r.kind,

@@ -137,6 +137,40 @@ function OrchestrationDashboard() {
               })}
             </div>
 
+            {/* Pluggable GPU backends — env-configured standalone inference/ layer (Task #12) */}
+            <div className="rounded-xl border border-border bg-card/40 mb-8">
+              <div className="px-5 py-3 border-b border-border flex items-center justify-between">
+                <span className="text-sm font-semibold flex items-center gap-2"><Server className="size-4 text-muted-foreground" /> Pluggable GPU backends</span>
+                <span className="text-[10px] font-mono text-muted-foreground">
+                  {data.gpuBackends.filter((b) => b.configured).length}/{data.gpuBackends.length} configured
+                </span>
+              </div>
+              <div className="p-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {data.gpuBackends.map((b) => (
+                  <div key={b.id} className="rounded-lg border border-border/60 bg-background/40 p-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      {b.configured
+                        ? <CheckCircle2 className="size-3.5 text-emerald-400 shrink-0" />
+                        : <XCircle className="size-3.5 text-muted-foreground shrink-0" />}
+                      <span className="text-sm font-medium flex-1 truncate">{b.label}</span>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-muted/40 text-muted-foreground border border-border">{b.id}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {b.tasks.map((t) => (
+                        <span key={t} className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">{t}</span>
+                      ))}
+                    </div>
+                    {b.configured
+                      ? <div className="text-[10px] font-mono text-emerald-400">configured</div>
+                      : <div className="text-[10px] font-mono text-amber-400 truncate" title={`missing: ${b.missing.join(", ")}`}>missing: {b.missing.join(", ") || "—"}</div>}
+                  </div>
+                ))}
+              </div>
+              <div className="px-5 py-2.5 border-t border-border text-[10px] text-muted-foreground">
+                Standalone HTTP-out inference layer (Colab · RunPod · HF Spaces · Vast.ai · ComfyUI). Configure via env vars; the live <code>/generate</code> worker pool is managed under the Workers tab.
+              </div>
+            </div>
+
             {/* Recent calls */}
             <div className="rounded-xl border border-border bg-card/40 overflow-hidden">
               <div className="px-5 py-3 border-b border-border flex items-center justify-between">

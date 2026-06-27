@@ -73,10 +73,12 @@ async function interpretRunpodHealth(res: Response): Promise<WorkerProbeResult> 
 
 /**
  * Probe a worker's live health endpoint, branching on its `protocol`:
- *  - custom (default): `GET {endpoint}/health`; healthy when the response is 2xx.
+ *  - custom / vast (default): `GET {endpoint}/health`; healthy when the response is 2xx.
  *  - runpod: `GET {endpoint}/health` with `Authorization: Bearer`; healthy when
  *    the RunPod health payload reports the endpoint isn't stuck with only
  *    unhealthy workers.
+ *  - comfyui: `GET {endpoint}/system_stats` (ComfyUI's liveness endpoint).
+ *  - hfspace: `GET {endpoint}/` (the Gradio app root).
  *
  * Network errors / timeouts return `{ ok: false, unreachable: true }` so callers
  * can distinguish "didn't respond" from "responded as unhealthy".
@@ -90,8 +92,13 @@ export async function probeWorkerHealth(
   const headers: Record<string, string> = worker.auth_token
     ? { authorization: `Bearer ${worker.auth_token}` }
     : {};
+  // Each protocol exposes liveness at a different path.
+  const path =
+    protocol === "comfyui" ? "/system_stats"
+    : protocol === "hfspace" ? "/"
+    : "/health";
   try {
-    const res = await fetch(baseUrl + "/health", {
+    const res = await fetch(baseUrl + path, {
       headers,
       signal: AbortSignal.timeout(timeoutMs),
     });

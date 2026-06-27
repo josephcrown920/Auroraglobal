@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getProviderHealthSnapshot } from "./orchestrator.server";
+import { providerStatus } from "./inference";
 
 // ─── Provider health (which keys are configured) ─────────────────────────────
 // Mirrors the priority chains in src/lib/orchestrator.server.ts.
@@ -102,5 +103,10 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
       activeWorkers: workers?.filter((w) => w.status === "active").length ?? 0,
     };
 
-    return { providers: providersWithHealth, workers: workers ?? [], stats, summary, recent: (logs ?? []).slice(0, 50) };
+    // Env-based pluggable GPU backends (standalone inference/ layer — Task #12).
+    // Reports which backends (runpod/huggingface/custom/vast/comfyui) are
+    // configured via env, what they're missing, and which tasks each can serve.
+    const gpuBackends = providerStatus();
+
+    return { providers: providersWithHealth, workers: workers ?? [], stats, summary, recent: (logs ?? []).slice(0, 50), gpuBackends };
   });
