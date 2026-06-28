@@ -25,6 +25,7 @@ import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as ConnectRouteImport } from './routes/connect'
+import { Route as ComfyRouteImport } from './routes/comfy'
 import { Route as ColorsRouteImport } from './routes/colors'
 import { Route as ClipsRouteImport } from './routes/clips'
 import { Route as CanvasRouteImport } from './routes/canvas'
@@ -39,6 +40,7 @@ import { Route as CliAuthorizeRouteImport } from './routes/cli.authorize'
 import { Route as ApiMcpRouteImport } from './routes/api/mcp'
 import { Route as AdminSmokeRouteImport } from './routes/admin.smoke'
 import { Route as AdminOrchestrationRouteImport } from './routes/admin.orchestration'
+import { Route as AdminComfyRouteImport } from './routes/admin.comfy'
 import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/public/paystack-webhook'
 import { Route as ApiPublicGenerateRouteImport } from './routes/api/public/generate'
 import { Route as ApiPublicWorkersRegisterRouteImport } from './routes/api/public/workers/register'
@@ -127,6 +129,11 @@ const ConnectRoute = ConnectRouteImport.update({
   path: '/connect',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ComfyRoute = ComfyRouteImport.update({
+  id: '/comfy',
+  path: '/comfy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ColorsRoute = ColorsRouteImport.update({
   id: '/colors',
   path: '/colors',
@@ -197,6 +204,11 @@ const AdminOrchestrationRoute = AdminOrchestrationRouteImport.update({
   path: '/orchestration',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminComfyRoute = AdminComfyRouteImport.update({
+  id: '/comfy',
+  path: '/comfy',
+  getParentRoute: () => AdminRoute,
+} as any)
 const ApiPublicPaystackWebhookRoute =
   ApiPublicPaystackWebhookRouteImport.update({
     id: '/api/public/paystack-webhook',
@@ -244,6 +256,7 @@ export interface FileRoutesByFullPath {
   '/canvas': typeof CanvasRoute
   '/clips': typeof ClipsRoute
   '/colors': typeof ColorsRoute
+  '/comfy': typeof ComfyRoute
   '/connect': typeof ConnectRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
@@ -260,6 +273,7 @@ export interface FileRoutesByFullPath {
   '/tiktok': typeof TiktokRoute
   '/ugc': typeof UgcRoute
   '/workflows': typeof WorkflowsRoute
+  '/admin/comfy': typeof AdminComfyRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
   '/admin/smoke': typeof AdminSmokeRoute
   '/api/mcp': typeof ApiMcpRoute
@@ -283,6 +297,7 @@ export interface FileRoutesByTo {
   '/canvas': typeof CanvasRoute
   '/clips': typeof ClipsRoute
   '/colors': typeof ColorsRoute
+  '/comfy': typeof ComfyRoute
   '/connect': typeof ConnectRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
@@ -299,6 +314,7 @@ export interface FileRoutesByTo {
   '/tiktok': typeof TiktokRoute
   '/ugc': typeof UgcRoute
   '/workflows': typeof WorkflowsRoute
+  '/admin/comfy': typeof AdminComfyRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
   '/admin/smoke': typeof AdminSmokeRoute
   '/api/mcp': typeof ApiMcpRoute
@@ -323,6 +339,7 @@ export interface FileRoutesById {
   '/canvas': typeof CanvasRoute
   '/clips': typeof ClipsRoute
   '/colors': typeof ColorsRoute
+  '/comfy': typeof ComfyRoute
   '/connect': typeof ConnectRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
@@ -339,6 +356,7 @@ export interface FileRoutesById {
   '/tiktok': typeof TiktokRoute
   '/ugc': typeof UgcRoute
   '/workflows': typeof WorkflowsRoute
+  '/admin/comfy': typeof AdminComfyRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
   '/admin/smoke': typeof AdminSmokeRoute
   '/api/mcp': typeof ApiMcpRoute
@@ -364,6 +382,7 @@ export interface FileRouteTypes {
     | '/canvas'
     | '/clips'
     | '/colors'
+    | '/comfy'
     | '/connect'
     | '/contact'
     | '/dashboard'
@@ -380,6 +399,7 @@ export interface FileRouteTypes {
     | '/tiktok'
     | '/ugc'
     | '/workflows'
+    | '/admin/comfy'
     | '/admin/orchestration'
     | '/admin/smoke'
     | '/api/mcp'
@@ -403,6 +423,7 @@ export interface FileRouteTypes {
     | '/canvas'
     | '/clips'
     | '/colors'
+    | '/comfy'
     | '/connect'
     | '/contact'
     | '/dashboard'
@@ -419,6 +440,7 @@ export interface FileRouteTypes {
     | '/tiktok'
     | '/ugc'
     | '/workflows'
+    | '/admin/comfy'
     | '/admin/orchestration'
     | '/admin/smoke'
     | '/api/mcp'
@@ -442,6 +464,7 @@ export interface FileRouteTypes {
     | '/canvas'
     | '/clips'
     | '/colors'
+    | '/comfy'
     | '/connect'
     | '/contact'
     | '/dashboard'
@@ -458,6 +481,7 @@ export interface FileRouteTypes {
     | '/tiktok'
     | '/ugc'
     | '/workflows'
+    | '/admin/comfy'
     | '/admin/orchestration'
     | '/admin/smoke'
     | '/api/mcp'
@@ -482,6 +506,7 @@ export interface RootRouteChildren {
   CanvasRoute: typeof CanvasRoute
   ClipsRoute: typeof ClipsRoute
   ColorsRoute: typeof ColorsRoute
+  ComfyRoute: typeof ComfyRoute
   ConnectRoute: typeof ConnectRoute
   ContactRoute: typeof ContactRoute
   DashboardRoute: typeof DashboardRoute
@@ -625,6 +650,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConnectRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/comfy': {
+      id: '/comfy'
+      path: '/comfy'
+      fullPath: '/comfy'
+      preLoaderRoute: typeof ComfyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/colors': {
       id: '/colors'
       path: '/colors'
@@ -723,6 +755,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminOrchestrationRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/comfy': {
+      id: '/admin/comfy'
+      path: '/comfy'
+      fullPath: '/admin/comfy'
+      preLoaderRoute: typeof AdminComfyRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/api/public/paystack-webhook': {
       id: '/api/public/paystack-webhook'
       path: '/api/public/paystack-webhook'
@@ -776,11 +815,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminComfyRoute: typeof AdminComfyRoute
   AdminOrchestrationRoute: typeof AdminOrchestrationRoute
   AdminSmokeRoute: typeof AdminSmokeRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminComfyRoute: AdminComfyRoute,
   AdminOrchestrationRoute: AdminOrchestrationRoute,
   AdminSmokeRoute: AdminSmokeRoute,
 }
@@ -796,6 +837,7 @@ const rootRouteChildren: RootRouteChildren = {
   CanvasRoute: CanvasRoute,
   ClipsRoute: ClipsRoute,
   ColorsRoute: ColorsRoute,
+  ComfyRoute: ComfyRoute,
   ConnectRoute: ConnectRoute,
   ContactRoute: ContactRoute,
   DashboardRoute: DashboardRoute,
