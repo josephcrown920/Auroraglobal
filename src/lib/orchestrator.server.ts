@@ -83,6 +83,12 @@ export type GenerateResult = {
   text?: string;
   provider: string;
   endpoint: string;
+  /**
+   * Which class of backend served this request: the owner's self-hosted GPU
+   * worker pool (`self-hosted`) or a paid hosted/external provider (`external`).
+   * Lets the owner confirm the GPU is being used and credits are being saved.
+   */
+  backend: "self-hosted" | "external";
   latencyMs: number;
   costUsd: number;
 };
@@ -1274,19 +1280,27 @@ const gpuWorker: ProviderAdapter = {
 // User preference: avoid Fal — only used as final fallback. HuggingFace is wired
 // for free image generation. Kling direct (JWT) handles video without Replicate.
 // HeyGen handles lipsync as a quality alternative to sync.so.
+//
+// Self-hosted FIRST: for the owner's chosen modalities (stills/images, video and
+// lip-sync) the self-hosted `gpuWorker` pool is tried before any paid external
+// provider, so an online GPU saves credits. When no eligible worker is up (offline,
+// stale heartbeat, at capacity, missing the capability) the adapter throws a
+// "GPU unavailable" signal that orchestrate() treats as a clean skip — the request
+// falls straight through to the external chain below. Other modalities keep their
+// existing order (upscale/motion/text/audio unchanged).
 const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   image: [
+    gpuWorker,
     pollinations,
     geminiDirect,
     huggingface,
     runware,
     replicate,
     lovable,
-    gpuWorker,
     falFallback,
   ],
-  video: [klingDirect, replicate, runway, gpuWorker, falFallback],
-  lipsync: [sync, heygen, replicate, gpuWorker, falFallback],
+  video: [gpuWorker, klingDirect, replicate, runway, falFallback],
+  lipsync: [gpuWorker, sync, heygen, replicate, falFallback],
   upscale: [replicate, gpuWorker, falFallback],
   // Motion transfer (MimicMotion) has no hosted provider — GPU/ComfyUI workers only.
   motion: [gpuWorker],
@@ -1436,6 +1450,15 @@ const FATAL_RE = /url (?:host|scheme) not allowed|invalid url|not your|unsafe/i;
 const PROVIDER_DOWN_RE =
   /\b(429|5\d\d|402)\b|timeout|timed out|econnreset|econnrefused|etimedout|fetch failed|socket hang up|capacity|temporarily unavailable|rate limit/i;
 
+// The self-hosted GPU pool raises these exact messages when it has no eligible
+// worker to serve a request (none online with the capability, or all at capacity /
+// stale heartbeat). They mean "fall back to the external chain" — NOT "the backend
+// failed" — so orchestrate() skips them silently: no error log, no cooldown. This
+// keeps the owner's dashboard from filling with phantom "GPU down" rows whenever
+// their Colab/Kaggle session is simply offline. Genuine GPU dispatch errors
+// (timeouts, bad URLs, HTTP 5xx) do NOT match here and are handled normally.
+const GPU_UNAVAILABLE_RE = /^(No GPU workers available|All GPU workers failed)$/;
+
 export async function orchestrate(rawReq: GenerateRequest): Promise<GenerateResult> {
   // Sign private-studio refs once, up front, so every adapter sees a fetchable URL.
   const req = await signStudioRefs(rawReq);
@@ -1464,6 +1487,10 @@ export async function orchestrate(rawReq: GenerateRequest): Promise<GenerateResu
         const { url, endpoint, text } = await withRetry(() => adapter.run(r), 2);
         const latency = Date.now() - start;
         const cost = adapter.estimateCost(r);
+        // The self-hosted GPU pool is the only adapter that runs on the owner's
+        // own hardware; everything else is a paid hosted/external provider.
+        const backend: GenerateResult["backend"] =
+          adapter === gpuWorker ? "self-hosted" : "external";
         markSuccess(adapter.name);
         await log({
           provider: adapter.name,
@@ -1475,11 +1502,32 @@ export async function orchestrate(rawReq: GenerateRequest): Promise<GenerateResu
           userId: r.userId,
           refId: r.refId,
         });
-        return { url, provider: adapter.name, endpoint, latencyMs: latency, costUsd: cost, text };
+        // Make the served-by backend obvious in the workflow/deploy logs so the
+        // owner can confirm the GPU is being used and external credits are saved.
+        console.info(
+          `[orchestrator] ${r.kind} served by ${
+            backend === "self-hosted"
+              ? `self-hosted GPU (${endpoint})`
+              : `external provider ${adapter.name} (${endpoint})`
+          }`,
+        );
+        return {
+          url,
+          provider: adapter.name,
+          endpoint,
+          backend,
+          latencyMs: latency,
+          costUsd: cost,
+          text,
+        };
       } catch (e) {
         const latency = Date.now() - start;
         const msg = e instanceof Error ? e.message : String(e);
         lastErr = e instanceof Error ? e : new Error(msg);
+        // The self-hosted GPU pool simply having no eligible worker is the normal
+        // cue to fall back, not a provider failure — skip it silently (no error
+        // log, no cooldown) so the dashboard isn't flooded while Colab is offline.
+        if (adapter === gpuWorker && GPU_UNAVAILABLE_RE.test(msg)) continue;
         // Only back a provider off for genuine provider-down/quota signals, so a
         // single bad model never blacklists a healthy provider for other requests.
         if (PROVIDER_DOWN_RE.test(msg)) markFailure(adapter.name);
