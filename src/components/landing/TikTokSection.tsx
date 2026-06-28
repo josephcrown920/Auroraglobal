@@ -10,57 +10,98 @@ import {
   ArrowRight,
   Music2,
 } from "lucide-react";
-// One avatar, many shots — every tile below is the SAME creator identity,
-// freshly AI-generated (still-* via image gen, clip-* via text-to-video).
-import stillNeon from "@/assets/feed/generated/still-neon.png";
-import stillStage from "@/assets/feed/generated/still-stage.png";
-import stillRooftop from "@/assets/feed/generated/still-rooftop.png";
-import stillAlley from "@/assets/feed/generated/still-street.png";
-import clipNeon from "@/assets/feed/generated/clip-neon.mp4";
-import clipStage from "@/assets/feed/generated/clip-stage.mp4";
+// One creator, one face. Every tile below is the SAME identity — "Josh" —
+// freshly AI-generated (still-* via image gen, clip-* via image-to-video).
+import stillNeon from "@/assets/josh/generated/still-01-neon-closeup.jpg";
+import stillStage from "@/assets/josh/generated/still-03-stage-mic.jpg";
+import stillCoffee from "@/assets/josh/generated/still-09-walk-coffee.jpg";
+import stillCourt from "@/assets/josh/generated/still-13-court-ball.jpg";
+import stillFit from "@/assets/josh/generated/still-15-fitcheck-mirror.jpg";
+import stillRooftop from "@/assets/josh/generated/still-17-rooftop-day.jpg";
+import stillBoardwalk from "@/assets/josh/generated/still-18-boardwalk.jpg";
+import stillPark from "@/assets/josh/generated/still-16-park-bench.jpg";
+import clipNeon from "@/assets/josh/generated/clip-01-neon-closeup.mp4";
+import clipStage from "@/assets/josh/generated/clip-03-stage-mic.mp4";
+
+const HANDLE = "@josh.aurora";
 
 const STATS = [
   { label: "Views generated", value: "120M+", icon: <Eye className="size-4" /> },
-  { label: "Creator posts", value: "8,400+", icon: <Play className="size-4" /> },
+  { label: "Posts this month", value: "240+", icon: <Play className="size-4" /> },
   { label: "Avg. engagement", value: "14.7%", icon: <Heart className="size-4" /> },
   { label: "#AuroraStudio", value: "Trending", icon: <TrendingUp className="size-4" /> },
 ];
 
 type Clip =
-  | { handle: string; caption: string; likes: string; type: "video"; src: string; poster: string }
-  | { handle: string; caption: string; likes: string; type: "image"; src: string };
+  | {
+      caption: string;
+      likes: string;
+      comments: string;
+      type: "video";
+      src: string;
+      poster: string;
+    }
+  | { caption: string; likes: string; comments: string; type: "image"; src: string };
 
-// All @maya.aurora — one creator, one identity, four different shots.
+// All one creator — @josh.aurora — one identity, eight different shots.
 const CLIPS: Clip[] = [
   {
-    handle: "@maya.aurora",
-    caption: "POV: my first single just dropped 🌌",
+    caption: "POV: the single is finally out 🌌",
     likes: "412K",
+    comments: "3.1K",
     type: "video",
     src: clipNeon,
     poster: stillNeon,
   },
   {
-    handle: "@maya.aurora",
-    caption: "First night headlining the stage 🎤",
+    caption: "first time headlining 🎤 still shaking",
     likes: "1.2M",
+    comments: "9.4K",
     type: "video",
     src: clipStage,
     poster: stillStage,
   },
   {
-    handle: "@maya.aurora",
-    caption: "Rooftop golden hour, no filter needed",
+    caption: "coffee run before the studio ☕",
     likes: "289K",
+    comments: "1.8K",
+    type: "image",
+    src: stillCoffee,
+  },
+  {
+    caption: "hoop sessions > everything 🏀",
+    likes: "458K",
+    comments: "2.6K",
+    type: "image",
+    src: stillCourt,
+  },
+  {
+    caption: "fit check — rate it 1–10 👟",
+    likes: "612K",
+    comments: "4.2K",
+    type: "image",
+    src: stillFit,
+  },
+  {
+    caption: "city views, clear head 🏙️",
+    likes: "204K",
+    comments: "1.1K",
     type: "image",
     src: stillRooftop,
   },
   {
-    handle: "@maya.aurora",
-    caption: "Caught this one by the mural downtown",
-    likes: "658K",
+    caption: "beach day reset 🌊",
+    likes: "338K",
+    comments: "1.9K",
     type: "image",
-    src: stillAlley,
+    src: stillBoardwalk,
+  },
+  {
+    caption: "slow mornings hit different 🍂",
+    likes: "177K",
+    comments: "980",
+    type: "image",
+    src: stillPark,
   },
 ];
 
@@ -82,7 +123,7 @@ export function TikTokSection() {
                 <Flame className="size-3.5" /> On TikTok
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-white/70">
-                <Music2 className="size-3.5" /> @aurorastudio
+                <Music2 className="size-3.5" /> {HANDLE}
               </span>
             </div>
             <h2 className="mt-5 text-4xl font-extrabold tracking-tight text-white md:text-6xl">
@@ -92,20 +133,19 @@ export function TikTokSection() {
               </span>
             </h2>
             <p className="mt-4 text-base leading-7 text-white/72 md:text-lg">
-              Creators are flooding TikTok with Aurora-made cuts, color-grades and lip-syncs. Follow
-              along, grab the sounds, remix the templates.
+              One creator. One face. Every post on {HANDLE} is made with Aurora — no shoots, no
+              crew, just prompts. Same Josh, new scene, every single day.
             </p>
           </div>
 
           <a
-            href="https://www.tiktok.com/@aurorastudio"
+            href="https://www.tiktok.com/@josh.aurora"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 self-start rounded-full bg-white px-5 py-3 text-sm font-bold text-black no-underline shadow-lg shadow-white/10 hover:bg-white/90"
+            className="inline-flex items-center gap-2 self-start rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white no-underline hover:bg-white/10"
           >
             <TikTokGlyph className="size-4" />
-            Follow on TikTok
-            <ArrowRight className="size-4" />
+            Follow {HANDLE}
           </a>
         </div>
 
@@ -127,7 +167,7 @@ export function TikTokSection() {
           ))}
         </div>
 
-        {/* Phone-mock clips */}
+        {/* Phone-mock clips — single-creator For You feed */}
         <div className="mt-10 grid grid-cols-2 lg:grid-cols-4 gap-4">
           {CLIPS.map((c) => (
             <div
@@ -167,12 +207,12 @@ export function TikTokSection() {
 
               <div className="absolute right-2 bottom-16 flex flex-col items-center gap-3 text-white">
                 <Stat icon={<Heart className="size-4 fill-white" />} label={c.likes} />
-                <Stat icon={<MessageCircle className="size-4" />} label="2.4K" />
+                <Stat icon={<MessageCircle className="size-4" />} label={c.comments} />
                 <Stat icon={<Share2 className="size-4" />} label="Share" />
               </div>
 
               <div className="absolute inset-x-0 bottom-0 p-3">
-                <p className="text-xs font-bold text-white">{c.handle}</p>
+                <p className="text-xs font-bold text-white">{HANDLE}</p>
                 <p className="mt-0.5 text-[11px] text-white/85 line-clamp-2">{c.caption}</p>
                 <p className="mt-1 flex items-center gap-1 text-[10px] text-white/70">
                   <Music2 className="size-3" /> original sound — Aurora
@@ -182,21 +222,14 @@ export function TikTokSection() {
           ))}
         </div>
 
-        <div className="mt-10 flex flex-wrap items-center gap-3">
+        {/* One primary CTA */}
+        <div className="mt-10">
           <Link
             to="/tiktok"
             className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#25F4EE] to-[#FE2C55] px-6 py-3 text-sm font-bold text-white no-underline shadow-lg shadow-fuchsia-500/30 hover:opacity-95"
           >
-            Remix one video into 30 cuts <ArrowRight className="size-4" />
+            Remix one video into a week of posts <ArrowRight className="size-4" />
           </Link>
-          <a
-            href="https://www.tiktok.com/tag/aurorastudio"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-white no-underline hover:bg-white/10"
-          >
-            #AuroraStudio on TikTok
-          </a>
         </div>
       </div>
     </section>
