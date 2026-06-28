@@ -56,7 +56,7 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-[480px] bg-[oklch(0.09_0.03_290/0.97)] backdrop-blur-xl border-l border-white/10 shadow-2xl flex flex-col animate-slide-in-right">
+    <div className="phone-panel-col fixed inset-y-0 z-50 bg-[oklch(0.09_0.03_290/0.97)] backdrop-blur-xl border-l border-white/10 shadow-2xl flex flex-col animate-slide-in-right">
       <header className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="size-8 rounded-lg flex items-center justify-center bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg shadow-violet-500/40">

@@ -100,7 +100,7 @@ export function MobileNav() {
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-label="Open navigation menu"
-          className="fixed left-3 top-3 z-[60] flex items-center gap-1.5 rounded-full border border-border bg-background/90 px-3 py-2 text-xs font-medium text-foreground shadow-md backdrop-blur md:hidden"
+          className="phone-edge-left fixed top-3 z-[60] flex items-center gap-1.5 rounded-full border border-border bg-background/90 px-3 py-2 text-xs font-medium text-foreground shadow-md backdrop-blur"
         >
           <Menu className="size-4" />
           Menu
@@ -110,12 +110,11 @@ export function MobileNav() {
           {/* In-flow spacer so the fixed bar never covers the last bit of content. */}
           <div
             aria-hidden
-            className="md:hidden"
             style={{ height: "calc(4rem + env(safe-area-inset-bottom))" }}
           />
           <nav
             aria-label="Primary"
-            className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden"
+            className="phone-fixed-x fixed bottom-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
             style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           >
             <ul className="grid grid-cols-5">
@@ -163,7 +162,7 @@ export function MobileNav() {
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
-          className="flex w-[18rem] flex-col gap-0 p-0 md:hidden"
+          className="phone-drawer-left flex flex-col gap-0 p-0"
         >
           <SheetHeader className="border-b border-border p-4 text-left">
             <SheetTitle className="flex items-center gap-2">

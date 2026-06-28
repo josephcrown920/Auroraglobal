@@ -87,7 +87,7 @@ export function LiveJobsPanel() {
   const active = jobs.filter((j) => j.status === "pending" || j.status === "running" || j.status === "queued").length;
 
   return (
-    <div className="fixed bottom-20 md:bottom-4 right-4 z-40 w-[300px] max-w-[calc(100vw-2rem)]">
+    <div className="phone-edge-right fixed bottom-20 z-40 w-[300px] max-w-[calc(100vw-2rem)]">
       <button
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center justify-between px-3 py-2 rounded-t-xl bg-violet-600/90 hover:bg-violet-500 text-white text-xs font-medium shadow-lg shadow-violet-900/40 backdrop-blur"

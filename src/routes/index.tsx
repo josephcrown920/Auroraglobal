@@ -139,7 +139,7 @@ function Index() {
 
       {/* Sticky header */}
       <header
-        className={`fixed top-0 inset-x-0 z-40 transition-all duration-300 ${
+        className={`phone-fixed-x fixed top-0 z-40 transition-all duration-300 ${
           scrolled ? "bg-[#070612]/85 backdrop-blur-xl border-b border-white/10" : "bg-transparent"
         }`}
       >

@@ -91,7 +91,7 @@ export function AuroraChatbot() {
         type="button"
         aria-label={open ? "Close chat" : "Open chat with Aurora Concierge"}
         onClick={() => setOpen((o) => !o)}
-        className="fixed bottom-[calc(5rem_+_env(safe-area-inset-bottom))] right-5 z-50 size-14 rounded-full flex items-center justify-center text-white shadow-2xl shadow-violet-900/50 bg-gradient-to-br from-violet-500 to-fuchsia-500 hover:scale-105 transition-transform md:bottom-5"
+        className="phone-edge-right fixed bottom-[calc(5rem_+_env(safe-area-inset-bottom))] z-50 size-14 rounded-full flex items-center justify-center text-white shadow-2xl shadow-violet-900/50 bg-gradient-to-br from-violet-500 to-fuchsia-500 hover:scale-105 transition-transform"
       >
         {open ? <X className="size-6" /> : <MessageCircle className="size-6" />}
         {!open && (
@@ -101,7 +101,7 @@ export function AuroraChatbot() {
 
       {/* Panel */}
       {open && (
-        <div className="fixed bottom-24 right-5 z-50 w-[min(92vw,380px)] h-[min(72vh,560px)] rounded-3xl border border-white/10 bg-[#0c0a1c]/95 backdrop-blur-2xl shadow-2xl shadow-violet-950/60 flex flex-col overflow-hidden animate-fade-in">
+        <div className="phone-edge-right fixed bottom-24 z-50 w-[min(92vw,380px)] h-[min(72vh,560px)] rounded-3xl border border-white/10 bg-[#0c0a1c]/95 backdrop-blur-2xl shadow-2xl shadow-violet-950/60 flex flex-col overflow-hidden animate-fade-in">
           <header className="px-4 py-3 border-b border-white/10 flex items-center gap-3">
             <span className="size-9 rounded-xl flex items-center justify-center bg-gradient-to-br from-violet-500 to-fuchsia-500">
               <Sparkles className="size-4 text-white" />
