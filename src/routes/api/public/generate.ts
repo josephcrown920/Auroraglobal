@@ -6,6 +6,7 @@ import { z } from "zod";
 import { type GenerateKind } from "@/lib/orchestrator.server";
 import { reserveOrchestrateRecord } from "@/lib/generate-core.server";
 import { assertTrustedUrl } from "@/lib/url-guard";
+import { detectFeatures, computeCost, type Feature } from "@/lib/pricing";
 
 const Schema = z.object({
   kind: z.enum(["image", "video", "lipsync", "upscale", "text", "audio"]),
@@ -37,28 +38,11 @@ const Schema = z.object({
   params: z.record(z.unknown()).optional(),
   comfyWorkflow: z.unknown().optional(),
   comfyInputs: z.record(z.unknown()).optional(),
+  // Stacked-pricing override: force the exact set of billable features.
+  features: z
+    .array(z.enum(["image", "upscale", "text", "audio", "lipsync", "motion", "video"]))
+    .optional(),
 });
-
-function creditCost(kind: GenerateKind): number {
-  switch (kind) {
-    case "image":
-      return 1;
-    case "upscale":
-      return 1;
-    case "lipsync":
-      return 3;
-    case "video":
-      return 5;
-    case "text":
-      return 1;
-    case "audio":
-      return 2;
-    case "motion":
-      // Motion runs async on the job queue, never on this synchronous endpoint
-      // (it is excluded from the request Schema). Present for type exhaustiveness.
-      return 5;
-  }
-}
 
 async function authUserId(req: Request): Promise<string | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -163,9 +147,24 @@ export const Route = createFileRoute("/api/public/generate")({
           if (data.audioUrl) assertTrustedUrl(data.audioUrl);
           if (data.videoUrl) assertTrustedUrl(data.videoUrl);
 
+          // Detect the billable features (deterministic, off explicit inputs) and
+          // price the stack via the shared module so the charge matches any preview.
+          const { features } = detectFeatures({
+            kind: data.kind as Feature,
+            audioUrl: data.audioUrl,
+            videoUrl: data.videoUrl,
+            cameraMovement: data.motion,
+            features: data.features,
+          });
+          const quote = computeCost({
+            features,
+            resolution: data.resolution,
+            durationSeconds: data.duration,
+          });
+
           // Reserve credits → orchestrate → record → commit (shared core; also
           // used by the Aurora Agent per-shot renderer so the credit flow never drifts).
-          const cost = creditCost(data.kind as GenerateKind);
+          const cost = quote.total;
           const outcome = await reserveOrchestrateRecord({
             userId,
             kind: data.kind as GenerateKind,
@@ -198,6 +197,8 @@ export const Route = createFileRoute("/api/public/generate")({
               endpoint: outcome.endpoint,
               latencyMs: outcome.latencyMs,
               estimatedCostUsd: outcome.costUsd,
+              creditsCost: cost,
+              costBreakdown: quote.breakdown,
             }),
             { status: 200, headers: cors },
           );
