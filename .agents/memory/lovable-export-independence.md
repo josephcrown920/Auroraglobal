@@ -100,3 +100,15 @@ Replicate's rates, not fal's.
 - image `google/nano-banana` ≈ $0.04; lipsync `sync/sync-1.6.0` billed by GPU time (~$0.1–0.3/short clip).
 **Why:** an earlier cost estimate in this project quoted fal's Seedance prices (~$0.18/720p), which is
 wrong for this app — it bills Replicate. For cheap testing/default, prefer `seedance-2.0-fast`.
+
+## Live-gen operational quirks (running gen-josh / batch renders from the sandbox)
+
+- **Seedance input minimums (observed via real 422s):** Replicate Seedance rejected `duration: 3`
+  with HTTP 422; `duration: 4` plus an explicit small `resolution` (e.g. `"480p"`) succeeded. Treat
+  4s/480p as the safe floor for smoke renders — don't omit resolution or go below 4s.
+- **Don't background gen jobs.** Detached jobs (`setsid`/`nohup`) get reaped unreliably here, so
+  long renders started in the background silently vanish. Run live gen in the FOREGROUND; a single
+  ~120s bash wall ≈ one ~5s Seedance clip, so plan batches as sequential foreground runs, not fan-out.
+- **Budget the run before starting.** Video costs real Replicate credit and a funded key can flip to
+  402 mid-batch (key valid, account drained). Order shots by priority and accept a partial set —
+  wire only the clips that actually rendered (never placeholders) and leave the rest as a swap-in.

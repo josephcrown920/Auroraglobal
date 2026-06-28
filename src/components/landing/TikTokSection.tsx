@@ -1,15 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import { Flame, Play, TrendingUp, Heart, MessageCircle, Share2, Eye, ArrowRight, Music2 } from "lucide-react";
-import joshPerf from "@/assets/josh-performance-still-v1.jpg";
-import showcase2 from "@/assets/showcase-2.jpg";
-import ugc3 from "@/assets/ugc-avatar-3.jpg";
-import colorsNeon from "@/assets/colors-studio-neonbath.jpg";
-
-// Hosted real renders — URLs come from public/videos/*.asset.json
-const VID_LIP_PERFORMANCE = "/__l5e/assets-v1/f99bf1e3-686c-4b7f-80b3-cd49af93e510/lipsync-performance.mp4";
-const VID_LIP_DEMO = "/__l5e/assets-v1/7ed0c81b-e8c4-4b2d-bd9f-6c7d5d47a8a9/lipsync-demo.mp4";
-const VID_LIP_USER = "/__l5e/assets-v1/92a40de3-9f88-479f-8049-86e91cac06ce/lipsync-user-demo.mp4";
-const VID_SPLIT = "/__l5e/assets-v1/82946f74-8322-4f16-ab37-164aec7fecfb/split-reality-demo.mp4";
+// One avatar, many shots — every tile below is the SAME "Josh" identity, live-
+// generated from one reference (still-* via nano-banana, clip-* via seedance i2v).
+import stillNeon from "@/assets/josh/generated/still-01-neon-closeup.jpg";
+import stillStage from "@/assets/josh/generated/still-03-stage-mic.jpg";
+import stillRooftop from "@/assets/josh/generated/still-06-rooftop-sunset.jpg";
+import stillAlley from "@/assets/josh/generated/still-08-alley-mural.jpg";
+import clipNeon from "@/assets/josh/generated/clip-01-neon-closeup.mp4";
+import clipStage from "@/assets/josh/generated/clip-03-stage-mic.mp4";
 
 const STATS = [
   { label: "Views generated", value: "120M+", icon: <Eye className="size-4" /> },
@@ -18,11 +16,16 @@ const STATS = [
   { label: "#AuroraStudio", value: "Trending", icon: <TrendingUp className="size-4" /> },
 ];
 
-const CLIPS = [
-  { handle: "@joshmadethis", caption: "POV: my first single just dropped 🌌", likes: "412K", video: VID_LIP_PERFORMANCE, poster: joshPerf },
-  { handle: "@neonkidd", caption: "He thought it was just a photoshoot…", likes: "1.2M", video: VID_LIP_DEMO, poster: showcase2 },
-  { handle: "@ayagrade", caption: "Made this in 30s with Aurora 🤯", likes: "289K", video: VID_LIP_USER, poster: ugc3 },
-  { handle: "@studiokyo", caption: "Trying the viral neon-cyc trend", likes: "658K", video: VID_SPLIT, poster: colorsNeon },
+type Clip =
+  | { handle: string; caption: string; likes: string; type: "video"; src: string; poster: string }
+  | { handle: string; caption: string; likes: string; type: "image"; src: string };
+
+// All @joshmadethis — one creator, one identity, four different shots.
+const CLIPS: Clip[] = [
+  { handle: "@joshmadethis", caption: "POV: my first single just dropped 🌌", likes: "412K", type: "video", src: clipNeon, poster: stillNeon },
+  { handle: "@joshmadethis", caption: "First night headlining the stage 🎤", likes: "1.2M", type: "video", src: clipStage, poster: stillStage },
+  { handle: "@joshmadethis", caption: "Rooftop golden hour, no filter needed", likes: "289K", type: "image", src: stillRooftop },
+  { handle: "@joshmadethis", caption: "Caught this one by the mural downtown", likes: "658K", type: "image", src: stillAlley },
 ];
 
 export function TikTokSection() {
@@ -87,19 +90,28 @@ export function TikTokSection() {
         <div className="mt-10 grid grid-cols-2 lg:grid-cols-4 gap-4">
           {CLIPS.map((c) => (
             <div
-              key={c.handle}
+              key={c.caption}
               className="group relative aspect-[9/16] overflow-hidden rounded-2xl border border-white/10 bg-black"
             >
-              <video
-                src={c.video}
-                poster={c.poster}
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="metadata"
-                className="absolute inset-0 size-full object-cover"
-              />
+              {c.type === "video" ? (
+                <video
+                  src={c.src}
+                  poster={c.poster}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  preload="metadata"
+                  className="absolute inset-0 size-full object-cover"
+                />
+              ) : (
+                <img
+                  src={c.src}
+                  alt={c.caption}
+                  loading="lazy"
+                  className="absolute inset-0 size-full object-cover"
+                />
+              )}
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.20),transparent_60%)]" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
 
