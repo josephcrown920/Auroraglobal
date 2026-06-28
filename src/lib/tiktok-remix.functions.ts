@@ -10,7 +10,9 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertTrustedUrl } from "./url-guard";
 
-const StartInput = z.object({
+// Exported for unit tests: the server-side cut cap (count.max(10)) is the real
+// safeguard against a client bypassing the UI slider and over-reserving Aura.
+export const StartInput = z.object({
   sourceVideoUrl: z.string().url(),
   sourceImageUrl: z.string().url().optional(),
   count: z.number().int().min(1).max(10).default(10),
