@@ -6,6 +6,7 @@
 - [Lovable overlapping snapshot migrations](lovable-overlapping-snapshot-migrations.md) — Lovable exports interleave multiple full-rebuild snapshots → linear `supabase db push` collides; baseline everything before the LAST snapshot as applied, then push snapshot+deltas.
 - [Supabase sandbox DB access](supabase-sandbox-db-connection.md) — direct host is IPv6-only (no sandbox egress) & SUPABASE_DB_URL is garbage; use the session pooler. Live ref tpzmvbczwahxajujvnrq.
 - [gpu_workers.auth_token protection](gpu-workers-auth-token.md) — column REVOKE is a no-op vs table GRANT; real safeguard is service-role-only access + strip token from listWorkers (has_auth_token bool).
+- [Supabase RLS privileged columns](supabase-rls-privileged-columns.md) — tables granting authenticated direct writes need privileged flags (is_public/created_by_admin) in the with-check; server fns are service-role & bypass RLS.
 - [Test setup (Bun runner)](test-setup.md) — `bun test src/` runs `*.test.ts`; they're excluded from tsconfig (no `bun:test` types); eslint is not type-aware; export privates to test them.
 - [Bun mock.module is process-global](bun-mock-module-leakage.md) — never mock.module a module other suites import real; it leaks the stub across files (order-dependent); dependency-inject instead.
 - [Cron endpoints pattern](cron-endpoints.md) — scheduled work = protected `/api/public/*` route authed via anon-key `apikey` header (NOT CRON_SECRET); scheduling is external (no pg_cron in dev/migrations).

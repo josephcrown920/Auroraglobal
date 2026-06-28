@@ -27,6 +27,7 @@ import {
   generateSplitReality,
 } from "@/lib/studio.functions";
 import { listWorkflows, saveWorkflow, getWorkflow } from "@/lib/workflows.functions";
+import { listComfyTemplates, startComfyRun } from "@/lib/comfy.functions";
 import { MODEL_LIST, VIDEO_MODEL_LIST, getModelMeta } from "@/lib/models";
 import {
   Sparkles,
@@ -43,6 +44,7 @@ import {
   Mic,
   Music,
   SplitSquareHorizontal,
+  Boxes,
   Undo2,
   Redo2,
   RotateCcw,
@@ -80,9 +82,11 @@ export const Route = createFileRoute("/canvas")({
   }),
 });
 
-type NodeKind = "input" | "audio" | "image" | "video" | "lipsync" | "split";
+type NodeKind = "input" | "audio" | "image" | "video" | "lipsync" | "split" | "comfy";
 type NodeData = {
   kind: NodeKind;
+  comfyWorkflowId?: string;
+  outputKind?: "image" | "video";
   url?: string;
   altUrl?: string; // secondary output (e.g. split-reality cinematic still)
   videoUrl?: string; // animated version of `url` for split-reality playback
@@ -144,6 +148,55 @@ type Handlers = {
 };
 const HandlersCtx = createContext<Handlers | null>(null);
 
+type ComfyTemplate = {
+  id: string;
+  name: string;
+  kind: "image" | "video";
+  declared_inputs: { key: string; label: string; type: string }[];
+};
+const ComfyCtx = createContext<ComfyTemplate[]>([]);
+
+function ComfyNodeControls({ id, data }: { id: string; data: NodeData }) {
+  const h = useContext(HandlersCtx)!;
+  const templates = useContext(ComfyCtx);
+  const tpl = templates.find((t) => t.id === data.comfyWorkflowId);
+  const hasText = (tpl?.declared_inputs ?? []).some((d) => d.type === "text");
+  return (
+    <>
+      <Select value={data.comfyWorkflowId ?? ""} onValueChange={(v) => h.update(id, { comfyWorkflowId: v })}>
+        <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10">
+          <SelectValue placeholder="Pick a workflow" />
+        </SelectTrigger>
+        <SelectContent>
+          {templates.length === 0 && (
+            <div className="px-2 py-1.5 text-xs text-muted-foreground">No workflows — add on /comfy</div>
+          )}
+          {templates.map((t) => (
+            <SelectItem key={t.id} value={t.id} className="text-xs">
+              {t.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {hasText && (
+        <Textarea
+          rows={2}
+          value={data.prompt ?? ""}
+          onChange={(e) => h.update(id, { prompt: e.target.value })}
+          placeholder="prompt → first text input"
+          className="text-xs resize-none nodrag bg-black/30 border-white/10"
+          onMouseDownCapture={(e) => e.stopPropagation()}
+        />
+      )}
+      <p className="text-[10px] text-muted-foreground">
+        {tpl
+          ? `${tpl.kind} · binds upstream image(s) into the graph's image inputs`
+          : "Runs a saved ComfyUI graph on your GPU worker."}
+      </p>
+    </>
+  );
+}
+
 const CAMERA_OPTIONS = [
   ["static", "Static"],
   ["push_in", "Push in"],
@@ -165,6 +218,7 @@ const KIND_META: Record<NodeKind, { label: string; Icon: typeof ImageIcon; accen
   video: { label: "video gen", Icon: Film, accent: "from-purple-400 to-indigo-500" },
   lipsync: { label: "lip sync", Icon: Mic, accent: "from-rose-400 to-pink-500" },
   split: { label: "split reality", Icon: SplitSquareHorizontal, accent: "from-amber-400 to-orange-500" },
+  comfy: { label: "comfyui", Icon: Boxes, accent: "from-sky-400 to-cyan-500" },
 };
 
 function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
@@ -229,7 +283,7 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
             onAnimateBoth={() => h.animateSplit(id)}
           />
         ) : data.url ? (
-          data.kind === "video" || data.kind === "lipsync" ? (
+          data.kind === "video" || data.kind === "lipsync" || (data.kind === "comfy" && data.outputKind === "video") ? (
             <video src={data.url} className="w-full aspect-square object-cover" muted playsInline controls />
           ) : data.kind === "audio" ? (
             <div className="p-3 bg-black/30">
@@ -365,6 +419,7 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
               </p>
             </>
           )}
+          {data.kind === "comfy" && <ComfyNodeControls id={id} data={data} />}
         </div>
       </div>
     </div>
@@ -380,11 +435,12 @@ function estimateSeconds(kind: NodeKind): number {
     case "video": return 75;
     case "lipsync": return 90;
     case "split": return 50;
+    case "comfy": return 60;
     default: return 5;
   }
 }
 function ProgressPanel({ nodes, edges, running }: { nodes: Node<NodeData>[]; edges: Edge[]; running: boolean }) {
-  const steps = nodes.filter((n) => ["image", "video", "lipsync", "split"].includes(n.data.kind));
+  const steps = nodes.filter((n) => ["image", "video", "lipsync", "split", "comfy"].includes(n.data.kind));
   if (steps.length === 0) return null;
   const done = steps.filter((n) => n.data.status === "done").length;
   const active = steps.find((n) => n.data.status === "running");
@@ -442,12 +498,15 @@ function ExportShareDock({ nodes, edges }: { nodes: Node<NodeData>[]; edges: Edg
     (n) => !outgoing.has(n.id)
       && n.data.status === "done"
       && (n.data.url || n.data.altUrl)
-      && ["image", "video", "lipsync", "split"].includes(n.data.kind),
+      && ["image", "video", "lipsync", "split", "comfy"].includes(n.data.kind),
   );
   if (terminals.length === 0) return null;
   const final = terminals[terminals.length - 1];
   const url = final.data.url || final.data.altUrl!;
-  const isVideo = final.data.kind === "video" || final.data.kind === "lipsync";
+  const isVideo =
+    final.data.kind === "video" ||
+    final.data.kind === "lipsync" ||
+    (final.data.kind === "comfy" && final.data.outputKind === "video");
 
   const download = async () => {
     try {
@@ -599,6 +658,14 @@ function CanvasPage() {
   const vidFn = useServerFn(generateVideoFromImage);
   const lipFn = useServerFn(lipSyncVideo);
   const splitFn = useServerFn(generateSplitReality);
+  const comfyRunFn = useServerFn(startComfyRun);
+  const comfyListFn = useServerFn(listComfyTemplates);
+  const comfyTplQuery = useQuery({
+    queryKey: ["comfy-templates-canvas"],
+    enabled: !!user,
+    queryFn: () => comfyListFn({}),
+  });
+  const comfyTemplates = (comfyTplQuery.data?.templates ?? []) as unknown as ComfyTemplate[];
 
   const update = useCallback((id: string, patch: Partial<NodeData>) => {
     setNodes((ns) => ns.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...patch } } : n)));
@@ -738,6 +805,29 @@ function CanvasPage() {
             } });
             resolved.set(id, { url: res.videoUrl, kind: "lipsync" });
             update(id, { status: "done", url: res.videoUrl });
+          } else if (n.data.kind === "comfy") {
+            const tplId = n.data.comfyWorkflowId;
+            if (!tplId) throw new Error("Pick a ComfyUI workflow for this node");
+            const tpl = comfyTemplates.find((t) => t.id === tplId);
+            if (!tpl) throw new Error("This ComfyUI workflow is still loading or unavailable — try again in a moment");
+            const declared = tpl.declared_inputs ?? [];
+            const values: Record<string, unknown> = {};
+            const textKey = declared.find((d) => d.type === "text")?.key;
+            if (textKey && n.data.prompt) values[textKey] = n.data.prompt;
+            const imageKeys = declared.filter((d) => d.type === "image").map((d) => d.key);
+            imageKeys.forEach((k, i) => { if (images[i]) values[k] = images[i]; });
+            const res = await comfyRunFn({ data: { workflowId: tplId, values, source: "canvas" } });
+            if (!res.ok) throw new Error(res.error ?? "ComfyUI run failed");
+            // Trust the server's classified output kind; fall back to the template's
+            // declared kind when the URL couldn't be classified (outputKind "unknown").
+            const okind: "image" | "video" =
+              res.outputKind === "video" || res.outputKind === "image"
+                ? res.outputKind
+                : tpl.kind === "video"
+                  ? "video"
+                  : "image";
+            resolved.set(id, { url: res.url as string, kind: okind as NodeKind });
+            update(id, { status: "done", url: res.url, outputKind: okind });
           } else {
             // passthrough
             if (upstream[0]) resolved.set(id, upstream[0]);
@@ -854,6 +944,7 @@ function CanvasPage() {
           <Button size="sm" variant="outline" onClick={() => addNode("video")} className="border-white/10 bg-white/5"><Film className="size-3.5 mr-1" /> Video</Button>
           <Button size="sm" variant="outline" onClick={() => addNode("lipsync")} className="border-white/10 bg-white/5"><Mic className="size-3.5 mr-1" /> Lip sync</Button>
           <Button size="sm" variant="outline" onClick={() => addNode("split")} className="border-white/10 bg-white/5"><SplitSquareHorizontal className="size-3.5 mr-1" /> Split</Button>
+          <Button size="sm" variant="outline" onClick={() => addNode("comfy")} className="border-white/10 bg-white/5"><Boxes className="size-3.5 mr-1" /> ComfyUI</Button>
           <Dialog open={loadOpen} onOpenChange={setLoadOpen}>
             <DialogTrigger asChild>
               <Button size="sm" variant="outline" className="border-white/10 bg-white/5"><FolderOpen className="size-3.5 mr-1" /> Load</Button>
@@ -895,6 +986,7 @@ function CanvasPage() {
         </div>
       </header>
       <div className="flex-1 relative z-0">
+        <ComfyCtx.Provider value={comfyTemplates}>
         <HandlersCtx.Provider value={handlers}>
           <ReactFlow
             nodes={nodes}
@@ -912,6 +1004,7 @@ function CanvasPage() {
             <Controls className="!bg-[oklch(0.13_0.04_290/0.8)] !border-white/10 [&>button]:!bg-transparent [&>button]:!border-white/10 [&>button]:!text-foreground" />
           </ReactFlow>
         </HandlersCtx.Provider>
+        </ComfyCtx.Provider>
         {/* Quick-start coach mark — appears after loading a template */}
         {coachTplName && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 max-w-xl w-[calc(100%-1.5rem)] rounded-xl border border-primary/30 bg-[oklch(0.15_0.05_290/0.95)] backdrop-blur-xl shadow-[0_0_30px_oklch(0.78_0.18_305/0.4)] p-3 animate-fade-in">
@@ -948,6 +1041,7 @@ function CanvasPage() {
           <button onClick={() => addNode("video")} className="size-9 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Video"><Film className="size-4" /></button>
           <button onClick={() => addNode("lipsync")} className="size-9 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Lip sync"><Mic className="size-4" /></button>
           <button onClick={() => addNode("split")} className="size-9 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Split"><SplitSquareHorizontal className="size-4" /></button>
+          <button onClick={() => addNode("comfy")} className="size-9 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="ComfyUI"><Boxes className="size-4" /></button>
           <button onClick={() => runMut.mutate()} disabled={runMut.isPending} className="ml-1 h-9 px-4 rounded-full text-primary-foreground text-sm font-medium inline-flex items-center gap-1.5 shadow-[0_0_24px_oklch(0.78_0.18_305/0.8)] disabled:opacity-60" style={{ background: "var(--gradient-hero)" }}>
             {runMut.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />} Run
           </button>
