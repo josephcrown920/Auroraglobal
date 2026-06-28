@@ -19,6 +19,19 @@ const COLORS_PRESET_PROMPT =
 const LIPSYNC_PRESET_IMG_PROMPT =
   "Cinematic concert performance shot of the subject mid-vocal, mouth slightly open, vintage SM7B mic on boom in foreground, deep magenta + violet stage haze, anamorphic flares, shallow depth of field, sweat-glow on skin, 35mm.";
 
+// "One avatar, many shots" — every shot fans out from the SAME reference and is
+// locked to that identity, so one face renders into a whole consistent set.
+const IDENTITY_LOCK =
+  "the exact same person from the uploaded reference photo — preserve their precise face, skin tone, hair and identity with no drift. ";
+const SHOT_NEON =
+  IDENTITY_LOCK + "Tight vertical 9:16 close-up portrait under glowing magenta and cyan neon studio lighting, looking straight into camera, shallow depth of field, photorealistic.";
+const SHOT_STAGE =
+  IDENTITY_LOCK + "Performing on a concert stage holding a microphone, dramatic spotlights and atmospheric haze, crowd silhouettes in front, vertical 9:16, photorealistic.";
+const SHOT_ROOFTOP =
+  IDENTITY_LOCK + "Standing on a city rooftop at sunset, skyline behind, slight wind in the hair, cinematic warm light, vertical 9:16, photorealistic.";
+const SHOT_ALLEY =
+  IDENTITY_LOCK + "Leaning against a colorful graffiti mural in an urban alley, overcast daylight, street fashion, vertical 9:16, photorealistic.";
+
 type TemplateDef = {
   id: string;
   name: string;
@@ -30,6 +43,30 @@ type TemplateDef = {
 };
 
 const TEMPLATES: TemplateDef[] = [
+  {
+    id: "avatar-many-shots",
+    name: "Avatar · One Face, Many Shots",
+    desc: "Drop ONE selfie → fan it out into a consistent set: 4 identity-locked shots + 2 animated clips. The 'one avatar, many shots' pipeline.",
+    icon: Camera,
+    tags: ["Selfie", "Image", "Video", "Preset"],
+    category: "Portrait & Colors",
+    build: () => ({
+      name: "Avatar · One Face, Many Shots",
+      nodes: [
+        mk("in", "input", 40, 360),
+        mk("neon", "image", 380, 40, { prompt: SHOT_NEON, model: "google/gemini-3-pro-image-preview" }),
+        mk("stage", "image", 380, 260, { prompt: SHOT_STAGE, model: "google/gemini-3-pro-image-preview" }),
+        mk("roof", "image", 380, 480, { prompt: SHOT_ROOFTOP, model: "google/gemini-3-pro-image-preview" }),
+        mk("alley", "image", 380, 700, { prompt: SHOT_ALLEY, model: "google/gemini-3-pro-image-preview" }),
+        mk("neonVid", "video", 760, 40, { prompt: "subtle natural head movement and a slow blink, neon lights softly flickering, gentle camera push-in", model: "seedance-2.0-fast", cameraMovement: "push_in" }),
+        mk("roofVid", "video", 760, 480, { prompt: "hair drifting in the wind, slow cinematic camera orbit, clouds moving behind", model: "seedance-2.0-fast", cameraMovement: "orbit" }),
+      ],
+      edges: [
+        ed("in", "neon"), ed("in", "stage"), ed("in", "roof"), ed("in", "alley"),
+        ed("neon", "neonVid"), ed("roof", "roofVid"),
+      ],
+    }),
+  },
   {
     id: "lipsync-preset",
     name: "Lip-sync · NBA Josh preset",

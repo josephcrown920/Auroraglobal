@@ -10,7 +10,7 @@
 
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { selectVideoModel, selectImageModel, inferAspectRatio } from "./model-selector";
+import { selectVideoModel, inferAspectRatio } from "./model-selector";
 import { listAvatars, getAvatarByName, createAvatar } from "./avatars.server";
 import { hasActiveWorkerForKind } from "@/lib/orchestrator.server";
 import { buildMimicMotionRequest, MOTION_TYPES, CAMERA_MOVEMENTS } from "@/lib/motion-workflows.server";
@@ -66,6 +66,34 @@ async function callGenerate(
 function clampDuration(d?: number): number {
   const v = d ?? 5;
   return Math.max(3, Math.min(12, v));
+}
+
+// ─── Identity lock (exported for unit tests) ──────────────────────────────────
+// The whole "one avatar, many shots" promise hinges on every generated shot being
+// driven by the avatar's reference image — not the trigger word alone. Without the
+// reference the model invents a random face. These two helpers are the single
+// source of truth for that contract so it can't silently regress.
+
+/** Resolve + validate an avatar's reference image. Throws a caller-facing error
+ *  when the avatar has no usable, trusted reference (fail loudly, never text-only). */
+export function requireAvatarReference(avatar: { name: string; preview_url?: string | null }): string {
+  if (!avatar.preview_url) {
+    throw new Error(
+      `Avatar "${avatar.name}" has no reference image — recreate it with image_urls so it stays the same person across shots.`,
+    );
+  }
+  assertTrustedUrl(avatar.preview_url);
+  return avatar.preview_url;
+}
+
+/** The bulk pipeline always forces nano-banana with the avatar reference as
+ *  image_input[]; exported so callers report the model actually used. */
+export const BULK_IMAGE_MODEL = "google/nano-banana";
+
+/** Build the enqueue payload for one bulk image, locking identity to the avatar's
+ *  reference image via nano-banana (image_input[]). */
+export function buildBulkImagePayload(prompt: string, referenceImageUrl: string) {
+  return { kind: "image" as const, model: BULK_IMAGE_MODEL, prompt, imageUrls: [referenceImageUrl] };
 }
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
@@ -141,14 +169,27 @@ export async function generateVideoTool(args: z.infer<typeof generateVideoSchema
     const duration = clampDuration(args.duration);
 
     let prompt = args.prompt;
+    let avatarImageUrl: string | undefined;
     if (args.avatar_name) {
       const avatar = await getAvatarByName(ctx.userId, args.avatar_name);
       if (!avatar) return err(`Avatar "${args.avatar_name}" not found`);
+      // Identity lock: the avatar's reference image MUST drive the shot (image-to-video),
+      // not just the trigger word — otherwise the model invents a random face.
+      try {
+        avatarImageUrl = requireAvatarReference(avatar);
+      } catch (e) {
+        return err(e instanceof Error ? e.message : String(e));
+      }
       if (avatar.trigger_word) prompt = `${prompt}, ${avatar.trigger_word}`;
     }
     prompt = `${prompt} [${aspect} aspect ratio]`;
 
-    const result = await callGenerate(ctx, { kind: "video", prompt, duration });
+    const result = await callGenerate(ctx, {
+      kind: "video",
+      prompt,
+      duration,
+      ...(avatarImageUrl ? { imageUrls: [avatarImageUrl] } : {}),
+    });
     return ok({
       status: "completed",
       url: result.url,
@@ -197,8 +238,15 @@ export async function bulkGenerateTool(args: z.infer<typeof bulkGenerateSchema>,
   try {
     const avatar = await getAvatarByName(ctx.userId, args.avatar_name);
     if (!avatar) return err(`Avatar "${args.avatar_name}" not found`);
+    // Identity lock: every bulk image MUST be generated from the avatar's reference
+    // image, not from the trigger word alone — otherwise each post is a different face.
+    let referenceImageUrl: string;
+    try {
+      referenceImageUrl = requireAvatarReference(avatar);
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e));
+    }
     const aspect = args.aspect_ratio ?? "4:5";
-    const sel = selectImageModel(args.prompt_template);
 
     const jobs: string[] = [];
     let creditError: string | null = null;
@@ -216,7 +264,7 @@ export async function bulkGenerateTool(args: z.infer<typeof bulkGenerateSchema>,
       segs.push(`[${aspect} aspect ratio]`);
       const prompt = segs.join(", ");
 
-      const payload = { kind: "image", prompt };
+      const payload = buildBulkImagePayload(prompt, referenceImageUrl);
       const { data, error } = await rpc("create_generation_and_reserve", {
         _user: ctx.userId,
         _kind: "image",
@@ -237,7 +285,7 @@ export async function bulkGenerateTool(args: z.infer<typeof bulkGenerateSchema>,
       total_jobs: jobs.length,
       requested: args.count,
       total_credits: jobs.length, // 1 credit per image
-      suggested_model: sel.model,
+      model: BULK_IMAGE_MODEL,
       avatar: { id: avatar.id, name: avatar.name },
       aspect_ratio: aspect,
       ...(creditError ? { warning: `Stopped early: ${creditError}` } : {}),
