@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import joshCloseup from "@/assets/video-josh-closeup.mp4.asset.json";
@@ -144,7 +145,7 @@ function ClipsPage() {
                 <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
                   {clip.isImage
                     ? <img src={clip.url} alt={clip.title} className="w-full h-full object-cover" />
-                    : <video key={clip.id} ref={ref} src={clip.url} className="w-full h-full object-cover" controls muted loop playsInline preload="metadata" />}
+                    : <AutoplayVideo key={clip.id} ref={ref} src={clip.url} className="w-full h-full object-cover" controls autoPlay={false} loop playsInline preload="metadata" />}
                   <span className="absolute bottom-2 right-2 text-xs px-2 py-1 rounded bg-black/70 text-white font-mono">{clip.duration}</span>
                 </div>
               </div>
@@ -197,7 +198,7 @@ function ClipsPage() {
                     <div className="relative aspect-video bg-black">
                       {c.isImage
                         ? <img src={c.url} alt={c.title} className="w-full h-full object-cover" />
-                        : <video src={c.url} className="w-full h-full object-cover" controls muted loop playsInline preload="metadata" />}
+                        : <AutoplayVideo src={c.url} className="w-full h-full object-cover" controls autoPlay={false} loop playsInline preload="metadata" />}
                       <span className="absolute bottom-2 right-2 text-xs px-2 py-1 rounded bg-black/70 text-white font-mono">{c.duration}</span>
                       {st !== "idle" && (
                         <span className={`absolute top-2 left-2 text-xs px-2 py-1 rounded font-medium ${st === "approved" ? "bg-emerald-500 text-white" : "bg-amber-500 text-black"}`}>

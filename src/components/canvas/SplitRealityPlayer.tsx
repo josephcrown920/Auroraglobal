@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { Play, Pause, RotateCcw, Wand2, Loader2, AlertTriangle, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -81,7 +82,7 @@ export function SplitRealityPlayer({
         <div className="relative bg-black aspect-square">
           {leftSrc ? (
             leftIsVideo ? (
-              <video ref={leftRef} src={leftSrc} muted playsInline className="w-full h-full object-cover" />
+              <AutoplayVideo ref={leftRef} src={leftSrc} autoPlay={false} playsInline className="w-full h-full object-cover" />
             ) : (
               <img src={leftSrc} alt="ultra" className="w-full h-full object-cover" />
             )
@@ -93,7 +94,7 @@ export function SplitRealityPlayer({
         <div className="relative bg-black aspect-square">
           {rightSrc ? (
             rightIsVideo ? (
-              <video ref={rightRef} src={rightSrc} muted playsInline className="w-full h-full object-cover" />
+              <AutoplayVideo ref={rightRef} src={rightSrc} autoPlay={false} playsInline className="w-full h-full object-cover" />
             ) : (
               <img src={rightSrc} alt="cinematic" className="w-full h-full object-cover" />
             )
