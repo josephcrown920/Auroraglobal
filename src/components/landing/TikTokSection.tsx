@@ -1,13 +1,23 @@
 import { Link } from "@tanstack/react-router";
-import { Flame, Play, TrendingUp, Heart, MessageCircle, Share2, Eye, ArrowRight, Music2 } from "lucide-react";
-// One avatar, many shots — every tile below is the SAME "Josh" identity, live-
-// generated from one reference (still-* via nano-banana, clip-* via seedance i2v).
-import stillNeon from "@/assets/josh/generated/still-01-neon-closeup.jpg";
-import stillStage from "@/assets/josh/generated/still-03-stage-mic.jpg";
-import stillRooftop from "@/assets/josh/generated/still-06-rooftop-sunset.jpg";
-import stillAlley from "@/assets/josh/generated/still-08-alley-mural.jpg";
-import clipNeon from "@/assets/josh/generated/clip-01-neon-closeup.mp4";
-import clipStage from "@/assets/josh/generated/clip-03-stage-mic.mp4";
+import {
+  Flame,
+  Play,
+  TrendingUp,
+  Heart,
+  MessageCircle,
+  Share2,
+  Eye,
+  ArrowRight,
+  Music2,
+} from "lucide-react";
+// One avatar, many shots — every tile below is the SAME creator identity,
+// freshly AI-generated (still-* via image gen, clip-* via text-to-video).
+import stillNeon from "@/assets/feed/generated/still-neon.png";
+import stillStage from "@/assets/feed/generated/still-stage.png";
+import stillRooftop from "@/assets/feed/generated/still-rooftop.png";
+import stillAlley from "@/assets/feed/generated/still-street.png";
+import clipNeon from "@/assets/feed/generated/clip-neon.mp4";
+import clipStage from "@/assets/feed/generated/clip-stage.mp4";
 
 const STATS = [
   { label: "Views generated", value: "120M+", icon: <Eye className="size-4" /> },
@@ -20,12 +30,38 @@ type Clip =
   | { handle: string; caption: string; likes: string; type: "video"; src: string; poster: string }
   | { handle: string; caption: string; likes: string; type: "image"; src: string };
 
-// All @joshmadethis — one creator, one identity, four different shots.
+// All @maya.aurora — one creator, one identity, four different shots.
 const CLIPS: Clip[] = [
-  { handle: "@joshmadethis", caption: "POV: my first single just dropped 🌌", likes: "412K", type: "video", src: clipNeon, poster: stillNeon },
-  { handle: "@joshmadethis", caption: "First night headlining the stage 🎤", likes: "1.2M", type: "video", src: clipStage, poster: stillStage },
-  { handle: "@joshmadethis", caption: "Rooftop golden hour, no filter needed", likes: "289K", type: "image", src: stillRooftop },
-  { handle: "@joshmadethis", caption: "Caught this one by the mural downtown", likes: "658K", type: "image", src: stillAlley },
+  {
+    handle: "@maya.aurora",
+    caption: "POV: my first single just dropped 🌌",
+    likes: "412K",
+    type: "video",
+    src: clipNeon,
+    poster: stillNeon,
+  },
+  {
+    handle: "@maya.aurora",
+    caption: "First night headlining the stage 🎤",
+    likes: "1.2M",
+    type: "video",
+    src: clipStage,
+    poster: stillStage,
+  },
+  {
+    handle: "@maya.aurora",
+    caption: "Rooftop golden hour, no filter needed",
+    likes: "289K",
+    type: "image",
+    src: stillRooftop,
+  },
+  {
+    handle: "@maya.aurora",
+    caption: "Caught this one by the mural downtown",
+    likes: "658K",
+    type: "image",
+    src: stillAlley,
+  },
 ];
 
 export function TikTokSection() {
@@ -56,8 +92,8 @@ export function TikTokSection() {
               </span>
             </h2>
             <p className="mt-4 text-base leading-7 text-white/72 md:text-lg">
-              Creators are flooding TikTok with Aurora-made cuts, color-grades and lip-syncs.
-              Follow along, grab the sounds, remix the templates.
+              Creators are flooding TikTok with Aurora-made cuts, color-grades and lip-syncs. Follow
+              along, grab the sounds, remix the templates.
             </p>
           </div>
 
@@ -80,7 +116,12 @@ export function TikTokSection() {
               key={s.label}
               className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3"
             >
-              <div className="flex items-center gap-2 text-pink-200">{s.icon}<span className="text-[11px] uppercase tracking-widest text-white/55">{s.label}</span></div>
+              <div className="flex items-center gap-2 text-pink-200">
+                {s.icon}
+                <span className="text-[11px] uppercase tracking-widest text-white/55">
+                  {s.label}
+                </span>
+              </div>
               <p className="mt-1 text-2xl font-extrabold text-white">{s.value}</p>
             </div>
           ))}
@@ -165,7 +206,9 @@ export function TikTokSection() {
 function Stat({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
     <div className="flex flex-col items-center gap-0.5">
-      <span className="grid place-items-center size-9 rounded-full bg-white/15 backdrop-blur">{icon}</span>
+      <span className="grid place-items-center size-9 rounded-full bg-white/15 backdrop-blur">
+        {icon}
+      </span>
       <span className="text-[10px] font-bold">{label}</span>
     </div>
   );
@@ -174,7 +217,10 @@ function Stat({ icon, label }: { icon: React.ReactNode; label: string }) {
 function TikTokGlyph({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
-      <path fill="currentColor" d="M34.6 7.5c.6 3.6 2.6 6.3 6.4 7.2v6.1c-2.6.2-4.9-.5-7.6-2.2v9.7c0 5.9-3.1 10.7-9.2 11.5-6 .8-11.3-3.6-12.1-9.6-.7-5.9 3.6-11.3 9.5-12.1v6.5c-1.6.1-2.9 1.5-2.9 3.1 0 1.7 1.4 3.1 3.1 3.1 1.7 0 3.1-1.4 3.1-3.1V7.5h9.7z" />
+      <path
+        fill="currentColor"
+        d="M34.6 7.5c.6 3.6 2.6 6.3 6.4 7.2v6.1c-2.6.2-4.9-.5-7.6-2.2v9.7c0 5.9-3.1 10.7-9.2 11.5-6 .8-11.3-3.6-12.1-9.6-.7-5.9 3.6-11.3 9.5-12.1v6.5c-1.6.1-2.9 1.5-2.9 3.1 0 1.7 1.4 3.1 3.1 3.1 1.7 0 3.1-1.4 3.1-3.1V7.5h9.7z"
+      />
     </svg>
   );
 }
