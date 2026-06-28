@@ -1,5 +1,5 @@
 // TikTok Remix Factory.
-// Take a single source video → generate up to 30 variant short clips, each
+// Take a single source video → generate up to 10 variant short clips, each
 // starting from a different highlight / angle / hook. Each variant becomes
 // its own queued job so they process in parallel and credits are atomically
 // reserved per child.
@@ -13,7 +13,7 @@ import { assertTrustedUrl } from "./url-guard";
 const StartInput = z.object({
   sourceVideoUrl: z.string().url(),
   sourceImageUrl: z.string().url().optional(),
-  count: z.number().int().min(1).max(30).default(10),
+  count: z.number().int().min(1).max(10).default(10),
   basePrompt: z.string().max(500).optional(),
   duration: z.number().int().min(3).max(10).default(5),
 });
