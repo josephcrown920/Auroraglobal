@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -206,12 +207,10 @@ function UGCStudio() {
                   {p.poster ? (
                     <img src={p.poster} alt={p.name} loading="lazy" className="w-full h-full object-cover opacity-95 group-hover:opacity-100 transition" />
                   ) : p.video ? (
-                  <video
+                  <AutoplayVideo
                     src={p.video}
-                    muted
                     loop
                     playsInline
-                    autoPlay
                     preload="metadata"
                     className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition"
                   />
@@ -276,7 +275,7 @@ function UGCStudio() {
           </div>
           <div className="rounded-xl border border-border bg-background/40 aspect-[9/16] overflow-hidden grid place-items-center relative">
             {resultVideo ? (
-              <video src={resultVideo} controls autoPlay loop className="w-full h-full object-cover" />
+              <AutoplayVideo src={resultVideo} controls muted={false} loop className="w-full h-full object-cover" />
             ) : resultImage ? (
               <img src={resultImage} alt="UGC result" className="w-full h-full object-cover" />
             ) : (

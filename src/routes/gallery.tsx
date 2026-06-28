@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -136,7 +137,7 @@ function GalleryPage() {
                   {g.result_image_url ? (
                     <img src={g.result_image_url} alt="" className="w-full h-full object-cover" loading="lazy" />
                   ) : (
-                    <video src={g.result_video_url!} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+                    <AutoplayVideo src={g.result_video_url!} className="w-full h-full object-cover" autoPlay={false} playsInline preload="metadata" />
                   )}
                 </div>
                 {/* overlay actions */}

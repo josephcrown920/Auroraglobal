@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -142,7 +143,7 @@ function AdminPage() {
                   {g.result_image_url ? (
                     <img src={g.result_image_url} alt="" className="w-full h-full object-cover" />
                   ) : g.result_video_url ? (
-                    <video src={g.result_video_url} className="w-full h-full object-cover" muted playsInline />
+                    <AutoplayVideo src={g.result_video_url} className="w-full h-full object-cover" autoPlay={false} playsInline />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground p-2 text-center">{g.status}{g.error ? `: ${g.error.slice(0, 40)}` : ""}</div>
                   )}

@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -554,7 +555,7 @@ function MotionStudio() {
         <aside className="space-y-4">
           <div className="rounded-3xl overflow-hidden border border-border bg-card/60 backdrop-blur-xl aspect-[4/5] relative">
             {mode === "pose" && videoUrl ? (
-              <video src={videoUrl} className="w-full h-full object-cover" controls playsInline autoPlay loop muted />
+              <AutoplayVideo src={videoUrl} className="w-full h-full object-cover" controls playsInline loop />
             ) : mode === "pose" && stagedImage ? (
               <img src={stagedImage} alt="Staged pose" className="w-full h-full object-cover" />
             ) : (
@@ -574,7 +575,7 @@ function MotionStudio() {
                 {history.items.slice(0, 6).map((g) => (
                   <div key={g.id} className="aspect-square rounded-lg overflow-hidden border border-border bg-card/40">
                     {g.result_video_url ? (
-                      <video src={g.result_video_url} className="w-full h-full object-cover" muted loop autoPlay playsInline />
+                      <AutoplayVideo src={g.result_video_url} className="w-full h-full object-cover" loop playsInline />
                     ) : g.result_image_url ? (
                       <img src={g.result_image_url} alt="" className="w-full h-full object-cover" />
                     ) : (
