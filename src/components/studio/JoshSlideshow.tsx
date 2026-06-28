@@ -11,8 +11,7 @@ import joshRed from "@/assets/josh/josh-red-spotlights.jpg.asset.json";
 import joshBlueOrange from "@/assets/josh/josh-blue-orange.jpg.asset.json";
 import joshStageShades from "@/assets/josh/josh-stage-shades.jpg.asset.json";
 
-const SHOTS = [
-  // Lead with the colorful studio set.
+const RAW_SHOTS = [
   { url: joshBlueOrange.url, caption: "Blue × orange studio · color wash" },
   { url: joshRed.url, caption: "Red spotlights · stage close-up" },
   { url: joshStageShades.url, caption: "Stage shades · neon glow" },
@@ -25,6 +24,9 @@ const SHOTS = [
   { url: josh8.url, caption: "Studio red · puffer vest · 4:44" },
   { url: josh10.url, caption: "Leather look · editorial red backdrop" },
 ];
+
+// Lead the rotation with the last four photos of the set, then the rest.
+const SHOTS = [...RAW_SHOTS.slice(-4), ...RAW_SHOTS.slice(0, -4)];
 
 export function JoshSlideshow() {
   const [i, setI] = useState(0);
