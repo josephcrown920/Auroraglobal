@@ -1,35 +1,18 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Flame, Sparkles, TrendingUp, Zap, Video, Play, RotateCcw, ArrowRight, Check } from "lucide-react";
-import showcase1 from "@/assets/showcase-1.jpg";
-import showcase2 from "@/assets/showcase-2.jpg";
-import showcase3 from "@/assets/showcase-3.jpg";
-import showcase4 from "@/assets/showcase-4.jpg";
-import showcase5 from "@/assets/showcase-5.jpg";
-import showcase6 from "@/assets/showcase-6.jpg";
-import ugc1 from "@/assets/ugc-avatar-1.jpg";
-import ugc2 from "@/assets/ugc-avatar-2.jpg";
-import ugc3 from "@/assets/ugc-avatar-3.jpg";
-import ugc4 from "@/assets/ugc-avatar-4.jpg";
-import ugc5 from "@/assets/ugc-avatar-5.jpg";
-import ugc6 from "@/assets/ugc-avatar-6.jpg";
-import colorsCloseup from "@/assets/colors-studio-closeup.jpg";
-import colorsNeon from "@/assets/colors-studio-neonbath.jpg";
-import colorsSmoke from "@/assets/colors-studio-smoke.jpg";
-import colorsSplit from "@/assets/colors-studio-split.jpg";
-import colorsWide from "@/assets/colors-studio-wide.jpg";
-import superA from "@/assets/super-shot-a.jpg";
-import superB from "@/assets/super-shot-b.jpg";
-import superC from "@/assets/super-shot-c.jpg";
-import joshPerf from "@/assets/josh-performance-still-v1.jpg";
-import demoSelfie from "@/assets/demo-selfie.jpg";
-import theOne from "@/assets/the-one-cover.webp";
-
-// Hosted real renders — URLs come from public/videos/*.asset.json
-const VID_LIP_PERFORMANCE = "/__l5e/assets-v1/f99bf1e3-686c-4b7f-80b3-cd49af93e510/lipsync-performance.mp4";
-const VID_LIP_DEMO = "/__l5e/assets-v1/7ed0c81b-e8c4-4b2d-bd9f-6c7d5d47a8a9/lipsync-demo.mp4";
-const VID_LIP_USER = "/__l5e/assets-v1/92a40de3-9f88-479f-8049-86e91cac06ce/lipsync-user-demo.mp4";
-const VID_SPLIT = "/__l5e/assets-v1/82946f74-8322-4f16-ab37-164aec7fecfb/split-reality-demo.mp4";
+// One avatar, many shots — the whole grid is the SAME "Josh" identity, live-
+// generated from one reference (still-* via nano-banana, clip-* via seedance i2v).
+import still01 from "@/assets/josh/generated/still-01-neon-closeup.jpg";
+import still02 from "@/assets/josh/generated/still-02-street-golden.jpg";
+import still03 from "@/assets/josh/generated/still-03-stage-mic.jpg";
+import still04 from "@/assets/josh/generated/still-04-cafe-selfie.jpg";
+import still05 from "@/assets/josh/generated/still-05-studio-gel.jpg";
+import still06 from "@/assets/josh/generated/still-06-rooftop-sunset.jpg";
+import still07 from "@/assets/josh/generated/still-07-booth-headphones.jpg";
+import still08 from "@/assets/josh/generated/still-08-alley-mural.jpg";
+import clip01 from "@/assets/josh/generated/clip-01-neon-closeup.mp4";
+import clip03 from "@/assets/josh/generated/clip-03-stage-mic.mp4";
 
 const PIECES = [
   { label: "9:16 TikTok hook",      kind: "video",    color: "from-pink-500 to-rose-500" },
@@ -71,14 +54,11 @@ const SAMPLE_HOOKS = [
   "Trying the viral neon-cyc trend",
 ];
 
-// Real generated assets used to fill the demo grid (no new generation).
+// Real live-generated Josh set — one identity, many shots (no placeholders).
 const IMAGE_POOL = [
-  showcase1, showcase2, showcase3, showcase4, showcase5, showcase6,
-  ugc1, ugc2, ugc3, ugc4, ugc5, ugc6,
-  colorsCloseup, colorsNeon, colorsSmoke, colorsSplit, colorsWide,
-  superA, superB, superC, joshPerf, demoSelfie, theOne,
+  still01, still02, still03, still04, still05, still06, still07, still08,
 ];
-const VIDEO_POOL = [VID_LIP_PERFORMANCE, VID_LIP_DEMO, VID_LIP_USER, VID_SPLIT];
+const VIDEO_POOL = [clip01, clip03];
 
 type TileMedia =
   | { type: "image"; src: string }
