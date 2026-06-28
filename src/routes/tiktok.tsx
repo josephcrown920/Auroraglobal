@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -225,10 +226,10 @@ function TiktokRemixPage() {
             {childGens.map((g) => (
               <div key={g.id} className="group relative aspect-[9/16] overflow-hidden rounded-xl border border-white/10 bg-black/60">
                 {g.result_video_url ? (
-                  <video
+                  <AutoplayVideo
                     src={g.result_video_url}
                     className="absolute inset-0 size-full object-cover"
-                    muted
+                    autoPlay={false}
                     loop
                     playsInline
                     onMouseEnter={(e) => e.currentTarget.play().catch(() => {})}
