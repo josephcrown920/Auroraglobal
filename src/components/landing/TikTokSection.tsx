@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { AutoplayVideo } from "@/components/landing/AutoplayVideo";
 import {
   Flame,
   Play,
@@ -175,11 +176,9 @@ export function TikTokSection() {
               className="group relative aspect-[9/16] overflow-hidden rounded-2xl border border-white/10 bg-black"
             >
               {c.type === "video" ? (
-                <video
+                <AutoplayVideo
                   src={c.src}
                   poster={c.poster}
-                  autoPlay
-                  muted
                   loop
                   playsInline
                   preload="metadata"

@@ -11,7 +11,6 @@ description: Why Tailwind breakpoints are disabled, how fixed chrome is position
 - **Why:** user chose "stretch the single column to fill the whole screen" over a responsive desktop redesign. A "bottom nav not showing" bug was actually `.phone-fixed-x` capping the bar to a 440px centered column — fixed by making the helper full-width. The nav always rendered (it's in the SSR HTML); it was just a narrow centered bar.
 - `--aurora-phone-max` (440px) is legacy/unused after the full-screen change.
 
-## Landing route hydration warning (benign)
-- The landing route (`/`) emits a React hydration-mismatch warning in the browser console, but React recovers and client effects DO run — the `JoshSlideshow` `setInterval` auto-advance works (verified via e2e: caption changes on its own every ~3.2s).
-- Ruled out as sources: `useAuth()` (null on both SSR and first client render), `StickyCreditsBar`/`ScrollProgress` (render null / zero-width on first render). Date/`Math.random` usages are on other routes, not `/`.
-- **How to apply:** the slideshow component itself is correct — don't rewrite it. Only chase the hydration warning if you can capture the FULL (untruncated) console stack/component trace; otherwise it's not worth blocking on.
+## Landing route hydration warning (FIXED)
+- The landing route (`/`) used to emit a React hydration-mismatch warning. Root cause was muted/autoplay `<video>` (NOT the slideshow, NOT `useAuth`/`StickyCreditsBar`/`ScrollProgress`). Now fixed — see `aurora-landing-video-hydration.md` (all landing videos go through the shared `AutoplayVideo` wrapper).
+- **How to apply:** the slideshow component is correct — don't rewrite it. Don't reintroduce raw `<video muted autoPlay>` on landing or the warning returns.
