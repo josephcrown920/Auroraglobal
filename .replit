@@ -57,3 +57,9 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+VITE_SUPABASE_URL = "https://tpzmvbczwahxajujvnrq.supabase.co"
+SUPABASE_URL = "https://tpzmvbczwahxajujvnrq.supabase.co"
