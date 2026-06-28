@@ -17,7 +17,7 @@ export const Route = createFileRoute("/tiktok")({
   head: () => ({
     meta: [
       { title: "TikTok Remix Factory — Aurora" },
-      { name: "description", content: "Upload one video. Aurora remixes it into up to 30 TikTok-ready cuts from different hooks, angles, and beats." },
+      { name: "description", content: "Upload one video. Aurora remixes it into up to 10 TikTok-ready cuts from different hooks, angles, and beats." },
     ],
   }),
   errorComponent: ({ error }) => <div className="p-8 text-sm text-red-400">Error: {error.message}</div>,
@@ -89,7 +89,7 @@ function TiktokRemixPage() {
     return (
       <div className="mx-auto max-w-2xl px-6 py-24 text-center">
         <h1 className="text-3xl font-bold text-white">TikTok Remix Factory</h1>
-        <p className="mt-3 text-white/70">Sign in to upload a video and spin up 30 variants.</p>
+        <p className="mt-3 text-white/70">Sign in to upload a video and spin up 10 variants.</p>
         <Link to="/auth" className="mt-6 inline-flex items-center rounded-full bg-white px-5 py-2.5 text-sm font-bold text-black no-underline">Sign in</Link>
       </div>
     );
@@ -103,7 +103,7 @@ function TiktokRemixPage() {
             <Flame className="size-3.5" /> TikTok Remix Factory
           </span>
           <h1 className="mt-3 text-3xl font-extrabold text-white md:text-5xl">
-            One video in. <span className="bg-gradient-to-r from-[#25F4EE] to-[#FE2C55] bg-clip-text text-transparent">Up to 30 cuts out.</span>
+            One video in. <span className="bg-gradient-to-r from-[#25F4EE] to-[#FE2C55] bg-clip-text text-transparent">Up to 10 cuts out.</span>
           </h1>
           <p className="mt-2 max-w-2xl text-white/65">
             Aurora analyzes your source, picks distinct hooks, and runs each one as its own queued render.
@@ -157,7 +157,7 @@ function TiktokRemixPage() {
             <label className="text-xs font-bold uppercase tracking-widest text-white/55">How many cuts</label>
             <div className="mt-2 flex items-center gap-3">
               <input
-                type="range" min={1} max={30} step={1}
+                type="range" min={1} max={10} step={1}
                 value={count}
                 onChange={(e) => setCount(Number(e.target.value))}
                 className="flex-1 accent-pink-500"
