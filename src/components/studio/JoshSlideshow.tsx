@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import josh1 from "@/assets/josh/slideshow/josh-slide-01.png.asset.json";
 import josh2 from "@/assets/josh/slideshow/josh-slide-02.png.asset.json";
 import josh3 from "@/assets/josh/slideshow/josh-slide-03.jpeg.asset.json";
 import josh4 from "@/assets/josh/slideshow/josh-slide-04.jpeg.asset.json";
@@ -7,22 +6,16 @@ import josh5 from "@/assets/josh/slideshow/josh-slide-05.png.asset.json";
 import josh6 from "@/assets/josh/slideshow/josh-slide-06.png.asset.json";
 import josh7 from "@/assets/josh/slideshow/josh-slide-07.png.asset.json";
 import josh8 from "@/assets/josh/slideshow/josh-slide-08.png.asset.json";
-import josh9 from "@/assets/josh/slideshow/josh-slide-09.png.asset.json";
 import josh10 from "@/assets/josh/slideshow/josh-slide-10.png.asset.json";
-import joshYellow from "@/assets/josh/josh-yellow-mic.jpg.asset.json";
 import joshRed from "@/assets/josh/josh-red-spotlights.jpg.asset.json";
 import joshBlueOrange from "@/assets/josh/josh-blue-orange.jpg.asset.json";
-import joshRainbow from "@/assets/josh/josh-rainbow-stripes.png.asset.json";
 import joshStageShades from "@/assets/josh/josh-stage-shades.jpg.asset.json";
 
 const SHOTS = [
-  // Lead with the colorful studio set — blue/yellow, white, red.
+  // Lead with the colorful studio set.
   { url: joshBlueOrange.url, caption: "Blue × orange studio · color wash" },
-  { url: joshYellow.url, caption: "Yellow cyc · live mic" },
   { url: joshRed.url, caption: "Red spotlights · stage close-up" },
-  { url: joshRainbow.url, caption: "Rainbow stripes · color session" },
   { url: joshStageShades.url, caption: "Stage shades · neon glow" },
-  { url: josh1.url, caption: "Hot-pink side profile · suspended mic" },
   { url: josh2.url, caption: "Hot-pink full frame · performance stance" },
   { url: josh3.url, caption: "Blue close-up · live mic portrait" },
   { url: josh4.url, caption: "Electric cobalt crop · signature frames" },
@@ -30,7 +23,6 @@ const SHOTS = [
   { url: josh6.url, caption: "Cobalt tech portrait · blue visor" },
   { url: josh7.url, caption: "Crimson portrait · red mirror shield" },
   { url: josh8.url, caption: "Studio red · puffer vest · 4:44" },
-  { url: josh9.url, caption: "Deep blue front portrait · iced chain" },
   { url: josh10.url, caption: "Leather look · editorial red backdrop" },
 ];
 
