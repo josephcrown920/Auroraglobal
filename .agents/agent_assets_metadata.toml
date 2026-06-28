@@ -1,5 +1,28 @@
 uploads = []
-generated = []
+
+[[generated]]
+id = "jl9tGkiP0L2YgEkKtmA1A"
+uri = "file://src/assets/feed/generated/still-neon.png"
+type = "image"
+title = "creator neon closeup"
+
+[[generated]]
+id = "vs7s6Ie-Ht3pcI_8qWxnV"
+uri = "file://src/assets/feed/generated/still-stage.png"
+type = "image"
+title = "creator stage mic"
+
+[[generated]]
+id = "i-v10otugSFmdfsVc64DQ"
+uri = "file://src/assets/feed/generated/still-rooftop.png"
+type = "image"
+title = "creator rooftop sunset"
+
+[[generated]]
+id = "Bgi6wmf9Epd0bND8nytD3"
+uri = "file://src/assets/feed/generated/still-street.png"
+type = "image"
+title = "creator street mural"
 
 [[outputs]]
 id = "uuVDpq4W7VbbIZdWQslyD"
