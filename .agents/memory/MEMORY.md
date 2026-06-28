@@ -19,3 +19,4 @@
 - [Orchestrator candidate-model sentinel](orchestrator-candidate-sentinel.md) — a GenerateKind with empty FALLBACK_MODELS needs a sentinel model on the request, or getCandidateModels yields [] and orchestrate() never reaches its adapter.
 - [Aurora GPU pluggability axes](aurora-gpu-pluggability-axes.md) — two backend layers (env inference/ + DB gpu_workers) share protocols.ts wire logic; adding a protocol means touching BOTH; explicit-failure, no silent fallback.
 - [Lovable export vite dev runtime](replit-bun-vite-ssr-runtime.md) — `bunx vite dev` SSR napi-panics; run vite under real node (resolve via `available-pid2-node-paths`, none on PATH) + ignore `**/.cache/**` to dodge EMFILE.
+- [Isolated-env backend not provisioned](isolated-env-no-backend.md) — task-agent containers have NO Supabase creds & NO provider/payment keys; live generation/auth QA is impossible there, only public SSR/routing/unit-tests are testable.
