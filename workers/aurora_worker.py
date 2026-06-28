@@ -204,6 +204,19 @@ def _worker_name() -> str:
     return os.environ.get("AURORA_WORKER_NAME") or f"colab-{socket.gethostname()}"
 
 
+def _capabilities() -> list[str]:
+    """Tasks this worker actually serves, from AURORA_CAPABILITIES (comma list).
+
+    Defaults to both self-hosted tasks. Constrained hosts (e.g. a 16 GB Kaggle
+    GPU that only installs LatentSync) set AURORA_CAPABILITIES=lipsync so Aurora
+    never routes a job the worker can't run — registration and /health both
+    report the same set.
+    """
+    raw = os.environ.get("AURORA_CAPABILITIES", "lipsync,motion")
+    caps = [c.strip() for c in raw.split(",") if c.strip()]
+    return caps or ["lipsync", "motion"]
+
+
 def register_with_aurora() -> bool:
     """Upsert this worker's row in Aurora's gpu_workers table.
 
@@ -239,7 +252,7 @@ def register_with_aurora() -> bool:
         "name": _worker_name(),
         "endpoint_url": endpoint_url,
         "protocol": "custom",
-        "capabilities": ["lipsync", "motion"],
+        "capabilities": _capabilities(),
     }
     if AUTH_TOKEN:
         payload["auth_token"] = AUTH_TOKEN
@@ -280,7 +293,7 @@ try:
 
     @app.get("/health")
     def health():
-        return {"ok": True, "tasks": ["lipsync", "motion"]}
+        return {"ok": True, "tasks": _capabilities()}
 
     @app.post("/generate")
     async def generate(req: Request):
