@@ -8,6 +8,7 @@
 - [gpu_workers.auth_token protection](gpu-workers-auth-token.md) — column REVOKE is a no-op vs table GRANT; real safeguard is service-role-only access + strip token from listWorkers (has_auth_token bool).
 - [Test setup (Bun runner)](test-setup.md) — `bun test src/` runs `*.test.ts`; they're excluded from tsconfig (no `bun:test` types); eslint is not type-aware; export privates to test them.
 - [Cron endpoints pattern](cron-endpoints.md) — scheduled work = protected `/api/public/*` route authed via anon-key `apikey` header (NOT CRON_SECRET); scheduling is external (no pg_cron in dev/migrations).
+- [Worker self-registration tokens](worker-self-registration-tokens.md) — register/health auth = Supabase anon key (AURORA_REGISTER_KEY, `apikey` header); /generate bearer = AURORA_WORKER_TOKEN; keep them separate, don't merge.
 - [Aurora MCP server](aurora-mcp-server.md) — hand-rolled stateless JSON-RPC at /api/mcp (MCP SDK is Node-only, won't run on Workers); tools reuse /api/public/generate + jobs RPC; avatars live in DB but not in generated types.ts.
 - [Worker endpoint normalization](worker-endpoint-normalization.md) — every path appending to a worker endpoint_url (dispatch + health) must normalizeWorkerBase() in lockstep, else `.../generate/generate`.
 - [Credit reservation flow](credit-reservation-flow.md) — all spend goes through reserveOrchestrateRecord; Supabase RPCs resolve {error} (don't throw); commit-fail must NOT release (would refund a delivered render).
