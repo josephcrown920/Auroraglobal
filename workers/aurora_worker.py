@@ -19,7 +19,9 @@ vars at your checkout (see setup.sh) and you are ready to run.
 from __future__ import annotations
 
 import os
+import time
 import uuid
+import socket
 import shutil
 import tempfile
 import mimetypes
@@ -196,6 +198,80 @@ def process_job(job: dict[str, Any]) -> dict[str, str]:
     return {"url": _upload(out)}
 
 
+# ── Self-registration (zero-touch Colab/Kaggle restarts) ──────────────────────
+def _worker_name() -> str:
+    """Stable, human-readable worker name (override with AURORA_WORKER_NAME)."""
+    return os.environ.get("AURORA_WORKER_NAME") or f"colab-{socket.gethostname()}"
+
+
+def register_with_aurora() -> bool:
+    """Upsert this worker's row in Aurora's gpu_workers table.
+
+    Reads the stable Ngrok domain + Aurora URL + register key from env and POSTs
+    to `${AURORA_URL}/api/public/workers/register`. Auth is the Supabase
+    anon/publishable key sent as the `apikey` header (same pattern as the health /
+    jobs-tick cron routes) — so the worker never needs a Supabase service key.
+
+    Env:
+      NGROK_STATIC_DOMAIN  your free Ngrok static domain, e.g. "foo-bar.ngrok-free.app"
+      AURORA_URL           base URL of the Aurora app, e.g. "https://aurora.example.com"
+      AURORA_REGISTER_KEY  Supabase anon/publishable key (the `apikey` header value)
+      AURORA_WORKER_TOKEN  (optional) this worker's /generate bearer; sent as auth_token
+
+    Never raises: a registration failure must not stop the worker from serving.
+    Returns True on success, False otherwise.
+    """
+    domain = os.environ.get("NGROK_STATIC_DOMAIN", "").strip()
+    aurora_url = os.environ.get("AURORA_URL", "").strip().rstrip("/")
+    register_key = os.environ.get("AURORA_REGISTER_KEY", "").strip()
+    if not (domain and aurora_url and register_key):
+        print(
+            "[register] skipped — set NGROK_STATIC_DOMAIN, AURORA_URL and "
+            "AURORA_REGISTER_KEY to auto-register (worker still serves jobs).",
+            flush=True,
+        )
+        return False
+
+    # Accept a bare domain or a full URL; the worker always serves /generate.
+    host = domain.replace("https://", "").replace("http://", "").rstrip("/")
+    endpoint_url = f"https://{host}/generate"
+    payload: dict[str, Any] = {
+        "name": _worker_name(),
+        "endpoint_url": endpoint_url,
+        "protocol": "custom",
+        "capabilities": ["lipsync", "motion"],
+    }
+    if AUTH_TOKEN:
+        payload["auth_token"] = AUTH_TOKEN
+
+    try:
+        r = requests.post(
+            f"{aurora_url}/api/public/workers/register",
+            json=payload,
+            headers={"apikey": register_key, "content-type": "application/json"},
+            timeout=30,
+        )
+    except Exception as e:  # network error — log, keep serving
+        print(f"[register] error (worker still serving): {e}", flush=True)
+        return False
+    if r.ok:
+        print(f"[register] OK — {endpoint_url} registered with Aurora.", flush=True)
+        return True
+    print(f"[register] failed {r.status_code}: {r.text.strip()[:300]}", flush=True)
+    return False
+
+
+def auto_register_when_ready(port: int = 8000, attempts: int = 60) -> None:
+    """Wait until the local FastAPI /health answers, then self-register once."""
+    for _ in range(attempts):
+        try:
+            requests.get(f"http://127.0.0.1:{port}/health", timeout=2)
+            break
+        except Exception:
+            time.sleep(1)
+    register_with_aurora()
+
+
 # ── Entrypoint A: FastAPI (protocol = custom / vast) ──────────────────────────
 try:
     from fastapi import FastAPI, HTTPException, Request
@@ -227,6 +303,12 @@ def handler(event: dict[str, Any]) -> dict[str, str]:
 
 if __name__ == "__main__":
     # `python aurora_worker.py` → run the FastAPI server locally.
+    import threading
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", "8000")))
+    port = int(os.environ.get("PORT", "8000"))
+    # Auto-register once the server answers /health — zero-touch Colab/Kaggle
+    # restarts. Runs in a daemon thread so a slow/failing register never blocks
+    # serving; uvicorn keeps the main thread.
+    threading.Thread(target=auto_register_when_ready, args=(port,), daemon=True).start()
+    uvicorn.run(app, host="0.0.0.0", port=port)
