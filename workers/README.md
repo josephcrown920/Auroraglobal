@@ -30,7 +30,7 @@ Aurora UI ──► orchestrator ──► your worker (this dir) ──► Late
 | `runpod/`    | RunPod Serverless       | `runpod`  | lipsync + motion  |
 | `hf-space/`  | Hugging Face Space      | `hfspace` | one task / Space  |
 | `comfyui/`   | ComfyUI (any host)      | `comfyui` | lipsync + motion  |
-| `kaggle/`    | Kaggle notebook + tunnel| `custom`  | lipsync + motion  |
+| `kaggle/`    | Kaggle notebook + tunnel| `custom`  | lipsync (motion opt-in) |
 | `aurora_worker.py` | any GPU VM (FastAPI)| `custom`  | lipsync + motion  |
 
 The shared core is **`aurora_worker.py`** — one `process_job()` with two entrypoints
@@ -53,4 +53,7 @@ Then register `https://<host>:8000/generate` as a `custom` worker with capabilit
 origin `https://<host>:8000` works too — it appends `/generate` and `/health` itself.)
 
 > **Weights are never bundled.** `setup.sh` pulls LatentSync + MimicMotion checkpoints
-> from their official sources. Expect a 24 GB+ download and a 24 GB-VRAM GPU.
+> from their official sources. Pick tasks with `AURORA_TASKS` (default `lipsync,motion`):
+> `lipsync` alone fits a 16 GB GPU (~10 GB download); `motion` (MimicMotion + SVD)
+> needs a ~24 GB GPU and ~25 GB disk and **refuses to install on smaller cards**
+> (clear error) rather than OOMing mid-job.
