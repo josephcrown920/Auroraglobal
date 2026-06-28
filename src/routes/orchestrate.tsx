@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { orchestrateGenerate, listOrchestrations } from "@/lib/orchestration.functions";
+import { detectFeatures, computeCost, type Feature, type Resolution } from "@/lib/pricing";
 
 export const Route = createFileRoute("/orchestrate")({
   component: OrchestratePage,
@@ -24,12 +25,15 @@ type Modality = "image" | "video" | "text" | "audio";
 
 type ModelOption = { key: string; label: string; free?: boolean };
 
-const MODALITIES: { id: Modality; label: string; icon: typeof ImageIcon; cost: number }[] = [
-  { id: "image", label: "Image", icon: ImageIcon, cost: 1 },
-  { id: "video", label: "Video", icon: Video, cost: 5 },
-  { id: "text", label: "Text", icon: Type, cost: 1 },
-  { id: "audio", label: "Speech", icon: AudioLines, cost: 2 },
+const MODALITIES: { id: Modality; label: string; icon: typeof ImageIcon }[] = [
+  { id: "image", label: "Image", icon: ImageIcon },
+  { id: "video", label: "Video", icon: Video },
+  { id: "text", label: "Text", icon: Type },
+  { id: "audio", label: "Speech", icon: AudioLines },
 ];
+
+const RESOLUTIONS: Resolution[] = ["480p", "720p", "1080p"];
+const DURATIONS = [5, 8, 10, 12];
 
 const MODELS: Record<Modality, ModelOption[]> = {
   image: [
@@ -64,6 +68,8 @@ function OrchestratePage() {
   const [model, setModel] = useState(MODELS.image[0].key);
   const [imageUrl, setImageUrl] = useState("");
   const [voiceId, setVoiceId] = useState("");
+  const [resolution, setResolution] = useState<Resolution>("720p");
+  const [duration, setDuration] = useState(5);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{
     kind: Modality;
@@ -79,7 +85,20 @@ function OrchestratePage() {
     enabled: !!user,
   });
 
-  const cost = MODALITIES.find((m) => m.id === modality)!.cost;
+  // Resolution applies to image/video; length only to video. Price the live
+  // preview with the SAME pricing module the server charges with, so the number
+  // on the button is exactly what gets reserved.
+  const usesResolution = modality === "image" || modality === "video";
+  const usesDuration = modality === "video";
+  const { features } = detectFeatures({ kind: modality as Feature });
+  const quote = computeCost({
+    features,
+    resolution: usesResolution ? resolution : undefined,
+    durationSeconds: usesDuration ? duration : undefined,
+  });
+  const cost = quote.total;
+
+  const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0$/, ""));
 
   const switchModality = (m: Modality) => {
     setModality(m);
@@ -101,6 +120,8 @@ function OrchestratePage() {
           kind: modality,
           prompt: prompt.trim(),
           model,
+          ...(usesResolution ? { resolution } : {}),
+          ...(usesDuration ? { duration } : {}),
           ...(modality === "video" && imageUrl.trim() ? { imageUrls: [imageUrl.trim()] } : {}),
           ...(modality === "audio" && voiceId.trim() ? { voiceId: voiceId.trim() } : {}),
         },
@@ -214,6 +235,86 @@ function OrchestratePage() {
                 />
               </div>
             )}
+
+            {(usesResolution || usesDuration) && (
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                {usesResolution && (
+                  <div>
+                    <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-neutral-500">
+                      Resolution
+                    </label>
+                    <div className="flex gap-2">
+                      {RESOLUTIONS.map((r) => (
+                        <button
+                          key={r}
+                          type="button"
+                          onClick={() => setResolution(r)}
+                          className={`flex-1 rounded-lg border px-2 py-2 text-xs transition ${
+                            resolution === r
+                              ? "border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-300"
+                              : "border-neutral-800 text-neutral-400 hover:border-neutral-700"
+                          }`}
+                        >
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {usesDuration && (
+                  <div>
+                    <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-neutral-500">
+                      Length
+                    </label>
+                    <div className="flex gap-2">
+                      {DURATIONS.map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setDuration(s)}
+                          className={`flex-1 rounded-lg border px-2 py-2 text-xs transition ${
+                            duration === s
+                              ? "border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-300"
+                              : "border-neutral-800 text-neutral-400 hover:border-neutral-700"
+                          }`}
+                        >
+                          {s}s
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Itemized cost preview — same pricing module the server charges with */}
+            <div className="mt-4 rounded-xl border border-neutral-800 bg-neutral-950 p-3">
+              <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-neutral-500">
+                Cost preview
+              </div>
+              <ul className="space-y-1 text-xs text-neutral-400">
+                {quote.breakdown.map((b) => (
+                  <li key={b.feature} className="flex items-center justify-between gap-2">
+                    <span className="capitalize">
+                      {b.feature}
+                      {b.resolutionFactor !== 1 ? ` · ${resolution}` : ""}
+                      {b.lengthFactor !== 1 ? ` · ${duration}s` : ""}
+                    </span>
+                    <span className="tabular-nums text-neutral-300">
+                      {fmt(b.base)}
+                      {b.resolutionFactor !== 1 ? ` × ${fmt(b.resolutionFactor)}` : ""}
+                      {b.lengthFactor !== 1 ? ` × ${fmt(b.lengthFactor)}` : ""}
+                      {" = "}
+                      {fmt(b.subtotal)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-2 flex items-center justify-between border-t border-neutral-800 pt-2 text-sm font-semibold">
+                <span>Total</span>
+                <span className="tabular-nums text-fuchsia-300">{quote.total} Aura</span>
+              </div>
+            </div>
 
             <button
               onClick={onGenerate}

@@ -6,25 +6,7 @@ import { getProviderHealthSnapshot, type GenerateKind } from "./orchestrator.ser
 import { reserveOrchestrateRecord } from "./generate-core.server";
 import { assertTrustedUrl } from "./url-guard";
 import { providerHealth, providerStatus } from "./inference";
-
-// ─── AI Router: credit cost per modality ─────────────────────────────────────
-// Mirrors src/routes/api/public/generate.ts so the UI router and the public API
-// charge identically.
-export function orchestrationCreditCost(kind: GenerateKind): number {
-  switch (kind) {
-    case "image":
-    case "upscale":
-    case "text":
-      return 1;
-    case "audio":
-      return 2;
-    case "lipsync":
-      return 3;
-    case "video":
-    case "motion":
-      return 5;
-  }
-}
+import { detectFeatures, computeCost, type Feature } from "./pricing";
 
 // ─── Provider health (which keys are configured) ─────────────────────────────
 // Mirrors the priority chains in src/lib/orchestrator.server.ts.
@@ -355,9 +337,51 @@ const OrchestrateSchema = z.object({
   prompt: z.string().max(4000).optional(),
   imageUrls: z.array(z.string().url()).max(6).optional(),
   duration: z.number().int().min(3).max(12).optional(),
+  resolution: z.enum(["480p", "720p", "1080p"]).optional(),
   model: z.string().max(120).optional(),
   voiceId: z.string().max(120).optional(),
+  // Stacked-pricing override: force the exact set of billable features.
+  features: z
+    .array(z.enum(["image", "upscale", "text", "audio", "lipsync", "motion", "video"]))
+    .optional(),
 });
+
+// ─── AI Router: price quote (compute-only, no credits reserved) ───────────────
+// Lets the UI / API consumers preview the itemized stacked cost before running.
+// Uses the SAME pricing module as the charge path, so the preview always equals
+// what orchestrateGenerate / the public API will actually reserve.
+const QuoteSchema = z.object({
+  kind: z.enum(["image", "upscale", "text", "audio", "lipsync", "motion", "video"]),
+  resolution: z.enum(["480p", "720p", "1080p"]).optional(),
+  // Keep the quote window identical to the executable charge path (OrchestrateSchema)
+  // so a preview can never quote a length the generation would reject.
+  duration: z.number().int().min(3).max(12).optional(),
+  audioUrl: z.string().url().optional(),
+  videoUrl: z.string().url().optional(),
+  cameraMovement: z.string().max(60).optional(),
+  features: z
+    .array(z.enum(["image", "upscale", "text", "audio", "lipsync", "motion", "video"]))
+    .optional(),
+});
+
+export const quoteGenerate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => QuoteSchema.parse(d))
+  .handler(async ({ data }) => {
+    const { features, primaryKind } = detectFeatures({
+      kind: data.kind as Feature,
+      audioUrl: data.audioUrl,
+      videoUrl: data.videoUrl,
+      cameraMovement: data.cameraMovement,
+      features: data.features,
+    });
+    const quote = computeCost({
+      features,
+      resolution: data.resolution,
+      durationSeconds: data.duration,
+    });
+    return { ...quote, features, primaryKind };
+  });
 
 export const orchestrateGenerate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -367,13 +391,20 @@ export const orchestrateGenerate = createServerFn({ method: "POST" })
     for (const url of data.imageUrls ?? []) assertTrustedUrl(url);
 
     const kind = data.kind as GenerateKind;
-    const cost = orchestrationCreditCost(kind);
+    const { features } = detectFeatures({ kind: kind as Feature, features: data.features });
+    const quote = computeCost({
+      features,
+      resolution: data.resolution,
+      durationSeconds: data.duration,
+    });
+    const cost = quote.total;
     const outcome = await reserveOrchestrateRecord({
       userId: context.userId,
       kind,
       prompt: data.prompt,
       imageUrls: data.imageUrls,
       duration: data.duration,
+      resolution: data.resolution,
       model: data.model,
       params: data.voiceId ? { voiceId: data.voiceId } : undefined,
       cost,
@@ -396,6 +427,7 @@ export const orchestrateGenerate = createServerFn({ method: "POST" })
       latencyMs: outcome.latencyMs,
       costUsd: outcome.costUsd,
       creditsCost: cost,
+      costBreakdown: quote.breakdown,
     };
   });
 

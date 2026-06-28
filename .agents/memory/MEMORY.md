@@ -11,6 +11,7 @@
 - [Cron endpoints pattern](cron-endpoints.md) — scheduled work = protected `/api/public/*` route authed via anon-key `apikey` header (NOT CRON_SECRET); scheduling is external (no pg_cron in dev/migrations).
 - [Worker self-registration tokens](worker-self-registration-tokens.md) — register/health auth = Supabase anon key (AURORA_REGISTER_KEY, `apikey` header); /generate bearer = AURORA_WORKER_TOKEN; keep them separate, don't merge.
 - [Aurora MCP server](aurora-mcp-server.md) — hand-rolled stateless JSON-RPC at /api/mcp (MCP SDK is Node-only, won't run on Workers); tools reuse /api/public/generate + jobs RPC; avatars live in DB but not in generated types.ts.
+- [Aurora stacked pricing](pricing-stacked-model.md) — src/lib/pricing.ts is the only cost source (all charge points + UI route through it); detection conservative; `features[]` override must be ADDITIVE (fold in kind) or it's a credit bypass.
 - [Flat-app publishing blocked](flat-app-publishing-blocked.md) — flat-root app in PNPM_WORKSPACE mode: agent can't set a deploy run cmd; user sets it in Publish UI or migrate to artifacts/<slug>/.
 - [Worker endpoint normalization](worker-endpoint-normalization.md) — every path appending to a worker endpoint_url (dispatch + health) must normalizeWorkerBase() in lockstep, else `.../generate/generate`.
 - [Credit reservation flow](credit-reservation-flow.md) — all spend goes through reserveOrchestrateRecord; Supabase RPCs resolve {error} (don't throw); commit-fail must NOT release (would refund a delivered render).
