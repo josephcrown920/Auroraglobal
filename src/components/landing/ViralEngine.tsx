@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { AutoplayVideo } from "@/components/landing/AutoplayVideo";
 import {
   Flame,
   Sparkles,
@@ -294,11 +295,9 @@ export function ViralEngine() {
                   }`}
                 >
                   {media.type === "video" ? (
-                    <video
+                    <AutoplayVideo
                       src={media.src}
                       poster={media.poster}
-                      autoPlay
-                      muted
                       loop
                       playsInline
                       preload="metadata"

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Sparkles, Loader2, AlertTriangle } from "lucide-react";
+import { AutoplayVideo } from "@/components/landing/AutoplayVideo";
 // URL from public/videos/split-reality-demo.mp4.asset.json
 const splitVideo = "/__l5e/assets-v1/82946f74-8322-4f16-ab37-164aec7fecfb/split-reality-demo.mp4";
 
@@ -74,11 +75,9 @@ export function SplitReality() {
 
 
         {/* Right side — Cinematic Golden Hour grade */}
-        <video
+        <AutoplayVideo
           ref={rightVideoRef}
           src={splitVideo}
-          autoPlay
-          muted
           loop
           playsInline
           preload="auto"
@@ -93,11 +92,9 @@ export function SplitReality() {
 
         {/* Left side — Ultra-real Concert Wash grade, clipped by pos */}
         <div className="absolute inset-0 overflow-hidden" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}>
-          <video
+          <AutoplayVideo
             ref={leftVideoRef}
             src={splitVideo}
-            autoPlay
-            muted
             loop
             playsInline
             className="absolute inset-0 w-full h-full object-cover"

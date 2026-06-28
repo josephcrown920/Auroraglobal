@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Play, Pause, Wand2, Loader2, AlertTriangle } from "lucide-react";
+import { AutoplayVideo } from "@/components/landing/AutoplayVideo";
 const lipsyncVideo = { url: "/videos/lipsync-user-demo.mp4" };
 
 const AUDIO_SRC = "/audio/the-one-hook2.mp3";
@@ -97,13 +98,11 @@ export function LipSyncDemo() {
 
         <div className="lg:col-span-7">
           <div className="relative aspect-[4/5] sm:aspect-video max-h-[420px] mx-auto rounded-2xl overflow-hidden border border-white/10 bg-gradient-to-br from-emerald-950 via-black to-teal-950">
-            <video
+            <AutoplayVideo
               ref={videoRef}
               src={lipsyncVideo.url}
-              muted
               playsInline
               loop
-              autoPlay
               preload="auto"
               controls={showNativeControls}
               onLoadedData={() => setStatus("ready")}

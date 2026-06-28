@@ -1,5 +1,6 @@
 import { Camera, Film, Wand2, Megaphone, Activity, Workflow, Image as ImageIcon, Palette, CreditCard } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { AutoplayVideo } from "@/components/landing/AutoplayVideo";
 import demo1 from "@/assets/demo-1.mov.asset.json";
 import demo2 from "@/assets/demo-2.mov.asset.json";
 
@@ -36,12 +37,10 @@ export function ServicesGrid() {
             >
               {s.video && (
                 <div className="aspect-video bg-black/40 overflow-hidden border-b border-white/10">
-                  <video
+                  <AutoplayVideo
                     src={s.video}
-                    muted
                     loop
                     playsInline
-                    autoPlay
                     preload="metadata"
                     onLoadedMetadata={(e) => {
                       // Source clips are screen recordings — bump playback so they feel natural.
