@@ -172,12 +172,11 @@ function RootComponent() {
     );
   }
 
-  // Everywhere else the app is presented as a phone app on any device: a
-  // centered phone-width column over a neutral backdrop.
+  // The app fills the full screen on any device — phone, tablet, or desktop —
+  // adapting fluidly to the viewport width with no horizontal scroll.
   return (
     <QueryClientProvider client={queryClient}>
-      <div aria-hidden className="aurora-phone-backdrop pointer-events-none fixed inset-0 -z-10" />
-      <div className="relative mx-auto min-h-screen w-full max-w-[var(--aurora-phone-max)] overflow-x-hidden bg-background shadow-[0_0_60px_-10px_rgba(0,0,0,0.85)]">
+      <div className="relative min-h-screen w-full overflow-x-hidden bg-background">
         <Outlet />
       </div>
       <Toaster />
