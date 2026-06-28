@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { ImagePlus, Loader2, X, Video } from "lucide-react";
@@ -65,7 +66,7 @@ export function UploadSlot({ userId, label, hint, accept = "image/*", kind = "im
       >
         {value ? (
           kind === "video" ? (
-            <video src={value} className="w-full h-full object-cover" muted loop autoPlay playsInline />
+            <AutoplayVideo src={value} className="w-full h-full object-cover" loop playsInline />
           ) : (
             <img src={value} alt={label} className="w-full h-full object-cover" />
           )

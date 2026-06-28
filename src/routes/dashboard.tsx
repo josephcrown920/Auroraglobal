@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
@@ -101,7 +102,7 @@ function DashboardPage() {
                     {g.result_image_url ? (
                       <img src={g.result_image_url} alt={g.prompt.slice(0, 60)} className="w-full h-full object-cover" />
                     ) : g.result_video_url ? (
-                      <video src={g.result_video_url} className="w-full h-full object-cover" muted playsInline loop onMouseEnter={(e) => e.currentTarget.play()} onMouseLeave={(e) => e.currentTarget.pause()} />
+                      <AutoplayVideo src={g.result_video_url} className="w-full h-full object-cover" autoPlay={false} playsInline loop onMouseEnter={(e) => e.currentTarget.play()} onMouseLeave={(e) => e.currentTarget.pause()} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">{g.status === "failed" ? "Failed" : g.status}</div>
                     )}

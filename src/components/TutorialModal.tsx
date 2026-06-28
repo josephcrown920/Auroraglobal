@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { RECIPES } from "@/lib/tutorials";
 import { Sparkles, ArrowRight, Zap, ChevronLeft, ChevronRight, X } from "lucide-react";
@@ -48,13 +49,11 @@ export function TutorialModal({ trigger = 0 }: { trigger?: number }) {
           {/* Visual */}
           <div className="relative aspect-square md:aspect-auto md:h-[560px] overflow-hidden bg-black">
             {recipe.video ? (
-              <video
+              <AutoplayVideo
                 key={recipe.video}
                 src={recipe.video}
                 poster={recipe.image}
-                autoPlay
                 loop
-                muted
                 playsInline
                 preload="metadata"
                 className="w-full h-full object-cover animate-fade-in"

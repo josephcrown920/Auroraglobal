@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { LipSyncDemo } from "@/components/landing/LipSyncDemo";
@@ -381,7 +382,7 @@ function DropSlot({
       {file && previewUrl ? (
         <div className="mt-3 rounded-lg overflow-hidden bg-black/40">
           {kind === "video" ? (
-            <video src={previewUrl} className="w-full max-h-48 object-contain" controls muted />
+            <AutoplayVideo src={previewUrl} className="w-full max-h-48 object-contain" controls autoPlay={false} />
           ) : (
             <audio src={previewUrl} className="w-full" controls />
           )}

@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
@@ -284,7 +285,7 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
           />
         ) : data.url ? (
           data.kind === "video" || data.kind === "lipsync" || (data.kind === "comfy" && data.outputKind === "video") ? (
-            <video src={data.url} className="w-full aspect-square object-cover" muted playsInline controls />
+            <AutoplayVideo src={data.url} className="w-full aspect-square object-cover" autoPlay={false} playsInline controls />
           ) : data.kind === "audio" ? (
             <div className="p-3 bg-black/30">
               <audio src={data.url} controls className="w-full" />

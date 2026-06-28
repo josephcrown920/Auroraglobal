@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2, CheckCircle2, XCircle, Clock, Image as ImageIcon, Film, Mic } from "lucide-react";
@@ -113,7 +114,7 @@ export function LiveJobsPanel() {
                       {thumb ? (
                         <img src={thumb} alt="" className="size-full object-cover" />
                       ) : j.result_video_url ? (
-                        <video src={j.result_video_url} className="size-full object-cover" muted />
+                        <AutoplayVideo src={j.result_video_url} className="size-full object-cover" autoPlay={false} />
                       ) : (
                         <Icon className="size-4 text-white/40" />
                       )}
