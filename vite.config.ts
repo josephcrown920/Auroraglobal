@@ -27,6 +27,13 @@ export default defineConfig({
   tanstackStart: {
     server: { entry: "server" },
   },
+  // Production target: emit a standalone Node server (Nitro `node-server` preset)
+  // that binds `process.env.PORT` and serves SSR + built client assets, so the app
+  // can be published on Replit autoscale. Nitro only runs at command "build"
+  // (never during `vite dev`), so this leaves the dev path untouched. Outside a
+  // Lovable build (isSandbox=false here) this preset is honored instead of the
+  // Cloudflare Workers default.
+  nitro: { preset: "node-server" },
   // Replit preview is served through a proxied iframe on a different host,
   // so allow all hosts in dev. Bind explicitly to IPv4 (sandbox has no IPv6).
   vite: {
