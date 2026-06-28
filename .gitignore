@@ -45,3 +45,11 @@ secrets.*.json
 kling.json
 kling.*.json
 **/kling-credentials*
+
+# Large GPU worker template archives — stored in Replit Object Storage instead
+# of git (they exceed GitHub's 100 MB limit and bloat the repo). See
+# attached_assets/GPU_TEMPLATES.README.md for download instructions.
+attached_assets/Collab_inference*.zip
+attached_assets/Latentsync_export*.zip
+attached_assets/PerformAnywhereExport*.zip
+attached_assets/Motion_transfer_studio*.zip
