@@ -7,6 +7,7 @@
 - [Supabase sandbox DB access](supabase-sandbox-db-connection.md) — direct host is IPv6-only (no sandbox egress) & SUPABASE_DB_URL is garbage; use the session pooler. Live ref tpzmvbczwahxajujvnrq.
 - [gpu_workers.auth_token protection](gpu-workers-auth-token.md) — column REVOKE is a no-op vs table GRANT; real safeguard is service-role-only access + strip token from listWorkers (has_auth_token bool).
 - [Test setup (Bun runner)](test-setup.md) — `bun test src/` runs `*.test.ts`; they're excluded from tsconfig (no `bun:test` types); eslint is not type-aware; export privates to test them.
+- [Bun mock.module is process-global](bun-mock-module-leakage.md) — never mock.module a module other suites import real; it leaks the stub across files (order-dependent); dependency-inject instead.
 - [Cron endpoints pattern](cron-endpoints.md) — scheduled work = protected `/api/public/*` route authed via anon-key `apikey` header (NOT CRON_SECRET); scheduling is external (no pg_cron in dev/migrations).
 - [Worker self-registration tokens](worker-self-registration-tokens.md) — register/health auth = Supabase anon key (AURORA_REGISTER_KEY, `apikey` header); /generate bearer = AURORA_WORKER_TOKEN; keep them separate, don't merge.
 - [Aurora MCP server](aurora-mcp-server.md) — hand-rolled stateless JSON-RPC at /api/mcp (MCP SDK is Node-only, won't run on Workers); tools reuse /api/public/generate + jobs RPC; avatars live in DB but not in generated types.ts.
