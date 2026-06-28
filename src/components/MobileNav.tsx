@@ -64,12 +64,14 @@ export function MobileNav() {
   const [open, setOpen] = useState(false);
   const touchStartX = useRef<number | null>(null);
 
-  // Only render on real feature/tool routes — never on landing, auth, legal, etc.
+  // The active feature (if any) drives tab/"More" highlighting. On the landing page
+  // and other non-feature routes there's simply no active feature — the nav still
+  // renders, just with nothing highlighted. (NexusARB is suppressed upstream in
+  // __root, so it never reaches here.)
   const activeFeature = FEATURES.find((f) => isActive(pathname, f.to));
-  if (!activeFeature) return null;
 
   const isCanvas = isActive(pathname, "/canvas");
-  const moreActive = !TAB_ITEMS.some((t) => t.to === activeFeature.to);
+  const moreActive = !!activeFeature && !TAB_ITEMS.some((t) => t.to === activeFeature.to);
 
   const onTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0]?.clientX ?? null;
