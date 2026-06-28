@@ -26,7 +26,7 @@ export function ScrollProgress() {
   }, []);
 
   return (
-    <div className="fixed top-0 inset-x-0 z-[55] h-0.5 bg-transparent pointer-events-none">
+    <div className="phone-fixed-x fixed top-0 z-[55] h-0.5 bg-transparent pointer-events-none">
       <div
         className="h-full bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-300 transition-[width] duration-100"
         style={{ width: `${pct}%` }}

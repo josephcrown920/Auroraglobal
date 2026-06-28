@@ -45,7 +45,7 @@ export function StickyCreditsBar() {
 
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 px-3 pb-3 pointer-events-none animate-fade-in">
+    <div className="phone-fixed-x fixed bottom-[calc(4rem_+_env(safe-area-inset-bottom))] z-50 px-3 pb-3 pointer-events-none animate-fade-in">
       <div className="pointer-events-auto mx-auto max-w-3xl rounded-2xl border border-violet-400/40 bg-gradient-to-r from-violet-600/95 via-fuchsia-600/95 to-violet-600/95 backdrop-blur-xl shadow-2xl shadow-violet-900/50 px-4 py-3 flex items-center gap-3">
         <span className="size-9 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
           <Zap className="size-4 text-white" />

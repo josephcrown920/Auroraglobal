@@ -61,8 +61,22 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/*
+ * Phone-app presentation: disable every responsive breakpoint so the entire
+ * app always renders its base (mobile) layout regardless of the real viewport
+ * width. The app is constrained to a centered phone-width column instead.
+ */
+@theme {
+  --breakpoint-sm: 9990px;
+  --breakpoint-md: 9991px;
+  --breakpoint-lg: 9992px;
+  --breakpoint-xl: 9993px;
+  --breakpoint-2xl: 9994px;
+}
+
 :root {
   --radius: 0.625rem;
+  --aurora-phone-max: 440px;
   /* Site-wide dark theme matching the landing page (#070612 + purple glow) */
   --background: oklch(0.13 0.04 290);
   --foreground: oklch(0.985 0.005 300);
@@ -168,4 +182,39 @@
 @keyframes mc-pulse {
   0%, 100% { transform: scale(0.85); opacity: 0.55; }
   50%      { transform: scale(1.1);  opacity: 1; }
+}
+
+/* ── Phone-app frame helpers ─────────────────────────────────────────────
+ * The whole app is constrained to a centered phone-width column. These
+ * helpers confine viewport-fixed chrome (nav, drawer, floating buttons,
+ * side panels) to that column on wide screens. Defined outside @layer so
+ * they win over Tailwind position/size utilities.
+ */
+.aurora-phone-backdrop {
+  background:
+    radial-gradient(70% 55% at 50% 0%, oklch(0.22 0.06 290 / 0.55), transparent 70%),
+    radial-gradient(60% 60% at 50% 100%, oklch(0.18 0.06 300 / 0.4), transparent 70%),
+    oklch(0.07 0.02 290);
+}
+.phone-fixed-x {
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--aurora-phone-max);
+}
+.phone-edge-left {
+  left: calc(max(0px, (100vw - var(--aurora-phone-max)) / 2) + 0.75rem);
+}
+.phone-edge-right {
+  right: calc(max(0px, (100vw - var(--aurora-phone-max)) / 2) + 1.25rem);
+}
+.phone-drawer-left {
+  left: max(0px, calc((100vw - var(--aurora-phone-max)) / 2));
+  width: 18rem;
+  max-width: 80vw;
+}
+.phone-panel-col {
+  left: max(0px, calc((100vw - var(--aurora-phone-max)) / 2));
+  width: 100%;
+  max-width: var(--aurora-phone-max);
 }
