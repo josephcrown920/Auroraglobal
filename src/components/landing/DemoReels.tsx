@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Film, Mic2, ArrowRight } from "lucide-react";
+import { AutoplayVideo } from "@/components/landing/AutoplayVideo";
 // Hosted demo reels — URLs come from public/videos/*.asset.json
 const splitDemoUrl = "/__l5e/assets-v1/82946f74-8322-4f16-ab37-164aec7fecfb/split-reality-demo.mp4";
 const lipsyncDemoUrl = "/__l5e/assets-v1/7ed0c81b-e8c4-4b2d-bd9f-6c7d5d47a8a9/lipsync-demo.mp4";
@@ -26,10 +27,8 @@ export function DemoReels() {
             className="group relative rounded-2xl overflow-hidden border border-white/10 bg-black/40 no-underline hover:border-violet-400/60 transition"
           >
             <div className="relative aspect-video bg-black">
-              <video
+              <AutoplayVideo
                 src={splitDemoUrl}
-                autoPlay
-                muted
                 loop
                 playsInline
                 className="absolute inset-0 size-full object-cover"
@@ -52,10 +51,8 @@ export function DemoReels() {
             className="group relative rounded-2xl overflow-hidden border border-white/10 bg-black/40 no-underline hover:border-emerald-400/60 transition"
           >
             <div className="relative aspect-video bg-black">
-              <video
+              <AutoplayVideo
                 src={lipsyncDemoUrl}
-                autoPlay
-                muted
                 loop
                 playsInline
                 className="absolute inset-0 size-full object-cover"
