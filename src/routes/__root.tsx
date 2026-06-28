@@ -162,18 +162,29 @@ function RootComponent() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isIsolated = pathname === "/nexusarb" || pathname.startsWith("/nexusarb/");
 
+  if (isIsolated) {
+    // NexusARB stays a self-contained, full-bleed page: no phone frame, no chrome.
+    return (
+      <QueryClientProvider client={queryClient}>
+        <Outlet />
+        <Toaster />
+      </QueryClientProvider>
+    );
+  }
+
+  // Everywhere else the app is presented as a phone app on any device: a
+  // centered phone-width column over a neutral backdrop.
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      <div aria-hidden className="aurora-phone-backdrop pointer-events-none fixed inset-0 -z-10" />
+      <div className="relative mx-auto min-h-screen w-full max-w-[var(--aurora-phone-max)] overflow-x-hidden bg-background shadow-[0_0_60px_-10px_rgba(0,0,0,0.85)]">
+        <Outlet />
+      </div>
       <Toaster />
-      {!isIsolated && (
-        <>
-          <AuroraChatbot />
-          <AdminHotkey />
-          <ReferralAttacher />
-          <MobileNav />
-        </>
-      )}
+      <AuroraChatbot />
+      <AdminHotkey />
+      <ReferralAttacher />
+      <MobileNav />
     </QueryClientProvider>
   );
 }
