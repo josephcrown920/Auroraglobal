@@ -15,6 +15,14 @@ import {
   UGC_TTS_MODEL,
 } from "./ugc.server";
 
+// `orchestrate` is dependency-injected (threaded through the runners) rather than
+// imported-and-called directly so the worker loop is unit-testable WITHOUT
+// `mock.module("./orchestrator.server")`. Bun's module mocks are process-global
+// and would leak a stubbed orchestrate into the real orchestrator tests.
+type Orchestrate = typeof orchestrate;
+type JobDeps = { orchestrate: Orchestrate };
+const defaultDeps: JobDeps = { orchestrate };
+
 // Result envelope for every job runner. Single-media runners populate `url`;
 // the campaign runner additionally sets both `imageUrl` and `videoUrl` so the
 // matched pair lands on one generations row. `meta` surfaces graceful
@@ -44,7 +52,10 @@ type JobRow = {
 async function rpc<T = unknown>(name: string, args: Record<string, unknown>): Promise<T> {
   // Loose typing — generated types regenerate after migration.
   const client = supabaseAdmin as unknown as {
-    rpc: (n: string, a: Record<string, unknown>) => Promise<{ data: T; error: { message: string } | null }>;
+    rpc: (
+      n: string,
+      a: Record<string, unknown>,
+    ) => Promise<{ data: T; error: { message: string } | null }>;
   };
   const { data, error } = await client.rpc(name, args);
   if (error) throw new Error(error.message);
@@ -59,15 +70,21 @@ async function claimNext(workerId: string): Promise<JobRow | null> {
 
 async function markGeneration(jobId: string, genId: string | null, patch: Record<string, unknown>) {
   if (!genId) return;
-  await supabaseAdmin.from("generations").update(patch as never).eq("id", genId);
+  await supabaseAdmin
+    .from("generations")
+    .update(patch as never)
+    .eq("id", genId);
   void jobId;
 }
 
-async function finishJob(job: JobRow, opts: {
-  status: "succeeded" | "failed" | "retry";
-  result?: Record<string, unknown>;
-  error?: string;
-}) {
+async function finishJob(
+  job: JobRow,
+  opts: {
+    status: "succeeded" | "failed" | "retry";
+    result?: Record<string, unknown>;
+    error?: string;
+  },
+) {
   const patch: Record<string, unknown> = {
     finished_at: new Date().toISOString(),
     locked_at: null,
@@ -82,7 +99,10 @@ async function finishJob(job: JobRow, opts: {
     if (opts.result) patch.result = opts.result;
     if (opts.error) patch.error = opts.error;
   }
-  await supabaseAdmin.from("jobs").update(patch as never).eq("id", job.id);
+  await supabaseAdmin
+    .from("jobs")
+    .update(patch as never)
+    .eq("id", job.id);
 }
 
 // ─── Dispatch ───────────────────────────────────────────────────────────────
@@ -91,11 +111,14 @@ async function finishJob(job: JobRow, opts: {
 
 const MEDIA_KINDS = new Set<GenerateKind>(["image", "video", "lipsync", "upscale", "motion"]);
 
-async function runMediaJob(job: JobRow): Promise<{ url: string; provider: string; endpoint: string }> {
+async function runMediaJob(
+  job: JobRow,
+  orch: Orchestrate,
+): Promise<{ url: string; provider: string; endpoint: string }> {
   const req = job.payload as Partial<GenerateRequest>;
   const kind = (req.kind ?? job.kind) as GenerateKind;
   if (!MEDIA_KINDS.has(kind)) throw new Error(`Unsupported media kind: ${kind}`);
-  const result = await orchestrate({
+  const result = await orch({
     kind,
     prompt: req.prompt,
     imageUrls: req.imageUrls,
@@ -113,7 +136,7 @@ async function runMediaJob(job: JobRow): Promise<{ url: string; provider: string
   return { url: result.url, provider: result.provider, endpoint: result.endpoint };
 }
 
-async function runTiktokRemixChild(job: JobRow) {
+async function runTiktokRemixChild(job: JobRow, orch: Orchestrate) {
   const p = job.payload as {
     sourceVideoUrl: string;
     sourceImageUrl?: string;
@@ -122,7 +145,7 @@ async function runTiktokRemixChild(job: JobRow) {
     remixId: string;
     index: number;
   };
-  const result = await orchestrate({
+  const result = await orch({
     kind: "video",
     prompt: p.prompt,
     imageUrls: p.sourceImageUrl ? [p.sourceImageUrl] : undefined,
@@ -139,9 +162,14 @@ async function runTiktokRemixChild(job: JobRow) {
     .select("child_generation_ids")
     .eq("id", p.remixId)
     .maybeSingle();
-  const ids = Array.isArray(remix?.child_generation_ids) ? (remix!.child_generation_ids as unknown[]) : [];
+  const ids = Array.isArray(remix?.child_generation_ids)
+    ? (remix!.child_generation_ids as unknown[])
+    : [];
   if (job.generation_id) ids.push(job.generation_id);
-  await supabaseAdmin.from("tiktok_remixes").update({ child_generation_ids: ids } as never).eq("id", p.remixId);
+  await supabaseAdmin
+    .from("tiktok_remixes")
+    .update({ child_generation_ids: ids } as never)
+    .eq("id", p.remixId);
 
   return { url: result.url, provider: result.provider, endpoint: result.endpoint };
 }
@@ -152,7 +180,7 @@ async function runTiktokRemixChild(job: JobRow) {
 //   2. drive that still with the performance video — `motion` (MimicMotion)
 //   3. (optional) relip to a supplied audio track — `lipsync`
 // Stages 2 and 3 are video-producing; the final clip is what we save.
-async function runPerformanceReskin(job: JobRow) {
+async function runPerformanceReskin(job: JobRow, orch: Orchestrate) {
   const p = job.payload as {
     performanceVideoUrl: string;
     avatarImageUrl: string;
@@ -174,7 +202,7 @@ async function runPerformanceReskin(job: JobRow) {
     p.location ? `at ${p.location}` : null,
     "natural lighting, sharp focus",
   ].filter(Boolean) as string[];
-  const still = await orchestrate({
+  const still = await orch({
     kind: "image",
     prompt: styleSegs.join(", "),
     imageUrls: [p.avatarImageUrl],
@@ -183,7 +211,7 @@ async function runPerformanceReskin(job: JobRow) {
   });
 
   // Stage 2 — drive the styled still with the performance video (MimicMotion).
-  const motion = await orchestrate({
+  const motion = await orch({
     ...buildMimicMotionRequest({
       imageUrl: still.url,
       drivingVideoUrl: p.performanceVideoUrl,
@@ -198,7 +226,7 @@ async function runPerformanceReskin(job: JobRow) {
   // given we rely on the motion worker to preserve the source performance audio.
   let final = motion;
   if (p.audioUrl) {
-    final = await orchestrate({
+    final = await orch({
       kind: "lipsync",
       videoUrl: motion.url,
       audioUrl: p.audioUrl,
@@ -237,7 +265,7 @@ async function uploadBytesToStudio(
 //   4. image→video   — `video`
 //   5. lip-sync      — `lipsync` (only when voice audio was produced)
 // The final clip is saved; degradation is surfaced in `meta`.
-async function runUGCAd(job: JobRow): Promise<JobOutput> {
+async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
   const p = job.payload as {
     avatarImageUrl?: string;
     avatarName?: string;
@@ -253,7 +281,11 @@ async function runUGCAd(job: JobRow): Promise<JobOutput> {
   const duration = Math.max(3, Math.min(12, p.duration ?? 8));
 
   // Stage 1 — script
-  const { script, source: scriptSource, provider: scriptProvider } = await generateUGCScript({
+  const {
+    script,
+    source: scriptSource,
+    provider: scriptProvider,
+  } = await generateUGCScript({
     avatarName: p.avatarName,
     productPrompt: p.productPrompt,
     sceneHint: p.sceneHint,
@@ -279,7 +311,7 @@ async function runUGCAd(job: JobRow): Promise<JobOutput> {
   }
 
   // Stage 3 — styled still featuring the avatar
-  const still = await orchestrate({
+  const still = await orch({
     kind: "image",
     model: "google/nano-banana",
     prompt: buildUGCImagePrompt({
@@ -295,7 +327,7 @@ async function runUGCAd(job: JobRow): Promise<JobOutput> {
   });
 
   // Stage 4 — animate the still
-  const clip = await orchestrate({
+  const clip = await orch({
     kind: "video",
     model: "seedance-2.0-fast",
     prompt: buildUGCMotionPrompt({
@@ -316,7 +348,7 @@ async function runUGCAd(job: JobRow): Promise<JobOutput> {
   let lipsyncSkipped: string | boolean = true;
   if (audioUrl) {
     try {
-      final = await orchestrate({
+      final = await orch({
         kind: "lipsync",
         videoUrl: clip.url,
         audioUrl,
@@ -348,7 +380,7 @@ async function runUGCAd(job: JobRow): Promise<JobOutput> {
 
 // UGC campaign item: one matched image + video set for a named avatar. The still
 // and its animation are saved together on a single generations row.
-async function runCampaignItem(job: JobRow): Promise<JobOutput> {
+async function runCampaignItem(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
   const p = job.payload as {
     avatarImageUrl?: string;
     imagePrompt: string;
@@ -359,7 +391,7 @@ async function runCampaignItem(job: JobRow): Promise<JobOutput> {
   if (!p.imagePrompt) throw new Error("ugc_campaign_item requires imagePrompt");
   const duration = Math.max(3, Math.min(12, p.duration ?? 5));
 
-  const still = await orchestrate({
+  const still = await orch({
     kind: "image",
     model: "google/nano-banana",
     prompt: p.imagePrompt,
@@ -369,7 +401,7 @@ async function runCampaignItem(job: JobRow): Promise<JobOutput> {
   });
   const imageUrl = still.url;
 
-  const clip = await orchestrate({
+  const clip = await orch({
     kind: "video",
     model: "seedance-2.0-fast",
     prompt: p.motionPrompt || `subtle natural motion, ${p.imagePrompt}`,
@@ -390,22 +422,26 @@ async function runCampaignItem(job: JobRow): Promise<JobOutput> {
   };
 }
 
-export async function processOneJob(workerId: string): Promise<{ processed: boolean; jobId?: string; status?: string; error?: string }> {
+export async function processOneJob(
+  workerId: string,
+  deps: JobDeps = defaultDeps,
+): Promise<{ processed: boolean; jobId?: string; status?: string; error?: string }> {
   const job = await claimNext(workerId);
   if (!job) return { processed: false };
 
+  const orch = deps.orchestrate;
   try {
     let out: JobOutput;
     if (job.kind === "tiktok_remix_child") {
-      out = await runTiktokRemixChild(job);
+      out = await runTiktokRemixChild(job, orch);
     } else if (job.kind === "performance_reskin") {
-      out = await runPerformanceReskin(job);
+      out = await runPerformanceReskin(job, orch);
     } else if (job.kind === "ugc_ad") {
-      out = await runUGCAd(job);
+      out = await runUGCAd(job, orch);
     } else if (job.kind === "ugc_campaign_item") {
-      out = await runCampaignItem(job);
+      out = await runCampaignItem(job, orch);
     } else {
-      out = await runMediaJob(job);
+      out = await runMediaJob(job, orch);
     }
 
     // Update generations row. A matched image+video result (campaign sets) fills
@@ -416,14 +452,15 @@ export async function processOneJob(workerId: string): Promise<{ processed: bool
       genPatch.result_video_url = out.videoUrl;
     } else {
       const payloadKind = (job.payload as { kind?: string })?.kind;
-      const isVideo = payloadKind === "video"
-        || payloadKind === "motion"
-        || job.kind === "video"
-        || job.kind === "tiktok_remix_child"
-        || job.kind === "performance_reskin"
-        || job.kind === "ugc_ad"
-        || job.kind === "motion"
-        || job.kind === "lipsync";
+      const isVideo =
+        payloadKind === "video" ||
+        payloadKind === "motion" ||
+        job.kind === "video" ||
+        job.kind === "tiktok_remix_child" ||
+        job.kind === "performance_reskin" ||
+        job.kind === "ugc_ad" ||
+        job.kind === "motion" ||
+        job.kind === "lipsync";
       genPatch[isVideo ? "result_video_url" : "result_image_url"] = out.url;
     }
     await markGeneration(job.id, job.generation_id, genPatch);
@@ -442,7 +479,8 @@ export async function processOneJob(workerId: string): Promise<{ processed: bool
     return { processed: true, jobId: job.id, status: "succeeded" };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    const canRetry = job.attempts < job.max_attempts && !/insufficient_credits|invalid|unauthorized/i.test(msg);
+    const canRetry =
+      job.attempts < job.max_attempts && !/insufficient_credits|invalid|unauthorized/i.test(msg);
 
     if (canRetry) {
       await finishJob(job, { status: "retry", error: msg });
@@ -458,16 +496,23 @@ export async function processOneJob(workerId: string): Promise<{ processed: bool
         _ref: job.id,
       });
     }
-    await markGeneration(job.id, job.generation_id, { status: "failed", error: msg.slice(0, 1000) });
+    await markGeneration(job.id, job.generation_id, {
+      status: "failed",
+      error: msg.slice(0, 1000),
+    });
     await finishJob(job, { status: "failed", error: msg });
     return { processed: true, jobId: job.id, status: "failed", error: msg };
   }
 }
 
-export async function processBatch(workerId: string, limit = 5): Promise<Array<Awaited<ReturnType<typeof processOneJob>>>> {
+export async function processBatch(
+  workerId: string,
+  limit = 5,
+  deps: JobDeps = defaultDeps,
+): Promise<Array<Awaited<ReturnType<typeof processOneJob>>>> {
   const results = [];
   for (let i = 0; i < limit; i++) {
-    const r = await processOneJob(workerId);
+    const r = await processOneJob(workerId, deps);
     results.push(r);
     if (!r.processed) break;
   }
