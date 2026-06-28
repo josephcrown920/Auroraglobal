@@ -10,6 +10,7 @@
 - [Cron endpoints pattern](cron-endpoints.md) — scheduled work = protected `/api/public/*` route authed via anon-key `apikey` header (NOT CRON_SECRET); scheduling is external (no pg_cron in dev/migrations).
 - [Worker self-registration tokens](worker-self-registration-tokens.md) — register/health auth = Supabase anon key (AURORA_REGISTER_KEY, `apikey` header); /generate bearer = AURORA_WORKER_TOKEN; keep them separate, don't merge.
 - [Aurora MCP server](aurora-mcp-server.md) — hand-rolled stateless JSON-RPC at /api/mcp (MCP SDK is Node-only, won't run on Workers); tools reuse /api/public/generate + jobs RPC; avatars live in DB but not in generated types.ts.
+- [Flat-app publishing blocked](flat-app-publishing-blocked.md) — flat-root app in PNPM_WORKSPACE mode: agent can't set a deploy run cmd; user sets it in Publish UI or migrate to artifacts/<slug>/.
 - [Worker endpoint normalization](worker-endpoint-normalization.md) — every path appending to a worker endpoint_url (dispatch + health) must normalizeWorkerBase() in lockstep, else `.../generate/generate`.
 - [Credit reservation flow](credit-reservation-flow.md) — all spend goes through reserveOrchestrateRecord; Supabase RPCs resolve {error} (don't throw); commit-fail must NOT release (would refund a delivered render).
 - [Landing video hydration warning](aurora-landing-video-hydration.md) — React "attributes didn't match" console.error is from muted/autoplay `<video>` across MANY landing components; pre-existing & benign, not a per-component regression.

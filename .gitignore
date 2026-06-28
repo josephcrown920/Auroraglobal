@@ -16,6 +16,11 @@ dist-ssr
 .nitro
 *.local
 
+# Stray root-level artifact temp (platform blocks deleting it; flat-root apps
+# cannot be root artifacts). Root-anchored so artifacts/<slug>/.replit-artifact/
+# stays tracked.
+/.replit-artifact/
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
