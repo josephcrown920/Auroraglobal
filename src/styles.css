@@ -62,9 +62,10 @@
 }
 
 /*
- * Phone-app presentation: disable every responsive breakpoint so the entire
- * app always renders its base (mobile) layout regardless of the real viewport
- * width. The app is constrained to a centered phone-width column instead.
+ * Single-column presentation: disable every responsive breakpoint so the
+ * entire app always renders its base (mobile) layout regardless of the real
+ * viewport width. The single-column layout then stretches to fill the full
+ * screen on any device.
  */
 @theme {
   --breakpoint-sm: 9990px;
@@ -184,37 +185,30 @@
   50%      { transform: scale(1.1);  opacity: 1; }
 }
 
-/* ── Phone-app frame helpers ─────────────────────────────────────────────
- * The whole app is constrained to a centered phone-width column. These
- * helpers confine viewport-fixed chrome (nav, drawer, floating buttons,
- * side panels) to that column on wide screens. Defined outside @layer so
- * they win over Tailwind position/size utilities.
+/* ── Full-screen chrome helpers ──────────────────────────────────────────
+ * The app fills the whole viewport on any device. These helpers anchor
+ * viewport-fixed chrome (nav, drawer, floating buttons, side panels) to the
+ * screen edges so they span / sit against the real viewport. Defined outside
+ * @layer so they win over Tailwind position/size utilities.
  */
-.aurora-phone-backdrop {
-  background:
-    radial-gradient(70% 55% at 50% 0%, oklch(0.22 0.06 290 / 0.55), transparent 70%),
-    radial-gradient(60% 60% at 50% 100%, oklch(0.18 0.06 300 / 0.4), transparent 70%),
-    oklch(0.07 0.02 290);
-}
 .phone-fixed-x {
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
   width: 100%;
-  max-width: var(--aurora-phone-max);
 }
 .phone-edge-left {
-  left: calc(max(0px, (100vw - var(--aurora-phone-max)) / 2) + 0.75rem);
+  left: 0.75rem;
 }
 .phone-edge-right {
-  right: calc(max(0px, (100vw - var(--aurora-phone-max)) / 2) + 1.25rem);
+  right: 1.25rem;
 }
 .phone-drawer-left {
-  left: max(0px, calc((100vw - var(--aurora-phone-max)) / 2));
+  left: 0;
   width: 18rem;
   max-width: 80vw;
 }
 .phone-panel-col {
-  left: max(0px, calc((100vw - var(--aurora-phone-max)) / 2));
+  left: 0;
   width: 100%;
-  max-width: var(--aurora-phone-max);
+  max-width: 28rem;
 }
