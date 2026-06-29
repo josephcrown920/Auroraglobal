@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { BringItToLifePreview } from "@/components/studio/BringItToLifePreview";
 import { ConnectReplicateBanner } from "@/components/ConnectReplicateBanner";
+import { friendlyGenerationMessage, handleGenerationError } from "@/lib/error-toasts";
 
 export const Route = createFileRoute("/motion")({
   component: MotionStudio,
@@ -169,9 +170,8 @@ function MotionStudio() {
       qc.invalidateQueries({ queryKey: ["motion-gens"] });
     },
     onError: (e) => {
-      const msg = e instanceof Error ? e.message : "Pose failed";
-      setImageError(msg);
-      toast.error(msg);
+      setImageError(friendlyGenerationMessage(e));
+      handleGenerationError(e);
     },
   });
 
@@ -200,9 +200,8 @@ function MotionStudio() {
       qc.invalidateQueries({ queryKey: ["motion-gens"] });
     },
     onError: (e) => {
-      const msg = e instanceof Error ? e.message : "Animate failed";
-      setVideoError(msg);
-      toast.error(msg);
+      setVideoError(friendlyGenerationMessage(e));
+      handleGenerationError(e);
     },
   });
 
@@ -226,9 +225,8 @@ function MotionStudio() {
       qc.invalidateQueries({ queryKey: ["motion-gens"] });
     },
     onError: (e) => {
-      const msg = e instanceof Error ? e.message : "Motion transfer failed";
-      setMtError(msg);
-      toast.error(msg);
+      setMtError(friendlyGenerationMessage(e));
+      handleGenerationError(e);
     },
   });
 
@@ -254,9 +252,8 @@ function MotionStudio() {
       qc.invalidateQueries({ queryKey: ["motion-gens"] });
     },
     onError: (e) => {
-      const msg = e instanceof Error ? e.message : "Performance Shot failed";
-      setRsError(msg);
-      toast.error(msg);
+      setRsError(friendlyGenerationMessage(e));
+      handleGenerationError(e);
     },
   });
 

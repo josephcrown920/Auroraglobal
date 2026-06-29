@@ -28,6 +28,7 @@ import {
   generateSplitReality,
 } from "@/lib/studio.functions";
 import { listWorkflows, saveWorkflow, getWorkflow } from "@/lib/workflows.functions";
+import { handleGenerationError } from "@/lib/error-toasts";
 import { listComfyTemplates, startComfyRun } from "@/lib/comfy.functions";
 import { MODEL_LIST, VIDEO_MODEL_LIST, getModelMeta } from "@/lib/models";
 import {
@@ -705,7 +706,7 @@ function CanvasPage() {
       toast.success("Both stories animated");
     } catch (e) {
       update(id, { animating: false });
-      toast.error(e instanceof Error ? e.message : "Animate failed");
+      handleGenerationError(e);
     }
   }, [nodes, update]);
 
