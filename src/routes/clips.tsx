@@ -105,8 +105,9 @@ function ClipsPage() {
   const approved = clips.filter((c) => status[c.id] === "approved");
 
   return (
-    <main className="min-h-screen bg-background text-foreground p-6 md:p-10">
-      <header className="max-w-7xl mx-auto mb-8 flex flex-wrap items-end justify-between gap-4">
+    <main className="aurora-page-shell text-foreground p-6 md:p-10">
+      <span aria-hidden className="aurora-ambient" />
+      <header className="relative z-10 max-w-7xl mx-auto mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight">Clip Preview Gallery</h1>
           <p className="text-muted-foreground mt-2">Tweak framing, expression, lighting per clip. Queue regen + approve picks.</p>
@@ -117,7 +118,7 @@ function ClipsPage() {
       </header>
 
       {(queued.length > 0 || approved.length > 0) && (
-        <div className="max-w-7xl mx-auto mb-8 rounded-xl border border-border bg-card p-4 text-sm">
+        <div className="relative z-10 max-w-7xl mx-auto mb-8 rounded-xl border border-border bg-card p-4 text-sm">
           {approved.length > 0 && (
             <p><span className="text-emerald-500 font-semibold">Approved ({approved.length}):</span>{" "}
               <span className="text-muted-foreground">{approved.map((c) => c.title).join(" · ")}</span></p>
@@ -131,7 +132,7 @@ function ClipsPage() {
       )}
 
       {compareOn && (
-        <section className="max-w-7xl mx-auto mb-12 rounded-2xl border border-border bg-card p-5">
+        <section className="relative z-10 max-w-7xl mx-auto mb-12 rounded-2xl border border-border bg-card p-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {[
               { side: "Left", clip: left, setId: setLeftId, ref: leftRef },
@@ -185,7 +186,7 @@ function ClipsPage() {
         </section>
       )}
 
-      <div className="max-w-7xl mx-auto space-y-12">
+      <div className="relative z-10 max-w-7xl mx-auto space-y-12">
         {groups.map((g) => (
           <section key={g}>
             <h2 className="text-xl font-semibold mb-4 uppercase tracking-wider text-muted-foreground">{g}</h2>

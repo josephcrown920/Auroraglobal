@@ -35,12 +35,13 @@ function AffiliatePage() {
   const link = typeof window !== "undefined" ? `${window.location.origin}/?ref=${data.affiliate?.code}` : `/?ref=${data.affiliate?.code}`;
 
   return (
-    <main className="min-h-screen bg-background">
-      <header className="border-b border-border/40 px-6 py-4 flex items-center justify-between">
+    <main className="aurora-page-shell text-foreground">
+      <span aria-hidden className="aurora-ambient" />
+      <header className="relative z-10 border-b border-border/40 bg-background/70 backdrop-blur-xl px-6 py-4 flex items-center justify-between">
         <Link to="/" className="font-semibold no-underline text-foreground">Aurora</Link>
         <Link to="/dashboard" className="text-sm text-foreground/70 no-underline">Dashboard</Link>
       </header>
-      <section className="max-w-3xl mx-auto px-6 py-10">
+      <section className="relative z-10 max-w-3xl mx-auto px-6 py-10">
         <div className="flex items-center gap-2 mb-2"><Sparkles className="h-6 w-6 text-primary" /><h1 className="text-3xl font-bold">Affiliate program</h1></div>
         <p className="text-muted-foreground mb-8">Earn <strong>{data.affiliate?.commission_pct ?? 20}%</strong> on every Aura purchase from people you refer.</p>
 
@@ -50,7 +51,7 @@ function AffiliatePage() {
           <Stat icon={<DollarSign className="h-4 w-4" />} label="Earned" value={`$${data.earned.toFixed(2)}`} />
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-5 mb-6">
+        <div className="aurora-glass rounded-xl p-5 mb-6">
           <Label>Your referral link</Label>
           <div className="flex gap-2 mt-2">
             <Input readOnly value={link} />
@@ -59,7 +60,7 @@ function AffiliatePage() {
           <p className="text-xs text-muted-foreground mt-2">Code: <code className="bg-muted px-1.5 py-0.5 rounded">{data.affiliate?.code}</code></p>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="aurora-glass rounded-xl p-5">
           <Label htmlFor="payout">Payout email</Label>
           <div className="flex gap-2 mt-2">
             <Input id="payout" type="email" value={email} onChange={e => setEmail(e.target.value)} />
@@ -75,7 +76,7 @@ function AffiliatePage() {
 
 function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="aurora-glass rounded-xl p-4">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">{icon}{label}</div>
       <div className="text-2xl font-bold mt-1">{value}</div>
     </div>

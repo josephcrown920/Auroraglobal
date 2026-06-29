@@ -147,8 +147,9 @@ function UGCStudio() {
   const busy = imageMut.isPending || videoMut.isPending || adMut.isPending;
 
   return (
-    <main className="min-h-screen bg-background">
-      <header className="border-b border-border/40 px-6 py-4 flex items-center justify-between">
+    <main className="aurora-page-shell text-foreground">
+      <span aria-hidden className="aurora-ambient" />
+      <header className="relative z-10 border-b border-border bg-card/40 px-6 py-4 flex items-center justify-between backdrop-blur-xl">
         <Link to="/" className="font-semibold no-underline text-foreground">Aurora</Link>
         <nav className="flex gap-4 text-sm">
           <Link to="/studio" className="text-foreground/70 no-underline">Studio</Link>
@@ -157,8 +158,8 @@ function UGCStudio() {
         </nav>
       </header>
 
-      <section className="max-w-6xl mx-auto px-6 py-12">
-        <p className="text-xs uppercase tracking-[0.2em] text-primary mb-2">UGC Factory</p>
+      <section className="relative z-10 max-w-6xl mx-auto px-6 py-12">
+        <p className="aurora-kicker mb-2">UGC Factory</p>
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight">Pick an avatar. Ship UGC.</h1>
         <p className="text-muted-foreground mt-3 max-w-2xl">
           Six on-brand AI creators, ready to film. Choose a face, pick a scene, and Aurora generates a native TikTok-style ad with your product in hand.
@@ -174,7 +175,7 @@ function UGCStudio() {
                 <button
                   key={a.id}
                   onClick={() => setAvatarId(a.id)}
-                  className={`relative rounded-xl overflow-hidden border-2 transition group ${active ? "border-primary shadow-[0_0_24px_oklch(0.78_0.18_305/0.4)]" : "border-border hover:border-primary/50"}`}
+                  className={`aurora-card-hover relative rounded-xl overflow-hidden border-2 transition group ${active ? "border-primary shadow-[0_0_24px_oklch(0.78_0.18_305/0.4)]" : "border-border hover:border-primary/50"}`}
                 >
                   <img src={a.img} alt={a.name} width={512} height={512} loading="lazy" className="aspect-square w-full object-cover" />
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent p-2 text-left">
@@ -201,7 +202,7 @@ function UGCStudio() {
                 key={p.id}
                 onClick={() => setPresetId(p.id)}
                 aria-pressed={p.id === presetId}
-                className={`text-left rounded-xl border bg-card hover:border-primary transition group overflow-hidden ${p.id === presetId ? "border-primary shadow-[0_0_24px_oklch(0.78_0.18_305/0.35)]" : "border-border"}`}
+                className={`aurora-card-hover text-left rounded-xl border bg-card hover:border-primary transition group overflow-hidden ${p.id === presetId ? "border-primary shadow-[0_0_24px_oklch(0.78_0.18_305/0.35)]" : "border-border"}`}
               >
                 <div className="aspect-video bg-black/40 overflow-hidden">
                   {p.poster ? (
@@ -254,10 +255,10 @@ function UGCStudio() {
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
               {!user ? (
-                <Button onClick={() => nav({ to: "/auth" })} className="w-full sm:w-auto">Sign in to generate</Button>
+                <Button onClick={() => nav({ to: "/auth" })} variant="premium" className="w-full sm:w-auto">Sign in to generate</Button>
               ) : (
                 <>
-                  <Button onClick={() => imageMut.mutate()} disabled={busy} className="w-full sm:w-auto">
+                  <Button onClick={() => imageMut.mutate()} disabled={busy} variant="premium" className="w-full sm:w-auto">
                     {imageMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting…</> : <><Wand2 className="size-4 mr-2" /> Generate UGC shot · 1 Aura</>}
                   </Button>
                   <Button onClick={() => videoMut.mutate()} disabled={busy || !resultImage} variant="outline" className="w-full sm:w-auto">

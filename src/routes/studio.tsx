@@ -359,7 +359,7 @@ function StudioPage() {
 
       <header className="relative z-10 flex items-center justify-between px-6 md:px-10 py-5 border-b border-border/60 backdrop-blur-xl bg-background/40">
         <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <img src={auroraLogo.url} alt="Aurora" className="size-8 rounded-xl object-contain" />
+          <img src={auroraLogo.url} alt="Aurora" className="size-8 rounded-xl object-contain shadow-[var(--shadow-glow-soft)]" />
           Aurora Studio
         </Link>
         <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
@@ -413,9 +413,9 @@ function StudioPage() {
           <div>
             <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
               {profile?.display_name ? (
-                <>Welcome, <span style={{ background: "var(--gradient-hero)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{profile.display_name}.</span></>
+                <>Welcome, <span className="aurora-gradient-text">{profile.display_name}.</span></>
               ) : (
-                <>Direct your <span style={{ background: "var(--gradient-hero)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>shoot.</span></>
+                <>Direct your <span className="aurora-gradient-text">shoot.</span></>
               )}
             </h1>
             <p className="mt-1 text-xs text-muted-foreground">Drop references → write direction → generate. That's it.</p>

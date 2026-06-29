@@ -35,7 +35,7 @@ export function CanvasWorkflowShowcase() {
       {/* CANVAS + WORKFLOWS */}
       <section className="relative z-10 px-6 md:px-12 py-20">
         <div className="text-center max-w-2xl mx-auto mb-10">
-          <p className="text-xs uppercase tracking-[0.2em] text-violet-300/80 mb-2 inline-flex items-center gap-2 justify-center">
+          <p className="aurora-kicker mb-2 inline-flex items-center gap-2 justify-center">
             <Workflow className="size-3.5" /> Canvas · finished workflows
           </p>
           <h2 className="text-3xl md:text-5xl font-semibold tracking-tight">
@@ -50,7 +50,7 @@ export function CanvasWorkflowShowcase() {
           {/* Hero workflow */}
           <Link
             to="/canvas"
-            className="group relative rounded-2xl overflow-hidden border border-white/10 bg-black/40 no-underline hover:border-emerald-400/50 transition"
+            className="group relative rounded-2xl overflow-hidden border border-border bg-black/40 no-underline hover:border-emerald-400/50 transition"
           >
             <div className="relative aspect-[4/3] overflow-hidden">
               <img
@@ -85,7 +85,7 @@ export function CanvasWorkflowShowcase() {
               <Link
                 key={wf.id}
                 to="/canvas"
-                className="group relative rounded-xl overflow-hidden border border-white/10 bg-black/40 no-underline hover:border-emerald-400/50 transition"
+                className="group relative rounded-xl overflow-hidden border border-border bg-black/40 no-underline hover:border-emerald-400/50 transition"
               >
                 <div className="relative aspect-[4/5]">
                   <img src={wf.cover} alt={wf.name} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" />
@@ -106,7 +106,7 @@ export function CanvasWorkflowShowcase() {
         <div className="mt-8 flex justify-center">
           <Link
             to="/canvas"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-white no-underline bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:opacity-95 shadow-lg shadow-violet-500/30"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-white no-underline bg-[image:var(--gradient-hero)] hover:brightness-110 shadow-[var(--shadow-glow-soft)]"
           >
             Open Canvas <ArrowRight className="size-4" />
           </Link>
@@ -132,7 +132,7 @@ export function CanvasWorkflowShowcase() {
             <Link
               key={a.name}
               to="/ugc"
-              className="group relative rounded-xl overflow-hidden border border-white/10 hover:border-rose-400/60 no-underline transition animate-fade-in"
+              className="group relative rounded-xl overflow-hidden border border-border hover:border-rose-400/60 no-underline transition animate-fade-in"
               style={{ animationDelay: `${i * 60}ms`, animationFillMode: "backwards" }}
             >
               <div className="relative aspect-square">

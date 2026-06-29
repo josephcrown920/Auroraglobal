@@ -35,7 +35,7 @@ export function JoshSlideshow() {
     return () => clearInterval(t);
   }, []);
   return (
-    <section className="relative rounded-3xl overflow-hidden border border-white/10 bg-black/40">
+    <section className="relative rounded-3xl overflow-hidden aurora-hairline aurora-elevated bg-black/40">
       <div className="relative aspect-[16/9] md:aspect-[21/9] w-full overflow-hidden">
         {SHOTS.map((s, idx) => (
           <img

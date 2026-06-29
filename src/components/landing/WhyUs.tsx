@@ -26,13 +26,13 @@ const PILLARS = [
 export function WhyUs() {
   return (
     <section className="relative z-10 px-6 md:px-12 py-20">
-      <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-violet-600/15 via-fuchsia-600/5 to-transparent p-8 md:p-14">
+      <div className="rounded-3xl border border-border bg-gradient-to-br from-violet-600/15 via-fuchsia-600/5 to-transparent p-8 md:p-14">
         <div className="grid lg:grid-cols-12 gap-10">
           <div className="lg:col-span-5">
-            <p className="text-xs uppercase tracking-[0.2em] text-violet-300/80 mb-2">Why Aurora</p>
+            <p className="aurora-kicker mb-2">Why Aurora</p>
             <h2 className="text-3xl md:text-5xl font-semibold tracking-tight leading-[1.05]">
               The fastest path from
-              <span className="block bg-gradient-to-r from-violet-300 via-fuchsia-300 to-pink-200 bg-clip-text text-transparent">
+              <span className="block aurora-gradient-text">
                 idea to finished asset.
               </span>
             </h2>
@@ -46,11 +46,11 @@ export function WhyUs() {
               return (
                 <div
                   key={p.title}
-                  className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm p-5 hover:border-violet-400/40 transition animate-fade-in"
+                  className="rounded-2xl aurora-glass p-5 hover:border-primary/40 transition animate-fade-in"
                   style={{ animationDelay: `${i * 80}ms`, animationFillMode: "backwards" }}
                 >
-                  <span className="inline-flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/30 to-fuchsia-500/10 border border-white/10 mb-4">
-                    <Icon className="size-5 text-violet-200" />
+                  <span className="inline-flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/30 to-fuchsia-500/10 border border-border mb-4">
+                    <Icon className="size-5 text-primary" />
                   </span>
                   <h3 className="text-base font-semibold text-white">{p.title}</h3>
                   <p className="text-sm text-white/60 mt-1.5 leading-relaxed">{p.desc}</p>

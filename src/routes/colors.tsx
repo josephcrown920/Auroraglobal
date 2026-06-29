@@ -255,11 +255,12 @@ function ColorsStudio() {
   const selectedSetup = SETUPS.find((s) => s.id === setup) ?? filteredSetups[0];
 
   return (
-    <main className="min-h-screen bg-background">
-      <header className="flex items-center justify-between px-6 md:px-10 py-4 border-b border-border bg-card/40 backdrop-blur-xl">
+    <main className="aurora-page-shell text-foreground">
+      <span aria-hidden className="aurora-ambient" />
+      <header className="relative z-10 flex items-center justify-between px-6 md:px-10 py-4 border-b border-border bg-card/40 backdrop-blur-xl">
         <Link to="/canvas" className="flex items-center gap-2 font-semibold tracking-tight">
           <ArrowLeft className="size-4 text-muted-foreground" />
-          <span className="size-8 rounded-xl flex items-center justify-center" style={{ background: "var(--gradient-hero)" }}>
+          <span className="size-8 rounded-xl flex items-center justify-center shadow-[var(--shadow-glow-soft)]" style={{ background: "var(--gradient-hero)" }}>
             <Palette className="size-4 text-primary-foreground" />
           </span>
           Colors Studio
@@ -270,7 +271,7 @@ function ColorsStudio() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto p-5 md:p-10 grid lg:grid-cols-[1fr_380px] gap-8">
+      <div className="relative z-10 max-w-7xl mx-auto p-5 md:p-10 grid lg:grid-cols-[1fr_380px] gap-8">
         {/* LEFT — pickers */}
         <section className="space-y-7">
           {/* COMPACT references at top */}
@@ -281,7 +282,7 @@ function ColorsStudio() {
 
           <div>
             <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
-              Pick a <span style={{ background: "var(--gradient-hero)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>color</span>. Pick a scene. Shoot.
+              Pick a <span className="aurora-gradient-text">color</span>. Pick a scene. Shoot.
             </h1>
             <p className="text-muted-foreground text-sm mt-1">Studio, indoor, rooftop, street — each scene previewed in your color.</p>
           </div>
@@ -306,7 +307,7 @@ function ColorsStudio() {
 
           {/* Colors */}
           <div>
-            <h2 className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">Color</h2>
+            <h2 className="aurora-kicker mb-3">Color</h2>
             <div className="grid grid-cols-6 md:grid-cols-8 gap-2.5">
               {COLOR_PRESETS.map((c) => (
                 <button
@@ -339,7 +340,7 @@ function ColorsStudio() {
 
           {/* Scene kind tabs */}
           <div>
-            <h2 className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">Scene type</h2>
+            <h2 className="aurora-kicker mb-3">Scene type</h2>
             <div className="flex gap-2 flex-wrap">
               {SETUP_KINDS.map((k) => (
                 <button
@@ -361,7 +362,7 @@ function ColorsStudio() {
 
           {/* Setup visual cards */}
           <div>
-            <h2 className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">Setup preview</h2>
+            <h2 className="aurora-kicker mb-3">Setup preview</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {filteredSetups.map((s) => {
                 const active = setup === s.id;
@@ -421,7 +422,7 @@ function ColorsStudio() {
 
           {/* Workflows */}
           <div>
-            <h2 className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">Workflow</h2>
+            <h2 className="aurora-kicker mb-3">Workflow</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
               {WORKFLOWS.map((w) => (
                 <button
@@ -440,7 +441,7 @@ function ColorsStudio() {
           {/* Triplet picker */}
           {workflow === "triptych" && (
             <div className="rounded-xl border border-border bg-card/40 p-3 space-y-2.5">
-              <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Triptych colors (pick 3)</div>
+              <div className="aurora-kicker">Triptych colors (pick 3)</div>
               <div className="flex flex-wrap gap-2">
                 {COLOR_PRESETS.map((c) => {
                   const selected = tripletColors.includes(c.id);
@@ -471,17 +472,17 @@ function ColorsStudio() {
               <span>{selectedColor.name} · {selectedSetup?.name}</span>
             </div>
             {workflow === "single" && (
-              <Button disabled={singleMut.isPending || refs.length === 0} onClick={() => singleMut.mutate()} className="w-full h-11" style={{ background: "var(--gradient-hero)" }}>
+              <Button disabled={singleMut.isPending || refs.length === 0} onClick={() => singleMut.mutate()} variant="premium" className="w-full h-11">
                 {singleMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting…</> : <><Wand2 className="size-4 mr-2" /> Generate · 1 Aura · ~15s</>}
               </Button>
             )}
             {workflow === "triptych" && (
-              <Button disabled={tripletMut.isPending || refs.length === 0 || tripletColors.length !== 3} onClick={() => tripletMut.mutate()} className="w-full h-11" style={{ background: "var(--gradient-hero)" }}>
+              <Button disabled={tripletMut.isPending || refs.length === 0 || tripletColors.length !== 3} onClick={() => tripletMut.mutate()} variant="premium" className="w-full h-11">
                 {tripletMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting 3×…</> : <><Wand2 className="size-4 mr-2" /> Generate triptych · 3 Aura</>}
               </Button>
             )}
             {workflow === "all-setups" && (
-              <Button disabled={allSetupsMut.isPending || refs.length === 0} onClick={() => allSetupsMut.mutate()} className="w-full h-11" style={{ background: "var(--gradient-hero)" }}>
+              <Button disabled={allSetupsMut.isPending || refs.length === 0} onClick={() => allSetupsMut.mutate()} variant="premium" className="w-full h-11">
                 {allSetupsMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting all…</> : <><Wand2 className="size-4 mr-2" /> Generate all {filteredSetups.length} setups</>}
               </Button>
             )}
@@ -501,7 +502,7 @@ function ColorsStudio() {
               </div>
             )}
             {recent.map((g) => (
-              <a key={g.id} href={g.result_image_url!} target="_blank" rel="noreferrer" className="aspect-[4/5] rounded-xl overflow-hidden border border-border bg-background/40 hover:border-primary/40 transition-colors">
+              <a key={g.id} href={g.result_image_url!} target="_blank" rel="noreferrer" className="aurora-card-hover aspect-[4/5] rounded-xl overflow-hidden border border-border bg-background/40 hover:border-primary/40 transition-colors">
                 <img src={g.result_image_url!} alt="" className="w-full h-full object-cover" />
               </a>
             ))}

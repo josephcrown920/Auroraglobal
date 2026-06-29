@@ -163,8 +163,8 @@ function AgentPage() {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen grid place-items-center bg-[oklch(0.09_0.03_290)] text-white/60">
-        <Loader2 className="size-6 animate-spin" />
+      <div className="aurora-page-shell grid place-items-center text-muted-foreground">
+        <Loader2 className="size-6 animate-spin text-primary" />
       </div>
     );
   }
@@ -173,31 +173,27 @@ function AgentPage() {
   const sessions = sessionsQuery.data ?? [];
 
   return (
-    <div className="min-h-screen bg-[oklch(0.09_0.03_290)] text-white flex flex-col">
-      <header className="px-4 sm:px-6 py-3 border-b border-white/10 flex items-center justify-between sticky top-0 z-20 bg-[oklch(0.09_0.03_290)]/90 backdrop-blur">
+    <div className="aurora-page-shell text-foreground flex flex-col">
+      <span aria-hidden className="aurora-ambient" />
+      <header className="relative z-20 px-4 sm:px-6 py-3 border-b border-border flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-xl">
         <div className="flex items-center gap-2">
-          <Link to="/" className="p-1.5 rounded-md text-white/60 hover:text-white hover:bg-white/5 no-underline">
+          <Link to="/" className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/40 no-underline">
             <ArrowLeft className="size-4" />
           </Link>
-          <span className="size-8 rounded-lg flex items-center justify-center bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg shadow-violet-500/40">
+          <span className="size-8 rounded-xl flex items-center justify-center bg-[image:var(--gradient-hero)] shadow-[var(--shadow-glow-soft)]">
             <Sparkles className="size-4 text-white" />
           </span>
           <div>
             <p className="text-sm font-semibold">Aurora Agent</p>
-            <p className="text-[10px] text-white/50">Director → Critic refinement studio</p>
+            <p className="aurora-kicker mt-1">Director · Critic studio</p>
           </div>
         </div>
-        <Button
-          onClick={startNew}
-          variant="outline"
-          size="sm"
-          className="border-white/15 bg-white/5 text-white hover:bg-white/10"
-        >
+        <Button onClick={startNew} variant="glass" size="sm">
           <Plus className="size-3.5 mr-1" /> New session
         </Button>
       </header>
 
-      <div className="flex-1 flex min-h-0">
+      <div className="relative z-10 flex-1 flex min-h-0">
         {/* Sidebar: resumable sessions */}
         <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-white/10 bg-white/[0.02]">
           <div className="px-3 py-2.5 border-b border-white/5 flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-white/40">
@@ -249,7 +245,7 @@ function AgentPage() {
         <main className="flex-1 min-w-0 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6">
             {/* Brief composer */}
-            <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
+            <section className="aurora-panel p-4 space-y-3">
               <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-violet-300/80">
                 <Wand2 className="size-3" /> {sessionId ? "Refine this brief" : "Your brief"}
               </div>
@@ -277,8 +273,8 @@ function AgentPage() {
               <Button
                 onClick={submitBrief}
                 disabled={busy || brief.trim().length < 4}
-                className="w-full text-white shadow-lg shadow-violet-500/30"
-                style={{ background: "linear-gradient(135deg, oklch(0.65 0.22 305), oklch(0.62 0.22 340))" }}
+                variant="premium"
+                className="w-full"
               >
                 {busy ? <Loader2 className="size-4 mr-1 animate-spin" /> : <Send className="size-4 mr-1" />}
                 {busy ? "Director & critic at work…" : plan ? "Re-direct with critic loop" : "Direct my story"}
@@ -327,7 +323,7 @@ function AgentPage() {
 
                 {/* Iteration history */}
                 {iterations.length > 0 && (
-                  <section className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
+                  <section className="aurora-glass rounded-2xl overflow-hidden">
                     <button
                       onClick={() => setHistoryOpen((o) => !o)}
                       className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-white/[0.03]"
@@ -376,7 +372,7 @@ function AgentPage() {
                 )}
 
                 {/* Direction */}
-                <section className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <section className="aurora-glass rounded-xl p-3">
                   <p className="text-[10px] uppercase tracking-wider text-white/40 mb-1 inline-flex items-center gap-1">
                     <Lightbulb className="size-3" /> Direction
                   </p>
@@ -407,7 +403,7 @@ function AgentPage() {
                     {plan.shots.map((s) => {
                       const rs = renders[s.id] ?? { status: "idle" as RenderStatus };
                       return (
-                        <div key={s.id} className="rounded-xl border border-white/10 bg-white/[0.03] overflow-hidden">
+                        <div key={s.id} className="aurora-glass rounded-xl overflow-hidden">
                           <div className="flex gap-3 p-3">
                             <div className="size-20 shrink-0 rounded-lg border border-white/10 bg-black/40 overflow-hidden grid place-items-center">
                               {rs.status === "succeeded" && rs.url ? (
@@ -474,7 +470,7 @@ function AgentPage() {
                 </section>
 
                 {/* Suggestions */}
-                <section className="rounded-xl border border-violet-400/20 bg-violet-500/5 p-3">
+                <section className="aurora-glass rounded-xl border-primary/25 bg-primary/5 p-3">
                   <p className="text-[10px] uppercase tracking-wider text-violet-300/80 mb-1.5">Next moves</p>
                   <ul className="text-xs text-white/75 space-y-1 list-disc list-inside">
                     {plan.suggestions.map((s, i) => (

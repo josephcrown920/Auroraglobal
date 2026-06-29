@@ -249,7 +249,7 @@ export function BalloonLipsync() {
 
   return (
     <section
-      className="relative z-10 mx-4 md:mx-12 my-12 rounded-[32px] overflow-hidden border border-white/10 animate-fade-in"
+      className="relative z-10 mx-4 md:mx-12 my-12 rounded-[32px] overflow-hidden border border-border animate-fade-in"
       style={{ background: "radial-gradient(circle at 30% 0%, #1a0d3a 0%, #0a0717 60%, #050410 100%)" }}
     >
       <div className="relative grid md:grid-cols-[1.1fr_1fr] gap-0">
@@ -447,7 +447,7 @@ export function BalloonLipsync() {
             </div>
           </div>
 
-          <div className="mt-8 rounded-2xl border border-white/10 bg-black/40 backdrop-blur p-5">
+          <div className="mt-8 rounded-2xl border border-border bg-black/40 backdrop-blur p-5">
             <p className="text-[10px] uppercase tracking-[0.25em] text-white/50 mb-3">Lyrics</p>
             <ol className="space-y-2">
               {lyrics.map((l, i) => (
