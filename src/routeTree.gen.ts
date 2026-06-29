@@ -34,6 +34,7 @@ import { Route as AgentRouteImport } from './routes/agent'
 import { Route as AffiliateRouteImport } from './routes/affiliate'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CliIndexRouteImport } from './routes/cli.index'
 import { Route as RTokenRouteImport } from './routes/r.$token'
 import { Route as LegalSlugRouteImport } from './routes/legal.$slug'
 import { Route as CliAuthorizeRouteImport } from './routes/cli.authorize'
@@ -174,6 +175,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CliIndexRoute = CliIndexRouteImport.update({
+  id: '/cli/',
+  path: '/cli/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RTokenRoute = RTokenRouteImport.update({
   id: '/r/$token',
   path: '/r/$token',
@@ -280,6 +286,7 @@ export interface FileRoutesByFullPath {
   '/cli/authorize': typeof CliAuthorizeRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/r/$token': typeof RTokenRoute
+  '/cli/': typeof CliIndexRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
@@ -321,6 +328,7 @@ export interface FileRoutesByTo {
   '/cli/authorize': typeof CliAuthorizeRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/r/$token': typeof RTokenRoute
+  '/cli': typeof CliIndexRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
@@ -363,6 +371,7 @@ export interface FileRoutesById {
   '/cli/authorize': typeof CliAuthorizeRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/r/$token': typeof RTokenRoute
+  '/cli/': typeof CliIndexRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
@@ -406,6 +415,7 @@ export interface FileRouteTypes {
     | '/cli/authorize'
     | '/legal/$slug'
     | '/r/$token'
+    | '/cli/'
     | '/api/public/generate'
     | '/api/public/paystack-webhook'
     | '/api/public/jobs/tick'
@@ -447,6 +457,7 @@ export interface FileRouteTypes {
     | '/cli/authorize'
     | '/legal/$slug'
     | '/r/$token'
+    | '/cli'
     | '/api/public/generate'
     | '/api/public/paystack-webhook'
     | '/api/public/jobs/tick'
@@ -488,6 +499,7 @@ export interface FileRouteTypes {
     | '/cli/authorize'
     | '/legal/$slug'
     | '/r/$token'
+    | '/cli/'
     | '/api/public/generate'
     | '/api/public/paystack-webhook'
     | '/api/public/jobs/tick'
@@ -527,6 +539,7 @@ export interface RootRouteChildren {
   CliAuthorizeRoute: typeof CliAuthorizeRoute
   LegalSlugRoute: typeof LegalSlugRoute
   RTokenRoute: typeof RTokenRoute
+  CliIndexRoute: typeof CliIndexRoute
   ApiPublicGenerateRoute: typeof ApiPublicGenerateRoute
   ApiPublicPaystackWebhookRoute: typeof ApiPublicPaystackWebhookRoute
   ApiPublicJobsTickRoute: typeof ApiPublicJobsTickRoute
@@ -713,6 +726,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cli/': {
+      id: '/cli/'
+      path: '/cli'
+      fullPath: '/cli/'
+      preLoaderRoute: typeof CliIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/r/$token': {
       id: '/r/$token'
       path: '/r/$token'
@@ -858,6 +878,7 @@ const rootRouteChildren: RootRouteChildren = {
   CliAuthorizeRoute: CliAuthorizeRoute,
   LegalSlugRoute: LegalSlugRoute,
   RTokenRoute: RTokenRoute,
+  CliIndexRoute: CliIndexRoute,
   ApiPublicGenerateRoute: ApiPublicGenerateRoute,
   ApiPublicPaystackWebhookRoute: ApiPublicPaystackWebhookRoute,
   ApiPublicJobsTickRoute: ApiPublicJobsTickRoute,
