@@ -141,7 +141,7 @@ function Index() {
       {/* Sticky header */}
       <header
         className={`phone-fixed-x fixed top-0 z-40 transition-all duration-300 ${
-          scrolled ? "bg-[#070612]/85 backdrop-blur-xl border-b border-white/10" : "bg-transparent"
+          scrolled ? "bg-[#070612]/85 backdrop-blur-xl border-b border-border" : "bg-transparent"
         }`}
       >
         <div className="flex items-center justify-between pl-24 pr-6 md:px-12 py-4">
@@ -161,7 +161,11 @@ function Index() {
               }
             }}
           >
-            <img src={auroraLogo.url} alt="Aurora" className="size-8 rounded-xl object-contain" />
+            <img
+              src={auroraLogo.url}
+              alt="Aurora"
+              className="size-8 rounded-xl object-contain shadow-[var(--shadow-glow-soft)]"
+            />
             <span className="text-white">Aurora</span>
           </Link>
           <nav className="flex items-center gap-2 md:gap-3">
@@ -239,14 +243,14 @@ function Index() {
             {user ? (
               <Link
                 to="/dashboard"
-                className="px-3 py-1.5 text-sm rounded-full border border-white/15 text-white/90 hover:bg-white/5 no-underline"
+                className="px-3 py-1.5 text-sm rounded-full aurora-glass-strong text-foreground hover:brightness-110 no-underline"
               >
                 Dashboard
               </Link>
             ) : (
               <Link
                 to="/auth"
-                className="px-3 py-1.5 text-sm rounded-full border border-white/15 text-white/90 hover:bg-white/5 no-underline"
+                className="px-3 py-1.5 text-sm rounded-full aurora-glass-strong text-foreground hover:brightness-110 no-underline"
               >
                 Sign in
               </Link>
@@ -254,7 +258,7 @@ function Index() {
             <Link
               to="/studio"
               onClick={() => void track("header_cta_click")}
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 text-sm rounded-full font-medium text-white no-underline bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:opacity-95 shadow-lg shadow-violet-500/30"
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 text-sm rounded-full font-medium text-white no-underline bg-[image:var(--gradient-hero)] hover:brightness-110 shadow-[var(--shadow-glow-soft)]"
             >
               {ctaLabel} <ArrowRight className="size-3.5" />
             </Link>
@@ -270,7 +274,7 @@ function Index() {
         <div className="max-w-5xl mx-auto">
           <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">
             Direct your{" "}
-            <span className="bg-gradient-to-r from-fuchsia-400 to-violet-400 bg-clip-text text-transparent">
+            <span className="aurora-gradient-text">
               shoot.
             </span>
           </h2>

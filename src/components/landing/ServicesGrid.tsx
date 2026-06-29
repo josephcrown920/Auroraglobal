@@ -18,7 +18,7 @@ export function ServicesGrid() {
   return (
     <section id="services" className="relative z-10 px-6 md:px-12 py-20">
       <div className="text-center max-w-2xl mx-auto mb-12">
-        <p className="text-xs uppercase tracking-[0.2em] text-violet-300/80 mb-2">Our services</p>
+        <p className="aurora-kicker mb-2">Our services</p>
         <h2 className="text-3xl md:text-5xl font-semibold tracking-tight">Seven tools. One studio.</h2>
         <p className="text-white/65 mt-4">
           Image, video, canvas, UGC, motion, lip-sync and the colors studio — everything Aurora does, in one place. No subscriptions stack, no shoot day.
@@ -32,11 +32,11 @@ export function ServicesGrid() {
             <Link
               key={s.title}
               to={s.to}
-              className="group relative rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm overflow-hidden no-underline hover:-translate-y-1 transition-all duration-300 hover:border-violet-400/40 animate-fade-in"
+              className="group relative aurora-card aurora-card-hover overflow-hidden no-underline animate-fade-in"
               style={{ animationDelay: `${i * 60}ms`, animationFillMode: "backwards" }}
             >
               {s.video && (
-                <div className="aspect-video bg-black/40 overflow-hidden border-b border-white/10">
+                <div className="aspect-video bg-black/40 overflow-hidden border-b border-border">
                   <AutoplayVideo
                     src={s.video}
                     loop
@@ -54,8 +54,8 @@ export function ServicesGrid() {
               <div className="relative p-5">
                 <div className={`absolute -inset-20 blur-3xl opacity-40 bg-gradient-to-br ${s.accent} group-hover:opacity-70 transition-opacity pointer-events-none`} />
                 <div className="relative">
-                  <span className="inline-flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/30 to-fuchsia-500/10 border border-white/10 mb-4">
-                    <Icon className="size-5 text-violet-200" />
+                  <span className="inline-flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/30 to-fuchsia-500/10 border border-border mb-4">
+                    <Icon className="size-5 text-primary" />
                   </span>
                   <h3 className="text-base font-semibold text-white">{s.title}</h3>
                   <p className="text-sm text-white/60 mt-1.5 leading-relaxed">{s.desc}</p>
@@ -67,9 +67,9 @@ export function ServicesGrid() {
       </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs text-white/50">
-        <span className="inline-flex items-center gap-1.5"><CreditCard className="size-3.5 text-violet-300" /> Aura-based · no per-model surcharge</span>
+        <span className="inline-flex items-center gap-1.5"><CreditCard className="size-3.5 text-primary" /> Aura-based · no per-model surcharge</span>
         <span className="hidden sm:inline text-white/20">·</span>
-        <span className="inline-flex items-center gap-1.5"><Camera className="size-3.5 text-violet-300" /> Commercial license on every plan</span>
+        <span className="inline-flex items-center gap-1.5"><Camera className="size-3.5 text-primary" /> Commercial license on every plan</span>
       </div>
     </section>
   );

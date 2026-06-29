@@ -26,11 +26,11 @@ export function ColorsTeaser() {
       <div className="max-w-7xl mx-auto">
         <div className="flex items-end justify-between gap-6 mb-8">
           <div className="space-y-3 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-xs text-white/70">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full aurora-glass text-xs text-white/70">
               <Palette className="size-3.5" /> Colors Studio
             </div>
             <h2 className="text-3xl md:text-5xl font-semibold tracking-tight text-white">
-              One selfie. <span className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-300 bg-clip-text text-transparent">Every color.</span>
+              One selfie. <span className="aurora-gradient-text">Every color.</span>
             </h2>
             <p className="text-white/65 text-sm md:text-base">
               Pick a color and a scene — studio cyclorama, neon line-room, rooftop, street. Aurora preserves your face and outfit and rebuilds the whole set around it.
@@ -38,7 +38,7 @@ export function ColorsTeaser() {
           </div>
           <Link
             to="/colors"
-            className="hidden md:inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full text-sm font-medium text-white bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:opacity-95 shadow-lg shadow-violet-500/30 no-underline"
+            className="hidden md:inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full text-sm font-medium text-white bg-[image:var(--gradient-hero)] hover:brightness-110 shadow-[var(--shadow-glow-soft)] no-underline"
           >
             Open Colors Studio <ArrowRight className="size-4" />
           </Link>
@@ -48,7 +48,7 @@ export function ColorsTeaser() {
           {SHOTS.map((s, i) => (
             <figure
               key={s.src}
-              className={`group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] ${
+              className={`group relative overflow-hidden rounded-2xl aurora-glass ${
                 i === 0 || i === 5 ? "md:row-span-2 aspect-[3/4] md:aspect-[3/5]" : "aspect-[3/4]"
               }`}
             >
@@ -68,7 +68,7 @@ export function ColorsTeaser() {
         <div className="mt-6 md:hidden">
           <Link
             to="/colors"
-            className="inline-flex w-full items-center justify-center gap-1.5 px-5 py-3 rounded-full text-sm font-medium text-white bg-gradient-to-r from-violet-500 to-fuchsia-500 no-underline"
+            className="inline-flex w-full items-center justify-center gap-1.5 px-5 py-3 rounded-full text-sm font-medium text-white bg-[image:var(--gradient-hero)] no-underline"
           >
             Open Colors Studio <ArrowRight className="size-4" />
           </Link>

@@ -26,14 +26,15 @@ type Engine = "sync-v2" | "wav2lip" | "latentsync";
 
 function LipSyncStudioPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <section className="relative px-6 md:px-12 pt-24 pb-8 animate-fade-in">
+    <div className="aurora-page-shell text-foreground">
+      <span aria-hidden className="aurora-ambient" />
+      <section className="relative z-10 px-6 md:px-12 pt-24 pb-8 animate-fade-in">
         <div className="max-w-5xl mx-auto">
-          <span className="inline-flex items-center gap-1.5 text-xs uppercase tracking-[0.2em] text-violet-300/80 border border-violet-400/30 bg-violet-500/10 px-3 py-1 rounded-full">
+          <span className="inline-flex items-center gap-1.5 text-xs uppercase tracking-[0.2em] text-primary border border-primary/30 bg-primary/10 px-3 py-1 rounded-full">
             <Mic2 className="size-3" /> Lip Sync Studio
           </span>
           <h1 className="mt-4 text-4xl md:text-6xl font-semibold tracking-tight">
-            Make any face <span className="bg-gradient-to-r from-violet-300 to-fuchsia-300 bg-clip-text text-transparent">sing your hook</span>.
+            Make any face <span className="aurora-gradient-text">sing your hook</span>.
           </h1>
           <p className="mt-4 text-white/70 max-w-2xl">
             Drop a performance clip + a vocal. Pick Studio (Sync 1.9) for film-grade
@@ -48,10 +49,10 @@ function LipSyncStudioPage() {
             ].map((s, i) => (
               <div
                 key={s.t}
-                className="rounded-2xl border border-white/10 bg-white/5 p-4 animate-fade-in"
+                className="aurora-glass rounded-2xl p-4 animate-fade-in"
                 style={{ animationDelay: `${i * 120}ms`, animationFillMode: "both" }}
               >
-                <s.icon className="size-4 text-violet-300" />
+                <s.icon className="size-4 text-primary" />
                 <p className="mt-2 font-semibold text-sm">{s.t}</p>
                 <p className="text-xs text-white/60">{s.d}</p>
               </div>
@@ -62,24 +63,24 @@ function LipSyncStudioPage() {
 
       <LipSyncForm />
 
-      <section className="px-6 md:px-12 pb-12">
+      <section className="relative z-10 px-6 md:px-12 pb-12">
         <div className="max-w-5xl mx-auto flex flex-wrap gap-3">
           <Link
             to="/studio"
-            className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-2.5 text-sm font-semibold hover-scale"
+            className="inline-flex items-center gap-2 rounded-full bg-[image:var(--gradient-hero)] text-white shadow-[var(--shadow-glow-soft)] px-5 py-2.5 text-sm font-semibold hover-scale"
           >
             Open full studio <ArrowRight className="size-4" />
           </Link>
           <Link
             to="/clips"
-            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-sm hover-scale"
+            className="inline-flex items-center gap-2 rounded-full aurora-glass px-5 py-2.5 text-sm hover-scale"
           >
             See clip gallery
           </Link>
         </div>
       </section>
 
-      <div className="animate-fade-in" style={{ animationDelay: "200ms", animationFillMode: "both" }}>
+      <div className="relative z-10 animate-fade-in" style={{ animationDelay: "200ms", animationFillMode: "both" }}>
         <LipSyncDemo />
       </div>
     </div>
@@ -227,11 +228,11 @@ function LipSyncForm() {
   const busy = status === "uploading" || status === "syncing" || status === "rendering";
 
   return (
-    <section className="px-6 md:px-12 pb-12">
-      <div className="max-w-5xl mx-auto rounded-3xl border border-white/10 bg-white/5 backdrop-blur p-6 md:p-8 animate-fade-in">
+    <section className="relative z-10 px-6 md:px-12 pb-12">
+      <div className="max-w-5xl mx-auto rounded-3xl aurora-glass p-6 md:p-8 animate-fade-in">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-violet-300/80">New job</p>
+            <p className="aurora-kicker">New job</p>
             <h2 className="text-xl md:text-2xl font-semibold mt-1">Run a lip sync</h2>
           </div>
           {(video || audio) && (
@@ -254,8 +255,8 @@ function LipSyncForm() {
 
         {/* Engine toggle */}
         <div className="mt-6">
-          <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-2">Engine</p>
-          <div className="grid grid-cols-3 gap-2 rounded-full bg-white/5 border border-white/10 p-1">
+          <p className="aurora-kicker mb-2">Engine</p>
+          <div className="grid grid-cols-3 gap-2 rounded-full aurora-glass p-1">
             {([
               { id: "sync-v2", label: "Studio", sub: "Sync 1.9 · film-grade", icon: Sparkles },
               { id: "wav2lip", label: "Fast", sub: "Wav2Lip · cheaper", icon: Zap },
@@ -266,7 +267,7 @@ function LipSyncForm() {
                 onClick={() => setEngine(o.id)}
                 disabled={busy}
                 className={`flex items-center gap-2 justify-center rounded-full px-4 py-2 text-sm font-medium transition-all ${
-                  engine === o.id ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-lg" : "text-white/70 hover:text-white"
+                  engine === o.id ? "bg-[image:var(--gradient-hero)] text-white shadow-[var(--shadow-glow-soft)]" : "text-white/70 hover:text-white"
                 }`}
               >
                 <o.icon className="size-3.5" />
@@ -281,7 +282,7 @@ function LipSyncForm() {
           <button
             onClick={run}
             disabled={!video || !audio || busy || !user}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-6 py-3 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover-scale"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-[image:var(--gradient-hero)] text-white shadow-[var(--shadow-glow-soft)] px-6 py-3 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover-scale"
           >
             {busy ? (
               <><Loader2 className="size-4 animate-spin" /> {stageLabel[status]}</>
@@ -303,7 +304,7 @@ function LipSyncForm() {
               <span>{Math.round(progress)}%</span>
             </div>
             <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-violet-400 to-fuchsia-400 transition-[width] duration-200" style={{ width: `${progress}%` }} />
+              <div className="h-full bg-[image:var(--gradient-hero)] transition-[width] duration-200" style={{ width: `${progress}%` }} />
             </div>
           </div>
         )}
@@ -369,12 +370,12 @@ function DropSlot({
         if (f) onFile(f);
       }}
       className={`relative block rounded-2xl border-2 border-dashed p-4 cursor-pointer transition-colors ${
-        drag ? "border-violet-400 bg-violet-500/10" : file ? "border-emerald-400/40 bg-emerald-500/5" : "border-white/15 bg-white/5 hover:bg-white/10"
+        drag ? "border-primary bg-primary/10" : file ? "border-emerald-400/40 bg-emerald-500/5" : "border-white/15 bg-white/5 hover:bg-white/10"
       }`}
     >
       <input type="file" accept={accept} className="sr-only" onChange={(e) => onFile(e.target.files?.[0] ?? null)} />
       <div className="flex items-center gap-2">
-        <Icon className="size-4 text-violet-300" />
+        <Icon className="size-4 text-primary" />
         <p className="text-sm font-semibold">{label}</p>
       </div>
       <p className="text-[11px] text-white/50 mt-0.5">{hint}</p>

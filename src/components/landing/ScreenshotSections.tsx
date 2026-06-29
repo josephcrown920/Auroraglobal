@@ -20,12 +20,12 @@ export function SupercomputerSection() {
         style={{ background: "radial-gradient(circle at 50% 0%, rgba(167,139,250,.25), transparent 60%)" }} />
       <div className="relative px-6 md:px-16 py-16 md:py-24">
         <div className="text-center">
-          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/15 bg-white/5 text-[11px] uppercase tracking-widest text-white/80">
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full aurora-glass text-[11px] uppercase tracking-widest text-white/80">
             <Terminal className="size-3" /> Supercomputer
           </span>
           <h2 className="mt-6 text-4xl md:text-6xl font-bold tracking-tight text-white">
             One prompt.
-            <span className="block bg-gradient-to-r from-violet-300 via-fuchsia-300 to-pink-200 bg-clip-text text-transparent">
+            <span className="block aurora-gradient-text">
               Video, image, edit.
             </span>
           </h2>
@@ -37,23 +37,23 @@ export function SupercomputerSection() {
 
         {/* Prompt box */}
         <div className="mt-10 max-w-2xl mx-auto">
-          <Link to="/studio" className="block no-underline rounded-2xl border border-violet-400/40 bg-black/50 backdrop-blur-xl shadow-[0_0_60px_-20px_rgba(167,139,250,0.6)] overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-2 border-b border-white/10 text-[10px] uppercase tracking-widest text-white/40">
+          <Link to="/studio" className="block no-underline rounded-2xl border border-primary/40 bg-black/50 backdrop-blur-xl shadow-[var(--shadow-glow)] overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-2 border-b border-border text-[10px] uppercase tracking-widest text-white/40">
               <span className="size-2 rounded-full bg-rose-400/70" />
               <span className="size-2 rounded-full bg-amber-300/70" />
               <span className="size-2 rounded-full bg-emerald-400/70" />
               <span className="ml-2">aurora · prompt</span>
             </div>
             <div className="px-5 py-5 flex items-center gap-3">
-              <Wand2 className="size-4 text-violet-300 shrink-0" />
+              <Wand2 className="size-4 text-primary shrink-0" />
               <span className="text-white/90 text-sm md:text-base font-mono leading-relaxed">
                 make me a red-lit studio performance, hanging silver mic
-                <span className="inline-block w-[2px] h-4 align-middle bg-violet-300 ml-0.5 animate-pulse" />
+                <span className="inline-block w-[2px] h-4 align-middle bg-primary ml-0.5 animate-pulse" />
               </span>
             </div>
             <div className="px-5 pb-4 flex flex-wrap gap-1.5">
               {examples.map((e) => (
-                <span key={e} className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/55">
+                <span key={e} className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 border border-border text-white/55">
                   {e}
                 </span>
               ))}
@@ -64,7 +64,7 @@ export function SupercomputerSection() {
         <div className="mt-10 flex justify-center">
           <Link
             to="/studio"
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-6 py-3.5 text-sm font-semibold text-white no-underline shadow-xl shadow-violet-500/30 hover:opacity-95"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-[image:var(--gradient-hero)] px-6 py-3.5 text-sm font-semibold text-white no-underline shadow-[var(--shadow-glow-soft)] hover:brightness-110"
           >
             <Sparkles className="size-4" /> Open Supercomputer <ArrowRight className="size-4" />
           </Link>
