@@ -2,7 +2,8 @@ import { useState } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Flame, Mic2, Camera, SplitSquareHorizontal, Palette, Film, ImageIcon, Wand2, Smartphone, Monitor, ShoppingBag, Layout } from "lucide-react";
+import { Flame, Mic2, Camera, SplitSquareHorizontal, Palette, Film, ImageIcon, Wand2, Smartphone, Monitor, ShoppingBag, Layout, Aperture } from "lucide-react";
+import { RESHOOT_ANGLES, RESHOOT_MODEL, buildAnglePrompt } from "@/lib/reshoot-angles";
 
 export type TemplateGraph = { name: string; nodes: Node<any>[]; edges: Edge[] };
 
@@ -42,7 +43,42 @@ type TemplateDef = {
   build: () => TemplateGraph;
 };
 
+// "Multi-angle photo reshoot" — one reference portrait fans out into the same six
+// fixed camera angles as the standalone /reshoot tool. Each angle is its own image
+// node pre-loaded with the exact reshoot prompt + model, so running the recipe goes
+// through the identical per-image charged generation path (1 Aura each, 6 total).
+const RESHOOT_NODE_POSITIONS: Array<[number, number]> = [
+  [420, 20],
+  [420, 260],
+  [420, 500],
+  [420, 740],
+  [420, 980],
+  [420, 1220],
+];
+
 const TEMPLATES: TemplateDef[] = [
+  {
+    id: "multi-angle-reshoot",
+    name: "Multi-angle photo reshoot",
+    desc: "Drop ONE portrait → fan it out into six identity-locked 9:16 angles: fish-eye, bird's-eye, low angle, Dutch angle, macro close-up, worm's-eye. 1 Aura per shot.",
+    icon: Aperture,
+    tags: ["Selfie", "Image", "Preset"],
+    category: "Portrait & Colors",
+    build: () => ({
+      name: "Multi-angle photo reshoot",
+      nodes: [
+        mk("in", "input", 40, 620),
+        ...RESHOOT_ANGLES.map((angle, i) =>
+          mk(`angle-${angle.id}`, "image", RESHOOT_NODE_POSITIONS[i][0], RESHOOT_NODE_POSITIONS[i][1], {
+            label: angle.label,
+            prompt: buildAnglePrompt(angle, null),
+            model: RESHOOT_MODEL,
+          }),
+        ),
+      ],
+      edges: RESHOOT_ANGLES.map((angle) => ed("in", `angle-${angle.id}`)),
+    }),
+  },
   {
     id: "avatar-many-shots",
     name: "Avatar · One Face, Many Shots",
