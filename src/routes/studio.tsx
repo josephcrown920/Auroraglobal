@@ -76,6 +76,8 @@ const PRESETS = [
   { label: "Colors — Wide (Royal Blue)", prompt: colorsWide("royal blue") },
   { label: "Colors — Close-up (Sunset Orange)", prompt: colorsCloseUp("sunset orange") },
   { label: "Music Video Scene", prompt: musicVideoScene },
+  { label: "Urban Cut", prompt: "Cinematic luxury fashion showcase of the subject styled like a runway model — but anywhere: a sleek modern interior or a moody downtown street. Full-body editorial pose with confident runway energy, the designer outfit as the hero of the frame. Dramatic directional key light with soft rim separation, polished reflective floor, anamorphic 50mm look, shallow depth of field, high-fashion color grade, ultra-realistic skin texture with natural pores, sharp clothing detail, 4K photoreal quality. Preserve exact facial likeness, beard, hairstyle, skin tone, and the outfit from the reference." },
+  { label: "Get Ready With Me", prompt: "Intimate 'get ready with me' scene of the subject in front of a large vanity mirror mid-styling — outfit selection and finishing touches, building to the finished look. Warm soft vanity lighting with natural window fill, cozy bedroom / dressing-room setting, candid handheld editorial feel, shallow depth of field, ultra-realistic skin texture with natural pores, sharp clothing detail, 4K photoreal quality. Preserve exact facial likeness, beard, hairstyle, skin tone, and the outfit from the reference." },
 ];
 
 const REANGLES = [
