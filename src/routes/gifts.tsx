@@ -146,18 +146,19 @@ function GiftsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background">
-      <header className="flex items-center justify-between px-6 md:px-10 py-5 border-b border-border bg-card/40 backdrop-blur-xl">
+    <main className="aurora-page-shell text-foreground">
+      <span aria-hidden className="aurora-ambient" />
+      <header className="relative z-10 flex items-center justify-between px-6 md:px-10 py-5 border-b border-border bg-background/80 backdrop-blur-xl">
         <Link to="/studio" className="flex items-center gap-2 font-semibold tracking-tight">
           <ArrowLeft className="size-4 text-muted-foreground" />
-          <span className="size-8 rounded-xl flex items-center justify-center" style={{ background: "var(--gradient-hero)" }}>
+          <span className="size-8 rounded-xl flex items-center justify-center bg-[image:var(--gradient-hero)] shadow-[var(--shadow-glow-soft)]">
             <Gift className="size-4 text-primary-foreground" />
           </span>
           Gift Cards
         </Link>
       </header>
 
-      <div className="max-w-6xl mx-auto p-6 md:p-10 space-y-10">
+      <div className="relative z-10 max-w-6xl mx-auto p-6 md:p-10 space-y-10">
         <div>
           <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Aurora Gift Cards</h1>
           <p className="text-muted-foreground mt-1">Beautiful, designed cards matched to our pricing tiers.</p>
@@ -178,8 +179,8 @@ function GiftsPage() {
         </section>
 
         {/* Redeem */}
-        <section className="rounded-2xl border border-border bg-card/40 p-6 space-y-4">
-          <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Redeem a card</h2>
+        <section className="aurora-panel p-6 space-y-4">
+          <h2 className="aurora-kicker">Redeem a card</h2>
           <div className="flex flex-wrap gap-2">
             <Input
               placeholder="AURA-XXXX-XXXX-XXXX"
@@ -187,7 +188,7 @@ function GiftsPage() {
               onChange={(e) => setRedeemCode(e.target.value.toUpperCase())}
               className="flex-1 min-w-[260px] font-mono tracking-widest"
             />
-            <Button onClick={() => redeemMut.mutate()} disabled={!redeemCode || redeemMut.isPending}>
+            <Button variant="premium" onClick={() => redeemMut.mutate()} disabled={!redeemCode || redeemMut.isPending}>
               {redeemMut.isPending ? <Loader2 className="size-4 animate-spin" /> : "Redeem"}
             </Button>
           </div>
@@ -225,7 +226,7 @@ function GiftsPage() {
                   </label>
                 </div>
                 <Input placeholder="Optional note (e.g. Happy Birthday!)" value={issueNote} onChange={(e) => setIssueNote(e.target.value)} />
-                <Button onClick={() => issueMut.mutate()} disabled={issueMut.isPending} className="w-full" style={{ background: "var(--gradient-hero)" }}>
+                <Button variant="premium" onClick={() => issueMut.mutate()} disabled={issueMut.isPending} className="w-full">
                   {issueMut.isPending ? <Loader2 className="size-4 animate-spin" /> : "Create gift card"}
                 </Button>
               </div>

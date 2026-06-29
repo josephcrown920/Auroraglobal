@@ -911,7 +911,7 @@ function CanvasPage() {
         <div className="absolute inset-x-0 top-14 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
       </div>
 
-      <header className="relative z-10 flex items-center justify-between px-6 py-3 border-b border-white/10 bg-[oklch(0.13_0.04_290/0.6)] backdrop-blur-xl">
+      <header className="relative z-10 flex items-center justify-between px-6 py-3 border-b border-border bg-background/80 backdrop-blur-xl">
         <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
           <span className="size-7 rounded-lg flex items-center justify-center shadow-[0_0_20px_oklch(0.78_0.18_305/0.6)]" style={{ background: "var(--gradient-hero)" }}>
             <Sparkles className="size-3.5 text-primary-foreground" />
@@ -921,8 +921,8 @@ function CanvasPage() {
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <Button
             size="sm"
+            variant="premium"
             onClick={() => setAgentOpen(true)}
-            className="bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/30 hover:opacity-95"
           >
             <Sparkles className="size-3.5 mr-1" /> Aurora Agent
           </Button>

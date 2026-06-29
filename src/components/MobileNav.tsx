@@ -103,7 +103,7 @@ export function MobileNav() {
         aria-expanded={open}
         aria-label="Open navigation menu"
         className={cn(
-          "phone-edge-left fixed top-3 z-[60] flex items-center gap-1.5 rounded-full border border-border bg-background/90 px-3 py-2 text-xs font-medium shadow-md backdrop-blur transition-colors",
+          "phone-edge-left fixed top-3 z-[60] flex items-center gap-1.5 rounded-full aurora-glass-strong px-3.5 py-2 text-xs font-medium shadow-[var(--shadow-soft)] transition-[filter,color] hover:brightness-110",
           moreActive ? "text-primary" : "text-foreground",
         )}
       >
@@ -120,9 +120,13 @@ export function MobileNav() {
           <div aria-hidden style={{ height: "calc(4rem + env(safe-area-inset-bottom))" }} />
           <nav
             aria-label="Primary"
-            className="phone-fixed-x fixed bottom-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+            className="phone-fixed-x fixed bottom-0 z-50 border-t border-border bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70"
             style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           >
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent"
+            />
             <ul className="grid grid-cols-4">
               {TAB_ITEMS.map((t) => {
                 const active = isActive(pathname, t.to);
@@ -132,10 +136,16 @@ export function MobileNav() {
                       to={t.to}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "flex h-16 flex-col items-center justify-center gap-1 text-[10px] font-medium no-underline transition-colors",
+                        "relative flex h-16 flex-col items-center justify-center gap-1 text-[10px] font-medium no-underline transition-colors",
                         active ? "text-primary" : "text-muted-foreground hover:text-foreground",
                       )}
                     >
+                      {active && (
+                        <span
+                          aria-hidden
+                          className="absolute top-0 h-0.5 w-9 rounded-full bg-[image:var(--gradient-hero)] shadow-[var(--shadow-glow-soft)]"
+                        />
+                      )}
                       <t.icon className="size-5" />
                       <span>{t.label}</span>
                     </Link>
@@ -153,15 +163,23 @@ export function MobileNav() {
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
-          className="phone-drawer-left flex flex-col gap-0 p-0"
+          className="phone-drawer-left flex flex-col gap-0 overflow-hidden p-0"
         >
-          <SheetHeader className="border-b border-border p-4 text-left">
-            <SheetTitle className="flex items-center gap-2">
-              <img src={auroraLogo.url} alt="" className="size-7 rounded-lg object-contain" />
-              <span className="font-semibold tracking-tight">Aurora Studio</span>
+          <span aria-hidden className="aurora-ambient opacity-60" />
+          <SheetHeader className="relative border-b border-border p-4 text-left">
+            <SheetTitle className="flex items-center gap-2.5">
+              <img
+                src={auroraLogo.url}
+                alt=""
+                className="size-8 rounded-xl object-contain shadow-[var(--shadow-glow-soft)]"
+              />
+              <span className="flex flex-col leading-tight">
+                <span className="font-semibold tracking-tight">Aurora Studio</span>
+                <span className="aurora-kicker mt-1">All features</span>
+              </span>
             </SheetTitle>
           </SheetHeader>
-          <nav aria-label="All features" className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
+          <nav aria-label="All features" className="relative flex flex-1 flex-col gap-1 overflow-y-auto p-3">
             {FEATURES.map((f) => {
               const active = isActive(pathname, f.to);
               return (
@@ -171,13 +189,19 @@ export function MobileNav() {
                   onClick={() => setOpen(false)}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm no-underline transition-colors",
+                    "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm no-underline transition-colors",
                     active
-                      ? "bg-accent font-medium text-accent-foreground"
-                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                      ? "aurora-glass-strong font-medium text-foreground"
+                      : "text-muted-foreground hover:bg-accent/40 hover:text-foreground",
                   )}
                 >
-                  <f.icon className="size-5 shrink-0" />
+                  {active && (
+                    <span
+                      aria-hidden
+                      className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-[image:var(--gradient-hero)]"
+                    />
+                  )}
+                  <f.icon className={cn("size-5 shrink-0", active && "text-primary")} />
                   <span>{f.label}</span>
                 </Link>
               );

@@ -47,8 +47,9 @@ function WorkflowsPage() {
   useEffect(() => { refresh(); }, []);
 
   return (
-    <main className="min-h-screen bg-background">
-      <header className="border-b border-border/40 px-6 py-4 flex items-center justify-between">
+    <main className="aurora-page-shell text-foreground">
+      <span aria-hidden className="aurora-ambient" />
+      <header className="relative z-10 border-b border-border/40 bg-background/70 backdrop-blur-xl px-6 py-4 flex items-center justify-between">
         <Link to="/" className="font-semibold text-foreground no-underline">Aurora</Link>
         <nav className="flex gap-4 text-sm">
           <Link to="/studio" className="text-foreground/70 no-underline">Studio</Link>
@@ -56,13 +57,13 @@ function WorkflowsPage() {
           <Link to="/gallery" className="text-foreground/70 no-underline">Gallery</Link>
         </nav>
       </header>
-      <section className="max-w-5xl mx-auto px-6 py-10">
+      <section className="relative z-10 max-w-5xl mx-auto px-6 py-10">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2"><WfIcon className="h-7 w-7 text-primary" /> Workflows</h1>
             <p className="text-muted-foreground text-sm mt-1">Reusable generation graphs. Build them in Canvas and save here.</p>
           </div>
-          <Button onClick={async () => {
+          <Button variant="premium" onClick={async () => {
             const name = prompt("Workflow name?");
             if (!name) return;
             await save({ data: { name, graph: { nodes: [], edges: [] }, is_public: false } });
@@ -75,7 +76,7 @@ function WorkflowsPage() {
         <div className="mb-10">
           <div className="flex items-center gap-2 mb-3">
             <Sparkles className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-muted-foreground">Featured templates</h2>
+            <h2 className="aurora-kicker">Featured templates</h2>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {FEATURED_TEMPLATES.map((tpl) => (
@@ -90,7 +91,7 @@ function WorkflowsPage() {
                     toast.error("Sign in to save templates");
                   }
                 }}
-                className="group text-left rounded-2xl border border-border bg-card overflow-hidden hover:border-primary/50 transition-all hover:-translate-y-0.5"
+                className="group text-left overflow-hidden aurora-card aurora-card-hover"
               >
                 <div className={`h-20 bg-gradient-to-br ${tpl.accent} relative flex items-end p-3`}>
                   <tpl.icon className="h-6 w-6 text-white drop-shadow" />
@@ -109,12 +110,12 @@ function WorkflowsPage() {
 
         <div className="flex items-center gap-2 mb-3">
           <WfIcon className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-muted-foreground">Your workflows</h2>
+          <h2 className="aurora-kicker">Your workflows</h2>
         </div>
         <div className="grid sm:grid-cols-2 gap-4">
           {items.length === 0 && <p className="text-muted-foreground col-span-2 text-sm">No workflows yet. Pick a template above or <Link to="/canvas" className="text-primary">open Canvas</Link>.</p>}
           {items.map(w => (
-            <div key={w.id} className="border border-border rounded-xl p-4 bg-card">
+            <div key={w.id} className="aurora-glass rounded-xl p-4">
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="font-semibold">{w.name}</h3>

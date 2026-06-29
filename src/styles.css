@@ -105,6 +105,12 @@
   --gradient-stage: radial-gradient(circle at 30% 20%, oklch(0.68 0.22 300 / 0.35), transparent 60%), radial-gradient(circle at 80% 80%, oklch(0.52 0.24 295 / 0.28), transparent 55%);
   --shadow-glow: 0 20px 60px -20px oklch(0.52 0.24 295 / 0.55);
   --shadow-soft: 0 8px 30px -10px oklch(0 0 0 / 0.5);
+  --shadow-elevated: 0 24px 60px -28px oklch(0 0 0 / 0.7), 0 2px 10px -6px oklch(0 0 0 / 0.55);
+  --shadow-glow-soft: 0 0 44px -16px oklch(0.78 0.18 305 / 0.5);
+  --surface-glass: oklch(1 0 0 / 4%);
+  --surface-glass-strong: oklch(1 0 0 / 7%);
+  --border-strong: oklch(1 0 0 / 16%);
+  --gradient-text: linear-gradient(120deg, oklch(0.99 0.01 300), oklch(0.82 0.16 320) 55%, oklch(0.78 0.18 305));
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -215,4 +221,90 @@
   left: 0;
   width: 100%;
   max-width: 28rem;
+}
+
+/* ── Premium shared design language ──────────────────────────────────────
+ * Opt-in utility classes applied consistently across the sidebar/menu,
+ * landing, and every tool page so the whole app reads as one high-end
+ * system. Authored in the components layer so Tailwind utilities can still
+ * override individual properties when a surface needs a bespoke tweak.
+ */
+@layer components {
+  .aurora-page-shell {
+    position: relative;
+    min-height: 100vh;
+    background: var(--gradient-soft);
+  }
+  .aurora-ambient {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: var(--gradient-stage);
+  }
+  .aurora-glass {
+    background: var(--surface-glass);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .aurora-glass-strong {
+    background: var(--surface-glass-strong);
+    border: 1px solid var(--border-strong);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+  .aurora-card {
+    background: var(--surface-glass);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .aurora-card-hover {
+    transition:
+      transform 0.25s ease,
+      box-shadow 0.25s ease,
+      border-color 0.25s ease;
+  }
+  .aurora-card-hover:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-elevated);
+  }
+  .aurora-panel {
+    background: var(--surface-glass);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-elevated);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+  .aurora-hairline {
+    border: 1px solid var(--border);
+  }
+  .aurora-elevated {
+    box-shadow: var(--shadow-elevated);
+  }
+  .aurora-glow-ring {
+    box-shadow: var(--shadow-glow-soft);
+  }
+  .aurora-kicker {
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: 0.65rem;
+    line-height: 1;
+    font-weight: 600;
+    color: var(--primary-glow);
+  }
+  .aurora-gradient-text {
+    background: var(--gradient-text);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .aurora-focus-ring:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--ring);
+  }
 }

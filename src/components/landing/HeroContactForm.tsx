@@ -46,13 +46,13 @@ export function HeroContactForm({ greeting }: { greeting: string }) {
     <section className="relative z-10 px-6 md:px-12 pt-6 md:pt-14 pb-14 grid lg:grid-cols-12 gap-10 items-center">
       {/* Left: pitch */}
       <div className="lg:col-span-7 space-y-6">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-violet-400/30 bg-violet-500/10 text-violet-200 text-xs">
-          <span className="size-1.5 rounded-full bg-violet-400 animate-pulse" />
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs">
+          <span className="size-1.5 rounded-full bg-primary animate-pulse" />
           {greeting} · A creative supercomputer
         </div>
         <h1 className="text-4xl md:text-6xl lg:text-7xl font-semibold tracking-tight leading-[1.02]">
           One selfie in.
-          <span className="block bg-gradient-to-r from-violet-300 via-fuchsia-300 to-pink-200 bg-clip-text text-transparent">
+          <span className="block aurora-gradient-text">
             A full campaign out.
           </span>
         </h1>
@@ -64,11 +64,11 @@ export function HeroContactForm({ greeting }: { greeting: string }) {
           <Link
             to="/studio"
             onClick={() => void track("hero_cta_click", { variant: "primary" })}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-medium text-white no-underline bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:opacity-95 shadow-xl shadow-violet-500/30"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-medium text-white no-underline bg-[image:var(--gradient-hero)] hover:brightness-110 shadow-[var(--shadow-glow-soft)]"
           >
             <Play className="size-4" /> Start free — 5 Aura
           </Link>
-          <a href="#services" className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-medium text-white/90 border border-white/15 hover:bg-white/5 no-underline">
+          <a href="#services" className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-medium text-foreground aurora-glass-strong hover:brightness-110 no-underline">
             See what's inside <ArrowRight className="size-4" />
           </a>
         </div>
@@ -78,11 +78,11 @@ export function HeroContactForm({ greeting }: { greeting: string }) {
       <div className="lg:col-span-5">
         <form
           onSubmit={onSubmit}
-          className="relative rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-6 md:p-7 shadow-2xl shadow-violet-950/40"
+          className="relative aurora-panel rounded-3xl p-6 md:p-7"
         >
           <div className="pointer-events-none absolute -inset-px rounded-3xl bg-gradient-to-br from-violet-500/30 via-fuchsia-500/10 to-transparent opacity-60 blur-2xl -z-10" />
           <div className="flex items-center gap-2 mb-5">
-            <span className="size-8 rounded-xl flex items-center justify-center bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg shadow-violet-500/40">
+            <span className="size-8 rounded-xl flex items-center justify-center bg-[image:var(--gradient-hero)] shadow-[var(--shadow-glow-soft)]">
               <Sparkles className="size-4 text-white" />
             </span>
             <div>
@@ -96,7 +96,7 @@ export function HeroContactForm({ greeting }: { greeting: string }) {
               <CheckCircle2 className="size-10 text-emerald-300" />
               <div className="text-base font-medium text-white">Got it — we'll be in touch.</div>
               <div className="text-sm text-white/60">In the meantime, claim your 5 free Aura and start exploring.</div>
-              <Link to="/studio" className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-white no-underline bg-gradient-to-r from-violet-500 to-fuchsia-500">
+              <Link to="/studio" className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-white no-underline bg-[image:var(--gradient-hero)]">
                 Open Performance Studio <ArrowRight className="size-4" />
               </Link>
             </div>
@@ -111,7 +111,7 @@ export function HeroContactForm({ greeting }: { greeting: string }) {
                   onChange={(e) => setName(e.target.value)}
                   maxLength={120}
                   required
-                  className="mt-1 w-full rounded-xl bg-black/30 border border-white/10 focus:border-violet-400/60 outline-none px-3.5 py-2.5 text-sm text-white placeholder:text-white/30"
+                  className="mt-1 w-full rounded-xl bg-black/30 border border-border focus:border-primary/60 outline-none px-3.5 py-2.5 text-sm text-white placeholder:text-white/30"
                   placeholder="Your name"
                 />
               </div>
@@ -124,7 +124,7 @@ export function HeroContactForm({ greeting }: { greeting: string }) {
                   onChange={(e) => setEmail(e.target.value)}
                   maxLength={255}
                   required
-                  className="mt-1 w-full rounded-xl bg-black/30 border border-white/10 focus:border-violet-400/60 outline-none px-3.5 py-2.5 text-sm text-white placeholder:text-white/30"
+                  className="mt-1 w-full rounded-xl bg-black/30 border border-border focus:border-primary/60 outline-none px-3.5 py-2.5 text-sm text-white placeholder:text-white/30"
                   placeholder="you@studio.com"
                 />
               </div>
@@ -137,7 +137,7 @@ export function HeroContactForm({ greeting }: { greeting: string }) {
                   maxLength={2000}
                   required
                   rows={3}
-                  className="mt-1 w-full rounded-xl bg-black/30 border border-white/10 focus:border-violet-400/60 outline-none px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 resize-none"
+                  className="mt-1 w-full rounded-xl bg-black/30 border border-border focus:border-primary/60 outline-none px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 resize-none"
                   placeholder="E.g. a 15s lip-sync music video from my selfie + this beat."
                 />
               </div>
@@ -145,7 +145,7 @@ export function HeroContactForm({ greeting }: { greeting: string }) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-medium text-white bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:opacity-95 shadow-lg shadow-violet-500/30 disabled:opacity-60"
+                className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-medium text-white bg-[image:var(--gradient-hero)] hover:brightness-110 shadow-[var(--shadow-glow-soft)] disabled:opacity-60"
               >
                 {loading ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
                 {loading ? "Sending…" : "Get my creative plan"}

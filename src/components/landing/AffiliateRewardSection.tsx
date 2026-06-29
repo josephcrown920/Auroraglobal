@@ -27,7 +27,7 @@ export function AffiliateRewardSection() {
             <Link to="/affiliate" className="inline-flex items-center gap-2 rounded-full bg-emerald-300 px-6 py-3 text-sm font-bold text-emerald-950 no-underline hover:opacity-95">
               Get my referral link
             </Link>
-            <Link to="/dashboard" className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-white no-underline hover:bg-white/10">
+            <Link to="/dashboard" className="inline-flex items-center gap-2 rounded-full aurora-glass-strong px-6 py-3 text-sm font-semibold text-white no-underline hover:brightness-110">
               See my stats
             </Link>
           </div>
@@ -39,7 +39,7 @@ export function AffiliateRewardSection() {
             <Tile label="First payment" value="+20" suffix="Aura" />
             <Tile label="Unlock" value="Tiers" suffix="limits" />
           </div>
-          <div className="rounded-xl border border-white/10 bg-black/40 p-4 text-xs text-white/55">
+          <div className="rounded-xl border border-border bg-black/40 p-4 text-xs text-white/55">
             Rewards are automatically credited to your account. No cash payouts, no subscription required. Just free tools to make your content.
           </div>
         </div>
@@ -50,7 +50,7 @@ export function AffiliateRewardSection() {
 
 function Reward({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
   return (
-    <li className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-3">
+    <li className="flex items-start gap-3 rounded-xl aurora-glass p-3">
       <span className="mt-0.5 grid size-7 place-items-center rounded-md bg-emerald-300/15 text-emerald-200">{icon}</span>
       <span><strong className="text-white">{title}</strong> <span className="text-white/65">— {body}</span></span>
     </li>
@@ -59,7 +59,7 @@ function Reward({ icon, title, body }: { icon: React.ReactNode; title: string; b
 
 function Tile({ label, value, suffix, big }: { label: string; value: string; suffix: string; big?: boolean }) {
   return (
-    <div className={`rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] to-white/[0.02] p-5 ${big ? "py-8" : ""}`}>
+    <div className={`rounded-2xl aurora-glass p-5 ${big ? "py-8" : ""}`}>
       <div className="text-[11px] font-semibold uppercase tracking-widest text-white/55">{label}</div>
       <div className="mt-2 flex items-baseline gap-2">
         <div className={`font-extrabold text-white ${big ? "text-6xl" : "text-4xl"} bg-gradient-to-r from-emerald-200 to-cyan-200 bg-clip-text text-transparent`}>{value}</div>
