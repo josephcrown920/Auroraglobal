@@ -4,8 +4,9 @@
 // section "Scheduling the worker tick" for the dashboard SQL.
 //
 // Each tick: (1) records a heartbeat so a stalled scheduler is observable in
-// admin, (2) recovers jobs orphaned in `processing` by a dead worker, then
-// (3) processes a batch of queued jobs. Auth accepts CRON_SECRET (preferred) or
+// admin, (2) recovers jobs orphaned in `processing` by a dead worker, (3) re-
+// enqueues orphaned `failed` jobs/generations that should still be retried, then
+// (4) processes a batch of queued jobs. Auth accepts CRON_SECRET (preferred) or
 // the legacy Supabase anon key — see src/lib/cron-auth.ts.
 
 import { createFileRoute } from "@tanstack/react-router";
@@ -24,16 +25,16 @@ export const Route = createFileRoute("/api/public/jobs/tick")({
           });
         }
 
-        const { processBatch, sweepStaleProcessingJobs, recordSchedulerHeartbeat } = await import(
-          "@/lib/jobs.server"
-        );
+        const { processBatch, sweepStaleProcessingJobs, sweepFailedJobs, recordSchedulerHeartbeat } =
+          await import("@/lib/jobs.server");
 
         try {
           const swept = await sweepStaleProcessingJobs();
+          const recovered = await sweepFailedJobs();
           const workerId = `tick:${crypto.randomUUID().slice(0, 8)}`;
           const results = await processBatch(workerId, 5);
           await recordSchedulerHeartbeat(HEARTBEAT_NAME, true);
-          return new Response(JSON.stringify({ ok: true, swept, results }), {
+          return new Response(JSON.stringify({ ok: true, swept, recovered, results }), {
             status: 200,
             headers: { "Content-Type": "application/json" },
           });
