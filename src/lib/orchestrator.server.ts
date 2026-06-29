@@ -21,7 +21,17 @@ import {
 } from "./inference/protocols";
 import type { InferenceInput, TaskType } from "./inference/types";
 
-export type GenerateKind = "image" | "video" | "lipsync" | "upscale" | "motion" | "text" | "audio";
+export type GenerateKind =
+  | "image"
+  | "video"
+  | "lipsync"
+  | "upscale"
+  | "motion"
+  | "text"
+  | "audio"
+  // Final ffmpeg stitch/mux/mix of a multi-scene story into one MP4. Self-hosted
+  // GPU worker ONLY (Cloudflare Workers cannot run ffmpeg) — never a hosted API.
+  | "assemble";
 
 // ─── Studio bucket signing ───────────────────────────────────────────────────
 // The `studio` bucket is PRIVATE. When we hand a reference URL to an external
@@ -1272,7 +1282,8 @@ function workerCapability(kind: GenerateKind): string {
 
 const gpuWorker: ProviderAdapter = {
   name: "runpod",
-  supports: (r) => ["image", "video", "lipsync", "upscale", "motion", "audio"].includes(r.kind),
+  supports: (r) =>
+    ["image", "video", "lipsync", "upscale", "motion", "audio", "assemble"].includes(r.kind),
   estimateCost: (r) => (r.kind === "video" || r.kind === "motion" ? 0.05 : 0.01),
   async run(r) {
     const { data: workers } = await supabaseAdmin
@@ -1373,6 +1384,8 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   text: [pollinations, groqText, geminiText, mistralText, hfText, openaiText, lovableText],
   // Audio/TTS: ElevenLabs when keyed, otherwise a self-hosted `tts` GPU worker.
   audio: [elevenlabs, gpuWorker],
+  // Final assembly (ffmpeg): self-hosted GPU worker pool only — no hosted provider.
+  assemble: [gpuWorker],
 };
 
 // ─── Unified model registry ──────────────────────────────────────────────────
@@ -1404,6 +1417,9 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     "runway/gen3a-turbo": { provider: "runway", kind: "video", cost: 0.4 },
     // ElevenLabs TTS (sentinel — adapter ignores the model key, picks voice via params)
     "elevenlabs/tts": { provider: "elevenlabs", kind: "audio", cost: 0.01 },
+    // Self-hosted ffmpeg final assembly (kids story). Sentinel model so the
+    // candidate loop runs; routed self-hosted-only to the GPU worker pool.
+    "ffmpeg-assemble": { provider: gpuWorker.name, kind: "assemble", cost: 0.005 },
   };
   for (const [k, v] of Object.entries(REPLICATE_MAP))
     out[k] = { provider: "replicate", kind: v.kind, cost: v.cost };
@@ -1427,13 +1443,28 @@ export function resolveModel(modelKey: string | undefined | null): ModelEntry | 
 // Used by motion/reskin server fns + MCP tools to fail fast with a friendly
 // "no backend configured" message BEFORE reserving any credits.
 export async function hasActiveWorkerForKind(kind: GenerateKind): Promise<boolean> {
-  const { count, error } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from("gpu_workers")
-    .select("id", { count: "exact", head: true })
+    .select("in_flight, max_concurrency, last_heartbeat")
     .eq("status", "active")
-    .contains("capabilities", [workerCapability(kind)]);
-  if (error) return false;
-  return (count ?? 0) > 0;
+    .contains("capabilities", [workerCapability(kind)])
+    // Same ordering as gpuWorker.run (lowest priority, then least-loaded first) so
+    // the limited slice surfaces the workers most likely to be dispatch-eligible.
+    .order("priority", { ascending: true })
+    .order("in_flight", { ascending: true })
+    .limit(20);
+  if (error || !data) return false;
+  // Mirror gpuWorker.run dispatch eligibility EXACTLY so this preflight predicts a
+  // real dispatch: a worker must have free capacity AND a non-stale heartbeat (a
+  // NULL heartbeat counts as fresh, same as dispatch) to actually accept the job.
+  // Checking only status+capability lets a saturated or dead-but-"active" worker
+  // pass, which would burn the whole kids pipeline only to die at the final stitch.
+  const now = Date.now();
+  return data.some((w) => {
+    if (w.in_flight >= w.max_concurrency) return false;
+    if (w.last_heartbeat && now - new Date(w.last_heartbeat).getTime() > STALE_MS) return false;
+    return true;
+  });
 }
 
 async function log(opts: {
@@ -1483,6 +1514,8 @@ const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   ],
   // Sentinel so the candidate loop runs; both audio adapters ignore the model key.
   audio: ["elevenlabs/tts"],
+  // Assembly pins to its self-hosted sentinel model (selfHostedOnly) — no fallback.
+  assemble: [],
 };
 const FALLBACK_CAP: Record<GenerateKind, number> = {
   image: 4,
@@ -1492,6 +1525,7 @@ const FALLBACK_CAP: Record<GenerateKind, number> = {
   motion: 1,
   text: 4,
   audio: 1,
+  assemble: 1,
 };
 
 export function getCandidateModels(req: GenerateRequest): string[] {

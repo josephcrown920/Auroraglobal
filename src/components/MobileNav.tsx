@@ -19,6 +19,7 @@ import {
   Users,
   TrendingUp,
   Terminal,
+  BookOpen,
   type LucideIcon,
 } from "lucide-react";
 
@@ -34,6 +35,7 @@ const FEATURES: Feature[] = [
   { to: "/studio", label: "Studio", icon: Sparkles },
   { to: "/canvas", label: "Canvas", icon: Workflow },
   { to: "/ugc", label: "UGC Ads", icon: Megaphone },
+  { to: "/kids", label: "Kids Stories", icon: BookOpen },
   { to: "/colors", label: "Colors", icon: Palette },
   { to: "/motion", label: "Motion", icon: Film },
   { to: "/lipsync", label: "Lip Sync", icon: Mic },

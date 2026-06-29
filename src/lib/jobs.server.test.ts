@@ -307,6 +307,62 @@ describe("processOneJob", () => {
     await processOneJob("w1");
     expect(calls.rpc.find((c) => c.name === "commit_reservation")).toBeUndefined();
   });
+
+  it("marks the kids_stories row failed (owner-scoped) and releases exactly once with no assemble worker", async () => {
+    // No GPU worker is registered (the gpu_workers read returns no rows), so
+    // runKidsStory's assemble preflight fails terminally up front. Beyond the
+    // usual release + generation-failed, the kids_stories row MUST be flipped to
+    // failed so /kids stops spinning and shows the refunded state.
+    claimQueue = [
+      job({
+        kind: "kids_story",
+        credits_reserved: 12,
+        payload: {
+          storyId: "s1",
+          topic: "the moon",
+          contentType: "bedtime",
+          ageRange: "3-5",
+          lengthId: "short",
+          characterName: "Fuzz",
+        },
+      }),
+    ];
+
+    const r = await processOneJob("w1");
+    expect(r.status).toBe("failed");
+
+    // Released exactly once (CAS-fenced), with the reserved amount.
+    const releases = calls.rpc.filter((c) => c.name === "release_reservation");
+    expect(releases).toHaveLength(1);
+    expect(releases[0].args).toMatchObject({ _user: "u1", _amount: 12, _ref: "j1" });
+
+    // The kids-story row is marked failed and scoped to its owner.
+    const story = calls.updates.find((u) => u.table === "kids_stories");
+    expect(story?.patch).toMatchObject({ status: "failed" });
+    expect(String(story?.patch.error)).toMatch(/required/i);
+
+    // The generation row is failed too.
+    const gen = calls.updates.find((u) => u.table === "generations");
+    expect(gen?.patch).toMatchObject({ status: "failed" });
+  });
+
+  it("does NOT touch the kids_stories row when it has lost the lock to a stale-sweep reclaim", async () => {
+    // Lost the ownership CAS → another worker owns the job now; this worker must
+    // not release, not write the generation, and not flip the story row.
+    jobsCasWins = false;
+    claimQueue = [
+      job({
+        kind: "kids_story",
+        credits_reserved: 12,
+        payload: { storyId: "s1", topic: "the moon", contentType: "bedtime", ageRange: "3-5", lengthId: "short", characterName: "Fuzz" },
+      }),
+    ];
+
+    const r = await processOneJob("w1");
+    expect(r.status).toBe("stale");
+    expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeUndefined();
+    expect(calls.updates.find((u) => u.table === "kids_stories")).toBeUndefined();
+  });
 });
 
 describe("processBatch", () => {
