@@ -84,3 +84,26 @@ export const pingWorker = createServerFn({ method: "POST" })
     }).eq("id", w.id);
     return { ok: result.ok, status: result.status, detail: result.detail, error: result.error, latency_ms };
   });
+
+// Pause / resume / drain a worker WITHOUT touching any other column. Using
+// upsertWorker for this would round-trip the whole row and (because listWorkers
+// strips auth_token) wipe the stored bearer token — so status changes get their
+// own minimal server fn.
+export const setWorkerStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    id: z.string().uuid(),
+    status: z.enum(["active", "paused", "draining"]),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    // Minimal status-only update (NOT upsertWorker) so we never overwrite the
+    // worker's auth_token, which listWorkers strips and would otherwise blank out.
+    const { count, error } = await supabaseAdmin
+      .from("gpu_workers")
+      .update({ status: data.status }, { count: "exact" })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    if (!count) throw new Error(`Worker ${data.id} not found`);
+    return { ok: true, id: data.id, status: data.status };
+  });
