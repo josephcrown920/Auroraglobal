@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, Wand2, LogOut, Loader2, Download, Camera, Film, Mic2, Coins, Zap, LayoutDashboard, Shield, Workflow, Server } from "lucide-react";
 import { toast } from "sonner";
 import { generatePerformanceShot, listGenerations, generateVideoFromImage, lipSyncVideo } from "@/lib/studio.functions";
+import { handleGenerationError } from "@/lib/error-toasts";
 import { getMyProfile, createPaystackCheckout } from "@/lib/billing.functions";
 import { PLANS } from "@/lib/billing.plans";
 import { detectCurrency } from "@/lib/geo.functions";
@@ -189,7 +190,7 @@ function StudioPage() {
       qc.invalidateQueries({ queryKey: ["gens"] });
       qc.invalidateQueries({ queryKey: ["profile"] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+    onError: (e) => handleGenerationError(e),
   });
 
 
@@ -204,7 +205,7 @@ function StudioPage() {
       qc.invalidateQueries({ queryKey: ["gens"] });
       qc.invalidateQueries({ queryKey: ["profile"] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+    onError: (e) => handleGenerationError(e),
   });
 
   const videoMut = useMutation({
@@ -227,7 +228,7 @@ function StudioPage() {
       qc.invalidateQueries({ queryKey: ["gens"] });
       qc.invalidateQueries({ queryKey: ["profile"] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+    onError: (e) => handleGenerationError(e),
   });
 
   const lipSyncMut = useMutation({
@@ -258,7 +259,7 @@ function StudioPage() {
       qc.invalidateQueries({ queryKey: ["gens"] });
       qc.invalidateQueries({ queryKey: ["profile"] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+    onError: (e) => handleGenerationError(e),
   });
 
   // Resolve a permanent public URL for the bundled demo selfie (uploads it
@@ -293,7 +294,7 @@ function StudioPage() {
       qc.invalidateQueries({ queryKey: ["gens"] });
       qc.invalidateQueries({ queryKey: ["profile"] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+    onError: (e) => handleGenerationError(e),
   });
 
   // Pending recipe from landing-page tutorial — pre-fill prompt + selfie and auto-fire.
@@ -320,7 +321,7 @@ function StudioPage() {
         qc.invalidateQueries({ queryKey: ["profile"] });
         toast.success("Demo shot ready");
       })
-      .catch((e) => toast.error(e instanceof Error ? e.message : "Failed"));
+      .catch((e) => handleGenerationError(e));
   }, [user, demoUrl, recipeFired, genFn, model, qc]);
 
   const checkoutMut = useMutation({

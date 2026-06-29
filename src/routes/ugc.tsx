@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { generatePerformanceShot, generateVideoFromImage } from "@/lib/studio.functions";
 import { generateUGCAd, getGenerationStatus } from "@/lib/ugc-generation.functions";
+import { handleGenerationError } from "@/lib/error-toasts";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -95,7 +96,7 @@ function UGCStudio() {
       return await genShot({ data: { prompt, imageUrls: [toAbsolute(avatar.img)], model: "google/gemini-2.5-flash-image" } });
     },
     onSuccess: (r) => { setResultImage(r.resultUrl); setResultVideo(null); toast.success("UGC shot ready — make it move next."); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Generation failed"),
+    onError: (e) => handleGenerationError(e),
   });
 
   const videoMut = useMutation({
@@ -105,7 +106,7 @@ function UGCStudio() {
       return await genVid({ data: { imageUrl: resultImage, prompt, duration: 5, resolution: "720p", modelKey: "seedance-2.0-fast" } });
     },
     onSuccess: (r) => { if (r?.videoUrl) setResultVideo(r.videoUrl); toast.success("UGC video rendered."); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Video failed"),
+    onError: (e) => handleGenerationError(e),
   });
 
   // Full talking UGC ad: enqueue the async pipeline, then poll the generation row
@@ -141,7 +142,7 @@ function UGCStudio() {
       throw new Error("Still rendering — check your dashboard in a moment.");
     },
     onSuccess: (r) => { setResultVideo(r.videoUrl); toast.success("Talking UGC ad ready."); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Ad failed"),
+    onError: (e) => handleGenerationError(e),
   });
 
   const busy = imageMut.isPending || videoMut.isPending || adMut.isPending;

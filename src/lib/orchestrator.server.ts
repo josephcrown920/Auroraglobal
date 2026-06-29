@@ -98,6 +98,26 @@ export type GenerateResult = {
 // Wraps a single provider call. Retries on transient failures only
 // (network errors, 429, 5xx). Skips retry on 4xx auth/validation errors.
 const TRANSIENT_RE = /\b(429|5\d\d|ECONNRESET|ETIMEDOUT|EAI_AGAIN|fetch failed|network|timeout)\b/i;
+// Cap on how long we'll honor a provider's wait hint before giving up — long
+// enough for a typical single-digit-second 429 throttle to clear, short enough
+// that one request never hangs indefinitely.
+const MAX_RETRY_AFTER_MS = 30_000;
+// Extract a wait hint from a transient error: prefer a structured `retryAfterMs`
+// (set by the Replicate client on 429s), then parse a `retry_after` / `Retry-After`
+// value out of the message text for providers that only embed it there.
+function retryAfterHintMs(err: unknown): number | undefined {
+  if (err && typeof err === "object") {
+    const v = (err as { retryAfterMs?: unknown }).retryAfterMs;
+    if (typeof v === "number" && Number.isFinite(v) && v >= 0) return v;
+  }
+  const msg = err instanceof Error ? err.message : String(err);
+  const m = msg.match(/retry[_-]?after"?\s*[:=]\s*"?(\d+(?:\.\d+)?)/i);
+  if (m) {
+    const secs = Number(m[1]);
+    if (Number.isFinite(secs) && secs >= 0) return Math.round(secs * 1000);
+  }
+  return undefined;
+}
 async function withRetry<T>(fn: () => Promise<T>, attempts = 2): Promise<T> {
   let lastErr: unknown;
   for (let i = 0; i <= attempts; i++) {
@@ -107,7 +127,11 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 2): Promise<T> {
       lastErr = e;
       const msg = e instanceof Error ? e.message : String(e);
       if (i === attempts || !TRANSIENT_RE.test(msg)) break;
-      const delay = 400 * Math.pow(2, i) + Math.floor(Math.random() * 200);
+      // Honor an explicit provider wait hint (e.g. a 429 Retry-After) when present,
+      // capped at a sane max; otherwise fall back to the fixed exponential backoff.
+      const hint = retryAfterHintMs(e);
+      const backoff = 400 * Math.pow(2, i) + Math.floor(Math.random() * 200);
+      const delay = hint !== undefined ? Math.min(hint, MAX_RETRY_AFTER_MS) : backoff;
       await new Promise((r) => setTimeout(r, delay));
     }
   }

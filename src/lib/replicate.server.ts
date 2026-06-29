@@ -33,6 +33,42 @@ type PollResp = {
 };
 
 /**
+ * Replicate API error. Carries the HTTP status and, when the provider asks the
+ * caller to back off (HTTP 429), the requested wait in milliseconds so the retry
+ * layer can honor it instead of using only its short fixed backoff.
+ */
+export class ReplicateError extends Error {
+  readonly status?: number;
+  readonly retryAfterMs?: number;
+  constructor(message: string, opts?: { status?: number; retryAfterMs?: number }) {
+    super(message);
+    this.name = "ReplicateError";
+    this.status = opts?.status;
+    this.retryAfterMs = opts?.retryAfterMs;
+  }
+}
+
+/**
+ * Pull a retry-after hint (in ms) from a throttled response: prefer the standard
+ * `Retry-After` header (seconds), then fall back to a `retry_after` field in the
+ * JSON body (Replicate embeds this in its 429s). Returns undefined when no hint
+ * is present.
+ */
+function parseRetryAfterMs(res: Response, body: string): number | undefined {
+  const header = res.headers.get("retry-after");
+  if (header) {
+    const secs = Number(header);
+    if (Number.isFinite(secs) && secs >= 0) return Math.round(secs * 1000);
+  }
+  const m = body.match(/retry[_-]?after"?\s*[:=]\s*"?(\d+(?:\.\d+)?)/i);
+  if (m) {
+    const secs = Number(m[1]);
+    if (Number.isFinite(secs) && secs >= 0) return Math.round(secs * 1000);
+  }
+  return undefined;
+}
+
+/**
  * Run a Replicate official model: POST /v1/models/{owner}/{name}/predictions
  * `model` should be "owner/name" (e.g. "bytedance/seedream-4").
  */
@@ -48,7 +84,10 @@ export async function replicateRun(
   });
   if (!create.ok) {
     const t = await create.text();
-    throw new Error(`Replicate create failed (${create.status}): ${t.slice(0, 300)}`);
+    throw new ReplicateError(`Replicate create failed (${create.status}): ${t.slice(0, 300)}`, {
+      status: create.status,
+      retryAfterMs: parseRetryAfterMs(create, t),
+    });
   }
   const created = (await create.json()) as CreateResp;
 
@@ -62,7 +101,10 @@ export async function replicateRun(
     });
     if (!poll.ok) {
       const t = await poll.text();
-      throw new Error(`Replicate poll failed (${poll.status}): ${t.slice(0, 200)}`);
+      throw new ReplicateError(`Replicate poll failed (${poll.status}): ${t.slice(0, 200)}`, {
+        status: poll.status,
+        retryAfterMs: parseRetryAfterMs(poll, t),
+      });
     }
     const j = (await poll.json()) as PollResp;
     if (j.status === "succeeded") return j;
