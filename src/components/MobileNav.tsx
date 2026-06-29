@@ -18,6 +18,7 @@ import {
   Gift,
   Users,
   TrendingUp,
+  Terminal,
   type LucideIcon,
 } from "lucide-react";
 
@@ -41,6 +42,7 @@ const FEATURES: Feature[] = [
   { to: "/split-reality", label: "Split Reality", icon: SplitSquareHorizontal },
   { to: "/tiktok", label: "TikTok", icon: Music2 },
   { to: "/workflows", label: "Workflows", icon: LayoutTemplate },
+  { to: "/cli", label: "CLI", icon: Terminal },
   { to: "/gallery", label: "Gallery", icon: Images },
   { to: "/gifts", label: "Gifts", icon: Gift },
   { to: "/affiliate", label: "Affiliate", icon: Users },
