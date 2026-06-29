@@ -10,6 +10,7 @@ import {
   Plug,
   TrendingUp,
   Terminal,
+  Camera,
 } from "lucide-react";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import { useServerFn } from "@tanstack/react-start";
@@ -205,6 +206,12 @@ function Index() {
               className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
             >
               <Palette className="size-3.5" /> Colors
+            </Link>
+            <Link
+              to="/reshoot"
+              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
+            >
+              <Camera className="size-3.5" /> Reshoot
             </Link>
             <Link
               to="/motion"

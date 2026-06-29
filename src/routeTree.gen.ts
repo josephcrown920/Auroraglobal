@@ -16,6 +16,7 @@ import { Route as StudioRouteImport } from './routes/studio'
 import { Route as SplitRealityRouteImport } from './routes/split-reality'
 import { Route as SpinRouteImport } from './routes/spin'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as ReshootRouteImport } from './routes/reshoot'
 import { Route as OrchestrateRouteImport } from './routes/orchestrate'
 import { Route as NexusarbRouteImport } from './routes/nexusarb'
 import { Route as MotionRouteImport } from './routes/motion'
@@ -83,6 +84,11 @@ const SpinRoute = SpinRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReshootRoute = ReshootRouteImport.update({
+  id: '/reshoot',
+  path: '/reshoot',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrchestrateRoute = OrchestrateRouteImport.update({
@@ -272,6 +278,7 @@ export interface FileRoutesByFullPath {
   '/motion': typeof MotionRoute
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
+  '/reshoot': typeof ReshootRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/spin': typeof SpinRoute
   '/split-reality': typeof SplitRealityRoute
@@ -314,6 +321,7 @@ export interface FileRoutesByTo {
   '/motion': typeof MotionRoute
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
+  '/reshoot': typeof ReshootRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/spin': typeof SpinRoute
   '/split-reality': typeof SplitRealityRoute
@@ -357,6 +365,7 @@ export interface FileRoutesById {
   '/motion': typeof MotionRoute
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
+  '/reshoot': typeof ReshootRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/spin': typeof SpinRoute
   '/split-reality': typeof SplitRealityRoute
@@ -401,6 +410,7 @@ export interface FileRouteTypes {
     | '/motion'
     | '/nexusarb'
     | '/orchestrate'
+    | '/reshoot'
     | '/sitemap.xml'
     | '/spin'
     | '/split-reality'
@@ -443,6 +453,7 @@ export interface FileRouteTypes {
     | '/motion'
     | '/nexusarb'
     | '/orchestrate'
+    | '/reshoot'
     | '/sitemap.xml'
     | '/spin'
     | '/split-reality'
@@ -485,6 +496,7 @@ export interface FileRouteTypes {
     | '/motion'
     | '/nexusarb'
     | '/orchestrate'
+    | '/reshoot'
     | '/sitemap.xml'
     | '/spin'
     | '/split-reality'
@@ -528,6 +540,7 @@ export interface RootRouteChildren {
   MotionRoute: typeof MotionRoute
   NexusarbRoute: typeof NexusarbRoute
   OrchestrateRoute: typeof OrchestrateRoute
+  ReshootRoute: typeof ReshootRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SpinRoute: typeof SpinRoute
   SplitRealityRoute: typeof SplitRealityRoute
@@ -598,6 +611,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reshoot': {
+      id: '/reshoot'
+      path: '/reshoot'
+      fullPath: '/reshoot'
+      preLoaderRoute: typeof ReshootRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/orchestrate': {
@@ -867,6 +887,7 @@ const rootRouteChildren: RootRouteChildren = {
   MotionRoute: MotionRoute,
   NexusarbRoute: NexusarbRoute,
   OrchestrateRoute: OrchestrateRoute,
+  ReshootRoute: ReshootRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SpinRoute: SpinRoute,
   SplitRealityRoute: SplitRealityRoute,
@@ -890,13 +911,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
