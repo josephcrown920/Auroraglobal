@@ -82,6 +82,11 @@ function AdminPage() {
   }
 
   const s = data?.stats;
+  const jobsByGen = new Map(
+    (data?.jobs ?? [])
+      .filter((j) => j.generation_id)
+      .map((j) => [j.generation_id as string, j] as const),
+  );
 
   return (
     <main className="min-h-screen bg-background">
@@ -113,6 +118,8 @@ function AdminPage() {
           <Stat icon={Coins} label={`Margin (${PROFIT_SPLIT_PCT}%)`} value={s ? `$${(s.totalRevenueUsd * (PROFIT_SPLIT_PCT / 100)).toFixed(2)}` : "—"} />
         </div>
 
+        <SchedulerBanner scheduler={data?.scheduler ?? null} queue={data?.queue ?? null} />
+
         {/* Grant credits */}
         <section className="rounded-2xl border border-border bg-card/40 p-5 space-y-3">
           <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Grant Aura</h2>
@@ -137,7 +144,10 @@ function AdminPage() {
 
         {tab === "gens" && (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-            {(data?.generations ?? []).map((g) => (
+            {(data?.generations ?? []).map((g) => {
+              const job = jobsByGen.get(g.id);
+              const attempts = job?.attempts ?? 0;
+              return (
               <div key={g.id} className="rounded-xl overflow-hidden border border-border bg-card/40">
                 <div className="aspect-square bg-background/40">
                   {g.result_image_url ? (
@@ -154,10 +164,16 @@ function AdminPage() {
                     <span className="text-[9px] text-muted-foreground">{new Date(g.created_at).toLocaleDateString()}</span>
                   </div>
                   <p className="text-[10px] text-muted-foreground line-clamp-2">{g.prompt}</p>
+                  {attempts > 1 && (
+                    <p className="text-[9px] text-amber-500" title={job?.error ?? undefined}>
+                      attempt {attempts}{job?.status === "queued" ? " · retrying" : job?.status === "processing" ? " · running" : ""}
+                    </p>
+                  )}
                   <p className="text-[9px] font-mono text-muted-foreground/60 truncate" title={g.user_id}>{g.user_id.slice(0, 8)}…</p>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -312,6 +328,52 @@ function heartbeatAge(ts: string | null | undefined): string {
   if (ageMs < 60_000) return `${Math.round(ageMs / 1000)}s ago`;
   if (ageMs < 3_600_000) return `${Math.round(ageMs / 60_000)}m ago`;
   return `${Math.round(ageMs / 3_600_000)}h ago`;
+}
+
+// Health of the external cron that drives the job queue (records a heartbeat each
+// tick). If no tick has landed recently the scheduler is likely stalled and
+// retries won't make progress until it's restored.
+function SchedulerBanner({
+  scheduler,
+  queue,
+}: {
+  scheduler: { last_run_at: string | null; last_ok_at: string | null; last_error: string | null } | null;
+  queue: { queued: number; processing: number; failed: number; retrying: number } | null;
+}) {
+  const lastRun = scheduler?.last_run_at ?? null;
+  const ageMs = lastRun ? Date.now() - new Date(lastRun).getTime() : Infinity;
+  const stale = ageMs > 5 * 60_000; // no tick in 5 min ⇒ scheduler likely stalled
+  const hasError = !!scheduler?.last_error;
+  const healthy = !!lastRun && !stale && !hasError;
+  return (
+    <section
+      className={`rounded-2xl border p-5 space-y-2 ${healthy ? "border-border bg-card/40" : "border-amber-500/40 bg-amber-500/10"}`}
+    >
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+          <Activity className="size-4" /> Job scheduler
+        </h2>
+        <span className={`text-xs ${healthy ? "text-emerald-500" : "text-amber-500"}`}>
+          {!lastRun
+            ? "Never run — cron not wired"
+            : stale
+              ? `Stalled · last tick ${heartbeatAge(lastRun)}`
+              : `Healthy · last tick ${heartbeatAge(lastRun)}`}
+        </span>
+      </div>
+      {hasError && (
+        <p className="text-xs text-amber-500 font-mono break-all">Last error: {scheduler?.last_error}</p>
+      )}
+      {queue && (
+        <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+          <span>Queued: <b className="text-foreground">{queue.queued}</b></span>
+          <span>Processing: <b className="text-foreground">{queue.processing}</b></span>
+          <span>Retrying: <b className="text-foreground">{queue.retrying}</b></span>
+          <span>Failed: <b className="text-foreground">{queue.failed}</b></span>
+        </div>
+      )}
+    </section>
+  );
 }
 
 type WorkerProtocol = "custom" | "runpod" | "comfyui" | "hfspace" | "vast";

@@ -47,7 +47,69 @@ type JobRow = {
   credits_reserved: number;
   generation_id: string | null;
   parent_job_id: string | null;
+  created_at?: string | null;
 };
+
+// ─── Persistent retry policy ─────────────────────────────────────────────────
+// A failed generation keeps getting re-queued until it succeeds, WITHIN sane
+// limits, instead of being abandoned after the old hard `attempts < max_attempts`
+// cap. Two independent bounds stop runaway compute/credit cost on hopeless jobs:
+//   - an absolute attempt ceiling, and
+//   - an absolute age deadline (since the job was created).
+// `claim_next_job` increments `attempts` on every claim, so `attempts` doubles as
+// the persistent retry counter; `scheduled_at` carries the backoff.
+export const PERSISTENT_RETRY_MAX_ATTEMPTS = 48;
+export const PERSISTENT_RETRY_MAX_AGE_MS = 48 * 60 * 60 * 1000; // 48h
+const RETRY_BACKOFF_BASE_MS = 30_000; // 30s
+const RETRY_BACKOFF_CAP_MS = 30 * 60_000; // 30m
+const RETRY_BACKOFF_MAX_DOUBLINGS = 6; // base * 2^6 = 32m → clamped by the cap
+
+// How long a job may sit in `processing` before we treat its worker as dead and
+// re-queue it (the worker died mid-run under request-driven autoscale). Worker
+// finalization is fenced on lock ownership (see finishJob), so if this fires on a
+// job that is actually still running, the late finish loses the CAS and can't
+// double-commit/release — the threshold only trades orphan-recovery latency
+// against the (rare) chance of a duplicate provider call.
+export const STALE_PROCESSING_SECONDS = 15 * 60; // 15m
+
+// Clearly-terminal failures: retrying will never help, so stop immediately and
+// release the reservation rather than burning credits. Everything else (network
+// blips, 429/5xx, timeouts, and unknown errors) is treated as transient and kept
+// retrying — we bias toward retrying so a flaky provider never strands a paid
+// render. Keep this conservative: a false "terminal" gives up on a paid job.
+const TERMINAL_ERROR_RE =
+  /\b(insufficient_credits|unauthorized|forbidden|401|403|400)\b|invalid|not[ _]trusted|untrusted|\brequire[ds]?\b|missing\b|unsupported|no path for kind/i;
+
+export function classifyJobError(message: string): "terminal" | "transient" {
+  return TERMINAL_ERROR_RE.test(message) ? "terminal" : "transient";
+}
+
+/** Capped exponential backoff (+jitter) for the next retry, as an ISO string. */
+export function nextRetryAt(attempts: number, now: number = Date.now()): string {
+  const doublings = Math.min(Math.max(attempts, 0), RETRY_BACKOFF_MAX_DOUBLINGS);
+  const base = Math.min(RETRY_BACKOFF_BASE_MS * Math.pow(2, doublings), RETRY_BACKOFF_CAP_MS);
+  const jitter = Math.floor(Math.random() * 5_000);
+  return new Date(now + base + jitter).toISOString();
+}
+
+export type RetryDecision = { retry: boolean; reason: "transient" | "terminal" | "max_attempts" | "max_age" };
+
+/** Decide whether a failed job should be re-queued or terminally failed. */
+export function retryDecision(
+  job: Pick<JobRow, "attempts" | "created_at">,
+  message: string,
+  now: number = Date.now(),
+): RetryDecision {
+  if (classifyJobError(message) === "terminal") return { retry: false, reason: "terminal" };
+  if (job.attempts >= PERSISTENT_RETRY_MAX_ATTEMPTS) return { retry: false, reason: "max_attempts" };
+  if (job.created_at) {
+    const ageMs = now - new Date(job.created_at).getTime();
+    if (Number.isFinite(ageMs) && ageMs >= PERSISTENT_RETRY_MAX_AGE_MS) {
+      return { retry: false, reason: "max_age" };
+    }
+  }
+  return { retry: true, reason: "transient" };
+}
 
 async function rpc<T = unknown>(name: string, args: Record<string, unknown>): Promise<T> {
   // Loose typing — generated types regenerate after migration.
@@ -77,14 +139,21 @@ async function markGeneration(jobId: string, genId: string | null, patch: Record
   void jobId;
 }
 
+// Transition a claimed job out of `processing`, FENCED on still owning the lock
+// (`locked_by = workerId AND status = 'processing'`). Returns true only if this
+// worker won the transition. This is the credit-safety guard against the
+// stale-sweep race: if the sweeper requeued this job and another worker reclaimed
+// it (changing locked_by), this update matches no row and the caller MUST NOT
+// commit or release the reservation — the new owner will.
 async function finishJob(
   job: JobRow,
+  workerId: string,
   opts: {
     status: "succeeded" | "failed" | "retry";
     result?: Record<string, unknown>;
     error?: string;
   },
-) {
+): Promise<boolean> {
   const patch: Record<string, unknown> = {
     finished_at: new Date().toISOString(),
     locked_at: null,
@@ -92,17 +161,23 @@ async function finishJob(
   };
   if (opts.status === "retry") {
     patch.status = "queued";
-    patch.scheduled_at = new Date(Date.now() + 30_000 * Math.pow(2, job.attempts)).toISOString();
+    // `attempts` was already incremented by claim_next_job, so subtract one to
+    // keep the first retry at the 30s backoff base rather than 60s.
+    patch.scheduled_at = nextRetryAt(Math.max(0, job.attempts - 1));
     patch.error = opts.error ?? null;
   } else {
     patch.status = opts.status;
     if (opts.result) patch.result = opts.result;
     if (opts.error) patch.error = opts.error;
   }
-  await supabaseAdmin
+  const { data } = await supabaseAdmin
     .from("jobs")
     .update(patch as never)
-    .eq("id", job.id);
+    .eq("id", job.id)
+    .eq("locked_by", workerId)
+    .eq("status", "processing")
+    .select("id");
+  return Array.isArray(data) && data.length > 0;
 }
 
 // ─── Dispatch ───────────────────────────────────────────────────────────────
@@ -463,45 +538,77 @@ export async function processOneJob(
         job.kind === "lipsync";
       genPatch[isVideo ? "result_video_url" : "result_image_url"] = out.url;
     }
-    await markGeneration(job.id, job.generation_id, genPatch);
-
-    // Commit credit reservation
-    if (job.credits_reserved > 0) {
-      await rpc("commit_reservation", {
-        _user: job.user_id,
-        _amount: job.credits_reserved,
-        _reason: `job_${job.kind}`,
-        _ref: job.id,
-      });
+    // Fence the completion on still owning the lock BEFORE writing the success or
+    // committing credits. If a stale-sweep requeued this job and another worker
+    // reclaimed it — and possibly already terminally failed + released it — we lose
+    // the CAS and must touch nothing: writing the generation `succeeded` here would
+    // expose a delivered render after a refund, and committing would double-charge.
+    // The new owner is authoritative.
+    const won = await finishJob(job, workerId, { status: "succeeded", result: out });
+    if (won) {
+      await markGeneration(job.id, job.generation_id, genPatch);
+      if (job.credits_reserved > 0) {
+        try {
+          await rpc("commit_reservation", {
+            _user: job.user_id,
+            _amount: job.credits_reserved,
+            _reason: `job_${job.kind}`,
+            _ref: job.id,
+          });
+        } catch (commitErr) {
+          // The render is delivered and the job is already marked succeeded; never
+          // release here (that would refund a delivered render). Surface for ops.
+          console.error("[jobs] commit_reservation failed after success", job.id, commitErr);
+        }
+      }
     }
-
-    await finishJob(job, { status: "succeeded", result: out });
-    return { processed: true, jobId: job.id, status: "succeeded" };
+    return { processed: true, jobId: job.id, status: won ? "succeeded" : "stale" };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    const canRetry =
-      job.attempts < job.max_attempts && !/insufficient_credits|invalid|unauthorized/i.test(msg);
+    const decision = retryDecision(job, msg);
 
-    if (canRetry) {
-      await finishJob(job, { status: "retry", error: msg });
-      return { processed: true, jobId: job.id, status: "retry", error: msg };
+    if (decision.retry) {
+      // Transient/unknown failure: keep the reservation held (NEVER release on a
+      // retry — that would refund a render we still intend to deliver) and
+      // re-queue with backoff. Fenced so a worker that has lost the lock to a
+      // stale-sweep reclaim doesn't clobber the new owner's run.
+      const won = await finishJob(job, workerId, { status: "retry", error: msg });
+      if (won) {
+        await markGeneration(job.id, job.generation_id, {
+          status: "retrying",
+          error: msg.slice(0, 1000),
+        });
+      }
+      return { processed: true, jobId: job.id, status: won ? "retry" : "stale", error: msg };
     }
 
-    // Final failure: release reservation, mark gen failed
-    if (job.credits_reserved > 0) {
-      await rpc("release_reservation", {
-        _user: job.user_id,
-        _amount: job.credits_reserved,
-        _reason: `job_${job.kind}`,
-        _ref: job.id,
+    // Terminal failure (hopeless error, or the retry ceiling/age deadline was
+    // reached). Fence the transition first, then release the reservation EXACTLY
+    // once — only the worker that wins the CAS releases, so a stale-sweep race can
+    // never refund twice.
+    const failNote =
+      decision.reason === "max_attempts"
+        ? ` (gave up after ${job.attempts} attempts)`
+        : decision.reason === "max_age"
+          ? " (gave up after retry window elapsed)"
+          : "";
+    const failError = `${msg}${failNote}`;
+    const won = await finishJob(job, workerId, { status: "failed", error: failError });
+    if (won) {
+      if (job.credits_reserved > 0) {
+        await rpc("release_reservation", {
+          _user: job.user_id,
+          _amount: job.credits_reserved,
+          _reason: `job_${job.kind}`,
+          _ref: job.id,
+        });
+      }
+      await markGeneration(job.id, job.generation_id, {
+        status: "failed",
+        error: failError.slice(0, 1000),
       });
     }
-    await markGeneration(job.id, job.generation_id, {
-      status: "failed",
-      error: msg.slice(0, 1000),
-    });
-    await finishJob(job, { status: "failed", error: msg });
-    return { processed: true, jobId: job.id, status: "failed", error: msg };
+    return { processed: true, jobId: job.id, status: won ? "failed" : "stale", error: failError };
   }
 }
 
@@ -517,4 +624,58 @@ export async function processBatch(
     if (!r.processed) break;
   }
   return results;
+}
+
+// ─── Sweeper + scheduler heartbeat ───────────────────────────────────────────
+
+// Recover jobs orphaned in `processing` because their worker instance was killed
+// mid-run (the common orphan source under request-driven autoscale). These jobs
+// still hold their reservation, so re-queuing them is credit-safe. Terminally
+// failed jobs and synchronous-path failed generations are intentionally NOT
+// resurrected here: their reservation was already released, so re-running them
+// would silently re-charge the customer.
+export async function sweepStaleProcessingJobs(
+  maxAgeSeconds: number = STALE_PROCESSING_SECONDS,
+): Promise<{ reset: number }> {
+  const out = await rpc<number | null>("reset_stale_processing_jobs", {
+    _max_age_seconds: maxAgeSeconds,
+    _backoff_seconds: 15,
+  });
+  return { reset: typeof out === "number" ? out : 0 };
+}
+
+// Untyped accessor — `scheduler_heartbeats` is not in the generated Supabase
+// types (same pattern the rest of the codebase uses for not-yet-typed tables).
+type HeartbeatUpsert = {
+  upsert: (
+    values: Record<string, unknown>,
+    options: { onConflict: string },
+  ) => Promise<{ error: { message: string } | null }>;
+};
+
+/**
+ * Stamp a scheduler's liveness so a stalled cron is observable in admin. Best
+ * effort: a heartbeat write must never break the tick it is reporting on.
+ */
+export async function recordSchedulerHeartbeat(
+  name: string,
+  ok: boolean,
+  error?: string | null,
+): Promise<void> {
+  const now = new Date().toISOString();
+  const patch: Record<string, unknown> = {
+    name,
+    last_run_at: now,
+    updated_at: now,
+    last_error: ok ? null : (error ?? null),
+  };
+  if (ok) patch.last_ok_at = now;
+  try {
+    const table = (supabaseAdmin as unknown as { from: (t: string) => HeartbeatUpsert }).from(
+      "scheduler_heartbeats",
+    );
+    await table.upsert(patch, { onConflict: "name" });
+  } catch {
+    // swallow — heartbeat is observability, not correctness
+  }
 }
