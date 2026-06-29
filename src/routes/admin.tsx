@@ -5,10 +5,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { adminOverview, adminGrantCredits, adminEarnings } from "@/lib/admin.functions";
-import { listWorkers, upsertWorker, deleteWorker, pingWorker } from "@/lib/workers.functions";
+import { listWorkers, upsertWorker, deleteWorker, pingWorker, setWorkerStatus } from "@/lib/workers.functions";
 import { PROFIT_SPLIT_PCT } from "@/lib/profit-split";
 import { ModelBadge } from "@/components/ModelBadge";
-import { Shield, Sparkles, Loader2, Users, DollarSign, ImagePlay, Coins, ArrowRight, Server, Trash2, Activity, TrendingUp, Gift } from "lucide-react";
+import { Shield, Sparkles, Loader2, Users, DollarSign, ImagePlay, Coins, ArrowRight, Server, Trash2, Activity, TrendingUp, Gift, Pause, Play } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -358,14 +358,15 @@ const WORKER_RECIPES: Record<WorkerProtocol, {
     ],
   },
   comfyui: {
-    label: "ComfyUI — Aurora ships the graph",
-    template: "workers/comfyui/ (LatentSync + MimicMotion graphs)",
+    label: "ComfyUI — free-GPU swarm (Aurora ships the graphs)",
+    template: "workers/kaggle/ + workers/comfyui/ (image, video, lipsync, motion graphs)",
     endpoint: "https://<host>:8188",
-    caps: "lipsync,motion",
+    caps: "image,video,lipsync,motion",
     steps: [
-      "Install ComfyUI + the LatentSync & MimicMotion custom-node packs (see workers/comfyui/README).",
-      "Start it: python main.py --listen 0.0.0.0 --port 8188",
-      "Aurora sends the prompt graph for you — just keep the node class names matching the JSONs.",
+      "Run the Kaggle or Colab ComfyUI launcher (workers/kaggle/) — it installs ComfyUI + the node packs and auto-registers on boot.",
+      "Or run it yourself: python main.py --listen 0.0.0.0 --port 8188, then register the …:8188 URL above.",
+      "Aurora sends the prompt graph (SDXL image, SVD/AnimateDiff video, LatentSync, MimicMotion) — keep node class names matching workers/comfyui/*.json.",
+      "Advertise only the capabilities your VRAM can serve: 16GB → lipsync/image; 24GB+ → add video/motion.",
     ],
   },
   hfspace: {
@@ -386,6 +387,7 @@ function WorkersPanel() {
   const saveFn = useServerFn(upsertWorker);
   const delFn = useServerFn(deleteWorker);
   const pingFn = useServerFn(pingWorker);
+  const statusFn = useServerFn(setWorkerStatus);
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ["workers"], queryFn: () => listFn() });
   const blank = { 
@@ -471,11 +473,43 @@ function WorkersPanel() {
         <div className="text-xs text-muted-foreground space-y-1">
           <p><strong>Custom / Vast.ai:</strong> <code>POST /generate</code> with flat JSON body → <code>{"{ url }"}</code>. Health: <code>GET /health</code>. Use this for Colab+ngrok, a Vast.ai box, or any self-hosted server.</p>
           <p><strong>RunPod:</strong> <code>POST /runsync</code> (preferred) or <code>POST /run</code> + <code>{"GET /status/{id}"}</code> with body <code>{"{ input: { kind, prompt, image_urls, audio_url, video_url, model, duration, resolution } }"}</code>. Auth token sent as <code>Authorization: Bearer …</code>.</p>
-          <p><strong>ComfyUI:</strong> raw ComfyUI server — <code>POST /prompt</code> with a workflow graph, poll <code>{"/history/{id}"}</code>, fetch <code>/view</code>. Health: <code>GET /system_stats</code>. Aurora ships the LatentSync/MimicMotion graphs.</p>
+          <p><strong>ComfyUI:</strong> raw ComfyUI server — <code>POST /prompt</code> with a workflow graph, poll <code>{"/history/{id}"}</code>, fetch <code>/view</code>. Health: <code>GET /system_stats</code>. Aurora ships the image (SDXL), video (SVD/AnimateDiff), LatentSync &amp; MimicMotion graphs — a free-GPU Kaggle/Colab swarm serves image/video first, with hosted providers as fallback.</p>
           <p><strong>HF Space:</strong> a Gradio Space — calls <code>{"/gradio_api/call/predict"}</code> over SSE. Health: <code>GET /</code>. One Space serves one task.</p>
           <p>Lower <strong>priority</strong> number = tried first. Use higher priority (e.g. 200) for serverless/auto-scale fallback workers.</p>
         </div>
       </section>
+      {(() => {
+        const workers = data?.workers ?? [];
+        if (workers.length === 0) return null;
+        // Live fleet capacity, aggregated per capability. "Online" = active status
+        // and a heartbeat within the 5-min liveness window (matches the orchestrator's
+        // staleness cutoff). Free idle slots = max_concurrency − in_flight on those.
+        const caps = ["image", "video", "lipsync", "motion", "upscale"] as const;
+        const summary = caps.map(cap => {
+          const matching = workers.filter(w => (w.capabilities ?? []).includes(cap));
+          const online = matching.filter(w => {
+            const fresh = w.last_heartbeat ? Date.now() - new Date(w.last_heartbeat).getTime() < 5 * 60_000 : false;
+            return w.status === "active" && fresh;
+          });
+          const free = online.reduce((n, w) => n + Math.max(0, (w.max_concurrency ?? 0) - (w.in_flight ?? 0)), 0);
+          const selfHostedOnly = cap === "lipsync" || cap === "motion";
+          return { cap, total: matching.length, online: online.length, free, selfHostedOnly };
+        });
+        return (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+            {summary.map(s => (
+              <div key={s.cap} className="rounded-xl border border-border bg-card/40 p-3">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">{s.cap}</p>
+                <p className={`text-lg font-semibold mt-1 ${s.online > 0 ? "text-emerald-500" : s.selfHostedOnly ? "text-amber-500" : "text-muted-foreground"}`}>
+                  {s.online}<span className="text-xs font-normal text-muted-foreground">/{s.total} online</span>
+                </p>
+                <p className="text-xs text-muted-foreground">{s.free} free slot{s.free === 1 ? "" : "s"}</p>
+                {s.selfHostedOnly && s.online === 0 && <p className="text-[11px] text-amber-500 mt-0.5">self-hosted only — offline</p>}
+              </div>
+            ))}
+          </div>
+        );
+      })()}
       {isLoading ? <div className="text-sm text-muted-foreground">Loading…</div> : (
         <div className="rounded-xl border border-border overflow-hidden">
           <table className="w-full text-sm">
@@ -513,8 +547,13 @@ function WorkersPanel() {
                     </td>
                     <td className={`p-3 text-xs ${w.status === "active" ? "text-emerald-500" : "text-muted-foreground"}`}>{w.status}</td>
                     <td className="p-3 text-right">
-                      <Button size="sm" variant="ghost" onClick={async () => { const r = await pingFn({ data: { id: w.id } }); toast(r.ok ? `OK · ${r.latency_ms}ms${r.detail ? ` · ${r.detail}` : ""}` : `Down: ${r.error ?? r.status}`); qc.invalidateQueries({ queryKey: ["workers"] }); }}><Activity className="size-4" /></Button>
-                      <Button size="sm" variant="ghost" onClick={async () => { if (!confirm("Delete?")) return; await delFn({ data: { id: w.id } }); qc.invalidateQueries({ queryKey: ["workers"] }); }}><Trash2 className="size-4" /></Button>
+                      <Button size="sm" variant="ghost" onClick={async () => { const r = await pingFn({ data: { id: w.id } }); toast(r.ok ? `OK · ${r.latency_ms}ms${r.detail ? ` · ${r.detail}` : ""}` : `Down: ${r.error ?? r.status}`); qc.invalidateQueries({ queryKey: ["workers"] }); }} title="Health check"><Activity className="size-4" /></Button>
+                      {w.status === "active" ? (
+                        <Button size="sm" variant="ghost" onClick={async () => { await statusFn({ data: { id: w.id, status: "paused" } }); toast(`Paused ${w.name}`); qc.invalidateQueries({ queryKey: ["workers"] }); }} title="Pause (stop routing new jobs here)"><Pause className="size-4" /></Button>
+                      ) : (
+                        <Button size="sm" variant="ghost" onClick={async () => { await statusFn({ data: { id: w.id, status: "active" } }); toast(`Resumed ${w.name}`); qc.invalidateQueries({ queryKey: ["workers"] }); }} title="Resume"><Play className="size-4" /></Button>
+                      )}
+                      <Button size="sm" variant="ghost" onClick={async () => { if (!confirm("Delete?")) return; await delFn({ data: { id: w.id } }); qc.invalidateQueries({ queryKey: ["workers"] }); }} title="Delete"><Trash2 className="size-4" /></Button>
                     </td>
                   </tr>
                 );

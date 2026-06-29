@@ -396,10 +396,13 @@ describe("dispatchRunpod", () => {
 // ─── dispatchComfyui ──────────────────────────────────────────────────────────
 
 describe("dispatchComfyui", () => {
-  it("throws explicitly when the request carries no comfyWorkflow (no silent fallback)", async () => {
+  it("throws explicitly for a kind with no default graph (no silent fallback)", async () => {
+    // `upscale` has no default ComfyUI graph and carries no comfyWorkflow, so the
+    // dispatcher must fail explicitly rather than silently picking a wrong graph.
     const w = makeWorker({ protocol: "comfyui" });
+    const noDefault: GenerateRequest = { ...baseReq, kind: "upscale" };
     await expect(
-      dispatchComfyui("https://comfy.example.com", w, baseReq, Date.now() + 60_000),
+      dispatchComfyui("https://comfy.example.com", w, noDefault, Date.now() + 60_000),
     ).rejects.toThrow(/requires a workflow/);
   });
 

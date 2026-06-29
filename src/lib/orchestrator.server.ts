@@ -12,6 +12,7 @@ import { syncLipsync } from "./sync.server";
 import { hfTextToImage } from "./hf.server";
 import { isTrustedUrl } from "./url-guard";
 import { normalizeWorkerBase } from "./gpu-worker-health";
+import { buildDefaultComfyWorkflow } from "./comfy-default-workflows.server";
 import {
   callGradioSpace,
   extractGradioUrl,
@@ -1162,20 +1163,34 @@ function toInferenceInput(r: GenerateRequest): InferenceInput {
 }
 
 // comfyui contract: submit a ComfyUI graph, poll /history, resolve a /view URL.
-// The job must carry `comfyWorkflow` (wired by Task #13); fails explicitly if not.
+// A request that already carries `comfyWorkflow` (lipsync/motion, wired by their
+// builders) uses it verbatim. Otherwise — the free-GPU swarm case for plain
+// image/video requests — we build a default graph by kind so a ComfyUI worker can
+// serve them. Kinds with no default (upscale/text/audio, or lipsync/motion missing
+// their media) fail explicitly: no silent fallback.
 export async function dispatchComfyui(
   base: string,
   w: WorkerRow,
   r: GenerateRequest,
   deadline: number,
 ): Promise<unknown> {
-  if (!r.comfyWorkflow)
-    throw new Error(`worker ${w.name}: comfyui protocol requires a workflow (none in request)`);
+  let workflow = r.comfyWorkflow;
+  let inputs = r.comfyInputs;
+  if (!workflow) {
+    const def = buildDefaultComfyWorkflow(r);
+    if (!def)
+      throw new Error(
+        `worker ${w.name}: comfyui protocol requires a workflow (no default graph for kind ${r.kind})`,
+      );
+    workflow = def.comfyWorkflow;
+    // Request-supplied comfyInputs win over the defaults so callers can override.
+    inputs = { ...def.comfyInputs, ...(r.comfyInputs ?? {}) };
+  }
   const url = await runComfyWorkflow({
     baseUrl: base,
     token: w.auth_token ?? undefined,
-    workflow: r.comfyWorkflow,
-    inputs: r.comfyInputs,
+    workflow,
+    inputs,
     deadline,
   });
   return { url };
