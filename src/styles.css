@@ -184,6 +184,10 @@
   0%, 100% { transform: scale(0.85); opacity: 0.55; }
   50%      { transform: scale(1.1);  opacity: 1; }
 }
+@keyframes tt-marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
 
 /* ── Full-screen chrome helpers ──────────────────────────────────────────
  * The app fills the whole viewport on any device. These helpers anchor
