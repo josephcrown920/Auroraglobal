@@ -74,9 +74,46 @@ Paystack handles NGN credit purchases. Webhook at `/api/public/paystack-webhook`
 
 ## Cron
 
-Public cron-style endpoints under `/api/public/*` are triggered by an external scheduler (Supabase pg_cron) and authenticated with the Supabase anon/publishable key sent as the `apikey` header (same pattern as `/api/public/jobs/tick`). Use the stable URL `project--07d08629-5cb9-4317-a630-4f3e2c0ce79f.lovable.app` when wiring external schedulers.
+Public cron-style endpoints under `/api/public/*` are triggered by an external scheduler (Supabase pg_cron) because the app runs on Replit autoscale (request-driven, scales to zero) and therefore cannot keep a durable in-process timer. Authentication accepts a `CRON_SECRET` (preferred) **or**, for backward compatibility, the Supabase anon/publishable key — either credential may be sent as the `apikey` header or as `Authorization: Bearer <value>`. Use the stable URL `project--07d08629-5cb9-4317-a630-4f3e2c0ce79f.lovable.app` when wiring external schedulers.
 
 | Endpoint | Suggested schedule | Purpose |
 |---|---|---|
-| `POST /api/public/jobs/tick` | every ~minute | Drain the `public.jobs` queue |
+| `POST /api/public/jobs/tick` | every ~minute | Sweep orphaned `processing` jobs back to `queued`, drain the `public.jobs` queue, and record a scheduler heartbeat |
 | `POST /api/public/workers/health` | every ~5 minutes | Probe GPU workers and auto-flip `active`/`paused` |
+
+### Persistent retry + scheduler health
+
+Each `jobs/tick` call: (1) re-queues jobs stuck in `processing` past `STALE_PROCESSING_SECONDS` (their credit reservation is still held, so this is credit-safe), (2) runs a bounded batch of the queue, and (3) upserts a `scheduler_heartbeats` row. Transient/unknown failures are re-queued with capped exponential backoff (base 30s → cap 30m, +jitter) and keep retrying until they either succeed or hit a bound — `PERSISTENT_RETRY_MAX_ATTEMPTS` (48) **or** `PERSISTENT_RETRY_MAX_AGE_MS` (48h). Terminal errors (auth/validation/capability — see `classifyJobError`) stop immediately. The reservation is released **only** on a terminal/exhausted outcome (never on a retry), so credits are never double-charged or refunded mid-flight. The admin overview surfaces the latest heartbeat (a stalled cron is visible there) plus per-generation attempt counts.
+
+### Wiring pg_cron (Supabase dashboard)
+
+Run once in the Supabase SQL editor (enables the extensions, then schedules the ticks). Replace `<APP_URL>` with the stable URL above and `<ANON_OR_CRON_SECRET>` with either the anon key (`apikey` header) or `CRON_SECRET` (`Authorization` header):
+
+```sql
+create extension if not exists pg_cron;
+create extension if not exists pg_net;
+
+-- Drain + sweep + heartbeat every minute.
+select cron.schedule('aurora-jobs-tick', '* * * * *', $$
+  select net.http_post(
+    url     := 'https://<APP_URL>/api/public/jobs/tick',
+    headers := jsonb_build_object('Content-Type','application/json','apikey','<ANON_OR_CRON_SECRET>'),
+    body    := '{}'::jsonb
+  );
+$$);
+
+-- Probe GPU workers every 5 minutes.
+select cron.schedule('aurora-workers-health', '*/5 * * * *', $$
+  select net.http_post(
+    url     := 'https://<APP_URL>/api/public/workers/health',
+    headers := jsonb_build_object('Content-Type','application/json','apikey','<ANON_OR_CRON_SECRET>'),
+    body    := '{}'::jsonb
+  );
+$$);
+
+-- Inspect / remove:
+--   select * from cron.job;
+--   select cron.unschedule('aurora-jobs-tick');
+```
+
+pg_cron is not available in the local dev/migration environment, so scheduling lives in the dashboard rather than a migration. If ticks stop landing, the admin scheduler banner shows the last heartbeat age so a stalled cron is observable.
