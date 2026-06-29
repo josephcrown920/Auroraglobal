@@ -630,10 +630,10 @@ export async function processBatch(
 
 // Recover jobs orphaned in `processing` because their worker instance was killed
 // mid-run (the common orphan source under request-driven autoscale). These jobs
-// still hold their reservation, so re-queuing them is credit-safe. Terminally
-// failed jobs and synchronous-path failed generations are intentionally NOT
-// resurrected here: their reservation was already released, so re-running them
-// would silently re-charge the customer.
+// still hold their reservation, so re-queuing them is credit-safe (the eventual
+// success commits it, or the persistent-retry ceiling/age release it). Failed
+// jobs are NOT handled here — they already released their reservation; recovering
+// those is sweepFailedJobs' job (it re-reserves fresh).
 export async function sweepStaleProcessingJobs(
   maxAgeSeconds: number = STALE_PROCESSING_SECONDS,
 ): Promise<{ reset: number }> {
@@ -642,6 +642,64 @@ export async function sweepStaleProcessingJobs(
     _backoff_seconds: 15,
   });
   return { reset: typeof out === "number" ? out : 0 };
+}
+
+// How many orphaned failures to recover per sweep. Bounds the work — and the
+// credit re-reservations — done in a single tick.
+export const FAILED_SWEEP_BATCH = 25;
+
+// Re-enqueue generations/jobs that ended up `failed` but should still be retried.
+// This catches failures that the normal queue flow will NOT pick back up:
+// failures recorded before persistent retry existed (the old `attempts <
+// max_attempts` cap marked them failed permanently), or any job otherwise left
+// `failed` with a transient error. Because every generation is created together
+// with a job (create_generation_and_reserve), recovering failed jobs also
+// recovers their linked failed generations — there are no job-less generations to
+// sweep separately.
+//
+// Same gate as the worker loop (retryDecision): only TRANSIENT errors within the
+// attempt ceiling and age deadline are eligible; clearly-terminal failures and
+// jobs past the bounds are left dead so hopeless jobs never thrash.
+//
+// Credit safety: a `failed` job already had its reservation RELEASED by the
+// terminal path, so recovery RE-RESERVES fresh credits, done atomically inside
+// requeue_failed_job (re-reserve + flip to `queued`, under a row lock). A user who
+// can no longer afford the job is left failed rather than retried. A retry that
+// eventually succeeds commits exactly this re-reserved amount — never a double
+// charge.
+export async function sweepFailedJobs(
+  now: number = Date.now(),
+  batch: number = FAILED_SWEEP_BATCH,
+): Promise<{ requeued: number; skipped: number }> {
+  const ageFloorIso = new Date(now - PERSISTENT_RETRY_MAX_AGE_MS).toISOString();
+  const { data, error } = await supabaseAdmin
+    .from("jobs")
+    .select("id, error")
+    .eq("status", "failed")
+    .lt("attempts", PERSISTENT_RETRY_MAX_ATTEMPTS)
+    .gt("created_at", ageFloorIso)
+    .order("created_at", { ascending: true })
+    .limit(batch);
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as Array<{ id: string; error: string | null }>;
+
+  let requeued = 0;
+  let skipped = 0;
+  for (const row of rows) {
+    // A missing error string is treated as transient (bias toward retrying a paid
+    // render); only an explicitly-terminal error is skipped.
+    if (classifyJobError(row.error ?? "") === "terminal") {
+      skipped++;
+      continue;
+    }
+    const outcome = await rpc<string>("requeue_failed_job", {
+      _job: row.id,
+      _backoff_seconds: 15,
+    });
+    if (outcome === "requeued") requeued++;
+    else skipped++;
+  }
+  return { requeued, skipped };
 }
 
 // Untyped accessor — `scheduler_heartbeats` is not in the generated Supabase
