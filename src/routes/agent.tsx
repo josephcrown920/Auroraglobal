@@ -185,7 +185,7 @@ function AgentPage() {
           </span>
           <div>
             <p className="text-sm font-semibold">Aurora Agent</p>
-            <p className="aurora-kicker mt-1">Director · Critic studio</p>
+            <p className="text-[10px] text-muted-foreground">Director → Critic refinement studio</p>
           </div>
         </div>
         <Button onClick={startNew} variant="glass" size="sm">
