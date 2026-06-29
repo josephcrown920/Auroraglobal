@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { orchestrateGenerate, listOrchestrations } from "@/lib/orchestration.functions";
+import { handleGenerationError } from "@/lib/error-toasts";
 import { detectFeatures, computeCost, type Feature, type Resolution } from "@/lib/pricing";
 
 export const Route = createFileRoute("/orchestrate")({
@@ -127,7 +128,7 @@ function OrchestratePage() {
         },
       });
       if (!res.ok) {
-        toast.error(res.insufficient ? "Insufficient credits" : res.error);
+        handleGenerationError(res.insufficient ? "insufficient credits" : (res.error ?? "Generation failed"));
         return;
       }
       setResult({
@@ -140,7 +141,7 @@ function OrchestratePage() {
       toast.success(`Generated via ${res.provider}`);
       recent.refetch();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Generation failed");
+      handleGenerationError(e);
     } finally {
       setBusy(false);
     }
