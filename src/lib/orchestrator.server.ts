@@ -682,14 +682,25 @@ async function openAIChat(opts: {
   model: string;
   prompt: string;
   authStyle: "bearer" | "lovable";
+  imageUrls?: string[];
 }): Promise<string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (opts.authStyle === "lovable") headers["Lovable-API-Key"] = opts.apiKey;
   else headers.Authorization = `Bearer ${opts.apiKey}`;
+  // Vision: only switch to the multimodal content-array shape when trusted image
+  // refs are supplied — text-only callers keep the plain-string content (no change).
+  const imgs = (opts.imageUrls ?? []).filter(isTrustedUrl);
+  const content =
+    imgs.length > 0
+      ? [
+          { type: "text", text: opts.prompt },
+          ...imgs.map((u) => ({ type: "image_url", image_url: { url: u } })),
+        ]
+      : opts.prompt;
   const res = await fetch(opts.url, {
     method: "POST",
     headers,
-    body: JSON.stringify({ model: opts.model, messages: [{ role: "user", content: opts.prompt }] }),
+    body: JSON.stringify({ model: opts.model, messages: [{ role: "user", content }] }),
   });
   if (!res.ok) throw new Error(`${res.status}: ${(await res.text()).slice(0, 200)}`);
   const j = await res.json();
@@ -721,6 +732,7 @@ function makeTextAdapter(cfg: {
         model: m.providerModel,
         prompt: r.prompt ?? "",
         authStyle: cfg.authStyle,
+        imageUrls: r.imageUrls,
       });
       return { url: "", endpoint: `${cfg.name}:${m.providerModel}`, text };
     },
@@ -770,18 +782,32 @@ const geminiText: ProviderAdapter = {
     const key = process.env.GEMINI_API_KEY!;
     const m = r.model ? TEXT_MODELS[r.model] : null;
     const model = m?.providerModel ?? "gemini-2.0-flash";
+    // Vision: inline any trusted image refs so the model can analyze them.
+    const parts: Array<Record<string, unknown>> = [{ text: r.prompt ?? "" }];
+    for (const url of r.imageUrls ?? []) {
+      if (!isTrustedUrl(url)) continue; // SSRF guard: skip untrusted ref hosts
+      try {
+        const resp = await fetch(url);
+        if (!resp.ok) continue;
+        const mime = resp.headers.get("content-type") || "image/jpeg";
+        const buf = Buffer.from(await resp.arrayBuffer());
+        parts.push({ inline_data: { mime_type: mime, data: buf.toString("base64") } });
+      } catch {
+        /* skip unreachable ref */
+      }
+    }
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ parts: [{ text: r.prompt ?? "" }] }] }),
+        body: JSON.stringify({ contents: [{ parts }] }),
       },
     );
     if (!res.ok) throw new Error(`Gemini text ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const j = await res.json();
-    const parts: Array<{ text?: string }> = j?.candidates?.[0]?.content?.parts ?? [];
-    const text = parts
+    const respParts: Array<{ text?: string }> = j?.candidates?.[0]?.content?.parts ?? [];
+    const text = respParts
       .map((p) => p.text)
       .filter(Boolean)
       .join("");

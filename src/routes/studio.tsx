@@ -382,6 +382,7 @@ function StudioPage() {
             <Film className="size-3.5" /> Motion
           </Link>
           <Link to="/colors" className="text-sm text-muted-foreground hover:text-foreground hidden md:inline-flex items-center gap-1.5">Colors</Link>
+          <Link to="/reshoot" className="text-sm text-muted-foreground hover:text-foreground hidden md:inline-flex items-center gap-1.5">Reshoot</Link>
           <Link to="/gallery" className="text-sm text-muted-foreground hover:text-foreground hidden md:inline-flex items-center gap-1.5">Gallery</Link>
           <Link to="/gifts" className="text-sm text-muted-foreground hover:text-foreground hidden md:inline-flex items-center gap-1.5">Gifts</Link>
           {profile?.isAdmin && (
