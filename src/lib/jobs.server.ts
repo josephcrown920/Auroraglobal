@@ -5,7 +5,12 @@
 // both the job row and the linked generations row.
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { orchestrate, type GenerateKind, type GenerateRequest } from "./orchestrator.server";
+import {
+  orchestrate,
+  hasActiveWorkerForKind,
+  type GenerateKind,
+  type GenerateRequest,
+} from "./orchestrator.server";
 import { buildMimicMotionRequest, type MotionParams } from "./motion-workflows.server";
 import { hfTextToSpeech } from "./hf.server";
 import {
@@ -14,6 +19,21 @@ import {
   buildUGCMotionPrompt,
   UGC_TTS_MODEL,
 } from "./ugc.server";
+import {
+  generateKidsStoryScript,
+  buildKidsIllustrationPrompt,
+  buildKidsMotionPrompt,
+  pickKidsMusic,
+  estimateNarrationSeconds,
+  KIDS_LENGTHS,
+  KIDS_MAX_SCENES,
+  KIDS_ASPECT,
+  KIDS_TTS_MODEL,
+  type KidsScene,
+  type KidsContentType,
+  type KidsAgeRange,
+  type KidsLengthId,
+} from "./kids-story.server";
 
 // `orchestrate` is dependency-injected (threaded through the runners) rather than
 // imported-and-called directly so the worker loop is unit-testable WITHOUT
@@ -332,6 +352,73 @@ async function uploadBytesToStudio(
   return supabaseAdmin.storage.from("studio").getPublicUrl(path).data.publicUrl;
 }
 
+// Sign a private-studio object path so a remote worker can fetch it. Used for the
+// kids-story `assemble` params (narration + music), which orchestrate's
+// signStudioRefs does NOT touch — it only signs the top-level imageUrls/audio/video.
+async function signedStudioUrl(path: string, expiresSec = 3 * 60 * 60): Promise<string | null> {
+  const { data, error } = await supabaseAdmin.storage
+    .from("studio")
+    .createSignedUrl(path, expiresSec);
+  if (error || !data?.signedUrl) return null;
+  return data.signedUrl;
+}
+
+// kids_stories is written by the service-role worker; it is not in the generated
+// Supabase types until codegen re-runs, so go through a loosely-typed client (the
+// same approach avatars.server.ts uses for its table).
+function kidsStoriesTable() {
+  return (
+    supabaseAdmin as unknown as {
+      from: (t: string) => {
+        update: (patch: Record<string, unknown>) => {
+          eq: (col: string, val: string) => Promise<{ error: { message: string } | null }>;
+        };
+      };
+    }
+  ).from("kids_stories");
+}
+
+async function updateStory(storyId: string, patch: Record<string, unknown>): Promise<void> {
+  if (!storyId) return;
+  await kidsStoriesTable().update(patch).eq("id", storyId);
+}
+
+// Mark a kids-story row terminally failed, scoped to its owner. Called from the
+// job terminal-failure path so /kids shows the failed (refunded) state instead of
+// spinning on pending/scripting/rendering/assembling forever. Owner-scoped so a
+// corrupt payload can never flip another user's story.
+async function failStory(storyId: string, userId: string, error: string): Promise<void> {
+  if (!storyId) return;
+  await (
+    supabaseAdmin as unknown as {
+      from: (t: string) => {
+        update: (patch: Record<string, unknown>) => {
+          eq: (c: string, v: string) => {
+            eq: (c: string, v: string) => Promise<{ error: { message: string } | null }>;
+          };
+        };
+      };
+    }
+  )
+    .from("kids_stories")
+    .update({ status: "failed", error: error.slice(0, 1000) })
+    .eq("id", storyId)
+    .eq("user_id", userId);
+}
+
+// Heartbeat: refresh the job's lock timestamp, FENCED on still owning the lock, so
+// the 15-minute stale-processing sweep never re-queues a long kids-story render
+// (illustration + video + TTS for several scenes) mid-flight and duplicates the
+// expensive work. A no-op if this worker has already lost the lock.
+async function touchJobLock(jobId: string, workerId: string): Promise<void> {
+  await supabaseAdmin
+    .from("jobs")
+    .update({ locked_at: new Date().toISOString() } as never)
+    .eq("id", jobId)
+    .eq("locked_by", workerId)
+    .eq("status", "processing");
+}
+
 // UGC ad: avatar + scene + product → talking native ad. Multi-stage, each stage
 // reusing the orchestrator so it routes across every configured backend:
 //   1. script        — LLM (template fallback when no LLM key)
@@ -497,6 +584,224 @@ async function runCampaignItem(job: JobRow, orch: Orchestrate): Promise<JobOutpu
   };
 }
 
+// Faceless kids story: a single reserved job that builds an entire illustrated,
+// narrated kids video and stitches it into ONE MP4 on a self-hosted GPU worker.
+// Per scene it chains illustration → image-to-video → narration TTS, holding the
+// character's look across scenes (character description in every prompt PLUS the
+// first illustration reused as a reference image). The ordered clips, per-scene
+// narrations and a curated, ducked music bed are then assembled by the worker.
+// Progress + per-stage errors are written to the kids_stories row throughout, and
+// the job lock is heartbeated after each stage so the stale sweep never duplicates
+// this expensive multi-minute render.
+async function runKidsStory(job: JobRow, orch: Orchestrate, workerId: string): Promise<JobOutput> {
+  const p = job.payload as {
+    storyId: string;
+    contentType: KidsContentType;
+    ageRange: KidsAgeRange;
+    topic: string;
+    lengthId: KidsLengthId;
+    characterName: string;
+    characterDescription?: string;
+    characterImageUrl?: string | null;
+    musicId?: string | null;
+    aspect?: string;
+    sceneCount?: number;
+    secondsPerScene?: number;
+    script?: { title?: string; scenes?: { narration: string; illustration: string }[] };
+  };
+  if (!p.storyId) throw new Error("kids_story requires storyId");
+  if (!p.topic) throw new Error("kids_story requires a topic");
+
+  // Preflight: the final stitch MUST run on a self-hosted GPU worker. If none can
+  // do `assemble`, fail terminally up front (refund) rather than paying for the
+  // whole illustration+video+TTS pipeline only to die at the last step. The word
+  // "required" classifies this as a terminal error (no retry, reservation released).
+  const canAssemble = await hasActiveWorkerForKind("assemble");
+  if (!canAssemble) {
+    throw new Error(
+      "A self-hosted GPU worker with the 'assemble' capability is required to stitch the final kids video, but none is online",
+    );
+  }
+
+  const len = KIDS_LENGTHS[p.lengthId] ?? KIDS_LENGTHS.short;
+  const sceneCount = Math.max(1, Math.min(p.sceneCount ?? len.scenes, KIDS_MAX_SCENES));
+  const secondsPerScene = Math.max(3, Math.min(p.secondsPerScene ?? len.secondsPerScene, 10));
+  const aspect = p.aspect ?? KIDS_ASPECT;
+
+  // Stage 0 — script. Prefer the user-reviewed/edited script from the brief step;
+  // otherwise generate one now (template fallback when no LLM key is configured).
+  await updateStory(p.storyId, { status: "scripting" });
+  let title: string;
+  let scenes: KidsScene[];
+  let scriptSource: "llm" | "template" | "user" = "user";
+  let scriptProvider: string | undefined;
+  const edited = p.script?.scenes?.filter((s) => s.narration || s.illustration) ?? [];
+  if (edited.length > 0) {
+    title = (p.script?.title ?? "").trim() || p.characterName;
+    scenes = edited
+      .slice(0, sceneCount)
+      .map((s) => ({ narration: s.narration.trim(), illustration: s.illustration.trim() }));
+  } else {
+    const gen = await generateKidsStoryScript({
+      contentType: p.contentType,
+      ageRange: p.ageRange,
+      topic: p.topic,
+      characterName: p.characterName,
+      characterDescription: p.characterDescription,
+      sceneCount,
+    });
+    title = gen.script.title;
+    scenes = gen.script.scenes;
+    scriptSource = gen.source;
+    scriptProvider = gen.provider;
+  }
+
+  // Seed per-scene progress so the /kids page can show step-by-step state.
+  const sceneStates = scenes.map((s, i) => ({
+    index: i,
+    narration: s.narration,
+    illustration: s.illustration,
+    status: "pending" as string,
+    imageUrl: null as string | null,
+    clipUrl: null as string | null,
+    error: null as string | null,
+  }));
+  await updateStory(p.storyId, { status: "rendering", title, scenes: sceneStates });
+
+  const clipUrls: string[] = [];
+  const narrationPaths: (string | null)[] = [];
+  const durations: number[] = [];
+  let firstStill: string | undefined;
+  // Identity anchor: an explicit avatar/uploaded image when supplied, otherwise
+  // scene 1's own illustration becomes the reference for every later scene.
+  let identityRef: string | undefined = p.characterImageUrl ?? undefined;
+  let ttsSkipped: string | null = process.env.HF_TOKEN ? null : "no HF_TOKEN configured";
+
+  for (let i = 0; i < scenes.length; i++) {
+    const scene = scenes[i];
+
+    // Stage A — identity-locked illustration.
+    sceneStates[i].status = "illustrating";
+    await updateStory(p.storyId, { scenes: sceneStates });
+    const still = await orch({
+      kind: "image",
+      model: "google/nano-banana",
+      prompt: buildKidsIllustrationPrompt({
+        sceneIllustration: scene.illustration,
+        characterName: p.characterName,
+        characterDescription: p.characterDescription,
+        aspect,
+      }),
+      imageUrls: identityRef ? [identityRef] : undefined,
+      userId: job.user_id,
+      refId: job.id,
+    });
+    sceneStates[i].imageUrl = still.url;
+    if (!firstStill) firstStill = still.url;
+    if (!identityRef) identityRef = still.url;
+    await touchJobLock(job.id, workerId);
+
+    // Stage B — animate the still into a short clip.
+    sceneStates[i].status = "animating";
+    await updateStory(p.storyId, { scenes: sceneStates });
+    const clip = await orch({
+      kind: "video",
+      model: "seedance-2.0-fast",
+      prompt: buildKidsMotionPrompt({
+        sceneIllustration: scene.illustration,
+        characterName: p.characterName,
+      }),
+      imageUrls: [still.url],
+      duration: secondsPerScene,
+      userId: job.user_id,
+      refId: job.id,
+    });
+    clipUrls.push(clip.url);
+    sceneStates[i].clipUrl = clip.url;
+    await touchJobLock(job.id, workerId);
+
+    // Stage C — narration TTS (optional). Uploaded to the private studio bucket;
+    // the path (not a URL) is kept and freshly signed at assembly time so it can't
+    // expire mid-render.
+    let narrPath: string | null = null;
+    let dur = secondsPerScene;
+    if (process.env.HF_TOKEN && scene.narration) {
+      try {
+        const tts = await hfTextToSpeech(KIDS_TTS_MODEL, scene.narration);
+        narrPath = `${job.user_id}/kids/${p.storyId}/narration-${i}.flac`;
+        await uploadBytesToStudio(narrPath, Buffer.from(tts.bytes), tts.contentType);
+        dur = estimateNarrationSeconds(scene.narration, secondsPerScene);
+      } catch (e) {
+        narrPath = null;
+        ttsSkipped = `tts_failed: ${e instanceof Error ? e.message : String(e)}`;
+      }
+    }
+    narrationPaths.push(narrPath);
+    durations.push(dur);
+
+    sceneStates[i].status = "done";
+    await updateStory(p.storyId, { scenes: sceneStates });
+    await touchJobLock(job.id, workerId);
+  }
+
+  // Stage D — final assembly on the self-hosted GPU worker (ffmpeg). Pre-sign the
+  // nested studio refs (narration + music) HERE: signStudioRefs does not touch
+  // `params`, and the studio bucket is private. Clip URLs are public provider URLs
+  // and pass through as-is.
+  await updateStory(p.storyId, { status: "assembling" });
+  const narrationUrls = await Promise.all(narrationPaths.map((path) => (path ? signedStudioUrl(path) : null)));
+
+  let musicUrl: string | null = null;
+  let musicSkipped: string | null = null;
+  const track = pickKidsMusic(p.contentType, p.musicId);
+  if (track) {
+    musicUrl = await signedStudioUrl(track.storagePath);
+    if (!musicUrl) musicSkipped = `music_unavailable: ${track.id}`;
+  } else {
+    musicSkipped = "none";
+  }
+
+  const assembled = await orch({
+    kind: "assemble",
+    model: "ffmpeg-assemble",
+    selfHostedOnly: true,
+    userId: job.user_id,
+    refId: job.id,
+    params: {
+      clips: clipUrls,
+      narrations: narrationUrls,
+      durations,
+      music_url: musicUrl,
+      music_volume: 0.18,
+    },
+  });
+
+  await updateStory(p.storyId, {
+    status: "succeeded",
+    final_video_url: assembled.url,
+    poster_url: firstStill ?? null,
+    error: null,
+  });
+
+  return {
+    url: assembled.url,
+    imageUrl: firstStill,
+    videoUrl: assembled.url,
+    provider: assembled.provider,
+    endpoint: assembled.endpoint,
+    meta: {
+      story_id: p.storyId,
+      title,
+      scenes: scenes.length,
+      script_source: scriptSource,
+      ...(scriptProvider ? { script_provider: scriptProvider } : {}),
+      tts_skipped: ttsSkipped,
+      music: track?.id ?? null,
+      music_skipped: musicSkipped,
+    },
+  };
+}
+
 export async function processOneJob(
   workerId: string,
   deps: JobDeps = defaultDeps,
@@ -515,6 +820,8 @@ export async function processOneJob(
       out = await runUGCAd(job, orch);
     } else if (job.kind === "ugc_campaign_item") {
       out = await runCampaignItem(job, orch);
+    } else if (job.kind === "kids_story") {
+      out = await runKidsStory(job, orch, workerId);
     } else {
       out = await runMediaJob(job, orch);
     }
@@ -534,6 +841,7 @@ export async function processOneJob(
         job.kind === "tiktok_remix_child" ||
         job.kind === "performance_reskin" ||
         job.kind === "ugc_ad" ||
+        job.kind === "kids_story" ||
         job.kind === "motion" ||
         job.kind === "lipsync";
       genPatch[isVideo ? "result_video_url" : "result_image_url"] = out.url;
@@ -607,6 +915,12 @@ export async function processOneJob(
         status: "failed",
         error: failError.slice(0, 1000),
       });
+      // Surface the terminal failure on the kids-story row too, so the /kids page
+      // (which polls kids_stories, not jobs/generations) shows the failed/refunded
+      // state instead of spinning forever on its last in-progress stage.
+      if (job.kind === "kids_story") {
+        await failStory((job.payload as { storyId?: string })?.storyId ?? "", job.user_id, failError);
+      }
     }
     return { processed: true, jobId: job.id, status: won ? "failed" : "stale", error: failError };
   }
