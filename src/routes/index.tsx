@@ -143,7 +143,7 @@ function Index() {
           scrolled ? "bg-[#070612]/85 backdrop-blur-xl border-b border-white/10" : "bg-transparent"
         }`}
       >
-        <div className="flex items-center justify-between px-6 md:px-12 py-4">
+        <div className="flex items-center justify-between pl-24 pr-6 md:px-12 py-4">
           <Link
             to="/"
             className="flex items-center gap-2 font-semibold tracking-tight no-underline"
