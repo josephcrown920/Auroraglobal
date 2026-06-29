@@ -21,6 +21,7 @@ import { Route as OrchestrateRouteImport } from './routes/orchestrate'
 import { Route as NexusarbRouteImport } from './routes/nexusarb'
 import { Route as MotionRouteImport } from './routes/motion'
 import { Route as LipsyncRouteImport } from './routes/lipsync'
+import { Route as KidsRouteImport } from './routes/kids'
 import { Route as GiftsRouteImport } from './routes/gifts'
 import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -109,6 +110,11 @@ const MotionRoute = MotionRouteImport.update({
 const LipsyncRoute = LipsyncRouteImport.update({
   id: '/lipsync',
   path: '/lipsync',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KidsRoute = KidsRouteImport.update({
+  id: '/kids',
+  path: '/kids',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GiftsRoute = GiftsRouteImport.update({
@@ -274,6 +280,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/gallery': typeof GalleryRoute
   '/gifts': typeof GiftsRoute
+  '/kids': typeof KidsRoute
   '/lipsync': typeof LipsyncRoute
   '/motion': typeof MotionRoute
   '/nexusarb': typeof NexusarbRoute
@@ -317,6 +324,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/gallery': typeof GalleryRoute
   '/gifts': typeof GiftsRoute
+  '/kids': typeof KidsRoute
   '/lipsync': typeof LipsyncRoute
   '/motion': typeof MotionRoute
   '/nexusarb': typeof NexusarbRoute
@@ -361,6 +369,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/gallery': typeof GalleryRoute
   '/gifts': typeof GiftsRoute
+  '/kids': typeof KidsRoute
   '/lipsync': typeof LipsyncRoute
   '/motion': typeof MotionRoute
   '/nexusarb': typeof NexusarbRoute
@@ -406,6 +415,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/gallery'
     | '/gifts'
+    | '/kids'
     | '/lipsync'
     | '/motion'
     | '/nexusarb'
@@ -449,6 +459,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/gallery'
     | '/gifts'
+    | '/kids'
     | '/lipsync'
     | '/motion'
     | '/nexusarb'
@@ -492,6 +503,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/gallery'
     | '/gifts'
+    | '/kids'
     | '/lipsync'
     | '/motion'
     | '/nexusarb'
@@ -536,6 +548,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   GalleryRoute: typeof GalleryRoute
   GiftsRoute: typeof GiftsRoute
+  KidsRoute: typeof KidsRoute
   LipsyncRoute: typeof LipsyncRoute
   MotionRoute: typeof MotionRoute
   NexusarbRoute: typeof NexusarbRoute
@@ -646,6 +659,13 @@ declare module '@tanstack/react-router' {
       path: '/lipsync'
       fullPath: '/lipsync'
       preLoaderRoute: typeof LipsyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kids': {
+      id: '/kids'
+      path: '/kids'
+      fullPath: '/kids'
+      preLoaderRoute: typeof KidsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/gifts': {
@@ -883,6 +903,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   GalleryRoute: GalleryRoute,
   GiftsRoute: GiftsRoute,
+  KidsRoute: KidsRoute,
   LipsyncRoute: LipsyncRoute,
   MotionRoute: MotionRoute,
   NexusarbRoute: NexusarbRoute,

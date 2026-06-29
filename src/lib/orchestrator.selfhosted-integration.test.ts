@@ -336,6 +336,98 @@ describe("orchestrate() — selfHostedOnly lipsync", () => {
   });
 });
 
+// ─── orchestrate(): selfHostedOnly assemble routing (ffmpeg-assemble sentinel) ─
+// `assemble` is INTERNAL and self-hosted-only: it must reach the GPU worker via
+// the `ffmpeg-assemble` sentinel model and never any hosted provider. When no
+// assemble-capable worker is online it throws — runKidsStory's preflight turns
+// that into a terminal, refunded failure.
+
+/** Build a self-hosted worker that advertises the `assemble` capability. */
+function makeAssembleWorker(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: "w-assemble-1",
+    name: "ffmpeg-worker",
+    endpoint_url: "https://assembler.example.com",
+    auth_token: "gpu-secret",
+    protocol: "custom",
+    capabilities: ["assemble"],
+    status: "active",
+    in_flight: 0,
+    max_concurrency: 1,
+    priority: 0,
+    last_heartbeat: new Date(Date.now() - 30_000).toISOString(),
+    runpod_sync: false,
+    ...overrides,
+  };
+}
+
+describe("orchestrate() — selfHostedOnly assemble", () => {
+  beforeEach(() => {
+    process.env.REPLICATE_API_KEY = "r8_replicate-key-present";
+    process.env.FAL_KEY = "fal-key-present";
+    syncCallCount = 0;
+    replicateCallCount = 0;
+    heygenFetchCallCount = 0;
+    workersQueryResult = { data: [], error: null };
+    for (const p of ["sync", "replicate", "heygen", "runpod", "fal", "lovable", "huggingface"]) {
+      markSuccess(p);
+    }
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  it("routes the assemble job to the GPU worker via the ffmpeg-assemble sentinel and returns its URL", async () => {
+    workersQueryResult = { data: [makeAssembleWorker()], error: null };
+
+    const { calls } = installFetch(({ url }) => {
+      if (url.includes("assembler.example.com")) {
+        return fakeResponse({ json: { url: "https://assembler.example.com/out/story.mp4" } });
+      }
+      throw new Error(`Unexpected fetch to hosted provider: ${url}`);
+    });
+
+    const result = await orchestrate({
+      kind: "assemble",
+      model: "ffmpeg-assemble",
+      selfHostedOnly: true,
+      params: { scenes: [], music_url: null },
+    });
+
+    expect(result.provider).toBe("runpod"); // gpuWorker adapter name
+    expect(result.endpoint).toBe("gpu:ffmpeg-worker");
+    expect(result.url).toBe("https://assembler.example.com/out/story.mp4");
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe("https://assembler.example.com/generate");
+
+    const hitHosted = calls.some((c) => HOSTED_PATTERNS.some((p) => c.url.includes(p)));
+    expect(hitHosted).toBe(false);
+    expect(replicateCallCount).toBe(0);
+  });
+
+  it("throws 'No GPU workers available' when no assemble-capable worker is online", async () => {
+    workersQueryResult = { data: [], error: null };
+
+    const { calls } = installFetch(() => {
+      throw new Error("fetch must not be called when no assemble worker is available");
+    });
+
+    await expect(
+      orchestrate({
+        kind: "assemble",
+        model: "ffmpeg-assemble",
+        selfHostedOnly: true,
+        params: { scenes: [] },
+      }),
+    ).rejects.toThrow(/No GPU workers available/);
+
+    expect(calls).toHaveLength(0);
+    expect(replicateCallCount).toBe(0);
+  });
+});
+
 // ─── Restore env after all tests ─────────────────────────────────────────────
 
 afterAll(() => {

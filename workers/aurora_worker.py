@@ -122,6 +122,19 @@ def _newest(paths) -> str | None:
     return str(paths[-1]) if paths else None
 
 
+def _ffprobe_duration(path: str) -> float:
+    """Media duration in seconds (0.0 when unknown)."""
+    try:
+        out = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", path],
+            capture_output=True, text=True, check=True,
+        )
+        return float((out.stdout or "").strip() or 0.0)
+    except Exception:
+        return 0.0
+
+
 # ── Inference ─────────────────────────────────────────────────────────────────
 def run_latentsync(video_url: str, audio_url: str, params: dict[str, Any]) -> str:
     """LatentSync: re-render the mouth of `video_url` to match `audio_url`."""
@@ -178,6 +191,97 @@ def run_mimicmotion(image_url: str, video_url: str, params: dict[str, Any]) -> s
     return new
 
 
+# ── Final assembly (ffmpeg only — no model weights) ───────────────────────────
+ASSEMBLE_W = int(os.environ.get("AURORA_ASSEMBLE_W", "720"))
+ASSEMBLE_H = int(os.environ.get("AURORA_ASSEMBLE_H", "1280"))
+ASSEMBLE_FPS = int(os.environ.get("AURORA_ASSEMBLE_FPS", "24"))
+ASSEMBLE_MAX_SCENES = int(os.environ.get("AURORA_ASSEMBLE_MAX_SCENES", "12"))
+
+
+def run_assemble(params: dict[str, Any]) -> str:
+    """Stitch a faceless kids story into one MP4.
+
+    For each scene the picture is normalized to a single canvas/fps and its
+    narration becomes the scene's audio — the picture is freeze-extended or
+    trimmed so voice and picture stay in sync. Scenes are concatenated in order
+    and a looped, ducked music bed is mixed underneath. ffmpeg-only, so any
+    worker with ffmpeg can advertise the `assemble` capability.
+    """
+    clips = params.get("clips") or []
+    narrations = params.get("narrations") or []
+    durations = params.get("durations") or []
+    music_url = params.get("music_url")
+    music_volume = float(params.get("music_volume", 0.18))
+
+    if not clips:
+        raise ValueError("assemble requires at least one clip")
+    if len(clips) > ASSEMBLE_MAX_SCENES:
+        raise ValueError(f"assemble: too many scenes ({len(clips)} > {ASSEMBLE_MAX_SCENES})")
+    for u in clips:
+        if not isinstance(u, str) or not u.startswith(("http://", "https://")):
+            raise ValueError("assemble: every clip must be an http(s) url")
+
+    scene_files: list[str] = []
+    for i, clip_url in enumerate(clips):
+        clip = _download(clip_url, ".mp4")
+        narr_url = narrations[i] if i < len(narrations) else None
+        narr = _download(narr_url, ".wav") if narr_url else None
+        # Scene length follows the narration when present, else the requested or
+        # probed clip duration.
+        req = float(durations[i]) if i < len(durations) and durations[i] else 0.0
+        if narr:
+            dur = _ffprobe_duration(narr) or req or _ffprobe_duration(clip) or 5.0
+        else:
+            dur = req or _ffprobe_duration(clip) or 5.0
+        dur = max(0.5, min(dur, 60.0))
+
+        scene_out = str(WORK_DIR / f"{uuid.uuid4().hex}_scene{i}.mp4")
+        # Over-pad (clone last frame) then hard-trim to `dur`: longer clips are
+        # trimmed, shorter clips freeze on their final frame to fill the voice.
+        vf = (
+            f"scale={ASSEMBLE_W}:{ASSEMBLE_H}:force_original_aspect_ratio=decrease,"
+            f"pad={ASSEMBLE_W}:{ASSEMBLE_H}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={ASSEMBLE_FPS},"
+            f"tpad=stop_mode=clone:stop_duration={dur:.3f},format=yuv420p"
+        )
+        cmd = ["ffmpeg", "-y", "-i", clip]
+        if narr:
+            cmd += ["-i", narr, "-filter_complex", f"[0:v]{vf}[v]", "-map", "[v]", "-map", "1:a"]
+        else:
+            # Silent stereo track so every scene exposes matching streams for concat.
+            cmd += ["-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000",
+                    "-filter_complex", f"[0:v]{vf}[v]", "-map", "[v]", "-map", "1:a"]
+        cmd += ["-t", f"{dur:.3f}", "-c:v", "libx264", "-preset", "veryfast",
+                "-pix_fmt", "yuv420p", "-c:a", "aac", "-ar", "48000", "-ac", "2", scene_out]
+        subprocess.run(cmd, check=True)
+        scene_files.append(scene_out)
+
+    # Concat scenes (identical codecs/canvas/fps) in order.
+    list_path = WORK_DIR / f"{uuid.uuid4().hex}_concat.txt"
+    list_path.write_text("".join(f"file '{p}'\n" for p in scene_files))
+    concat_out = str(WORK_DIR / f"{uuid.uuid4().hex}_concat.mp4")
+    subprocess.run(
+        ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(list_path),
+         "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+         "-c:a", "aac", "-ar", "48000", "-ac", "2", concat_out],
+        check=True,
+    )
+
+    if not music_url:
+        return concat_out
+
+    # Mix a looped, ducked music bed under the narration for the full duration.
+    music = _download(music_url, ".mp3")
+    final_out = str(WORK_DIR / f"{uuid.uuid4().hex}_final.mp4")
+    subprocess.run(
+        ["ffmpeg", "-y", "-i", concat_out, "-stream_loop", "-1", "-i", music,
+         "-filter_complex",
+         f"[1:a]volume={music_volume}[m];[0:a][m]amix=inputs=2:duration=first:dropout_transition=0[a]",
+         "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-shortest", final_out],
+        check=True,
+    )
+    return final_out
+
+
 # ── Core dispatch (shared by every entrypoint) ────────────────────────────────
 def process_job(job: dict[str, Any]) -> dict[str, str]:
     kind = (job.get("kind") or "").lower()
@@ -190,9 +294,11 @@ def process_job(job: dict[str, Any]) -> dict[str, str]:
     elif kind == "motion":
         ref = image_urls[0] if image_urls else None
         out = run_mimicmotion(ref, job.get("video_url"), params)
+    elif kind == "assemble":
+        out = run_assemble(params)
     else:
         raise ValueError(
-            f"unsupported kind {kind!r}; this worker serves 'lipsync' + 'motion'"
+            f"unsupported kind {kind!r}; this worker serves 'lipsync', 'motion' + 'assemble'"
         )
 
     return {"url": _upload(out)}
