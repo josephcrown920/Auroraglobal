@@ -12,6 +12,10 @@ let claimQueue: Array<Record<string, unknown> | null> = [];
 // ... RETURNING. Flip this to false to simulate losing that CAS (the stale-sweep
 // reclaim race) so the job-table update matches no row.
 let jobsCasWins = true;
+// Rows the failed-orphan sweep (sweepFailedJobs) reads back from a jobs SELECT,
+// and the per-job requeue_failed_job RPC outcome it should observe.
+let failedJobsRows: Array<Record<string, unknown>> = [];
+let requeueOutcome = "requeued";
 let orchestrateImpl: (req: unknown) => Promise<{
   url: string;
   provider: string;
@@ -43,9 +47,12 @@ function builder(table: string) {
   const resolve = () =>
     updated
       ? { data: table === "jobs" && !jobsCasWins ? [] : [{ id: "x" }], error: null }
-      : { data: null, error: null };
+      : // A read on `jobs` is the failed-orphan sweep SELECT; everything else keeps
+        // the original {data:null} read shape.
+        { data: table === "jobs" ? failedJobsRows : null, error: null };
   const b: Record<string, unknown> = {};
-  for (const m of ["select", "eq", "neq", "order", "limit", "contains", "is", "in"]) b[m] = () => b;
+  for (const m of ["select", "eq", "neq", "lt", "lte", "gt", "gte", "order", "limit", "contains", "is", "in"])
+    b[m] = () => b;
   b.update = (patch: Record<string, unknown>) => {
     calls.updates.push({ table, patch });
     updated = true;
@@ -70,6 +77,7 @@ const supabaseAdmin = {
   rpc: async (name: string, args: Record<string, unknown>) => {
     calls.rpc.push({ name, args });
     if (name === "claim_next_job") return { data: claimQueue.shift() ?? null, error: null };
+    if (name === "requeue_failed_job") return { data: requeueOutcome, error: null };
     return { data: true, error: null };
   },
   storage: {
@@ -92,6 +100,7 @@ const {
   nextRetryAt,
   retryDecision,
   sweepStaleProcessingJobs,
+  sweepFailedJobs,
   recordSchedulerHeartbeat,
   PERSISTENT_RETRY_MAX_ATTEMPTS,
   PERSISTENT_RETRY_MAX_AGE_MS,
@@ -124,6 +133,8 @@ function job(over: Record<string, unknown> = {}) {
 beforeEach(() => {
   claimQueue = [];
   jobsCasWins = true;
+  failedJobsRows = [];
+  requeueOutcome = "requeued";
   calls.rpc.length = 0;
   calls.updates.length = 0;
   calls.inserts.length = 0;
@@ -379,6 +390,46 @@ describe("sweepStaleProcessingJobs", () => {
     await sweepStaleProcessingJobs(600);
     const call = calls.rpc.find((c) => c.name === "reset_stale_processing_jobs");
     expect(call?.args).toMatchObject({ _max_age_seconds: 600 });
+  });
+});
+
+describe("sweepFailedJobs", () => {
+  it("re-enqueues a failed job with a transient error via requeue_failed_job", async () => {
+    failedJobsRows = [{ id: "f1", error: "provider timeout" }];
+    const r = await sweepFailedJobs();
+    expect(r).toEqual({ requeued: 1, skipped: 0 });
+    const call = calls.rpc.find((c) => c.name === "requeue_failed_job");
+    expect(call?.args).toMatchObject({ _job: "f1" });
+  });
+
+  it("treats a failed job with no error string as transient and re-enqueues it", async () => {
+    failedJobsRows = [{ id: "f2", error: null }];
+    const r = await sweepFailedJobs();
+    expect(r.requeued).toBe(1);
+    expect(calls.rpc.find((c) => c.name === "requeue_failed_job")).toBeDefined();
+  });
+
+  it("skips terminally-failed jobs WITHOUT calling requeue_failed_job", async () => {
+    failedJobsRows = [{ id: "t1", error: "insufficient_credits" }];
+    const r = await sweepFailedJobs();
+    expect(r).toEqual({ requeued: 0, skipped: 1 });
+    expect(calls.rpc.find((c) => c.name === "requeue_failed_job")).toBeUndefined();
+  });
+
+  it("counts an unaffordable re-reservation as skipped, not requeued", async () => {
+    failedJobsRows = [{ id: "f3", error: "fetch failed" }];
+    requeueOutcome = "insufficient_credits";
+    const r = await sweepFailedJobs();
+    expect(r).toEqual({ requeued: 0, skipped: 1 });
+    // It still attempted the (atomic, credit-safe) re-reserve+requeue RPC.
+    expect(calls.rpc.find((c) => c.name === "requeue_failed_job")).toBeDefined();
+  });
+
+  it("does nothing when there are no orphaned failures", async () => {
+    failedJobsRows = [];
+    const r = await sweepFailedJobs();
+    expect(r).toEqual({ requeued: 0, skipped: 0 });
+    expect(calls.rpc.find((c) => c.name === "requeue_failed_job")).toBeUndefined();
   });
 });
 
