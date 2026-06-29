@@ -8,6 +8,7 @@ import w2 from "@/assets/workflow-img_6077.jpg.asset.json"; // Car On Fire
 import w3 from "@/assets/workflow-img_6078.jpg.asset.json"; // Fashion bookshelf
 import w4 from "@/assets/workflow-img_5814.jpg.asset.json"; // Cops chase
 import balloon from "@/assets/balloon-head.png.asset.json"; // NBA Josh balloon
+import reshootCover from "@/assets/ref-josh-angles.jpeg"; // Multi-angle reshoot
 import type { Node, Edge } from "@xyflow/react";
 
 type WorkflowStep = { node: string; model: string; prompt: string };
@@ -25,6 +26,24 @@ type FinishedWorkflow = {
 };
 
 const FINISHED: FinishedWorkflow[] = [
+  {
+    id: "multi-angle-reshoot",
+    name: "Multi-angle photo reshoot",
+    category: "Portrait · Identity-locked",
+    cover: reshootCover,
+    nodes: 7,
+    credits: 6,
+    models: ["Nano Banana 2"],
+    description: "One reference portrait fans out into six identity-locked 9:16 camera angles — same subject, outfit, scene and lighting, only the lens changes. 1 Aura per shot.",
+    steps: [
+      { node: "Fish-eye", model: "Nano Banana 2", prompt: "Re-photograph the reference subject (identity, outfit, scene and lighting kept identical) on an ultra-wide fish-eye lens at close range: strong barrel distortion, curved bulging perspective, face filling the centre. 9:16 vertical." },
+      { node: "Bird's-eye", model: "Nano Banana 2", prompt: "Same subject from a high overhead bird's-eye view, camera straight down, top-of-head and shoulders foreshortened. Identity, outfit, scene and lighting unchanged. 9:16 vertical." },
+      { node: "Low angle", model: "Nano Banana 2", prompt: "Same subject from a dramatic low angle tilted upward — tall and powerful, background sweeping up behind them. Identity, outfit, scene and lighting unchanged. 9:16 vertical." },
+      { node: "Dutch angle", model: "Nano Banana 2", prompt: "Same subject on a Dutch angle: camera rolled so the horizon tilts diagonally, edgy off-kilter composition. Identity, outfit, scene and lighting unchanged. 9:16 vertical." },
+      { node: "Macro close-up", model: "Nano Banana 2", prompt: "Same subject as an extreme macro close-up filling the frame, razor-thin depth of field, crisp skin and eye detail, creamy bokeh. Identity, outfit and lighting unchanged. 9:16 vertical." },
+      { node: "Worm's-eye", model: "Nano Banana 2", prompt: "Same subject from a worm's-eye view at ground level looking steeply up, exaggerated upward perspective with sky/ceiling opening behind. Identity, outfit, scene and lighting unchanged. 9:16 vertical." },
+    ],
+  },
   {
     id: "balloon-josh",
     name: "NBA Josh · Balloon Head",
