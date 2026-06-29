@@ -18,6 +18,7 @@
 - [Flat-app publishing blocked](flat-app-publishing-blocked.md) — flat-root app in PNPM_WORKSPACE mode: agent can't set a deploy run cmd; user sets it in Publish UI or migrate to artifacts/<slug>/.
 - [Worker endpoint normalization](worker-endpoint-normalization.md) — every path appending to a worker endpoint_url (dispatch + health) must normalizeWorkerBase() in lockstep, else `.../generate/generate`.
 - [Credit reservation flow](credit-reservation-flow.md) — all spend goes through reserveOrchestrateRecord; Supabase RPCs resolve {error} (don't throw); commit-fail must NOT release (would refund a delivered render).
+- [Job finalization fence](job-finalization-fence.md) — worker finalize + stale-sweeper must CAS on locked_by+status='processing'; gate ALL finalize writes (incl. success gen-write) on winning, or swept+reclaimed jobs double-finalize.
 - [Landing video hydration warning](aurora-landing-video-hydration.md) — React "attributes didn't match" console.error is from muted/autoplay `<video>` across MANY landing components; pre-existing & benign, not a per-component regression.
 - [SSR curl checks](replit-ssr-curl-checks.md) — verify rendered HTML via curl localhost:8080; $REPLIT_DEV_DOMAIN returns 0 bytes (mTLS proxy) & shell curl -o file writes fail — capture into a shell var.
 - [Aura currency naming](aura-currency-naming.md) — currency DISPLAYS as "Aura" but is coded/stored as credits/ics; "Aurora" is the brand — rename display copy only, never DB/RPC/brand.

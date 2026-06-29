@@ -25,6 +25,13 @@ export const adminUnlock = createServerFn({ method: "POST" })
   });
 
 
+type SchedulerHeartbeat = {
+  name: string;
+  last_run_at: string | null;
+  last_ok_at: string | null;
+  last_error: string | null;
+};
+
 async function assertAdmin(userId: string) {
   const { data, error } = await supabaseAdmin
     .from("user_roles")
@@ -41,15 +48,31 @@ export const adminOverview = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await assertAdmin(context.userId);
 
-    const [usersRes, gensRes, paymentsRes] = await Promise.all([
+    // `scheduler_heartbeats` is not in the generated Supabase types yet.
+    const heartbeatTable = supabaseAdmin as unknown as {
+      from: (t: string) => {
+        select: (c: string) => {
+          eq: (
+            col: string,
+            val: string,
+          ) => { maybeSingle: () => Promise<{ data: SchedulerHeartbeat | null }> };
+        };
+      };
+    };
+
+    const [usersRes, gensRes, paymentsRes, jobsRes, heartbeatRes] = await Promise.all([
       supabaseAdmin.from("profiles").select("user_id, email, display_name, credits, lifetime_credits_purchased, created_at").order("created_at", { ascending: false }).limit(500),
       supabaseAdmin.from("generations").select("id, user_id, prompt, status, kind, model, result_image_url, result_video_url, credits_cost, created_at, error").order("created_at", { ascending: false }).limit(200),
       supabaseAdmin.from("payments").select("id, user_id, reference, amount_kobo, currency, credits_granted, status, created_at").order("created_at", { ascending: false }).limit(100),
+      supabaseAdmin.from("jobs").select("id, generation_id, user_id, kind, status, attempts, error, scheduled_at, created_at").in("status", ["queued", "processing", "failed"]).order("created_at", { ascending: false }).limit(200),
+      heartbeatTable.from("scheduler_heartbeats").select("name, last_run_at, last_ok_at, last_error").eq("name", "jobs_tick").maybeSingle(),
     ]);
 
     const users = usersRes.data ?? [];
     const generations = gensRes.data ?? [];
     const payments = paymentsRes.data ?? [];
+    const jobs = jobsRes.data ?? [];
+    const scheduler = heartbeatRes.data ?? null;
 
     const totalRevenueUsd = payments
       .filter((p) => p.status === "succeeded")
@@ -59,7 +82,23 @@ export const adminOverview = createServerFn({ method: "GET" })
     const totalImages = generations.filter((g) => g.kind === "image").length;
     const totalVideos = generations.filter((g) => g.kind === "video").length;
 
-    return { users, generations, payments, stats: { totalRevenueUsd, totalGens, totalImages, totalVideos, totalUsers: users.length } };
+    // Queue health snapshot for the retry/scheduler panel.
+    const queue = {
+      queued: jobs.filter((j) => j.status === "queued").length,
+      processing: jobs.filter((j) => j.status === "processing").length,
+      failed: jobs.filter((j) => j.status === "failed").length,
+      retrying: jobs.filter((j) => (j.attempts ?? 0) > 1 && j.status === "queued").length,
+    };
+
+    return {
+      users,
+      generations,
+      payments,
+      jobs,
+      scheduler,
+      queue,
+      stats: { totalRevenueUsd, totalGens, totalImages, totalVideos, totalUsers: users.length },
+    };
   });
 
 export const adminGrantCredits = createServerFn({ method: "POST" })
