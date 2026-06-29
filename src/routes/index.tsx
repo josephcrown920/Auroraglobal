@@ -9,6 +9,7 @@ import {
   Megaphone,
   Plug,
   TrendingUp,
+  Terminal,
 } from "lucide-react";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import { useServerFn } from "@tanstack/react-start";
@@ -212,6 +213,12 @@ function Index() {
               className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
             >
               <Wand2 className="size-3.5" /> Lip Sync
+            </Link>
+            <Link
+              to="/cli"
+              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
+            >
+              <Terminal className="size-3.5" /> CLI
             </Link>
             <Link
               to="/connect"
