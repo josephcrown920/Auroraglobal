@@ -8,6 +8,10 @@ import { beforeEach, describe, expect, it, mock } from "bun:test";
 // claim→run→commit/release/retry decision logic is exercised.
 
 let claimQueue: Array<Record<string, unknown> | null> = [];
+// finishJob fences the completion on still owning the lock via a guarded UPDATE
+// ... RETURNING. Flip this to false to simulate losing that CAS (the stale-sweep
+// reclaim race) so the job-table update matches no row.
+let jobsCasWins = true;
 let orchestrateImpl: (req: unknown) => Promise<{
   url: string;
   provider: string;
@@ -27,19 +31,33 @@ const calls = {
   rpc: [] as Array<{ name: string; args: Record<string, unknown> }>,
   updates: [] as Array<{ table: string; patch: Record<string, unknown> }>,
   inserts: [] as Array<{ table: string; row: unknown }>,
+  upserts: [] as Array<{ table: string; row: unknown }>,
 };
 
 function builder(table: string) {
-  const resolve = () => ({ data: null, error: null });
+  // After an UPDATE, a chained `.select()` resolves to the affected rows. finishJob
+  // relies on that to detect whether it won the ownership-fenced transition, so a
+  // jobs UPDATE returns one row by default (won) and zero rows when jobsCasWins is
+  // false (lost the lock). Reads (no UPDATE) keep the original {data:null} shape.
+  let updated = false;
+  const resolve = () =>
+    updated
+      ? { data: table === "jobs" && !jobsCasWins ? [] : [{ id: "x" }], error: null }
+      : { data: null, error: null };
   const b: Record<string, unknown> = {};
   for (const m of ["select", "eq", "neq", "order", "limit", "contains", "is", "in"]) b[m] = () => b;
   b.update = (patch: Record<string, unknown>) => {
     calls.updates.push({ table, patch });
+    updated = true;
     return b;
   };
   b.insert = (row: unknown) => {
     calls.inserts.push({ table, row });
     return b;
+  };
+  b.upsert = (row: unknown) => {
+    calls.upserts.push({ table, row });
+    return Promise.resolve({ error: null });
   };
   b.maybeSingle = async () => resolve();
   b.single = async () => resolve();
@@ -67,8 +85,17 @@ mock.module("./hf.server", () => ({
   hfTextToSpeech: async () => ({ bytes: new Uint8Array(), contentType: "audio/flac" }),
 }));
 
-const { processOneJob: rawProcessOneJob, processBatch: rawProcessBatch } =
-  await import("./jobs.server");
+const {
+  processOneJob: rawProcessOneJob,
+  processBatch: rawProcessBatch,
+  classifyJobError,
+  nextRetryAt,
+  retryDecision,
+  sweepStaleProcessingJobs,
+  recordSchedulerHeartbeat,
+  PERSISTENT_RETRY_MAX_ATTEMPTS,
+  PERSISTENT_RETRY_MAX_AGE_MS,
+} = await import("./jobs.server");
 
 // orchestrate is dependency-injected (NOT module-mocked) so this file never
 // registers a global mock for ./orchestrator.server — Bun's module mocks are
@@ -89,15 +116,18 @@ function job(over: Record<string, unknown> = {}) {
     credits_reserved: 5,
     generation_id: "g1",
     parent_job_id: null,
+    created_at: new Date().toISOString(),
     ...over,
   };
 }
 
 beforeEach(() => {
   claimQueue = [];
+  jobsCasWins = true;
   calls.rpc.length = 0;
   calls.updates.length = 0;
   calls.inserts.length = 0;
+  calls.upserts.length = 0;
   orchestrateImpl = async () => ({
     url: "https://out/img.png",
     provider: "pollinations",
@@ -133,6 +163,34 @@ describe("processOneJob", () => {
     expect(gen?.patch.result_video_url).toBeUndefined();
   });
 
+  it("does NOT commit when it has lost the lock to a stale-sweep reclaim", async () => {
+    // The job finished, but the stale-sweep already requeued it and another worker
+    // reclaimed it (locked_by changed) → the ownership-fenced finishJob CAS misses,
+    // so this worker must not commit (the new owner will). Prevents a double charge.
+    jobsCasWins = false;
+    claimQueue = [job()];
+    const r = await processOneJob("w1");
+    expect(r.status).toBe("stale");
+    expect(calls.rpc.find((c) => c.name === "commit_reservation")).toBeUndefined();
+    // Must NOT write the generation succeeded either: the new owner may have
+    // already terminally failed + released it, so a late success write would
+    // expose a delivered render after a refund.
+    expect(calls.updates.find((u) => u.table === "generations")).toBeUndefined();
+  });
+
+  it("does NOT release when it has lost the lock to a stale-sweep reclaim (terminal error)", async () => {
+    // Same race on a terminal failure: only the worker that wins the CAS releases,
+    // so a lost worker must never refund a reservation the new owner still holds.
+    jobsCasWins = false;
+    claimQueue = [job({ attempts: PERSISTENT_RETRY_MAX_ATTEMPTS })];
+    orchestrateImpl = async () => {
+      throw new Error("provider exploded");
+    };
+    const r = await processOneJob("w1");
+    expect(r.status).toBe("stale");
+    expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeUndefined();
+  });
+
   it("routes a video job's result to result_video_url", async () => {
     claimQueue = [job({ kind: "video", payload: { kind: "video", prompt: "x" } })];
     orchestrateImpl = async () => ({
@@ -161,8 +219,24 @@ describe("processOneJob", () => {
     expect(jobUpd?.patch.scheduled_at).toBeDefined();
   });
 
-  it("releases the reservation and fails the job when retries are exhausted", async () => {
-    claimQueue = [job({ attempts: 3, max_attempts: 3 })];
+  it("keeps retrying transient failures BEYOND the old max_attempts cap", async () => {
+    // attempts:5 well past the legacy max_attempts:3 — under persistent retry this
+    // must still re-queue (and never release) because it's transient & under ceiling.
+    claimQueue = [job({ attempts: 5, max_attempts: 3 })];
+    orchestrateImpl = async () => {
+      throw new Error("provider exploded");
+    };
+    const r = await processOneJob("w1");
+    expect(r.status).toBe("retry");
+    expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeUndefined();
+    const jobUpd = calls.updates.find((u) => u.table === "jobs");
+    expect(jobUpd?.patch.status).toBe("queued");
+    const gen = calls.updates.find((u) => u.table === "generations");
+    expect(gen?.patch).toMatchObject({ status: "retrying" });
+  });
+
+  it("releases the reservation and fails once the attempt ceiling is reached", async () => {
+    claimQueue = [job({ attempts: PERSISTENT_RETRY_MAX_ATTEMPTS, max_attempts: 3 })];
     orchestrateImpl = async () => {
       throw new Error("provider exploded");
     };
@@ -175,6 +249,36 @@ describe("processOneJob", () => {
     });
     const gen = calls.updates.find((u) => u.table === "generations");
     expect(gen?.patch).toMatchObject({ status: "failed" });
+    expect(String(gen?.patch.error)).toContain("gave up after");
+  });
+
+  it("releases the reservation and fails once the retry age deadline elapses", async () => {
+    claimQueue = [
+      job({
+        attempts: 2,
+        created_at: new Date(Date.now() - PERSISTENT_RETRY_MAX_AGE_MS - 60_000).toISOString(),
+      }),
+    ];
+    orchestrateImpl = async () => {
+      throw new Error("still flaky");
+    };
+    const r = await processOneJob("w1");
+    expect(r.status).toBe("failed");
+    expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeDefined();
+  });
+
+  it("stops immediately and releases on terminal errors (variants)", async () => {
+    for (const msg of ["Unauthorized", "HTTP 403 forbidden", "invalid input image"]) {
+      calls.rpc.length = 0;
+      calls.updates.length = 0;
+      claimQueue = [job({ attempts: 0 })];
+      orchestrateImpl = async () => {
+        throw new Error(msg);
+      };
+      const r = await processOneJob("w1");
+      expect(r.status).toBe("failed");
+      expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeDefined();
+    }
   });
 
   it("does not retry non-retryable errors (insufficient_credits) and releases immediately", async () => {
@@ -207,5 +311,89 @@ describe("processBatch", () => {
     const results = await processBatch("w1", 2);
     expect(results).toHaveLength(2);
     expect(results.every((r) => r.processed)).toBe(true);
+  });
+});
+
+describe("classifyJobError", () => {
+  it("treats network/provider flakiness as transient", () => {
+    for (const m of ["provider timeout", "ECONNRESET", "rate limited 429", "502 bad gateway", "fetch failed"]) {
+      expect(classifyJobError(m)).toBe("transient");
+    }
+  });
+
+  it("treats auth / validation / capability errors as terminal", () => {
+    for (const m of [
+      "insufficient_credits",
+      "Unauthorized",
+      "HTTP 401",
+      "forbidden 403",
+      "HTTP 400 bad request",
+      "invalid input image",
+      "ugc_ad requires productPrompt",
+      "missing audio url",
+      "unsupported kind",
+      "no path for kind",
+    ]) {
+      expect(classifyJobError(m)).toBe("terminal");
+    }
+  });
+});
+
+describe("nextRetryAt", () => {
+  it("grows exponentially then caps at 30m (+jitter)", () => {
+    const now = 1_000_000_000_000;
+    const delay = (attempts: number) => new Date(nextRetryAt(attempts, now)).getTime() - now;
+    // attempt 1 ≈ base 30s window (+jitter), well under the cap
+    expect(delay(1)).toBeGreaterThanOrEqual(30_000);
+    expect(delay(1)).toBeLessThan(5 * 60_000);
+    // far-out attempts saturate at the 30m cap (plus a little jitter)
+    const big = delay(100);
+    expect(big).toBeGreaterThanOrEqual(30 * 60_000);
+    expect(big).toBeLessThanOrEqual(30 * 60_000 + 60_000);
+  });
+});
+
+describe("retryDecision", () => {
+  const fresh = new Date().toISOString();
+  it("retries transient failures under the ceiling and age deadline", () => {
+    const d = retryDecision({ attempts: 5, created_at: fresh }, "provider timeout");
+    expect(d).toEqual({ retry: true, reason: "transient" });
+  });
+  it("gives up at the attempt ceiling", () => {
+    const d = retryDecision({ attempts: PERSISTENT_RETRY_MAX_ATTEMPTS, created_at: fresh }, "provider timeout");
+    expect(d).toEqual({ retry: false, reason: "max_attempts" });
+  });
+  it("gives up past the age deadline", () => {
+    const old = new Date(Date.now() - PERSISTENT_RETRY_MAX_AGE_MS - 1000).toISOString();
+    const d = retryDecision({ attempts: 1, created_at: old }, "provider timeout");
+    expect(d).toEqual({ retry: false, reason: "max_age" });
+  });
+  it("never retries terminal errors regardless of attempts", () => {
+    const d = retryDecision({ attempts: 0, created_at: fresh }, "unauthorized");
+    expect(d).toEqual({ retry: false, reason: "terminal" });
+  });
+});
+
+describe("sweepStaleProcessingJobs", () => {
+  it("invokes the reset_stale_processing_jobs RPC with the configured window", async () => {
+    await sweepStaleProcessingJobs(600);
+    const call = calls.rpc.find((c) => c.name === "reset_stale_processing_jobs");
+    expect(call?.args).toMatchObject({ _max_age_seconds: 600 });
+  });
+});
+
+describe("recordSchedulerHeartbeat", () => {
+  it("upserts an ok heartbeat", async () => {
+    await recordSchedulerHeartbeat("jobs_tick", true);
+    const up = calls.upserts.find((u) => u.table === "scheduler_heartbeats");
+    expect(up).toBeDefined();
+    expect(up?.row).toMatchObject({ name: "jobs_tick" });
+    expect((up?.row as Record<string, unknown>).last_ok_at).toBeDefined();
+  });
+
+  it("records the error on a failed heartbeat", async () => {
+    await recordSchedulerHeartbeat("jobs_tick", false, "boom");
+    const up = calls.upserts.find((u) => u.table === "scheduler_heartbeats");
+    expect(up?.row).toMatchObject({ name: "jobs_tick", last_error: "boom" });
   });
 });
