@@ -104,7 +104,7 @@ export function Testimonials() {
     <section className="relative z-10 px-6 md:px-12 pb-24">
       <div className="mb-8 flex items-end justify-between flex-wrap gap-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-violet-300/80 mb-2">Loved worldwide</p>
+          <p className="aurora-kicker mb-2">Loved worldwide</p>
           <h2 className="text-2xl md:text-3xl font-semibold">Creators in 40+ countries. One studio.</h2>
           <p className="text-sm text-white/55 mt-2">Artists, directors and brands from Lagos to Seoul are shipping with Aurora.</p>
         </div>
@@ -117,7 +117,7 @@ export function Testimonials() {
         {QUOTES.map((q, i) => (
           <figure
             key={q.name}
-            className="relative rounded-2xl border border-white/10 p-5 bg-white/[0.03] backdrop-blur-sm overflow-hidden animate-fade-in hover:-translate-y-1 transition"
+            className="relative rounded-2xl aurora-glass p-5 overflow-hidden animate-fade-in hover:-translate-y-1 transition"
             style={{ animationDelay: `${i * 60}ms` }}
           >
             <div className={`absolute -inset-16 blur-3xl opacity-50 bg-gradient-to-br ${q.color}`} />

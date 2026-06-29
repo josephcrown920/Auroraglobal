@@ -41,7 +41,7 @@ export function FeatureRequest() {
       />
       <div className="relative grid gap-10 px-6 py-14 md:grid-cols-[0.9fr_1.1fr] md:items-center md:px-12 md:py-20">
         <div>
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-amber-200">
+          <span className="inline-flex items-center gap-2 rounded-full aurora-glass px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-amber-200">
             <Lightbulb className="size-3.5" /> Request a feature
           </span>
           <h2 className="mt-5 text-3xl font-bold tracking-tight text-white md:text-5xl">
@@ -60,7 +60,7 @@ export function FeatureRequest() {
 
         <form
           onSubmit={onSubmit}
-          className="rounded-2xl border border-white/12 bg-black/50 p-5 shadow-2xl shadow-violet-500/10 backdrop-blur-xl md:p-6"
+          className="rounded-2xl border border-border bg-black/50 p-5 shadow-2xl shadow-violet-500/10 backdrop-blur-xl md:p-6"
         >
           <label className="block text-xs font-semibold uppercase tracking-widest text-white/55">
             What would you like Aurora to do?
@@ -71,7 +71,7 @@ export function FeatureRequest() {
             rows={5}
             maxLength={1000}
             placeholder="e.g. Add Suno music generation, export to CapCut, or a vertical 9:16 ad template…"
-            className="mt-2 w-full resize-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35 focus:border-violet-400/60 focus:outline-none"
+            className="mt-2 w-full resize-none rounded-xl border border-border bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35 focus:border-primary/60 focus:outline-none"
           />
 
           <label className="mt-4 block text-xs font-semibold uppercase tracking-widest text-white/55">
@@ -82,7 +82,7 @@ export function FeatureRequest() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@studio.com"
-            className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35 focus:border-violet-400/60 focus:outline-none"
+            className="mt-2 w-full rounded-xl border border-border bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35 focus:border-primary/60 focus:outline-none"
           />
 
           <button

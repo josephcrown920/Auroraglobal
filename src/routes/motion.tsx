@@ -336,11 +336,12 @@ function MotionStudio() {
   );
 
   return (
-    <main className="min-h-screen bg-background">
-      <header className="flex items-center justify-between px-6 md:px-10 py-4 border-b border-border bg-card/40 backdrop-blur-xl">
+    <main className="aurora-page-shell text-foreground">
+      <span aria-hidden className="aurora-ambient" />
+      <header className="relative z-10 flex items-center justify-between px-6 md:px-10 py-4 border-b border-border bg-card/40 backdrop-blur-xl">
         <Link to="/studio" className="flex items-center gap-2 font-semibold tracking-tight no-underline">
           <ArrowLeft className="size-4 text-muted-foreground" />
-          <span className="size-8 rounded-xl flex items-center justify-center" style={{ background: "var(--gradient-hero)" }}>
+          <span className="size-8 rounded-xl flex items-center justify-center shadow-[var(--shadow-glow-soft)]" style={{ background: "var(--gradient-hero)" }}>
             <Film className="size-4 text-primary-foreground" />
           </span>
           Motion Studio
@@ -353,11 +354,11 @@ function MotionStudio() {
       </header>
       <ConnectReplicateBanner />
 
-      <div className="max-w-7xl mx-auto p-5 md:p-10 grid lg:grid-cols-[1fr_1fr] gap-8">
+      <div className="relative z-10 max-w-7xl mx-auto p-5 md:p-10 grid lg:grid-cols-[1fr_1fr] gap-8">
         <section className="space-y-5">
           <div>
             <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
-              Direct the <span style={{ background: "var(--gradient-hero)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>motion</span>.
+              Direct the <span className="aurora-gradient-text">motion</span>.
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
               {mode === "pose" && "Pose + camera move = a clip. Two steps, two retry buttons."}
@@ -449,8 +450,8 @@ function MotionStudio() {
                 <Button
                   disabled={stageMut.isPending || !selfie}
                   onClick={() => stageMut.mutate()}
+                  variant="premium"
                   className="flex-1 h-12"
-                  style={{ background: "var(--gradient-hero)" }}
                 >
                   {stageMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Staging…</> : <><Wand2 className="size-4 mr-2" /> {imageError ? "Retry pose" : stagedImage ? "Re-stage" : "Stage pose · 1 Aura"}</>}
                 </Button>
@@ -491,8 +492,8 @@ function MotionStudio() {
               <Button
                 disabled={transferMut.isPending || !mtImage || !mtVideo}
                 onClick={() => transferMut.mutate()}
+                variant="premium"
                 className="w-full h-12"
-                style={{ background: "var(--gradient-hero)" }}
               >
                 {transferMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Queuing…</> : <><Clapperboard className="size-4 mr-2" /> Transfer motion · 5 Aura</>}
               </Button>
@@ -542,8 +543,8 @@ function MotionStudio() {
               <Button
                 disabled={reskinMut.isPending || !rsVideo || !rsAvatar}
                 onClick={() => reskinMut.mutate()}
+                variant="premium"
                 className="w-full h-12"
-                style={{ background: "var(--gradient-hero)" }}
               >
                 {reskinMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Queuing…</> : <><Users className="size-4 mr-2" /> Create Performance Shot · 8 Aura</>}
               </Button>

@@ -273,8 +273,9 @@ function SplitRealityPage() {
   const ready = !!selfie;
 
   return (
-    <main className="min-h-screen bg-background">
-      <header className="flex items-center justify-between px-6 md:px-10 py-4 border-b border-border bg-card/40 backdrop-blur-xl">
+    <main className="aurora-page-shell text-foreground">
+      <span aria-hidden className="aurora-ambient" />
+      <header className="relative z-10 flex items-center justify-between px-6 md:px-10 py-4 border-b border-border bg-background/80 backdrop-blur-xl">
         <Link to="/studio" className="flex items-center gap-2 font-semibold tracking-tight">
           <ArrowLeft className="size-4 text-muted-foreground" />
           <img src={auroraLogo.url} alt="Aurora" className="size-8 rounded-xl object-contain" />
@@ -293,19 +294,13 @@ function SplitRealityPage() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto p-5 md:p-10 grid lg:grid-cols-[1fr_1.2fr] gap-10">
+      <div className="relative z-10 max-w-7xl mx-auto p-5 md:p-10 grid lg:grid-cols-[1fr_1.2fr] gap-10">
         {/* LEFT — controls */}
         <section className="space-y-6">
           <div>
             <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
               One subject.{" "}
-              <span
-                style={{
-                  background: "var(--gradient-hero)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                }}
-              >
+              <span className="aurora-gradient-text">
                 Two realities.
               </span>
             </h1>
@@ -351,10 +346,10 @@ function SplitRealityPage() {
           </div>
 
           <Button
+            variant="premium"
             disabled={!ready || mut.isPending}
             onClick={() => mut.mutate()}
-            className="w-full h-14 text-base font-medium shadow-[var(--shadow-glow)]"
-            style={{ background: "var(--gradient-hero)" }}
+            className="w-full h-14 text-base font-medium"
           >
             {mut.isPending ? (
               <>
@@ -367,8 +362,8 @@ function SplitRealityPage() {
             )}
           </Button>
 
-          <div className="rounded-2xl border border-border bg-card/40 p-4 space-y-2">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">
+          <div className="aurora-panel p-4 space-y-2">
+            <p className="aurora-kicker">
               What you get
             </p>
             <ul className="text-sm text-foreground/80 space-y-1.5">
@@ -400,7 +395,7 @@ function SplitRealityPage() {
           </div>
 
           {mut.isPending && (
-            <div className="rounded-2xl border border-border bg-card/40 p-4 flex items-center gap-3">
+            <div className="aurora-panel p-4 flex items-center gap-3">
               <Loader2 className="size-4 animate-spin text-primary" />
               <p className="text-sm text-muted-foreground">
                 Running two generations in parallel — usually 20–30 seconds.

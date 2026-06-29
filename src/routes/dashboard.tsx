@@ -48,15 +48,15 @@ function DashboardPage() {
   const videos = items.filter((i) => i.kind === "video" && i.result_video_url);
 
   return (
-    <main className="min-h-screen relative" style={{ background: "var(--gradient-soft)" }}>
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "var(--gradient-stage)" }} />
+    <main className="aurora-page-shell text-foreground">
+      <span aria-hidden className="aurora-ambient" />
       <header className="relative z-10 flex items-center justify-between px-6 md:px-10 py-5 border-b border-border/60 backdrop-blur-xl bg-background/40">
         <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
           <img src={auroraLogo.url} alt="Aurora" className="size-8 rounded-xl object-contain" />
           Aurora Studio
         </Link>
         <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-          <Link to="/studio" className="text-sm px-4 py-2 rounded-full text-primary-foreground" style={{ background: "var(--gradient-hero)" }}>
+          <Link to="/studio" className="text-sm px-4 py-2 rounded-full text-primary-foreground bg-[image:var(--gradient-hero)] shadow-[var(--shadow-glow-soft)]">
             Open Studio <ArrowRight className="inline size-3.5" />
           </Link>
           {profile?.isAdmin && (
@@ -71,7 +71,7 @@ function DashboardPage() {
       <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-10 py-10 space-y-10">
         <div>
           <h1 className="text-4xl md:text-5xl font-semibold tracking-tight">
-            Welcome back, <span style={{ background: "var(--gradient-hero)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{profile?.display_name || user.email?.split("@")[0]}.</span>
+            Welcome back, <span className="aurora-gradient-text">{profile?.display_name || user.email?.split("@")[0]}.</span>
           </h1>
           <p className="mt-2 text-muted-foreground">Your gallery, your Aura, your history — all in one place.</p>
         </div>
@@ -84,13 +84,13 @@ function DashboardPage() {
         </div>
 
         <section>
-          <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground mb-4">All your generations</h2>
+          <h2 className="aurora-kicker mb-4">All your generations</h2>
           {isLoading ? (
             <div className="text-muted-foreground text-sm">Loading…</div>
           ) : items.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-border p-12 text-center">
               <p className="text-muted-foreground mb-4">No shoots yet — let's make your first one.</p>
-              <Link to="/studio" className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-medium text-primary-foreground" style={{ background: "var(--gradient-hero)" }}>
+              <Link to="/studio" className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-medium text-primary-foreground bg-[image:var(--gradient-hero)] shadow-[var(--shadow-glow-soft)]">
                 Open Studio <ArrowRight className="size-4" />
               </Link>
             </div>
@@ -128,7 +128,7 @@ function DashboardPage() {
 
 function StatCard({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl p-5">
+    <div className="aurora-panel p-5">
       <Icon className="size-5 text-primary mb-3" />
       <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
       <p className="text-2xl font-semibold mt-1">{value}</p>

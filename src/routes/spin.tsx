@@ -85,21 +85,22 @@ function SpinPage() {
   const pct = Math.round((done / total) * 100);
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-[#0a0512] via-[#0a0814] to-black text-white">
-      <div className="mx-auto max-w-6xl px-4 py-10 md:px-8 md:py-14">
-        <Link to="/" className="inline-flex items-center gap-2 text-sm text-white/60 hover:text-white no-underline">
+    <main className="aurora-page-shell text-foreground">
+      <span aria-hidden className="aurora-ambient" />
+      <div className="relative z-10 mx-auto max-w-6xl px-4 py-10 md:px-8 md:py-14">
+        <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground no-underline">
           <ArrowLeft className="size-4" /> Back
         </Link>
 
         <div className="mt-6 flex items-center gap-2">
-          <span className="inline-flex items-center gap-2 rounded-full border border-pink-300/20 bg-pink-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-pink-200">
+          <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
             <Flame className="size-3.5" /> Spin 1 → 30
           </span>
         </div>
         <h1 className="mt-3 text-4xl md:text-5xl font-extrabold tracking-tight">
-          One prompt. <span className="bg-gradient-to-r from-pink-300 via-fuchsia-300 to-violet-300 bg-clip-text text-transparent">Thirty pieces.</span>
+          One prompt. <span className="aurora-gradient-text">Thirty pieces.</span>
         </h1>
-        <p className="mt-3 max-w-2xl text-white/70">
+        <p className="mt-3 max-w-2xl text-muted-foreground">
           Describe your idea once. Aurora fans it out across every format the For You page rewards — live below as each variant lands.
         </p>
 
@@ -108,13 +109,13 @@ function SpinPage() {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="e.g. Hot-pink cyclorama, magazine cover shoot, hair-flip hook"
-            className="flex-1 rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 focus:border-pink-400 focus:outline-none"
+            className="flex-1 rounded-xl aurora-glass px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
             disabled={busy}
           />
           <button
             type="submit"
             disabled={busy || !prompt.trim()}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-pink-400 to-fuchsia-500 px-6 py-3 font-bold text-white shadow-lg shadow-fuchsia-500/30 hover:opacity-95 disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[image:var(--gradient-hero)] px-6 py-3 font-bold text-white shadow-[var(--shadow-glow-soft)] transition-[filter] hover:brightness-110 disabled:opacity-50"
           >
             {busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
             Spin 30
@@ -126,31 +127,31 @@ function SpinPage() {
         {jobId && (
           <section className="mt-10">
             <div className="mb-4 flex items-center justify-between">
-              <div className="text-sm text-white/70">
-                <span className="font-semibold text-white">{done}</span> / {total} ready
+              <div className="text-sm text-muted-foreground">
+                <span className="font-semibold text-foreground">{done}</span> / {total} ready
               </div>
-              <div className="text-xs text-white/50">job {jobId.slice(0, 8)}</div>
+              <div className="text-xs text-muted-foreground">job {jobId.slice(0, 8)}</div>
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-              <div className="h-full bg-gradient-to-r from-pink-400 to-fuchsia-500 transition-all" style={{ width: `${pct}%` }} />
+              <div className="h-full bg-[image:var(--gradient-hero)] transition-all" style={{ width: `${pct}%` }} />
             </div>
 
             <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6">
               {(variants.length ? variants : Array.from({ length: 30 }).map((_, i) => ({ id: String(i), idx: i, label: "Queued", status: "queued" as const, url: null }))).map((v) => (
-                <div key={v.id} className="relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.03] aspect-[2/3]">
+                <div key={v.id} className="relative overflow-hidden rounded-xl aurora-glass aspect-[2/3]">
                   {v.url ? (
                     <img src={v.url} alt={v.label} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
                   ) : (
                     <div className="absolute inset-0 grid place-items-center">
                       {v.status === "running" ? (
-                        <Loader2 className="size-5 animate-spin text-pink-300" />
+                        <Loader2 className="size-5 animate-spin text-primary" />
                       ) : (
                         <span className="size-2 rounded-full bg-white/30" />
                       )}
                     </div>
                   )}
                   <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-gradient-to-t from-black/90 to-transparent p-2">
-                    <span className="truncate text-[10px] font-medium text-white/90">{v.label}</span>
+                    <span className="truncate text-[10px] font-medium text-foreground">{v.label}</span>
                     {v.status === "done" && <Check className="size-3 text-emerald-300" />}
                   </div>
                 </div>

@@ -82,8 +82,9 @@ function GalleryPage() {
   const favs = (data?.items ?? []).filter((g) => g.is_favorite).length;
 
   return (
-    <main className="min-h-screen bg-background">
-      <header className="flex items-center justify-between px-6 md:px-10 py-5 border-b border-border bg-card/40 backdrop-blur-xl">
+    <main className="aurora-page-shell text-foreground">
+      <span aria-hidden className="aurora-ambient" />
+      <header className="relative z-10 flex items-center justify-between px-6 md:px-10 py-5 border-b border-border bg-background/80 backdrop-blur-xl">
         <Link to="/studio" className="flex items-center gap-2 font-semibold tracking-tight">
           <ArrowLeft className="size-4 text-muted-foreground" />
           <img src={auroraLogo.url} alt="Aurora" className="size-8 rounded-xl object-contain" />
@@ -94,7 +95,7 @@ function GalleryPage() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto p-6 md:p-10 space-y-6">
+      <div className="relative z-10 max-w-7xl mx-auto p-6 md:p-10 space-y-6">
         <div>
           <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Your permanent library</h1>
           <p className="text-muted-foreground mt-1">Every generation is stored forever. Star your favourites to keep them at the top.</p>
@@ -123,7 +124,7 @@ function GalleryPage() {
           <div className="rounded-2xl border border-dashed border-border bg-card/30 p-12 text-center">
             <ImageIcon className="size-8 text-muted-foreground mx-auto mb-3" />
             <p className="text-sm text-muted-foreground">No generations here yet. Head back to the studio.</p>
-            <Link to="/studio" className="inline-block mt-4 px-4 py-2 rounded-full text-sm" style={{ background: "var(--gradient-hero)" }}>Open Studio</Link>
+            <Link to="/studio" className="inline-block mt-4 px-4 py-2 rounded-full text-sm bg-[image:var(--gradient-hero)] shadow-[var(--shadow-glow-soft)]">Open Studio</Link>
           </div>
         )}
 
