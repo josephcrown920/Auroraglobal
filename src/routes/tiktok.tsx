@@ -11,7 +11,14 @@ import {
   startTiktokRemix,
   listTiktokRemixes,
   getTiktokRemix,
+  type CutStyle,
 } from "@/lib/tiktok-remix.functions";
+
+const STYLE_OPTIONS: { value: CutStyle; label: string; hint: string }[] = [
+  { value: "auto", label: "Auto", hint: "Aurora picks the strongest hooks straight from your source." },
+  { value: "urban_cut", label: "Urban Cut", hint: "Beat-synced luxury outfit showcase — runway energy, multi-angle." },
+  { value: "grwm", label: "Get Ready With Me", hint: "Getting-ready arc — mirror, outfit picks, styling, the reveal." },
+];
 
 export const Route = createFileRoute("/tiktok")({
   component: TiktokRemixPage,
@@ -30,6 +37,7 @@ function TiktokRemixPage() {
   const [sourceUrl, setSourceUrl] = useState("");
   const [basePrompt, setBasePrompt] = useState("");
   const [count, setCount] = useState(10);
+  const [style, setStyle] = useState<CutStyle>("auto");
   const [activeRemixId, setActiveRemixId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -54,7 +62,7 @@ function TiktokRemixPage() {
 
   const startMut = useMutation({
     mutationFn: () =>
-      startFn({ data: { sourceVideoUrl: sourceUrl, basePrompt: basePrompt || undefined, count } }),
+      startFn({ data: { sourceVideoUrl: sourceUrl, basePrompt: basePrompt || undefined, count, style } }),
     onSuccess: (out) => {
       toast.success(`Enqueued ${out.enqueued}/${out.requested} variants`);
       setActiveRemixId(out.remixId);
@@ -152,6 +160,28 @@ function TiktokRemixPage() {
               rows={3}
               className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-pink-400/60"
             />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold uppercase tracking-widest text-white/55">Cut style</label>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {STYLE_OPTIONS.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => setStyle(o.value)}
+                  aria-pressed={style === o.value}
+                  className={`rounded-xl border px-3 py-2 text-xs font-semibold leading-tight transition ${
+                    style === o.value
+                      ? "border-pink-400/60 bg-white/[0.08] text-white"
+                      : "border-white/10 bg-black/40 text-white/60 hover:bg-white/[0.05]"
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[11px] text-white/40">{STYLE_OPTIONS.find((o) => o.value === style)?.hint}</p>
           </div>
 
           <div>

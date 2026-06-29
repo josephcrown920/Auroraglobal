@@ -10,6 +10,11 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertTrustedUrl } from "./url-guard";
 
+// Cut styles bias the generated concepts toward a themed look. "auto" keeps the
+// original behavior (distinct hooks pulled from the source).
+export const CUT_STYLES = ["auto", "urban_cut", "grwm"] as const;
+export type CutStyle = (typeof CUT_STYLES)[number];
+
 // Exported for unit tests: the server-side cut cap (count.max(10)) is the real
 // safeguard against a client bypassing the UI slider and over-reserving Aura.
 export const StartInput = z.object({
@@ -18,6 +23,7 @@ export const StartInput = z.object({
   count: z.number().int().min(1).max(10).default(10),
   basePrompt: z.string().max(500).optional(),
   duration: z.number().int().min(3).max(10).default(5),
+  style: z.enum(CUT_STYLES).default("auto"),
 });
 
 // Curated angle prompts — used when Gemini concept generation isn't available
@@ -55,13 +61,81 @@ const ANGLES = [
   "trophy / award celebratory ending",
 ];
 
-async function generateConcepts(sourceVideoUrl: string, basePrompt: string, count: number): Promise<string[]> {
+// Urban Cut: a beat-synced luxury fashion showcase. Runway/model energy, anywhere
+// (indoor or outdoor), outfit-forward, camera angles auto-switching to the beat.
+const URBAN_CUT_ANGLES = [
+  "beat-drop outfit reveal, full-body runway strut toward camera, vertical 9:16, luxury energy",
+  "low-angle hero walk, slow-motion on the beat, cinematic anamorphic grade",
+  "360° orbit around the subject mid-pose, designer outfit razor-sharp in focus",
+  "snap-zoom to the shoes then whip-pan up to the face on the beat",
+  "rooftop skyline runway at golden hour, warm rim light, confident stride",
+  "marble lobby luxury interior, polished floor reflection, editorial power pose",
+  "macro fabric detail then quick pull-back to the full look, shallow depth",
+  "neon street at night, wet asphalt reflections, slow strut with attitude",
+  "leaning on a luxury car in a concrete garage, anamorphic lens flare",
+  "high-fashion freeze-frame on the beat, crisp outfit silhouette, hard key light",
+  "side-profile catwalk pass, motion-blur background, runway-but-everywhere",
+  "overhead crane shot looking down on the strut, long dramatic shadows",
+];
+
+// Get Ready With Me: the classic getting-ready arc — mirror checks, outfit
+// selection, styling, finishing touches, building to the finished-look reveal.
+const GRWM_ANGLES = [
+  "mirror cold-open, 'get ready with me' caption energy, vertical 9:16, soft daylight",
+  "overhead 90° flat-lay of outfit options laid out on the bed",
+  "holding two outfits up to the mirror, deciding which to wear",
+  "close-up styling detail — accessories and jewelry finishing touches",
+  "hair and styling moment at the vanity, soft warm lighting, intimate handheld",
+  "slipping into the chosen outfit, mirror reflection, natural window light",
+  "adjusting the fit in the mirror, confidence check, slow half-turn",
+  "spritz and final finishing-touch beat before heading out",
+  "full-look reveal turn in the mirror, polished and camera-ready",
+  "walking out the door with the finished look, golden hour, satisfied smile",
+  "vanity desk product flat-lay, cozy getting-ready ambiance",
+  "before-to-after styling montage, coherent transformation arc",
+];
+
+// Pick the deterministic fallback pool for a style. Exported for unit tests so
+// the style-biasing contract (distinct, count-bounded, style-specific) is pinned.
+export function anglesForStyle(style: CutStyle): string[] {
+  if (style === "urban_cut") return URBAN_CUT_ANGLES;
+  if (style === "grwm") return GRWM_ANGLES;
+  return ANGLES;
+}
+
+// Deterministic, style-specific concept prompts used whenever the AI path is
+// unavailable (no API key, gateway down, non-200, or malformed JSON). Exported
+// for unit tests so the "fallback honors the chosen style" contract is pinned.
+export function styledFallback(basePrompt: string, count: number, style: CutStyle = "auto"): string[] {
+  return anglesForStyle(style)
+    .slice(0, count)
+    .map((a) => `${basePrompt}. ${a}`);
+}
+
+// Extra direction appended to the AI system prompt so the model biases its cuts
+// toward the chosen style. "auto" adds nothing (original behavior).
+function styleDirective(style: CutStyle): string {
+  if (style === "urban_cut") {
+    return " STYLE — Urban Cut: every cut is a beat-synced luxury fashion showcase. Show the subject in outfits with runway/model energy, anywhere (indoor or outdoor). Switch camera angle and location between cuts and change shots on the beat. Outfit-forward, cinematic, high-fashion, varied multi-angle coverage.";
+  }
+  if (style === "grwm") {
+    return " STYLE — Get Ready With Me: the cuts form one coherent getting-ready arc. Progress through mirror checks, outfit selection, styling, and finishing touches, building to the finished-look reveal. Keep the sequence in get-ready order.";
+  }
+  return "";
+}
+
+export async function generateConcepts(
+  sourceVideoUrl: string,
+  basePrompt: string,
+  count: number,
+  style: CutStyle = "auto",
+): Promise<string[]> {
   const apiKey = process.env.LOVABLE_API_KEY;
   if (!apiKey) {
-    return ANGLES.slice(0, count).map((a) => `${basePrompt}. ${a}`);
+    return styledFallback(basePrompt, count, style);
   }
   try {
-    const sys = `You are a viral short-form video editor. Given a source video and an artist brief, produce ${count} unique TikTok cuts. Each cut should start from a different beat / angle / emotional hook in the source. Return ONLY a JSON array of ${count} strings, each a single concise camera+vibe prompt (under 160 chars). No prose, no markdown.`;
+    const sys = `You are a viral short-form video editor. Given a source video and an artist brief, produce ${count} unique TikTok cuts. Each cut should start from a different beat / angle / emotional hook in the source. Return ONLY a JSON array of ${count} strings, each a single concise camera+vibe prompt (under 160 chars). No prose, no markdown.${styleDirective(style)}`;
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
@@ -89,7 +163,7 @@ async function generateConcepts(sourceVideoUrl: string, basePrompt: string, coun
   } catch {
     /* fall through to deterministic angles */
   }
-  return ANGLES.slice(0, count).map((a) => `${basePrompt}. ${a}`);
+  return styledFallback(basePrompt, count, style);
 }
 
 export const startTiktokRemix = createServerFn({ method: "POST" })
@@ -102,7 +176,7 @@ export const startTiktokRemix = createServerFn({ method: "POST" })
     const basePrompt = data.basePrompt?.trim() || "viral TikTok cut, vertical 9:16, sharp, high energy";
 
     // Concept generation
-    const prompts = await generateConcepts(data.sourceVideoUrl, basePrompt, data.count);
+    const prompts = await generateConcepts(data.sourceVideoUrl, basePrompt, data.count, data.style);
 
     // Create parent remix row
     const { data: remixRow, error: remixErr } = await supabaseAdmin
