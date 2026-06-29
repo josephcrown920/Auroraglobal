@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { startLipsync } from "@/lib/lipsync.functions";
+import { friendlyGenerationMessage, handleGenerationError } from "@/lib/error-toasts";
 
 export const Route = createFileRoute("/lipsync")({
   component: LipSyncStudioPage,
@@ -181,12 +182,13 @@ function LipSyncForm() {
         toast.success("Lip-sync rendered.");
       } else {
         setStatus("error");
-        toast.error(res.status === "error" ? (res as { error?: string }).error ?? "Render failed" : "Render failed");
+        const reason = res.status === "error" ? (res as { error?: string }).error ?? "Render failed" : "Render failed";
+        toast.error(friendlyGenerationMessage(reason));
       }
     } catch (e) {
       clearInterval(ticker);
       setStatus("error");
-      toast.error(e instanceof Error ? e.message : "Render failed");
+      handleGenerationError(e);
     }
   };
 
