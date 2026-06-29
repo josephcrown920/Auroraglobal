@@ -87,6 +87,7 @@ export const Route = createFileRoute("/canvas")({
 type NodeKind = "input" | "audio" | "image" | "video" | "lipsync" | "split" | "comfy";
 type NodeData = {
   kind: NodeKind;
+  label?: string; // optional human label (e.g. the camera angle for reshoot recipes)
   comfyWorkflowId?: string;
   outputKind?: "image" | "video";
   url?: string;
@@ -259,6 +260,7 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
               <Icon className="size-2.5" />
             </span>
             {km.label}
+            {data.label && <span className="text-primary/90 normal-case tracking-normal font-semibold">· {data.label}</span>}
             <span className="text-foreground/40">#{id.slice(0, 4)}</span>
           </span>
           <div className="flex items-center gap-2">
@@ -939,7 +941,20 @@ function CanvasPage() {
           <Button size="sm" variant="outline" onClick={undo} disabled={pastRef.current.length === 0} className="border-white/10 bg-white/5" title="Undo (⌘Z)"><Undo2 className="size-3.5" /></Button>
           <Button size="sm" variant="outline" onClick={redo} disabled={futureRef.current.length === 0} className="border-white/10 bg-white/5" title="Redo (⌘⇧Z)"><Redo2 className="size-3.5" /></Button>
           <Button size="sm" variant="outline" onClick={resetTemplate} disabled={!lastTemplateGraph && !lastTemplateId} className="border-white/10 bg-white/5" title="Reset template"><RotateCcw className="size-3.5 mr-1" /> Reset</Button>
-          <FinishedWorkflowsGallery onLoad={(id) => toast.success(`Opening "${id}" — drag nodes to remix`)} />
+          <FinishedWorkflowsGallery
+            onLoad={(id) => {
+              const g = getTemplateById(id);
+              if (g) {
+                setNodes(g.nodes);
+                setEdges(g.edges);
+                setCoachTplName(g.name);
+                setLastTemplateGraph(g);
+                toast.success(`Loaded "${g.name}"`);
+              } else {
+                toast.success(`Opening "${id}" — drag nodes to remix`);
+              }
+            }}
+          />
           <Button size="sm" variant="outline" onClick={() => addNode("input")} className="border-white/10 bg-white/5"><Plus className="size-3.5 mr-1" /> Image</Button>
           <Button size="sm" variant="outline" onClick={() => addNode("audio")} className="border-white/10 bg-white/5"><Music className="size-3.5 mr-1" /> Audio</Button>
           <Button size="sm" variant="outline" onClick={() => addNode("image")} className="border-white/10 bg-white/5"><Wand2 className="size-3.5 mr-1" /> Img gen</Button>
