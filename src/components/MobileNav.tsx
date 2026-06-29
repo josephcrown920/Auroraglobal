@@ -91,33 +91,37 @@ export function MobileNav() {
 
   return (
     <>
-      {isCanvas ? (
-        // Canvas is a full-screen editor with its own bottom dock — a persistent
-        // tab bar would collide, so give it a compact menu pill instead.
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          aria-label="Open navigation menu"
-          className="phone-edge-left fixed top-3 z-[60] flex items-center gap-1.5 rounded-full border border-border bg-background/90 px-3 py-2 text-xs font-medium text-foreground shadow-md backdrop-blur"
-        >
-          <Menu className="size-4" />
-          Menu
-        </button>
-      ) : (
+      {/* The menu trigger lives at the top-left on every route — the same compact
+          pill the canvas editor uses — so the full features drawer is always one
+          tap away from the same place (no longer buried in the bottom tab bar). */}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label="Open navigation menu"
+        className={cn(
+          "phone-edge-left fixed top-3 z-[60] flex items-center gap-1.5 rounded-full border border-border bg-background/90 px-3 py-2 text-xs font-medium shadow-md backdrop-blur transition-colors",
+          moreActive ? "text-primary" : "text-foreground",
+        )}
+      >
+        <Menu className="size-4" />
+        Menu
+      </button>
+
+      {!isCanvas && (
+        // Canvas is a full-screen editor with its own bottom dock, so it gets the
+        // top-left pill only. Every other route keeps the quick-access tab bar —
+        // now four one-tap tabs, with the menu moved up to the top-left pill.
         <>
           {/* In-flow spacer so the fixed bar never covers the last bit of content. */}
-          <div
-            aria-hidden
-            style={{ height: "calc(4rem + env(safe-area-inset-bottom))" }}
-          />
+          <div aria-hidden style={{ height: "calc(4rem + env(safe-area-inset-bottom))" }} />
           <nav
             aria-label="Primary"
             className="phone-fixed-x fixed bottom-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
             style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           >
-            <ul className="grid grid-cols-5">
+            <ul className="grid grid-cols-4">
               {TAB_ITEMS.map((t) => {
                 const active = isActive(pathname, t.to);
                 return (
@@ -136,21 +140,6 @@ export function MobileNav() {
                   </li>
                 );
               })}
-              <li>
-                <button
-                  type="button"
-                  onClick={() => setOpen(true)}
-                  aria-haspopup="dialog"
-                  aria-expanded={open}
-                  className={cn(
-                    "flex h-16 w-full flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors",
-                    moreActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <Menu className="size-5" />
-                  <span>More</span>
-                </button>
-              </li>
             </ul>
           </nav>
         </>

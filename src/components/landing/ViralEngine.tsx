@@ -301,14 +301,14 @@ export function ViralEngine() {
                       loop
                       playsInline
                       preload="metadata"
-                      className={`absolute inset-0 size-full object-cover ${lit ? "" : "grayscale"}`}
+                      className="absolute inset-0 size-full object-cover"
                     />
                   ) : (
                     <img
                       src={media.src}
                       alt={p.label}
                       loading="lazy"
-                      className={`absolute inset-0 size-full object-cover ${lit ? "" : "grayscale"}`}
+                      className="absolute inset-0 size-full object-cover"
                     />
                   )}
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.18),transparent_60%)] pointer-events-none" />
