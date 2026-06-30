@@ -20,14 +20,26 @@ Content-Type: application/json
 
 ## Tools
 
-| Tool | What it does |
-| --- | --- |
-| `aurora_generate_video` | Render a short video synchronously; returns the URL. |
-| `aurora_image_to_video` | Animate a still image; returns the URL. |
-| `aurora_bulk_generate` | Queue up to 50 images for a persona; returns job IDs. |
-| `aurora_get_job_status` | Status + output URL for a queued job / past generation. |
-| `aurora_list_avatars` | List the caller's personas. |
-| `aurora_create_avatar` | Create a persona (optional HeyGen/Sync LoRA training). |
+All tools are namespaced `aurora_*`. Single items render **synchronously** (the
+result URL is returned directly); everything else is **queued** onto `public.jobs`
+and tracked with `aurora_get_job_status`.
+
+| Tool | Mode | Credits | What it does |
+| --- | --- | --- | --- |
+| `aurora_generate_video` | sync | per model | Render a short video; optionally attach a persona via `avatar_name`. Returns the URL. |
+| `aurora_image_to_video` | sync | per model | Animate a still image into a 3–12s clip. Returns the URL. |
+| `aurora_bulk_generate` | queued | 1 / image | Batch up to 50 persona images, auto-varying location/outfit/mood/lighting. Returns job IDs. |
+| `aurora_animate_from_driving_video` | queued | 5 | MimicMotion / pose transfer onto a still. Needs a `motion`-capable GPU worker. |
+| `aurora_performance_reskin` | queued | 8 | Reskin a real performance video onto an avatar (+ optional lip-sync). Needs a `motion` worker. |
+| `aurora_generate_ugc_ad` | queued | 8 | Talking UGC ad for a persona: script → voice → still → i2v → lip-sync. Returns a job ID. |
+| `aurora_generate_campaign` | queued | 6 / set | N matched image+video sets from one prompt template. Returns job IDs. |
+| `aurora_get_job_status` | — | 0 | Status + output URL for a queued job or past generation. |
+| `aurora_list_avatars` | — | 0 | List the caller's personas. |
+| `aurora_create_avatar` | — | 0 | Create a persona (optional HeyGen/Sync LoRA training). |
+
+The motion/reskin tools fail loudly (no credits reserved) when no `motion`-capable
+GPU worker is connected. Identity is locked across shots: persona-driven tools
+pass the avatar's reference image to the model, never the trigger word alone.
 
 ## Auth
 
