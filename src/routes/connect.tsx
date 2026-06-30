@@ -40,12 +40,12 @@ const SETUP = [
   {
     icon: <KeyRound className="size-4" />,
     title: "Get your API key",
-    body: "Create a personal key below (or in your dashboard). Claude Desktop and Cursor use it to authenticate; on claude.ai the one-click consent flow handles this for you.",
+    body: "Create a personal key below (or in your dashboard). Claude Desktop and Cursor authenticate with it via a Bearer token.",
   },
   {
     icon: <Plug className="size-4" />,
     title: "Add the connector",
-    body: "Point your MCP client at the Aurora server URL and paste your key. It registers all 10 Aurora tools instantly.",
+    body: "In Claude Desktop or Cursor, add the Aurora server URL as a custom MCP server with an Authorization: Bearer <key> header. It registers all 10 Aurora tools instantly.",
   },
   {
     icon: <MessageSquare className="size-4" />,
@@ -57,7 +57,7 @@ const SETUP = [
 const FAQ = [
   {
     q: "Which clients can connect?",
-    a: "Any MCP client — claude.ai custom connectors, Claude Desktop, and Cursor. claude.ai uses a one-click consent flow; desktop clients use the server URL plus a personal API key.",
+    a: "Any MCP client that authenticates with a Bearer token — Claude Desktop and Cursor are the tested ones. Point them at the Aurora server URL and add an Authorization: Bearer <key> header. (claude.ai web custom connectors require an OAuth flow, which isn't enabled yet.)",
   },
   {
     q: "What can Claude do once connected?",
@@ -68,8 +68,8 @@ const FAQ = [
     a: "Name an avatar and describe the product — Aurora writes the script, voices it, generates a still, animates it, and lip-syncs, all async. You get a job ID to track. Voice and lip-sync apply when those models are configured; otherwise you get a silent animated clip.",
   },
   {
-    q: "Do I need to paste API keys on claude.ai?",
-    a: "No. On claude.ai you approve a one-click consent prompt — no keys to paste. API keys are only needed for desktop MCP clients like Claude Desktop and Cursor.",
+    q: "How do I authenticate?",
+    a: "Create a personal aurk_ API key below and pass it as an Authorization: Bearer <key> header from your MCP client (Claude Desktop or Cursor). A Supabase session JWT works too. Keep your key secret — anyone with it can spend your credits.",
   },
 ];
 
@@ -234,7 +234,7 @@ function ConnectPage() {
               </button>
             </div>
             <p className="mt-3 text-xs text-white/45">
-              On claude.ai, approve the one-click consent prompt — no key needed. Desktop clients pair this URL with a personal API key.
+              Pair this URL with an Authorization: Bearer &lt;key&gt; header in Claude Desktop or Cursor. (claude.ai web connectors need OAuth, which isn't enabled yet.)
             </p>
           </div>
 
