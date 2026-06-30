@@ -17,6 +17,7 @@ import { generatePerformanceShot, listGenerations, generateVideoFromImage, lipSy
 import { handleGenerationError } from "@/lib/error-toasts";
 import { getMyProfile, createPaystackCheckout } from "@/lib/billing.functions";
 import { PLANS } from "@/lib/billing.plans";
+import { computeCost } from "@/lib/pricing";
 import { detectCurrency } from "@/lib/geo.functions";
 import demoSelfie from "@/assets/demo-selfie.jpg";
 import { RECIPES } from "@/lib/tutorials";
@@ -108,6 +109,17 @@ function StudioPage() {
   const [videoPrompt, setVideoPrompt] = useState("subject performing and singing expressively, natural body movement, camera locked");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [lipsyncModel, setLipsyncModel] = useState<"fal-ai/sync-lipsync/v2" | "fal-ai/wav2lip" | "latentsync">("fal-ai/sync-lipsync/v2");
+
+  // Tiered cost previews — must mirror the server charge exactly (same computeCost,
+  // same fixed 5s / 720p the mutations send). Premium models retier the price live.
+  const videoCost = useMemo(
+    () => computeCost({ features: ["video"], model: videoModel, durationSeconds: 5, resolution: "720p" }).total,
+    [videoModel],
+  );
+  const lipsyncCost = useMemo(
+    () => computeCost({ features: ["lipsync"], model: lipsyncModel }).total,
+    [lipsyncModel],
+  );
 
   const [onboardOpen, setOnboardOpen] = useState(false);
 
@@ -767,14 +779,14 @@ function StudioPage() {
               <div className="flex items-center justify-between text-xs text-muted-foreground rounded-xl border border-border bg-background/40 px-3 py-2">
                 <span className="inline-flex items-center gap-1.5">
                   <Zap className="size-3.5 text-primary" />
-                  Cost: <span className="text-foreground font-medium">5 Aura</span>
+                  Cost: <span className="text-foreground font-medium">{videoCost} Aura</span>
                   <span className="opacity-50">·</span>
                   ETA: <span className="text-foreground font-medium">~60–180s</span>
                 </span>
                 <span className="opacity-70">{getModelMeta(videoModel).short}</span>
               </div>
               <Button disabled={videoMut.isPending} onClick={() => videoMut.mutate()} variant="secondary" className="w-full">
-                {videoMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Rendering video…</> : <><Film className="size-4 mr-2" /> Generate video · 5 Aura</>}
+                {videoMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Rendering video…</> : <><Film className="size-4 mr-2" /> Generate video · {videoCost} Aura</>}
               </Button>
 
               {latestVideo?.result_video_url && (
@@ -819,7 +831,7 @@ function StudioPage() {
                 onChange={setAudioUrl}
               />
               <Button disabled={lipSyncMut.isPending || !audioUrl} onClick={() => lipSyncMut.mutate()} variant="secondary" className="w-full">
-                {lipSyncMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Syncing lips…</> : <><Mic2 className="size-4 mr-2" /> Lip sync video · 3 Aura</>}
+                {lipSyncMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Syncing lips…</> : <><Mic2 className="size-4 mr-2" /> Lip sync video · {lipsyncCost} Aura</>}
               </Button>
             </div>
           )}
@@ -833,7 +845,7 @@ function StudioPage() {
               <Coins className="size-4 text-primary" />
               <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Buy Aura</h3>
             </div>
-            <p className="text-xs text-muted-foreground">1 Aura per image · 5 per video · 3 per lip-sync. Secure checkout via Paystack.</p>
+            <p className="text-xs text-muted-foreground">1 Aura per image · video &amp; lip-sync priced by model (budget from 3–5). Secure checkout via Paystack.</p>
             <div className="grid grid-cols-3 gap-2">
               {(Object.keys(PLANS) as Array<"starter" | "creator" | "studio">).map((k) => {
                 const p = PLANS[k];

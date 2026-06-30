@@ -30,6 +30,22 @@ stray audio URL alone, must NOT add a billable feature. Add-ons only fire on exp
 `motion` when a camera-control preset is supplied to a video; `lipsync` only for an unambiguous
 audio+video pair on a non-lipsync primary.
 
+## There are TWO charge paths for video/lip-sync — reprice BOTH
+**Why:** the AI Router (`orchestrate` server fn + `/api/public/generate`) is NOT the only
+place credits are charged. The Studio surface (`src/lib/studio.functions.ts` →
+`generateVideoFromImage`, `lipSyncVideo`, used by `studio.tsx` and `motion.tsx`) is a
+SEPARATE charge path that historically used flat `COST_VIDEO`/`COST_LIPSYNC` constants and
+silently bypassed model tiering — so premium models picked in the Studio/Motion pickers were
+undercharged.
+**How to apply:** any change to video/lip-sync pricing must thread the chosen `model` into
+`computeCost()` in BOTH paths. In studio.functions.ts the CHARGE and the failure REFUND must
+call `computeCost` with identical params (video: model+duration+resolution; lipsync: model)
+or a failed render under/over-refunds. The UI previews (`studio.tsx` videoCost/lipsyncCost,
+`motion.tsx` animateCost) must call computeCost with the SAME fixed params the server fn uses
+(Studio/Motion animate run video at 5s/720p) so preview == charge. `pricing.test.ts` has a
+picker-parity guard: every model in `VIDEO_MODEL_LIST`/`LIPSYNC_MODEL_LIST` must exist in the
+tier maps, so a new picker option can't silently fall through to the default tier.
+
 ## Override must be additive — never a credit bypass
 **Why:** a caller-supplied `features[]` that REPLACES the primary kind lets someone submit
 `kind:"video", features:["image"]` and reserve 1 Aura while running a video — a real billing
