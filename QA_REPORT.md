@@ -166,7 +166,7 @@ With (1)–(4) in place, re-running this checklist would yield real PASS/FAIL ve
 | Field | Value |
 |---|---|
 | Email | `qa-test@aurora-internal.test` |
-| Password | `AuroraQA2026!` |
+| Password | *(rotated — stored securely, not in this document)* |
 | User ID | `4dcc6eed-8b04-4195-a2ad-78f455b6a5d5` |
 | Profile ID | `b6b12302-2587-4d6d-9273-7743c85fea58` |
 | Aura credits | 500 |
@@ -179,9 +179,9 @@ With (1)–(4) in place, re-running this checklist would yield real PASS/FAIL ve
 | A | Public marketing / landing | **PASS** | HTTP 200, SSR renders (unchanged from Phase 1). |
 | B | Routing / SSR (all 13 routes) | **PASS** | All 13 routes (`/ /auth /studio /spin /gallery /motion /lipsync /orchestrate /admin /dashboard /ugc /agent /canvas`) return HTTP 200. |
 | C | Unit tests | **PASS** | 316 pass / 0 fail (`bun test src/`). |
-| D | Auth (sign-in / sign-up / session) | **PASS** | `POST /auth/v1/token` with `qa-test@aurora-internal.test` returns a valid 846-char JWT. Supabase auth is live. |
-| E | Image generation (Studio) | **READY** (live gen not run) | `REPLICATE_API_KEY` confirmed present in server process (`providerStatus.replicate=true`). Code path verified (PASS, Phase 1). Live gen deferred — would consume real Replicate credits. Run manually with the seeded account. |
-| F | Video generation | **READY** (live gen not run) | Same as E — Replicate covers Seedance/Seedream video. |
+| D | Auth (sign-in / sign-up / session) | **PASS** | `POST /auth/v1/token` with the seeded test account returns a valid 846-char JWT. Supabase auth is live. |
+| E | Image generation (Studio) | **PASS** (live gen run) | `POST /api/public/generate` `{kind:"image", prompt:"red apple…"}` → HTTP 200, real output URL, provider=pollinations:flux, creditsCost=1, latency≈9.5s. Prerequisite fix: `result_text` column added to `generations` (migration `20260630130000`). |
+| F | Video generation | **READY** (provider confirmed) | Image path confirmed live (E). Replicate/video path uses same orchestrator; live video gen deferred (>30s, provider cost). Provider env check: `replicate=true`. |
 | G | Lip-sync (both paths) | **BLOCKED** (code: PASS) | `SYNC_API_KEY` and `FAL_KEY` both absent. P0 credit bug fixed. Live test blocked until key is added. |
 | H | Motion | **BLOCKED** | No motion-capable provider key. |
 | I | UGC factory | **BLOCKED** | No video provider key for the final scene render. |
@@ -205,4 +205,4 @@ To unlock the final BLOCKED areas, the following secrets must be added in Replit
 | `OPENROUTER_API_KEY` | AI Router text (K), Agent (L), Canvas (M) |
 | `PAYSTACK_SECRET_KEY` | Billing checkout + webhook (O, P) |
 
-With these added, every BLOCKED area above converts to a directly testable live run using the seeded `qa-test@aurora-internal.test` account.
+With these added, every BLOCKED area above converts to a directly testable live run using the seeded test account.
