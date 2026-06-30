@@ -303,6 +303,9 @@ function Index() {
       {/* 0. Viral engine — TikTok hook moved to the very top */}
       <ViralEngine />
 
+      {/* Colors Studio showcase — interactive swatch switcher */}
+      <ColorsTeaser />
+
       {/* 0b. TikTok marketing section */}
       <TikTokSection />
 
@@ -323,9 +326,6 @@ function Index() {
 
       {/* 6. Canvas + finished workflows + UGC Factory */}
       <CanvasWorkflowShowcase />
-
-      {/* 6b. Colors Studio teaser */}
-      <ColorsTeaser />
 
       {/* 7. Trust + Why us */}
       <TrustBar />
