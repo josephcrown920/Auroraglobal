@@ -2,6 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { probeWorkerHealth } from "@/lib/gpu-worker-health";
+import {
+  isFreeGpuOnlyMode,
+  setFreeGpuOnlyMode,
+  freeGpuOnlyEnvDefault,
+} from "@/lib/app-settings.server";
 import { z } from "zod";
 
 async function assertAdmin(userId: string) {
@@ -106,4 +111,24 @@ export const setWorkerStatus = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     if (!count) throw new Error(`Worker ${data.id} not found`);
     return { ok: true, id: data.id, status: data.status };
+  });
+
+// "Free GPU only" global safety mode — read the current value (with the env
+// default surfaced so the admin UI can show where the default comes from).
+export const getFreeGpuMode = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
+    return { enabled: await isFreeGpuOnlyMode(), envDefault: freeGpuOnlyEnvDefault() };
+  });
+
+// Toggle the global "Free GPU only" mode. When ON, the orchestrator never calls a
+// paid provider for any modality.
+export const setFreeGpuMode = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ enabled: z.boolean() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    await setFreeGpuOnlyMode(data.enabled);
+    return { ok: true, enabled: data.enabled };
   });

@@ -5,10 +5,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { adminOverview, adminGrantCredits, adminEarnings } from "@/lib/admin.functions";
-import { listWorkers, upsertWorker, deleteWorker, pingWorker, setWorkerStatus } from "@/lib/workers.functions";
+import { listWorkers, upsertWorker, deleteWorker, pingWorker, setWorkerStatus, getFreeGpuMode, setFreeGpuMode } from "@/lib/workers.functions";
 import { PROFIT_SPLIT_PCT } from "@/lib/profit-split";
 import { ModelBadge } from "@/components/ModelBadge";
-import { Shield, Sparkles, Loader2, Users, DollarSign, ImagePlay, Coins, ArrowRight, Server, Trash2, Activity, TrendingUp, Gift, Pause, Play } from "lucide-react";
+import { Shield, Sparkles, Loader2, Users, DollarSign, ImagePlay, Coins, ArrowRight, Server, Trash2, Activity, TrendingUp, Gift, Pause, Play, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -450,8 +450,19 @@ function WorkersPanel() {
   const delFn = useServerFn(deleteWorker);
   const pingFn = useServerFn(pingWorker);
   const statusFn = useServerFn(setWorkerStatus);
+  const freeModeFn = useServerFn(getFreeGpuMode);
+  const setFreeModeFn = useServerFn(setFreeGpuMode);
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ["workers"], queryFn: () => listFn() });
+  const { data: freeMode } = useQuery({ queryKey: ["free-gpu-mode"], queryFn: () => freeModeFn() });
+  const freeModeMut = useMutation({
+    mutationFn: async (enabled: boolean) => setFreeModeFn({ data: { enabled } }),
+    onSuccess: (r) => {
+      toast.success(r.enabled ? "Free GPU only mode ON — paid providers disabled" : "Free GPU only mode OFF — paid fallback enabled");
+      qc.invalidateQueries({ queryKey: ["free-gpu-mode"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
   const blank = { 
     name: "", endpoint_url: "", auth_token: "", region: "global", 
     capabilities: "image,video", priority: 100, max_concurrency: 4, 
@@ -463,6 +474,28 @@ function WorkersPanel() {
   const reset = () => setForm(blank);
   return (
     <div className="space-y-6">
+      <section className={`rounded-2xl border p-5 space-y-2 ${freeMode?.enabled ? "border-emerald-500/40 bg-emerald-500/5" : "border-border bg-card/40"}`}>
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <Zap className={`size-4 ${freeMode?.enabled ? "text-emerald-500" : "text-muted-foreground"}`} />
+            <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Free GPU only mode</h2>
+          </div>
+          <Button
+            size="sm"
+            variant={freeMode?.enabled ? "default" : "outline"}
+            disabled={!freeMode || freeModeMut.isPending}
+            onClick={() => freeModeMut.mutate(!freeMode?.enabled)}
+          >
+            {freeModeMut.isPending ? <Loader2 className="size-4 animate-spin" /> : freeMode?.enabled ? "ON — turn off" : "OFF — turn on"}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {freeMode?.enabled
+            ? "Generations run ONLY on your self-hosted GPU workers plus free ($0) providers (e.g. Pollinations). All paid APIs (Replicate, Kling, HeyGen, Fal, Runway, Lovable, ElevenLabs) are skipped — they can never bill. If no free worker is online for video/lip-sync/motion, the request fails fast with no spend."
+            : "Off — self-hosted GPU is preferred first, with paid APIs as automatic fallback (today's behavior). Turn on to guarantee no paid spend."}
+          {freeMode ? ` Default from FREE_GPU_ONLY env: ${freeMode.envDefault ? "on" : "off"}.` : ""}
+        </p>
+      </section>
       <section className="rounded-2xl border border-border bg-card/40 p-5 space-y-3">
         <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2"><Server className="size-4" /> Register GPU worker</h2>
         <div className="grid sm:grid-cols-2 gap-2">
