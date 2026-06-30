@@ -58,3 +58,8 @@ attached_assets/Collab_inference*.zip
 attached_assets/Latentsync_export*.zip
 attached_assets/PerformAnywhereExport*.zip
 attached_assets/Motion_transfer_studio*.zip
+# Catch-all: never commit zip archives — uploads/exports belong in Object Storage,
+# not in git (they bloat the repo and exceed GitHub's 100 MB limit).
+attached_assets/*.zip
+notebooks/*.zip
+*.zip
