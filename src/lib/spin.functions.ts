@@ -1,6 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireSupabaseAuth, isAdmin } from "@/integrations/supabase/auth-middleware";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { z } from "zod";
+
+// 1 Aura per spin piece — matches COST_IMAGE in studio.functions.ts.
+// Charged upfront for all SPIN_PIECES.length pieces before the job is created.
+const COST_SPIN_PIECE = 1;
 
 export const SPIN_PIECES = [
   "9:16 TikTok hook", "Reels cold-open", "YouTube Short", "X video post",
@@ -18,18 +23,61 @@ export const spinThirty = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ prompt: z.string().min(1).max(2000) }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+
+    // Charge credits upfront for every piece in the batch. Atomic deduct_credits
+    // prevents a double-spend even under parallel requests (single SQL UPDATE with
+    // WHERE credits >= _amount RETURNING). Mirrored from chargeCredits in
+    // studio.functions.ts. Charged before job creation so a failed charge never
+    // leaves a dangling job row consuming quota silently.
+    // Admins bypass the charge entirely — consistent with all other charge points.
+    const spinCost = SPIN_PIECES.length * COST_SPIN_PIECE;
+    const creditRef = crypto.randomUUID();
+    const adminUser = await isAdmin(userId);
+    if (!adminUser) {
+      const { data: charged, error: creditErr } = await supabaseAdmin.rpc("deduct_credits", {
+        _user: userId,
+        _amount: spinCost,
+        _reason: "spin_batch",
+        _ref: creditRef,
+      });
+      if (creditErr) throw new Error(creditErr.message);
+      if (charged === false) throw new Error("Not enough Aura. Buy more from the Aura panel.");
+    }
+
     const { data: job, error } = await supabase
       .from("spin_jobs")
       .insert({ user_id: userId, prompt: data.prompt, total: SPIN_PIECES.length, status: "running" })
       .select("id")
       .single();
-    if (error || !job) throw new Error(error?.message ?? "Failed to create spin job");
+    if (error || !job) {
+      // Refund: job creation failed after charging — give credits back (admins were never charged).
+      if (!adminUser) {
+        await supabaseAdmin.rpc("grant_credits", {
+          _user: userId,
+          _amount: spinCost,
+          _reason: "refund_failed_generation",
+          _ref: creditRef,
+        });
+      }
+      throw new Error(error?.message ?? "Failed to create spin job");
+    }
 
     const rows = SPIN_PIECES.map((label, idx) => ({
       job_id: job.id, user_id: userId, idx, label, status: "queued" as const,
     }));
     const { error: vErr } = await supabase.from("spin_variants").insert(rows);
-    if (vErr) throw new Error(vErr.message);
+    if (vErr) {
+      // Refund: variant insertion failed after charging — give credits back (admins were never charged).
+      if (!adminUser) {
+        await supabaseAdmin.rpc("grant_credits", {
+          _user: userId,
+          _amount: spinCost,
+          _reason: "refund_failed_generation",
+          _ref: creditRef,
+        });
+      }
+      throw new Error(vErr.message);
+    }
     return { jobId: job.id as string };
   });
 
