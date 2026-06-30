@@ -160,6 +160,7 @@ export const Route = createFileRoute("/api/public/generate")({
             features,
             resolution: data.resolution,
             durationSeconds: data.duration,
+            model: data.model,
           });
 
           // Reserve credits → orchestrate → record → commit (shared core; also

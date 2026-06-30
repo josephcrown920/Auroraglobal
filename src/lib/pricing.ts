@@ -7,6 +7,10 @@
 // Model (Kling/Runway-inspired, all values in Aura credits):
 //   • Each active feature has a base cost. A request that stacks features is
 //     charged the SUM of every active feature (not one flat fee).
+//   • Video and lip-sync are MODEL-TIERED: the base cost is set by the chosen
+//     model's price tier (Budget / Standard / Premium / Ultra), so a premium
+//     model costs the Aura its real provider cost warrants while a cheap /
+//     self-hosted model keeps its historical low price. See MODEL_TIERS below.
 //   • Resolution scales the resolution-bearing visual output.
 //   • Length scales time-based features (video / lip-sync / motion).
 //   • Per-feature subtotal = base × resolutionFactor × lengthFactor (kept exact);
@@ -15,6 +19,8 @@
 //
 // This file is intentionally dependency-free (no server imports) so the client
 // UI can import `computeCost`/`detectFeatures` directly for an instant preview.
+// The model→tier table is therefore duplicated here (kept in sync with the
+// server's MODEL_REGISTRY costs by pricing.test.ts) rather than imported.
 
 export type Feature = "image" | "upscale" | "text" | "audio" | "lipsync" | "motion" | "video";
 export type Resolution = "480p" | "720p" | "1080p";
@@ -54,6 +60,89 @@ export const PRICING = {
   /** Used when a request omits resolution. */
   defaultResolution: "720p" as Resolution,
 } as const;
+
+// ─── Model-tiered pricing for video & lip-sync ───────────────────────────────
+//
+// Video and lip-sync provider cost swings wildly by model, but only the ~40%
+// "credit-funding" pool (≈ $0.047 per Aura sold) is meant to cover provider
+// cost. A flat price would lose money on premium models. So each video/lip-sync
+// model is placed in a price tier sized so `tierAura × $0.047` comfortably
+// exceeds that model's real provider cost (incl. a buffer for retries/fallback).
+//
+// Tiers (Aura at the 5s / 720p reference; resolution + length multipliers stack
+// ON TOP, exactly as for the flat prices). These are EDITABLE defaults — the
+// owner can retune them without touching any pricing logic.
+//
+//   Tier      Video  Lip-sync   covers provider cost up to (≈ tierAura×$0.047)
+//   Budget        5         3     video ≤ $0.23 / lipsync ≤ $0.14  (self-hosted, Seedance Lite)
+//   Standard     10         6     video ≤ $0.47 / lipsync ≤ $0.28  (Kling direct, wav2lip)
+//   Premium      16         9     video ≤ $0.75 / lipsync ≤ $0.42  (Wan, Runway, Veo Fast, Sora, Sync.so, Fal)
+//   Ultra        24        10     video ≤ $1.13 / lipsync ≤ $0.47  (Seedance Pro, Kling Omni, Veo 3, HeyGen)
+export type ModelTier = "budget" | "standard" | "premium" | "ultra";
+
+export const VIDEO_TIER_AURA: Record<ModelTier, number> = {
+  budget: 5,
+  standard: 10,
+  premium: 16,
+  ultra: 24,
+};
+
+export const LIPSYNC_TIER_AURA: Record<ModelTier, number> = {
+  budget: 3,
+  standard: 6,
+  premium: 9,
+  ultra: 10,
+};
+
+// Model → tier. Derived from the server MODEL_REGISTRY per-model `cost` (USD per
+// reference clip); pricing.test.ts asserts each model sits in a tier whose pool
+// covers its registry cost, so this table can't silently drift below margin.
+export const VIDEO_MODEL_TIERS: Record<string, ModelTier> = {
+  "seedance-2.0-fast": "budget", // $0.05
+  "kling-v1": "standard", // $0.30
+  "veo-3-fast": "premium", // $0.40
+  "runway/gen3a-turbo": "premium", // $0.40
+  "runway/gen4-turbo": "premium", // $0.50
+  "fal-fallback/kling-video": "premium", // $0.40
+  "wan-2.5": "premium", // $0.45
+  "sora-2": "premium", // $0.50
+  "seedance-2.0": "ultra", // $0.65
+  "kling-3.0": "ultra", // $0.60
+  "kling-3.0-omni": "ultra", // $0.70
+  "veo-3": "ultra", // $0.75
+};
+
+export const LIPSYNC_MODEL_TIERS: Record<string, ModelTier> = {
+  latentsync: "budget", // $0.01 (self-hosted)
+  "fal-ai/wav2lip": "standard", // $0.10
+  "sync/lipsync-2": "premium", // $0.25
+  "fal-ai/sync-lipsync/v2": "premium", // $0.30
+  "fal-fallback/sync-lipsync": "premium", // $0.30
+  "heygen/lipsync": "ultra", // $0.40
+};
+
+// When a request omits the model, fall back to the tier of the model the
+// orchestrator ACTUALLY runs first for that kind (FALLBACK_MODELS[kind][0]):
+//   • video   → seedance-2.0-fast (budget) — cheap default, also keeps the
+//     historical flat video price of 5 Aura for legacy/unspecified requests.
+//   • lipsync → fal-ai/sync-lipsync/v2 (premium) — the real default lip-sync
+//     model costs $0.30, so the default tier MUST cover it or every unspecified
+//     lip-sync would lose money.
+export const DEFAULT_VIDEO_TIER: ModelTier = "budget";
+export const DEFAULT_LIPSYNC_TIER: ModelTier = "premium";
+
+/** Resolve a video/lip-sync model to its price tier (default tier if unknown). */
+export function tierForModel(feature: "video" | "lipsync", model: string | null | undefined): ModelTier {
+  if (feature === "video") return (model ? VIDEO_MODEL_TIERS[model] : undefined) ?? DEFAULT_VIDEO_TIER;
+  return (model ? LIPSYNC_MODEL_TIERS[model] : undefined) ?? DEFAULT_LIPSYNC_TIER;
+}
+
+/** The per-feature base cost, model-tiered for video/lip-sync. */
+function baseFor(feature: Feature, model: string | null | undefined): number {
+  if (feature === "video") return VIDEO_TIER_AURA[tierForModel("video", model)];
+  if (feature === "lipsync") return LIPSYNC_TIER_AURA[tierForModel("lipsync", model)];
+  return PRICING.base[feature];
+}
 
 // Time-based features whose price scales with length.
 const LENGTH_FEATURES: ReadonlySet<Feature> = new Set<Feature>(["video", "lipsync", "motion"]);
@@ -96,6 +185,8 @@ export function computeCost(input: {
   features: Feature[];
   resolution?: Resolution | null;
   durationSeconds?: number | null;
+  /** Chosen model — tiers the video/lip-sync base. Falls back to the default tier. */
+  model?: string | null;
 }): CostQuote {
   const resolution = input.resolution ?? PRICING.defaultResolution;
   const durationSeconds =
@@ -111,7 +202,7 @@ export function computeCost(input: {
   const hasTemporalOutput = active.some((f) => TEMPORAL_OUTPUTS.has(f));
 
   const breakdown: CostLineItem[] = active.map((feature) => {
-    const base = PRICING.base[feature];
+    const base = baseFor(feature, input.model);
     const resolutionFactor = resolutionApplies(feature, hasTemporalOutput) ? resMult : 1;
     const lengthFactor = LENGTH_FEATURES.has(feature) ? lenMult : 1;
     return {
