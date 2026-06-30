@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import { orchestrate, hasActiveWorkerForKind } from "./orchestrator.server";
+import { orchestrate, hasActiveWorkerForKind, assertFreeModeServable } from "./orchestrator.server";
 import { buildLatentSyncRequest } from "./lipsync-workflows.server";
 import { fetchToBytes } from "./replicate.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -203,6 +203,9 @@ export const generateVideoFromImage = createServerFn({ method: "POST" })
       .select()
       .single();
     if (insErr || !row) throw new Error(insErr?.message || "Insert failed");
+    // Free GPU only mode: video has no $0 hosted fallback, so fail before charging
+    // credits if no free worker is online (no paid provider can ever be reached).
+    await assertFreeModeServable("video");
     await chargeCredits(userId, COST_VIDEO, "video_generation", row.id);
     try {
       const out = await orchestrate({
@@ -345,6 +348,9 @@ export const lipSyncVideo = createServerFn({ method: "POST" })
       .select()
       .single();
     if (insErr || !row) throw new Error(insErr?.message || "Insert failed");
+    // Free GPU only mode: lip-sync has no $0 hosted fallback, so a hosted engine
+    // can't run for free — fail before charging credits unless a worker is online.
+    await assertFreeModeServable("lipsync");
     await chargeCredits(userId, COST_LIPSYNC, "lipsync", row.id);
     try {
       // Self-hosted LatentSync carries a ComfyUI graph + flat params so it runs

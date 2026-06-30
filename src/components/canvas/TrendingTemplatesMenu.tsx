@@ -18,7 +18,7 @@ const COLORS_PRESET_PROMPT =
   "Full-body editorial portrait of the subject standing centered on a seamless royal-blue cyclorama. Monochromatic blue ambient light wrapping the body, soft rim light from camera-left, deep cyan shadow falloff, faint smoke. Outfit recolored to complementary cobalt. Preserve exact facial likeness. Shot on 35mm, 4K, fashion campaign quality.";
 
 const LIPSYNC_PRESET_IMG_PROMPT =
-  "Cinematic concert performance shot of the subject mid-vocal, mouth slightly open, vintage SM7B mic on boom in foreground, deep magenta + violet stage haze, anamorphic flares, shallow depth of field, sweat-glow on skin, 35mm.";
+  "Portrait of the subject mid-vocal, mouth slightly open, vintage SM7B mic on boom in foreground, soft studio lighting, shallow depth of field, photorealistic, 4K.";
 
 // "One avatar, many shots" — every shot fans out from the SAME reference and is
 // locked to that identity, so one face renders into a whole consistent set.
@@ -182,7 +182,7 @@ const TEMPLATES: TemplateDef[] = [
     category: "Music & Lip-sync",
     build: () => ({
       name: "Selfie → Concert Lip-sync",
-      nodes: [mk("in", "input", 40, 60), mk("aud", "audio", 40, 380), mk("img", "image", 380, 60, { prompt: "Cinematic concert performance, stage lights" }), mk("lip", "lipsync", 720, 220)],
+      nodes: [mk("in", "input", 40, 60), mk("aud", "audio", 40, 380), mk("img", "image", 380, 60, { prompt: "Subject performing on stage, dramatic spotlights, photorealistic" }), mk("lip", "lipsync", 720, 220)],
       edges: [ed("in", "img"), ed("img", "lip"), ed("aud", "lip")],
     }),
   },

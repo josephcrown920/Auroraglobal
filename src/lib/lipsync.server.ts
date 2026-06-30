@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { orchestrate, hasActiveWorkerForKind } from "./orchestrator.server";
+import { orchestrate, hasActiveWorkerForKind, assertFreeModeServable } from "./orchestrator.server";
 import { buildLatentSyncRequest } from "./lipsync-workflows.server";
 
 export type Engine = "sync-v2" | "wav2lip" | "latentsync";
@@ -27,6 +27,9 @@ export async function runLipsyncJob(opts: {
       "No self-hosted LatentSync worker is online. Register a GPU worker with the 'lipsync' capability in Admin → Workers, or pick the Studio/Fast engine.",
     );
   }
+  // Free GPU only mode: lip-sync has no $0 hosted fallback — fail fast (before any
+  // job row) when no free worker is online, since no paid engine can be reached.
+  await assertFreeModeServable("lipsync");
 
   const { data: row, error: insertErr } = await supabaseAdmin
     .from("lipsync_jobs")
