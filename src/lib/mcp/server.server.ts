@@ -16,7 +16,9 @@ import {
   performanceReskinSchema, performanceReskinTool,
   ugcAdSchema, generateUgcAdTool,
   campaignSchema, generateCampaignTool,
+  defaultToolDeps,
   type ToolCtx,
+  type ToolDeps,
 } from "./tools.server";
 
 interface ToolDef {
@@ -133,29 +135,88 @@ export function listTools(): { tools: Array<{ name: string; description: string;
   };
 }
 
-export async function callTool(name: string, args: unknown, ctx: ToolCtx): Promise<ToolResult> {
+export async function callTool(name: string, args: unknown, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
   switch (name) {
     case "aurora_generate_video":
-      return generateVideoTool(generateVideoSchema.parse(args), ctx);
+      return generateVideoTool(generateVideoSchema.parse(args), ctx, deps);
     case "aurora_bulk_generate":
-      return bulkGenerateTool(bulkGenerateSchema.parse(args), ctx);
+      return bulkGenerateTool(bulkGenerateSchema.parse(args), ctx, deps);
     case "aurora_image_to_video":
-      return imageToVideoTool(imageToVideoSchema.parse(args), ctx);
+      return imageToVideoTool(imageToVideoSchema.parse(args), ctx, deps);
     case "aurora_list_avatars":
-      return listAvatarsTool(listAvatarsSchema.parse(args), ctx);
+      return listAvatarsTool(listAvatarsSchema.parse(args), ctx, deps);
     case "aurora_get_job_status":
-      return getJobStatusTool(getJobStatusSchema.parse(args), ctx);
+      return getJobStatusTool(getJobStatusSchema.parse(args), ctx, deps);
     case "aurora_create_avatar":
-      return createAvatarTool(createAvatarSchema.parse(args), ctx);
+      return createAvatarTool(createAvatarSchema.parse(args), ctx, deps);
     case "aurora_animate_from_driving_video":
-      return animateFromDrivingVideoTool(animateFromDrivingVideoSchema.parse(args), ctx);
+      return animateFromDrivingVideoTool(animateFromDrivingVideoSchema.parse(args), ctx, deps);
     case "aurora_performance_reskin":
-      return performanceReskinTool(performanceReskinSchema.parse(args), ctx);
+      return performanceReskinTool(performanceReskinSchema.parse(args), ctx, deps);
     case "aurora_generate_ugc_ad":
-      return generateUgcAdTool(ugcAdSchema.parse(args), ctx);
+      return generateUgcAdTool(ugcAdSchema.parse(args), ctx, deps);
     case "aurora_generate_campaign":
-      return generateCampaignTool(campaignSchema.parse(args), ctx);
+      return generateCampaignTool(campaignSchema.parse(args), ctx, deps);
     default:
       return { content: [{ type: "text", text: JSON.stringify({ error: `Unknown tool: ${name}` }) }], isError: true };
+  }
+}
+
+// ─── JSON-RPC message handling (transport-agnostic; route plumbing in api/mcp.ts) ─
+// Kept here, not in the route file, so the protocol handshake + dispatch + auth
+// gate can be unit-tested without TanStack route machinery.
+
+export const PROTOCOL_VERSION = "2024-11-05";
+export const SERVER_INFO = { name: "aurora-mcp", version: "1.0.0" };
+
+export type RpcMessage = { jsonrpc?: string; id?: string | number | null; method?: string; params?: any };
+export type RpcAuth = { userId: string | null; bearer: string | null };
+
+function rpcResult(id: RpcMessage["id"], r: unknown) {
+  return { jsonrpc: "2.0", id, result: r };
+}
+function rpcError(id: RpcMessage["id"], code: number, message: string) {
+  return { jsonrpc: "2.0", id, error: { code, message } };
+}
+
+export async function handleRpcMessage(
+  msg: RpcMessage,
+  auth: RpcAuth,
+  origin: string,
+  deps: ToolDeps = defaultToolDeps,
+): Promise<object | null> {
+  const { method, id, params } = msg;
+  switch (method) {
+    case "initialize":
+      return rpcResult(id, {
+        protocolVersion: params?.protocolVersion || PROTOCOL_VERSION,
+        capabilities: { tools: {} },
+        serverInfo: SERVER_INFO,
+      });
+    case "notifications/initialized":
+    case "initialized":
+      return null; // notification — no response
+    case "ping":
+      return rpcResult(id, {});
+    case "tools/list":
+      return rpcResult(id, listTools());
+    case "tools/call": {
+      if (!auth.userId || !auth.bearer) {
+        return rpcError(id, -32001, "Unauthorized: provide Authorization: Bearer <Supabase JWT or aurk_ API key>");
+      }
+      const name = params?.name as string;
+      const args = params?.arguments ?? {};
+      try {
+        const toolResult = await callTool(name, args, { userId: auth.userId, bearer: auth.bearer, origin }, deps);
+        return rpcResult(id, toolResult);
+      } catch (e) {
+        // Surface tool/validation failures as an MCP tool error result, not a transport error.
+        const text = JSON.stringify({ error: e instanceof Error ? e.message : String(e) });
+        return rpcResult(id, { content: [{ type: "text", text }], isError: true });
+      }
+    }
+    default:
+      if (id === undefined || id === null) return null; // unknown notification
+      return rpcError(id, -32601, `Method not found: ${method}`);
   }
 }

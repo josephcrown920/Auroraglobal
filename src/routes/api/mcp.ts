@@ -3,16 +3,15 @@
 // plain JSON-RPC handler (no @modelcontextprotocol/sdk, which is Node-only and
 // won't run on Cloudflare Workers). Discovery (initialize / tools/list / ping)
 // is open; tools/call requires a Bearer token (Supabase JWT or aurk_ API key),
-// the same auth used by /api/public/generate.
+// the same auth used by /api/public/generate. The JSON-RPC message handler lives
+// in src/lib/mcp/server.server.ts so it can be unit-tested without route plumbing.
 //
-// Configure in an MCP client (e.g. Claude) as a remote/HTTP MCP server pointing
-// at https://<your-domain>/api/mcp with an Authorization: Bearer <token> header.
+// Configure in a Bearer-token MCP client (e.g. Claude Desktop / Cursor) as a
+// remote/HTTP MCP server pointing at https://<your-domain>/api/mcp with an
+// Authorization: Bearer <token> header.
 
 import { createFileRoute } from "@tanstack/react-router";
-import { listTools, callTool } from "@/lib/mcp/server.server";
-
-const PROTOCOL_VERSION = "2024-11-05";
-const SERVER_INFO = { name: "aurora-mcp", version: "1.0.0" };
+import { handleRpcMessage, SERVER_INFO, type RpcMessage } from "@/lib/mcp/server.server";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -20,6 +19,18 @@ const CORS = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, Mcp-Session-Id, MCP-Protocol-Version",
 };
 const JSON_HEADERS = { ...CORS, "Content-Type": "application/json" };
+
+// Sync tools (generate_video, image_to_video) self-call /api/public/generate
+// forwarding the caller's Bearer token, so the origin MUST resolve to our own
+// trusted host — never a Host/proxy-influenced request origin (that would leak
+// the caller's credential to an attacker-controlled domain). Prefer the
+// configured SITE_URL (same env billing uses); fall back to the request origin
+// only when it is unset (local dev).
+function resolveSelfOrigin(request: Request): string {
+  const configured = process.env.SITE_URL?.trim();
+  if (configured) return configured.replace(/\/+$/, "");
+  return new URL(request.url).origin;
+}
 
 async function authUserId(req: Request): Promise<{ userId: string | null; bearer: string | null }> {
   const h = req.headers.get("authorization") || req.headers.get("Authorization");
@@ -35,53 +46,6 @@ async function authUserId(req: Request): Promise<{ userId: string | null; bearer
   return { userId: data.user.id, bearer: token };
 }
 
-type RpcMessage = { jsonrpc?: string; id?: string | number | null; method?: string; params?: any };
-type Auth = { userId: string | null; bearer: string | null };
-
-function result(id: RpcMessage["id"], r: unknown) {
-  return { jsonrpc: "2.0", id, result: r };
-}
-function error(id: RpcMessage["id"], code: number, message: string) {
-  return { jsonrpc: "2.0", id, error: { code, message } };
-}
-
-async function handleMessage(msg: RpcMessage, auth: Auth, origin: string): Promise<object | null> {
-  const { method, id, params } = msg;
-  switch (method) {
-    case "initialize":
-      return result(id, {
-        protocolVersion: params?.protocolVersion || PROTOCOL_VERSION,
-        capabilities: { tools: {} },
-        serverInfo: SERVER_INFO,
-      });
-    case "notifications/initialized":
-    case "initialized":
-      return null; // notification — no response
-    case "ping":
-      return result(id, {});
-    case "tools/list":
-      return result(id, listTools());
-    case "tools/call": {
-      if (!auth.userId || !auth.bearer) {
-        return error(id, -32001, "Unauthorized: provide Authorization: Bearer <Supabase JWT or aurk_ API key>");
-      }
-      const name = params?.name as string;
-      const args = params?.arguments ?? {};
-      try {
-        const toolResult = await callTool(name, args, { userId: auth.userId, bearer: auth.bearer, origin });
-        return result(id, toolResult);
-      } catch (e) {
-        // Surface tool/validation failures as an MCP tool error result, not a transport error.
-        const text = JSON.stringify({ error: e instanceof Error ? e.message : String(e) });
-        return result(id, { content: [{ type: "text", text }], isError: true });
-      }
-    }
-    default:
-      if (id === undefined || id === null) return null; // unknown notification
-      return error(id, -32601, `Method not found: ${method}`);
-  }
-}
-
 export const Route = createFileRoute("/api/mcp")({
   server: {
     handlers: {
@@ -92,12 +56,15 @@ export const Route = createFileRoute("/api/mcp")({
           { status: 200, headers: JSON_HEADERS },
         ),
       POST: async ({ request }) => {
-        const origin = new URL(request.url).origin;
+        const origin = resolveSelfOrigin(request);
         let body: unknown;
         try {
           body = await request.json();
         } catch {
-          return new Response(JSON.stringify(error(null, -32700, "Parse error")), { status: 200, headers: JSON_HEADERS });
+          return new Response(
+            JSON.stringify({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }),
+            { status: 200, headers: JSON_HEADERS },
+          );
         }
         const auth = await authUserId(request);
         const isBatch = Array.isArray(body);
@@ -105,7 +72,7 @@ export const Route = createFileRoute("/api/mcp")({
 
         const responses: object[] = [];
         for (const m of messages) {
-          const r = await handleMessage(m, auth, origin);
+          const r = await handleRpcMessage(m, auth, origin);
           if (r) responses.push(r);
         }
         if (responses.length === 0) {
