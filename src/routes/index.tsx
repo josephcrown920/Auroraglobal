@@ -42,7 +42,7 @@ import { track } from "@/lib/tracking";
 const FAQ_ITEMS = [
   {
     q: "How does Aura work?",
-    a: "1 Aura ≈ 1 image. Videos cost 5 Aura (5s) or 10 Aura (10s). Lip-sync is 1 Aura per second. Aura never expires and rolls across all models.",
+    a: "1 Aura ≈ 1 image. Budget video & lip-sync start at 5 Aura; premium models cost more, priced to match each model. Length and resolution scale the price. Aura never expires and rolls across all models.",
   },
   {
     q: "Can I use the results commercially?",

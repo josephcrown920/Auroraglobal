@@ -25,6 +25,7 @@ import { Route as KidsRouteImport } from './routes/kids'
 import { Route as GiftsRouteImport } from './routes/gifts'
 import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ContentMachineRouteImport } from './routes/content-machine'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as ConnectRouteImport } from './routes/connect'
 import { Route as ComfyRouteImport } from './routes/comfy'
@@ -130,6 +131,11 @@ const GalleryRoute = GalleryRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContentMachineRoute = ContentMachineRouteImport.update({
+  id: '/content-machine',
+  path: '/content-machine',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -277,6 +283,7 @@ export interface FileRoutesByFullPath {
   '/comfy': typeof ComfyRoute
   '/connect': typeof ConnectRoute
   '/contact': typeof ContactRoute
+  '/content-machine': typeof ContentMachineRoute
   '/dashboard': typeof DashboardRoute
   '/gallery': typeof GalleryRoute
   '/gifts': typeof GiftsRoute
@@ -321,6 +328,7 @@ export interface FileRoutesByTo {
   '/comfy': typeof ComfyRoute
   '/connect': typeof ConnectRoute
   '/contact': typeof ContactRoute
+  '/content-machine': typeof ContentMachineRoute
   '/dashboard': typeof DashboardRoute
   '/gallery': typeof GalleryRoute
   '/gifts': typeof GiftsRoute
@@ -366,6 +374,7 @@ export interface FileRoutesById {
   '/comfy': typeof ComfyRoute
   '/connect': typeof ConnectRoute
   '/contact': typeof ContactRoute
+  '/content-machine': typeof ContentMachineRoute
   '/dashboard': typeof DashboardRoute
   '/gallery': typeof GalleryRoute
   '/gifts': typeof GiftsRoute
@@ -412,6 +421,7 @@ export interface FileRouteTypes {
     | '/comfy'
     | '/connect'
     | '/contact'
+    | '/content-machine'
     | '/dashboard'
     | '/gallery'
     | '/gifts'
@@ -456,6 +466,7 @@ export interface FileRouteTypes {
     | '/comfy'
     | '/connect'
     | '/contact'
+    | '/content-machine'
     | '/dashboard'
     | '/gallery'
     | '/gifts'
@@ -500,6 +511,7 @@ export interface FileRouteTypes {
     | '/comfy'
     | '/connect'
     | '/contact'
+    | '/content-machine'
     | '/dashboard'
     | '/gallery'
     | '/gifts'
@@ -545,6 +557,7 @@ export interface RootRouteChildren {
   ComfyRoute: typeof ComfyRoute
   ConnectRoute: typeof ConnectRoute
   ContactRoute: typeof ContactRoute
+  ContentMachineRoute: typeof ContentMachineRoute
   DashboardRoute: typeof DashboardRoute
   GalleryRoute: typeof GalleryRoute
   GiftsRoute: typeof GiftsRoute
@@ -687,6 +700,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/content-machine': {
+      id: '/content-machine'
+      path: '/content-machine'
+      fullPath: '/content-machine'
+      preLoaderRoute: typeof ContentMachineRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -900,6 +920,7 @@ const rootRouteChildren: RootRouteChildren = {
   ComfyRoute: ComfyRoute,
   ConnectRoute: ConnectRoute,
   ContactRoute: ContactRoute,
+  ContentMachineRoute: ContentMachineRoute,
   DashboardRoute: DashboardRoute,
   GalleryRoute: GalleryRoute,
   GiftsRoute: GiftsRoute,

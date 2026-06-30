@@ -96,6 +96,8 @@ function OrchestratePage() {
     features,
     resolution: usesResolution ? resolution : undefined,
     durationSeconds: usesDuration ? duration : undefined,
+    // Switching models retiers the video base, so the previewed Aura updates live.
+    model,
   });
   const cost = quote.total;
 

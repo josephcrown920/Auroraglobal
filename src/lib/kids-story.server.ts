@@ -188,6 +188,12 @@ export function pickKidsMusic(
 // cost source). Each scene is an illustration + a clip + narration; the final
 // render is one assembled video of the full length. No new pricing feature.
 
+// The runner renders every clip on the budget-tier self-hosted/Seedance-Lite
+// model (`seedance-2.0-fast`), so price it on that tier explicitly — this keeps
+// the kids price unchanged under model-tiered pricing instead of drifting if the
+// default video tier ever changes.
+const KIDS_VIDEO_MODEL = "seedance-2.0-fast";
+
 export function computeKidsStoryCost(scenes: number, secondsPerScene: number): number {
   const n = Math.max(1, Math.min(scenes, KIDS_MAX_SCENES));
   let total = 0;
@@ -195,10 +201,15 @@ export function computeKidsStoryCost(scenes: number, secondsPerScene: number): n
     total += computeCost({
       features: ["image", "video", "audio"],
       durationSeconds: secondsPerScene,
+      model: KIDS_VIDEO_MODEL,
     }).total;
   }
   // Final assembly delivers one video of the whole story length.
-  total += computeCost({ features: ["video"], durationSeconds: n * secondsPerScene }).total;
+  total += computeCost({
+    features: ["video"],
+    durationSeconds: n * secondsPerScene,
+    model: KIDS_VIDEO_MODEL,
+  }).total;
   return total;
 }
 
