@@ -139,6 +139,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 
 function RootShell({ children }: { children: React.ReactNode }) {
+  // --- Google Tag Manager ---------------------------------------------------
+  // Paste your GTM Container ID (format: GTM-XXXXXXX) into the
+  // VITE_GTM_CONTAINER_ID environment variable (Secrets tab). Once set, the
+  // owner manages every tracking pixel (Meta, TikTok, GA4, etc.) from the GTM
+  // dashboard with no further code changes or redeploys. When the variable is
+  // unset or malformed, GTM is skipped entirely — no script, no iframe, no
+  // console errors. The strict format check also keeps the value safe to inline
+  // into the snippet below.
+  const gtmRaw = import.meta.env.VITE_GTM_CONTAINER_ID as string | undefined;
+  const gtmId =
+    gtmRaw && /^GTM-[A-Z0-9]+$/i.test(gtmRaw.trim()) ? gtmRaw.trim() : null;
+
   return (
     <html lang="en">
       <head>
@@ -150,8 +162,28 @@ function RootShell({ children }: { children: React.ReactNode }) {
             __html: `(function(){try{var t=localStorage.getItem('aurora-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`,
           }}
         />
+        {/* Google Tag Manager — fires on every page load when configured. */}
+        {gtmId ? (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${gtmId}');`,
+            }}
+          />
+        ) : null}
       </head>
       <body>
+        {/* Google Tag Manager (noscript) — fallback for JS-disabled clients. */}
+        {gtmId ? (
+          <noscript>
+            <iframe
+              src={`https://www.googletagmanager.com/ns.html?id=${gtmId}`}
+              height="0"
+              width="0"
+              style={{ display: "none", visibility: "hidden" }}
+              title="Google Tag Manager"
+            />
+          </noscript>
+        ) : null}
         {children}
         <Scripts />
       </body>
