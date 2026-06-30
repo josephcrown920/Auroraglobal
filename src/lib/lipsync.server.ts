@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { orchestrate, hasActiveWorkerForKind, assertFreeModeServable } from "./orchestrator.server";
 import { buildLatentSyncRequest } from "./lipsync-workflows.server";
+import { computeCost } from "./pricing";
 
 export type Engine = "sync-v2" | "wav2lip" | "latentsync";
 
@@ -44,6 +45,32 @@ export async function runLipsyncJob(opts: {
     .single();
   if (insertErr || !row) throw new Error(insertErr?.message ?? "Failed to create job");
 
+  // Charge credits before orchestration — mirrors the lipSyncVideo path in
+  // studio.functions.ts. Uses the same computeCost(lipsync, model) so both paths
+  // charge the same Aura amount for the same engine. Deduct_credits is atomic
+  // (single SQL UPDATE WHERE credits >= _amount) so no double-spend under concurrency.
+  const lipsyncCost = computeCost({ features: ["lipsync"], model: MODEL[opts.engine] }).total;
+  const { data: charged, error: creditErr } = await supabaseAdmin.rpc("deduct_credits", {
+    _user: opts.userId,
+    _amount: lipsyncCost,
+    _reason: "lipsync",
+    _ref: row.id,
+  });
+  if (creditErr) {
+    await supabaseAdmin
+      .from("lipsync_jobs")
+      .update({ status: "error", error: creditErr.message.slice(0, 500) })
+      .eq("id", row.id);
+    throw new Error(creditErr.message);
+  }
+  if (charged === false) {
+    await supabaseAdmin
+      .from("lipsync_jobs")
+      .update({ status: "error", error: "Insufficient credits" })
+      .eq("id", row.id);
+    throw new Error("Not enough Aura. Buy more from the Aura panel.");
+  }
+
   try {
     // Self-hosted LatentSync carries a ComfyUI graph + flat params so it runs on
     // every worker protocol (comfyui reads the graph; custom/runpod/hfspace read
@@ -72,6 +99,13 @@ export async function runLipsyncJob(opts: {
       .from("lipsync_jobs")
       .update({ status: "error", error: msg.slice(0, 500) })
       .eq("id", row.id);
+    // Refund: orchestration failed after charging — give credits back.
+    await supabaseAdmin.rpc("grant_credits", {
+      _user: opts.userId,
+      _amount: lipsyncCost,
+      _reason: "refund_failed_generation",
+      _ref: row.id,
+    });
     return { id: row.id, status: "error" as const, error: msg };
   }
 }

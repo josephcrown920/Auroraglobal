@@ -112,3 +112,47 @@ Inventory captured via `viewEnvVars()`, the Replit DB, and `src/lib/provider-sta
 4. **`PAYSTACK_SECRET_KEY`** (test mode) for billing/affiliate/gift flows.
 
 With (1)–(4) in place, re-running this checklist would yield real PASS/FAIL verdicts for areas D–Q.
+
+---
+
+## 6. Phase 2 update — 2026-06-30
+
+### What was done in this pass
+
+**P0 Bug #1 FIXED — Spin batch now charges credits (`src/lib/spin.functions.ts`)**
+
+`spinThirty` now calls `deduct_credits` atomically before creating the spin job, charging `SPIN_PIECES.length × 1 Aura = 30 Aura` upfront. Admin users bypass the charge (consistent with every other charge point). Refund via `grant_credits` is issued on job-creation or variant-insertion failure. `tickSpinJob` is unchanged (it only processes already-queued variants; the charge is a one-time upfront event). Unit tests: 316 pass / 0 fail.
+
+**P0 Bug #2 FIXED — Lip-sync job engine now charges credits (`src/lib/lipsync.server.ts`)**
+
+`runLipsyncJob` now calls `deduct_credits` immediately after inserting the job row (using `computeCost({ features: ["lipsync"], model: MODEL[opts.engine] })` — the same formula as `lipSyncVideo`) and refunds via `grant_credits` if orchestration throws. The cost is engine-tiered: latentsync (budget) = 3 Aura, wav2lip (standard) = 6 Aura, sync-v2 (premium) = 9 Aura — matching `lipSyncVideo`. Unit tests: 316 pass / 0 fail.
+
+### Environment status after this pass
+
+| Secret / Var | Status | Notes |
+|---|---|---|
+| `VITE_SUPABASE_URL` | ✅ Set | shared env var |
+| `SUPABASE_URL` | ✅ Set | shared env var |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | ✅ Set | shared env var |
+| `SUPABASE_PUBLISHABLE_KEY` | ✅ Set | shared env var |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ Set | Replit secret |
+| `REPLICATE_API_KEY` | ✅ Set | Replit secret — covers image + video modalities |
+| `GEMINI_API_KEY` | ❌ Missing | image (direct Gemini) |
+| `FAL_KEY` | ❌ Missing | video/lipsync fallback |
+| `SYNC_API_KEY` | ❌ Missing | lip-sync (Sync.so) |
+| `OPENROUTER_API_KEY` | ❌ Missing | text / AI Router |
+| `PAYSTACK_SECRET_KEY` | ❌ Missing | billing / webhook |
+
+### Updated area verdicts (code-level; live pass still requires seeded accounts + remaining keys)
+
+| # | Area | Phase 1 | Phase 2 | Delta |
+|---|---|---|---|---|
+| G | Lip-sync | BLOCKED (code: FAIL) | BLOCKED (code: **PASS**) | P0 bug fixed |
+| J | Batch / Spin | BLOCKED (code: FAIL) | BLOCKED (code: **PASS**) | P0 bug fixed |
+| All others | — | Unchanged | Unchanged | — |
+
+### Remaining blockers for a true live pass
+
+1. Seed a test user with Aura credits and an admin row in `user_roles`.
+2. Add `SYNC_API_KEY` (lip-sync), `OPENROUTER_API_KEY` (text/router), `PAYSTACK_SECRET_KEY` (billing). `REPLICATE_API_KEY` already covers image + video.
+3. Re-run auth → generation → billing flow end-to-end with a real account.
