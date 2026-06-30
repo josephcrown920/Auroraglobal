@@ -11,12 +11,12 @@
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { selectVideoModel, inferAspectRatio } from "./model-selector";
-import { listAvatars, getAvatarByName, createAvatar } from "./avatars.server";
-import { hasActiveWorkerForKind } from "@/lib/orchestrator.server";
+import { listAvatars, getAvatarByName, createAvatar, type CreateAvatarInput } from "./avatars.server";
+import { hasActiveWorkerForKind, type GenerateKind } from "@/lib/orchestrator.server";
 import { buildMimicMotionRequest, MOTION_TYPES, CAMERA_MOVEMENTS } from "@/lib/motion-workflows.server";
 import { assertTrustedUrl } from "@/lib/url-guard";
 import { COST_UGC_AD, COST_CAMPAIGN_ITEM, buildCampaignVariations } from "@/lib/ugc.server";
-import type { ToolResult } from "./types";
+import type { ToolResult, Avatar } from "./types";
 
 export type ToolCtx = { userId: string; bearer: string; origin: string };
 
@@ -67,6 +67,69 @@ function clampDuration(d?: number): number {
   const v = d ?? 5;
   return Math.max(3, Math.min(12, v));
 }
+
+// ─── Dependency seam (for tests) ──────────────────────────────────────────────
+// Every side-effecting collaborator a tool touches is funnelled through ToolDeps
+// so the credit / dispatch / precondition contract can be unit-tested with
+// injected fakes (mirrors RenderDeps in generate-core.server.ts and JobDeps in
+// jobs.server.ts). bun's mock.module is process-global and leaks across suites,
+// so we dependency-inject rather than module-mock.
+
+type JobStatusRow = {
+  id: string;
+  status: string;
+  result: unknown;
+  error: string | null;
+  generation_id: string | null;
+  kind: string;
+};
+type GenerationStatusRow = {
+  id: string;
+  status: string;
+  result_image_url: string | null;
+  result_video_url: string | null;
+  model: string | null;
+  kind: string;
+  error: string | null;
+};
+
+export interface ToolDeps {
+  rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+  callGenerate: (ctx: ToolCtx, body: Record<string, unknown>) => Promise<{ url: string; provider: string }>;
+  getAvatarByName: (userId: string, name: string) => Promise<Avatar | null>;
+  listAvatars: (userId: string, limit?: number) => Promise<Avatar[]>;
+  createAvatar: (userId: string, input: CreateAvatarInput) => Promise<Avatar>;
+  hasActiveWorkerForKind: (kind: GenerateKind) => Promise<boolean>;
+  getJobRow: (jobId: string, userId: string) => Promise<JobStatusRow | null>;
+  getGenerationRow: (genId: string, userId: string) => Promise<GenerationStatusRow | null>;
+}
+
+export const defaultToolDeps: ToolDeps = {
+  rpc,
+  callGenerate,
+  getAvatarByName,
+  listAvatars,
+  createAvatar,
+  hasActiveWorkerForKind,
+  getJobRow: async (jobId, userId) => {
+    const { data } = await supabaseAdmin
+      .from("jobs")
+      .select("id, status, result, error, generation_id, kind")
+      .eq("id", jobId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    return (data as JobStatusRow | null) ?? null;
+  },
+  getGenerationRow: async (genId, userId) => {
+    const { data } = await supabaseAdmin
+      .from("generations")
+      .select("id, status, result_image_url, result_video_url, model, kind, error")
+      .eq("id", genId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    return (data as GenerationStatusRow | null) ?? null;
+  },
+};
 
 // ─── Identity lock (exported for unit tests) ──────────────────────────────────
 // The whole "one avatar, many shots" promise hinges on every generated shot being
@@ -162,7 +225,7 @@ export const performanceReskinSchema = z.object({
 
 // ─── Tools ──────────────────────────────────────────────────────────────────
 
-export async function generateVideoTool(args: z.infer<typeof generateVideoSchema>, ctx: ToolCtx): Promise<ToolResult> {
+export async function generateVideoTool(args: z.infer<typeof generateVideoSchema>, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
   try {
     const selection = selectVideoModel(args.prompt, args.model);
     const aspect = args.aspect_ratio ?? inferAspectRatio(args.prompt);
@@ -171,7 +234,7 @@ export async function generateVideoTool(args: z.infer<typeof generateVideoSchema
     let prompt = args.prompt;
     let avatarImageUrl: string | undefined;
     if (args.avatar_name) {
-      const avatar = await getAvatarByName(ctx.userId, args.avatar_name);
+      const avatar = await deps.getAvatarByName(ctx.userId, args.avatar_name);
       if (!avatar) return err(`Avatar "${args.avatar_name}" not found`);
       // Identity lock: the avatar's reference image MUST drive the shot (image-to-video),
       // not just the trigger word — otherwise the model invents a random face.
@@ -184,7 +247,7 @@ export async function generateVideoTool(args: z.infer<typeof generateVideoSchema
     }
     prompt = `${prompt} [${aspect} aspect ratio]`;
 
-    const result = await callGenerate(ctx, {
+    const result = await deps.callGenerate(ctx, {
       kind: "video",
       prompt,
       duration,
@@ -206,14 +269,14 @@ export async function generateVideoTool(args: z.infer<typeof generateVideoSchema
   }
 }
 
-export async function imageToVideoTool(args: z.infer<typeof imageToVideoSchema>, ctx: ToolCtx): Promise<ToolResult> {
+export async function imageToVideoTool(args: z.infer<typeof imageToVideoSchema>, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
   try {
     const selection = selectVideoModel(args.prompt, args.model);
     const aspect = args.aspect_ratio ?? inferAspectRatio(args.prompt);
     const duration = clampDuration(args.duration);
     const prompt = `${args.prompt} [${aspect} aspect ratio]`;
 
-    const result = await callGenerate(ctx, { kind: "video", prompt, imageUrls: [args.image_url], duration });
+    const result = await deps.callGenerate(ctx, { kind: "video", prompt, imageUrls: [args.image_url], duration });
     return ok({
       status: "completed",
       url: result.url,
@@ -234,9 +297,9 @@ function pick(arr: string[] | undefined, i: number): string | undefined {
   return arr && arr.length ? arr[i % arr.length] : undefined;
 }
 
-export async function bulkGenerateTool(args: z.infer<typeof bulkGenerateSchema>, ctx: ToolCtx): Promise<ToolResult> {
+export async function bulkGenerateTool(args: z.infer<typeof bulkGenerateSchema>, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
   try {
-    const avatar = await getAvatarByName(ctx.userId, args.avatar_name);
+    const avatar = await deps.getAvatarByName(ctx.userId, args.avatar_name);
     if (!avatar) return err(`Avatar "${args.avatar_name}" not found`);
     // Identity lock: every bulk image MUST be generated from the avatar's reference
     // image, not from the trigger word alone — otherwise each post is a different face.
@@ -265,7 +328,7 @@ export async function bulkGenerateTool(args: z.infer<typeof bulkGenerateSchema>,
       const prompt = segs.join(", ");
 
       const payload = buildBulkImagePayload(prompt, referenceImageUrl);
-      const { data, error } = await rpc("create_generation_and_reserve", {
+      const { data, error } = await deps.rpc("create_generation_and_reserve", {
         _user: ctx.userId,
         _kind: "image",
         _prompt: prompt,
@@ -296,9 +359,9 @@ export async function bulkGenerateTool(args: z.infer<typeof bulkGenerateSchema>,
   }
 }
 
-export async function listAvatarsTool(args: z.infer<typeof listAvatarsSchema>, ctx: ToolCtx): Promise<ToolResult> {
+export async function listAvatarsTool(args: z.infer<typeof listAvatarsSchema>, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
   try {
-    const avatars = await listAvatars(ctx.userId, args.limit ?? 20);
+    const avatars = await deps.listAvatars(ctx.userId, args.limit ?? 20);
     return ok({
       avatars: avatars.map((a) => ({
         id: a.id,
@@ -315,16 +378,11 @@ export async function listAvatarsTool(args: z.infer<typeof listAvatarsSchema>, c
   }
 }
 
-export async function getJobStatusTool(args: z.infer<typeof getJobStatusSchema>, ctx: ToolCtx): Promise<ToolResult> {
+export async function getJobStatusTool(args: z.infer<typeof getJobStatusSchema>, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
   try {
     if (!UUID_RE.test(args.job_id)) return err("job_id must be a valid UUID");
 
-    const { data: job } = await supabaseAdmin
-      .from("jobs")
-      .select("id, status, result, error, generation_id, kind")
-      .eq("id", args.job_id)
-      .eq("user_id", ctx.userId)
-      .maybeSingle();
+    const job = await deps.getJobRow(args.job_id, ctx.userId);
     if (job) {
       const result = (job.result ?? {}) as {
         url?: string;
@@ -346,12 +404,7 @@ export async function getJobStatusTool(args: z.infer<typeof getJobStatusSchema>,
       });
     }
 
-    const { data: gen } = await supabaseAdmin
-      .from("generations")
-      .select("id, status, result_image_url, result_video_url, model, kind, error")
-      .eq("id", args.job_id)
-      .eq("user_id", ctx.userId)
-      .maybeSingle();
+    const gen = await deps.getGenerationRow(args.job_id, ctx.userId);
     if (gen) {
       return ok({
         job_id: gen.id,
@@ -371,7 +424,7 @@ export async function getJobStatusTool(args: z.infer<typeof getJobStatusSchema>,
   }
 }
 
-export async function animateFromDrivingVideoTool(args: z.infer<typeof animateFromDrivingVideoSchema>, ctx: ToolCtx): Promise<ToolResult> {
+export async function animateFromDrivingVideoTool(args: z.infer<typeof animateFromDrivingVideoSchema>, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
   try {
     try {
       assertTrustedUrl(args.image_url);
@@ -379,7 +432,7 @@ export async function animateFromDrivingVideoTool(args: z.infer<typeof animateFr
     } catch (e) {
       return err(e instanceof Error ? e.message : String(e));
     }
-    if (!(await hasActiveWorkerForKind("motion"))) return err(NO_MOTION_BACKEND_MSG);
+    if (!(await deps.hasActiveWorkerForKind("motion"))) return err(NO_MOTION_BACKEND_MSG);
 
     const payload = buildMimicMotionRequest({
       imageUrl: args.image_url,
@@ -387,7 +440,7 @@ export async function animateFromDrivingVideoTool(args: z.infer<typeof animateFr
       prompt: args.prompt,
       params: { motionType: args.motion_type, cameraMovement: args.camera_movement },
     });
-    const { data, error } = await rpc("create_generation_and_reserve", {
+    const { data, error } = await deps.rpc("create_generation_and_reserve", {
       _user: ctx.userId,
       _kind: "motion",
       _prompt: args.prompt ?? "Motion transfer",
@@ -408,7 +461,7 @@ export async function animateFromDrivingVideoTool(args: z.infer<typeof animateFr
   }
 }
 
-export async function performanceReskinTool(args: z.infer<typeof performanceReskinSchema>, ctx: ToolCtx): Promise<ToolResult> {
+export async function performanceReskinTool(args: z.infer<typeof performanceReskinSchema>, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
   try {
     try {
       assertTrustedUrl(args.performance_video_url);
@@ -417,7 +470,7 @@ export async function performanceReskinTool(args: z.infer<typeof performanceResk
     } catch (e) {
       return err(e instanceof Error ? e.message : String(e));
     }
-    if (!(await hasActiveWorkerForKind("motion"))) return err(NO_MOTION_BACKEND_MSG);
+    if (!(await deps.hasActiveWorkerForKind("motion"))) return err(NO_MOTION_BACKEND_MSG);
 
     const payload = {
       performanceVideoUrl: args.performance_video_url,
@@ -428,7 +481,7 @@ export async function performanceReskinTool(args: z.infer<typeof performanceResk
       prompt: args.prompt,
       params: { motionType: args.motion_type, cameraMovement: args.camera_movement },
     };
-    const { data, error } = await rpc("create_generation_and_reserve", {
+    const { data, error } = await deps.rpc("create_generation_and_reserve", {
       _user: ctx.userId,
       _kind: "performance_reskin",
       _prompt: args.prompt ?? "Performance reskin",
@@ -449,9 +502,9 @@ export async function performanceReskinTool(args: z.infer<typeof performanceResk
   }
 }
 
-export async function createAvatarTool(args: z.infer<typeof createAvatarSchema>, ctx: ToolCtx): Promise<ToolResult> {
+export async function createAvatarTool(args: z.infer<typeof createAvatarSchema>, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
   try {
-    const avatar = await createAvatar(ctx.userId, args);
+    const avatar = await deps.createAvatar(ctx.userId, args);
     const trained = avatar.training_status !== "completed";
     return ok({
       id: avatar.id,
@@ -493,9 +546,9 @@ export const campaignSchema = z.object({
   motion_prompt: z.string().max(600).optional().describe("Shared motion direction for each set's video"),
 });
 
-export async function generateUgcAdTool(args: z.infer<typeof ugcAdSchema>, ctx: ToolCtx): Promise<ToolResult> {
+export async function generateUgcAdTool(args: z.infer<typeof ugcAdSchema>, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
   try {
-    const avatar = await getAvatarByName(ctx.userId, args.avatar_name);
+    const avatar = await deps.getAvatarByName(ctx.userId, args.avatar_name);
     if (!avatar) return err(`Avatar "${args.avatar_name}" not found`);
     if (!avatar.preview_url) {
       return err(`Avatar "${avatar.name}" has no reference image — recreate it with image_urls so it can appear in the ad.`);
@@ -519,7 +572,7 @@ export async function generateUgcAdTool(args: z.infer<typeof ugcAdSchema>, ctx: 
       duration,
       voiceModel: args.voice_model,
     };
-    const { data, error } = await rpc("create_generation_and_reserve", {
+    const { data, error } = await deps.rpc("create_generation_and_reserve", {
       _user: ctx.userId,
       _kind: "ugc_ad",
       _prompt: `UGC ad: ${args.product} — ${avatar.name}`,
@@ -544,9 +597,9 @@ export async function generateUgcAdTool(args: z.infer<typeof ugcAdSchema>, ctx: 
   }
 }
 
-export async function generateCampaignTool(args: z.infer<typeof campaignSchema>, ctx: ToolCtx): Promise<ToolResult> {
+export async function generateCampaignTool(args: z.infer<typeof campaignSchema>, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
   try {
-    const avatar = await getAvatarByName(ctx.userId, args.avatar_name);
+    const avatar = await deps.getAvatarByName(ctx.userId, args.avatar_name);
     if (!avatar) return err(`Avatar "${args.avatar_name}" not found`);
     if (!avatar.preview_url) {
       return err(`Avatar "${avatar.name}" has no reference image — recreate it with image_urls so it can appear in the campaign.`);
@@ -582,7 +635,7 @@ export async function generateCampaignTool(args: z.infer<typeof campaignSchema>,
         duration,
         label: v.label,
       };
-      const { data, error } = await rpc("create_generation_and_reserve", {
+      const { data, error } = await deps.rpc("create_generation_and_reserve", {
         _user: ctx.userId,
         _kind: "ugc_campaign_item",
         _prompt: `UGC campaign · ${avatar.name} · ${v.label}`,
