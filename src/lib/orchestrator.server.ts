@@ -1353,18 +1353,12 @@ const gpuWorker: ProviderAdapter = {
 };
 
 // ─── Priority chain per kind ─────────────────────────────────────────────────
-// Order matters: cheapest/free direct providers first; Lovable credits and Fal LAST.
-// User preference: avoid Fal — only used as final fallback. HuggingFace is wired
-// for free image generation. Kling direct (JWT) handles video without Replicate.
-// HeyGen handles lipsync as a quality alternative to sync.so.
-//
-// Self-hosted FIRST: for the owner's chosen modalities (stills/images, video and
-// lip-sync) the self-hosted `gpuWorker` pool is tried before any paid external
-// provider, so an online GPU saves credits. When no eligible worker is up (offline,
-// stale heartbeat, at capacity, missing the capability) the adapter throws a
-// "GPU unavailable" signal that orchestrate() treats as a clean skip — the request
-// falls straight through to the external chain below. Other modalities keep their
-// existing order (upscale/motion/text/audio unchanged).
+// GPU-FIRST across every modality: the self-hosted gpuWorker pool is always tried
+// first. When no eligible worker is up (offline, stale heartbeat, at capacity,
+// missing the capability) the adapter throws a "GPU unavailable" signal that
+// orchestrate() treats as a clean skip — the request falls straight through to
+// the external chain below. This means a running GPU always saves credits, and
+// the external providers act purely as high-availability fallbacks.
 const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   image: [
     gpuWorker,
@@ -1378,13 +1372,14 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   ],
   video: [gpuWorker, klingDirect, replicate, runway, falFallback],
   lipsync: [gpuWorker, sync, heygen, replicate, falFallback],
-  upscale: [replicate, gpuWorker, falFallback],
+  // GPU-first: a worker advertising "upscale" is tried before Replicate.
+  upscale: [gpuWorker, replicate, falFallback],
   // Motion transfer (MimicMotion) has no hosted provider — GPU/ComfyUI workers only.
   motion: [gpuWorker],
-  // Text: free Pollinations first, then keyed providers cheapest-first.
-  text: [pollinations, groqText, geminiText, mistralText, hfText, openaiText, lovableText],
-  // Audio/TTS: ElevenLabs when keyed, otherwise a self-hosted `tts` GPU worker.
-  audio: [elevenlabs, gpuWorker],
+  // GPU-first: a worker advertising "text" (local LLM) is tried first.
+  text: [gpuWorker, pollinations, groqText, geminiText, mistralText, hfText, openaiText, lovableText],
+  // GPU-first: a worker advertising "audio" (local TTS) is tried before ElevenLabs.
+  audio: [gpuWorker, elevenlabs],
   // Final assembly (ffmpeg): self-hosted GPU worker pool only — no hosted provider.
   assemble: [gpuWorker],
 };

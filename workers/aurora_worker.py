@@ -46,6 +46,13 @@ WORK_DIR = Path(os.environ.get("AURORA_WORK_DIR", tempfile.gettempdir())) / "aur
 UPLOAD_BACKEND = os.environ.get("AURORA_UPLOAD", "catbox").lower()  # catbox | 0x0 | supabase
 AUTH_TOKEN = os.environ.get("AURORA_WORKER_TOKEN")  # optional bearer required on /generate
 
+# Image generation — lazy-loaded on first request so lipsync-only workers
+# don't pay the diffusers import cost. SDXL-Turbo by default (7 GB disk,
+# 8 GB VRAM → fits Kaggle T4). Override with IMAGE_MODEL=black-forest-labs/FLUX.1-schnell
+# on an A100/H100 (≥24 GB VRAM, ≥24 GB free disk).
+IMAGE_MODEL = os.environ.get("IMAGE_MODEL") or os.environ.get("FLUX_MODEL", "stabilityai/sdxl-turbo")
+IMAGE_USE_FLUX = "FLUX" in IMAGE_MODEL.upper() or "flux" in IMAGE_MODEL.lower()
+
 WORK_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -191,6 +198,78 @@ def run_mimicmotion(image_url: str, video_url: str, params: dict[str, Any]) -> s
     return new
 
 
+# ── Image generation (SDXL-Turbo or FLUX.1-schnell via diffusers) ─────────────
+_image_pipe = None  # cached for the worker's lifetime (lazy-loaded on first request)
+
+
+def _get_image_pipe():
+    """Lazy-load and cache the image pipeline. Raises RuntimeError if unavailable."""
+    global _image_pipe
+    if _image_pipe is not None:
+        return _image_pipe
+    try:
+        import torch
+        from diffusers import AutoPipelineForText2Image, FluxPipeline
+    except ImportError as e:
+        raise RuntimeError(
+            f"diffusers not installed (run: pip install diffusers transformers accelerate safetensors): {e}"
+        ) from e
+
+    print(f"[image] loading {IMAGE_MODEL} …", flush=True)
+    if IMAGE_USE_FLUX:
+        pipe = FluxPipeline.from_pretrained(IMAGE_MODEL, torch_dtype=torch.bfloat16)
+        pipe.enable_sequential_cpu_offload()   # ~4-6 GB VRAM usage via layer-by-layer offload
+    else:
+        # SDXL-Turbo: baked into a single AutoPipeline call; FP16 on CUDA or CPU fallback.
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        dtype = torch.float16 if device == "cuda" else torch.float32
+        pipe = AutoPipelineForText2Image.from_pretrained(
+            IMAGE_MODEL, torch_dtype=dtype, variant="fp16" if device == "cuda" else None
+        )
+        pipe = pipe.to(device)
+
+    _image_pipe = pipe
+    print(f"[image] {IMAGE_MODEL} ready.", flush=True)
+    return pipe
+
+
+def run_image(prompt: str, params: dict[str, Any]) -> str:
+    """Generate an image from a text prompt. Returns a local file path."""
+    import torch
+    pipe = _get_image_pipe()
+
+    width = int(params.get("width", 768))
+    height = int(params.get("height", 1344))  # 9:16 portrait default
+    steps = int(params.get("steps", params.get("num_inference_steps", 4 if IMAGE_USE_FLUX else 4)))
+    seed = params.get("seed")
+    generator = torch.Generator().manual_seed(int(seed)) if seed is not None else None
+
+    if IMAGE_USE_FLUX:
+        result = pipe(
+            prompt=prompt or "a beautiful image",
+            height=height,
+            width=width,
+            num_inference_steps=steps,
+            guidance_scale=0.0,   # FLUX-schnell is CFG-distilled
+            max_sequence_length=256,
+            generator=generator,
+        )
+    else:
+        # SDXL-Turbo: guidance_scale=0, 1-4 steps optimal
+        result = pipe(
+            prompt=prompt or "a beautiful image",
+            height=height,
+            width=width,
+            num_inference_steps=steps,
+            guidance_scale=0.0,
+            generator=generator,
+        )
+
+    out = str(WORK_DIR / f"{uuid.uuid4().hex}_image.png")
+    result.images[0].save(out)
+    return out
+
+
 # ── Final assembly (ffmpeg only — no model weights) ───────────────────────────
 ASSEMBLE_W = int(os.environ.get("AURORA_ASSEMBLE_W", "720"))
 ASSEMBLE_H = int(os.environ.get("AURORA_ASSEMBLE_H", "1280"))
@@ -296,9 +375,11 @@ def process_job(job: dict[str, Any]) -> dict[str, str]:
         out = run_mimicmotion(ref, job.get("video_url"), params)
     elif kind == "assemble":
         out = run_assemble(params)
+    elif kind == "image":
+        out = run_image(job.get("prompt") or "", params)
     else:
         raise ValueError(
-            f"unsupported kind {kind!r}; this worker serves 'lipsync', 'motion' + 'assemble'"
+            f"unsupported kind {kind!r}; this worker serves: lipsync, motion, assemble, image"
         )
 
     return {"url": _upload(out)}
@@ -329,11 +410,19 @@ def _capabilities() -> list[str]:
         caps = [c.strip() for c in raw.split(",") if c.strip()]
         if caps:
             return caps
-    # Unset/empty → default. assemble needs only ffmpeg (no GPU/model install), so
-    # advertise it whenever ffmpeg is available.
+    # Unset/empty → default. Dynamically include tasks whose dependencies are
+    # installed. assemble needs only ffmpeg; image needs diffusers.
     default = ["lipsync", "motion"]
     if shutil.which("ffmpeg"):
         default.append("assemble")
+    # Include "image" when diffusers is importable (setup.sh image task was run)
+    # OR when IMAGE_MODEL is explicitly overridden — let the caller opt in.
+    try:
+        import importlib
+        if importlib.util.find_spec("diffusers") is not None:
+            default.append("image")
+    except Exception:
+        pass
     return default
 
 
