@@ -16,6 +16,12 @@ let jobsCasWins = true;
 // and the per-job requeue_failed_job RPC outcome it should observe.
 let failedJobsRows: Array<Record<string, unknown>> = [];
 let requeueOutcome = "requeued";
+// Rows returned by a gpu_workers SELECT (the hasActiveWorkerForKind preflight).
+// Default empty = no worker online; set to an assemble-capable worker to pass it.
+let gpuWorkers: Array<Record<string, unknown>> = [];
+// How many times the (dependency-injected) orchestrate was invoked — lets a test
+// assert a job failed a preflight BEFORE reaching any paid generation stage.
+let orchCalls = 0;
 let orchestrateImpl: (req: unknown) => Promise<{
   url: string;
   provider: string;
@@ -47,9 +53,17 @@ function builder(table: string) {
   const resolve = () =>
     updated
       ? { data: table === "jobs" && !jobsCasWins ? [] : [{ id: "x" }], error: null }
-      : // A read on `jobs` is the failed-orphan sweep SELECT; everything else keeps
-        // the original {data:null} read shape.
-        { data: table === "jobs" ? failedJobsRows : null, error: null };
+      : // A read on `jobs` is the failed-orphan sweep SELECT, a read on `gpu_workers`
+        // is the worker preflight; everything else keeps the original {data:null} shape.
+        {
+          data:
+            table === "jobs"
+              ? failedJobsRows
+              : table === "gpu_workers"
+                ? gpuWorkers
+                : null,
+          error: null,
+        };
   const b: Record<string, unknown> = {};
   for (const m of ["select", "eq", "neq", "lt", "lte", "gt", "gte", "order", "limit", "contains", "is", "in"])
     b[m] = () => b;
@@ -109,7 +123,12 @@ const {
 // orchestrate is dependency-injected (NOT module-mocked) so this file never
 // registers a global mock for ./orchestrator.server — Bun's module mocks are
 // process-global and would otherwise leak a stub into the real orchestrator tests.
-const deps = { orchestrate: ((req: unknown) => orchestrateImpl(req)) as never };
+const deps = {
+  orchestrate: ((req: unknown) => {
+    orchCalls++;
+    return orchestrateImpl(req);
+  }) as never,
+};
 const processOneJob = (workerId: string) => rawProcessOneJob(workerId, deps);
 const processBatch = (workerId: string, limit?: number) => rawProcessBatch(workerId, limit, deps);
 
@@ -135,6 +154,8 @@ beforeEach(() => {
   jobsCasWins = true;
   failedJobsRows = [];
   requeueOutcome = "requeued";
+  gpuWorkers = [];
+  orchCalls = 0;
   calls.rpc.length = 0;
   calls.updates.length = 0;
   calls.inserts.length = 0;
@@ -344,6 +365,50 @@ describe("processOneJob", () => {
     // The generation row is failed too.
     const gen = calls.updates.find((u) => u.table === "generations");
     expect(gen?.patch).toMatchObject({ status: "failed" });
+  });
+
+  it("fails terminally and refunds a kids story when no TTS backend is configured, even with an assemble worker online", async () => {
+    // Narration is a REQUIRED stage. With an assemble-capable worker online but no
+    // HF_TOKEN to synthesize narration, the pipeline must fail fast and refund up
+    // front rather than silently shipping a video with no narration.
+    gpuWorkers = [{ in_flight: 0, max_concurrency: 1, last_heartbeat: null }];
+    const prevHf = process.env.HF_TOKEN;
+    delete process.env.HF_TOKEN;
+    try {
+      claimQueue = [
+        job({
+          kind: "kids_story",
+          credits_reserved: 12,
+          payload: {
+            storyId: "s1",
+            topic: "the moon",
+            contentType: "bedtime",
+            ageRange: "3-5",
+            lengthId: "short",
+            characterName: "Fuzz",
+          },
+        }),
+      ];
+
+      const r = await processOneJob("w1");
+      expect(r.status).toBe("failed");
+
+      // Released exactly once, for the full reserved amount (terminal, no retry).
+      const releases = calls.rpc.filter((c) => c.name === "release_reservation");
+      expect(releases).toHaveLength(1);
+      expect(releases[0].args).toMatchObject({ _user: "u1", _amount: 12, _ref: "j1" });
+
+      // The story row is flipped to failed (owner-scoped) with a narration error.
+      const story = calls.updates.find((u) => u.table === "kids_stories");
+      expect(story?.patch).toMatchObject({ status: "failed" });
+      expect(String(story?.patch.error)).toMatch(/narration/i);
+
+      // It failed the narration preflight BEFORE any paid generation stage ran.
+      expect(orchCalls).toBe(0);
+    } finally {
+      if (prevHf === undefined) delete process.env.HF_TOKEN;
+      else process.env.HF_TOKEN = prevHf;
+    }
   });
 
   it("does NOT touch the kids_stories row when it has lost the lock to a stale-sweep reclaim", async () => {
