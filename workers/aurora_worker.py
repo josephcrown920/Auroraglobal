@@ -313,14 +313,28 @@ def _worker_name() -> str:
 def _capabilities() -> list[str]:
     """Tasks this worker actually serves, from AURORA_CAPABILITIES (comma list).
 
-    Defaults to both self-hosted tasks. Constrained hosts (e.g. a 16 GB Kaggle
-    GPU that only installs LatentSync) set AURORA_CAPABILITIES=lipsync so Aurora
-    never routes a job the worker can't run — registration and /health both
-    report the same set.
+    When AURORA_CAPABILITIES is set it is honored verbatim (operator override).
+    Otherwise the default is the two self-hosted GPU tasks PLUS `assemble` — the
+    ffmpeg-only kids-story stitch — whenever ffmpeg is on PATH. Any worker that can
+    run lipsync/motion already has ffmpeg (both paths shell out to ffmpeg/ffprobe),
+    so the default worker advertises assemble with zero extra setup; without this,
+    Aurora's assemble preflight rejects every kids story up front.
+
+    Constrained hosts (e.g. a 16 GB Kaggle GPU that only installs LatentSync) set
+    AURORA_CAPABILITIES=lipsync so Aurora never routes a job the worker can't run —
+    registration and /health both report the same set.
     """
-    raw = os.environ.get("AURORA_CAPABILITIES", "lipsync,motion")
-    caps = [c.strip() for c in raw.split(",") if c.strip()]
-    return caps or ["lipsync", "motion"]
+    raw = os.environ.get("AURORA_CAPABILITIES", "").strip()
+    if raw:
+        caps = [c.strip() for c in raw.split(",") if c.strip()]
+        if caps:
+            return caps
+    # Unset/empty → default. assemble needs only ffmpeg (no GPU/model install), so
+    # advertise it whenever ffmpeg is available.
+    default = ["lipsync", "motion"]
+    if shutil.which("ffmpeg"):
+        default.append("assemble")
+    return default
 
 
 def register_with_aurora() -> bool:
