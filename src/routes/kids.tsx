@@ -31,6 +31,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { saveAssetToDisk } from "@/lib/save";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
+import { CartoonPreview } from "@/components/kids/CartoonPreview";
+import { KIDS_CHARACTER_PREVIEWS, KIDS_STORY_SHOWCASE } from "@/lib/kids-previews";
 
 export const Route = createFileRoute("/kids")({
   component: KidsPage,
@@ -518,14 +520,47 @@ function KidsPage() {
 
             {charMode === "preset" && (
               <div className="grid grid-cols-2 gap-2">
-                {(opts?.characters ?? []).map((c) => (
-                  <Choice
-                    key={c.id}
-                    active={presetId === c.id}
-                    onClick={() => setPresetId(c.id)}
-                    title={c.name}
-                  />
-                ))}
+                {(opts?.characters ?? []).map((c) => {
+                  const preview = KIDS_CHARACTER_PREVIEWS[c.id];
+                  const active = presetId === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setPresetId(c.id)}
+                      aria-pressed={active}
+                      title={c.description}
+                      className={cn(
+                        "group relative rounded-xl border p-1.5 text-left transition-colors",
+                        active
+                          ? "border-primary/60 bg-primary/10 ring-1 ring-primary/30"
+                          : "border-border bg-card/30 hover:border-primary/40",
+                      )}
+                    >
+                      <div className="relative">
+                        {preview ? (
+                          <CartoonPreview
+                            src={preview.loop}
+                            poster={preview.poster}
+                            alt={c.name}
+                            rounded="rounded-lg"
+                            className="aspect-[4/5] w-full"
+                          />
+                        ) : (
+                          <div className="aspect-[4/5] w-full rounded-lg bg-card/40" />
+                        )}
+                        {active && (
+                          <span className="absolute top-1 right-1 size-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow">
+                            <Check className="size-3" />
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1.5 px-0.5 text-xs font-medium text-foreground truncate">
+                        {c.name}
+                      </p>
+                    </button>
+                  );
+                })}
               </div>
             )}
 
@@ -810,6 +845,41 @@ function KidsPage() {
               </div>
             </div>
           )}
+
+          {/* Sample stories showcase */}
+          <div className="aurora-panel p-4 space-y-3">
+            <div>
+              <p className="aurora-kicker flex items-center gap-1.5">
+                <Film className="size-3.5" /> See an example
+              </p>
+              <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
+                A peek at the kind of finished, faceless story you'll get — illustrated, gently
+                animated and narrated.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {KIDS_STORY_SHOWCASE.map((s) => (
+                <div key={s.id} className="relative">
+                  <CartoonPreview
+                    src={s.clip.loop}
+                    poster={s.clip.poster}
+                    alt={s.title}
+                    rounded="rounded-xl"
+                    className="aspect-[9/16] w-full"
+                  />
+                  <span className="absolute top-1.5 left-1.5 inline-flex items-center rounded-full bg-black/50 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-white/90 backdrop-blur pointer-events-none">
+                    Sample
+                  </span>
+                  <div className="absolute inset-x-0 bottom-0 rounded-b-xl bg-gradient-to-t from-black/80 to-transparent p-2 pt-6 pointer-events-none">
+                    <p className="text-[11px] font-medium text-white leading-tight truncate">
+                      {s.title}
+                    </p>
+                    <p className="text-[9px] text-white/70">{s.blurb}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
           <div className="aurora-panel p-4 space-y-1.5">
             <p className="aurora-kicker flex items-center gap-1.5">
