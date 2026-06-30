@@ -8,14 +8,20 @@ directory implements this contract.
 A worker advertises which **tasks** (capabilities) it can serve. Aurora only ever sends
 a worker a task it registered for:
 
-| task      | model         | inputs Aurora sends                     | output |
-| --------- | ------------- | --------------------------------------- | ------ |
-| `lipsync` | LatentSync    | `video_url` (face) + `audio_url`        | talking-head video |
-| `motion`  | MimicMotion   | `image_urls[0]` (ref) + `video_url` (pose) | animated video |
-| `image`   | any           | `prompt` (+ optional `image_urls`)      | image  |
-| `video`   | any           | `prompt` (+ optional `image_urls`)      | video  |
+| task      | model              | inputs Aurora sends                        | output             |
+| --------- | ------------------ | ------------------------------------------ | ------------------ |
+| `lipsync` | LatentSync         | `video_url` (face) + `audio_url`           | talking-head video |
+| `motion`  | MimicMotion        | `image_urls[0]` (ref) + `video_url` (pose) | animated video     |
+| `image`   | SDXL-Turbo / FLUX  | `prompt` (+ optional `image_urls`)         | image              |
+| `video`   | any                | `prompt` (+ optional `image_urls`)         | video              |
+| `assemble`| ffmpeg (no model)  | `params.clips[]` + `params.narrations[]`   | stitched MP4       |
 
-The templates here ship **`lipsync` (LatentSync)** + **`motion` (MimicMotion)**.
+**What ships out of the box:**
+- `aurora_worker.py` — `lipsync` + `motion` + `assemble` + **`image`** (SDXL-Turbo on T4, FLUX on A100+)
+- `kaggle/` — `lipsync` default; add `image` via `AURORA_TASKS=image,lipsync`
+- `runpod/` — `lipsync` + `motion`
+- `comfyui/` — `lipsync` + `motion` via ComfyUI graphs
+- `hf-space/` — `lipsync` or `motion` (one Space per task, Gradio arity-locked)
 
 ---
 

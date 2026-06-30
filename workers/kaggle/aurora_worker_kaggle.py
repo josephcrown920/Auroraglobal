@@ -21,9 +21,15 @@ Set these in Kaggle -> Add-ons -> Secrets (this cell loads them for you):
   AURORA_URL           your Aurora app base URL, e.g. "https://your-app.replit.app"
   AURORA_REGISTER_KEY  Supabase anon/publishable key (the register `apikey`)
   AURORA_WORKER_TOKEN  (optional) bearer that protects this worker's /generate
-  AURORA_TASKS         (optional) "lipsync" (default) or "lipsync,motion".
+  AURORA_TASKS         (optional) comma list of tasks to install and serve:
+                         "lipsync"           — default, lipsync only (~10 GB disk)
+                         "image,lipsync"     — adds SDXL-Turbo image gen (~17 GB disk)
+                         "lipsync,motion"    — lipsync + MimicMotion (~24 GB GPU needed)
                        motion (MimicMotion) needs a ~24 GB GPU; on Kaggle's 16 GB
                        cards setup.sh refuses to install it instead of OOMing.
+                       image (SDXL-Turbo) needs ~8 GB extra disk and fits T4/P100.
+  IMAGE_MODEL          (optional) override the image model, e.g.
+                         "black-forest-labs/FLUX.1-schnell" for A100/H100 (≥24 GB VRAM)
   AURORA_WORKER_REPO_RAW  (optional) raw base for the worker files, e.g.
                        "https://raw.githubusercontent.com/OWNER/REPO/BRANCH/workers".
                        Set this for a renamed repo, a non-default branch, or a
@@ -51,6 +57,8 @@ CONFIG_KEYS = [
     "AURORA_WORKER_REPO_RAW",
     "AURORA_UPLOAD",
     "AURORA_WORKER_NAME",
+    # Image generation model override (default: stabilityai/sdxl-turbo on T4).
+    "IMAGE_MODEL",
     # Optional: store results in your own Supabase bucket (AURORA_UPLOAD=supabase).
     "SUPABASE_URL",
     "SUPABASE_SERVICE_ROLE_KEY",
