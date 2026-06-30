@@ -110,7 +110,7 @@ const initialNodes: Node<NodeData>[] = [
     position: { x: 420, y: 60 },
     data: {
       kind: "image",
-      prompt: "Cinematic concert performance shot, purple stage lighting, smoke, 35mm",
+      prompt: "",
       model: MODEL_LIST[0].value,
       status: "idle",
     },

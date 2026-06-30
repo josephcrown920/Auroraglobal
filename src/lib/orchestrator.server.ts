@@ -7,6 +7,7 @@
 //   - gpuWorker   → admin-registered HTTP workers (RunPod / vast / salad / self-hosted)
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { isFreeGpuOnlyMode } from "./app-settings.server";
 import { replicateRun, pickReplicateUrl, getReplicateKey } from "./replicate.server";
 import { syncLipsync } from "./sync.server";
 import { hfTextToImage } from "./hf.server";
@@ -1558,9 +1559,50 @@ const PROVIDER_DOWN_RE =
 // (timeouts, bad URLs, HTTP 5xx) do NOT match here and are handled normally.
 const GPU_UNAVAILABLE_RE = /^(No GPU workers available|All GPU workers failed)$/;
 
+// ─── Free GPU only mode ──────────────────────────────────────────────────────
+// When the global "Free GPU only" safety flag is ON, image/video/lip-sync/motion
+// (and any other modality) may run ONLY on the self-hosted GPU pool plus
+// genuinely free ($0) hosted providers (e.g. Pollinations). Every paid external
+// adapter (Replicate, Kling, HeyGen, Fal, Runway, Lovable gateway, ElevenLabs, …)
+// is filtered out at provider selection, so it is never reached and can never
+// bill. The single source of truth for "free" is the adapter's own estimateCost:
+// the GPU pool is always allowed (owner's own hardware) and any adapter that
+// estimates $0 for the request is allowed; everything else is paid → skipped.
+export const FREE_MODE_NO_WORKER_MSG =
+  "Your free GPU isn't running right now — start your Colab/Kaggle worker and try again. (Free GPU only mode is on, so paid providers are disabled.)";
+
+function isFreeAdapter(a: ProviderAdapter, r: GenerateRequest): boolean {
+  // The self-hosted pool runs on the owner's own hardware — always free of
+  // external billing — and a $0 estimate marks a genuinely free hosted provider.
+  return a === gpuWorker || a.estimateCost(r) === 0;
+}
+
+/**
+ * Preflight for "Free GPU only" mode, run by server fns BEFORE reserving credits.
+ * No-op when the flag is off. When on, it throws the friendly "start your GPU"
+ * message if there is no free way to serve this kind — i.e. no $0 hosted provider
+ * exists for the kind AND no eligible self-hosted worker is online — so we never
+ * charge credits for a request that can only fail.
+ */
+export async function assertFreeModeServable(kind: GenerateKind): Promise<void> {
+  if (!(await isFreeGpuOnlyMode())) return;
+  // A zero-cost hosted provider (e.g. Pollinations for image/text) can always
+  // serve this kind for free, so the request is servable regardless of the pool.
+  const probe = { kind } as GenerateRequest;
+  const hasFreeHosted = PRIORITY[kind].some((a) => a !== gpuWorker && a.estimateCost(probe) === 0);
+  if (hasFreeHosted) return;
+  // Otherwise the only free path is the self-hosted GPU pool — require one online.
+  if (await hasActiveWorkerForKind(kind)) return;
+  throw new Error(FREE_MODE_NO_WORKER_MSG);
+}
+
 export async function orchestrate(rawReq: GenerateRequest): Promise<GenerateResult> {
   // Sign private-studio refs once, up front, so every adapter sees a fetchable URL.
   const req = await signStudioRefs(rawReq);
+  // Global safety mode: when ON, restrict EVERY request to the free pool + $0
+  // providers. selfHostedOnly requests are already pool-only, so the extra read
+  // is skipped for them.
+  const freeOnly = req.selfHostedOnly ? false : await isFreeGpuOnlyMode();
   const candidates = getCandidateModels(req);
   // Snapshot provider health ONCE. Without this, a failure on the first candidate
   // model marks its provider (e.g. Replicate) unhealthy and skips it for every
@@ -1577,6 +1619,9 @@ export async function orchestrate(rawReq: GenerateRequest): Promise<GenerateResu
     let adapters = PRIORITY[r.kind].filter((a) => a.supports(r) && healthyAtStart.has(a.name));
     // Self-hosted requests run ONLY on the GPU worker pool — never a hosted API.
     if (req.selfHostedOnly) adapters = adapters.filter((a) => a === gpuWorker);
+    // Free GPU only mode: drop every paid adapter so it is never reached. Only the
+    // self-hosted pool and $0 providers survive — no paid API can ever bill.
+    else if (freeOnly) adapters = adapters.filter((a) => isFreeAdapter(a, r));
     if (adapters.length === 0) continue;
 
     for (const adapter of adapters) {
@@ -1644,6 +1689,14 @@ export async function orchestrate(rawReq: GenerateRequest): Promise<GenerateResu
         if (FATAL_RE.test(msg)) throw lastErr; // bad request — every model fails the same
       }
     }
+  }
+
+  // Free GPU only mode: the only thing that could have run was the self-hosted
+  // pool (and $0 providers). If nothing ran, or the only failure was the pool
+  // having no eligible worker, surface the friendly "start your GPU" message —
+  // never a confusing "no provider" dump that hints at a missing paid key.
+  if (freeOnly && (!triedAny || (lastErr && GPU_UNAVAILABLE_RE.test(lastErr.message)))) {
+    throw new Error(FREE_MODE_NO_WORKER_MSG);
   }
 
   if (!triedAny) {

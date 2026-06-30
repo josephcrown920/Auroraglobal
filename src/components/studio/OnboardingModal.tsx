@@ -20,14 +20,6 @@ export type VibeChoice = {
 
 const VIBES: VibeChoice[] = [
   {
-    id: "concert",
-    name: "Concert Stage",
-    tag: "Cinematic · Stage lights",
-    gradient: "from-fuchsia-500/60 via-purple-500/40 to-indigo-500/20",
-    prompt:
-      "Cinematic concert performance shot of the subject on a massive stage, dramatic purple stage lighting, smoke, crowd silhouettes, professional music photography, 85mm lens, shallow depth of field, ultra detailed",
-  },
-  {
     id: "editorial",
     name: "Editorial Cover",
     tag: "Magazine · Studio",

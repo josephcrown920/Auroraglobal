@@ -21,6 +21,7 @@ import { MobileNav } from "@/components/MobileNav";
 import { useEffect } from "react";
 import { captureRefFromUrl } from "@/lib/referral";
 import { ReferralAttacher } from "@/components/ReferralAttacher";
+import { ThemeProvider } from "@/lib/theme-context";
 
 function NotFoundComponent() {
   return (
@@ -142,6 +143,13 @@ function RootShell({ children }: { children: React.ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        {/* FOUC prevention: set data-theme before first paint so the correct
+            theme variables are in effect immediately, with no flash. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('aurora-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`,
+          }}
+        />
       </head>
       <body>
         {children}
@@ -175,15 +183,17 @@ function RootComponent() {
   // The app fills the full screen on any device — phone, tablet, or desktop —
   // adapting fluidly to the viewport width with no horizontal scroll.
   return (
-    <QueryClientProvider client={queryClient}>
-      <div className="relative min-h-screen w-full overflow-x-hidden bg-background">
-        <Outlet />
-      </div>
-      <Toaster />
-      <AuroraChatbot />
-      <AdminHotkey />
-      <ReferralAttacher />
-      <MobileNav />
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <div className="relative min-h-screen w-full overflow-x-hidden bg-background">
+          <Outlet />
+        </div>
+        <Toaster />
+        <AuroraChatbot />
+        <AdminHotkey />
+        <ReferralAttacher />
+        <MobileNav />
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }
