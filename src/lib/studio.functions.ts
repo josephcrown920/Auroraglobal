@@ -8,6 +8,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertTrustedUrl } from "./url-guard";
 import { buildMimicMotionRequest, MOTION_TYPES, CAMERA_MOVEMENTS } from "./motion-workflows.server";
 import { computeCost } from "./pricing";
+import { isAdmin } from "./admin.server";
 
 const COST_IMAGE = 1;
 const COST_MOTION = 5;
@@ -17,16 +18,6 @@ const COST_RESKIN = 8;
 // to the UI / MCP caller; credits are never reserved when this fires.
 const NO_MOTION_BACKEND_MSG =
   "No motion-capable GPU backend is connected yet. Connect a GPU worker with the \"motion\" capability to enable MimicMotion and Performance Shots.";
-
-async function isAdmin(userId: string): Promise<boolean> {
-  const { data } = await supabaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("role", "admin")
-    .maybeSingle();
-  return !!data;
-}
 
 async function trackServer(name: string, userId: string | null, payload?: Record<string, unknown>) {
   try {
