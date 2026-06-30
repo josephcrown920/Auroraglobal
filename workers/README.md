@@ -7,9 +7,10 @@ classes:
   self-hosted workers first, then falls back to a hosted provider if none is free.
   The free-GPU **ComfyUI swarm** (`comfyui/`) is built for this — spin up Kaggle/Colab
   GPUs and they auto-join.
-- **Self-hosted only (no fallback):** `lipsync` and `motion`.
+- **Self-hosted only (no fallback):** `lipsync`, `motion`, and `assemble`.
   - **`lipsync`** → [LatentSync](https://github.com/bytedance/LatentSync) (face video + audio → talking head)
   - **`motion`** → [MimicMotion](https://github.com/Tencent/MimicMotion) (reference image + pose video → animated clip)
+  - **`assemble`** → ffmpeg-only stitch for the faceless Kids Story Studio (scenes + narration + music → one MP4). No GPU or model install — advertised by default on any worker that has ffmpeg.
 
   When a user picks *LatentSync (self-hosted)* or runs a Motion Transfer, Aurora
   routes the job **only** to a worker you register here. If none is online, the user
@@ -35,7 +36,7 @@ Aurora UI ──► orchestrator ──► your worker (this dir) ──► Late
 | `runpod/`    | RunPod Serverless         | `runpod`  | lipsync + motion  |
 | `hf-space/`  | Hugging Face Space        | `hfspace` | one task / Space  |
 | `kaggle/`    | Kaggle notebook + tunnel  | `custom`  | lipsync (motion opt-in) |
-| `aurora_worker.py` | any GPU VM (FastAPI)| `custom`  | lipsync + motion  |
+| `aurora_worker.py` | any GPU VM (FastAPI)| `custom`  | lipsync + motion + assemble |
 
 > **Free-GPU swarm:** `comfyui/aurora_comfyui_launcher.py` runs stock ComfyUI on a
 > free Kaggle or Colab GPU, health-gates on `/system_stats`, opens a stable ngrok
@@ -60,7 +61,7 @@ uvicorn aurora_worker:app --host 0.0.0.0 --port 8000 --app-dir workers
 ```
 
 Then register `https://<host>:8000/generate` as a `custom` worker with capabilities
-`lipsync,motion` and the bearer token above. (Aurora normalizes the URL, so the bare
+`lipsync,motion,assemble` and the bearer token above. (Aurora normalizes the URL, so the bare
 origin `https://<host>:8000` works too — it appends `/generate` and `/health` itself.)
 
 > **Weights are never bundled.** `setup.sh` pulls LatentSync + MimicMotion checkpoints
