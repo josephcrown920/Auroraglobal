@@ -2,17 +2,34 @@ import { Link } from "@tanstack/react-router";
 import { Asterisk, ArrowRight, Check, Sparkles, Layers, Clapperboard, Users } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { track } from "@/lib/tracking";
+import avatarMaya from "@/assets/ugc/maya.jpg.asset.json";
+import avatarLuna from "@/assets/ugc/luna.jpg.asset.json";
+import avatarAva from "@/assets/ugc/ava.jpg.asset.json";
+import avatarRio from "@/assets/ugc/rio.jpg.asset.json";
+import avatarScarlet from "@/assets/ugc/scarlet.jpg.asset.json";
+import avatarNova from "@/assets/ugc/nova.jpg.asset.json";
+import ugcHome from "@/assets/ugc/ugc-home-selfie.webp.asset.json";
+import ugcStreet from "@/assets/ugc/ugc-street-coffee.jpeg.asset.json";
+import joshStill from "@/assets/josh-performance-still-v1.jpg";
 
-/** Gradient placeholder tiles for the chat mockups (kept on-brand, no stock photos). */
-const GRID_TILES = [
-  "from-rose-500 to-pink-600",
-  "from-fuchsia-500 to-purple-600",
-  "from-violet-500 to-indigo-600",
-  "from-sky-500 to-blue-600",
-  "from-pink-400 to-rose-500",
-  "from-purple-500 to-fuchsia-600",
-  "from-indigo-500 to-violet-600",
-  "from-fuchsia-400 to-pink-500",
+/** Real avatar/UGC stills used in the bulk-generation chat mockup grid. */
+const GRID_PHOTOS = [
+  avatarMaya.url,
+  avatarLuna.url,
+  avatarAva.url,
+  avatarRio.url,
+  avatarNova.url,
+  ugcHome.url,
+  ugcStreet.url,
+  avatarScarlet.url,
+] as const;
+
+/** Real avatar thumbnails for the "list my avatars" mockup. */
+const LIBRARY = [
+  { name: "Lily", status: "READY", img: avatarMaya.url },
+  { name: "Aria", status: "READY", img: avatarLuna.url },
+  { name: "Noa", status: "TRAINING", img: avatarAva.url },
+  { name: "Maya", status: "READY", img: avatarRio.url },
 ] as const;
 
 const STEPS = [
@@ -128,15 +145,14 @@ export function McpConnector() {
               outdoor scenes.
             </AssistantLine>
             <div className="grid grid-cols-4 gap-2">
-              {GRID_TILES.map((g, i) => (
+              {GRID_PHOTOS.map((src, i) => (
                 <div
                   key={i}
                   className="relative aspect-[4/5] overflow-hidden rounded-xl border border-white/10"
-                  style={{ animationDelay: `${i * 90}ms` }}
                 >
-                  <div className={`absolute inset-0 bg-gradient-to-br ${g}`} />
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.35),transparent_60%)]" />
-                  <span className="absolute right-1.5 top-1.5 grid size-4 place-items-center rounded-full bg-black/50 text-white">
+                  <img src={src} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                  <span className="absolute right-1.5 top-1.5 grid size-4 place-items-center rounded-full bg-black/60 text-white ring-1 ring-white/20">
                     <Check className="size-2.5" />
                   </span>
                 </div>
@@ -171,20 +187,15 @@ export function McpConnector() {
               <UserBubble>List my avatars</UserBubble>
               <AssistantLine>You have 4 avatars:</AssistantLine>
               <div className="space-y-2">
-                {[
-                  { name: "Lily", status: "READY" },
-                  { name: "Aria", status: "READY" },
-                  { name: "Noa", status: "TRAINING" },
-                  { name: "Maya", status: "READY" },
-                ].map((a, i) => (
+                {LIBRARY.map((a) => (
                   <div
                     key={a.name}
                     className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5"
                   >
                     <div className="flex items-center gap-2.5">
-                      <span
-                        className={`size-7 rounded-full bg-gradient-to-br ${GRID_TILES[i % GRID_TILES.length]}`}
-                      />
+                      <span className="size-7 overflow-hidden rounded-full border border-white/15">
+                        <img src={a.img} alt={a.name} className="size-full object-cover" loading="lazy" />
+                      </span>
                       <span className="text-sm font-medium text-white">{a.name}</span>
                     </div>
                     <span
@@ -217,10 +228,10 @@ export function McpConnector() {
                 </span>
               </AssistantLine>
               <div className="relative aspect-video overflow-hidden rounded-xl border border-white/10">
-                <div className="absolute inset-0 bg-gradient-to-br from-violet-600 via-fuchsia-600 to-rose-600" />
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.3),transparent_55%)]" />
+                <img src={joshStill} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
                 <span className="absolute inset-0 grid place-items-center">
-                  <span className="grid size-12 place-items-center rounded-full bg-white/85 text-black shadow-lg">
+                  <span className="grid size-12 place-items-center rounded-full bg-white/85 text-black shadow-lg backdrop-blur-sm">
                     <span className="ml-0.5 size-0 border-y-[8px] border-l-[13px] border-y-transparent border-l-black" />
                   </span>
                 </span>

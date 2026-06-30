@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowRight, Asterisk, Check, Copy, KeyRound, Plug, MessageSquare, Star } from "lucide-react";
+import { ArrowRight, Asterisk, Check, Copy, KeyRound, Plug, MessageSquare, Star, Film, Heart, Play, TrendingUp, Music2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { track } from "@/lib/tracking";
 import { McpConnector } from "@/components/landing/McpConnector";
@@ -12,6 +12,8 @@ import avatarAva from "@/assets/ugc/ava.jpg.asset.json";
 import avatarRio from "@/assets/ugc/rio.jpg.asset.json";
 import avatarScarlet from "@/assets/ugc/scarlet.jpg.asset.json";
 import avatarNova from "@/assets/ugc/nova.jpg.asset.json";
+import ugcStreet from "@/assets/ugc/ugc-street-coffee.jpeg.asset.json";
+import ugcMale from "@/assets/ugc/ugc-male-shades.jpeg.asset.json";
 
 export const Route = createFileRoute("/connect")({
   component: ConnectPage,
@@ -34,6 +36,20 @@ const AVATAR_LIBRARY = [
   { name: "Rio", img: avatarRio.url, status: "READY" as const },
   { name: "Scarlet", img: avatarScarlet.url, status: "TRAINING" as const },
   { name: "Nova", img: avatarNova.url, status: "READY" as const },
+];
+
+const SEEDANCE_CLIPS = [
+  { handle: "maya", img: avatarMaya.url, caption: "Morning glow routine ☀️", dur: "8s", likes: "184K" },
+  { handle: "sasha", img: ugcStreet.url, caption: "Coffee-run fit check ☕", dur: "6s", likes: "131K" },
+  { handle: "luna", img: avatarLuna.url, caption: "Golden-hour unboxing ✨", dur: "10s", likes: "311K" },
+  { handle: "marcus", img: ugcMale.url, caption: "New shades, who dis 😎", dur: "8s", likes: "98K" },
+];
+
+const SEEDANCE_STATS = [
+  { label: "Clips rendered", value: "50" },
+  { label: "Avg. render", value: "41s" },
+  { label: "Watch-through", value: "78%" },
+  { label: "Aura spent", value: "1,250" },
 ];
 
 const SETUP = [
@@ -198,6 +214,80 @@ function ConnectPage() {
 
       {/* Reusable connector showcase */}
       <McpConnector />
+
+      {/* Seedance 2.0 × Claude */}
+      <section className="mx-auto max-w-6xl px-6 py-12">
+        <span className="inline-flex items-center gap-2 rounded-full border border-orange-300/25 bg-orange-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-orange-200">
+          <Film className="size-3.5" /> Seedance 2.0 × Claude
+        </span>
+        <h2 className="mt-5 max-w-3xl text-3xl font-extrabold leading-[1.05] tracking-tight md:text-5xl">
+          Vertical video, rendered in a chat —{" "}
+          <span className="bg-gradient-to-r from-amber-300 via-fuchsia-300 to-violet-300 bg-clip-text text-transparent">straight to feed.</span>
+        </h2>
+        <p className="mt-4 max-w-2xl text-base leading-7 text-white/72 md:text-lg">
+          Ask Claude for a batch of TikToks — Aurora routes them through{" "}
+          <strong className="text-white">Seedance 2.0</strong> at 9:16, lip-syncs the talent and
+          hands back ready-to-post clips with the numbers baked in.
+        </p>
+
+        {/* TikTok-style vertical phone frames */}
+        <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {SEEDANCE_CLIPS.map((c) => (
+            <div
+              key={c.handle}
+              className="group relative overflow-hidden rounded-[26px] border border-white/12 bg-black/50 shadow-xl shadow-black/40"
+            >
+              <div className="absolute left-1/2 top-2 z-10 h-1.5 w-12 -translate-x-1/2 rounded-full bg-white/25" />
+              <div className="relative aspect-[9/16]">
+                <img src={c.img} alt={`@${c.handle}`} className="absolute inset-0 size-full object-cover" loading="lazy" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-black/35" />
+                <span className="absolute left-2 top-4 inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-white/90 ring-1 ring-white/15 backdrop-blur">
+                  Seedance 2.0 · 9:16 · {c.dur}
+                </span>
+                <span className="absolute inset-0 grid place-items-center">
+                  <span className="grid size-11 place-items-center rounded-full bg-white/85 text-black shadow-lg transition group-hover:scale-105">
+                    <Play className="ml-0.5 size-5 fill-black" />
+                  </span>
+                </span>
+                <div className="absolute bottom-3 right-2 flex flex-col items-center gap-3 text-white">
+                  <span className="flex flex-col items-center">
+                    <Heart className="size-5 fill-white/90" />
+                    <span className="text-[9px] font-semibold">{c.likes}</span>
+                  </span>
+                  <span className="flex flex-col items-center">
+                    <MessageSquare className="size-5" />
+                    <span className="text-[9px] font-semibold">2.1K</span>
+                  </span>
+                  <Music2 className="size-5" />
+                </div>
+                <div className="absolute inset-x-2 bottom-3 pr-10">
+                  <p className="text-xs font-semibold leading-tight text-white drop-shadow">@{c.handle}</p>
+                  <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-white/85">{c.caption}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Flow into results */}
+        <div className="mt-6 flex items-center justify-center gap-2 text-white/40">
+          <span className="h-px w-12 bg-gradient-to-r from-transparent to-white/30" />
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.2em]">
+            <TrendingUp className="size-3.5 text-emerald-400" /> Results roll in
+          </span>
+          <span className="h-px w-12 bg-gradient-to-l from-transparent to-white/30" />
+        </div>
+
+        {/* Analytics strip */}
+        <div className="mt-6 grid grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:grid-cols-4 sm:p-5">
+          {SEEDANCE_STATS.map((s) => (
+            <div key={s.label} className="rounded-xl border border-white/10 bg-black/30 px-4 py-3">
+              <p className="text-2xl font-extrabold tracking-tight text-white">{s.value}</p>
+              <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wider text-white/50">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* Setup */}
       <section id="setup" className="mx-auto max-w-6xl px-6 py-12">
