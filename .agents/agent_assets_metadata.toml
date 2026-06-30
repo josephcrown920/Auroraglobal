@@ -24,6 +24,78 @@ uri = "file://src/assets/feed/generated/still-street.png"
 type = "image"
 title = "creator street mural"
 
+[[generated]]
+id = "dqCtPjPxCSNewrdfV6i3S"
+uri = "file://src/assets/colors-studios/studio-royal-blue.png"
+type = "image"
+title = "royal blue studio"
+
+[[generated]]
+id = "RCLSshzKPHZ95ftpPPz5p"
+uri = "file://src/assets/colors-studios/studio-hot-pink.png"
+type = "image"
+title = "hot-pink studio"
+
+[[generated]]
+id = "k4C-8uKC_CCcfj9rdVf_M"
+uri = "file://src/assets/colors-studios/studio-neon-green.png"
+type = "image"
+title = "neon-green studio"
+
+[[generated]]
+id = "NVZeoY1w3AYz12ls7cyI9"
+uri = "file://src/assets/colors-studios/studio-sunset-orange.png"
+type = "image"
+title = "sunset-orange studio"
+
+[[generated]]
+id = "IRnauHUcTdbXwrHCizXOF"
+uri = "file://src/assets/colors-studios/studio-electric-purple.png"
+type = "image"
+title = "electric-purple studio"
+
+[[generated]]
+id = "8Ry0cSB8vXUS7WkbuQo43"
+uri = "file://src/assets/colors-studios/studio-cyber-yellow.png"
+type = "image"
+title = "cyber-yellow studio"
+
+[[generated]]
+id = "u2bMzBA_GxVlyPA1UT4yL"
+uri = "file://src/assets/colors-studios/studio-crimson-red.png"
+type = "image"
+title = "crimson-red studio"
+
+[[generated]]
+id = "JWSNWbGCGNicBvGFv8X-Q"
+uri = "file://src/assets/colors-studios/studio-ice-white.png"
+type = "image"
+title = "ice-white studio"
+
+[[generated]]
+id = "HBnnDlGCj_tZNcpXAO1Se"
+uri = "file://src/assets/colors-studios/studio-obsidian.png"
+type = "image"
+title = "obsidian studio"
+
+[[generated]]
+id = "ByBTtLMayCCAnKNMiRBLZ"
+uri = "file://src/assets/colors-studios/studio-aqua.png"
+type = "image"
+title = "aqua studio"
+
+[[generated]]
+id = "2TLnQnt4Fq3qOIh6ckRzI"
+uri = "file://src/assets/colors-studios/studio-rose-gold.png"
+type = "image"
+title = "rose-gold studio"
+
+[[generated]]
+id = "a1VKaVP0PtR8Ii9ECJWyo"
+uri = "file://src/assets/colors-studios/studio-lime-pop.png"
+type = "image"
+title = "lime-pop studio"
+
 [[outputs]]
 id = "uuVDpq4W7VbbIZdWQslyD"
 uri = "file://notebooks/hybrid_ai_inference_colab.zip"

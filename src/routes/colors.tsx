@@ -20,24 +20,15 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { TriedTestedShowcase } from "@/components/studio/TriedTestedShowcase";
 import { ColorsShotsGallery } from "@/components/studio/ColorsShotsGallery";
+import { ColorStudioBackdrop } from "@/components/studio/ColorStudioBackdrop";
 import tutorialStudioRefs from "@/assets/tutorial-studio-refs.jpg.asset.json";
 import tutorialColorsBlueFinal from "@/assets/tutorial-colors-blue-final.jpg.asset.json";
 
-// Real performance reference photos shot on a hot-pink cyclorama.
-// Tinted at render-time to match the chosen color via a mix-blend overlay.
-import studioWideImg from "@/assets/colors-studio-wide.jpg";
-import studioCloseupImg from "@/assets/colors-studio-closeup.jpg";
-import studioSplitImg from "@/assets/colors-studio-split.jpg";
-import studioNeonImg from "@/assets/colors-studio-neonbath.jpg";
-import studioSmokeImg from "@/assets/colors-studio-smoke.jpg";
-
-const SETUP_IMAGES: Record<string, string> = {
-  wide: studioWideImg,
-  closeup: studioCloseupImg,
-  "split-color": studioSplitImg,
-  "neon-bath": studioNeonImg,
-  "color-smoke": studioSmokeImg,
-};
+// Setups that take place on the seamless cyclorama get the real, per-color
+// animated COLORS studio environment as their preview backdrop (see
+// ColorStudioBackdrop). Other scene kinds (indoor / outdoor / street) keep their
+// gradient mockups since they aren't studio sets.
+const STUDIO_BACKDROP_KINDS = new Set(["performance", "studio"]);
 
 export const Route = createFileRoute("/colors")({
   component: ColorsStudio,
@@ -380,22 +371,16 @@ function ColorsStudio() {
                       className="relative aspect-[4/3] w-full overflow-hidden"
                       style={{ background: s.preview(selectedColor.swatch) }}
                     >
-                      {SETUP_IMAGES[s.id] ? (
+                      {STUDIO_BACKDROP_KINDS.has(s.kind) ? (
                         <>
-                          <img
-                            src={SETUP_IMAGES[s.id]}
-                            alt={s.name}
-                            loading="lazy"
-                            className="absolute inset-0 size-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
-                          />
-                          {/* Re-tint the hot-pink reference photo to whatever color is selected. */}
-                          {selectedColor.id !== "hot-pink" && (
-                            <div
-                              aria-hidden
-                              className="absolute inset-0 mix-blend-color pointer-events-none"
-                              style={{ backgroundColor: selectedColor.swatch }}
+                          {/* Real, per-color animated COLORS studio set. */}
+                          <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-[1.03]">
+                            <ColorStudioBackdrop
+                              colorId={selectedColor.id}
+                              label={`${selectedColor.name} ${s.name} studio`}
+                              preload={active ? "auto" : "metadata"}
                             />
-                          )}
+                          </div>
                           <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/70 to-transparent" />
                         </>
                       ) : (
