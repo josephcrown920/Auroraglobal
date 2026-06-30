@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth, isAdmin } from "@/integrations/supabase/auth-middleware";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { isAdmin } from "./admin.server";
 import { z } from "zod";
 
 // 1 Aura per spin piece — matches COST_IMAGE in studio.functions.ts.
