@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -17,6 +17,7 @@ import {
   listGenerations,
 } from "@/lib/studio.functions";
 import { VIDEO_MODEL_LIST } from "@/lib/models";
+import { computeCost } from "@/lib/pricing";
 import {
   Select,
   SelectContent,
@@ -104,6 +105,13 @@ function MotionStudio() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [videoError, setVideoError] = useState<string | null>(null);
+
+  // Animate runs generateVideoFromImage at a fixed 5s / 720p, so this mirrors the
+  // server charge exactly; premium video models retier the previewed price live.
+  const animateCost = useMemo(
+    () => computeCost({ features: ["video"], model: videoModel, durationSeconds: 5, resolution: "720p" }).total,
+    [videoModel],
+  );
 
   // Motion Transfer (MimicMotion)
   const [mtImage, setMtImage] = useState<string | null>(null);
@@ -458,7 +466,7 @@ function MotionStudio() {
                   variant="secondary"
                   className="flex-1 h-12"
                 >
-                  {animateMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Rendering…</> : <><Film className="size-4 mr-2" /> {videoError ? "Retry animate" : "Animate · 5 Aura"}</>}
+                  {animateMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Rendering…</> : <><Film className="size-4 mr-2" /> {videoError ? "Retry animate" : `Animate · ${animateCost} Aura`}</>}
                 </Button>
               </div>
             </>

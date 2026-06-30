@@ -356,6 +356,8 @@ const QuoteSchema = z.object({
   // Keep the quote window identical to the executable charge path (OrchestrateSchema)
   // so a preview can never quote a length the generation would reject.
   duration: z.number().int().min(3).max(12).optional(),
+  // Tiers the video/lip-sync base so the preview matches the model the user picks.
+  model: z.string().max(120).optional(),
   audioUrl: z.string().url().optional(),
   videoUrl: z.string().url().optional(),
   cameraMovement: z.string().max(60).optional(),
@@ -379,6 +381,7 @@ export const quoteGenerate = createServerFn({ method: "POST" })
       features,
       resolution: data.resolution,
       durationSeconds: data.duration,
+      model: data.model,
     });
     return { ...quote, features, primaryKind };
   });
@@ -396,6 +399,7 @@ export const orchestrateGenerate = createServerFn({ method: "POST" })
       features,
       resolution: data.resolution,
       durationSeconds: data.duration,
+      model: data.model,
     });
     const cost = quote.total;
     const outcome = await reserveOrchestrateRecord({

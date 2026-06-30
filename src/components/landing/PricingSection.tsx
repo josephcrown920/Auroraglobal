@@ -15,11 +15,11 @@ const META: Record<PlanKey, { name: string; tagline: string; features: string[];
   },
   creator: {
     name: "Creator", tagline: "Built for daily posting.", icon: Zap, highlight: true,
-    features: ["240 Aura (~48 videos)", "All image + video models", "Priority queue", "Commercial license", "Gallery sharing"],
+    features: ["240 Aura (~48 budget · ~15 premium videos)", "All image + video models", "Priority queue", "Commercial license", "Gallery sharing"],
   },
   studio: {
     name: "Studio", tagline: "For agencies + power users.", icon: Crown,
-    features: ["640 Aura (~130 videos)", "Every model, including Seedance Pro", "Top-priority queue", "Team sharing", "White-glove onboarding"],
+    features: ["640 Aura (~128 budget · ~40 premium videos)", "Every model, including Seedance Pro", "Top-priority queue", "Team sharing", "White-glove onboarding"],
   },
 };
 
@@ -59,7 +59,7 @@ export function PricingSection() {
           Simple Aura. <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-pink-200 bg-clip-text text-transparent">No subscriptions.</span>
         </h2>
         <p className="text-white/65 mt-3 text-sm md:text-base">
-          One Aura ≈ one image. Videos and lip-sync from 5 Aura. Aura never expires.
+          One Aura ≈ one image. Budget video &amp; lip-sync from 5 Aura; premium models cost more. Aura never expires.
         </p>
       </div>
 

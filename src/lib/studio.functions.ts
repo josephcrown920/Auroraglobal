@@ -7,10 +7,9 @@ import { fetchToBytes } from "./replicate.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertTrustedUrl } from "./url-guard";
 import { buildMimicMotionRequest, MOTION_TYPES, CAMERA_MOVEMENTS } from "./motion-workflows.server";
+import { computeCost } from "./pricing";
 
 const COST_IMAGE = 1;
-const COST_VIDEO = 5;
-const COST_LIPSYNC = 3;
 const COST_MOTION = 5;
 const COST_RESKIN = 8;
 
@@ -206,7 +205,15 @@ export const generateVideoFromImage = createServerFn({ method: "POST" })
     // Free GPU only mode: video has no $0 hosted fallback, so fail before charging
     // credits if no free worker is online (no paid provider can ever be reached).
     await assertFreeModeServable("video");
-    await chargeCredits(userId, COST_VIDEO, "video_generation", row.id);
+    // Model-tiered: premium video models cost more Aura so the render stays
+    // profitable. Same computeCost the UI previews → preview == charge == refund.
+    const videoCost = computeCost({
+      features: ["video"],
+      model: data.modelKey,
+      durationSeconds: data.duration,
+      resolution: data.resolution,
+    }).total;
+    await chargeCredits(userId, videoCost, "video_generation", row.id);
     try {
       const out = await orchestrate({
         kind: "video",
@@ -234,7 +241,7 @@ export const generateVideoFromImage = createServerFn({ method: "POST" })
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unknown error";
       await supabase.from("generations").update({ status: "failed", error: msg }).eq("id", row.id);
-      await refundCredits(userId, COST_VIDEO, row.id);
+      await refundCredits(userId, videoCost, row.id);
       throw new Error(msg);
     }
   });
@@ -351,7 +358,10 @@ export const lipSyncVideo = createServerFn({ method: "POST" })
     // Free GPU only mode: lip-sync has no $0 hosted fallback, so a hosted engine
     // can't run for free — fail before charging credits unless a worker is online.
     await assertFreeModeServable("lipsync");
-    await chargeCredits(userId, COST_LIPSYNC, "lipsync", row.id);
+    // Model-tiered: premium engines (Sync 1.9) cost more Aura than the self-hosted
+    // budget engine. Same computeCost the UI previews → preview == charge == refund.
+    const lipsyncCost = computeCost({ features: ["lipsync"], model }).total;
+    await chargeCredits(userId, lipsyncCost, "lipsync", row.id);
     try {
       // Self-hosted LatentSync carries a ComfyUI graph + flat params so it runs
       // on every worker protocol; hosted engines never get these.
@@ -383,7 +393,7 @@ export const lipSyncVideo = createServerFn({ method: "POST" })
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unknown error";
       await supabase.from("generations").update({ status: "failed", error: msg }).eq("id", row.id);
-      await refundCredits(userId, COST_LIPSYNC, row.id);
+      await refundCredits(userId, lipsyncCost, row.id);
       throw new Error(msg);
     }
   });
