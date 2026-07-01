@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as WorkflowsRouteImport } from './routes/workflows'
 import { Route as UgcRouteImport } from './routes/ugc'
 import { Route as TiktokRouteImport } from './routes/tiktok'
+import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as StudioRouteImport } from './routes/studio'
 import { Route as SplitRealityRouteImport } from './routes/split-reality'
 import { Route as SpinRouteImport } from './routes/spin'
@@ -72,6 +73,11 @@ const UgcRoute = UgcRouteImport.update({
 const TiktokRoute = TiktokRouteImport.update({
   id: '/tiktok',
   path: '/tiktok',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TemplatesRoute = TemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StudioRoute = StudioRouteImport.update({
@@ -337,6 +343,7 @@ export interface FileRoutesByFullPath {
   '/spin': typeof SpinRoute
   '/split-reality': typeof SplitRealityRoute
   '/studio': typeof StudioRoute
+  '/templates': typeof TemplatesRoute
   '/tiktok': typeof TiktokRoute
   '/ugc': typeof UgcRoute
   '/workflows': typeof WorkflowsRoute
@@ -388,6 +395,7 @@ export interface FileRoutesByTo {
   '/spin': typeof SpinRoute
   '/split-reality': typeof SplitRealityRoute
   '/studio': typeof StudioRoute
+  '/templates': typeof TemplatesRoute
   '/tiktok': typeof TiktokRoute
   '/ugc': typeof UgcRoute
   '/workflows': typeof WorkflowsRoute
@@ -440,6 +448,7 @@ export interface FileRoutesById {
   '/spin': typeof SpinRoute
   '/split-reality': typeof SplitRealityRoute
   '/studio': typeof StudioRoute
+  '/templates': typeof TemplatesRoute
   '/tiktok': typeof TiktokRoute
   '/ugc': typeof UgcRoute
   '/workflows': typeof WorkflowsRoute
@@ -493,6 +502,7 @@ export interface FileRouteTypes {
     | '/spin'
     | '/split-reality'
     | '/studio'
+    | '/templates'
     | '/tiktok'
     | '/ugc'
     | '/workflows'
@@ -544,6 +554,7 @@ export interface FileRouteTypes {
     | '/spin'
     | '/split-reality'
     | '/studio'
+    | '/templates'
     | '/tiktok'
     | '/ugc'
     | '/workflows'
@@ -595,6 +606,7 @@ export interface FileRouteTypes {
     | '/spin'
     | '/split-reality'
     | '/studio'
+    | '/templates'
     | '/tiktok'
     | '/ugc'
     | '/workflows'
@@ -647,6 +659,7 @@ export interface RootRouteChildren {
   SpinRoute: typeof SpinRoute
   SplitRealityRoute: typeof SplitRealityRoute
   StudioRoute: typeof StudioRoute
+  TemplatesRoute: typeof TemplatesRoute
   TiktokRoute: typeof TiktokRoute
   UgcRoute: typeof UgcRoute
   WorkflowsRoute: typeof WorkflowsRoute
@@ -688,6 +701,13 @@ declare module '@tanstack/react-router' {
       path: '/tiktok'
       fullPath: '/tiktok'
       preLoaderRoute: typeof TiktokRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/templates': {
+      id: '/templates'
+      path: '/templates'
+      fullPath: '/templates'
+      preLoaderRoute: typeof TemplatesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/studio': {
@@ -1058,6 +1078,7 @@ const rootRouteChildren: RootRouteChildren = {
   SpinRoute: SpinRoute,
   SplitRealityRoute: SplitRealityRoute,
   StudioRoute: StudioRoute,
+  TemplatesRoute: TemplatesRoute,
   TiktokRoute: TiktokRoute,
   UgcRoute: UgcRoute,
   WorkflowsRoute: WorkflowsRoute,

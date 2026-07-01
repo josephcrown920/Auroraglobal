@@ -1,0 +1,401 @@
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  X,
+  Sparkles,
+  Loader2,
+  Upload,
+  Image as ImageIcon,
+  Music,
+  Crown,
+  ArrowRight,
+  Check,
+} from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
+import { handleGenerationError } from "@/lib/error-toasts";
+import {
+  generatePerformanceShot,
+  generateVideoFromImage,
+  lipSyncVideo,
+} from "@/lib/studio.functions";
+import { templateCost, TEMPLATE_DEFAULTS, type StudioTemplate } from "@/lib/template-studio";
+
+type UploadState = { url: string; name: string; preview?: string };
+
+export function TemplateDrawer({
+  template,
+  locked,
+  onClose,
+}: {
+  template: StudioTemplate;
+  locked: boolean;
+  onClose: () => void;
+}) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const genFn = useServerFn(generatePerformanceShot);
+  const vidFn = useServerFn(generateVideoFromImage);
+  const lipFn = useServerFn(lipSyncVideo);
+
+  const imageInput = template.inputs.find((i) => i.kind === "image");
+  const audioInput = template.inputs.find((i) => i.kind === "audio");
+  const textInput = template.inputs.find((i) => i.kind === "text");
+
+  const [image, setImage] = useState<UploadState | null>(null);
+  const [audio, setAudio] = useState<UploadState | null>(null);
+  const [text, setText] = useState("");
+  const [uploading, setUploading] = useState<"image" | "audio" | null>(null);
+  const [running, setRunning] = useState(false);
+  const [stage, setStage] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setShown(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  const cost = templateCost(template);
+
+  async function uploadFile(kind: "image" | "audio", file: File) {
+    if (!user) {
+      navigate({ to: "/auth" });
+      return;
+    }
+    setError(null);
+    setUploading(kind);
+    try {
+      const path = `${user.id}/templates/${Date.now()}-${file.name}`;
+      const { error: upErr } = await supabase.storage
+        .from("studio")
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) {
+        toast.error(upErr.message);
+        return;
+      }
+      const { data: signed, error: signErr } = await supabase.storage
+        .from("studio")
+        .createSignedUrl(path, 60 * 60);
+      if (signErr || !signed?.signedUrl) {
+        toast.error(signErr?.message ?? "Could not prepare the file");
+        return;
+      }
+      const state: UploadState = {
+        url: signed.signedUrl,
+        name: file.name,
+        preview: kind === "image" ? URL.createObjectURL(file) : undefined,
+      };
+      if (kind === "image") setImage(state);
+      else setAudio(state);
+    } finally {
+      setUploading(null);
+    }
+  }
+
+  const missingRequired =
+    (!!imageInput?.required && !image) ||
+    (!!audioInput?.required && !audio) ||
+    (!!textInput?.required && !text.trim());
+
+  const canRun = !locked && !running && !uploading && !missingRequired;
+
+  function buildImagePrompt(): string {
+    const extra = text.trim();
+    if (!extra) return template.imagePrompt;
+    return `${template.imagePrompt} Scene: ${extra}.`;
+  }
+
+  async function run() {
+    if (!user) {
+      navigate({ to: "/auth" });
+      return;
+    }
+    if (!image) {
+      setError("Upload a photo to get started.");
+      return;
+    }
+    setRunning(true);
+    setError(null);
+    try {
+      setStage("Creating your image…");
+      const img = await genFn({
+        data: {
+          prompt: buildImagePrompt(),
+          imageUrls: [image.url],
+          motionVideoUrl: null,
+          model: template.imageModel,
+        },
+      });
+
+      if (template.flow !== "image") {
+        setStage("Bringing it to life…");
+        const vid = await vidFn({
+          data: {
+            imageUrl: img.resultUrl,
+            prompt: template.videoPrompt ?? "natural cinematic movement",
+            duration: template.durationSeconds ?? TEMPLATE_DEFAULTS.durationSeconds,
+            resolution: template.resolution ?? TEMPLATE_DEFAULTS.resolution,
+            modelKey: template.videoModel ?? TEMPLATE_DEFAULTS.videoModel,
+            cameraMovement: template.cameraMovement ?? "static",
+            endFrameUrl: null,
+          },
+        });
+
+        if (template.flow === "lipsync") {
+          if (!audio) throw new Error("Add an audio clip to lip-sync.");
+          setStage("Lip-syncing to your audio…");
+          await lipFn({
+            data: {
+              videoUrl: vid.videoUrl,
+              audioUrl: audio.url,
+              model: (template.lipsyncModel ?? TEMPLATE_DEFAULTS.lipsyncModel) as
+                | "fal-ai/sync-lipsync/v2"
+                | "fal-ai/wav2lip"
+                | "latentsync",
+            },
+          });
+        }
+      }
+
+      toast.success("Done! Opening your gallery…");
+      navigate({ to: "/gallery" });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Something went wrong";
+      setError(msg);
+      handleGenerationError(e);
+    } finally {
+      setRunning(false);
+      setStage("");
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col justify-end">
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+      />
+      <div
+        className={`relative z-10 w-full max-h-[92vh] overflow-y-auto rounded-t-3xl border-t border-border bg-background/95 backdrop-blur-2xl shadow-[0_-20px_60px_oklch(0_0_0/0.6)] transition-transform duration-300 ${
+          shown ? "translate-y-0" : "translate-y-full"
+        }`}
+      >
+        {/* Grab handle */}
+        <div className="sticky top-0 z-10 flex justify-center pt-2.5 pb-1 bg-background/95">
+          <span className="h-1 w-10 rounded-full bg-white/20" />
+        </div>
+
+        <div className="px-5 pb-8">
+          {/* Header */}
+          <div className="flex items-start gap-3">
+            <div className="relative size-16 shrink-0 overflow-hidden rounded-xl">
+              <img src={template.thumbnail} alt="" className="h-full w-full object-cover" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono uppercase tracking-[0.14em] text-primary">
+                  {template.category}
+                </span>
+                {template.premium && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold text-primary">
+                    <Crown className="size-2.5" /> Pro
+                  </span>
+                )}
+              </div>
+              <h2 className="mt-0.5 text-lg font-semibold leading-tight">{template.title}</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">{template.blurb}</p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-white/5"
+              aria-label="Close"
+            >
+              <X className="size-5" />
+            </button>
+          </div>
+
+          {locked ? (
+            <div className="mt-6 rounded-2xl border border-primary/25 bg-primary/[0.06] p-5 text-center">
+              <Crown className="mx-auto size-7 text-primary" />
+              <h3 className="mt-2 text-base font-semibold">This is a Pro template</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Upgrade to Aurora Pro to unlock lip-sync music videos and every premium template.
+              </p>
+              <Link
+                to="/billing"
+                className="mt-4 inline-flex items-center gap-2 rounded-full bg-[image:var(--gradient-hero)] px-5 py-2.5 text-sm font-semibold text-white no-underline shadow-[var(--shadow-glow-soft)] hover:brightness-110"
+              >
+                <Crown className="size-4" /> Upgrade to Pro
+              </Link>
+            </div>
+          ) : (
+            <>
+              {/* Inputs */}
+              <div className="mt-5 space-y-4">
+                {imageInput && (
+                  <FileField
+                    icon={<ImageIcon className="size-4" />}
+                    label={imageInput.label}
+                    hint={imageInput.hint}
+                    required={imageInput.required}
+                    accept={imageInput.accept}
+                    busy={uploading === "image"}
+                    value={image}
+                    onPick={(f) => uploadFile("image", f)}
+                  />
+                )}
+                {audioInput && (
+                  <FileField
+                    icon={<Music className="size-4" />}
+                    label={audioInput.label}
+                    hint={audioInput.hint}
+                    required={audioInput.required}
+                    accept={audioInput.accept}
+                    busy={uploading === "audio"}
+                    value={audio}
+                    onPick={(f) => uploadFile("audio", f)}
+                  />
+                )}
+                {textInput && (
+                  <div>
+                    <label className="text-sm font-medium">
+                      {textInput.label}
+                      {textInput.required && <span className="text-primary"> *</span>}
+                    </label>
+                    <textarea
+                      value={text}
+                      onChange={(e) => setText(e.target.value)}
+                      rows={3}
+                      maxLength={600}
+                      placeholder={textInput.hint}
+                      className="mt-1.5 w-full resize-none rounded-xl border border-border bg-black/30 px-3.5 py-2.5 text-sm outline-none placeholder:text-white/30 focus:border-primary/60"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Cost */}
+              <div className="mt-5 flex items-center justify-between rounded-xl border border-border bg-white/[0.03] px-4 py-3">
+                <span className="text-sm text-muted-foreground">This render uses</span>
+                <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
+                  <Sparkles className="size-4" /> {cost} Aura
+                </span>
+              </div>
+
+              {error && (
+                <p className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+                  {error}
+                </p>
+              )}
+
+              {/* Generate */}
+              <button
+                type="button"
+                onClick={run}
+                disabled={!canRun}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[image:var(--gradient-hero)] px-5 py-3.5 text-sm font-semibold text-white shadow-[var(--shadow-glow-soft)] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {running ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" /> {stage || "Working…"}
+                  </>
+                ) : !user ? (
+                  <>
+                    Sign in to generate <ArrowRight className="size-4" />
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="size-4" /> Generate · {cost} Aura
+                  </>
+                )}
+              </button>
+              {running && (
+                <p className="mt-2 text-center text-[11px] text-muted-foreground">
+                  Keep this open — your render lands in the gallery when it's ready.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FileField({
+  icon,
+  label,
+  hint,
+  required,
+  accept,
+  busy,
+  value,
+  onPick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  hint?: string;
+  required: boolean;
+  accept?: string;
+  busy: boolean;
+  value: UploadState | null;
+  onPick: (file: File) => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <div>
+      <label className="text-sm font-medium">
+        {label}
+        {required && <span className="text-primary"> *</span>}
+      </label>
+      <button
+        type="button"
+        onClick={() => ref.current?.click()}
+        disabled={busy}
+        className="mt-1.5 flex w-full items-center gap-3 rounded-xl border border-dashed border-border bg-black/20 px-4 py-3 text-left hover:border-primary/50 disabled:opacity-60"
+      >
+        {value?.preview ? (
+          <img src={value.preview} alt="" className="size-11 shrink-0 rounded-lg object-cover" />
+        ) : (
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            {busy ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : value ? (
+              <Check className="size-4" />
+            ) : (
+              icon
+            )}
+          </span>
+        )}
+        <span className="min-w-0 flex-1">
+          {value ? (
+            <span className="block truncate text-sm font-medium text-foreground">{value.name}</span>
+          ) : (
+            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Upload className="size-3.5" /> {busy ? "Uploading…" : "Tap to upload"}
+            </span>
+          )}
+          {hint && !value && <span className="block text-[11px] text-white/35">{hint}</span>}
+          {value && <span className="block text-[11px] text-primary">Tap to replace</span>}
+        </span>
+      </button>
+      <input
+        ref={ref}
+        type="file"
+        accept={accept}
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onPick(f);
+          e.target.value = "";
+        }}
+      />
+    </div>
+  );
+}
