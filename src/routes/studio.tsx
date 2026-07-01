@@ -15,7 +15,10 @@ import { Sparkles, Wand2, LogOut, Loader2, Download, Camera, Film, Mic2, Coins, 
 import { CaptionDialog } from "@/components/gallery/CaptionDialog";
 import { toast } from "sonner";
 import { generatePerformanceShot, listGenerations, generateVideoFromImage, lipSyncVideo } from "@/lib/studio.functions";
-import { handleGenerationError } from "@/lib/error-toasts";
+import { handleGenerationError, friendlyGenerationMessage } from "@/lib/error-toasts";
+import { useGenerationProgress } from "@/hooks/use-generation-progress";
+import { GenerationProgress } from "@/components/ui/GenerationProgress";
+import { BlurredPreview } from "@/components/ui/BlurredPreview";
 import { getMyProfile, createPaystackCheckout } from "@/lib/billing.functions";
 import { PLANS } from "@/lib/billing.plans";
 import { computeCost } from "@/lib/pricing";
@@ -370,6 +373,48 @@ function StudioPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Checkout failed"),
   });
 
+  const imageProgress = useGenerationProgress({
+    isPending: mut.isPending,
+    isError: mut.isError,
+    isSuccess: mut.isSuccess,
+    estimatedMs: 18_000,
+    persistKey: "aurora.progress.studio.image",
+    labels: {
+      queued: "Queued…",
+      processing: "Lighting the stage…",
+      finalizing: "Finishing the shot…",
+      done: "Shot ready",
+    },
+  });
+
+  const videoProgress = useGenerationProgress({
+    isPending: videoMut.isPending,
+    isError: videoMut.isError,
+    isSuccess: videoMut.isSuccess,
+    estimatedMs: 45_000,
+    persistKey: "aurora.progress.studio.video",
+    labels: {
+      queued: "Queued…",
+      processing: "Rendering your video…",
+      finalizing: "Finalising clip…",
+      done: "Video ready",
+    },
+  });
+
+  const lipsyncProgress = useGenerationProgress({
+    isPending: lipSyncMut.isPending,
+    isError: lipSyncMut.isError,
+    isSuccess: lipSyncMut.isSuccess,
+    estimatedMs: 50_000,
+    persistKey: "aurora.progress.studio.lipsync",
+    labels: {
+      queued: "Queued…",
+      processing: "Syncing lips to audio…",
+      finalizing: "Almost there…",
+      done: "Lip-sync ready",
+    },
+  });
+
   if (loading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -551,7 +596,7 @@ function StudioPage() {
 
           <Button
             disabled={mut.isPending}
-            onClick={() => mut.mutate()}
+            onClick={() => mut.mutate(undefined)}
             className="w-full h-14 text-base font-medium shadow-[var(--shadow-glow)]"
             style={{ background: "var(--gradient-hero)" }}
           >
@@ -601,15 +646,24 @@ function StudioPage() {
         <section className="space-y-4">
           <div className="rounded-3xl overflow-hidden border border-border bg-card/60 backdrop-blur-xl aspect-[4/5] relative shadow-[var(--shadow-soft)]">
             {mut.isPending ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-8 text-muted-foreground px-8">
                 <div className="size-16 rounded-full flex items-center justify-center" style={{ background: "var(--gradient-hero)" }}>
                   <Loader2 className="size-7 animate-spin text-primary-foreground" />
                 </div>
-                <p className="text-sm">Lighting the stage…</p>
+                <div className="w-full space-y-2">
+                  <p className="text-sm text-center">{imageProgress.label || "Lighting the stage…"}</p>
+                  <GenerationProgress visible progress={imageProgress.progress} />
+                </div>
               </div>
             ) : latest?.result_image_url ? (
               <>
-                <img src={latest.result_image_url} alt="Latest shot" className="w-full h-full object-cover" />
+                <BlurredPreview
+                  src={latest.result_image_url}
+                  alt="Latest shot"
+                  aspectRatio="4/5"
+                  className="absolute inset-0 w-full h-full rounded-none border-0"
+                  transitionMs={800}
+                />
                 <div className="absolute bottom-4 right-4 flex items-center gap-2">
                   <button
                     type="button"
@@ -636,7 +690,7 @@ function StudioPage() {
             )}
           </div>
 
-          {/* Per-step pipeline status + retry */}
+          {/* Per-step pipeline status + progress + retry */}
           {(mut.isPending || mut.isError || videoMut.isPending || videoMut.isError || lipSyncMut.isPending || lipSyncMut.isError || latest || latestVideo) && (
             <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl p-3 space-y-2">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-1">Pipeline</div>
@@ -644,23 +698,26 @@ function StudioPage() {
                 {
                   label: "Image",
                   state: mut.isPending ? "running" : mut.isError ? "error" : latest?.result_image_url ? "ok" : "idle",
-                  error: mut.error instanceof Error ? mut.error.message : null,
+                  error: mut.isError ? friendlyGenerationMessage(mut.error) : null,
                   canRetry: mut.isError,
-                  onRetry: () => mut.mutate(),
+                  onRetry: () => mut.mutate(undefined),
+                  progress: imageProgress,
                 },
                 {
                   label: "Video",
                   state: videoMut.isPending ? "running" : videoMut.isError ? "error" : latestVideo?.result_video_url ? "ok" : "idle",
-                  error: videoMut.error instanceof Error ? videoMut.error.message : null,
+                  error: videoMut.isError ? friendlyGenerationMessage(videoMut.error) : null,
                   canRetry: videoMut.isError && !!latest?.result_image_url,
                   onRetry: () => videoMut.mutate(),
+                  progress: videoProgress,
                 },
                 {
                   label: "Lip sync",
                   state: lipSyncMut.isPending ? "running" : lipSyncMut.isError ? "error" : "idle",
-                  error: lipSyncMut.error instanceof Error ? lipSyncMut.error.message : null,
+                  error: lipSyncMut.isError ? friendlyGenerationMessage(lipSyncMut.error) : null,
                   canRetry: lipSyncMut.isError && !!audioUrl,
                   onRetry: () => lipSyncMut.mutate(),
+                  progress: lipsyncProgress,
                 },
               ].map((s) => (
                 <div
@@ -677,13 +734,20 @@ function StudioPage() {
                     s.state === "running" ? "bg-primary animate-pulse" :
                     s.state === "error" ? "bg-destructive" : "bg-muted-foreground/40"
                   }`} />
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 space-y-1.5">
                     <div className="font-medium text-foreground flex items-center gap-2">
                       {s.label}
                       <span className="text-[10px] text-muted-foreground uppercase">
-                        {s.state === "running" ? "Running…" : s.state}
+                        {s.state === "running" ? s.progress.label || "Running…" : s.state}
                       </span>
                     </div>
+                    {s.state === "running" && (
+                      <GenerationProgress
+                        visible
+                        progress={s.progress.progress}
+                        gradient
+                      />
+                    )}
                     {s.error && <div className="text-destructive/90 text-[11px] truncate" title={s.error}>{s.error}</div>}
                   </div>
                   {s.canRetry && (
@@ -692,7 +756,7 @@ function StudioPage() {
                       onClick={s.onRetry}
                       className="shrink-0 text-[11px] px-2 py-1 rounded-md border border-border bg-background/80 hover:border-primary/40"
                     >
-                      Retry this step
+                      Try again
                     </button>
                   )}
                 </div>

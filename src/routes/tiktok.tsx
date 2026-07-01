@@ -17,6 +17,86 @@ import { ExampleChips } from "@/components/onboarding/ExampleChips";
 import { TIKTOK_EXAMPLE_PRESETS } from "@/lib/example-presets";
 import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
 import { hasCompletedFirstGen, hasDismissedTour, isFirstPageVisit, markFirstGenComplete, markPageVisited } from "@/lib/first-run";
+import { useGenerationProgress, type BackendJobStatus } from "@/hooks/use-generation-progress";
+import { GenerationErrorCard } from "@/components/ui/GenerationErrorCard";
+
+/**
+ * Normalizes backend job status strings to BackendJobStatus.
+ * Handles variations: "succeeded" (worker system) → "complete",
+ * "done" → "complete", etc. Unknown statuses default to "queued".
+ */
+function normalizeJobStatus(status: string | null | undefined): BackendJobStatus {
+  switch (status) {
+    case "queued": return "queued";
+    case "processing": return "processing";
+    case "finalizing": return "finalizing";
+    case "succeeded": case "complete": case "done": return "complete";
+    case "failed": case "error": return "failed";
+    case null: case undefined: return null;
+    default: return "queued";
+  }
+}
+
+/**
+ * Per-job progress card — wraps useGenerationProgress so each card gets its
+ * own hook instance (hooks can't be called inside .map() callbacks).
+ */
+function TiktokJobCard({
+  jobStatus,
+  label,
+  onRetry,
+}: {
+  jobStatus: BackendJobStatus;
+  label: string;
+  onRetry?: () => void;
+}) {
+  const prog = useGenerationProgress({
+    jobStatus,
+    estimatedMs: 90_000,
+    labels: {
+      queued: "Waiting in queue…",
+      processing: "Rendering your cut…",
+      finalizing: "Almost done…",
+      done: "Ready",
+      error: "Failed",
+    },
+  });
+
+  if (prog.state === "error") {
+    return (
+      <div className="aspect-[9/16] rounded-xl border border-red-500/30 bg-red-500/10 p-3 flex flex-col justify-center items-center gap-2 text-center">
+        <p className="text-[11px] text-red-400 font-medium">Cut failed</p>
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-1 rounded-lg border border-red-400/40 px-2.5 py-1 text-[10px] font-semibold text-red-300 hover:bg-red-500/15 transition-colors"
+          >
+            Try again
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="aspect-[9/16] rounded-xl border border-white/10 bg-black/40 p-3 flex flex-col justify-between">
+      <div className="flex-1 flex flex-col items-center justify-center gap-3">
+        <Loader2 className="size-5 animate-spin text-white/40" />
+        <p className="text-[11px] text-white/60 text-center">{prog.label || label}</p>
+      </div>
+      <div className="space-y-1">
+        <div className="h-1 rounded-full bg-white/10 overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-[#25F4EE] to-[#FE2C55] transition-[width] duration-700"
+            style={{ width: `${prog.progress}%` }}
+          />
+        </div>
+        <p className="text-[10px] text-white/30 text-right tabular-nums">{prog.progress}%</p>
+      </div>
+    </div>
+  );
+}
 
 const STYLE_OPTIONS: { value: CutStyle; label: string; hint: string }[] = [
   { value: "auto", label: "Auto", hint: "Aurora picks the strongest hooks straight from your source." },
@@ -255,6 +335,12 @@ function TiktokRemixPage() {
             {startMut.isPending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
             Remix into {count} cuts
           </button>
+
+          <GenerationErrorCard
+            visible={startMut.isError}
+            error={startMut.error instanceof Error ? startMut.error.message : "Failed to start remix"}
+            onRetry={() => startMut.mutate()}
+          />
         </div>
 
         <aside className="rounded-2xl border border-white/10 bg-black/30 p-4">
@@ -297,9 +383,12 @@ function TiktokRemixPage() {
 
           <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
             {childGens.length === 0 && childJobs.map((j) => (
-              <div key={j.id} className="aspect-[9/16] rounded-xl border border-white/10 bg-black/40 p-3 text-[11px] text-white/50">
-                {j.status}
-              </div>
+              <TiktokJobCard
+                key={j.id}
+                jobStatus={normalizeJobStatus(j.status)}
+                label={j.status}
+                onRetry={() => startMut.mutate()}
+              />
             ))}
             {childGens.map((g) => (
               <div key={g.id} className="group relative aspect-[9/16] overflow-hidden rounded-xl border border-white/10 bg-black/60">
@@ -314,11 +403,11 @@ function TiktokRemixPage() {
                     onMouseLeave={(e) => e.currentTarget.pause()}
                   />
                 ) : (
-                  <div className="absolute inset-0 grid place-items-center text-[11px] text-white/50">
-                    {g.status === "failed" ? "Failed" : (
-                      <span className="inline-flex items-center gap-1.5"><Loader2 className="size-3 animate-spin" /> {g.status}</span>
-                    )}
-                  </div>
+                  <TiktokJobCard
+                    jobStatus={normalizeJobStatus(g.status)}
+                    label={g.status}
+                    onRetry={() => startMut.mutate()}
+                  />
                 )}
                 <div className="absolute bottom-2 left-2 right-2 rounded bg-black/60 p-1.5 text-[10px] leading-snug text-white/85 backdrop-blur">
                   {g.prompt.slice(0, 80)}

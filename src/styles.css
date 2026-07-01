@@ -340,3 +340,8 @@ html[data-theme="light"] {
     box-shadow: 0 0 0 2px var(--ring);
   }
 }
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
