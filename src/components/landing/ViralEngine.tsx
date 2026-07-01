@@ -40,18 +40,18 @@ function TikTokLogo({ className }: { className?: string }) {
 }
 
 const PIECES = [
-  { label: "9:16 TikTok hook", kind: "video", color: "from-pink-500 to-rose-500" },
-  { label: "Reels cold-open", kind: "video", color: "from-fuchsia-500 to-pink-500" },
-  { label: "Carousel cover", kind: "image", color: "from-violet-500 to-fuchsia-500" },
-  { label: "Story poll", kind: "image", color: "from-emerald-500 to-teal-500" },
+  { label: "Lyric video hook", kind: "video", color: "from-pink-500 to-rose-500" },
+  { label: "Beat-sync visual", kind: "video", color: "from-fuchsia-500 to-pink-500" },
+  { label: "Cover art reveal", kind: "image", color: "from-violet-500 to-fuchsia-500" },
+  { label: "Story teaser", kind: "image", color: "from-emerald-500 to-teal-500" },
   { label: "Color-grade variant", kind: "image", color: "from-cyan-400 to-sky-500" },
   { label: "YouTube Short", kind: "video", color: "from-red-500 to-orange-500" },
   { label: "Lip-sync clip", kind: "video", color: "from-pink-500 to-violet-500" },
-  { label: "Meme remix", kind: "image", color: "from-yellow-400 to-amber-500" },
+  { label: "Album teaser", kind: "image", color: "from-yellow-400 to-amber-500" },
   { label: "Vertical poster", kind: "image", color: "from-purple-500 to-violet-600" },
-  { label: "Talking-head cut", kind: "video", color: "from-rose-500 to-pink-500" },
+  { label: "Performance clip", kind: "video", color: "from-rose-500 to-pink-500" },
   { label: "Captioned hook", kind: "image", color: "from-fuchsia-400 to-purple-500" },
-  { label: "Square poster", kind: "image", color: "from-blue-500 to-indigo-500" },
+  { label: "Single cover", kind: "image", color: "from-blue-500 to-indigo-500" },
 ] as const;
 
 const COUNT = PIECES.length;
@@ -74,26 +74,26 @@ const VIEWS = [
 
 const CAPTIONS = [
   "POV: my single dropped 🎤",
-  "he thought it was a shoot…",
+  "cover art reveal 🎨",
   "made this in 30s 🤯",
-  "this or that? 👀",
-  "neon-cyc color grade ✨",
-  "the transition trend",
-  "lip-sync to any sound 🎵",
+  "beat drop at 0:08 🔊",
+  "neon color grade ✨",
+  "lyric video hook 🎬",
+  "lip-sync to my track 🎵",
   "when the beat drops 😳",
-  "fit check 🔥",
-  "talking head, zero setup",
-  "captions auto-added 💬",
-  "poster mode 🖼️",
+  "album teaser 🔥",
+  "performance clip, zero setup",
+  "auto-captioned lyrics 💬",
+  "single cover 🖼️",
 ] as const;
 
 const POSITIONS = ["50% 20%", "50% 42%", "42% 30%", "58% 32%", "50% 30%", "50% 16%"] as const;
 
 const SAMPLE_HOOKS = [
-  "POV: my first single just dropped",
-  "He thought it was just a photoshoot…",
-  "How I made this in 30 seconds with Aurora",
-  "Trying the viral neon-cyc trend",
+  "POV: my single just charted",
+  "beat drop at 0:08 hits different",
+  "Afrobeats summer anthem 2025",
+  "how I made my music video in 30s",
 ];
 
 export function ViralEngine() {
@@ -184,15 +184,15 @@ export function ViralEngine() {
         </div>
 
         <h2 className="mt-4 max-w-3xl text-3xl font-extrabold tracking-tight text-white md:text-5xl">
-          Go viral on TikTok{" "}
+          Drop your song,{" "}
           <span className="bg-gradient-to-r from-pink-300 via-fuchsia-300 to-violet-300 bg-clip-text text-transparent">
-            with Aurora in 30 secs
+            go viral in 30 secs
           </span>
         </h2>
         <p className="mt-3 max-w-2xl text-base leading-7 text-white/72 md:text-lg">
-          One idea in. <strong className="text-white">{COUNT} scroll-stopping pieces out.</strong>{" "}
-          Aurora cuts, recolors, re-angles, lip-syncs and re-captions one creator into a full week
-          of posts — same face, every time, built for the For You page.
+          One track in. <strong className="text-white">{COUNT} scroll-stopping pieces out.</strong>{" "}
+          Aurora cuts lyric hooks, syncs visuals to your beat, reveals your cover art and lip-syncs
+          your face into a full week of posts — built for the For You page.
         </p>
 
         {/* Inline interactive 1 → N demo */}
@@ -211,7 +211,7 @@ export function ViralEngine() {
                     startSpin();
                   }
                 }}
-                placeholder="POV: my first single just dropped"
+                placeholder="POV: my single just charted"
                 className="flex-1 rounded-full bg-white/[0.06] border border-white/10 px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-pink-300/60 focus:bg-white/[0.08]"
               />
               {phase === "spinning" ? (
@@ -400,18 +400,18 @@ export function ViralEngine() {
         <div className="mt-6 grid gap-3 md:grid-cols-3">
           <Feature
             icon={<Video className="size-4" />}
-            title="Hook-first cuts"
-            body="Auto-generated 0–3s openers proven to stop the scroll on TikTok & Reels."
+            title="Beat-synced cuts"
+            body="Openers that hit on the downbeat — 0–3s hooks proven to stop the scroll on TikTok & Reels."
           />
           <Feature
             icon={<Sparkles className="size-4" />}
-            title="Trend-ready aesthetics"
-            body="Colors studio, neon, Y2K, jersey-core, color-grade swaps in one tap."
+            title="Genre-ready aesthetics"
+            body="Afrobeats, Trap, Drill, neon and Y2K looks — color-grade swaps in one tap."
           />
           <Feature
             icon={<Zap className="size-4" />}
-            title="Lip-sync to any sound"
-            body="Drop a trending audio — Aurora aligns mouth shapes frame-perfect."
+            title="Lip-sync to your track"
+            body="Drop your song — Aurora aligns mouth shapes frame-perfect to your vocals."
           />
         </div>
 
