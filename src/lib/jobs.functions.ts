@@ -36,7 +36,7 @@ const EnqueueInput = z.object({
   imageUrls: z.array(z.string().url()).max(6).optional(),
   audioUrl: z.string().url().optional(),
   videoUrl: z.string().url().optional(),
-  duration: z.number().int().min(3).max(12).optional(),
+  duration: z.number().int().min(3).max(15).optional(),
   resolution: z.enum(["480p", "720p", "1080p"]).optional(),
   model: z.string().max(120).optional(),
   // Pluggable-backend passthrough (carried in the job payload → orchestrate).

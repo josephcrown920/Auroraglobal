@@ -65,7 +65,7 @@ async function callGenerate(
 
 function clampDuration(d?: number): number {
   const v = d ?? 5;
-  return Math.max(3, Math.min(12, v));
+  return Math.max(3, Math.min(15, v));
 }
 
 // ─── Dependency seam (for tests) ──────────────────────────────────────────────
