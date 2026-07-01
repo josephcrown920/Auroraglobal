@@ -22,7 +22,7 @@
 // The model→tier table is therefore duplicated here (kept in sync with the
 // server's MODEL_REGISTRY costs by pricing.test.ts) rather than imported.
 
-export type Feature = "image" | "upscale" | "text" | "audio" | "lipsync" | "motion" | "video";
+export type Feature = "image" | "upscale" | "text" | "audio" | "lipsync" | "motion" | "video" | "caption_burn";
 export type Resolution = "480p" | "720p" | "1080p";
 
 /** Every billable feature, in canonical display order. */
@@ -34,6 +34,7 @@ export const FEATURES: readonly Feature[] = [
   "video",
   "lipsync",
   "motion",
+  "caption_burn",
 ];
 
 // ─── Editable default price table ────────────────────────────────────────────
@@ -48,6 +49,7 @@ export const PRICING = {
     lipsync: 3,
     motion: 15,
     video: 5,
+    caption_burn: 2,
   } as Record<Feature, number>,
   /** Multiplier applied to the resolution-bearing visual output. */
   resolutionMultiplier: {

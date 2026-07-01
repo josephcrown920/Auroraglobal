@@ -26,6 +26,44 @@ export const transcribeAudio = createServerFn({ method: "POST" })
     return { text, chunks };
   });
 
+export type CaptionSegment = { start: number; end: number; text: string };
+
+/**
+ * Transcribe a video (or audio) URL via Whisper and return timed caption
+ * segments. The server fetches the video bytes (up to 50 MB) and sends them
+ * to the Whisper model so the client never proxies large binary files.
+ */
+export const transcribeVideoForCaptions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      videoUrl: z.string().url().max(2048),
+      model: z.string().max(120).default("openai/whisper-large-v3"),
+    }).parse
+  )
+  .handler(async ({ data }) => {
+    const res = await fetch(data.videoUrl, { signal: AbortSignal.timeout(60_000) });
+    if (!res.ok) throw new Error(`Fetch video failed: ${res.status}`);
+    const contentLength = Number(res.headers.get("content-length") ?? 0);
+    if (contentLength > 50 * 1024 * 1024) {
+      throw new Error("Video is too large to transcribe (max 50 MB)");
+    }
+    const buf = await res.arrayBuffer();
+    if (buf.byteLength > 50 * 1024 * 1024) {
+      throw new Error("Video is too large to transcribe (max 50 MB)");
+    }
+    const { text, chunks } = await hfSpeechToText(data.model, buf, { timestamps: true });
+    const segments: CaptionSegment[] = (chunks ?? []).map((c) => ({
+      start: c.start,
+      end: c.end > c.start ? c.end : c.start + 3,
+      text: c.text.trim(),
+    })).filter((s) => s.text.length > 0);
+    if (segments.length === 0 && text.trim()) {
+      segments.push({ start: 0, end: 5, text: text.trim() });
+    }
+    return { text, segments };
+  });
+
 /**
  * Synthesize speech (Bark / SpeechT5). Uploads the audio to the studio
  * bucket and returns a public URL.

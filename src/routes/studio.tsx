@@ -11,7 +11,8 @@ import tutorialStudioRefs from "@/assets/tutorial-studio-refs.jpg.asset.json";
 import tutorialStudioFinal from "@/assets/tutorial-studio-final.jpg.asset.json";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Wand2, LogOut, Loader2, Download, Camera, Film, Mic2, Coins, Zap, LayoutDashboard, Shield, Workflow, Server } from "lucide-react";
+import { Sparkles, Wand2, LogOut, Loader2, Download, Camera, Film, Mic2, Coins, Zap, LayoutDashboard, Shield, Workflow, Server, Captions } from "lucide-react";
+import { CaptionDialog } from "@/components/gallery/CaptionDialog";
 import { toast } from "sonner";
 import { generatePerformanceShot, listGenerations, generateVideoFromImage, lipSyncVideo } from "@/lib/studio.functions";
 import { handleGenerationError } from "@/lib/error-toasts";
@@ -114,6 +115,7 @@ function StudioPage() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [lipsyncModel, setLipsyncModel] = useState<"fal-ai/sync-lipsync/v2" | "fal-ai/wav2lip" | "latentsync">("fal-ai/sync-lipsync/v2");
   const [studioLipsyncConsent, setStudioLipsyncConsent] = useState(false);
+  const [captionOpen, setCaptionOpen] = useState(false);
 
   // Tiered cost previews — must mirror the server charge exactly (same computeCost,
   // same fixed 5s / 720p the mutations send). Premium models retier the price live.
@@ -890,6 +892,19 @@ function StudioPage() {
             </div>
           )}
 
+          {latestVideo?.result_video_url && (
+            <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Captions className="size-4 text-primary" />
+                <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Add Captions</h3>
+              </div>
+              <p className="text-xs text-muted-foreground">Transcribe your video's audio with Whisper, review and edit the caption segments, then burn them permanently into the video.</p>
+              <Button variant="secondary" className="w-full" onClick={() => setCaptionOpen(true)}>
+                <Captions className="size-4 mr-2" /> Add Captions · 2 Aura
+              </Button>
+            </div>
+          )}
+
           <HfAudioPanel onAudioReady={(url) => setAudioUrl(url)} />
 
 
@@ -924,6 +939,19 @@ function StudioPage() {
           </div>
         </section>
       </div>
+
+      {latestVideo?.result_video_url && (
+        <CaptionDialog
+          open={captionOpen}
+          onOpenChange={setCaptionOpen}
+          videoUrl={latestVideo.result_video_url}
+          generationId={latestVideo.id}
+          onDone={() => {
+            qc.invalidateQueries({ queryKey: ["gens"] });
+            qc.invalidateQueries({ queryKey: ["gallery"] });
+          }}
+        />
+      )}
     </main>
   );
 }
