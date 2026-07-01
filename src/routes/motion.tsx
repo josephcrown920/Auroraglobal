@@ -554,7 +554,7 @@ function MotionStudio() {
                 variant="premium"
                 className="w-full h-12"
               >
-                {transferMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Queuing…</> : <><Clapperboard className="size-4 mr-2" /> Transfer motion · 5 Aura</>}
+                {transferMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Queuing…</> : <><Clapperboard className="size-4 mr-2" /> Transfer motion · {computeCost({ features: ["motion"] }).total} Aura</>}
               </Button>
               <p className="text-xs text-muted-foreground">Runs on a GPU backend and appears in Recent when ready.</p>
             </>
@@ -605,7 +605,7 @@ function MotionStudio() {
                 variant="premium"
                 className="w-full h-12"
               >
-                {reskinMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Queuing…</> : <><Users className="size-4 mr-2" /> Create Performance Shot · 8 Aura</>}
+                {reskinMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Queuing…</> : <><Users className="size-4 mr-2" /> Create Performance Shot · {computeCost({ features: ["video", "motion"] }).total} Aura</>}
               </Button>
               <p className="text-xs text-muted-foreground">Runs on a GPU backend and appears in Recent when ready.</p>
             </>

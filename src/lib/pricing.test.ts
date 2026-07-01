@@ -7,6 +7,7 @@ import {
   LIPSYNC_TIER_AURA,
   VIDEO_MODEL_TIERS,
   LIPSYNC_MODEL_TIERS,
+  LIPSYNC_ENGINE_MODEL,
   tierForModel,
   type Feature,
 } from "./pricing";
@@ -75,7 +76,7 @@ describe("computeCost — length multiplier", () => {
     expect(
       computeCost({ features: ["lipsync"], durationSeconds: 10, model: "latentsync" }).total,
     ).toBe(6);
-    expect(computeCost({ features: ["motion"], durationSeconds: 10 }).total).toBe(6);
+    expect(computeCost({ features: ["motion"], durationSeconds: 10 }).total).toBe(30);
   });
 
   it("does not apply length to non-temporal features", () => {
@@ -109,12 +110,11 @@ describe("computeCost — rounding & stacking", () => {
     expect(by.image).toBe(1); // base only (source image under a video)
     expect(by.video).toBe(20); // 5 (budget) × 2 × 2
     expect(by.lipsync).toBe(18); // 9 (premium default) × 2 (length)
-    expect(by.motion).toBe(12); // 3 × 2 × 2
-    expect(q.total).toBe(51);
+    expect(by.motion).toBe(60); // 15 × 2 × 2
+    expect(q.total).toBe(99);
   });
 
-  it("budget-tier video + lip-sync still stacks to the historical 39", () => {
-    // The pre-tier worked example survives when both run on budget-tier models.
+  it("budget-tier video + motion + lip-sync stacks correctly at 1080p/10s", () => {
     // (Lip-sync's tier is resolved from its own default; a self-hosted video
     // model leaves lip-sync at the premium default, so price each separately.)
     const video = computeCost({
@@ -128,8 +128,8 @@ describe("computeCost — rounding & stacking", () => {
       durationSeconds: 10,
       model: "latentsync",
     });
-    // image(1) + video(20) + motion(12) + lipsync(3×2=6) = 39
-    expect(video.total + lip.total).toBe(39);
+    // image(1) + video(20) + motion(15×2×2=60) + lipsync(3×2=6) = 87
+    expect(video.total + lip.total).toBe(87);
   });
 
   it("returns the breakdown in canonical feature order", () => {
@@ -186,6 +186,37 @@ describe("detectFeatures — conservative, deterministic", () => {
     expect(features).toEqual(["image", "video"]);
     const total = computeCost({ features, resolution: "720p", durationSeconds: 5 }).total;
     expect(total).toBe(6); // image(1) + video(5) — strictly more than video-only's 5
+  });
+});
+
+// ─── Motion repricing assertions ─────────────────────────────────────────────
+describe("motion repricing — new base = 15", () => {
+  it("PRICING.base.motion is 15", () => {
+    expect(PRICING.base.motion).toBe(15);
+  });
+
+  it("Transfer Motion (motion only, 720p/5s) = 15 Aura", () => {
+    expect(computeCost({ features: ["motion"], resolution: "720p", durationSeconds: 5 }).total).toBe(15);
+  });
+
+  it("Performance Shot (budget video + motion, 720p/5s) = 20 Aura", () => {
+    expect(computeCost({ features: ["video", "motion"], resolution: "720p", durationSeconds: 5 }).total).toBe(20);
+  });
+
+  it("lipsync UI price equals server charge for all three engines", () => {
+    // LIPSYNC_ENGINE_MODEL maps each UI engine key to the same model string that
+    // lipsync.server.ts MODEL uses, so both call computeCost with the same model
+    // and must produce the same Aura total. This verifies the mapping is correct
+    // and that each engine resolves to the expected tier.
+    const expectedByModel: Record<string, number> = {
+      "fal-ai/sync-lipsync/v2": LIPSYNC_TIER_AURA.premium,  // sync-v2 → 9 Aura
+      "fal-ai/wav2lip": LIPSYNC_TIER_AURA.standard,          // wav2lip → 6 Aura
+      "latentsync": LIPSYNC_TIER_AURA.budget,                // latentsync → 3 Aura
+    };
+    for (const [engine, model] of Object.entries(LIPSYNC_ENGINE_MODEL)) {
+      const uiCost = computeCost({ features: ["lipsync"], model }).total;
+      expect(uiCost, `engine "${engine}" model "${model}"`).toBe(expectedByModel[model]);
+    }
   });
 });
 
