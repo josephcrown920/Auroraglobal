@@ -19,6 +19,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ReshootRouteImport } from './routes/reshoot'
 import { Route as OrchestrateRouteImport } from './routes/orchestrate'
 import { Route as NexusarbRouteImport } from './routes/nexusarb'
+import { Route as MusicVideoRouteImport } from './routes/music-video'
 import { Route as MotionRouteImport } from './routes/motion'
 import { Route as LipsyncRouteImport } from './routes/lipsync'
 import { Route as KidsRouteImport } from './routes/kids'
@@ -101,6 +102,11 @@ const OrchestrateRoute = OrchestrateRouteImport.update({
 const NexusarbRoute = NexusarbRouteImport.update({
   id: '/nexusarb',
   path: '/nexusarb',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MusicVideoRoute = MusicVideoRouteImport.update({
+  id: '/music-video',
+  path: '/music-video',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MotionRoute = MotionRouteImport.update({
@@ -290,6 +296,7 @@ export interface FileRoutesByFullPath {
   '/kids': typeof KidsRoute
   '/lipsync': typeof LipsyncRoute
   '/motion': typeof MotionRoute
+  '/music-video': typeof MusicVideoRoute
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
   '/reshoot': typeof ReshootRoute
@@ -335,6 +342,7 @@ export interface FileRoutesByTo {
   '/kids': typeof KidsRoute
   '/lipsync': typeof LipsyncRoute
   '/motion': typeof MotionRoute
+  '/music-video': typeof MusicVideoRoute
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
   '/reshoot': typeof ReshootRoute
@@ -381,6 +389,7 @@ export interface FileRoutesById {
   '/kids': typeof KidsRoute
   '/lipsync': typeof LipsyncRoute
   '/motion': typeof MotionRoute
+  '/music-video': typeof MusicVideoRoute
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
   '/reshoot': typeof ReshootRoute
@@ -428,6 +437,7 @@ export interface FileRouteTypes {
     | '/kids'
     | '/lipsync'
     | '/motion'
+    | '/music-video'
     | '/nexusarb'
     | '/orchestrate'
     | '/reshoot'
@@ -473,6 +483,7 @@ export interface FileRouteTypes {
     | '/kids'
     | '/lipsync'
     | '/motion'
+    | '/music-video'
     | '/nexusarb'
     | '/orchestrate'
     | '/reshoot'
@@ -518,6 +529,7 @@ export interface FileRouteTypes {
     | '/kids'
     | '/lipsync'
     | '/motion'
+    | '/music-video'
     | '/nexusarb'
     | '/orchestrate'
     | '/reshoot'
@@ -564,6 +576,7 @@ export interface RootRouteChildren {
   KidsRoute: typeof KidsRoute
   LipsyncRoute: typeof LipsyncRoute
   MotionRoute: typeof MotionRoute
+  MusicVideoRoute: typeof MusicVideoRoute
   NexusarbRoute: typeof NexusarbRoute
   OrchestrateRoute: typeof OrchestrateRoute
   ReshootRoute: typeof ReshootRoute
@@ -658,6 +671,13 @@ declare module '@tanstack/react-router' {
       path: '/nexusarb'
       fullPath: '/nexusarb'
       preLoaderRoute: typeof NexusarbRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/music-video': {
+      id: '/music-video'
+      path: '/music-video'
+      fullPath: '/music-video'
+      preLoaderRoute: typeof MusicVideoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/motion': {
@@ -927,6 +947,7 @@ const rootRouteChildren: RootRouteChildren = {
   KidsRoute: KidsRoute,
   LipsyncRoute: LipsyncRoute,
   MotionRoute: MotionRoute,
+  MusicVideoRoute: MusicVideoRoute,
   NexusarbRoute: NexusarbRoute,
   OrchestrateRoute: OrchestrateRoute,
   ReshootRoute: ReshootRoute,
