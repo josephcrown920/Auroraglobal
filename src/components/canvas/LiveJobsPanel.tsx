@@ -11,6 +11,7 @@ import { Link } from "@tanstack/react-router";
 type Gen = {
   id: string;
   kind: string;
+  is_watermarked?: boolean;
   status: string;
   model: string | null;
   prompt: string;
@@ -71,7 +72,7 @@ export function LiveJobsPanel() {
     // Initial fetch
     supabase
       .from("generations")
-      .select("id, kind, status, model, prompt, result_image_url, result_video_url, error, created_at")
+      .select("id, kind, status, model, prompt, result_image_url, result_video_url, error, created_at, is_watermarked")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(8)
@@ -156,7 +157,9 @@ export function LiveJobsPanel() {
             <ul className="divide-y divide-white/5">
               {jobs.map((j) => {
                 const Icon = KIND_ICON[j.kind] ?? ImageIcon;
-                const thumb = j.result_image_url || (j.kind === "video" || j.kind === "lipsync" ? null : null);
+                // Never expose the raw provider URL for watermarked items in the panel.
+                // The gallery is the correct place to view watermarked results.
+                const thumb = !j.is_watermarked ? j.result_image_url : null;
                 return (
                   <li key={j.id} className="flex gap-2 p-2.5 items-start hover:bg-white/[0.03]">
                     <div className="size-10 shrink-0 rounded-md bg-white/5 overflow-hidden flex items-center justify-center">
