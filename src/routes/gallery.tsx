@@ -138,16 +138,27 @@ function GalleryPage() {
               <div key={g.id} className="group relative rounded-2xl overflow-hidden border border-border bg-card/40">
                 <div className="aspect-[4/5] bg-background/40">
                   {g.result_image_url ? (
-                    <img src={g.result_image_url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    <img
+                      src={
+                        (g as typeof g & { is_watermarked?: boolean }).is_watermarked
+                          ? `/api/public/watermark-image?id=${g.id}`
+                          : g.result_image_url
+                      }
+                      alt=""
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
                   ) : (
-                    <AutoplayVideo src={g.result_video_url!} className="w-full h-full object-cover" autoPlay={false} playsInline preload="metadata" />
-                  )}
-                  {(g as typeof g & { is_watermarked?: boolean }).is_watermarked && (
-                    <div className="absolute inset-0 pointer-events-none flex items-end justify-start p-2">
-                      <span className="text-[9px] font-bold tracking-[0.2em] text-white/80 bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded select-none uppercase">
-                        AURORA
-                      </span>
-                    </div>
+                    <>
+                      <AutoplayVideo src={g.result_video_url!} className="w-full h-full object-cover" autoPlay={false} playsInline preload="metadata" />
+                      {(g as typeof g & { is_watermarked?: boolean }).is_watermarked && (
+                        <div className="absolute inset-0 pointer-events-none flex items-end justify-start p-2">
+                          <span className="text-[9px] font-bold tracking-[0.2em] text-white/80 bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded select-none uppercase">
+                            AURORA
+                          </span>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
                 {/* overlay actions */}

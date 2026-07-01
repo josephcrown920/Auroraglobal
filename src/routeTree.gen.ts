@@ -48,6 +48,7 @@ import { Route as ApiMcpRouteImport } from './routes/api/mcp'
 import { Route as AdminSmokeRouteImport } from './routes/admin.smoke'
 import { Route as AdminOrchestrationRouteImport } from './routes/admin.orchestration'
 import { Route as AdminComfyRouteImport } from './routes/admin.comfy'
+import { Route as ApiPublicWatermarkImageRouteImport } from './routes/api/public/watermark-image'
 import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/public/paystack-webhook'
 import { Route as ApiPublicGenerateRouteImport } from './routes/api/public/generate'
 import { Route as ApiPublicWorkersRegisterRouteImport } from './routes/api/public/workers/register'
@@ -251,6 +252,11 @@ const AdminComfyRoute = AdminComfyRouteImport.update({
   path: '/comfy',
   getParentRoute: () => AdminRoute,
 } as any)
+const ApiPublicWatermarkImageRoute = ApiPublicWatermarkImageRouteImport.update({
+  id: '/api/public/watermark-image',
+  path: '/api/public/watermark-image',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPaystackWebhookRoute =
   ApiPublicPaystackWebhookRouteImport.update({
     id: '/api/public/paystack-webhook',
@@ -331,6 +337,7 @@ export interface FileRoutesByFullPath {
   '/cli/': typeof CliIndexRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
+  '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
@@ -379,6 +386,7 @@ export interface FileRoutesByTo {
   '/cli': typeof CliIndexRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
+  '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
@@ -428,6 +436,7 @@ export interface FileRoutesById {
   '/cli/': typeof CliIndexRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
+  '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
@@ -478,6 +487,7 @@ export interface FileRouteTypes {
     | '/cli/'
     | '/api/public/generate'
     | '/api/public/paystack-webhook'
+    | '/api/public/watermark-image'
     | '/api/public/jobs/tick'
     | '/api/public/workers/health'
     | '/api/public/workers/register'
@@ -526,6 +536,7 @@ export interface FileRouteTypes {
     | '/cli'
     | '/api/public/generate'
     | '/api/public/paystack-webhook'
+    | '/api/public/watermark-image'
     | '/api/public/jobs/tick'
     | '/api/public/workers/health'
     | '/api/public/workers/register'
@@ -574,6 +585,7 @@ export interface FileRouteTypes {
     | '/cli/'
     | '/api/public/generate'
     | '/api/public/paystack-webhook'
+    | '/api/public/watermark-image'
     | '/api/public/jobs/tick'
     | '/api/public/workers/health'
     | '/api/public/workers/register'
@@ -620,6 +632,7 @@ export interface RootRouteChildren {
   CliIndexRoute: typeof CliIndexRoute
   ApiPublicGenerateRoute: typeof ApiPublicGenerateRoute
   ApiPublicPaystackWebhookRoute: typeof ApiPublicPaystackWebhookRoute
+  ApiPublicWatermarkImageRoute: typeof ApiPublicWatermarkImageRoute
   ApiPublicJobsTickRoute: typeof ApiPublicJobsTickRoute
   ApiPublicWorkersHealthRoute: typeof ApiPublicWorkersHealthRoute
   ApiPublicWorkersRegisterRoute: typeof ApiPublicWorkersRegisterRoute
@@ -902,6 +915,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminComfyRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/api/public/watermark-image': {
+      id: '/api/public/watermark-image'
+      path: '/api/public/watermark-image'
+      fullPath: '/api/public/watermark-image'
+      preLoaderRoute: typeof ApiPublicWatermarkImageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/paystack-webhook': {
       id: '/api/public/paystack-webhook'
       path: '/api/public/paystack-webhook'
@@ -1007,6 +1027,7 @@ const rootRouteChildren: RootRouteChildren = {
   CliIndexRoute: CliIndexRoute,
   ApiPublicGenerateRoute: ApiPublicGenerateRoute,
   ApiPublicPaystackWebhookRoute: ApiPublicPaystackWebhookRoute,
+  ApiPublicWatermarkImageRoute: ApiPublicWatermarkImageRoute,
   ApiPublicJobsTickRoute: ApiPublicJobsTickRoute,
   ApiPublicWorkersHealthRoute: ApiPublicWorkersHealthRoute,
   ApiPublicWorkersRegisterRoute: ApiPublicWorkersRegisterRoute,

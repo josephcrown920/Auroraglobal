@@ -135,6 +135,7 @@ const hasLlm = !!(
 
 describe("generateKidsStoryScript", () => {
   it("produces a titled, on-length script and falls back to a template without an LLM key", async () => {
+    // Allow up to 30 s when a real LLM key is present; template fallback is instant.
     const { script, source } = await generateKidsStoryScript({
       contentType: "bedtime",
       ageRange: "3-5",
@@ -156,7 +157,7 @@ describe("generateKidsStoryScript", () => {
       expect(script.scenes).toHaveLength(3);
       expect(script.scenes.some((s) => s.narration.includes("Fuzz the monster"))).toBe(true);
     }
-  });
+  }, 30_000);
 
   it("never returns more scenes than requested (cost is fixed at enqueue)", async () => {
     const { script } = await generateKidsStoryScript({
@@ -167,5 +168,5 @@ describe("generateKidsStoryScript", () => {
       sceneCount: 2,
     });
     expect(script.scenes.length).toBeLessThanOrEqual(2);
-  });
+  }, 30_000);
 });
