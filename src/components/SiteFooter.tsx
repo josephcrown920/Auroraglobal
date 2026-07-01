@@ -41,6 +41,7 @@ export function SiteFooter({ tone = "dark" }: { tone?: "dark" | "light" }) {
           <Link to="/contact" className={`no-underline ${muted}`}>Contact</Link>
           <Link to="/legal/$slug" params={{ slug: "terms" }} className={`no-underline ${muted}`}>Terms</Link>
           <Link to="/legal/$slug" params={{ slug: "privacy" }} className={`no-underline ${muted}`}>Privacy</Link>
+          <Link to="/legal/$slug" params={{ slug: "ai-policy" }} className={`no-underline ${muted}`}>AI Policy</Link>
         </nav>
       </div>
       <p className={`text-center text-xs mt-8 ${dim}`}>

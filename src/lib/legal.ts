@@ -9,7 +9,7 @@ export const COMPANY = {
 };
 
 export type LegalDoc = {
-  slug: "terms" | "privacy" | "cookies" | "refunds" | "acceptable-use";
+  slug: "terms" | "privacy" | "cookies" | "refunds" | "acceptable-use" | "ai-policy";
   title: string;
   summary: string;
   sections: { heading: string; body: string[] }[];
@@ -235,6 +235,71 @@ export const LEGAL: Record<LegalDoc["slug"], LegalDoc> = {
       {
         heading: "Reporting abuse",
         body: [`Email ${COMPANY.email} with a link or screenshot. We review every report within 48 hours.`],
+      },
+    ],
+  },
+
+  "ai-policy": {
+    slug: "ai-policy",
+    title: "AI & Content Policy",
+    summary:
+      "Who owns Aurora-generated outputs, how we may use anonymised content to improve the platform, voice and likeness responsibilities, and what content is never permitted.",
+    sections: [
+      {
+        heading: "You own your outputs",
+        body: [
+          "Subject to your compliance with these terms, you retain full ownership of the AI-generated images, videos, audio, and other outputs you create on Aurora. Aurora does not claim any intellectual-property rights over your outputs.",
+          "Aurora will never sell, license, or otherwise commercialise your specific outputs to third parties without your explicit consent.",
+          "Note: AI-generated content may not qualify for copyright protection in some jurisdictions. Consult a legal adviser if copyright ownership matters for your use case.",
+        ],
+      },
+      {
+        heading: "How Aurora may use outputs to improve the platform",
+        body: [
+          "By default, Aurora may use anonymised, de-identified aggregates of generation metadata (prompt text, model used, quality signals) — but not your actual media files — to improve our routing, safety filters, and quality benchmarks.",
+          "We will never use your uploaded reference photos, videos, or audio recordings to train any AI model without your explicit, opt-in consent.",
+          `To opt out of anonymised metadata use at any time, email ${COMPANY.email} with the subject line \"Opt out of model improvement\". We will action the request within 30 days.`,
+        ],
+      },
+      {
+        heading: "Voice & likeness — your responsibility",
+        body: [
+          "Aurora's lip-sync, voice-cloning, and face-generation tools are powerful. You are solely responsible for ensuring you have the legal right to use every voice, face, or likeness that you upload or reference.",
+          "Acceptable uses include: your own face or voice; a performer who has given you written permission; licensed stock media that explicitly permits AI remixing.",
+          "Prohibited uses include: creating content that impersonates a real, identifiable person without their consent; creating non-consensual intimate imagery; generating content designed to deceive the public about a real person's words or actions.",
+          "Before each lip-sync or voice-generation job, Aurora asks you to confirm in-app that you hold the necessary rights. This confirmation is logged and may be relied on in any dispute.",
+        ],
+      },
+      {
+        heading: "Prohibited content categories",
+        body: [
+          "Sexual content involving minors — zero tolerance, reported immediately to NCMEC and relevant law enforcement.",
+          "Non-consensual sexual depictions of any real or realistic person.",
+          "Synthetic media designed to defame, harass, or deceive, including realistic deepfakes of public figures in fabricated scenarios.",
+          "Content that promotes terrorism, mass violence, self-harm, or hate based on race, religion, gender, sexuality, disability, or national origin.",
+          "Content that infringes third-party intellectual-property rights at scale.",
+          "Violations result in immediate account termination without refund and, where required by law, reporting to authorities.",
+        ],
+      },
+      {
+        heading: "Safety filters & moderation",
+        body: [
+          "Aurora applies automated safety filters at the generation layer. Filters may reject or modify requests that appear to violate this policy.",
+          "We conduct periodic manual audits. If your account is flagged, you will be notified and given an opportunity to appeal unless immediate action is required to prevent harm.",
+        ],
+      },
+      {
+        heading: "Transparency & labelling",
+        body: [
+          "We strongly encourage labelling all Aurora outputs as AI-generated when publishing publicly — especially in contexts where audiences may not realise the content is synthetic.",
+          "Aurora embeds metadata (where format supports it) indicating the content was AI-generated. Do not strip or obscure this metadata.",
+        ],
+      },
+      {
+        heading: "Contact",
+        body: [
+          `Questions about this policy or to report a violation: ${COMPANY.email}. Last updated: ${LEGAL_VERSION}.`,
+        ],
       },
     ],
   },
