@@ -2,7 +2,12 @@ import { useState } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Flame, Mic2, Camera, SplitSquareHorizontal, Palette, Film, ImageIcon, Wand2, Smartphone, Monitor, ShoppingBag, Layout, Aperture } from "lucide-react";
+import { Flame, Mic2, Camera, SplitSquareHorizontal, Palette, Film, ImageIcon, Wand2, Smartphone, Monitor, ShoppingBag, Layout, Aperture, Crown, Lock } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import { getMyProfile } from "@/lib/billing.functions";
+import { Link } from "@tanstack/react-router";
 import { RESHOOT_ANGLES, RESHOOT_MODEL, buildAnglePrompt } from "@/lib/reshoot-angles";
 
 export type TemplateGraph = { name: string; nodes: Node<any>[]; edges: Edge[] };
@@ -40,6 +45,8 @@ type TemplateDef = {
   icon: typeof Flame;
   tags: string[];
   category: "Music & Lip-sync" | "Portrait & Colors" | "Cinema" | "Product & App";
+  /** Premium templates are only available on the Pro plan. */
+  premium?: boolean;
   build: () => TemplateGraph;
 };
 
@@ -86,6 +93,7 @@ const TEMPLATES: TemplateDef[] = [
     icon: Camera,
     tags: ["Selfie", "Image", "Video", "Preset"],
     category: "Portrait & Colors",
+    premium: true,
     build: () => ({
       name: "Avatar · One Face, Many Shots",
       nodes: [
@@ -110,6 +118,7 @@ const TEMPLATES: TemplateDef[] = [
     icon: Mic2,
     tags: ["Selfie", "Audio", "Lip-sync", "Preset"],
     category: "Music & Lip-sync",
+    premium: true,
     build: () => ({
       name: "Lip-sync · NBA Josh preset",
       nodes: [
@@ -245,6 +254,7 @@ const TEMPLATES: TemplateDef[] = [
     icon: Wand2,
     tags: ["Selfie", "Audio", "Video", "Lip-sync"],
     category: "Music & Lip-sync",
+    premium: true,
     build: () => ({
       name: "Music Video Mini",
       nodes: [mk("in", "input", 40, 60), mk("aud", "audio", 40, 380), mk("img", "image", 360, 60, { prompt: "Cinematic music video still" }), mk("vid", "video", 680, 60, { cameraMovement: "dolly in" }), mk("lip", "lipsync", 1000, 220)],
@@ -371,69 +381,137 @@ export function getTemplateById(id: string): TemplateGraph | null {
 
 export function TrendingTemplatesMenu({ onPick }: { onPick: (g: TemplateGraph) => void }) {
   const [open, setOpen] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const { user } = useAuth();
+  const profileFn = useServerFn(getMyProfile);
+
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: () => profileFn(),
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+
+  const isPro = profile?.plan === "pro" || profile?.isAdmin === true;
+
   const categories: TemplateDef["category"][] = [
     "Product & App",
     "Music & Lip-sync",
     "Portrait & Colors",
     "Cinema",
   ];
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline" className="border-rose-400/30 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20">
-          <Flame className="size-3.5 mr-1" /> Templates
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Trending workflows</DialogTitle>
-          <p className="text-xs text-muted-foreground mt-1">
-            Pick a template → it drops nodes on the canvas with prompts pre-filled. Upload your image/audio into the green input nodes, tweak the prompt if you like, then hit <span className="text-primary font-medium">Run pipeline</span>.
+    <>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button size="sm" variant="outline" className="border-rose-400/30 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20">
+            <Flame className="size-3.5 mr-1" /> Templates
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Trending workflows</DialogTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Pick a template → it drops nodes on the canvas with prompts pre-filled. Upload your image/audio into the green input nodes, tweak the prompt if you like, then hit <span className="text-primary font-medium">Run pipeline</span>.
+            </p>
+          </DialogHeader>
+          <div className="space-y-5 max-h-[65vh] overflow-y-auto pr-1">
+            {categories.map((cat) => {
+              const items = TEMPLATES.filter((t) => t.category === cat);
+              if (items.length === 0) return null;
+              return (
+                <section key={cat}>
+                  <h3 className="text-[11px] font-mono uppercase tracking-[0.15em] text-muted-foreground mb-2 px-1">
+                    {cat}
+                  </h3>
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {items.map((t) => {
+                      const Icon = t.icon;
+                      const isPreset = t.tags.includes("Preset");
+                      const isBlank = t.tags.includes("Blank");
+                      const locked = t.premium && !isPro;
+                      return (
+                        <button
+                          key={t.id}
+                          onClick={() => {
+                            if (locked) { setUpgradeOpen(true); return; }
+                            onPick(t.build());
+                            setOpen(false);
+                          }}
+                          className={`relative text-left p-3 rounded-xl border transition-colors ${
+                            locked
+                              ? "border-primary/20 bg-primary/5 hover:border-primary/40 opacity-80"
+                              : isPreset ? "border-emerald-400/40 bg-emerald-500/5 hover:border-emerald-400/70"
+                              : isBlank ? "border-sky-400/30 bg-sky-500/5 hover:border-sky-400/60"
+                              : "border-border bg-card hover:border-primary/50"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <Icon className={`size-4 ${locked ? "text-muted-foreground" : "text-primary"}`} />
+                            <span className="font-medium text-sm">{t.name}</span>
+                            {t.premium && (
+                              <span className="ml-auto flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">
+                                {locked ? <Lock className="size-2.5" /> : <Crown className="size-2.5" />}
+                                Pro
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">{t.desc}</p>
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {t.tags.map((tag) => (
+                              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{tag}</span>
+                            ))}
+                          </div>
+                          {locked && (
+                            <div className="absolute inset-0 rounded-xl flex items-center justify-center bg-background/50 backdrop-blur-[1px]">
+                              <div className="flex flex-col items-center gap-1">
+                                <Lock className="size-4 text-primary" />
+                                <span className="text-[10px] font-semibold text-primary">Pro only</span>
+                              </div>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upgrade prompt dialog */}
+      <Dialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Crown className="size-5 text-primary" />
+              Pro template
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            This template is available on the <span className="text-foreground font-medium">Aurora Pro</span> plan. Upgrade to unlock it and get no watermarks, priority queue, and 200 Aura every month.
           </p>
-        </DialogHeader>
-        <div className="space-y-5 max-h-[65vh] overflow-y-auto pr-1">
-          {categories.map((cat) => {
-            const items = TEMPLATES.filter((t) => t.category === cat);
-            if (items.length === 0) return null;
-            return (
-              <section key={cat}>
-                <h3 className="text-[11px] font-mono uppercase tracking-[0.15em] text-muted-foreground mb-2 px-1">
-                  {cat}
-                </h3>
-                <div className="grid sm:grid-cols-2 gap-2">
-                  {items.map((t) => {
-                    const Icon = t.icon;
-                    const isPreset = t.tags.includes("Preset");
-                    const isBlank = t.tags.includes("Blank");
-                    return (
-                      <button
-                        key={t.id}
-                        onClick={() => { onPick(t.build()); setOpen(false); }}
-                        className={`text-left p-3 rounded-xl border transition-colors ${
-                          isPreset ? "border-emerald-400/40 bg-emerald-500/5 hover:border-emerald-400/70"
-                          : isBlank ? "border-sky-400/30 bg-sky-500/5 hover:border-sky-400/60"
-                          : "border-border bg-card hover:border-primary/50"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <Icon className="size-4 text-primary" />
-                          <span className="font-medium text-sm">{t.name}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">{t.desc}</p>
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {t.tags.map((tag) => (
-                            <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{tag}</span>
-                          ))}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
-            );
-          })}
-        </div>
-      </DialogContent>
-    </Dialog>
+          <div className="flex gap-3 mt-2">
+            <Link
+              to="/billing"
+              onClick={() => { setUpgradeOpen(false); setOpen(false); }}
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              <Crown className="size-4" /> Upgrade to Pro
+            </Link>
+            <button
+              type="button"
+              onClick={() => setUpgradeOpen(false)}
+              className="px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Not now
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

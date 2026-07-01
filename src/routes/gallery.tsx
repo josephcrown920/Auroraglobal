@@ -8,7 +8,7 @@ import { listGallery, toggleFavorite } from "@/lib/studio.functions";
 import { deleteGeneration } from "@/lib/gallery.functions";
 import { ModelBadge } from "@/components/ModelBadge";
 import { VisualEditDialog } from "@/components/gallery/VisualEditDialog";
-import { Sparkles, Loader2, ArrowLeft, Star, Download, Film, Image as ImageIcon, Layers, Trash2, Wand2, Captions } from "lucide-react";
+import { Sparkles, Loader2, ArrowLeft, Star, Download, Film, Image as ImageIcon, Layers, Trash2, Wand2, Captions, Crown } from "lucide-react";
 import { CaptionDialog } from "@/components/gallery/CaptionDialog";
 import { toast } from "sonner";
 import { saveAssetToDisk, isSplitRealityPrompt, splitRealityVariant } from "@/lib/save";
@@ -142,6 +142,13 @@ function GalleryPage() {
                   ) : (
                     <AutoplayVideo src={g.result_video_url!} className="w-full h-full object-cover" autoPlay={false} playsInline preload="metadata" />
                   )}
+                  {(g as typeof g & { is_watermarked?: boolean }).is_watermarked && (
+                    <div className="absolute inset-0 pointer-events-none flex items-end justify-start p-2">
+                      <span className="text-[9px] font-bold tracking-[0.2em] text-white/80 bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded select-none uppercase">
+                        AURORA
+                      </span>
+                    </div>
+                  )}
                 </div>
                 {/* overlay actions */}
                 <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -175,7 +182,17 @@ function GalleryPage() {
                   )}
                   <button
                     type="button"
-                    onClick={() => saveAssetToDisk(url, `aurora-${g.id.slice(0,8)}.${g.result_video_url ? "mp4" : "png"}`)}
+                    onClick={() => {
+                      if ((g as typeof g & { is_watermarked?: boolean }).is_watermarked) {
+                        toast("Watermarked export", {
+                          description: "Upgrade to Aurora Pro to download without the watermark.",
+                          action: { label: "Upgrade", onClick: () => { window.location.href = "/billing"; } },
+                          duration: 6000,
+                        });
+                        return;
+                      }
+                      saveAssetToDisk(url, `aurora-${g.id.slice(0,8)}.${g.result_video_url ? "mp4" : "png"}`);
+                    }}
                     className="size-8 rounded-full bg-background/70 backdrop-blur-md border border-border hover:bg-background flex items-center justify-center"
                     title="Download"
                   >

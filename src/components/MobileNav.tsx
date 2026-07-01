@@ -24,6 +24,7 @@ import {
   Sun,
   Moon,
   Clapperboard,
+  CreditCard,
   type LucideIcon,
 } from "lucide-react";
 
@@ -53,6 +54,7 @@ const FEATURES: Feature[] = [
   { to: "/workflows", label: "Workflows", icon: LayoutTemplate },
   { to: "/cli", label: "CLI", icon: Terminal },
   { to: "/gallery", label: "Gallery", icon: Images },
+  { to: "/billing", label: "Plan & Billing", icon: CreditCard },
   { to: "/gifts", label: "Gifts", icon: Gift },
   { to: "/affiliate", label: "Affiliate", icon: Users },
   { to: "/nexusarb", label: "NexusARB (Sim)", icon: TrendingUp },
