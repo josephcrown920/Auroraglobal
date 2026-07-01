@@ -174,6 +174,7 @@ function LipSyncForm() {
   const run = async (opts?: { videoFile: File; audioFile: File }) => {
     const vid = opts?.videoFile ?? video;
     const aud = opts?.audioFile ?? audio;
+    if (!likelyConsent) return toast.error("Please confirm you have the rights to use this voice and likeness before generating");
     if (!vid || !aud) return toast.error("Upload both a clip and a vocal first");
     if (!user) return toast.error("Sign in to run lip sync");
 
