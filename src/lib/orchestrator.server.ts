@@ -35,7 +35,12 @@ export type GenerateKind =
   | "assemble"
   // Burn caption segments (SRT-style timestamps + text) into a video via FFmpeg
   // drawtext. Self-hosted GPU worker ONLY — no hosted provider supports this.
-  | "caption_burn";
+  | "caption_burn"
+  // AutoCut: user-uploaded clip assembly into a 9:16 short. Internally dispatches
+  // an "assemble" sub-job (GPU worker) or falls back to a Replicate video model
+  // when no assembler is online. Registered here so credit accounting can record
+  // the canonical kind without a type-assertion escape hatch.
+  | "autocut";
 
 // ─── Studio bucket signing ───────────────────────────────────────────────────
 // The `studio` bucket is PRIVATE. When we hand a reference URL to an external
@@ -1322,7 +1327,7 @@ function workerCapability(kind: GenerateKind): string {
 const gpuWorker: ProviderAdapter = {
   name: "runpod",
   supports: (r) =>
-    ["image", "video", "lipsync", "upscale", "motion", "audio", "assemble", "caption_burn"].includes(r.kind),
+    ["image", "video", "lipsync", "upscale", "motion", "audio", "assemble", "caption_burn", "autocut"].includes(r.kind),
   estimateCost: (r) => (r.kind === "video" || r.kind === "motion" ? 0.05 : 0.01),
   async run(r) {
     const { data: workers } = await supabaseAdmin
@@ -1423,6 +1428,9 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   // Caption burn: self-hosted GPU worker preferred (FFmpeg drawtext, fastest).
   // Falls back to Replicate subtitle-burn model when no capable worker is online.
   caption_burn: [gpuWorker, replicate],
+  // AutoCut: GPU assembler preferred; Replicate image-to-video as fallback so the
+  // user always gets a result (using their first clip as the reference frame).
+  autocut: [gpuWorker, replicate],
 };
 
 // ─── Unified model registry ──────────────────────────────────────────────────
@@ -1557,6 +1565,9 @@ const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   assemble: [],
   // Caption burn: GPU worker first (FFmpeg drawtext), Replicate fallback.
   caption_burn: ["ffmpeg-captionburn", "zsxkib/add-subtitles-to-video"],
+  // AutoCut: use Seedance-lite (i2v) as the Replicate fallback — takes the first
+  // uploaded clip as a reference frame + style prompt.
+  autocut: ["seedance-2.0-fast"],
 };
 const FALLBACK_CAP: Record<GenerateKind, number> = {
   image: 4,
@@ -1568,6 +1579,7 @@ const FALLBACK_CAP: Record<GenerateKind, number> = {
   audio: 1,
   assemble: 1,
   caption_burn: 2,
+  autocut: 1,
 };
 
 export function getCandidateModels(req: GenerateRequest): string[] {
