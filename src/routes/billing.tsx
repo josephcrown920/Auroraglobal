@@ -50,6 +50,7 @@ function BillingPage() {
   });
 
   const isPro = profile?.plan === "pro";
+  const isCancellationPending = profile?.subscription_status === "cancellation_pending";
   const tier = SUBSCRIPTION_TIERS[isPro ? "pro" : "free"];
 
   const proMut = useMutation({
@@ -117,14 +118,21 @@ function BillingPage() {
                       <Zap className="size-5 text-muted-foreground" />
                     )}
                     <span className="text-lg font-semibold">{tier.label}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isPro ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
-                      {isPro ? "Active" : "Current"}
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      isCancellationPending
+                        ? "bg-amber-500/20 text-amber-400"
+                        : isPro ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+                    }`}>
+                      {isCancellationPending ? "Cancelling" : isPro ? "Active" : "Current"}
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground">{tier.price_display}</p>
                   {isPro && profile?.subscription_expires_at && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      Renews {new Date(profile.subscription_expires_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                      {isCancellationPending
+                        ? <>Pro access until <strong>{new Date(profile.subscription_expires_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</strong></>
+                        : <>Renews {new Date(profile.subscription_expires_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</>
+                      }
                     </p>
                   )}
                 </div>
@@ -195,7 +203,19 @@ function BillingPage() {
           <section>
             <h2 className="text-base font-medium mb-3">Subscription management</h2>
             <div className="aurora-glass rounded-2xl p-5 border border-border space-y-3">
-              {!cancelConfirm ? (
+              {isCancellationPending ? (
+                <div className="space-y-1">
+                  <p className="text-sm text-amber-400 font-medium">Cancellation scheduled</p>
+                  <p className="text-xs text-muted-foreground">
+                    Your Pro access remains active until the end of your current billing period.
+                    {profile?.subscription_expires_at && (
+                      <> No further charges will be made after{" "}
+                        <strong>{new Date(profile.subscription_expires_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</strong>.
+                      </>
+                    )}
+                  </p>
+                </div>
+              ) : !cancelConfirm ? (
                 <button
                   type="button"
                   onClick={() => setCancelConfirm(true)}
@@ -206,7 +226,7 @@ function BillingPage() {
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    Are you sure? Your Pro access will remain until the end of the current billing period.
+                    Are you sure? Your Pro access will remain active until the end of the current billing period — no charges after that.
                   </p>
                   <div className="flex gap-3">
                     <Button
@@ -216,7 +236,7 @@ function BillingPage() {
                       disabled={cancelMut.isPending}
                     >
                       {cancelMut.isPending && <Loader2 className="size-3 animate-spin mr-1" />}
-                      Yes, cancel
+                      Yes, cancel renewal
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => setCancelConfirm(false)}>
                       Keep Pro

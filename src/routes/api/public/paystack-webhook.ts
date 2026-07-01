@@ -1,8 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHmac, createHash, timingSafeEqual } from "crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { computeProfitSplit } from "@/lib/profit-split";
 import { SUBSCRIPTION_TIERS } from "@/lib/billing.plans";
+
+/**
+ * Derive a stable, deterministic UUID from an arbitrary string input.
+ * Used to make grant_monthly_aura idempotent: the same Paystack event always
+ * produces the same ref_id, so webhook retries are no-ops.
+ */
+function deterministicUuid(input: string): string {
+  const hash = createHash("md5").update(input).digest("hex");
+  return `${hash.slice(0,8)}-${hash.slice(8,12)}-${hash.slice(12,16)}-${hash.slice(16,20)}-${hash.slice(20,32)}`;
+}
 
 export const Route = createFileRoute("/api/public/paystack-webhook")({
   server: {
@@ -64,11 +74,11 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
               _expires_at: expiresAt,
             } as any);
 
-            // Grant initial monthly Aura
+            // Grant initial monthly Aura — ref is deterministic so retries are no-ops.
             await supabaseAdmin.rpc("grant_monthly_aura" as any, {
               _user: userId,
               _amount: SUBSCRIPTION_TIERS.pro.monthly_aura,
-              _ref: crypto.randomUUID(),
+              _ref: deterministicUuid(`${subCode}:initial`),
             } as any);
 
             // Upsert subscriptions row
@@ -113,11 +123,15 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
               _expires_at: newExpiry,
             } as any);
 
-            // Grant monthly Aura on renewal
+            // Grant monthly Aura on renewal — keyed on the Paystack payment reference,
+            // so duplicate charge.success deliveries are safe no-ops.
+            const renewalRef = event.data.reference
+              ? deterministicUuid(`${event.data.reference}:renewal`)
+              : deterministicUuid(`${subCode}:renewal:${Date.now()}`);
             await supabaseAdmin.rpc("grant_monthly_aura" as any, {
               _user: userId,
               _amount: SUBSCRIPTION_TIERS.pro.monthly_aura,
-              _ref: crypto.randomUUID(),
+              _ref: renewalRef,
             } as any);
 
             // Update subscriptions table
@@ -143,6 +157,9 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
           const userId: string | null = sub?.user_id ?? null;
 
           if (userId) {
+            // This is the ONLY place that downgrades plan to free.
+            // cancelProSubscription only marks cancellation_pending and never
+            // calls this RPC, preserving Pro access until the period ends.
             await supabaseAdmin.rpc("deactivate_pro_subscription" as any, { _user: userId } as any);
             await (supabaseAdmin as any)
               .from("subscriptions")
