@@ -17,6 +17,10 @@ const ALLOWED_HOST_SUFFIXES = [
   ".amazonaws.com",
   ".fal.media",
   ".fal.ai",
+  // Self-hosted GPU workers upload results to these public CDNs by default
+  // (see `AURORA_UPLOAD=catbox` in the worker notebook).
+  "files.catbox.moe",
+  "0x0.st",
 ];
 
 export function assertTrustedUrl(raw: string): void {

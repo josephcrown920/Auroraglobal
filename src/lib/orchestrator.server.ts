@@ -1392,6 +1392,10 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   // Final assembly (ffmpeg): self-hosted GPU worker pool only — no hosted provider.
   assemble: [gpuWorker],
   // Caption burn (ffmpeg drawtext): self-hosted GPU worker pool only.
+  // No hosted provider (Replicate/fal) offers an FFmpeg drawtext API — the
+  // operation is entirely local. A registered GPU worker with "caption_burn"
+  // capability is required; the feature degrades gracefully when none is online
+  // (same model as `assemble` / `motion`).
   caption_burn: [gpuWorker],
 };
 
