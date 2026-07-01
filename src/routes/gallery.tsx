@@ -155,12 +155,12 @@ function GalleryPage() {
                   ) : displayVideoUrl ? (
                     <AutoplayVideo src={displayVideoUrl} className="w-full h-full object-cover" autoPlay={false} playsInline preload="metadata" />
                   ) : isWatermarked ? (
-                    /* Watermarked video-only generation — video proxy deferred, show upgrade CTA */
+                    /* Watermarked item with no URLs yet (pending/failed edge case) */
                     <div className="w-full h-full flex flex-col items-center justify-center bg-background/60 gap-2">
                       <Lock className="size-8 text-amber-400/70" />
-                      <p className="text-[10px] text-white/50 text-center px-3 leading-tight">Video locked — raw URL hidden</p>
+                      <p className="text-[10px] text-white/50 text-center px-3 leading-tight">Upgrade to Pro to remove watermark</p>
                       <Link to="/billing" className="text-[9px] text-amber-400 hover:text-amber-300 font-medium transition-colors">
-                        Upgrade to Pro →
+                        View plans →
                       </Link>
                     </div>
                   ) : null}
