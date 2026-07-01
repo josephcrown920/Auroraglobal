@@ -81,9 +81,15 @@ function TiktokRemixPage() {
     }
   }, []);
 
+  // Ref lets onGenerate inject a demo URL without hitting React state-batching.
+  const sourceUrlOverrideRef = { current: null as string | null };
+
   const startMut = useMutation({
-    mutationFn: () =>
-      startFn({ data: { sourceVideoUrl: sourceUrl, basePrompt: basePrompt || undefined, count, style } }),
+    mutationFn: () => {
+      const url = sourceUrlOverrideRef.current ?? sourceUrl;
+      sourceUrlOverrideRef.current = null;
+      return startFn({ data: { sourceVideoUrl: url, basePrompt: basePrompt || undefined, count, style } });
+    },
     onSuccess: (out) => {
       markFirstGenComplete();
       toast.success(`Enqueued ${out.enqueued}/${out.requested} variants`);
@@ -194,7 +200,13 @@ function TiktokRemixPage() {
               if (typeof preset.extra?.count === "number") setCount(preset.extra.count);
               setActiveExampleId(preset.id);
             }}
-            onGenerate={() => startMut.mutate()}
+            onGenerate={() => {
+              const preset = TIKTOK_EXAMPLE_PRESETS.find((p) => p.id === activeExampleId);
+              if (!sourceUrl && typeof preset?.extra?.sampleVideoUrl === "string") {
+                sourceUrlOverrideRef.current = preset.extra.sampleVideoUrl;
+              }
+              startMut.mutate();
+            }}
             label="Try an example:"
           />
 

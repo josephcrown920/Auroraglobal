@@ -61,29 +61,34 @@ export const MOTION_EXAMPLE_PRESETS: ToolPreset[] = [
   },
 ];
 
+const LIPSYNC_DEMO_VIDEO = "/__l5e/assets-v1/7a355f0a-3435-4950-8e12-15a1507a5f1d/hero-lipsync.mp4";
+const LIPSYNC_DEMO_AUDIO = "/__l5e/assets-v1/47f5baf7-c85b-43cc-b2bc-e65072bbf30b/the-one-hook.mp3";
+
 export const LIPSYNC_EXAMPLE_PRESETS: ToolPreset[] = [
   {
     id: "studio-quality",
     label: "Studio Grade",
     emoji: "🎙️",
     hint: "Best quality, ~45s",
-    extra: { engine: "sync-v2" },
+    extra: { engine: "sync-v2", sampleVideoUrl: LIPSYNC_DEMO_VIDEO, sampleAudioUrl: LIPSYNC_DEMO_AUDIO },
   },
   {
     id: "fast-preview",
     label: "Fast Preview",
     emoji: "⚡",
     hint: "Quick turnaround, 15s",
-    extra: { engine: "wav2lip" },
+    extra: { engine: "wav2lip", sampleVideoUrl: LIPSYNC_DEMO_VIDEO, sampleAudioUrl: LIPSYNC_DEMO_AUDIO },
   },
   {
     id: "latent",
     label: "Latent Sync",
     emoji: "🔮",
     hint: "Experimental, ultra-realistic",
-    extra: { engine: "latentsync" },
+    extra: { engine: "latentsync", sampleVideoUrl: LIPSYNC_DEMO_VIDEO, sampleAudioUrl: LIPSYNC_DEMO_AUDIO },
   },
 ];
+
+const TIKTOK_DEMO_SOURCE = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
 
 export const TIKTOK_EXAMPLE_PRESETS: ToolPreset[] = [
   {
@@ -92,7 +97,7 @@ export const TIKTOK_EXAMPLE_PRESETS: ToolPreset[] = [
     emoji: "🌆",
     hint: "Beat-synced luxury showcase",
     prompt: "luxury outfit showcase, runway energy, multi-angle beat-synced cuts",
-    extra: { style: "urban_cut", count: 10 },
+    extra: { style: "urban_cut", count: 10, sampleVideoUrl: TIKTOK_DEMO_SOURCE },
   },
   {
     id: "grwm",
@@ -100,7 +105,7 @@ export const TIKTOK_EXAMPLE_PRESETS: ToolPreset[] = [
     emoji: "💅",
     hint: "Get Ready With Me arc",
     prompt: "getting ready routine, mirror moments, outfit reveal, styling journey",
-    extra: { style: "grwm", count: 8 },
+    extra: { style: "grwm", count: 8, sampleVideoUrl: TIKTOK_DEMO_SOURCE },
   },
   {
     id: "auto",
@@ -108,7 +113,7 @@ export const TIKTOK_EXAMPLE_PRESETS: ToolPreset[] = [
     emoji: "🚀",
     hint: "Aurora picks the best hooks",
     prompt: "",
-    extra: { style: "auto", count: 10 },
+    extra: { style: "auto", count: 10, sampleVideoUrl: TIKTOK_DEMO_SOURCE },
   },
 ];
 
