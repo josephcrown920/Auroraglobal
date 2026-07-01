@@ -32,7 +32,10 @@ export type GenerateKind =
   | "audio"
   // Final ffmpeg stitch/mux/mix of a multi-scene story into one MP4. Self-hosted
   // GPU worker ONLY (Cloudflare Workers cannot run ffmpeg) — never a hosted API.
-  | "assemble";
+  | "assemble"
+  // Burn caption segments (SRT-style timestamps + text) into a video via FFmpeg
+  // drawtext. Self-hosted GPU worker ONLY — no hosted provider supports this.
+  | "caption_burn";
 
 // ─── Studio bucket signing ───────────────────────────────────────────────────
 // The `studio` bucket is PRIVATE. When we hand a reference URL to an external
@@ -87,6 +90,11 @@ export type GenerateRequest = {
    * to a paid hosted API. Fails explicitly when no matching worker is online.
    */
   selfHostedOnly?: boolean;
+  /**
+   * Caption segments for `caption_burn` requests. Each entry is a timed text
+   * cue: the GPU worker renders them over the video via FFmpeg `drawtext`.
+   */
+  segments?: Array<{ start: number; end: number; text: string }>;
 };
 
 export type GenerateResult = {
@@ -1102,6 +1110,7 @@ function workerInput(r: GenerateRequest): Record<string, unknown> {
     model: r.model,
     duration: r.duration,
     resolution: r.resolution,
+    ...(r.segments ? { segments: r.segments } : {}),
     ...(r.params ? { params: r.params } : {}),
     ...(r.comfyWorkflow ? { workflow: r.comfyWorkflow } : {}),
     ...(r.comfyInputs ? { workflow_inputs: r.comfyInputs } : {}),
@@ -1284,7 +1293,7 @@ function workerCapability(kind: GenerateKind): string {
 const gpuWorker: ProviderAdapter = {
   name: "runpod",
   supports: (r) =>
-    ["image", "video", "lipsync", "upscale", "motion", "audio", "assemble"].includes(r.kind),
+    ["image", "video", "lipsync", "upscale", "motion", "audio", "assemble", "caption_burn"].includes(r.kind),
   estimateCost: (r) => (r.kind === "video" || r.kind === "motion" ? 0.05 : 0.01),
   async run(r) {
     const { data: workers } = await supabaseAdmin
@@ -1382,6 +1391,8 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   audio: [gpuWorker, elevenlabs],
   // Final assembly (ffmpeg): self-hosted GPU worker pool only — no hosted provider.
   assemble: [gpuWorker],
+  // Caption burn (ffmpeg drawtext): self-hosted GPU worker pool only.
+  caption_burn: [gpuWorker],
 };
 
 // ─── Unified model registry ──────────────────────────────────────────────────
@@ -1512,6 +1523,8 @@ const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   audio: ["elevenlabs/tts"],
   // Assembly pins to its self-hosted sentinel model (selfHostedOnly) — no fallback.
   assemble: [],
+  // Caption burn: self-hosted GPU worker only — no fallback.
+  caption_burn: [],
 };
 const FALLBACK_CAP: Record<GenerateKind, number> = {
   image: 4,
@@ -1522,6 +1535,7 @@ const FALLBACK_CAP: Record<GenerateKind, number> = {
   text: 4,
   audio: 1,
   assemble: 1,
+  caption_burn: 1,
 };
 
 export function getCandidateModels(req: GenerateRequest): string[] {
