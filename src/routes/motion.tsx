@@ -210,7 +210,7 @@ function MotionStudio() {
 
   // Step 2 — animate it
   // Ref used by onGenerate to pass a demo override without hitting React batching.
-  const animateOverrideRef = { current: null as string | null };
+  const animateOverrideRef = useRef<string | null>(null);
 
   const animateMut = useMutation({
     mutationFn: async () => {
