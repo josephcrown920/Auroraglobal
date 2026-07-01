@@ -143,7 +143,7 @@ export function TemplateDrawer({
         return;
       }
       const prompt = template.spinPreset ? `${template.spinPreset}. ${idea}` : idea;
-      navigate({ to: "/spin", search: { prompt } });
+      navigate({ to: "/spin", search: { prompt, jobId: undefined } });
       return;
     }
 

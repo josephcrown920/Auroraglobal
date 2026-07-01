@@ -135,9 +135,9 @@ export function ViralEngine() {
   const goToSpin = () => {
     const value = hook.trim();
     if (value) {
-      navigate({ to: "/spin", search: { prompt: value } });
+      navigate({ to: "/spin", search: { prompt: value, jobId: undefined } });
     } else {
-      navigate({ to: "/spin", search: { prompt: undefined } });
+      navigate({ to: "/spin", search: { prompt: undefined, jobId: undefined } });
     }
   };
 
@@ -419,7 +419,7 @@ export function ViralEngine() {
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <Link
             to="/spin"
-            search={hook.trim() ? { prompt: hook.trim() } : { prompt: undefined }}
+            search={hook.trim() ? { prompt: hook.trim(), jobId: undefined } : { prompt: undefined, jobId: undefined }}
             className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-pink-400 to-fuchsia-500 px-6 py-3 text-sm font-bold text-white no-underline shadow-lg shadow-fuchsia-500/30 hover:opacity-95"
           >
             See all {COUNT} in Spin Studio <ArrowRight className="size-4" />
