@@ -11,6 +11,7 @@ import {
   Crown,
   ArrowRight,
   Check,
+  Layers,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
@@ -21,7 +22,13 @@ import {
   generateVideoFromImage,
   lipSyncVideo,
 } from "@/lib/studio.functions";
-import { templateCost, TEMPLATE_DEFAULTS, type StudioTemplate } from "@/lib/template-studio";
+import { generateUGCAd, getGenerationStatus } from "@/lib/ugc-generation.functions";
+import {
+  templateCost,
+  TEMPLATE_DEFAULTS,
+  SPIN_PIECE_COUNT,
+  type StudioTemplate,
+} from "@/lib/template-studio";
 
 type UploadState = { url: string; name: string; preview?: string };
 
@@ -39,6 +46,8 @@ export function TemplateDrawer({
   const genFn = useServerFn(generatePerformanceShot);
   const vidFn = useServerFn(generateVideoFromImage);
   const lipFn = useServerFn(lipSyncVideo);
+  const ugcFn = useServerFn(generateUGCAd);
+  const statusFn = useServerFn(getGenerationStatus);
 
   const imageInput = template.inputs.find((i) => i.kind === "image");
   const audioInput = template.inputs.find((i) => i.kind === "audio");
@@ -103,12 +112,41 @@ export function TemplateDrawer({
   const canRun = !locked && !running && !uploading && !missingRequired;
 
   function buildImagePrompt(): string {
+    const base = template.imagePrompt ?? "";
     const extra = text.trim();
-    if (!extra) return template.imagePrompt;
-    return `${template.imagePrompt} Scene: ${extra}.`;
+    if (!extra) return base;
+    return `${base} Scene: ${extra}.`;
+  }
+
+  // Poll an async generation (UGC) until it terminates. Bounded so a stuck job
+  // never hangs the drawer forever — on timeout we surface an error, but the job
+  // keeps running server-side and its result will appear in the gallery later.
+  async function pollGeneration(generationId: string) {
+    const deadline = Date.now() + 4 * 60 * 1000; // 4 minutes
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 3000));
+      const s = await statusFn({ data: { generationId } });
+      if (s.status === "succeeded" || s.status === "complete" || s.status === "completed") return;
+      if (s.status === "failed" || s.status === "error") {
+        throw new Error(s.error ?? "Generation failed");
+      }
+    }
+    throw new Error("This is taking longer than expected — check your gallery in a moment.");
   }
 
   async function run() {
+    // Spin is public and just launches the existing /spin experience.
+    if (template.dispatch === "spin") {
+      const idea = text.trim();
+      if (!idea) {
+        setError("Describe your idea to spin.");
+        return;
+      }
+      const prompt = template.spinPreset ? `${template.spinPreset}. ${idea}` : idea;
+      navigate({ to: "/spin", search: { prompt } });
+      return;
+    }
+
     if (!user) {
       navigate({ to: "/auth" });
       return;
@@ -120,17 +158,37 @@ export function TemplateDrawer({
     setRunning(true);
     setError(null);
     try {
+      // UGC ad — reserve + enqueue the async job, then poll to completion.
+      if (template.dispatch === "ugc") {
+        if (!text.trim()) throw new Error("Tell us what you're promoting.");
+        setStage("Starting your ad…");
+        const res = await ugcFn({
+          data: {
+            avatarImageUrl: image.url,
+            productPrompt: text.trim(),
+            aspect: template.ugcAspect ?? "9:16",
+            duration: template.durationSeconds ?? 8,
+          },
+        });
+        setStage("Rendering your ad…");
+        await pollGeneration(res.generationId);
+        toast.success("Done! Opening your gallery…");
+        navigate({ to: "/gallery" });
+        return;
+      }
+
+      // Studio pipeline — image → (video) → (lipsync), gated by the manifest kinds.
       setStage("Creating your image…");
       const img = await genFn({
         data: {
           prompt: buildImagePrompt(),
           imageUrls: [image.url],
           motionVideoUrl: null,
-          model: template.imageModel,
+          model: template.imageModel ?? TEMPLATE_DEFAULTS.imageModel,
         },
       });
 
-      if (template.flow !== "image") {
+      if (template.kinds.includes("video")) {
         setStage("Bringing it to life…");
         const vid = await vidFn({
           data: {
@@ -144,7 +202,7 @@ export function TemplateDrawer({
           },
         });
 
-        if (template.flow === "lipsync") {
+        if (template.kinds.includes("lipsync")) {
           if (!audio) throw new Error("Add an audio clip to lip-sync.");
           setStage("Lip-syncing to your audio…");
           await lipFn({
@@ -280,12 +338,23 @@ export function TemplateDrawer({
                 )}
               </div>
 
-              {/* Cost */}
+              {/* Cost — Spin is a free live preview, so it never claims an Aura charge. */}
               <div className="mt-5 flex items-center justify-between rounded-xl border border-border bg-white/[0.03] px-4 py-3">
-                <span className="text-sm text-muted-foreground">This render uses</span>
-                <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
-                  <Sparkles className="size-4" /> {cost} Aura
-                </span>
+                {template.dispatch === "spin" ? (
+                  <>
+                    <span className="text-sm text-muted-foreground">Free live preview</span>
+                    <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-300">
+                      <Layers className="size-4" /> {SPIN_PIECE_COUNT} pieces
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-sm text-muted-foreground">This render uses</span>
+                    <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
+                      <Sparkles className="size-4" /> {cost} Aura
+                    </span>
+                  </>
+                )}
               </div>
 
               {error && (
@@ -304,6 +373,11 @@ export function TemplateDrawer({
                 {running ? (
                   <>
                     <Loader2 className="size-4 animate-spin" /> {stage || "Working…"}
+                  </>
+                ) : template.dispatch === "spin" ? (
+                  <>
+                    <Layers className="size-4" /> Spin into {SPIN_PIECE_COUNT}{" "}
+                    <ArrowRight className="size-4" />
                   </>
                 ) : !user ? (
                   <>

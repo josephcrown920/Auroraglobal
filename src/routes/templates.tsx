@@ -27,7 +27,7 @@ export const Route = createFileRoute("/templates")({
       {
         name: "description",
         content:
-          "One-tap AI templates: upload a photo, tap generate, and get a lip-sync video, cinematic reel, portrait or ad in seconds.",
+          "One-tap AI templates: upload a photo, tap generate, and get a lip-sync video, cinematic reel, UGC ad, or a 30-piece spin in seconds.",
       },
       { property: "og:title", content: "Aurora Templates — one tap to a viral video" },
       {
@@ -123,13 +123,14 @@ function TemplatesPage() {
                 <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/70">
                   <Sparkles className="size-3.5 text-primary" /> {cat}
                 </h2>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2">
                   {items.map((t) => (
                     <TemplateCard
                       key={t.id}
                       template={t}
                       locked={!!t.premium && !isPro}
                       onSelect={() => openTemplate(t.id)}
+                      className="w-40 shrink-0 snap-start"
                     />
                   ))}
                 </div>

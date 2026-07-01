@@ -1,36 +1,44 @@
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
-import { Crown, Lock, Sparkles, Image as ImageIcon, Film, Mic2 } from "lucide-react";
-import { templateCost, type StudioTemplate } from "@/lib/template-studio";
+import {
+  Crown,
+  Lock,
+  Sparkles,
+  Image as ImageIcon,
+  Film,
+  Mic2,
+  Megaphone,
+  Layers,
+} from "lucide-react";
+import { templateCost, templateFlowLabel, type StudioTemplate } from "@/lib/template-studio";
 
-const FLOW_ICON = {
-  image: ImageIcon,
-  video: Film,
-  lipsync: Mic2,
-} as const;
-
-const FLOW_LABEL = {
-  image: "Image",
-  video: "Video",
-  lipsync: "Lip-sync",
-} as const;
+/** Pick a badge icon from the template's dispatch + orchestrator kinds. */
+function flowIcon(t: StudioTemplate) {
+  if (t.dispatch === "spin") return Layers;
+  if (t.dispatch === "ugc") return Megaphone;
+  if (t.kinds.includes("lipsync")) return Mic2;
+  if (t.kinds.includes("video")) return Film;
+  return ImageIcon;
+}
 
 export function TemplateCard({
   template,
   locked,
   onSelect,
+  className,
 }: {
   template: StudioTemplate;
   locked: boolean;
   onSelect: () => void;
+  className?: string;
 }) {
-  const FlowIcon = FLOW_ICON[template.flow];
+  const FlowIcon = flowIcon(template);
   const cost = templateCost(template);
 
   return (
     <button
       type="button"
       onClick={onSelect}
-      className="group relative text-left rounded-2xl overflow-hidden aurora-card aurora-card-hover focus:outline-none aurora-focus-ring"
+      className={`group relative text-left rounded-2xl overflow-hidden aurora-card aurora-card-hover focus:outline-none aurora-focus-ring ${className ?? ""}`}
     >
       {/* Thumbnail */}
       <div className="relative aspect-[3/4] w-full overflow-hidden bg-muted">
@@ -50,10 +58,16 @@ export function TemplateCard({
         )}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
 
-        {/* Cost badge */}
-        <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 rounded-full bg-primary/90 px-2 py-0.5 text-[11px] font-semibold text-primary-foreground shadow-[var(--shadow-glow-soft)] backdrop-blur">
-          <Sparkles className="size-3" /> {cost}
-        </span>
+        {/* Cost badge — Spin is a free live preview, so it never shows an Aura price. */}
+        {cost > 0 ? (
+          <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 rounded-full bg-primary/90 px-2 py-0.5 text-[11px] font-semibold text-primary-foreground shadow-[var(--shadow-glow-soft)] backdrop-blur">
+            <Sparkles className="size-3" /> {cost}
+          </span>
+        ) : (
+          <span className="absolute top-2.5 right-2.5 inline-flex items-center rounded-full bg-emerald-500/90 px-2 py-0.5 text-[11px] font-semibold text-white shadow-[var(--shadow-glow-soft)] backdrop-blur">
+            Free
+          </span>
+        )}
 
         {/* Pro badge */}
         {template.premium && (
@@ -67,7 +81,7 @@ export function TemplateCard({
           <div className="flex items-center gap-1.5">
             <FlowIcon className="size-3.5 text-primary" />
             <span className="text-[10px] font-mono uppercase tracking-[0.14em] text-white/70">
-              {FLOW_LABEL[template.flow]}
+              {templateFlowLabel(template)}
             </span>
           </div>
           <h3 className="mt-0.5 text-sm font-semibold text-white leading-tight">
