@@ -11,10 +11,15 @@ import {
   ArrowRight,
   Music2,
 } from "lucide-react";
-// One artist, one face — the SAME identity. The feed tiles are real
-// AI video clips (clip-* via image-to-video); the still-* frames are their posters.
+// One artist, many looks — the SAME identity across different outfits, poses and
+// locations. The feed mixes real AI video clips (clip-* via image-to-video) with
+// still-* frames (posters for the clips, and still-only tiles for the extra looks).
 import stillNeon from "@/assets/josh/generated/still-01-neon-closeup.jpg";
 import stillStage from "@/assets/josh/generated/still-03-stage-mic.jpg";
+import stillStreet from "@/assets/josh/generated/still-02-street-golden.jpg";
+import stillStudio from "@/assets/josh/generated/still-05-studio-gel.jpg";
+import stillRooftop from "@/assets/josh/generated/still-06-rooftop-sunset.jpg";
+import stillCourt from "@/assets/josh/generated/still-13-court-ball.jpg";
 import clipNeon from "@/assets/josh/generated/clip-01-neon-closeup.mp4";
 import clipStage from "@/assets/josh/generated/clip-03-stage-mic.mp4";
 
@@ -31,11 +36,13 @@ type Clip = {
   caption: string;
   likes: string;
   comments: string;
-  src: string;
+  // Video tiles play a real AI clip; still-only tiles omit `src` and show the poster.
+  src?: string;
   poster: string;
 };
 
-// All one artist — @aurora.music — real AI video clips (image-to-video).
+// One artist — @aurora.music — a varied For You feed: two real AI video clips
+// (image-to-video) plus still-only tiles, each a different outfit / pose / location.
 const CLIPS: Clip[] = [
   {
     caption: "POV: the Afrobeats single is finally out 🌌",
@@ -50,6 +57,30 @@ const CLIPS: Clip[] = [
     comments: "9.4K",
     src: clipStage,
     poster: stillStage,
+  },
+  {
+    caption: "golden-hour rooftop for the deluxe cover 🌆",
+    likes: "689K",
+    comments: "5.2K",
+    poster: stillRooftop,
+  },
+  {
+    caption: "runup clip before the sports anthem drops 🏀",
+    likes: "903K",
+    comments: "7.8K",
+    poster: stillCourt,
+  },
+  {
+    caption: "studio session → visualizer in one click 🎛️",
+    likes: "254K",
+    comments: "1.9K",
+    poster: stillStudio,
+  },
+  {
+    caption: "streetwear fit-check for the single art ✨",
+    likes: "517K",
+    comments: "4.4K",
+    poster: stillStreet,
   },
 ];
 
@@ -134,8 +165,9 @@ export function TikTokSection() {
                   </span>
                 </h2>
                 <p className="mt-4 text-base leading-7 text-white/72 md:text-lg">
-                  One artist. One face. Every video on {HANDLE} is made with Aurora — no shoots, no
-                  crew, no CapCut. Just drop your song and get a new visual for every single.
+                  One artist, every look. New outfit, new set, new energy on every drop — each video
+                  on {HANDLE} is made with Aurora. No shoots, no crew, no CapCut. Just drop your song
+                  and get a fresh visual for every single.
                 </p>
               </div>
 
@@ -168,21 +200,30 @@ export function TikTokSection() {
               ))}
             </div>
 
-            {/* Phone-mock clips — single-creator For You feed */}
-            <div className="mt-10 grid grid-cols-2 gap-4">
+            {/* Phone-mock feed — one artist, many looks: a different outfit / pose / set per tile */}
+            <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-3">
               {CLIPS.map((c) => (
                 <div
                   key={c.caption}
                   className="group relative aspect-[9/16] overflow-hidden rounded-2xl border border-white/10 bg-black"
                 >
-                  <AutoplayVideo
-                    src={c.src}
-                    poster={c.poster}
-                    loop
-                    playsInline
-                    preload="metadata"
-                    className="absolute inset-0 size-full object-cover"
-                  />
+                  {c.src ? (
+                    <AutoplayVideo
+                      src={c.src}
+                      poster={c.poster}
+                      loop
+                      playsInline
+                      preload="metadata"
+                      className="absolute inset-0 size-full object-cover"
+                    />
+                  ) : (
+                    <img
+                      src={c.poster}
+                      alt={c.caption}
+                      loading="lazy"
+                      className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  )}
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.20),transparent_60%)]" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
 
