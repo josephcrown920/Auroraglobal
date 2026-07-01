@@ -444,14 +444,33 @@ export const listGallery = createServerFn({ method: "GET" })
 export const listGenerations = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("generations")
-      .select("id, prompt, status, kind, model, result_image_url, result_video_url, input_images, motion_video_url, audio_url, camera_movement, created_at, error")
+      .select("id, prompt, status, kind, model, result_image_url, result_video_url, input_images, motion_video_url, audio_url, camera_movement, created_at, error, is_watermarked")
       .order("created_at", { ascending: false })
       .limit(50);
     if (error) throw new Error(error.message);
-    return { items: data ?? [] };
+
+    // Replace raw provider URLs with signed watermark proxy URLs for Free-tier items.
+    // Using the proxy URL (not null) so calling components can still display and use
+    // these as pipeline sources — they'll just receive the watermarked version.
+    const { signWatermarkToken } = await import("@/lib/watermark-token.server");
+    const items = (data ?? []).map((row) => {
+      const wm = (row as typeof row & { is_watermarked?: boolean }).is_watermarked;
+      if (wm && row.result_image_url) {
+        const tok = signWatermarkToken(userId, row.id);
+        const proxyUrl = `/api/public/watermark-image?id=${row.id}&uid=${encodeURIComponent(userId)}&tok=${encodeURIComponent(tok)}`;
+        return {
+          ...row,
+          result_image_url: proxyUrl,
+          watermark_display_url: proxyUrl,
+        };
+      }
+      return { ...row, watermark_display_url: null as string | null };
+    });
+
+    return { items };
   });
 // ── Visual edit (cherry-picked feature) ────────────────────────────────
 const EditSchema = z.object({
