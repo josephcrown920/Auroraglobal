@@ -88,3 +88,34 @@ export const SUBSCRIPTION_TIERS = {
 export function tierFor(plan: string | null | undefined): SubscriptionTier {
   return plan === "pro" ? "pro" : "free";
 }
+
+/** Per-tier maximum video/motion generation duration in seconds.
+ * Enforced at the API layer before credits are reserved or a provider is called. */
+export const DURATION_CAPS: Record<SubscriptionTier, number> = {
+  free: 10,
+  pro: 15,
+};
+
+// ─── Heavy-queue classification (pure, no server deps) ────────────────────────
+// Lives here so tests can import it without pulling in server-only modules.
+
+/** Kinds that are always routed to the heavy queue (expensive + non-urgent). */
+export const HEAVY_JOB_KINDS = new Set<string>(["lipsync"]);
+
+/**
+ * Classify a job as 'standard' or 'heavy'.
+ *
+ * Heavy criteria:
+ *  - Lip-sync: expensive self-hosted or paid provider, tolerable latency
+ *  - 4K / 2160p resolution: highest provider cost tier, longest render
+ *  - Multi-angle reshoot: 6-image burst in one job
+ */
+export function classifyJobQueue(
+  kind: string,
+  payload: Record<string, unknown>,
+): "standard" | "heavy" {
+  if (HEAVY_JOB_KINDS.has(kind)) return "heavy";
+  if (payload.resolution === "4K" || payload.resolution === "2160p") return "heavy";
+  if (kind === "reshoot" || kind === "multi_angle") return "heavy";
+  return "standard";
+}

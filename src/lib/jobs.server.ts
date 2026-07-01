@@ -35,6 +35,7 @@ import {
   type KidsLengthId,
 } from "./kids-story.server";
 import { getMusicTrack, signedAutocutUrl } from "./autocut.server";
+import { assertDurationCap } from "./cost-guardrails.server";
 
 // `orchestrate` is dependency-injected (threaded through the runners) rather than
 // imported-and-called directly so the worker loop is unit-testable WITHOUT
@@ -211,17 +212,36 @@ async function runMediaJob(
   job: JobRow,
   orch: Orchestrate,
 ): Promise<{ url: string; provider: string; endpoint: string }> {
-  const req = job.payload as Partial<GenerateRequest>;
+  const req = job.payload as Partial<GenerateRequest> & { previewOnly?: boolean };
   const kind = (req.kind ?? job.kind) as GenerateKind;
   if (!MEDIA_KINDS.has(kind)) throw new Error(`Unsupported media kind: ${kind}`);
+
+  // Duration cap: enforce the user's plan maximum before dispatching any provider.
+  // Only applies to temporal kinds (video/motion) with an explicit requested duration.
+  // Error message starts with "Unsupported" which TERMINAL_ERROR_RE matches, so
+  // processOneJob refunds credits immediately rather than retrying a hopeless request.
+  const isTemporalKind = kind === "video" || kind === "motion";
+  const requestedDuration =
+    typeof req.duration === "number" && req.duration > 0 ? req.duration : null;
+  if (isTemporalKind && requestedDuration !== null && job.user_id) {
+    await assertDurationCap(job.user_id, requestedDuration);
+  }
+
+  // Preview mode: jobs queued with previewOnly:true are capped at 480p/5s to
+  // produce a cheap fast clip. The caller creates a separate full-quality job
+  // after the user confirms the preview looks correct.
+  const previewOnly = !!req.previewOnly;
+  const effDuration = previewOnly ? Math.min(requestedDuration ?? 5, 5) : req.duration;
+  const effResolution = previewOnly ? ("480p" as const) : req.resolution;
+
   const result = await orch({
     kind,
     prompt: req.prompt,
     imageUrls: req.imageUrls,
     audioUrl: req.audioUrl,
     videoUrl: req.videoUrl,
-    duration: req.duration,
-    resolution: req.resolution,
+    duration: effDuration,
+    resolution: effResolution,
     model: req.model,
     params: req.params,
     comfyWorkflow: req.comfyWorkflow,

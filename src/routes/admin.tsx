@@ -98,6 +98,7 @@ function AdminPage() {
         </Link>
         <div className="flex items-center gap-3">
           <Link to="/admin/orchestration" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"><Activity className="size-3.5" /> Orchestration</Link>
+          <Link to="/admin/costs" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"><Coins className="size-3.5" /> Costs</Link>
           <Link to="/admin/smoke" className="text-sm text-muted-foreground hover:text-foreground">Smoke test</Link>
           <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">My dashboard</Link>
           <Link to="/studio" className="text-sm text-muted-foreground hover:text-foreground">Studio</Link>

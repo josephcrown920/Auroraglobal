@@ -76,6 +76,7 @@ function OrchestratePage() {
   const [resolution, setResolution] = useState<Resolution>("720p");
   const [duration, setDuration] = useState(5);
   const [busy, setBusy] = useState(false);
+  const [awaitingFullRender, setAwaitingFullRender] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
   const [result, setResult] = useState<{
     kind: Modality;
@@ -128,7 +129,12 @@ function OrchestratePage() {
     setModality(m);
     setModel(MODELS[m][0].key);
     setResult(null);
+    setAwaitingFullRender(false);
   };
+
+  // Preview-first flow for video: first pass runs at 480p/5s cheaply,
+  // then the user confirms before the full-quality render.
+  const isPreviewPass = modality === "video" && !awaitingFullRender;
 
   const onGenerate = async () => {
     if (!user) return toast.error("Please sign in to generate");
@@ -146,8 +152,11 @@ function OrchestratePage() {
           kind: modality,
           prompt: prompt.trim(),
           model,
-          ...(usesResolution ? { resolution } : {}),
-          ...(usesDuration ? { duration } : {}),
+          // Preview pass: first video generation runs cheap (480p/5s) so the
+          // user can confirm the scene before paying for the full render.
+          ...(usesResolution ? { resolution: isPreviewPass ? "480p" : resolution } : {}),
+          ...(usesDuration ? { duration: isPreviewPass ? 5 : duration } : {}),
+          ...(isPreviewPass ? { previewOnly: true } : {}),
           ...(modality === "video" && imageUrl.trim() ? { imageUrls: [imageUrl.trim()] } : {}),
           ...(modality === "audio" && voiceId.trim() ? { voiceId: voiceId.trim() } : {}),
         },
@@ -167,7 +176,13 @@ function OrchestratePage() {
         latencyMs: res.latencyMs,
       });
       setPendingState("success");
-      toast.success(`Generated via ${res.provider}`);
+      if (isPreviewPass) {
+        toast.success("Preview ready — looks good? Click Render Full Quality to continue.");
+        setAwaitingFullRender(true);
+      } else {
+        toast.success(`Generated via ${res.provider}`);
+        setAwaitingFullRender(false);
+      }
       recent.refetch();
     } catch (e) {
       setLastError(friendlyGenerationMessage(e));
@@ -358,7 +373,13 @@ function OrchestratePage() {
               ) : (
                 <Sparkles className="h-4 w-4" />
               )}
-              {busy ? "Generating…" : `Generate · ${cost} credit${cost === 1 ? "" : "s"}`}
+              {busy
+                ? "Generating…"
+                : awaitingFullRender
+                  ? `Render Full Quality · ${cost} Aura`
+                  : isPreviewPass
+                    ? "Preview · 480p · 5s"
+                    : `Generate · ${cost} credit${cost === 1 ? "" : "s"}`}
             </button>
 
             {orchestrateProgress.isActive && (
@@ -392,8 +413,23 @@ function OrchestratePage() {
             )}
 
             {/* Result */}
+            {awaitingFullRender && !busy && (
+              <button
+                type="button"
+                onClick={() => { setAwaitingFullRender(false); setResult(null); }}
+                className="mt-2 w-full text-center text-xs text-neutral-500 transition hover:text-neutral-300"
+              >
+                Start over — discard preview
+              </button>
+            )}
+
             {result && (
               <div className="mt-6 rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+                {awaitingFullRender && (
+                  <div className="mb-3 flex items-center gap-1.5 rounded-full bg-amber-500/15 border border-amber-500/20 px-2.5 py-1 text-xs font-medium text-amber-400 w-fit">
+                    Preview · 480p · 5s — click Render Full Quality when satisfied
+                  </div>
+                )}
                 <div className="mb-3 flex items-center justify-between text-xs text-neutral-500">
                   <span>
                     {result.provider} · {result.latencyMs}ms
