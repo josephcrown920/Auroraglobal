@@ -66,21 +66,33 @@ const STYLE_MUSIC: Record<StyleId, Array<{ id: string; label: string; bpm?: numb
     { id: "hype-1", label: "Adrenaline Rush", bpm: 128 },
     { id: "hype-2", label: "High Voltage", bpm: 140 },
     { id: "hype-3", label: "Drop the Beat", bpm: 135 },
+    { id: "hype-4", label: "Fire Starter", bpm: 142 },
+    { id: "hype-5", label: "Turbo Boost", bpm: 138 },
+    { id: "hype-6", label: "Maximum Overdrive", bpm: 145 },
   ],
   cinematic: [
     { id: "cine-1", label: "Epic Journey", bpm: 80 },
     { id: "cine-2", label: "Dreamscape", bpm: 72 },
     { id: "cine-3", label: "Golden Hour", bpm: 76 },
+    { id: "cine-4", label: "Horizon", bpm: 68 },
+    { id: "cine-5", label: "Midnight Bloom", bpm: 74 },
+    { id: "cine-6", label: "Celestial", bpm: 70 },
   ],
   talking_head: [
     { id: "talk-1", label: "Upbeat Chillhop", bpm: 88 },
     { id: "talk-2", label: "Coffee & Ideas", bpm: 84 },
     { id: "talk-3", label: "Focused Flow", bpm: 90 },
+    { id: "talk-4", label: "Easy Groove", bpm: 86 },
+    { id: "talk-5", label: "Soft Bounce", bpm: 82 },
+    { id: "talk-6", label: "Workspace Vibes", bpm: 92 },
   ],
   tiktok_hook: [
     { id: "tiktok-1", label: "Trending Now", bpm: 120 },
     { id: "tiktok-2", label: "Viral Energy", bpm: 118 },
     { id: "tiktok-3", label: "Hook & Loop", bpm: 122 },
+    { id: "tiktok-4", label: "Dopamine Drop", bpm: 124 },
+    { id: "tiktok-5", label: "FYP Ready", bpm: 116 },
+    { id: "tiktok-6", label: "Scroll Stopper", bpm: 126 },
   ],
 };
 
@@ -159,6 +171,7 @@ function AutoCutPage() {
 
   const pollRef    = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const processingStartRef = useRef<number | null>(null);
 
   // ── Server fns ──────────────────────────────────────────────────────────
   const uploadUrlsFn = useServerFn(getAutocutUploadUrls);
@@ -209,7 +222,7 @@ function AutoCutPage() {
         const s = await getStatusFn({ generationId: genId });
         if (s.status === "succeeded") {
           stopPolling();
-          setResultUrl(s.resultVideoUrl ?? s.resultImageUrl ?? null);
+          setResultUrl(s.videoUrl ?? s.imageUrl ?? null);
           setPhase("done");
         } else if (s.status === "failed") {
           stopPolling();
@@ -261,6 +274,7 @@ function AutoCutPage() {
       });
 
       setGenerationId(genId);
+      processingStartRef.current = Date.now();
       setPhase("processing");
       startPolling(genId);
     } catch (err) {
@@ -287,6 +301,25 @@ function AutoCutPage() {
   const overallPct = fileProgress.length
     ? Math.round(fileProgress.reduce((s, p) => s + p.pct, 0) / fileProgress.length)
     : 0;
+
+  // ── Stage indicator derived from elapsed processing time ─────────────────
+  const STAGES = [
+    { key: "uploading",  label: "Uploading" },
+    { key: "analysing",  label: "Analysing clips" },
+    { key: "assembling", label: "Assembling" },
+    { key: "rendering",  label: "Rendering" },
+  ] as const;
+  type StageKey = (typeof STAGES)[number]["key"];
+
+  function getProcessingStage(): StageKey {
+    if (phase === "uploading" || phase === "dispatching") return "uploading";
+    if (phase !== "processing" || !processingStartRef.current) return "analysing";
+    const elapsed = (Date.now() - processingStartRef.current) / 1000;
+    if (elapsed < 15) return "analysing";
+    if (elapsed < 45) return "assembling";
+    return "rendering";
+  }
+  const currentStage = getProcessingStage();
 
   return (
     <main className="aurora-page-shell text-foreground">
@@ -362,18 +395,51 @@ function AutoCutPage() {
 
         {/* ── Active progress ────────────────────────────────────────────── */}
         {isActive && (
-          <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card/50 p-5">
-            <div className="flex items-center gap-2">
-              <Loader2 className="size-4 animate-spin text-primary" />
-              <span className="text-sm font-medium">
-                {phase === "uploading"
-                  ? `Uploading clips… ${overallPct}%`
-                  : phase === "dispatching"
-                    ? "Queuing your job…"
-                    : "Editing your video…"}
-              </span>
-            </div>
+          <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card/50 p-5">
+            {/* Step indicator */}
+            <ol className="flex items-center gap-0">
+              {STAGES.map(({ key, label }, i) => {
+                const stageOrder: StageKey[] = ["uploading", "analysing", "assembling", "rendering"];
+                const currentIdx = stageOrder.indexOf(currentStage);
+                const thisIdx    = stageOrder.indexOf(key);
+                const done    = thisIdx < currentIdx;
+                const active  = key === currentStage;
+                return (
+                  <li key={key} className="flex flex-1 items-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <span
+                        className={cn(
+                          "flex size-6 items-center justify-center rounded-full text-[10px] font-bold transition-colors",
+                          done   ? "bg-primary text-primary-foreground"
+                          : active ? "bg-primary/20 text-primary ring-1 ring-primary"
+                          :         "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {done ? <CheckCircle2 className="size-3.5" /> : i + 1}
+                      </span>
+                      <span
+                        className={cn(
+                          "text-[10px] leading-tight text-center",
+                          active ? "font-semibold text-foreground" : "text-muted-foreground",
+                        )}
+                      >
+                        {label}
+                      </span>
+                    </div>
+                    {i < STAGES.length - 1 && (
+                      <div
+                        className={cn(
+                          "mb-3 h-px flex-1 transition-colors",
+                          thisIdx < currentIdx ? "bg-primary" : "bg-muted",
+                        )}
+                      />
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
 
+            {/* Upload per-file bars */}
             {phase === "uploading" && fileProgress.length > 0 && (
               <div className="space-y-2">
                 {fileProgress.map((p, i) => (
@@ -393,13 +459,24 @@ function AutoCutPage() {
               </div>
             )}
 
+            {/* Processing hint */}
             {phase === "processing" && (
-              <p className="text-xs text-muted-foreground">
-                Assembling on your GPU worker — usually 1–3 minutes.
-                {generationId && (
-                  <> Job ID: <span className="font-mono">{generationId.slice(0, 8)}</span></>
-                )}
-              </p>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="size-3.5 animate-spin shrink-0" />
+                <span>
+                  {currentStage === "analysing"  && "Analysing your clips…"}
+                  {currentStage === "assembling" && "Assembling the edit — usually 1–3 min…"}
+                  {currentStage === "rendering"  && "Final render in progress…"}
+                </span>
+              </div>
+            )}
+
+            {/* Dispatching hint */}
+            {phase === "dispatching" && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="size-3.5 animate-spin shrink-0" />
+                <span>Queuing your job…</span>
+              </div>
             )}
           </section>
         )}

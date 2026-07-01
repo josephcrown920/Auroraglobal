@@ -69,29 +69,41 @@ export type MusicTrack = {
 // Default: no music (silent). Adding files at the paths below activates each track.
 export const MUSIC_TRACKS: MusicTrack[] = [
   // Hype
-  { id: "hype-1",   label: "Adrenaline Rush",  storagePath: "system/music/hype-adrenaline-rush.mp3",  genre: "Hype",    bpm: 128 },
-  { id: "hype-2",   label: "High Voltage",      storagePath: "system/music/hype-high-voltage.mp3",     genre: "Hype",    bpm: 140 },
-  { id: "hype-3",   label: "Drop the Beat",     storagePath: "system/music/hype-drop-the-beat.mp3",    genre: "Hype",    bpm: 135 },
+  { id: "hype-1",   label: "Adrenaline Rush",    storagePath: "system/music/hype-adrenaline-rush.mp3",    genre: "Hype",      bpm: 128 },
+  { id: "hype-2",   label: "High Voltage",        storagePath: "system/music/hype-high-voltage.mp3",       genre: "Hype",      bpm: 140 },
+  { id: "hype-3",   label: "Drop the Beat",       storagePath: "system/music/hype-drop-the-beat.mp3",      genre: "Hype",      bpm: 135 },
+  { id: "hype-4",   label: "Fire Starter",        storagePath: "system/music/hype-fire-starter.mp3",       genre: "Hype",      bpm: 142 },
+  { id: "hype-5",   label: "Turbo Boost",         storagePath: "system/music/hype-turbo-boost.mp3",        genre: "Hype",      bpm: 138 },
+  { id: "hype-6",   label: "Maximum Overdrive",   storagePath: "system/music/hype-maximum-overdrive.mp3",  genre: "Hype",      bpm: 145 },
   // Cinematic
-  { id: "cine-1",   label: "Epic Journey",      storagePath: "system/music/cine-epic-journey.mp3",     genre: "Cinematic", bpm: 80 },
-  { id: "cine-2",   label: "Dreamscape",        storagePath: "system/music/cine-dreamscape.mp3",       genre: "Cinematic", bpm: 72 },
-  { id: "cine-3",   label: "Golden Hour",       storagePath: "system/music/cine-golden-hour.mp3",      genre: "Cinematic", bpm: 76 },
+  { id: "cine-1",   label: "Epic Journey",        storagePath: "system/music/cine-epic-journey.mp3",       genre: "Cinematic", bpm: 80 },
+  { id: "cine-2",   label: "Dreamscape",          storagePath: "system/music/cine-dreamscape.mp3",         genre: "Cinematic", bpm: 72 },
+  { id: "cine-3",   label: "Golden Hour",         storagePath: "system/music/cine-golden-hour.mp3",        genre: "Cinematic", bpm: 76 },
+  { id: "cine-4",   label: "Horizon",             storagePath: "system/music/cine-horizon.mp3",            genre: "Cinematic", bpm: 68 },
+  { id: "cine-5",   label: "Midnight Bloom",      storagePath: "system/music/cine-midnight-bloom.mp3",     genre: "Cinematic", bpm: 74 },
+  { id: "cine-6",   label: "Celestial",           storagePath: "system/music/cine-celestial.mp3",          genre: "Cinematic", bpm: 70 },
   // Talking Head
-  { id: "talk-1",   label: "Upbeat Chillhop",  storagePath: "system/music/talk-upbeat-chillhop.mp3",  genre: "Lo-fi",   bpm: 88 },
-  { id: "talk-2",   label: "Coffee & Ideas",    storagePath: "system/music/talk-coffee-ideas.mp3",     genre: "Lo-fi",   bpm: 84 },
-  { id: "talk-3",   label: "Focused Flow",      storagePath: "system/music/talk-focused-flow.mp3",     genre: "Lo-fi",   bpm: 90 },
+  { id: "talk-1",   label: "Upbeat Chillhop",     storagePath: "system/music/talk-upbeat-chillhop.mp3",    genre: "Lo-fi",     bpm: 88 },
+  { id: "talk-2",   label: "Coffee & Ideas",      storagePath: "system/music/talk-coffee-ideas.mp3",       genre: "Lo-fi",     bpm: 84 },
+  { id: "talk-3",   label: "Focused Flow",        storagePath: "system/music/talk-focused-flow.mp3",       genre: "Lo-fi",     bpm: 90 },
+  { id: "talk-4",   label: "Easy Groove",         storagePath: "system/music/talk-easy-groove.mp3",        genre: "Lo-fi",     bpm: 86 },
+  { id: "talk-5",   label: "Soft Bounce",         storagePath: "system/music/talk-soft-bounce.mp3",        genre: "Lo-fi",     bpm: 82 },
+  { id: "talk-6",   label: "Workspace Vibes",     storagePath: "system/music/talk-workspace-vibes.mp3",    genre: "Lo-fi",     bpm: 92 },
   // TikTok Hook
-  { id: "tiktok-1", label: "Trending Now",      storagePath: "system/music/tiktok-trending-now.mp3",   genre: "Pop",     bpm: 120 },
-  { id: "tiktok-2", label: "Viral Energy",      storagePath: "system/music/tiktok-viral-energy.mp3",   genre: "Pop",     bpm: 118 },
-  { id: "tiktok-3", label: "Hook & Loop",       storagePath: "system/music/tiktok-hook-loop.mp3",      genre: "Pop",     bpm: 122 },
+  { id: "tiktok-1", label: "Trending Now",        storagePath: "system/music/tiktok-trending-now.mp3",     genre: "Pop",       bpm: 120 },
+  { id: "tiktok-2", label: "Viral Energy",        storagePath: "system/music/tiktok-viral-energy.mp3",     genre: "Pop",       bpm: 118 },
+  { id: "tiktok-3", label: "Hook & Loop",         storagePath: "system/music/tiktok-hook-loop.mp3",        genre: "Pop",       bpm: 122 },
+  { id: "tiktok-4", label: "Dopamine Drop",       storagePath: "system/music/tiktok-dopamine-drop.mp3",    genre: "Pop",       bpm: 124 },
+  { id: "tiktok-5", label: "FYP Ready",           storagePath: "system/music/tiktok-fyp-ready.mp3",        genre: "Pop",       bpm: 116 },
+  { id: "tiktok-6", label: "Scroll Stopper",      storagePath: "system/music/tiktok-scroll-stopper.mp3",   genre: "Pop",       bpm: 126 },
 ];
 
 // Style → recommended track IDs (shown in the music picker when a style is chosen).
 export const STYLE_MUSIC: Record<string, string[]> = {
-  hype:         ["hype-1",   "hype-2",   "hype-3"],
-  cinematic:    ["cine-1",   "cine-2",   "cine-3"],
-  talking_head: ["talk-1",   "talk-2",   "talk-3"],
-  tiktok_hook:  ["tiktok-1", "tiktok-2", "tiktok-3"],
+  hype:         ["hype-1",   "hype-2",   "hype-3",   "hype-4",   "hype-5",   "hype-6"],
+  cinematic:    ["cine-1",   "cine-2",   "cine-3",   "cine-4",   "cine-5",   "cine-6"],
+  talking_head: ["talk-1",   "talk-2",   "talk-3",   "talk-4",   "talk-5",   "talk-6"],
+  tiktok_hook:  ["tiktok-1", "tiktok-2", "tiktok-3", "tiktok-4", "tiktok-5", "tiktok-6"],
 };
 
 export function getMusicTrack(id: string): MusicTrack | undefined {
