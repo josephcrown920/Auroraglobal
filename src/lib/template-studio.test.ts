@@ -5,6 +5,7 @@ import {
   CATEGORY_ORDER,
   TEMPLATE_DEFAULTS,
   COST_UGC_AD,
+  COST_AUTOCUT,
   SPIN_PIECE_COUNT,
   templateCost,
   type StudioTemplate,
@@ -37,8 +38,8 @@ function expectedStudioCost(t: StudioTemplate): number {
 }
 
 describe("template-studio manifest", () => {
-  it("uses exactly the five spec categories", () => {
-    expect(CATEGORY_ORDER).toEqual(["Lip-sync", "Motion", "UGC/Ad", "Spin", "Kids"]);
+  it("uses exactly the six spec categories", () => {
+    expect(CATEGORY_ORDER).toEqual(["Lip-sync", "Motion", "UGC/Ad", "Spin", "Kids", "Editing"]);
     // Every category is populated, and no template escapes the taxonomy.
     for (const cat of CATEGORY_ORDER) {
       expect(STUDIO_TEMPLATES.some((t) => t.category === cat)).toBe(true);
@@ -53,9 +54,10 @@ describe("template-studio manifest", () => {
     expect(new Set(ids).size).toBe(ids.length); // ids are unique
     for (const t of STUDIO_TEMPLATES) {
       expect(t.kinds.length).toBeGreaterThan(0);
-      expect(["studio", "ugc", "spin"]).toContain(t.dispatch);
+      expect(["studio", "ugc", "spin", "autocut"]).toContain(t.dispatch);
       if (t.dispatch === "ugc") expect(t.kinds).toContain("ugc_ad");
       if (t.dispatch === "spin") expect(t.kinds).toContain("spin");
+      if (t.dispatch === "autocut") expect(t.kinds).toContain("autocut");
     }
   });
 
@@ -72,6 +74,9 @@ describe("template-studio manifest", () => {
       } else if (t.dispatch === "spin") {
         // The /spin experience is a free live preview — it must never claim a cost.
         expect(templateCost(t)).toBe(0);
+      } else if (t.dispatch === "autocut") {
+        // createAutocutJob reserves exactly COST_AUTOCUT.
+        expect(templateCost(t)).toBe(COST_AUTOCUT);
       }
     }
   });
@@ -82,7 +87,7 @@ describe("template-studio manifest", () => {
     // never the free /spin sim, which would be a phantom charge in the UI.
     for (const t of STUDIO_TEMPLATES) {
       if (templateCost(t) > 0) {
-        expect(["studio", "ugc"]).toContain(t.dispatch);
+        expect(["studio", "ugc", "autocut"]).toContain(t.dispatch);
       } else {
         expect(t.dispatch).toBe("spin");
       }
