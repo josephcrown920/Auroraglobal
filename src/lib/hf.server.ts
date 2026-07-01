@@ -123,13 +123,14 @@ export async function hfSpeechToText(
   const json = (await res.json()) as {
     text?: string;
     chunks?: Array<{ timestamp: [number, number]; text: string }>;
+    language?: string;
   };
   const chunks: AsrChunk[] = (json.chunks ?? []).map((c) => ({
     start: c.timestamp?.[0] ?? 0,
     end: c.timestamp?.[1] ?? 0,
     text: (c.text ?? "").trim(),
   }));
-  return { text: json.text ?? "", chunks };
+  return { text: json.text ?? "", chunks, language: json.language };
 }
 
 // ─── Text-to-speech ──────────────────────────────────────────────────────────

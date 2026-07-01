@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { hfSpeechToText, hfTextToSpeech } from "./hf.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { assertTrustedUrl } from "./url-guard";
 
 /**
  * Transcribe an audio file (Whisper). Accepts a base64-encoded blob.
@@ -42,6 +43,7 @@ export const transcribeVideoForCaptions = createServerFn({ method: "POST" })
     }).parse
   )
   .handler(async ({ data }) => {
+    assertTrustedUrl(data.videoUrl);
     const res = await fetch(data.videoUrl, { signal: AbortSignal.timeout(60_000) });
     if (!res.ok) throw new Error(`Fetch video failed: ${res.status}`);
     const contentLength = Number(res.headers.get("content-length") ?? 0);
@@ -52,7 +54,7 @@ export const transcribeVideoForCaptions = createServerFn({ method: "POST" })
     if (buf.byteLength > 50 * 1024 * 1024) {
       throw new Error("Video is too large to transcribe (max 50 MB)");
     }
-    const { text, chunks } = await hfSpeechToText(data.model, buf, { timestamps: true });
+    const { text, chunks, language } = await hfSpeechToText(data.model, buf, { timestamps: true });
     const segments: CaptionSegment[] = (chunks ?? []).map((c) => ({
       start: c.start,
       end: c.end > c.start ? c.end : c.start + 3,
@@ -61,7 +63,7 @@ export const transcribeVideoForCaptions = createServerFn({ method: "POST" })
     if (segments.length === 0 && text.trim()) {
       segments.push({ start: 0, end: 5, text: text.trim() });
     }
-    return { text, segments };
+    return { text, segments, language: language ?? null };
   });
 
 /**

@@ -946,6 +946,7 @@ function StudioPage() {
           onOpenChange={setCaptionOpen}
           videoUrl={latestVideo.result_video_url}
           generationId={latestVideo.id}
+          credits={profile?.credits}
           onDone={() => {
             qc.invalidateQueries({ queryKey: ["gens"] });
             qc.invalidateQueries({ queryKey: ["gallery"] });
