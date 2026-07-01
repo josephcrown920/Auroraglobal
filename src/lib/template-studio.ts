@@ -112,7 +112,7 @@ export const COST_UGC_AD = 8; // === COST_UGC_AD in ugc.server.ts
 // AutoCut flat cost — mirrors COST_AUTOCUT in autocut.server.ts.
 export const COST_AUTOCUT = 8;
 // Batch size for the Spin experience — every "1 → N" label reads from this.
-export const SPIN_PIECE_COUNT = 30; // === SPIN_PIECES.length in spin.functions.ts
+export const SPIN_PIECE_COUNT = 30; // === SPIN_COUNT in spin-engine.ts
 
 const IDENTITY =
   "Preserve the exact facial likeness, skin tone, hair and identity from the uploaded reference photo with no drift.";

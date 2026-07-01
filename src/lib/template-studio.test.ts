@@ -11,7 +11,7 @@ import {
   type StudioTemplate,
 } from "./template-studio";
 import { COST_UGC_AD as SERVER_COST_UGC_AD } from "./ugc.server";
-import { SPIN_PIECES } from "./spin.functions";
+import { SPIN_COUNT } from "./spin-engine";
 
 // Re-derive a studio template's cost straight from pricing.ts so the test fails
 // if templateCost() ever drifts from what the pipeline actually charges.
@@ -63,7 +63,7 @@ describe("template-studio manifest", () => {
 
   it("UGC price stays in parity with its server constant; Spin batch matches", () => {
     expect(COST_UGC_AD).toBe(SERVER_COST_UGC_AD);
-    expect(SPIN_PIECE_COUNT).toBe(SPIN_PIECES.length);
+    expect(SPIN_PIECE_COUNT).toBe(SPIN_COUNT);
   });
 
   it("dispatch-flat costs match their backend charge", () => {
