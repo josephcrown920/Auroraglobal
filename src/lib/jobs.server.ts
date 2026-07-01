@@ -836,9 +836,16 @@ async function runKidsStory(job: JobRow, orch: Orchestrate, workerId: string): P
 }
 
 // AutoCut: stitch user-uploaded clips into a polished 9:16 short (max 60 s).
-// Assembly runs on the self-hosted GPU worker via the `assemble` kind.
-// Preflight mirrors kids_story: if no capable worker is online, fail terminally
-// (credits are released and the user is informed immediately).
+// Prompt hints per style used when falling back to Replicate video generation.
+const AUTOCUT_STYLE_PROMPTS: Record<string, string> = {
+  hype:         "High-energy fast-paced action montage, dynamic jump cuts, vibrant colors, beat-synced, 9:16 vertical short",
+  cinematic:    "Cinematic slow-motion footage, sweeping epic wide shots, dramatic golden-hour lighting, 9:16 vertical short",
+  talking_head: "Professional talking-head presenter video, clean studio background, natural lighting, 9:16 vertical short",
+  tiktok_hook:  "Viral TikTok-style video, punchy 3-second hook opener, trending aesthetic, bold text overlay, 9:16 vertical short",
+};
+
+// Assembly runs on the self-hosted GPU worker (primary).
+// Fallback: Replicate video generation with a style-appropriate prompt.
 async function runAutocut(job: JobRow, orch: Orchestrate, workerId: string): Promise<JobOutput> {
   const p = job.payload as {
     clipUrls: string[];
@@ -849,14 +856,6 @@ async function runAutocut(job: JobRow, orch: Orchestrate, workerId: string): Pro
 
   if (!p.clipUrls?.length) {
     throw new Error("autocut requires at least one clip URL [required]");
-  }
-
-  // Preflight: assembly requires a self-hosted GPU worker.
-  const canAssemble = await hasActiveWorkerForKind("assemble");
-  if (!canAssemble) {
-    throw new Error(
-      "A self-hosted GPU worker with the 'assemble' capability is required to stitch the AutoCut video, but none is online [required]",
-    );
   }
 
   await touchJobLock(job.id, workerId);
@@ -870,31 +869,67 @@ async function runAutocut(job: JobRow, orch: Orchestrate, workerId: string): Pro
     }
   }
 
-  const assembled = await orch({
-    kind: "assemble",
-    model: "ffmpeg-assemble",
-    selfHostedOnly: true,
+  // ── Primary: self-hosted GPU assembler ─────────────────────────────────
+  const canAssemble = await hasActiveWorkerForKind("assemble");
+  if (canAssemble) {
+    const assembled = await orch({
+      kind: "assemble",
+      model: "ffmpeg-assemble",
+      selfHostedOnly: true,
+      userId: job.user_id,
+      refId: job.id,
+      params: {
+        clips: p.clipUrls,
+        style: p.style,
+        aspect: p.aspect ?? "9:16",
+        max_duration: 60,
+        music_url: musicUrl,
+        music_volume: 0.15,
+      },
+    });
+    return {
+      url: assembled.url,
+      videoUrl: assembled.url,
+      provider: assembled.provider,
+      endpoint: assembled.endpoint,
+      meta: {
+        style: p.style,
+        clip_count: p.clipUrls.length,
+        music_track: p.musicTrackId ?? null,
+        fallback: false,
+      },
+    };
+  }
+
+  // ── Fallback: Replicate video generation ───────────────────────────────
+  // No self-hosted assembler online — generate a style-themed video via
+  // Replicate (seedance-2.0-fast). Uses the first clip URL as a starting
+  // image when the model supports it; otherwise falls back to text-only.
+  const prompt = AUTOCUT_STYLE_PROMPTS[p.style] ?? AUTOCUT_STYLE_PROMPTS.hype;
+  const generated = await orch({
+    kind: "video",
+    model: "seedance-2.0-fast",
     userId: job.user_id,
     refId: job.id,
     params: {
-      clips: p.clipUrls,
-      style: p.style,
-      aspect: p.aspect ?? "9:16",
-      max_duration: 60,
-      music_url: musicUrl,
-      music_volume: 0.15,
+      prompt,
+      duration: 5,
+      aspect_ratio: "9:16",
+      // Pass the first uploaded clip as the starting frame if available.
+      ...(p.clipUrls[0] ? { image: p.clipUrls[0] } : {}),
     },
   });
 
   return {
-    url: assembled.url,
-    videoUrl: assembled.url,
-    provider: assembled.provider,
-    endpoint: assembled.endpoint,
+    url: generated.url,
+    videoUrl: generated.url,
+    provider: generated.provider,
+    endpoint: generated.endpoint,
     meta: {
       style: p.style,
       clip_count: p.clipUrls.length,
       music_track: p.musicTrackId ?? null,
+      fallback: true,
     },
   };
 }
