@@ -7,6 +7,7 @@ import {
   getAutocutUploadUrls,
   createAutocutJob,
   getGenerationStatus,
+  getAutocutJobStage,
 } from "@/lib/autocut-generation.functions";
 import { handleGenerationError } from "@/lib/error-toasts";
 import { saveAssetToDisk } from "@/lib/save";
@@ -166,17 +167,19 @@ function AutoCutPage() {
   const [phase, setPhase]             = useState<Phase>("idle");
   const [fileProgress, setFileProgress] = useState<FileProgress[]>([]);
   const [generationId, setGenerationId] = useState<string | null>(null);
+  const [jobId, setJobId]             = useState<string | null>(null);
+  const [serverStage, setServerStage] = useState<"analysing" | "assembling" | "rendering">("analysing");
   const [resultUrl, setResultUrl]     = useState<string | null>(null);
   const [errorMsg, setErrorMsg]       = useState<string | null>(null);
 
   const pollRef    = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const processingStartRef = useRef<number | null>(null);
 
   // ── Server fns ──────────────────────────────────────────────────────────
-  const uploadUrlsFn = useServerFn(getAutocutUploadUrls);
-  const createJobFn  = useServerFn(createAutocutJob);
-  const getStatusFn  = useServerFn(getGenerationStatus);
+  const uploadUrlsFn   = useServerFn(getAutocutUploadUrls);
+  const createJobFn    = useServerFn(createAutocutJob);
+  const getStatusFn    = useServerFn(getGenerationStatus);
+  const getJobStageFn  = useServerFn(getAutocutJobStage);
 
   // ── Cleanup on unmount ──────────────────────────────────────────────────
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
@@ -215,22 +218,32 @@ function AutoCutPage() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   };
 
-  const startPolling = (genId: string) => {
+  const startPolling = (genId: string, jId: string) => {
     stopPolling();
     pollRef.current = setInterval(async () => {
       try {
+        // Poll generation completion status.
         const s = await getStatusFn({ generationId: genId });
         if (s.status === "succeeded") {
           stopPolling();
           setResultUrl(s.videoUrl ?? s.imageUrl ?? null);
           setPhase("done");
+          return;
         } else if (s.status === "failed") {
           stopPolling();
           setErrorMsg(s.error ?? "AutoCut render failed");
           setPhase("error");
+          return;
+        }
+        // Still processing — fetch real worker stage from the DB.
+        try {
+          const st = await getJobStageFn({ jobId: jId });
+          setServerStage(st.stage);
+        } catch {
+          // transient stage fetch error — keep current stage
         }
       } catch {
-        // transient polling error — keep trying
+        // transient status polling error — keep trying
       }
     }, POLL_INTERVAL_MS);
   };
@@ -266,7 +279,7 @@ function AutoCutPage() {
 
       // 3. Create the autocut job (server signs download URLs + enqueues)
       setPhase("dispatching");
-      const { generationId: genId } = await createJobFn({
+      const { generationId: genId, jobId: jId } = await createJobFn({
         clipPaths: slots.map((s) => s.path),
         style,
         musicTrackId: noMusic ? undefined : musicTrackId,
@@ -274,9 +287,10 @@ function AutoCutPage() {
       });
 
       setGenerationId(genId);
-      processingStartRef.current = Date.now();
+      setJobId(jId);
+      setServerStage("analysing");
       setPhase("processing");
-      startPolling(genId);
+      startPolling(genId, jId);
     } catch (err) {
       handleGenerationError(err);
       setPhase("error");
@@ -290,6 +304,8 @@ function AutoCutPage() {
     setFileProgress([]);
     setPhase("idle");
     setGenerationId(null);
+    setJobId(null);
+    setServerStage("analysing");
     setResultUrl(null);
     setErrorMsg(null);
     setStyle("hype");
@@ -302,7 +318,7 @@ function AutoCutPage() {
     ? Math.round(fileProgress.reduce((s, p) => s + p.pct, 0) / fileProgress.length)
     : 0;
 
-  // ── Stage indicator derived from elapsed processing time ─────────────────
+  // ── Stage indicator (driven by real backend state from getAutocutJobStage) ─
   const STAGES = [
     { key: "uploading",  label: "Uploading" },
     { key: "analysing",  label: "Analysing clips" },
@@ -311,15 +327,13 @@ function AutoCutPage() {
   ] as const;
   type StageKey = (typeof STAGES)[number]["key"];
 
-  function getProcessingStage(): StageKey {
-    if (phase === "uploading" || phase === "dispatching") return "uploading";
-    if (phase !== "processing" || !processingStartRef.current) return "analysing";
-    const elapsed = (Date.now() - processingStartRef.current) / 1000;
-    if (elapsed < 15) return "analysing";
-    if (elapsed < 45) return "assembling";
-    return "rendering";
-  }
-  const currentStage = getProcessingStage();
+  // Map real phase + DB workerStage to the step indicator's current key.
+  const currentStage: StageKey =
+    phase === "uploading" || phase === "dispatching"
+      ? "uploading"
+      : phase === "processing"
+        ? serverStage   // "analysing" | "assembling" | "rendering" — set by DB poll
+        : "uploading";  // idle/done/error: step indicator is hidden anyway
 
   return (
     <main className="aurora-page-shell text-foreground">
@@ -369,7 +383,7 @@ function AutoCutPage() {
               className="w-full max-w-xs rounded-xl"
               style={{ aspectRatio: "9/16" }}
             />
-            <div className="flex gap-3">
+            <div className="flex flex-wrap justify-center gap-3">
               <Button
                 size="sm"
                 onClick={() => saveAssetToDisk(resultUrl, `autocut-${Date.now()}.mp4`)}
@@ -379,6 +393,12 @@ function AutoCutPage() {
               <Button size="sm" variant="outline" onClick={handleReset}>
                 New AutoCut
               </Button>
+              <Link
+                to="/gallery"
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-transparent px-3 text-sm font-medium text-muted-foreground no-underline hover:bg-accent hover:text-foreground"
+              >
+                View in gallery
+              </Link>
             </div>
           </section>
         )}

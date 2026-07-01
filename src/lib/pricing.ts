@@ -260,6 +260,10 @@ export type DetectInput = {
  *  - `lipsync` — added only for an unambiguous "drive this audio onto this video"
  *    pair (both `audioUrl` and `videoUrl` present) on a non-lipsync primary.
  */
+// ─── Flat-rate job costs (no feature stack — reserved at enqueue time) ───────
+/** AutoCut: multi-clip assemble job. Must stay in sync with autocut.server.ts. */
+export const COST_AUTOCUT = 8;
+
 export function detectFeatures(input: DetectInput): {
   features: Feature[];
   primaryKind: Feature;
