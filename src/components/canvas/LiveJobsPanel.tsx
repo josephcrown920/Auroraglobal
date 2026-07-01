@@ -1,8 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Loader2, CheckCircle2, XCircle, Clock, Image as ImageIcon, Film, Mic } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
+import { getMyProfile } from "@/lib/billing.functions";
+import { Loader2, CheckCircle2, XCircle, Clock, Image as ImageIcon, Film, Mic, Crown } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 
 type Gen = {
   id: string;
@@ -36,10 +40,29 @@ function StatusBadge({ status }: { status: string }) {
   return <span className="text-white/50 text-[10px]">{status}</span>;
 }
 
+const QUEUE_WAIT_THRESHOLD_MS = 30_000;
+
 export function LiveJobsPanel() {
   const { user } = useAuth();
   const [jobs, setJobs] = useState<Gen[]>([]);
   const [open, setOpen] = useState(true);
+  const [now, setNow] = useState(() => Date.now());
+  const profileFn = useServerFn(getMyProfile);
+
+  // Tick every 5 s to recompute queue-wait time without heavy re-renders.
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 5_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: () => profileFn(),
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+
+  const isPro = profile?.plan === "pro" || profile?.isAdmin === true;
 
   useEffect(() => {
     if (!user) return;
@@ -87,6 +110,13 @@ export function LiveJobsPanel() {
   if (!user) return null;
   const active = jobs.filter((j) => j.status === "pending" || j.status === "running" || j.status === "queued").length;
 
+  // Show upgrade nudge when a Free user has a queued/pending job waiting > 30 s.
+  const longQueuedJob = !isPro && jobs.find(
+    (j) =>
+      (j.status === "queued" || j.status === "pending") &&
+      now - new Date(j.created_at).getTime() > QUEUE_WAIT_THRESHOLD_MS,
+  );
+
   return (
     <div className="phone-edge-right fixed bottom-20 z-40 w-[300px] max-w-[calc(100vw-2rem)]">
       <button
@@ -101,6 +131,25 @@ export function LiveJobsPanel() {
       </button>
       {open && (
         <div className="bg-black/85 border border-violet-500/30 border-t-0 rounded-b-xl max-h-[50vh] overflow-y-auto backdrop-blur">
+          {longQueuedJob && (
+            <div className="mx-2 my-2 rounded-lg bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-400/30 p-2.5 flex items-start gap-2">
+              <Crown className="size-4 shrink-0 text-amber-400 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-semibold text-amber-300 leading-tight">
+                  Waiting in queue
+                </p>
+                <p className="text-[10px] text-white/60 mt-0.5 leading-tight">
+                  Pro members skip the queue and render first.
+                </p>
+                <Link
+                  to="/billing"
+                  className="inline-block mt-1.5 px-2 py-0.5 rounded-md bg-amber-400/90 hover:bg-amber-300 text-black text-[10px] font-bold transition-colors"
+                >
+                  Upgrade to Pro →
+                </Link>
+              </div>
+            </div>
+          )}
           {jobs.length === 0 ? (
             <div className="px-3 py-6 text-center text-white/40 text-xs">No jobs yet. Hit Run.</div>
           ) : (

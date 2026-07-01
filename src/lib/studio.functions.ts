@@ -407,7 +407,7 @@ export const toggleFavorite = createServerFn({ method: "POST" })
 export const listGallery = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("generations")
       .select("id, prompt, kind, model, result_image_url, result_video_url, is_favorite, tags, created_at, is_watermarked")
@@ -418,7 +418,27 @@ export const listGallery = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw new Error(error.message);
-    return { items: data ?? [] };
+
+    // For watermarked images: replace the raw provider URL with a short-lived
+    // signed proxy URL so the original asset is never sent to Free clients.
+    // Video URLs are kept for in-browser playback (real-time video watermarking
+    // requires FFmpeg and is deferred); the CSS overlay + blocked download are
+    // the enforcement layer for video.
+    const { signWatermarkToken } = await import("@/lib/watermark-token.server");
+    const items = (data ?? []).map((row) => {
+      const wm = (row as typeof row & { is_watermarked?: boolean }).is_watermarked;
+      if (wm && row.result_image_url) {
+        const tok = signWatermarkToken(userId, row.id);
+        return {
+          ...row,
+          result_image_url: null as string | null,
+          watermark_display_url: `/api/public/watermark-image?id=${row.id}&uid=${encodeURIComponent(userId)}&tok=${encodeURIComponent(tok)}`,
+        };
+      }
+      return { ...row, watermark_display_url: null as string | null };
+    });
+
+    return { items };
   });
 
 export const listGenerations = createServerFn({ method: "GET" })
