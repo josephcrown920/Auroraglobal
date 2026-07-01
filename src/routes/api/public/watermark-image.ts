@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import sharp from "sharp";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { verifyWatermarkToken } from "@/lib/watermark-token.server";
 
 export const Route = createFileRoute("/api/public/watermark-image")({
   server: {
@@ -8,19 +9,32 @@ export const Route = createFileRoute("/api/public/watermark-image")({
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const id = url.searchParams.get("id");
-        if (!id) return new Response("Missing id", { status: 400 });
+        const uid = url.searchParams.get("uid");
+        const tok = url.searchParams.get("tok");
 
-        const { data: gen, error } = await supabaseAdmin
+        // All three params are required.
+        if (!id || !uid || !tok) return new Response("Missing parameters", { status: 400 });
+
+        // Verify the short-lived HMAC token before touching the DB.
+        if (!verifyWatermarkToken(tok, uid, id)) {
+          return new Response("Unauthorized", { status: 403 });
+        }
+
+        // Fetch generation — use admin client since token is already verified.
+        const { data: gen } = await supabaseAdmin
           .from("generations")
           .select("id, result_image_url, is_watermarked, user_id")
           .eq("id", id)
-          .maybeSingle() as { data: { id: string; result_image_url: string | null; is_watermarked: boolean; user_id: string } | null; error: unknown };
+          .eq("user_id", uid)  // ownership check
+          .maybeSingle() as { data: { id: string; result_image_url: string | null; is_watermarked: boolean; user_id: string } | null };
 
-        if (error || !gen) return new Response("Not found", { status: 404 });
+        if (!gen) return new Response("Not found", { status: 404 });
         if (!gen.result_image_url) return new Response("No image", { status: 404 });
 
+        // Only serve via this endpoint for genuinely watermarked items.
+        // Non-watermarked items are served directly; no redirect to avoid leaking raw URLs.
         if (!(gen as any).is_watermarked) {
-          return Response.redirect(gen.result_image_url, 302);
+          return new Response("Forbidden", { status: 403 });
         }
 
         let imgBuffer: Buffer;
@@ -73,7 +87,8 @@ export const Route = createFileRoute("/api/public/watermark-image")({
           status: 200,
           headers: {
             "Content-Type": "image/jpeg",
-            "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+            // Cache 1 hour in browser; token TTL matches so no stale serves.
+            "Cache-Control": "private, max-age=3600",
             "X-Watermarked": "1",
           },
         });

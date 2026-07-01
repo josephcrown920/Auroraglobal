@@ -132,25 +132,25 @@ function GalleryPage() {
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {items.map((g) => {
-            const url = g.result_image_url || g.result_video_url;
+            // watermark_display_url replaces result_image_url for free-tier items
+            const url = (g as any).watermark_display_url || g.result_image_url || g.result_video_url;
             if (!url) return null;
             return (
               <div key={g.id} className="group relative rounded-2xl overflow-hidden border border-border bg-card/40">
                 <div className="aspect-[4/5] bg-background/40">
-                  {g.result_image_url ? (
+                  {/* watermark_display_url is set by listGallery for watermarked images;
+                      raw result_image_url is nulled out so the original provider URL
+                      is never exposed to the client for Free-tier generations. */}
+                  {((g as any).watermark_display_url || g.result_image_url) ? (
                     <img
-                      src={
-                        (g as typeof g & { is_watermarked?: boolean }).is_watermarked
-                          ? `/api/public/watermark-image?id=${g.id}`
-                          : g.result_image_url
-                      }
+                      src={(g as any).watermark_display_url ?? g.result_image_url!}
                       alt=""
                       className="w-full h-full object-cover"
                       loading="lazy"
                     />
-                  ) : (
+                  ) : g.result_video_url ? (
                     <>
-                      <AutoplayVideo src={g.result_video_url!} className="w-full h-full object-cover" autoPlay={false} playsInline preload="metadata" />
+                      <AutoplayVideo src={g.result_video_url} className="w-full h-full object-cover" autoPlay={false} playsInline preload="metadata" />
                       {(g as typeof g & { is_watermarked?: boolean }).is_watermarked && (
                         <div className="absolute inset-0 pointer-events-none flex items-end justify-start p-2">
                           <span className="text-[9px] font-bold tracking-[0.2em] text-white/80 bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded select-none uppercase">
@@ -159,7 +159,7 @@ function GalleryPage() {
                         </div>
                       )}
                     </>
-                  )}
+                  ) : null}
                 </div>
                 {/* overlay actions */}
                 <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
