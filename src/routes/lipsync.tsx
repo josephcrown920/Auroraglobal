@@ -9,6 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { startLipsync } from "@/lib/lipsync.functions";
 import { friendlyGenerationMessage, handleGenerationError } from "@/lib/error-toasts";
+import { ExampleChips } from "@/components/onboarding/ExampleChips";
+import { LIPSYNC_EXAMPLE_PRESETS } from "@/lib/example-presets";
 
 export const Route = createFileRoute("/lipsync")({
   component: LipSyncStudioPage,
@@ -101,6 +103,7 @@ function LipSyncForm() {
   const [progress, setProgress] = useState(0);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [activeExampleId, setActiveExampleId] = useState("studio-quality");
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -255,8 +258,19 @@ function LipSyncForm() {
           <DropSlot label="Vocal track" hint="Any audio · up to 50MB" icon={Music2} accept="audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.opus,.aiff" file={audio} onFile={onAudio} previewUrl={audioUrl} kind="audio" />
         </div>
 
+        <ExampleChips
+          presets={LIPSYNC_EXAMPLE_PRESETS}
+          activeId={activeExampleId}
+          onSelect={(preset) => {
+            if (preset.extra?.engine) setEngine(preset.extra.engine as Engine);
+            setActiveExampleId(preset.id);
+          }}
+          label="Pick a mode:"
+          className="mt-5"
+        />
+
         {/* Engine toggle */}
-        <div className="mt-6">
+        <div className="mt-4">
           <p className="aurora-kicker mb-2">Engine</p>
           <div className="grid grid-cols-3 gap-2 rounded-full aurora-glass p-1">
             {([

@@ -11,6 +11,7 @@ import {
   TrendingUp,
   Terminal,
   Camera,
+  Play,
 } from "lucide-react";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import { useServerFn } from "@tanstack/react-start";
@@ -38,6 +39,7 @@ import { JoshSlideshow } from "@/components/studio/JoshSlideshow";
 import { SupercomputerSection } from "@/components/landing/ScreenshotSections";
 import { FeatureRequest } from "@/components/landing/FeatureRequest";
 import { track } from "@/lib/tracking";
+import { LandingDemoModal } from "@/components/landing/LandingDemoModal";
 
 const FAQ_ITEMS = [
   {
@@ -98,6 +100,7 @@ function Index() {
     : "Welcome to Aurora";
   const [tutorialTick, setTutorialTick] = useState(0);
   const [scrolled, setScrolled] = useState(false);
+  const [demoOpen, setDemoOpen] = useState(false);
   const trackRef = useServerFn(trackAffiliateClick);
 
   useEffect(() => {
@@ -118,6 +121,7 @@ function Index() {
   return (
     <main className="min-h-screen relative overflow-hidden bg-[#070612] text-white pb-28 md:pb-24">
       <TutorialModal trigger={tutorialTick} />
+      <LandingDemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
       <ScrollProgress />
       <StickyCreditsBar />
 
@@ -296,6 +300,22 @@ function Index() {
           </p>
           <div className="mt-6">
             <JoshSlideshow />
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link
+              to="/studio"
+              onClick={() => void track("hero_start_click")}
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-full text-white no-underline bg-[image:var(--gradient-hero)] shadow-[var(--shadow-glow-soft)] hover:brightness-110"
+            >
+              <Sparkles className="size-4" /> Start creating free
+            </Link>
+            <button
+              type="button"
+              onClick={() => setDemoOpen(true)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-full bg-white/5 border border-white/10 text-white/80 hover:text-white hover:border-white/20 transition-colors"
+            >
+              <Play className="size-3.5 fill-current" /> See it in action
+            </button>
           </div>
         </div>
       </section>

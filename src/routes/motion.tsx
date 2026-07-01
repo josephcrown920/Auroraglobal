@@ -26,6 +26,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BringItToLifePreview } from "@/components/studio/BringItToLifePreview";
+import { ExampleChips } from "@/components/onboarding/ExampleChips";
+import { MOTION_EXAMPLE_PRESETS } from "@/lib/example-presets";
 import { ConnectReplicateBanner } from "@/components/ConnectReplicateBanner";
 import { friendlyGenerationMessage, handleGenerationError } from "@/lib/error-toasts";
 
@@ -105,6 +107,7 @@ function MotionStudio() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [videoError, setVideoError] = useState<string | null>(null);
+  const [activeExampleId, setActiveExampleId] = useState<string | undefined>(undefined);
 
   // Animate runs generateVideoFromImage at a fixed 5s / 720p, so this mirrors the
   // server charge exactly; premium video models retier the previewed price live.
@@ -399,6 +402,22 @@ function MotionStudio() {
                   <UploadSlot userId={user.id} label="Last frame" hint="End image (Kling)" value={endFrame} onChange={setEndFrame} />
                 </div>
               </div>
+
+              <ExampleChips
+                presets={MOTION_EXAMPLE_PRESETS}
+                activeId={activeExampleId}
+                onSelect={(preset) => {
+                  if (preset.prompt) setVideoPrompt(preset.prompt);
+                  if (preset.extra?.pose) {
+                    const found = POSE_PRESETS.find((p) => p.id === preset.extra!.pose);
+                    if (found) setPose(found);
+                  }
+                  if (preset.extra?.cameraMovement) setCameraMovement(String(preset.extra.cameraMovement));
+                  setActiveExampleId(preset.id);
+                }}
+                label="Quick start:"
+                className="mb-1"
+              />
 
               <div className="space-y-2">
                 <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Pose preset</label>
