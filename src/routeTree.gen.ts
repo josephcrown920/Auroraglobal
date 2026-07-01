@@ -27,6 +27,7 @@ import { Route as LipsyncRouteImport } from './routes/lipsync'
 import { Route as KidsRouteImport } from './routes/kids'
 import { Route as GiftsRouteImport } from './routes/gifts'
 import { Route as GalleryRouteImport } from './routes/gallery'
+import { Route as EditRouteImport } from './routes/edit'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ContentMachineRouteImport } from './routes/content-machine'
 import { Route as ContactRouteImport } from './routes/contact'
@@ -148,6 +149,11 @@ const GiftsRoute = GiftsRouteImport.update({
 const GalleryRoute = GalleryRouteImport.update({
   id: '/gallery',
   path: '/gallery',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EditRoute = EditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -329,6 +335,7 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/content-machine': typeof ContentMachineRoute
   '/dashboard': typeof DashboardRoute
+  '/edit': typeof EditRoute
   '/gallery': typeof GalleryRoute
   '/gifts': typeof GiftsRoute
   '/kids': typeof KidsRoute
@@ -381,6 +388,7 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/content-machine': typeof ContentMachineRoute
   '/dashboard': typeof DashboardRoute
+  '/edit': typeof EditRoute
   '/gallery': typeof GalleryRoute
   '/gifts': typeof GiftsRoute
   '/kids': typeof KidsRoute
@@ -434,6 +442,7 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/content-machine': typeof ContentMachineRoute
   '/dashboard': typeof DashboardRoute
+  '/edit': typeof EditRoute
   '/gallery': typeof GalleryRoute
   '/gifts': typeof GiftsRoute
   '/kids': typeof KidsRoute
@@ -488,6 +497,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/content-machine'
     | '/dashboard'
+    | '/edit'
     | '/gallery'
     | '/gifts'
     | '/kids'
@@ -540,6 +550,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/content-machine'
     | '/dashboard'
+    | '/edit'
     | '/gallery'
     | '/gifts'
     | '/kids'
@@ -592,6 +603,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/content-machine'
     | '/dashboard'
+    | '/edit'
     | '/gallery'
     | '/gifts'
     | '/kids'
@@ -645,6 +657,7 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   ContentMachineRoute: typeof ContentMachineRoute
   DashboardRoute: typeof DashboardRoute
+  EditRoute: typeof EditRoute
   GalleryRoute: typeof GalleryRoute
   GiftsRoute: typeof GiftsRoute
   KidsRoute: typeof KidsRoute
@@ -806,6 +819,13 @@ declare module '@tanstack/react-router' {
       path: '/gallery'
       fullPath: '/gallery'
       preLoaderRoute: typeof GalleryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/edit': {
+      id: '/edit'
+      path: '/edit'
+      fullPath: '/edit'
+      preLoaderRoute: typeof EditRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -1064,6 +1084,7 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   ContentMachineRoute: ContentMachineRoute,
   DashboardRoute: DashboardRoute,
+  EditRoute: EditRoute,
   GalleryRoute: GalleryRoute,
   GiftsRoute: GiftsRoute,
   KidsRoute: KidsRoute,
