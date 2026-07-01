@@ -172,10 +172,14 @@ function AuthPage() {
           By continuing you agree to our{" "}
           <Link to="/legal/$slug" params={{ slug: "terms" }} className="underline">
             Terms
-          </Link>{" "}
-          and{" "}
+          </Link>
+          ,{" "}
           <Link to="/legal/$slug" params={{ slug: "privacy" }} className="underline">
             Privacy Policy
+          </Link>
+          , and{" "}
+          <Link to="/legal/$slug" params={{ slug: "ai-policy" }} className="underline">
+            AI Policy
           </Link>
           .
         </p>
