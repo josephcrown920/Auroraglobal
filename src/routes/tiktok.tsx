@@ -16,7 +16,7 @@ import {
 import { ExampleChips } from "@/components/onboarding/ExampleChips";
 import { TIKTOK_EXAMPLE_PRESETS } from "@/lib/example-presets";
 import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
-import { hasCompletedFirstGen, hasDismissedTour, isFirstPageVisit, markPageVisited } from "@/lib/first-run";
+import { hasCompletedFirstGen, hasDismissedTour, isFirstPageVisit, markFirstGenComplete, markPageVisited } from "@/lib/first-run";
 
 const STYLE_OPTIONS: { value: CutStyle; label: string; hint: string }[] = [
   { value: "auto", label: "Auto", hint: "Aurora picks the strongest hooks straight from your source." },
@@ -85,6 +85,7 @@ function TiktokRemixPage() {
     mutationFn: () =>
       startFn({ data: { sourceVideoUrl: sourceUrl, basePrompt: basePrompt || undefined, count, style } }),
     onSuccess: (out) => {
+      markFirstGenComplete();
       toast.success(`Enqueued ${out.enqueued}/${out.requested} variants`);
       setActiveRemixId(out.remixId);
       list.refetch();
@@ -193,7 +194,7 @@ function TiktokRemixPage() {
               if (typeof preset.extra?.count === "number") setCount(preset.extra.count);
               setActiveExampleId(preset.id);
             }}
-            onGenerate={() => sourceUrl ? startMut.mutate() : toast.info("Paste or upload a source video first")}
+            onGenerate={() => startMut.mutate()}
             label="Try an example:"
           />
 
