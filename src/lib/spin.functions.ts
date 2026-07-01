@@ -9,14 +9,36 @@ import { z } from "zod";
 const COST_SPIN_PIECE = 1;
 
 export const SPIN_PIECES = [
-  "9:16 TikTok hook", "Reels cold-open", "YouTube Short", "X video post",
-  "Carousel cover", "Carousel slide 2", "Carousel slide 3", "Story teaser",
-  "Story poll", "Behind-the-scenes", "Lip-sync clip", "Color-grade variant",
-  "Quote graphic", "Meme remix", "Talking-head cut", "Captioned hook",
-  "Vertical poster", "Square poster", "Pinterest pin", "Thread cover",
-  "Email header", "Newsletter GIF", "Threads quote", "B-roll loop",
-  "Slow-mo cut", "Zoom-punch edit", "Text-overlay v1", "Text-overlay v2",
-  "Endcard CTA", "Cover frame",
+  "9:16 TikTok hook",
+  "Reels cold-open",
+  "YouTube Short",
+  "X video post",
+  "Carousel cover",
+  "Carousel slide 2",
+  "Carousel slide 3",
+  "Story teaser",
+  "Story poll",
+  "Behind-the-scenes",
+  "Lip-sync clip",
+  "Color-grade variant",
+  "Quote graphic",
+  "Meme remix",
+  "Talking-head cut",
+  "Captioned hook",
+  "Vertical poster",
+  "Square poster",
+  "Pinterest pin",
+  "Thread cover",
+  "Email header",
+  "Newsletter GIF",
+  "Threads quote",
+  "B-roll loop",
+  "Slow-mo cut",
+  "Zoom-punch edit",
+  "Text-overlay v1",
+  "Text-overlay v2",
+  "Endcard CTA",
+  "Cover frame",
 ];
 
 export const spinThirty = createServerFn({ method: "POST" })
@@ -47,7 +69,12 @@ export const spinThirty = createServerFn({ method: "POST" })
 
     const { data: job, error } = await supabase
       .from("spin_jobs")
-      .insert({ user_id: userId, prompt: data.prompt, total: SPIN_PIECES.length, status: "running" })
+      .insert({
+        user_id: userId,
+        prompt: data.prompt,
+        total: SPIN_PIECES.length,
+        status: "running",
+      })
       .select("id")
       .single();
     if (error || !job) {
@@ -64,7 +91,11 @@ export const spinThirty = createServerFn({ method: "POST" })
     }
 
     const rows = SPIN_PIECES.map((label, idx) => ({
-      job_id: job.id, user_id: userId, idx, label, status: "queued" as const,
+      job_id: job.id,
+      user_id: userId,
+      idx,
+      label,
+      status: "queued" as const,
     }));
     const { error: vErr } = await supabase.from("spin_variants").insert(rows);
     if (vErr) {
@@ -89,7 +120,11 @@ export const getSpinJob = createServerFn({ method: "POST" })
     const { supabase } = context;
     const [{ data: job }, { data: variants }] = await Promise.all([
       supabase.from("spin_jobs").select("*").eq("id", data.jobId).single(),
-      supabase.from("spin_variants").select("*").eq("job_id", data.jobId).order("idx", { ascending: true }),
+      supabase
+        .from("spin_variants")
+        .select("*")
+        .eq("job_id", data.jobId)
+        .order("idx", { ascending: true }),
     ]);
     if (!job) throw new Error("Job not found");
     return { job, variants: variants ?? [] };
@@ -101,7 +136,9 @@ export const getSpinJob = createServerFn({ method: "POST" })
 // Client calls this on a tight interval until the job is complete.
 export const tickSpinJob = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ jobId: z.string().uuid(), batch: z.number().min(1).max(6).default(3) }).parse(d))
+  .inputValidator((d) =>
+    z.object({ jobId: z.string().uuid(), batch: z.number().min(1).max(6).default(3) }).parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: pending } = await supabase
@@ -130,17 +167,17 @@ export const tickSpinJob = createServerFn({ method: "POST" })
     await supabase
       .from("spin_variants")
       .update({ status: "running" })
-      .in("id", pending.map((p) => p.id));
+      .in(
+        "id",
+        pending.map((p) => p.id),
+      );
 
     // "Render" — deterministic placeholder preview per label.
     // Picsum is seeded so each label gets a stable, distinct preview tile.
     const updates = pending.map((p) => {
       const seed = encodeURIComponent(`${data.jobId.slice(0, 8)}-${p.idx}`);
       const url = `https://picsum.photos/seed/${seed}/512/768`;
-      return supabase
-        .from("spin_variants")
-        .update({ status: "done", url })
-        .eq("id", p.id);
+      return supabase.from("spin_variants").update({ status: "done", url }).eq("id", p.id);
     });
     await Promise.all(updates);
 

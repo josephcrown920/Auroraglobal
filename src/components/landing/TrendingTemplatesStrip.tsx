@@ -8,8 +8,8 @@ import { STUDIO_TEMPLATES, templateCost } from "@/lib/template-studio";
 const TRENDING_IDS = [
   "concert-lipsync",
   "cinematic-reel",
-  "editorial-cover",
-  "product-lifestyle",
+  "ugc-talking-ad",
+  "viral-spin",
   "kids-storybook",
 ];
 
@@ -61,9 +61,15 @@ export function TrendingTemplatesStrip() {
                 />
               )}
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
-              <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-primary/90 px-2 py-0.5 text-[11px] font-semibold text-primary-foreground backdrop-blur">
-                <Sparkles className="size-3" /> {templateCost(t)}
-              </span>
+              {templateCost(t) > 0 ? (
+                <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-primary/90 px-2 py-0.5 text-[11px] font-semibold text-primary-foreground backdrop-blur">
+                  <Sparkles className="size-3" /> {templateCost(t)}
+                </span>
+              ) : (
+                <span className="absolute right-2 top-2 inline-flex items-center rounded-full bg-emerald-500/90 px-2 py-0.5 text-[11px] font-semibold text-white backdrop-blur">
+                  Free
+                </span>
+              )}
               {t.premium && (
                 <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[9px] font-semibold text-primary backdrop-blur">
                   <Crown className="size-2.5" /> Pro
