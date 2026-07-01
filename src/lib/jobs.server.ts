@@ -912,47 +912,18 @@ async function runAutocut(job: JobRow, orch: Orchestrate, workerId: string): Pro
     };
   }
 
-  // ── Fallback: Replicate image-to-video (Seedance-lite) ─────────────────
-  // No self-hosted assembler online — use Seedance-1-lite with the first clip
-  // as the reference frame so the user's content anchors the output.
-  // This is explicitly a best-effort fallback; the full assembly is only
-  // possible once a GPU worker advertises the "assemble" capability.
-  const STYLE_PROMPTS: Record<string, string> = {
-    hype:         "High-energy fast-paced action montage, dynamic jump cuts, vibrant colors, beat-synced, 9:16 vertical short",
-    cinematic:    "Cinematic slow-motion footage, sweeping epic wide shots, dramatic golden-hour lighting, 9:16 vertical short",
-    talking_head: "Professional presenter video, clean background, natural lighting, 9:16 vertical short",
-    tiktok_hook:  "Viral TikTok-style video, punchy 3-second hook opener, trending aesthetic, 9:16 vertical short",
-  };
-  const prompt = STYLE_PROMPTS[p.style] ?? STYLE_PROMPTS.hype;
-
-  // Stage 3: rendering via Replicate fallback.
-  await supabaseAdmin
-    .from("jobs")
-    .update({ payload: { ...(job.payload as object), workerStage: "rendering" } })
-    .eq("id", job.id);
-
-  const generated = await orch({
-    kind: "video",
-    model: "seedance-2.0-fast",
-    userId: job.user_id,
-    refId: job.id,
-    prompt,
-    imageUrls: p.clipUrls[0] ? [p.clipUrls[0]] : undefined,
-    params: { duration: 5, aspect_ratio: "9:16" },
-  });
-
-  return {
-    url: generated.url,
-    videoUrl: generated.url,
-    provider: generated.provider,
-    endpoint: generated.endpoint,
-    meta: {
-      style: p.style,
-      clip_count: p.clipUrls.length,
-      music_track: p.musicTrackId ?? null,
-      fallback: true,
-    },
-  };
+  // ── No self-hosted assembler online: fail explicitly and refund ────────
+  // AutoCut is a TRUE multi-clip edit — concatenating every uploaded clip and
+  // beat-syncing style + music — which only the self-hosted FFmpeg "assemble"
+  // worker performs. No hosted provider replicates that pipeline (generative
+  // video models produce a NEW clip, not an edit of the user's footage), so
+  // rather than silently degrading to a single-clip approximation we fail
+  // cleanly. The message contains "requires", matched by TERMINAL_ERROR_RE, so
+  // processOneJob treats it as terminal and releases the credit reservation
+  // immediately — the user is never charged for an undelivered edit.
+  throw new Error(
+    "AutoCut requires an online video assembler and none is currently available — your Aura was not charged. Please try again shortly.",
+  );
 }
 
 export async function processOneJob(

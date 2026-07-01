@@ -1509,9 +1509,10 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   // Caption burn: self-hosted GPU worker preferred (FFmpeg drawtext, fastest).
   // Falls back to Replicate subtitle-burn model when no capable worker is online.
   caption_burn: [gpuWorker, replicate],
-  // AutoCut: GPU assembler preferred; Replicate image-to-video as fallback so the
-  // user always gets a result (using their first clip as the reference frame).
-  autocut: [gpuWorker, replicate],
+  // AutoCut: self-hosted FFmpeg assembler ONLY. A true multi-clip edit (concat +
+  // beat-synced style/music) has no hosted equivalent, so there is no provider
+  // fallback — runAutocut fails explicitly and refunds when no worker is online.
+  autocut: [gpuWorker],
 };
 
 // ─── Unified model registry ──────────────────────────────────────────────────
@@ -1646,9 +1647,10 @@ const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   assemble: [],
   // Caption burn: GPU worker first (FFmpeg drawtext), Replicate fallback.
   caption_burn: ["ffmpeg-captionburn", "zsxkib/add-subtitles-to-video"],
-  // AutoCut: use Seedance-lite (i2v) as the Replicate fallback — takes the first
-  // uploaded clip as a reference frame + style prompt.
-  autocut: ["seedance-2.0-fast"],
+  // AutoCut: no hosted fallback — a true multi-clip edit only runs on the
+  // self-hosted FFmpeg assembler. autocut is never routed through orchestrate()
+  // directly (runAutocut dispatches kind "assemble"), so this stays empty.
+  autocut: [],
 };
 const FALLBACK_CAP: Record<GenerateKind, number> = {
   image: 4,

@@ -465,6 +465,9 @@ describe("classifyJobError", () => {
       "missing audio url",
       "unsupported kind",
       "no path for kind",
+      // AutoCut fails cleanly (and refunds) when no assembler worker is online:
+      // "requires" must classify terminal so processOneJob releases the reservation.
+      "AutoCut requires an online video assembler and none is currently available — your Aura was not charged. Please try again shortly.",
     ]) {
       expect(classifyJobError(m)).toBe("terminal");
     }
