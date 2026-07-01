@@ -113,6 +113,7 @@ function StudioPage() {
   const [videoPrompt, setVideoPrompt] = useState("subject performing and singing expressively, natural body movement, camera locked");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [lipsyncModel, setLipsyncModel] = useState<"fal-ai/sync-lipsync/v2" | "fal-ai/wav2lip" | "latentsync">("fal-ai/sync-lipsync/v2");
+  const [studioLipsyncConsent, setStudioLipsyncConsent] = useState(false);
 
   // Tiered cost previews — must mirror the server charge exactly (same computeCost,
   // same fixed 5s / 720p the mutations send). Premium models retier the price live.
@@ -869,7 +870,21 @@ function StudioPage() {
                 value={audioUrl}
                 onChange={setAudioUrl}
               />
-              <Button disabled={lipSyncMut.isPending || !audioUrl} onClick={() => lipSyncMut.mutate()} variant="secondary" className="w-full">
+              <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={studioLipsyncConsent}
+                  onChange={(e) => setStudioLipsyncConsent(e.target.checked)}
+                  className="mt-0.5 size-4 accent-[var(--color-primary)] flex-shrink-0"
+                />
+                <span className="text-xs text-muted-foreground leading-relaxed">
+                  I confirm I have the legal right to use this voice and likeness.{" "}
+                  <Link to="/legal/$slug" params={{ slug: "ai-policy" }} className="underline hover:text-foreground" target="_blank">
+                    AI Policy
+                  </Link>
+                </span>
+              </label>
+              <Button disabled={lipSyncMut.isPending || !audioUrl || !studioLipsyncConsent} onClick={() => lipSyncMut.mutate()} variant="secondary" className="w-full">
                 {lipSyncMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Syncing lips…</> : <><Mic2 className="size-4 mr-2" /> Lip sync video · {lipsyncCost} Aura</>}
               </Button>
             </div>
