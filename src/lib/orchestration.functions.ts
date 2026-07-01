@@ -74,6 +74,15 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
         notes: "flux-schnell (cheap hosted)",
       },
       {
+        id: "byteplus-image",
+        name: "ByteDance direct",
+        kind: "image",
+        envKey: "BYTEPLUS_API_KEY",
+        configured: has("BYTEPLUS_API_KEY") || has("ARK_API_KEY"),
+        free: false,
+        notes: "Seedream (native ModelArk) — preferred over Replicate for Seed models",
+      },
+      {
         id: "replicate-image",
         name: "Replicate",
         kind: "image",
@@ -92,6 +101,15 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
         notes: "fallback only — credits used last",
       },
       // video
+      {
+        id: "byteplus-video",
+        name: "ByteDance direct",
+        kind: "video",
+        envKey: "BYTEPLUS_API_KEY",
+        configured: has("BYTEPLUS_API_KEY") || has("ARK_API_KEY"),
+        free: false,
+        notes: "Seedance (native ModelArk) — preferred over Replicate for Seed models",
+      },
       {
         id: "replicate-video",
         name: "Replicate",
@@ -275,9 +293,11 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
                     ? "pollinations"
                     : p.id === "fal-video" || p.id === "fal-lipsync"
                       ? "fal"
-                      : p.id.startsWith("replicate")
-                        ? "replicate"
-                        : p.id;
+                      : p.id.startsWith("byteplus")
+                        ? "byteplus"
+                        : p.id.startsWith("replicate")
+                          ? "replicate"
+                          : p.id;
       const h = health[adapterName];
       return {
         ...p,
