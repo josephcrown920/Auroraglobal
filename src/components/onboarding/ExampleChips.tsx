@@ -7,13 +7,14 @@ type Props = {
   activeId?: string;
   label?: string;
   className?: string;
+  onGenerate?: () => void;
 };
 
-export function ExampleChips({ presets, onSelect, activeId, label = "Try an example:", className }: Props) {
+export function ExampleChips({ presets, onSelect, activeId, label = "Try an example:", className, onGenerate }: Props) {
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
       <p className="text-xs text-white/50 font-medium uppercase tracking-widest">{label}</p>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {presets.map((preset) => (
           <button
             key={preset.id}
@@ -32,6 +33,15 @@ export function ExampleChips({ presets, onSelect, activeId, label = "Try an exam
             {preset.label}
           </button>
         ))}
+        {onGenerate && activeId && (
+          <button
+            type="button"
+            onClick={onGenerate}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-primary/60 bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-all animate-in fade-in duration-200"
+          >
+            → Run
+          </button>
+        )}
       </div>
     </div>
   );

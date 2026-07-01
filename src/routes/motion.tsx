@@ -28,6 +28,8 @@ import {
 import { BringItToLifePreview } from "@/components/studio/BringItToLifePreview";
 import { ExampleChips } from "@/components/onboarding/ExampleChips";
 import { MOTION_EXAMPLE_PRESETS } from "@/lib/example-presets";
+import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
+import { hasCompletedFirstGen, hasDismissedTour, isFirstPageVisit, markPageVisited } from "@/lib/first-run";
 import { ConnectReplicateBanner } from "@/components/ConnectReplicateBanner";
 import { friendlyGenerationMessage, handleGenerationError } from "@/lib/error-toasts";
 
@@ -108,6 +110,25 @@ function MotionStudio() {
   const [imageError, setImageError] = useState<string | null>(null);
   const [videoError, setVideoError] = useState<string | null>(null);
   const [activeExampleId, setActiveExampleId] = useState<string | undefined>(undefined);
+  const [showTour, setShowTour] = useState(false);
+
+  useEffect(() => {
+    if (!hasCompletedFirstGen() && isFirstPageVisit("motion")) {
+      markPageVisited("motion");
+      const p = MOTION_EXAMPLE_PRESETS[0];
+      if (p.prompt) setVideoPrompt(p.prompt);
+      if (p.extra?.pose) {
+        const found = POSE_PRESETS.find((pr) => pr.id === p.extra!.pose);
+        if (found) setPose(found);
+      }
+      if (p.extra?.cameraMovement) setCameraMovement(String(p.extra.cameraMovement));
+      setActiveExampleId(p.id);
+    }
+    if (!hasDismissedTour()) {
+      const t = setTimeout(() => setShowTour(true), 800);
+      return () => clearTimeout(t);
+    }
+  }, []);
 
   // Animate runs generateVideoFromImage at a fixed 5s / 720p, so this mirrors the
   // server charge exactly; premium video models retier the previewed price live.
@@ -346,6 +367,7 @@ function MotionStudio() {
   return (
     <main className="aurora-page-shell text-foreground">
       <span aria-hidden className="aurora-ambient" />
+      <WelcomeTour show={showTour} onDismiss={() => setShowTour(false)} />
       <header className="relative z-10 flex items-center justify-between px-6 md:px-10 py-4 border-b border-border bg-card/40 backdrop-blur-xl">
         <Link to="/studio" className="flex items-center gap-2 font-semibold tracking-tight no-underline">
           <ArrowLeft className="size-4 text-muted-foreground" />
@@ -415,6 +437,11 @@ function MotionStudio() {
                   if (preset.extra?.cameraMovement) setCameraMovement(String(preset.extra.cameraMovement));
                   setActiveExampleId(preset.id);
                 }}
+                onGenerate={() =>
+                  stagedImage
+                    ? animateMut.mutate()
+                    : toast.info("Stage a pose first, then click → Run to animate")
+                }
                 label="Quick start:"
                 className="mb-1"
               />
