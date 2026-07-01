@@ -1427,6 +1427,7 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     // Self-hosted ffmpeg final assembly (kids story). Sentinel model so the
     // candidate loop runs; routed self-hosted-only to the GPU worker pool.
     "ffmpeg-assemble": { provider: gpuWorker.name, kind: "assemble", cost: 0.005 },
+    "ffmpeg-captionburn": { provider: gpuWorker.name, kind: "caption_burn", cost: 0.005 },
   };
   for (const [k, v] of Object.entries(REPLICATE_MAP))
     out[k] = { provider: "replicate", kind: v.kind, cost: v.cost };
@@ -1523,8 +1524,10 @@ const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   audio: ["elevenlabs/tts"],
   // Assembly pins to its self-hosted sentinel model (selfHostedOnly) — no fallback.
   assemble: [],
-  // Caption burn: self-hosted GPU worker only — no fallback.
-  caption_burn: [],
+  // Caption burn: self-hosted GPU worker only — no hosted provider can run
+  // FFmpeg drawtext. The sentinel model ensures the candidate loop runs and
+  // the GPU worker adapter is attempted.
+  caption_burn: ["ffmpeg-captionburn"],
 };
 const FALLBACK_CAP: Record<GenerateKind, number> = {
   image: 4,

@@ -40,6 +40,8 @@ export type RenderInput = {
   /** Optional Aurora Agent linkage so per-shot renders are queryable relationally. */
   sessionId?: string;
   agentShotId?: string;
+  /** Caption segments for `caption_burn` requests. */
+  segments?: Array<{ start: number; end: number; text: string }>;
 };
 
 export type RenderOutcome =
@@ -105,6 +107,7 @@ export async function reserveOrchestrateRecord(
       params: input.params,
       comfyWorkflow: input.comfyWorkflow,
       comfyInputs: input.comfyInputs,
+      segments: input.segments,
       userId: input.userId,
     });
 
@@ -120,7 +123,7 @@ export async function reserveOrchestrateRecord(
       audio_url: input.kind === "audio" ? result.url : (input.audioUrl ?? null),
       model: result.provider,
       result_image_url: input.kind === "image" ? result.url : null,
-      result_video_url: input.kind === "video" || input.kind === "lipsync" ? result.url : null,
+      result_video_url: input.kind === "video" || input.kind === "lipsync" || input.kind === "caption_burn" ? result.url : null,
       result_text: input.kind === "text" ? (result.text ?? null) : null,
       credits_cost: input.cost,
       session_id: input.sessionId ?? null,

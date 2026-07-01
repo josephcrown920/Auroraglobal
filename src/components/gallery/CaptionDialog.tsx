@@ -4,7 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Loader2, Captions, Pencil, CheckCircle2, Download } from "lucide-react";
+import { Loader2, Captions, Pencil, CheckCircle2, Download, Coins } from "lucide-react";
 import { transcribeVideoForCaptions, type CaptionSegment } from "@/lib/hf.functions";
 import { burnCaptions } from "@/lib/captions.functions";
 import { saveAssetToDisk } from "@/lib/save";
@@ -18,6 +18,8 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   videoUrl: string;
   generationId?: string;
+  /** User's current credit balance, shown in the confirm step. */
+  credits?: number;
   onDone?: (newVideoUrl: string) => void;
 }
 
@@ -33,16 +35,20 @@ function CaptionOverlay({ segments, currentTime }: { segments: CaptionSegment[];
   if (!active) return null;
   return (
     <div className="absolute bottom-8 left-0 right-0 flex justify-center px-4 pointer-events-none">
-      <span className="bg-black/75 text-white text-sm font-medium px-3 py-1.5 rounded-lg text-center leading-snug max-w-[90%]">
+      <span
+        style={{ textShadow: "0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6)" }}
+        className="text-white text-sm font-semibold px-3 py-1.5 rounded-lg text-center leading-snug max-w-[90%] drop-shadow-lg"
+      >
         {active.text}
       </span>
     </div>
   );
 }
 
-export function CaptionDialog({ open, onOpenChange, videoUrl, generationId, onDone }: Props) {
+export function CaptionDialog({ open, onOpenChange, videoUrl, generationId, credits, onDone }: Props) {
   const [step, setStep] = useState<Step>("idle");
   const [segments, setSegments] = useState<CaptionSegment[]>([]);
+  const [language, setLanguage] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
@@ -57,6 +63,7 @@ export function CaptionDialog({ open, onOpenChange, videoUrl, generationId, onDo
     mutationFn: () => transcribeFn({ data: { videoUrl } }),
     onSuccess: (res) => {
       setSegments(res.segments);
+      setLanguage(res.language);
       setStep("preview");
     },
     onError: (e) => {
@@ -86,7 +93,7 @@ export function CaptionDialog({ open, onOpenChange, videoUrl, generationId, onDo
       toast.success("Captions burned into video");
     },
     onError: (e) => {
-      toast.error(e instanceof Error ? e.message : "Caption burn failed");
+      toast.error(e instanceof Error ? e.message : "Caption burn failed — a registered GPU worker with 'caption_burn' capability is required.");
       setStep("preview");
     },
   });
@@ -122,6 +129,7 @@ export function CaptionDialog({ open, onOpenChange, videoUrl, generationId, onDo
     if (!open) {
       setStep("idle");
       setSegments([]);
+      setLanguage(null);
       setCurrentTime(0);
       setEditingIdx(null);
       setDoneUrl(null);
@@ -135,6 +143,7 @@ export function CaptionDialog({ open, onOpenChange, videoUrl, generationId, onDo
   }, [editingIdx]);
 
   const isBusy = step === "transcribing" || step === "burning";
+  const isNonEnglish = language && language !== "english" && language !== "en";
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!isBusy) onOpenChange(v); }}>
@@ -147,7 +156,18 @@ export function CaptionDialog({ open, onOpenChange, videoUrl, generationId, onDo
           <DialogDescription className="text-xs text-muted-foreground">
             {step === "idle" && "Transcribe your video's audio then review and edit captions before burning them in."}
             {step === "transcribing" && "Transcribing audio with Whisper — this may take 20–40 seconds…"}
-            {step === "preview" && `${segments.length} caption segments — edit any text, then burn in for ${CAPTION_COST} Aura.`}
+            {step === "preview" && (
+              <span>
+                {segments.length} caption segments
+                {isNonEnglish && (
+                  <span className="ml-1.5 px-1.5 py-0.5 rounded bg-primary/15 text-primary text-[10px] font-medium uppercase tracking-wide">
+                    {language}
+                  </span>
+                )}
+                {" — edit any text, then burn in for "}
+                <span className="font-medium text-foreground">{CAPTION_COST} Aura</span>.
+              </span>
+            )}
             {step === "burning" && "Burning captions into video — dispatched to your GPU worker…"}
             {step === "done" && "Done! Your captioned video has been saved to the gallery."}
           </DialogDescription>
@@ -239,49 +259,60 @@ export function CaptionDialog({ open, onOpenChange, videoUrl, generationId, onDo
             </p>
           )}
 
-          <div className="flex justify-end gap-2 pt-1">
-            {step === "idle" && (
-              <>
-                <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-                  Cancel
-                </Button>
-                <Button size="sm" onClick={handleTranscribe}>
-                  <Captions className="size-3.5 mr-1.5" />
-                  Transcribe Audio
-                </Button>
-              </>
+          <div className="flex items-center justify-between gap-2 pt-1">
+            {step === "preview" && credits !== undefined && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Coins className="size-3.5 text-primary" />
+                Balance: <span className="font-medium text-foreground">{credits}</span> Aura
+                {credits < CAPTION_COST && (
+                  <span className="text-destructive ml-1">— not enough</span>
+                )}
+              </div>
             )}
+            <div className="flex gap-2 ml-auto">
+              {step === "idle" && (
+                <>
+                  <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" onClick={handleTranscribe}>
+                    <Captions className="size-3.5 mr-1.5" />
+                    Transcribe Audio
+                  </Button>
+                </>
+              )}
 
-            {step === "preview" && (
-              <>
-                <Button variant="ghost" size="sm" onClick={() => setStep("idle")}>
-                  Re-transcribe
-                </Button>
-                <Button
-                  size="sm"
-                  disabled={segments.length === 0}
-                  onClick={handleBurn}
-                >
-                  Confirm & Burn Captions · {CAPTION_COST} Aura
-                </Button>
-              </>
-            )}
+              {step === "preview" && (
+                <>
+                  <Button variant="ghost" size="sm" onClick={() => setStep("idle")}>
+                    Re-transcribe
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={segments.length === 0 || (credits !== undefined && credits < CAPTION_COST)}
+                    onClick={handleBurn}
+                  >
+                    Confirm & Burn · {CAPTION_COST} Aura
+                  </Button>
+                </>
+              )}
 
-            {step === "done" && doneUrl && (
-              <>
-                <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-                  Close
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => saveAssetToDisk(doneUrl, `aurora-captioned-${Date.now()}.mp4`)}
-                >
-                  <Download className="size-3.5 mr-1.5" />
-                  Download
-                </Button>
-              </>
-            )}
+              {step === "done" && doneUrl && (
+                <>
+                  <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+                    Close
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => saveAssetToDisk(doneUrl, `aurora-captioned-${Date.now()}.mp4`)}
+                  >
+                    <Download className="size-3.5 mr-1.5" />
+                    Download
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </DialogContent>
