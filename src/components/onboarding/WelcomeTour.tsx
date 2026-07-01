@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { X, Sparkles, Zap, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { hasDismissedTour, markTourDismissed } from "@/lib/first-run";
+import { hasDismissedTour, hasCompletedFirstGen, markTourDismissed } from "@/lib/first-run";
 
 const STEPS = [
   {
@@ -38,6 +38,7 @@ export function WelcomeTour({ show, onDismiss }: Props) {
     if (!show) return;
     if (typeof window === "undefined") return;
     if (hasDismissedTour()) return;
+    if (hasCompletedFirstGen()) return;
     setMounted(true);
     const t = setTimeout(() => setVisible(true), 600);
     return () => clearTimeout(t);

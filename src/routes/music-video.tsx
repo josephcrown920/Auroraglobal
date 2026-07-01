@@ -23,6 +23,7 @@ import {
   listGenerations,
 } from "@/lib/studio.functions";
 import { handleGenerationError } from "@/lib/error-toasts";
+import { markFirstGenComplete } from "@/lib/first-run";
 import { computeCost } from "@/lib/pricing";
 import { VIDEO_MODEL_LIST } from "@/lib/models";
 import {
@@ -134,6 +135,7 @@ function MusicVideoPage() {
       return genFn({ data: { prompt, imageUrls: [], motionVideoUrl: null, model: "black-forest-labs/flux-1.1-pro" } });
     },
     onSuccess: () => {
+      markFirstGenComplete();
       toast.success("Queued — result will appear below when ready");
       qc.invalidateQueries({ queryKey: ["mv-gens"] });
     },

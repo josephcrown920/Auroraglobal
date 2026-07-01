@@ -26,10 +26,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BringItToLifePreview } from "@/components/studio/BringItToLifePreview";
+import demoSelfie from "@/assets/demo-selfie.jpg";
 import { ExampleChips } from "@/components/onboarding/ExampleChips";
 import { MOTION_EXAMPLE_PRESETS } from "@/lib/example-presets";
 import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
-import { hasCompletedFirstGen, hasDismissedTour, isFirstPageVisit, markPageVisited } from "@/lib/first-run";
+import { hasCompletedFirstGen, hasDismissedTour, isFirstPageVisit, markFirstGenComplete, markPageVisited } from "@/lib/first-run";
 import { ConnectReplicateBanner } from "@/components/ConnectReplicateBanner";
 import { friendlyGenerationMessage, handleGenerationError } from "@/lib/error-toasts";
 
@@ -208,9 +209,14 @@ function MotionStudio() {
   });
 
   // Step 2 — animate it
+  // Ref used by onGenerate to pass a demo override without hitting React batching.
+  const animateOverrideRef = { current: null as string | null };
+
   const animateMut = useMutation({
     mutationFn: async () => {
-      const source = startFrame ?? stagedImage;
+      const override = animateOverrideRef.current;
+      animateOverrideRef.current = null;
+      const source = startFrame ?? override ?? stagedImage;
       if (!source) throw new Error("Add a first frame or stage a pose first");
       const out = await videoFn({
         data: {
@@ -227,6 +233,7 @@ function MotionStudio() {
     },
     onMutate: () => setVideoError(null),
     onSuccess: (out) => {
+      markFirstGenComplete();
       setVideoUrl((out as { videoUrl?: string } | null)?.videoUrl ?? null);
       toast.success("Motion ready");
       qc.invalidateQueries({ queryKey: ["motion-gens"] });
@@ -437,11 +444,12 @@ function MotionStudio() {
                   if (preset.extra?.cameraMovement) setCameraMovement(String(preset.extra.cameraMovement));
                   setActiveExampleId(preset.id);
                 }}
-                onGenerate={() =>
-                  stagedImage
-                    ? animateMut.mutate()
-                    : toast.info("Stage a pose first, then click → Run to animate")
-                }
+                onGenerate={() => {
+                  if (!stagedImage && !startFrame) {
+                    animateOverrideRef.current = demoSelfie as string;
+                  }
+                  animateMut.mutate();
+                }}
                 label="Quick start:"
                 className="mb-1"
               />

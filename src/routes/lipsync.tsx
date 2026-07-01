@@ -12,7 +12,7 @@ import { friendlyGenerationMessage, handleGenerationError } from "@/lib/error-to
 import { ExampleChips } from "@/components/onboarding/ExampleChips";
 import { LIPSYNC_EXAMPLE_PRESETS } from "@/lib/example-presets";
 import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
-import { hasCompletedFirstGen, hasDismissedTour, isFirstPageVisit, markPageVisited } from "@/lib/first-run";
+import { hasCompletedFirstGen, hasDismissedTour, isFirstPageVisit, markFirstGenComplete, markPageVisited } from "@/lib/first-run";
 
 export const Route = createFileRoute("/lipsync")({
   component: LipSyncStudioPage,
@@ -198,6 +198,7 @@ function LipSyncForm() {
         setProgress(100);
         setStatus("done");
         setResultUrl(res.resultUrl);
+        markFirstGenComplete();
         toast.success("Lip-sync rendered.");
       } else {
         setStatus("error");
@@ -282,11 +283,7 @@ function LipSyncForm() {
             if (preset.extra?.engine) setEngine(preset.extra.engine as Engine);
             setActiveExampleId(preset.id);
           }}
-          onGenerate={() =>
-            video && audio
-              ? toast.info("Files loaded — hit Sync below to generate")
-              : toast.info("Upload a video clip and vocal track first")
-          }
+          onGenerate={() => void run()}
           label="Pick a mode:"
           className="mt-5"
         />
