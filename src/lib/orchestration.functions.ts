@@ -7,6 +7,7 @@ import { reserveOrchestrateRecord } from "./generate-core.server";
 import { assertTrustedUrl } from "./url-guard";
 import { providerHealth, providerStatus } from "./inference";
 import { detectFeatures, computeCost, type Feature } from "./pricing";
+import { assertDurationCap } from "./cost-guardrails.server";
 
 // ─── Provider health (which keys are configured) ─────────────────────────────
 // Mirrors the priority chains in src/lib/orchestrator.server.ts.
@@ -356,10 +357,12 @@ const OrchestrateSchema = z.object({
   kind: z.enum(["image", "video", "text", "audio"]),
   prompt: z.string().max(4000).optional(),
   imageUrls: z.array(z.string().url()).max(6).optional(),
-  duration: z.number().int().min(3).max(12).optional(),
+  duration: z.number().int().min(3).max(15).optional(),
   resolution: z.enum(["480p", "720p", "1080p"]).optional(),
   model: z.string().max(120).optional(),
   voiceId: z.string().max(120).optional(),
+  // Preview pass: generate at 480p/5s before the full-quality render.
+  previewOnly: z.boolean().optional(),
   // Stacked-pricing override: force the exact set of billable features.
   features: z
     .array(z.enum(["image", "upscale", "text", "audio", "lipsync", "motion", "video"]))
@@ -414,11 +417,28 @@ export const orchestrateGenerate = createServerFn({ method: "POST" })
     for (const url of data.imageUrls ?? []) assertTrustedUrl(url);
 
     const kind = data.kind as GenerateKind;
+
+    // Duration cap: enforce per-plan max before reserving credits.
+    // Throws a terminal "Unsupported duration…" error if the user's plan doesn't
+    // allow this length — credits are never reserved and no provider is called.
+    const isTemporalKind = kind === "video" || (kind as string) === "motion";
+    if (isTemporalKind && data.duration && data.duration > 0) {
+      await assertDurationCap(context.userId, data.duration);
+    }
+
+    // Preview mode: override to 480p/5s so the user can verify the scene cheaply
+    // before committing to a full expensive render. Priced at 480p/5s cost.
+    const previewOnly = !!data.previewOnly && isTemporalKind;
+    const effDuration = previewOnly ? Math.min(data.duration ?? 5, 5) : data.duration;
+    const effResolution: "480p" | "720p" | "1080p" | undefined = previewOnly
+      ? "480p"
+      : data.resolution;
+
     const { features } = detectFeatures({ kind: kind as Feature, features: data.features });
     const quote = computeCost({
       features,
-      resolution: data.resolution,
-      durationSeconds: data.duration,
+      resolution: effResolution,
+      durationSeconds: effDuration,
       model: data.model,
     });
     const cost = quote.total;
@@ -427,8 +447,8 @@ export const orchestrateGenerate = createServerFn({ method: "POST" })
       kind,
       prompt: data.prompt,
       imageUrls: data.imageUrls,
-      duration: data.duration,
-      resolution: data.resolution,
+      duration: effDuration,
+      resolution: effResolution,
       model: data.model,
       params: data.voiceId ? { voiceId: data.voiceId } : undefined,
       cost,

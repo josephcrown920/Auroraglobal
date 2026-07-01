@@ -203,3 +203,44 @@ export const adminEarnings = createServerFn({ method: "GET" })
       recentPurchases,
     };
   });
+// ─── Cost analytics (last 30 days) ────────────────────────────────────────────
+
+export const adminCostStats = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
+
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: gens, error } = await supabaseAdmin
+      .from("generations")
+      .select("kind, credits_cost, created_at, status")
+      .gte("created_at", since)
+      .in("status", ["succeeded", "completed"])
+      .order("created_at", { ascending: false })
+      .limit(10000);
+
+    if (error) throw new Error(error.message);
+    const rows = gens ?? [];
+
+    type DayKindRow = { day: string; kind: string; count: number; totalCredits: number };
+    const map = new Map<string, DayKindRow>();
+    for (const g of rows) {
+      const day = (g.created_at as string | null)?.slice(0, 10) ?? "unknown";
+      const kind = g.kind ?? "unknown";
+      const key = `${day}|${kind}`;
+      const existing = map.get(key);
+      if (existing) {
+        existing.count++;
+        existing.totalCredits += (g.credits_cost as number | null) ?? 0;
+      } else {
+        map.set(key, { day, kind, count: 1, totalCredits: (g.credits_cost as number | null) ?? 0 });
+      }
+    }
+
+    const byDayKind = [...map.values()].sort(
+      (a, b) => b.day.localeCompare(a.day) || b.totalCredits - a.totalCredits,
+    );
+
+    return { byDayKind, since };
+  });

@@ -49,6 +49,7 @@ import { Route as CliAuthorizeRouteImport } from './routes/cli.authorize'
 import { Route as ApiMcpRouteImport } from './routes/api/mcp'
 import { Route as AdminSmokeRouteImport } from './routes/admin.smoke'
 import { Route as AdminOrchestrationRouteImport } from './routes/admin.orchestration'
+import { Route as AdminCostsRouteImport } from './routes/admin.costs'
 import { Route as AdminComfyRouteImport } from './routes/admin.comfy'
 import { Route as ApiPublicWatermarkVideoRouteImport } from './routes/api/public/watermark-video'
 import { Route as ApiPublicWatermarkImageRouteImport } from './routes/api/public/watermark-image'
@@ -261,6 +262,11 @@ const AdminOrchestrationRoute = AdminOrchestrationRouteImport.update({
   path: '/orchestration',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminCostsRoute = AdminCostsRouteImport.update({
+  id: '/costs',
+  path: '/costs',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminComfyRoute = AdminComfyRouteImport.update({
   id: '/comfy',
   path: '/comfy',
@@ -355,6 +361,7 @@ export interface FileRoutesByFullPath {
   '/ugc': typeof UgcRoute
   '/workflows': typeof WorkflowsRoute
   '/admin/comfy': typeof AdminComfyRoute
+  '/admin/costs': typeof AdminCostsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
   '/admin/smoke': typeof AdminSmokeRoute
   '/api/mcp': typeof ApiMcpRoute
@@ -408,6 +415,7 @@ export interface FileRoutesByTo {
   '/ugc': typeof UgcRoute
   '/workflows': typeof WorkflowsRoute
   '/admin/comfy': typeof AdminComfyRoute
+  '/admin/costs': typeof AdminCostsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
   '/admin/smoke': typeof AdminSmokeRoute
   '/api/mcp': typeof ApiMcpRoute
@@ -462,6 +470,7 @@ export interface FileRoutesById {
   '/ugc': typeof UgcRoute
   '/workflows': typeof WorkflowsRoute
   '/admin/comfy': typeof AdminComfyRoute
+  '/admin/costs': typeof AdminCostsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
   '/admin/smoke': typeof AdminSmokeRoute
   '/api/mcp': typeof ApiMcpRoute
@@ -517,6 +526,7 @@ export interface FileRouteTypes {
     | '/ugc'
     | '/workflows'
     | '/admin/comfy'
+    | '/admin/costs'
     | '/admin/orchestration'
     | '/admin/smoke'
     | '/api/mcp'
@@ -570,6 +580,7 @@ export interface FileRouteTypes {
     | '/ugc'
     | '/workflows'
     | '/admin/comfy'
+    | '/admin/costs'
     | '/admin/orchestration'
     | '/admin/smoke'
     | '/api/mcp'
@@ -623,6 +634,7 @@ export interface FileRouteTypes {
     | '/ugc'
     | '/workflows'
     | '/admin/comfy'
+    | '/admin/costs'
     | '/admin/orchestration'
     | '/admin/smoke'
     | '/api/mcp'
@@ -975,6 +987,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminOrchestrationRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/costs': {
+      id: '/admin/costs'
+      path: '/costs'
+      fullPath: '/admin/costs'
+      preLoaderRoute: typeof AdminCostsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/comfy': {
       id: '/admin/comfy'
       path: '/comfy'
@@ -1057,12 +1076,14 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminComfyRoute: typeof AdminComfyRoute
+  AdminCostsRoute: typeof AdminCostsRoute
   AdminOrchestrationRoute: typeof AdminOrchestrationRoute
   AdminSmokeRoute: typeof AdminSmokeRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminComfyRoute: AdminComfyRoute,
+  AdminCostsRoute: AdminCostsRoute,
   AdminOrchestrationRoute: AdminOrchestrationRoute,
   AdminSmokeRoute: AdminSmokeRoute,
 }
