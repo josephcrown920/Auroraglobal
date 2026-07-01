@@ -852,6 +852,12 @@ async function runAutocut(job: JobRow, orch: Orchestrate, workerId: string): Pro
 
   await touchJobLock(job.id, workerId);
 
+  // Stage 1: analysing — job is locked, worker is reviewing clips.
+  await supabaseAdmin
+    .from("jobs")
+    .update({ payload: { ...(job.payload as object), workerStage: "analysing" } })
+    .eq("id", job.id);
+
   // Resolve optional music track (signed from storage; null if track unavailable).
   let musicUrl: string | null = null;
   if (p.musicTrackId) {
@@ -861,45 +867,90 @@ async function runAutocut(job: JobRow, orch: Orchestrate, workerId: string): Pro
     }
   }
 
-  // ── Assembly: requires self-hosted GPU worker ───────────────────────────
+  // ── Primary: self-hosted GPU assembler ─────────────────────────────────
   const canAssemble = await hasActiveWorkerForKind("assemble");
-  if (!canAssemble) {
-    throw new Error(
-      "No GPU assembler is currently online. Please try again later or contact support.",
-    );
+  if (canAssemble) {
+    // Stage 2: assembling — downloading clips and compositing.
+    await supabaseAdmin
+      .from("jobs")
+      .update({ payload: { ...(job.payload as object), workerStage: "assembling" } })
+      .eq("id", job.id);
+
+    // Stage 3: rendering — orch dispatched to the GPU worker.
+    await supabaseAdmin
+      .from("jobs")
+      .update({ payload: { ...(job.payload as object), workerStage: "rendering" } })
+      .eq("id", job.id);
+
+    const assembled = await orch({
+      kind: "assemble",
+      model: "ffmpeg-assemble",
+      selfHostedOnly: true,
+      userId: job.user_id,
+      refId: job.id,
+      params: {
+        clips: p.clipUrls,
+        style: p.style,
+        aspect: p.aspect ?? "9:16",
+        max_duration: 60,
+        music_url: musicUrl,
+        music_volume: 0.15,
+      },
+    });
+
+    return {
+      url: assembled.url,
+      videoUrl: assembled.url,
+      provider: assembled.provider,
+      endpoint: assembled.endpoint,
+      meta: {
+        style: p.style,
+        clip_count: p.clipUrls.length,
+        music_track: p.musicTrackId ?? null,
+        fallback: false,
+      },
+    };
   }
 
-  // Signal to the stage poller that the worker has entered assembly.
+  // ── Fallback: Replicate image-to-video (Seedance-lite) ─────────────────
+  // No self-hosted assembler online — use Seedance-1-lite with the first clip
+  // as the reference frame so the user's content anchors the output.
+  // This is explicitly a best-effort fallback; the full assembly is only
+  // possible once a GPU worker advertises the "assemble" capability.
+  const STYLE_PROMPTS: Record<string, string> = {
+    hype:         "High-energy fast-paced action montage, dynamic jump cuts, vibrant colors, beat-synced, 9:16 vertical short",
+    cinematic:    "Cinematic slow-motion footage, sweeping epic wide shots, dramatic golden-hour lighting, 9:16 vertical short",
+    talking_head: "Professional presenter video, clean background, natural lighting, 9:16 vertical short",
+    tiktok_hook:  "Viral TikTok-style video, punchy 3-second hook opener, trending aesthetic, 9:16 vertical short",
+  };
+  const prompt = STYLE_PROMPTS[p.style] ?? STYLE_PROMPTS.hype;
+
+  // Stage 3: rendering via Replicate fallback.
   await supabaseAdmin
     .from("jobs")
-    .update({ payload: { ...(job.payload as object), workerStage: "assembling" } })
+    .update({ payload: { ...(job.payload as object), workerStage: "rendering" } })
     .eq("id", job.id);
 
-  const assembled = await orch({
-    kind: "assemble",
-    model: "ffmpeg-assemble",
-    selfHostedOnly: true,
+  const generated = await orch({
+    kind: "video",
+    model: "seedance-2.0-fast",
     userId: job.user_id,
     refId: job.id,
-    params: {
-      clips: p.clipUrls,
-      style: p.style,
-      aspect: p.aspect ?? "9:16",
-      max_duration: 60,
-      music_url: musicUrl,
-      music_volume: 0.15,
-    },
+    prompt,
+    imageUrls: p.clipUrls[0] ? [p.clipUrls[0]] : undefined,
+    params: { duration: 5, aspect_ratio: "9:16" },
   });
 
   return {
-    url: assembled.url,
-    videoUrl: assembled.url,
-    provider: assembled.provider,
-    endpoint: assembled.endpoint,
+    url: generated.url,
+    videoUrl: generated.url,
+    provider: generated.provider,
+    endpoint: generated.endpoint,
     meta: {
       style: p.style,
       clip_count: p.clipUrls.length,
       music_track: p.musicTrackId ?? null,
+      fallback: true,
     },
   };
 }

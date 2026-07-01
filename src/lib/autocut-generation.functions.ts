@@ -118,7 +118,7 @@ export const createAutocutJob = createServerFn({ method: "POST" })
     };
     const { data: out, error } = await client.rpc("create_generation_and_reserve", {
       _user: userId,
-      _kind: "autocut" as GenerateKind,
+      _kind: "autocut" satisfies GenerateKind,
       _prompt: `autocut:${data.style}`,
       _amount: COST_AUTOCUT,
       _payload: {
