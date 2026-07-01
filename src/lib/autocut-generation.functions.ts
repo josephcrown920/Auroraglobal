@@ -11,6 +11,32 @@ import type { GenerateKind } from "./orchestrator.server";
 // Re-export the shared generation-status poller.
 export { getGenerationStatus } from "./ugc-generation.functions";
 
+// ─── Job-stage poller for the 4-step progress indicator ─────────────────────
+// Reads the worker's `workerStage` field from the job payload (written by the
+// worker as it progresses through analysis → assembly) and falls back to
+// `locked_by IS NOT NULL` as a proxy for "worker is active".
+
+export const getAutocutJobStage = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ jobId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: job } = await supabaseAdmin
+      .from("jobs")
+      .select("status, locked_by, payload")
+      .eq("id", data.jobId)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+
+    if (!job) return { stage: "analysing" as const };
+
+    const workerStage = (job.payload as Record<string, unknown> | null)?.workerStage as
+      | string
+      | undefined;
+    if (workerStage === "rendering") return { stage: "rendering" as const };
+    if (workerStage === "assembling" || job.locked_by) return { stage: "assembling" as const };
+    return { stage: "analysing" as const };
+  });
+
 export const AUTOCUT_MAX_CLIPS = 10;
 
 // ─── 1. Signed upload URLs ───────────────────────────────────────────────────
@@ -66,6 +92,13 @@ export const createAutocutJob = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
+    const userId = context.userId;
+
+    // Ownership check: every path must be under the caller's autocut namespace.
+    const expected = `${userId}/autocut/`;
+    const illegal = data.clipPaths.find((p) => !p.startsWith(expected));
+    if (illegal) throw new Error("Clip path not owned by user");
+
     // Sign each uploaded path so the job runner can fetch them.
     const clipSignedUrls = await Promise.all(
       data.clipPaths.map((p) => signedAutocutUrl(p, 3600)),
@@ -84,7 +117,7 @@ export const createAutocutJob = createServerFn({ method: "POST" })
       ) => Promise<{ data: unknown; error: { message: string } | null }>;
     };
     const { data: out, error } = await client.rpc("create_generation_and_reserve", {
-      _user: context.userId,
+      _user: userId,
       _kind: "autocut" as GenerateKind,
       _prompt: `autocut:${data.style}`,
       _amount: COST_AUTOCUT,
