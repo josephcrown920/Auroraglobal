@@ -9,6 +9,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { isFreeGpuOnlyMode } from "./app-settings.server";
 import { replicateRun, pickReplicateUrl, getReplicateKey } from "./replicate.server";
+import { bytePlusImage, bytePlusVideo, getBytePlusKey } from "./byteplus.server";
 import { syncLipsync } from "./sync.server";
 import { hfTextToImage } from "./hf.server";
 import { isTrustedUrl } from "./url-guard";
@@ -167,6 +168,7 @@ type ProviderAdapter = {
     | "lovable"
     | "gemini"
     | "replicate"
+    | "byteplus"
     | "huggingface"
     | "sync"
     | "runpod"
@@ -648,6 +650,84 @@ const replicate: ProviderAdapter = {
     const result = await replicateRun(m.slug, input, 600_000);
     const url = pickReplicateUrl(result.output);
     return { url, endpoint: `replicate:${m.slug}` };
+  },
+};
+
+// ─── ByteDance direct (BytePlus / Volcano ModelArk) ──────────────────────────
+// Native provider for the Seed family. Maps our app model keys → the ModelArk
+// model ID. IDs are region/account-specific and ByteDance rotates the dated
+// suffix, so the whole table is overridable via a BYTEPLUS_MODEL_MAP JSON secret
+// (value = model-id string, or a { modelId, kind } object) — a stale slug is
+// fixed with a secret change, no code deploy. Defaults track the current
+// published Seed models. Preferred over Replicate/fal for these models when a
+// key is present; when it fails or the key is absent, the chain falls through to
+// Replicate/fal (explicit fallback, never a silent one).
+type BytePlusEntry = { modelId: string; kind: "image" | "video" };
+const BYTEPLUS_DEFAULTS: Record<string, BytePlusEntry> = {
+  "fal-ai/seedream-4": { modelId: "seedream-4-0-250828", kind: "image" },
+  "fal-ai/seedream-4.5": { modelId: "seedream-4-0-250828", kind: "image" },
+  "seedance-2.0": { modelId: "seedance-1-0-pro-250528", kind: "video" },
+  "seedance-2.0-fast": { modelId: "seedance-1-0-lite-i2v-250428", kind: "video" },
+};
+const BYTEPLUS_MAP: Record<string, BytePlusEntry> = (() => {
+  const out: Record<string, BytePlusEntry> = { ...BYTEPLUS_DEFAULTS };
+  const raw = process.env.BYTEPLUS_MODEL_MAP;
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as Record<string, string | Partial<BytePlusEntry>>;
+      for (const [k, v] of Object.entries(parsed)) {
+        if (typeof v === "string") {
+          const existing = out[k];
+          if (existing) out[k] = { ...existing, modelId: v };
+        } else if (
+          v &&
+          typeof v === "object" &&
+          typeof v.modelId === "string" &&
+          (v.kind === "image" || v.kind === "video")
+        ) {
+          out[k] = { modelId: v.modelId, kind: v.kind };
+        }
+      }
+    } catch {
+      // Malformed override → ignore and keep the published defaults.
+    }
+  }
+  return out;
+})();
+
+const byteplus: ProviderAdapter = {
+  name: "byteplus",
+  supports: (r) => {
+    if (!getBytePlusKey()) return false;
+    if (r.kind !== "image" && r.kind !== "video") return false;
+    if (!r.model) return false;
+    const m = BYTEPLUS_MAP[r.model];
+    return !!m && m.kind === r.kind;
+  },
+  // Bill the same provider cost as the Replicate route for the model so margins
+  // and logs stay consistent; direct is typically cheaper, so this is a safe
+  // upper bound.
+  estimateCost: (r) =>
+    (r.model && REPLICATE_MAP[r.model]?.cost) || (r.kind === "video" ? 0.3 : 0.03),
+  async run(r) {
+    const m = r.model ? BYTEPLUS_MAP[r.model] : null;
+    if (!m) throw new Error(`No BytePlus mapping for model: ${r.model}`);
+    if (m.kind === "image") {
+      const url = await bytePlusImage({
+        model: m.modelId,
+        prompt: r.prompt ?? "",
+        imageUrls: r.imageUrls,
+      });
+      return { url, endpoint: `byteplus:${m.modelId}` };
+    }
+    const url = await bytePlusVideo({
+      model: m.modelId,
+      prompt: r.prompt,
+      imageUrls: r.imageUrls,
+      duration: r.duration,
+      resolution: r.resolution,
+    });
+    return { url, endpoint: `byteplus:${m.modelId}` };
   },
 };
 
@@ -1405,6 +1485,7 @@ const gpuWorker: ProviderAdapter = {
 const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   image: [
     gpuWorker,
+    byteplus,
     pollinations,
     geminiDirect,
     huggingface,
@@ -1413,7 +1494,7 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
     lovable,
     falFallback,
   ],
-  video: [gpuWorker, klingDirect, replicate, runway, falFallback],
+  video: [gpuWorker, klingDirect, byteplus, replicate, runway, falFallback],
   lipsync: [gpuWorker, sync, heygen, replicate, falFallback],
   // GPU-first: a worker advertising "upscale" is tried before Replicate.
   upscale: [gpuWorker, replicate, falFallback],

@@ -80,7 +80,7 @@ export const MODEL_LIST: ModelMeta[] = [
     color: "text-pink-400",
     bg: "bg-pink-500/15 border-pink-500/30",
     tagline: "Refined cinematic edits, sharper",
-    status: "preview",
+    status: "live",
     category: "image",
   },
   {

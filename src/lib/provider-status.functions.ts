@@ -16,6 +16,7 @@ export const providerStatus = createServerFn({ method: "GET" }).handler(async ()
     openrouter: has("OPENROUTER_API_KEY"),
     openai: has("OPENAI_API_KEY"),
     fal: has("FAL_KEY"),
+    byteplus: has("BYTEPLUS_API_KEY") || has("ARK_API_KEY"),
     huggingface: has("HF_TOKEN"),
     sync: has("SYNC_API_KEY"),
     kling: has("KLING_ACCESS_KEY") && has("KLING_SECRET_KEY"),
