@@ -103,7 +103,7 @@ export async function hfSpeechToText(
   modelOrUrl: string,
   audio: ArrayBuffer | Uint8Array,
   opts: { timestamps?: boolean } = {}
-): Promise<{ text: string; chunks: AsrChunk[] }> {
+): Promise<{ text: string; chunks: AsrChunk[]; language?: string }> {
   const base = resolveUrl(modelOrUrl);
   const url = opts.timestamps ? `${base}?return_timestamps=true` : base;
   const res = await fetch(url, {

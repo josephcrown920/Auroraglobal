@@ -234,7 +234,6 @@ function GalleryPage() {
           onOpenChange={(v) => { if (!v) setCaptioning(null); }}
           videoUrl={captioning.url}
           generationId={captioning.id}
-          credits={profile?.credits}
           onDone={() => {
             qc.invalidateQueries({ queryKey: ["gallery"] });
           }}
