@@ -39,7 +39,9 @@ export const burnCaptions = createServerFn({ method: "POST" })
       prompt: `Captions burned (${data.segments.length} segments)`,
       videoUrl: data.videoUrl,
       segments: data.segments,
-      model: "ffmpeg-captionburn",
+      // No model pin: orchestrator picks ffmpeg-captionburn (GPU worker, fastest)
+      // then falls back to zsxkib/add-subtitles-to-video (Replicate) if no
+      // capable worker is online.
     });
 
     if (!outcome.ok) {
