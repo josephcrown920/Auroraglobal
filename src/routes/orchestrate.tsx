@@ -15,8 +15,12 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { orchestrateGenerate, listOrchestrations } from "@/lib/orchestration.functions";
-import { handleGenerationError } from "@/lib/error-toasts";
+import { handleGenerationError, friendlyGenerationMessage } from "@/lib/error-toasts";
 import { detectFeatures, computeCost, type Feature, type Resolution } from "@/lib/pricing";
+import { useGenerationProgress } from "@/hooks/use-generation-progress";
+import { GenerationProgress } from "@/components/ui/GenerationProgress";
+import { GenerationErrorCard } from "@/components/ui/GenerationErrorCard";
+import { BlurredPreview } from "@/components/ui/BlurredPreview";
 
 export const Route = createFileRoute("/orchestrate")({
   component: OrchestratePage,
@@ -72,6 +76,7 @@ function OrchestratePage() {
   const [resolution, setResolution] = useState<Resolution>("720p");
   const [duration, setDuration] = useState(5);
   const [busy, setBusy] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
   const [result, setResult] = useState<{
     kind: Modality;
     url: string;
@@ -79,6 +84,22 @@ function OrchestratePage() {
     provider: string;
     latencyMs: number;
   } | null>(null);
+
+  // Synthetic mutation-like state so useGenerationProgress can track the async fn
+  const [pendingState, setPendingState] = useState<"idle" | "pending" | "error" | "success">("idle");
+  const orchestrateProgress = useGenerationProgress({
+    isPending: pendingState === "pending",
+    isError: pendingState === "error",
+    isSuccess: pendingState === "success",
+    estimatedMs: modality === "video" ? 30_000 : modality === "audio" ? 15_000 : 12_000,
+    persistKey: "aurora.progress.orchestrate",
+    labels: {
+      queued: "Routing to the best provider…",
+      processing: modality === "image" ? "Rendering your image…" : modality === "video" ? "Rendering your video…" : modality === "audio" ? "Synthesising audio…" : "Generating response…",
+      finalizing: "Almost there…",
+      done: "Done",
+    },
+  });
 
   const recent = useQuery({
     queryKey: ["orchestrations", user?.id],
@@ -116,7 +137,9 @@ function OrchestratePage() {
       return toast.error("Runway video needs a start image URL");
     }
     setBusy(true);
+    setLastError(null);
     setResult(null);
+    setPendingState("pending");
     try {
       const res = await run({
         data: {
@@ -130,7 +153,10 @@ function OrchestratePage() {
         },
       });
       if (!res.ok) {
-        handleGenerationError(res.insufficient ? "insufficient credits" : (res.error ?? "Generation failed"));
+        const errMsg = res.insufficient ? "insufficient credits" : (res.error ?? "Generation failed");
+        setLastError(friendlyGenerationMessage(errMsg));
+        handleGenerationError(errMsg);
+        setPendingState("error");
         return;
       }
       setResult({
@@ -140,10 +166,13 @@ function OrchestratePage() {
         provider: res.provider,
         latencyMs: res.latencyMs,
       });
+      setPendingState("success");
       toast.success(`Generated via ${res.provider}`);
       recent.refetch();
     } catch (e) {
+      setLastError(friendlyGenerationMessage(e));
       handleGenerationError(e);
+      setPendingState("error");
     } finally {
       setBusy(false);
     }
@@ -332,6 +361,26 @@ function OrchestratePage() {
               {busy ? "Generating…" : `Generate · ${cost} credit${cost === 1 ? "" : "s"}`}
             </button>
 
+            {orchestrateProgress.isActive && (
+              <div className="mt-4">
+                <GenerationProgress
+                  visible
+                  progress={orchestrateProgress.progress}
+                  label={orchestrateProgress.label}
+                />
+              </div>
+            )}
+
+            {pendingState === "error" && lastError && (
+              <div className="mt-3">
+                <GenerationErrorCard
+                  visible
+                  error={lastError}
+                  onRetry={onGenerate}
+                />
+              </div>
+            )}
+
             {!user && (
               <p className="mt-3 text-center text-xs text-neutral-500">
                 You need to{" "}
@@ -351,7 +400,7 @@ function OrchestratePage() {
                   </span>
                 </div>
                 {result.kind === "image" && (
-                  <img src={result.url} alt="result" className="w-full rounded-lg" />
+                  <BlurredPreview src={result.url} alt="Generated image" aspectRatio="1/1" className="rounded-lg border-0" />
                 )}
                 {result.kind === "video" && (
                   <video src={result.url} controls className="w-full rounded-lg" />

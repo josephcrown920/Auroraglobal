@@ -33,6 +33,10 @@ import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
 import { hasCompletedFirstGen, hasDismissedTour, isFirstPageVisit, markFirstGenComplete, markPageVisited } from "@/lib/first-run";
 import { ConnectReplicateBanner } from "@/components/ConnectReplicateBanner";
 import { friendlyGenerationMessage, handleGenerationError } from "@/lib/error-toasts";
+import { useGenerationProgress, type BackendJobStatus } from "@/hooks/use-generation-progress";
+import { GenerationProgress } from "@/components/ui/GenerationProgress";
+import { GenerationErrorCard } from "@/components/ui/GenerationErrorCard";
+import { BlurredPreview } from "@/components/ui/BlurredPreview";
 
 export const Route = createFileRoute("/motion")({
   component: MotionStudio,
@@ -156,6 +160,12 @@ function MotionStudio() {
   const [rsCamera, setRsCamera] = useState("static");
   const [rsError, setRsError] = useState<string | null>(null);
 
+  // Timestamps + generation IDs set on mutation success — used to find in-flight jobs in history
+  const transferSubmittedAtRef = useRef<number | null>(null);
+  const reskinSubmittedAtRef = useRef<number | null>(null);
+  const [transferGenId, setTransferGenId] = useState<string | null>(null);
+  const [reskinGenId, setReskinGenId] = useState<string | null>(null);
+
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth" });
   }, [user, loading, navigate]);
@@ -259,7 +269,9 @@ function MotionStudio() {
       });
     },
     onMutate: () => setMtError(null),
-    onSuccess: () => {
+    onSuccess: (out: { generationId?: string } | void) => {
+      transferSubmittedAtRef.current = Date.now();
+      if (out && typeof out === "object" && out.generationId) setTransferGenId(out.generationId);
       toast.success("Motion transfer queued — it'll appear in Recent when ready");
       qc.invalidateQueries({ queryKey: ["motion-gens"] });
     },
@@ -286,13 +298,110 @@ function MotionStudio() {
       });
     },
     onMutate: () => setRsError(null),
-    onSuccess: () => {
+    onSuccess: (out: { generationId?: string } | void) => {
+      reskinSubmittedAtRef.current = Date.now();
+      if (out && typeof out === "object" && out.generationId) setReskinGenId(out.generationId);
       toast.success("Performance Shot queued — it'll appear in Recent when ready");
       qc.invalidateQueries({ queryKey: ["motion-gens"] });
     },
     onError: (e) => {
       setRsError(friendlyGenerationMessage(e));
       handleGenerationError(e);
+    },
+  });
+
+  const stageProgress = useGenerationProgress({
+    isPending: stageMut.isPending,
+    isError: stageMut.isError,
+    isSuccess: stageMut.isSuccess,
+    estimatedMs: 18_000,
+    persistKey: "aurora.progress.motion.stage",
+    labels: {
+      queued: "Queued…",
+      processing: "Posing your subject…",
+      finalizing: "Finishing the pose…",
+      done: "Pose staged",
+    },
+  });
+
+  const animateProgress = useGenerationProgress({
+    isPending: animateMut.isPending,
+    isError: animateMut.isError,
+    isSuccess: animateMut.isSuccess,
+    estimatedMs: 50_000,
+    persistKey: "aurora.progress.motion.animate",
+    labels: {
+      queued: "Queued…",
+      processing: "Animating your clip…",
+      finalizing: "Rendering final frames…",
+      done: "Motion ready",
+    },
+  });
+
+  // Derive real job status for async GPU jobs from the history query.
+  // After submission, history (polled every 6s) will contain the in-flight job.
+  // We find the first item that has no video result yet — that's the most recent
+  // async job, which is exactly the one we just submitted.
+  const transferJobStatus = useMemo((): BackendJobStatus => {
+    if (transferMut.isError) return "failed";
+    if (!transferSubmittedAtRef.current || !history?.items) return null;
+    // Find by specific generationId if we captured it — avoids mixing up concurrent jobs
+    const item = transferGenId
+      ? history.items.find((g) => g.id === transferGenId)
+      : history.items.find((g) => !g.result_video_url && g.status !== "failed");
+    if (!item) return transferGenId ? "complete" : null; // ID known but not in-flight → done
+    const s = item.status;
+    if (s === "complete" || s === "succeeded" || s === "done") return "complete";
+    if (s === "processing") return "processing";
+    if (s === "finalizing") return "finalizing";
+    if (s === "failed") return "failed";
+    return "queued";
+  }, [history, transferMut.isError, transferGenId]);
+
+  const reskinJobStatus = useMemo((): BackendJobStatus => {
+    if (reskinMut.isError) return "failed";
+    if (!reskinSubmittedAtRef.current || !history?.items) return null;
+    const item = reskinGenId
+      ? history.items.find((g) => g.id === reskinGenId)
+      : history.items.find((g) => !g.result_video_url && g.status !== "failed");
+    if (!item) return reskinGenId ? "complete" : null;
+    const s = item.status;
+    if (s === "complete" || s === "succeeded" || s === "done") return "complete";
+    if (s === "processing") return "processing";
+    if (s === "finalizing") return "finalizing";
+    if (s === "failed") return "failed";
+    return "queued";
+  }, [history, reskinMut.isError, reskinGenId]);
+
+  const transferProgress = useGenerationProgress({
+    isPending: transferMut.isPending,
+    isError: transferMut.isError,
+    isSuccess: transferMut.isSuccess,
+    jobStatus: transferJobStatus,
+    estimatedMs: 60_000,
+    persistKey: "aurora.progress.motion.transfer",
+    asyncEnqueue: true,
+    labels: {
+      queued: "Queued on GPU backend…",
+      processing: "Transferring motion…",
+      finalizing: "Almost there…",
+      done: "Transfer complete",
+    },
+  });
+
+  const reskinProgress = useGenerationProgress({
+    isPending: reskinMut.isPending,
+    isError: reskinMut.isError,
+    isSuccess: reskinMut.isSuccess,
+    jobStatus: reskinJobStatus,
+    estimatedMs: 60_000,
+    persistKey: "aurora.progress.motion.reskin",
+    asyncEnqueue: true,
+    labels: {
+      queued: "Queued on GPU backend…",
+      processing: "Reskinning performance…",
+      finalizing: "Almost there…",
+      done: "Shot complete",
     },
   });
 
@@ -523,6 +632,38 @@ function MotionStudio() {
                   {animateMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Rendering…</> : <><Film className="size-4 mr-2" /> {videoError ? "Retry animate" : `Animate · ${animateCost} Aura`}</>}
                 </Button>
               </div>
+
+              {(stageProgress.isActive || animateProgress.isActive) && (
+                <div className="space-y-2">
+                  {stageProgress.isActive && (
+                    <GenerationProgress
+                      visible
+                      progress={stageProgress.progress}
+                      label={stageProgress.label}
+                    />
+                  )}
+                  {animateProgress.isActive && (
+                    <GenerationProgress
+                      visible
+                      progress={animateProgress.progress}
+                      label={animateProgress.label}
+                    />
+                  )}
+                </div>
+              )}
+
+              <GenerationErrorCard
+                visible={stageMut.isError}
+                error={imageError}
+                onRetry={() => stageMut.mutate()}
+                retryLabel="Retry pose"
+              />
+              <GenerationErrorCard
+                visible={animateMut.isError && !stageMut.isError}
+                error={videoError}
+                onRetry={() => animateMut.mutate()}
+                retryLabel="Retry animate"
+              />
             </>
           )}
 
@@ -544,10 +685,6 @@ function MotionStudio() {
                 <Textarea rows={2} value={mtPrompt} onChange={(e) => setMtPrompt(e.target.value)} placeholder="cinematic lighting, 4K…" className="resize-none bg-card/60 text-sm" />
               </div>
 
-              {mtError && (
-                <div className="rounded-xl border border-destructive/50 bg-destructive/10 px-3 py-2.5 text-xs text-foreground">{mtError}</div>
-              )}
-
               <Button
                 disabled={transferMut.isPending || !mtImage || !mtVideo}
                 onClick={() => transferMut.mutate()}
@@ -556,6 +693,17 @@ function MotionStudio() {
               >
                 {transferMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Queuing…</> : <><Clapperboard className="size-4 mr-2" /> Transfer motion · {computeCost({ features: ["motion"] }).total} Aura</>}
               </Button>
+
+              <GenerationProgress
+                visible={transferProgress.isActive}
+                progress={transferProgress.progress}
+                label={transferProgress.label}
+              />
+              <GenerationErrorCard
+                visible={transferMut.isError}
+                error={mtError}
+                onRetry={() => transferMut.mutate()}
+              />
               <p className="text-xs text-muted-foreground">Runs on a GPU backend and appears in Recent when ready.</p>
             </>
           )}
@@ -595,10 +743,6 @@ function MotionStudio() {
 
               {motionControls(rsMotion, setRsMotion, rsCamera, setRsCamera)}
 
-              {rsError && (
-                <div className="rounded-xl border border-destructive/50 bg-destructive/10 px-3 py-2.5 text-xs text-foreground">{rsError}</div>
-              )}
-
               <Button
                 disabled={reskinMut.isPending || !rsVideo || !rsAvatar}
                 onClick={() => reskinMut.mutate()}
@@ -607,6 +751,17 @@ function MotionStudio() {
               >
                 {reskinMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Queuing…</> : <><Users className="size-4 mr-2" /> Create Performance Shot · {computeCost({ features: ["video", "motion"] }).total} Aura</>}
               </Button>
+
+              <GenerationProgress
+                visible={reskinProgress.isActive}
+                progress={reskinProgress.progress}
+                label={reskinProgress.label}
+              />
+              <GenerationErrorCard
+                visible={reskinMut.isError}
+                error={rsError}
+                onRetry={() => reskinMut.mutate()}
+              />
               <p className="text-xs text-muted-foreground">Runs on a GPU backend and appears in Recent when ready.</p>
             </>
           )}
@@ -617,7 +772,28 @@ function MotionStudio() {
             {mode === "pose" && videoUrl ? (
               <AutoplayVideo src={videoUrl} className="w-full h-full object-cover" controls playsInline loop />
             ) : mode === "pose" && stagedImage ? (
-              <img src={stagedImage} alt="Staged pose" className="w-full h-full object-cover" />
+              <BlurredPreview
+                src={stagedImage}
+                alt="Staged pose"
+                aspectRatio="3/4"
+                className="absolute inset-0 w-full h-full rounded-none border-0"
+                transitionMs={700}
+              />
+            ) : (stageMut.isPending || animateMut.isPending) ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 px-8 text-muted-foreground">
+                <div className="size-14 rounded-full flex items-center justify-center" style={{ background: "var(--gradient-hero)" }}>
+                  <Loader2 className="size-6 animate-spin text-primary-foreground" />
+                </div>
+                <div className="w-full space-y-2">
+                  <p className="text-sm text-center">
+                    {stageMut.isPending ? stageProgress.label : animateProgress.label}
+                  </p>
+                  <GenerationProgress
+                    visible
+                    progress={stageMut.isPending ? stageProgress.progress : animateProgress.progress}
+                  />
+                </div>
+              </div>
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground p-8 text-center">
                 <Sparkles className="size-10 text-primary/50" />

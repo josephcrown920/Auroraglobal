@@ -9,6 +9,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { startLipsync } from "@/lib/lipsync.functions";
 import { friendlyGenerationMessage, handleGenerationError } from "@/lib/error-toasts";
+import { GenerationProgress } from "@/components/ui/GenerationProgress";
+import { GenerationErrorCard } from "@/components/ui/GenerationErrorCard";
+import { useGenerationProgress, lipsyncStatusToJobStatus } from "@/hooks/use-generation-progress";
 import { ExampleChips } from "@/components/onboarding/ExampleChips";
 import { LIPSYNC_EXAMPLE_PRESETS } from "@/lib/example-presets";
 import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
@@ -259,6 +262,20 @@ function LipSyncForm() {
 
   const busy = status === "uploading" || status === "syncing" || status === "rendering";
 
+  // Shared progress hook fed by the real local status machine
+  const genProgress = useGenerationProgress({
+    jobStatus: lipsyncStatusToJobStatus(status),
+    persistKey: "aurora.progress.lipsync",
+    estimatedMs: 45_000,
+    labels: {
+      queued: "Uploading assets…",
+      processing: "Aligning phonemes to mouth shapes…",
+      finalizing: "Rendering final clip…",
+      done: "Sync complete",
+      error: "Something went wrong",
+    },
+  });
+
   return (
     <section className="relative z-10 px-6 md:px-12 pb-12">
       <div className="max-w-5xl mx-auto rounded-3xl aurora-glass p-6 md:p-8 animate-fade-in">
@@ -372,7 +389,7 @@ function LipSyncForm() {
 
         <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
           <button
-            onClick={run}
+            onClick={() => void run()}
             disabled={!video || !audio || busy || !user || !likelyConsent}
             className="inline-flex items-center justify-center gap-2 rounded-full bg-[image:var(--gradient-hero)] text-white shadow-[var(--shadow-glow-soft)] px-6 py-3 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover-scale"
           >
@@ -389,16 +406,19 @@ function LipSyncForm() {
           </p>
         </div>
 
-        {status !== "idle" && (
-          <div className="mt-5">
-            <div className="flex justify-between text-xs text-white/60 mb-1.5">
-              <span>{stageLabel[status]}</span>
-              <span>{Math.round(progress)}%</span>
-            </div>
-            <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-              <div className="h-full bg-[image:var(--gradient-hero)] transition-[width] duration-200" style={{ width: `${progress}%` }} />
-            </div>
-          </div>
+        <GenerationProgress
+          visible={genProgress.isActive && genProgress.state !== "done"}
+          progress={genProgress.progress}
+          label={genProgress.label}
+        />
+
+        {status === "error" && (
+          <GenerationErrorCard
+            visible
+            error={null}
+            onRetry={() => void run()}
+            retryLabel="Try again"
+          />
         )}
 
         {status === "done" && resultUrl && (
