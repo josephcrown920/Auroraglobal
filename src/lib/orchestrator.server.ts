@@ -596,6 +596,35 @@ const REPLICATE_MAP: Record<string, ReplicateEntry> = {
     cost: 0.1,
     build: (r) => ({ face: r.videoUrl, audio: r.audioUrl }),
   },
+  // ── caption burn ──
+  // Converts the timed-segments array to SRT and submits to a Replicate
+  // subtitle-burn model. Used as fallback when no self-hosted GPU worker
+  // with "caption_burn" capability is online.
+  "zsxkib/add-subtitles-to-video": {
+    slug: "zsxkib/add-subtitles-to-video",
+    kind: "caption_burn",
+    cost: 0.02,
+    build: (r) => {
+      const toTs = (s: number) => {
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const sec = Math.floor(s % 60);
+        const ms = Math.round((s % 1) * 1000);
+        return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")},${String(ms).padStart(3, "0")}`;
+      };
+      const srt = (r.segments ?? [])
+        .map((seg, i) => `${i + 1}\n${toTs(seg.start)} --> ${toTs(seg.end)}\n${seg.text}`)
+        .join("\n\n");
+      return {
+        video: r.videoUrl,
+        srt,
+        font_size: 24,
+        font_color: "white",
+        border: true,
+        border_color: "black",
+      };
+    },
+  },
 };
 
 const replicate: ProviderAdapter = {
@@ -1391,12 +1420,9 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   audio: [gpuWorker, elevenlabs],
   // Final assembly (ffmpeg): self-hosted GPU worker pool only — no hosted provider.
   assemble: [gpuWorker],
-  // Caption burn (ffmpeg drawtext): self-hosted GPU worker pool only.
-  // No hosted provider (Replicate/fal) offers an FFmpeg drawtext API — the
-  // operation is entirely local. A registered GPU worker with "caption_burn"
-  // capability is required; the feature degrades gracefully when none is online
-  // (same model as `assemble` / `motion`).
-  caption_burn: [gpuWorker],
+  // Caption burn: self-hosted GPU worker preferred (FFmpeg drawtext, fastest).
+  // Falls back to Replicate subtitle-burn model when no capable worker is online.
+  caption_burn: [gpuWorker, replicate],
 };
 
 // ─── Unified model registry ──────────────────────────────────────────────────
@@ -1432,6 +1458,7 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     // candidate loop runs; routed self-hosted-only to the GPU worker pool.
     "ffmpeg-assemble": { provider: gpuWorker.name, kind: "assemble", cost: 0.005 },
     "ffmpeg-captionburn": { provider: gpuWorker.name, kind: "caption_burn", cost: 0.005 },
+    "zsxkib/add-subtitles-to-video": { provider: "replicate", kind: "caption_burn", cost: 0.02 },
   };
   for (const [k, v] of Object.entries(REPLICATE_MAP))
     out[k] = { provider: "replicate", kind: v.kind, cost: v.cost };
@@ -1528,10 +1555,8 @@ const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   audio: ["elevenlabs/tts"],
   // Assembly pins to its self-hosted sentinel model (selfHostedOnly) — no fallback.
   assemble: [],
-  // Caption burn: self-hosted GPU worker only — no hosted provider can run
-  // FFmpeg drawtext. The sentinel model ensures the candidate loop runs and
-  // the GPU worker adapter is attempted.
-  caption_burn: ["ffmpeg-captionburn"],
+  // Caption burn: GPU worker first (FFmpeg drawtext), Replicate fallback.
+  caption_burn: ["ffmpeg-captionburn", "zsxkib/add-subtitles-to-video"],
 };
 const FALLBACK_CAP: Record<GenerateKind, number> = {
   image: 4,
@@ -1542,7 +1567,7 @@ const FALLBACK_CAP: Record<GenerateKind, number> = {
   text: 4,
   audio: 1,
   assemble: 1,
-  caption_burn: 1,
+  caption_burn: 2,
 };
 
 export function getCandidateModels(req: GenerateRequest): string[] {
