@@ -11,20 +11,20 @@ import {
   ArrowRight,
   Music2,
 } from "lucide-react";
-// One creator, one face — the SAME identity, "Josh". The feed tiles are real
+// One artist, one face — the SAME identity. The feed tiles are real
 // AI video clips (clip-* via image-to-video); the still-* frames are their posters.
 import stillNeon from "@/assets/josh/generated/still-01-neon-closeup.jpg";
 import stillStage from "@/assets/josh/generated/still-03-stage-mic.jpg";
 import clipNeon from "@/assets/josh/generated/clip-01-neon-closeup.mp4";
 import clipStage from "@/assets/josh/generated/clip-03-stage-mic.mp4";
 
-const HANDLE = "@josh.aurora";
+const HANDLE = "@aurora.music";
 
 const STATS = [
-  { label: "Views generated", value: "120M+", icon: <Eye className="size-4" /> },
-  { label: "Posts this month", value: "240+", icon: <Play className="size-4" /> },
-  { label: "Avg. engagement", value: "14.7%", icon: <Heart className="size-4" /> },
-  { label: "#AuroraStudio", value: "Trending", icon: <TrendingUp className="size-4" /> },
+  { label: "Streams generated", value: "120M+", icon: <Eye className="size-4" /> },
+  { label: "Music videos this month", value: "240+", icon: <Play className="size-4" /> },
+  { label: "Songs gone viral", value: "38", icon: <TrendingUp className="size-4" /> },
+  { label: "#AuroraMusic", value: "Trending", icon: <Heart className="size-4" /> },
 ];
 
 type Clip = {
@@ -35,17 +35,17 @@ type Clip = {
   poster: string;
 };
 
-// All one creator — @josh.aurora — real AI video clips (image-to-video).
+// All one artist — @aurora.music — real AI video clips (image-to-video).
 const CLIPS: Clip[] = [
   {
-    caption: "POV: the single is finally out 🌌",
+    caption: "POV: the Afrobeats single is finally out 🌌",
     likes: "412K",
     comments: "3.1K",
     src: clipNeon,
     poster: stillNeon,
   },
   {
-    caption: "first time headlining 🎤 still shaking",
+    caption: "first time headlining 🎤 the drill set went off",
     likes: "1.2M",
     comments: "9.4K",
     src: clipStage,
@@ -106,10 +106,10 @@ export function TikTokSection() {
                 {Array.from({ length: 2 }).map((_, dup) => (
                   <span key={dup} className="flex gap-8">
                     <span>For You · {HANDLE}</span>
-                    <span>Original sound — Aurora</span>
-                    <span>240+ posts this month</span>
-                    <span>120M+ views generated</span>
-                    <span>#AuroraStudio trending</span>
+                    <span>Original sound — your track</span>
+                    <span>240+ music videos this month</span>
+                    <span>Afrobeats · Trap · Drill</span>
+                    <span>#AuroraMusic trending</span>
                   </span>
                 ))}
               </div>
@@ -134,13 +134,13 @@ export function TikTokSection() {
                   </span>
                 </h2>
                 <p className="mt-4 text-base leading-7 text-white/72 md:text-lg">
-                  One creator. One face. Every post on {HANDLE} is made with Aurora — no shoots, no
-                  crew, just prompts. Same Josh, new scene, every single day.
+                  One artist. One face. Every video on {HANDLE} is made with Aurora — no shoots, no
+                  crew, no CapCut. Just drop your song and get a new visual for every single.
                 </p>
               </div>
 
               <a
-                href="https://www.tiktok.com/@josh.aurora"
+                href="https://www.tiktok.com/@aurora.music"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 self-start rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white no-underline hover:bg-white/10"
@@ -205,7 +205,7 @@ export function TikTokSection() {
                     <p className="text-xs font-bold text-white">{HANDLE}</p>
                     <p className="mt-0.5 text-[11px] text-white/85 line-clamp-2">{c.caption}</p>
                     <p className="mt-1 flex items-center gap-1 text-[10px] text-white/70">
-                      <Music2 className="size-3" /> original sound — Aurora
+                      <Music2 className="size-3" /> original sound — your track
                     </p>
                   </div>
                 </div>
@@ -218,7 +218,7 @@ export function TikTokSection() {
                 to="/tiktok"
                 className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#25F4EE] to-[#FE2C55] px-6 py-3 text-sm font-bold text-white no-underline shadow-lg shadow-fuchsia-500/30 hover:opacity-95"
               >
-                Remix one video into a week of posts <ArrowRight className="size-4" />
+                Turn one song into a week of music videos <ArrowRight className="size-4" />
               </Link>
             </div>
           </div>

@@ -26,11 +26,11 @@ const QUOTES = [
     color: "from-amber-500/30 to-rose-500/10",
   },
   {
-    name: "Sara T.",
-    role: "Brand lead",
-    location: "New York, USA",
-    flag: "🇺🇸",
-    text: "Nano Banana Pro + Seedance in one canvas is everything we wanted Midjourney to be.",
+    name: "Tobi A.",
+    role: "Afrobeats artist",
+    location: "Lagos, Nigeria",
+    flag: "🇳🇬",
+    text: "Dropped the visualizer the same night I mastered the track. It was charting before I could even book a video shoot.",
     color: "from-cyan-500/30 to-blue-500/10",
   },
   {
@@ -50,19 +50,19 @@ const QUOTES = [
     color: "from-orange-500/30 to-amber-500/10",
   },
   {
-    name: "Arjun P.",
-    role: "Ad creative",
-    location: "Mumbai, India",
-    flag: "🇮🇳",
-    text: "We replaced three vendors with one canvas. Turnaround on UGC dropped from 2 weeks to 2 hours.",
+    name: "Marcus D.",
+    role: "Drill producer",
+    location: "London, UK",
+    flag: "🇬🇧",
+    text: "Every type beat I sell now ships with an Aurora visual. Artists pick my beats just for the videos.",
     color: "from-yellow-500/30 to-orange-500/10",
   },
   {
-    name: "Léa M.",
-    role: "Fashion editor",
-    location: "Paris, France",
-    flag: "🇫🇷",
-    text: "Editorial covers that look like Vogue without leaving my apartment. C'est fou.",
+    name: "Jules P.",
+    role: "Independent rapper",
+    location: "Atlanta, USA",
+    flag: "🇺🇸",
+    text: "No label, no budget, no problem. My last three music videos were all Aurora — views tripled overnight.",
     color: "from-fuchsia-500/30 to-purple-500/10",
   },
   {
@@ -106,7 +106,7 @@ export function Testimonials() {
         <div>
           <p className="aurora-kicker mb-2">Loved worldwide</p>
           <h2 className="text-2xl md:text-3xl font-semibold">Creators in 40+ countries. One studio.</h2>
-          <p className="text-sm text-white/55 mt-2">Artists, directors and brands from Lagos to Seoul are shipping with Aurora.</p>
+          <p className="text-sm text-white/55 mt-2">Artists, producers and directors from Lagos to Atlanta are shipping with Aurora.</p>
         </div>
         <div className="flex items-center gap-1 text-amber-300">
           {Array.from({ length: 5 }).map((_, i) => <Star key={i} className="size-4 fill-current" />)}

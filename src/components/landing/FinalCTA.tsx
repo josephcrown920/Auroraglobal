@@ -17,13 +17,13 @@ export function FinalCTA() {
             <Sparkles className="size-3.5" /> 5 free Aura on signup
           </div>
           <h2 className="text-4xl md:text-6xl font-semibold tracking-tight leading-[1.05]">
-            Your next campaign
+            Drop your song.
             <span className="block aurora-gradient-text">
-              starts with a selfie.
+              Get your video.
             </span>
           </h2>
           <p className="text-white/70 mt-5 max-w-xl mx-auto">
-            Join 12,000+ creators using Aurora to ship music videos, ad creatives and editorial covers — without a studio, a crew or a stack of subscriptions.
+            Join 12,000+ artists using Aurora to turn tracks into scroll-stopping music videos — lip-synced, beat-matched and ready for TikTok. No studio, no crew, no CapCut.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link
@@ -31,7 +31,7 @@ export function FinalCTA() {
               onClick={() => void track("final_cta_click", { variant: "primary" })}
               className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full font-medium text-white no-underline bg-[image:var(--gradient-hero)] hover:brightness-110 shadow-[var(--shadow-glow-soft)]"
             >
-              <Sparkles className="size-4" /> Start creating free
+              <Sparkles className="size-4" /> Generate my music video free
             </Link>
             <Link
               to="/contact"

@@ -60,17 +60,17 @@ export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
     meta: [
-      { title: "Aurora Studio — Image, video, canvas, UGC, motion, lip-sync, colors" },
+      { title: "Aurora Studio — Go viral on TikTok in 30 seconds | Music Video AI" },
       {
         name: "description",
         content:
-          "Seven AI creative tools in one studio: image generation, video generation, canvas, UGC ads factory, motion control, lip-sync, and the colors studio.",
+          "Drop your song and Aurora builds the music video — lip-sync, beat-synced visuals, cover-art reveals and lyric hooks. Built for TikTok music creators and Afrobeats, Trap & Drill artists.",
       },
-      { property: "og:title", content: "Aurora Studio — Seven tools, one studio" },
+      { property: "og:title", content: "Aurora — Drop your song, get your music video" },
       {
         property: "og:description",
         content:
-          "Image, video, canvas, UGC ads, motion control, lip-sync and colors — every Aurora tool, one place.",
+          "AI music videos for artists: lip-sync, beat-sync visuals, cover art and lyric hooks. Go viral on TikTok in 30 seconds.",
       },
       { property: "og:url", content: "https://aurorastudiostar.lovable.app/" },
     ],
