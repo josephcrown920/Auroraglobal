@@ -410,7 +410,7 @@ export const listGallery = createServerFn({ method: "GET" })
     const { supabase } = context;
     const { data, error } = await supabase
       .from("generations")
-      .select("id, prompt, kind, model, result_image_url, result_video_url, is_favorite, tags, created_at")
+      .select("id, prompt, kind, model, result_image_url, result_video_url, is_favorite, tags, created_at, is_watermarked")
       // Sync fns finish as "complete"; async queue jobs (motion, performance_reskin,
       // tiktok_remix_child) finish as "succeeded" — include both so all gens land here.
       .in("status", ["complete", "succeeded"])
