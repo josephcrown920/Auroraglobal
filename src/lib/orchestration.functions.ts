@@ -378,7 +378,7 @@ const QuoteSchema = z.object({
   resolution: z.enum(["480p", "720p", "1080p"]).optional(),
   // Keep the quote window identical to the executable charge path (OrchestrateSchema)
   // so a preview can never quote a length the generation would reject.
-  duration: z.number().int().min(3).max(12).optional(),
+  duration: z.number().int().min(3).max(15).optional(),
   // Tiers the video/lip-sync base so the preview matches the model the user picks.
   model: z.string().max(120).optional(),
   audioUrl: z.string().url().optional(),

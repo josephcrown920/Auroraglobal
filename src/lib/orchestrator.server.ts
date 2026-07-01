@@ -471,7 +471,7 @@ const geminiDirect: ProviderAdapter = {
 //   wan i2v  → image + enum duration       veo   → optional image (no duration)
 //   sora     → input_reference (no duration)  nano-banana/seedream → image_input[]
 const durEnum = (d?: number) => ((d ?? 5) >= 10 ? "10" : "5");
-const durInt = (d?: number) => Math.max(3, Math.min(12, d ?? 5));
+const durInt = (d?: number, max = 15) => Math.max(3, Math.min(max, d ?? 5));
 const firstImg = (r: GenerateRequest) => r.imageUrls?.[0];
 
 type ReplicateEntry = {
