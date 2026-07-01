@@ -11,16 +11,10 @@ import {
   ArrowRight,
   Music2,
 } from "lucide-react";
-// One creator, one face. Every tile below is the SAME identity — "Josh" —
-// freshly AI-generated (still-* via image gen, clip-* via image-to-video).
+// One creator, one face — the SAME identity, "Josh". The feed tiles are real
+// AI video clips (clip-* via image-to-video); the still-* frames are their posters.
 import stillNeon from "@/assets/josh/generated/still-01-neon-closeup.jpg";
 import stillStage from "@/assets/josh/generated/still-03-stage-mic.jpg";
-import stillCoffee from "@/assets/josh/generated/still-09-walk-coffee.jpg";
-import stillCourt from "@/assets/josh/generated/still-13-court-ball.jpg";
-import stillFit from "@/assets/josh/generated/still-15-fitcheck-mirror.jpg";
-import stillRooftop from "@/assets/josh/generated/still-17-rooftop-day.jpg";
-import stillBoardwalk from "@/assets/josh/generated/still-18-boardwalk.jpg";
-import stillPark from "@/assets/josh/generated/still-16-park-bench.jpg";
 import clipNeon from "@/assets/josh/generated/clip-01-neon-closeup.mp4";
 import clipStage from "@/assets/josh/generated/clip-03-stage-mic.mp4";
 
@@ -33,24 +27,20 @@ const STATS = [
   { label: "#AuroraStudio", value: "Trending", icon: <TrendingUp className="size-4" /> },
 ];
 
-type Clip =
-  | {
-      caption: string;
-      likes: string;
-      comments: string;
-      type: "video";
-      src: string;
-      poster: string;
-    }
-  | { caption: string; likes: string; comments: string; type: "image"; src: string };
+type Clip = {
+  caption: string;
+  likes: string;
+  comments: string;
+  src: string;
+  poster: string;
+};
 
-// All one creator — @josh.aurora — one identity, eight different shots.
+// All one creator — @josh.aurora — real AI video clips (image-to-video).
 const CLIPS: Clip[] = [
   {
     caption: "POV: the single is finally out 🌌",
     likes: "412K",
     comments: "3.1K",
-    type: "video",
     src: clipNeon,
     poster: stillNeon,
   },
@@ -58,51 +48,8 @@ const CLIPS: Clip[] = [
     caption: "first time headlining 🎤 still shaking",
     likes: "1.2M",
     comments: "9.4K",
-    type: "video",
     src: clipStage,
     poster: stillStage,
-  },
-  {
-    caption: "coffee run before the studio ☕",
-    likes: "289K",
-    comments: "1.8K",
-    type: "image",
-    src: stillCoffee,
-  },
-  {
-    caption: "hoop sessions > everything 🏀",
-    likes: "458K",
-    comments: "2.6K",
-    type: "image",
-    src: stillCourt,
-  },
-  {
-    caption: "fit check — rate it 1–10 👟",
-    likes: "612K",
-    comments: "4.2K",
-    type: "image",
-    src: stillFit,
-  },
-  {
-    caption: "city views, clear head 🏙️",
-    likes: "204K",
-    comments: "1.1K",
-    type: "image",
-    src: stillRooftop,
-  },
-  {
-    caption: "beach day reset 🌊",
-    likes: "338K",
-    comments: "1.9K",
-    type: "image",
-    src: stillBoardwalk,
-  },
-  {
-    caption: "slow mornings hit different 🍂",
-    likes: "177K",
-    comments: "980",
-    type: "image",
-    src: stillPark,
   },
 ];
 
@@ -222,29 +169,20 @@ export function TikTokSection() {
             </div>
 
             {/* Phone-mock clips — single-creator For You feed */}
-            <div className="mt-10 grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="mt-10 grid grid-cols-2 gap-4">
               {CLIPS.map((c) => (
                 <div
                   key={c.caption}
                   className="group relative aspect-[9/16] overflow-hidden rounded-2xl border border-white/10 bg-black"
                 >
-                  {c.type === "video" ? (
-                    <AutoplayVideo
-                      src={c.src}
-                      poster={c.poster}
-                      loop
-                      playsInline
-                      preload="metadata"
-                      className="absolute inset-0 size-full object-cover"
-                    />
-                  ) : (
-                    <img
-                      src={c.src}
-                      alt={c.caption}
-                      loading="lazy"
-                      className="absolute inset-0 size-full object-cover"
-                    />
-                  )}
+                  <AutoplayVideo
+                    src={c.src}
+                    poster={c.poster}
+                    loop
+                    playsInline
+                    preload="metadata"
+                    className="absolute inset-0 size-full object-cover"
+                  />
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.20),transparent_60%)]" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
 
