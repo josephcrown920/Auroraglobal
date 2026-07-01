@@ -2,8 +2,15 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getRequest } from "@tanstack/react-start/server";
+import { createHash } from "crypto";
 import { z } from "zod";
 import { PLANS, SUBSCRIPTION_TIERS } from "./billing.plans";
+
+/** Stable MD5-based UUID that matches the SQL expression in grant_free_monthly_aura_all(). */
+function deterministicUuid(input: string): string {
+  const hash = createHash("md5").update(input).digest("hex");
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
+}
 
 export const getMyProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -26,9 +33,19 @@ export const getMyProfile = createServerFn({ method: "GET" })
       .maybeSingle();
     const subscription_status: string | null = subData?.status ?? null;
     if (!data) {
-      await supabaseAdmin.from("profiles").insert({ user_id: userId, credits: 5 }).select().maybeSingle();
+      // Create profile with zero balance, then credit the free monthly Aura via
+      // grant_monthly_aura so the ledger entry is created.  The deterministic ref
+      // matches grant_free_monthly_aura_all(), making the cron a no-op for this month.
+      const freeAmount = SUBSCRIPTION_TIERS.free.monthly_aura;
+      await supabaseAdmin.from("profiles").insert({ user_id: userId, credits: 0 }).select().maybeSingle();
+      const month = new Date().toISOString().slice(0, 7); // e.g. "2026-07"
+      await supabaseAdmin.rpc("grant_monthly_aura" as any, {
+        _user: userId,
+        _amount: freeAmount,
+        _ref: deterministicUuid(`free:${userId}:${month}`),
+      } as any);
       return {
-        credits: 5,
+        credits: freeAmount,
         plan: "free" as string,
         lifetime_credits_purchased: 0,
         email: null as string | null,

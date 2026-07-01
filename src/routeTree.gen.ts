@@ -51,6 +51,7 @@ import { Route as AdminComfyRouteImport } from './routes/admin.comfy'
 import { Route as ApiPublicWatermarkImageRouteImport } from './routes/api/public/watermark-image'
 import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/public/paystack-webhook'
 import { Route as ApiPublicGenerateRouteImport } from './routes/api/public/generate'
+import { Route as ApiPublicFreeMonthlyGrantRouteImport } from './routes/api/public/free-monthly-grant'
 import { Route as ApiPublicWorkersRegisterRouteImport } from './routes/api/public/workers/register'
 import { Route as ApiPublicWorkersHealthRouteImport } from './routes/api/public/workers/health'
 import { Route as ApiPublicJobsTickRouteImport } from './routes/api/public/jobs/tick'
@@ -268,6 +269,12 @@ const ApiPublicGenerateRoute = ApiPublicGenerateRouteImport.update({
   path: '/api/public/generate',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicFreeMonthlyGrantRoute =
+  ApiPublicFreeMonthlyGrantRouteImport.update({
+    id: '/api/public/free-monthly-grant',
+    path: '/api/public/free-monthly-grant',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicWorkersRegisterRoute =
   ApiPublicWorkersRegisterRouteImport.update({
     id: '/api/public/workers/register',
@@ -335,6 +342,7 @@ export interface FileRoutesByFullPath {
   '/legal/$slug': typeof LegalSlugRoute
   '/r/$token': typeof RTokenRoute
   '/cli/': typeof CliIndexRoute
+  '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
@@ -384,6 +392,7 @@ export interface FileRoutesByTo {
   '/legal/$slug': typeof LegalSlugRoute
   '/r/$token': typeof RTokenRoute
   '/cli': typeof CliIndexRoute
+  '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
@@ -434,6 +443,7 @@ export interface FileRoutesById {
   '/legal/$slug': typeof LegalSlugRoute
   '/r/$token': typeof RTokenRoute
   '/cli/': typeof CliIndexRoute
+  '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
@@ -485,6 +495,7 @@ export interface FileRouteTypes {
     | '/legal/$slug'
     | '/r/$token'
     | '/cli/'
+    | '/api/public/free-monthly-grant'
     | '/api/public/generate'
     | '/api/public/paystack-webhook'
     | '/api/public/watermark-image'
@@ -534,6 +545,7 @@ export interface FileRouteTypes {
     | '/legal/$slug'
     | '/r/$token'
     | '/cli'
+    | '/api/public/free-monthly-grant'
     | '/api/public/generate'
     | '/api/public/paystack-webhook'
     | '/api/public/watermark-image'
@@ -583,6 +595,7 @@ export interface FileRouteTypes {
     | '/legal/$slug'
     | '/r/$token'
     | '/cli/'
+    | '/api/public/free-monthly-grant'
     | '/api/public/generate'
     | '/api/public/paystack-webhook'
     | '/api/public/watermark-image'
@@ -630,6 +643,7 @@ export interface RootRouteChildren {
   LegalSlugRoute: typeof LegalSlugRoute
   RTokenRoute: typeof RTokenRoute
   CliIndexRoute: typeof CliIndexRoute
+  ApiPublicFreeMonthlyGrantRoute: typeof ApiPublicFreeMonthlyGrantRoute
   ApiPublicGenerateRoute: typeof ApiPublicGenerateRoute
   ApiPublicPaystackWebhookRoute: typeof ApiPublicPaystackWebhookRoute
   ApiPublicWatermarkImageRoute: typeof ApiPublicWatermarkImageRoute
@@ -936,6 +950,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicGenerateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/free-monthly-grant': {
+      id: '/api/public/free-monthly-grant'
+      path: '/api/public/free-monthly-grant'
+      fullPath: '/api/public/free-monthly-grant'
+      preLoaderRoute: typeof ApiPublicFreeMonthlyGrantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/workers/register': {
       id: '/api/public/workers/register'
       path: '/api/public/workers/register'
@@ -1025,6 +1046,7 @@ const rootRouteChildren: RootRouteChildren = {
   LegalSlugRoute: LegalSlugRoute,
   RTokenRoute: RTokenRoute,
   CliIndexRoute: CliIndexRoute,
+  ApiPublicFreeMonthlyGrantRoute: ApiPublicFreeMonthlyGrantRoute,
   ApiPublicGenerateRoute: ApiPublicGenerateRoute,
   ApiPublicPaystackWebhookRoute: ApiPublicPaystackWebhookRoute,
   ApiPublicWatermarkImageRoute: ApiPublicWatermarkImageRoute,
