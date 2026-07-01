@@ -14,6 +14,18 @@ function deterministicUuid(input: string): string {
   return `${hash.slice(0,8)}-${hash.slice(8,12)}-${hash.slice(12,16)}-${hash.slice(16,20)}-${hash.slice(20,32)}`;
 }
 
+/**
+ * Month-keyed ref for Pro monthly Aura grants.
+ * Using `subCode + YYYY-MM` as the key means both subscription.create AND
+ * charge.success (which both fire for the initial subscription) produce the
+ * SAME ref_id, so the credit_ledger unique constraint deduplicates them.
+ * Renewal charges in future months produce a different YYYY-MM key → new grant.
+ */
+function proMonthlyAuraRef(subCode: string): string {
+  const month = new Date().toISOString().slice(0, 7); // YYYY-MM
+  return deterministicUuid(`${subCode}:${month}`);
+}
+
 export const Route = createFileRoute("/api/public/paystack-webhook")({
   server: {
     handlers: {
@@ -74,11 +86,13 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
               _expires_at: expiresAt,
             } as any);
 
-            // Grant initial monthly Aura — ref is deterministic so retries are no-ops.
+            // Grant initial monthly Aura.  proMonthlyAuraRef uses subCode+YYYY-MM
+            // so this ref matches the one charge.success will also produce — the
+            // credit_ledger unique index deduplicates whichever fires second.
             await supabaseAdmin.rpc("grant_monthly_aura" as any, {
               _user: userId,
               _amount: SUBSCRIPTION_TIERS.pro.monthly_aura,
-              _ref: deterministicUuid(`${subCode}:initial`),
+              _ref: proMonthlyAuraRef(subCode),
             } as any);
 
             // Upsert subscriptions row
@@ -123,15 +137,15 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
               _expires_at: newExpiry,
             } as any);
 
-            // Grant monthly Aura on renewal — keyed on the Paystack payment reference,
-            // so duplicate charge.success deliveries are safe no-ops.
-            const renewalRef = event.data.reference
-              ? deterministicUuid(`${event.data.reference}:renewal`)
-              : deterministicUuid(`${subCode}:renewal:${Date.now()}`);
+            // Grant monthly Aura — proMonthlyAuraRef uses subCode+YYYY-MM so:
+            //  • Initial subscription: same ref as subscription.create → DB unique
+            //    constraint deduplicates whichever fires second (no double grant).
+            //  • Monthly renewals: new YYYY-MM key each month → new grant.
+            //  • Duplicate webhook delivery of the same event → same key → no-op.
             await supabaseAdmin.rpc("grant_monthly_aura" as any, {
               _user: userId,
               _amount: SUBSCRIPTION_TIERS.pro.monthly_aura,
-              _ref: renewalRef,
+              _ref: proMonthlyAuraRef(subCode),
             } as any);
 
             // Update subscriptions table
