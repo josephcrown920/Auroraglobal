@@ -38,6 +38,10 @@ import { saveAssetToDisk } from "@/lib/save";
 import { ConnectReplicateBanner } from "@/components/ConnectReplicateBanner";
 import { JoshSlideshow } from "@/components/studio/JoshSlideshow";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
+import { ExampleChips } from "@/components/onboarding/ExampleChips";
+import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
+import { STUDIO_EXAMPLE_PRESETS } from "@/lib/example-presets";
+import { hasDismissedTour, markFirstGenComplete } from "@/lib/first-run";
 
 export const Route = createFileRoute("/studio")({
   component: StudioPage,
@@ -122,15 +126,20 @@ function StudioPage() {
   );
 
   const [onboardOpen, setOnboardOpen] = useState(false);
+  const [showTour, setShowTour] = useState(false);
+  const [activeExampleId, setActiveExampleId] = useState(STUDIO_EXAMPLE_PRESETS[0].id);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth" });
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    if (user && shouldShowOnboarding()) {
-      // Defer so the page can mount first
+    if (!user) return;
+    if (shouldShowOnboarding()) {
       const t = setTimeout(() => setOnboardOpen(true), 400);
+      return () => clearTimeout(t);
+    } else if (!hasDismissedTour()) {
+      const t = setTimeout(() => setShowTour(true), 800);
       return () => clearTimeout(t);
     }
   }, [user]);
@@ -197,6 +206,7 @@ function StudioPage() {
       return genFn({ data: { prompt: fullPrompt, imageUrls: refs.map((r) => r.url), motionVideoUrl: null, model } });
     },
     onSuccess: () => {
+      markFirstGenComplete();
       toast.success("Shot ready");
       qc.invalidateQueries({ queryKey: ["gens"] });
       qc.invalidateQueries({ queryKey: ["profile"] });
@@ -368,6 +378,7 @@ function StudioPage() {
           }}
         />
       )}
+      <WelcomeTour show={showTour} onDismiss={() => setShowTour(false)} />
 
       <header className="relative z-10 flex items-center justify-between px-6 md:px-10 py-5 border-b border-border/60 backdrop-blur-xl bg-background/40">
         <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
@@ -453,6 +464,16 @@ function StudioPage() {
             />
 
           </div>
+
+          <ExampleChips
+            presets={STUDIO_EXAMPLE_PRESETS}
+            activeId={activeExampleId}
+            onSelect={(preset) => {
+              if (preset.prompt) setPrompt(preset.prompt);
+              setActiveExampleId(preset.id);
+            }}
+            label="Quick start:"
+          />
 
           <div className="space-y-2">
             <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Direction</label>

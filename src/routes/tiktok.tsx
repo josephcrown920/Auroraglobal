@@ -13,6 +13,8 @@ import {
   getTiktokRemix,
   type CutStyle,
 } from "@/lib/tiktok-remix.functions";
+import { ExampleChips } from "@/components/onboarding/ExampleChips";
+import { TIKTOK_EXAMPLE_PRESETS } from "@/lib/example-presets";
 
 const STYLE_OPTIONS: { value: CutStyle; label: string; hint: string }[] = [
   { value: "auto", label: "Auto", hint: "Aurora picks the strongest hooks straight from your source." },
@@ -41,6 +43,7 @@ function TiktokRemixPage() {
   const [activeRemixId, setActiveRemixId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [activeExampleId, setActiveExampleId] = useState<string | undefined>(undefined);
 
   const startFn = useServerFn(startTiktokRemix);
   const listFn = useServerFn(listTiktokRemixes);
@@ -161,6 +164,18 @@ function TiktokRemixPage() {
               className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-pink-400/60"
             />
           </div>
+
+          <ExampleChips
+            presets={TIKTOK_EXAMPLE_PRESETS}
+            activeId={activeExampleId}
+            onSelect={(preset) => {
+              if (preset.prompt !== undefined) setBasePrompt(preset.prompt);
+              if (preset.extra?.style) setStyle(preset.extra.style as CutStyle);
+              if (typeof preset.extra?.count === "number") setCount(preset.extra.count);
+              setActiveExampleId(preset.id);
+            }}
+            label="Try an example:"
+          />
 
           <div>
             <label className="text-xs font-bold uppercase tracking-widest text-white/55">Cut style</label>
