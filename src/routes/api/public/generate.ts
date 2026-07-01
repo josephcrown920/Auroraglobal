@@ -14,7 +14,7 @@ const Schema = z.object({
   imageUrls: z.array(z.string().url()).max(6).optional(),
   audioUrl: z.string().url().optional(),
   videoUrl: z.string().url().optional(),
-  duration: z.number().int().min(3).max(12).optional(),
+  duration: z.number().int().min(3).max(15).optional(),
   resolution: z.enum(["480p", "720p", "1080p"]).optional(),
   model: z.string().max(120).optional(),
   // CLI ergonomics: `aurora video --from latest --motion orbit --seconds 10`
@@ -32,7 +32,7 @@ const Schema = z.object({
       "handheld",
     ])
     .optional(),
-  seconds: z.number().int().min(3).max(12).optional(),
+  seconds: z.number().int().min(3).max(15).optional(),
   // Pluggable-backend passthrough: free-form provider params + a generic ComfyUI
   // workflow graph (+ per-node input patches) for `comfyui`-protocol workers.
   params: z.record(z.unknown()).optional(),
@@ -146,6 +146,12 @@ export const Route = createFileRoute("/api/public/generate")({
           for (const url of data.imageUrls ?? []) assertTrustedUrl(url);
           if (data.audioUrl) assertTrustedUrl(data.audioUrl);
           if (data.videoUrl) assertTrustedUrl(data.videoUrl);
+
+          // Duration cap: enforce tier-aware limit (Free=10s, Pro=15s)
+          if (data.duration && (data.kind === "video" || data.kind === "lipsync")) {
+            const { assertDurationCap } = await import("@/lib/cost-guardrails.server");
+            await assertDurationCap(userId, data.duration);
+          }
 
           // Detect the billable features (deterministic, off explicit inputs) and
           // price the stack via the shared module so the charge matches any preview.
