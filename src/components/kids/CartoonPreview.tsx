@@ -66,7 +66,7 @@ export function CartoonPreview({
   const showVideo = mounted && inView && !reducedMotion;
 
   return (
-    <div className={cn("relative overflow-hidden bg-card/40", rounded, className)}>
+    <div ref={wrapRef} className={cn("relative overflow-hidden bg-card/40", rounded, className)}>
       <img
         src={poster}
         alt={alt}
