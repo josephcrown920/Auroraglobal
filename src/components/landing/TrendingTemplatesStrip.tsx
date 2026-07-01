@@ -5,10 +5,12 @@ import { track } from "@/lib/tracking";
 import { STUDIO_TEMPLATES, templateCost } from "@/lib/template-studio";
 
 // A curated "trending" subset, deep-linking straight into the template drawer.
+// AutoCut ("autocut-hype") routes to /edit instead of the template drawer.
 const TRENDING_IDS = [
   "concert-lipsync",
   "cinematic-reel",
   "ugc-talking-ad",
+  "autocut-hype",
   "viral-spin",
   "kids-storybook",
 ];
@@ -40,8 +42,8 @@ export function TrendingTemplatesStrip() {
         {TRENDING.map((t) => (
           <Link
             key={t.id}
-            to="/templates"
-            search={{ open: t.id }}
+            to={t.dispatch === "autocut" ? "/edit" : "/templates"}
+            search={t.dispatch === "autocut" ? undefined : { open: t.id }}
             onClick={() => void track("trending_template_click", { id: t.id })}
             className="group relative w-40 shrink-0 snap-start overflow-hidden rounded-2xl aurora-card no-underline"
           >
