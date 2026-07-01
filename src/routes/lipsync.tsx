@@ -170,8 +170,10 @@ function LipSyncForm() {
     return signed.signedUrl;
   };
 
-  const run = async () => {
-    if (!video || !audio) return toast.error("Upload both a clip and a vocal first");
+  const run = async (opts?: { videoFile: File; audioFile: File }) => {
+    const vid = opts?.videoFile ?? video;
+    const aud = opts?.audioFile ?? audio;
+    if (!vid || !aud) return toast.error("Upload both a clip and a vocal first");
     if (!user) return toast.error("Sign in to run lip sync");
 
     setStatus("uploading");
@@ -188,8 +190,8 @@ function LipSyncForm() {
 
     try {
       const [vUrl, aUrl] = await Promise.all([
-        uploadOne(video, "video"),
-        uploadOne(audio, "audio"),
+        uploadOne(vid, "video"),
+        uploadOne(aud, "audio"),
       ]);
       setStatus("syncing");
       const res = await runLipsync({ data: { videoUrl: vUrl, audioUrl: aUrl, engine } });
@@ -283,7 +285,33 @@ function LipSyncForm() {
             if (preset.extra?.engine) setEngine(preset.extra.engine as Engine);
             setActiveExampleId(preset.id);
           }}
-          onGenerate={() => void run()}
+          onGenerate={() => {
+            if (video && audio) {
+              void run();
+              return;
+            }
+            const preset = LIPSYNC_EXAMPLE_PRESETS.find((p) => p.id === activeExampleId);
+            const demoVideo = typeof preset?.extra?.sampleVideoUrl === "string" ? preset.extra.sampleVideoUrl : null;
+            const demoAudio = typeof preset?.extra?.sampleAudioUrl === "string" ? preset.extra.sampleAudioUrl : null;
+            if (demoVideo && demoAudio) {
+              toast.loading("Loading demo media…", { id: "lipsync-demo" });
+              Promise.all([fetch(demoVideo), fetch(demoAudio)])
+                .then(([vr, ar]) => Promise.all([vr.blob(), ar.blob()]))
+                .then(([vb, ab]) => {
+                  toast.dismiss("lipsync-demo");
+                  void run({
+                    videoFile: new File([vb], "demo-video.mp4", { type: "video/mp4" }),
+                    audioFile: new File([ab], "demo-audio.mp3", { type: "audio/mpeg" }),
+                  });
+                })
+                .catch(() => {
+                  toast.dismiss("lipsync-demo");
+                  toast.error("Failed to fetch demo media");
+                });
+            } else {
+              void run();
+            }
+          }}
           label="Pick a mode:"
           className="mt-5"
         />
