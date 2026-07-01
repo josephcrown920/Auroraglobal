@@ -41,7 +41,7 @@ import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import { ExampleChips } from "@/components/onboarding/ExampleChips";
 import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
 import { STUDIO_EXAMPLE_PRESETS } from "@/lib/example-presets";
-import { hasDismissedTour, markFirstGenComplete } from "@/lib/first-run";
+import { hasDismissedTour, markFirstGenComplete, hasCompletedFirstGen, isFirstPageVisit, markPageVisited } from "@/lib/first-run";
 
 export const Route = createFileRoute("/studio")({
   component: StudioPage,
@@ -144,6 +144,16 @@ function StudioPage() {
     }
   }, [user]);
 
+  // First-visit auto-prefill — new users get the first example loaded automatically
+  useEffect(() => {
+    if (hasCompletedFirstGen()) return;
+    if (!isFirstPageVisit("studio")) return;
+    markPageVisited("studio");
+    const p = STUDIO_EXAMPLE_PRESETS[0];
+    if (p.prompt) setPrompt(p.prompt);
+    setActiveExampleId(p.id);
+  }, []);
+
   const genFn = useServerFn(generatePerformanceShot);
   const listFn = useServerFn(listGenerations);
   const videoFn = useServerFn(generateVideoFromImage);
@@ -188,21 +198,25 @@ function StudioPage() {
   }, [history]);
 
   const mut = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (args?: { promptOverride?: string }) => {
       // Build labeled reference list so Gemini knows which slot each image is.
       // When a pose is provided we strip outfit/lighting cues from the pose ref
       // via the prompt; ordering doesn't matter as long as labels are clear.
+      const effectivePrompt = args?.promptOverride ?? prompt;
       const refs: { url: string; label: string }[] = [];
       if (selfie) refs.push({ url: selfie, label: "Identity (face / skin / hair)" });
       if (outfit) refs.push({ url: outfit, label: "Outfit (wardrobe only)" });
       if (scene) refs.push({ url: scene, label: "Scene / environment" });
       if (prop) refs.push({ url: prop, label: "Prop (mic / vehicle / object)" });
       if (motion) refs.push({ url: motion, label: "POSE reference — copy stance, gesture, camera angle ONLY. Ignore its outfit, face and background." });
-      if (refs.length === 0) throw new Error("Add at least one reference image");
+      if (refs.length === 0) {
+        // Text-only generation — example chip pressed before uploading references
+        return genFn({ data: { prompt: effectivePrompt, imageUrls: [], motionVideoUrl: null, model } });
+      }
       const labelBlock = refs
         .map((r, i) => `Image ${i + 1}: ${r.label}`)
         .join("\n");
-      const fullPrompt = `${prompt}\n\nReference images (in order):\n${labelBlock}`;
+      const fullPrompt = `${effectivePrompt}\n\nReference images (in order):\n${labelBlock}`;
       return genFn({ data: { prompt: fullPrompt, imageUrls: refs.map((r) => r.url), motionVideoUrl: null, model } });
     },
     onSuccess: () => {
@@ -471,6 +485,10 @@ function StudioPage() {
             onSelect={(preset) => {
               if (preset.prompt) setPrompt(preset.prompt);
               setActiveExampleId(preset.id);
+            }}
+            onGenerate={() => {
+              const preset = STUDIO_EXAMPLE_PRESETS.find((p) => p.id === activeExampleId);
+              mut.mutate({ promptOverride: preset?.prompt ?? prompt });
             }}
             label="Quick start:"
           />

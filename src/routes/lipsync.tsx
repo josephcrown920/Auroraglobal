@@ -11,6 +11,8 @@ import { startLipsync } from "@/lib/lipsync.functions";
 import { friendlyGenerationMessage, handleGenerationError } from "@/lib/error-toasts";
 import { ExampleChips } from "@/components/onboarding/ExampleChips";
 import { LIPSYNC_EXAMPLE_PRESETS } from "@/lib/example-presets";
+import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
+import { hasCompletedFirstGen, hasDismissedTour, isFirstPageVisit, markPageVisited } from "@/lib/first-run";
 
 export const Route = createFileRoute("/lipsync")({
   component: LipSyncStudioPage,
@@ -104,6 +106,7 @@ function LipSyncForm() {
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [activeExampleId, setActiveExampleId] = useState("studio-quality");
+  const [showTour, setShowTour] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -113,6 +116,19 @@ function LipSyncForm() {
       if (audioUrl) URL.revokeObjectURL(audioUrl);
     };
   }, [videoUrl, audioUrl]);
+
+  useEffect(() => {
+    if (!hasCompletedFirstGen() && isFirstPageVisit("lipsync")) {
+      markPageVisited("lipsync");
+      const p = LIPSYNC_EXAMPLE_PRESETS[0];
+      if (p.extra?.engine) setEngine(p.extra.engine as Engine);
+      setActiveExampleId(p.id);
+    }
+    if (!hasDismissedTour()) {
+      const t = setTimeout(() => setShowTour(true), 800);
+      return () => clearTimeout(t);
+    }
+  }, []);
 
   const onVideo = (f: File | null) => {
     if (!f) return;
@@ -258,6 +274,7 @@ function LipSyncForm() {
           <DropSlot label="Vocal track" hint="Any audio · up to 50MB" icon={Music2} accept="audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.opus,.aiff" file={audio} onFile={onAudio} previewUrl={audioUrl} kind="audio" />
         </div>
 
+        <WelcomeTour show={showTour} onDismiss={() => setShowTour(false)} />
         <ExampleChips
           presets={LIPSYNC_EXAMPLE_PRESETS}
           activeId={activeExampleId}
@@ -265,6 +282,11 @@ function LipSyncForm() {
             if (preset.extra?.engine) setEngine(preset.extra.engine as Engine);
             setActiveExampleId(preset.id);
           }}
+          onGenerate={() =>
+            video && audio
+              ? toast.info("Files loaded — hit Sync below to generate")
+              : toast.info("Upload a video clip and vocal track first")
+          }
           label="Pick a mode:"
           className="mt-5"
         />

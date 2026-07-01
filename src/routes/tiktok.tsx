@@ -15,6 +15,8 @@ import {
 } from "@/lib/tiktok-remix.functions";
 import { ExampleChips } from "@/components/onboarding/ExampleChips";
 import { TIKTOK_EXAMPLE_PRESETS } from "@/lib/example-presets";
+import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
+import { hasCompletedFirstGen, hasDismissedTour, isFirstPageVisit, markPageVisited } from "@/lib/first-run";
 
 const STYLE_OPTIONS: { value: CutStyle; label: string; hint: string }[] = [
   { value: "auto", label: "Auto", hint: "Aurora picks the strongest hooks straight from your source." },
@@ -44,6 +46,7 @@ function TiktokRemixPage() {
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [activeExampleId, setActiveExampleId] = useState<string | undefined>(undefined);
+  const [showTour, setShowTour] = useState(false);
 
   const startFn = useServerFn(startTiktokRemix);
   const listFn = useServerFn(listTiktokRemixes);
@@ -62,6 +65,21 @@ function TiktokRemixPage() {
     enabled: !!activeRemixId,
     refetchInterval: 5000,
   });
+
+  useEffect(() => {
+    if (!hasCompletedFirstGen() && isFirstPageVisit("tiktok")) {
+      markPageVisited("tiktok");
+      const p = TIKTOK_EXAMPLE_PRESETS[0];
+      if (p.prompt !== undefined) setBasePrompt(p.prompt);
+      if (p.extra?.style) setStyle(p.extra.style as CutStyle);
+      if (typeof p.extra?.count === "number") setCount(p.extra.count);
+      setActiveExampleId(p.id);
+    }
+    if (!hasDismissedTour()) {
+      const t = setTimeout(() => setShowTour(true), 800);
+      return () => clearTimeout(t);
+    }
+  }, []);
 
   const startMut = useMutation({
     mutationFn: () =>
@@ -109,6 +127,7 @@ function TiktokRemixPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 md:py-16">
+      <WelcomeTour show={showTour} onDismiss={() => setShowTour(false)} />
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <span className="inline-flex items-center gap-2 rounded-full border border-pink-300/30 bg-pink-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-pink-200">
@@ -174,6 +193,7 @@ function TiktokRemixPage() {
               if (typeof preset.extra?.count === "number") setCount(preset.extra.count);
               setActiveExampleId(preset.id);
             }}
+            onGenerate={() => sourceUrl ? startMut.mutate() : toast.info("Paste or upload a source video first")}
             label="Try an example:"
           />
 
