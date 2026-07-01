@@ -20,7 +20,10 @@ import {
   markFirstGenComplete,
   markPageVisited,
 } from "@/lib/first-run";
-import { handleGenerationError } from "@/lib/error-toasts";
+import { handleGenerationError, friendlyGenerationMessage } from "@/lib/error-toasts";
+import { useGenerationProgress } from "@/hooks/use-generation-progress";
+import { GenerationProgress } from "@/components/ui/GenerationProgress";
+import { GenerationErrorCard } from "@/components/ui/GenerationErrorCard";
 
 export const Route = createFileRoute("/speech")({
   component: SpeechPage,
@@ -45,7 +48,7 @@ function SpeechPage() {
   const [model, setModel] = useState(TTS_MODELS[0].key);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
-  const [activeExampleId, setActiveExampleId] = useState<string | null>(null);
+  const [activeExampleId, setActiveExampleId] = useState<string | undefined>(undefined);
   const [showTour, setShowTour] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -76,6 +79,20 @@ function SpeechPage() {
       toast.success("Voiceover ready");
     },
     onError: (e) => handleGenerationError(e),
+  });
+
+  const progress = useGenerationProgress({
+    isPending: genMut.isPending,
+    isError: genMut.isError,
+    isSuccess: genMut.isSuccess,
+    estimatedMs: 20_000,
+    persistKey: "aurora.progress.speech",
+    labels: {
+      queued: "Warming up the voice model…",
+      processing: "Synthesising speech…",
+      finalizing: "Almost ready…",
+      done: "Voiceover ready",
+    },
   });
 
   const togglePlay = () => {
@@ -179,6 +196,19 @@ function SpeechPage() {
               ? <><Loader2 className="size-4 mr-2 animate-spin" /> Generating…</>
               : <><Mic className="size-4 mr-2" /> Generate voiceover · 2 Aura</>}
           </Button>
+
+          <GenerationProgress
+            visible={progress.isActive}
+            progress={progress.progress}
+            label={progress.label}
+          />
+
+          <GenerationErrorCard
+            visible={genMut.isError}
+            error={friendlyGenerationMessage(genMut.error)}
+            onRetry={() => genMut.mutate()}
+            retryLabel="Try again"
+          />
         </section>
 
         {resultUrl && (
