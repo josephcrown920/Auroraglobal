@@ -48,17 +48,17 @@ export function HeroContactForm({ greeting }: { greeting: string }) {
       <div className="lg:col-span-7 space-y-6">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs">
           <span className="size-1.5 rounded-full bg-primary animate-pulse" />
-          {greeting} · A creative supercomputer
+          {greeting} · Built for music artists
         </div>
         <h1 className="text-4xl md:text-6xl lg:text-7xl font-semibold tracking-tight leading-[1.02]">
-          One selfie in.
+          Go viral on TikTok
           <span className="block aurora-gradient-text">
-            A full campaign out.
+            in 30 seconds.
           </span>
         </h1>
         <p className="text-lg text-white/70 max-w-xl">
-          Aurora bundles Seedance, Kling 3.0, Seedream 4.5, Nano Banana Pro and Sync lip-sync into one premium studio.
-          Cinematic photos, videos, lip-sync, UGC ads and virtual try-ons — generated in minutes, not weeks.
+          Drop your song — Aurora builds the music video. Lip-sync, beat-synced visuals, cover-art reveals and lyric hooks,
+          generated in minutes, not weeks. Built for artists, not agencies.
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <Link
