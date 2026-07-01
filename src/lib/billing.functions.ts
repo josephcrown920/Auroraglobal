@@ -15,6 +15,16 @@ export const getMyProfile = createServerFn({ method: "GET" })
       .maybeSingle();
     const { data: rolesData } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const isAdmin = (rolesData ?? []).some((r) => r.role === "admin");
+    // Fetch subscription status so UI can show cancellation_pending correctly.
+    const { data: subData } = await (supabase as any)
+      .from("subscriptions")
+      .select("status, next_payment_date")
+      .eq("user_id", userId)
+      .in("status", ["active", "cancellation_pending"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const subscription_status: string | null = subData?.status ?? null;
     if (!data) {
       await supabaseAdmin.from("profiles").insert({ user_id: userId, credits: 5 }).select().maybeSingle();
       return {
@@ -25,12 +35,14 @@ export const getMyProfile = createServerFn({ method: "GET" })
         display_name: null as string | null,
         subscription_expires_at: null as string | null,
         is_pro: false,
+        subscription_status,
         isAdmin,
       };
     }
     return {
       ...data,
       is_pro: data.plan === "pro",
+      subscription_status,
       isAdmin,
     };
   });
@@ -206,13 +218,14 @@ export const cancelProSubscription = createServerFn({ method: "POST" })
     });
     if (!res.ok) throw new Error(`Paystack disable failed: ${(await res.text()).slice(0, 200)}`);
 
+    // Mark as cancellation_pending — Pro access stays active until Paystack fires
+    // subscription.disable (end of billing period). deactivate_pro_subscription is
+    // called ONLY from the webhook, never here, to preserve billing-period access.
     await (supabaseAdmin as any)
       .from("subscriptions")
-      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .update({ status: "cancellation_pending", updated_at: new Date().toISOString() })
       .eq("user_id", userId)
       .eq("status", "active");
-
-    await supabaseAdmin.rpc("deactivate_pro_subscription" as any, { _user: userId } as any);
 
     return { ok: true };
   });
