@@ -419,20 +419,24 @@ export const listGallery = createServerFn({ method: "GET" })
       .limit(200);
     if (error) throw new Error(error.message);
 
-    // For watermarked images: replace the raw provider URL with a short-lived
-    // signed proxy URL so the original asset is never sent to Free clients.
-    // Video URLs are kept for in-browser playback (real-time video watermarking
-    // requires FFmpeg and is deferred); the CSS overlay + blocked download are
-    // the enforcement layer for video.
+    // For watermarked items: replace image URL with signed proxy; null out video URL.
+    // Both asset types must be masked — never send raw provider URLs to Free clients.
+    // Server-side video watermarking (FFmpeg) is deferred; gallery shows a locked
+    // placeholder so free users see the upgrade prompt rather than the raw asset.
     const { signWatermarkToken } = await import("@/lib/watermark-token.server");
     const items = (data ?? []).map((row) => {
       const wm = (row as typeof row & { is_watermarked?: boolean }).is_watermarked;
-      if (wm && row.result_image_url) {
-        const tok = signWatermarkToken(userId, row.id);
+      if (wm) {
+        let watermark_display_url: string | null = null;
+        if (row.result_image_url) {
+          const tok = signWatermarkToken(userId, row.id);
+          watermark_display_url = `/api/public/watermark-image?id=${row.id}&uid=${encodeURIComponent(userId)}&tok=${encodeURIComponent(tok)}`;
+        }
         return {
           ...row,
           result_image_url: null as string | null,
-          watermark_display_url: `/api/public/watermark-image?id=${row.id}&uid=${encodeURIComponent(userId)}&tok=${encodeURIComponent(tok)}`,
+          result_video_url: null as string | null,
+          watermark_display_url,
         };
       }
       return { ...row, watermark_display_url: null as string | null };
@@ -452,19 +456,26 @@ export const listGenerations = createServerFn({ method: "GET" })
       .limit(50);
     if (error) throw new Error(error.message);
 
-    // Replace raw provider URLs with signed watermark proxy URLs for Free-tier items.
-    // Using the proxy URL (not null) so calling components can still display and use
-    // these as pipeline sources — they'll just receive the watermarked version.
+    // Mask all raw provider URLs for free-tier items.  Images get a signed proxy
+    // URL (so the caller still gets a usable URL, just watermarked).  Videos are
+    // nulled out — callers should check watermark_display_url first, then fall back.
     const { signWatermarkToken } = await import("@/lib/watermark-token.server");
     const items = (data ?? []).map((row) => {
       const wm = (row as typeof row & { is_watermarked?: boolean }).is_watermarked;
-      if (wm && row.result_image_url) {
-        const tok = signWatermarkToken(userId, row.id);
-        const proxyUrl = `/api/public/watermark-image?id=${row.id}&uid=${encodeURIComponent(userId)}&tok=${encodeURIComponent(tok)}`;
+      if (wm) {
+        let result_image_url: string | null = null;
+        let watermark_display_url: string | null = null;
+        if (row.result_image_url) {
+          const tok = signWatermarkToken(userId, row.id);
+          const proxyUrl = `/api/public/watermark-image?id=${row.id}&uid=${encodeURIComponent(userId)}&tok=${encodeURIComponent(tok)}`;
+          result_image_url = proxyUrl;
+          watermark_display_url = proxyUrl;
+        }
         return {
           ...row,
-          result_image_url: proxyUrl,
-          watermark_display_url: proxyUrl,
+          result_image_url,
+          result_video_url: null as string | null,
+          watermark_display_url,
         };
       }
       return { ...row, watermark_display_url: null as string | null };

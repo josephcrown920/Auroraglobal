@@ -1,13 +1,16 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { getMyProfile } from "@/lib/billing.functions";
+import { listGenerations } from "@/lib/studio.functions";
 import { Loader2, CheckCircle2, XCircle, Clock, Image as ImageIcon, Film, Mic, Crown } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
+// Gen type mirrors the masked shape returned by listGenerations server fn.
+// result_image_url is the signed proxy URL for watermarked items (or raw for Pro).
+// result_video_url is null for watermarked items (video proxy deferred; upgrade CTA shown).
 type Gen = {
   id: string;
   kind: string;
@@ -34,7 +37,7 @@ function StatusBadge({ status }: { status: string }) {
     return <span className="inline-flex items-center gap-1 text-amber-300/90 text-[10px]"><Clock className="size-3" /> queued</span>;
   if (status === "running" || status === "processing")
     return <span className="inline-flex items-center gap-1 text-violet-300 text-[10px]"><Loader2 className="size-3 animate-spin" /> running</span>;
-  if (status === "done" || status === "completed" || status === "succeeded")
+  if (status === "done" || status === "completed" || status === "succeeded" || status === "complete")
     return <span className="inline-flex items-center gap-1 text-emerald-300 text-[10px]"><CheckCircle2 className="size-3" /> done</span>;
   if (status === "error" || status === "failed")
     return <span className="inline-flex items-center gap-1 text-rose-300 text-[10px]"><XCircle className="size-3" /> error</span>;
@@ -42,13 +45,15 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 const QUEUE_WAIT_THRESHOLD_MS = 30_000;
+const RECENT_WINDOW_MS = 30 * 60 * 1_000; // show completed/failed for 30 min
+const POLL_INTERVAL_MS = 3_000;
 
 export function LiveJobsPanel() {
   const { user } = useAuth();
-  const [jobs, setJobs] = useState<Gen[]>([]);
   const [open, setOpen] = useState(true);
   const [now, setNow] = useState(() => Date.now());
   const profileFn = useServerFn(getMyProfile);
+  const listFn = useServerFn(listGenerations);
 
   // Tick every 5 s to recompute queue-wait time without heavy re-renders.
   useEffect(() => {
@@ -63,52 +68,36 @@ export function LiveJobsPanel() {
     staleTime: 60_000,
   });
 
+  // Poll listGenerations — server fn applies watermark masking before the
+  // response is sent, so raw provider URLs never reach this component.
+  const { data: genData } = useQuery({
+    queryKey: ["live-jobs", user?.id],
+    queryFn: () => listFn(),
+    enabled: !!user,
+    refetchInterval: POLL_INTERVAL_MS,
+    staleTime: 0,
+  });
+
   const isPro = profile?.plan === "pro" || profile?.isAdmin === true;
 
-  useEffect(() => {
-    if (!user) return;
-    let mounted = true;
-
-    // Initial fetch
-    supabase
-      .from("generations")
-      .select("id, kind, status, model, prompt, result_image_url, result_video_url, error, created_at, is_watermarked")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(8)
-      .then(({ data }) => {
-        if (mounted && data) setJobs(data as Gen[]);
-      });
-
-    const channel = supabase
-      .channel(`gens:${user.id}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "generations", filter: `user_id=eq.${user.id}` },
-        (payload) => {
-          setJobs((prev) => {
-            if (payload.eventType === "INSERT") {
-              return [payload.new as Gen, ...prev].slice(0, 8);
-            }
-            if (payload.eventType === "UPDATE") {
-              return prev.map((j) => (j.id === (payload.new as Gen).id ? (payload.new as Gen) : j));
-            }
-            if (payload.eventType === "DELETE") {
-              return prev.filter((j) => j.id !== (payload.old as Gen).id);
-            }
-            return prev;
-          });
-        },
+  // Filter to active jobs + recently completed/failed jobs (last 30 min), capped at 8.
+  const jobs = useMemo<Gen[]>(() => {
+    if (!genData?.items) return [];
+    const cutoff = now - RECENT_WINDOW_MS;
+    return (genData.items as Gen[])
+      .filter(
+        (j) =>
+          j.status === "pending" ||
+          j.status === "running" ||
+          j.status === "queued" ||
+          j.status === "processing" ||
+          new Date(j.created_at).getTime() > cutoff,
       )
-      .subscribe();
-
-    return () => {
-      mounted = false;
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
+      .slice(0, 8);
+  }, [genData, now]);
 
   if (!user) return null;
+
   const active = jobs.filter((j) => j.status === "pending" || j.status === "running" || j.status === "queued").length;
 
   // Show upgrade nudge when a Free user has a queued/pending job waiting > 30 s.
@@ -157,16 +146,17 @@ export function LiveJobsPanel() {
             <ul className="divide-y divide-white/5">
               {jobs.map((j) => {
                 const Icon = KIND_ICON[j.kind] ?? ImageIcon;
-                // Never expose the raw provider URL for watermarked items in the panel.
-                // The gallery is the correct place to view watermarked results.
-                const thumb = !j.is_watermarked ? j.result_image_url : null;
+                // result_image_url is already masked server-side (proxy for watermarked,
+                // raw for Pro). result_video_url is null for watermarked items.
+                const thumb = j.result_image_url;
+                const videoThumb = j.result_video_url;
                 return (
                   <li key={j.id} className="flex gap-2 p-2.5 items-start hover:bg-white/[0.03]">
                     <div className="size-10 shrink-0 rounded-md bg-white/5 overflow-hidden flex items-center justify-center">
                       {thumb ? (
                         <img src={thumb} alt="" className="size-full object-cover" />
-                      ) : j.result_video_url ? (
-                        <AutoplayVideo src={j.result_video_url} className="size-full object-cover" autoPlay={false} />
+                      ) : videoThumb ? (
+                        <AutoplayVideo src={videoThumb} className="size-full object-cover" autoPlay={false} />
                       ) : (
                         <Icon className="size-4 text-white/40" />
                       )}
