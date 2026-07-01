@@ -32,6 +32,7 @@ import { ViralEngine } from "@/components/landing/ViralEngine";
 import { TikTokSection } from "@/components/landing/TikTokSection";
 import { AffiliateRewardSection } from "@/components/landing/AffiliateRewardSection";
 import { CanvasWorkflowShowcase } from "@/components/landing/CanvasWorkflowShowcase";
+import { TrendingTemplatesStrip } from "@/components/landing/TrendingTemplatesStrip";
 import { ColorsTeaser } from "@/components/landing/ColorsTeaser";
 import { BalloonLipsync } from "@/components/landing/BalloonLipsync";
 import { JoshSlideshow } from "@/components/studio/JoshSlideshow";
@@ -309,6 +310,13 @@ function Index() {
             >
               <Sparkles className="size-4" /> Start creating free
             </Link>
+            <Link
+              to="/templates"
+              onClick={() => void track("hero_templates_click")}
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-full no-underline aurora-glass-strong text-foreground hover:brightness-110"
+            >
+              <Wand2 className="size-4" /> Try a template
+            </Link>
             <button
               type="button"
               onClick={() => setDemoOpen(true)}
@@ -319,6 +327,9 @@ function Index() {
           </div>
         </div>
       </section>
+
+      {/* 0. One-tap templates — trending strip right below the hero */}
+      <TrendingTemplatesStrip />
 
       {/* 0. Viral engine — TikTok hook moved to the very top */}
       <ViralEngine />

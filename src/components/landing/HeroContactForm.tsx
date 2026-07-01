@@ -68,7 +68,14 @@ export function HeroContactForm({ greeting }: { greeting: string }) {
           >
             <Play className="size-4" /> Start free — 5 Aura
           </Link>
-          <a href="#services" className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-medium text-foreground aurora-glass-strong hover:brightness-110 no-underline">
+          <Link
+            to="/templates"
+            onClick={() => void track("hero_templates_click", { variant: "contact" })}
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-medium text-foreground aurora-glass-strong hover:brightness-110 no-underline"
+          >
+            <Sparkles className="size-4" /> Try a template
+          </Link>
+          <a href="#services" className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-medium text-foreground hover:text-white/80 no-underline">
             See what's inside <ArrowRight className="size-4" />
           </a>
         </div>
