@@ -11,8 +11,6 @@ import { computeCost } from "./pricing";
 import { isAdmin } from "./admin.server";
 
 const COST_IMAGE = 1;
-const COST_MOTION = 5;
-const COST_RESKIN = 8;
 
 // Shown when no GPU worker advertises the "motion" capability. Surfaced verbatim
 // to the UI / MCP caller; credits are never reserved when this fires.
@@ -587,7 +585,7 @@ export const generateMimicMotion = createServerFn({ method: "POST" })
       userId,
       "motion",
       data.prompt ?? "Motion transfer",
-      COST_MOTION,
+      computeCost({ features: ["motion"] }).total,
       req as unknown as Record<string, unknown>,
     );
     await trackServer("motion_transfer_enqueued", userId, { jobId: out.jobId });
@@ -620,7 +618,7 @@ export const generatePerformanceReskin = createServerFn({ method: "POST" })
       userId,
       "performance_reskin",
       data.prompt ?? "Performance reskin",
-      COST_RESKIN,
+      computeCost({ features: ["video", "motion"] }).total,
       payload as Record<string, unknown>,
     );
     await trackServer("performance_reskin_enqueued", userId, { jobId: out.jobId });

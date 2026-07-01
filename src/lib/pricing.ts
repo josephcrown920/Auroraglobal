@@ -46,7 +46,7 @@ export const PRICING = {
     text: 1,
     audio: 2,
     lipsync: 3,
-    motion: 3,
+    motion: 15,
     video: 5,
   } as Record<Feature, number>,
   /** Multiplier applied to the resolution-bearing visual output. */
@@ -180,6 +180,16 @@ function resolutionApplies(feature: Feature, hasTemporalOutput: boolean): boolea
   if (feature === "image") return !hasTemporalOutput;
   return false;
 }
+
+// ─── Client-safe engine→model map for the lip-sync page ─────────────────────
+// Mirrors lipsync.server.ts MODEL record but lives here so lipsync.tsx can call
+// computeCost without importing a .server.ts file.
+export type LipsyncEngine = "sync-v2" | "wav2lip" | "latentsync";
+export const LIPSYNC_ENGINE_MODEL: Record<LipsyncEngine, string> = {
+  "sync-v2": "fal-ai/sync-lipsync/v2",
+  "wav2lip": "fal-ai/wav2lip",
+  "latentsync": "latentsync",
+};
 
 export function computeCost(input: {
   features: Feature[];

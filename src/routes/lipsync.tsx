@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { LipSyncDemo } from "@/components/landing/LipSyncDemo";
 import { Mic2, ArrowRight, Upload, Music2, Wand2, Download, Loader2, Play, Pause, CheckCircle2, X, Zap, Sparkles, Server } from "lucide-react";
@@ -13,6 +13,7 @@ import { ExampleChips } from "@/components/onboarding/ExampleChips";
 import { LIPSYNC_EXAMPLE_PRESETS } from "@/lib/example-presets";
 import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
 import { hasCompletedFirstGen, hasDismissedTour, isFirstPageVisit, markFirstGenComplete, markPageVisited } from "@/lib/first-run";
+import { computeCost, LIPSYNC_ENGINE_MODEL, type LipsyncEngine } from "@/lib/pricing";
 
 export const Route = createFileRoute("/lipsync")({
   component: LipSyncStudioPage,
@@ -27,7 +28,7 @@ export const Route = createFileRoute("/lipsync")({
 });
 
 type JobStatus = "idle" | "uploading" | "syncing" | "rendering" | "done" | "error";
-type Engine = "sync-v2" | "wav2lip" | "latentsync";
+type Engine = LipsyncEngine;
 
 function LipSyncStudioPage() {
   return (
@@ -50,7 +51,7 @@ function LipSyncStudioPage() {
             {[
               { icon: Upload, t: "1. Upload clip", d: "Any talking head, 5-30s" },
               { icon: Music2, t: "2. Add vocal", d: "MP3 / WAV stem" },
-              { icon: Wand2, t: "3. Run sync", d: "3 Aura · ~45s" },
+              { icon: Wand2, t: "3. Run sync", d: `${computeCost({ features: ["lipsync"], model: LIPSYNC_ENGINE_MODEL["sync-v2"] }).total} Aura · ~45s` },
             ].map((s, i) => (
               <div
                 key={s.t}
@@ -101,6 +102,11 @@ function LipSyncForm() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [engine, setEngine] = useState<Engine>("sync-v2");
+
+  const engineCost = useMemo(
+    () => computeCost({ features: ["lipsync"], model: LIPSYNC_ENGINE_MODEL[engine] }).total,
+    [engine],
+  );
   const [status, setStatus] = useState<JobStatus>("idle");
   const [progress, setProgress] = useState(0);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
@@ -379,7 +385,7 @@ function LipSyncForm() {
             )}
           </button>
           <p className="text-xs text-white/50">
-            {engine === "sync-v2" ? "3 Aura · ~45s" : engine === "wav2lip" ? "2 Aura · ~25s" : "Runs on your GPU worker"}
+            {engine === "latentsync" ? `${engineCost} Aura · your GPU worker` : `${engineCost} Aura · ~${engine === "sync-v2" ? "45" : "25"}s`}
           </p>
         </div>
 
