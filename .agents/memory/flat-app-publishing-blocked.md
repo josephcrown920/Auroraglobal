@@ -48,6 +48,10 @@ bootstrap the first real `.replit-artifact/artifact.toml` — that was the missi
 `SUPABASE_PUBLISHABLE_KEY` (and the VITE_ variants) into deploy. `SUPABASE_SERVICE_ROLE_KEY` is a
 secret — confirm it's present in the Publish env or server-side calls fail in production.
 
-**Validated:** dev proxy "/" → 200 (real app); `vite build` → `.output/server/index.mjs` (~74KB)
-+ `.output/public`; `PORT=5000 node .output/server/index.mjs` → GET / 200 SSR; `bun test src/`
-253/0; `.replit` unchanged; `.output` gitignored.
+**Validated & APPLIED (now live, not just a recipe):** the wrapper artifact `artifacts/web` is
+registered with this exact toml; dev proxy "/" → 200 (real app); `vite build` →
+`.output/server/index.mjs` + `.output/public`; `PORT=… node .output/server/index.mjs` → GET / 200
+SSR; `.replit` unchanged; `.output` gitignored; `artifacts/web/.replit-artifact/artifact.toml`
+tracked (root-anchored `/.replit-artifact/` does NOT match it). The untracked `artifacts/` tree is
+committed by the end-of-task auto-commit — Publish reads the COMMITTED tree, so the fix only takes
+effect after that commit lands.
