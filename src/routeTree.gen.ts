@@ -15,6 +15,7 @@ import { Route as TiktokRouteImport } from './routes/tiktok'
 import { Route as StudioRouteImport } from './routes/studio'
 import { Route as SplitRealityRouteImport } from './routes/split-reality'
 import { Route as SpinRouteImport } from './routes/spin'
+import { Route as SpeechRouteImport } from './routes/speech'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ReshootRouteImport } from './routes/reshoot'
 import { Route as OrchestrateRouteImport } from './routes/orchestrate'
@@ -82,6 +83,11 @@ const SplitRealityRoute = SplitRealityRouteImport.update({
 const SpinRoute = SpinRouteImport.update({
   id: '/spin',
   path: '/spin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SpeechRoute = SpeechRouteImport.update({
+  id: '/speech',
+  path: '/speech',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -301,6 +307,7 @@ export interface FileRoutesByFullPath {
   '/orchestrate': typeof OrchestrateRoute
   '/reshoot': typeof ReshootRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
   '/split-reality': typeof SplitRealityRoute
   '/studio': typeof StudioRoute
@@ -347,6 +354,7 @@ export interface FileRoutesByTo {
   '/orchestrate': typeof OrchestrateRoute
   '/reshoot': typeof ReshootRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
   '/split-reality': typeof SplitRealityRoute
   '/studio': typeof StudioRoute
@@ -394,6 +402,7 @@ export interface FileRoutesById {
   '/orchestrate': typeof OrchestrateRoute
   '/reshoot': typeof ReshootRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
   '/split-reality': typeof SplitRealityRoute
   '/studio': typeof StudioRoute
@@ -442,6 +451,7 @@ export interface FileRouteTypes {
     | '/orchestrate'
     | '/reshoot'
     | '/sitemap.xml'
+    | '/speech'
     | '/spin'
     | '/split-reality'
     | '/studio'
@@ -488,6 +498,7 @@ export interface FileRouteTypes {
     | '/orchestrate'
     | '/reshoot'
     | '/sitemap.xml'
+    | '/speech'
     | '/spin'
     | '/split-reality'
     | '/studio'
@@ -534,6 +545,7 @@ export interface FileRouteTypes {
     | '/orchestrate'
     | '/reshoot'
     | '/sitemap.xml'
+    | '/speech'
     | '/spin'
     | '/split-reality'
     | '/studio'
@@ -581,6 +593,7 @@ export interface RootRouteChildren {
   OrchestrateRoute: typeof OrchestrateRoute
   ReshootRoute: typeof ReshootRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  SpeechRoute: typeof SpeechRoute
   SpinRoute: typeof SpinRoute
   SplitRealityRoute: typeof SplitRealityRoute
   StudioRoute: typeof StudioRoute
@@ -643,6 +656,13 @@ declare module '@tanstack/react-router' {
       path: '/spin'
       fullPath: '/spin'
       preLoaderRoute: typeof SpinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/speech': {
+      id: '/speech'
+      path: '/speech'
+      fullPath: '/speech'
+      preLoaderRoute: typeof SpeechRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap.xml': {
@@ -952,6 +972,7 @@ const rootRouteChildren: RootRouteChildren = {
   OrchestrateRoute: OrchestrateRoute,
   ReshootRoute: ReshootRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  SpeechRoute: SpeechRoute,
   SpinRoute: SpinRoute,
   SplitRealityRoute: SplitRealityRoute,
   StudioRoute: StudioRoute,
