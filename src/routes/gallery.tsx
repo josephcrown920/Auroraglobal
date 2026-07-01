@@ -8,7 +8,7 @@ import { listGallery, toggleFavorite } from "@/lib/studio.functions";
 import { deleteGeneration } from "@/lib/gallery.functions";
 import { ModelBadge } from "@/components/ModelBadge";
 import { VisualEditDialog } from "@/components/gallery/VisualEditDialog";
-import { Sparkles, Loader2, ArrowLeft, Star, Download, Film, Image as ImageIcon, Layers, Trash2, Wand2, Captions, Crown } from "lucide-react";
+import { Sparkles, Loader2, ArrowLeft, Star, Download, Film, Image as ImageIcon, Layers, Trash2, Wand2, Captions, Crown, Lock } from "lucide-react";
 import { CaptionDialog } from "@/components/gallery/CaptionDialog";
 import { toast } from "sonner";
 import { saveAssetToDisk, isSplitRealityPrompt, splitRealityVariant } from "@/lib/save";
@@ -133,32 +133,36 @@ function GalleryPage() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {items.map((g) => {
             // watermark_display_url replaces result_image_url for free-tier items
-            const url = (g as any).watermark_display_url || g.result_image_url || g.result_video_url;
-            if (!url) return null;
+            const isWatermarked = !!(g as any).is_watermarked;
+            // Display URL: watermark proxy for Free images, raw URL for Pro images/videos.
+            // result_video_url is null for watermarked items (server-side masked).
+            const displayImageUrl = (g as any).watermark_display_url ?? g.result_image_url;
+            const displayVideoUrl = g.result_video_url; // null for watermarked
+            const hasContent = displayImageUrl || displayVideoUrl || isWatermarked;
+            if (!hasContent) return null;
+            // URL used for download / captions (raw, only available for Pro)
+            const rawUrl = g.result_image_url || g.result_video_url;
             return (
               <div key={g.id} className="group relative rounded-2xl overflow-hidden border border-border bg-card/40">
-                <div className="aspect-[4/5] bg-background/40">
-                  {/* watermark_display_url is set by listGallery for watermarked images;
-                      raw result_image_url is nulled out so the original provider URL
-                      is never exposed to the client for Free-tier generations. */}
-                  {((g as any).watermark_display_url || g.result_image_url) ? (
+                <div className="aspect-[4/5] bg-background/40 relative">
+                  {displayImageUrl ? (
                     <img
-                      src={(g as any).watermark_display_url ?? g.result_image_url!}
+                      src={displayImageUrl}
                       alt=""
                       className="w-full h-full object-cover"
                       loading="lazy"
                     />
-                  ) : g.result_video_url ? (
-                    <>
-                      <AutoplayVideo src={g.result_video_url} className="w-full h-full object-cover" autoPlay={false} playsInline preload="metadata" />
-                      {(g as typeof g & { is_watermarked?: boolean }).is_watermarked && (
-                        <div className="absolute inset-0 pointer-events-none flex items-end justify-start p-2">
-                          <span className="text-[9px] font-bold tracking-[0.2em] text-white/80 bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded select-none uppercase">
-                            AURORA
-                          </span>
-                        </div>
-                      )}
-                    </>
+                  ) : displayVideoUrl ? (
+                    <AutoplayVideo src={displayVideoUrl} className="w-full h-full object-cover" autoPlay={false} playsInline preload="metadata" />
+                  ) : isWatermarked ? (
+                    /* Watermarked video-only generation — video proxy deferred, show upgrade CTA */
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-background/60 gap-2">
+                      <Lock className="size-8 text-amber-400/70" />
+                      <p className="text-[10px] text-white/50 text-center px-3 leading-tight">Video locked — raw URL hidden</p>
+                      <Link to="/billing" className="text-[9px] text-amber-400 hover:text-amber-300 font-medium transition-colors">
+                        Upgrade to Pro →
+                      </Link>
+                    </div>
                   ) : null}
                 </div>
                 {/* overlay actions */}
@@ -171,7 +175,8 @@ function GalleryPage() {
                   >
                     <Star className={`size-3.5 ${g.is_favorite ? "fill-current" : ""}`} />
                   </button>
-                  {g.result_image_url && (
+                  {/* Visual edit only available for Pro users (result_image_url is null for watermarked) */}
+                  {g.result_image_url && !isWatermarked && (
                     <button
                       type="button"
                       onClick={() => setEditing({ id: g.id, url: g.result_image_url! })}
@@ -181,10 +186,11 @@ function GalleryPage() {
                       <Wand2 className="size-3.5" />
                     </button>
                   )}
-                  {g.result_video_url && (
+                  {/* Captions only available when raw video URL exists (Pro only) */}
+                  {displayVideoUrl && !isWatermarked && (
                     <button
                       type="button"
-                      onClick={() => setCaptioning({ id: g.id, url: g.result_video_url! })}
+                      onClick={() => setCaptioning({ id: g.id, url: displayVideoUrl })}
                       className="size-8 rounded-full bg-background/70 backdrop-blur-md border border-border hover:bg-primary/20 hover:border-primary/50 flex items-center justify-center"
                       title="Add captions"
                     >
@@ -194,7 +200,7 @@ function GalleryPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      if ((g as typeof g & { is_watermarked?: boolean }).is_watermarked) {
+                      if (isWatermarked) {
                         toast("Watermarked export", {
                           description: "Upgrade to Aurora Pro to download without the watermark.",
                           action: { label: "Upgrade", onClick: () => { window.location.href = "/billing"; } },
@@ -202,7 +208,7 @@ function GalleryPage() {
                         });
                         return;
                       }
-                      saveAssetToDisk(url, `aurora-${g.id.slice(0,8)}.${g.result_video_url ? "mp4" : "png"}`);
+                      if (rawUrl) saveAssetToDisk(rawUrl, `aurora-${g.id.slice(0, 8)}.${g.result_video_url ? "mp4" : "png"}`);
                     }}
                     className="size-8 rounded-full bg-background/70 backdrop-blur-md border border-border hover:bg-background flex items-center justify-center"
                     title="Download"
