@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Sparkles, Wand2 } from "lucide-react";
@@ -44,6 +44,7 @@ function TemplatesPage() {
   const { user } = useAuth();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  const navigateTo = useNavigate();
 
   const profileFn = useServerFn(getMyProfile);
   const { data: profile } = useQuery({
@@ -129,7 +130,11 @@ function TemplatesPage() {
                       key={t.id}
                       template={t}
                       locked={!!t.premium && !isPro}
-                      onSelect={() => openTemplate(t.id)}
+                      onSelect={
+                        t.dispatch === "autocut"
+                          ? () => navigateTo({ to: "/edit" })
+                          : () => openTemplate(t.id)
+                      }
                       className="w-40 shrink-0 snap-start"
                     />
                   ))}

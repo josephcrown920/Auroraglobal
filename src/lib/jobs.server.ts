@@ -34,6 +34,7 @@ import {
   type KidsAgeRange,
   type KidsLengthId,
 } from "./kids-story.server";
+import { getMusicTrack, signedAutocutUrl } from "./autocut.server";
 
 // `orchestrate` is dependency-injected (threaded through the runners) rather than
 // imported-and-called directly so the worker loop is unit-testable WITHOUT
@@ -834,6 +835,70 @@ async function runKidsStory(job: JobRow, orch: Orchestrate, workerId: string): P
   };
 }
 
+// AutoCut: stitch user-uploaded clips into a polished 9:16 short (max 60 s).
+// Assembly runs on the self-hosted GPU worker via the `assemble` kind.
+// Preflight mirrors kids_story: if no capable worker is online, fail terminally
+// (credits are released and the user is informed immediately).
+async function runAutocut(job: JobRow, orch: Orchestrate, workerId: string): Promise<JobOutput> {
+  const p = job.payload as {
+    clipUrls: string[];
+    style: string;
+    musicTrackId?: string | null;
+    aspect?: string;
+  };
+
+  if (!p.clipUrls?.length) {
+    throw new Error("autocut requires at least one clip URL [required]");
+  }
+
+  // Preflight: assembly requires a self-hosted GPU worker.
+  const canAssemble = await hasActiveWorkerForKind("assemble");
+  if (!canAssemble) {
+    throw new Error(
+      "A self-hosted GPU worker with the 'assemble' capability is required to stitch the AutoCut video, but none is online [required]",
+    );
+  }
+
+  await touchJobLock(job.id, workerId);
+
+  // Resolve optional music track (signed from storage; null if track unavailable).
+  let musicUrl: string | null = null;
+  if (p.musicTrackId) {
+    const track = getMusicTrack(p.musicTrackId);
+    if (track) {
+      musicUrl = await signedAutocutUrl(track.storagePath, 3600);
+    }
+  }
+
+  const assembled = await orch({
+    kind: "assemble",
+    model: "ffmpeg-assemble",
+    selfHostedOnly: true,
+    userId: job.user_id,
+    refId: job.id,
+    params: {
+      clips: p.clipUrls,
+      style: p.style,
+      aspect: p.aspect ?? "9:16",
+      max_duration: 60,
+      music_url: musicUrl,
+      music_volume: 0.15,
+    },
+  });
+
+  return {
+    url: assembled.url,
+    videoUrl: assembled.url,
+    provider: assembled.provider,
+    endpoint: assembled.endpoint,
+    meta: {
+      style: p.style,
+      clip_count: p.clipUrls.length,
+      music_track: p.musicTrackId ?? null,
+    },
+  };
+}
+
 export async function processOneJob(
   workerId: string,
   deps: JobDeps = defaultDeps,
@@ -854,6 +919,8 @@ export async function processOneJob(
       out = await runCampaignItem(job, orch);
     } else if (job.kind === "kids_story") {
       out = await runKidsStory(job, orch, workerId);
+    } else if (job.kind === "autocut") {
+      out = await runAutocut(job, orch, workerId);
     } else {
       out = await runMediaJob(job, orch);
     }
@@ -875,7 +942,8 @@ export async function processOneJob(
         job.kind === "ugc_ad" ||
         job.kind === "kids_story" ||
         job.kind === "motion" ||
-        job.kind === "lipsync";
+        job.kind === "lipsync" ||
+        job.kind === "autocut";
       genPatch[isVideo ? "result_video_url" : "result_image_url"] = out.url;
     }
     // Fence the completion on still owning the lock BEFORE writing the success or

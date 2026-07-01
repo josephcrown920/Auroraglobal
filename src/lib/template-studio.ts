@@ -40,8 +40,8 @@ import productLipstick from "@/assets/ugc/product-lipstick-car.jpg.asset.json";
 // ── Types ────────────────────────────────────────────────────────────────────
 export type TemplateInputKind = "image" | "audio" | "text";
 
-/** The five spec categories, in display order. */
-export type TemplateCategory = "Lip-sync" | "Motion" | "UGC/Ad" | "Spin" | "Kids";
+/** The six spec categories, in display order. */
+export type TemplateCategory = "Lip-sync" | "Motion" | "UGC/Ad" | "Spin" | "Kids" | "Editing";
 
 /**
  * Orchestrator kinds a template routes through. `image` / `video` / `lipsync`
@@ -49,10 +49,10 @@ export type TemplateCategory = "Lip-sync" | "Motion" | "UGC/Ad" | "Spin" | "Kids
  * and `spin` are the batch job kinds those dispatch backends enqueue. Mirrored here
  * as a client-safe literal so this manifest never imports a *.server module.
  */
-export type OrchestratorKind = "image" | "video" | "lipsync" | "ugc_ad" | "spin";
+export type OrchestratorKind = "image" | "video" | "lipsync" | "ugc_ad" | "spin" | "autocut";
 
 /** Which backend runs a template on submit. */
-export type TemplateDispatch = "studio" | "ugc" | "spin";
+export type TemplateDispatch = "studio" | "ugc" | "spin" | "autocut";
 
 export type TemplateInput = {
   kind: TemplateInputKind;
@@ -109,6 +109,8 @@ export const TEMPLATE_DEFAULTS = {
 
 // The UGC price mirrors its server constant (parity asserted in the co-located test).
 export const COST_UGC_AD = 8; // === COST_UGC_AD in ugc.server.ts
+// AutoCut flat cost — mirrors COST_AUTOCUT in autocut.server.ts.
+export const COST_AUTOCUT = 8;
 // Batch size for the Spin experience — every "1 → N" label reads from this.
 export const SPIN_PIECE_COUNT = 30; // === SPIN_PIECES.length in spin.functions.ts
 
@@ -336,10 +338,22 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
     videoModel: TEMPLATE_DEFAULTS.videoModel,
     cameraMovement: "push_in",
   },
+
+  // ───────────── Editing ─────────────
+  {
+    id: "autocut-hype",
+    title: "AutoCut — Hype",
+    category: "Editing",
+    blurb: "Drop your clips and Aurora cuts a beat-synced, fast-paced 9:16 short for you.",
+    thumbnail: stillRooftopDay,
+    kinds: ["autocut"],
+    dispatch: "autocut",
+    inputs: [],
+  },
 ];
 
 // Category display order for the gallery.
-export const CATEGORY_ORDER: TemplateCategory[] = ["Lip-sync", "Motion", "UGC/Ad", "Spin", "Kids"];
+export const CATEGORY_ORDER: TemplateCategory[] = ["Lip-sync", "Motion", "UGC/Ad", "Spin", "Kids", "Editing"];
 
 export function getStudioTemplate(id: string): StudioTemplate | undefined {
   return STUDIO_TEMPLATES.find((t) => t.id === id);
@@ -357,6 +371,7 @@ export function getStudioTemplate(id: string): StudioTemplate | undefined {
 export function templateCost(t: StudioTemplate): number {
   if (t.dispatch === "ugc") return COST_UGC_AD;
   if (t.dispatch === "spin") return 0;
+  if (t.dispatch === "autocut") return COST_AUTOCUT;
 
   let total = 0;
   for (const kind of t.kinds) {
@@ -383,6 +398,7 @@ export function templateCost(t: StudioTemplate): number {
 export function templateFlowLabel(t: StudioTemplate): string {
   if (t.dispatch === "spin") return `1 → ${SPIN_PIECE_COUNT}`;
   if (t.dispatch === "ugc") return "Talking ad";
+  if (t.dispatch === "autocut") return "Auto edit";
   if (t.kinds.includes("lipsync")) return "Lip-sync";
   if (t.kinds.includes("video")) return "Video";
   return "Image";

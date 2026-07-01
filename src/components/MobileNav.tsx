@@ -25,6 +25,7 @@ import {
   Moon,
   Clapperboard,
   CreditCard,
+  Wand2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -51,6 +52,7 @@ const FEATURES: Feature[] = [
   { to: "/split-reality", label: "Split Reality", icon: SplitSquareHorizontal },
   { to: "/tiktok", label: "TikTok", icon: Music2 },
   { to: "/music-video", label: "Music Video", icon: Clapperboard },
+  { to: "/edit", label: "AutoCut", icon: Wand2 },
   { to: "/workflows", label: "Workflows", icon: LayoutTemplate },
   { to: "/cli", label: "CLI", icon: Terminal },
   { to: "/gallery", label: "Gallery", icon: Images },
