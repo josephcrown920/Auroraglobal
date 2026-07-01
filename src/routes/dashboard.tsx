@@ -121,6 +121,20 @@ function DashboardPage() {
         </section>
 
         <ApiKeysPanel />
+
+        <section className="aurora-panel p-6 space-y-3">
+          <div className="flex items-center gap-2">
+            <Shield className="size-4 text-primary" />
+            <h2 className="text-sm font-semibold">Legal</h2>
+          </div>
+          <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
+            <Link to="/legal/$slug" params={{ slug: "terms" }} className="hover:text-foreground underline-offset-4 hover:underline">Terms of Service</Link>
+            <Link to="/legal/$slug" params={{ slug: "privacy" }} className="hover:text-foreground underline-offset-4 hover:underline">Privacy Policy</Link>
+            <Link to="/legal/$slug" params={{ slug: "ai-policy" }} className="hover:text-foreground underline-offset-4 hover:underline">AI &amp; Content Policy</Link>
+            <Link to="/legal/$slug" params={{ slug: "acceptable-use" }} className="hover:text-foreground underline-offset-4 hover:underline">Acceptable Use</Link>
+            <Link to="/legal/$slug" params={{ slug: "refunds" }} className="hover:text-foreground underline-offset-4 hover:underline">Refund Policy</Link>
+          </div>
+        </section>
       </div>
     </main>
   );
