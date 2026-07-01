@@ -82,7 +82,7 @@ function TiktokRemixPage() {
   }, []);
 
   // Ref lets onGenerate inject a demo URL without hitting React state-batching.
-  const sourceUrlOverrideRef = { current: null as string | null };
+  const sourceUrlOverrideRef = useRef<string | null>(null);
 
   const startMut = useMutation({
     mutationFn: () => {
