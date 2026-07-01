@@ -1,6 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { AutoplayVideo } from "@/components/landing/AutoplayVideo";
 import {
   Flame,
   Sparkles,
@@ -10,55 +9,85 @@ import {
   Play,
   RotateCcw,
   ArrowRight,
-  Check,
+  ChevronLeft,
+  Bell,
+  Forward,
+  MessageCircle,
+  BadgeCheck,
+  LayoutGrid,
+  Repeat2,
+  UserPlus,
+  Signal,
+  Wifi,
+  BatteryFull,
 } from "lucide-react";
-// One avatar, many shots — the whole grid is the SAME "Josh" identity, live-
-// generated from one reference (still-* via image gen, clip-* via image-to-video).
-import still01 from "@/assets/josh/generated/still-01-neon-closeup.jpg";
-import still02 from "@/assets/josh/generated/still-02-street-golden.jpg";
-import still03 from "@/assets/josh/generated/still-03-stage-mic.jpg";
-import still04 from "@/assets/josh/generated/still-04-cafe-selfie.jpg";
-import still05 from "@/assets/josh/generated/still-05-studio-gel.jpg";
-import still06 from "@/assets/josh/generated/still-06-rooftop-sunset.jpg";
-import still07 from "@/assets/josh/generated/still-07-booth-headphones.jpg";
-import still08 from "@/assets/josh/generated/still-08-alley-mural.jpg";
-import still09 from "@/assets/josh/generated/still-09-walk-coffee.jpg";
-import still10 from "@/assets/josh/generated/still-10-cafe-steps.jpg";
-import still11 from "@/assets/josh/generated/still-11-car-golden.jpg";
-import still12 from "@/assets/josh/generated/still-12-gym-hoodie.jpg";
-import still13 from "@/assets/josh/generated/still-13-court-ball.jpg";
-import still14 from "@/assets/josh/generated/still-14-couch-lounge.jpg";
-import still15 from "@/assets/josh/generated/still-15-fitcheck-mirror.jpg";
-import still16 from "@/assets/josh/generated/still-16-park-bench.jpg";
-import still17 from "@/assets/josh/generated/still-17-rooftop-day.jpg";
-import still18 from "@/assets/josh/generated/still-18-boardwalk.jpg";
-import clip01 from "@/assets/josh/generated/clip-01-neon-closeup.mp4";
-import clip03 from "@/assets/josh/generated/clip-03-stage-mic.mp4";
+import auroraLogo from "@/assets/aurora-logo.png.asset.json";
+// One creator, many posts — the whole grid is the SAME female avatar identity.
+// Aurora recolors, re-angles and re-captions one reference into a full feed.
+import creatorAvatar from "@/assets/ugc-avatar-1.jpg";
+
+// Accurate full-color TikTok logo (official glyph, layered cyan/red/white).
+function TikTokLogo({ className }: { className?: string }) {
+  const d =
+    "M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z";
+  return (
+    <svg viewBox="0 0 24 24" className={className} role="img" aria-label="TikTok">
+      <path d={d} transform="translate(-0.7,-0.7)" fill="#25F4EE" />
+      <path d={d} transform="translate(0.7,0.7)" fill="#FE2C55" />
+      <path d={d} fill="#FFFFFF" />
+    </svg>
+  );
+}
 
 const PIECES = [
   { label: "9:16 TikTok hook", kind: "video", color: "from-pink-500 to-rose-500" },
   { label: "Reels cold-open", kind: "video", color: "from-fuchsia-500 to-pink-500" },
   { label: "Carousel cover", kind: "image", color: "from-violet-500 to-fuchsia-500" },
   { label: "Story poll", kind: "image", color: "from-emerald-500 to-teal-500" },
-  { label: "Carousel slide 2", kind: "image", color: "from-violet-400 to-indigo-500" },
   { label: "Color-grade variant", kind: "image", color: "from-cyan-400 to-sky-500" },
   { label: "YouTube Short", kind: "video", color: "from-red-500 to-orange-500" },
-  { label: "Quote graphic", kind: "image", color: "from-slate-500 to-zinc-600" },
   { label: "Lip-sync clip", kind: "video", color: "from-pink-500 to-violet-500" },
   { label: "Meme remix", kind: "image", color: "from-yellow-400 to-amber-500" },
   { label: "Vertical poster", kind: "image", color: "from-purple-500 to-violet-600" },
   { label: "Talking-head cut", kind: "video", color: "from-rose-500 to-pink-500" },
-  { label: "Pinterest pin", kind: "image", color: "from-red-400 to-rose-500" },
   { label: "Captioned hook", kind: "image", color: "from-fuchsia-400 to-purple-500" },
   { label: "Square poster", kind: "image", color: "from-blue-500 to-indigo-500" },
-  { label: "Behind-the-scenes", kind: "image", color: "from-amber-500 to-orange-500" },
-  { label: "Text-overlay v1", kind: "image", color: "from-pink-300 to-fuchsia-400" },
-  { label: "Thread cover", kind: "image", color: "from-zinc-400 to-zinc-600" },
-  { label: "Endcard CTA", kind: "image", color: "from-amber-400 to-pink-500" },
-  { label: "Cover frame", kind: "image", color: "from-cyan-300 to-violet-400" },
 ] as const;
 
 const COUNT = PIECES.length;
+
+// Per-tile view counts, captions, and framing so one face reads as a full feed.
+const VIEWS = [
+  "1.2M",
+  "845K",
+  "2.1M",
+  "96K",
+  "540K",
+  "1.9M",
+  "430K",
+  "72K",
+  "688K",
+  "910K",
+  "28.4K",
+  "1.1M",
+] as const;
+
+const CAPTIONS = [
+  "POV: my single dropped 🎤",
+  "he thought it was a shoot…",
+  "made this in 30s 🤯",
+  "this or that? 👀",
+  "neon-cyc color grade ✨",
+  "the transition trend",
+  "lip-sync to any sound 🎵",
+  "when the beat drops 😳",
+  "fit check 🔥",
+  "talking head, zero setup",
+  "captions auto-added 💬",
+  "poster mode 🖼️",
+] as const;
+
+const POSITIONS = ["50% 20%", "50% 42%", "42% 30%", "58% 32%", "50% 30%", "50% 16%"] as const;
 
 const SAMPLE_HOOKS = [
   "POV: my first single just dropped",
@@ -66,49 +95,6 @@ const SAMPLE_HOOKS = [
   "How I made this in 30 seconds with Aurora",
   "Trying the viral neon-cyc trend",
 ];
-
-// Real live-generated Josh set — one identity, many shots (no placeholders).
-// Interleave moody/music + bright/lifestyle so the grid reads varied as it reveals.
-const IMAGE_POOL = [
-  still09,
-  still01,
-  still13,
-  still03,
-  still16,
-  still05,
-  still18,
-  still07,
-  still11,
-  still02,
-  still15,
-  still04,
-  still17,
-  still06,
-  still14,
-  still08,
-  still10,
-  still12,
-];
-const VIDEO_POOL = [clip01, clip03];
-
-type TileMedia = { type: "image"; src: string } | { type: "video"; src: string; poster: string };
-
-// Map each piece to a real asset by kind, cycling so every tile is covered.
-const MEDIA: TileMedia[] = (() => {
-  let imgI = 0;
-  let vidI = 0;
-  return PIECES.map((p) => {
-    if (p.kind === "image") {
-      const src = IMAGE_POOL[imgI % IMAGE_POOL.length];
-      imgI += 1;
-      return { type: "image", src };
-    }
-    const src = VIDEO_POOL[vidI % VIDEO_POOL.length];
-    const poster = IMAGE_POOL[(imgI + vidI) % IMAGE_POOL.length];
-    vidI += 1;
-    return { type: "video", src, poster };
-  });
-})();
 
 export function ViralEngine() {
   const navigate = useNavigate();
@@ -140,7 +126,7 @@ export function ViralEngine() {
         if (timerRef.current) window.clearInterval(timerRef.current);
         setPhase("done");
       }
-    }, 110);
+    }, 140);
     return () => {
       if (timerRef.current) window.clearInterval(timerRef.current);
     };
@@ -165,35 +151,25 @@ export function ViralEngine() {
         }}
       />
       <div className="relative px-6 py-10 md:px-12 md:py-14">
-        {/* TikTok × Aurora pulsing lockup */}
+        {/* TikTok × Aurora pulsing lockup — real logos */}
         <div className="mb-6 flex items-center justify-center gap-5">
-          {/* TikTok logo (official mark, recreated in SVG) */}
+          {/* Actual TikTok logo */}
           <div className="relative grid place-items-center">
             <span className="absolute inset-0 rounded-2xl bg-pink-500/40 blur-2xl animate-pulse" />
-            <svg viewBox="0 0 48 48" className="relative size-12 md:size-14" aria-label="TikTok">
-              <path
-                fill="#25F4EE"
-                d="M33.6 8.5c.6 3.6 2.6 6.3 6.4 7.2v6.1c-2.6.2-4.9-.5-7.6-2.2v9.7c0 5.9-3.1 10.7-9.2 11.5-6 .8-11.3-3.6-12.1-9.6-.7-5.9 3.6-11.3 9.5-12.1v6.5c-1.6.1-2.9 1.5-2.9 3.1 0 1.7 1.4 3.1 3.1 3.1 1.7 0 3.1-1.4 3.1-3.1V8.5h9.7z"
-                transform="translate(-2 -1)"
-              />
-              <path
-                fill="#FE2C55"
-                d="M35.6 6.5c.6 3.6 2.6 6.3 6.4 7.2v6.1c-2.6.2-4.9-.5-7.6-2.2v9.7c0 5.9-3.1 10.7-9.2 11.5-6 .8-11.3-3.6-12.1-9.6-.7-5.9 3.6-11.3 9.5-12.1v6.5c-1.6.1-2.9 1.5-2.9 3.1 0 1.7 1.4 3.1 3.1 3.1 1.7 0 3.1-1.4 3.1-3.1V6.5h9.7z"
-                transform="translate(-2 -1)"
-              />
-              <path
-                fill="#fff"
-                d="M34.6 7.5c.6 3.6 2.6 6.3 6.4 7.2v6.1c-2.6.2-4.9-.5-7.6-2.2v9.7c0 5.9-3.1 10.7-9.2 11.5-6 .8-11.3-3.6-12.1-9.6-.7-5.9 3.6-11.3 9.5-12.1v6.5c-1.6.1-2.9 1.5-2.9 3.1 0 1.7 1.4 3.1 3.1 3.1 1.7 0 3.1-1.4 3.1-3.1V7.5h9.7z"
-                transform="translate(-2 -1)"
-              />
-            </svg>
+            <div className="relative grid size-12 md:size-14 place-items-center rounded-2xl bg-black shadow-lg shadow-pink-500/30">
+              <TikTokLogo className="size-7 md:size-8" />
+            </div>
           </div>
           <span className="text-2xl md:text-3xl font-black text-white/60">×</span>
-          {/* Aurora logo */}
+          {/* Actual Aurora logo */}
           <div className="relative grid place-items-center">
             <span className="absolute inset-0 rounded-2xl bg-fuchsia-500/40 blur-2xl animate-pulse [animation-delay:300ms]" />
-            <div className="relative size-12 md:size-14 rounded-2xl bg-gradient-to-br from-pink-400 via-fuchsia-500 to-violet-500 grid place-items-center shadow-lg shadow-fuchsia-500/40">
-              <span className="text-white font-black text-xl md:text-2xl tracking-tight">A</span>
+            <div className="relative grid size-12 md:size-14 place-items-center overflow-hidden rounded-2xl bg-white/5 ring-1 ring-white/10 shadow-lg shadow-fuchsia-500/40">
+              <img
+                src={auroraLogo.url}
+                alt="Aurora"
+                className="size-full object-contain p-1.5"
+              />
             </div>
           </div>
         </div>
@@ -210,7 +186,7 @@ export function ViralEngine() {
         <h2 className="mt-4 max-w-3xl text-3xl font-extrabold tracking-tight text-white md:text-5xl">
           Go viral on TikTok{" "}
           <span className="bg-gradient-to-r from-pink-300 via-fuchsia-300 to-violet-300 bg-clip-text text-transparent">
-            with Aurora.
+            with Aurora in 30 secs
           </span>
         </h2>
         <p className="mt-3 max-w-2xl text-base leading-7 text-white/72 md:text-lg">
@@ -278,59 +254,130 @@ export function ViralEngine() {
             </div>
           </div>
 
-          {/* N-piece grid — denser, filled with real renders */}
-          <div className="mt-4 grid grid-cols-5 sm:grid-cols-6 md:grid-cols-10 gap-1.5">
-            {PIECES.map((p, i) => {
-              const isRevealed = i < revealed;
-              const isDone = phase === "done";
-              const media = MEDIA[i];
-              const lit = isRevealed || isDone;
-              return (
-                <div
-                  key={p.label}
-                  className={`relative aspect-[3/4] rounded-lg overflow-hidden border transition-all duration-300 ${
-                    lit
-                      ? "border-white/20 opacity-100 scale-100"
-                      : "border-white/5 opacity-30 scale-[0.97]"
-                  }`}
-                >
-                  {media.type === "video" ? (
-                    <AutoplayVideo
-                      src={media.src}
-                      poster={media.poster}
-                      loop
-                      playsInline
-                      preload="metadata"
-                      className="absolute inset-0 size-full object-cover"
-                    />
-                  ) : (
-                    <img
-                      src={media.src}
-                      alt={p.label}
-                      loading="lazy"
-                      className="absolute inset-0 size-full object-cover"
-                    />
-                  )}
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.18),transparent_60%)] pointer-events-none" />
-                  {lit && (
-                    <span className="absolute top-1 right-1 size-4 grid place-items-center rounded-full bg-black/50 text-white animate-fade-in">
-                      <Check className="size-2.5" />
-                    </span>
-                  )}
-                  <div className="absolute inset-x-0 bottom-0 p-1 bg-gradient-to-t from-black/85 via-black/40 to-transparent">
-                    <p className="text-[8px] uppercase tracking-wider text-white/60 leading-none">
-                      {p.kind}
-                    </p>
-                    <p className="text-[9px] font-semibold text-white leading-tight truncate">
-                      {p.label}
-                    </p>
+          {/* TikTok profile mockup — one creator, a whole feed */}
+          <div className="mt-5 mx-auto w-full max-w-[380px]">
+            <div className="relative overflow-hidden rounded-[44px] border-[10px] border-black bg-black shadow-2xl shadow-fuchsia-900/40">
+              {/* dynamic-island pill */}
+              <div className="absolute left-1/2 top-2 z-20 h-5 w-24 -translate-x-1/2 rounded-full bg-black" />
+              <div className="relative bg-black text-white">
+                {/* status bar */}
+                <div className="flex items-center justify-between px-6 pb-1 pt-2.5 text-[11px] font-semibold">
+                  <span>9:41</span>
+                  <div className="flex items-center gap-1.5 text-white/85">
+                    <Signal className="size-3.5" />
+                    <Wifi className="size-3.5" />
+                    <BatteryFull className="size-4" />
                   </div>
-                  {!isRevealed && phase === "spinning" && i === revealed && (
-                    <div className="absolute inset-0 bg-white/10 animate-pulse" />
-                  )}
                 </div>
-              );
-            })}
+                {/* top nav */}
+                <div className="flex items-center justify-between px-4 py-2 text-white/90">
+                  <ChevronLeft className="size-5" />
+                  <div className="flex items-center gap-4">
+                    <Bell className="size-5" />
+                    <Forward className="size-5" />
+                  </div>
+                </div>
+
+                {/* profile header */}
+                <div className="flex flex-col items-center px-4">
+                  <div className="size-[92px] overflow-hidden rounded-full ring-2 ring-white/15">
+                    <img
+                      src={creatorAvatar}
+                      alt="Aurora creator"
+                      className="size-full object-cover"
+                      style={{ objectPosition: "50% 28%" }}
+                    />
+                  </div>
+                  <div className="mt-2 flex items-center gap-1 text-[17px] font-bold">
+                    aurora.creator
+                    <BadgeCheck className="size-4 text-sky-400" />
+                  </div>
+                  <div className="text-[13px] text-white/55">@aurora.creator · she/her</div>
+
+                  {/* stats */}
+                  <div className="mt-3 flex items-center gap-5">
+                    <Stat n="128" l="Following" />
+                    <span className="h-6 w-px bg-white/12" />
+                    <Stat n="894K" l="Followers" />
+                    <span className="h-6 w-px bg-white/12" />
+                    <Stat n="12.4M" l="Likes" />
+                  </div>
+
+                  {/* actions */}
+                  <div className="mt-3 flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#fe2c55] px-6 py-2 text-[13px] font-semibold text-white">
+                      <UserPlus className="size-4" /> Follow
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/12 px-5 py-2 text-[13px] font-semibold text-white">
+                      <MessageCircle className="size-4" /> Message
+                    </span>
+                  </div>
+
+                  {/* bio */}
+                  <p className="mt-3 text-center text-[12.5px] leading-snug text-white/85">
+                    same face, every post 🎬
+                    <br />
+                    made in 30s with Aurora ✨
+                  </p>
+                </div>
+
+                {/* tabs */}
+                <div className="mt-3 grid grid-cols-2 border-b border-white/10 text-white/50">
+                  <div className="flex justify-center border-b-2 border-white pb-2 text-white">
+                    <LayoutGrid className="size-5" />
+                  </div>
+                  <div className="flex justify-center pb-2">
+                    <Repeat2 className="size-5" />
+                  </div>
+                </div>
+
+                {/* video grid — one creator, a whole feed */}
+                <div className="grid grid-cols-3 gap-[2px] bg-black pb-2">
+                  {PIECES.map((p, i) => {
+                    const lit = i < revealed || phase === "done";
+                    const isCurrent = phase === "spinning" && i === revealed;
+                    return (
+                      <div
+                        key={p.label}
+                        className="relative aspect-[3/4] overflow-hidden bg-neutral-900"
+                      >
+                        <img
+                          src={creatorAvatar}
+                          alt={p.label}
+                          loading="lazy"
+                          className={`absolute inset-0 size-full object-cover transition-all duration-300 ${
+                            lit ? "opacity-100 saturate-100" : "opacity-25 saturate-50"
+                          }`}
+                          style={{ objectPosition: POSITIONS[i % POSITIONS.length] }}
+                        />
+                        {/* color-grade tint (recolor) */}
+                        <div
+                          className={`absolute inset-0 bg-gradient-to-t ${p.color} mix-blend-soft-light transition-opacity duration-300 ${
+                            lit ? "opacity-30" : "opacity-0"
+                          }`}
+                        />
+                        {lit && (
+                          <>
+                            <p className="absolute inset-x-1 top-1 line-clamp-2 text-[8px] font-semibold leading-tight text-white/95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] animate-fade-in">
+                              {CAPTIONS[i]}
+                            </p>
+                            <div className="absolute bottom-1 left-1 flex items-center gap-0.5 text-[9px] font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                              <Play className="size-2.5 fill-white" />
+                              {VIEWS[i]}
+                            </div>
+                          </>
+                        )}
+                        {isCurrent && (
+                          <div className="absolute inset-0 grid place-items-center bg-white/5">
+                            <Sparkles className="size-4 animate-spin text-white/60" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
 
           {phase === "done" && (
@@ -380,6 +427,15 @@ export function ViralEngine() {
         </div>
       </div>
     </section>
+  );
+}
+
+function Stat({ n, l }: { n: string; l: string }) {
+  return (
+    <div className="flex flex-col items-center">
+      <span className="text-[16px] font-bold leading-none text-white">{n}</span>
+      <span className="mt-1 text-[12px] text-white/55">{l}</span>
+    </div>
   );
 }
 
