@@ -8,7 +8,8 @@ import { listGallery, toggleFavorite } from "@/lib/studio.functions";
 import { deleteGeneration } from "@/lib/gallery.functions";
 import { ModelBadge } from "@/components/ModelBadge";
 import { VisualEditDialog } from "@/components/gallery/VisualEditDialog";
-import { Sparkles, Loader2, ArrowLeft, Star, Download, Film, Image as ImageIcon, Layers, Trash2, Wand2 } from "lucide-react";
+import { Sparkles, Loader2, ArrowLeft, Star, Download, Film, Image as ImageIcon, Layers, Trash2, Wand2, Captions } from "lucide-react";
+import { CaptionDialog } from "@/components/gallery/CaptionDialog";
 import { toast } from "sonner";
 import { saveAssetToDisk, isSplitRealityPrompt, splitRealityVariant } from "@/lib/save";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
@@ -35,6 +36,7 @@ function GalleryPage() {
   const favFn = useServerFn(toggleFavorite);
   const [filter, setFilter] = useState<"all" | "favorites" | "images" | "videos">("all");
   const [editing, setEditing] = useState<{ id: string; url: string } | null>(null);
+  const [captioning, setCaptioning] = useState<{ id: string; url: string } | null>(null);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth" });
@@ -161,6 +163,16 @@ function GalleryPage() {
                       <Wand2 className="size-3.5" />
                     </button>
                   )}
+                  {g.result_video_url && (
+                    <button
+                      type="button"
+                      onClick={() => setCaptioning({ id: g.id, url: g.result_video_url! })}
+                      className="size-8 rounded-full bg-background/70 backdrop-blur-md border border-border hover:bg-primary/20 hover:border-primary/50 flex items-center justify-center"
+                      title="Add captions"
+                    >
+                      <Captions className="size-3.5" />
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => saveAssetToDisk(url, `aurora-${g.id.slice(0,8)}.${g.result_video_url ? "mp4" : "png"}`)}
@@ -214,6 +226,17 @@ function GalleryPage() {
           onOpenChange={(v) => { if (!v) setEditing(null); }}
           sourceId={editing.id}
           sourceUrl={editing.url}
+        />
+      )}
+      {captioning && (
+        <CaptionDialog
+          open={!!captioning}
+          onOpenChange={(v) => { if (!v) setCaptioning(null); }}
+          videoUrl={captioning.url}
+          generationId={captioning.id}
+          onDone={() => {
+            qc.invalidateQueries({ queryKey: ["gallery"] });
+          }}
         />
       )}
     </main>
