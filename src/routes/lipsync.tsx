@@ -107,6 +107,7 @@ function LipSyncForm() {
   const [playing, setPlaying] = useState(false);
   const [activeExampleId, setActiveExampleId] = useState("studio-quality");
   const [showTour, setShowTour] = useState(false);
+  const [likelyConsent, setLikelyConsent] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -341,10 +342,31 @@ function LipSyncForm() {
           </div>
         </div>
 
-        <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3">
+        {/* Voice & likeness consent — required before generating */}
+        <label className="mt-5 flex items-start gap-3 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={likelyConsent}
+            onChange={(e) => setLikelyConsent(e.target.checked)}
+            className="mt-0.5 size-4 accent-[var(--color-primary)] flex-shrink-0"
+          />
+          <span className="text-xs text-white/70 leading-relaxed">
+            I confirm I have the legal right to use this voice and likeness for AI generation.{" "}
+            <Link
+              to="/legal/$slug"
+              params={{ slug: "ai-policy" }}
+              className="underline text-white/60 hover:text-white"
+              target="_blank"
+            >
+              AI &amp; Content Policy
+            </Link>
+          </span>
+        </label>
+
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
           <button
             onClick={run}
-            disabled={!video || !audio || busy || !user}
+            disabled={!video || !audio || busy || !user || !likelyConsent}
             className="inline-flex items-center justify-center gap-2 rounded-full bg-[image:var(--gradient-hero)] text-white shadow-[var(--shadow-glow-soft)] px-6 py-3 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover-scale"
           >
             {busy ? (
