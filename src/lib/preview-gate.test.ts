@@ -25,11 +25,14 @@ function row(over: Partial<PreviewRowCheck> = {}): PreviewRowCheck {
 }
 
 describe("isTemporalKind", () => {
-  test("only video and lipsync are gated", () => {
+  test("all motion-producing kinds are gated; static kinds are not", () => {
     expect(isTemporalKind("video")).toBe(true);
     expect(isTemporalKind("lipsync")).toBe(true);
+    expect(isTemporalKind("motion")).toBe(true);
+    expect(isTemporalKind("performance_reskin")).toBe(true);
     expect(isTemporalKind("image")).toBe(false);
     expect(isTemporalKind("audio")).toBe(false);
+    expect(isTemporalKind("text")).toBe(false);
   });
 });
 
@@ -38,6 +41,11 @@ describe("validateConfirmedPreview", () => {
     expect(() => validateConfirmedPreview(row(), "u1", NOW)).not.toThrow();
     expect(() =>
       validateConfirmedPreview(row({ kind: "lipsync", status: "complete" }), "u1", NOW),
+    ).not.toThrow();
+    // Motion-producing queue kinds are valid preview tickets too.
+    expect(() => validateConfirmedPreview(row({ kind: "motion" }), "u1", NOW)).not.toThrow();
+    expect(() =>
+      validateConfirmedPreview(row({ kind: "performance_reskin", status: "complete" }), "u1", NOW),
     ).not.toThrow();
   });
 

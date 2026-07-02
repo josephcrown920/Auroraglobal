@@ -165,6 +165,10 @@ function MotionStudio() {
   const reskinSubmittedAtRef = useRef<number | null>(null);
   const [transferGenId, setTransferGenId] = useState<string | null>(null);
   const [reskinGenId, setReskinGenId] = useState<string | null>(null);
+  // Preview-confirm tickets: first submit renders a discounted capped preview;
+  // its generationId unlocks the full render on the next submit.
+  const [transferPreviewId, setTransferPreviewId] = useState<string | null>(null);
+  const [reskinPreviewId, setReskinPreviewId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth" });
@@ -265,17 +269,27 @@ function MotionStudio() {
           drivingVideoUrl: mtVideo,
           prompt: mtPrompt || undefined,
           params: { motionType: mtMotion, cameraMovement: mtCamera },
+          confirmPreviewId: transferPreviewId ?? undefined,
         },
       });
     },
     onMutate: () => setMtError(null),
-    onSuccess: (out: { generationId?: string } | void) => {
+    onSuccess: (out: { generationId?: string; preview?: boolean } | void) => {
       transferSubmittedAtRef.current = Date.now();
       if (out && typeof out === "object" && out.generationId) setTransferGenId(out.generationId);
-      toast.success("Motion transfer queued — it'll appear in Recent when ready");
+      if (out && typeof out === "object" && out.preview) {
+        setTransferPreviewId(out.generationId ?? null);
+        toast.success("Preview queued — review it in Recent, then render the full clip");
+      } else {
+        setTransferPreviewId(null);
+        toast.success("Motion transfer queued — it'll appear in Recent when ready");
+      }
       qc.invalidateQueries({ queryKey: ["motion-gens"] });
     },
     onError: (e) => {
+      if (e instanceof Error && e.message.includes("Unsupported preview confirmation")) {
+        setTransferPreviewId(null);
+      }
       setMtError(friendlyGenerationMessage(e));
       handleGenerationError(e);
     },
@@ -294,17 +308,27 @@ function MotionStudio() {
           location: rsLocation || undefined,
           audioUrl: rsAudio || undefined,
           params: { motionType: rsMotion, cameraMovement: rsCamera },
+          confirmPreviewId: reskinPreviewId ?? undefined,
         },
       });
     },
     onMutate: () => setRsError(null),
-    onSuccess: (out: { generationId?: string } | void) => {
+    onSuccess: (out: { generationId?: string; preview?: boolean } | void) => {
       reskinSubmittedAtRef.current = Date.now();
       if (out && typeof out === "object" && out.generationId) setReskinGenId(out.generationId);
-      toast.success("Performance Shot queued — it'll appear in Recent when ready");
+      if (out && typeof out === "object" && out.preview) {
+        setReskinPreviewId(out.generationId ?? null);
+        toast.success("Preview queued — review it in Recent, then render the full clip");
+      } else {
+        setReskinPreviewId(null);
+        toast.success("Performance Shot queued — it'll appear in Recent when ready");
+      }
       qc.invalidateQueries({ queryKey: ["motion-gens"] });
     },
     onError: (e) => {
+      if (e instanceof Error && e.message.includes("Unsupported preview confirmation")) {
+        setReskinPreviewId(null);
+      }
       setRsError(friendlyGenerationMessage(e));
       handleGenerationError(e);
     },
@@ -691,7 +715,13 @@ function MotionStudio() {
                 variant="premium"
                 className="w-full h-12"
               >
-                {transferMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Queuing…</> : <><Clapperboard className="size-4 mr-2" /> Transfer motion · {computeCost({ features: ["motion"] }).total} Aura</>}
+                {transferMut.isPending ? (
+                  <><Loader2 className="size-4 mr-2 animate-spin" /> Queuing…</>
+                ) : transferPreviewId ? (
+                  <><Clapperboard className="size-4 mr-2" /> Render full clip · {computeCost({ features: ["motion"] }).total} Aura</>
+                ) : (
+                  <><Clapperboard className="size-4 mr-2" /> Preview motion · {Math.max(1, Math.ceil(computeCost({ features: ["motion"] }).total * 0.5))} Aura</>
+                )}
               </Button>
 
               <GenerationProgress
@@ -704,7 +734,7 @@ function MotionStudio() {
                 error={mtError}
                 onRetry={() => transferMut.mutate()}
               />
-              <p className="text-xs text-muted-foreground">Runs on a GPU backend and appears in Recent when ready.</p>
+              <p className="text-xs text-muted-foreground">First render is a short discounted preview — review it in Recent, then render the full clip. Runs on a GPU backend.</p>
             </>
           )}
 
@@ -749,7 +779,13 @@ function MotionStudio() {
                 variant="premium"
                 className="w-full h-12"
               >
-                {reskinMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Queuing…</> : <><Users className="size-4 mr-2" /> Create Performance Shot · {computeCost({ features: ["video", "motion"] }).total} Aura</>}
+                {reskinMut.isPending ? (
+                  <><Loader2 className="size-4 mr-2 animate-spin" /> Queuing…</>
+                ) : reskinPreviewId ? (
+                  <><Users className="size-4 mr-2" /> Render full Performance Shot · {computeCost({ features: ["video", "motion"] }).total} Aura</>
+                ) : (
+                  <><Users className="size-4 mr-2" /> Preview Performance Shot · {Math.max(1, Math.ceil(computeCost({ features: ["video", "motion"] }).total * 0.5))} Aura</>
+                )}
               </Button>
 
               <GenerationProgress
@@ -762,7 +798,7 @@ function MotionStudio() {
                 error={rsError}
                 onRetry={() => reskinMut.mutate()}
               />
-              <p className="text-xs text-muted-foreground">Runs on a GPU backend and appears in Recent when ready.</p>
+              <p className="text-xs text-muted-foreground">First render is a short discounted preview — review it in Recent, then render the full shot. Runs on a GPU backend.</p>
             </>
           )}
         </section>

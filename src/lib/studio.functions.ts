@@ -613,6 +613,8 @@ const MotionTransferSchema = z.object({
   drivingVideoUrl: z.string().url(),
   prompt: z.string().max(2000).optional(),
   params: MotionParamsSchema,
+  /** Preview-confirm gate: a succeeded preview's id unlocks the full render. */
+  confirmPreviewId: z.string().uuid().optional().nullable(),
 });
 
 const PerformanceReskinSchema = z.object({
@@ -623,7 +625,42 @@ const PerformanceReskinSchema = z.object({
   audioUrl: z.string().url().optional(),
   prompt: z.string().max(2000).optional(),
   params: MotionParamsSchema,
+  /** Preview-confirm gate: a succeeded preview's id unlocks the full render. */
+  confirmPreviewId: z.string().uuid().optional().nullable(),
 });
+
+// Preview frame budget for motion renders: ~5s at the 16fps default. The
+// worker also honors payload.previewOnly, so the cap is enforced twice.
+const PREVIEW_MAX_FRAMES = 80;
+
+/**
+ * Apply the preview-confirm gate to a motion-producing enqueue. Returns the
+ * (possibly capped) params + whether this run is a preview pass. Invalid or
+ * expired tickets throw before any credits are reserved.
+ */
+async function gateMotionEnqueue(
+  userId: string,
+  confirmPreviewId: string | null | undefined,
+  params: z.infer<typeof MotionParamsSchema>,
+): Promise<{ previewPass: boolean; params: z.infer<typeof MotionParamsSchema> }> {
+  const gate = await resolvePreviewGate({ userId, confirmPreviewId: confirmPreviewId ?? undefined });
+  if (gate.confirmed) return { previewPass: false, params };
+  return {
+    previewPass: true,
+    params: {
+      ...(params ?? {}),
+      frames: Math.min(params?.frames ?? PREVIEW_MAX_FRAMES, PREVIEW_MAX_FRAMES),
+    },
+  };
+}
+
+/** Mark a freshly reserved generation as a preview so its id validates as a ticket. */
+async function markGenerationPreview(generationId: string): Promise<void> {
+  await supabaseAdmin
+    .from("generations")
+    .update({ mode: "preview" } as never)
+    .eq("id", generationId);
+}
 
 // Atomic credit reservation + generations row + job row, via the shared RPC.
 async function reserveGenerationJob(
@@ -665,21 +702,30 @@ export const generateMimicMotion = createServerFn({ method: "POST" })
       throw new Error(NO_MOTION_BACKEND_MSG);
     }
 
+    // Preview-confirm gate: unconfirmed runs get a capped frame budget and
+    // preview pricing; the preview's id is the ticket for the full render.
+    const gated = await gateMotionEnqueue(userId, data.confirmPreviewId, data.params);
+
     const req = buildMimicMotionRequest({
       imageUrl: data.imageUrl,
       drivingVideoUrl: data.drivingVideoUrl,
       prompt: data.prompt,
-      params: data.params,
+      params: gated.params,
     });
+    const fullCost = computeCost({ features: ["motion"] }).total;
     const out = await reserveGenerationJob(
       userId,
       "motion",
       data.prompt ?? "Motion transfer",
-      computeCost({ features: ["motion"] }).total,
-      req as unknown as Record<string, unknown>,
+      gated.previewPass ? Math.max(1, Math.ceil(fullCost * 0.5)) : fullCost,
+      {
+        ...(req as unknown as Record<string, unknown>),
+        ...(gated.previewPass ? { previewOnly: true } : {}),
+      },
     );
+    if (gated.previewPass) await markGenerationPreview(out.generationId);
     await trackServer("motion_transfer_enqueued", userId, { jobId: out.jobId });
-    return out;
+    return { ...out, preview: gated.previewPass };
   });
 
 export const generatePerformanceReskin = createServerFn({ method: "POST" })
@@ -695,6 +741,10 @@ export const generatePerformanceReskin = createServerFn({ method: "POST" })
       throw new Error(NO_MOTION_BACKEND_MSG);
     }
 
+    // Preview-confirm gate: unconfirmed runs get a capped frame budget and
+    // preview pricing; the preview's id is the ticket for the full render.
+    const gated = await gateMotionEnqueue(userId, data.confirmPreviewId, data.params);
+
     const payload = {
       performanceVideoUrl: data.performanceVideoUrl,
       avatarImageUrl: data.avatarImageUrl,
@@ -702,15 +752,18 @@ export const generatePerformanceReskin = createServerFn({ method: "POST" })
       location: data.location,
       audioUrl: data.audioUrl,
       prompt: data.prompt,
-      params: data.params,
+      params: gated.params,
+      ...(gated.previewPass ? { previewOnly: true } : {}),
     };
+    const fullCost = computeCost({ features: ["video", "motion"] }).total;
     const out = await reserveGenerationJob(
       userId,
       "performance_reskin",
       data.prompt ?? "Performance reskin",
-      computeCost({ features: ["video", "motion"] }).total,
+      gated.previewPass ? Math.max(1, Math.ceil(fullCost * 0.5)) : fullCost,
       payload as Record<string, unknown>,
     );
+    if (gated.previewPass) await markGenerationPreview(out.generationId);
     await trackServer("performance_reskin_enqueued", userId, { jobId: out.jobId });
-    return out;
+    return { ...out, preview: gated.previewPass };
   });

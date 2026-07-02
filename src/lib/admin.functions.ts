@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { GENERATION_SUCCESS_STATUSES, aggregateByDayKind } from "./cost-stats";
 import { computeProfitSplit, PROFIT_SPLIT_PCT, CREDIT_FUNDING_PCT } from "@/lib/profit-split";
 import { z } from "zod";
 
@@ -216,31 +217,15 @@ export const adminCostStats = createServerFn({ method: "GET" })
       .from("generations")
       .select("kind, credits_cost, created_at, status")
       .gte("created_at", since)
-      .in("status", ["succeeded", "completed"])
+      // Writers use 'succeeded' (API core) and 'complete' (studio fns) — the
+      // shared constant keeps this filter from drifting (a hand-rolled
+      // 'completed' here previously dropped every studio render from spend).
+      .in("status", [...GENERATION_SUCCESS_STATUSES])
       .order("created_at", { ascending: false })
       .limit(10000);
 
     if (error) throw new Error(error.message);
-    const rows = gens ?? [];
-
-    type DayKindRow = { day: string; kind: string; count: number; totalCredits: number };
-    const map = new Map<string, DayKindRow>();
-    for (const g of rows) {
-      const day = (g.created_at as string | null)?.slice(0, 10) ?? "unknown";
-      const kind = g.kind ?? "unknown";
-      const key = `${day}|${kind}`;
-      const existing = map.get(key);
-      if (existing) {
-        existing.count++;
-        existing.totalCredits += (g.credits_cost as number | null) ?? 0;
-      } else {
-        map.set(key, { day, kind, count: 1, totalCredits: (g.credits_cost as number | null) ?? 0 });
-      }
-    }
-
-    const byDayKind = [...map.values()].sort(
-      (a, b) => b.day.localeCompare(a.day) || b.totalCredits - a.totalCredits,
-    );
+    const byDayKind = aggregateByDayKind(gens ?? []);
 
     return { byDayKind, since };
   });
