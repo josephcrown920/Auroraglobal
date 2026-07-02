@@ -28,6 +28,10 @@ import {
   generateSplitReality,
 } from "@/lib/studio.functions";
 import { listWorkflows, saveWorkflow, getWorkflow } from "@/lib/workflows.functions";
+import {
+  getMarketplaceTemplateForCanvas,
+  chargeMarketplaceTemplateRun,
+} from "@/lib/marketplace.functions";
 import { handleGenerationError } from "@/lib/error-toasts";
 import { listComfyTemplates, startComfyRun } from "@/lib/comfy.functions";
 import { MODEL_LIST, VIDEO_MODEL_LIST, getModelMeta } from "@/lib/models";
@@ -554,10 +558,39 @@ function CanvasPage() {
   const navigate = useNavigate();
   useEffect(() => { if (!loading && !user) navigate({ to: "/auth" }); }, [user, loading, navigate]);
 
-  // Deep-link: /canvas?template=<id> auto-loads that template once.
+  // Deep-link: /canvas?template=<id> or ?marketplaceTemplateId=<uuid> auto-loads once.
+  // Marketplace templates are fetched server-side (no graph JSON in URL) and charged
+  // only on the first "Run pipeline" click (see runMut below).
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const id = new URLSearchParams(window.location.search).get("template");
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("template");
+    const mktId = params.get("marketplaceTemplateId");
+
+    if (mktId) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("marketplaceTemplateId");
+      window.history.replaceState({}, "", url.toString());
+      setMarketplaceTemplateId(mktId);
+      mktLoadFn({ data: { id: mktId } })
+        .then((result) => {
+          const g = result.graph;
+          if (g && Array.isArray(g.nodes) && Array.isArray(g.edges)) {
+            setNodes(g.nodes as Node<NodeData>[]);
+            setEdges(g.edges as Edge[]);
+            setCoachTplName(g.name ?? "Marketplace template");
+            setLastTemplateGraph(g);
+            toast.success(
+              `Loaded "${g.name ?? "marketplace template"}" — ${result.run_cost_aura} Aura charged per run`,
+            );
+          }
+        })
+        .catch((e: unknown) => {
+          toast.error(e instanceof Error ? e.message : "Failed to load template");
+        });
+      return;
+    }
+
     if (!id) return;
     const g = getTemplateById(id);
     if (g) {
@@ -566,6 +599,7 @@ function CanvasPage() {
       setCoachTplName(g.name);
       setLastTemplateId(id);
       setLastTemplateGraph(g);
+      setMarketplaceTemplateId(null);
       toast.success(`Loaded "${g.name}"`);
       // Clear the param so a refresh doesn't keep resetting the canvas.
       const url = new URL(window.location.href);
@@ -658,6 +692,13 @@ function CanvasPage() {
 
   const onConnect = useCallback((p: Connection) => setEdges((es) => addEdge({ ...p, animated: true }, es)), [setEdges]);
 
+  const mktLoadFn = useServerFn(getMarketplaceTemplateForCanvas);
+  const mktChargeFn = useServerFn(chargeMarketplaceTemplateRun);
+  // ID of a marketplace template currently loaded in this session (if any).
+  // Set to null whenever the user loads a non-marketplace template/workflow so
+  // the charge gate is always scoped to the actual marketplace-origin graph.
+  const [marketplaceTemplateId, setMarketplaceTemplateId] = useState<string | null>(null);
+
   const genFn = useServerFn(generatePerformanceShot);
   const vidFn = useServerFn(generateVideoFromImage);
   const lipFn = useServerFn(lipSyncVideo);
@@ -717,6 +758,17 @@ function CanvasPage() {
   const runMut = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("Sign in");
+
+      // Charge marketplace template fee on every Run (per-run model).
+      // marketplaceTemplateId is cleared when loading any non-marketplace template,
+      // so this only fires when the canvas was seeded from the marketplace.
+      if (marketplaceTemplateId) {
+        const chargeResult = await mktChargeFn({ data: { id: marketplaceTemplateId } });
+        if (!chargeResult.ok) {
+          throw new Error(chargeResult.error ?? "Insufficient Aura credits for this template");
+        }
+      }
+
       const byId = new Map(nodes.map((n) => [n.id, { ...n, data: { ...n.data } }]));
       const outgoing = new Map<string, string[]>();
       const incoming = new Map<string, string[]>();
@@ -898,6 +950,7 @@ function CanvasPage() {
       if (g.nodes) setNodes(g.nodes);
       if (g.edges) setEdges(g.edges);
       setWfId(wf.id); setWfName(wf.name);
+      setMarketplaceTemplateId(null);
       setLoadOpen(false);
       toast.success(`Loaded ${wf.name}`);
     } catch (e) { toast.error(e instanceof Error ? e.message : "Load failed"); }
@@ -935,6 +988,7 @@ function CanvasPage() {
               setEdges(g.edges);
               setCoachTplName(g.name);
               setLastTemplateGraph(g);
+              setMarketplaceTemplateId(null);
               toast.success(`Loaded "${g.name}"`);
             }}
           />
@@ -949,6 +1003,7 @@ function CanvasPage() {
                 setEdges(g.edges);
                 setCoachTplName(g.name);
                 setLastTemplateGraph(g);
+                setMarketplaceTemplateId(null);
                 toast.success(`Loaded "${g.name}"`);
               } else {
                 toast.success(`Opening "${id}" — drag nodes to remix`);
@@ -1068,7 +1123,7 @@ function CanvasPage() {
       <AuroraAgentPanel
         open={agentOpen}
         onClose={() => setAgentOpen(false)}
-        onSendToCanvas={(g) => { setNodes(g.nodes); setEdges(g.edges); }}
+        onSendToCanvas={(g) => { setNodes(g.nodes); setEdges(g.edges); setMarketplaceTemplateId(null); }}
       />
     </main>
   );

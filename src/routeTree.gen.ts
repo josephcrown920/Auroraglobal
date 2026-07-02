@@ -24,6 +24,7 @@ import { Route as OrchestrateRouteImport } from './routes/orchestrate'
 import { Route as NexusarbRouteImport } from './routes/nexusarb'
 import { Route as MusicVideoRouteImport } from './routes/music-video'
 import { Route as MotionRouteImport } from './routes/motion'
+import { Route as MarketplaceRouteImport } from './routes/marketplace'
 import { Route as LipsyncRouteImport } from './routes/lipsync'
 import { Route as KidsRouteImport } from './routes/kids'
 import { Route as GrowthRouteImport } from './routes/growth'
@@ -48,8 +49,10 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as CliIndexRouteImport } from './routes/cli.index'
 import { Route as RTokenRouteImport } from './routes/r.$token'
 import { Route as LegalSlugRouteImport } from './routes/legal.$slug'
+import { Route as CreatorDashboardRouteImport } from './routes/creator.dashboard'
 import { Route as CliAuthorizeRouteImport } from './routes/cli.authorize'
 import { Route as ApiMcpRouteImport } from './routes/api/mcp'
+import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
 import { Route as AdminSmokeRouteImport } from './routes/admin.smoke'
 import { Route as AdminOrchestrationRouteImport } from './routes/admin.orchestration'
 import { Route as AdminCostsRouteImport } from './routes/admin.costs'
@@ -138,6 +141,11 @@ const MusicVideoRoute = MusicVideoRouteImport.update({
 const MotionRoute = MotionRouteImport.update({
   id: '/motion',
   path: '/motion',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MarketplaceRoute = MarketplaceRouteImport.update({
+  id: '/marketplace',
+  path: '/marketplace',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LipsyncRoute = LipsyncRouteImport.update({
@@ -260,6 +268,11 @@ const LegalSlugRoute = LegalSlugRouteImport.update({
   path: '/legal/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CreatorDashboardRoute = CreatorDashboardRouteImport.update({
+  id: '/creator/dashboard',
+  path: '/creator/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CliAuthorizeRoute = CliAuthorizeRouteImport.update({
   id: '/cli/authorize',
   path: '/cli/authorize',
@@ -269,6 +282,11 @@ const ApiMcpRoute = ApiMcpRouteImport.update({
   id: '/api/mcp',
   path: '/api/mcp',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminTemplatesRoute = AdminTemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminSmokeRoute = AdminSmokeRouteImport.update({
   id: '/smoke',
@@ -366,6 +384,7 @@ export interface FileRoutesByFullPath {
   '/growth': typeof GrowthRoute
   '/kids': typeof KidsRoute
   '/lipsync': typeof LipsyncRoute
+  '/marketplace': typeof MarketplaceRoute
   '/motion': typeof MotionRoute
   '/music-video': typeof MusicVideoRoute
   '/nexusarb': typeof NexusarbRoute
@@ -385,8 +404,10 @@ export interface FileRoutesByFullPath {
   '/admin/costs': typeof AdminCostsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
   '/admin/smoke': typeof AdminSmokeRoute
+  '/admin/templates': typeof AdminTemplatesRoute
   '/api/mcp': typeof ApiMcpRoute
   '/cli/authorize': typeof CliAuthorizeRoute
+  '/creator/dashboard': typeof CreatorDashboardRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/r/$token': typeof RTokenRoute
   '/cli/': typeof CliIndexRoute
@@ -423,6 +444,7 @@ export interface FileRoutesByTo {
   '/growth': typeof GrowthRoute
   '/kids': typeof KidsRoute
   '/lipsync': typeof LipsyncRoute
+  '/marketplace': typeof MarketplaceRoute
   '/motion': typeof MotionRoute
   '/music-video': typeof MusicVideoRoute
   '/nexusarb': typeof NexusarbRoute
@@ -442,8 +464,10 @@ export interface FileRoutesByTo {
   '/admin/costs': typeof AdminCostsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
   '/admin/smoke': typeof AdminSmokeRoute
+  '/admin/templates': typeof AdminTemplatesRoute
   '/api/mcp': typeof ApiMcpRoute
   '/cli/authorize': typeof CliAuthorizeRoute
+  '/creator/dashboard': typeof CreatorDashboardRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/r/$token': typeof RTokenRoute
   '/cli': typeof CliIndexRoute
@@ -481,6 +505,7 @@ export interface FileRoutesById {
   '/growth': typeof GrowthRoute
   '/kids': typeof KidsRoute
   '/lipsync': typeof LipsyncRoute
+  '/marketplace': typeof MarketplaceRoute
   '/motion': typeof MotionRoute
   '/music-video': typeof MusicVideoRoute
   '/nexusarb': typeof NexusarbRoute
@@ -500,8 +525,10 @@ export interface FileRoutesById {
   '/admin/costs': typeof AdminCostsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
   '/admin/smoke': typeof AdminSmokeRoute
+  '/admin/templates': typeof AdminTemplatesRoute
   '/api/mcp': typeof ApiMcpRoute
   '/cli/authorize': typeof CliAuthorizeRoute
+  '/creator/dashboard': typeof CreatorDashboardRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/r/$token': typeof RTokenRoute
   '/cli/': typeof CliIndexRoute
@@ -540,6 +567,7 @@ export interface FileRouteTypes {
     | '/growth'
     | '/kids'
     | '/lipsync'
+    | '/marketplace'
     | '/motion'
     | '/music-video'
     | '/nexusarb'
@@ -559,8 +587,10 @@ export interface FileRouteTypes {
     | '/admin/costs'
     | '/admin/orchestration'
     | '/admin/smoke'
+    | '/admin/templates'
     | '/api/mcp'
     | '/cli/authorize'
+    | '/creator/dashboard'
     | '/legal/$slug'
     | '/r/$token'
     | '/cli/'
@@ -597,6 +627,7 @@ export interface FileRouteTypes {
     | '/growth'
     | '/kids'
     | '/lipsync'
+    | '/marketplace'
     | '/motion'
     | '/music-video'
     | '/nexusarb'
@@ -616,8 +647,10 @@ export interface FileRouteTypes {
     | '/admin/costs'
     | '/admin/orchestration'
     | '/admin/smoke'
+    | '/admin/templates'
     | '/api/mcp'
     | '/cli/authorize'
+    | '/creator/dashboard'
     | '/legal/$slug'
     | '/r/$token'
     | '/cli'
@@ -654,6 +687,7 @@ export interface FileRouteTypes {
     | '/growth'
     | '/kids'
     | '/lipsync'
+    | '/marketplace'
     | '/motion'
     | '/music-video'
     | '/nexusarb'
@@ -673,8 +707,10 @@ export interface FileRouteTypes {
     | '/admin/costs'
     | '/admin/orchestration'
     | '/admin/smoke'
+    | '/admin/templates'
     | '/api/mcp'
     | '/cli/authorize'
+    | '/creator/dashboard'
     | '/legal/$slug'
     | '/r/$token'
     | '/cli/'
@@ -712,6 +748,7 @@ export interface RootRouteChildren {
   GrowthRoute: typeof GrowthRoute
   KidsRoute: typeof KidsRoute
   LipsyncRoute: typeof LipsyncRoute
+  MarketplaceRoute: typeof MarketplaceRoute
   MotionRoute: typeof MotionRoute
   MusicVideoRoute: typeof MusicVideoRoute
   NexusarbRoute: typeof NexusarbRoute
@@ -729,6 +766,7 @@ export interface RootRouteChildren {
   WorkflowsRoute: typeof WorkflowsRoute
   ApiMcpRoute: typeof ApiMcpRoute
   CliAuthorizeRoute: typeof CliAuthorizeRoute
+  CreatorDashboardRoute: typeof CreatorDashboardRoute
   LegalSlugRoute: typeof LegalSlugRoute
   RTokenRoute: typeof RTokenRoute
   CliIndexRoute: typeof CliIndexRoute
@@ -849,6 +887,13 @@ declare module '@tanstack/react-router' {
       path: '/motion'
       fullPath: '/motion'
       preLoaderRoute: typeof MotionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/marketplace': {
+      id: '/marketplace'
+      path: '/marketplace'
+      fullPath: '/marketplace'
+      preLoaderRoute: typeof MarketplaceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lipsync': {
@@ -1019,6 +1064,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LegalSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/creator/dashboard': {
+      id: '/creator/dashboard'
+      path: '/creator/dashboard'
+      fullPath: '/creator/dashboard'
+      preLoaderRoute: typeof CreatorDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cli/authorize': {
       id: '/cli/authorize'
       path: '/cli/authorize'
@@ -1032,6 +1084,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/mcp'
       preLoaderRoute: typeof ApiMcpRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/templates': {
+      id: '/admin/templates'
+      path: '/templates'
+      fullPath: '/admin/templates'
+      preLoaderRoute: typeof AdminTemplatesRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/smoke': {
       id: '/admin/smoke'
@@ -1139,6 +1198,7 @@ interface AdminRouteChildren {
   AdminCostsRoute: typeof AdminCostsRoute
   AdminOrchestrationRoute: typeof AdminOrchestrationRoute
   AdminSmokeRoute: typeof AdminSmokeRoute
+  AdminTemplatesRoute: typeof AdminTemplatesRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
@@ -1146,6 +1206,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminCostsRoute: AdminCostsRoute,
   AdminOrchestrationRoute: AdminOrchestrationRoute,
   AdminSmokeRoute: AdminSmokeRoute,
+  AdminTemplatesRoute: AdminTemplatesRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
@@ -1172,6 +1233,7 @@ const rootRouteChildren: RootRouteChildren = {
   GrowthRoute: GrowthRoute,
   KidsRoute: KidsRoute,
   LipsyncRoute: LipsyncRoute,
+  MarketplaceRoute: MarketplaceRoute,
   MotionRoute: MotionRoute,
   MusicVideoRoute: MusicVideoRoute,
   NexusarbRoute: NexusarbRoute,
@@ -1189,6 +1251,7 @@ const rootRouteChildren: RootRouteChildren = {
   WorkflowsRoute: WorkflowsRoute,
   ApiMcpRoute: ApiMcpRoute,
   CliAuthorizeRoute: CliAuthorizeRoute,
+  CreatorDashboardRoute: CreatorDashboardRoute,
   LegalSlugRoute: LegalSlugRoute,
   RTokenRoute: RTokenRoute,
   CliIndexRoute: CliIndexRoute,

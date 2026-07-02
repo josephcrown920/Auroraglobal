@@ -31,6 +31,7 @@ import {
   Map,
   Lock,
   Sprout,
+  Store,
   type LucideIcon,
 } from "lucide-react";
 
@@ -62,10 +63,12 @@ const LIVE_FEATURES: Feature[] = [
 ];
 
 const UTILITY_FEATURES: Feature[] = [
-  { to: "/dashboard", label: "Dashboard",    icon: LayoutDashboard },
-  { to: "/gallery",   label: "Gallery",      icon: Images },
-  { to: "/billing",   label: "Plan & Billing", icon: CreditCard },
-  { to: "/roadmap",   label: "Roadmap",      icon: Map },
+  { to: "/dashboard",          label: "Dashboard",       icon: LayoutDashboard },
+  { to: "/gallery",            label: "Gallery",         icon: Images },
+  { to: "/marketplace",        label: "Marketplace",     icon: Store },
+  { to: "/creator/dashboard",  label: "Creator Hub",     icon: TrendingUp },
+  { to: "/billing",            label: "Plan & Billing",  icon: CreditCard },
+  { to: "/roadmap",            label: "Roadmap",         icon: Map },
 ];
 
 const COMING_SOON: Feature[] = [
