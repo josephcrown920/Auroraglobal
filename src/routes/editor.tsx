@@ -15,7 +15,13 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
-import { runInSandbox, type SandboxRunner, type SandboxEvent } from "@/lib/playground/sandbox";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import {
+  runInSandbox,
+  type SandboxRunner,
+  type SandboxEvent,
+  type SandboxJobOp,
+} from "@/lib/playground/sandbox";
 import { TEMPLATES, AURORA_DTS, DEFAULT_TEMPLATE_ID, getTemplate } from "@/lib/playground/templates";
 import { ConsolePanel, entryFromEvent, nextEntryId, type ConsoleEntry } from "@/components/playground/ConsolePanel";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
@@ -51,6 +57,47 @@ function applyEvent(prev: ConsoleEntry[], ev: SandboxEvent): ConsoleEntry[] {
   return [...prev, entry];
 }
 
+/**
+ * Main-thread executor for aurora.jobs.* — routes each allow-listed op to the
+ * existing authed server functions so validation, preview-gating and credit
+ * reservation all stay on the standard jobs path.
+ */
+async function runJobOp(op: SandboxJobOp, body: unknown): Promise<unknown> {
+  const { enqueueGenerationJob, listMyJobs, cancelMyJob } = await import("@/lib/jobs.functions");
+  switch (op) {
+    case "jobs.submit":
+      return enqueueGenerationJob({ data: body as never });
+    case "jobs.list":
+      return listMyJobs();
+    case "jobs.cancel":
+      return cancelMyJob({ data: body as never });
+  }
+}
+
+const SPLIT_STORAGE_KEY = "aurora-playground-split";
+
+function loadSplitLayout(): Record<string, number> | undefined {
+  try {
+    const raw = localStorage.getItem(SPLIT_STORAGE_KEY);
+    if (!raw) return undefined;
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, number>;
+    }
+  } catch {
+    /* corrupt or unavailable storage — fall back to defaults */
+  }
+  return undefined;
+}
+
+function saveSplitLayout(layout: Record<string, number>) {
+  try {
+    localStorage.setItem(SPLIT_STORAGE_KEY, JSON.stringify(layout));
+  } catch {
+    /* storage unavailable — sizing just won't persist */
+  }
+}
+
 function EditorPage() {
   const { session, loading } = useAuth();
   const [code, setCode] = useState(() => getTemplate(DEFAULT_TEMPLATE_ID).code);
@@ -58,6 +105,10 @@ function EditorPage() {
   const [entries, setEntries] = useState<ConsoleEntry[]>([]);
   const [running, setRunning] = useState(false);
   const [mounted, setMounted] = useState(false);
+  // Read once on mount (client-only) — SSR has no localStorage.
+  const [splitLayout] = useState<Record<string, number> | undefined>(() =>
+    typeof window === "undefined" ? undefined : loadSplitLayout()
+  );
   const runnerRef = useRef<SandboxRunner | null>(null);
   const codeRef = useRef(code);
   codeRef.current = code;
@@ -87,6 +138,7 @@ function EditorPage() {
         const { data } = await supabase.auth.getSession();
         return data.session?.access_token ?? null;
       },
+      runJobOp,
       onEvent: (ev) => {
         setEntries((prev) => applyEvent(prev, ev));
         if (ev.type === "done" || ev.type === "error") {
@@ -227,16 +279,27 @@ function EditorPage() {
           </p>
         </div>
 
-        {/* Editor + console */}
-        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
-          <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#0a0918]">
-            <div className="flex items-center gap-2 border-b border-white/10 px-4 py-2.5">
+        {/* Editor + console — drag the divider to resize the output panel.
+            The group sets inline height:100%, so the wrapper owns the height. */}
+        <div className="mt-4 h-[78vh] max-h-[1000px] min-h-[560px]">
+          <ResizablePanelGroup
+            orientation="vertical"
+            defaultLayout={splitLayout}
+            onLayoutChanged={saveSplitLayout}
+          >
+          <ResizablePanel
+            id="playground-editor"
+            defaultSize="58%"
+            minSize="20%"
+            className="flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0a0918]"
+          >
+            <div className="flex shrink-0 items-center gap-2 border-b border-white/10 px-4 py-2.5">
               <span className="size-2.5 rounded-full bg-rose-400/70" />
               <span className="size-2.5 rounded-full bg-amber-300/70" />
               <span className="size-2.5 rounded-full bg-emerald-300/70" />
               <span className="ml-2 font-mono text-xs text-white/45">script.js</span>
             </div>
-            <div className="h-[420px] md:h-[520px]">
+            <div className="min-h-0 flex-1">
               {mounted ? (
                 <Suspense
                   fallback={
@@ -287,11 +350,18 @@ function EditorPage() {
                 </div>
               )}
             </div>
-          </div>
+          </ResizablePanel>
 
-          <div className="h-[420px] md:h-[520px]">
-            <ConsolePanel entries={entries} running={running} />
-          </div>
+          <ResizableHandle
+            withHandle
+            className="my-1.5 h-1.5 rounded-full bg-transparent after:hidden [&>div]:h-3 [&>div]:w-8 [&>div]:rotate-90 [&>div]:rounded-full [&>div]:border-white/15 [&>div]:bg-white/10 [&>div]:text-white/50 hover:[&>div]:bg-white/20"
+            aria-label="Resize the console panel"
+          />
+
+            <ResizablePanel id="playground-console" defaultSize="42%" minSize="15%" className="min-h-0">
+              <ConsolePanel entries={entries} running={running} />
+            </ResizablePanel>
+          </ResizablePanelGroup>
         </div>
 
         {/* API cheat-sheet */}
@@ -309,6 +379,7 @@ function EditorPage() {
               { sig: "aurora.lipsync({ audioUrl, imageUrl })", desc: "Drive audio onto a face. Model-tiered pricing." },
               { sig: "aurora.text(prompt)", desc: "LLM helper for prompt-writing and planning." },
               { sig: "aurora.generate(options)", desc: "Full-control call — same body as /api/public/generate." },
+              { sig: "aurora.jobs.submit(opts) · wait(id) · list() · cancel(id)", desc: "Background render queue — submit now, poll until it finishes, cancel queued jobs." },
               { sig: "aurora.progress(i, total, label?) · aurora.show(url, label?)", desc: "Render progress bars and asset cards in the console." },
             ].map((r) => (
               <div key={r.sig} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">

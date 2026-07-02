@@ -43,6 +43,38 @@ interface AuroraGenerateOptions {
   [key: string]: unknown;
 }
 
+/** A job in the Aurora render queue. */
+interface AuroraJob {
+  id: string;
+  kind: string;
+  /** "queued" | "processing" | "succeeded" | "failed" | "cancelled" */
+  status: string;
+  attempts: number;
+  error?: string | null;
+  generation_id?: string | null;
+  created_at: string;
+  finished_at?: string | null;
+  /** Present once the job succeeds — includes the output URL. */
+  result?: { url?: string; [key: string]: unknown } | null;
+  [key: string]: unknown;
+}
+
+interface AuroraJobSubmitOptions {
+  /** What to queue: "image" | "video" | "lipsync" | "upscale". */
+  kind: string;
+  prompt?: string;
+  imageUrls?: string[];
+  audioUrl?: string;
+  videoUrl?: string;
+  duration?: number;
+  /** "480p" | "720p" | "1080p" | "2160p" */
+  resolution?: string;
+  model?: string;
+  /** Re-run a previewed temporal render at full quality. */
+  confirmPreviewId?: string;
+  [key: string]: unknown;
+}
+
 /** Pre-authenticated Aurora client — every call spends YOUR Aura balance. */
 declare const aurora: {
   /** Full-control generation call (hits /api/public/generate as you). */
@@ -55,6 +87,19 @@ declare const aurora: {
   lipsync(options: Partial<AuroraGenerateOptions>): Promise<AuroraResult>;
   /** Shorthand: text generation (free-form LLM helper). */
   text(prompt: string, options?: Partial<AuroraGenerateOptions>): Promise<AuroraResult>;
+  /** Background render queue — submit now, poll for the finished result. */
+  jobs: {
+    /** Queue a render (reserves Aura up front). Returns { jobId, generationId, preview }. */
+    submit(options: AuroraJobSubmitOptions): Promise<{ jobId: string; generationId: string; preview: boolean }>;
+    /** Your 50 most recent jobs, newest first. */
+    list(): Promise<AuroraJob[]>;
+    /** One job by id (or null if not found). */
+    get(id: string): Promise<AuroraJob | null>;
+    /** Cancel a still-queued job and release its reserved Aura. */
+    cancel(id: string): Promise<{ ok: true }>;
+    /** Poll until the job finishes. onTick fires on every poll. */
+    wait(id: string, options?: { intervalMs?: number; timeoutMs?: number; onTick?: (job: AuroraJob) => void }): Promise<AuroraJob>;
+  };
   /** Report batch progress — renders a progress bar in the console panel. */
   progress(current: number, total: number, label?: string): void;
   /** Show an asset card in the console panel (image/video/audio preview). */
@@ -159,6 +204,46 @@ console.log("Rendering:", first);
 const img = await aurora.image(first);
 aurora.show(img.url, "Rendered from AI prompt", "image");
 console.log("Cost:", img.creditsCost, "Aura");
+`,
+  },
+  {
+    id: "job-queue",
+    label: "Job queue: submit & poll",
+    description: "Queue renders in the background, then poll until they finish.",
+    code: `// The job queue renders in the background — submit now, poll later.
+// Aura is reserved when you submit and settled when the job finishes.
+
+const PROMPTS = [
+  "isometric cutaway of a cozy recording studio",
+  "isometric cutaway of a neon arcade at night",
+];
+
+// 1) Submit everything up front.
+const submitted = [];
+for (const prompt of PROMPTS) {
+  const job = await aurora.jobs.submit({ kind: "image", prompt });
+  console.log("Queued", job.jobId.slice(0, 8), "→", prompt);
+  submitted.push({ id: job.jobId, prompt });
+}
+
+// 2) Poll each job until it finishes.
+for (let i = 0; i < submitted.length; i++) {
+  const { id, prompt } = submitted[i];
+  aurora.progress(i, submitted.length, "Waiting on " + id.slice(0, 8) + "…");
+  const done = await aurora.jobs.wait(id, {
+    intervalMs: 3000,
+    onTick: (j) => console.log(id.slice(0, 8), "status:", j.status),
+  });
+  if (done.status === "succeeded" && done.result && done.result.url) {
+    aurora.show(done.result.url, prompt, "image");
+  } else {
+    console.error(id.slice(0, 8), "ended as", done.status, done.error ?? "");
+  }
+}
+aurora.progress(submitted.length, submitted.length, "Queue drained");
+
+// Tip: aurora.jobs.list() shows your 50 latest jobs;
+// aurora.jobs.cancel(id) frees the Aura of a still-queued job.
 `,
   },
 ];

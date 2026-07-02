@@ -2,9 +2,11 @@ import { describe, expect, test } from "bun:test";
 import {
   parseWorkerMessage,
   isAllowedApiPath,
+  isJobOp,
   summarizeApiBody,
   WORKER_SOURCE,
   ALLOWED_API_PATHS,
+  SANDBOX_JOB_OPS,
   BLOCKED_WORKER_GLOBALS,
 } from "./sandbox";
 import { TEMPLATES, AURORA_DTS, getTemplate, DEFAULT_TEMPLATE_ID } from "./templates";
@@ -65,6 +67,17 @@ describe("api path allow-list", () => {
     expect(isAllowedApiPath("https://evil.example/api/public/generate")).toBe(false);
     expect(ALLOWED_API_PATHS.length).toBeGreaterThan(0);
   });
+
+  test("job ops are a closed set, disjoint from fetch paths", () => {
+    expect(SANDBOX_JOB_OPS).toEqual(["jobs.submit", "jobs.list", "jobs.cancel"]);
+    for (const op of SANDBOX_JOB_OPS) {
+      expect(isJobOp(op)).toBe(true);
+      // A job op must never be treated as a fetchable URL path.
+      expect(isAllowedApiPath(op)).toBe(false);
+    }
+    expect(isJobOp("jobs.delete")).toBe(false);
+    expect(isJobOp("/api/public/generate")).toBe(false);
+  });
 });
 
 describe("summarizeApiBody", () => {
@@ -91,7 +104,11 @@ describe("WORKER_SOURCE", () => {
   });
 
   test("exposes the aurora client surface", () => {
-    for (const member of ["generate", "image:", "video:", "lipsync:", "text:", "progress:", "show:", "sleep:"]) {
+    for (const member of ["generate", "image:", "video:", "lipsync:", "text:", "jobs:", "progress:", "show:", "sleep:"]) {
+      expect(WORKER_SOURCE).toContain(member);
+    }
+    // Job queue surface: submit / list / get / cancel / wait.
+    for (const member of ["jobs.submit", "jobs.list", "jobs.cancel", "wait:", "get:"]) {
       expect(WORKER_SOURCE).toContain(member);
     }
   });
@@ -226,6 +243,78 @@ describe("sandbox worker runtime (mocked self)", () => {
     });
     expect(second.posted).toContainEqual({ type: "console", level: "log", text: "woke" });
     expect(second.posted).toContainEqual({ type: "done" });
+  });
+
+  test("aurora.jobs.submit posts a jobs.submit op through the proxy protocol", async () => {
+    const { posted, onmessage } = bootMockWorker();
+    const runP = onmessage({
+      data: {
+        type: "run",
+        code: 'const job = await aurora.jobs.submit({ kind: "image", prompt: "hi" }); console.log("queued:", job.jobId);',
+      },
+    });
+    // Answer the proxied op like the main thread would.
+    const deadline = Date.now() + 1000;
+    let api: { id: number; path: string; body: unknown } | undefined;
+    while (!api && Date.now() < deadline) {
+      api = posted.find((m) => (m as { type?: string }).type === "api") as typeof api;
+      if (!api) await new Promise((r) => setTimeout(r, 5));
+    }
+    expect(api).toBeDefined();
+    expect(api!.path).toBe("jobs.submit");
+    expect(api!.body).toEqual({ kind: "image", prompt: "hi" });
+    await onmessage({
+      data: { type: "api-result", id: api!.id, ok: true, data: { jobId: "j-123", generationId: "g-1", preview: false } },
+    });
+    await runP;
+    expect(posted).toContainEqual({ type: "console", level: "log", text: "queued: j-123" });
+    expect(posted).toContainEqual({ type: "done" });
+  });
+
+  test("aurora.jobs.submit validates input before proxying", async () => {
+    const { posted, onmessage } = bootMockWorker();
+    await onmessage({ data: { type: "run", code: "await aurora.jobs.submit({});" } });
+    const err = posted.find((m) => (m as { type?: string }).type === "error") as
+      | { message: string }
+      | undefined;
+    expect(err).toBeDefined();
+    expect(err!.message).toContain("kind");
+    // Nothing was proxied.
+    expect(posted.filter((m) => (m as { type?: string }).type === "api")).toHaveLength(0);
+  });
+
+  test("aurora.jobs.wait polls jobs.list until a terminal status", async () => {
+    const { posted, onmessage } = bootMockWorker();
+    const runP = onmessage({
+      data: {
+        type: "run",
+        code: 'const done = await aurora.jobs.wait("job-1", { intervalMs: 1 }); console.log("final:", done.status);',
+      },
+    });
+    const statuses = ["processing", "succeeded"];
+    let answered = 0;
+    const deadline = Date.now() + 2000;
+    while (answered < statuses.length && Date.now() < deadline) {
+      const apis = posted.filter((m) => (m as { type?: string }).type === "api") as Array<{
+        id: number;
+        path: string;
+      }>;
+      if (apis.length > answered) {
+        const msg = apis[answered];
+        expect(msg.path).toBe("jobs.list");
+        const status = statuses[answered];
+        answered++;
+        await onmessage({
+          data: { type: "api-result", id: msg.id, ok: true, data: [{ id: "job-1", status }] },
+        });
+      } else {
+        await new Promise((r) => setTimeout(r, 5));
+      }
+    }
+    await runP;
+    expect(answered).toBe(2);
+    expect(posted).toContainEqual({ type: "console", level: "log", text: "final: succeeded" });
+    expect(posted).toContainEqual({ type: "done" });
   });
 
   test("worker source blocks the constructor escape hatch in real worker realms", () => {
