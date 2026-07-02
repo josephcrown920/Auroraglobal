@@ -10,6 +10,7 @@
 // whole flow is unit-testable without a live database or provider.
 import { orchestrate, type GenerateKind } from "@/lib/orchestrator.server";
 import type { Database } from "@/integrations/supabase/types";
+import { persistResultUrl, resultMediaTypeForKind } from "./result-store.server";
 
 type GenerationInsert = Database["public"]["Tables"]["generations"]["Insert"];
 
@@ -113,6 +114,22 @@ export async function reserveOrchestrateRecord(
       userId: input.userId,
     });
 
+    // Persist the provider URL into our own storage (compresses + re-hosts).
+    // Falls back to the raw provider URL on error so a delivered render is
+    // never lost; the raw URL is stored explicitly rather than silently.
+    const mediaType = resultMediaTypeForKind(input.kind);
+    const persistedUrl =
+      mediaType && result.url
+        ? (
+            await persistResultUrl({
+              userId: input.userId,
+              refId: reservationRef,
+              mediaType,
+              url: result.url,
+            })
+          ).url
+        : result.url;
+
     const gen = await d.insertGeneration({
       user_id: input.userId,
       prompt: input.prompt ?? "",
@@ -122,10 +139,10 @@ export async function reserveOrchestrateRecord(
       input_images: input.imageUrls ?? [],
       // For the `audio` modality there is no input audio — store the generated
       // mp3 here; for lipsync this stays the driving (input) audio.
-      audio_url: input.kind === "audio" ? result.url : (input.audioUrl ?? null),
+      audio_url: input.kind === "audio" ? persistedUrl : (input.audioUrl ?? null),
       model: result.provider,
-      result_image_url: input.kind === "image" ? result.url : null,
-      result_video_url: input.kind === "video" || input.kind === "lipsync" || input.kind === "caption_burn" ? result.url : null,
+      result_image_url: input.kind === "image" ? persistedUrl : null,
+      result_video_url: input.kind === "video" || input.kind === "lipsync" || input.kind === "caption_burn" ? persistedUrl : null,
       result_text: input.kind === "text" ? (result.text ?? null) : null,
       credits_cost: input.cost,
       session_id: input.sessionId ?? null,
