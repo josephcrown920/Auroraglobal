@@ -13,33 +13,123 @@ export type ColorPreset = {
     pose: string;
     energy: string;
   };
+  /**
+   * Fixed scene template — a locked set description embedded verbatim into
+   * the performance prompt. This is NOT a suggestion; the model must reproduce
+   * this exact environment and place the person into it.
+   */
+  sceneTemplate: string;
 };
 
 export const COLOR_PRESETS: ColorPreset[] = [
-  { id: "hot-pink", name: "Hot Pink", swatch: "#ff2d8a", promptName: "vivid hot pink", glow: "from-pink-500/40 to-fuchsia-500/20",
-    performance: { mic: "standing", pose: "three-quarter body facing camera-left, one hand resting on a tall chrome mic stand, head tilted up", energy: "confident, slow ballad delivery" } },
-  { id: "royal-blue", name: "Royal Blue", swatch: "#1e40af", promptName: "deep royal blue", glow: "from-blue-600/40 to-indigo-500/20",
-    performance: { mic: "hanging", pose: "full-body side profile, leaning into a vintage silver microphone hanging at chest level from above", energy: "calm composed power" } },
-  { id: "neon-green", name: "Neon Green", swatch: "#39ff14", promptName: "electric neon green", glow: "from-emerald-400/40 to-lime-400/20",
-    performance: { mic: "boom", pose: "head tilted back, eyes closed, screaming into an overhead boom mic, arms loose at sides", energy: "raw cathartic shout" } },
-  { id: "sunset-orange", name: "Sunset Orange", swatch: "#ff6a00", promptName: "warm sunset orange", glow: "from-orange-500/40 to-amber-400/20",
-    performance: { mic: "handheld", pose: "mid-stride across the frame, handheld dynamic SM58 close to mouth, free hand pointing at the lens", energy: "hyped, mid-verse" } },
-  { id: "electric-purple", name: "Electric Purple", swatch: "#8b5cf6", promptName: "electric violet purple", glow: "from-violet-500/40 to-purple-500/20",
-    performance: { mic: "standing", pose: "eyes closed, both hands wrapped around the mic on a vintage stand, body slightly swaying", energy: "lost in the song, reverb-soaked" } },
-  { id: "cyber-yellow", name: "Cyber Yellow", swatch: "#facc15", promptName: "saturated cyber yellow", glow: "from-yellow-400/40 to-amber-300/20",
-    performance: { mic: "handheld", pose: "frozen mid-jump with both feet off the ground, handheld mic in one hand", energy: "explosive hype moment" } },
-  { id: "crimson-red", name: "Crimson Red", swatch: "#dc2626", promptName: "deep crimson red", glow: "from-red-600/40 to-rose-500/20",
-    performance: { mic: "hanging", pose: "back three-quarters to camera, turning over the shoulder toward a hanging vintage mic", energy: "slow brooding turn" } },
-  { id: "ice-white", name: "Ice White", swatch: "#f8fafc", promptName: "pure monochrome white", glow: "from-slate-200/40 to-white/10",
-    performance: { mic: "boom", pose: "standing centered with hands clasped near the chest, overhead boom mic just visible at top of frame", energy: "still, gospel-prayer stillness" } },
-  { id: "obsidian", name: "Obsidian Black", swatch: "#0a0a0a", promptName: "matte obsidian black", glow: "from-zinc-800/40 to-black/20",
-    performance: { mic: "standing", pose: "lone figure under a single hard spotlight, standing mic with windscreen, silhouette edge-lit", energy: "noir, smoky club mood" } },
-  { id: "aqua", name: "Aqua Teal", swatch: "#06b6d4", promptName: "luminous aqua teal", glow: "from-cyan-400/40 to-teal-400/20",
-    performance: { mic: "hanging", pose: "low-angle hero shot looking up, chin slightly raised, hanging mic descending into frame", energy: "anthemic hero pose" } },
-  { id: "rose-gold", name: "Rose Gold", swatch: "#e8b4a0", promptName: "soft rose gold", glow: "from-rose-300/40 to-amber-200/20",
-    performance: { mic: "standing", pose: "seated on a tall barstool, vintage standing mic at mouth height, legs crossed", energy: "intimate acoustic ballad" } },
-  { id: "lime-pop", name: "Lime Pop", swatch: "#a3e635", promptName: "fluorescent lime", glow: "from-lime-400/40 to-green-400/20",
-    performance: { mic: "handheld", pose: "leaning back away from camera with handheld mic raised overhead, free hand on hip", energy: "swagger, lean-back flex" } },
+  {
+    id: "hot-pink",
+    name: "Hot Pink",
+    swatch: "#ff2d8a",
+    promptName: "vivid hot pink",
+    glow: "from-pink-500/40 to-fuchsia-500/20",
+    performance: { mic: "standing", pose: "three-quarter body facing camera-left, one hand resting on a tall chrome mic stand, head tilted up", energy: "confident, slow ballad delivery" },
+    sceneTemplate: "Hot Pink Cyclorama Studio: seamless curved cyc wall and floor in matte vivid hot pink with no visible seams, single tall chrome floor-standing microphone centered in frame, warm pink-tinted softbox key from camera-right, soft pink rim light separating subject from background, faint floor reflection of subject's silhouette, minimal hard shadows, clean editorial staging.",
+  },
+  {
+    id: "royal-blue",
+    name: "Royal Blue",
+    swatch: "#1e40af",
+    promptName: "deep royal blue",
+    glow: "from-blue-600/40 to-indigo-500/20",
+    performance: { mic: "hanging", pose: "full-body side profile, leaning into a vintage silver microphone hanging at chest level from above", energy: "calm composed power" },
+    sceneTemplate: "Royal Blue Cyclorama Studio: seamless curved cyc backdrop and floor in matte deep royal blue, single vintage silver studio microphone hanging on a thin cable descending from above to center frame, plain black wooden stool positioned directly under the mic, single soft spotlight from directly above casting a clean pool of light, subtle cool floor reflection beneath subject's feet, minimal shadows, absolutely no extra props or decoration.",
+  },
+  {
+    id: "neon-green",
+    name: "Neon Green",
+    swatch: "#39ff14",
+    promptName: "electric neon green",
+    glow: "from-emerald-400/40 to-lime-400/20",
+    performance: { mic: "boom", pose: "head tilted back, eyes closed, screaming into an overhead boom mic, arms loose at sides", energy: "raw cathartic shout" },
+    sceneTemplate: "Neon Green Cyclorama Studio: seamless curved cyc wall and floor in electric neon green, long overhead boom-arm mic with blimp windscreen descending from top-right corner into frame, hard single-source fresnel spotlight from directly above, strong neon green ambient bounce filling the cyc evenly, electric green floor glow beneath subject, edgy raw-energy staging with no furniture.",
+  },
+  {
+    id: "sunset-orange",
+    name: "Sunset Orange",
+    swatch: "#ff6a00",
+    promptName: "warm sunset orange",
+    glow: "from-orange-500/40 to-amber-400/20",
+    performance: { mic: "handheld", pose: "mid-stride across the frame, handheld dynamic SM58 close to mouth, free hand pointing at the lens", energy: "hyped, mid-verse" },
+    sceneTemplate: "Sunset Orange Cyclorama Studio: seamless curved cyc in warm sunset orange, floor tinted amber-orange, no furniture — open floor space for movement, warm dual-softbox setup mimicking late-afternoon sun from camera-right, orange-tinted haze subtly diffusing the air near the cyc, golden floor reflection under feet, high-energy stadium-feel framing.",
+  },
+  {
+    id: "electric-purple",
+    name: "Electric Purple",
+    swatch: "#8b5cf6",
+    promptName: "electric violet purple",
+    glow: "from-violet-500/40 to-purple-500/20",
+    performance: { mic: "standing", pose: "eyes closed, both hands wrapped around the mic on a vintage stand, body slightly swaying", energy: "lost in the song, reverb-soaked" },
+    sceneTemplate: "Electric Purple Cyclorama Studio: seamless curved cyc in deep electric violet-purple, vintage chrome microphone on a tall floor stand centered in frame, moody low-key purple ambient wash from above with a subtle violet haze near the cyc, single hair light from directly above separating subject from background, delicate floor reflection of purple light, intimate atmospheric staging.",
+  },
+  {
+    id: "cyber-yellow",
+    name: "Cyber Yellow",
+    swatch: "#facc15",
+    promptName: "saturated cyber yellow",
+    glow: "from-yellow-400/40 to-amber-300/20",
+    performance: { mic: "handheld", pose: "frozen mid-jump with both feet off the ground, handheld mic in one hand", energy: "explosive hype moment" },
+    sceneTemplate: "Cyber Yellow Cyclorama Studio: seamless curved cyc in saturated cyber yellow, empty open floor space with no furniture to allow full-body action framing, bright high-key dual softbox setup flooding the cyc evenly in yellow, sharp punchy shadows under subject, yellow floor reflection, bold high-contrast editorial staging.",
+  },
+  {
+    id: "crimson-red",
+    name: "Crimson Red",
+    swatch: "#dc2626",
+    promptName: "deep crimson red",
+    glow: "from-red-600/40 to-rose-500/20",
+    performance: { mic: "hanging", pose: "back three-quarters to camera, turning over the shoulder toward a hanging vintage mic", energy: "slow brooding turn" },
+    sceneTemplate: "Crimson Red Cyclorama Studio: seamless curved cyc in deep crimson red, single vintage silver microphone hanging on a cable from center-top of frame, low dramatic rim light from behind in deep red, single hard key light from camera-left creating strong directional shadows, rich red floor reflection, brooding theatrical staging with no furniture.",
+  },
+  {
+    id: "ice-white",
+    name: "Ice White",
+    swatch: "#f8fafc",
+    promptName: "pure monochrome white",
+    glow: "from-slate-200/40 to-white/10",
+    performance: { mic: "boom", pose: "standing centered with hands clasped near the chest, overhead boom mic just visible at top of frame", energy: "still, gospel-prayer stillness" },
+    sceneTemplate: "Ice White Cyclorama Studio: seamless curved cyc in pure clean white with no texture, long overhead boom arm with professional shock-mount mic descending from top center just into top of frame, soft even studio fill from two large diffused octaboxes, very slight floor shadow beneath subject, clean minimal white-on-white staging, no props, sacred still energy.",
+  },
+  {
+    id: "obsidian",
+    name: "Obsidian Black",
+    swatch: "#0a0a0a",
+    promptName: "matte obsidian black",
+    glow: "from-zinc-800/40 to-black/20",
+    performance: { mic: "standing", pose: "lone figure under a single hard spotlight, standing mic with windscreen, silhouette edge-lit", energy: "noir, smoky club mood" },
+    sceneTemplate: "Obsidian Black Cyclorama Studio: seamless curved cyc in matte obsidian black with near-zero ambient light, vintage floor-standing microphone with windscreen exactly center frame, single hard narrow spotlight from directly above forming a tight circle of light on subject, subtle silver-white edge rim from behind, very faint floor reflection, dramatic noir club atmosphere, thin wisps of atmospheric haze near the cyc.",
+  },
+  {
+    id: "aqua",
+    name: "Aqua Teal",
+    swatch: "#06b6d4",
+    promptName: "luminous aqua teal",
+    glow: "from-cyan-400/40 to-teal-400/20",
+    performance: { mic: "hanging", pose: "low-angle hero shot looking up, chin slightly raised, hanging mic descending into frame", energy: "anthemic hero pose" },
+    sceneTemplate: "Aqua Teal Cyclorama Studio: seamless curved cyc in luminous aqua teal, vintage hanging microphone on a thin cable from above descending to chest height center frame, low camera angle looking up at subject for anthemic hero framing, bold aqua-teal softbox key from below-front, cyan rim light from behind, glossy floor with strong aqua reflection, powerful anthem-stage energy.",
+  },
+  {
+    id: "rose-gold",
+    name: "Rose Gold",
+    swatch: "#e8b4a0",
+    promptName: "soft rose gold",
+    glow: "from-rose-300/40 to-amber-200/20",
+    performance: { mic: "standing", pose: "seated on a tall barstool, vintage standing mic at mouth height, legs crossed", energy: "intimate acoustic ballad" },
+    sceneTemplate: "Rose Gold Cyclorama Studio: seamless curved cyc in soft rose gold with a warm blush undertone, tall vintage chrome standing microphone with capsule at mouth height, plain velvet-upholstered tall barstool positioned at the mic, warm rose-tinted softbox key from camera-right at 45°, gentle golden-peach fill from camera-left, warm rose floor reflection beneath stool, intimate cozy staging.",
+  },
+  {
+    id: "lime-pop",
+    name: "Lime Pop",
+    swatch: "#a3e635",
+    promptName: "fluorescent lime",
+    glow: "from-lime-400/40 to-green-400/20",
+    performance: { mic: "handheld", pose: "leaning back away from camera with handheld mic raised overhead, free hand on hip", energy: "swagger, lean-back flex" },
+    sceneTemplate: "Lime Pop Cyclorama Studio: seamless curved cyc in fluorescent lime green, open floor with no furniture for full-body swagger framing, high-energy dual fill lights bathing the cyc in bright lime, punchy on-camera hard fill from front, vivid lime floor bounce reflection under feet, bold graphic editorial staging.",
+  },
 ];
 
 const MIC_DETAIL: Record<ColorPreset["performance"]["mic"], string> = {
@@ -228,11 +318,25 @@ export const WORKFLOWS: Workflow[] = [
   { id: "all-setups", name: "One Color · All Setups", steps: ["Pick 1 color", "Run every setup", "Compare looks"] },
 ];
 
-/** Per-color performance prompt — every swatch produces a different mic + pose + energy. */
+/** Per-color performance prompt — embeds the fixed scene template + mic/pose/energy. */
 export function buildPerformancePrompt(colorId: string): string {
   const c = COLOR_PRESETS.find((x) => x.id === colorId) ?? COLOR_PRESETS[0];
   const { mic, pose, energy } = c.performance;
-  return `Editorial music-video performance shot of the subject on a seamless ${c.promptName} cyclorama — background and floor are one continuous ${c.promptName} surface, no visible seams. Subject standing on a circular performance platform matching the ${c.promptName} tone, slightly elevated with a subtle reflective sheen and soft shadow. Pose: ${pose}. Energy: ${energy}. Microphone: ${MIC_DETAIL[mic]}. Lighting: bold monochromatic ${c.promptName} ambient wash with a soft key from camera-right and a clean rim light separating the subject from the background. Preserve exact facial likeness, beard, skin tone, hairstyle, body proportions, and outfit from the reference photos. Ultra-realistic skin texture with natural pores, sharp clothing detail, gentle floor shadow, high-end music-video aesthetic, ARRI Alexa look, 50mm, no text or logos. ${REALISM_SUFFIX}`;
+  return [
+    `SCENE TEMPLATE — reproduce exactly: ${c.sceneTemplate}`,
+    `Place the subject from the uploaded media into the scene above.`,
+    `Color theme: ${c.name}.`,
+    `Mode: Performance.`,
+    `Subject pose: ${pose}.`,
+    `Energy: ${energy}.`,
+    `Microphone detail: ${MIC_DETAIL[mic]}.`,
+    `Subject stands at mic, natural performance posture, subtle movement or preserved motion.`,
+    `Cinematic lighting matching the color theme.`,
+    `IDENTITY LOCK: preserve exact facial likeness, skin tone, hairstyle, beard, body proportions and outfit from the reference photos — do NOT change face identity, race or facial structure.`,
+    `Output as high-quality vertical 9:16 cinematic still.`,
+    `ARRI Alexa look, 50mm, no text or logos.`,
+    REALISM_SUFFIX,
+  ].join(" ");
 }
 
 export function buildColorPrompt(colorId: string, setupId: string): string {
@@ -274,6 +378,11 @@ export function buildCompositorPrompt(
         : "Keep the outfit they wear in photo 1."
     }`,
   ];
+  if (s.id === "performance") {
+    parts.push(
+      `SCENE TEMPLATE (fixed — reproduce exactly): ${c.sceneTemplate}`,
+    );
+  }
   if (opts.hasSceneRef) {
     parts.push(
       "SCENE LOCK: the LAST reference image is the exact studio set. Reproduce that environment precisely — same backdrop geometry, floor, microphone / furniture / light placement and reflections. Do not invent a new background or add props.",
@@ -285,7 +394,7 @@ export function buildCompositorPrompt(
   if (s.id === "performance") {
     const { mic, pose, energy } = c.performance;
     parts.push(
-      `PERFORMANCE: ${pose}. Energy: ${energy}. Microphone: ${MIC_DETAIL[mic]}. Simulated live performance stance with natural body weight.`,
+      `PERFORMANCE: ${pose}. Energy: ${energy}. Microphone: ${MIC_DETAIL[mic]}. Subject stands at mic with natural performance posture. Cinematic lighting matching the color theme.`,
     );
   } else {
     parts.push(`SCENE & STAGING: ${s.prompt(c.promptName)}`);

@@ -58,8 +58,9 @@ test("buildVariantPrompt includes every variation axis + identity + trigger word
   expect(prompt).toContain(spec.camera);
   expect(prompt).toContain(spec.framing);
   expect(prompt).toContain("sks_person");
-  expect(prompt).toContain('"Nova"');
-  expect(prompt).toContain("[9:16 aspect ratio]");
+  expect(prompt).toContain("Nova");
+  expect(prompt).toContain("9:16");
+  expect(prompt).toContain("DO NOT change face identity");
 });
 
 test("buildVariantPrompt omits identity/trigger cleanly when absent", () => {

@@ -18,8 +18,9 @@ export const SPIN_COUNT = 30;
 export const SPIN_PIECE_COST = 1;
 
 // ─── Variation axes ───────────────────────────────────────────────────────────
-// Location(10) × Outfit(9) are coprime, so (location,outfit) pairs are unique
-// for every i < 90 — guaranteeing all SPIN_COUNT fallback specs differ.
+// Location(10) × Outfit(11) are coprime → LCM = 110, so every (location,outfit)
+// pair is unique for all i < 110, guaranteeing all SPIN_COUNT fallback specs
+// differ across both axes simultaneously.
 
 export const SPIN_LOCATIONS = [
   "a sunlit city rooftop",
@@ -44,35 +45,40 @@ export const SPIN_OUTFITS = [
   "a chic monochrome look",
   "a relaxed linen summer outfit",
   "a bold statement jacket",
+  "a fitted crop top and high-waist trousers",
+  "a classic white button-down and tailored shorts",
 ];
 
 export const SPIN_CAMERAS = [
-  "handheld selfie angle",
-  "tripod eye-level shot",
-  "cinematic low angle",
-  "first-person POV angle",
-  "mirror-selfie framing",
-  "elevated overhead angle",
+  "handheld selfie angle, 9:16 vertical",
+  "tripod eye-level shot, 9:16 vertical",
+  "cinematic low angle looking up, 9:16 vertical",
+  "first-person POV angle, 9:16 vertical",
+  "mirror-selfie framing, 9:16 vertical",
+  "elevated overhead angle, 9:16 vertical",
+  "tight over-the-shoulder, 9:16 vertical",
+  "drone-style wide environmental, 9:16 vertical",
 ];
 
 export const SPIN_LIGHTING = [
-  "soft natural daylight",
-  "warm golden-hour glow",
-  "moody neon accents",
-  "high-key studio lighting",
-  "dramatic low-key shadows",
-  "cool overcast light",
-  "punchy on-camera flash",
+  "soft natural daylight, golden hour glow, cinematic depth of field",
+  "warm golden-hour backlight, lens flare, shallow DOF",
+  "moody neon accent lights, cyberpunk palette, atmospheric haze",
+  "high-key studio softbox, beauty-dish fill, sharp detail",
+  "dramatic low-key shadows, single hard key light, noir contrast",
+  "cool overcast diffused light, even skin tones, editorial look",
+  "punchy on-camera flash, high-contrast street style",
+  "sunset rim light from behind, silhouette edge separation, cinematic grade",
 ];
 
 export const SPIN_MOODS = [
-  "confident",
-  "playful",
+  "confident and powerful",
+  "playful and fun",
   "chill and relaxed",
-  "high-energy",
+  "high-energy and hyped",
   "warm and approachable",
-  "mysterious",
-  "joyful",
+  "mysterious and alluring",
+  "joyful and radiant",
   "focused and determined",
 ];
 
@@ -149,34 +155,44 @@ export const SpinPlanSchema = z.object({
 
 export const VIRAL_SYSTEM_PROMPT = `You are a viral content generation engine for TikTok, Reels, and Shorts.
 
-Your task is to turn ONE idea into a FULL content campaign of unique posts, all featuring the SAME creator.
+Your task is to generate a FULL content campaign from ONE idea. Every photo and video must combine: hyperrealism, photorealism, skin treatment, golden hour lighting, cinematic look, depth of field — every shot ultra HD.
 
-STRICT RULES:
+GOAL: turn ONE idea into a FULL WEEK+ viral content pipeline.
+
+STEP 1 — BUILD A VARIATION MATRIX FIRST (before generating any posts):
+Before producing any output, silently construct this matrix of unique values:
+- Locations: 10 unique (indoor, outdoor, gym, car, street, luxury, beach, studio, poolside, etc.)
+- Outfits: 10 unique (casual, gymwear, streetwear, luxury, nightwear, athleisure, etc.)
+- Lighting styles: 8 unique (natural, golden hour, neon, dark/low-key, studio, flash, sunset rim, overcast)
+- Camera styles: 8 unique (selfie, tripod, cinematic, POV, mirror, overhead, drone, over-shoulder)
+- Moods: 8 unique (confident, playful, chill, high-energy, mysterious, joyful, seductive, focused)
+
+Then RANDOMLY combine them so each post uses a different combination. No two posts share the same (location + outfit) pair.
+
+STEP 2 — STRICT RULES:
 
 1. SAME PERSON CONSISTENCY
 - Every post features the exact same creator: same face, identity, race, and facial structure. Never change the person.
-- Do NOT describe the face or change identity — the creator's face is locked by a reference image at render time. Vary everything AROUND the person.
+- Do NOT describe the face or alter identity — the face is locked by a reference image at render time. Vary everything AROUND the person.
 
 2. MAXIMUM VARIATION (MANDATORY)
-Every post MUST differ from all others across:
-- Location (indoor, outdoor, gym, car, street, luxury, beach, café, studio, poolside, etc.)
-- Outfit (casual, gymwear, streetwear, luxury, cozy, athleisure, etc.)
-- Camera angle (selfie, tripod, cinematic, POV, mirror, overhead)
-- Lighting (natural, golden hour, neon, studio, low-key, flash)
-- Mood (confident, playful, chill, high-energy, mysterious, joyful)
-- Framing (close-up, mid-shot, full-body)
+Each post MUST differ across: location, outfit, camera angle, lighting, mood, and framing. No repetition allowed.
 
 3. CONTENT TYPE MIX
 Distribute posts across: Talking-head hooks, Lip-sync clips, Carousel covers, Story-style posts, Caption hook visuals, Meme edits, Behind-the-scenes, POV scenarios.
 
 4. VIRAL STRUCTURE
-Each post includes: a hook (first 1-2 seconds), a vivid scene/visual description, a caption idea, and a suggested motion.
+Each post must include:
+- Hook (first 1–2 seconds, scroll-stopping)
+- Visual scene description (vivid, cinematic)
+- Caption idea
+- Suggested motion (if video)
 
 5. NO REPETITION
-Never reuse the same scene, outfit, or composition twice. Every post must feel like a DIFFERENT post optimized for the For You page.
+Never reuse the same scene, outfit, or composition. Every post must feel like a DIFFERENT post optimized for the For You page.
 
-6. QUALITY
-Top 1% influencer content. Concise, punchy, native to short-form video.
+6. QUALITY LEVEL
+Top 1% influencer content. Hyperrealistic, photorealistic, skin treatment, golden hour lighting, cinematic, depth of field. Optimized for TikTok For You Page.
 
 Return the result as JSON matching the provided schema: an object with a "posts" array.`;
 
@@ -262,19 +278,28 @@ export function buildVariantPrompt(
 ): string {
   const aspect = opts.aspect ?? "9:16";
   const segs = [
-    opts.base?.trim() || spec.scene,
-    opts.avatarName ? `featuring AI creator "${opts.avatarName}"` : null,
-    `wearing ${spec.outfit}`,
-    `at ${spec.location}`,
-    `${spec.mood} mood`,
-    spec.lighting,
-    spec.camera,
-    spec.framing,
+    // Scene + identity anchor
+    opts.avatarName
+      ? `Same person as reference image — ${opts.avatarName}.`
+      : "Same person as reference image.",
+    // Per-spec variation axes
+    `Scene: ${spec.scene}.`,
+    `Location: ${spec.location}.`,
+    `Outfit: ${spec.outfit}.`,
+    `Lighting: ${spec.lighting}.`,
+    `Camera: ${spec.camera}.`,
+    `Mood: ${spec.mood}.`,
+    `Framing: ${spec.framing}.`,
+    // Optional creator hint / LoRA trigger
+    opts.base?.trim() ? opts.base.trim() : null,
     opts.triggerWord ? opts.triggerWord : null,
-    "hyper-realistic UGC iPhone-style photo, photoreal skin texture, native social-media aesthetic, no on-screen text, no logos",
-    `[${aspect} aspect ratio]`,
+    // Quality mandate
+    "Ultra-realistic, cinematic, high detail, social media style, TikTok aesthetic.",
+    "Hyperrealism, photorealism, skin treatment, golden hour lighting, cinematic, depth of field.",
+    "DO NOT change face identity, race or facial structure.",
+    `[${aspect} vertical aspect ratio, 9:16]`,
   ].filter(Boolean);
-  return segs.join(", ");
+  return segs.join(" ");
 }
 
 /** Short tile label for the grid. */
