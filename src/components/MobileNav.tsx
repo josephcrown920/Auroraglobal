@@ -29,6 +29,7 @@ import {
   Megaphone,
   Map,
   Lock,
+  Sprout,
   type LucideIcon,
 } from "lucide-react";
 
@@ -53,6 +54,7 @@ const LIVE_FEATURES: Feature[] = [
   { to: "/lipsync",     label: "Lip Sync",          icon: Mic },
   { to: "/canvas",      label: "Canvas",            icon: Workflow },
   { to: "/music-video", label: "Lyric Video",       icon: Clapperboard },
+  { to: "/growth",      label: "Growth Tools",      icon: Sprout },
   { to: "/agent",       label: "Claude MCP",        icon: Bot },
 ];
 

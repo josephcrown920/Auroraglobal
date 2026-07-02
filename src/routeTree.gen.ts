@@ -26,6 +26,7 @@ import { Route as MusicVideoRouteImport } from './routes/music-video'
 import { Route as MotionRouteImport } from './routes/motion'
 import { Route as LipsyncRouteImport } from './routes/lipsync'
 import { Route as KidsRouteImport } from './routes/kids'
+import { Route as GrowthRouteImport } from './routes/growth'
 import { Route as GiftsRouteImport } from './routes/gifts'
 import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as EditRouteImport } from './routes/edit'
@@ -146,6 +147,11 @@ const LipsyncRoute = LipsyncRouteImport.update({
 const KidsRoute = KidsRouteImport.update({
   id: '/kids',
   path: '/kids',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GrowthRoute = GrowthRouteImport.update({
+  id: '/growth',
+  path: '/growth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GiftsRoute = GiftsRouteImport.update({
@@ -350,6 +356,7 @@ export interface FileRoutesByFullPath {
   '/edit': typeof EditRoute
   '/gallery': typeof GalleryRoute
   '/gifts': typeof GiftsRoute
+  '/growth': typeof GrowthRoute
   '/kids': typeof KidsRoute
   '/lipsync': typeof LipsyncRoute
   '/motion': typeof MotionRoute
@@ -405,6 +412,7 @@ export interface FileRoutesByTo {
   '/edit': typeof EditRoute
   '/gallery': typeof GalleryRoute
   '/gifts': typeof GiftsRoute
+  '/growth': typeof GrowthRoute
   '/kids': typeof KidsRoute
   '/lipsync': typeof LipsyncRoute
   '/motion': typeof MotionRoute
@@ -461,6 +469,7 @@ export interface FileRoutesById {
   '/edit': typeof EditRoute
   '/gallery': typeof GalleryRoute
   '/gifts': typeof GiftsRoute
+  '/growth': typeof GrowthRoute
   '/kids': typeof KidsRoute
   '/lipsync': typeof LipsyncRoute
   '/motion': typeof MotionRoute
@@ -518,6 +527,7 @@ export interface FileRouteTypes {
     | '/edit'
     | '/gallery'
     | '/gifts'
+    | '/growth'
     | '/kids'
     | '/lipsync'
     | '/motion'
@@ -573,6 +583,7 @@ export interface FileRouteTypes {
     | '/edit'
     | '/gallery'
     | '/gifts'
+    | '/growth'
     | '/kids'
     | '/lipsync'
     | '/motion'
@@ -628,6 +639,7 @@ export interface FileRouteTypes {
     | '/edit'
     | '/gallery'
     | '/gifts'
+    | '/growth'
     | '/kids'
     | '/lipsync'
     | '/motion'
@@ -684,6 +696,7 @@ export interface RootRouteChildren {
   EditRoute: typeof EditRoute
   GalleryRoute: typeof GalleryRoute
   GiftsRoute: typeof GiftsRoute
+  GrowthRoute: typeof GrowthRoute
   KidsRoute: typeof KidsRoute
   LipsyncRoute: typeof LipsyncRoute
   MotionRoute: typeof MotionRoute
@@ -837,6 +850,13 @@ declare module '@tanstack/react-router' {
       path: '/kids'
       fullPath: '/kids'
       preLoaderRoute: typeof KidsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/growth': {
+      id: '/growth'
+      path: '/growth'
+      fullPath: '/growth'
+      preLoaderRoute: typeof GrowthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/gifts': {
@@ -1128,6 +1148,7 @@ const rootRouteChildren: RootRouteChildren = {
   EditRoute: EditRoute,
   GalleryRoute: GalleryRoute,
   GiftsRoute: GiftsRoute,
+  GrowthRoute: GrowthRoute,
   KidsRoute: KidsRoute,
   LipsyncRoute: LipsyncRoute,
   MotionRoute: MotionRoute,
