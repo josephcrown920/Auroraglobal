@@ -2,16 +2,12 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import {
   Sparkles,
-  Workflow,
-  Megaphone,
   Images,
   Menu,
-  Factory,
   LayoutDashboard,
   Palette,
   Film,
   Mic,
-  Scissors,
   Flame,
   SplitSquareHorizontal,
   Music2,
@@ -26,6 +22,13 @@ import {
   Clapperboard,
   CreditCard,
   Wand2,
+  Bot,
+  Workflow,
+  Scissors,
+  Factory,
+  Megaphone,
+  Map,
+  Lock,
   type LucideIcon,
 } from "lucide-react";
 
@@ -33,45 +36,112 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { cn } from "@/lib/utils";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import { useTheme } from "@/lib/theme-context";
+import { WhatsNew } from "@/components/WhatsNew";
 
-type Feature = { to: string; label: string; icon: LucideIcon };
+type Feature = {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  badge?: string;
+};
 
-// Full feature list shown in the slide-out drawer (order = drawer order).
-const FEATURES: Feature[] = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/studio", label: "Studio", icon: Sparkles },
-  { to: "/canvas", label: "Canvas", icon: Workflow },
-  { to: "/ugc", label: "UGC Ads", icon: Megaphone },
-  { to: "/content-machine", label: "Content Machine", icon: Factory },
-  { to: "/kids", label: "Kids Stories", icon: BookOpen },
-  { to: "/colors", label: "Colors", icon: Palette },
-  { to: "/motion", label: "Motion", icon: Film },
-  { to: "/lipsync", label: "Lip Sync", icon: Mic },
-  { to: "/clips", label: "Clips", icon: Scissors },
-  { to: "/spin", label: "Spin", icon: Flame },
-  { to: "/split-reality", label: "Split Reality", icon: SplitSquareHorizontal },
-  { to: "/tiktok", label: "TikTok", icon: Music2 },
-  { to: "/music-video", label: "Music Video", icon: Clapperboard },
-  { to: "/edit", label: "AutoCut", icon: Wand2 },
-  { to: "/workflows", label: "Workflows", icon: LayoutTemplate },
-  { to: "/cli", label: "CLI", icon: Terminal },
-  { to: "/gallery", label: "Gallery", icon: Images },
-  { to: "/billing", label: "Plan & Billing", icon: CreditCard },
-  { to: "/gifts", label: "Gifts", icon: Gift },
-  { to: "/affiliate", label: "Affiliate", icon: Users },
-  { to: "/nexusarb", label: "NexusARB (Sim)", icon: TrendingUp },
+const LIVE_FEATURES: Feature[] = [
+  { to: "/studio",      label: "Image Generation", icon: Sparkles },
+  { to: "/orchestrate", label: "Video Generation",  icon: Film },
+  { to: "/colors",      label: "Colors Studio",     icon: Palette },
+  { to: "/motion",      label: "Motion",            icon: Wand2 },
+  { to: "/lipsync",     label: "Lip Sync",          icon: Mic },
+  { to: "/canvas",      label: "Canvas",            icon: Workflow },
+  { to: "/music-video", label: "Lyric Video",       icon: Clapperboard },
+  { to: "/agent",       label: "Claude MCP",        icon: Bot },
 ];
 
-// Top features surfaced as one-tap bottom tabs (the rest live behind "More").
+const UTILITY_FEATURES: Feature[] = [
+  { to: "/dashboard", label: "Dashboard",    icon: LayoutDashboard },
+  { to: "/gallery",   label: "Gallery",      icon: Images },
+  { to: "/billing",   label: "Plan & Billing", icon: CreditCard },
+  { to: "/roadmap",   label: "Roadmap",      icon: Map },
+];
+
+const COMING_SOON: Feature[] = [
+  { to: "/ugc",           label: "UGC Ads",         icon: Megaphone,          badge: "Soon" },
+  { to: "/spin",          label: "Spin · 50 Posts",  icon: Flame,              badge: "Soon" },
+  { to: "/content-machine", label: "Content Machine", icon: Factory,           badge: "Soon" },
+  { to: "/kids",          label: "Kids Stories",     icon: BookOpen,           badge: "Soon" },
+  { to: "/split-reality", label: "Split Reality",    icon: SplitSquareHorizontal, badge: "Soon" },
+  { to: "/tiktok",        label: "TikTok Studio",    icon: Music2,             badge: "Soon" },
+  { to: "/clips",         label: "Clips",            icon: Scissors,           badge: "Soon" },
+  { to: "/edit",          label: "AutoCut",          icon: Wand2,              badge: "Soon" },
+  { to: "/workflows",     label: "Workflows",        icon: LayoutTemplate,     badge: "Soon" },
+  { to: "/cli",           label: "CLI",              icon: Terminal,           badge: "Soon" },
+  { to: "/gifts",         label: "Gifts",            icon: Gift,               badge: "Soon" },
+  { to: "/affiliate",     label: "Affiliate",        icon: Users,              badge: "Soon" },
+  { to: "/nexusarb",      label: "NexusARB (Sim)",   icon: TrendingUp,         badge: "Soon" },
+];
+
 const TAB_ITEMS: Feature[] = [
-  { to: "/studio", label: "Studio", icon: Sparkles },
-  { to: "/canvas", label: "Canvas", icon: Workflow },
-  { to: "/ugc", label: "UGC", icon: Megaphone },
-  { to: "/gallery", label: "Gallery", icon: Images },
+  { to: "/studio",      label: "Studio", icon: Sparkles },
+  { to: "/orchestrate", label: "Video",  icon: Film },
+  { to: "/canvas",      label: "Canvas", icon: Workflow },
+  { to: "/gallery",     label: "Gallery", icon: Images },
 ];
 
 function isActive(pathname: string, to: string) {
   return pathname === to || pathname.startsWith(`${to}/`);
+}
+
+function NavSection({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+        {label}
+      </p>
+      {children}
+    </div>
+  );
+}
+
+function LiveNavItem({ f, active, onClick }: { f: Feature; active: boolean; onClick: () => void }) {
+  return (
+    <Link
+      to={f.to}
+      onClick={onClick}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm no-underline transition-all duration-150",
+        active
+          ? "bg-[image:var(--gradient-hero)] text-white shadow-[var(--shadow-glow-soft)]"
+          : "text-muted-foreground hover:bg-accent/40 hover:text-foreground",
+      )}
+    >
+      <span
+        className={cn(
+          "flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors",
+          active
+            ? "bg-white/20"
+            : "aurora-glass group-hover:bg-accent/50",
+        )}
+      >
+        <f.icon className="size-3.5" />
+      </span>
+      <span className="font-medium">{f.label}</span>
+    </Link>
+  );
+}
+
+function ComingSoonItem({ f }: { f: Feature }) {
+  return (
+    <div className="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm opacity-50 cursor-default select-none">
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-lg aurora-glass">
+        <f.icon className="size-3.5 text-muted-foreground" />
+      </span>
+      <span className="flex-1 text-muted-foreground">{f.label}</span>
+      <span className="flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <Lock className="size-2.5" />
+        Soon
+      </span>
+    </div>
+  );
 }
 
 export function MobileNav() {
@@ -80,11 +150,8 @@ export function MobileNav() {
   const touchStartX = useRef<number | null>(null);
   const { theme, toggle } = useTheme();
 
-  // The active feature (if any) drives tab/"More" highlighting. On the landing page
-  // and other non-feature routes there's simply no active feature — the nav still
-  // renders, just with nothing highlighted. (NexusARB is suppressed upstream in
-  // __root, so it never reaches here.)
-  const activeFeature = FEATURES.find((f) => isActive(pathname, f.to));
+  const allFeatures = [...LIVE_FEATURES, ...UTILITY_FEATURES, ...COMING_SOON];
+  const activeFeature = allFeatures.find((f) => isActive(pathname, f.to));
 
   const isCanvas = isActive(pathname, "/canvas");
   const moreActive = !!activeFeature && !TAB_ITEMS.some((t) => t.to === activeFeature.to);
@@ -95,7 +162,6 @@ export function MobileNav() {
   const onTouchMove = (e: React.TouchEvent) => {
     if (touchStartX.current === null) return;
     const dx = (e.touches[0]?.clientX ?? 0) - touchStartX.current;
-    // Swipe toward the left edge to dismiss the left-hand drawer.
     if (dx < -50) {
       setOpen(false);
       touchStartX.current = null;
@@ -107,9 +173,6 @@ export function MobileNav() {
 
   return (
     <>
-      {/* The menu trigger lives at the top-left on every route — the same compact
-          pill the canvas editor uses — so the full features drawer is always one
-          tap away from the same place (no longer buried in the bottom tab bar). */}
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -126,11 +189,7 @@ export function MobileNav() {
       </button>
 
       {!isCanvas && (
-        // Canvas is a full-screen editor with its own bottom dock, so it gets the
-        // top-left pill only. Every other route keeps the quick-access tab bar —
-        // now four one-tap tabs, with the menu moved up to the top-left pill.
         <>
-          {/* In-flow spacer so the fixed bar never covers the last bit of content. */}
           <div aria-hidden style={{ height: "calc(4rem + env(safe-area-inset-bottom))" }} />
           <nav
             aria-label="Primary"
@@ -179,51 +238,92 @@ export function MobileNav() {
           onTouchEnd={onTouchEnd}
           className="phone-drawer-left flex flex-col gap-0 overflow-hidden p-0"
         >
-          <span aria-hidden className="aurora-ambient opacity-60" />
-          <SheetHeader className="relative border-b border-border p-4 text-left">
-            <SheetTitle className="flex items-center gap-2.5">
-              <img
-                src={auroraLogo.url}
-                alt=""
-                className="size-8 rounded-xl object-contain shadow-[var(--shadow-glow-soft)]"
-              />
-              <span className="flex flex-col leading-tight">
-                <span className="font-semibold tracking-tight">Aurora Studio</span>
-                <span className="aurora-kicker mt-1">All features</span>
-              </span>
+          <span aria-hidden className="aurora-ambient opacity-70" />
+
+          {/* ── Header ──────────────────────────────────────────────────── */}
+          <SheetHeader className="relative shrink-0 border-b border-border p-4 text-left">
+            {/* subtle gradient bar across top */}
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[image:var(--gradient-hero)] opacity-60"
+            />
+            <SheetTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <img
+                    src={auroraLogo.url}
+                    alt=""
+                    className="size-10 rounded-2xl object-contain shadow-[var(--shadow-glow-soft)]"
+                  />
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 rounded-2xl ring-1 ring-white/10"
+                  />
+                </div>
+                <span className="flex flex-col leading-tight">
+                  <span className="text-base font-bold tracking-tight text-foreground">Aurora</span>
+                  <span className="text-[11px] text-muted-foreground font-normal">AI Creative Studio</span>
+                </span>
+              </div>
+              {/* What's New bell — keeps its own sheet so clicking it closes this one first */}
+              <WhatsNew />
             </SheetTitle>
           </SheetHeader>
-          <nav aria-label="All features" className="relative flex flex-1 flex-col gap-1 overflow-y-auto p-3">
-            {FEATURES.map((f) => {
-              const active = isActive(pathname, f.to);
-              return (
-                <Link
+
+          {/* ── Nav body ────────────────────────────────────────────────── */}
+          <nav aria-label="All features" className="relative flex flex-1 flex-col gap-3 overflow-y-auto p-3 pb-4">
+
+            {/* Live section */}
+            <NavSection label="Live now">
+              {LIVE_FEATURES.map((f) => (
+                <LiveNavItem
                   key={f.to}
-                  to={f.to}
+                  f={f}
+                  active={isActive(pathname, f.to)}
                   onClick={() => setOpen(false)}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm no-underline transition-colors",
-                    active
-                      ? "aurora-glass-strong font-medium text-foreground"
-                      : "text-muted-foreground hover:bg-accent/40 hover:text-foreground",
-                  )}
-                >
-                  {active && (
-                    <span
-                      aria-hidden
-                      className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-[image:var(--gradient-hero)]"
-                    />
-                  )}
-                  <f.icon className={cn("size-5 shrink-0", active && "text-primary")} />
-                  <span>{f.label}</span>
-                </Link>
-              );
-            })}
+                />
+              ))}
+            </NavSection>
+
+            {/* Utility section */}
+            <NavSection label="Account">
+              {UTILITY_FEATURES.map((f) => (
+                <LiveNavItem
+                  key={f.to}
+                  f={f}
+                  active={isActive(pathname, f.to)}
+                  onClick={() => setOpen(false)}
+                />
+              ))}
+            </NavSection>
+
+            {/* Divider with label */}
+            <div className="flex items-center gap-2 px-1 pt-1">
+              <span className="h-px flex-1 bg-border" />
+              <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+                <Lock className="size-2.5" />
+                Coming soon
+              </span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+
+            {/* Coming soon section */}
+            <div className="flex flex-col gap-0.5">
+              {COMING_SOON.map((f) => (
+                <ComingSoonItem key={f.to} f={f} />
+              ))}
+            </div>
           </nav>
 
-          {/* ── Theme toggle ─────────────────────────────────────────────── */}
-          <div className="relative border-t border-border p-3">
+          {/* ── Footer ──────────────────────────────────────────────────── */}
+          <div className="relative shrink-0 border-t border-border p-3 flex flex-col gap-1">
+            {/* gradient line across top of footer */}
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent"
+            />
+
+            {/* Theme toggle */}
             <button
               type="button"
               onClick={toggle}
@@ -232,13 +332,12 @@ export function MobileNav() {
             >
               <span className="flex items-center gap-3">
                 {theme === "dark" ? (
-                  <Moon className="size-5 shrink-0" />
+                  <Moon className="size-4 shrink-0" />
                 ) : (
-                  <Sun className="size-5 shrink-0" />
+                  <Sun className="size-4 shrink-0" />
                 )}
-                <span>{theme === "dark" ? "Dark mode" : "Light mode"}</span>
+                <span className="font-medium">{theme === "dark" ? "Dark mode" : "Light mode"}</span>
               </span>
-              {/* pill toggle */}
               <span
                 className={cn(
                   "relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200",
