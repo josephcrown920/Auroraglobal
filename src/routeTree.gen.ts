@@ -18,6 +18,7 @@ import { Route as SplitRealityRouteImport } from './routes/split-reality'
 import { Route as SpinRouteImport } from './routes/spin'
 import { Route as SpeechRouteImport } from './routes/speech'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as RoadmapRouteImport } from './routes/roadmap'
 import { Route as ReshootRouteImport } from './routes/reshoot'
 import { Route as OrchestrateRouteImport } from './routes/orchestrate'
 import { Route as NexusarbRouteImport } from './routes/nexusarb'
@@ -105,6 +106,11 @@ const SpeechRoute = SpeechRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RoadmapRoute = RoadmapRouteImport.update({
+  id: '/roadmap',
+  path: '/roadmap',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReshootRoute = ReshootRouteImport.update({
@@ -351,6 +357,7 @@ export interface FileRoutesByFullPath {
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
   '/reshoot': typeof ReshootRoute
+  '/roadmap': typeof RoadmapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
@@ -405,6 +412,7 @@ export interface FileRoutesByTo {
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
   '/reshoot': typeof ReshootRoute
+  '/roadmap': typeof RoadmapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
@@ -460,6 +468,7 @@ export interface FileRoutesById {
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
   '/reshoot': typeof ReshootRoute
+  '/roadmap': typeof RoadmapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
@@ -516,6 +525,7 @@ export interface FileRouteTypes {
     | '/nexusarb'
     | '/orchestrate'
     | '/reshoot'
+    | '/roadmap'
     | '/sitemap.xml'
     | '/speech'
     | '/spin'
@@ -570,6 +580,7 @@ export interface FileRouteTypes {
     | '/nexusarb'
     | '/orchestrate'
     | '/reshoot'
+    | '/roadmap'
     | '/sitemap.xml'
     | '/speech'
     | '/spin'
@@ -624,6 +635,7 @@ export interface FileRouteTypes {
     | '/nexusarb'
     | '/orchestrate'
     | '/reshoot'
+    | '/roadmap'
     | '/sitemap.xml'
     | '/speech'
     | '/spin'
@@ -679,6 +691,7 @@ export interface RootRouteChildren {
   NexusarbRoute: typeof NexusarbRoute
   OrchestrateRoute: typeof OrchestrateRoute
   ReshootRoute: typeof ReshootRoute
+  RoadmapRoute: typeof RoadmapRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SpeechRoute: typeof SpeechRoute
   SpinRoute: typeof SpinRoute
@@ -768,6 +781,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/roadmap': {
+      id: '/roadmap'
+      path: '/roadmap'
+      fullPath: '/roadmap'
+      preLoaderRoute: typeof RoadmapRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reshoot': {
@@ -1115,6 +1135,7 @@ const rootRouteChildren: RootRouteChildren = {
   NexusarbRoute: NexusarbRoute,
   OrchestrateRoute: OrchestrateRoute,
   ReshootRoute: ReshootRoute,
+  RoadmapRoute: RoadmapRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SpeechRoute: SpeechRoute,
   SpinRoute: SpinRoute,
