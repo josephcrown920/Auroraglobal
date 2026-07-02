@@ -128,8 +128,8 @@ export function McpConnector() {
         </h2>
         <p className="mt-4 max-w-2xl text-base leading-7 text-white/72 md:text-lg">
           Connect Aurora to Claude and generate avatar images, videos, talking UGC
-          ads and full campaigns right from your conversations. <strong className="text-white">10 tools, one
-          connection</strong> — manage avatars, generate, edit and automate, all from a chat.
+          ads and full campaigns right from your conversations. <strong className="text-white">13 tools, one
+          connection</strong> — manage avatars, generate, queue and track jobs, all from a chat.
         </p>
 
         {/* Primary chat mockup — bulk generation */}
@@ -259,11 +259,11 @@ export function McpConnector() {
             <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[12px] text-white/90">
               /api/mcp
             </code>{" "}
-            on your account domain. On claude.ai you add it as a custom connector and approve a
-            one-click consent prompt — no API keys to paste. Claude Desktop, Cursor and other MCP
-            clients can use the same URL plus a personal API key. Once connected, the assistant can
+            on your account domain. In Claude Desktop, Cursor or any other MCP client, add that
+            URL plus a personal API key from your dashboard — that's the whole setup. (claude.ai
+            web connectors need an OAuth flow that isn't enabled yet.) Once connected, the assistant can
             list your avatars, generate images and videos, produce talking UGC ads, spin up full
-            campaigns, edit existing assets, and check your Aura balance from a normal chat.
+            campaigns, and queue, track or cancel render jobs from a normal chat.
           </p>
         </div>
 

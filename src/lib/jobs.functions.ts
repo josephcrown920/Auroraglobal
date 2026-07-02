@@ -30,7 +30,7 @@ function creditCost(kind: string): number {
 // They require a motion-capable GPU worker and must go through the dedicated,
 // preflighted server fns (generateMimicMotion / generatePerformanceReskin) so a
 // "no motion backend" request never reserves credits.
-const EnqueueInput = z.object({
+export const EnqueueInput = z.object({
   kind: z.enum(["image", "video", "lipsync", "upscale"]),
   prompt: z.string().max(2000).optional(),
   imageUrls: z.array(z.string().url()).max(6).optional(),
@@ -48,10 +48,14 @@ const EnqueueInput = z.object({
   confirmPreviewId: z.string().uuid().optional(),
 });
 
-export const enqueueGenerationJob = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => EnqueueInput.parse(data))
-  .handler(async ({ data, context }) => {
+/** Core enqueue logic, shared between the app server fn and the MCP tool so
+ *  billing (preview gate, HD entitlement, flat credit pricing) can never drift
+ *  between the two entry points. */
+export async function enqueueJobForUser(
+  userId: string,
+  data: z.infer<typeof EnqueueInput>,
+): Promise<{ jobId: string; generationId: string; preview: boolean }> {
+  {
     for (const u of data.imageUrls ?? []) assertTrustedUrl(u);
     if (data.audioUrl) assertTrustedUrl(data.audioUrl);
     if (data.videoUrl) assertTrustedUrl(data.videoUrl);
@@ -64,7 +68,7 @@ export const enqueueGenerationJob = createServerFn({ method: "POST" })
     let previewPass = false;
     if (isTemporalKind(data.kind)) {
       const gate = await resolvePreviewGate({
-        userId: context.userId,
+        userId,
         confirmPreviewId: data.confirmPreviewId,
       });
       previewPass = !gate.confirmed;
@@ -79,7 +83,7 @@ export const enqueueGenerationJob = createServerFn({ method: "POST" })
 
     // HD/4K entitlement: 1080p and 2160p require Pro on confirmed (full-quality) renders.
     const { assertHdEntitlement } = await import("./cost-guardrails.server");
-    await assertHdEntitlement(context.userId, data.resolution, previewPass);
+    await assertHdEntitlement(userId, data.resolution, previewPass);
 
     // Previews are cheaper: the queue path prices flat (creditCost), so the
     // preview is half of that flat price (matching the 480p ×0.5 multiplier).
@@ -93,7 +97,7 @@ export const enqueueGenerationJob = createServerFn({ method: "POST" })
       rpc: (n: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
     };
     const { data: out, error } = await client.rpc("create_generation_and_reserve", {
-      _user: context.userId,
+      _user: userId,
       _kind: data.kind as GenerateKind,
       _prompt: data.prompt ?? "",
       _amount: amount,
@@ -119,54 +123,87 @@ export const enqueueGenerationJob = createServerFn({ method: "POST" })
       generationId,
       preview: previewPass,
     };
-  });
+  }
+}
+
+export const enqueueGenerationJob = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => EnqueueInput.parse(data))
+  .handler(async ({ data, context }) => enqueueJobForUser(context.userId, data));
+
+/** Recent jobs for a user (newest first, capped at 50). Shared by the app
+ *  server fn and the MCP tool. */
+export async function listJobsForUser(userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("jobs")
+    .select("id, kind, status, attempts, error, generation_id, parent_job_id, created_at, finished_at, result")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) throw new Error(error.message);
+  return data;
+}
 
 export const listMyJobs = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await supabaseAdmin
-      .from("jobs")
-      .select("id, kind, status, attempts, error, generation_id, parent_job_id, created_at, finished_at, result")
-      .eq("user_id", context.userId)
-      .order("created_at", { ascending: false })
-      .limit(50);
-    if (error) throw new Error(error.message);
-    return data;
+    return listJobsForUser(context.userId);
   });
 
 export const cancelMyJob = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
-  .handler(async ({ data, context }) => {
-    const { data: job } = await supabaseAdmin
-      .from("jobs")
-      .select("id, user_id, status, credits_reserved, generation_id, kind")
-      .eq("id", data.id)
-      .eq("user_id", context.userId)
-      .maybeSingle();
-    if (!job) throw new Error("Not found");
-    if (job.status !== "queued") throw new Error(`Cannot cancel a ${job.status} job`);
+  .handler(async ({ data, context }) => cancelJobForUser(context.userId, data.id));
 
-    const client = supabaseAdmin as unknown as {
-      rpc: (n: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
-    };
-    if (job.credits_reserved > 0) {
-      await client.rpc("release_reservation", {
-        _user: context.userId,
-        _amount: job.credits_reserved,
-        _reason: `cancel_${job.kind}`,
-        _ref: job.id,
-      });
+/** Cancel a queued job (releasing its reservation). Only `queued` jobs can be
+ *  cancelled — a processing job already holds a worker lock. Shared by the app
+ *  server fn and the MCP tool. */
+export async function cancelJobForUser(userId: string, jobId: string): Promise<{ ok: true }> {
+  const { data: job } = await supabaseAdmin
+    .from("jobs")
+    .select("id, user_id, status, credits_reserved, generation_id, kind")
+    .eq("id", jobId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!job) throw new Error("Not found");
+  if (job.status !== "queued") throw new Error(`Cannot cancel a ${job.status} job`);
+
+  // CAS on status='queued' so a concurrent tick/cancel can't double-process
+  // (and, critically, so the reservation can't be released twice).
+  const { data: cancelled, error: cancelErr } = await supabaseAdmin
+    .from("jobs")
+    .update({ status: "cancelled", finished_at: new Date().toISOString() } as never)
+    .eq("id", job.id)
+    .eq("user_id", userId)
+    .eq("status", "queued")
+    .select("id");
+  if (cancelErr) throw new Error(`Cancel failed: ${cancelErr.message}`);
+  if (!cancelled || cancelled.length === 0) {
+    throw new Error("Cannot cancel: job is no longer queued");
+  }
+
+  const client = supabaseAdmin as unknown as {
+    rpc: (n: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+  };
+  if (job.credits_reserved > 0) {
+    const { error: releaseErr } = await client.rpc("release_reservation", {
+      _user: userId,
+      _amount: job.credits_reserved,
+      _reason: `cancel_${job.kind}`,
+      _ref: job.id,
+    });
+    if (releaseErr) {
+      throw new Error(
+        `Job cancelled but releasing reserved Aura failed: ${releaseErr.message}. Contact support to recover ${job.credits_reserved} Aura.`,
+      );
     }
-    await supabaseAdmin
-      .from("jobs")
-      .update({ status: "cancelled", finished_at: new Date().toISOString() } as never)
-      .eq("id", job.id);
-    if (job.generation_id) {
-      await supabaseAdmin
-        .from("generations")
-        .update({ status: "cancelled" } as never)
-        .eq("id", job.generation_id);
-    }
-    return { ok: true as const };
-  });
+  }
+  if (job.generation_id) {
+    const { error: genErr } = await supabaseAdmin
+      .from("generations")
+      .update({ status: "cancelled" } as never)
+      .eq("id", job.generation_id);
+    if (genErr) throw new Error(`Job cancelled but updating its generation failed: ${genErr.message}`);
+  }
+  return { ok: true as const };
+}

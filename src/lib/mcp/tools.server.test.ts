@@ -12,6 +12,9 @@ import {
   listAvatarsTool,
   getJobStatusTool,
   createAvatarTool,
+  submitJobTool,
+  listJobsTool,
+  cancelJobTool,
   type ToolCtx,
   type ToolDeps,
 } from "./tools.server";
@@ -99,6 +102,8 @@ type RpcCall = { name: string; args: Record<string, unknown> };
 function makeDeps(over: Partial<ToolDeps> = {}) {
   const rpcCalls: RpcCall[] = [];
   const generateCalls: Record<string, unknown>[] = [];
+  const enqueueCalls: Array<{ userId: string; input: unknown }> = [];
+  const cancelCalls: Array<{ userId: string; jobId: string }> = [];
   const deps: ToolDeps = {
     rpc: async (name, args) => {
       rpcCalls.push({ name, args });
@@ -114,9 +119,18 @@ function makeDeps(over: Partial<ToolDeps> = {}) {
     hasActiveWorkerForKind: async () => true,
     getJobRow: async () => null,
     getGenerationRow: async () => null,
+    enqueueJob: async (userId, input) => {
+      enqueueCalls.push({ userId, input });
+      return { jobId: "job-q1", generationId: "gen-q1", preview: false };
+    },
+    listJobs: async () => [],
+    cancelJob: async (userId, jobId) => {
+      cancelCalls.push({ userId, jobId });
+      return { ok: true as const };
+    },
     ...over,
   };
-  return { deps, rpcCalls, generateCalls };
+  return { deps, rpcCalls, generateCalls, enqueueCalls, cancelCalls };
 }
 
 function parse(r: ToolResult) {
@@ -365,5 +379,132 @@ describe("read-only tools reserve nothing", () => {
     expect(parse(res).name).toBe("Nova");
     expect(reserveCalls(rpcCalls)).toHaveLength(0);
     expect(generateCalls).toHaveLength(0);
+  });
+});
+
+// ─── Job queue tools (mirror of the /editor playground + CLI jobs API) ─────────
+// Billing lives in the shared jobs.functions.ts core (enqueueJobForUser), so the
+// contract pinned here is delegation: the tool passes the caller's userId + a
+// correctly mapped input to deps.enqueueJob and never reserves through rpc itself.
+
+describe("submitJobTool (delegates to shared enqueue core)", () => {
+  it("maps snake_case args onto the enqueue input and returns the job id", async () => {
+    const { deps, rpcCalls, enqueueCalls } = makeDeps();
+    const res = await submitJobTool(
+      {
+        kind: "image",
+        prompt: "a neon skyline",
+        image_urls: [`${TRUSTED_HOST}ref.png`],
+        model: "google/nano-banana",
+      },
+      CTX,
+      deps,
+    );
+    expect(res.isError).toBeFalsy();
+    expect(enqueueCalls).toHaveLength(1);
+    expect(enqueueCalls[0].userId).toBe(CTX.userId);
+    expect(enqueueCalls[0].input).toEqual({
+      kind: "image",
+      prompt: "a neon skyline",
+      imageUrls: [`${TRUSTED_HOST}ref.png`],
+      audioUrl: undefined,
+      videoUrl: undefined,
+      duration: undefined,
+      resolution: undefined,
+      model: "google/nano-banana",
+      confirmPreviewId: undefined,
+    });
+    expect(parse(res).job_id).toBe("job-q1");
+    // Billing is inside the shared core — the tool must not reserve directly.
+    expect(reserveCalls(rpcCalls)).toHaveLength(0);
+  });
+
+  it("surfaces the preview note when the core downgrades to a preview render", async () => {
+    const { deps } = makeDeps({
+      enqueueJob: async () => ({ jobId: "j1", generationId: "g1", preview: true }),
+    });
+    const res = await submitJobTool({ kind: "video", prompt: "x" }, CTX, deps);
+    const out = parse(res);
+    expect(out.preview).toBe(true);
+    expect(out.note).toMatch(/480p/);
+  });
+
+  it("surfaces core errors (e.g. Not enough Aura) as tool errors", async () => {
+    const { deps } = makeDeps({
+      enqueueJob: async () => {
+        throw new Error("Not enough Aura");
+      },
+    });
+    const res = await submitJobTool({ kind: "image", prompt: "x" }, CTX, deps);
+    expect(res.isError).toBe(true);
+    expect(parse(res).error).toBe("Not enough Aura");
+  });
+});
+
+describe("listJobsTool (read-only)", () => {
+  const row = (over: Partial<import("./tools.server").JobListRow> = {}) => ({
+    id: "11111111-1111-1111-1111-111111111111",
+    kind: "image",
+    status: "succeeded",
+    attempts: 1,
+    error: null,
+    generation_id: "gen-1",
+    parent_job_id: null,
+    created_at: "2026-07-01T00:00:00Z",
+    finished_at: "2026-07-01T00:01:00Z",
+    result: { url: "https://cdn.example/out.png" },
+    ...over,
+  });
+
+  it("returns mapped jobs with the output URL and reserves nothing", async () => {
+    const { deps, rpcCalls, generateCalls } = makeDeps({
+      listJobs: async () => [row(), row({ id: "22222222-2222-2222-2222-222222222222", status: "queued", result: null })],
+    });
+    const res = await listJobsTool({ limit: 20 }, CTX, deps);
+    const out = parse(res) as { jobs: Array<Record<string, unknown>>; total: number };
+    expect(out.total).toBe(2);
+    expect(out.jobs[0].output_url).toBe("https://cdn.example/out.png");
+    expect(out.jobs[1].output_url).toBeNull();
+    expect(reserveCalls(rpcCalls)).toHaveLength(0);
+    expect(generateCalls).toHaveLength(0);
+  });
+
+  it("filters by status and honours the limit", async () => {
+    const { deps } = makeDeps({
+      listJobs: async () => [
+        row({ id: "11111111-1111-1111-1111-111111111111", status: "queued" }),
+        row({ id: "22222222-2222-2222-2222-222222222222", status: "failed" }),
+        row({ id: "33333333-3333-3333-3333-333333333333", status: "queued" }),
+      ],
+    });
+    const res = await listJobsTool({ status: "queued", limit: 1 }, CTX, deps);
+    const out = parse(res) as { jobs: Array<{ job_id: string; status: string }>; total: number };
+    expect(out.total).toBe(1);
+    expect(out.jobs[0].status).toBe("queued");
+  });
+});
+
+describe("cancelJobTool", () => {
+  it("delegates to the shared cancel core with the caller's userId", async () => {
+    const { deps, cancelCalls } = makeDeps();
+    const res = await cancelJobTool({ job_id: "11111111-1111-1111-1111-111111111111" }, CTX, deps);
+    expect(res.isError).toBeFalsy();
+    expect(cancelCalls).toEqual([
+      { userId: CTX.userId, jobId: "11111111-1111-1111-1111-111111111111" },
+    ]);
+    expect(parse(res).status).toBe("cancelled");
+  });
+
+  it("surfaces 'Cannot cancel' / 'Not found' errors from the core", async () => {
+    for (const msg of ["Not found", "Cannot cancel a processing job"]) {
+      const { deps } = makeDeps({
+        cancelJob: async () => {
+          throw new Error(msg);
+        },
+      });
+      const res = await cancelJobTool({ job_id: "11111111-1111-1111-1111-111111111111" }, CTX, deps);
+      expect(res.isError).toBe(true);
+      expect(parse(res).error).toBe(msg);
+    }
   });
 });
