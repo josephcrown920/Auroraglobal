@@ -1,6 +1,16 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -178,6 +188,7 @@ function MotionStudio() {
   const [transferPreviewId, setTransferPreviewId] = useState<string | null>(null);
   const [reskinPreviewId, setReskinPreviewId] = useState<string | null>(null);
   const [animatePreviewId, setAnimatePreviewId] = useState<string | null>(null);
+  const [animateHdDialogOpen, setAnimateHdDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth" });
@@ -687,7 +698,14 @@ function MotionStudio() {
                 </Button>
                 <Button
                   disabled={animateMut.isPending || (!stagedImage && !startFrame)}
-                  onClick={() => animateMut.mutate()}
+                  onClick={() => {
+                    const isHd = videoResolution === "1080p" || videoResolution === "2160p";
+                    if (animatePreviewId && isHd) {
+                      setAnimateHdDialogOpen(true);
+                    } else {
+                      animateMut.mutate();
+                    }
+                  }}
                   variant="secondary"
                   className="flex-1 h-12"
                 >
@@ -697,6 +715,24 @@ function MotionStudio() {
                     <><Film className="size-4 mr-2" /> {videoError ? "Retry animate" : animatePreviewId ? `Render full quality · ${animateCost} Aura` : `Preview animation · ${animatePreviewCost} Aura`}</>
                   )}
                 </Button>
+                <AlertDialog open={animateHdDialogOpen} onOpenChange={setAnimateHdDialogOpen}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        Render at {videoResolution === "2160p" ? "4K (2160p)" : "HD (1080p)"}?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will charge <strong>{animateCost} Aura</strong> from your balance to produce a full-quality {videoResolution === "2160p" ? "4K" : "HD"} video render.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => animateMut.mutate()}>
+                        Confirm &amp; Render
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
 
               {(stageProgress.isActive || animateProgress.isActive) && (

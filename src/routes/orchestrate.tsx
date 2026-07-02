@@ -1,5 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -85,6 +95,7 @@ function OrchestratePage() {
   // Preview-confirm ticket: the preview's generation id, required by the
   // server gate (task #153) to unlock the full-quality render.
   const [previewTicket, setPreviewTicket] = useState<string | null>(null);
+  const [hdDialogOpen, setHdDialogOpen] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
   const [result, setResult] = useState<{
     kind: Modality;
@@ -153,7 +164,9 @@ function OrchestratePage() {
   // then the user confirms before the full-quality render.
   const isPreviewPass = modality === "video" && !awaitingFullRender;
 
-  const onGenerate = async () => {
+  const isHdResolution = resolution === "1080p" || resolution === "2160p";
+
+  const doGenerate = async () => {
     if (!user) return toast.error("Please sign in to generate");
     if (!prompt.trim()) return toast.error("Enter a prompt first");
     if (modality === "video" && !imageUrl.trim()) {
@@ -219,6 +232,14 @@ function OrchestratePage() {
       setPendingState("error");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const onGenerate = () => {
+    if (awaitingFullRender && isHdResolution) {
+      setHdDialogOpen(true);
+    } else {
+      void doGenerate();
     }
   };
 
@@ -398,6 +419,25 @@ function OrchestratePage() {
                     ? "Preview · 480p · 5s"
                     : `Generate · ${cost} credit${cost === 1 ? "" : "s"}`}
             </button>
+
+            <AlertDialog open={hdDialogOpen} onOpenChange={setHdDialogOpen}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Render at {resolution === "2160p" ? "4K (2160p)" : "HD (1080p)"}?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will charge <strong>{cost} Aura</strong> from your balance to produce a full-quality {resolution === "2160p" ? "4K" : "HD"} render.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => void doGenerate()}>
+                    Confirm &amp; Render
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
 
             {orchestrateProgress.isActive && (
               <div className="mt-4">

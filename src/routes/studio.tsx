@@ -1,5 +1,15 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -122,6 +132,7 @@ function StudioPage() {
   const [captionOpen, setCaptionOpen] = useState(false);
   const [videoResolution, setVideoResolution] = useState<Resolution>("720p");
   const [videoPreviewId, setVideoPreviewId] = useState<string | null>(null);
+  const [videoHdDialogOpen, setVideoHdDialogOpen] = useState(false);
 
   // Tiered cost previews — must mirror the server charge exactly.
   // Preview is always 480p (cheap first pass); confirmed full render uses selected resolution.
@@ -915,7 +926,19 @@ function StudioPage() {
                 </span>
                 <span className="opacity-70">{getModelMeta(videoModel).short}</span>
               </div>
-              <Button disabled={videoMut.isPending} onClick={() => videoMut.mutate()} variant="secondary" className="w-full">
+              <Button
+                disabled={videoMut.isPending}
+                onClick={() => {
+                  const isHd = videoResolution === "1080p" || videoResolution === "2160p";
+                  if (videoPreviewId && isHd) {
+                    setVideoHdDialogOpen(true);
+                  } else {
+                    videoMut.mutate();
+                  }
+                }}
+                variant="secondary"
+                className="w-full"
+              >
                 {videoMut.isPending
                   ? <><Loader2 className="size-4 mr-2 animate-spin" /> {videoPreviewId ? "Rendering full quality…" : "Rendering preview…"}</>
                   : videoPreviewId
@@ -923,6 +946,24 @@ function StudioPage() {
                   : <><Film className="size-4 mr-2" /> Preview animation · {videoPreviewCost} Aura</>
                 }
               </Button>
+              <AlertDialog open={videoHdDialogOpen} onOpenChange={setVideoHdDialogOpen}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Render at {videoResolution === "2160p" ? "4K (2160p)" : "HD (1080p)"}?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will charge <strong>{videoCost} Aura</strong> from your balance to produce a full-quality {videoResolution === "2160p" ? "4K" : "HD"} video render.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => videoMut.mutate()}>
+                      Confirm &amp; Render
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
 
               {latestVideo?.result_video_url && (
                 <div className="rounded-xl overflow-hidden border border-border bg-background/40">
