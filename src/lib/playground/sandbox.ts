@@ -75,6 +75,19 @@ export function isAllowedApiPath(path: string): boolean {
   return ALLOWED_API_PATHS.includes(path);
 }
 
+/**
+ * Job-queue operations a sandbox script may invoke. These are NOT fetch paths:
+ * the main thread routes them to the existing authed server functions
+ * (enqueueGenerationJob / listMyJobs / cancelMyJob), so all validation,
+ * preview-gating and credit reservation stay on the existing pricing path.
+ */
+export const SANDBOX_JOB_OPS = ["jobs.submit", "jobs.list", "jobs.cancel"] as const;
+export type SandboxJobOp = (typeof SANDBOX_JOB_OPS)[number];
+
+export function isJobOp(path: string): path is SandboxJobOp {
+  return (SANDBOX_JOB_OPS as readonly string[]).includes(path);
+}
+
 // ─── Worker bootstrap source ─────────────────────────────────────────────────
 // Kept as a plain string so we can build a Blob worker without a bundler asset.
 // IMPORTANT: this source must never embed tokens or secrets — auth stays on the
@@ -233,15 +246,53 @@ async function __generate(opts) {
   return res;
 }
 
+const __sleep = (ms) => new Promise((r) => __realSetTimeout(r, ms));
+
+const __TERMINAL_JOB_STATUSES = ["succeeded", "failed", "cancelled"];
+
+const __jobs = {
+  submit: (opts) => {
+    if (!opts || typeof opts !== "object") throw new Error("aurora.jobs.submit(options) requires an options object");
+    if (!opts.kind) throw new Error("aurora.jobs.submit: 'kind' is required (image | video | lipsync | upscale)");
+    return __api("jobs.submit", opts);
+  },
+  list: () => __api("jobs.list", {}),
+  get: async (id) => {
+    if (typeof id !== "string" || !id) throw new Error("aurora.jobs.get(id) requires a job id");
+    const all = await __api("jobs.list", {});
+    return (Array.isArray(all) ? all : []).find((j) => j && j.id === id) || null;
+  },
+  cancel: (id) => {
+    if (typeof id !== "string" || !id) throw new Error("aurora.jobs.cancel(id) requires a job id");
+    return __api("jobs.cancel", { id });
+  },
+  wait: async (id, opts) => {
+    const intervalMs = Math.max(250, (opts && opts.intervalMs) || 3000);
+    const timeoutMs = (opts && opts.timeoutMs) || 10 * 60 * 1000;
+    const started = Date.now();
+    for (;;) {
+      const job = await __jobs.get(id);
+      if (!job) throw new Error("Job " + id + " not found");
+      if (opts && typeof opts.onTick === "function") opts.onTick(job);
+      if (__TERMINAL_JOB_STATUSES.indexOf(job.status) !== -1) return job;
+      if (Date.now() - started > timeoutMs) {
+        throw new Error("Timed out waiting for job " + id + " (last status: " + job.status + ")");
+      }
+      await __sleep(intervalMs);
+    }
+  },
+};
+
 const aurora = {
   generate: __generate,
   image: (prompt, opts) => __generate({ kind: "image", prompt, ...(opts || {}) }),
   video: (opts) => __generate({ kind: "video", ...(opts || {}) }),
   lipsync: (opts) => __generate({ kind: "lipsync", ...(opts || {}) }),
   text: (prompt, opts) => __generate({ kind: "text", prompt, ...(opts || {}) }),
+  jobs: __jobs,
   progress: (current, total, label) => __post({ type: "progress", current, total, label }),
   show: (url, label, kind) => __post({ type: "result", url, kind, label }),
-  sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+  sleep: __sleep,
 };
 
 self.onmessage = async (ev) => {
@@ -323,8 +374,14 @@ export function runInSandbox(opts: {
   code: string;
   getToken: () => Promise<string | null>;
   onEvent: (ev: SandboxEvent) => void;
+  /**
+   * Executes an allow-listed job-queue op (aurora.jobs.*) on the main thread —
+   * the editor wires this to the existing authed server functions. When absent,
+   * job ops fail with an explicit error.
+   */
+  runJobOp?: (op: SandboxJobOp, body: unknown) => Promise<unknown>;
 }): SandboxRunner {
-  const { code, getToken, onEvent } = opts;
+  const { code, getToken, onEvent, runJobOp } = opts;
   const blob = new Blob([WORKER_SOURCE], { type: "text/javascript" });
   const url = URL.createObjectURL(blob);
   const worker = new Worker(url);
@@ -340,6 +397,25 @@ export function runInSandbox(opts: {
   worker.onmessage = async (ev: MessageEvent) => {
     const msg = parseWorkerMessage(ev.data);
     if (!msg || stopped) return;
+
+    if (msg.type === "api" && isJobOp(msg.path)) {
+      onEvent({ type: "api-call", path: msg.path, summary: summarizeApiBody(msg.body) });
+      try {
+        if (!runJobOp) throw new Error("The job queue is not available in this context");
+        const data = await runJobOp(msg.path, msg.body);
+        if (stopped) return;
+        worker.postMessage({ type: "api-result", id: msg.id, ok: true, data } satisfies WorkerInMessage);
+      } catch (err) {
+        if (stopped) return;
+        worker.postMessage({
+          type: "api-result",
+          id: msg.id,
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+        } satisfies WorkerInMessage);
+      }
+      return;
+    }
 
     if (msg.type === "api") {
       if (!isAllowedApiPath(msg.path)) {
