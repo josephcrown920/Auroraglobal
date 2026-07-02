@@ -137,6 +137,7 @@ const ENV_KEYS = [
   "GROQ_API_KEY",
   "MISTRAL_API_KEY",
   "OPENAI_API_KEY",
+  "ANTHROPIC_API_KEY",
   "GEMINI_API_KEY",
   "HF_TOKEN",
   "LOVABLE_API_KEY",
@@ -153,6 +154,7 @@ const PROVIDER_NAMES = [
   "gemini-text",
   "mistral",
   "openai",
+  "anthropic",
   "hf-text",
   "lovable-text",
   "elevenlabs",
@@ -196,6 +198,15 @@ describe("getCandidateModels", () => {
 
   it("returns an empty list for a self-hosted request with no model", () => {
     expect(getCandidateModels({ kind: "image", prompt: "x", selfHostedOnly: true })).toEqual([]);
+  });
+
+  it("never silently truncates the text fallback chain (cap >= list length)", () => {
+    // Regression guard: adding a model to FALLBACK_MODELS.text without bumping
+    // FALLBACK_CAP.text silently drops the tail provider from the chain.
+    const candidates = getCandidateModels({ kind: "text", prompt: "x" });
+    expect(candidates).toContain("pollinations/openai");
+    expect(candidates).toContain("lovable/gemini-2.5-flash");
+    expect(candidates).toContain("anthropic/claude-haiku-4-5");
   });
 });
 
@@ -251,6 +262,43 @@ describe("orchestrate modality routing", () => {
     expect(res.url).toBe("");
     expect(calls.some((c) => c.url.includes("text.pollinations.ai"))).toBe(true);
     expect(calls.some((c) => c.url.includes("api.groq.com"))).toBe(true);
+  });
+
+  it("routes an explicit Claude model to the Anthropic adapter when keyed", async () => {
+    process.env.ANTHROPIC_API_KEY = "ak";
+    const { calls } = installFetch(({ url }) => {
+      if (url.includes("api.anthropic.com"))
+        return fakeResponse({ json: { choices: [{ message: { content: "hello from claude" } }] } });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    const res = await orchestrate({
+      kind: "text",
+      prompt: "hi",
+      model: "anthropic/claude-sonnet-4-5",
+    });
+    expect(res.provider).toBe("anthropic");
+    expect(res.text).toBe("hello from claude");
+    expect(calls[0].url).toContain("api.anthropic.com/v1/chat/completions");
+    const headers = (calls[0].init?.headers ?? {}) as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer ak");
+  });
+
+  it("skips Anthropic cleanly in the fallback chain when the key is absent", async () => {
+    installFakeClock();
+    // No ANTHROPIC_API_KEY set — chain must fall through Claude to Lovable.
+    process.env.LOVABLE_API_KEY = "lk";
+    const { calls } = installFetch(({ url }) => {
+      if (url.includes("text.pollinations.ai"))
+        return fakeResponse({ ok: false, status: 500, text: "down" });
+      if (url.includes("ai.gateway.lovable.dev"))
+        return fakeResponse({ json: { choices: [{ message: { content: "from lovable" } }] } });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    const res = await orchestrate({ kind: "text", prompt: "hi" });
+    expect(res.provider).toBe("lovable-text");
+    expect(calls.some((c) => c.url.includes("api.anthropic.com"))).toBe(false);
   });
 
   it("serves the audio modality via ElevenLabs when keyed", async () => {

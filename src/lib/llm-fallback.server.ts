@@ -48,6 +48,19 @@ function providers(): Provider[] {
         }),
     },
     {
+      // Anthropic's OpenAI-compatibility endpoint: /v1/chat/completions with a
+      // standard Bearer token (verified — returns authentication_error, not 404).
+      name: "anthropic",
+      enabled: !!process.env.ANTHROPIC_API_KEY,
+      model: "claude-haiku-4-5",
+      make: () =>
+        createOpenAICompatible({
+          name: "anthropic",
+          baseURL: "https://api.anthropic.com/v1",
+          headers: { Authorization: `Bearer ${process.env.ANTHROPIC_API_KEY}` },
+        }),
+    },
+    {
       name: "openrouter",
       enabled: !!process.env.OPENROUTER_API_KEY,
       model: "google/gemini-2.5-flash",
