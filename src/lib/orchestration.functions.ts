@@ -240,6 +240,15 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
         notes: "gpt-4o-mini",
       },
       {
+        id: "anthropic",
+        name: "Anthropic (Claude)",
+        kind: "text",
+        envKey: "ANTHROPIC_API_KEY",
+        configured: has("ANTHROPIC_API_KEY"),
+        free: false,
+        notes: "claude-sonnet-4-5 · claude-haiku-4-5 (direct)",
+      },
+      {
         id: "hf-text",
         name: "HuggingFace text",
         kind: "text",

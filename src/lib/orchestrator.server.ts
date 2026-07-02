@@ -187,7 +187,8 @@ type ProviderAdapter = {
     | "openai"
     | "gemini-text"
     | "lovable-text"
-    | "hf-text";
+    | "hf-text"
+    | "anthropic";
   supports: (req: GenerateRequest) => boolean;
   estimateCost: (req: GenerateRequest) => number;
   run: (req: GenerateRequest) => Promise<{ url: string; endpoint: string; text?: string }>;
@@ -933,6 +934,18 @@ const TEXT_MODELS: Record<string, TextModelEntry> = {
     providerModel: "google/gemini-2.5-flash",
     cost: 0.002,
   },
+  // Anthropic direct (OpenAI-compat endpoint). Haiku for cheap fallback text,
+  // Sonnet as the premium pick in the model dropdown.
+  "anthropic/claude-haiku-4-5": {
+    adapter: "anthropic",
+    providerModel: "claude-haiku-4-5",
+    cost: 0.002,
+  },
+  "anthropic/claude-sonnet-4-5": {
+    adapter: "anthropic",
+    providerModel: "claude-sonnet-4-5",
+    cost: 0.006,
+  },
 };
 
 /** POST an OpenAI-compatible /chat/completions request and return the message text. */
@@ -1028,6 +1041,14 @@ const lovableText = makeTextAdapter({
   envKey: "LOVABLE_API_KEY",
   url: "https://ai.gateway.lovable.dev/v1/chat/completions",
   authStyle: "lovable",
+});
+// Anthropic's OpenAI-compatibility layer accepts a standard Bearer token on
+// /v1/chat/completions, so the shared keyed-adapter pattern applies directly.
+const anthropicText = makeTextAdapter({
+  name: "anthropic",
+  envKey: "ANTHROPIC_API_KEY",
+  url: "https://api.anthropic.com/v1/chat/completions",
+  authStyle: "bearer",
 });
 
 // Gemini uses its own generateContent API (not OpenAI-compatible).
@@ -1629,7 +1650,17 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   // Motion transfer (MimicMotion) has no hosted provider — GPU/ComfyUI workers only.
   motion: [gpuWorker],
   // GPU-first: a worker advertising "text" (local LLM) is tried first.
-  text: [gpuWorker, pollinations, groqText, geminiText, mistralText, hfText, openaiText, lovableText],
+  text: [
+    gpuWorker,
+    pollinations,
+    groqText,
+    geminiText,
+    mistralText,
+    hfText,
+    openaiText,
+    anthropicText,
+    lovableText,
+  ],
   // GPU-first: a worker advertising "audio" (local TTS) is tried before ElevenLabs.
   audio: [gpuWorker, elevenlabs],
   // Final assembly (ffmpeg): self-hosted GPU worker pool only — no hosted provider.
@@ -1769,6 +1800,7 @@ const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
     "pollinations/openai",
     "groq/llama-3.3-70b",
     "gemini/gemini-2.0-flash",
+    "anthropic/claude-haiku-4-5",
     "lovable/gemini-2.5-flash",
   ],
   // Sentinel so the candidate loop runs; both audio adapters ignore the model key.
@@ -1788,7 +1820,9 @@ const FALLBACK_CAP: Record<GenerateKind, number> = {
   lipsync: 2,
   upscale: 1,
   motion: 1,
-  text: 4,
+  // Text chain has 5 fallback models (Pollinations → Groq → Gemini → Claude →
+  // Lovable); text calls are cheap, so the cap covers the full list.
+  text: 5,
   audio: 1,
   assemble: 1,
   caption_burn: 2,
