@@ -107,6 +107,32 @@ describe("buildDefaultComfyWorkflow", () => {
     expect(def?.comfyInputs["2.url"]).toBe("https://cdn.example.com/a.png");
   });
 
+  it("video: maps a camera-movement preset to a motion_bucket_id when none is explicitly set", () => {
+    const push: GenerateRequest = {
+      kind: "video",
+      imageUrls: ["https://cdn.example.com/a.png"],
+      cameraMovement: "push_in",
+    };
+    expect(buildDefaultComfyWorkflow(push)?.comfyInputs["3.motion_bucket_id"]).toBe(140);
+
+    const still: GenerateRequest = {
+      kind: "video",
+      imageUrls: ["https://cdn.example.com/a.png"],
+      cameraMovement: "static",
+    };
+    expect(buildDefaultComfyWorkflow(still)?.comfyInputs["3.motion_bucket_id"]).toBe(20);
+  });
+
+  it("video: an explicit params.motion_bucket_id wins over the camera-movement preset", () => {
+    const r: GenerateRequest = {
+      kind: "video",
+      imageUrls: ["https://cdn.example.com/a.png"],
+      cameraMovement: "orbit_cw",
+      params: { motion_bucket_id: 200 },
+    };
+    expect(buildDefaultComfyWorkflow(r)?.comfyInputs["3.motion_bucket_id"]).toBe(200);
+  });
+
   it("video: routes to text-to-video and derives frames from duration × fps", () => {
     const r: GenerateRequest = { kind: "video", prompt: "a comet", duration: 3 };
     const def = buildDefaultComfyWorkflow(r);

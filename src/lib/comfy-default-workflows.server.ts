@@ -135,6 +135,32 @@ export const ANIMATEDIFF_T2V_WORKFLOW = {
   },
 } as const;
 
+// ─── Camera-movement preset → SVD motion strength ─────────────────────────────
+// SVD has no notion of camera direction, only a single "motion_bucket_id"
+// intensity knob (1-255, higher = more motion). When the caller picked a
+// camera-movement preset (see studio.functions.ts CAMERA_HINTS) but didn't
+// explicitly override motion_bucket_id, translate the preset into a sane
+// default intensity so self-hosted SVD workers actually react to the user's
+// choice instead of always rendering the flat 127 default.
+const CAMERA_MOVEMENT_MOTION_BUCKET: Record<string, number> = {
+  static: 20,
+  zoom_in: 110,
+  zoom_out: 110,
+  push_in: 140,
+  pull_out: 140,
+  pan_left: 100,
+  pan_right: 100,
+  tilt_up: 90,
+  tilt_down: 90,
+  orbit_cw: 160,
+  orbit_ccw: 160,
+};
+
+function motionBucketForCameraMovement(cameraMovement: string | null | undefined): number | undefined {
+  if (!cameraMovement) return undefined;
+  return CAMERA_MOVEMENT_MOTION_BUCKET[cameraMovement];
+}
+
 // ─── Resolution → pixel maps ──────────────────────────────────────────────────
 const IMAGE_RES: Record<NonNullable<GenerateRequest["resolution"]>, number> = {
   "480p": 768,
@@ -282,7 +308,9 @@ export function buildDefaultComfyWorkflow(r: GenerateRequest): ComfyRequestParts
         steps: pInt(params, ["steps"]),
         cfg: pNum(params, ["cfg", "guidanceScale", "guidance_scale"]),
         seed: pInt(params, ["seed"]),
-        motionBucketId: pInt(params, ["motionBucketId", "motion_bucket_id"]),
+        motionBucketId:
+          pInt(params, ["motionBucketId", "motion_bucket_id"]) ??
+          motionBucketForCameraMovement(r.cameraMovement),
       });
     }
     case "lipsync": {

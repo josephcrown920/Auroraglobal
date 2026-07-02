@@ -1377,6 +1377,10 @@ function workerInput(r: GenerateRequest): Record<string, unknown> {
     model: r.model,
     duration: r.duration,
     resolution: r.resolution,
+    // Structured camera-movement preset (e.g. push_in, orbit_cw) so self-hosted
+    // flat-contract workers can drive their own motion knobs, not just the
+    // prompt-text hint applied for hosted providers.
+    ...(r.cameraMovement ? { camera_movement: r.cameraMovement } : {}),
     ...(r.segments ? { segments: r.segments } : {}),
     ...(r.params ? { params: r.params } : {}),
     ...(r.comfyWorkflow ? { workflow: r.comfyWorkflow } : {}),
