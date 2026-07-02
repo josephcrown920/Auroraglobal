@@ -12,13 +12,15 @@ import {
   WORKFLOWS,
   ANIMATE_LOOP_PROMPT,
   buildCompositorPrompt,
+  buildCompositorSpec,
   describePerformance,
   type SetupKind,
 } from "@/lib/colors.presets";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { getColorStudio } from "@/lib/colors.studios";
 import { computeCost } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Loader2, Palette, Wand2, ArrowLeft, Check, ImagePlus, X } from "lucide-react";
+import { Sparkles, Loader2, Palette, Wand2, ArrowLeft, Check, ImagePlus, X, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getSetupScene } from "@/lib/colors.scenes";
@@ -612,6 +614,29 @@ function ColorsStudio() {
               </div>
             </div>
           )}
+
+          {/* Render details — structured AI Performance Compositor spec for the current pick */}
+          <Collapsible className="rounded-xl border border-border bg-card/40">
+            <CollapsibleTrigger className="w-full flex items-center justify-between gap-2 px-3 py-2 text-[11px] text-muted-foreground hover:text-foreground group">
+              <span className="uppercase tracking-wider">Render details</span>
+              <ChevronDown className="size-3.5 transition-transform group-data-[state=open]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="px-3 pb-3 space-y-1.5 text-[11px] text-foreground/80">
+              {(() => {
+                const spec = buildCompositorSpec(color, setup, {
+                  hasOutfitRef: !!outfitUrl,
+                });
+                return (
+                  <>
+                    <div><span className="text-muted-foreground">Scene: </span>{spec.scene}</div>
+                    <div><span className="text-muted-foreground">Color: </span>{spec.color}</div>
+                    <div><span className="text-muted-foreground">Lighting: </span>{spec.lighting}</div>
+                    <div><span className="text-muted-foreground">Motion: </span>{spec.motion_description}</div>
+                  </>
+                );
+              })()}
+            </CollapsibleContent>
+          </Collapsible>
 
           {/* Action */}
           <div className="rounded-2xl border border-border bg-card/60 p-4 space-y-3 sticky bottom-4">
