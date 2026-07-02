@@ -20,9 +20,9 @@ export const Route = createFileRoute("/connect")({
   head: () => ({
     meta: [
       { title: "Connect Claude — Aurora MCP Connector" },
-      { name: "description", content: "Connect Aurora to Claude in 5 minutes. Generate avatar images, talking UGC ads, videos and full campaigns from a chat — 10 MCP tools, one connection." },
+      { name: "description", content: "Connect Aurora to Claude in 5 minutes. Generate avatar images, talking UGC ads, videos and full campaigns from a chat — 13 MCP tools, one connection." },
       { property: "og:title", content: "Connect Claude — Aurora" },
-      { property: "og:description", content: "Turn Claude into your creative engine. 10 tools, one connection — avatars, UGC ads, video and campaigns from chat." },
+      { property: "og:description", content: "Turn Claude into your creative engine. 13 tools, one connection — avatars, UGC ads, video and campaigns from chat." },
       { property: "og:url", content: "https://aurorastudiostar.lovable.app/connect" },
     ],
     links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/connect" }],
@@ -61,7 +61,7 @@ const SETUP = [
   {
     icon: <Plug className="size-4" />,
     title: "Add the connector",
-    body: "In Claude Desktop or Cursor, add the Aurora server URL as a custom MCP server with an Authorization: Bearer <key> header. It registers all 10 Aurora tools instantly.",
+    body: "In Claude Desktop or Cursor, add the Aurora server URL as a custom MCP server with an Authorization: Bearer <key> header. It registers all 13 Aurora tools instantly.",
   },
   {
     icon: <MessageSquare className="size-4" />,
@@ -77,7 +77,7 @@ const FAQ = [
   },
   {
     q: "What can Claude do once connected?",
-    a: "All 10 Aurora tools: list and create avatars, generate images and videos, image-to-video, bulk generate, produce talking UGC ads, spin up full campaigns, performance reskin, animate from a driving video, and check job status.",
+    a: "All 13 Aurora tools: list and create avatars, generate images and videos, image-to-video, bulk generate, produce talking UGC ads, spin up full campaigns, performance reskin, animate from a driving video, submit render jobs to the editor queue, and list, track or cancel jobs.",
   },
   {
     q: "How do talking UGC ads work over MCP?",
@@ -156,7 +156,7 @@ function ConnectPage() {
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-white/72 md:text-lg">
             Generate avatar images, talking UGC ads, videos and full campaigns from a chat.
-            Ten tools, one connection — Claude calls Aurora directly, no tab-switching.
+            Thirteen tools, one connection — Claude calls Aurora directly, no tab-switching.
           </p>
 
           {/* Social proof */}

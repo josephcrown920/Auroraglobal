@@ -16,6 +16,7 @@ import { hasActiveWorkerForKind, type GenerateKind } from "@/lib/orchestrator.se
 import { buildMimicMotionRequest, MOTION_TYPES, CAMERA_MOVEMENTS } from "@/lib/motion-workflows.server";
 import { assertTrustedUrl } from "@/lib/url-guard";
 import { COST_UGC_AD, COST_CAMPAIGN_ITEM, buildCampaignVariations } from "@/lib/ugc.server";
+import { enqueueJobForUser, listJobsForUser, cancelJobForUser } from "@/lib/jobs.functions";
 import type { ToolResult, Avatar } from "./types";
 
 export type ToolCtx = { userId: string; bearer: string; origin: string };
@@ -93,6 +94,22 @@ type GenerationStatusRow = {
   error: string | null;
 };
 
+/** Row shape returned by the shared listJobsForUser query (jobs.functions.ts). */
+export type JobListRow = {
+  id: string;
+  kind: string;
+  status: string;
+  attempts: number | null;
+  error: string | null;
+  generation_id: string | null;
+  parent_job_id: string | null;
+  created_at: string;
+  finished_at: string | null;
+  result: unknown;
+};
+
+export type EnqueueJobInput = Parameters<typeof enqueueJobForUser>[1];
+
 export interface ToolDeps {
   rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
   callGenerate: (ctx: ToolCtx, body: Record<string, unknown>) => Promise<{ url: string; provider: string }>;
@@ -102,6 +119,11 @@ export interface ToolDeps {
   hasActiveWorkerForKind: (kind: GenerateKind) => Promise<boolean>;
   getJobRow: (jobId: string, userId: string) => Promise<JobStatusRow | null>;
   getGenerationRow: (genId: string, userId: string) => Promise<GenerationStatusRow | null>;
+  // Job-queue mirror of the /editor playground + CLI (shared core in
+  // jobs.functions.ts so billing/preview-gating can never drift).
+  enqueueJob: (userId: string, input: EnqueueJobInput) => Promise<{ jobId: string; generationId: string; preview: boolean }>;
+  listJobs: (userId: string) => Promise<JobListRow[]>;
+  cancelJob: (userId: string, jobId: string) => Promise<{ ok: true }>;
 }
 
 export const defaultToolDeps: ToolDeps = {
@@ -129,6 +151,9 @@ export const defaultToolDeps: ToolDeps = {
       .maybeSingle();
     return (data as GenerationStatusRow | null) ?? null;
   },
+  enqueueJob: enqueueJobForUser,
+  listJobs: async (userId) => (await listJobsForUser(userId)) as JobListRow[],
+  cancelJob: cancelJobForUser,
 };
 
 // ─── Identity lock (exported for unit tests) ──────────────────────────────────
@@ -661,6 +686,98 @@ export async function generateCampaignTool(args: z.infer<typeof campaignSchema>,
       ...(creditError ? { warning: `Stopped early: ${creditError}` } : {}),
       message:
         `Queued ${jobs.length}/${args.count} matched image+video sets for ${avatar.name}. Each set returns BOTH an image and a video (image_url + video_url). Track with aurora_get_job_status.`,
+    });
+  } catch (e) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+// ─── Job queue tools (mirror of the /editor playground + CLI jobs API) ────────
+
+export const submitJobSchema = z.object({
+  kind: z.enum(["image", "video", "lipsync", "upscale"]).describe("What to render"),
+  prompt: z.string().max(2000).optional().describe("Generation prompt"),
+  image_urls: z.array(z.string().url()).max(6).optional().describe("Reference/source image URLs (max 6)"),
+  audio_url: z.string().url().optional().describe("Audio track URL (lipsync)"),
+  video_url: z.string().url().optional().describe("Source video URL (lipsync/upscale)"),
+  duration: z.number().int().min(3).max(15).optional().describe("Seconds (3–15, video only)"),
+  resolution: z.enum(["480p", "720p", "1080p", "2160p"]).optional().describe("Output resolution (1080p+ needs Pro)"),
+  model: z.string().max(120).optional().describe("Preferred model slug. Auto-selected if omitted."),
+  confirm_preview_id: z.string().uuid().optional().describe("ID of a succeeded preview generation you own — unlocks full-quality video/lipsync renders. Without it, temporal jobs run as cheap 480p/≤5s previews."),
+});
+
+export const listJobsSchema = z.object({
+  status: z.enum(["queued", "processing", "succeeded", "failed", "cancelled"]).optional().describe("Only return jobs in this status"),
+  limit: z.number().int().min(1).max(50).optional().default(20).describe("Max jobs to return (most recent first)"),
+});
+
+export const cancelJobSchema = z.object({
+  job_id: z.string().uuid().describe("ID of the queued job to cancel"),
+});
+
+export async function submitJobTool(args: z.infer<typeof submitJobSchema>, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
+  try {
+    const input: EnqueueJobInput = {
+      kind: args.kind,
+      prompt: args.prompt,
+      imageUrls: args.image_urls,
+      audioUrl: args.audio_url,
+      videoUrl: args.video_url,
+      duration: args.duration,
+      resolution: args.resolution,
+      model: args.model,
+      confirmPreviewId: args.confirm_preview_id,
+    };
+    const res = await deps.enqueueJob(ctx.userId, input);
+    return ok({
+      job_id: res.jobId,
+      generation_id: res.generationId,
+      status: "queued",
+      kind: args.kind,
+      preview: res.preview,
+      ...(res.preview
+        ? {
+            note: "Rendered as a 480p/≤5s preview (half price). Pass the succeeded generation id as confirm_preview_id to render full quality.",
+          }
+        : {}),
+      message: `Queued ${args.kind} job. Track with aurora_get_job_status.`,
+    });
+  } catch (e) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+export async function listJobsTool(args: z.infer<typeof listJobsSchema>, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
+  try {
+    let rows = await deps.listJobs(ctx.userId);
+    if (args.status) rows = rows.filter((r) => r.status === args.status);
+    const limit = args.limit ?? 20;
+    const jobs = rows.slice(0, limit).map((r) => {
+      const result = (r.result ?? {}) as { url?: string; imageUrl?: string; videoUrl?: string };
+      return {
+        job_id: r.id,
+        kind: r.kind,
+        status: r.status,
+        output_url: result.url ?? result.videoUrl ?? result.imageUrl ?? null,
+        error: r.error ?? null,
+        generation_id: r.generation_id,
+        created_at: r.created_at,
+        finished_at: r.finished_at,
+      };
+    });
+    return ok({ jobs, total: jobs.length, note: "Most recent first (window: last 50 jobs)." });
+  } catch (e) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
+export async function cancelJobTool(args: z.infer<typeof cancelJobSchema>, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
+  try {
+    await deps.cancelJob(ctx.userId, args.job_id);
+    return ok({
+      job_id: args.job_id,
+      status: "cancelled",
+      message: "Job cancelled and its reserved Aura released.",
     });
   } catch (e) {
     return err(e instanceof Error ? e.message : String(e));

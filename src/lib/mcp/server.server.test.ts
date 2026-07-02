@@ -26,6 +26,9 @@ const TOOL_NAMES = [
   "aurora_performance_reskin",
   "aurora_generate_ugc_ad",
   "aurora_generate_campaign",
+  "aurora_submit_job",
+  "aurora_list_jobs",
+  "aurora_cancel_job",
 ];
 
 function toolByName(name: string) {
@@ -35,7 +38,7 @@ function toolByName(name: string) {
 }
 
 describe("listTools manifest", () => {
-  it("exposes exactly the 10 aurora_* tools", () => {
+  it("exposes exactly the 13 aurora_* tools", () => {
     const names = listTools().tools.map((t) => t.name);
     expect(names.sort()).toEqual([...TOOL_NAMES].sort());
   });
@@ -117,11 +120,11 @@ describe("handleRpcMessage", () => {
     expect(r.result).toEqual({});
   });
 
-  it("tools/list is open (no auth) and lists all 10 tools", async () => {
+  it("tools/list is open (no auth) and lists all 13 tools", async () => {
     const r = (await handleRpcMessage({ id: 3, method: "tools/list" }, NO_AUTH, ORIGIN)) as {
       result: { tools: unknown[] };
     };
-    expect(r.result.tools).toHaveLength(10);
+    expect(r.result.tools).toHaveLength(13);
   });
 
   it("tools/call without a bearer is rejected with JSON-RPC -32001", async () => {

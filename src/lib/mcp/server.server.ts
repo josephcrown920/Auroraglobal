@@ -16,6 +16,9 @@ import {
   performanceReskinSchema, performanceReskinTool,
   ugcAdSchema, generateUgcAdTool,
   campaignSchema, generateCampaignTool,
+  submitJobSchema, submitJobTool,
+  listJobsSchema, listJobsTool,
+  cancelJobSchema, cancelJobTool,
   defaultToolDeps,
   type ToolCtx,
   type ToolDeps,
@@ -88,6 +91,24 @@ const TOOLS: ToolDef[] = [
       "Generate a coordinated UGC campaign for a named Aurora persona: N matched image+video sets that vary outfit, location, mood and lighting from one prompt_template. Each set returns BOTH an image and a video. Runs async — returns queued job IDs to track with aurora_get_job_status. Ideal for filling a content calendar in one call.",
     schema: campaignSchema,
   },
+  {
+    name: "aurora_submit_job",
+    description:
+      "Queue a single generation job (image, video, lipsync or upscale) on Aurora's job queue — the same queue the in-app editor and CLI use. Video/lipsync jobs render as cheap 480p/≤5s previews unless you pass confirm_preview_id from a succeeded preview. Returns a job ID to track with aurora_get_job_status.",
+    schema: submitJobSchema,
+  },
+  {
+    name: "aurora_list_jobs",
+    description:
+      "List your recent generation jobs (most recent first, last 50), optionally filtered by status. Shows status, output URL and errors for each job.",
+    schema: listJobsSchema,
+  },
+  {
+    name: "aurora_cancel_job",
+    description:
+      "Cancel one of your queued jobs and release its reserved Aura. Only jobs still in `queued` status can be cancelled.",
+    schema: cancelJobSchema,
+  },
 ];
 
 // ─── Minimal Zod → JSON Schema (enough for MCP tool input schemas) ────────────
@@ -157,6 +178,12 @@ export async function callTool(name: string, args: unknown, ctx: ToolCtx, deps: 
       return generateUgcAdTool(ugcAdSchema.parse(args), ctx, deps);
     case "aurora_generate_campaign":
       return generateCampaignTool(campaignSchema.parse(args), ctx, deps);
+    case "aurora_submit_job":
+      return submitJobTool(submitJobSchema.parse(args), ctx, deps);
+    case "aurora_list_jobs":
+      return listJobsTool(listJobsSchema.parse(args), ctx, deps);
+    case "aurora_cancel_job":
+      return cancelJobTool(cancelJobSchema.parse(args), ctx, deps);
     default:
       return { content: [{ type: "text", text: JSON.stringify({ error: `Unknown tool: ${name}` }) }], isError: true };
   }
