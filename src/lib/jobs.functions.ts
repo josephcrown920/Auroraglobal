@@ -43,6 +43,9 @@ const EnqueueInput = z.object({
   params: z.record(z.unknown()).optional(),
   comfyWorkflow: z.unknown().optional(),
   comfyInputs: z.record(z.unknown()).optional(),
+  // Preview-confirm gate (task #153): id of a succeeded preview generation the
+  // caller owns. Without it, video/lipsync enqueues run as 480p/≤5s previews.
+  confirmPreviewId: z.string().uuid().optional(),
 });
 
 export const enqueueGenerationJob = createServerFn({ method: "POST" })
@@ -53,7 +56,35 @@ export const enqueueGenerationJob = createServerFn({ method: "POST" })
     if (data.audioUrl) assertTrustedUrl(data.audioUrl);
     if (data.videoUrl) assertTrustedUrl(data.videoUrl);
 
-    const amount = creditCost(data.kind);
+    // Preview-confirm gate: unconfirmed temporal enqueues are forced into a
+    // previewOnly job (the worker loop caps them at 480p/≤5s) and priced as a
+    // preview. An invalid/expired confirmPreviewId throws before reserving.
+    const { resolvePreviewGate, isTemporalKind, PREVIEW_RESOLUTION, PREVIEW_MAX_SECONDS } =
+      await import("./cost-guardrails.server");
+    let previewPass = false;
+    if (isTemporalKind(data.kind)) {
+      const gate = await resolvePreviewGate({
+        userId: context.userId,
+        confirmPreviewId: data.confirmPreviewId,
+      });
+      previewPass = !gate.confirmed;
+    }
+    const payload: Record<string, unknown> = { ...data };
+    delete payload.confirmPreviewId;
+    if (previewPass) {
+      payload.previewOnly = true;
+      payload.resolution = PREVIEW_RESOLUTION;
+      payload.duration = Math.min(data.duration ?? PREVIEW_MAX_SECONDS, PREVIEW_MAX_SECONDS);
+    }
+
+    // Previews are cheaper: the queue path prices flat (creditCost), so the
+    // preview is half of that flat price (matching the 480p ×0.5 multiplier).
+    // NOTE: never price the preview via the model-tiered computeCost here —
+    // premium tiers would make the "cheap" preview cost MORE than the flat
+    // full-price render it gates.
+    const amount = previewPass
+      ? Math.max(1, Math.ceil(creditCost(data.kind) * 0.5))
+      : creditCost(data.kind);
     const client = supabaseAdmin as unknown as {
       rpc: (n: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
     };
@@ -62,7 +93,7 @@ export const enqueueGenerationJob = createServerFn({ method: "POST" })
       _kind: data.kind as GenerateKind,
       _prompt: data.prompt ?? "",
       _amount: amount,
-      _payload: data as unknown as Record<string, unknown>,
+      _payload: payload,
     });
     if (error) {
       if (/insufficient_credits/i.test(error.message)) {
@@ -71,7 +102,19 @@ export const enqueueGenerationJob = createServerFn({ method: "POST" })
       throw new Error(error.message);
     }
     const row = Array.isArray(out) ? out[0] : out;
-    return { jobId: (row as { job_id: string }).job_id, generationId: (row as { generation_id: string }).generation_id };
+    const generationId = (row as { generation_id: string }).generation_id;
+    // Mark the generation as a preview so a later confirmPreviewId can verify it.
+    if (previewPass && generationId) {
+      await supabaseAdmin
+        .from("generations")
+        .update({ mode: "preview" } as never)
+        .eq("id", generationId);
+    }
+    return {
+      jobId: (row as { job_id: string }).job_id,
+      generationId,
+      preview: previewPass,
+    };
   });
 
 export const listMyJobs = createServerFn({ method: "GET" })

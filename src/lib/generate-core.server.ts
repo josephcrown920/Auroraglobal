@@ -37,6 +37,8 @@ export type RenderInput = {
   params?: Record<string, unknown>;
   comfyWorkflow?: unknown;
   comfyInputs?: Record<string, unknown>;
+  /** generations.mode for the recorded row (default "performance"; previews pass "preview"). */
+  mode?: string;
   /** Optional Aurora Agent linkage so per-shot renders are queryable relationally. */
   sessionId?: string;
   agentShotId?: string;
@@ -115,7 +117,7 @@ export async function reserveOrchestrateRecord(
       user_id: input.userId,
       prompt: input.prompt ?? "",
       kind: input.kind,
-      mode: "performance",
+      mode: input.mode ?? "performance",
       status: "succeeded",
       input_images: input.imageUrls ?? [],
       // For the `audio` modality there is no input audio — store the generated

@@ -146,10 +146,29 @@ async function rpc<T = unknown>(name: string, args: Record<string, unknown>): Pr
   return data;
 }
 
-async function claimNext(workerId: string): Promise<JobRow | null> {
-  const row = await rpc<JobRow | JobRow[] | null>("claim_next_job", { _worker: workerId });
+// Queue lanes (task #153). Every job sits in exactly one lane (`jobs.queue`);
+// claims filter on the lanes the caller is willing to serve.
+export const JOB_LANES = ["standard", "heavy"] as const;
+export type JobLane = (typeof JOB_LANES)[number];
+
+async function claimNext(workerId: string, lanes: readonly JobLane[]): Promise<JobRow | null> {
+  const row = await rpc<JobRow | JobRow[] | null>("claim_next_job_v2", {
+    _worker: workerId,
+    _lanes: [...lanes],
+  });
   if (!row) return null;
   return Array.isArray(row) ? (row[0] ?? null) : row;
+}
+
+// Lane policy for one batch slot. All slots serve both lanes (priority already
+// sorts heavy below standard, so standard drains first), EXCEPT the final slot
+// of a multi-slot batch, which is reserved for the heavy lane — under a
+// constant flood of standard work heavy jobs still get ≥1 slot per tick
+// instead of starving forever. A mixed-lane claim returning null means BOTH
+// lanes are empty, so breaking early never skips waiting heavy work.
+export function lanesForSlot(slot: number, limit: number): readonly JobLane[] {
+  if (limit > 1 && slot === limit - 1) return ["heavy"];
+  return JOB_LANES;
 }
 
 async function markGeneration(jobId: string, genId: string | null, patch: Record<string, unknown>) {
@@ -949,8 +968,9 @@ async function runAutocut(job: JobRow, orch: Orchestrate, workerId: string): Pro
 export async function processOneJob(
   workerId: string,
   deps: JobDeps = defaultDeps,
+  lanes: readonly JobLane[] = JOB_LANES,
 ): Promise<{ processed: boolean; jobId?: string; status?: string; error?: string }> {
-  const job = await claimNext(workerId);
+  const job = await claimNext(workerId, lanes);
   if (!job) return { processed: false };
 
   const orch = deps.orchestrate;
@@ -1080,8 +1100,11 @@ export async function processBatch(
 ): Promise<Array<Awaited<ReturnType<typeof processOneJob>>>> {
   const results = [];
   for (let i = 0; i < limit; i++) {
-    const r = await processOneJob(workerId, deps);
+    const lanes = lanesForSlot(i, limit);
+    const r = await processOneJob(workerId, deps, lanes);
     results.push(r);
+    // A mixed-lane miss means the whole queue is drained — stop. A heavy-only
+    // miss just means the reserved heavy slot had nothing to do.
     if (!r.processed) break;
   }
   return results;

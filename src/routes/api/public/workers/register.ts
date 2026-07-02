@@ -24,6 +24,9 @@ const Schema = z.object({
   auth_token: z.string().optional().nullable(),
   max_concurrency: z.number().int().min(1).max(64).optional(),
   region: z.string().optional(),
+  // Queue lanes this worker is willing to serve. Omitted → keep the DB default
+  // (both lanes), so legacy notebooks keep serving everything.
+  lanes: z.array(z.enum(["standard", "heavy"])).min(1).optional(),
 });
 
 function json(body: unknown, status = 200): Response {
@@ -79,6 +82,8 @@ export const Route = createFileRoute("/api/public/workers/register")({
         if (data.auth_token != null) patch.auth_token = data.auth_token;
         if (data.max_concurrency != null) patch.max_concurrency = data.max_concurrency;
         if (data.region != null) patch.region = data.region;
+        // `lanes` postdates the generated Database types (migration 20260702120000).
+        if (data.lanes) (patch as WorkerInsert & { lanes?: string[] }).lanes = [...data.lanes];
 
         if (match) {
           const { error } = await supabaseAdmin

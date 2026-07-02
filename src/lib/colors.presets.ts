@@ -242,6 +242,68 @@ export function buildColorPrompt(colorId: string, setupId: string): string {
   return `${s.prompt(c.promptName)} ${REALISM_SUFFIX}`;
 }
 
+export type CompositorOpts = {
+  /** Reference photo 2 is an outfit shot. */
+  hasOutfitRef?: boolean;
+  /** The LAST reference image is the exact studio scene to composite into. */
+  hasSceneRef?: boolean;
+};
+
+const COMPOSITOR_REALISM =
+  "Hyper-realistic, ultra-HD 8K, lifelike skin micro-texture, physically accurate light and reflections, no CGI or illustration look, no text or logos.";
+
+/**
+ * Strict compositor directive: identity lock + scene lock + color control +
+ * performance staging + camera logic. Used when the request also carries the
+ * actual studio scene image as the final reference, so the model composites
+ * the real person into THAT exact set instead of inventing one.
+ * Must stay ≤ 2000 chars (server schema cap) for every color × setup combo.
+ */
+export function buildCompositorPrompt(
+  colorId: string,
+  setupId: string,
+  opts: CompositorOpts = {},
+): string {
+  const c = COLOR_PRESETS.find((x) => x.id === colorId) ?? COLOR_PRESETS[0];
+  const s = SETUPS.find((x) => x.id === setupId) ?? SETUPS[0];
+  const parts: string[] = [
+    "You are an AI performance compositor: place the REAL person from the reference photos into the predefined studio scene and render one photoreal performance still.",
+    `IDENTITY LOCK: the person in reference photo 1 must remain EXACTLY the same — identical face, skin tone, hairstyle, facial hair and body proportions. Never alter or replace their identity. ${
+      opts.hasOutfitRef
+        ? "Dress them in the exact outfit from reference photo 2."
+        : "Keep the outfit they wear in photo 1."
+    }`,
+  ];
+  if (opts.hasSceneRef) {
+    parts.push(
+      "SCENE LOCK: the LAST reference image is the exact studio set. Reproduce that environment precisely — same backdrop geometry, floor, microphone / furniture / light placement and reflections. Do not invent a new background or add props.",
+    );
+  }
+  parts.push(
+    `COLOR CONTROL: the entire set follows the ${c.promptName} theme — background, lighting tone, reflections and shadows are all graded ${c.promptName}.`,
+  );
+  if (s.id === "performance") {
+    const { mic, pose, energy } = c.performance;
+    parts.push(
+      `PERFORMANCE: ${pose}. Energy: ${energy}. Microphone: ${MIC_DETAIL[mic]}. Simulated live performance stance with natural body weight.`,
+    );
+  } else {
+    parts.push(`SCENE & STAGING: ${s.prompt(c.promptName)}`);
+  }
+  parts.push(
+    "CAMERA: locked-off tripod performance framing, 50mm at eye level, gentle depth of field.",
+    COMPOSITOR_REALISM,
+  );
+  return parts.join("\n");
+}
+
+/**
+ * Motion directive for animating a finished COLORS still into a short
+ * loopable performance clip (image → video). Must stay ≤ 1000 chars.
+ */
+export const ANIMATE_LOOP_PROMPT =
+  "Animate the subject subtly: natural breathing, gentle head movement and sway, soft microphone interaction with the hands. Preserve the face, outfit, studio set, lighting and color grade EXACTLY as the source frame — do not add new elements or change the scene. Locked-off tripod camera. Seamless loopable 5-second performance clip.";
+
 /** Short human label describing the current performance staging for the UI. */
 export function describePerformance(colorId: string): string {
   const c = COLOR_PRESETS.find((x) => x.id === colorId) ?? COLOR_PRESETS[0];

@@ -4,11 +4,17 @@ import { z } from "zod";
 import { orchestrate, hasActiveWorkerForKind, assertFreeModeServable } from "./orchestrator.server";
 import { buildLatentSyncRequest } from "./lipsync-workflows.server";
 import { fetchToBytes } from "./replicate.server";
+import { compressImageBytes, compressVideoBytes } from "./compress.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertTrustedUrl } from "./url-guard";
 import { buildMimicMotionRequest, MOTION_TYPES, CAMERA_MOVEMENTS } from "./motion-workflows.server";
 import { computeCost } from "./pricing";
 import { isAdmin } from "./admin.server";
+import {
+  resolvePreviewGate,
+  PREVIEW_RESOLUTION,
+  PREVIEW_MAX_SECONDS,
+} from "./cost-guardrails.server";
 
 const COST_IMAGE = 1;
 
@@ -105,12 +111,12 @@ export const generatePerformanceShot = createServerFn({ method: "POST" })
         userId,
         refId: row.id,
       });
-      const { bytes, mime } = await fetchToBytes(out.url);
-      const ext = (mime || "image/png").split("/")[1]?.split("+")[0] || "png";
-      const path = `${userId}/results/${row.id}.${ext}`;
+      const { bytes: rawBytes, mime: rawMime } = await fetchToBytes(out.url);
+      const img = await compressImageBytes(rawBytes, rawMime || "image/png");
+      const path = `${userId}/results/${row.id}.${img.ext}`;
       const { error: upErr } = await supabase.storage
         .from("studio")
-        .upload(path, bytes, { contentType: mime || "image/png", upsert: true });
+        .upload(path, img.bytes, { contentType: img.mime, upsert: true });
       if (upErr) throw new Error(upErr.message);
       const publicUrl = supabase.storage.from("studio").getPublicUrl(path).data.publicUrl;
       await supabase
@@ -139,6 +145,11 @@ const VideoSchema = z.object({
   cameraMovement: z.string().max(40).optional().nullable(),
   /** Optional end-frame image URL (Kling supports start+end frame interpolation). */
   endFrameUrl: z.string().url().optional().nullable(),
+  /**
+   * Preview-confirm gate (task #153): id of a succeeded preview generation the
+   * caller owns. Without it the render is forced to a cheap 480p/≤5s preview.
+   */
+  confirmPreviewId: z.string().uuid().optional().nullable(),
 }).refine(
   (data) => {
     // End-frame interpolation is a Kling-only feature.
@@ -177,6 +188,18 @@ export const generateVideoFromImage = createServerFn({ method: "POST" })
     const cameraHint = data.cameraMovement ? CAMERA_HINTS[data.cameraMovement] : null;
     const fullPrompt = cameraHint ? `${data.prompt}. Camera: ${cameraHint}.` : data.prompt;
 
+    // Preview-confirm gate: without a valid confirmPreviewId the render is
+    // forced to 480p/≤5s and recorded as mode='preview' — its id is the ticket
+    // for the follow-up full-quality render. Invalid/expired ids throw here,
+    // before any row insert or charge.
+    const gate = await resolvePreviewGate({
+      userId,
+      confirmPreviewId: data.confirmPreviewId ?? undefined,
+    });
+    const previewPass = !gate.confirmed;
+    const effResolution = previewPass ? PREVIEW_RESOLUTION : data.resolution;
+    const effDuration = previewPass ? Math.min(data.duration, PREVIEW_MAX_SECONDS) : data.duration;
+
     const { data: row, error: insErr } = await supabase
       .from("generations")
       .insert({
@@ -187,6 +210,7 @@ export const generateVideoFromImage = createServerFn({ method: "POST" })
         model: data.modelKey,
         input_images: data.endFrameUrl ? [data.imageUrl, data.endFrameUrl] : [data.imageUrl],
         camera_movement: data.cameraMovement ?? null,
+        ...(previewPass ? { mode: "preview" } : {}),
       })
       .select()
       .single();
@@ -199,34 +223,35 @@ export const generateVideoFromImage = createServerFn({ method: "POST" })
     const videoCost = computeCost({
       features: ["video"],
       model: data.modelKey,
-      durationSeconds: data.duration,
-      resolution: data.resolution,
+      durationSeconds: effDuration,
+      resolution: effResolution,
     }).total;
-    await chargeCredits(userId, videoCost, "video_generation", row.id);
+    await chargeCredits(userId, videoCost, previewPass ? "video_preview" : "video_generation", row.id);
     try {
       const out = await orchestrate({
         kind: "video",
         model: data.modelKey,
         prompt: fullPrompt,
         imageUrls: data.endFrameUrl ? [data.imageUrl, data.endFrameUrl] : [data.imageUrl],
-        duration: data.duration,
-        resolution: data.resolution,
+        duration: effDuration,
+        resolution: effResolution,
         cameraMovement: data.cameraMovement,
         userId,
         refId: row.id,
       });
-      const { bytes, mime } = await fetchToBytes(out.url);
+      const { bytes: rawBytes, mime: rawMime } = await fetchToBytes(out.url);
+      const vid = await compressVideoBytes(rawBytes, rawMime || "video/mp4");
       const path = `${userId}/videos/${row.id}.mp4`;
       const { error: upErr } = await supabase.storage
         .from("studio")
-        .upload(path, bytes, { contentType: mime || "video/mp4", upsert: true });
+        .upload(path, vid.bytes, { contentType: vid.mime, upsert: true });
       if (upErr) throw new Error(upErr.message);
       const publicUrl = supabase.storage.from("studio").getPublicUrl(path).data.publicUrl;
       await supabase
         .from("generations")
         .update({ status: "complete", result_video_url: publicUrl })
         .eq("id", row.id);
-      return { id: row.id, videoUrl: publicUrl };
+      return { id: row.id, videoUrl: publicUrl, preview: previewPass };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unknown error";
       await supabase.from("generations").update({ status: "failed", error: msg }).eq("id", row.id);
@@ -283,12 +308,12 @@ export const generateSplitReality = createServerFn({ method: "POST" })
           userId,
           refId: row.id,
         });
-        const { bytes, mime } = await fetchToBytes(out.url);
-        const ext = (mime || "image/png").split("/")[1]?.split("+")[0] || "png";
-        const path = `${userId}/results/${row.id}.${ext}`;
+        const { bytes: rawBytes, mime: rawMime } = await fetchToBytes(out.url);
+        const img = await compressImageBytes(rawBytes, rawMime || "image/png");
+        const path = `${userId}/results/${row.id}.${img.ext}`;
         const { error: upErr } = await supabase.storage
           .from("studio")
-          .upload(path, bytes, { contentType: mime || "image/png", upsert: true });
+          .upload(path, img.bytes, { contentType: img.mime, upsert: true });
         if (upErr) throw new Error(upErr.message);
         const publicUrl = supabase.storage.from("studio").getPublicUrl(path).data.publicUrl;
         await supabase.from("generations").update({ status: "complete", result_image_url: publicUrl }).eq("id", row.id);
@@ -314,6 +339,11 @@ const LipSyncSchema = z.object({
   model: z.enum(["fal-ai/sync-lipsync/v2", "fal-ai/wav2lip", "latentsync"]).default("fal-ai/sync-lipsync/v2"),
 });
 
+// DELIBERATELY NOT preview-gated (task #153): lipsync length is driven by the
+// input audio, so there is no cheaper 480p/5s variant to render — a "preview"
+// would cost the provider the same as the full run while charging the user
+// less (a credit bypass). Full price is always charged here; the QUEUE lipsync
+// path (enqueueGenerationJob) IS gated because its previewOnly caps duration.
 export const lipSyncVideo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => LipSyncSchema.parse(input))
@@ -367,11 +397,12 @@ export const lipSyncVideo = createServerFn({ method: "POST" })
         refId: row.id,
         ...(selfHostedParts ?? {}),
       });
-      const { bytes, mime } = await fetchToBytes(out.url);
+      const { bytes: rawBytes, mime: rawMime } = await fetchToBytes(out.url);
+      const vid = await compressVideoBytes(rawBytes, rawMime || "video/mp4");
       const path = `${userId}/videos/${row.id}.mp4`;
       const { error: upErr } = await supabase.storage
         .from("studio")
-        .upload(path, bytes, { contentType: mime || "video/mp4", upsert: true });
+        .upload(path, vid.bytes, { contentType: vid.mime, upsert: true });
       if (upErr) throw new Error(upErr.message);
       const publicUrl = supabase.storage.from("studio").getPublicUrl(path).data.publicUrl;
       await supabase
@@ -541,12 +572,12 @@ export const editGeneration = createServerFn({ method: "POST" })
         userId,
         refId: row.id,
       });
-      const { bytes, mime } = await fetchToBytes(out.url);
-      const ext = (mime || "image/png").split("/")[1]?.split("+")[0] || "png";
-      const path = `${userId}/results/${row.id}.${ext}`;
+      const { bytes: rawBytes, mime: rawMime } = await fetchToBytes(out.url);
+      const img = await compressImageBytes(rawBytes, rawMime || "image/png");
+      const path = `${userId}/results/${row.id}.${img.ext}`;
       const { error: upErr } = await supabase.storage
         .from("studio")
-        .upload(path, bytes, { contentType: mime || "image/png", upsert: true });
+        .upload(path, img.bytes, { contentType: img.mime, upsert: true });
       if (upErr) throw new Error(upErr.message);
       const publicUrl = supabase.storage.from("studio").getPublicUrl(path).data.publicUrl;
       await supabase.from("generations").update({ status: "complete", result_image_url: publicUrl }).eq("id", row.id);

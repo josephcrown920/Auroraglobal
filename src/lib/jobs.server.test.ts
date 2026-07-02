@@ -90,7 +90,7 @@ const supabaseAdmin = {
   from: (t: string) => builder(t),
   rpc: async (name: string, args: Record<string, unknown>) => {
     calls.rpc.push({ name, args });
-    if (name === "claim_next_job") return { data: claimQueue.shift() ?? null, error: null };
+    if (name === "claim_next_job_v2") return { data: claimQueue.shift() ?? null, error: null };
     if (name === "requeue_failed_job") return { data: requeueOutcome, error: null };
     return { data: true, error: null };
   },
@@ -110,6 +110,7 @@ mock.module("./hf.server", () => ({
 const {
   processOneJob: rawProcessOneJob,
   processBatch: rawProcessBatch,
+  lanesForSlot,
   classifyJobError,
   nextRetryAt,
   retryDecision,
@@ -443,6 +444,33 @@ describe("processBatch", () => {
     const results = await processBatch("w1", 2);
     expect(results).toHaveLength(2);
     expect(results.every((r) => r.processed)).toBe(true);
+  });
+});
+
+describe("queue lanes", () => {
+  it("lanesForSlot reserves the final slot of a multi-slot batch for heavy", () => {
+    expect(lanesForSlot(0, 5)).toEqual(["standard", "heavy"]);
+    expect(lanesForSlot(3, 5)).toEqual(["standard", "heavy"]);
+    expect(lanesForSlot(4, 5)).toEqual(["heavy"]);
+    // A single-slot batch must never be heavy-only — standard would starve.
+    expect(lanesForSlot(0, 1)).toEqual(["standard", "heavy"]);
+  });
+
+  it("processBatch claims via claim_next_job_v2, heavy-only on the last slot", async () => {
+    claimQueue = [job({ id: "a" }), job({ id: "b" })];
+    await processBatch("w1", 2);
+    const claims = calls.rpc.filter((r) => r.name === "claim_next_job_v2");
+    expect(claims).toHaveLength(2);
+    expect(claims[0].args).toEqual({ _worker: "w1", _lanes: ["standard", "heavy"] });
+    expect(claims[1].args).toEqual({ _worker: "w1", _lanes: ["heavy"] });
+  });
+
+  it("a heavy-only miss on the reserved slot does not mark the batch drained early", async () => {
+    // 1 standard job, nothing heavy: slot 0 processes it, slot 1 (heavy-only)
+    // comes up empty — batch ends with exactly one processed result.
+    claimQueue = [job({ id: "a" })];
+    const results = await processBatch("w1", 2);
+    expect(results.filter((r) => r.processed)).toHaveLength(1);
   });
 });
 
