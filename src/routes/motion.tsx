@@ -135,10 +135,15 @@ function MotionStudio() {
     }
   }, []);
 
-  // Animate runs generateVideoFromImage at a fixed 5s / 720p, so this mirrors the
+  // Animate runs generateVideoFromImage at a fixed 5s, so this mirrors the
   // server charge exactly; premium video models retier the previewed price live.
+  // First pass is a 480p preview; the confirmed full render is 720p.
   const animateCost = useMemo(
     () => computeCost({ features: ["video"], model: videoModel, durationSeconds: 5, resolution: "720p" }).total,
+    [videoModel],
+  );
+  const animatePreviewCost = useMemo(
+    () => computeCost({ features: ["video"], model: videoModel, durationSeconds: 5, resolution: "480p" }).total,
     [videoModel],
   );
 
@@ -169,6 +174,7 @@ function MotionStudio() {
   // its generationId unlocks the full render on the next submit.
   const [transferPreviewId, setTransferPreviewId] = useState<string | null>(null);
   const [reskinPreviewId, setReskinPreviewId] = useState<string | null>(null);
+  const [animatePreviewId, setAnimatePreviewId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth" });
@@ -241,6 +247,7 @@ function MotionStudio() {
           modelKey: videoModel,
           cameraMovement,
           endFrameUrl: endFrame ?? null,
+          confirmPreviewId: animatePreviewId ?? undefined,
         },
       });
       return out;
@@ -248,11 +255,21 @@ function MotionStudio() {
     onMutate: () => setVideoError(null),
     onSuccess: (out) => {
       markFirstGenComplete();
-      setVideoUrl((out as { videoUrl?: string } | null)?.videoUrl ?? null);
-      toast.success("Motion ready");
+      const res = out as { id?: string; videoUrl?: string; preview?: boolean } | null;
+      setVideoUrl(res?.videoUrl ?? null);
+      if (res?.preview) {
+        setAnimatePreviewId(res.id ?? null);
+        toast.success("Preview ready — happy with it? Render full quality next");
+      } else {
+        setAnimatePreviewId(null);
+        toast.success("Motion ready");
+      }
       qc.invalidateQueries({ queryKey: ["motion-gens"] });
     },
     onError: (e) => {
+      if (e instanceof Error && e.message.includes("Unsupported preview confirmation")) {
+        setAnimatePreviewId(null);
+      }
       setVideoError(friendlyGenerationMessage(e));
       handleGenerationError(e);
     },
@@ -653,7 +670,11 @@ function MotionStudio() {
                   variant="secondary"
                   className="flex-1 h-12"
                 >
-                  {animateMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Rendering…</> : <><Film className="size-4 mr-2" /> {videoError ? "Retry animate" : `Animate · ${animateCost} Aura`}</>}
+                  {animateMut.isPending ? (
+                    <><Loader2 className="size-4 mr-2 animate-spin" /> Rendering…</>
+                  ) : (
+                    <><Film className="size-4 mr-2" /> {videoError ? "Retry animate" : animatePreviewId ? `Render full quality · ${animateCost} Aura` : `Preview animation · ${animatePreviewCost} Aura`}</>
+                  )}
                 </Button>
               </div>
 

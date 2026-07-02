@@ -1,5 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { DURATION_CAPS, classifyJobQueue, HEAVY_JOB_KINDS, tierFor } from "./billing.plans";
+import {
+  DURATION_CAPS,
+  classifyJobQueue,
+  durationCapMessage,
+  HEAVY_JOB_KINDS,
+  tierFor,
+} from "./billing.plans";
 
 // ─── DURATION_CAPS ────────────────────────────────────────────────────────────
 
@@ -20,6 +26,37 @@ describe("DURATION_CAPS", () => {
     for (const cap of Object.values(DURATION_CAPS)) {
       expect(cap).toBeGreaterThan(0);
     }
+  });
+});
+
+// ─── durationCapMessage (pure policy behind assertDurationCap) ────────────────
+
+describe("durationCapMessage", () => {
+  it("free: 10s allowed, 11s rejected with upgrade hint", () => {
+    expect(durationCapMessage("free", 10)).toBeNull();
+    const msg = durationCapMessage("free", 11);
+    expect(msg).toMatch(/^Unsupported duration/);
+    expect(msg).toContain("Free");
+    expect(msg).toContain("10s limit");
+    expect(msg).toContain("Upgrade to Pro");
+  });
+
+  it("pro: 15s allowed, 16s rejected without upgrade hint", () => {
+    expect(durationCapMessage("pro", 15)).toBeNull();
+    const msg = durationCapMessage("pro", 16);
+    expect(msg).toMatch(/^Unsupported duration/);
+    expect(msg).toContain("Pro");
+    expect(msg).toContain("15s limit");
+    expect(msg).not.toContain("Upgrade");
+  });
+
+  it("rejections are TERMINAL (start with 'Unsupported' for TERMINAL_ERROR_RE)", () => {
+    expect(durationCapMessage("free", 999)).toMatch(/^Unsupported/);
+  });
+
+  it("preview-length renders (≤5s) always clear both tiers", () => {
+    expect(durationCapMessage("free", 5)).toBeNull();
+    expect(durationCapMessage("pro", 5)).toBeNull();
   });
 });
 
