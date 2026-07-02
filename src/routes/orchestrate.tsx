@@ -77,6 +77,9 @@ function OrchestratePage() {
   const [duration, setDuration] = useState(5);
   const [busy, setBusy] = useState(false);
   const [awaitingFullRender, setAwaitingFullRender] = useState(false);
+  // Preview-confirm ticket: the preview's generation id, required by the
+  // server gate (task #153) to unlock the full-quality render.
+  const [previewTicket, setPreviewTicket] = useState<string | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
   const [result, setResult] = useState<{
     kind: Modality;
@@ -130,6 +133,7 @@ function OrchestratePage() {
     setModel(MODELS[m][0].key);
     setResult(null);
     setAwaitingFullRender(false);
+    setPreviewTicket(null);
   };
 
   // Preview-first flow for video: first pass runs at 480p/5s cheaply,
@@ -157,6 +161,9 @@ function OrchestratePage() {
           ...(usesResolution ? { resolution: isPreviewPass ? "480p" : resolution } : {}),
           ...(usesDuration ? { duration: isPreviewPass ? 5 : duration } : {}),
           ...(isPreviewPass ? { previewOnly: true } : {}),
+          // Full-quality pass must present the preview's id or the server
+          // gate forces it back down to a preview.
+          ...(!isPreviewPass && previewTicket ? { confirmPreviewId: previewTicket } : {}),
           ...(modality === "video" && imageUrl.trim() ? { imageUrls: [imageUrl.trim()] } : {}),
           ...(modality === "audio" && voiceId.trim() ? { voiceId: voiceId.trim() } : {}),
         },
@@ -179,12 +186,21 @@ function OrchestratePage() {
       if (isPreviewPass) {
         toast.success("Preview ready — looks good? Click Render Full Quality to continue.");
         setAwaitingFullRender(true);
+        setPreviewTicket(res.generationId ?? null);
       } else {
         toast.success(`Generated via ${res.provider}`);
         setAwaitingFullRender(false);
+        setPreviewTicket(null);
       }
       recent.refetch();
     } catch (e) {
+      // A rejected/expired ticket is terminal — restart the preview flow so
+      // the next click renders a fresh preview instead of re-failing forever.
+      const emsg = e instanceof Error ? e.message : "";
+      if (emsg.includes("Unsupported preview confirmation")) {
+        setAwaitingFullRender(false);
+        setPreviewTicket(null);
+      }
       setLastError(friendlyGenerationMessage(e));
       handleGenerationError(e);
       setPendingState("error");

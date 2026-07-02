@@ -363,6 +363,9 @@ const OrchestrateSchema = z.object({
   voiceId: z.string().max(120).optional(),
   // Preview pass: generate at 480p/5s before the full-quality render.
   previewOnly: z.boolean().optional(),
+  // Preview-confirm gate (task #153): id of a succeeded preview generation the
+  // caller owns. Without it, temporal kinds are forced into a preview pass.
+  confirmPreviewId: z.string().uuid().optional(),
   // Stacked-pricing override: force the exact set of billable features.
   features: z
     .array(z.enum(["image", "upscale", "text", "audio", "lipsync", "motion", "video"]))
@@ -428,7 +431,19 @@ export const orchestrateGenerate = createServerFn({ method: "POST" })
 
     // Preview mode: override to 480p/5s so the user can verify the scene cheaply
     // before committing to a full expensive render. Priced at 480p/5s cost.
-    const previewOnly = !!data.previewOnly && isTemporalKind;
+    // The preview-confirm gate (task #153) makes this MANDATORY for temporal
+    // kinds: without a valid confirmPreviewId the render is forced into a
+    // preview pass even if the caller didn't ask for one. An invalid/expired
+    // id throws (terminal) — it never silently up- or downgrades the render.
+    let previewOnly = !!data.previewOnly && isTemporalKind;
+    if (isTemporalKind && !previewOnly) {
+      const { resolvePreviewGate } = await import("./cost-guardrails.server");
+      const gate = await resolvePreviewGate({
+        userId: context.userId,
+        confirmPreviewId: data.confirmPreviewId,
+      });
+      if (!gate.confirmed) previewOnly = true;
+    }
     const effDuration = previewOnly ? Math.min(data.duration ?? 5, 5) : data.duration;
     const effResolution: "480p" | "720p" | "1080p" | undefined = previewOnly
       ? "480p"
@@ -452,7 +467,8 @@ export const orchestrateGenerate = createServerFn({ method: "POST" })
       model: data.model,
       params: data.voiceId ? { voiceId: data.voiceId } : undefined,
       cost,
-      reason: `orchestrate_${kind}`,
+      reason: previewOnly ? `orchestrate_${kind}_preview` : `orchestrate_${kind}`,
+      mode: previewOnly ? "preview" : undefined,
     });
     if (!outcome.ok) {
       return {
@@ -472,6 +488,9 @@ export const orchestrateGenerate = createServerFn({ method: "POST" })
       costUsd: outcome.costUsd,
       creditsCost: cost,
       costBreakdown: quote.breakdown,
+      ...(previewOnly
+        ? { preview: true as const, previewGenerationId: outcome.generationId }
+        : {}),
     };
   });
 

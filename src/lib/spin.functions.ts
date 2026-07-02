@@ -5,6 +5,7 @@ import { isAdmin } from "./admin.server";
 import { z } from "zod";
 import { orchestrate } from "./orchestrator.server";
 import { fetchToBytes } from "./replicate.server";
+import { compressImageBytes } from "./compress.server";
 import { assertTrustedUrl } from "./url-guard";
 import { listAvatars } from "./mcp/avatars.server";
 import { generateWithFallback } from "./llm-fallback.server";
@@ -295,12 +296,12 @@ export const tickSpinJob = createServerFn({ method: "POST" })
             userId,
             refId: p.id,
           });
-          const { bytes, mime } = await fetchToBytes(out.url);
-          const ext = (mime || "image/png").split("/")[1]?.split("+")[0] || "png";
-          const path = `${userId}/spin/${data.jobId}/${p.idx}.${ext}`;
+          const { bytes: rawBytes, mime: rawMime } = await fetchToBytes(out.url);
+          const img = await compressImageBytes(rawBytes, rawMime || "image/png");
+          const path = `${userId}/spin/${data.jobId}/${p.idx}.${img.ext}`;
           const { error: upErr } = await supabase.storage
             .from("studio")
-            .upload(path, bytes, { contentType: mime || "image/png", upsert: true });
+            .upload(path, img.bytes, { contentType: img.mime, upsert: true });
           if (upErr) throw new Error(upErr.message);
           const publicUrl = supabase.storage.from("studio").getPublicUrl(path).data.publicUrl;
 

@@ -42,6 +42,10 @@ const Schema = z.object({
   features: z
     .array(z.enum(["image", "upscale", "text", "audio", "lipsync", "motion", "video"]))
     .optional(),
+  // Preview-confirm gate (task #153): id of a succeeded preview generation the
+  // caller owns. Without it, video/lipsync requests are forced to a cheap
+  // 480p/≤5s preview pass.
+  confirmPreviewId: z.string().uuid().optional(),
 });
 
 async function authUserId(req: Request): Promise<string | null> {
@@ -153,6 +157,26 @@ export const Route = createFileRoute("/api/public/generate")({
             await assertDurationCap(userId, data.duration);
           }
 
+          // Preview-confirm gate: unconfirmed temporal renders are forced down
+          // to a cheap 480p/≤5s preview. The response carries the preview's
+          // generation id — pass it back as `confirmPreviewId` to render full
+          // quality. An invalid/expired id throws (never silently upgrades).
+          let previewPass = false;
+          if (data.kind === "video" || data.kind === "lipsync") {
+            const { resolvePreviewGate, PREVIEW_RESOLUTION, PREVIEW_MAX_SECONDS } = await import(
+              "@/lib/cost-guardrails.server"
+            );
+            const gate = await resolvePreviewGate({
+              userId,
+              confirmPreviewId: data.confirmPreviewId,
+            });
+            if (!gate.confirmed) {
+              previewPass = true;
+              data.resolution = PREVIEW_RESOLUTION;
+              data.duration = Math.min(data.duration ?? PREVIEW_MAX_SECONDS, PREVIEW_MAX_SECONDS);
+            }
+          }
+
           // Detect the billable features (deterministic, off explicit inputs) and
           // price the stack via the shared module so the charge matches any preview.
           const { features } = detectFeatures({
@@ -186,7 +210,8 @@ export const Route = createFileRoute("/api/public/generate")({
             comfyWorkflow: data.comfyWorkflow,
             comfyInputs: data.comfyInputs,
             cost,
-            reason: `public_generate_${data.kind}`,
+            reason: previewPass ? `public_generate_${data.kind}_preview` : `public_generate_${data.kind}`,
+            mode: previewPass ? "preview" : undefined,
           });
           if (!outcome.ok) {
             return new Response(JSON.stringify({ error: outcome.error }), {
@@ -206,6 +231,14 @@ export const Route = createFileRoute("/api/public/generate")({
               estimatedCostUsd: outcome.costUsd,
               creditsCost: cost,
               costBreakdown: quote.breakdown,
+              ...(previewPass
+                ? {
+                    preview: true,
+                    requiresConfirmation: true,
+                    previewGenerationId: outcome.generationId,
+                    hint: "This was rendered as a 480p/≤5s preview. Re-send the request with confirmPreviewId set to previewGenerationId to render at full quality.",
+                  }
+                : {}),
             }),
             { status: 200, headers: cors },
           );

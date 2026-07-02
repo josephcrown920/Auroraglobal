@@ -4,16 +4,19 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
-import { generatePerformanceShot, listGenerations } from "@/lib/studio.functions";
+import { generatePerformanceShot, generateVideoFromImage, listGenerations } from "@/lib/studio.functions";
 import {
   COLOR_PRESETS,
   SETUPS,
   SETUP_KINDS,
   WORKFLOWS,
-  buildColorPrompt,
+  ANIMATE_LOOP_PROMPT,
+  buildCompositorPrompt,
   describePerformance,
   type SetupKind,
 } from "@/lib/colors.presets";
+import { getColorStudio } from "@/lib/colors.studios";
+import { computeCost } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Loader2, Palette, Wand2, ArrowLeft, Check, ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
@@ -30,6 +33,34 @@ import tutorialColorsBlueFinal from "@/assets/tutorial-colors-blue-final.jpg.ass
 // ColorStudioBackdrop). Other scene kinds (indoor / outdoor / street) keep their
 // gradient mockups since they aren't studio sets.
 const STUDIO_BACKDROP_KINDS = new Set(["performance", "studio"]);
+
+// ─── Scene reference upload ──────────────────────────────────────────────────
+// The compositor pipeline sends the ACTUAL studio scene image to the model as
+// the final reference (scene lock), so it composites the person into that
+// exact set instead of inventing a background. Bundled assets aren't reachable
+// by providers, so we mirror them into the user's studio bucket once (upsert)
+// and cache the signed URL for the session.
+const sceneRefCache = new Map<string, string>();
+
+async function ensureSceneRef(userId: string, key: string, assetUrl: string): Promise<string> {
+  const cached = sceneRefCache.get(key);
+  if (cached) return cached;
+  const res = await fetch(assetUrl);
+  if (!res.ok) throw new Error("Could not load the studio scene reference");
+  const blob = await res.blob();
+  const path = `${userId}/scene-refs/${key}.jpg`;
+  const { error } = await supabase.storage.from("studio").upload(path, blob, {
+    contentType: blob.type || "image/jpeg",
+    upsert: true,
+  });
+  if (error) throw error;
+  const { data: signed, error: signErr } = await supabase.storage
+    .from("studio")
+    .createSignedUrl(path, 60 * 60);
+  if (signErr || !signed?.signedUrl) throw signErr ?? new Error("Could not sign scene reference");
+  sceneRefCache.set(key, signed.signedUrl);
+  return signed.signedUrl;
+}
 
 export const Route = createFileRoute("/colors")({
   component: ColorsStudio,
@@ -170,15 +201,38 @@ function ColorsStudio() {
     enabled: !!user,
     refetchInterval: 4000,
   });
-  const recent = (gens?.items ?? []).filter((g) => g.result_image_url).slice(0, 8);
+  const recent = (gens?.items ?? [])
+    .filter((g) => g.result_image_url || g.result_video_url)
+    .slice(0, 8);
 
   const fire = async (colorId: string, setupId: string) => {
     if (refs.length === 0) throw new Error("Upload at least a selfie reference");
-    const prompt = buildColorPrompt(colorId, setupId);
+    // Scene lock: mirror the exact studio scene into storage and attach it as
+    // the LAST reference image. Cyclorama setups use the real per-color studio
+    // poster; indoor/outdoor/street use the photoreal scene still.
+    const setupDef = SETUPS.find((s) => s.id === setupId);
+    const isStudioSet = STUDIO_BACKDROP_KINDS.has(setupDef?.kind ?? "");
+    const sceneAsset = isStudioSet ? getColorStudio(colorId).poster : getSetupScene(setupId);
+    let sceneRef: string | null = null;
+    if (sceneAsset && user) {
+      try {
+        sceneRef = await ensureSceneRef(
+          user.id,
+          isStudioSet ? `studio-${colorId}` : `scene-${setupId}`,
+          sceneAsset,
+        );
+      } catch {
+        toast.message("Scene reference unavailable — locking the scene from the prompt only");
+      }
+    }
+    const prompt = buildCompositorPrompt(colorId, setupId, {
+      hasOutfitRef: !!outfitUrl,
+      hasSceneRef: !!sceneRef,
+    });
     return genFn({
       data: {
         prompt,
-        imageUrls: refs,
+        imageUrls: sceneRef ? [...refs, sceneRef] : refs,
         motionVideoUrl: null,
         model: "google/gemini-3.1-flash-image-preview",
       },
@@ -211,6 +265,67 @@ function ColorsStudio() {
       qc.invalidateQueries({ queryKey: ["color-gens"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  const videoFn = useServerFn(generateVideoFromImage);
+  // Two-step preview→confirm flow (task #153 cost guardrail): the first click
+  // renders a cheap 480p preview; the server returns its generation id, which
+  // unlocks the full-quality render for that shot.
+  const animatePreviewCost = computeCost({
+    features: ["video"],
+    model: "seedance-2.0-fast",
+    durationSeconds: 5,
+    resolution: "480p",
+  }).total;
+  const animateFullCost = computeCost({
+    features: ["video"],
+    model: "seedance-2.0-fast",
+    durationSeconds: 5,
+    resolution: "720p",
+  }).total;
+  // imageUrl → succeeded preview generation id (the full-quality ticket).
+  const [animatePreviews, setAnimatePreviews] = useState<Record<string, string>>({});
+  const animateMut = useMutation({
+    mutationFn: (vars: { imageUrl: string; confirmPreviewId?: string }) =>
+      videoFn({
+        data: {
+          imageUrl: vars.imageUrl,
+          prompt: ANIMATE_LOOP_PROMPT,
+          duration: 5,
+          resolution: "720p",
+          modelKey: "seedance-2.0-fast",
+          cameraMovement: "static",
+          confirmPreviewId: vars.confirmPreviewId,
+        },
+      }),
+    onSuccess: (res, vars) => {
+      if (res.preview) {
+        setAnimatePreviews((prev) => ({ ...prev, [vars.imageUrl]: res.id }));
+        toast.success("Preview ready — check the clip, then render full quality");
+      } else {
+        setAnimatePreviews((prev) => {
+          const next = { ...prev };
+          delete next[vars.imageUrl];
+          return next;
+        });
+        toast.success("Performance clip ready");
+      }
+      qc.invalidateQueries({ queryKey: ["color-gens"] });
+      qc.invalidateQueries({ queryKey: ["gens"] });
+    },
+    onError: (e, vars) => {
+      const msg = e instanceof Error ? e.message : "Animate failed";
+      // A rejected/expired ticket is terminal — drop it so the next click
+      // starts a fresh preview instead of re-failing forever.
+      if (msg.includes("Unsupported preview confirmation")) {
+        setAnimatePreviews((prev) => {
+          const next = { ...prev };
+          delete next[vars.imageUrl];
+          return next;
+        });
+      }
+      toast.error(msg);
+    },
   });
 
   const allColorsMut = useMutation({
@@ -535,9 +650,53 @@ function ColorsStudio() {
               </div>
             )}
             {recent.map((g) => (
-              <a key={g.id} href={g.result_image_url!} target="_blank" rel="noreferrer" className="aurora-card-hover aspect-[4/5] rounded-xl overflow-hidden border border-border bg-background/40 hover:border-primary/40 transition-colors">
-                <img src={g.result_image_url!} alt="" className="w-full h-full object-cover" />
-              </a>
+              <div key={g.id} className="relative group/shot">
+                <a
+                  href={(g.result_video_url ?? g.result_image_url)!}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block aurora-card-hover aspect-[4/5] rounded-xl overflow-hidden border border-border bg-background/40 hover:border-primary/40 transition-colors"
+                >
+                  {g.result_video_url ? (
+                    <video
+                      src={g.result_video_url}
+                      poster={g.result_image_url ?? undefined}
+                      muted
+                      loop
+                      playsInline
+                      autoPlay
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <img src={g.result_image_url!} alt="" className="w-full h-full object-cover" />
+                  )}
+                </a>
+                {!g.result_video_url && g.result_image_url && (
+                  <button
+                    type="button"
+                    disabled={animateMut.isPending}
+                    onClick={() =>
+                      animateMut.mutate(
+                        animatePreviews[g.result_image_url!]
+                          ? {
+                              imageUrl: g.result_image_url!,
+                              confirmPreviewId: animatePreviews[g.result_image_url!],
+                            }
+                          : { imageUrl: g.result_image_url! },
+                      )
+                    }
+                    className="absolute bottom-1.5 left-1.5 right-1.5 rounded-lg bg-background/80 backdrop-blur px-2 py-1.5 text-[10px] font-medium uppercase tracking-wider text-foreground/90 border border-border opacity-0 group-hover/shot:opacity-100 focus-visible:opacity-100 transition-opacity hover:border-primary/50 disabled:opacity-60"
+                  >
+                    {animateMut.isPending ? (
+                      <Loader2 className="size-3 animate-spin inline" />
+                    ) : animatePreviews[g.result_image_url!] ? (
+                      <>Render full quality · {animateFullCost} Aura</>
+                    ) : (
+                      <>Preview loop · 480p · {animatePreviewCost} Aura</>
+                    )}
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         </aside>
