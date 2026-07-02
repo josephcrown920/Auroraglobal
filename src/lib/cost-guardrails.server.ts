@@ -45,6 +45,7 @@ export async function assertDurationCap(
 // Pure helpers live in billing.plans.ts (no server deps) so tests can import
 // them without mocking Supabase. Re-exported here for convenience.
 export { HEAVY_JOB_KINDS, classifyJobQueue } from "./billing.plans";
+import { GENERATION_SUCCESS_STATUSES } from "./cost-stats";
 
 // ─── Preview-confirm gate ─────────────────────────────────────────────────────
 // Temporal renders (video / lipsync) are the expensive ones, so unconfirmed
@@ -57,9 +58,11 @@ export const PREVIEW_RESOLUTION = "480p" as const;
 export const PREVIEW_MAX_SECONDS = 5;
 export const PREVIEW_CONFIRM_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-/** Kinds gated behind a preview pass. */
+/** Kinds gated behind a preview pass (all motion-producing renders). */
 export function isTemporalKind(kind: string): boolean {
-  return kind === "video" || kind === "lipsync";
+  return (
+    kind === "video" || kind === "lipsync" || kind === "motion" || kind === "performance_reskin"
+  );
 }
 
 export type PreviewRowCheck = {
@@ -88,8 +91,8 @@ export function validateConfirmedPreview(
   if (!row || row.user_id !== userId) reject("preview not found");
   const r = row as PreviewRowCheck;
   if (r.mode !== "preview") reject("that generation is not a preview");
-  if (!isTemporalKind(r.kind ?? "")) reject("preview is not a video/lipsync render");
-  if (r.status !== "succeeded" && r.status !== "complete") {
+  if (!isTemporalKind(r.kind ?? "")) reject("preview is not a video/motion render");
+  if (!(GENERATION_SUCCESS_STATUSES as readonly string[]).includes(r.status ?? "")) {
     reject("preview has not finished successfully");
   }
   const created = r.created_at ? Date.parse(r.created_at) : NaN;
