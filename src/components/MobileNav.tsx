@@ -20,6 +20,7 @@ import {
   Sun,
   Moon,
   Clapperboard,
+  Code2,
   CreditCard,
   Wand2,
   Bot,
@@ -57,6 +58,7 @@ const LIVE_FEATURES: Feature[] = [
   { to: "/canvas",      label: "Canvas",            icon: Workflow },
   { to: "/music-video", label: "Lyric Video",       icon: Clapperboard },
   { to: "/growth",      label: "Growth Tools",      icon: Sprout },
+  { to: "/editor",      label: "Playground",        icon: Code2 },
 ];
 
 const UTILITY_FEATURES: Feature[] = [

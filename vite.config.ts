@@ -20,10 +20,35 @@ const replitPlugins =
     ? [{ ...cartographer(), apply: "serve" as const }]
     : [];
 
+// The playground's Monaco editor (src/components/playground/CodeEditor.tsx) is
+// strictly client-only — the /editor route gates it behind a mounted check, so
+// it can never render on the server. Without this stub, the SSR build still
+// pulls the entire monaco-editor module graph (plus its ?worker bundles) into
+// the server bundle, which OOMs `vite build` and bloats the deploy output.
+// Replace the module with a null component in every SSR compile.
+const monacoSsrStub = {
+  name: "aurora:monaco-ssr-stub",
+  enforce: "pre" as const,
+  resolveId(id: string, _importer: string | undefined, options?: { ssr?: boolean }) {
+    if (options?.ssr && id.includes("components/playground/CodeEditor")) {
+      return "\0monaco-ssr-stub";
+    }
+    return null;
+  },
+  load(id: string) {
+    if (id === "\0monaco-ssr-stub") {
+      return "export default function CodeEditorSsrStub() { return null; }";
+    }
+    return null;
+  },
+};
+
+const extraPlugins = [monacoSsrStub, ...replitPlugins];
+
 // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
 // @cloudflare/vite-plugin builds from this — wrangler.jsonc main alone is insufficient.
 export default defineConfig({
-  plugins: replitPlugins,
+  plugins: extraPlugins,
   tanstackStart: {
     server: { entry: "server" },
   },
@@ -47,6 +72,6 @@ export default defineConfig({
         ignored: ["**/.cache/**"],
       },
     },
-    plugins: replitPlugins,
+    plugins: extraPlugins,
   },
 });
