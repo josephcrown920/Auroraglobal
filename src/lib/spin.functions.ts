@@ -10,6 +10,7 @@ import { listAvatars } from "./mcp/avatars.server";
 import { generateWithFallback } from "./llm-fallback.server";
 import {
   SPIN_COUNT,
+  SPIN_PIECE_COST,
   VIRAL_SYSTEM_PROMPT,
   SpinPlanSchema,
   buildFallbackSpecs,
@@ -19,11 +20,12 @@ import {
   type SpinSpec,
 } from "./spin-engine";
 
-// 1 Aura per spin piece — matches COST_IMAGE in studio.functions.ts.
-// Charged upfront for all SPIN_COUNT pieces before the job is created; each
-// successful render reuses that upfront charge (no second reservation), and each
-// FAILED render refunds its 1 Aura, so the batch never over-charges.
-const COST_SPIN_PIECE = 1;
+// 1 Aura per spin piece — shared client-safe constant (also drives the cost
+// labels on /spin and the template cards). Charged upfront for all SPIN_COUNT
+// pieces before the job is created; each successful render reuses that upfront
+// charge (no second reservation), and each FAILED render refunds its 1 Aura,
+// so the batch never over-charges.
+const COST_SPIN_PIECE = SPIN_PIECE_COST;
 
 // Nano Banana (Gemini 2.5 Flash image) — runs on the Replicate key alone and is
 // the same default the Performance Shot studio uses. The face reference is passed
@@ -261,16 +263,29 @@ export const tickSpinJob = createServerFn({ method: "POST" })
       return { processed: 0, done: (remaining ?? 0) === 0 };
     }
 
-    await db
+    // Atomically CLAIM the batch (compare-and-swap on status). If two tabs or
+    // devices drive the same job — the resumable jobId-in-URL invites this —
+    // only one claimer wins each row; the loser gets zero rows back and simply
+    // polls again. This is what prevents double provider spend / double refunds.
+    const { data: claimedRows } = await db
       .from("spin_variants")
       .update({ status: "running" })
       .in(
         "id",
         pending.map((p: { id: string }) => p.id),
-      );
+      )
+      .eq("status", "queued")
+      .select("id,idx,label,prompt");
+    const claimed = (claimedRows ?? []) as {
+      id: string;
+      idx: number;
+      label: string;
+      prompt: string | null;
+    }[];
+    if (claimed.length === 0) return { processed: 0, done: false };
 
     await Promise.allSettled(
-      pending.map(async (p: { id: string; idx: number; label: string; prompt: string | null }) => {
+      claimed.map(async (p) => {
         try {
           const out = await orchestrate({
             kind: "image",
@@ -289,26 +304,42 @@ export const tickSpinJob = createServerFn({ method: "POST" })
           if (upErr) throw new Error(upErr.message);
           const publicUrl = supabase.storage.from("studio").getPublicUrl(path).data.publicUrl;
 
-          // Record the generation so the admin cost dashboard stays accurate
-          // (the 1 Aura was already deducted upfront — no second charge here).
-          await supabaseAdmin.from("generations").insert({
-            user_id: userId,
-            prompt: p.prompt ?? "",
-            kind: "image",
-            mode: "performance",
-            status: "succeeded",
-            model: out.provider,
-            input_images: faceUrl ? [faceUrl] : [],
-            result_image_url: publicUrl,
-            credits_cost: COST_SPIN_PIECE,
-          } as never);
-
-          await db.from("spin_variants").update({ status: "done", url: publicUrl }).eq("id", p.id);
+          // FINALIZE with a status fence: only the worker that flips
+          // running → done records the generation. If this render raced a
+          // stale-reclaim (another worker re-claimed and finished first), the
+          // CAS returns zero rows and we record nothing — no double counting.
+          const { data: won } = await db
+            .from("spin_variants")
+            .update({ status: "done", url: publicUrl })
+            .eq("id", p.id)
+            .eq("status", "running")
+            .select("id");
+          if (((won ?? []) as { id: string }[]).length > 0) {
+            // Record the generation so the admin cost dashboard stays accurate
+            // (the 1 Aura was already deducted upfront — no second charge here).
+            await supabaseAdmin.from("generations").insert({
+              user_id: userId,
+              prompt: p.prompt ?? "",
+              kind: "image",
+              mode: "performance",
+              status: "succeeded",
+              model: out.provider,
+              input_images: faceUrl ? [faceUrl] : [],
+              result_image_url: publicUrl,
+              credits_cost: COST_SPIN_PIECE,
+            } as never);
+          }
         } catch (e) {
           const msg = e instanceof Error ? e.message : "render failed";
-          await db.from("spin_variants").update({ status: "error", error: msg }).eq("id", p.id);
-          // Refund this one piece — the upfront charge already covered it.
-          if (!adminUser) {
+          // Same fence on the failure path: refund ONLY if we won the terminal
+          // write — a raced duplicate must never mint a second refund.
+          const { data: lost } = await db
+            .from("spin_variants")
+            .update({ status: "error", error: msg })
+            .eq("id", p.id)
+            .eq("status", "running")
+            .select("id");
+          if (!adminUser && ((lost ?? []) as { id: string }[]).length > 0) {
             await supabaseAdmin.rpc("grant_credits", {
               _user: userId,
               _amount: COST_SPIN_PIECE,
@@ -320,5 +351,5 @@ export const tickSpinJob = createServerFn({ method: "POST" })
       }),
     );
 
-    return { processed: pending.length, done: false };
+    return { processed: claimed.length, done: false };
   });
