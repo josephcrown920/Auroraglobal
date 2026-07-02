@@ -13,6 +13,7 @@ import { isAdmin } from "./admin.server";
 import {
   resolvePreviewGate,
   assertDurationCap,
+  assertHdEntitlement,
   PREVIEW_RESOLUTION,
   PREVIEW_MAX_SECONDS,
 } from "./cost-guardrails.server";
@@ -207,6 +208,9 @@ export const generateVideoFromImage = createServerFn({ method: "POST" })
     // Per-tier duration cap (Free 10s / Pro 15s) — rejected here before any
     // row insert or charge. Preview passes are ≤5s so they always clear it.
     await assertDurationCap(userId, effDuration);
+    // HD/4K entitlement: 1080p and 2160p require Pro. Preview passes are exempt
+    // (always 480p). Terminal error so jobs fail immediately rather than retry.
+    await assertHdEntitlement(userId, data.resolution, previewPass);
 
     const { data: row, error: insErr } = await supabase
       .from("generations")
