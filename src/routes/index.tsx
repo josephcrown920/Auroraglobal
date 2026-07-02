@@ -195,16 +195,17 @@ function Index() {
               <Sparkles className="size-3.5" /> Canvas
             </Link>
             <Link
-              to="/agent"
-              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
-            >
-              <Sparkles className="size-3.5" /> Agent
-            </Link>
-            <Link
               to="/ugc"
               className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
             >
-              <Megaphone className="size-3.5" /> UGC
+              <Megaphone className="size-3.5" /> UGC Ads
+            </Link>
+            <Link
+              to="/spin"
+              search={{}}
+              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
+            >
+              <Play className="size-3.5" /> Spin 30
             </Link>
             <Link
               to="/colors"
@@ -219,12 +220,6 @@ function Index() {
               <Camera className="size-3.5" /> Reshoot
             </Link>
             <Link
-              to="/kids"
-              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
-            >
-              <BookOpen className="size-3.5" /> Kids
-            </Link>
-            <Link
               to="/motion"
               className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
             >
@@ -235,28 +230,6 @@ function Index() {
               className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
             >
               <Wand2 className="size-3.5" /> Lip Sync
-            </Link>
-            <Link
-              to="/cli"
-              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
-            >
-              <Terminal className="size-3.5" /> CLI
-            </Link>
-            <Link
-              to="/connect"
-              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
-            >
-              <Plug className="size-3.5" /> Connect Claude
-            </Link>
-            <Link
-              to="/nexusarb"
-              title="NexusARB — crypto/forex/commodity trading simulation (educational only)"
-              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
-            >
-              <TrendingUp className="size-3.5" /> NexusARB
-              <span className="ml-0.5 rounded bg-emerald-500/15 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-emerald-300">
-                Sim
-              </span>
             </Link>
             {user ? (
               <Link
@@ -346,8 +319,8 @@ function Index() {
       {/* 2. Hero + "Talk to Aurora" contact form */}
       <HeroContactForm greeting={greeting} />
 
-      {/* 3. Published CLI */}
-      <CliSection />
+      {/* 3. CLI section — developer-focused, re-enable when CLI is consumer-ready */}
+      {/* <CliSection /> */}
 
       {/* 4. Supercomputer / product hero */}
       <SupercomputerSection />
@@ -371,8 +344,8 @@ function Index() {
       {/* 9. Final CTA */}
       <FinalCTA />
 
-      {/* 10. Request a feature */}
-      <FeatureRequest />
+      {/* 10. Feature request — re-enable post-launch */}
+      {/* <FeatureRequest /> */}
 
       <SiteFooter />
     </main>

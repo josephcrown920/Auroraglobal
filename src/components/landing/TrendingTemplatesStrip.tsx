@@ -12,7 +12,6 @@ const TRENDING_IDS = [
   "ugc-talking-ad",
   "autocut-hype",
   "viral-spin",
-  "kids-storybook",
 ];
 
 const TRENDING = TRENDING_IDS.map((id) => STUDIO_TEMPLATES.find((t) => t.id === id)).filter(

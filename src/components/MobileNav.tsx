@@ -49,13 +49,14 @@ type Feature = {
 const LIVE_FEATURES: Feature[] = [
   { to: "/studio",      label: "Image Generation", icon: Sparkles },
   { to: "/orchestrate", label: "Video Generation",  icon: Film },
+  { to: "/ugc",         label: "UGC Ads",           icon: Megaphone },
+  { to: "/spin",        label: "Spin · 30 Posts",   icon: Flame },
   { to: "/colors",      label: "Colors Studio",     icon: Palette },
   { to: "/motion",      label: "Motion",            icon: Wand2 },
   { to: "/lipsync",     label: "Lip Sync",          icon: Mic },
   { to: "/canvas",      label: "Canvas",            icon: Workflow },
   { to: "/music-video", label: "Lyric Video",       icon: Clapperboard },
   { to: "/growth",      label: "Growth Tools",      icon: Sprout },
-  { to: "/agent",       label: "Claude MCP",        icon: Bot },
 ];
 
 const UTILITY_FEATURES: Feature[] = [
@@ -66,10 +67,7 @@ const UTILITY_FEATURES: Feature[] = [
 ];
 
 const COMING_SOON: Feature[] = [
-  { to: "/ugc",           label: "UGC Ads",         icon: Megaphone,          badge: "Soon" },
-  { to: "/spin",          label: "Spin · 50 Posts",  icon: Flame,              badge: "Soon" },
   { to: "/content-machine", label: "Content Machine", icon: Factory,           badge: "Soon" },
-  { to: "/kids",          label: "Kids Stories",     icon: BookOpen,           badge: "Soon" },
   { to: "/split-reality", label: "Split Reality",    icon: SplitSquareHorizontal, badge: "Soon" },
   { to: "/tiktok",        label: "TikTok Studio",    icon: Music2,             badge: "Soon" },
   { to: "/clips",         label: "Clips",            icon: Scissors,           badge: "Soon" },
