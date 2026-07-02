@@ -265,6 +265,14 @@ export type DetectInput = {
 /** AutoCut: multi-clip assemble job. Must stay in sync with autocut.server.ts. */
 export const COST_AUTOCUT = 8;
 
+// ─── Growth Tools flat costs (Pro only, LLM-based) ───────────────────────────
+/** Daily Post Generator: 7 days of captions + image prompt pairs. */
+export const COST_DAILY_POSTS = 10;
+/** AI Rollout Plan: week-by-week release promotion calendar. */
+export const COST_ROLLOUT_PLAN = 5;
+/** Social Media Pack: square/portrait captions + 5 caption variants + hashtag sets. */
+export const COST_SOCIAL_PACK = 8;
+
 export function detectFeatures(input: DetectInput): {
   features: Feature[];
   primaryKind: Feature;
