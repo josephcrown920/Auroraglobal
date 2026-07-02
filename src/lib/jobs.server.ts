@@ -36,6 +36,7 @@ import {
 } from "./kids-story.server";
 import { getMusicTrack, signedAutocutUrl } from "./autocut.server";
 import { assertDurationCap } from "./cost-guardrails.server";
+import { persistResultUrl, resultMediaTypeForKind } from "./result-store.server";
 
 // `orchestrate` is dependency-injected (threaded through the runners) rather than
 // imported-and-called directly so the worker loop is unit-testable WITHOUT
@@ -992,14 +993,35 @@ export async function processOneJob(
       out = await runMediaJob(job, orch);
     }
 
+    // Persist provider URLs into our own storage (compresses + re-hosts) before
+    // writing to the generations row. Falls back to the raw provider URL on
+    // error so a delivered render is never lost.
+    const payloadKind = (job.payload as { kind?: string })?.kind;
+    const effectiveKind = payloadKind ?? job.kind;
+
+    let persistedUrl = out.url;
+    let persistedImageUrl = out.imageUrl;
+    let persistedVideoUrl = out.videoUrl;
+
+    if (out.imageUrl && out.videoUrl) {
+      [persistedImageUrl, persistedVideoUrl] = await Promise.all([
+        persistResultUrl({ userId: job.user_id, refId: `${job.id}-img`, mediaType: "image", url: out.imageUrl }).then((r) => r.url),
+        persistResultUrl({ userId: job.user_id, refId: `${job.id}-vid`, mediaType: "video", url: out.videoUrl }).then((r) => r.url),
+      ]);
+    } else if (out.url) {
+      const mediaType = resultMediaTypeForKind(effectiveKind);
+      if (mediaType) {
+        persistedUrl = (await persistResultUrl({ userId: job.user_id, refId: job.id, mediaType, url: out.url })).url;
+      }
+    }
+
     // Update generations row. A matched image+video result (campaign sets) fills
     // both URL columns; everything else routes to one column by media type.
     const genPatch: Record<string, unknown> = { status: "succeeded", model: out.provider };
-    if (out.imageUrl && out.videoUrl) {
-      genPatch.result_image_url = out.imageUrl;
-      genPatch.result_video_url = out.videoUrl;
+    if (persistedImageUrl && persistedVideoUrl) {
+      genPatch.result_image_url = persistedImageUrl;
+      genPatch.result_video_url = persistedVideoUrl;
     } else {
-      const payloadKind = (job.payload as { kind?: string })?.kind;
       const isVideo =
         payloadKind === "video" ||
         payloadKind === "motion" ||
@@ -1011,7 +1033,7 @@ export async function processOneJob(
         job.kind === "motion" ||
         job.kind === "lipsync" ||
         job.kind === "autocut";
-      genPatch[isVideo ? "result_video_url" : "result_image_url"] = out.url;
+      genPatch[isVideo ? "result_video_url" : "result_image_url"] = persistedUrl;
     }
     // Fence the completion on still owning the lock BEFORE writing the success or
     // committing credits. If a stale-sweep requeued this job and another worker
