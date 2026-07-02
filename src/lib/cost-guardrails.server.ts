@@ -3,7 +3,7 @@
 // plan-lookup + cap validation here. The only server-side dependency is a single
 // Supabase profile read; all other helpers are pure functions.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { tierFor, DURATION_CAPS, type SubscriptionTier } from "./billing.plans";
+import { tierFor, durationCapMessage, type SubscriptionTier } from "./billing.plans";
 
 // ─── User-tier lookup ─────────────────────────────────────────────────────────
 
@@ -31,14 +31,8 @@ export async function assertDurationCap(
   durationSeconds: number,
 ): Promise<void> {
   const tier = await getUserTier(userId);
-  const cap = DURATION_CAPS[tier];
-  if (durationSeconds > cap) {
-    const tierLabel = tier === "pro" ? "Pro" : "Free";
-    const upgradeHint = tier === "free" ? " Upgrade to Pro for up to 15 seconds." : "";
-    throw new Error(
-      `Unsupported duration for your ${tierLabel} plan: ${durationSeconds}s exceeds the ${cap}s limit.${upgradeHint}`,
-    );
-  }
+  const msg = durationCapMessage(tier, durationSeconds);
+  if (msg) throw new Error(msg);
 }
 
 // ─── Heavy-queue classification ───────────────────────────────────────────────

@@ -12,9 +12,11 @@ import { computeCost } from "./pricing";
 import { isAdmin } from "./admin.server";
 import {
   resolvePreviewGate,
+  assertDurationCap,
   PREVIEW_RESOLUTION,
   PREVIEW_MAX_SECONDS,
 } from "./cost-guardrails.server";
+import { DURATION_CAPS } from "./billing.plans";
 
 const COST_IMAGE = 1;
 
@@ -138,7 +140,9 @@ export const generatePerformanceShot = createServerFn({ method: "POST" })
 const VideoSchema = z.object({
   imageUrl: z.string().url(),
   prompt: z.string().min(2).max(1000),
-  duration: z.number().int().min(3).max(12).default(5),
+  // Schema ceiling = Pro's plan cap; per-tier enforcement (Free 10s) happens
+  // in the handler via assertDurationCap so the two can never drift apart.
+  duration: z.number().int().min(3).max(DURATION_CAPS.pro).default(5),
   resolution: z.enum(["480p", "720p", "1080p"]).default("720p"),
   modelKey: z.string().default("seedance-2.0-fast"),
   /** Optional motion / camera control preset (e.g. zoom_in, pan_left, orbit). */
@@ -146,8 +150,8 @@ const VideoSchema = z.object({
   /** Optional end-frame image URL (Kling supports start+end frame interpolation). */
   endFrameUrl: z.string().url().optional().nullable(),
   /**
-   * Preview-confirm gate (task #153): id of a succeeded preview generation the
-   * caller owns. Without it the render is forced to a cheap 480p/≤5s preview.
+   * Preview-confirm gate: id of a succeeded preview generation the caller
+   * owns. Without it the render is forced to a cheap 480p/≤5s preview.
    */
   confirmPreviewId: z.string().uuid().optional().nullable(),
 }).refine(
@@ -199,6 +203,10 @@ export const generateVideoFromImage = createServerFn({ method: "POST" })
     const previewPass = !gate.confirmed;
     const effResolution = previewPass ? PREVIEW_RESOLUTION : data.resolution;
     const effDuration = previewPass ? Math.min(data.duration, PREVIEW_MAX_SECONDS) : data.duration;
+
+    // Per-tier duration cap (Free 10s / Pro 15s) — rejected here before any
+    // row insert or charge. Preview passes are ≤5s so they always clear it.
+    await assertDurationCap(userId, effDuration);
 
     const { data: row, error: insErr } = await supabase
       .from("generations")

@@ -96,6 +96,23 @@ export const DURATION_CAPS: Record<SubscriptionTier, number> = {
   pro: 15,
 };
 
+/**
+ * Pure per-tier duration check. Returns the TERMINAL rejection message
+ * ("Unsupported …" — matches TERMINAL_ERROR_RE so queue jobs never retry it)
+ * or null when the duration is allowed. assertDurationCap wraps this after a
+ * profile lookup; tests exercise the policy here without mocking Supabase.
+ */
+export function durationCapMessage(
+  tier: SubscriptionTier,
+  durationSeconds: number,
+): string | null {
+  const cap = DURATION_CAPS[tier];
+  if (durationSeconds <= cap) return null;
+  const tierLabel = tier === "pro" ? "Pro" : "Free";
+  const upgradeHint = tier === "free" ? " Upgrade to Pro for up to 15 seconds." : "";
+  return `Unsupported duration for your ${tierLabel} plan: ${durationSeconds}s exceeds the ${cap}s limit.${upgradeHint}`;
+}
+
 // ─── Heavy-queue classification (pure, no server deps) ────────────────────────
 // Lives here so tests can import it without pulling in server-only modules.
 
