@@ -19,7 +19,10 @@ import {
   callGradioSpace,
   extractGradioUrl,
   gradioData,
+  inferenceShInput,
+  resolveInferenceShApp,
   runComfyWorkflow,
+  runInferenceShTask,
 } from "./inference/protocols";
 import type { InferenceInput, TaskType } from "./inference/types";
 
@@ -1292,6 +1295,7 @@ const elevenlabs: ProviderAdapter = {
 //             or POST {endpoint}/runsync (when runpod_sync), body wrapped as { input }
 //   comfyui → POST {endpoint}/prompt with a ComfyUI graph, poll /history, /view the asset
 //   hfspace → call the Space's Gradio predict fn over the /gradio_api SSE flow
+//   inferencesh → run a mapped inference.sh app: POST {endpoint}/run, poll GET /tasks/{id}
 // Routing stays capability-based; `protocol` only changes HOW a worker is called,
 // so legacy /generate workers and the provider failover chain keep working.
 const WORKER_TIMEOUT_MS = 300_000;
@@ -1334,6 +1338,7 @@ export function extractWorkerUrl(payload: unknown, depth = 0): string | undefine
       "result_url",
       "signed_url",
       "delivery_url",
+      "uri",
     ]) {
       const v = o[k];
       if (typeof v === "string" && v.startsWith("http")) return v;
@@ -1528,6 +1533,42 @@ export async function dispatchComfyui(
   return { url };
 }
 
+// inferencesh contract: run a mapped inference.sh app (POST /run + poll /tasks/{id}).
+// The worker row's endpoint_url is the API base (normally https://api.inference.sh)
+// and auth_token is the "inf_..." API key. App mapping comes from the same
+// INFERENCE_SH_APP_<TASK> env vars the env-layer adapter uses — no app mapped for
+// the task means an explicit failure, never a silent fallback.
+export async function dispatchInferenceSh(
+  base: string,
+  w: WorkerRow,
+  r: GenerateRequest,
+  deadline: number,
+): Promise<unknown> {
+  if (!w.auth_token) {
+    throw new Error(`worker ${w.name}: inferencesh protocol requires the API key in auth_token`);
+  }
+  const job = toInferenceInput(r);
+  const app = resolveInferenceShApp(job.task, process.env);
+  if (!app) {
+    throw new Error(
+      `worker ${w.name}: no inference.sh app mapped for task "${job.task}" — set INFERENCE_SH_APP_${job.task.toUpperCase()}`,
+    );
+  }
+  const { setup, ...params } = (job.params ?? {}) as Record<string, unknown>;
+  const task = await runInferenceShTask({
+    baseUrl: base,
+    token: w.auth_token,
+    app,
+    input: inferenceShInput({ ...job, params }),
+    setup:
+      setup && typeof setup === "object" && !Array.isArray(setup)
+        ? (setup as Record<string, unknown>)
+        : undefined,
+    deadline,
+  });
+  return task.output ?? task;
+}
+
 // hfspace contract: call the Space's Gradio `predict` fn over the SSE flow.
 export async function dispatchHfspace(
   base: string,
@@ -1587,10 +1628,15 @@ const gpuWorker: ProviderAdapter = {
               ? await dispatchComfyui(base, w, r, deadline)
               : w.protocol === "hfspace"
                 ? await dispatchHfspace(base, w, r, deadline)
-                : await dispatchCustom(base, w, r, deadline);
+                : w.protocol === "inferencesh"
+                  ? await dispatchInferenceSh(base, w, r, deadline)
+                  : await dispatchCustom(base, w, r, deadline);
         // custom & vast workers may return a relative/non-http url; preserve it.
         const isCustomLike =
-          w.protocol !== "runpod" && w.protocol !== "comfyui" && w.protocol !== "hfspace";
+          w.protocol !== "runpod" &&
+          w.protocol !== "comfyui" &&
+          w.protocol !== "hfspace" &&
+          w.protocol !== "inferencesh";
         const url =
           extractWorkerUrl(payload) ?? (isCustomLike ? legacyCustomUrl(payload) : undefined);
         if (!url) throw new Error(`worker ${w.name} returned no url`);

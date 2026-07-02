@@ -13,13 +13,17 @@ import { huggingfaceAdapter } from "./providers/huggingface";
 import { customAdapter } from "./providers/custom";
 import { vastAdapter } from "./providers/vast";
 import { comfyuiAdapter } from "./providers/comfyui";
+import { inferenceshAdapter } from "./providers/inferencesh";
 
+// Order matters: runInferenceAuto tries configured backends in this order, so
+// inferencesh is appended last to leave the existing precedence unchanged.
 export const adapters: Record<ProviderId, ProviderAdapter> = {
   runpod: runpodAdapter,
   huggingface: huggingfaceAdapter,
   custom: customAdapter,
   vast: vastAdapter,
   comfyui: comfyuiAdapter,
+  inferencesh: inferenceshAdapter,
 };
 
 /** Run inference on a specific backend. Throws if the backend is unknown. */

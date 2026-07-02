@@ -11,6 +11,7 @@ TanStack Start project to reuse the GPU layer.
 | `runpod`      | `RUNPOD_API_KEY`, `RUNPOD_ENDPOINT_ID`                  | Production, low cold-start        |
 | `huggingface` | `HF_SPACE_URL`, `HF_TOKEN` (private), `HF_FN_NAME`      | Free demos                        |
 | `custom`      | `CUSTOM_INFERENCE_URL`, `CUSTOM_INFERENCE_TOKEN`        | Colab+ngrok, ComfyUI, own server  |
+| `inferencesh` | `INFERENCE_SH_API_KEY` (+ `INFERENCE_SH_APP_<TASK>`)    | Managed cloud apps (inference.sh) |
 
 Switch providers by setting the relevant secrets. No code changes needed.
 
