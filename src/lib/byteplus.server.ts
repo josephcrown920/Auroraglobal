@@ -109,7 +109,7 @@ type BytePlusVideoOpts = {
   prompt?: string;
   imageUrls?: string[];
   duration?: number;
-  resolution?: "480p" | "720p" | "1080p";
+  resolution?: "480p" | "720p" | "1080p" | "2160p";
   timeoutMs?: number;
   pollIntervalMs?: number;
 };

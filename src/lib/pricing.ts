@@ -23,7 +23,7 @@
 // server's MODEL_REGISTRY costs by pricing.test.ts) rather than imported.
 
 export type Feature = "image" | "upscale" | "text" | "audio" | "lipsync" | "motion" | "video" | "caption_burn";
-export type Resolution = "480p" | "720p" | "1080p";
+export type Resolution = "480p" | "720p" | "1080p" | "2160p";
 
 /** Every billable feature, in canonical display order. */
 export const FEATURES: readonly Feature[] = [
@@ -56,6 +56,7 @@ export const PRICING = {
     "480p": 0.5,
     "720p": 1,
     "1080p": 2,
+    "2160p": 4,
   } as Record<Resolution, number>,
   /** Length multiplier is linear against this reference: seconds / referenceSeconds. */
   referenceSeconds: 5,

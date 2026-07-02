@@ -15,8 +15,10 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { orchestrateGenerate, listOrchestrations } from "@/lib/orchestration.functions";
+import { getMyProfile } from "@/lib/billing.functions";
 import { handleGenerationError, friendlyGenerationMessage } from "@/lib/error-toasts";
 import { detectFeatures, computeCost, type Feature, type Resolution } from "@/lib/pricing";
+import { ResolutionPicker } from "@/components/ResolutionPicker";
 import { useGenerationProgress } from "@/hooks/use-generation-progress";
 import { GenerationProgress } from "@/components/ui/GenerationProgress";
 import { GenerationErrorCard } from "@/components/ui/GenerationErrorCard";
@@ -37,7 +39,7 @@ const MODALITIES: { id: Modality; label: string; icon: typeof ImageIcon }[] = [
   { id: "audio", label: "Speech", icon: AudioLines },
 ];
 
-const RESOLUTIONS: Resolution[] = ["480p", "720p", "1080p"];
+const RESOLUTIONS: Resolution[] = ["480p", "720p", "1080p", "2160p"];
 const DURATIONS = [5, 8, 10, 12];
 
 const MODELS: Record<Modality, ModelOption[]> = {
@@ -69,6 +71,7 @@ function OrchestratePage() {
   const { user } = useAuth();
   const run = useServerFn(orchestrateGenerate);
   const list = useServerFn(listOrchestrations);
+  const profileFn = useServerFn(getMyProfile);
 
   const [modality, setModality] = useState<Modality>("image");
   const [prompt, setPrompt] = useState("");
@@ -106,6 +109,14 @@ function OrchestratePage() {
       done: "Done",
     },
   });
+
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: () => profileFn(),
+    enabled: !!user,
+    staleTime: 30_000,
+  });
+  const isPro = !!(profile?.is_pro || profile?.isAdmin);
 
   const recent = useQuery({
     queryKey: ["orchestrations", user?.id],
@@ -304,27 +315,15 @@ function OrchestratePage() {
             {(usesResolution || usesDuration) && (
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 {usesResolution && (
-                  <div>
-                    <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-neutral-500">
-                      Resolution
-                    </label>
-                    <div className="flex gap-2">
-                      {RESOLUTIONS.map((r) => (
-                        <button
-                          key={r}
-                          type="button"
-                          onClick={() => setResolution(r)}
-                          className={`flex-1 rounded-lg border px-2 py-2 text-xs transition ${
-                            resolution === r
-                              ? "border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-300"
-                              : "border-neutral-800 text-neutral-400 hover:border-neutral-700"
-                          }`}
-                        >
-                          {r}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  <ResolutionPicker
+                    resolution={resolution}
+                    onChange={setResolution}
+                    isPro={isPro}
+                    features={features}
+                    durationSeconds={duration}
+                    model={model}
+                    className="col-span-full sm:col-span-1"
+                  />
                 )}
                 {usesDuration && (
                   <div>

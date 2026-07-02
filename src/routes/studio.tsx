@@ -21,7 +21,8 @@ import { GenerationProgress } from "@/components/ui/GenerationProgress";
 import { BlurredPreview } from "@/components/ui/BlurredPreview";
 import { getMyProfile, createPaystackCheckout } from "@/lib/billing.functions";
 import { PLANS } from "@/lib/billing.plans";
-import { computeCost } from "@/lib/pricing";
+import { computeCost, type Resolution } from "@/lib/pricing";
+import { ResolutionPicker } from "@/components/ResolutionPicker";
 import { detectCurrency } from "@/lib/geo.functions";
 import demoSelfie from "@/assets/demo-selfie.jpg";
 import { RECIPES } from "@/lib/tutorials";
@@ -119,12 +120,13 @@ function StudioPage() {
   const [lipsyncModel, setLipsyncModel] = useState<"fal-ai/sync-lipsync/v2" | "fal-ai/wav2lip" | "latentsync">("fal-ai/sync-lipsync/v2");
   const [studioLipsyncConsent, setStudioLipsyncConsent] = useState(false);
   const [captionOpen, setCaptionOpen] = useState(false);
+  const [videoResolution, setVideoResolution] = useState<Resolution>("720p");
 
   // Tiered cost previews — must mirror the server charge exactly (same computeCost,
-  // same fixed 5s / 720p the mutations send). Premium models retier the price live.
+  // same fixed 5s and selected resolution the mutations send). Premium models retier live.
   const videoCost = useMemo(
-    () => computeCost({ features: ["video"], model: videoModel, durationSeconds: 5, resolution: "720p" }).total,
-    [videoModel],
+    () => computeCost({ features: ["video"], model: videoModel, durationSeconds: 5, resolution: videoResolution }).total,
+    [videoModel, videoResolution],
   );
   const lipsyncCost = useMemo(
     () => computeCost({ features: ["lipsync"], model: lipsyncModel }).total,
@@ -257,7 +259,7 @@ function StudioPage() {
           imageUrl: latest.result_image_url,
           prompt: videoPrompt,
           duration: 5,
-          resolution: "720p",
+          resolution: videoResolution,
           modelKey: videoModel,
           cameraMovement,
           endFrameUrl: endFrameUrl ?? null,
@@ -881,6 +883,15 @@ function StudioPage() {
                   </div>
                 </div>
               )}
+
+              <ResolutionPicker
+                resolution={videoResolution}
+                onChange={setVideoResolution}
+                isPro={!!(profile?.is_pro || profile?.isAdmin)}
+                features={["video"]}
+                durationSeconds={5}
+                model={videoModel}
+              />
 
               <div className="flex items-center justify-between text-xs text-muted-foreground rounded-xl border border-border bg-background/40 px-3 py-2">
                 <span className="inline-flex items-center gap-1.5">

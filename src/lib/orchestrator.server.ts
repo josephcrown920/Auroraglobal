@@ -77,7 +77,7 @@ export type GenerateRequest = {
   audioUrl?: string;
   videoUrl?: string;
   duration?: number;
-  resolution?: "480p" | "720p" | "1080p";
+  resolution?: "480p" | "720p" | "1080p" | "2160p";
   model?: string;
   /** Optional camera-movement preset (e.g. static, push_in, pan_left, orbit_cw). */
   cameraMovement?: string | null;
