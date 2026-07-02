@@ -95,6 +95,34 @@ export function validateConfirmedPreview(
   }
 }
 
+// ─── HD / 4K resolution entitlement ──────────────────────────────────────────
+
+/**
+ * Throw a TERMINAL error when 1080p or 2160p is requested by a non-Pro user.
+ *
+ * Preview passes are always forced to 480p server-side so they are exempt.
+ * The error message starts with "Unsupported" (matches TERMINAL_ERROR_RE in
+ * jobs.server.ts) so the job is immediately failed rather than retried.
+ *
+ * @param userId - requesting user
+ * @param resolution - the _effective_ resolution after preview-pass resolution
+ * @param previewPass - true when the server is forcing a preview (always 480p)
+ */
+export async function assertHdEntitlement(
+  userId: string,
+  resolution: string | undefined,
+  previewPass: boolean,
+): Promise<void> {
+  if (previewPass) return; // always capped at 480p by the preview gate
+  if (resolution !== "1080p" && resolution !== "2160p") return;
+  const tier = await getUserTier(userId);
+  if (tier === "pro") return;
+  const label = resolution === "2160p" ? "4K (2160p)" : "HD (1080p)";
+  throw new Error(
+    `Unsupported resolution for Free plan: ${label} requires Pro. Upgrade to unlock HD and 4K exports.`,
+  );
+}
+
 /**
  * Resolve whether this request is confirmed for full quality.
  * - No `confirmPreviewId` → `{ confirmed: false }` (caller must force preview caps).

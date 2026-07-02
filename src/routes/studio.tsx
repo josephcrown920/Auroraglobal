@@ -121,12 +121,17 @@ function StudioPage() {
   const [studioLipsyncConsent, setStudioLipsyncConsent] = useState(false);
   const [captionOpen, setCaptionOpen] = useState(false);
   const [videoResolution, setVideoResolution] = useState<Resolution>("720p");
+  const [videoPreviewId, setVideoPreviewId] = useState<string | null>(null);
 
-  // Tiered cost previews — must mirror the server charge exactly (same computeCost,
-  // same fixed 5s and selected resolution the mutations send). Premium models retier live.
+  // Tiered cost previews — must mirror the server charge exactly.
+  // Preview is always 480p (cheap first pass); confirmed full render uses selected resolution.
   const videoCost = useMemo(
     () => computeCost({ features: ["video"], model: videoModel, durationSeconds: 5, resolution: videoResolution }).total,
     [videoModel, videoResolution],
+  );
+  const videoPreviewCost = useMemo(
+    () => computeCost({ features: ["video"], model: videoModel, durationSeconds: 5, resolution: "480p" }).total,
+    [videoModel],
   );
   const lipsyncCost = useMemo(
     () => computeCost({ features: ["lipsync"], model: lipsyncModel }).total,
@@ -263,11 +268,19 @@ function StudioPage() {
           modelKey: videoModel,
           cameraMovement,
           endFrameUrl: endFrameUrl ?? null,
+          confirmPreviewId: videoPreviewId ?? undefined,
         },
       });
     },
-    onSuccess: () => {
-      toast.success("Video ready");
+    onSuccess: (out) => {
+      const res = out as { id?: string; videoUrl?: string; preview?: boolean } | null;
+      if (res?.preview) {
+        setVideoPreviewId(res?.id ?? null);
+        toast.success("Preview ready — click again to render in full quality");
+      } else {
+        setVideoPreviewId(null);
+        toast.success("Video ready");
+      }
       qc.invalidateQueries({ queryKey: ["gens"] });
       qc.invalidateQueries({ queryKey: ["profile"] });
     },
@@ -903,7 +916,12 @@ function StudioPage() {
                 <span className="opacity-70">{getModelMeta(videoModel).short}</span>
               </div>
               <Button disabled={videoMut.isPending} onClick={() => videoMut.mutate()} variant="secondary" className="w-full">
-                {videoMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Rendering video…</> : <><Film className="size-4 mr-2" /> Generate video · {videoCost} Aura</>}
+                {videoMut.isPending
+                  ? <><Loader2 className="size-4 mr-2 animate-spin" /> {videoPreviewId ? "Rendering full quality…" : "Rendering preview…"}</>
+                  : videoPreviewId
+                  ? <><Film className="size-4 mr-2" /> Render full quality · {videoCost} Aura</>
+                  : <><Film className="size-4 mr-2" /> Preview animation · {videoPreviewCost} Aura</>
+                }
               </Button>
 
               {latestVideo?.result_video_url && (

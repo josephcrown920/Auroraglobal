@@ -7,7 +7,7 @@ import { reserveOrchestrateRecord } from "./generate-core.server";
 import { assertTrustedUrl } from "./url-guard";
 import { providerHealth, providerStatus } from "./inference";
 import { detectFeatures, computeCost, type Feature } from "./pricing";
-import { assertDurationCap } from "./cost-guardrails.server";
+import { assertDurationCap, assertHdEntitlement } from "./cost-guardrails.server";
 
 // ─── Provider health (which keys are configured) ─────────────────────────────
 // Mirrors the priority chains in src/lib/orchestrator.server.ts.
@@ -466,6 +466,9 @@ export const orchestrateGenerate = createServerFn({ method: "POST" })
     const effResolution: "480p" | "720p" | "1080p" | "2160p" | undefined = previewOnly
       ? "480p"
       : data.resolution;
+
+    // HD/4K entitlement: 1080p and 2160p require Pro on full (non-preview) renders.
+    await assertHdEntitlement(context.userId, data.resolution, previewOnly);
 
     const { features } = detectFeatures({ kind: kind as Feature, features: data.features });
     const quote = computeCost({

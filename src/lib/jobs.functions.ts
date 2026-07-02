@@ -77,6 +77,10 @@ export const enqueueGenerationJob = createServerFn({ method: "POST" })
       payload.duration = Math.min(data.duration ?? PREVIEW_MAX_SECONDS, PREVIEW_MAX_SECONDS);
     }
 
+    // HD/4K entitlement: 1080p and 2160p require Pro on confirmed (full-quality) renders.
+    const { assertHdEntitlement } = await import("./cost-guardrails.server");
+    await assertHdEntitlement(context.userId, data.resolution, previewPass);
+
     // Previews are cheaper: the queue path prices flat (creditCost), so the
     // preview is half of that flat price (matching the 480p ×0.5 multiplier).
     // NOTE: never price the preview via the model-tiered computeCost here —
