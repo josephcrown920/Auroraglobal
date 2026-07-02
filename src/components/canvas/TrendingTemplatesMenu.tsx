@@ -2,13 +2,14 @@ import { useState } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Flame, Mic2, Camera, SplitSquareHorizontal, Palette, Film, ImageIcon, Wand2, Smartphone, Monitor, ShoppingBag, Layout, Aperture, Crown, Lock } from "lucide-react";
+import { Flame, Mic2, Camera, SplitSquareHorizontal, Palette, Film, ImageIcon, Wand2, Smartphone, Monitor, ShoppingBag, Layout, Aperture, Crown, Lock, Store } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { getMyProfile } from "@/lib/billing.functions";
 import { Link } from "@tanstack/react-router";
 import { RESHOOT_ANGLES, RESHOOT_MODEL, buildAnglePrompt } from "@/lib/reshoot-angles";
+import { listApprovedMarketplaceTemplates } from "@/lib/marketplace.functions";
 
 export type TemplateGraph = { name: string; nodes: Node<any>[]; edges: Edge[] };
 
@@ -384,12 +385,20 @@ export function TrendingTemplatesMenu({ onPick }: { onPick: (g: TemplateGraph) =
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const { user } = useAuth();
   const profileFn = useServerFn(getMyProfile);
+  const marketplaceFn = useServerFn(listApprovedMarketplaceTemplates);
 
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
     queryFn: () => profileFn(),
     enabled: !!user,
     staleTime: 60_000,
+  });
+
+  const { data: marketplaceTemplates = [] } = useQuery({
+    queryKey: ["marketplace-templates-menu"],
+    queryFn: () => marketplaceFn(),
+    staleTime: 120_000,
+    enabled: open,
   });
 
   const isPro = profile?.plan === "pro" || profile?.isAdmin === true;
@@ -478,6 +487,58 @@ export function TrendingTemplatesMenu({ onPick }: { onPick: (g: TemplateGraph) =
                 </section>
               );
             })}
+
+            {/* ── Marketplace templates ── */}
+            {marketplaceTemplates.length > 0 && (
+              <section>
+                <h3 className="text-[11px] font-mono uppercase tracking-[0.15em] text-muted-foreground mb-2 px-1 flex items-center gap-1.5">
+                  <Store className="size-3" /> Creator Marketplace
+                </h3>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {marketplaceTemplates.map((t) => (
+                    <Link
+                      key={t.id}
+                      to="/marketplace"
+                      onClick={() => setOpen(false)}
+                      className="text-left p-3 rounded-xl border border-violet-400/30 bg-violet-500/5 hover:border-violet-400/60 transition-colors no-underline block"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Store className="size-4 text-violet-400 shrink-0" />
+                        <span className="font-medium text-sm text-foreground">{t.name}</span>
+                        <span className="ml-auto text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-400 shrink-0">
+                          {t.run_cost_aura} Aura
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{t.description}</p>
+                      <p className="mt-1.5 text-[10px] text-violet-400/70">by {t.creator_display_name ?? "Creator"}</p>
+                    </Link>
+                  ))}
+                </div>
+                <Link
+                  to="/marketplace"
+                  onClick={() => setOpen(false)}
+                  className="mt-2 flex items-center gap-1 text-xs text-violet-400 hover:text-violet-300 no-underline px-1"
+                >
+                  <Store className="size-3" /> Browse all marketplace templates →
+                </Link>
+              </section>
+            )}
+
+            {marketplaceTemplates.length === 0 && (
+              <section>
+                <h3 className="text-[11px] font-mono uppercase tracking-[0.15em] text-muted-foreground mb-2 px-1 flex items-center gap-1.5">
+                  <Store className="size-3" /> Creator Marketplace
+                </h3>
+                <Link
+                  to="/marketplace"
+                  onClick={() => setOpen(false)}
+                  className="block p-3 rounded-xl border border-dashed border-violet-400/20 text-center text-xs text-muted-foreground hover:border-violet-400/40 transition-colors no-underline"
+                >
+                  <Store className="size-4 text-violet-400/50 mx-auto mb-1" />
+                  Browse community templates →
+                </Link>
+              </section>
+            )}
           </div>
         </DialogContent>
       </Dialog>
