@@ -26,3 +26,11 @@ Invariants:
 and a naive catch-all would have refunded successfully-delivered renders.
 **How to apply:** any new credit-spending path — reuse `reserveOrchestrateRecord`; never
 hand-roll reserve/commit/release.
+
+**Sanctioned exception — batch jobs (Spin):** a large fan-out batch charges UPFRONT via
+`deduct_credits` (one atomic ledger ref for the whole batch), then refunds 1 credit per
+FAILED piece via `grant_credits(ref = variant id)`. Do NOT also route each piece through
+`reserveOrchestrateRecord` — that would double-charge. `grant_credits` has NO ref dedupe,
+so every refund call must be behind a status-CAS fence (see job-finalization-fence): claim
+queued→running with `.eq('status','queued').select()`, finalize done/error with
+`.eq('status','running').select()`, and only act (record generation / refund) if rows came back.

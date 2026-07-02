@@ -14,10 +14,12 @@
 // Studio cost is computed per orchestrator kind through pricing.ts `computeCost`
 // so the preview is exactly what each stage charges (preview == charge == refund).
 // The UGC price mirrors its server constant as a literal (parity asserted in
-// template-studio.test.ts). Spin is a FREE live preview (cost 0). This file is
-// intentionally client-safe and never imports a *.server module.
+// template-studio.test.ts). Spin discloses its real upfront batch charge
+// (SPIN_PIECE_COUNT × SPIN_PIECE_COST). This file is intentionally client-safe
+// and never imports a *.server module.
 
 import { computeCost, type Resolution } from "./pricing";
+import { SPIN_PIECE_COST } from "./spin-engine";
 
 // ── Thumbnails (direct file imports resolve to a URL string) ────────────────
 import stillNeon from "@/assets/josh/generated/still-01-neon-closeup.jpg";
@@ -364,13 +366,13 @@ export function getStudioTemplate(id: string): StudioTemplate | undefined {
  *  - studio: the SUM of each orchestrator kind's `computeCost`, matching exactly
  *    what generatePerformanceShot / generateVideoFromImage / lipSyncVideo charge.
  *  - ugc:  the flat COST_UGC_AD reserved by generateUGCAd.
- *  - spin: 0 — the /spin experience is a FREE live preview (it never calls the
- *    charging spinThirty backend), so nothing is reserved and it shows as "Free".
+ *  - spin: SPIN_PIECE_COUNT × SPIN_PIECE_COST — spinThirty charges the whole
+ *    batch upfront (1 Aura per piece; failed pieces auto-refund their Aura).
  * Preview can therefore never disagree with the real charge.
  */
 export function templateCost(t: StudioTemplate): number {
   if (t.dispatch === "ugc") return COST_UGC_AD;
-  if (t.dispatch === "spin") return 0;
+  if (t.dispatch === "spin") return SPIN_PIECE_COUNT * SPIN_PIECE_COST;
   if (t.dispatch === "autocut") return COST_AUTOCUT;
 
   let total = 0;

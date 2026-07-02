@@ -11,7 +11,7 @@ import {
   type StudioTemplate,
 } from "./template-studio";
 import { COST_UGC_AD as SERVER_COST_UGC_AD } from "./ugc.server";
-import { SPIN_COUNT } from "./spin-engine";
+import { SPIN_COUNT, SPIN_PIECE_COST } from "./spin-engine";
 
 // Re-derive a studio template's cost straight from pricing.ts so the test fails
 // if templateCost() ever drifts from what the pipeline actually charges.
@@ -72,8 +72,8 @@ describe("template-studio manifest", () => {
         // generateUGCAd reserves exactly COST_UGC_AD.
         expect(templateCost(t)).toBe(SERVER_COST_UGC_AD);
       } else if (t.dispatch === "spin") {
-        // The /spin experience is a free live preview — it must never claim a cost.
-        expect(templateCost(t)).toBe(0);
+        // spinThirty charges the full batch upfront: SPIN_COUNT pieces × 1 Aura.
+        expect(templateCost(t)).toBe(SPIN_COUNT * SPIN_PIECE_COST);
       } else if (t.dispatch === "autocut") {
         // createAutocutJob reserves exactly COST_AUTOCUT.
         expect(templateCost(t)).toBe(COST_AUTOCUT);
@@ -81,16 +81,14 @@ describe("template-studio manifest", () => {
     }
   });
 
-  it("only charging dispatches display a nonzero Aura cost", () => {
-    // Contract guard: any template that previews a nonzero Aura cost must route to
-    // a backend that actually charges that amount (studio chain or the UGC job) —
-    // never the free /spin sim, which would be a phantom charge in the UI.
+  it("every template discloses a nonzero cost and routes to a charging backend", () => {
+    // Contract guard: any template that previews an Aura cost must route to a
+    // backend that actually charges that amount (studio chain, UGC job, AutoCut
+    // job, or the upfront-charged spinThirty batch) — no phantom charges and no
+    // undisclosed ones.
     for (const t of STUDIO_TEMPLATES) {
-      if (templateCost(t) > 0) {
-        expect(["studio", "ugc", "autocut"]).toContain(t.dispatch);
-      } else {
-        expect(t.dispatch).toBe("spin");
-      }
+      expect(templateCost(t)).toBeGreaterThan(0);
+      expect(["studio", "ugc", "autocut", "spin"]).toContain(t.dispatch);
     }
   });
 

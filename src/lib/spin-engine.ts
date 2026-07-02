@@ -12,6 +12,10 @@ import { z } from "zod";
 // Kept at 30 for credit parity (1 Aura per piece, charged upfront). The engine
 // is count-driven so this can grow later without code changes.
 export const SPIN_COUNT = 30;
+// 1 Aura per spin piece — the single client-safe source for the per-piece
+// charge. spin.functions.ts (server) and every cost label import THIS constant
+// so the disclosed price can never drift from what is actually charged.
+export const SPIN_PIECE_COST = 1;
 
 // ─── Variation axes ───────────────────────────────────────────────────────────
 // Location(10) × Outfit(9) are coprime, so (location,outfit) pairs are unique

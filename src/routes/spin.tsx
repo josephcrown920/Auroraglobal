@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Flame, Loader2, Check, Sparkles, ArrowLeft, User, AlertCircle } from "lucide-react";
 import { getSpinOptions, spinThirty, getSpinJob, tickSpinJob } from "@/lib/spin.functions";
-import { SPIN_COUNT, type SpinSpec } from "@/lib/spin-engine";
+import { SPIN_COUNT, SPIN_PIECE_COST, type SpinSpec } from "@/lib/spin-engine";
 
 export const Route = createFileRoute("/spin")({
   component: SpinPage,
@@ -238,7 +238,7 @@ function SpinPage() {
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-[image:var(--gradient-hero)] px-6 py-3 font-bold text-white shadow-[var(--shadow-glow-soft)] transition-[filter] hover:brightness-110 disabled:opacity-50"
           >
             {active ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-            {planning ? "Writing campaign…" : `Spin ${SPIN_COUNT}`}
+            {planning ? "Writing campaign…" : `Spin ${SPIN_COUNT} · ${SPIN_COUNT * SPIN_PIECE_COST} Aura`}
           </button>
         </form>
 
