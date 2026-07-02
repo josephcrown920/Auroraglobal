@@ -179,6 +179,7 @@ const ENV_KEYS = [
   "HEYGEN_API_KEY",
   "ELEVENLABS_API_KEY",
   "RUNWAY_API_KEY",
+  "PIAPI_API_KEY",
   "FREE_GPU_ONLY",
 ] as const;
 const savedEnv: Record<string, string | undefined> = {};
@@ -194,6 +195,7 @@ function setAllPaidKeys() {
   process.env.HEYGEN_API_KEY = "heygen-present";
   process.env.ELEVENLABS_API_KEY = "el-present";
   process.env.RUNWAY_API_KEY = "rw-present";
+  process.env.PIAPI_API_KEY = "piapi-present";
 }
 
 beforeEach(() => {
@@ -216,6 +218,7 @@ beforeEach(() => {
     "runway",
     "elevenlabs",
     "kling",
+    "piapi",
   ]) {
     markSuccess(p);
   }

@@ -93,6 +93,15 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
         notes: "seedream-4 · flux-schnell",
       },
       {
+        id: "piapi-image",
+        name: "PiAPI",
+        kind: "image",
+        envKey: "PIAPI_API_KEY",
+        configured: has("PIAPI_API_KEY"),
+        free: false,
+        notes: "Midjourney imagine — explicit piapi/* requests only",
+      },
+      {
         id: "lovable",
         name: "Lovable AI (last)",
         kind: "image",
@@ -137,6 +146,15 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
         configured: has("RUNWAY_API_KEY"),
         free: false,
         notes: "gen4-turbo · gen3a-turbo (image-to-video)",
+      },
+      {
+        id: "piapi-video",
+        name: "PiAPI",
+        kind: "video",
+        envKey: "PIAPI_API_KEY",
+        configured: has("PIAPI_API_KEY"),
+        free: false,
+        notes: "Kling video — explicit piapi/* requests only",
       },
       {
         id: "fal-video",

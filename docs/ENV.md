@@ -54,6 +54,7 @@ Order in `src/lib/llm-fallback.server.ts`: **Lovable AI → Gemini → OpenAI �
 | `KLING_ACCESS_KEY` | Kling AI direct (JWT access id) |
 | `KLING_SECRET_KEY` | Kling AI direct (JWT secret) |
 | `SYNC_API_KEY` | Sync.so lip-sync |
+| `PIAPI_API_KEY` | PiAPI aggregator (Midjourney image, Kling video) |
 
 ### Payments & infra
 

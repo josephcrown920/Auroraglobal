@@ -46,12 +46,14 @@ const MODELS: Record<Modality, ModelOption[]> = {
     { key: "runware/flux-schnell", label: "Runware · FLUX schnell" },
     { key: "google/nano-banana", label: "Replicate · Nano Banana" },
     { key: "replicate/flux-schnell", label: "Replicate · FLUX schnell" },
+    { key: "piapi/midjourney-imagine", label: "PiAPI · Midjourney" },
   ],
   video: [
     { key: "runway/gen4-turbo", label: "Runway · Gen-4 Turbo" },
     { key: "runway/gen3a-turbo", label: "Runway · Gen-3 Alpha Turbo" },
     { key: "seedance-2.0-fast", label: "Replicate · Seedance Lite" },
     { key: "kling-3.0", label: "Replicate · Kling v2.1" },
+    { key: "piapi/kling-video", label: "PiAPI · Kling" },
   ],
   text: [
     { key: "pollinations/openai", label: "Pollinations · OpenAI", free: true },

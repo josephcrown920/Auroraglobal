@@ -146,6 +146,7 @@ const ENV_KEYS = [
   "SYNC_API_KEY",
   "REPLICATE_API_KEY",
   "LOVABLE_CONNECTOR_REPLICATE_API_KEY",
+  "PIAPI_API_KEY",
 ] as const;
 const PROVIDER_NAMES = [
   "lovable",
@@ -155,6 +156,7 @@ const PROVIDER_NAMES = [
   "sync",
   "runpod",
   "kling",
+  "piapi",
   "heygen",
   "fal",
 ];
