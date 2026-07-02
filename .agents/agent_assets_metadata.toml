@@ -173,3 +173,9 @@ id = "8k9BKlx6R-DgrRqTn12Gj"
 uri = "file://.local/tasks/self-hosting-gpu-guide.md"
 type = "text"
 title = "Self-Hosting the GPU Layer"
+
+[[outputs]]
+id = "hj6aIWrHLarzCZyOV25rb"
+uri = "file://aurora_worker_kaggle.tar.gz"
+type = "unspecified"
+title = "Aurora Kaggle Worker Notebook (.ipynb)"

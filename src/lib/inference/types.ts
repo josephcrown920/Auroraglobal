@@ -3,7 +3,7 @@
 // (along with `src/lib/inference.functions.ts`) to reuse the GPU layer.
 
 /** Identifiers for the env-configured GPU backends. */
-export type ProviderId = "runpod" | "huggingface" | "custom" | "vast" | "comfyui";
+export type ProviderId = "runpod" | "huggingface" | "custom" | "vast" | "comfyui" | "inferencesh";
 
 /** Generation task types a backend can serve. */
 export type TaskType = "image" | "video" | "lipsync" | "motion" | "tts" | "assemble" | "caption_burn";

@@ -9,7 +9,7 @@ import { runInference, providerStatus } from "./inference";
 import type { ProviderId } from "./inference/types";
 
 const RunInput = z.object({
-  provider: z.enum(["runpod", "huggingface", "custom", "vast", "comfyui"]),
+  provider: z.enum(["runpod", "huggingface", "custom", "vast", "comfyui", "inferencesh"]),
   audioUrl: z.string().url(),
   mediaUrl: z.string().url(),
   mode: z.enum(["image", "video"]),

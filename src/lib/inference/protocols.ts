@@ -36,7 +36,7 @@ export function extractOutputUrl(payload: unknown, depth = 0): string | undefine
   }
   if (typeof payload === "object") {
     const o = payload as Record<string, unknown>;
-    for (const k of ["url", "output_url", "image_url", "video_url", "audio_url", "result_url", "signed_url", "delivery_url"]) {
+    for (const k of ["url", "output_url", "image_url", "video_url", "audio_url", "result_url", "signed_url", "delivery_url", "uri"]) {
       const v = o[k];
       if (typeof v === "string" && v.startsWith("http")) return v;
     }
@@ -108,6 +108,125 @@ export async function postFlatJob(
   });
   if (!res.ok) throw new Error(`${res.status}: ${(await res.text()).slice(0, 300)}`);
   return res.json();
+}
+
+// ─── inference.sh (managed cloud apps API) ────────────────────────────────────
+// Wire contract (https://inference.sh/docs/api/rest/tasks):
+//   POST {base}/run  { app: "namespace/name", input: {...}, setup?: {...} }
+//     → task JSON { id, status, output?, error? }
+//   GET  {base}/tasks/{id} → same task JSON; poll until a terminal status.
+// Auth: `Authorization: Bearer inf_...` + `X-API-Version: 2` (bare JSON responses).
+// Status codes: 10 = Completed, 11 = Failed, 12 = Cancelled (1-9 = in progress).
+
+export type InferenceShTask = {
+  id?: string;
+  status?: number;
+  output?: unknown;
+  error?: string;
+};
+
+export const INFERENCE_SH_DONE = 10;
+export const INFERENCE_SH_FAILED = 11;
+export const INFERENCE_SH_CANCELLED = 12;
+
+/** Default apps per task; every entry is overridable via INFERENCE_SH_APP_<TASK>. */
+const INFERENCE_SH_DEFAULT_APPS: Record<string, string> = {
+  image: "infsh/flux", // the app used throughout inference.sh's own API docs
+};
+
+/**
+ * Resolve which inference.sh app serves a task type. Env is passed in so this
+ * module stays env-agnostic: `INFERENCE_SH_APP_<TASK>` (e.g. INFERENCE_SH_APP_VIDEO)
+ * wins, else the default app for the task, else undefined (caller must fail
+ * explicitly — no silent fallback).
+ */
+export function resolveInferenceShApp(
+  task: string,
+  env: Record<string, string | undefined>,
+): string | undefined {
+  return env[`INFERENCE_SH_APP_${task.toUpperCase()}`] || INFERENCE_SH_DEFAULT_APPS[task];
+}
+
+/**
+ * Build the app `input` body from a generalized job. App schemas vary, so the
+ * conventional fields (prompt / image_urls / audio_url / video_url) are sent when
+ * present and `params` is spread on top (params win) so callers can match any
+ * app's exact schema. Apps that reject unknown fields fail explicitly upstream.
+ */
+export function inferenceShInput(input: InferenceInput): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    prompt: input.prompt,
+    image_urls: input.imageUrls,
+    audio_url: input.audioUrl,
+    video_url: input.videoUrl,
+    ...(input.params ?? {}),
+  };
+  for (const k of Object.keys(body)) if (body[k] === undefined) delete body[k];
+  return body;
+}
+
+/**
+ * Run an inference.sh app and return the final task JSON: POST {base}/run, then
+ * poll GET {base}/tasks/{id} until Completed (10), Failed (11), Cancelled (12),
+ * or the deadline passes. Throws explicitly on failure/cancel/timeout.
+ */
+export async function runInferenceShTask(opts: {
+  baseUrl: string;
+  token: string;
+  app: string;
+  input: Record<string, unknown>;
+  setup?: Record<string, unknown>;
+  deadline?: number;
+  pollMs?: number;
+}): Promise<InferenceShTask> {
+  const base = opts.baseUrl.replace(/\/$/, "");
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+    authorization: `Bearer ${opts.token}`,
+    "x-api-version": "2",
+  };
+  const deadline = opts.deadline ?? Date.now() + 300_000;
+
+  const res = await fetch(`${base}/run`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      app: opts.app,
+      input: opts.input,
+      ...(opts.setup ? { setup: opts.setup } : {}),
+    }),
+    signal: AbortSignal.timeout(Math.min(60_000, remainingMs(deadline))),
+  });
+  if (!res.ok) {
+    throw new Error(`inference.sh /run ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  }
+  let task = (await res.json()) as InferenceShTask;
+  const taskId = task.id;
+
+  for (;;) {
+    if (task.status === INFERENCE_SH_DONE) return task;
+    if (task.status === INFERENCE_SH_FAILED) {
+      throw new Error(`inference.sh task failed: ${String(task.error ?? "unknown error").slice(0, 300)}`);
+    }
+    if (task.status === INFERENCE_SH_CANCELLED) throw new Error("inference.sh task was cancelled");
+    if (!taskId) throw new Error("inference.sh /run returned no task id");
+    if (Date.now() >= deadline) break;
+    await new Promise((r) =>
+      setTimeout(r, Math.min(opts.pollMs ?? 2_500, Math.max(0, deadline - Date.now()))),
+    );
+    if (Date.now() >= deadline) break;
+    try {
+      const pr = await fetch(`${base}/tasks/${encodeURIComponent(taskId)}`, {
+        headers,
+        signal: AbortSignal.timeout(Math.min(15_000, remainingMs(deadline))),
+      });
+      if (!pr.ok) continue;
+      task = (await pr.json()) as InferenceShTask;
+    } catch {
+      continue; // transient poll error — keep polling the same task (don't resubmit)
+    }
+  }
+  throw new Error("inference.sh poll timeout");
 }
 
 // ─── Hugging Face Space (Gradio) ──────────────────────────────────────────────
