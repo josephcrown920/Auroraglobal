@@ -7,8 +7,11 @@ description: How to give a flat-root (non-workspace) app a registered deploy bui
 
 This repl is a flat ROOT app (app code at repo root, NO root `pnpm-workspace.yaml`). `.replit`
 declares `[agent] stack = "PNPM_WORKSPACE"` + `[deployment] router = "application"` +
-`deploymentTarget = "autoscale"` with NO `[deployment] build`/`run` (only a `postBuild` pnpm
-prune). That is artifact-mode deployment: each artifact's `.replit-artifact/artifact.toml`
+`deploymentTarget = "autoscale"` with NO `[deployment] build`/`run` and NO `postBuild` (a
+`postBuild` "pnpm store prune" hook used to exist and crashed every deploy with
+`spawn pnpm ENOENT` — pnpm is NOT on the deploy image PATH; it was removed via
+`verifyAndReplaceDotReplit`; keep `.replit` deploy hooks node/bash-only). That is
+artifact-mode deployment: each artifact's `.replit-artifact/artifact.toml`
 `[services.<name>.production]` owns build/run. `.replit [deployment] run` is IGNORED here and
 `.replit` itself is FS-guarded, so the deploy command MUST live in an artifact.toml.
 
