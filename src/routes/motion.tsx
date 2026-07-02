@@ -17,7 +17,9 @@ import {
   listGenerations,
 } from "@/lib/studio.functions";
 import { VIDEO_MODEL_LIST } from "@/lib/models";
-import { computeCost } from "@/lib/pricing";
+import { computeCost, type Resolution } from "@/lib/pricing";
+import { ResolutionPicker } from "@/components/ResolutionPicker";
+import { getMyProfile } from "@/lib/billing.functions";
 import {
   Select,
   SelectContent,
@@ -116,6 +118,7 @@ function MotionStudio() {
   const [videoError, setVideoError] = useState<string | null>(null);
   const [activeExampleId, setActiveExampleId] = useState<string | undefined>(undefined);
   const [showTour, setShowTour] = useState(false);
+  const [videoResolution, setVideoResolution] = useState<Resolution>("720p");
 
   useEffect(() => {
     if (!hasCompletedFirstGen() && isFirstPageVisit("motion")) {
@@ -135,12 +138,12 @@ function MotionStudio() {
     }
   }, []);
 
-  // Animate runs generateVideoFromImage at a fixed 5s, so this mirrors the
-  // server charge exactly; premium video models retier the previewed price live.
-  // First pass is a 480p preview; the confirmed full render is 720p.
+  // Animate runs generateVideoFromImage at a fixed 5s; cost mirrors the server
+  // charge exactly. First pass is a 480p preview; confirmed full render uses
+  // the selected resolution (720p → 2160p). Premium models retier live.
   const animateCost = useMemo(
-    () => computeCost({ features: ["video"], model: videoModel, durationSeconds: 5, resolution: "720p" }).total,
-    [videoModel],
+    () => computeCost({ features: ["video"], model: videoModel, durationSeconds: 5, resolution: videoResolution }).total,
+    [videoModel, videoResolution],
   );
   const animatePreviewCost = useMemo(
     () => computeCost({ features: ["video"], model: videoModel, durationSeconds: 5, resolution: "480p" }).total,
@@ -185,6 +188,15 @@ function MotionStudio() {
   const motionFn = useServerFn(generateMimicMotion);
   const reskinFn = useServerFn(generatePerformanceReskin);
   const listFn = useServerFn(listGenerations);
+  const profileFn = useServerFn(getMyProfile);
+
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: () => profileFn(),
+    enabled: !!user,
+    staleTime: 30_000,
+  });
+  const isPro = !!(profile?.is_pro || profile?.isAdmin);
 
   const { data: history } = useQuery({
     queryKey: ["motion-gens", user?.id],
@@ -243,7 +255,7 @@ function MotionStudio() {
           imageUrl: source,
           prompt: videoPrompt,
           duration: 5,
-          resolution: "720p",
+          resolution: animatePreviewId ? videoResolution : "480p",
           modelKey: videoModel,
           cameraMovement,
           endFrameUrl: endFrame ?? null,
@@ -649,6 +661,15 @@ function MotionStudio() {
               </div>
 
               <Textarea rows={2} value={videoPrompt} onChange={(e) => setVideoPrompt(e.target.value)} className="resize-none bg-card/60 text-sm" />
+
+              <ResolutionPicker
+                resolution={videoResolution}
+                onChange={setVideoResolution}
+                isPro={isPro}
+                features={["video"]}
+                durationSeconds={5}
+                model={videoModel}
+              />
 
               <div className="grid grid-cols-2 gap-2">
                 {stepBadge("1. Stage pose (image)", imgState as "idle" | "running" | "ok" | "error", imageError)}

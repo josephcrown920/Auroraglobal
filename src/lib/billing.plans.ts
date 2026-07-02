@@ -124,7 +124,7 @@ export const HEAVY_JOB_KINDS = new Set<string>(["lipsync"]);
  *
  * Heavy criteria:
  *  - Lip-sync: expensive self-hosted or paid provider, tolerable latency
- *  - 4K / 2160p resolution: highest provider cost tier, longest render
+ *  - HD (1080p) / 4K (2160p): high provider cost tier, longer render
  *  - Multi-angle reshoot: 6-image burst in one job
  */
 export function classifyJobQueue(
@@ -132,7 +132,11 @@ export function classifyJobQueue(
   payload: Record<string, unknown>,
 ): "standard" | "heavy" {
   if (HEAVY_JOB_KINDS.has(kind)) return "heavy";
-  if (payload.resolution === "4K" || payload.resolution === "2160p") return "heavy";
+  if (
+    payload.resolution === "1080p" ||
+    payload.resolution === "4K" ||
+    payload.resolution === "2160p"
+  ) return "heavy";
   if (kind === "reshoot" || kind === "multi_angle") return "heavy";
   return "standard";
 }

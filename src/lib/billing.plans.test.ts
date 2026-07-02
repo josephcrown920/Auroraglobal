@@ -84,8 +84,12 @@ describe("classifyJobQueue", () => {
     expect(classifyJobQueue("multi_angle", {})).toBe("heavy");
   });
 
-  it("classifies standard 1080p video as standard", () => {
-    expect(classifyJobQueue("video", { resolution: "1080p" })).toBe("standard");
+  it("classifies HD 1080p video as heavy", () => {
+    expect(classifyJobQueue("video", { resolution: "1080p" })).toBe("heavy");
+  });
+
+  it("classifies 4K 2160p video as heavy", () => {
+    expect(classifyJobQueue("video", { resolution: "2160p" })).toBe("heavy");
   });
 
   it("classifies standard 720p video as standard", () => {

@@ -140,11 +140,13 @@ const IMAGE_RES: Record<NonNullable<GenerateRequest["resolution"]>, number> = {
   "480p": 768,
   "720p": 1024,
   "1080p": 1024,
+  "2160p": 2048,
 };
 const VIDEO_RES: Record<NonNullable<GenerateRequest["resolution"]>, [number, number]> = {
   "480p": [768, 432],
   "720p": [1024, 576],
   "1080p": [1280, 720],
+  "2160p": [3840, 2160],
 };
 
 // ─── Builders ─────────────────────────────────────────────────────────────────

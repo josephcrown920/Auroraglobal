@@ -376,7 +376,7 @@ const OrchestrateSchema = z.object({
   prompt: z.string().max(4000).optional(),
   imageUrls: z.array(z.string().url()).max(6).optional(),
   duration: z.number().int().min(3).max(15).optional(),
-  resolution: z.enum(["480p", "720p", "1080p"]).optional(),
+  resolution: z.enum(["480p", "720p", "1080p", "2160p"]).optional(),
   model: z.string().max(120).optional(),
   voiceId: z.string().max(120).optional(),
   // Preview pass: generate at 480p/5s before the full-quality render.
@@ -396,7 +396,7 @@ const OrchestrateSchema = z.object({
 // what orchestrateGenerate / the public API will actually reserve.
 const QuoteSchema = z.object({
   kind: z.enum(["image", "upscale", "text", "audio", "lipsync", "motion", "video"]),
-  resolution: z.enum(["480p", "720p", "1080p"]).optional(),
+  resolution: z.enum(["480p", "720p", "1080p", "2160p"]).optional(),
   // Keep the quote window identical to the executable charge path (OrchestrateSchema)
   // so a preview can never quote a length the generation would reject.
   duration: z.number().int().min(3).max(15).optional(),
@@ -463,7 +463,7 @@ export const orchestrateGenerate = createServerFn({ method: "POST" })
       if (!gate.confirmed) previewOnly = true;
     }
     const effDuration = previewOnly ? Math.min(data.duration ?? 5, 5) : data.duration;
-    const effResolution: "480p" | "720p" | "1080p" | undefined = previewOnly
+    const effResolution: "480p" | "720p" | "1080p" | "2160p" | undefined = previewOnly
       ? "480p"
       : data.resolution;
 

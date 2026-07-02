@@ -143,7 +143,7 @@ const VideoSchema = z.object({
   // Schema ceiling = Pro's plan cap; per-tier enforcement (Free 10s) happens
   // in the handler via assertDurationCap so the two can never drift apart.
   duration: z.number().int().min(3).max(DURATION_CAPS.pro).default(5),
-  resolution: z.enum(["480p", "720p", "1080p"]).default("720p"),
+  resolution: z.enum(["480p", "720p", "1080p", "2160p"]).default("720p"),
   modelKey: z.string().default("seedance-2.0-fast"),
   /** Optional motion / camera control preset (e.g. zoom_in, pan_left, orbit). */
   cameraMovement: z.string().max(40).optional().nullable(),
