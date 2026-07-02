@@ -29,9 +29,13 @@ type Props = {
 
 /**
  * A real, per-color COLORS-style studio environment that animates with subtle
- * looping motion (drifting haze + gentle light shift). Plays a muted, looping,
- * autoplaying clip with its matched first-frame poster; reduced-motion users get
- * the static poster still instead of the video.
+ * looping motion (drifting haze + gentle light shift).
+ *
+ * The photoreal poster still is ALWAYS painted as a real <img> layer, so the
+ * studio set is visible instantly and stays visible even when the clip can't
+ * load or autoplay (slow connections, strict mobile autoplay policies). The
+ * looping clip fades in on top only once it is actually playing. Reduced-motion
+ * users get just the still.
  */
 export function ColorStudioBackdrop({
   colorId,
@@ -41,28 +45,35 @@ export function ColorStudioBackdrop({
 }: Props) {
   const reduced = usePrefersReducedMotion();
   const studio = getColorStudio(colorId);
+  const [playing, setPlaying] = useState(false);
 
-  if (reduced) {
-    return (
+  // Switching colors swaps the clip — drop back to the poster until the new
+  // clip actually paints.
+  useEffect(() => setPlaying(false), [studio.loop]);
+
+  return (
+    <div className={cn("absolute inset-0 overflow-hidden", className)}>
       <img
         src={studio.poster}
         alt={label}
-        loading="lazy"
-        className={cn("absolute inset-0 size-full object-cover", className)}
+        className="absolute inset-0 size-full object-cover"
       />
-    );
-  }
-
-  return (
-    <AutoplayVideo
-      key={studio.loop}
-      src={studio.loop}
-      poster={studio.poster}
-      loop
-      playsInline
-      preload={preload}
-      aria-label={label}
-      className={cn("absolute inset-0 size-full object-cover", className)}
-    />
+      {!reduced && (
+        <AutoplayVideo
+          key={studio.loop}
+          src={studio.loop}
+          poster={studio.poster}
+          loop
+          playsInline
+          preload={preload}
+          aria-hidden
+          onPlaying={() => setPlaying(true)}
+          className={cn(
+            "absolute inset-0 size-full object-cover transition-opacity duration-500",
+            playing ? "opacity-100" : "opacity-0",
+          )}
+        />
+      )}
+    </div>
   );
 }

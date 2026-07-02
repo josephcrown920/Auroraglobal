@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, Loader2, Palette, Wand2, ArrowLeft, Check, ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { getSetupScene } from "@/lib/colors.scenes";
 import { TriedTestedShowcase } from "@/components/studio/TriedTestedShowcase";
 import { ColorsShotsGallery } from "@/components/studio/ColorsShotsGallery";
 import { ColorStudioBackdrop } from "@/components/studio/ColorStudioBackdrop";
@@ -265,17 +266,78 @@ function ColorsStudio() {
       <div className="relative z-10 max-w-7xl mx-auto p-5 md:p-10 grid lg:grid-cols-[1fr_380px] gap-8">
         {/* LEFT — pickers */}
         <section className="space-y-7">
-          {/* COMPACT references at top */}
+          <div>
+            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
+              Pick a color. <span className="aurora-gradient-text">Show up in that world.</span>
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              12 real seamless-cyclorama studio sets, each lit in its own bold color. Pick a swatch — the
+              studio switches live. Upload a selfie and Aurora places you inside it.
+            </p>
+          </div>
+
+          {/* Featured live studio set — switches with the selected swatch */}
+          <div className="relative w-full aspect-video rounded-3xl overflow-hidden border border-border shadow-2xl shadow-black/60">
+            <ColorStudioBackdrop
+              colorId={selectedColor.id}
+              label={`${selectedColor.name} studio set`}
+              preload="auto"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20 pointer-events-none" />
+            <div className="absolute top-3 left-3 flex items-center gap-2 aurora-glass px-3 py-1.5 rounded-full text-xs font-medium text-white/90">
+              <span className="size-2.5 rounded-full shadow-md shrink-0" style={{ background: selectedColor.swatch }} />
+              {selectedColor.name} · COLORS Studio
+            </div>
+            <div className="absolute bottom-0 inset-x-0 p-4 md:p-6">
+              <p className="text-[10px] text-white/55 mb-0.5 uppercase tracking-widest">
+                12 colors · 5 scene types · your face
+              </p>
+              <p className="text-base md:text-xl font-semibold text-white">
+                {selectedColor.name} — seamless cyclorama studio set
+              </p>
+            </div>
+          </div>
+
+          {/* Color swatch picker */}
+          <div>
+            <h2 className="aurora-kicker mb-3">Color</h2>
+            <div className="flex flex-wrap gap-2">
+              {COLOR_PRESETS.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setColor(c.id)}
+                  aria-label={`Select ${c.name} color`}
+                  aria-pressed={color === c.id}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200",
+                    color === c.id
+                      ? "border-primary/60 text-foreground shadow-md scale-105"
+                      : "border-border bg-card/40 text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                  )}
+                  style={
+                    color === c.id
+                      ? { background: `${c.swatch}33`, boxShadow: `0 0 16px ${c.swatch}55` }
+                      : undefined
+                  }
+                >
+                  <span className="size-3 rounded-full shrink-0 shadow-sm" style={{ background: c.swatch }} />
+                  {c.name}
+                </button>
+              ))}
+            </div>
+            {kind === "performance" && (
+              <div className="mt-2.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] text-foreground/85">
+                <span className="uppercase tracking-wider text-[9px] text-primary mr-1.5">Staging</span>
+                {describePerformance(color)}
+              </div>
+            )}
+          </div>
+
+          {/* COMPACT references */}
           <div className="grid grid-cols-2 gap-3">
             <MiniUpload userId={user.id} label="Selfie · required" value={selfieUrl} onChange={setSelfieUrl} />
             <MiniUpload userId={user.id} label="Outfit · optional" value={outfitUrl} onChange={setOutfitUrl} />
-          </div>
-
-          <div>
-            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
-              Pick a <span className="aurora-gradient-text">color</span>. Pick a scene. Shoot.
-            </h1>
-            <p className="text-muted-foreground text-sm mt-1">Studio, indoor, rooftop, street — each scene previewed in your color.</p>
           </div>
 
           <TriedTestedShowcase
@@ -286,48 +348,12 @@ function ColorsStudio() {
             refsCaption="Selfie · Outfit · Pose reference"
             finalImage={tutorialColorsBlueFinal.url}
             finalCaption="Royal-blue cyclorama · hanging vintage mic · red jersey + black puffer vest · ARRI rim light"
-            prompt="Editorial music-video performance shot of the subject on a seamless deep royal-blue cyclorama studio — background and floor are one continuous royal-blue surface, no visible seams. Full-body side profile, leaning into an exact suspended vintage silver microphone hanging from a thin cable at chest level. Outfit: bright red performance jersey with graphic print under a black hooded puffer vest, distressed black stacked jeans, white chunky sneakers. ARRI softbox key from camera-left + softbox fill from camera-right, professional dual softbox stands visible at far frame edges, gentle floor shadow, clean cinematic rim light separating the subject from the cyclorama. Preserve exact facial likeness, red dreadlocks, sunglasses, skin tone, body proportions. ARRI Alexa look, 50mm, 4K photoreal, no text or logos."
+            prompt="Editorial music-video performance shot of the subject on a seamless deep royal-blue cyclorama studio — background and floor are one continuous royal-blue surface, no visible seams. Full-body side profile, leaning into an exact suspended vintage silver microphone hanging from a thin cable at chest level. Outfit: bright red performance jersey with graphic print under a black hooded puffer vest, distressed black stacked jeans, white chunky sneakers. ARRI softbox key from camera-left + softbox fill from camera-right, professional dual softbox stands visible at far frame edges, gentle floor shadow, clean cinematic rim light separating the subject from the cyclorama. Preserve exact facial likeness, red dreadlocks, sunglasses, skin tone, body proportions. ARRI Alexa look, 50mm, 8K ultra-HD photoreal, no text or logos."
           />
 
           {/* Real shoots gallery — apply these looks to your selfie */}
           <ColorsShotsGallery />
 
-
-
-
-
-          {/* Colors */}
-          <div>
-            <h2 className="aurora-kicker mb-3">Color</h2>
-            <div className="grid grid-cols-6 md:grid-cols-8 gap-2.5">
-              {COLOR_PRESETS.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setColor(c.id)}
-                  aria-label={`Select ${c.name} color`}
-                  aria-pressed={color === c.id}
-                  className={`relative aspect-square rounded-xl border-2 transition-all overflow-hidden group ${color === c.id ? "border-primary scale-[1.05] shadow-[var(--shadow-glow)]" : "border-border hover:border-primary/40"}`}
-                  style={{ background: c.swatch }}
-                  title={c.name}
-                >
-                  <div className={`absolute inset-0 bg-gradient-to-br ${c.glow} opacity-50 group-hover:opacity-80 transition-opacity`} />
-                  {color === c.id && (
-                    <div className="absolute top-1 right-1 size-4 rounded-full bg-background/90 flex items-center justify-center">
-                      <Check className="size-2.5 text-primary" />
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
-            <div className="text-[11px] text-muted-foreground mt-1.5">{selectedColor.name}</div>
-            {kind === "performance" && (
-              <div className="mt-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] text-foreground/85">
-                <span className="uppercase tracking-wider text-[9px] text-primary mr-1.5">Staging</span>
-                {describePerformance(color)}
-              </div>
-            )}
-          </div>
 
           {/* Scene kind tabs */}
           <div>
@@ -384,10 +410,32 @@ function ColorsStudio() {
                           <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/70 to-transparent" />
                         </>
                       ) : (
-                        <svg viewBox="0 0 80 60" className="absolute inset-0 size-full opacity-80 mix-blend-multiply">
-                          <ellipse cx="40" cy="22" rx="6" ry="7" fill="rgba(0,0,0,0.55)" />
-                          <path d="M28 60 Q28 40 40 38 Q52 40 52 60 Z" fill="rgba(0,0,0,0.55)" />
-                        </svg>
+                        <>
+                          {/* Photoreal scene set, washed in the selected color like a lighting gel. */}
+                          <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-[1.03]">
+                            <img
+                              src={getSetupScene(s.id)}
+                              alt={`${s.name} scene set`}
+                              loading="lazy"
+                              className="absolute inset-0 size-full object-cover"
+                            />
+                          </div>
+                          <div
+                            aria-hidden
+                            className="absolute inset-0 mix-blend-overlay pointer-events-none"
+                            style={{
+                              background: `radial-gradient(ellipse at 50% 85%, ${selectedColor.swatch}dd 0%, transparent 65%)`,
+                            }}
+                          />
+                          <div
+                            aria-hidden
+                            className="absolute inset-0 pointer-events-none"
+                            style={{
+                              background: `linear-gradient(180deg, transparent 40%, ${selectedColor.swatch}40 100%)`,
+                            }}
+                          />
+                          <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/70 to-transparent" />
+                        </>
                       )}
                       {active && (
                         <div className="absolute top-1.5 right-1.5 size-5 rounded-full bg-background/95 flex items-center justify-center z-10">

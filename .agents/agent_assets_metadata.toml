@@ -96,6 +96,48 @@ uri = "file://src/assets/colors-studios/studio-lime-pop.png"
 type = "image"
 title = "lime-pop studio"
 
+[[generated]]
+id = "Lr9bv9nRmD3GF3lt708WX"
+uri = "file://src/assets/colors-studios/scenes/indoor-bedroom.png"
+type = "image"
+title = "luxe bedroom suite set"
+
+[[generated]]
+id = "oSCMl1yT2MyNRuh0MJN0o"
+uri = "file://src/assets/colors-studios/scenes/indoor-kitchen.png"
+type = "image"
+title = "modern kitchen set"
+
+[[generated]]
+id = "7x8rMtODP2E2Zs2QFbSwd"
+uri = "file://src/assets/colors-studios/scenes/indoor-lounge.png"
+type = "image"
+title = "velvet lounge set"
+
+[[generated]]
+id = "xalKn-BF4RjE-Q0z7U1wy"
+uri = "file://src/assets/colors-studios/scenes/rooftop.png"
+type = "image"
+title = "golden hour rooftop set"
+
+[[generated]]
+id = "WGENZ3RqtZCkPUB6MvwDP"
+uri = "file://src/assets/colors-studios/scenes/rooftop-night.png"
+type = "image"
+title = "night rooftop set"
+
+[[generated]]
+id = "fMFO9jOkz_FVLAX8Nlr8Z"
+uri = "file://src/assets/colors-studios/scenes/neon-street.png"
+type = "image"
+title = "wet neon street set"
+
+[[generated]]
+id = "tjJnrf1aZXOywqtxiuLaL"
+uri = "file://src/assets/colors-studios/scenes/alley.png"
+type = "image"
+title = "noir alley set"
+
 [[outputs]]
 id = "uuVDpq4W7VbbIZdWQslyD"
 uri = "file://notebooks/hybrid_ai_inference_colab.zip"

@@ -80,7 +80,7 @@ export const SETUPS: Setup[] = [
     // Placeholder — the real prompt is composed in buildPerformancePrompt(colorId)
     // because it depends on the per-color mic/pose config, not just the color name.
     prompt: (color) =>
-      `Editorial performance shot on a seamless ${color} cyclorama. Preserve facial likeness. 4K cinematic.`,
+      `Editorial performance shot on a seamless ${color} cyclorama. Preserve facial likeness. 8K ultra-HD cinematic.`,
   },
 
   // STUDIO
@@ -91,7 +91,7 @@ export const SETUPS: Setup[] = [
     kind: "studio",
     preview: (c) => `radial-gradient(ellipse at 50% 70%, ${c}cc 0%, ${c}80 35%, ${c}30 100%)`,
     prompt: (color) =>
-      `Wide full-body editorial photograph of the subject on a seamless ${color} cyclorama studio backdrop that floods the frame. Outfit identical to reference, tinted by the ambient ${color} light. Bold monochromatic styling, soft studio softboxes from camera-left, subtle ${color} rim light. Preserve exact facial likeness and skin tone. ARRI Alexa look, 50mm lens, 4K, no text or logos.`,
+      `Wide full-body editorial photograph of the subject on a seamless ${color} cyclorama studio backdrop that floods the frame. Outfit identical to reference, tinted by the ambient ${color} light. Bold monochromatic styling, soft studio softboxes from camera-left, subtle ${color} rim light. Preserve exact facial likeness and skin tone. ARRI Alexa look, 50mm lens, 8K ultra-HD, no text or logos.`,
   },
   {
     id: "closeup",
@@ -100,7 +100,7 @@ export const SETUPS: Setup[] = [
     kind: "studio",
     preview: (c) => `radial-gradient(circle at 35% 40%, ${c}ff 0%, ${c}60 40%, #0a0a0a 90%)`,
     prompt: (color) =>
-      `Intimate cinematic close-up of the subject, shoulders up. Saturated ${color} gel light washes one side of the face, deep shadow on the other. Preserve facial likeness, beard, skin texture, eye detail. Crisp catch-lights. f/1.8 anamorphic 85mm, fine grain, hyper-real skin pores, 4K editorial beauty shot.`,
+      `Intimate cinematic close-up of the subject, shoulders up. Saturated ${color} gel light washes one side of the face, deep shadow on the other. Preserve facial likeness, beard, skin texture, eye detail. Crisp catch-lights. f/1.8 anamorphic 85mm, fine grain, hyper-real skin pores and micro-texture, 8K ultra-HD editorial beauty shot.`,
   },
   {
     id: "split-color",
@@ -109,7 +109,7 @@ export const SETUPS: Setup[] = [
     kind: "studio",
     preview: (c) => `linear-gradient(90deg, ${c} 0%, ${c} 50%, #f5f5f5 50%, #e5e5e5 100%)`,
     prompt: (color) =>
-      `Bold dual-tone studio portrait — one side lit by a saturated ${color} gel, the other by neutral white, hard vertical split down center of face. Preserve facial likeness. High-contrast fashion editorial, sharp shadows, 4K.`,
+      `Bold dual-tone studio portrait — one side lit by a saturated ${color} gel, the other by neutral white, hard vertical split down center of face. Preserve facial likeness. High-contrast fashion editorial, sharp shadows, 8K ultra-HD.`,
   },
   {
     id: "neon-bath",
@@ -119,7 +119,7 @@ export const SETUPS: Setup[] = [
     preview: (c) =>
       `repeating-linear-gradient(180deg, #0a0a0a 0px, #0a0a0a 14px, ${c} 14px, ${c} 18px)`,
     prompt: (color) =>
-      `Cinematic portrait inside a dark room lined with glowing ${color} neon strips wrapping the walls, neon light bouncing on subject's face and outfit. Atmospheric haze, anamorphic flares, shallow depth of field, Blade Runner palette dominated by ${color}. Preserve facial likeness. 4K.`,
+      `Cinematic portrait inside a dark room lined with glowing ${color} neon strips wrapping the walls, neon light bouncing on subject's face and outfit. Atmospheric haze, anamorphic flares, shallow depth of field, Blade Runner palette dominated by ${color}. Preserve facial likeness. 8K ultra-HD.`,
   },
   {
     id: "color-smoke",
@@ -129,7 +129,7 @@ export const SETUPS: Setup[] = [
     preview: (c) =>
       `radial-gradient(ellipse at 30% 60%, ${c}cc 0%, transparent 50%), radial-gradient(ellipse at 75% 35%, ${c}99 0%, transparent 55%), #0a0a0a`,
     prompt: (color) =>
-      `Editorial action portrait mid-motion with thick swirling ${color} smoke billowing around, lit dramatically from behind so smoke glows. Outfit catches rim light. Preserve facial likeness. Medium format, sharp subject, soft smoke, 4K cinematic still.`,
+      `Editorial action portrait mid-motion with thick swirling ${color} smoke billowing around, lit dramatically from behind so smoke glows. Outfit catches rim light. Preserve facial likeness. Medium format, sharp subject, soft smoke, 8K ultra-HD cinematic still.`,
   },
 
   // INDOOR
@@ -141,7 +141,7 @@ export const SETUPS: Setup[] = [
     preview: (c) =>
       `linear-gradient(160deg, #2a1a14 0%, #5a3320 35%, ${c}88 70%, ${c}cc 100%)`,
     prompt: (color) =>
-      `Cinematic editorial portrait inside a luxe hotel bedroom suite — warm tungsten bedside lamps + ${color} colored gel spilling through the window like a neon sign outside. Subject seated on the edge of a made bed, soft linens, mid-century furniture. Preserve facial likeness and outfit. 35mm anamorphic, shallow DOF, ARRI grade, 4K.`,
+      `Cinematic editorial portrait inside a luxe hotel bedroom suite — warm tungsten bedside lamps + ${color} colored gel spilling through the window like a neon sign outside. Subject seated on the edge of a made bed, soft linens, mid-century furniture. Preserve facial likeness and outfit. 35mm anamorphic, shallow DOF, ARRI grade, 8K ultra-HD.`,
   },
   {
     id: "indoor-kitchen",
@@ -151,7 +151,7 @@ export const SETUPS: Setup[] = [
     preview: (c) =>
       `linear-gradient(180deg, #f5f0e8 0%, #d8cfc1 40%, ${c}66 70%, ${c}aa 100%)`,
     prompt: (color) =>
-      `Cinematic editorial portrait inside a modern kitchen — marble counters, brass fixtures, warm overhead practicals and a colored ${color} wash spilling in from an adjoining hallway. Subject leaning against the counter. Preserve facial likeness and outfit. 35mm, shallow DOF, filmic grade, 4K.`,
+      `Cinematic editorial portrait inside a modern kitchen — marble counters, brass fixtures, warm overhead practicals and a colored ${color} wash spilling in from an adjoining hallway. Subject leaning against the counter. Preserve facial likeness and outfit. 35mm, shallow DOF, filmic grade, 8K ultra-HD.`,
   },
   {
     id: "indoor-lounge",
@@ -161,7 +161,7 @@ export const SETUPS: Setup[] = [
     preview: (c) =>
       `linear-gradient(180deg, #1a0a14 0%, ${c}55 50%, ${c}cc 100%)`,
     prompt: (color) =>
-      `Cinematic editorial portrait inside a moody lounge — velvet booth, low brass table, ${color} uplighters washing the walls, single warm pendant key. Subject lounging, half in shadow. Preserve facial likeness and outfit. 50mm, anamorphic flares, 4K.`,
+      `Cinematic editorial portrait inside a moody lounge — velvet booth, low brass table, ${color} uplighters washing the walls, single warm pendant key. Subject lounging, half in shadow. Preserve facial likeness and outfit. 50mm, anamorphic flares, 8K ultra-HD.`,
   },
 
   // OUTDOOR
@@ -173,7 +173,7 @@ export const SETUPS: Setup[] = [
     preview: (c) =>
       `linear-gradient(180deg, ${c}aa 0%, ${c}55 45%, #1a1a2a 65%, #0a0a14 100%)`,
     prompt: (color) =>
-      `Cinematic editorial photograph of the subject on a downtown rooftop at golden hour, skyline of glass towers behind, low sun rim-lighting from the side, ${color} colored gel as accent rim from camera-right. Warm cinematic grade, anamorphic 50mm, sharp subject, shallow DOF, 4K. Preserve facial likeness and outfit.`,
+      `Cinematic editorial photograph of the subject on a downtown rooftop at golden hour, skyline of glass towers behind, low sun rim-lighting from the side, ${color} colored gel as accent rim from camera-right. Warm cinematic grade, anamorphic 50mm, sharp subject, shallow DOF, 8K ultra-HD. Preserve facial likeness and outfit.`,
   },
   {
     id: "rooftop-night",
@@ -183,7 +183,7 @@ export const SETUPS: Setup[] = [
     preview: (c) =>
       `linear-gradient(180deg, #07060d 0%, #1a1424 40%, ${c}66 80%, ${c}aa 100%)`,
     prompt: (color) =>
-      `Cinematic night rooftop portrait — city skyline glittering behind, atmospheric haze tinted ${color}, single hard key from camera-left, ${color} rim from behind. Preserve facial likeness and outfit. ARRI cinema look, 35mm anamorphic, 4K.`,
+      `Cinematic night rooftop portrait — city skyline glittering behind, atmospheric haze tinted ${color}, single hard key from camera-left, ${color} rim from behind. Preserve facial likeness and outfit. ARRI cinema look, 35mm anamorphic, 8K ultra-HD.`,
   },
 
   // STREET
@@ -195,7 +195,7 @@ export const SETUPS: Setup[] = [
     preview: (c) =>
       `linear-gradient(180deg, #06050b 0%, #0c0a16 45%, ${c}88 75%, ${c}cc 100%)`,
     prompt: (color) =>
-      `Cinematic night street portrait — wet pavement reflecting ${color} neon signage, motion-blurred passers-by, single hard key from above, anamorphic flares. Preserve facial likeness and outfit. 35mm cinema look, 4K.`,
+      `Cinematic night street portrait — wet pavement reflecting ${color} neon signage, motion-blurred passers-by, single hard key from above, anamorphic flares. Preserve facial likeness and outfit. 35mm cinema look, 8K ultra-HD.`,
   },
   {
     id: "alley",
@@ -205,9 +205,16 @@ export const SETUPS: Setup[] = [
     preview: (c) =>
       `radial-gradient(ellipse at 50% 20%, #f5e9c8 0%, transparent 35%), linear-gradient(180deg, #07060c 0%, ${c}55 70%, ${c}99 100%)`,
     prompt: (color) =>
-      `Gritty urban alleyway portrait at night, wet pavement reflecting a single hard overhead lamp, ${color} colored fill from a doorway, brick walls softly out of focus, deep shadows. Preserve facial likeness and outfit. ARRI cinema look, anamorphic 35mm, 4K.`,
+      `Gritty urban alleyway portrait at night, wet pavement reflecting a single hard overhead lamp, ${color} colored fill from a doorway, brick walls softly out of focus, deep shadows. Preserve facial likeness and outfit. ARRI cinema look, anamorphic 35mm, 8K ultra-HD.`,
   },
 ];
+
+/**
+ * Shared hyper-realism grade appended to every Colors Studio prompt so all
+ * output is graded ultra-HD photoreal regardless of setup.
+ */
+export const REALISM_SUFFIX =
+  "Hyper-realistic photography, ultra-HD 8K resolution, shot on cinema glass — lifelike micro-texture in skin, fabric and every surface, physically accurate light falloff and reflections, true-to-life color, absolutely no CGI, illustration or plastic AI look.";
 
 export type Workflow = {
   id: string;
@@ -225,14 +232,14 @@ export const WORKFLOWS: Workflow[] = [
 export function buildPerformancePrompt(colorId: string): string {
   const c = COLOR_PRESETS.find((x) => x.id === colorId) ?? COLOR_PRESETS[0];
   const { mic, pose, energy } = c.performance;
-  return `Editorial music-video performance shot of the subject on a seamless ${c.promptName} cyclorama — background and floor are one continuous ${c.promptName} surface, no visible seams. Subject standing on a circular performance platform matching the ${c.promptName} tone, slightly elevated with a subtle reflective sheen and soft shadow. Pose: ${pose}. Energy: ${energy}. Microphone: ${MIC_DETAIL[mic]}. Lighting: bold monochromatic ${c.promptName} ambient wash with a soft key from camera-right and a clean rim light separating the subject from the background. Preserve exact facial likeness, beard, skin tone, hairstyle, body proportions, and outfit from the reference photos. Ultra-realistic skin texture with natural pores, sharp clothing detail, gentle floor shadow, high-end music-video aesthetic, ARRI Alexa look, 50mm, 4K photoreal, no text or logos.`;
+  return `Editorial music-video performance shot of the subject on a seamless ${c.promptName} cyclorama — background and floor are one continuous ${c.promptName} surface, no visible seams. Subject standing on a circular performance platform matching the ${c.promptName} tone, slightly elevated with a subtle reflective sheen and soft shadow. Pose: ${pose}. Energy: ${energy}. Microphone: ${MIC_DETAIL[mic]}. Lighting: bold monochromatic ${c.promptName} ambient wash with a soft key from camera-right and a clean rim light separating the subject from the background. Preserve exact facial likeness, beard, skin tone, hairstyle, body proportions, and outfit from the reference photos. Ultra-realistic skin texture with natural pores, sharp clothing detail, gentle floor shadow, high-end music-video aesthetic, ARRI Alexa look, 50mm, no text or logos. ${REALISM_SUFFIX}`;
 }
 
 export function buildColorPrompt(colorId: string, setupId: string): string {
   if (setupId === "performance") return buildPerformancePrompt(colorId);
   const c = COLOR_PRESETS.find((x) => x.id === colorId) ?? COLOR_PRESETS[0];
   const s = SETUPS.find((x) => x.id === setupId) ?? SETUPS[0];
-  return s.prompt(c.promptName);
+  return `${s.prompt(c.promptName)} ${REALISM_SUFFIX}`;
 }
 
 /** Short human label describing the current performance staging for the UI. */
