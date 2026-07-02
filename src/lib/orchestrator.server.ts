@@ -173,6 +173,7 @@ type ProviderAdapter = {
     | "sync"
     | "runpod"
     | "kling"
+    | "piapi"
     | "heygen"
     | "fal"
     // free / general-router providers
@@ -744,6 +745,132 @@ const sync: ProviderAdapter = {
       model: "lipsync-2",
     });
     return { url, endpoint: "sync:lipsync-2" };
+  },
+};
+
+// ─── PiAPI (aggregator: Midjourney, Kling, …) ────────────────────────────────
+// Unified async task API: POST /api/v1/task → task_id, then poll
+// GET /api/v1/task/{id} until completed/failed (same create-then-poll shape as
+// the Kling/HeyGen adapters above). Docs: https://piapi.ai/docs
+const PIAPI_BASE = "https://api.piapi.ai";
+type PiapiModelEntry = {
+  kind: GenerateKind;
+  cost: number;
+  build: (r: GenerateRequest) => {
+    model: string;
+    task_type: string;
+    input: Record<string, unknown>;
+  };
+};
+// Curated starter set — one image engine + one video engine. Add more PiAPI
+// sub-models here AND give video models a tier in pricing.ts VIDEO_MODEL_TIERS.
+const PIAPI_MAP: Record<string, PiapiModelEntry> = {
+  "piapi/midjourney-imagine": {
+    kind: "image",
+    // Fast-mode imagine task ≈ $0.045; billed with a small buffer.
+    cost: 0.05,
+    build: (r) => ({
+      model: "midjourney",
+      task_type: "imagine",
+      input: { prompt: r.prompt ?? "", process_mode: "fast", aspect_ratio: "1:1" },
+    }),
+  },
+  "piapi/kling-video": {
+    kind: "video",
+    // Kling std 5s via PiAPI ≈ $0.16; upper bound covers 10s runs.
+    cost: 0.3,
+    build: (r) => {
+      const input: Record<string, unknown> = {
+        prompt: r.prompt ?? "",
+        // Kling accepts 5 or 10 second durations only.
+        duration: (r.duration ?? 5) > 5 ? 10 : 5,
+        aspect_ratio: "16:9",
+        mode: "std",
+        version: "1.6",
+      };
+      if (r.imageUrls?.[0]) input.image_url = r.imageUrls[0];
+      return { model: "kling", task_type: "video_generation", input };
+    },
+  },
+};
+
+// PiAPI output shape varies per engine: midjourney → image_url / image_urls[],
+// kling → video_url or works[0].video.resource(_without_watermark).
+function extractPiapiOutputUrl(output: unknown): string | undefined {
+  if (!output || typeof output !== "object") return undefined;
+  const o = output as Record<string, unknown>;
+  for (const k of ["video_url", "image_url"]) {
+    const v = o[k];
+    if (typeof v === "string" && v.length > 0) return v;
+  }
+  const urls = o.image_urls;
+  if (Array.isArray(urls) && typeof urls[0] === "string" && urls[0].length > 0) return urls[0];
+  const works = o.works;
+  if (Array.isArray(works) && works[0] && typeof works[0] === "object") {
+    const video = (works[0] as Record<string, unknown>).video;
+    if (video && typeof video === "object") {
+      const v = video as Record<string, unknown>;
+      for (const k of ["resource_without_watermark", "resource"]) {
+        const u = v[k];
+        if (typeof u === "string" && u.length > 0) return u;
+      }
+    }
+  }
+  return undefined;
+}
+
+const piapi: ProviderAdapter = {
+  name: "piapi",
+  // Only handle EXPLICIT piapi/* model requests — mirrors the Kling-direct rule
+  // so a generic image/video request never silently routes (and bills) via PiAPI
+  // just because the key happens to be set.
+  supports: (r) => {
+    if (!process.env.PIAPI_API_KEY) return false;
+    if (!r.model) return false;
+    const m = PIAPI_MAP[r.model];
+    return !!m && m.kind === r.kind;
+  },
+  estimateCost: (r) => (r.model && PIAPI_MAP[r.model]?.cost) || (r.kind === "video" ? 0.3 : 0.05),
+  async run(r) {
+    const m = r.model ? PIAPI_MAP[r.model] : null;
+    if (!m) throw new Error(`No PiAPI mapping for model: ${r.model}`);
+    const key = process.env.PIAPI_API_KEY!;
+    const body = m.build(r);
+    const create = await fetch(`${PIAPI_BASE}/api/v1/task`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": key },
+      body: JSON.stringify(body),
+    });
+    if (!create.ok)
+      throw new Error(`PiAPI ${create.status}: ${(await create.text()).slice(0, 200)}`);
+    const cj = await create.json();
+    // PiAPI wraps responses as { code, data, message }; a non-200 code with an
+    // HTTP 200 is still a provider error — surface it explicitly.
+    if (typeof cj?.code === "number" && cj.code !== 200)
+      throw new Error(`PiAPI error ${cj.code}: ${String(cj?.message ?? "unknown").slice(0, 200)}`);
+    const taskId = cj?.data?.task_id;
+    if (!taskId) throw new Error("PiAPI returned no task_id");
+    const deadline = Date.now() + 10 * 60_000;
+    while (Date.now() < deadline) {
+      await new Promise((s) => setTimeout(s, 6000));
+      const poll = await fetch(`${PIAPI_BASE}/api/v1/task/${taskId}`, {
+        headers: { "x-api-key": key },
+      });
+      if (!poll.ok) continue;
+      const pj = await poll.json();
+      const status = String(pj?.data?.status ?? "").toLowerCase();
+      if (status === "completed" || status === "success" || status === "finished") {
+        const url = extractPiapiOutputUrl(pj?.data?.output);
+        if (!url) throw new Error("PiAPI: task completed but no output url");
+        return { url, endpoint: `piapi:${body.model}/${body.task_type}` };
+      }
+      if (status === "failed") {
+        const err = pj?.data?.error;
+        const msg = err?.message || err?.raw_message || "unknown";
+        throw new Error(`PiAPI failed: ${String(msg).slice(0, 200)}`);
+      }
+    }
+    throw new Error("PiAPI poll timeout");
   },
 };
 
@@ -1491,10 +1618,11 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
     huggingface,
     runware,
     replicate,
+    piapi,
     lovable,
     falFallback,
   ],
-  video: [gpuWorker, klingDirect, byteplus, replicate, runway, falFallback],
+  video: [gpuWorker, klingDirect, byteplus, replicate, runway, piapi, falFallback],
   lipsync: [gpuWorker, sync, heygen, replicate, falFallback],
   // GPU-first: a worker advertising "upscale" is tried before Replicate.
   upscale: [gpuWorker, replicate, falFallback],
@@ -1556,6 +1684,8 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     out[k] = { provider: "huggingface", kind: v.kind, cost: v.cost };
   for (const [k, v] of Object.entries(FAL_MAP))
     out[k] = { provider: "fal", kind: v.kind, cost: v.cost };
+  for (const [k, v] of Object.entries(PIAPI_MAP))
+    out[k] = { provider: "piapi", kind: v.kind, cost: v.cost };
   for (const [k, v] of Object.entries(FREE_IMAGE_MODELS))
     out[k] = { provider: v.adapter, kind: "image", cost: v.cost };
   for (const [k, v] of Object.entries(TEXT_MODELS))

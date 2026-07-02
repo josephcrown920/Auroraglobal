@@ -21,5 +21,6 @@ export const providerStatus = createServerFn({ method: "GET" }).handler(async ()
     sync: has("SYNC_API_KEY"),
     kling: has("KLING_ACCESS_KEY") && has("KLING_SECRET_KEY"),
     heygen: has("HEYGEN_API_KEY"),
+    piapi: has("PIAPI_API_KEY"),
   };
 });

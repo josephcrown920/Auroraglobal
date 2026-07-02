@@ -102,6 +102,7 @@ export const LIPSYNC_TIER_AURA: Record<ModelTier, number> = {
 export const VIDEO_MODEL_TIERS: Record<string, ModelTier> = {
   "seedance-2.0-fast": "budget", // $0.05
   "kling-v1": "standard", // $0.30
+  "piapi/kling-video": "standard", // $0.30 (Kling via PiAPI aggregator)
   "veo-3-fast": "premium", // $0.40
   "runway/gen3a-turbo": "premium", // $0.40
   "runway/gen4-turbo": "premium", // $0.50
