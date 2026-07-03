@@ -8,10 +8,16 @@ import { beforeEach, describe, expect, it, mock } from "bun:test";
 // claim→run→commit/release/retry decision logic is exercised.
 
 let claimQueue: Array<Record<string, unknown> | null> = [];
-// finishJob fences the completion on still owning the lock via a guarded UPDATE
-// ... RETURNING. Flip this to false to simulate losing that CAS (the stale-sweep
-// reclaim race) so the job-table update matches no row.
+// finalize_job (task #94: single all-or-nothing finish RPC) fences the CAS,
+// generation write, and credit settlement in one transaction and returns
+// 'finalized' | 'stale'. Flip this to false to simulate losing that CAS (the
+// stale-sweep reclaim race). The legacy retry-only finishJob() UPDATE uses the
+// same flag for its own guarded UPDATE ... RETURNING.
 let jobsCasWins = true;
+// Simulates finalize_job itself throwing (e.g. the transaction aborts) so tests
+// can prove the caller never falls through to a second finalize/refund attempt
+// and leaves no stranded reservation.
+let finalizeShouldThrow = false;
 // Rows the failed-orphan sweep (sweepFailedJobs) reads back from a jobs SELECT,
 // and the per-job requeue_failed_job RPC outcome it should observe.
 let failedJobsRows: Array<Record<string, unknown>> = [];
@@ -56,16 +62,24 @@ function builder(table: string) {
       : // A read on `jobs` is the failed-orphan sweep SELECT, a read on `gpu_workers`
         // is the worker preflight; everything else keeps the original {data:null} shape.
         {
-          data:
-            table === "jobs"
-              ? failedJobsRows
-              : table === "gpu_workers"
-                ? gpuWorkers
-                : null,
+          data: table === "jobs" ? failedJobsRows : table === "gpu_workers" ? gpuWorkers : null,
           error: null,
         };
   const b: Record<string, unknown> = {};
-  for (const m of ["select", "eq", "neq", "lt", "lte", "gt", "gte", "order", "limit", "contains", "is", "in"])
+  for (const m of [
+    "select",
+    "eq",
+    "neq",
+    "lt",
+    "lte",
+    "gt",
+    "gte",
+    "order",
+    "limit",
+    "contains",
+    "is",
+    "in",
+  ])
     b[m] = () => b;
   b.update = (patch: Record<string, unknown>) => {
     calls.updates.push({ table, patch });
@@ -92,6 +106,10 @@ const supabaseAdmin = {
     calls.rpc.push({ name, args });
     if (name === "claim_next_job_v2") return { data: claimQueue.shift() ?? null, error: null };
     if (name === "requeue_failed_job") return { data: requeueOutcome, error: null };
+    if (name === "finalize_job") {
+      if (finalizeShouldThrow) return { data: null, error: { message: "finalize_job boom" } };
+      return { data: jobsCasWins ? "finalized" : "stale", error: null };
+    }
     return { data: true, error: null };
   },
   storage: {
@@ -153,6 +171,7 @@ function job(over: Record<string, unknown> = {}) {
 beforeEach(() => {
   claimQueue = [];
   jobsCasWins = true;
+  finalizeShouldThrow = false;
   failedJobsRows = [];
   requeueOutcome = "requeued";
   gpuWorkers = [];
@@ -176,44 +195,49 @@ describe("processOneJob", () => {
     expect(await processOneJob("w1")).toEqual({ processed: false });
   });
 
-  it("commits the reservation and writes result_image_url on a successful image job", async () => {
+  it("finalizes succeeded jobs via ONE finalize_job RPC carrying the result (task #94)", async () => {
+    // finishJob -> markGeneration -> commit_reservation used to be three separate
+    // writes; now the CAS, the generation-result write, and the credit commit all
+    // happen inside one finalize_job transaction, so JS makes exactly one RPC call.
     claimQueue = [job()];
     const r = await processOneJob("w1");
     expect(r).toMatchObject({ processed: true, status: "succeeded", jobId: "j1" });
 
-    expect(calls.rpc.find((c) => c.name === "commit_reservation")?.args).toMatchObject({
-      _user: "u1",
-      _amount: 5,
-      _ref: "j1",
+    const finalizeCalls = calls.rpc.filter((c) => c.name === "finalize_job");
+    expect(finalizeCalls).toHaveLength(1);
+    expect(finalizeCalls[0].args).toMatchObject({
+      _job: "j1",
+      _worker: "w1",
+      _outcome: "succeeded",
+      _result_image_url: "https://out/img.png",
     });
-    expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeUndefined();
+    expect(finalizeCalls[0].args._result_video_url).toBeNull();
 
-    const gen = calls.updates.find((u) => u.table === "generations");
-    expect(gen?.patch).toMatchObject({
-      status: "succeeded",
-      result_image_url: "https://out/img.png",
-    });
-    expect(gen?.patch.result_video_url).toBeUndefined();
+    // No standalone commit/release RPCs and no separate generations-table write —
+    // both are now folded into the finalize_job transaction itself.
+    expect(calls.rpc.find((c) => c.name === "commit_reservation")).toBeUndefined();
+    expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeUndefined();
+    expect(calls.updates.find((u) => u.table === "generations")).toBeUndefined();
   });
 
-  it("does NOT commit when it has lost the lock to a stale-sweep reclaim", async () => {
+  it("does NOT finalize as succeeded when it has lost the lock to a stale-sweep reclaim", async () => {
     // The job finished, but the stale-sweep already requeued it and another worker
-    // reclaimed it (locked_by changed) → the ownership-fenced finishJob CAS misses,
-    // so this worker must not commit (the new owner will). Prevents a double charge.
+    // reclaimed it (locked_by changed) → finalize_job's internal CAS misses and
+    // returns 'stale', so this worker must treat nothing as committed/written.
     jobsCasWins = false;
     claimQueue = [job()];
     const r = await processOneJob("w1");
     expect(r.status).toBe("stale");
-    expect(calls.rpc.find((c) => c.name === "commit_reservation")).toBeUndefined();
-    // Must NOT write the generation succeeded either: the new owner may have
-    // already terminally failed + released it, so a late success write would
-    // expose a delivered render after a refund.
+    expect(calls.rpc.find((c) => c.name === "finalize_job")?.args).toMatchObject({
+      _outcome: "succeeded",
+    });
     expect(calls.updates.find((u) => u.table === "generations")).toBeUndefined();
   });
 
-  it("does NOT release when it has lost the lock to a stale-sweep reclaim (terminal error)", async () => {
-    // Same race on a terminal failure: only the worker that wins the CAS releases,
-    // so a lost worker must never refund a reservation the new owner still holds.
+  it("reports stale (never a second finalize attempt) when it has lost the lock on a terminal error", async () => {
+    // Same race on a terminal failure: only the worker that wins the CAS
+    // releases inside finalize_job, so a lost worker must never call it twice or
+    // refund a reservation the new owner still holds.
     jobsCasWins = false;
     claimQueue = [job({ attempts: PERSISTENT_RETRY_MAX_ATTEMPTS })];
     orchestrateImpl = async () => {
@@ -221,10 +245,41 @@ describe("processOneJob", () => {
     };
     const r = await processOneJob("w1");
     expect(r.status).toBe("stale");
-    expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeUndefined();
+    const finalizeCalls = calls.rpc.filter((c) => c.name === "finalize_job");
+    expect(finalizeCalls).toHaveLength(1);
+    expect(finalizeCalls[0].args).toMatchObject({ _outcome: "failed" });
   });
 
-  it("routes a video job's result to result_video_url", async () => {
+  it("leaves no stranded reservation when finalize_job itself throws after a successful render", async () => {
+    // The render is delivered but the all-or-nothing finalize_job RPC throws
+    // (e.g. the transaction aborted). Because it's one transaction, nothing
+    // committed server-side; the CLIENT must not compensate by calling any
+    // second RPC (that would double-finalize or refund a delivered render) —
+    // it just reports stale and leaves the job for the stale-sweeper.
+    finalizeShouldThrow = true;
+    claimQueue = [job()];
+    const r = await processOneJob("w1");
+    expect(r.status).toBe("stale");
+    expect(calls.rpc.filter((c) => c.name === "finalize_job")).toHaveLength(1);
+    expect(calls.rpc.find((c) => c.name === "commit_reservation")).toBeUndefined();
+    expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeUndefined();
+    expect(calls.updates.find((u) => u.table === "generations")).toBeUndefined();
+  });
+
+  it("leaves no stranded reservation when finalize_job itself throws on a terminal failure", async () => {
+    finalizeShouldThrow = true;
+    claimQueue = [job({ attempts: PERSISTENT_RETRY_MAX_ATTEMPTS })];
+    orchestrateImpl = async () => {
+      throw new Error("provider exploded");
+    };
+    const r = await processOneJob("w1");
+    expect(r.status).toBe("stale");
+    expect(calls.rpc.filter((c) => c.name === "finalize_job")).toHaveLength(1);
+    expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeUndefined();
+    expect(calls.updates.find((u) => u.table === "generations")).toBeUndefined();
+  });
+
+  it("routes a video job's result to result_video_url via finalize_job", async () => {
     claimQueue = [job({ kind: "video", payload: { kind: "video", prompt: "x" } })];
     orchestrateImpl = async () => ({
       url: "https://out/clip.mp4",
@@ -234,9 +289,9 @@ describe("processOneJob", () => {
       costUsd: 0,
     });
     await processOneJob("w1");
-    const gen = calls.updates.find((u) => u.table === "generations");
-    expect(gen?.patch).toMatchObject({ result_video_url: "https://out/clip.mp4" });
-    expect(gen?.patch.result_image_url).toBeUndefined();
+    const finalize = calls.rpc.find((c) => c.name === "finalize_job");
+    expect(finalize?.args).toMatchObject({ _result_video_url: "https://out/clip.mp4" });
+    expect(finalize?.args._result_image_url).toBeNull();
   });
 
   it("schedules a retry (no release) when a job fails but attempts remain", async () => {
@@ -268,24 +323,21 @@ describe("processOneJob", () => {
     expect(gen?.patch).toMatchObject({ status: "retrying" });
   });
 
-  it("releases the reservation and fails once the attempt ceiling is reached", async () => {
+  it("finalizes as failed (release folded into the transaction) once the attempt ceiling is reached", async () => {
     claimQueue = [job({ attempts: PERSISTENT_RETRY_MAX_ATTEMPTS, max_attempts: 3 })];
     orchestrateImpl = async () => {
       throw new Error("provider exploded");
     };
     const r = await processOneJob("w1");
     expect(r.status).toBe("failed");
-    expect(calls.rpc.find((c) => c.name === "release_reservation")?.args).toMatchObject({
-      _user: "u1",
-      _amount: 5,
-      _ref: "j1",
-    });
-    const gen = calls.updates.find((u) => u.table === "generations");
-    expect(gen?.patch).toMatchObject({ status: "failed" });
-    expect(String(gen?.patch.error)).toContain("gave up after");
+    const finalize = calls.rpc.find((c) => c.name === "finalize_job");
+    expect(finalize?.args).toMatchObject({ _job: "j1", _worker: "w1", _outcome: "failed" });
+    expect(String(finalize?.args._error)).toContain("gave up after");
+    expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeUndefined();
+    expect(calls.updates.find((u) => u.table === "generations")).toBeUndefined();
   });
 
-  it("releases the reservation and fails once the retry age deadline elapses", async () => {
+  it("finalizes as failed once the retry age deadline elapses", async () => {
     claimQueue = [
       job({
         attempts: 2,
@@ -297,10 +349,12 @@ describe("processOneJob", () => {
     };
     const r = await processOneJob("w1");
     expect(r.status).toBe("failed");
-    expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeDefined();
+    expect(calls.rpc.find((c) => c.name === "finalize_job")?.args).toMatchObject({
+      _outcome: "failed",
+    });
   });
 
-  it("stops immediately and releases on terminal errors (variants)", async () => {
+  it("stops immediately and finalizes as failed on terminal errors (variants)", async () => {
     for (const msg of ["Unauthorized", "HTTP 403 forbidden", "invalid input image"]) {
       calls.rpc.length = 0;
       calls.updates.length = 0;
@@ -310,23 +364,31 @@ describe("processOneJob", () => {
       };
       const r = await processOneJob("w1");
       expect(r.status).toBe("failed");
-      expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeDefined();
+      expect(calls.rpc.find((c) => c.name === "finalize_job")?.args).toMatchObject({
+        _outcome: "failed",
+      });
     }
   });
 
-  it("does not retry non-retryable errors (insufficient_credits) and releases immediately", async () => {
+  it("does not retry non-retryable errors (insufficient_credits) and finalizes as failed immediately", async () => {
     claimQueue = [job({ attempts: 0, max_attempts: 3 })];
     orchestrateImpl = async () => {
       throw new Error("insufficient_credits");
     };
     const r = await processOneJob("w1");
     expect(r.status).toBe("failed");
-    expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeDefined();
+    expect(calls.rpc.find((c) => c.name === "finalize_job")?.args).toMatchObject({
+      _outcome: "failed",
+    });
   });
 
-  it("skips commit when no credits were reserved", async () => {
+  it("still finalizes (and commits nothing extra) when no credits were reserved", async () => {
+    // The commit/release-skip-when-zero logic now lives inside the finalize_job
+    // SQL transaction itself (not observable from JS); from the caller's side the
+    // only contract is that finalize_job is still invoked exactly once.
     claimQueue = [job({ credits_reserved: 0 })];
     await processOneJob("w1");
+    expect(calls.rpc.filter((c) => c.name === "finalize_job")).toHaveLength(1);
     expect(calls.rpc.find((c) => c.name === "commit_reservation")).toBeUndefined();
   });
 
@@ -353,19 +415,20 @@ describe("processOneJob", () => {
     const r = await processOneJob("w1");
     expect(r.status).toBe("failed");
 
-    // Released exactly once (CAS-fenced), with the reserved amount.
-    const releases = calls.rpc.filter((c) => c.name === "release_reservation");
-    expect(releases).toHaveLength(1);
-    expect(releases[0].args).toMatchObject({ _user: "u1", _amount: 12, _ref: "j1" });
+    // Finalized exactly once (CAS + generation write + release all folded into
+    // the one finalize_job transaction).
+    const finalizeCalls = calls.rpc.filter((c) => c.name === "finalize_job");
+    expect(finalizeCalls).toHaveLength(1);
+    expect(finalizeCalls[0].args).toMatchObject({ _job: "j1", _outcome: "failed" });
+    expect(String(finalizeCalls[0].args._error)).toMatch(/required/i);
+    expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeUndefined();
+    expect(calls.updates.find((u) => u.table === "generations")).toBeUndefined();
 
-    // The kids-story row is marked failed and scoped to its owner.
+    // The kids-story row is marked failed and scoped to its owner (best-effort
+    // JS-side write outside the transaction, since /kids polls this table).
     const story = calls.updates.find((u) => u.table === "kids_stories");
     expect(story?.patch).toMatchObject({ status: "failed" });
     expect(String(story?.patch.error)).toMatch(/required/i);
-
-    // The generation row is failed too.
-    const gen = calls.updates.find((u) => u.table === "generations");
-    expect(gen?.patch).toMatchObject({ status: "failed" });
   });
 
   it("fails terminally and refunds a kids story when no TTS backend is configured, even with an assemble worker online", async () => {
@@ -394,10 +457,13 @@ describe("processOneJob", () => {
       const r = await processOneJob("w1");
       expect(r.status).toBe("failed");
 
-      // Released exactly once, for the full reserved amount (terminal, no retry).
-      const releases = calls.rpc.filter((c) => c.name === "release_reservation");
-      expect(releases).toHaveLength(1);
-      expect(releases[0].args).toMatchObject({ _user: "u1", _amount: 12, _ref: "j1" });
+      // Finalized exactly once (terminal, no retry) — CAS + release folded into
+      // the finalize_job transaction.
+      const finalizeCalls = calls.rpc.filter((c) => c.name === "finalize_job");
+      expect(finalizeCalls).toHaveLength(1);
+      expect(finalizeCalls[0].args).toMatchObject({ _job: "j1", _outcome: "failed" });
+      expect(String(finalizeCalls[0].args._error)).toMatch(/narration/i);
+      expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeUndefined();
 
       // The story row is flipped to failed (owner-scoped) with a narration error.
       const story = calls.updates.find((u) => u.table === "kids_stories");
@@ -420,12 +486,22 @@ describe("processOneJob", () => {
       job({
         kind: "kids_story",
         credits_reserved: 12,
-        payload: { storyId: "s1", topic: "the moon", contentType: "bedtime", ageRange: "3-5", lengthId: "short", characterName: "Fuzz" },
+        payload: {
+          storyId: "s1",
+          topic: "the moon",
+          contentType: "bedtime",
+          ageRange: "3-5",
+          lengthId: "short",
+          characterName: "Fuzz",
+        },
       }),
     ];
 
     const r = await processOneJob("w1");
     expect(r.status).toBe("stale");
+    expect(calls.rpc.find((c) => c.name === "finalize_job")?.args).toMatchObject({
+      _outcome: "failed",
+    });
     expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeUndefined();
     expect(calls.updates.find((u) => u.table === "kids_stories")).toBeUndefined();
   });
@@ -476,7 +552,13 @@ describe("queue lanes", () => {
 
 describe("classifyJobError", () => {
   it("treats network/provider flakiness as transient", () => {
-    for (const m of ["provider timeout", "ECONNRESET", "rate limited 429", "502 bad gateway", "fetch failed"]) {
+    for (const m of [
+      "provider timeout",
+      "ECONNRESET",
+      "rate limited 429",
+      "502 bad gateway",
+      "fetch failed",
+    ]) {
       expect(classifyJobError(m)).toBe("transient");
     }
   });
@@ -523,7 +605,10 @@ describe("retryDecision", () => {
     expect(d).toEqual({ retry: true, reason: "transient" });
   });
   it("gives up at the attempt ceiling", () => {
-    const d = retryDecision({ attempts: PERSISTENT_RETRY_MAX_ATTEMPTS, created_at: fresh }, "provider timeout");
+    const d = retryDecision(
+      { attempts: PERSISTENT_RETRY_MAX_ATTEMPTS, created_at: fresh },
+      "provider timeout",
+    );
     expect(d).toEqual({ retry: false, reason: "max_attempts" });
   });
   it("gives up past the age deadline", () => {

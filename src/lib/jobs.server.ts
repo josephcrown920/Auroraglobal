@@ -115,7 +115,10 @@ export function nextRetryAt(attempts: number, now: number = Date.now()): string 
   return new Date(now + base + jitter).toISOString();
 }
 
-export type RetryDecision = { retry: boolean; reason: "transient" | "terminal" | "max_attempts" | "max_age" };
+export type RetryDecision = {
+  retry: boolean;
+  reason: "transient" | "terminal" | "max_attempts" | "max_age";
+};
 
 /** Decide whether a failed job should be re-queued or terminally failed. */
 export function retryDecision(
@@ -124,7 +127,8 @@ export function retryDecision(
   now: number = Date.now(),
 ): RetryDecision {
   if (classifyJobError(message) === "terminal") return { retry: false, reason: "terminal" };
-  if (job.attempts >= PERSISTENT_RETRY_MAX_ATTEMPTS) return { retry: false, reason: "max_attempts" };
+  if (job.attempts >= PERSISTENT_RETRY_MAX_ATTEMPTS)
+    return { retry: false, reason: "max_attempts" };
   if (job.created_at) {
     const ageMs = now - new Date(job.created_at).getTime();
     if (Number.isFinite(ageMs) && ageMs >= PERSISTENT_RETRY_MAX_AGE_MS) {
@@ -412,7 +416,10 @@ function kidsStoriesTable() {
     supabaseAdmin as unknown as {
       from: (t: string) => {
         update: (patch: Record<string, unknown>) => {
-          eq: (col: string, val: string) => {
+          eq: (
+            col: string,
+            val: string,
+          ) => {
             eq: (col: string, val: string) => Promise<{ error: { message: string } | null }>;
           };
         };
@@ -424,7 +431,11 @@ function kidsStoriesTable() {
 // Every kids-story write is owner-scoped (id + user_id). Both ids come from the
 // server-created job, so this is a defense-in-depth invariant: a malformed payload
 // can never flip another user's story row.
-async function updateStory(storyId: string, userId: string, patch: Record<string, unknown>): Promise<void> {
+async function updateStory(
+  storyId: string,
+  userId: string,
+  patch: Record<string, unknown>,
+): Promise<void> {
   if (!storyId) return;
   await kidsStoriesTable().update(patch).eq("id", storyId).eq("user_id", userId);
 }
@@ -704,9 +715,7 @@ async function runKidsStory(job: JobRow, orch: Orchestrate, workerId: string): P
   // narration text rather than producing a silent clip. Terminal (data) error.
   const missingNarration = scenes.findIndex((s) => !s.narration.trim());
   if (missingNarration >= 0) {
-    throw new Error(
-      `kids_story scene ${missingNarration + 1} is missing required narration text`,
-    );
+    throw new Error(`kids_story scene ${missingNarration + 1} is missing required narration text`);
   }
 
   // Seed per-scene progress so the /kids page can show step-by-step state.
@@ -1005,13 +1014,25 @@ export async function processOneJob(
 
     if (out.imageUrl && out.videoUrl) {
       [persistedImageUrl, persistedVideoUrl] = await Promise.all([
-        persistResultUrl({ userId: job.user_id, refId: `${job.id}-img`, mediaType: "image", url: out.imageUrl }).then((r) => r.url),
-        persistResultUrl({ userId: job.user_id, refId: `${job.id}-vid`, mediaType: "video", url: out.videoUrl }).then((r) => r.url),
+        persistResultUrl({
+          userId: job.user_id,
+          refId: `${job.id}-img`,
+          mediaType: "image",
+          url: out.imageUrl,
+        }).then((r) => r.url),
+        persistResultUrl({
+          userId: job.user_id,
+          refId: `${job.id}-vid`,
+          mediaType: "video",
+          url: out.videoUrl,
+        }).then((r) => r.url),
       ]);
     } else if (out.url) {
       const mediaType = resultMediaTypeForKind(effectiveKind);
       if (mediaType) {
-        persistedUrl = (await persistResultUrl({ userId: job.user_id, refId: job.id, mediaType, url: out.url })).url;
+        persistedUrl = (
+          await persistResultUrl({ userId: job.user_id, refId: job.id, mediaType, url: out.url })
+        ).url;
       }
     }
 
@@ -1035,31 +1056,46 @@ export async function processOneJob(
         job.kind === "autocut";
       genPatch[isVideo ? "result_video_url" : "result_image_url"] = persistedUrl;
     }
-    // Fence the completion on still owning the lock BEFORE writing the success or
-    // committing credits. If a stale-sweep requeued this job and another worker
-    // reclaimed it — and possibly already terminally failed + released it — we lose
-    // the CAS and must touch nothing: writing the generation `succeeded` here would
-    // expose a delivered render after a refund, and committing would double-charge.
-    // The new owner is authoritative.
-    const won = await finishJob(job, workerId, { status: "succeeded", result: out });
-    if (won) {
-      await markGeneration(job.id, job.generation_id, genPatch);
-      if (job.credits_reserved > 0) {
-        try {
-          await rpc("commit_reservation", {
-            _user: job.user_id,
-            _amount: job.credits_reserved,
-            _reason: `job_${job.kind}`,
-            _ref: job.id,
-          });
-        } catch (commitErr) {
-          // The render is delivered and the job is already marked succeeded; never
-          // release here (that would refund a delivered render). Surface for ops.
-          console.error("[jobs] commit_reservation failed after success", job.id, commitErr);
-        }
-      }
+    // Fence the completion on still owning the lock, write the generation result,
+    // and commit the credit reservation ALL IN ONE transactional RPC (task #94).
+    // Previously these were three separate writes (finishJob -> markGeneration ->
+    // commit_reservation); a crash or a thrown commit RPC between them could leave
+    // a job marked succeeded with its reservation never committed — credits
+    // stranded (neither spent nor returned). finalize_job runs them inside a
+    // single Postgres transaction, so ANY failure anywhere inside it rolls back
+    // every write together: the job stays `processing` for the stale-sweeper to
+    // reclaim, nothing is marked succeeded, and no credits move. This mirrors (and
+    // replaces) the old lock-ownership fence: a stale-sweep reclaim by another
+    // worker makes the CAS inside finalize_job match no row, so it returns
+    // 'stale' and this worker must touch nothing further — the new owner is
+    // authoritative.
+    let finalizeOutcome: string;
+    try {
+      finalizeOutcome = await rpc<string>("finalize_job", {
+        _job: job.id,
+        _worker: workerId,
+        _outcome: "succeeded",
+        _result: out as unknown as Record<string, unknown>,
+        _error: null,
+        _model: (genPatch.model as string | undefined) ?? null,
+        _result_image_url: (genPatch.result_image_url as string | undefined) ?? null,
+        _result_video_url: (genPatch.result_video_url as string | undefined) ?? null,
+      });
+    } catch (finalizeErr) {
+      // The render is delivered but finalize_job itself threw/never returned —
+      // because it's one transaction, NOTHING committed (job is still
+      // `processing`, generation untouched, credits untouched). Never re-finalize
+      // here: doing so from this catch would race the eventual successful retry
+      // or the stale-sweeper's reclaim. Surface for ops and let the sweeper
+      // recover the job.
+      console.error("[jobs] finalize_job threw on success path", job.id, finalizeErr);
+      return { processed: true, jobId: job.id, status: "stale", error: String(finalizeErr) };
     }
-    return { processed: true, jobId: job.id, status: won ? "succeeded" : "stale" };
+    return {
+      processed: true,
+      jobId: job.id,
+      status: finalizeOutcome === "finalized" ? "succeeded" : "stale",
+    };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const decision = retryDecision(job, msg);
@@ -1080,9 +1116,12 @@ export async function processOneJob(
     }
 
     // Terminal failure (hopeless error, or the retry ceiling/age deadline was
-    // reached). Fence the transition first, then release the reservation EXACTLY
-    // once — only the worker that wins the CAS releases, so a stale-sweep race can
-    // never refund twice.
+    // reached). Fence the CAS, write the failed generation, and release the
+    // reservation in the SAME single transactional RPC as the success path
+    // (task #94) — only the worker that wins the CAS releases (so a stale-sweep
+    // race can never release twice), and if finalize_job throws for any reason
+    // the whole transaction rolls back: the job stays `processing` rather than
+    // being marked failed with its reservation left un-released.
     const failNote =
       decision.reason === "max_attempts"
         ? ` (gave up after ${job.attempts} attempts)`
@@ -1090,26 +1129,33 @@ export async function processOneJob(
           ? " (gave up after retry window elapsed)"
           : "";
     const failError = `${msg}${failNote}`;
-    const won = await finishJob(job, workerId, { status: "failed", error: failError });
-    if (won) {
-      if (job.credits_reserved > 0) {
-        await rpc("release_reservation", {
-          _user: job.user_id,
-          _amount: job.credits_reserved,
-          _reason: `job_${job.kind}`,
-          _ref: job.id,
-        });
-      }
-      await markGeneration(job.id, job.generation_id, {
-        status: "failed",
-        error: failError.slice(0, 1000),
+    let finalizeOutcome: string;
+    try {
+      finalizeOutcome = await rpc<string>("finalize_job", {
+        _job: job.id,
+        _worker: workerId,
+        _outcome: "failed",
+        _result: null,
+        _error: failError.slice(0, 1000),
+        _model: null,
+        _result_image_url: null,
+        _result_video_url: null,
       });
-      // Surface the terminal failure on the kids-story row too, so the /kids page
-      // (which polls kids_stories, not jobs/generations) shows the failed/refunded
-      // state instead of spinning forever on its last in-progress stage.
-      if (job.kind === "kids_story") {
-        await failStory((job.payload as { storyId?: string })?.storyId ?? "", job.user_id, failError);
-      }
+    } catch (finalizeErr) {
+      // One transaction: nothing committed (job still `processing`, reservation
+      // untouched). Never retry-finalize from here — let the stale-sweeper
+      // reclaim it. Surface for ops.
+      console.error("[jobs] finalize_job threw on terminal-failure path", job.id, finalizeErr);
+      return { processed: true, jobId: job.id, status: "stale", error: failError };
+    }
+    const won = finalizeOutcome === "finalized";
+    // Surface the terminal failure on the kids-story row too, so the /kids page
+    // (which polls kids_stories, not jobs/generations) shows the failed/refunded
+    // state instead of spinning forever on its last in-progress stage. Best-effort,
+    // outside the transaction — kids_stories is a UI-polling convenience table, not
+    // part of the credit-safety invariant finalize_job just closed.
+    if (won && job.kind === "kids_story") {
+      await failStory((job.payload as { storyId?: string })?.storyId ?? "", job.user_id, failError);
     }
     return { processed: true, jobId: job.id, status: won ? "failed" : "stale", error: failError };
   }
