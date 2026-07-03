@@ -44,4 +44,4 @@
 - [Preview-confirm gate](preview-confirm-gate.md) — temporal renders need a preview ticket on EVERY entry path (voluntary flags aren't gates); flat-priced paths must price previews flat×0.5, never model-tiered (inversion).
 - [Colors Studio media pipeline](colors-studio-media.md) — MP4 loops MUST be +faststart (moov first) or iOS paints black; always paint poster as eager <img> and fade video in on `playing`.
 - [Template Studio dispatch + taxonomy](template-studio-dispatch.md) — /templates: 5 fixed categories; 3 backends (studio-chain, ugc async-poll, spin=FREE /spin sim → show Free not Aura); manifest kinds+dispatch is the cost source of truth.
-- [Node resolution fallback for dev/prod scripts](replit-node-resolution-fallback.md) — dev-only `available-pid2-node-paths` must be guarded; prod has real `node` on PATH; never let empty NODE_BIN reach a silent exit 127.
+- [Node resolution fallback for dev/prod scripts](replit-node-resolution-fallback.md) — candidates must be RUN (`--version`) not `-x`-checked; PATH node first, version-sorted nix glob last; no silent exit 127.
