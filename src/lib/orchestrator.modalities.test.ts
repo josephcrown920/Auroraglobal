@@ -187,7 +187,9 @@ describe("getCandidateModels", () => {
     const c = getCandidateModels({ kind: "image", prompt: "x", model: "pollinations/flux" });
     expect(c[0]).toBe("pollinations/flux");
     expect(c.filter((m) => m === "pollinations/flux")).toHaveLength(1);
-    expect(c.length).toBeLessThanOrEqual(4);
+    // Task #206: image gained 2 Replit-billed candidates ahead of the existing
+    // chain, so FALLBACK_CAP.image rose 4 -> 6.
+    expect(c.length).toBeLessThanOrEqual(6);
   });
 
   it("pins self-hosted requests to the single requested model", () => {
@@ -401,7 +403,9 @@ describe("orchestrate modality routing", () => {
             code: 200,
             data: {
               status: "completed",
-              output: { works: [{ video: { resource_without_watermark: "https://piapi.out/v.mp4" } }] },
+              output: {
+                works: [{ video: { resource_without_watermark: "https://piapi.out/v.mp4" } }],
+              },
             },
           },
         });
