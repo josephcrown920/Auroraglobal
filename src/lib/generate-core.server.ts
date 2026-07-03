@@ -35,6 +35,8 @@ export type RenderInput = {
   duration?: number;
   resolution?: "480p" | "720p" | "1080p" | "2160p";
   model?: string;
+  /** Strict photo-edit mode — see GenerateRequest.editStrict in the orchestrator. */
+  editStrict?: boolean;
   params?: Record<string, unknown>;
   comfyWorkflow?: unknown;
   comfyInputs?: Record<string, unknown>;
@@ -107,6 +109,7 @@ export async function reserveOrchestrateRecord(
       duration: input.duration,
       resolution: input.resolution,
       model: input.model,
+      editStrict: input.editStrict,
       params: input.params,
       comfyWorkflow: input.comfyWorkflow,
       comfyInputs: input.comfyInputs,

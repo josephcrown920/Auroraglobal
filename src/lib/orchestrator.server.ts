@@ -100,6 +100,14 @@ export type GenerateRequest = {
    */
   selfHostedOnly?: boolean;
   /**
+   * Strict photo-edit mode: the request's imageUrls are an EDIT SOURCE, not a
+   * loose reference. Only edit-capable models (EDIT_CAPABLE_IMAGE_MODELS) may
+   * serve it and the GPU pool is skipped (its image capability is text-to-image)
+   * — an identity-blind fallback would silently return an unrelated generated
+   * image instead of an edit. Explicit failure beats a silent non-edit.
+   */
+  editStrict?: boolean;
+  /**
    * Caption segments for `caption_burn` requests. Each entry is a timed text
    * cue: the GPU worker renders them over the video via FFmpeg `drawtext`.
    */
@@ -1949,6 +1957,19 @@ const FALLBACK_CAP: Record<GenerateKind, number> = {
   autocut: 1,
 };
 
+// Models that honour imageUrls as an EDIT SOURCE: Replicate nano-banana(-pro)
+// via image_input, the fal *-edit endpoints (FAL_IDENTITY_EDITS), and the direct
+// Gemini API (GEMINI_DIRECT_SLUGS). flux/schnell, seedream and pollinations are
+// NOT here — they are text-to-image and would ignore the source photo entirely.
+// Derived from the routing maps so a newly mapped model is edit-capable
+// automatically. Exported for tests and future edit surfaces.
+export const EDIT_CAPABLE_IMAGE_MODELS: ReadonlySet<string> = new Set([
+  ...Object.keys(FAL_IDENTITY_EDITS),
+  ...Object.keys(GEMINI_DIRECT_SLUGS),
+  // Replicate-only (no fal edit endpoint), but image_input-driven all the same.
+  "google/nano-banana-pro",
+]);
+
 export function getCandidateModels(req: GenerateRequest): string[] {
   // Self-hosted requests pin to the single requested model — no cross-model
   // fallback (the worker pool serves the kind, not a specific hosted model).
@@ -1956,7 +1977,12 @@ export function getCandidateModels(req: GenerateRequest): string[] {
   const base = FALLBACK_MODELS[req.kind] ?? [];
   const ordered = [req.model, ...base].filter((m): m is string => !!m);
   const cap = Math.max(1, FALLBACK_CAP[req.kind] ?? 2);
-  return Array.from(new Set(ordered)).slice(0, cap);
+  // Strict edits (photo editor): drop every candidate that cannot edit the
+  // source photo — failing is better than charging for an unrelated image.
+  const pool = req.editStrict
+    ? ordered.filter((m) => EDIT_CAPABLE_IMAGE_MODELS.has(m))
+    : ordered;
+  return Array.from(new Set(pool)).slice(0, cap);
 }
 
 // Request-level problems that every provider/model would hit identically — abort
@@ -2042,6 +2068,9 @@ export async function orchestrate(rawReq: GenerateRequest): Promise<GenerateResu
     // Free GPU only mode: drop every paid adapter so it is never reached. Only the
     // self-hosted pool and $0 providers survive — no paid API can ever bill.
     else if (freeOnly) adapters = adapters.filter((a) => isFreeAdapter(a, r));
+    // Strict edits never run on the GPU pool: its image capability is a
+    // text-to-image ComfyUI graph, which would serve the "edit" identity-blind.
+    if (req.editStrict) adapters = adapters.filter((a) => a !== gpuWorker);
     if (adapters.length === 0) continue;
 
     for (const adapter of adapters) {
