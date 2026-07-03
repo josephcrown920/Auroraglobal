@@ -28,10 +28,14 @@ import {
 // so the batch never over-charges.
 const COST_SPIN_PIECE = SPIN_PIECE_COST;
 
-// Nano Banana (Gemini 2.5 Flash image) — runs on the Replicate key alone and is
-// the same default the Performance Shot studio uses. The face reference is passed
-// as imageUrls so every varied scene stays locked to one identity.
-const IMAGE_MODEL = "google/nano-banana";
+// Gemini 3.1 Flash Image — the same identity-preserving model the reshoot tool
+// uses (RESHOOT_MODEL). nano-banana behaved as a light image-EDIT model: with a
+// tight face reference it anchored to the reference framing and returned
+// near-identical low-res face crops, ignoring each spec's scene/outfit/location.
+// The face reference is passed as imageUrls so every varied scene stays locked
+// to one identity; dispatch is via the direct Gemini API adapter with an
+// identity-preserving fal edit-endpoint fallback (orchestrator.server.ts).
+const IMAGE_MODEL = "google/gemini-3.1-flash-image-preview";
 
 // Legacy export kept for any importer that still references it (the count is now
 // driven by SPIN_COUNT in spin-engine). No longer used to build variants.

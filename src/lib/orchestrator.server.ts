@@ -312,13 +312,49 @@ const FAL_MAP: Record<string, { path: string; kind: GenerateKind; cost: number }
   },
   "fal-fallback/sync-lipsync": { path: "fal-ai/sync-lipsync", kind: "lipsync", cost: 0.3 },
 };
+// Identity-locked Gemini-image family → fal's *-edit endpoints, which take
+// image_urls[] (plural) and preserve the reference face. Without these entries
+// an unmapped google/* image model would silently degrade to flux/schnell
+// (text-to-image) and DROP the face reference — identity loss across a whole
+// Spin/bulk batch. Only used when the request actually carries a reference
+// image; faceless requests keep the generic flux fallback. Exported for tests.
+export const FAL_IDENTITY_EDITS: Record<string, string> = {
+  "google/nano-banana": "fal-ai/nano-banana/edit",
+  "google/gemini-2.5-flash-image": "fal-ai/nano-banana/edit",
+  "google/gemini-3.1-flash-image-preview": "fal-ai/nano-banana/edit",
+  "google/gemini-3-pro-image-preview": "fal-ai/nano-banana-pro/edit",
+};
 const falFallback: ProviderAdapter = {
   name: "fal",
   // Only activates when explicitly addressed OR when nothing else handles the kind
   supports: (r) => !!process.env.FAL_KEY,
-  estimateCost: (r) => (r.kind === "video" ? 0.4 : r.kind === "lipsync" ? 0.3 : 0.005),
+  estimateCost: (r) => {
+    // Identity-edit routes cost fal's Gemini-image prices, not flux/schnell's.
+    if (r.kind === "image" && r.model && r.imageUrls?.length && FAL_IDENTITY_EDITS[r.model]) {
+      return FAL_IDENTITY_EDITS[r.model].includes("pro") ? 0.24 : 0.039;
+    }
+    return r.kind === "video" ? 0.4 : r.kind === "lipsync" ? 0.3 : 0.005;
+  },
   async run(r) {
     const key = process.env.FAL_KEY!;
+    // Identity-preserving route: gemini-family model + a reference image →
+    // the matching *-edit endpoint with image_urls[] so the face is kept.
+    const identityPath =
+      r.kind === "image" && r.model && r.imageUrls?.length
+        ? FAL_IDENTITY_EDITS[r.model]
+        : undefined;
+    if (identityPath) {
+      const res = await fetch(`https://fal.run/${identityPath}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Key ${key}` },
+        body: JSON.stringify({ prompt: r.prompt ?? "", image_urls: r.imageUrls }),
+      });
+      if (!res.ok) throw new Error(`Fal ${res.status}: ${(await res.text()).slice(0, 200)}`);
+      const j = await res.json();
+      const url = j?.images?.[0]?.url ?? j?.image?.url;
+      if (!url || typeof url !== "string") throw new Error("Fal: no output url");
+      return { url, endpoint: `fal:${identityPath}` };
+    }
     const fallback =
       r.kind === "image"
         ? "fal-ai/flux/schnell"
@@ -411,13 +447,38 @@ const lovable: ProviderAdapter = {
 };
 
 // ─── Gemini direct (GEMINI_API_KEY) — preferred before Lovable credits ───────
+// Model-aware slug map: our registry keys → LIVE Gemini API model ids. The API
+// renamed gemini-2.5-flash-image-preview → gemini-2.5-flash-image (the old
+// preview slug now 404s), so every entry here must exist in GET /v1beta/models.
+// nano-banana IS Gemini 2.5 Flash Image, so those requests can be served
+// directly when Replicate is unavailable. Exported for unit tests.
+export const GEMINI_DIRECT_SLUGS: Record<string, string> = {
+  "google/gemini-2.5-flash-image": "gemini-2.5-flash-image",
+  "google/nano-banana": "gemini-2.5-flash-image",
+  "google/gemini-3.1-flash-image-preview": "gemini-3.1-flash-image-preview",
+  "google/gemini-3-pro-image-preview": "gemini-3-pro-image-preview",
+};
+export const GEMINI_DIRECT_DEFAULT_MODEL = "gemini-2.5-flash-image";
+/** Resolve a request's model key to a direct Gemini API model id, or null when
+ * this adapter must NOT serve it (e.g. seedream/flux requests — geminiDirect
+ * sits early in the image chain and would otherwise hijack them). A model-less
+ * image request gets the default flash-image model. */
+export function geminiDirectModelFor(model?: string | null): string | null {
+  if (!model) return GEMINI_DIRECT_DEFAULT_MODEL;
+  return GEMINI_DIRECT_SLUGS[model] ?? null;
+}
 const geminiDirect: ProviderAdapter = {
   name: "gemini",
-  supports: (r) => r.kind === "image" && !!process.env.GEMINI_API_KEY,
-  estimateCost: () => 0,
+  supports: (r) =>
+    r.kind === "image" && !!process.env.GEMINI_API_KEY && geminiDirectModelFor(r.model) !== null,
+  // Direct-API per-image price (flash-image family ≈ $0.039). Must NOT be 0:
+  // isFreeAdapter()/Free-GPU-only mode treat a $0 estimate as "free to run" —
+  // with paid Gemini billing enabled that would silently spend real money.
+  estimateCost: () => 0.039,
   async run(r) {
     const key = process.env.GEMINI_API_KEY!;
-    const model = "gemini-2.5-flash-image-preview";
+    const model = geminiDirectModelFor(r.model);
+    if (!model) throw new Error(`Gemini direct: unsupported model ${r.model}`);
     const parts: Array<Record<string, unknown>> = [{ text: r.prompt ?? "" }];
     for (const url of r.imageUrls ?? []) {
       try {
@@ -1736,10 +1797,12 @@ export type ModelEntry = {
 };
 export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
   const out: Record<string, ModelEntry> = {
-    // Lovable AI gateway (Gemini image)
-    "google/gemini-2.5-flash-image": { provider: "lovable", kind: "image", cost: 0.002 },
-    "google/gemini-3.1-flash-image-preview": { provider: "lovable", kind: "image", cost: 0.002 },
-    "google/gemini-3-pro-image-preview": { provider: "lovable", kind: "image", cost: 0.01 },
+    // Gemini image family — served by the direct Gemini API adapter (the
+    // Lovable gateway needs LOVABLE_API_KEY, which this app does not have).
+    // Costs are the direct-API per-image prices: flash ≈ $0.039, pro ≈ $0.24.
+    "google/gemini-2.5-flash-image": { provider: "gemini", kind: "image", cost: 0.039 },
+    "google/gemini-3.1-flash-image-preview": { provider: "gemini", kind: "image", cost: 0.039 },
+    "google/gemini-3-pro-image-preview": { provider: "gemini", kind: "image", cost: 0.24 },
     // Kling direct (JWT)
     "kling-v1": { provider: "kling", kind: "video", cost: 0.3 },
     // HeyGen lipsync
@@ -1840,7 +1903,11 @@ async function log(opts: {
 // a bounded, cheapest-first list of alternate same-kind models (all reachable on
 // the Replicate key). Capped so paid video generations never run away on cost.
 const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
-  image: ["pollinations/flux", "google/nano-banana", "replicate/flux-schnell", "fal-ai/seedream-4"],
+  // Identity-capable models FIRST: a Spin/reshoot batch that exhausts its
+  // requested model must fall to another model that honours imageUrls, not to
+  // identity-blind pollinations/flux (text-only → every face would change).
+  // Pollinations stays LAST as the free, faceless last resort.
+  image: ["google/nano-banana", "fal-ai/seedream-4", "replicate/flux-schnell", "pollinations/flux"],
   video: ["seedance-2.0-fast", "seedance-2.0", "wan-2.5", "kling-3.0", "veo-3-fast", "sora-2"],
   lipsync: ["fal-ai/sync-lipsync/v2", "fal-ai/wav2lip"],
   upscale: [],
@@ -1865,7 +1932,10 @@ const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   autocut: [],
 };
 const FALLBACK_CAP: Record<GenerateKind, number> = {
-  image: 4,
+  // Requested model + the full 4-model image list: identity-capable models are
+  // tried first and free identity-blind pollinations/flux must still fit as the
+  // final candidate (Free-GPU-only mode relies on reaching it).
+  image: 5,
   video: 2,
   lipsync: 2,
   upscale: 1,
