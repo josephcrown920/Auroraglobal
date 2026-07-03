@@ -56,3 +56,20 @@ export function isTrustedUrl(raw: string): boolean {
     return false;
   }
 }
+/**
+ * Photo-editor input guard: the URL must be a Supabase storage object in the
+ * `studio` bucket whose top-level folder is the caller's own user id — prevents
+ * editing (and re-hosting) other users' assets by URL. Runs the SSRF guard
+ * first so only trusted hosts ever reach the path check.
+ */
+export function assertOwnStudioUpload(raw: string, userId: string): void {
+  assertTrustedUrl(raw);
+  const u = new URL(raw);
+  const m = u.pathname.match(/\/storage\/v1\/object\/(?:sign|public)\/studio\/(.+)$/);
+  if (!m) throw new Error("Upload the photo to Aurora first, then edit it.");
+  // Reject traversal / re-encoding tricks outright — a `..` or a still-encoded
+  // slash/dot in the object path can only be an attempt to escape the folder.
+  if (/(?:^|\/)\.\.(?:\/|$)|%2f|%2e/i.test(m[1])) throw new Error("Invalid photo URL");
+  const owner = decodeURIComponent(m[1]).split("/")[0];
+  if (owner !== userId) throw new Error("Not your photo");
+}

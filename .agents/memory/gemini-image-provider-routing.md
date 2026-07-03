@@ -32,8 +32,3 @@ gemini slug map + fal identity-edit map + registry cost together, and verify the
 against the live models API first (slugs rot). Pollinations/flux candidates are
 identity-blind — keep them LAST in image fallbacks and keep the image candidate cap large
 enough that the free pollinations candidate still fits (Free-GPU-only mode must reach it).
-
-**Funding snapshot 2026-07-03 (blocks live QA until user tops up):** Replicate 402
-insufficient credit; fal 403 "User is locked. Exhausted balance"; Gemini key free-tier
-(images impossible); no LOVABLE_API_KEY. Face-ref for live tests: /tmp/ref_url.txt
-(signed URL, expires) — regenerate from the studio bucket if stale.

@@ -20,6 +20,7 @@ import { Route as SpeechRouteImport } from './routes/speech'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as RoadmapRouteImport } from './routes/roadmap'
 import { Route as ReshootRouteImport } from './routes/reshoot'
+import { Route as PhotoEditRouteImport } from './routes/photo-edit'
 import { Route as OrchestrateRouteImport } from './routes/orchestrate'
 import { Route as NexusarbRouteImport } from './routes/nexusarb'
 import { Route as MusicVideoRouteImport } from './routes/music-video'
@@ -121,6 +122,11 @@ const RoadmapRoute = RoadmapRouteImport.update({
 const ReshootRoute = ReshootRouteImport.update({
   id: '/reshoot',
   path: '/reshoot',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PhotoEditRoute = PhotoEditRouteImport.update({
+  id: '/photo-edit',
+  path: '/photo-edit',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrchestrateRoute = OrchestrateRouteImport.update({
@@ -389,6 +395,7 @@ export interface FileRoutesByFullPath {
   '/music-video': typeof MusicVideoRoute
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
+  '/photo-edit': typeof PhotoEditRoute
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -449,6 +456,7 @@ export interface FileRoutesByTo {
   '/music-video': typeof MusicVideoRoute
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
+  '/photo-edit': typeof PhotoEditRoute
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -510,6 +518,7 @@ export interface FileRoutesById {
   '/music-video': typeof MusicVideoRoute
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
+  '/photo-edit': typeof PhotoEditRoute
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -572,6 +581,7 @@ export interface FileRouteTypes {
     | '/music-video'
     | '/nexusarb'
     | '/orchestrate'
+    | '/photo-edit'
     | '/reshoot'
     | '/roadmap'
     | '/sitemap.xml'
@@ -632,6 +642,7 @@ export interface FileRouteTypes {
     | '/music-video'
     | '/nexusarb'
     | '/orchestrate'
+    | '/photo-edit'
     | '/reshoot'
     | '/roadmap'
     | '/sitemap.xml'
@@ -692,6 +703,7 @@ export interface FileRouteTypes {
     | '/music-video'
     | '/nexusarb'
     | '/orchestrate'
+    | '/photo-edit'
     | '/reshoot'
     | '/roadmap'
     | '/sitemap.xml'
@@ -753,6 +765,7 @@ export interface RootRouteChildren {
   MusicVideoRoute: typeof MusicVideoRoute
   NexusarbRoute: typeof NexusarbRoute
   OrchestrateRoute: typeof OrchestrateRoute
+  PhotoEditRoute: typeof PhotoEditRoute
   ReshootRoute: typeof ReshootRoute
   RoadmapRoute: typeof RoadmapRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -859,6 +872,13 @@ declare module '@tanstack/react-router' {
       path: '/reshoot'
       fullPath: '/reshoot'
       preLoaderRoute: typeof ReshootRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/photo-edit': {
+      id: '/photo-edit'
+      path: '/photo-edit'
+      fullPath: '/photo-edit'
+      preLoaderRoute: typeof PhotoEditRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/orchestrate': {
@@ -1238,6 +1258,7 @@ const rootRouteChildren: RootRouteChildren = {
   MusicVideoRoute: MusicVideoRoute,
   NexusarbRoute: NexusarbRoute,
   OrchestrateRoute: OrchestrateRoute,
+  PhotoEditRoute: PhotoEditRoute,
   ReshootRoute: ReshootRoute,
   RoadmapRoute: RoadmapRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,

@@ -92,6 +92,8 @@ const {
   GEMINI_DIRECT_SLUGS,
   GEMINI_DIRECT_DEFAULT_MODEL,
   FAL_IDENTITY_EDITS,
+  getCandidateModels,
+  EDIT_CAPABLE_IMAGE_MODELS,
 } = await import("./orchestrator.server");
 
 // ─── fetch + clock helpers (same pattern as orchestrator.server.test.ts) ───────
@@ -481,6 +483,90 @@ describe("fal identity-preserving fallback", () => {
     // generic flux/schnell path (text-to-image) would silently drop the face.
     expect(body.image_urls).toEqual(["https://example.com/face.jpg"]);
     expect(body.prompt).toContain("rooftop");
+  });
+});
+
+// ─── editStrict (photo editor) ─────────────────────────────────────────────────
+
+describe("editStrict (photo editor)", () => {
+  beforeEach(() => {
+    for (const k of ENV_KEYS) delete process.env[k];
+    for (const p of PROVIDER_NAMES) markSuccess(p);
+  });
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  it("filters the candidate list to edit-capable models only", () => {
+    const c = getCandidateModels({
+      kind: "image",
+      model: "google/nano-banana",
+      editStrict: true,
+    } as GenerateRequest);
+    expect(c[0]).toBe("google/nano-banana");
+    for (const m of c) expect(EDIT_CAPABLE_IMAGE_MODELS.has(m)).toBe(true);
+    // The text-to-image fallbacks would ignore the source photo — never eligible.
+    expect(c).not.toContain("fal-ai/seedream-4");
+    expect(c).not.toContain("replicate/flux-schnell");
+    expect(c).not.toContain("pollinations/flux");
+  });
+
+  it("leaves non-strict image requests untouched (t2i fallbacks still reachable)", () => {
+    const c = getCandidateModels({
+      kind: "image",
+      model: "google/nano-banana",
+    } as GenerateRequest);
+    expect(c).toContain("pollinations/flux");
+  });
+
+  it("every edit-capable model has a real edit route (fal edit, gemini direct, or replicate nano-banana-pro)", () => {
+    for (const m of EDIT_CAPABLE_IMAGE_MODELS) {
+      const routable =
+        Boolean(FAL_IDENTITY_EDITS[m]) ||
+        Boolean(GEMINI_DIRECT_SLUGS[m]) ||
+        m === "google/nano-banana-pro";
+      expect(routable).toBe(true);
+    }
+  });
+
+  it("dispatches a strict nano-banana edit to the fal edit endpoint with image_urls[]", async () => {
+    process.env.FAL_KEY = "fal-test";
+    const { calls } = installFetch(({ url }) => {
+      if (url.includes("fal.run/fal-ai/nano-banana/edit")) {
+        return fakeResponse({ json: { images: [{ url: "https://fal.media/edited.png" }] } });
+      }
+      return fakeResponse({ ok: false, status: 500, text: "unexpected fetch " + url });
+    });
+
+    const res = await orchestrate({
+      kind: "image",
+      model: "google/nano-banana",
+      editStrict: true,
+      prompt: "Edit the attached photo: make it golden hour.",
+      imageUrls: ["https://example.com/photo.jpg"],
+    } as GenerateRequest);
+
+    expect(res.url).toBe("https://fal.media/edited.png");
+    const falCall = calls.find((c) => c.url.includes("fal.run/fal-ai/nano-banana/edit"));
+    expect(falCall).toBeDefined();
+    const body = JSON.parse(String(falCall!.init?.body));
+    // The uploaded photo must arrive as the edit source, not a loose reference.
+    expect(body.image_urls).toEqual(["https://example.com/photo.jpg"]);
+  });
+
+  it("fails explicitly when no edit-capable candidate survives, instead of falling back to t2i", async () => {
+    // No provider keys at all → the only strict candidate (nano-banana) has no
+    // healthy adapter, and flux/pollinations must NOT be silently substituted.
+    installFetch(() => fakeResponse({ ok: false, status: 500, text: "no provider should be hit" }));
+    await expect(
+      orchestrate({
+        kind: "image",
+        model: "google/nano-banana",
+        editStrict: true,
+        prompt: "Edit the attached photo: remove the background.",
+        imageUrls: ["https://example.com/photo.jpg"],
+      } as GenerateRequest),
+    ).rejects.toThrow();
   });
 });
 
