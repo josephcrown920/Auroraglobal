@@ -1,0 +1,79 @@
+modules = ["nodejs-24", "python-3.11", "bun", "postgresql-16"]
+
+[deployment]
+router = "application"
+deploymentTarget = "autoscale"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "test"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "mcp-tests"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "\"$(available-pid2-node-paths | head -1)\" node_modules/vite/bin/vite.js dev --host 0.0.0.0 --port 8080"
+waitForPort = 8080
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow]]
+name = "test"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bun test src/"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "mcp-tests"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bun test src/lib/mcp"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[agent]
+stack = "PNPM_WORKSPACE"
+expertMode = true
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000
+
+[nix]
+channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+VITE_SUPABASE_URL = "https://tpzmvbczwahxajujvnrq.supabase.co"
+SUPABASE_URL = "https://tpzmvbczwahxajujvnrq.supabase.co"
+VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_SGO6FEm9zbgYEOsFqlSX8Q_dFVMJf4x"
+SUPABASE_PUBLISHABLE_KEY = "sb_publishable_SGO6FEm9zbgYEOsFqlSX8Q_dFVMJf4x"
+VITE_GTM_CONTAINER_ID = ""

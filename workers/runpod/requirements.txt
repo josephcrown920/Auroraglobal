@@ -1,0 +1,2 @@
+# RunPod-only extra (the shared HTTP layer comes from workers/requirements.txt).
+runpod>=1.6

@@ -1,0 +1,347 @@
+@import "tailwindcss" source(none);
+@import "tw-animate-css";
+@source "../src";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design system definition.
+ *
+ * The @theme inline block maps CSS custom properties to Tailwind utility
+ * classes (e.g. --color-primary -> bg-primary, text-primary).
+ *
+ * Two themes are defined:
+ *   :root                  — Dark (default): deep navy-black background, violet brand accent.
+ *                            Matches the reference Aurora app screenshot.
+ *   html[data-theme="light"] — Light: all-white background, dark text, same violet accent.
+ *
+ * The toggle in the sidebar sets `data-theme` on <html> and persists to localStorage.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/*
+ * Single-column presentation: disable every responsive breakpoint so the
+ * entire app always renders its base (mobile) layout regardless of the real
+ * viewport width. The single-column layout then stretches to fill the full
+ * screen on any device.
+ */
+@theme {
+  --breakpoint-sm: 9990px;
+  --breakpoint-md: 9991px;
+  --breakpoint-lg: 9992px;
+  --breakpoint-xl: 9993px;
+  --breakpoint-2xl: 9994px;
+}
+
+/* ── Dark theme (default) ──────────────────────────────────────────────────
+ * Deep navy-black background, violet brand accent — matches the reference
+ * Aurora app screenshot exactly.
+ */
+:root {
+  --radius: 0.625rem;
+  --aurora-phone-max: 440px;
+
+  --background: oklch(0.085 0.022 272);
+  --foreground: oklch(0.98 0 0);
+  --card: oklch(0.125 0.025 272);
+  --card-foreground: oklch(0.98 0 0);
+  --popover: oklch(0.125 0.025 272);
+  --popover-foreground: oklch(0.98 0 0);
+  --primary: oklch(0.72 0.2 300);
+  --primary-foreground: oklch(0.13 0.04 290);
+  --primary-glow: oklch(0.78 0.18 305);
+  --primary-deep: oklch(0.32 0.18 295);
+  --secondary: oklch(0.17 0.035 272);
+  --secondary-foreground: oklch(0.98 0 0);
+  --muted: oklch(0.16 0.03 272);
+  --muted-foreground: oklch(0.62 0.02 272);
+  --accent: oklch(0.20 0.05 280);
+  --accent-foreground: oklch(0.98 0 0);
+  --destructive: oklch(0.65 0.24 27);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.72 0.2 300);
+
+  --gradient-hero: linear-gradient(135deg, oklch(0.52 0.24 295), oklch(0.68 0.22 320));
+  --gradient-soft: linear-gradient(180deg, oklch(0.10 0.025 272), oklch(0.085 0.022 272));
+  --gradient-stage: radial-gradient(ellipse at 72% 28%, oklch(0.28 0.07 300 / 0.22), transparent 52%),
+                    radial-gradient(ellipse at 18% 78%, oklch(0.18 0.04 272 / 0.3), transparent 50%);
+  --shadow-glow: 0 20px 60px -20px oklch(0.52 0.24 295 / 0.45);
+  --shadow-soft: 0 8px 30px -10px oklch(0 0 0 / 0.5);
+  --shadow-elevated: 0 24px 60px -28px oklch(0 0 0 / 0.7), 0 2px 10px -6px oklch(0 0 0 / 0.55);
+  --shadow-glow-soft: 0 0 44px -16px oklch(0.78 0.18 305 / 0.5);
+  --surface-glass: oklch(1 0 0 / 4%);
+  --surface-glass-strong: oklch(1 0 0 / 7%);
+  --border-strong: oklch(1 0 0 / 16%);
+  --gradient-text: linear-gradient(120deg, oklch(0.98 0 0), oklch(0.82 0.16 315) 55%, oklch(0.72 0.2 300));
+
+  --chart-1: oklch(0.73 0.19 44);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+
+  --sidebar: oklch(0.10 0.025 272);
+  --sidebar-foreground: oklch(0.98 0 0);
+  --sidebar-primary: oklch(0.72 0.2 300);
+  --sidebar-primary-foreground: oklch(0.13 0.04 290);
+  --sidebar-accent: oklch(0.17 0.035 272);
+  --sidebar-accent-foreground: oklch(0.98 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.72 0.2 300);
+}
+
+/* ── Light theme ──────────────────────────────────────────────────────────
+ * All-white background, dark text, same violet accent.
+ * Applied when <html data-theme="light"> (set by the sidebar toggle).
+ */
+html[data-theme="light"] {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.12 0.02 272);
+  --card: oklch(0.97 0.005 272);
+  --card-foreground: oklch(0.12 0.02 272);
+  --popover: oklch(0.97 0.005 272);
+  --popover-foreground: oklch(0.12 0.02 272);
+  --primary: oklch(0.55 0.22 300);
+  --primary-foreground: oklch(0.99 0 0);
+  --primary-glow: oklch(0.66 0.19 305);
+  --primary-deep: oklch(0.30 0.16 295);
+  --secondary: oklch(0.94 0.008 272);
+  --secondary-foreground: oklch(0.15 0.02 272);
+  --muted: oklch(0.95 0.006 272);
+  --muted-foreground: oklch(0.46 0.02 272);
+  --accent: oklch(0.93 0.01 272);
+  --accent-foreground: oklch(0.15 0.02 272);
+  --destructive: oklch(0.56 0.24 27);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0 0 0 / 10%);
+  --input: oklch(0 0 0 / 10%);
+  --ring: oklch(0.55 0.22 300);
+
+  --gradient-hero: linear-gradient(135deg, oklch(0.52 0.24 295), oklch(0.62 0.22 315));
+  --gradient-soft: linear-gradient(180deg, oklch(0.99 0 0), oklch(0.97 0.005 272));
+  --gradient-stage: none;
+  --shadow-glow: 0 20px 60px -20px oklch(0.52 0.24 295 / 0.25);
+  --shadow-soft: 0 8px 30px -10px oklch(0 0 0 / 0.1);
+  --shadow-elevated: 0 24px 60px -28px oklch(0 0 0 / 0.1), 0 2px 10px -6px oklch(0 0 0 / 0.07);
+  --shadow-glow-soft: 0 0 44px -16px oklch(0.66 0.19 305 / 0.3);
+  --surface-glass: oklch(0 0 0 / 3%);
+  --surface-glass-strong: oklch(0 0 0 / 6%);
+  --border-strong: oklch(0 0 0 / 15%);
+  --gradient-text: linear-gradient(120deg, oklch(0.12 0.02 272), oklch(0.42 0.16 305) 55%, oklch(0.55 0.22 300));
+
+  --chart-1: oklch(0.64 0.19 44);
+  --chart-2: oklch(0.5 0.118 184.704);
+  --chart-3: oklch(0.35 0.07 227.392);
+  --chart-4: oklch(0.70 0.189 84.429);
+  --chart-5: oklch(0.65 0.188 70.08);
+
+  --sidebar: oklch(0.97 0.005 272);
+  --sidebar-foreground: oklch(0.12 0.02 272);
+  --sidebar-primary: oklch(0.55 0.22 300);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.93 0.01 272);
+  --sidebar-accent-foreground: oklch(0.15 0.02 272);
+  --sidebar-border: oklch(0 0 0 / 10%);
+  --sidebar-ring: oklch(0.55 0.22 300);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+  }
+
+  html {
+    overflow-x: hidden;
+  }
+}
+
+@keyframes mc-bar {
+  0%   { transform: scaleY(0.35); opacity: 0.55; }
+  100% { transform: scaleY(1);    opacity: 1; }
+}
+@keyframes mc-scan {
+  0%   { transform: translateY(-40px); opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateY(40px); opacity: 0; }
+}
+@keyframes mc-pulse {
+  0%, 100% { transform: scale(0.85); opacity: 0.55; }
+  50%      { transform: scale(1.1);  opacity: 1; }
+}
+@keyframes tt-marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* ── Full-screen chrome helpers ──────────────────────────────────────────
+ * The app fills the whole viewport on any device. These helpers anchor
+ * viewport-fixed chrome (nav, drawer, floating buttons, side panels) to the
+ * screen edges so they span / sit against the real viewport. Defined outside
+ * @layer so they win over Tailwind position/size utilities.
+ */
+.phone-fixed-x {
+  left: 0;
+  right: 0;
+  width: 100%;
+}
+.phone-edge-left {
+  left: 0.75rem;
+}
+.phone-edge-right {
+  right: 1.25rem;
+}
+.phone-drawer-left {
+  left: 0;
+  width: 18rem;
+  max-width: 80vw;
+}
+.phone-panel-col {
+  left: 0;
+  width: 100%;
+  max-width: 28rem;
+}
+
+/* ── Premium shared design language ──────────────────────────────────────
+ * Opt-in utility classes applied consistently across the sidebar/menu,
+ * landing, and every tool page so the whole app reads as one high-end
+ * system. Authored in the components layer so Tailwind utilities can still
+ * override individual properties when a surface needs a bespoke tweak.
+ */
+@layer components {
+  .aurora-page-shell {
+    position: relative;
+    min-height: 100vh;
+    background: var(--gradient-soft);
+  }
+  .aurora-ambient {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: var(--gradient-stage);
+  }
+  /* Hide the ambient glow entirely in light mode */
+  html[data-theme="light"] .aurora-ambient {
+    display: none;
+  }
+  .aurora-glass {
+    background: var(--surface-glass);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .aurora-glass-strong {
+    background: var(--surface-glass-strong);
+    border: 1px solid var(--border-strong);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+  .aurora-card {
+    background: var(--surface-glass);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .aurora-card-hover {
+    transition:
+      transform 0.25s ease,
+      box-shadow 0.25s ease,
+      border-color 0.25s ease;
+  }
+  .aurora-card-hover:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-elevated);
+  }
+  .aurora-panel {
+    background: var(--surface-glass);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-elevated);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+  .aurora-hairline {
+    border: 1px solid var(--border);
+  }
+  .aurora-elevated {
+    box-shadow: var(--shadow-elevated);
+  }
+  .aurora-glow-ring {
+    box-shadow: var(--shadow-glow-soft);
+  }
+  .aurora-kicker {
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: 0.65rem;
+    line-height: 1;
+    font-weight: 600;
+    color: var(--primary-glow);
+  }
+  .aurora-gradient-text {
+    background: var(--gradient-text);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .aurora-focus-ring:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--ring);
+  }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}

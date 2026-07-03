@@ -1,0 +1,69 @@
+name: Publish CLI to npm
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "cli/package.json"
+      - "cli/bin/**"
+      - ".github/workflows/publish-cli.yml"
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Read CLI version
+        id: version
+        run: |
+          VERSION=$(jq -r .version cli/package.json)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check if version already published
+        id: check
+        run: |
+          NAME=$(jq -r .name cli/package.json)
+          VERSION=${{ steps.version.outputs.version }}
+          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "$NAME@$VERSION already on npm — skipping publish."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to npm
+        if: steps.check.outputs.exists == 'false'
+        working-directory: cli
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        if: steps.check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "cli-v${{ steps.version.outputs.version }}"
+          name: "Aurora CLI v${{ steps.version.outputs.version }}"
+          body: |
+            Aurora Studio CLI v${{ steps.version.outputs.version }} published to npm.
+
+            Install:
+            ```sh
+            npm i -g aurora-studio
+            aurora login
+            aurora generate --prompt "your idea here"
+            ```
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

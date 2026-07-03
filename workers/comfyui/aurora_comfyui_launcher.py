@@ -1,0 +1,379 @@
+"""
+Aurora ComfyUI swarm worker — free-GPU launcher (Kaggle + Colab).
+
+Runs **stock ComfyUI** as an Aurora backend behind a stable ngrok tunnel and
+**registers itself** as `protocol=comfyui` on boot, so a free Kaggle/Colab GPU
+auto-joins the orchestrator with zero Admin → Workers edits. Aurora ships the
+prompt graph for every job (SDXL image, SVD/AnimateDiff video, LatentSync
+lip-sync, MimicMotion motion) — this worker just needs the matching custom nodes
+and model weights installed (see workers/comfyui/*.workflow.json for the exact
+node class names Aurora patches against).
+
+Run it in ONE cell with **GPU ON** + **Internet ON**:
+  - Kaggle: paste this file into a cell (secrets via Add-ons → Secrets), or import
+    the companion notebook, then Run All.
+  - Colab: paste into a cell; set secrets via the 🔑 panel (google.colab.userdata)
+    or `os.environ[...]` at the top of the cell, then run.
+
+Secrets / env it reads (Kaggle Secrets, Colab userdata, or plain env vars):
+  NGROK_AUTHTOKEN       ngrok account token (dashboard.ngrok.com)
+  NGROK_STATIC_DOMAIN   free static domain, e.g. "foo-bar.ngrok-free.app"
+                        (claim one at dashboard.ngrok.com/domains) — keeps the
+                        registered endpoint stable across restarts.
+  AURORA_URL            your Aurora base URL, e.g. "https://your-app.replit.app"
+  AURORA_REGISTER_KEY   Supabase anon/publishable key (the register `apikey`);
+                        NEVER the service-role key.
+  AURORA_WORKER_NAME    (optional) row name in Admin → Workers.
+  AURORA_CAPABILITIES   (optional) comma list to force which caps to serve, e.g.
+                        "image,video". Default is chosen from detected VRAM:
+                        <20 GB → "image,lipsync"; ≥20 GB → "image,video,lipsync,motion".
+                        A cap is only ADVERTISED if its model weights are actually
+                        present after setup — Aurora never routes a job we can't run.
+"""
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+import time
+import urllib.request
+
+# ── Platform + paths ──────────────────────────────────────────────────────────
+# Kaggle writes to /kaggle/working; Colab/local use the CWD. ComfyUI is cloned in.
+ROOT = "/kaggle/working" if os.path.isdir("/kaggle/working") else os.getcwd()
+COMFY_DIR = os.path.join(ROOT, "ComfyUI")
+PORT = 8188
+
+CONFIG_KEYS = [
+    "NGROK_AUTHTOKEN",
+    "NGROK_STATIC_DOMAIN",
+    "AURORA_URL",
+    "AURORA_REGISTER_KEY",
+    "AURORA_WORKER_NAME",
+    "AURORA_CAPABILITIES",
+]
+
+# Custom-node packs that provide the class names our default graphs reference.
+# Core nodes (KSampler, CheckpointLoaderSimple, SVD_img2vid_Conditioning, …) ship
+# with ComfyUI itself, so only the non-core packs are listed per capability.
+CAP_NODE_PACKS = {
+    "image": [],  # SDXL uses only core nodes.
+    "video": [
+        "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite",  # VHS_VideoCombine
+        "https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved",  # ADE_AnimateDiffLoaderGen1
+        "https://github.com/sipherxyz/comfyui-art-venture",  # LoadImageFromUrl (SVD i2v)
+    ],
+    "lipsync": [
+        "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite",  # VideoCombine / Load*FromUrl
+        "https://github.com/ShmuelRonen/ComfyUI-LatentSyncWrapper",  # LatentSyncSampler
+        "https://github.com/sipherxyz/comfyui-art-venture",  # LoadAudioFromUrl / LoadVideoFromUrl
+    ],
+    "motion": [
+        "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite",
+        "https://github.com/AIWarper/ComfyUI-MimicMotionWrapper",  # MimicMotionSampler
+        "https://github.com/sipherxyz/comfyui-art-venture",
+    ],
+}
+
+# Model weights each capability needs, as (dest_rel_path, hf_repo, hf_file). After
+# setup we ADVERTISE a capability only if ALL its dest files exist on disk, so a
+# missing/oversized download fails closed (Aurora won't route there) instead of
+# erroring mid-job. lipsync/motion wrapper weights are large and pack-specific —
+# the packs above self-download most on first run; we verify presence below.
+CAP_MODELS = {
+    "image": [
+        ("models/checkpoints/sd_xl_base_1.0.safetensors",
+         "stabilityai/stable-diffusion-xl-base-1.0", "sd_xl_base_1.0.safetensors"),
+    ],
+    "video": [
+        # Filename MUST match the SVD graph's ckpt_name (svd-image-to-video.workflow.json).
+        ("models/checkpoints/svd_xt_1_1.safetensors",
+         "stabilityai/stable-video-diffusion-img2vid-xt-1-1", "svd_xt_1_1.safetensors"),
+        ("models/checkpoints/v1-5-pruned-emaonly.safetensors",
+         "Comfy-Org/stable-diffusion-v1-5-archive", "v1-5-pruned-emaonly-fp16.safetensors"),
+        ("models/animatediff_models/mm_sd_v15_v2.ckpt",
+         "guoyww/animatediff", "mm_sd_v15_v2.ckpt"),
+    ],
+    # lipsync/motion model weights live inside their wrapper packs (self-downloaded
+    # on first graph run); these caps are gated on their node classes (see
+    # CAP_NODE_CLASSES + /object_info) rather than a single weights file.
+    "lipsync": [],
+    "motion": [],
+}
+
+# Custom node classes each default graph references (workers/comfyui/*.json). Core
+# nodes (KSampler, CheckpointLoaderSimple, SVD_img2vid_Conditioning, EmptyLatentImage,
+# VAEDecode, CLIPTextEncode, SaveImage, …) ship with ComfyUI, so are not listed. A
+# cap is advertised only when every class below is present in ComfyUI's loaded set.
+CAP_NODE_CLASSES = {
+    "image": [],
+    "video": ["VHS_VideoCombine", "ADE_AnimateDiffLoaderGen1", "LoadImageFromUrl"],
+    "lipsync": ["LatentSyncSampler", "LoadVideoFromUrl", "LoadAudioFromUrl", "VideoCombine", "SaveVideo"],
+    "motion": ["MimicMotionSampler", "LoadImageFromUrl", "LoadVideoFromUrl", "VideoCombine", "SaveVideo"],
+}
+
+
+def sh(cmd: str, cwd: str | None = None, check: bool = True):
+    print(f"$ {cmd}", flush=True)
+    subprocess.run(cmd, shell=True, check=check, cwd=cwd)
+
+
+def load_secrets():
+    """Mirror Kaggle Secrets / Colab userdata into os.environ (no-op when absent).
+
+    An explicit env var always wins, so you can override any single value inline.
+    """
+    # Kaggle: Secrets are NOT env vars — read them via UserSecretsClient.
+    try:
+        from kaggle_secrets import UserSecretsClient  # type: ignore
+
+        client = UserSecretsClient()
+        for key in CONFIG_KEYS:
+            if os.environ.get(key):
+                continue
+            try:
+                val = client.get_secret(key)
+            except Exception:
+                val = None
+            if val:
+                os.environ[key] = val.strip()
+    except Exception:
+        pass
+    # Colab: secrets live in google.colab.userdata.
+    try:
+        from google.colab import userdata  # type: ignore
+
+        for key in CONFIG_KEYS:
+            if os.environ.get(key):
+                continue
+            try:
+                val = userdata.get(key)
+            except Exception:
+                val = None
+            if val:
+                os.environ[key] = val.strip()
+    except Exception:
+        pass
+
+
+def detect_vram_gb() -> float:
+    """Best-effort GPU VRAM in GB (0.0 if torch/CUDA is unavailable)."""
+    try:
+        import torch  # type: ignore
+
+        if not torch.cuda.is_available():
+            return 0.0
+        return torch.cuda.get_device_properties(0).total_memory / (1024**3)
+    except Exception:
+        return 0.0
+
+
+def requested_caps() -> list[str]:
+    """Caps the operator asked for, or a VRAM-appropriate default.
+
+    Kaggle/Colab free cards are ~16 GB → image + lipsync fit. Video (SVD/AnimateDiff)
+    and motion (MimicMotion) want ≥20–24 GB, so they're only defaulted on a big card.
+    """
+    override = os.environ.get("AURORA_CAPABILITIES", "").strip()
+    if override:
+        return [c.strip() for c in override.split(",") if c.strip()]
+    vram = detect_vram_gb()
+    print(f"[caps] detected ~{vram:.0f} GB VRAM", flush=True)
+    if vram >= 20:
+        return ["image", "video", "lipsync", "motion"]
+    return ["image", "lipsync"]
+
+
+def install_comfyui():
+    sh("pip install -q requests pyngrok 'huggingface_hub[cli]'")
+    if not os.path.isdir(COMFY_DIR):
+        sh(f"git clone --depth 1 https://github.com/comfyanonymous/ComfyUI '{COMFY_DIR}'")
+    sh("pip install -q -r requirements.txt", cwd=COMFY_DIR)
+
+
+def install_node_packs(caps: list[str]):
+    nodes_dir = os.path.join(COMFY_DIR, "custom_nodes")
+    os.makedirs(nodes_dir, exist_ok=True)
+    seen: set[str] = set()
+    for cap in caps:
+        for repo in CAP_NODE_PACKS.get(cap, []):
+            if repo in seen:
+                continue
+            seen.add(repo)
+            name = repo.rstrip("/").split("/")[-1]
+            dest = os.path.join(nodes_dir, name)
+            if os.path.isdir(dest):
+                continue
+            # Best-effort: a flaky third-party clone must not abort the whole boot.
+            sh(f"git clone --depth 1 {repo} '{dest}'", check=False)
+            req = os.path.join(dest, "requirements.txt")
+            if os.path.exists(req):
+                sh(f"pip install -q -r '{req}'", check=False)
+
+
+def download_models(caps: list[str]):
+    from huggingface_hub import hf_hub_download  # type: ignore
+
+    for cap in caps:
+        for dest_rel, repo, fname in CAP_MODELS.get(cap, []):
+            dest = os.path.join(COMFY_DIR, dest_rel)
+            if os.path.exists(dest):
+                continue
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            try:
+                cached = hf_hub_download(repo_id=repo, filename=fname)
+                shutil.copy(cached, dest)  # copy under the exact name our graph expects
+                print(f"[models] {cap}: {dest_rel} ready", flush=True)
+            except Exception as e:
+                print(f"[models] {cap}: could not fetch {repo}/{fname}: {e}", flush=True)
+
+
+def fetch_node_classes() -> set[str]:
+    """Class names ComfyUI actually loaded (keys of GET /object_info).
+
+    Used to fail closed: a cap is advertised only if every custom node its default
+    graph references is genuinely loaded — not merely if a pack directory cloned (a
+    pack can clone yet fail to import due to a missing dependency).
+    """
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/object_info", timeout=60) as r:
+            return set(json.loads(r.read().decode()).keys())
+    except Exception as e:  # noqa: BLE001 — any failure means "treat as no custom nodes".
+        print(f"[caps] could not read /object_info ({e}); assuming no custom nodes.", flush=True)
+        return set()
+
+
+def servable_caps(caps: list[str], available_classes: set[str]) -> list[str]:
+    """Keep only caps whose model files AND required node classes are present.
+
+    Fail closed: advertising a cap we can't serve would let Aurora route a job that
+    errors. Model files are checked on disk; node classes against ComfyUI's loaded
+    set (/object_info), matching the exact class names in workers/comfyui/*.json.
+    """
+    ok: list[str] = []
+    for cap in caps:
+        missing_models = [
+            rel for rel, _, _ in CAP_MODELS.get(cap, [])
+            if not os.path.exists(os.path.join(COMFY_DIR, rel))
+        ]
+        missing_nodes = [c for c in CAP_NODE_CLASSES.get(cap, []) if c not in available_classes]
+        if missing_models:
+            print(f"[caps] dropping '{cap}' — missing weights: {missing_models}", flush=True)
+            continue
+        if missing_nodes:
+            print(f"[caps] dropping '{cap}' — missing nodes: {missing_nodes}", flush=True)
+            continue
+        ok.append(cap)
+    return ok
+
+
+def start_comfyui() -> subprocess.Popen:
+    return subprocess.Popen(
+        [sys.executable, "main.py", "--listen", "0.0.0.0", "--port", str(PORT)],
+        cwd=COMFY_DIR,
+    )
+
+
+def wait_healthy(proc: subprocess.Popen, attempts: int = 90) -> bool:
+    """Gate on ComfyUI's /system_stats — the same probe Aurora's health check uses.
+
+    Refuse to tunnel/register a dead server (that would mark a broken worker Active).
+    """
+    for _ in range(attempts):
+        if proc.poll() is not None:
+            raise SystemExit(f"[serve] ComfyUI exited early (code {proc.returncode}); see logs above.")
+        try:
+            urllib.request.urlopen(f"http://127.0.0.1:{PORT}/system_stats", timeout=2)
+            return True
+        except Exception:
+            time.sleep(2)
+    return False
+
+
+def open_tunnel() -> str:
+    from pyngrok import ngrok  # type: ignore
+
+    token = os.environ.get("NGROK_AUTHTOKEN")
+    if token:
+        ngrok.set_auth_token(token)
+    domain = os.environ.get("NGROK_STATIC_DOMAIN", "").strip()
+    host = domain.replace("https://", "").replace("http://", "").rstrip("/")
+    if host:
+        ngrok.connect(addr=str(PORT), domain=host)  # pin the free static domain
+        return f"https://{host}"
+    public = ngrok.connect(PORT).public_url
+    print("[ngrok] NGROK_STATIC_DOMAIN not set — URL changes each restart; "
+          "claim a free static domain for zero-touch reconnects.", flush=True)
+    return public
+
+
+def register(public_url: str, caps: list[str]) -> bool:
+    """Upsert this worker as protocol=comfyui via /api/public/workers/register.
+
+    Auth = Supabase anon key in the `apikey` header (same as health/jobs-tick). The
+    endpoint base (…:8188 origin) is enough — Aurora appends /prompt, /history, /view
+    itself (normalizeWorkerBase de-dupes bare-origin vs full-path registrations).
+    Never raises: a registration miss must not stop the worker from serving.
+    """
+    aurora_url = os.environ.get("AURORA_URL", "").strip().rstrip("/")
+    register_key = os.environ.get("AURORA_REGISTER_KEY", "").strip()
+    if not (aurora_url and register_key):
+        print("[register] skipped — set AURORA_URL + AURORA_REGISTER_KEY to auto-register "
+              "(worker still serves jobs; add the URL in Admin → Workers).", flush=True)
+        return False
+    payload = {
+        "name": os.environ.get("AURORA_WORKER_NAME") or "comfyui-free-gpu",
+        "endpoint_url": public_url,
+        "protocol": "comfyui",
+        "capabilities": caps,
+    }
+    body = json.dumps(payload).encode()
+    req = urllib.request.Request(
+        f"{aurora_url}/api/public/workers/register",
+        data=body,
+        headers={"apikey": register_key, "content-type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            print(f"[register] OK — {public_url} registered (caps={','.join(caps)}).", flush=True)
+            return 200 <= r.status < 300
+    except Exception as e:
+        print(f"[register] failed (worker still serving): {e}", flush=True)
+        return False
+
+
+def main():
+    load_secrets()
+    caps = requested_caps()
+    print(f"[boot] requested caps: {caps}", flush=True)
+    install_comfyui()
+    install_node_packs(caps)
+    download_models(caps)
+
+    proc = start_comfyui()
+    if not wait_healthy(proc):
+        proc.terminate()
+        raise SystemExit("[serve] ComfyUI never became healthy on /system_stats — not registering.")
+
+    # Advertise only caps ComfyUI can truly serve: weights on disk AND the graph's
+    # custom nodes actually loaded (checked against /object_info). Fail closed.
+    caps = servable_caps(caps, fetch_node_classes())
+    if not caps:
+        proc.terminate()
+        raise SystemExit("[boot] no servable capabilities after setup — check the logs above.")
+
+    public_url = open_tunnel()
+    register(public_url, caps)
+
+    print("\n" + "=" * 64)
+    print(f"ComfyUI worker live (protocol=comfyui, caps={','.join(caps)}):")
+    print(f"  Endpoint: {public_url}  (Aurora sends the prompt graph)")
+    print("  Keep this cell running; on restart re-run it to re-register the same row.")
+    print("=" * 64 + "\n", flush=True)
+    proc.wait()
+
+
+if __name__ == "__main__":
+    main()

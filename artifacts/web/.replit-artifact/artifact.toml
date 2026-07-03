@@ -1,0 +1,25 @@
+kind = "web"
+previewPath = "/"
+title = "Aurora"
+version = "1.0.0"
+id = "artifacts/web"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 8080
+
+[services.development]
+run = '"$(available-pid2-node-paths | head -1)" node_modules/vite/bin/vite.js dev --host 0.0.0.0 --port 8080'
+
+[services.production]
+build = [ "bash", "-c", "NODE_OPTIONS=--max-old-space-size=4096 exec bash scripts/replit-node.sh node_modules/vite/bin/vite.js build" ]
+run = [ "bash", "scripts/replit-node.sh", ".output/server/index.mjs" ]
+
+[services.env]
+BASE_PATH = "/"

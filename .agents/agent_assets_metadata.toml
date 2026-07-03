@@ -1,0 +1,181 @@
+uploads = []
+
+[[generated]]
+id = "jl9tGkiP0L2YgEkKtmA1A"
+uri = "file://src/assets/feed/generated/still-neon.png"
+type = "image"
+title = "creator neon closeup"
+
+[[generated]]
+id = "vs7s6Ie-Ht3pcI_8qWxnV"
+uri = "file://src/assets/feed/generated/still-stage.png"
+type = "image"
+title = "creator stage mic"
+
+[[generated]]
+id = "i-v10otugSFmdfsVc64DQ"
+uri = "file://src/assets/feed/generated/still-rooftop.png"
+type = "image"
+title = "creator rooftop sunset"
+
+[[generated]]
+id = "Bgi6wmf9Epd0bND8nytD3"
+uri = "file://src/assets/feed/generated/still-street.png"
+type = "image"
+title = "creator street mural"
+
+[[generated]]
+id = "dqCtPjPxCSNewrdfV6i3S"
+uri = "file://src/assets/colors-studios/studio-royal-blue.png"
+type = "image"
+title = "royal blue studio"
+
+[[generated]]
+id = "RCLSshzKPHZ95ftpPPz5p"
+uri = "file://src/assets/colors-studios/studio-hot-pink.png"
+type = "image"
+title = "hot-pink studio"
+
+[[generated]]
+id = "k4C-8uKC_CCcfj9rdVf_M"
+uri = "file://src/assets/colors-studios/studio-neon-green.png"
+type = "image"
+title = "neon-green studio"
+
+[[generated]]
+id = "NVZeoY1w3AYz12ls7cyI9"
+uri = "file://src/assets/colors-studios/studio-sunset-orange.png"
+type = "image"
+title = "sunset-orange studio"
+
+[[generated]]
+id = "IRnauHUcTdbXwrHCizXOF"
+uri = "file://src/assets/colors-studios/studio-electric-purple.png"
+type = "image"
+title = "electric-purple studio"
+
+[[generated]]
+id = "8Ry0cSB8vXUS7WkbuQo43"
+uri = "file://src/assets/colors-studios/studio-cyber-yellow.png"
+type = "image"
+title = "cyber-yellow studio"
+
+[[generated]]
+id = "u2bMzBA_GxVlyPA1UT4yL"
+uri = "file://src/assets/colors-studios/studio-crimson-red.png"
+type = "image"
+title = "crimson-red studio"
+
+[[generated]]
+id = "JWSNWbGCGNicBvGFv8X-Q"
+uri = "file://src/assets/colors-studios/studio-ice-white.png"
+type = "image"
+title = "ice-white studio"
+
+[[generated]]
+id = "HBnnDlGCj_tZNcpXAO1Se"
+uri = "file://src/assets/colors-studios/studio-obsidian.png"
+type = "image"
+title = "obsidian studio"
+
+[[generated]]
+id = "ByBTtLMayCCAnKNMiRBLZ"
+uri = "file://src/assets/colors-studios/studio-aqua.png"
+type = "image"
+title = "aqua studio"
+
+[[generated]]
+id = "2TLnQnt4Fq3qOIh6ckRzI"
+uri = "file://src/assets/colors-studios/studio-rose-gold.png"
+type = "image"
+title = "rose-gold studio"
+
+[[generated]]
+id = "a1VKaVP0PtR8Ii9ECJWyo"
+uri = "file://src/assets/colors-studios/studio-lime-pop.png"
+type = "image"
+title = "lime-pop studio"
+
+[[generated]]
+id = "Lr9bv9nRmD3GF3lt708WX"
+uri = "file://src/assets/colors-studios/scenes/indoor-bedroom.png"
+type = "image"
+title = "luxe bedroom suite set"
+
+[[generated]]
+id = "oSCMl1yT2MyNRuh0MJN0o"
+uri = "file://src/assets/colors-studios/scenes/indoor-kitchen.png"
+type = "image"
+title = "modern kitchen set"
+
+[[generated]]
+id = "7x8rMtODP2E2Zs2QFbSwd"
+uri = "file://src/assets/colors-studios/scenes/indoor-lounge.png"
+type = "image"
+title = "velvet lounge set"
+
+[[generated]]
+id = "xalKn-BF4RjE-Q0z7U1wy"
+uri = "file://src/assets/colors-studios/scenes/rooftop.png"
+type = "image"
+title = "golden hour rooftop set"
+
+[[generated]]
+id = "WGENZ3RqtZCkPUB6MvwDP"
+uri = "file://src/assets/colors-studios/scenes/rooftop-night.png"
+type = "image"
+title = "night rooftop set"
+
+[[generated]]
+id = "fMFO9jOkz_FVLAX8Nlr8Z"
+uri = "file://src/assets/colors-studios/scenes/neon-street.png"
+type = "image"
+title = "wet neon street set"
+
+[[generated]]
+id = "tjJnrf1aZXOywqtxiuLaL"
+uri = "file://src/assets/colors-studios/scenes/alley.png"
+type = "image"
+title = "noir alley set"
+
+[[outputs]]
+id = "uuVDpq4W7VbbIZdWQslyD"
+uri = "file://notebooks/hybrid_ai_inference_colab.zip"
+type = "unspecified"
+title = "Hybrid AI Inference Engine — Colab Notebook (.ipynb in zip)"
+
+[[outputs]]
+id = "tWPBmCjqHr_TffepxKXGn"
+uri = "file://attached_assets/image_search/option_A_slide_out_drawer.png"
+type = "image"
+title = "Option A — Slide-out drawer (hamburger menu): hidden until you tap the menu icon, then slides in over the page"
+
+[[outputs]]
+id = "HdmGqLeVOXApEQMpERxk2"
+uri = "file://attached_assets/image_search/option_B_bottom_tab_bar.png"
+type = "image"
+title = "Option B — Bottom tab bar: always visible along the bottom for one-tap switching between top features"
+
+[[outputs]]
+id = "3AxZfX3GBZ7wgTegDjjKt"
+uri = "file://.local/tasks/avatar-video-master-workflow.md"
+type = "text"
+title = "Talking-Avatar Master Workflow"
+
+[[outputs]]
+id = "B7PyI_1fKZSUcNxrwjGHn"
+uri = "file://.local/tasks/talking-avatar-master-workflow-full.md"
+type = "text"
+title = "Talking-Avatar Master Workflow (Full Edition)"
+
+[[outputs]]
+id = "8k9BKlx6R-DgrRqTn12Gj"
+uri = "file://.local/tasks/self-hosting-gpu-guide.md"
+type = "text"
+title = "Self-Hosting the GPU Layer"
+
+[[outputs]]
+id = "hj6aIWrHLarzCZyOV25rb"
+uri = "file://aurora_worker_kaggle.tar.gz"
+type = "unspecified"
+title = "Aurora Kaggle Worker Notebook (.ipynb)"
