@@ -42,6 +42,50 @@ const KIND_META: Record<Kind, { label: string; icon: typeof ImageIcon; accent: s
   audio: { label: "Speech", icon: Mic, accent: "text-emerald-400" },
 };
 
+// ─── Billing bucket classification (mirrors classifyBillingBucket on the
+// server) — used to badge providers/log rows by who actually gets billed:
+// Replit AI Integrations credits, the owner's self-hosted GPU pool, or a
+// paid external provider (Replicate, fal, ElevenLabs…).
+type BillingBucket = "replit" | "gpu" | "paid";
+function classifyBilling(provider: string): BillingBucket {
+  if (provider.startsWith("replit-") || provider.startsWith("replit/")) return "replit";
+  if (provider === "runpod") return "gpu";
+  return "paid";
+}
+
+const BILLING_META: Record<
+  BillingBucket,
+  { label: string; badgeClass: string; textClass: string }
+> = {
+  replit: {
+    label: "Replit credits",
+    badgeClass: "bg-violet-500/10 text-violet-400 border-violet-500/20",
+    textClass: "text-violet-400",
+  },
+  gpu: {
+    label: "GPU worker",
+    badgeClass: "bg-sky-500/10 text-sky-400 border-sky-500/20",
+    textClass: "text-sky-400",
+  },
+  paid: {
+    label: "Paid provider",
+    badgeClass: "bg-muted/40 text-muted-foreground border-border",
+    textClass: "text-muted-foreground",
+  },
+};
+
+function BillingBadge({ provider }: { provider: string }) {
+  const bucket = classifyBilling(provider);
+  const meta = BILLING_META[bucket];
+  return (
+    <span
+      className={`text-[9px] font-mono px-1.5 py-0.5 rounded border shrink-0 ${meta.badgeClass}`}
+    >
+      {meta.label}
+    </span>
+  );
+}
+
 function OrchestrationDashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -111,6 +155,35 @@ function OrchestrationDashboard() {
 
         {data && (
           <>
+            {/* Replit credits vs. GPU vs. paid-external rollup (24h) */}
+            <div className="grid sm:grid-cols-3 gap-4 mb-8">
+              {(["replit", "gpu", "paid"] as const).map((bucket) => {
+                const meta = BILLING_META[bucket];
+                const b = data.billingSummary?.[bucket] ?? { ok: 0, err: 0, cost: 0 };
+                const total = b.ok + b.err;
+                return (
+                  <div key={bucket} className="rounded-xl border border-border bg-card/40 p-5">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`text-sm font-semibold ${meta.textClass}`}>
+                        {meta.label}
+                      </span>
+                      <span
+                        className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${meta.badgeClass}`}
+                      >
+                        24h
+                      </span>
+                    </div>
+                    <div className="text-2xl font-semibold tabular-nums">{total}</div>
+                    <div className="text-[11px] text-muted-foreground mt-1 flex items-center gap-3">
+                      <span className="text-emerald-400">{b.ok} ok</span>
+                      {b.err > 0 && <span className="text-destructive">{b.err} failed</span>}
+                      <span className="ml-auto tabular-nums">${b.cost.toFixed(3)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
             {/* Fallback chains per kind */}
             <div className="grid md:grid-cols-2 gap-4 mb-8">
               {kinds.map((k) => {
@@ -135,8 +208,9 @@ function OrchestrationDashboard() {
                           <div key={p.id} className="flex items-center gap-3 text-xs">
                             <span className="font-mono text-muted-foreground w-7">P{i + 1}</span>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-medium">{p.name}</span>
+                                <BillingBadge provider={p.id} />
                                 {p.free && (
                                   <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                                     FREE
@@ -307,7 +381,12 @@ function OrchestrationDashboard() {
                       <XCircle className="size-3 text-destructive shrink-0" />
                     )}
                     <span className="text-muted-foreground w-16 shrink-0">{l.kind}</span>
-                    <span className="text-foreground w-28 shrink-0 truncate">{l.provider}</span>
+                    <span
+                      className={`w-28 shrink-0 truncate ${BILLING_META[classifyBilling(l.provider)].textClass}`}
+                    >
+                      {l.provider}
+                    </span>
+                    <BillingBadge provider={l.provider} />
                     <span className="text-muted-foreground flex-1 truncate">{l.endpoint}</span>
                     <span className="text-muted-foreground tabular-nums w-16 text-right">
                       {l.latency_ms}ms

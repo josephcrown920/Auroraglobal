@@ -22,6 +22,18 @@ type ProviderRow = {
   notes?: string;
 };
 
+// ─── Billing bucket classification ────────────────────────────────────────
+// Mirrors the orchestrator's own routing: "replit-*" adapters bill the
+// owner's Replit AI Integrations credits, "runpod" is the self-hosted GPU
+// worker pool (adapter name from orchestrator.server.ts's gpuWorker), and
+// everything else is a paid external provider (Replicate, fal, ElevenLabs…).
+type BillingBucket = "replit" | "gpu" | "paid";
+function classifyBillingBucket(provider: string): BillingBucket {
+  if (provider.startsWith("replit-") || provider.startsWith("replit/")) return "replit";
+  if (provider === "runpod") return "gpu";
+  return "paid";
+}
+
 export const orchestrationHealth = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -36,8 +48,31 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
     const has = (k: string) => Boolean(process.env[k]);
     const hasReplicate = has("LOVABLE_CONNECTOR_REPLICATE_API_KEY") || has("REPLICATE_API_KEY");
 
+    const hasReplitGemini =
+      has("AI_INTEGRATIONS_GEMINI_API_KEY") && has("AI_INTEGRATIONS_GEMINI_BASE_URL");
+    const hasReplitOpenAI =
+      has("AI_INTEGRATIONS_OPENAI_API_KEY") && has("AI_INTEGRATIONS_OPENAI_BASE_URL");
+
     const providers: ProviderRow[] = [
-      // image — order = orchestrator PRIORITY (Lovable LAST)
+      // image — order = orchestrator PRIORITY (Replit-first, Lovable LAST)
+      {
+        id: "replit-gemini-image",
+        name: "Replit AI (Gemini image)",
+        kind: "image",
+        envKey: "AI_INTEGRATIONS_GEMINI_API_KEY",
+        configured: hasReplitGemini,
+        free: false,
+        notes: "gemini-2.5-flash-image — billed to Replit credits (first in image chain)",
+      },
+      {
+        id: "replit-openai-image",
+        name: "Replit AI (GPT image)",
+        kind: "image",
+        envKey: "AI_INTEGRATIONS_OPENAI_API_KEY",
+        configured: hasReplitOpenAI,
+        free: false,
+        notes: "gpt-image-1 — billed to Replit credits",
+      },
       {
         id: "pollinations-image",
         name: "Pollinations",
@@ -193,7 +228,25 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
         free: false,
         notes: "final fallback only",
       },
-      // text (AI router)
+      // text (AI router) — Replit-first, mirrors PRIORITY.text
+      {
+        id: "replit-openai-text",
+        name: "Replit AI (GPT text)",
+        kind: "text",
+        envKey: "AI_INTEGRATIONS_OPENAI_API_KEY",
+        configured: hasReplitOpenAI,
+        free: false,
+        notes: "gpt-5-nano — billed to Replit credits (first in text chain)",
+      },
+      {
+        id: "replit-gemini-text",
+        name: "Replit AI (Gemini text)",
+        kind: "text",
+        envKey: "AI_INTEGRATIONS_GEMINI_API_KEY",
+        configured: hasReplitGemini,
+        free: false,
+        notes: "gemini-2.5-flash — billed to Replit credits",
+      },
       {
         id: "pollinations",
         name: "Pollinations",
@@ -266,7 +319,16 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
         free: false,
         notes: "fallback only — credits used last",
       },
-      // audio / TTS
+      // audio / TTS — Replit-first, mirrors PRIORITY.audio
+      {
+        id: "replit-openai-audio",
+        name: "Replit AI (TTS)",
+        kind: "audio",
+        envKey: "AI_INTEGRATIONS_OPENAI_API_KEY",
+        configured: hasReplitOpenAI,
+        free: false,
+        notes: "gpt-audio-mini — billed to Replit credits (first in audio chain)",
+      },
       {
         id: "elevenlabs",
         name: "ElevenLabs",
@@ -293,14 +355,26 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
       .order("created_at", { ascending: false })
       .limit(200);
 
-    // Aggregate stats per provider
+    // Aggregate stats per provider, and roll them up into Replit-credits vs.
+    // self-hosted GPU vs. paid-external buckets so the owner can see at a
+    // glance how much generation volume is running on their Replit credits.
     const stats: Record<string, { ok: number; err: number; avgMs: number; cost: number }> = {};
+    const billingSummary: Record<BillingBucket, { ok: number; err: number; cost: number }> = {
+      replit: { ok: 0, err: 0, cost: 0 },
+      gpu: { ok: 0, err: 0, cost: 0 },
+      paid: { ok: 0, err: 0, cost: 0 },
+    };
     for (const l of logs ?? []) {
       const s = (stats[l.provider] ??= { ok: 0, err: 0, avgMs: 0, cost: 0 });
       if (l.status === "ok") s.ok++;
       else s.err++;
       s.avgMs = (s.avgMs * (s.ok + s.err - 1) + (l.latency_ms ?? 0)) / (s.ok + s.err);
       s.cost += Number(l.cost_usd ?? 0);
+
+      const b = billingSummary[classifyBillingBucket(l.provider)];
+      if (l.status === "ok") b.ok++;
+      else b.err++;
+      b.cost += Number(l.cost_usd ?? 0);
     }
 
     const health = getProviderHealthSnapshot();
@@ -329,6 +403,7 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
       const h = health[adapterName];
       return {
         ...p,
+        billing: classifyBillingBucket(p.id),
         ready: p.configured && (h?.ready ?? true),
         failures: h?.failures ?? 0,
         cooldownMs: h?.cooldownMs ?? 0,
@@ -373,6 +448,7 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
       summary,
       recent: (logs ?? []).slice(0, 50),
       gpuBackends,
+      billingSummary,
     };
   });
 
