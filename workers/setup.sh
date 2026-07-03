@@ -49,6 +49,11 @@ if have_task lipsync; then
   if [ ! -d LatentSync ]; then
     git clone --depth 1 https://github.com/bytedance/LatentSync.git
   fi
+  # Upstream pins mediapipe==0.10.11, which has no wheel for Python 3.12
+  # (Kaggle/Colab's default interpreter) — only 0.10.13+ ship cp312 wheels.
+  # Relax to the closest compatible release so `pip install` doesn't fail
+  # loudly on newer-Python hosts; leave everything else pinned as upstream.
+  sed -i -E 's/^mediapipe==0\.10\.11/mediapipe==0.10.14/' LatentSync/requirements.txt
   ( cd LatentSync && pip install -r requirements.txt )
   # Official weights (LatentSync 1.5) from the ByteDance HF repo — minimal set.
   huggingface-cli download ByteDance/LatentSync-1.5 \
