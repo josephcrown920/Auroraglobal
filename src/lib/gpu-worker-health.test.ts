@@ -204,6 +204,27 @@ describe("checkGPUWorkerHealth", () => {
     expect(updates[0].patch.status).toBeUndefined();
   });
 
+  it("flips a non-active worker to active and stamps the heartbeat once it answers healthy", async () => {
+    // A worker can land in any status string coming out of the DB (e.g. a stale
+    // "offline" value from an older schema/import). Anything other than the
+    // admin-intentional "draining"/"paused" states must still be probed, and a
+    // healthy response should flip it to "active".
+    const { admin, updates } = fakeAdmin([
+      {
+        id: "r",
+        name: "r",
+        status: "offline",
+        endpoint_url: "https://r/generate",
+        protocol: "custom",
+      },
+    ]);
+    installFetch(() => fakeResponse({ ok: true, status: 200 }));
+    await checkGPUWorkerHealth(admin);
+    expect(updates).toHaveLength(1);
+    expect(updates[0]).toMatchObject({ id: "r", patch: { status: "active" } });
+    expect(updates[0].patch.last_heartbeat).toBeDefined();
+  });
+
   it("never auto-flips an intentionally draining/paused worker (no probe, no update)", async () => {
     const { admin, updates } = fakeAdmin([
       { id: "d", name: "d", status: "draining", endpoint_url: "https://d", protocol: "custom" },
