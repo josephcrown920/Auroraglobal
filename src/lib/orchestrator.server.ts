@@ -143,7 +143,8 @@ export type GenerateResult = {
 // ─── Retry with exponential backoff ──────────────────────────────────────────
 // Wraps a single provider call. Retries on transient failures only
 // (network errors, 429, 5xx). Skips retry on 4xx auth/validation errors.
-const TRANSIENT_RE = /\b(429|5\d\d|ECONNRESET|ETIMEDOUT|EAI_AGAIN|fetch failed|network|timeout)\b/i;
+export const TRANSIENT_RE =
+  /\b(429|5\d\d|ECONNRESET|ETIMEDOUT|EAI_AGAIN|fetch failed|network|timeout)\b/i;
 // Cap on how long we'll honor a provider's wait hint before giving up — long
 // enough for a typical single-digit-second 429 throttle to clear, short enough
 // that one request never hangs indefinitely.
@@ -164,7 +165,7 @@ function retryAfterHintMs(err: unknown): number | undefined {
   }
   return undefined;
 }
-async function withRetry<T>(fn: () => Promise<T>, attempts = 2): Promise<T> {
+export async function withRetry<T>(fn: () => Promise<T>, attempts = 2): Promise<T> {
   let lastErr: unknown;
   for (let i = 0; i <= attempts; i++) {
     try {
