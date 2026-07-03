@@ -618,6 +618,7 @@ function WorkersPanel() {
                 <th className="text-left p-3">Protocol</th>
                 <th className="text-right p-3">Load</th>
                 <th className="text-left p-3">Heartbeat</th>
+                <th className="text-left p-3">Last probe</th>
                 <th className="text-left p-3">Status</th>
                 <th className="p-3"></th>
               </tr>
@@ -629,6 +630,17 @@ function WorkersPanel() {
                 const protocol = (w as Record<string, unknown>).protocol as string ?? "custom";
                 const role = (w as Record<string, unknown>).worker_role as string | null;
                 const runpodSync = (w as Record<string, unknown>).runpod_sync as boolean;
+                const lastProbeAt = (w as Record<string, unknown>).last_probe_at as string | null;
+                const lastProbeOk = (w as Record<string, unknown>).last_probe_ok as boolean | null;
+                const lastProbeDetail = (w as Record<string, unknown>).last_probe_detail as string | null;
+                const lastProbeError = (w as Record<string, unknown>).last_probe_error as string | null;
+                const pausedReason = (w as Record<string, unknown>).paused_reason as string | null;
+                const isPaused = w.status === "paused" || w.status === "draining";
+                const pauseLabel =
+                  w.status === "draining" ? "draining"
+                  : pausedReason === "auto" ? "auto-paused"
+                  : pausedReason === "admin" ? "paused (admin)"
+                  : "paused";
                 return (
                   <tr key={w.id} className="border-t border-border">
                     <td className="p-3">
@@ -642,7 +654,24 @@ function WorkersPanel() {
                     <td className={`p-3 text-xs ${isStale ? "text-amber-500" : "text-emerald-500"}`}>
                       {heartbeatAge(w.last_heartbeat)}
                     </td>
-                    <td className={`p-3 text-xs ${w.status === "active" ? "text-emerald-500" : "text-muted-foreground"}`}>{w.status}</td>
+                    <td
+                      className={`p-3 text-xs ${lastProbeAt == null ? "text-muted-foreground" : lastProbeOk ? "text-emerald-500" : "text-red-500"}`}
+                      title={lastProbeError ?? lastProbeDetail ?? undefined}
+                    >
+                      {lastProbeAt == null ? "never probed" : (
+                        <>
+                          {heartbeatAge(lastProbeAt)} · {lastProbeOk ? "ok" : "failed"}
+                          {(lastProbeError || lastProbeDetail) && (
+                            <span className="block truncate max-w-[160px] text-[11px] text-muted-foreground">
+                              {lastProbeError ?? lastProbeDetail}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </td>
+                    <td className={`p-3 text-xs ${w.status === "active" ? "text-emerald-500" : "text-muted-foreground"}`}>
+                      {isPaused ? pauseLabel : w.status}
+                    </td>
                     <td className="p-3 text-right">
                       <Button size="sm" variant="ghost" onClick={async () => { const r = await pingFn({ data: { id: w.id } }); toast(r.ok ? `OK · ${r.latency_ms}ms${r.detail ? ` · ${r.detail}` : ""}` : `Down: ${r.error ?? r.status}`); qc.invalidateQueries({ queryKey: ["workers"] }); }} title="Health check"><Activity className="size-4" /></Button>
                       {w.status === "active" ? (
@@ -655,7 +684,7 @@ function WorkersPanel() {
                   </tr>
                 );
               })}
-              {(data?.workers ?? []).length === 0 && <tr><td colSpan={8} className="p-6 text-center text-muted-foreground text-sm">No workers registered. Add your GPU orchestrator endpoint above to enable failover.</td></tr>}
+              {(data?.workers ?? []).length === 0 && <tr><td colSpan={9} className="p-6 text-center text-muted-foreground text-sm">No workers registered. Add your GPU orchestrator endpoint above to enable failover.</td></tr>}
             </tbody>
           </table>
         </div>

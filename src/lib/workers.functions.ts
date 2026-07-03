@@ -78,14 +78,27 @@ export const pingWorker = createServerFn({ method: "POST" })
     const started = Date.now();
     const result = await probeWorkerHealth(w);
     const latency_ms = Date.now() - started;
-    // Network error / timeout: no response received — report without flipping
-    // the stored status (we can't tell active vs paused from a transient blip).
+    const probePatch = {
+      last_probe_at: new Date().toISOString(),
+      last_probe_ok: result.ok,
+      last_probe_detail: result.detail ?? null,
+      last_probe_error: result.error ?? null,
+    };
+    // Network error / timeout: no response received — record the probe but
+    // don't flip the stored status (we can't tell active vs paused from a
+    // transient blip).
     if (result.unreachable) {
+      await supabaseAdmin.from("gpu_workers").update(probePatch).eq("id", w.id);
       return { ok: false, error: result.error, latency_ms };
     }
     await supabaseAdmin.from("gpu_workers").update({
+      ...probePatch,
       last_heartbeat: new Date().toISOString(),
       status: result.ok ? "active" : "paused",
+      // A manual ping that flips a worker to paused is still the sweep's
+      // criteria firing early, not an admin action — tag it "auto" like the
+      // background sweep does. Coming back online clears it.
+      paused_reason: result.ok ? null : "auto",
     }).eq("id", w.id);
     return { ok: result.ok, status: result.status, detail: result.detail, error: result.error, latency_ms };
   });
@@ -104,9 +117,15 @@ export const setWorkerStatus = createServerFn({ method: "POST" })
     await assertAdmin(context.userId);
     // Minimal status-only update (NOT upsertWorker) so we never overwrite the
     // worker's auth_token, which listWorkers strips and would otherwise blank out.
+    // This is always an explicit admin action, so tag/clear paused_reason
+    // accordingly — it's how the dashboard tells "admin paused this" apart
+    // from "the health sweep auto-paused this".
     const { count, error } = await supabaseAdmin
       .from("gpu_workers")
-      .update({ status: data.status }, { count: "exact" })
+      .update({
+        status: data.status,
+        paused_reason: data.status === "active" ? null : "admin",
+      }, { count: "exact" })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
     if (!count) throw new Error(`Worker ${data.id} not found`);

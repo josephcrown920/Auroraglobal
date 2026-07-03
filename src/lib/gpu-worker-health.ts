@@ -164,17 +164,25 @@ export async function checkGPUWorkerHealth(supabaseAdmin: any) {
     const result = await probeWorkerHealth(worker);
     const newStatus = result.ok ? "active" : "paused";
 
-    const patch: Record<string, unknown> = {};
+    const patch: Record<string, unknown> = {
+      last_probe_at: new Date().toISOString(),
+      last_probe_ok: result.ok,
+      last_probe_detail: result.detail ?? null,
+      last_probe_error: result.error ?? null,
+    };
     if (worker.status !== newStatus) patch.status = newStatus;
+    // The sweep is the only thing that ever pauses a worker here (draining/
+    // paused workers were skipped above), so any pause this loop performs is
+    // by definition automatic — tag it so the admin UI can tell it apart
+    // from an admin explicitly clicking Pause (setWorkerStatus).
+    if (!result.ok) patch.paused_reason = "auto";
     // Refresh the heartbeat whenever the worker actually answered healthy so
     // dispatch-time staleness checks see it as live.
     if (result.ok) patch.last_heartbeat = new Date().toISOString();
 
-    if (Object.keys(patch).length > 0) {
-      await supabaseAdmin
-        .from("gpu_workers")
-        .update(patch)
-        .eq("id", worker.id);
-    }
+    await supabaseAdmin
+      .from("gpu_workers")
+      .update(patch)
+      .eq("id", worker.id);
   }
 }
