@@ -48,7 +48,13 @@ export type GenerateKind =
   // an "assemble" sub-job (GPU worker) or falls back to a Replicate video model
   // when no assembler is online. Registered here so credit accounting can record
   // the canonical kind without a type-assertion escape hatch.
-  | "autocut";
+  | "autocut"
+  // Lyric video: burn user-supplied, timed lyric lines over a generated
+  // background and mux with the uploaded song via FFmpeg. Self-hosted GPU
+  // worker ONLY (Cloudflare Workers cannot run ffmpeg) — no hosted provider
+  // does audio+lyrics-in / synced-video-out. Distinct from `caption_burn`
+  // (which overlays cues onto an EXISTING video) — this SYNTHESIZES the video.
+  | "lyric_video";
 
 // ─── Studio bucket signing ───────────────────────────────────────────────────
 // The `studio` bucket is PRIVATE. When we hand a reference URL to an external
@@ -1954,6 +1960,7 @@ const gpuWorker: ProviderAdapter = {
       "assemble",
       "caption_burn",
       "autocut",
+      "lyric_video",
     ].includes(r.kind),
   estimateCost: (r) => (r.kind === "video" || r.kind === "motion" ? 0.05 : 0.01),
   async run(r) {
@@ -2090,6 +2097,10 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   // beat-synced style/music) has no hosted equivalent, so there is no provider
   // fallback — runAutocut fails explicitly and refunds when no worker is online.
   autocut: [gpuWorker],
+  // Lyric video: self-hosted FFmpeg synthesis ONLY (audio+lyrics-in →
+  // synced-video-out has no hosted equivalent). Preflighted via
+  // hasActiveWorkerForKind before credits are reserved.
+  lyric_video: [gpuWorker],
 };
 
 // ─── Unified model registry ──────────────────────────────────────────────────
@@ -2128,6 +2139,9 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     "ffmpeg-assemble": { provider: gpuWorker.name, kind: "assemble", cost: 0.005 },
     "ffmpeg-captionburn": { provider: gpuWorker.name, kind: "caption_burn", cost: 0.005 },
     "zsxkib/add-subtitles-to-video": { provider: "replicate", kind: "caption_burn", cost: 0.02 },
+    // Self-hosted ffmpeg lyric-video synthesis. Sentinel model so the candidate
+    // loop runs; routed self-hosted-only to the GPU worker pool (no fallback).
+    "ffmpeg-lyricvideo": { provider: gpuWorker.name, kind: "lyric_video", cost: 0.005 },
   };
   for (const [k, v] of Object.entries(REPLICATE_MAP))
     out[k] = { provider: "replicate", kind: v.kind, cost: v.cost };
@@ -2256,6 +2270,8 @@ const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   // self-hosted FFmpeg assembler. autocut is never routed through orchestrate()
   // directly (runAutocut dispatches kind "assemble"), so this stays empty.
   autocut: [],
+  // Lyric video pins to its self-hosted sentinel model — no hosted fallback.
+  lyric_video: ["ffmpeg-lyricvideo"],
 };
 const FALLBACK_CAP: Record<GenerateKind, number> = {
   // Requested model + all 6 fallback candidates (2 Replit-billed, then
@@ -2276,6 +2292,7 @@ const FALLBACK_CAP: Record<GenerateKind, number> = {
   assemble: 1,
   caption_burn: 2,
   autocut: 1,
+  lyric_video: 1,
 };
 
 // Models that honour imageUrls as an EDIT SOURCE: Replicate nano-banana(-pro)

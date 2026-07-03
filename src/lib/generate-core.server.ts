@@ -145,7 +145,13 @@ export async function reserveOrchestrateRecord(
       audio_url: input.kind === "audio" ? persistedUrl : (input.audioUrl ?? null),
       model: result.provider,
       result_image_url: input.kind === "image" ? persistedUrl : null,
-      result_video_url: input.kind === "video" || input.kind === "lipsync" || input.kind === "caption_burn" ? persistedUrl : null,
+      result_video_url:
+        input.kind === "video" ||
+        input.kind === "lipsync" ||
+        input.kind === "caption_burn" ||
+        input.kind === "lyric_video"
+          ? persistedUrl
+          : null,
       result_text: input.kind === "text" ? (result.text ?? null) : null,
       credits_cost: input.cost,
       session_id: input.sessionId ?? null,

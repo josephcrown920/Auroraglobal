@@ -5,8 +5,10 @@ import { reserveOrchestrateRecord } from "@/lib/generate-core.server";
 import { computeCost } from "@/lib/pricing";
 import { hfSpeechToText } from "@/lib/hf.server";
 import { assertTrustedUrl } from "@/lib/url-guard";
+import { hasActiveWorkerForKind } from "@/lib/orchestrator.server";
 
 const CAPTION_COST = computeCost({ features: ["caption_burn"] }).total;
+const LYRIC_VIDEO_COST = computeCost({ features: ["lyric_video"] }).total;
 
 const SegmentSchema = z.object({
   start: z.number().min(0),
@@ -122,4 +124,59 @@ export const generateLyricVideo = createServerFn({ method: "POST" })
       segments,
       language: language ?? null,
     };
+  });
+
+const LyricLineSchema = z.object({
+  start: z.number().min(0),
+  end: z.number().min(0),
+  text: z.string().min(1).max(500),
+});
+
+/**
+ * Lyric Video: synthesize a NEW video from an uploaded song + user-timed
+ * lyric lines — a generated background with the lines burned in via the GPU
+ * worker's FFmpeg pipeline, muxed with the song. Distinct from
+ * `generateLyricVideo` above (which transcribes an EXISTING video's dialogue
+ * and burns it back onto that same video); this has no source video at all.
+ *
+ * Self-hosted GPU worker ONLY — preflighted with `hasActiveWorkerForKind`
+ * before any Aura is reserved (no hosted provider does audio+lyrics-in /
+ * synced-video-out, so there is no fallback to fail into). Billed under its
+ * own `lyric_video` pricing entry, never `caption_burn`.
+ */
+export const generateLyricVideoFromSong = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      audioUrl: z.string().url().max(2048),
+      lines: z.array(LyricLineSchema).min(1).max(500),
+      style: z.string().max(60).optional(),
+    }).parse
+  )
+  .handler(async ({ data, context }) => {
+    assertTrustedUrl(data.audioUrl);
+
+    if (!(await hasActiveWorkerForKind("lyric_video"))) {
+      return {
+        ok: false as const,
+        error: "No rendering worker is online right now — start your GPU worker and try again.",
+      };
+    }
+
+    const outcome = await reserveOrchestrateRecord({
+      userId: context.userId,
+      kind: "lyric_video",
+      cost: LYRIC_VIDEO_COST,
+      reason: "lyric_video",
+      prompt: `Lyric video (${data.lines.length} lines)${data.style ? `, ${data.style} style` : ""}`,
+      audioUrl: data.audioUrl,
+      segments: data.lines,
+      params: data.style ? { style: data.style } : undefined,
+    });
+
+    if (!outcome.ok) {
+      return { ok: false as const, error: outcome.error, insufficient: outcome.insufficient };
+    }
+
+    return { ok: true as const, videoUrl: outcome.url, generationId: outcome.generationId };
   });

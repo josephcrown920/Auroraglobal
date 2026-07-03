@@ -17,6 +17,7 @@ import { LIPSYNC_EXAMPLE_PRESETS } from "@/lib/example-presets";
 import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
 import { hasCompletedFirstGen, hasDismissedTour, isFirstPageVisit, markFirstGenComplete, markPageVisited } from "@/lib/first-run";
 import { computeCost, LIPSYNC_ENGINE_MODEL, type LipsyncEngine } from "@/lib/pricing";
+import { AUDIO_ACCEPT } from "@/lib/utils";
 
 export const Route = createFileRoute("/lipsync")({
   component: LipSyncStudioPage,
@@ -299,7 +300,7 @@ function LipSyncForm() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <DropSlot label="Performance source" hint="MP4 / MOV / JPG / PNG · up to 100MB" icon={Upload} accept="video/*,image/*" file={video} onFile={onVideo} previewUrl={videoUrl} kind="video" />
-          <DropSlot label="Vocal track" hint="Any audio · up to 50MB" icon={Music2} accept="audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.opus,.aiff" file={audio} onFile={onAudio} previewUrl={audioUrl} kind="audio" />
+          <DropSlot label="Vocal track" hint="Any audio · up to 50MB" icon={Music2} accept={AUDIO_ACCEPT} file={audio} onFile={onAudio} previewUrl={audioUrl} kind="audio" />
         </div>
 
         <WelcomeTour show={showTour} onDismiss={() => setShowTour(false)} />

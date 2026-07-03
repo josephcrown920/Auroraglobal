@@ -64,7 +64,8 @@ export function resultStoragePath(userId: string, refId: string, ext: string): s
  */
 export function resultMediaTypeForKind(kind: string): ResultMediaType | null {
   if (kind === "image") return "image";
-  if (kind === "video" || kind === "lipsync" || kind === "caption_burn") return "video";
+  if (kind === "video" || kind === "lipsync" || kind === "caption_burn" || kind === "lyric_video")
+    return "video";
   if (kind === "audio") return "audio";
   return null;
 }

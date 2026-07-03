@@ -15,9 +15,10 @@ a worker a task it registered for:
 | `image`   | SDXL-Turbo / FLUX  | `prompt` (+ optional `image_urls`)         | image              |
 | `video`   | any                | `prompt` (+ optional `image_urls`)         | video              |
 | `assemble`| ffmpeg (no model)  | `params.clips[]` + `params.narrations[]`   | stitched MP4       |
+| `lyric_video` | ffmpeg + libass (no model) | `audio_url` (song) + `segments[]` (timed lyric lines) + optional `params.style` | lyric video MP4 |
 
 **What ships out of the box:**
-- `aurora_worker.py` — `lipsync` + `motion` + `assemble` + **`image`** (SDXL-Turbo on T4, FLUX on A100+)
+- `aurora_worker.py` — `lipsync` + `motion` + `assemble` + `lyric_video` + **`image`** (SDXL-Turbo on T4, FLUX on A100+)
 - `kaggle/` — `lipsync` default; add `image` via `AURORA_TASKS=image,lipsync`
 - `runpod/` — `lipsync` + `motion`
 - `comfyui/` — `lipsync` + `motion` via ComfyUI graphs
@@ -45,6 +46,7 @@ Aurora `POST`s the **flat job body** to your `endpoint` (optionally with
   "model": "latentsync",             // or "mimic-motion"
   "duration": null,
   "resolution": null,
+  "segments": null,                  // lyric_video / caption_burn: [{start,end,text}, …]
   "params": { "inference_steps": 20, "guidance_scale": 1.5, "seed": 1247 },
   "workflow": { … },                 // only present for ComfyUI graphs
   "workflow_inputs": { … }           // "nodeId.inputName": value patches
@@ -97,7 +99,7 @@ with the LatentSync + MimicMotion custom nodes installed (see `comfyui/`).
 | your template       | protocol  | endpoint example                                   | capabilities      |
 | ------------------- | --------- | -------------------------------------------------- | ----------------- |
 | `runpod/`           | `runpod`  | `https://api.runpod.ai/v2/<id>`                    | `lipsync,motion`  |
-| `aurora_worker.py`  | `custom`  | `https://<host>/generate`                          | `lipsync,motion`  |
+| `aurora_worker.py`  | `custom`  | `https://<host>/generate`                          | `lipsync,motion,assemble,lyric_video` |
 | `kaggle/`           | `custom`  | `https://<tunnel>/generate`                        | `lipsync,motion`  |
 | `hf-space/` (lipsync) | `hfspace` | `https://<user>-<space>.hf.space`                | `lipsync`         |
 | `hf-space/` (motion)  | `hfspace` | `https://<user>-<space>.hf.space`                | `motion`          |

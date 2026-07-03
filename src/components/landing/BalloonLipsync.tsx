@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import audioAsset from "@/assets/the-one-hook.mp3.asset.json";
 import { transcribeAudio } from "@/lib/hf.functions";
+import { AUDIO_ACCEPT } from "@/lib/utils";
 
 /**
  * Every Face Sings — drives a clear lip-sync mouth, upper/lower lips and
@@ -424,7 +425,7 @@ export function BalloonLipsync() {
                 {transcribing ? "Transcribing…" : "Upload audio"}
                 <input
                   type="file"
-                  accept="audio/*"
+                  accept={AUDIO_ACCEPT}
                   className="hidden"
                   disabled={transcribing}
                   onChange={onUploadAudio}

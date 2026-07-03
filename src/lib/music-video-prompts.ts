@@ -136,3 +136,23 @@ export const SUBJECT_SUGGESTIONS = [
   "a dancer mid-routine",
   "a hooded silhouette figure",
 ];
+
+export type LyricSegment = { start: number; end: number; text: string };
+
+/**
+ * Evenly distribute pasted lyric lines across a song's duration. There is no
+ * ASR/beat alignment here — each non-blank line simply gets an equal time
+ * slice, in order. That is a deliberate simplification (see task notes):
+ * aligning captions to *singing* is unreliable, whereas an even split always
+ * produces a sane, reviewable timing the user can nudge by editing lines.
+ */
+export function buildEvenLyricSegments(durationSeconds: number, rawLines: string[]): LyricSegment[] {
+  const lines = rawLines.map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0 || !Number.isFinite(durationSeconds) || durationSeconds <= 0) return [];
+  const segLen = durationSeconds / lines.length;
+  return lines.map((text, i) => ({
+    start: Math.round(i * segLen * 100) / 100,
+    end: Math.round((i + 1) * segLen * 100) / 100,
+    text,
+  }));
+}

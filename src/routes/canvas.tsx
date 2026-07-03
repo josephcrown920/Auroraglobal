@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
+import { AUDIO_ACCEPT } from "@/lib/utils";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
@@ -349,7 +350,7 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
               <div className="text-[10px] text-muted-foreground mt-0.5">mp3 or wav · the voice/song to lip-sync</div>
               <input
                 type="file"
-                accept="audio/*"
+                accept={AUDIO_ACCEPT}
                 onChange={(e) => e.target.files?.[0] && h.onFile(id, e.target.files[0])}
                 className="absolute inset-0 opacity-0 cursor-pointer"
               />

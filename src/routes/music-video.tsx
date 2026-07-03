@@ -22,6 +22,7 @@ import {
   generateVideoFromImage,
   listGenerations,
 } from "@/lib/studio.functions";
+import { generateLyricVideoFromSong } from "@/lib/captions.functions";
 import { handleGenerationError } from "@/lib/error-toasts";
 import { markFirstGenComplete } from "@/lib/first-run";
 import { computeCost } from "@/lib/pricing";
@@ -38,13 +39,14 @@ import {
   MUSIC_VIDEO_STYLES,
   MUSIC_VIDEO_MODES,
   buildMusicVideoPrompt,
+  buildEvenLyricSegments,
   LOCATION_SUGGESTIONS,
   SUBJECT_SUGGESTIONS,
   type MusicVideoMode,
   type MusicVideoStyle,
 } from "@/lib/music-video-prompts";
 import { useBeatDetect } from "@/hooks/use-beat-detect";
-import { cn } from "@/lib/utils";
+import { cn, AUDIO_ACCEPT } from "@/lib/utils";
 
 export const Route = createFileRoute("/music-video")({
   component: MusicVideoPage,
@@ -86,7 +88,14 @@ function MusicVideoPage() {
   const [beatFileName, setBeatFileName] = useState<string | null>(null);
   const { state: beatState, analyze: analyzeBeat, reset: resetBeat } = useBeatDetect();
 
+  // Lyric Video mode — song upload + pasted lyrics, timed by an even split
+  // across the song's duration (no ASR alignment; see buildEvenLyricSegments).
+  const [lyricAudioUrl, setLyricAudioUrl] = useState<string | null>(null);
+  const [lyricAudioDuration, setLyricAudioDuration] = useState<number | null>(null);
+  const [lyricsText, setLyricsText] = useState("");
+
   const currentMode = MUSIC_VIDEO_MODES.find((m) => m.key === mode)!;
+  const isLyricVideo = mode === "lyric-style";
 
   const videoCost = useMemo(
     () =>
@@ -95,7 +104,18 @@ function MusicVideoPage() {
     [videoModel],
   );
 
-  const displayCost = currentMode.needsImage ? videoCost : IMAGE_COST;
+  const lyricVideoCost = useMemo(() => computeCost({ features: ["lyric_video"] }).total, []);
+
+  const displayCost = isLyricVideo ? lyricVideoCost : currentMode.needsImage ? videoCost : IMAGE_COST;
+
+  const lyricLines = useMemo(
+    () => lyricsText.split("\n").map((l) => l.trim()).filter(Boolean),
+    [lyricsText],
+  );
+  const lyricSegments = useMemo(
+    () => (lyricAudioDuration ? buildEvenLyricSegments(lyricAudioDuration, lyricLines) : []),
+    [lyricAudioDuration, lyricLines],
+  );
 
   useEffect(() => {
     if (!loading && !user) void navigate({ to: "/auth" });
@@ -105,8 +125,31 @@ function MusicVideoPage() {
     setPrompt(buildMusicVideoPrompt(mode, style, location, subject));
   }, [mode, style, location, subject]);
 
+  // Read the uploaded song's duration client-side once its signed URL is set.
+  useEffect(() => {
+    if (!lyricAudioUrl) {
+      setLyricAudioDuration(null);
+      return;
+    }
+    const audio = new Audio();
+    audio.preload = "metadata";
+    const onLoaded = () => setLyricAudioDuration(audio.duration || null);
+    const onError = () => {
+      setLyricAudioDuration(null);
+      toast.error("Couldn't read that audio file's duration — try a different file.");
+    };
+    audio.addEventListener("loadedmetadata", onLoaded);
+    audio.addEventListener("error", onError);
+    audio.src = lyricAudioUrl;
+    return () => {
+      audio.removeEventListener("loadedmetadata", onLoaded);
+      audio.removeEventListener("error", onError);
+    };
+  }, [lyricAudioUrl]);
+
   const genFn = useServerFn(generatePerformanceShot);
   const videoFn = useServerFn(generateVideoFromImage);
+  const lyricVideoFn = useServerFn(generateLyricVideoFromSong);
   const listFn = useServerFn(listGenerations);
 
   const { data: history } = useQuery({
@@ -133,6 +176,22 @@ function MusicVideoPage() {
         });
       }
       return genFn({ data: { prompt, imageUrls: [], motionVideoUrl: null, model: "black-forest-labs/flux-1.1-pro" } });
+    },
+    onSuccess: () => {
+      markFirstGenComplete();
+      toast.success("Queued — result will appear below when ready");
+      qc.invalidateQueries({ queryKey: ["mv-gens"] });
+    },
+    onError: (e) => handleGenerationError(e),
+  });
+
+  const lyricGenMut = useMutation({
+    mutationFn: async () => {
+      if (!lyricAudioUrl) throw new Error("Upload a song first");
+      if (lyricSegments.length === 0) throw new Error("Paste at least one lyric line");
+      const res = await lyricVideoFn({ data: { audioUrl: lyricAudioUrl, lines: lyricSegments } });
+      if (!res.ok) throw new Error(res.error);
+      return res;
     },
     onSuccess: () => {
       markFirstGenComplete();
@@ -240,8 +299,89 @@ function MusicVideoPage() {
           </div>
         </section>
 
+        {/* Lyric Video: song + lyrics (distinct from the caption-burn tool — this
+            synthesizes a brand-new video from an uploaded song and generates its
+            own timed captions, no source video required) */}
+        {isLyricVideo && (
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Song
+            </h2>
+            <UploadSlot
+              userId={user.id}
+              label="Upload"
+              hint="MP3 / WAV / M4A — the track your lyrics will be timed to"
+              accept={AUDIO_ACCEPT}
+              kind="video"
+              value={lyricAudioUrl}
+              onChange={setLyricAudioUrl}
+            />
+            {lyricAudioUrl && lyricAudioDuration == null && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <Loader2 className="size-3 animate-spin" /> Reading duration…
+              </p>
+            )}
+            {lyricAudioDuration != null && (
+              <p className="text-xs text-muted-foreground">
+                Duration: {Math.round(lyricAudioDuration)}s
+              </p>
+            )}
+
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground pt-2">
+              Lyrics
+              <span className="ml-2 text-[10px] font-normal normal-case opacity-60">
+                one line per lyric — evenly timed across the song
+              </span>
+            </h2>
+            <Textarea
+              rows={8}
+              value={lyricsText}
+              onChange={(e) => setLyricsText(e.target.value)}
+              className="resize-none bg-card/60 text-sm"
+              placeholder={"Paste your lyrics here, one line at a time…\n\nLine one\nLine two\nLine three"}
+            />
+            {lyricLines.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {lyricLines.length} line{lyricLines.length === 1 ? "" : "s"}
+                {lyricAudioDuration != null && lyricSegments.length > 0
+                  ? ` · ~${(lyricAudioDuration / lyricLines.length).toFixed(1)}s per line`
+                  : ""}
+              </p>
+            )}
+
+            <div className="flex items-center gap-2 text-xs text-muted-foreground rounded-xl border border-border bg-card/40 px-3 py-2">
+              <Zap className="size-3.5 text-primary" />
+              Cost: <span className="text-foreground font-medium">{displayCost} Aura</span>
+              <span className="opacity-50">·</span>
+              ETA: <span className="text-foreground font-medium">~20–40s</span>
+            </div>
+
+            <Button
+              disabled={lyricGenMut.isPending || !lyricAudioUrl || lyricSegments.length === 0}
+              onClick={() => lyricGenMut.mutate()}
+              className="w-full h-14 text-base font-medium shadow-[var(--shadow-glow)]"
+              style={{ background: "var(--gradient-hero)" }}
+            >
+              {lyricGenMut.isPending ? (
+                <>
+                  <Loader2 className="size-5 mr-2 animate-spin" /> Generating…
+                </>
+              ) : (
+                <>
+                  <Wand2 className="size-5 mr-2" /> Generate · {displayCost} Aura
+                </>
+              )}
+            </Button>
+            {(!lyricAudioUrl || lyricSegments.length === 0) && (
+              <p className="text-center text-xs text-muted-foreground">
+                {!lyricAudioUrl ? "↑ Upload a song to continue" : "↑ Paste at least one lyric line"}
+              </p>
+            )}
+          </section>
+        )}
+
         {/* Reference image (for modes that need it) */}
-        {currentMode.needsImage && (
+        {!isLyricVideo && currentMode.needsImage && (
           <section className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               Reference image
@@ -273,7 +413,7 @@ function MusicVideoPage() {
               <input
                 ref={beatFileRef}
                 type="file"
-                accept="audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.opus,.aiff"
+                accept={AUDIO_ACCEPT}
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
@@ -384,74 +524,80 @@ function MusicVideoPage() {
         )}
 
         {/* Prompt preview (always shown, always editable) */}
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Direction{" "}
-            <span className="font-normal normal-case opacity-60 text-[10px]">auto-built · editable</span>
-          </h2>
-          <Textarea
-            rows={6}
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            className="resize-none bg-card/60 text-sm"
-            placeholder="Your prompt will appear here…"
-          />
-        </section>
+        {!isLyricVideo && (
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Direction{" "}
+              <span className="font-normal normal-case opacity-60 text-[10px]">auto-built · editable</span>
+            </h2>
+            <Textarea
+              rows={6}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              className="resize-none bg-card/60 text-sm"
+              placeholder="Your prompt will appear here…"
+            />
+          </section>
+        )}
 
         {/* Model + cost */}
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            {currentMode.needsImage ? "Video model" : "Image model"}
-          </h2>
-          {currentMode.needsImage && (
-            <Select value={videoModel} onValueChange={setVideoModel}>
-              <SelectTrigger className="bg-card/60">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {VIDEO_MODEL_LIST.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>
-                    <div className="flex flex-col">
-                      <span>{m.label}</span>
-                      <span className="text-[10px] text-muted-foreground">{m.tagline}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+        {!isLyricVideo && (
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              {currentMode.needsImage ? "Video model" : "Image model"}
+            </h2>
+            {currentMode.needsImage && (
+              <Select value={videoModel} onValueChange={setVideoModel}>
+                <SelectTrigger className="bg-card/60">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {VIDEO_MODEL_LIST.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>
+                      <div className="flex flex-col">
+                        <span>{m.label}</span>
+                        <span className="text-[10px] text-muted-foreground">{m.tagline}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
 
-          <div className="flex items-center gap-2 text-xs text-muted-foreground rounded-xl border border-border bg-card/40 px-3 py-2">
-            <Zap className="size-3.5 text-primary" />
-            Cost:{" "}
-            <span className="text-foreground font-medium">{displayCost} Aura</span>
-            <span className="opacity-50">·</span>
-            ETA:{" "}
-            <span className="text-foreground font-medium">
-              {currentMode.needsImage ? "~20–40s" : "~10–20s"}
-            </span>
-          </div>
-        </section>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground rounded-xl border border-border bg-card/40 px-3 py-2">
+              <Zap className="size-3.5 text-primary" />
+              Cost:{" "}
+              <span className="text-foreground font-medium">{displayCost} Aura</span>
+              <span className="opacity-50">·</span>
+              ETA:{" "}
+              <span className="text-foreground font-medium">
+                {currentMode.needsImage ? "~20–40s" : "~10–20s"}
+              </span>
+            </div>
+          </section>
+        )}
 
         {/* Generate */}
-        <Button
-          disabled={genMut.isPending || (currentMode.needsImage && !image)}
-          onClick={() => genMut.mutate()}
-          className="w-full h-14 text-base font-medium shadow-[var(--shadow-glow)]"
-          style={{ background: "var(--gradient-hero)" }}
-        >
-          {genMut.isPending ? (
-            <>
-              <Loader2 className="size-5 mr-2 animate-spin" /> Generating…
-            </>
-          ) : (
-            <>
-              <Wand2 className="size-5 mr-2" /> Generate · {displayCost} Aura
-            </>
-          )}
-        </Button>
+        {!isLyricVideo && (
+          <Button
+            disabled={genMut.isPending || (currentMode.needsImage && !image)}
+            onClick={() => genMut.mutate()}
+            className="w-full h-14 text-base font-medium shadow-[var(--shadow-glow)]"
+            style={{ background: "var(--gradient-hero)" }}
+          >
+            {genMut.isPending ? (
+              <>
+                <Loader2 className="size-5 mr-2 animate-spin" /> Generating…
+              </>
+            ) : (
+              <>
+                <Wand2 className="size-5 mr-2" /> Generate · {displayCost} Aura
+              </>
+            )}
+          </Button>
+        )}
 
-        {currentMode.needsImage && !image && (
+        {!isLyricVideo && currentMode.needsImage && !image && (
           <p className="text-center text-xs text-muted-foreground -mt-4">
             ↑ Upload a reference image to enable video generation
           </p>

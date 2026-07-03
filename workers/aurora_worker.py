@@ -361,6 +361,120 @@ def run_assemble(params: dict[str, Any]) -> str:
     return final_out
 
 
+# ── Lyric video (ffmpeg + libass only — no model weights) ─────────────────────
+# Burns user-timed lyric lines over a generated background and muxes the
+# uploaded song underneath. Distinct from `caption_burn`, which overlays cues
+# onto an EXISTING video — this SYNTHESIZES the video from just audio + text.
+LYRIC_VIDEO_W = int(os.environ.get("AURORA_LYRICVIDEO_W", "720"))
+LYRIC_VIDEO_H = int(os.environ.get("AURORA_LYRICVIDEO_H", "1280"))
+LYRIC_VIDEO_FPS = int(os.environ.get("AURORA_LYRICVIDEO_FPS", "24"))
+# Long input keeps the ffmpeg job (and the worker's request timeout) bounded.
+LYRIC_VIDEO_MAX_SECONDS = float(os.environ.get("AURORA_LYRICVIDEO_MAX_SECONDS", "360"))
+
+# Rough mood backgrounds matching MUSIC_VIDEO_STYLES on the frontend — a plain
+# solid color is deliberate (no extra model weights); style is cosmetic only.
+LYRIC_VIDEO_BG_COLORS = {
+    "trap": "0x18181b",
+    "afrobeats": "0x451a03",
+    "drill": "0x0f172a",
+    "luxury": "0x422006",
+}
+LYRIC_VIDEO_DEFAULT_BG = "0x0a0a12"
+
+
+def _format_srt_timestamp(seconds: float) -> str:
+    ms = int(round(max(0.0, seconds) * 1000))
+    h, ms = divmod(ms, 3_600_000)
+    m, ms = divmod(ms, 60_000)
+    s, ms = divmod(ms, 1000)
+    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+
+
+def _write_srt(segments: list[dict[str, Any]], path: Path) -> int:
+    """Write timed lyric lines as an SRT file. Returns the number of cues written.
+
+    The lyric TEXT never touches the ffmpeg command line or filter graph — it
+    only ever lands in this file, which the `subtitles=` filter reads by path.
+    That is the injection defense: free-text lyrics can contain anything
+    (quotes, colons, filter-looking syntax) and it still can't escape into the
+    ffmpeg argv the way a per-line `drawtext` filter string could.
+    """
+    lines: list[str] = []
+    cue = 0
+    for seg in segments:
+        start = float(seg.get("start", 0) or 0)
+        end = float(seg.get("end", 0) or 0)
+        if end <= start:
+            end = start + 2.5
+        text = str(seg.get("text", "")).replace("\r", " ").replace("\n", " ").strip()
+        if not text:
+            continue
+        cue += 1
+        lines.append(str(cue))
+        lines.append(f"{_format_srt_timestamp(start)} --> {_format_srt_timestamp(end)}")
+        lines.append(text)
+        lines.append("")
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return cue
+
+
+def _ffmpeg_escape_filter_path(path: str) -> str:
+    """Escape a filesystem path for embedding inside an ffmpeg filtergraph
+    option (subtitles=<path>). Colons and backslashes are filtergraph
+    metacharacters; our paths are worker-generated UUIDs so this is a
+    defensive no-op in practice, not a trust boundary."""
+    return path.replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
+
+
+def run_lyric_video(audio_url: str | None, segments: list[dict[str, Any]], params: dict[str, Any]) -> str:
+    """Synthesize a lyric video: a generated background with the user's timed
+    lyric lines burned in via the ffmpeg `subtitles` filter (libass), muxed
+    with the uploaded song. ffmpeg-only, so any worker with ffmpeg + libass
+    can advertise the `lyric_video` capability — mirrors run_assemble's
+    ffmpeg-only design.
+    """
+    if not audio_url:
+        raise ValueError("lyric_video requires audio_url")
+    if not segments:
+        raise ValueError("lyric_video requires at least one lyric segment")
+
+    audio = _download(audio_url, ".mp3")
+    duration = _ffprobe_duration(audio)
+    if duration <= 0:
+        raise RuntimeError("Could not read the song's duration — unsupported or corrupt audio file")
+    if duration > LYRIC_VIDEO_MAX_SECONDS:
+        raise ValueError(
+            f"Song is too long ({duration:.0f}s > {LYRIC_VIDEO_MAX_SECONDS:.0f}s max) for a lyric video"
+        )
+
+    srt_path = WORK_DIR / f"{uuid.uuid4().hex}_lyrics.srt"
+    if _write_srt(segments, srt_path) == 0:
+        raise ValueError("lyric_video: every segment had empty text")
+
+    style = str(params.get("style") or "").lower()
+    bg_color = LYRIC_VIDEO_BG_COLORS.get(style, LYRIC_VIDEO_DEFAULT_BG)
+    srt_arg = _ffmpeg_escape_filter_path(str(srt_path))
+    out = str(WORK_DIR / f"{uuid.uuid4().hex}_lyricvideo.mp4")
+
+    cmd = [
+        "ffmpeg", "-y",
+        "-f", "lavfi", "-i", f"color=c={bg_color}:s={LYRIC_VIDEO_W}x{LYRIC_VIDEO_H}:r={LYRIC_VIDEO_FPS}",
+        "-i", audio,
+        "-filter_complex",
+        f"[0:v]format=yuv420p,subtitles={srt_arg}:force_style="
+        "'Fontsize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,"
+        "BorderStyle=1,Outline=2,Alignment=2,MarginV=80'[v]",
+        "-map", "[v]", "-map", "1:a",
+        "-t", f"{duration:.3f}",
+        "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-ar", "48000", "-ac", "2",
+        "-shortest",
+        out,
+    ]
+    subprocess.run(cmd, check=True)
+    return out
+
+
 # ── Core dispatch (shared by every entrypoint) ────────────────────────────────
 def process_job(job: dict[str, Any]) -> dict[str, str]:
     kind = (job.get("kind") or "").lower()
@@ -375,11 +489,13 @@ def process_job(job: dict[str, Any]) -> dict[str, str]:
         out = run_mimicmotion(ref, job.get("video_url"), params)
     elif kind == "assemble":
         out = run_assemble(params)
+    elif kind == "lyric_video":
+        out = run_lyric_video(job.get("audio_url"), job.get("segments") or [], params)
     elif kind == "image":
         out = run_image(job.get("prompt") or "", params)
     else:
         raise ValueError(
-            f"unsupported kind {kind!r}; this worker serves: lipsync, motion, assemble, image"
+            f"unsupported kind {kind!r}; this worker serves: lipsync, motion, assemble, lyric_video, image"
         )
 
     return {"url": _upload(out)}
@@ -411,10 +527,15 @@ def _capabilities() -> list[str]:
         if caps:
             return caps
     # Unset/empty → default. Dynamically include tasks whose dependencies are
-    # installed. assemble needs only ffmpeg; image needs diffusers.
+    # installed. assemble/lyric_video need only ffmpeg; image needs diffusers.
     default = ["lipsync", "motion"]
     if shutil.which("ffmpeg"):
         default.append("assemble")
+        # lyric_video additionally needs ffmpeg built with libass (the
+        # `subtitles` filter); nearly all distro ffmpeg builds include it. A
+        # worker without libass will simply fail that one job explicitly
+        # rather than silently mis-advertise — same tolerance as `assemble`.
+        default.append("lyric_video")
     # Include "image" when diffusers is importable (setup.sh image task was run)
     # OR when IMAGE_MODEL is explicitly overridden — let the caller opt in.
     try:

@@ -86,6 +86,22 @@ describe("computeCost — length multiplier", () => {
   });
 });
 
+describe("computeCost — lyric_video (flat, non-length-scaled)", () => {
+  it("charges the flat base cost regardless of song duration", () => {
+    expect(computeCost({ features: ["lyric_video"] }).total).toBe(5);
+    expect(computeCost({ features: ["lyric_video"], durationSeconds: 5 }).total).toBe(5);
+    expect(computeCost({ features: ["lyric_video"], durationSeconds: 180 }).total).toBe(5);
+  });
+
+  it("is not scaled by resolution either (no visual resolution to bill)", () => {
+    expect(computeCost({ features: ["lyric_video"], resolution: "1080p" }).total).toBe(5);
+  });
+
+  it("stacks additively with other features", () => {
+    expect(computeCost({ features: ["lyric_video", "image"] }).total).toBe(6);
+  });
+});
+
 describe("computeCost — rounding & stacking", () => {
   it("rounds the total UP and never charges 0 for a real generation", () => {
     expect(computeCost({ features: ["image"], resolution: "480p" }).total).toBe(1);
