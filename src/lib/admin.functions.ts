@@ -11,7 +11,9 @@ import { z } from "zod";
 // admin call in addition to the Supabase admin role.
 export const adminUnlock = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
-    z.object({ username: z.string().min(1).max(120), passcode: z.string().min(1).max(200) }).parse(d),
+    z
+      .object({ username: z.string().min(1).max(120), passcode: z.string().min(1).max(200) })
+      .parse(d),
   )
   .handler(async ({ data }) => {
     const u = process.env.ADMIN_USERNAME ?? "";
@@ -24,7 +26,6 @@ export const adminUnlock = createServerFn({ method: "POST" })
     }
     return { ok: true, token: p }; // simple shared-secret token
   });
-
 
 type SchedulerHeartbeat = {
   name: string;
@@ -62,11 +63,38 @@ export const adminOverview = createServerFn({ method: "GET" })
     };
 
     const [usersRes, gensRes, paymentsRes, jobsRes, heartbeatRes] = await Promise.all([
-      supabaseAdmin.from("profiles").select("user_id, email, display_name, credits, lifetime_credits_purchased, created_at").order("created_at", { ascending: false }).limit(500),
-      supabaseAdmin.from("generations").select("id, user_id, prompt, status, kind, model, result_image_url, result_video_url, credits_cost, created_at, error").order("created_at", { ascending: false }).limit(200),
-      supabaseAdmin.from("payments").select("id, user_id, reference, amount_kobo, currency, credits_granted, status, created_at").order("created_at", { ascending: false }).limit(100),
-      supabaseAdmin.from("jobs").select("id, generation_id, user_id, kind, status, attempts, error, scheduled_at, created_at").in("status", ["queued", "processing", "failed"]).order("created_at", { ascending: false }).limit(200),
-      heartbeatTable.from("scheduler_heartbeats").select("name, last_run_at, last_ok_at, last_error").eq("name", "jobs_tick").maybeSingle(),
+      supabaseAdmin
+        .from("profiles")
+        .select("user_id, email, display_name, credits, lifetime_credits_purchased, created_at")
+        .order("created_at", { ascending: false })
+        .limit(500),
+      supabaseAdmin
+        .from("generations")
+        .select(
+          "id, user_id, prompt, status, kind, model, result_image_url, result_video_url, credits_cost, created_at, error",
+        )
+        .order("created_at", { ascending: false })
+        .limit(200),
+      supabaseAdmin
+        .from("payments")
+        .select(
+          "id, user_id, reference, amount_kobo, currency, credits_granted, status, created_at",
+        )
+        .order("created_at", { ascending: false })
+        .limit(100),
+      supabaseAdmin
+        .from("jobs")
+        .select(
+          "id, generation_id, user_id, kind, status, attempts, error, scheduled_at, created_at",
+        )
+        .in("status", ["queued", "processing", "failed"])
+        .order("created_at", { ascending: false })
+        .limit(200),
+      heartbeatTable
+        .from("scheduler_heartbeats")
+        .select("name, last_run_at, last_ok_at, last_error")
+        .eq("name", "jobs_tick")
+        .maybeSingle(),
     ]);
 
     const users = usersRes.data ?? [];
@@ -111,12 +139,62 @@ export const adminGrantCredits = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    await supabaseAdmin.rpc("grant_credits", { _user: data.userId, _amount: data.amount, _reason: "admin_grant", _ref: crypto.randomUUID() });
+    await supabaseAdmin.rpc("grant_credits", {
+      _user: data.userId,
+      _amount: data.amount,
+      _reason: "admin_grant",
+      _ref: crypto.randomUUID(),
+    });
     return { ok: true };
   });
 
 const EARNINGS_RANGES = { "7d": 7, "30d": 30, "90d": 90, all: null } as const;
 type EarningsRange = keyof typeof EARNINGS_RANGES;
+
+export interface EarningsPaymentRow {
+  amount_kobo: number;
+  currency: string;
+  credits_granted: number;
+  profit_amount_minor: number | null;
+  credit_funding_amount_minor: number | null;
+}
+
+export interface EarningsTotals {
+  transactions: number;
+  revenueMinor: number;
+  profitMinor: number;
+  creditFundingMinor: number;
+  creditsDistributed: number;
+}
+
+// Pure reconciliation core for adminEarnings — extracted so the money math can
+// be unit tested without a live Supabase/auth context. USD-only today; ignores
+// non-USD rows in the money totals. Falls back to computeProfitSplit for
+// legacy rows persisted before the profit/credit-funding columns existed, so
+// totals always reconcile with revenue (profit + credit-funding == revenue).
+export function reconcileEarningsTotals(payments: EarningsPaymentRow[]): EarningsTotals {
+  const usdPayments = payments.filter((p) => p.currency === "USD");
+
+  let revenueMinor = 0;
+  let profitMinor = 0;
+  let creditFundingMinor = 0;
+  let creditsDistributed = 0;
+  for (const p of usdPayments) {
+    revenueMinor += p.amount_kobo;
+    const fallback = computeProfitSplit(p.amount_kobo);
+    profitMinor += p.profit_amount_minor ?? fallback.profit_minor;
+    creditFundingMinor += p.credit_funding_amount_minor ?? fallback.credit_funding_minor;
+    creditsDistributed += p.credits_granted;
+  }
+
+  return {
+    transactions: usdPayments.length,
+    revenueMinor,
+    profitMinor,
+    creditFundingMinor,
+    creditsDistributed,
+  };
+}
 
 // Owner-facing earnings aggregation. Reads the real `payments` rows (only
 // successful charges), summing the persisted profit / credit-funding split and
@@ -126,7 +204,8 @@ export const adminEarnings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => {
     const o = (input ?? {}) as { range?: string };
-    const range: EarningsRange = o.range && o.range in EARNINGS_RANGES ? (o.range as EarningsRange) : "30d";
+    const range: EarningsRange =
+      o.range && o.range in EARNINGS_RANGES ? (o.range as EarningsRange) : "30d";
     return { range };
   })
   .handler(async ({ data, context }) => {
@@ -137,30 +216,17 @@ export const adminEarnings = createServerFn({ method: "GET" })
 
     let query = supabaseAdmin
       .from("payments")
-      .select("id, user_id, amount_kobo, currency, credits_granted, status, created_at, profit_amount_minor, credit_funding_amount_minor, split_profit_pct")
+      .select(
+        "id, user_id, amount_kobo, currency, credits_granted, status, created_at, profit_amount_minor, credit_funding_amount_minor, split_profit_pct",
+      )
       .eq("status", "succeeded")
       .order("created_at", { ascending: false });
     if (since) query = query.gte("created_at", since);
     const { data: paymentsRaw, error } = await query.limit(2000);
     if (error) throw new Error(error.message);
     const payments = paymentsRaw ?? [];
-
-    // USD-only today; ignore any non-USD rows in the money totals.
-    const usdPayments = payments.filter((p) => p.currency === "USD");
-
-    let revenueMinor = 0;
-    let profitMinor = 0;
-    let creditFundingMinor = 0;
-    let creditsDistributed = 0;
-    for (const p of usdPayments) {
-      revenueMinor += p.amount_kobo;
-      // Fall back to computing the split for legacy rows persisted before the
-      // accounting columns existed, so totals still reconcile with revenue.
-      const fallback = computeProfitSplit(p.amount_kobo);
-      profitMinor += p.profit_amount_minor ?? fallback.profit_minor;
-      creditFundingMinor += p.credit_funding_amount_minor ?? fallback.credit_funding_minor;
-      creditsDistributed += p.credits_granted;
-    }
+    const { transactions, revenueMinor, profitMinor, creditFundingMinor, creditsDistributed } =
+      reconcileEarningsTotals(payments);
 
     // Recent purchases joined to the buyer's email / name (no FK relationship
     // defined on payments, so resolve profiles in a second query).
@@ -172,7 +238,8 @@ export const adminEarnings = createServerFn({ method: "GET" })
         .from("profiles")
         .select("user_id, email, display_name")
         .in("user_id", userIds);
-      for (const pr of profs ?? []) profileMap.set(pr.user_id, { email: pr.email, display_name: pr.display_name });
+      for (const pr of profs ?? [])
+        profileMap.set(pr.user_id, { email: pr.email, display_name: pr.display_name });
     }
 
     const recentPurchases = recent.map((p) => {
@@ -195,7 +262,7 @@ export const adminEarnings = createServerFn({ method: "GET" })
       profitPct: PROFIT_SPLIT_PCT,
       creditFundingPct: CREDIT_FUNDING_PCT,
       totals: {
-        transactions: usdPayments.length,
+        transactions,
         revenueUsd: revenueMinor / 100,
         profitUsd: profitMinor / 100,
         creditFundingUsd: creditFundingMinor / 100,
