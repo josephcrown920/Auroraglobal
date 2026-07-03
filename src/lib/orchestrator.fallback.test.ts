@@ -158,6 +158,13 @@ const ENV_KEYS = [
   "REPLICATE_API_KEY",
   "LOVABLE_CONNECTOR_REPLICATE_API_KEY",
   "PIAPI_API_KEY",
+  // Task #206: Replit AI Integrations is now tried FIRST for image/text/audio.
+  // These must be cleared like every other provider key so this file's
+  // "nothing can serve the request" scenarios still hold with it unconfigured.
+  "AI_INTEGRATIONS_OPENAI_BASE_URL",
+  "AI_INTEGRATIONS_OPENAI_API_KEY",
+  "AI_INTEGRATIONS_GEMINI_BASE_URL",
+  "AI_INTEGRATIONS_GEMINI_API_KEY",
 ] as const;
 const PROVIDER_NAMES = [
   "lovable",

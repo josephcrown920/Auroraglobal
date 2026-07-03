@@ -1,11 +1,15 @@
 // Aurora Orchestration Layer (server-only)
 // Providers:
+//   - replit-*    → Replit AI Integrations proxy (billed to the owner's Replit
+//                   credits, no API keys needed) — FIRST choice for image/text/audio.
 //   - lovable     → Lovable AI Gateway (Gemini image/text)
 //   - replicate   → Replicate direct API (Seedream, Seedance, Kling, Flux, Wav2Lip)
 //   - huggingface → HF Inference (flux-schnell, sdxl)
 //   - sync        → Sync.so direct API (lipsync)
 //   - gpuWorker   → admin-registered HTTP workers (RunPod / vast / salad / self-hosted)
 
+import OpenAI from "openai";
+import { GoogleGenAI, Modality } from "@google/genai";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { isFreeGpuOnlyMode } from "./app-settings.server";
 import { replicateRun, pickReplicateUrl, getReplicateKey } from "./replicate.server";
@@ -175,7 +179,12 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 2): Promise<T> {
 }
 
 type ProviderAdapter = {
-  name:
+  name: // Replit AI Integrations proxy — billed to the owner's Replit credits.
+    | "replit-openai-image"
+    | "replit-gemini-image"
+    | "replit-openai-text"
+    | "replit-gemini-text"
+    | "replit-openai-audio"
     | "lovable"
     | "gemini"
     | "replicate"
@@ -1018,6 +1027,13 @@ const TEXT_MODELS: Record<string, TextModelEntry> = {
     providerModel: "claude-sonnet-4-5",
     cost: 0.006,
   },
+  // Replit AI Integrations proxy (billed to the owner's Replit credits).
+  "replit/gpt-5-nano": { adapter: "replit-openai-text", providerModel: "gpt-5-nano", cost: 0.0005 },
+  "replit/gemini-2.5-flash": {
+    adapter: "replit-gemini-text",
+    providerModel: "gemini-2.5-flash",
+    cost: 0.0003,
+  },
 };
 
 /** POST an OpenAI-compatible /chat/completions request and return the message text. */
@@ -1355,6 +1371,265 @@ const elevenlabs: ProviderAdapter = {
   },
 };
 
+// ─── Replit AI Integrations (billed to the owner's Replit credits) ──────────
+// FIRST choice for image/text/audio — no API keys needed, the proxy bills the
+// owner's Replit credits directly. Adapters report unavailable (supports()
+// returns false) whenever their env vars are missing so the chain falls
+// through cleanly to the GPU pool and then the rest of the existing chain.
+// Env vars are auto-provisioned by the Replit AI Integrations setup:
+//   AI_INTEGRATIONS_OPENAI_BASE_URL / AI_INTEGRATIONS_OPENAI_API_KEY
+//   AI_INTEGRATIONS_GEMINI_BASE_URL / AI_INTEGRATIONS_GEMINI_API_KEY
+// Not cached as module-level singletons: the OpenAI SDK resolves `fetch` once
+// at construction time (`options.fetch ?? getDefaultFetch()`), so a cached
+// client would freeze a stale `globalThis.fetch` reference across requests
+// (this bit us in tests — see orchestrator.replit-priority.test.ts). Client
+// construction is a cheap in-memory object, not a network call, so building
+// one per request is free.
+// maxRetries: 0 + an explicit timeout on both clients: orchestrate() already
+// wraps every adapter in withRetry(fn, 2) and circuit-breaks on failure, so the
+// SDK's own retry loop must stay off or a persistently failing proxy call can
+// fire far more billed HTTP attempts than intended (and GoogleGenAI has no
+// default timeout at all, which could otherwise stall a request for minutes
+// before falling through to the GPU/external chain).
+function getReplitOpenAI(): OpenAI {
+  return new OpenAI({
+    apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+    maxRetries: 0,
+    timeout: 60_000,
+  });
+}
+function getReplitGemini(): GoogleGenAI {
+  return new GoogleGenAI({
+    apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
+    httpOptions: {
+      apiVersion: "",
+      baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
+      timeout: 60_000,
+    },
+  });
+}
+
+// Image: gemini-2.5-flash-image (nano banana) is the cheap default; gpt-image-1
+// is registered as a pinnable alternate. Each model key maps to exactly one
+// adapter, mirroring the FREE_IMAGE_MODELS / TEXT_MODELS pattern.
+type ReplitImageEntry = {
+  adapter: "replit-gemini-image" | "replit-openai-image";
+  model: string;
+  cost: number;
+};
+const REPLIT_IMAGE_MODELS: Record<string, ReplitImageEntry> = {
+  "replit/gemini-2.5-flash-image": {
+    adapter: "replit-gemini-image",
+    model: "gemini-2.5-flash-image",
+    cost: 0.002,
+  },
+  "replit/gpt-image-1": { adapter: "replit-openai-image", model: "gpt-image-1", cost: 0.02 },
+};
+
+const replitGeminiImage: ProviderAdapter = {
+  name: "replit-gemini-image",
+  supports: (r) =>
+    r.kind === "image" &&
+    !!process.env.AI_INTEGRATIONS_GEMINI_BASE_URL &&
+    !!process.env.AI_INTEGRATIONS_GEMINI_API_KEY &&
+    (r.model ? REPLIT_IMAGE_MODELS[r.model]?.adapter === "replit-gemini-image" : false),
+  estimateCost: (r) => (r.model ? REPLIT_IMAGE_MODELS[r.model]?.cost : undefined) ?? 0.002,
+  async run(r) {
+    const ai = getReplitGemini();
+    const m = r.model ? REPLIT_IMAGE_MODELS[r.model] : null;
+    const model = m?.model ?? "gemini-2.5-flash-image";
+    const parts: Array<Record<string, unknown>> = [{ text: r.prompt ?? "" }];
+    for (const url of r.imageUrls ?? []) {
+      if (!isTrustedUrl(url)) continue; // SSRF guard: skip untrusted ref hosts
+      try {
+        const fetched = await fetch(url);
+        if (!fetched.ok) continue;
+        const buf = Buffer.from(await fetched.arrayBuffer());
+        const mime = fetched.headers.get("content-type") || "image/png";
+        parts.push({ inlineData: { mimeType: mime, data: buf.toString("base64") } });
+      } catch {
+        /* skip bad ref */
+      }
+    }
+    const response = await ai.models.generateContent({
+      model,
+      contents: [{ role: "user", parts }],
+      config: { responseModalities: [Modality.TEXT, Modality.IMAGE] },
+    });
+    const candidate = response.candidates?.[0];
+    const imagePart = candidate?.content?.parts?.find(
+      (p: { inlineData?: { data?: string; mimeType?: string } }) => p.inlineData,
+    );
+    const inline = imagePart?.inlineData;
+    if (!inline?.data) throw new Error("Replit Gemini image: no image data in response");
+    const mime = inline.mimeType || "image/png";
+    const ext = mime.split("/")[1] || "png";
+    const url = await uploadBytesToStudio(
+      r.userId,
+      "replit-gemini",
+      Buffer.from(inline.data, "base64"),
+      mime,
+      ext,
+    );
+    return { url, endpoint: `replit-gemini-image:${model}` };
+  },
+};
+
+const replitOpenAIImage: ProviderAdapter = {
+  name: "replit-openai-image",
+  // gpt-image-1 via images.generate has no reference-image input — fall through
+  // to the next candidate rather than silently dropping the user's reference.
+  supports: (r) =>
+    r.kind === "image" &&
+    !r.imageUrls?.length &&
+    !!process.env.AI_INTEGRATIONS_OPENAI_BASE_URL &&
+    !!process.env.AI_INTEGRATIONS_OPENAI_API_KEY &&
+    (r.model ? REPLIT_IMAGE_MODELS[r.model]?.adapter === "replit-openai-image" : false),
+  estimateCost: (r) => (r.model ? REPLIT_IMAGE_MODELS[r.model]?.cost : undefined) ?? 0.02,
+  async run(r) {
+    const client = getReplitOpenAI();
+    const m = r.model ? REPLIT_IMAGE_MODELS[r.model] : null;
+    const model = m?.model ?? "gpt-image-1";
+    const response = await client.images.generate({
+      model,
+      prompt: r.prompt ?? "",
+      size: "1024x1024",
+    });
+    const b64 = response.data?.[0]?.b64_json;
+    if (!b64) throw new Error("Replit OpenAI image: no image data in response");
+    const url = await uploadBytesToStudio(
+      r.userId,
+      "replit-openai",
+      Buffer.from(b64, "base64"),
+      "image/png",
+      "png",
+    );
+    return { url, endpoint: `replit-openai-image:${model}` };
+  },
+};
+
+// Text: gpt-5-nano is the cheap/fast default; gemini-2.5-flash is the second
+// Replit-billed hop before the chain falls through to the GPU pool.
+const replitOpenAIText: ProviderAdapter = {
+  name: "replit-openai-text",
+  supports: (r) =>
+    r.kind === "text" &&
+    !!process.env.AI_INTEGRATIONS_OPENAI_BASE_URL &&
+    !!process.env.AI_INTEGRATIONS_OPENAI_API_KEY &&
+    (r.model ? TEXT_MODELS[r.model]?.adapter === "replit-openai-text" : false),
+  estimateCost: (r) => (r.model ? TEXT_MODELS[r.model]?.cost : undefined) ?? 0.0005,
+  async run(r) {
+    const client = getReplitOpenAI();
+    const m = r.model ? TEXT_MODELS[r.model] : null;
+    const model = m?.providerModel ?? "gpt-5-nano";
+    // Vision: only switch to the multimodal content-array shape when trusted
+    // image refs are supplied — text-only callers keep the plain-string content.
+    const imgs = (r.imageUrls ?? []).filter(isTrustedUrl);
+    const content =
+      imgs.length > 0
+        ? [
+            { type: "text" as const, text: r.prompt ?? "" },
+            ...imgs.map((u) => ({ type: "image_url" as const, image_url: { url: u } })),
+          ]
+        : (r.prompt ?? "");
+    const response = await client.chat.completions.create({
+      model,
+      messages: [{ role: "user", content: content as never }],
+    });
+    const text = response.choices?.[0]?.message?.content;
+    if (!text || typeof text !== "string")
+      throw new Error("Replit OpenAI text: provider returned no text");
+    return { url: "", endpoint: `replit-openai-text:${model}`, text };
+  },
+};
+
+const replitGeminiText: ProviderAdapter = {
+  name: "replit-gemini-text",
+  supports: (r) =>
+    r.kind === "text" &&
+    !!process.env.AI_INTEGRATIONS_GEMINI_BASE_URL &&
+    !!process.env.AI_INTEGRATIONS_GEMINI_API_KEY &&
+    (r.model ? TEXT_MODELS[r.model]?.adapter === "replit-gemini-text" : false),
+  estimateCost: (r) => (r.model ? TEXT_MODELS[r.model]?.cost : undefined) ?? 0.0003,
+  async run(r) {
+    const ai = getReplitGemini();
+    const m = r.model ? TEXT_MODELS[r.model] : null;
+    const model = m?.providerModel ?? "gemini-2.5-flash";
+    const parts: Array<Record<string, unknown>> = [{ text: r.prompt ?? "" }];
+    for (const url of r.imageUrls ?? []) {
+      if (!isTrustedUrl(url)) continue; // SSRF guard: skip untrusted ref hosts
+      try {
+        const resp = await fetch(url);
+        if (!resp.ok) continue;
+        const mime = resp.headers.get("content-type") || "image/jpeg";
+        const buf = Buffer.from(await resp.arrayBuffer());
+        parts.push({ inlineData: { mimeType: mime, data: buf.toString("base64") } });
+      } catch {
+        /* skip bad ref */
+      }
+    }
+    const response = await ai.models.generateContent({
+      model,
+      contents: [{ role: "user", parts }],
+    });
+    const respParts: Array<{ text?: string }> = response.candidates?.[0]?.content?.parts ?? [];
+    const text = respParts
+      .map((p) => p.text)
+      .filter(Boolean)
+      .join("");
+    if (!text) throw new Error("Replit Gemini text: returned empty");
+    return { url: "", endpoint: `replit-gemini-text:${model}`, text };
+  },
+};
+
+// Audio (TTS): only OpenAI's gpt-audio family is exposed on the proxy — Gemini
+// does not support audio generation output.
+type ReplitAudioEntry = { adapter: "replit-openai-audio"; model: string; cost: number };
+const REPLIT_AUDIO_MODELS: Record<string, ReplitAudioEntry> = {
+  "replit/gpt-audio-mini": { adapter: "replit-openai-audio", model: "gpt-audio-mini", cost: 0.015 },
+};
+const OPENAI_TTS_VOICES = new Set(["alloy", "echo", "fable", "onyx", "nova", "shimmer"]);
+const replitOpenAIAudio: ProviderAdapter = {
+  name: "replit-openai-audio",
+  supports: (r) =>
+    r.kind === "audio" &&
+    !!process.env.AI_INTEGRATIONS_OPENAI_BASE_URL &&
+    !!process.env.AI_INTEGRATIONS_OPENAI_API_KEY &&
+    (r.model ? REPLIT_AUDIO_MODELS[r.model]?.adapter === "replit-openai-audio" : false),
+  estimateCost: (r) => (r.model ? REPLIT_AUDIO_MODELS[r.model]?.cost : undefined) ?? 0.015,
+  async run(r) {
+    const client = getReplitOpenAI();
+    const m = r.model ? REPLIT_AUDIO_MODELS[r.model] : null;
+    const model = m?.model ?? "gpt-audio-mini";
+    const requested = typeof r.params?.voiceId === "string" ? r.params.voiceId : undefined;
+    const voice = (requested && OPENAI_TTS_VOICES.has(requested) ? requested : "alloy") as
+      | "alloy"
+      | "echo"
+      | "fable"
+      | "onyx"
+      | "nova"
+      | "shimmer";
+    const response = await client.chat.completions.create({
+      model,
+      modalities: ["text", "audio"],
+      audio: { voice, format: "mp3" },
+      messages: [
+        { role: "system", content: "You are an assistant that performs text-to-speech." },
+        { role: "user", content: `Repeat the following text verbatim: ${r.prompt ?? ""}` },
+      ],
+    });
+    const message = response.choices?.[0]?.message as unknown as {
+      audio?: { data?: string };
+    };
+    const audioData = message?.audio?.data;
+    if (!audioData) throw new Error("Replit OpenAI audio: no audio data in response");
+    const bytes = Buffer.from(audioData, "base64");
+    const url = await uploadBytesToStudio(r.userId, "replit-tts", bytes, "audio/mpeg", "mp3");
+    return { url, endpoint: `replit-openai-audio:${model}` };
+  },
+};
+
 // ─── GPU worker pool ─────────────────────────────────────────────────────────
 // Admin-registered HTTP workers (RunPod / vast / salad / self-hosted). Each row
 // declares the request contract it speaks via `protocol`:
@@ -1669,7 +1944,17 @@ function workerCapability(kind: GenerateKind): string {
 const gpuWorker: ProviderAdapter = {
   name: "runpod",
   supports: (r) =>
-    ["image", "video", "lipsync", "upscale", "motion", "audio", "assemble", "caption_burn", "autocut"].includes(r.kind),
+    [
+      "image",
+      "video",
+      "lipsync",
+      "upscale",
+      "motion",
+      "audio",
+      "assemble",
+      "caption_burn",
+      "autocut",
+    ].includes(r.kind),
   estimateCost: (r) => (r.kind === "video" || r.kind === "motion" ? 0.05 : 0.01),
   async run(r) {
     const { data: workers } = await supabaseAdmin
@@ -1743,14 +2028,24 @@ const gpuWorker: ProviderAdapter = {
 };
 
 // ─── Priority chain per kind ─────────────────────────────────────────────────
-// GPU-FIRST across every modality: the self-hosted gpuWorker pool is always tried
-// first. When no eligible worker is up (offline, stale heartbeat, at capacity,
-// missing the capability) the adapter throws a "GPU unavailable" signal that
-// orchestrate() treats as a clean skip — the request falls straight through to
-// the external chain below. This means a running GPU always saves credits, and
-// the external providers act purely as high-availability fallbacks.
+// REPLIT-FIRST for image/text/audio: the Replit AI Integrations proxy (billed
+// to the owner's Replit credits) is tried before anything else. When the
+// integration env vars are absent, or the call fails, the adapter reports
+// unavailable / throws and orchestrate() falls straight through to the
+// self-hosted gpuWorker pool, then the rest of the existing external chain
+// below — unchanged from before this hop was added.
+// GPU-FIRST for every OTHER modality (video/lipsync/upscale/motion/assemble/
+// caption_burn/autocut — Replit's proxy can't serve these): the self-hosted
+// gpuWorker pool is always tried first. When no eligible worker is up
+// (offline, stale heartbeat, at capacity, missing the capability) the adapter
+// throws a "GPU unavailable" signal that orchestrate() treats as a clean skip
+// — the request falls straight through to the external chain below. This
+// means a running GPU always saves credits, and the external providers act
+// purely as high-availability fallbacks.
 const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   image: [
+    replitGeminiImage,
+    replitOpenAIImage,
     gpuWorker,
     byteplus,
     pollinations,
@@ -1768,8 +2063,11 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   upscale: [gpuWorker, replicate, falFallback],
   // Motion transfer (MimicMotion) has no hosted provider — GPU/ComfyUI workers only.
   motion: [gpuWorker],
-  // GPU-first: a worker advertising "text" (local LLM) is tried first.
+  // Replit-first: gpt-5-nano then gemini-2.5-flash, both billed to the owner's
+  // Replit credits, before falling through to GPU / the external text chain.
   text: [
+    replitOpenAIText,
+    replitGeminiText,
     gpuWorker,
     pollinations,
     groqText,
@@ -1780,8 +2078,9 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
     anthropicText,
     lovableText,
   ],
-  // GPU-first: a worker advertising "audio" (local TTS) is tried before ElevenLabs.
-  audio: [gpuWorker, elevenlabs],
+  // Replit-first: gpt-audio-mini (billed to the owner's Replit credits), then
+  // GPU (local TTS), then ElevenLabs.
+  audio: [replitOpenAIAudio, gpuWorker, elevenlabs],
   // Final assembly (ffmpeg): self-hosted GPU worker pool only — no hosted provider.
   assemble: [gpuWorker],
   // Caption burn: self-hosted GPU worker preferred (FFmpeg drawtext, fastest).
@@ -1842,6 +2141,11 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     out[k] = { provider: v.adapter, kind: "image", cost: v.cost };
   for (const [k, v] of Object.entries(TEXT_MODELS))
     out[k] = { provider: v.adapter, kind: "text", cost: v.cost };
+  // Replit AI Integrations proxy (billed to the owner's Replit credits).
+  for (const [k, v] of Object.entries(REPLIT_IMAGE_MODELS))
+    out[k] = { provider: v.adapter, kind: "image", cost: v.cost };
+  for (const [k, v] of Object.entries(REPLIT_AUDIO_MODELS))
+    out[k] = { provider: v.adapter, kind: "audio", cost: v.cost };
   return out;
 })();
 
@@ -1911,25 +2215,39 @@ async function log(opts: {
 // a bounded, cheapest-first list of alternate same-kind models (all reachable on
 // the Replicate key). Capped so paid video generations never run away on cost.
 const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
-  // Identity-capable models FIRST: a Spin/reshoot batch that exhausts its
-  // requested model must fall to another model that honours imageUrls, not to
-  // identity-blind pollinations/flux (text-only → every face would change).
-  // Pollinations stays LAST as the free, faceless last resort.
-  image: ["google/nano-banana", "fal-ai/seedream-4", "replicate/flux-schnell", "pollinations/flux"],
+  // Replit-billed models first (cheap flash image, then gpt-image-1) to save
+  // cost. After that, identity-capable models come BEFORE identity-blind
+  // pollinations/flux: a Spin/reshoot batch that exhausts its requested model
+  // must fall to another model that honours imageUrls, not to a text-only
+  // model (every face would change). Pollinations stays LAST as the free,
+  // faceless last resort.
+  image: [
+    "replit/gemini-2.5-flash-image",
+    "replit/gpt-image-1",
+    "google/nano-banana",
+    "fal-ai/seedream-4",
+    "replicate/flux-schnell",
+    "pollinations/flux",
+  ],
   video: ["seedance-2.0-fast", "seedance-2.0", "wan-2.5", "kling-3.0", "veo-3-fast", "sora-2"],
   lipsync: ["fal-ai/sync-lipsync/v2", "fal-ai/wav2lip"],
   upscale: [],
   motion: [],
-  // Free Pollinations first, then keyed text providers cheapest-first.
+  // Replit-billed models first (gpt-5-nano, then gemini-2.5-flash), then the
+  // existing free/keyed chain unchanged: Pollinations → Groq → Gemini → Claude
+  // → Lovable.
   text: [
+    "replit/gpt-5-nano",
+    "replit/gemini-2.5-flash",
     "pollinations/openai",
     "groq/llama-3.3-70b",
     "gemini/gemini-2.0-flash",
     "anthropic/claude-haiku-4-5",
     "lovable/gemini-2.5-flash",
   ],
-  // Sentinel so the candidate loop runs; both audio adapters ignore the model key.
-  audio: ["elevenlabs/tts"],
+  // Replit-billed gpt-audio-mini first, then the ElevenLabs sentinel (both
+  // audio adapters otherwise ignore the model key).
+  audio: ["replit/gpt-audio-mini", "elevenlabs/tts"],
   // Assembly pins to its self-hosted sentinel model (selfHostedOnly) — no fallback.
   assemble: [],
   // Caption burn: GPU worker first (FFmpeg drawtext), Replicate fallback.
@@ -1940,18 +2258,21 @@ const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   autocut: [],
 };
 const FALLBACK_CAP: Record<GenerateKind, number> = {
-  // Requested model + the full 4-model image list: identity-capable models are
-  // tried first and free identity-blind pollinations/flux must still fit as the
-  // final candidate (Free-GPU-only mode relies on reaching it).
-  image: 5,
+  // Requested model + all 6 fallback candidates (2 Replit-billed, then
+  // identity-capable models, then identity-blind pollinations/flux last):
+  // pollinations/flux must still fit as the final candidate even when the
+  // requested model isn't already one of the 6 (Free-GPU-only mode relies
+  // on reaching it).
+  image: 7,
   video: 2,
   lipsync: 2,
   upscale: 1,
   motion: 1,
-  // Text chain has 5 fallback models (Pollinations → Groq → Gemini → Claude →
-  // Lovable); text calls are cheap, so the cap covers the full list.
-  text: 5,
-  audio: 1,
+  // 2 Replit-billed + 5 existing candidates (Pollinations → Groq → Gemini →
+  // Claude → Lovable); text calls are cheap, so the cap covers the full list.
+  text: 7,
+  // 1 Replit-billed + 1 existing (ElevenLabs) candidate.
+  audio: 2,
   assemble: 1,
   caption_burn: 2,
   autocut: 1,
@@ -1979,9 +2300,7 @@ export function getCandidateModels(req: GenerateRequest): string[] {
   const cap = Math.max(1, FALLBACK_CAP[req.kind] ?? 2);
   // Strict edits (photo editor): drop every candidate that cannot edit the
   // source photo — failing is better than charging for an unrelated image.
-  const pool = req.editStrict
-    ? ordered.filter((m) => EDIT_CAPABLE_IMAGE_MODELS.has(m))
-    : ordered;
+  const pool = req.editStrict ? ordered.filter((m) => EDIT_CAPABLE_IMAGE_MODELS.has(m)) : ordered;
   return Array.from(new Set(pool)).slice(0, cap);
 }
 
