@@ -67,10 +67,10 @@ CONFIG_KEYS = [
 
 # GitHub branch names are case-sensitive and Lovable exports vary, so we try a few
 # default raw bases in order. Set AURORA_WORKER_REPO_RAW to skip the guessing.
-_OWNER_REPO = "josephcrown920/aurora-charm-forge-87e3e757"
+_OWNER_REPO = "josephcrown920/Auroraglobal"
 _DEFAULT_BASES = [
     f"https://raw.githubusercontent.com/{_OWNER_REPO}/{b}/workers"
-    for b in ("main", "Main", "master")
+    for b in ("Main", "main", "master")
 ]
 
 
