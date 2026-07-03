@@ -61,8 +61,10 @@ export type GenerateKind =
 // provider (Replicate, Kling, Gemini ref, etc.), the `/object/public/...` URL
 // returns 400. Rewrite any such URL to a short-lived signed URL before the
 // provider fetches it. Non-studio URLs pass through untouched.
-const PUBLIC_STUDIO_RE = /\/storage\/v1\/object\/public\/studio\/(.+)$/;
-async function signIfStudio(url: string | undefined | null): Promise<string | undefined | null> {
+export const PUBLIC_STUDIO_RE = /\/storage\/v1\/object\/public\/studio\/(.+)$/;
+export async function signIfStudio(
+  url: string | undefined | null,
+): Promise<string | undefined | null> {
   if (!url) return url;
   const m = url.match(PUBLIC_STUDIO_RE);
   if (!m) return url;
@@ -71,7 +73,7 @@ async function signIfStudio(url: string | undefined | null): Promise<string | un
   if (error || !data?.signedUrl) return url; // fall back; provider will surface error
   return data.signedUrl;
 }
-async function signStudioRefs(req: GenerateRequest): Promise<GenerateRequest> {
+export async function signStudioRefs(req: GenerateRequest): Promise<GenerateRequest> {
   const out: GenerateRequest = { ...req };
   if (req.imageUrls?.length) {
     out.imageUrls = await Promise.all(req.imageUrls.map(async (u) => (await signIfStudio(u)) ?? u));
