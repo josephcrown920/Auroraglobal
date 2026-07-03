@@ -55,7 +55,7 @@ describe("buildBulkImagePayload", () => {
     const payload = buildBulkImagePayload("josh sipping coffee, golden hour", TRUSTED_REF);
     expect(payload).toEqual({
       kind: "image",
-      model: "google/nano-banana",
+      model: "google/gemini-3.1-flash-image-preview",
       prompt: "josh sipping coffee, golden hour",
       imageUrls: [TRUSTED_REF],
     });

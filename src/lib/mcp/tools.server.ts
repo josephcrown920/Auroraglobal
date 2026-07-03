@@ -174,12 +174,15 @@ export function requireAvatarReference(avatar: { name: string; preview_url?: str
   return avatar.preview_url;
 }
 
-/** The bulk pipeline always forces nano-banana with the avatar reference as
- *  image_input[]; exported so callers report the model actually used. */
-export const BULK_IMAGE_MODEL = "google/nano-banana";
+/** The bulk pipeline always forces the identity-preserving Gemini flash-image
+ *  model (same family as the reshoot tool) with the avatar reference passed as
+ *  imageUrls; exported so callers report the model actually used. nano-banana
+ *  was dropped: as a light edit model it returned near-identical low-res face
+ *  crops instead of following each post's scene/outfit/location directions. */
+export const BULK_IMAGE_MODEL = "google/gemini-3.1-flash-image-preview";
 
 /** Build the enqueue payload for one bulk image, locking identity to the avatar's
- *  reference image via nano-banana (image_input[]). */
+ *  reference image (imageUrls). */
 export function buildBulkImagePayload(prompt: string, referenceImageUrl: string) {
   return { kind: "image" as const, model: BULK_IMAGE_MODEL, prompt, imageUrls: [referenceImageUrl] };
 }

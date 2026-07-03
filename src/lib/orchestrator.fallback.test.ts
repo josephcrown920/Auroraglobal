@@ -82,8 +82,17 @@ mock.module("./hf.server", () => ({
   HF_ROUTER_BASE: "https://router.huggingface.co/v1",
 }));
 
-const { orchestrate, markFailure, markSuccess, isHealthy, getProviderHealthSnapshot } =
-  await import("./orchestrator.server");
+const {
+  orchestrate,
+  markFailure,
+  markSuccess,
+  isHealthy,
+  getProviderHealthSnapshot,
+  geminiDirectModelFor,
+  GEMINI_DIRECT_SLUGS,
+  GEMINI_DIRECT_DEFAULT_MODEL,
+  FAL_IDENTITY_EDITS,
+} = await import("./orchestrator.server");
 
 // ─── fetch + clock helpers (same pattern as orchestrator.server.test.ts) ───────
 
@@ -397,6 +406,81 @@ describe("provider health tracking", () => {
     fakeNow += 6_000;
     expect(getProviderHealthSnapshot()["snp"].ready).toBe(true);
     expect(getProviderHealthSnapshot()["snp"].cooldownMs).toBe(0);
+  });
+});
+
+// ─── Gemini direct model routing (Task: Spin/bulk identity model swap) ────────
+
+describe("geminiDirectModelFor", () => {
+  it("maps every registry gemini-family key to a live API slug (no dead -preview 2.5 slug)", () => {
+    expect(geminiDirectModelFor("google/gemini-3.1-flash-image-preview")).toBe(
+      "gemini-3.1-flash-image-preview",
+    );
+    expect(geminiDirectModelFor("google/gemini-3-pro-image-preview")).toBe(
+      "gemini-3-pro-image-preview",
+    );
+    // The API renamed gemini-2.5-flash-image-preview → gemini-2.5-flash-image;
+    // the old hardcoded slug 404s and must never come back.
+    expect(geminiDirectModelFor("google/gemini-2.5-flash-image")).toBe("gemini-2.5-flash-image");
+    expect(geminiDirectModelFor("google/nano-banana")).toBe("gemini-2.5-flash-image");
+    for (const slug of Object.values(GEMINI_DIRECT_SLUGS)) {
+      expect(slug).not.toBe("gemini-2.5-flash-image-preview");
+    }
+  });
+
+  it("returns the default flash model for model-less requests", () => {
+    expect(geminiDirectModelFor(undefined)).toBe(GEMINI_DIRECT_DEFAULT_MODEL);
+    expect(geminiDirectModelFor(null)).toBe(GEMINI_DIRECT_DEFAULT_MODEL);
+  });
+
+  it("refuses non-gemini models so geminiDirect cannot hijack other image requests", () => {
+    expect(geminiDirectModelFor("fal-ai/seedream-4")).toBeNull();
+    expect(geminiDirectModelFor("replicate/flux-schnell")).toBeNull();
+    expect(geminiDirectModelFor("pollinations/flux")).toBeNull();
+  });
+});
+
+describe("FAL_IDENTITY_EDITS", () => {
+  it("covers every gemini-family model with an image_urls[] edit endpoint", () => {
+    for (const model of Object.keys(GEMINI_DIRECT_SLUGS)) {
+      expect(FAL_IDENTITY_EDITS[model]).toMatch(/\/edit$/);
+    }
+  });
+});
+
+describe("fal identity-preserving fallback", () => {
+  beforeEach(() => {
+    for (const k of ENV_KEYS) delete process.env[k];
+    for (const p of PROVIDER_NAMES) markSuccess(p);
+  });
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  it("routes a gemini-family model with a reference image to the fal edit endpoint with image_urls[]", async () => {
+    process.env.FAL_KEY = "fal-test";
+    const { calls } = installFetch(({ url }) => {
+      if (url.includes("fal.run/fal-ai/nano-banana/edit")) {
+        return fakeResponse({ json: { images: [{ url: "https://fal.media/out.png" }] } });
+      }
+      return fakeResponse({ ok: false, status: 500, text: "unexpected fetch " + url });
+    });
+
+    const res = await orchestrate({
+      kind: "image",
+      model: "google/gemini-3.1-flash-image-preview",
+      prompt: "rooftop golden hour, full-body",
+      imageUrls: ["https://example.com/face.jpg"],
+    } as GenerateRequest);
+
+    expect(res.url).toBe("https://fal.media/out.png");
+    const falCall = calls.find((c) => c.url.includes("fal.run/fal-ai/nano-banana/edit"));
+    expect(falCall).toBeDefined();
+    const body = JSON.parse(String(falCall!.init?.body));
+    // Identity contract: the reference image must arrive as image_urls[] — the
+    // generic flux/schnell path (text-to-image) would silently drop the face.
+    expect(body.image_urls).toEqual(["https://example.com/face.jpg"]);
+    expect(body.prompt).toContain("rooftop");
   });
 });
 
