@@ -5,13 +5,13 @@ export type ModelMeta = {
   value: string;
   label: string;
   short: string;
-  group: "Lovable AI" | "Replicate" | "Hugging Face" | "Sync" | "Self-hosted";
+  group: "Lovable AI" | "Replicate" | "Hugging Face" | "Sync" | "Self-hosted" | "Replit";
   icon: LucideIcon;
   color: string;
   bg: string;
   tagline: string;
   status?: "live" | "preview";
-  category: "image" | "video" | "lipsync";
+  category: "image" | "video" | "lipsync" | "text" | "audio";
   /** Real backend endpoint we route to. */
   endpoint: string;
 };
@@ -263,12 +263,88 @@ export const LATENTSYNC_MODEL: ModelMeta = {
 
 export const LIPSYNC_MODEL_LIST: ModelMeta[] = [LIPSYNC_MODEL, WAV2LIP_MODEL, LATENTSYNC_MODEL];
 
+// REPLIT-BILLED MODELS (auto-selected server-side via orchestrator.server.ts's
+// Replit-first priority chain — NOT user-pickable, so intentionally excluded
+// from MODEL_LIST/VIDEO_MODEL_LIST/LIPSYNC_MODEL_LIST. Only exists so
+// getModelMeta()/ModelBadge can show a real name+icon instead of the generic
+// "Unknown" fallback in the generation history list.
+export const REPLIT_MODEL_LIST: ModelMeta[] = [
+  {
+    value: "replit/gemini-2.5-flash-image",
+    endpoint: "replit/gemini-2.5-flash-image",
+    label: "Nano Banana (Replit)",
+    short: "Nano Banana",
+    group: "Replit",
+    icon: Banana,
+    color: "text-violet-300",
+    bg: "bg-violet-500/15 border-violet-500/30",
+    tagline: "Gemini 2.5 Flash image · billed to Replit credits",
+    status: "live",
+    category: "image",
+  },
+  {
+    value: "replit/gpt-image-1",
+    endpoint: "replit/gpt-image-1",
+    label: "GPT Image 1 (Replit)",
+    short: "GPT Image",
+    group: "Replit",
+    icon: ImageIcon,
+    color: "text-violet-300",
+    bg: "bg-violet-500/15 border-violet-500/30",
+    tagline: "OpenAI image gen · billed to Replit credits",
+    status: "live",
+    category: "image",
+  },
+  {
+    value: "replit/gpt-5-nano",
+    endpoint: "replit/gpt-5-nano",
+    label: "GPT-5 Nano (Replit)",
+    short: "GPT-5 Nano",
+    group: "Replit",
+    icon: Zap,
+    color: "text-violet-300",
+    bg: "bg-violet-500/15 border-violet-500/30",
+    tagline: "Fast OpenAI text · billed to Replit credits",
+    status: "live",
+    category: "text",
+  },
+  {
+    value: "replit/gemini-2.5-flash",
+    endpoint: "replit/gemini-2.5-flash",
+    label: "Gemini 2.5 Flash (Replit)",
+    short: "Gemini Flash",
+    group: "Replit",
+    icon: Sparkles,
+    color: "text-violet-300",
+    bg: "bg-violet-500/15 border-violet-500/30",
+    tagline: "Gemini text · billed to Replit credits",
+    status: "live",
+    category: "text",
+  },
+  {
+    value: "replit/gpt-audio-mini",
+    endpoint: "replit/gpt-audio-mini",
+    label: "GPT Audio Mini (Replit)",
+    short: "GPT Audio",
+    group: "Replit",
+    icon: Wand2,
+    color: "text-violet-300",
+    bg: "bg-violet-500/15 border-violet-500/30",
+    tagline: "OpenAI TTS · billed to Replit credits",
+    status: "live",
+    category: "audio",
+  },
+];
+
 const ALL: Record<string, ModelMeta> = Object.fromEntries(
-  [...MODEL_LIST, ...VIDEO_MODEL_LIST, ...LIPSYNC_MODEL_LIST].map((m) => [m.value, m]),
+  [...MODEL_LIST, ...VIDEO_MODEL_LIST, ...LIPSYNC_MODEL_LIST, ...REPLIT_MODEL_LIST].map((m) => [
+    m.value,
+    m,
+  ]),
 );
 
 // Also index by raw endpoint (for legacy rows stored with endpoint string)
-[...MODEL_LIST, ...VIDEO_MODEL_LIST, ...LIPSYNC_MODEL_LIST].forEach((m) => {
+[...MODEL_LIST, ...VIDEO_MODEL_LIST, ...LIPSYNC_MODEL_LIST, ...REPLIT_MODEL_LIST].forEach((m) => {
   if (!ALL[m.endpoint]) ALL[m.endpoint] = m;
 });
 
