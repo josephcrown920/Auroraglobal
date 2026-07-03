@@ -15,6 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { UploadSlot } from "@/components/studio/UploadSlot";
+import { AUDIO_ACCEPT } from "@/lib/utils";
 import { TriedTestedShowcase } from "@/components/studio/TriedTestedShowcase";
 import { BringItToLifePreview } from "@/components/studio/BringItToLifePreview";
 import tutorialStudioRefs from "@/assets/tutorial-studio-refs.jpg.asset.json";
@@ -1001,7 +1002,7 @@ function StudioPage() {
                 userId={user.id}
                 label="Audio"
                 hint="Upload mp3 / wav"
-                accept="audio/*"
+                accept={AUDIO_ACCEPT}
                 kind="video"
                 value={audioUrl}
                 onChange={setAudioUrl}

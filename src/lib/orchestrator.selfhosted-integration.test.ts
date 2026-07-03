@@ -428,6 +428,104 @@ describe("orchestrate() — selfHostedOnly assemble", () => {
   });
 });
 
+// ─── orchestrate(): selfHostedOnly lyric_video routing (ffmpeg-lyricvideo sentinel) ─
+// `lyric_video` synthesizes a NEW video (background + burned-in timed lyrics,
+// muxed with the uploaded song) rather than transcribing/burning onto an
+// existing one. It is self-hosted-only for the same reason as `assemble` (no
+// hosted provider does audio+lyrics-in / synced-video-out) and must reach the
+// GPU worker via the `ffmpeg-lyricvideo` sentinel model, never a hosted provider.
+
+/** Build a self-hosted worker that advertises the `lyric_video` capability. */
+function makeLyricVideoWorker(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: "w-lyricvideo-1",
+    name: "ffmpeg-worker",
+    endpoint_url: "https://lyricvideo.example.com",
+    auth_token: "gpu-secret",
+    protocol: "custom",
+    capabilities: ["lyric_video"],
+    status: "active",
+    in_flight: 0,
+    max_concurrency: 1,
+    priority: 0,
+    last_heartbeat: new Date(Date.now() - 30_000).toISOString(),
+    runpod_sync: false,
+    ...overrides,
+  };
+}
+
+describe("orchestrate() — selfHostedOnly lyric_video", () => {
+  beforeEach(() => {
+    process.env.REPLICATE_API_KEY = "r8_replicate-key-present";
+    process.env.FAL_KEY = "fal-key-present";
+    syncCallCount = 0;
+    replicateCallCount = 0;
+    heygenFetchCallCount = 0;
+    workersQueryResult = { data: [], error: null };
+    for (const p of ["sync", "replicate", "heygen", "runpod", "fal", "lovable", "huggingface"]) {
+      markSuccess(p);
+    }
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  it("routes the lyric_video job to the GPU worker via the ffmpeg-lyricvideo sentinel and returns its URL", async () => {
+    workersQueryResult = { data: [makeLyricVideoWorker()], error: null };
+
+    const { calls } = installFetch(({ url }) => {
+      if (url.includes("lyricvideo.example.com")) {
+        return fakeResponse({ json: { url: "https://lyricvideo.example.com/out/song.mp4" } });
+      }
+      throw new Error(`Unexpected fetch to hosted provider: ${url}`);
+    });
+
+    const result = await orchestrate({
+      kind: "lyric_video",
+      model: "ffmpeg-lyricvideo",
+      selfHostedOnly: true,
+      audioUrl: "https://storage.example.com/song.mp3",
+      segments: [{ start: 0, end: 5, text: "first line" }],
+    });
+
+    expect(result.provider).toBe("runpod"); // gpuWorker adapter name
+    expect(result.endpoint).toBe("gpu:ffmpeg-worker");
+    expect(result.url).toBe("https://lyricvideo.example.com/out/song.mp4");
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe("https://lyricvideo.example.com/generate");
+    const body = JSON.parse(calls[0].init?.body as string);
+    expect(body.audio_url).toBe("https://storage.example.com/song.mp3");
+    expect(body.segments).toEqual([{ start: 0, end: 5, text: "first line" }]);
+
+    const hitHosted = calls.some((c) => HOSTED_PATTERNS.some((p) => c.url.includes(p)));
+    expect(hitHosted).toBe(false);
+    expect(replicateCallCount).toBe(0);
+  });
+
+  it("throws 'No GPU workers available' when no lyric_video-capable worker is online", async () => {
+    workersQueryResult = { data: [], error: null };
+
+    const { calls } = installFetch(() => {
+      throw new Error("fetch must not be called when no lyric_video worker is available");
+    });
+
+    await expect(
+      orchestrate({
+        kind: "lyric_video",
+        model: "ffmpeg-lyricvideo",
+        selfHostedOnly: true,
+        audioUrl: "https://storage.example.com/song.mp3",
+        segments: [{ start: 0, end: 5, text: "first line" }],
+      }),
+    ).rejects.toThrow(/No GPU workers available/);
+
+    expect(calls).toHaveLength(0);
+    expect(replicateCallCount).toBe(0);
+  });
+});
+
 // ─── Restore env after all tests ─────────────────────────────────────────────
 
 afterAll(() => {

@@ -20,6 +20,7 @@
 
 import { computeCost, type Resolution } from "./pricing";
 import { SPIN_PIECE_COST } from "./spin-engine";
+import { AUDIO_ACCEPT } from "./utils";
 
 // ── Thumbnails (direct file imports resolve to a URL string) ────────────────
 import stillNeon from "@/assets/josh/generated/still-01-neon-closeup.jpg";
@@ -132,7 +133,7 @@ const AUD = (label = "Your song or audio", hint?: string): TemplateInput => ({
   label,
   hint,
   required: true,
-  accept: "audio/*",
+  accept: AUDIO_ACCEPT,
 });
 const TXT = (label: string, required: boolean, hint?: string): TemplateInput => ({
   kind: "text",

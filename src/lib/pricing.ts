@@ -22,7 +22,16 @@
 // The model→tier table is therefore duplicated here (kept in sync with the
 // server's MODEL_REGISTRY costs by pricing.test.ts) rather than imported.
 
-export type Feature = "image" | "upscale" | "text" | "audio" | "lipsync" | "motion" | "video" | "caption_burn";
+export type Feature =
+  | "image"
+  | "upscale"
+  | "text"
+  | "audio"
+  | "lipsync"
+  | "motion"
+  | "video"
+  | "caption_burn"
+  | "lyric_video";
 export type Resolution = "480p" | "720p" | "1080p" | "2160p";
 
 /** Every billable feature, in canonical display order. */
@@ -35,6 +44,7 @@ export const FEATURES: readonly Feature[] = [
   "lipsync",
   "motion",
   "caption_burn",
+  "lyric_video",
 ];
 
 // ─── Editable default price table ────────────────────────────────────────────
@@ -50,6 +60,10 @@ export const PRICING = {
     motion: 15,
     video: 5,
     caption_burn: 2,
+    // Flat rate — deliberately NOT length-scaled (see LENGTH_FEATURES below): a
+    // multi-minute song must not multiply this into a huge charge. Self-hosted
+    // GPU-worker-only synthesis, so this stays cheap even at flat rate.
+    lyric_video: 5,
   } as Record<Feature, number>,
   /** Multiplier applied to the resolution-bearing visual output. */
   resolutionMultiplier: {

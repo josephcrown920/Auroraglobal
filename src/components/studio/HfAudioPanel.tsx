@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Mic2, Volume2, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { transcribeAudio, synthesizeSpeech } from "@/lib/hf.functions";
+import { AUDIO_ACCEPT } from "@/lib/utils";
 
 /**
  * Hugging Face audio tools panel for the Studio.
@@ -109,7 +110,7 @@ export function HfAudioPanel({ onAudioReady }: { onAudioReady?: (url: string) =>
             Upload file
             <input
               type="file"
-              accept="audio/*"
+              accept={AUDIO_ACCEPT}
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
