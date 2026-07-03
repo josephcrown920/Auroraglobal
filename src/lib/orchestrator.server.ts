@@ -1982,7 +1982,16 @@ const gpuWorker: ProviderAdapter = {
       const started = Date.now();
       let incremented = false;
       try {
-        await supabaseAdmin.rpc("gpu_worker_inflight_inc", { _worker: w.id });
+        // The JS check above is a cheap pre-filter only — it can race with another
+        // concurrent dispatch. gpu_worker_inflight_inc re-checks in_flight < max_concurrency
+        // atomically inside the same UPDATE, and returns NULL when the worker is already
+        // full (or gone). Treat NULL as a refused reservation and move to the next candidate
+        // instead of dispatching to an over-subscribed worker.
+        const { data: newInFlight, error: incErr } = await supabaseAdmin.rpc(
+          "gpu_worker_inflight_inc",
+          { _worker: w.id },
+        );
+        if (incErr || newInFlight === null) continue;
         incremented = true;
         const base = normalizeWorkerBase(w.endpoint_url);
         const deadline = started + WORKER_TIMEOUT_MS;
