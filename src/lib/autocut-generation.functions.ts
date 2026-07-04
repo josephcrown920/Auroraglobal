@@ -37,6 +37,49 @@ export const getAutocutJobStage = createServerFn({ method: "GET" })
     return { stage: "analysing" as const };
   });
 
+// ─── Job detail loader — powers "return to /edit with a completed job" ──────
+// Lets the client pre-populate style/music/clips and the previous result when
+// deep-linked via `/edit?job=<id>`, without ever exposing another user's job.
+
+export const getAutocutJobDetail = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ jobId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: job, error: jobErr } = await supabaseAdmin
+      .from("jobs")
+      .select("id, generation_id, payload, kind")
+      .eq("id", data.jobId)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (jobErr) throw new Error(jobErr.message);
+    if (!job || job.kind !== "autocut" || !job.generation_id) {
+      throw new Error("AutoCut job not found");
+    }
+
+    const payload = (job.payload as Record<string, unknown> | null) ?? {};
+
+    const { data: gen, error: genErr } = await supabaseAdmin
+      .from("generations")
+      .select("status, result_video_url, error")
+      .eq("id", job.generation_id)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (genErr) throw new Error(genErr.message);
+    if (!gen) throw new Error("AutoCut result not found");
+
+    return {
+      jobId: job.id as string,
+      generationId: job.generation_id as string,
+      style: (payload.style as string | undefined) ?? "hype",
+      musicTrackId: (payload.musicTrackId as string | null | undefined) ?? null,
+      aspect: (payload.aspect as string | undefined) ?? "9:16",
+      clipPaths: Array.isArray(payload.clipPaths) ? (payload.clipPaths as string[]) : [],
+      status: gen.status as string,
+      videoUrl: gen.result_video_url ?? null,
+      error: gen.error ?? null,
+    };
+  });
+
 export const AUTOCUT_MAX_CLIPS = 10;
 
 // ─── 1. Signed upload URLs ───────────────────────────────────────────────────

@@ -8,6 +8,7 @@ import {
   createAutocutJob,
   getGenerationStatus,
   getAutocutJobStage,
+  getAutocutJobDetail,
 } from "@/lib/autocut-generation.functions";
 import { handleGenerationError } from "@/lib/error-toasts";
 import { saveAssetToDisk } from "@/lib/save";
@@ -106,7 +107,12 @@ const POLL_INTERVAL_MS = 3_000;
 
 // ─── Route ───────────────────────────────────────────────────────────────────
 
+type EditSearch = { job?: string };
+
 export const Route = createFileRoute("/edit")({
+  validateSearch: (search: Record<string, unknown>): EditSearch => ({
+    job: typeof search.job === "string" ? search.job : undefined,
+  }),
   component: AutoCutPage,
   head: () => ({
     meta: [
@@ -161,6 +167,8 @@ function uploadFileXhr(signedUrl: string, file: File, onProgress: (pct: number) 
 
 function AutoCutPage() {
   const { user } = useAuth();
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
 
   // ── Input state ─────────────────────────────────────────────────────────
   const [files, setFiles]             = useState<File[]>([]);
@@ -177,6 +185,8 @@ function AutoCutPage() {
   const [serverStage, setServerStage] = useState<"analysing" | "assembling" | "rendering">("analysing");
   const [resultUrl, setResultUrl]     = useState<string | null>(null);
   const [errorMsg, setErrorMsg]       = useState<string | null>(null);
+  const [clipPaths, setClipPaths]     = useState<string[]>([]);
+  const [isReEditing, setIsReEditing] = useState(false);
 
   const pollRef    = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -189,6 +199,7 @@ function AutoCutPage() {
   const createJobFn    = useServerFn(createAutocutJob);
   const getStatusFn    = useServerFn(getGenerationStatus);
   const getJobStageFn  = useServerFn(getAutocutJobStage);
+  const getJobDetailFn = useServerFn(getAutocutJobDetail);
 
   // ── Cleanup on unmount ──────────────────────────────────────────────────
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
@@ -289,36 +300,41 @@ function AutoCutPage() {
   // successfully uploaded. This is the gate equivalent of a disabled Generate
   // button: job creation simply never runs while any clip is pending/errored.
   const proceedToDispatch = useCallback(
-    async (slots: UploadSlot[]) => {
+    async (paths: string[]) => {
       try {
         setPhase("dispatching");
         const { generationId: genId, jobId: jId } = await createJobFn({
           data: {
-            clipPaths: slots.map((s) => s.path),
+            clipPaths: paths,
             style,
             musicTrackId: noMusic ? undefined : musicTrackId,
             aspect: "9:16",
           },
         });
 
+        setClipPaths(paths);
         setGenerationId(genId);
         setJobId(jId);
         setServerStage("analysing");
         setPhase("processing");
+        setIsReEditing(false);
         startPolling(genId, jId);
+        // Keep the URL in sync so returning to /edit (back button, bookmark,
+        // refresh) can re-hydrate this exact job instead of starting blank.
+        void navigate({ search: (prev) => ({ ...prev, job: jId }), replace: true });
       } catch (err) {
         handleGenerationError(err);
         setPhase("error");
         setErrorMsg(err instanceof Error ? err.message : String(err));
       }
     },
-    [createJobFn, style, musicTrackId, noMusic],
+    [createJobFn, style, musicTrackId, noMusic, navigate],
   );
 
   const maybeProceedAfterUpload = useCallback(
     (slots: UploadSlot[]) => {
       if (slots.length > 0 && uploadedRef.current.length === slots.length && uploadedRef.current.every(Boolean)) {
-        void proceedToDispatch(slots);
+        void proceedToDispatch(slots.map((s) => s.path));
       }
     },
     [proceedToDispatch],
@@ -389,7 +405,60 @@ function AutoCutPage() {
     setStyle("hype");
     setMusicTrackId(STYLE_MUSIC.hype[0].id);
     setNoMusic(false);
+    setClipPaths([]);
+    setIsReEditing(false);
+    void navigate({ search: () => ({}), replace: true });
   };
+
+  // Re-edit: reuses the already-uploaded clips from the completed job — no
+  // re-upload needed — and creates a brand-new job + 8 Aura reservation with
+  // whatever style/music the user picks now. The original job is untouched.
+  const handleReEditSubmit = () => {
+    if (!user) { toast.error("Sign in to use AutoCut"); return; }
+    if (!clipPaths.length) {
+      toast.error("Original clips are unavailable — start a new AutoCut");
+      return;
+    }
+    setErrorMsg(null);
+    void proceedToDispatch(clipPaths);
+  };
+
+  // ── Deep-link resume: /edit?job=<id> pre-populates style/music and shows
+  // the previous result (or resumes polling if it's still processing).
+  useEffect(() => {
+    if (!search.job || !user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const detail = await getJobDetailFn({ data: { jobId: search.job! } });
+        if (cancelled) return;
+        setStyle(detail.style as StyleId);
+        if (detail.musicTrackId) {
+          setMusicTrackId(detail.musicTrackId);
+          setNoMusic(false);
+        } else {
+          setNoMusic(true);
+        }
+        setClipPaths(detail.clipPaths);
+        setGenerationId(detail.generationId);
+        setJobId(detail.jobId);
+        if (detail.status === "succeeded") {
+          setResultUrl(detail.videoUrl);
+          setPhase("done");
+        } else if (detail.status === "failed") {
+          setErrorMsg(detail.error ?? "AutoCut render failed");
+          setPhase("error");
+        } else {
+          setPhase("processing");
+          startPolling(detail.generationId, detail.jobId);
+        }
+      } catch {
+        // Stale, foreign, or deleted job id — silently fall back to idle.
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.job, user]);
 
   const isActive = phase === "uploading" || phase === "dispatching" || phase === "processing";
   const overallPct = fileProgress.length
@@ -413,6 +482,11 @@ function AutoCutPage() {
       : phase === "processing"
         ? serverStage   // "analysing" | "assembling" | "rendering" — set by DB poll
         : "uploading";  // idle/done/error: step indicator is hidden anyway
+
+  // Pickers show for the normal pre-submit flow, or when re-editing a
+  // completed job (style/music only — clips are fixed, no drop zone).
+  const showPickers = (!isActive && phase !== "done") || isReEditing;
+  const showDropZone = showPickers && !isReEditing;
 
   return (
     <main className="aurora-page-shell text-foreground">
@@ -451,7 +525,7 @@ function AutoCutPage() {
         </div>
 
         {/* ── Result ─────────────────────────────────────────────────────── */}
-        {phase === "done" && resultUrl && (
+        {phase === "done" && resultUrl && !isReEditing && (
           <section className="flex flex-col items-center gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-6">
             <CheckCircle2 className="size-8 text-primary" />
             <p className="text-sm font-medium text-foreground">Your AutoCut is ready!</p>
@@ -469,6 +543,11 @@ function AutoCutPage() {
               >
                 <Download className="mr-1.5 size-4" /> Download
               </Button>
+              {clipPaths.length > 0 && (
+                <Button size="sm" variant="outline" onClick={() => setIsReEditing(true)}>
+                  <Wand2 className="mr-1.5 size-4" /> Re-edit
+                </Button>
+              )}
               <Button size="sm" variant="outline" onClick={handleReset}>
                 New AutoCut
               </Button>
@@ -605,10 +684,21 @@ function AutoCutPage() {
           </section>
         )}
 
-        {/* ── Clip drop zone (hidden while active/done) ──────────────────── */}
-        {!isActive && phase !== "done" && (
-          <>
-            <section>
+        {/* ── Re-edit banner ─────────────────────────────────────────────── */}
+        {isReEditing && (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2">
+            <p className="text-xs text-muted-foreground">
+              Same clips — pick a new style or music, then regenerate.
+            </p>
+            <Button size="sm" variant="ghost" onClick={() => setIsReEditing(false)}>
+              Cancel
+            </Button>
+          </div>
+        )}
+
+        {/* ── Clip drop zone (hidden while active/done/re-editing) ────────── */}
+        {showDropZone && (
+          <section>
               <h2 className="mb-2 text-sm font-semibold">Your Clips</h2>
 
               {/* Drop zone */}
@@ -686,8 +776,11 @@ function AutoCutPage() {
                   ))}
                 </ul>
               )}
-            </section>
+          </section>
+        )}
 
+        {showPickers && (
+          <>
             {/* ── Style picker ─────────────────────────────────────────────── */}
             <section>
               <h2 className="mb-2 text-sm font-semibold">Style</h2>
@@ -777,23 +870,23 @@ function AutoCutPage() {
       </div>
 
       {/* ── Fixed CTA bar ────────────────────────────────────────────────── */}
-      {!isActive && phase !== "done" && (
+      {showPickers && (
         <div className="phone-fixed-x fixed bottom-0 z-50 border-t border-border bg-background/85 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-xl">
           <Button
             className="button-premium w-full"
             size="lg"
-            disabled={files.length === 0 || !user}
-            onClick={handleSubmit}
+            disabled={isReEditing ? !user || clipPaths.length === 0 : files.length === 0 || !user}
+            onClick={isReEditing ? handleReEditSubmit : handleSubmit}
           >
             <Wand2 className="mr-2 size-4" />
-            Auto Edit — 8 Aura
+            {isReEditing ? "Regenerate — 8 Aura" : "Auto Edit — 8 Aura"}
           </Button>
           {!user && (
             <p className="mt-2 text-center text-xs text-muted-foreground">
               Sign in to use AutoCut
             </p>
           )}
-          {files.length === 0 && user && (
+          {!isReEditing && files.length === 0 && user && (
             <p className="mt-2 text-center text-xs text-muted-foreground">
               Add at least one clip to continue
             </p>
