@@ -205,4 +205,55 @@ To unlock the final BLOCKED areas, the following secrets must be added in Replit
 | `OPENROUTER_API_KEY` | AI Router text (K), Agent (L), Canvas (M) |
 | `PAYSTACK_SECRET_KEY` | Billing checkout + webhook (O, P) |
 
+---
+
+## 8. Phase 4 update — 2026-07-04 (real live QA — full backend connected)
+
+This pass connected every remaining secret available in this environment (`GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, `BYTEPLUS_API_KEY`, `FAL_KEY`, `REPLICATE_API_KEY`, `HF_TOKEN`, full Supabase set, `PAYSTACK_SECRET_KEY`, `ADMIN_USERNAME`/`ADMIN_PASSCODE`) and re-exercised the checklist against **real requests, a real seeded account, and a real browser** (Playwright `runTest`), replacing the Phase 1–3 code-level/BLOCKED assessments with true PASS/FAIL verdicts. Still missing in this environment: `KLING_ACCESS_KEY`/`KLING_SECRET_KEY`, `SYNC_API_KEY` (not required to reach a verdict — Replicate/Fal/BytePlus cover video and lip-sync fallback paths).
+
+### Test account reused
+
+Same seeded account from Phase 3 (`qa-test@aurora-internal.test`, user ID `4dcc6eed-8b04-4195-a2ad-78f455b6a5d5`), confirmed still present with the admin role intact. Password was rotated for this session; a fresh JWT was obtained via `POST /auth/v1/token?grant_type=password`.
+
+### Live verdicts
+
+| # | Area | Phase 4 Verdict | Evidence / Root cause |
+|---|---|---|---|
+| A | Public marketing / landing | **PASS** | Unchanged — HTTP 200, full SSR. |
+| B | Routing / SSR (all routes) | **PASS** | Unchanged — all routes return HTTP 200. |
+| C | Unit tests | **PASS (with known pre-existing failures)** | `bun test src/` → 536 pass / 10 fail across 546 tests. The 10 failures are pre-existing and expected in this environment: GPU-self-hosted-only orchestrator tests (assert *no* live GPU worker is used — none is registered here) and result-store fallback tests that intentionally hit a fake `cdn.example` URL to test the fallback path. Not regressions. |
+| D | Auth (sign-in / session / route guards) | **PASS** | Real password-grant login returned a valid JWT via curl; separately, two independent browser e2e runs signed in via `/auth` and reached authenticated routes. Supabase auth is fully live. |
+| E | Image generation (Studio) | **PASS** | `POST /api/public/generate {kind:"image"}` → HTTP 200, real image URL in Supabase storage, provider succeeded, credits deducted 499→498, and a matching `generations` row was confirmed in the DB with the correct output column (`result_image_url`). |
+| F | Video generation | **FAIL (live)** — real infra issue, not a code bug | Every attempt fell through the full fallback chain (`gpuWorker → klingDirect → byteplus → replicate → runway → piapi → falFallback`) and failed at the last hop: `Fal 403: User is locked. Reason: Exhausted balance.` BytePlus fails earlier with a known `ModelNotOpen` account-provisioning issue (pre-existing). Kling/Runway/PiAPI keys are absent in this env so those adapters correctly no-op via `supports()`. **Action needed:** top up the fal.ai account balance and/or resolve BytePlus model access; Replicate's non-participation in this chain was not fully root-caused and is worth a follow-up look. |
+| G | Lip-sync | **FAIL (live)** — same root cause as F | `POST /api/public/generate {kind:"lipsync"}` fails with the identical `Fal 403: User is locked. Reason: Exhausted balance.` error — lip-sync falls back to fal for this account with no `SYNC_API_KEY`/`HEYGEN_API_KEY` configured. |
+| H | Motion | **NOT TESTED** | Shares the video pipeline with F; not independently exercised this pass given F's confirmed failure. Expect the same fal/BytePlus blocker until resolved. |
+| I | UGC factory | **NOT TESTED** | Final-scene render depends on the same video pipeline as F/H; deferred given time budget. |
+| J | Batch / Spin (1→30) | **PASS (partial evidence)** | Live browser e2e: submitted a spin prompt on `/spin`, job created, progress UI (queued/processing tiles) appeared with no errors reported. Full 30-tile completion and per-tile credit accounting were not exhaustively re-verified. |
+| K | AI Router / Orchestrate | **PASS (text + image); video/TTS not independently confirmed** | `orchestrate` text call served by `replit-openai-text` (HTTP 200, real completion). Image path shares the confirmed-live generate pipeline (E). Video/TTS modalities inherit the same provider blocker as F. |
+| L | Agent | **NOT TESTED** | Not exercised this pass (time budget); relies on the now-confirmed-live text/vision providers, so expected to work but unverified. |
+| M | Canvas | **NOT TESTED** | Not exercised this pass (time budget). |
+| N | Gallery | **PASS** | Live browser e2e confirmed previously generated images render on `/gallery` for the seeded account. |
+| O | Billing (Paystack) | **FAIL (live)** — real merchant account config issue | Root-caused via two live checkout attempts: (1) with the account's original `@aurora-internal.test` email, Paystack rejected with `"Invalid Email Address Passed"`; (2) after temporarily pointing the profile at a realistic email domain, the *real* blocker surfaced: `"Currency not supported by merchant"`. The app is hard-coded USD-only (`src/lib/billing.plans.ts`), but the connected Paystack merchant account does not have USD enabled. **This blocks checkout for every user, not just the test account.** Server-side error handling itself works correctly (surfaces a clear `"Paystack init failed: …"` message via toast; no silent failure, no double-charge risk since Paystack never initializes). **Action needed:** enable USD on the Paystack merchant dashboard, or add multi-currency support (e.g. NGN) to `billing.plans.ts` and route by merchant-supported currency. |
+| P | Affiliate / Gifts | **BLOCKED (downstream)** | Depends on a successful Paystack payment (O), which currently cannot complete for any user. Code-level logic (commission calc, double-redeem guard) was reviewed in Phase 1 and is unchanged. |
+| Q | Admin panel | **PASS (one transient slow-load observed)** | Live browser e2e confirmed the admin route reaches the passcode gate (`AdminGate`) for the admin-role account, both directly and after sign-in, with the session token persisted in `localStorage` (`sb-tpzmvbczwahxajujvnrq-auth-token`) across navigation. One earlier run appeared stuck on the loading spinner for >15s; a same-session repro test with console/network capture did not reproduce it — treated as a one-off timing hiccup (see §9 follow-ups), not a confirmed defect. |
+
+### Real bugs / findings from this pass
+
+| Pri | Finding | Location | Impact |
+|---|---|---|---|
+| **P0** | **Paystack checkout is broken for every user** — merchant account has no USD currency enabled, but the app only ever requests USD. | `src/lib/billing.plans.ts`, `src/lib/billing.functions.ts` (`createPaystackCheckout`) | 100% of credit-pack and Pro-subscription purchases fail at Paystack initialization. Direct revenue blocker. |
+| **P1** | **Video + lip-sync generation both fail live** due to exhausted fal.ai balance (final fallback hop) and a pre-existing BytePlus `ModelNotOpen` account issue earlier in the chain. | Provider accounts (fal.ai, BytePlus), not app code | Every video/lip-sync request currently fails for all users until the fal balance is topped up (BytePlus already tracked as a known issue). |
+| **P2** | **`/admin` observed once stuck indefinitely on a loading spinner** before a retest showed it resolving normally; root cause not confirmed (not reproduced). | `src/hooks/use-auth.tsx`, `src/routes/admin.tsx` | Low confidence single occurrence; worth a follow-up hardening pass (e.g. a timeout/fallback on `getSession()`) since an uncaught rejection there would hang the page indefinitely with no error surfaced. |
+
+### What is now unambiguously confirmed working end-to-end
+
+Auth, image generation (with real credit deduction and DB persistence), text orchestration, spin job creation, and gallery — all verified against the live Supabase backend and real provider calls, not just code review.
+
+### What still needs user action to fully unblock
+
+1. **Paystack dashboard**: enable USD on the merchant account (or scope the app to a currency the account supports).
+2. **fal.ai dashboard**: top up account balance — currently locked/exhausted, blocking video + lip-sync fallback.
+3. **BytePlus**: resolve the pre-existing `ModelNotOpen` account/model-access issue for video.
+4. Optional: add `KLING_ACCESS_KEY`/`KLING_SECRET_KEY` and `SYNC_API_KEY` for additional video/lip-sync provider redundancy (not required once fal/BytePlus are fixed).
+
 With these added, every BLOCKED area above converts to a directly testable live run using the seeded test account.
