@@ -7,6 +7,10 @@
 // Required env:
 //   VAST_INFERENCE_URL    — full URL to POST to, e.g. "https://12.34.56.78:8000/generate"
 //   VAST_INFERENCE_TOKEN  — optional bearer token
+//   VAST_INFERENCE_TASKS  — optional comma list declaring what this box
+//                           actually runs (e.g. "video"). Defaults to every
+//                           task the flat protocol can carry, which may
+//                           overstate a single-model box's real capability.
 //
 // Request body / response: identical to the custom adapter (see custom.ts).
 
@@ -18,6 +22,7 @@ export const vastAdapter: ProviderAdapter = {
   label: "Vast.ai (self-hosted HTTP)",
   requiredEnv: ["VAST_INFERENCE_URL"],
   tasks: ["image", "video", "lipsync", "motion"],
+  capabilitiesEnvVar: "VAST_INFERENCE_TASKS",
 
   async probeHealth(timeoutMs?: number): Promise<ProbeResult | null> {
     const url = process.env.VAST_INFERENCE_URL;
@@ -34,7 +39,12 @@ export const vastAdapter: ProviderAdapter = {
     }
 
     const json = await postFlatJob(url, token, input);
-    if (json && typeof json === "object" && "error" in json && (json as { error?: unknown }).error) {
+    if (
+      json &&
+      typeof json === "object" &&
+      "error" in json &&
+      (json as { error?: unknown }).error
+    ) {
       throw new Error(`Vast.ai error: ${String((json as { error?: unknown }).error)}`);
     }
     const outputUrl = extractOutputUrl(json);

@@ -7,7 +7,13 @@
 // it needs, so routing is capability- and config-driven with explicit failure
 // (never a silent fallback).
 
-import type { InferenceInput, InferenceResult, ProviderAdapter, ProviderId, TaskType } from "./types";
+import type {
+  InferenceInput,
+  InferenceResult,
+  ProviderAdapter,
+  ProviderId,
+  TaskType,
+} from "./types";
 import { runpodAdapter } from "./providers/runpod";
 import { huggingfaceAdapter } from "./providers/huggingface";
 import { customAdapter } from "./providers/custom";
@@ -41,6 +47,33 @@ function isConfigured(a: ProviderAdapter): boolean {
 }
 
 /**
+ * Resolve a backend's REAL capability list: what the owner has declared this
+ * specific configured server supports, not just what the protocol could
+ * theoretically carry. Precedence:
+ *   1. `resolveTasks()` — a bespoke computation (e.g. inference.sh derives it
+ *      from which `INFERENCE_SH_APP_<TASK>` vars are mapped).
+ *   2. `capabilitiesEnvVar` — a comma-separated `TaskType` list the owner sets
+ *      (e.g. `RUNPOD_TASKS=image,video`), intersected with the protocol's max
+ *      `tasks` (a backend can't be declared capable of a task its protocol
+ *      adapter doesn't even implement). An explicitly-set-but-empty/invalid
+ *      value yields an empty list — a real declaration, not silently ignored.
+ *   3. Neither set → falls back to the full protocol `tasks` list (unknown
+ *      real capability, so we can't narrow it — this is the pre-existing,
+ *      possibly-overstated behavior for backends the owner hasn't configured).
+ */
+export function effectiveTasks(a: ProviderAdapter): TaskType[] {
+  if (a.resolveTasks) return a.resolveTasks();
+  if (!a.capabilitiesEnvVar) return a.tasks;
+  const raw = process.env[a.capabilitiesEnvVar];
+  if (raw == null || !raw.trim()) return a.tasks;
+  const declared = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean) as TaskType[];
+  return declared.filter((t) => a.tasks.includes(t));
+}
+
+/**
  * Pick the first configured backend that can serve `input.task` and run it,
  * falling through to the next configured backend on failure. Throws an explicit
  * error (with per-backend missing-env reasons) when none is configured — no
@@ -49,11 +82,13 @@ function isConfigured(a: ProviderAdapter): boolean {
 export async function runInferenceAuto(
   input: InferenceInput,
 ): Promise<InferenceResult & { provider: ProviderId }> {
-  const capable = Object.values(adapters).filter((a) => a.tasks.includes(input.task));
+  const capable = Object.values(adapters).filter((a) => effectiveTasks(a).includes(input.task));
   const ready = capable.filter(isConfigured);
   if (ready.length === 0) {
     const reasons = capable
-      .map((a) => `${a.id}: missing ${a.requiredEnv.filter((k) => !process.env[k]).join(", ") || "—"}`)
+      .map(
+        (a) => `${a.id}: missing ${a.requiredEnv.filter((k) => !process.env[k]).join(", ") || "—"}`,
+      )
       .join("; ");
     const detail = capable.length ? ` Configure one of → ${reasons}` : "";
     throw new Error(`No GPU backend configured for "${input.task}".${detail}`);
@@ -75,11 +110,33 @@ export function providerStatus(): Array<{
   label: string;
   configured: boolean;
   missing: string[];
+  /** Owner-declared real capability list (see `effectiveTasks`). */
   tasks: TaskType[];
+  /** The protocol's theoretical max — always a superset of `tasks`. */
+  protocolTasks: TaskType[];
+  /** True once the owner has narrowed `tasks` below the protocol max. */
+  capabilitiesDeclared: boolean;
+  /** Env var (or mechanism note) the owner can use to declare capabilities. */
+  capabilitiesHint?: string;
 }> {
   return Object.values(adapters).map((a) => {
     const missing = a.requiredEnv.filter((k) => !process.env[k]);
-    return { id: a.id, label: a.label, configured: missing.length === 0, missing, tasks: a.tasks };
+    const tasks = effectiveTasks(a);
+    return {
+      id: a.id,
+      label: a.label,
+      configured: missing.length === 0,
+      missing,
+      tasks,
+      protocolTasks: a.tasks,
+      capabilitiesDeclared:
+        tasks.length !== a.tasks.length || tasks.some((t) => !a.tasks.includes(t)),
+      capabilitiesHint: a.capabilitiesEnvVar
+        ? `Set ${a.capabilitiesEnvVar} (comma-separated, e.g. "image,video") to declare what this server really runs.`
+        : a.resolveTasks
+          ? "Derived from which INFERENCE_SH_APP_<TASK> vars are mapped."
+          : undefined,
+    };
   });
 }
 
@@ -102,7 +159,10 @@ export async function providerHealth(
       }
     }),
   );
-  return Object.fromEntries(entries) as Record<ProviderId, { ok: boolean; status?: number; error?: string } | null>;
+  return Object.fromEntries(entries) as Record<
+    ProviderId,
+    { ok: boolean; status?: number; error?: string } | null
+  >;
 }
 
 export type { InferenceInput, InferenceResult, ProviderId, TaskType } from "./types";

@@ -17,7 +17,13 @@
 // video_url) are sent when present and `params` is spread on top (params win).
 // A `params.setup` object is lifted out and sent as the task's `setup` block.
 
-import type { InferenceInput, InferenceResult, ProbeResult, ProviderAdapter } from "../types";
+import type {
+  InferenceInput,
+  InferenceResult,
+  ProbeResult,
+  ProviderAdapter,
+  TaskType,
+} from "../types";
 import {
   extractOutputUrl,
   inferenceShInput,
@@ -33,11 +39,20 @@ function baseUrl(): string {
   return process.env.INFERENCE_SH_BASE_URL || INFERENCE_SH_DEFAULT_BASE;
 }
 
+const INFERENCE_SH_TASKS: TaskType[] = ["image", "video", "lipsync", "motion", "tts"];
+
 export const inferenceshAdapter: ProviderAdapter = {
   id: "inferencesh",
   label: "inference.sh (cloud apps)",
   requiredEnv: ["INFERENCE_SH_API_KEY"],
-  tasks: ["image", "video", "lipsync", "motion", "tts"],
+  tasks: INFERENCE_SH_TASKS,
+  // Real capability is already granular here: a task is only genuinely
+  // servable once an app is mapped to it (image has a built-in default app,
+  // every other task requires an explicit INFERENCE_SH_APP_<TASK>). No extra
+  // env var needed — this derives the true declared list from that mapping.
+  resolveTasks(): TaskType[] {
+    return INFERENCE_SH_TASKS.filter((t) => !!resolveInferenceShApp(t, process.env));
+  },
 
   async probeHealth(timeoutMs?: number): Promise<ProbeResult | null> {
     if (!process.env.INFERENCE_SH_API_KEY) return null;

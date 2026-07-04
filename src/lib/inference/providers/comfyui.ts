@@ -7,6 +7,10 @@
 // Required env:
 //   COMFYUI_URL    — base URL of the ComfyUI server, e.g. "https://abc.trycloudflare.com"
 //   COMFYUI_TOKEN  — optional bearer token (if you front ComfyUI with auth)
+//   COMFYUI_TASKS  — optional comma list declaring which graphs this server
+//                    actually has loaded (e.g. "image,motion"). Defaults to
+//                    every task ComfyUI can theoretically run, which may
+//                    overstate what's actually installed on this box.
 //
 // The job must carry `comfyWorkflow` (the graph JSON). Optional `comfyInputs`
 // patches values in by "nodeId.inputName" key before submitting.
@@ -19,12 +23,17 @@ export const comfyuiAdapter: ProviderAdapter = {
   label: "ComfyUI (self-hosted workflow API)",
   requiredEnv: ["COMFYUI_URL"],
   tasks: ["image", "video", "lipsync", "motion"],
+  capabilitiesEnvVar: "COMFYUI_TASKS",
 
   async probeHealth(timeoutMs?: number): Promise<ProbeResult | null> {
     const base = process.env.COMFYUI_URL?.replace(/\/$/, "");
     if (!base) return null;
     // ComfyUI exposes liveness at /system_stats — require a 2xx.
-    return probeReachable(`${base}/system_stats`, { token: process.env.COMFYUI_TOKEN, expectOk: true, timeoutMs });
+    return probeReachable(`${base}/system_stats`, {
+      token: process.env.COMFYUI_TOKEN,
+      expectOk: true,
+      timeoutMs,
+    });
   },
 
   async run(input: InferenceInput): Promise<InferenceResult> {
@@ -34,7 +43,9 @@ export const comfyuiAdapter: ProviderAdapter = {
       throw new Error("ComfyUI not configured: set COMFYUI_URL secret.");
     }
     if (!input.comfyWorkflow) {
-      throw new Error("ComfyUI requires a workflow: pass `comfyWorkflow` (a ComfyUI graph JSON) in the job.");
+      throw new Error(
+        "ComfyUI requires a workflow: pass `comfyWorkflow` (a ComfyUI graph JSON) in the job.",
+      );
     }
 
     const outputUrl = await runComfyWorkflow({

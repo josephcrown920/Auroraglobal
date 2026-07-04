@@ -295,14 +295,35 @@ function OrchestrationDashboard() {
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      {b.tasks.map((t) => (
-                        <span
-                          key={t}
-                          className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20"
-                        >
-                          {t}
-                        </span>
-                      ))}
+                      {b.protocolTasks.map((t) => {
+                        const supported = b.tasks.includes(t);
+                        return (
+                          <span
+                            key={t}
+                            title={
+                              supported
+                                ? "Declared/available capability"
+                                : "Protocol could carry this, but not declared as a real capability"
+                            }
+                            className={
+                              "text-[9px] font-mono px-1.5 py-0.5 rounded border " +
+                              (supported
+                                ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
+                                : "bg-muted/20 text-muted-foreground/50 border-border/40 line-through")
+                            }
+                          >
+                            {t}
+                          </span>
+                        );
+                      })}
+                    </div>
+                    <div
+                      className="text-[9px] font-mono text-muted-foreground/80 truncate"
+                      title={b.capabilitiesHint}
+                    >
+                      {b.capabilitiesDeclared
+                        ? "capabilities: owner-declared"
+                        : (b.capabilitiesHint ?? "capabilities: protocol default (undeclared)")}
                     </div>
                     {b.configured ? (
                       <div className="text-[10px] font-mono text-emerald-400">configured</div>

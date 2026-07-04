@@ -65,8 +65,29 @@ export interface ProviderAdapter {
   label: string;
   /** Names of the env vars this adapter needs to be considered configured. */
   requiredEnv: string[];
-  /** Task types this backend can serve. */
+  /**
+   * Task types this *protocol* can carry over the wire — i.e. the maximum a
+   * backend on this protocol could ever serve. This is NOT the same as what a
+   * specific configured server actually runs (most self-hosted boxes only run
+   * one or two of these). Use `effectiveTasks()` in `./index` to get the
+   * owner-declared real capability list for routing/display.
+   */
   tasks: TaskType[];
+  /**
+   * Name of an optional env var (comma-separated `TaskType` list, e.g.
+   * "image,video") that lets the owner declare which of `tasks` this specific
+   * configured backend genuinely supports. When unset, the backend's real
+   * capability is unknown and `effectiveTasks()` falls back to the full
+   * `tasks` list (protocol-level, may overstate reality).
+   */
+  capabilitiesEnvVar?: string;
+  /**
+   * Optional override that computes the effective capability list some other
+   * way than a flat env var (e.g. inference.sh derives it from which
+   * `INFERENCE_SH_APP_<TASK>` vars are mapped). Wins over `capabilitiesEnvVar`
+   * when present.
+   */
+  resolveTasks?(): TaskType[];
   /** Run inference and return the result. Throws explicitly on failure. */
   run(input: InferenceInput): Promise<InferenceResult>;
   /**
