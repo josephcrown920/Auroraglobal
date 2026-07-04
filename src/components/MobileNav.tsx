@@ -33,6 +33,7 @@ import {
   Sprout,
   Store,
   Brush,
+  Shield,
   type LucideIcon,
 } from "lucide-react";
 
@@ -71,6 +72,7 @@ const UTILITY_FEATURES: Feature[] = [
   { to: "/creator/dashboard",  label: "Creator Hub",     icon: TrendingUp },
   { to: "/billing",            label: "Plan & Billing",  icon: CreditCard },
   { to: "/roadmap",            label: "Roadmap",         icon: Map },
+  { to: "/admin",              label: "Admin",           icon: Shield },
 ];
 
 const COMING_SOON: Feature[] = [
