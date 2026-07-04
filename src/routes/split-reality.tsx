@@ -148,6 +148,7 @@ function MiniUpload({
 }
 
 type SideResult = { id: string; url: string; variant: string };
+type SplitMode = "mirror" | "characters";
 
 function ResultCard({
   side,
@@ -237,27 +238,60 @@ function SplitRealityPage() {
 
   const splitFn = useServerFn(generateSplitReality);
 
+  const [mode, setMode] = useState<SplitMode>("mirror");
+
+  // mirror mode
   const [selfie, setSelfie] = useState<string | null>(null);
   const [outfit, setOutfit] = useState<string | null>(null);
   const [scene, setScene] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
+
+  // characters mode
+  const [selfieA, setSelfieA] = useState<string | null>(null);
+  const [outfitA, setOutfitA] = useState<string | null>(null);
+  const [selfieB, setSelfieB] = useState<string | null>(null);
+  const [outfitB, setOutfitB] = useState<string | null>(null);
+  const [action, setAction] = useState("");
+  const [lifeA, setLifeA] = useState("");
+  const [lifeB, setLifeB] = useState("");
+
   const [result, setResult] = useState<{
-    ultra: SideResult;
-    cinematic: SideResult;
+    mode: SplitMode;
+    left: SideResult;
+    right: SideResult;
   } | null>(null);
 
   const mut = useMutation({
     mutationFn: async () => {
+      if (mode === "characters") {
+        const imageUrlsA = [selfieA, outfitA].filter((x): x is string => !!x);
+        const imageUrlsB = [selfieB, outfitB].filter((x): x is string => !!x);
+        if (imageUrlsA.length === 0 || imageUrlsB.length === 0)
+          throw new Error("Upload a reference photo for both characters");
+        if (action.trim().length < 3)
+          throw new Error("Describe the shared action both characters are doing");
+        return splitFn({
+          data: {
+            mode: "characters",
+            imageUrlsA,
+            imageUrlsB,
+            action,
+            lifeA,
+            lifeB,
+            basePrompt: prompt,
+          },
+        });
+      }
       const imageUrls = [selfie, outfit, scene].filter(
         (x): x is string => !!x,
       );
       if (imageUrls.length === 0)
         throw new Error("Upload at least a selfie reference");
-      return splitFn({ data: { imageUrls, basePrompt: prompt } });
+      return splitFn({ data: { mode: "mirror", imageUrls, basePrompt: prompt } });
     },
     onSuccess: (r) => {
       setResult(r);
-      toast.success("Both realities are in.");
+      toast.success(mode === "characters" ? "Both lives are in." : "Both realities are in.");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
@@ -270,7 +304,7 @@ function SplitRealityPage() {
     );
   }
 
-  const ready = !!selfie;
+  const ready = mode === "characters" ? !!selfieA && !!selfieB && action.trim().length >= 3 : !!selfie;
 
   return (
     <main className="aurora-page-shell text-foreground">
@@ -299,38 +333,112 @@ function SplitRealityPage() {
         <section className="space-y-6">
           <div>
             <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
-              One subject.{" "}
-              <span className="aurora-gradient-text">
-                Two realities.
-              </span>
+              {mode === "characters" ? (
+                <>
+                  Two lives.{" "}
+                  <span className="aurora-gradient-text">One moment.</span>
+                </>
+              ) : (
+                <>
+                  One subject.{" "}
+                  <span className="aurora-gradient-text">Two realities.</span>
+                </>
+              )}
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
-              We run two image generations in parallel from the same references:
-              a documentary mirror-selfie on one side, and a moody cinematic
-              close-up on the other. 2 Aura · ~20–30s.
+              {mode === "characters"
+                ? "Two different characters, living opposite lives, doing the exact same thing at the exact same moment — rendered side by side. 2 Aura · ~20–30s."
+                : "We run two image generations in parallel from the same references: a documentary mirror-selfie on one side, and a moody cinematic close-up on the other. 2 Aura · ~20–30s."}
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <MiniUpload
-              userId={user.id}
-              label="Selfie · required"
-              value={selfie}
-              onChange={setSelfie}
-            />
-            <MiniUpload
-              userId={user.id}
-              label="Outfit · optional"
-              value={outfit}
-              onChange={setOutfit}
-            />
-            <MiniUpload
-              userId={user.id}
-              label="Scene · optional"
-              value={scene}
-              onChange={setScene}
-            />
+          <div className="inline-flex p-1 rounded-full bg-card/60 border border-border gap-1">
+            <button
+              type="button"
+              onClick={() => setMode("mirror")}
+              className={cn(
+                "px-4 py-1.5 rounded-full text-xs font-medium transition-colors",
+                mode === "mirror" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Mirror universe
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("characters")}
+              className={cn(
+                "px-4 py-1.5 rounded-full text-xs font-medium transition-colors",
+                mode === "characters" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Two characters
+            </button>
           </div>
+
+          {mode === "mirror" ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <MiniUpload
+                userId={user.id}
+                label="Selfie · required"
+                value={selfie}
+                onChange={setSelfie}
+              />
+              <MiniUpload
+                userId={user.id}
+                label="Outfit · optional"
+                value={outfit}
+                onChange={setOutfit}
+              />
+              <MiniUpload
+                userId={user.id}
+                label="Scene · optional"
+                value={scene}
+                onChange={setScene}
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wider text-primary">Character A</p>
+                <MiniUpload userId={user.id} label="Selfie · required" value={selfieA} onChange={setSelfieA} />
+                <MiniUpload userId={user.id} label="Outfit · optional" value={outfitA} onChange={setOutfitA} />
+                <Textarea
+                  value={lifeA}
+                  onChange={(e) => setLifeA(e.target.value.slice(0, 300))}
+                  rows={2}
+                  placeholder="Their life (optional) — e.g. cramped studio apartment, working two jobs"
+                  className="bg-background/60 text-xs"
+                />
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wider text-primary">Character B</p>
+                <MiniUpload userId={user.id} label="Selfie · required" value={selfieB} onChange={setSelfieB} />
+                <MiniUpload userId={user.id} label="Outfit · optional" value={outfitB} onChange={setOutfitB} />
+                <Textarea
+                  value={lifeB}
+                  onChange={(e) => setLifeB(e.target.value.slice(0, 300))}
+                  rows={2}
+                  placeholder="Their life (optional) — e.g. penthouse, private chef, luxury car"
+                  className="bg-background/60 text-xs"
+                />
+              </div>
+            </div>
+          )}
+
+          {mode === "characters" && (
+            <div>
+              <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 block">
+                Shared action (required)
+              </label>
+              <Textarea
+                value={action}
+                onChange={(e) => setAction(e.target.value.slice(0, 300))}
+                rows={2}
+                placeholder="e.g. brushing their teeth while looking in the mirror"
+                className="bg-background/60"
+              />
+            </div>
+          )}
 
           <div>
             <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 block">
@@ -353,11 +461,11 @@ function SplitRealityPage() {
           >
             {mut.isPending ? (
               <>
-                <Loader2 className="size-5 mr-2 animate-spin" /> Splitting reality…
+                <Loader2 className="size-5 mr-2 animate-spin" /> {mode === "characters" ? "Living both lives…" : "Splitting reality…"}
               </>
             ) : (
               <>
-                <Wand2 className="size-5 mr-2" /> Generate both realities · 2 Aura
+                <Wand2 className="size-5 mr-2" /> {mode === "characters" ? "Generate both lives · 2 Aura" : "Generate both realities · 2 Aura"}
               </>
             )}
           </Button>
@@ -366,16 +474,29 @@ function SplitRealityPage() {
             <p className="aurora-kicker">
               What you get
             </p>
-            <ul className="text-sm text-foreground/80 space-y-1.5">
-              <li>
-                <span className="text-primary font-medium">Ultra-real</span> · phone
-                mirror selfie, natural skin, indoor light, no styling.
-              </li>
-              <li>
-                <span className="text-primary font-medium">Cinematic</span> · anamorphic
-                close-up, windswept hair, moody grade, ARRI look.
-              </li>
-            </ul>
+            {mode === "characters" ? (
+              <ul className="text-sm text-foreground/80 space-y-1.5">
+                <li>
+                  <span className="text-primary font-medium">Character A</span> · your first
+                  reference, living their own life, doing the shared action.
+                </li>
+                <li>
+                  <span className="text-primary font-medium">Character B</span> · your second
+                  reference, living a contrasting life, doing the exact same action.
+                </li>
+              </ul>
+            ) : (
+              <ul className="text-sm text-foreground/80 space-y-1.5">
+                <li>
+                  <span className="text-primary font-medium">Ultra-real</span> · phone
+                  mirror selfie, natural skin, indoor light, no styling.
+                </li>
+                <li>
+                  <span className="text-primary font-medium">Cinematic</span> · anamorphic
+                  close-up, windswept hair, moody grade, ARRI look.
+                </li>
+              </ul>
+            )}
           </div>
         </section>
 
@@ -383,14 +504,22 @@ function SplitRealityPage() {
         <section className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <ResultCard
-              side={result?.ultra ?? null}
-              label="Ultra-real"
-              caption="Documentary mirror-selfie · natural skin & light"
+              side={result?.left ?? null}
+              label={mode === "characters" ? "Character A" : "Ultra-real"}
+              caption={
+                mode === "characters"
+                  ? "Character A living their life, doing the shared action"
+                  : "Documentary mirror-selfie · natural skin & light"
+              }
             />
             <ResultCard
-              side={result?.cinematic ?? null}
-              label="Cinematic"
-              caption="Anamorphic close-up · ARRI cinematic grade"
+              side={result?.right ?? null}
+              label={mode === "characters" ? "Character B" : "Cinematic"}
+              caption={
+                mode === "characters"
+                  ? "Character B living a contrasting life, same action"
+                  : "Anamorphic close-up · ARRI cinematic grade"
+              }
             />
           </div>
 
