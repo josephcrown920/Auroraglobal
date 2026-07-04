@@ -28,6 +28,15 @@ Aurora UI ──► orchestrator ──► your worker (this dir) ──► Late
 2. Register it in **Admin → Workers** (the panel has per-platform recipes).
 3. Pick *LatentSync (self-hosted)* in Lip-sync / Studio / Canvas, or use Motion Transfer.
 
+> **Registration alone is not enough.** A registered worker only gets dispatched
+> jobs if the app owner has wired the two recurring `pg_cron` jobs
+> (`aurora-jobs-tick` every ~minute, `aurora-workers-health` every ~5 minutes)
+> against a real Supabase project — Replit autoscale has no durable in-process
+> timer, so nothing drains the `public.jobs` queue or refreshes worker health
+> without them. See `docs/ARCHITECTURE.md` → "Wiring pg_cron". If a worker shows
+> **Active** in Admin but jobs never leave `queued`, this is the first thing to
+> check — not the worker itself.
+
 ## Templates
 
 | dir          | platform                  | protocol  | serves            |

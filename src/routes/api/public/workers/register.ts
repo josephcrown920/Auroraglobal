@@ -36,28 +36,69 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+// Best-effort audit log of every register attempt (success AND failure) so a
+// bad AURORA_REGISTER_KEY, invalid payload, or DB error shows up in Admin ->
+// Workers as a *reason*, instead of the attempt just vanishing with nothing to
+// look at but a Kaggle/Colab notebook log the owner may never check. Logging
+// itself must never fail the request — this is diagnostics, not the contract.
+async function logAttempt(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabaseAdmin: any,
+  fields: { name?: string | null; endpoint_url?: string | null; protocol?: string | null; ok: boolean; error?: string | null; outcome?: string | null },
+) {
+  try {
+    await supabaseAdmin.from("worker_register_attempts").insert({
+      name: fields.name ?? null,
+      endpoint_url: fields.endpoint_url ?? null,
+      protocol: fields.protocol ?? null,
+      ok: fields.ok,
+      error: fields.error ?? null,
+      outcome: fields.outcome ?? null,
+    });
+  } catch {
+    // Never let attempt-logging break registration itself.
+  }
+}
+
 export const Route = createFileRoute("/api/public/workers/register")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
         const apikey =
           request.headers.get("apikey") ||
           request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
         const expected = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;
         if (!expected || apikey !== expected) {
+          await logAttempt(supabaseAdmin, { ok: false, error: "Unauthorized (apikey mismatch or missing)" });
           return json({ error: "Unauthorized" }, 401);
+        }
+
+        let raw: unknown;
+        try {
+          raw = await request.json();
+        } catch {
+          await logAttempt(supabaseAdmin, { ok: false, error: "Invalid JSON body" });
+          return json({ error: "Invalid JSON body" }, 400);
         }
 
         let data: z.infer<typeof Schema>;
         try {
-          data = Schema.parse(await request.json());
+          data = Schema.parse(raw);
         } catch (e) {
           const msg =
             e instanceof z.ZodError ? e.issues.map((i) => i.message).join(", ") : "Invalid payload";
+          const r = raw as Record<string, unknown> | null;
+          await logAttempt(supabaseAdmin, {
+            name: typeof r?.name === "string" ? r.name : null,
+            endpoint_url: typeof r?.endpoint_url === "string" ? r.endpoint_url : null,
+            protocol: typeof r?.protocol === "string" ? r.protocol : null,
+            ok: false,
+            error: msg,
+          });
           return json({ error: msg }, 400);
         }
-
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         // Dedup on the *normalized* endpoint so registering the bare origin or the
         // full …/generate URL — and the admin form vs auto-register — never create
@@ -66,7 +107,10 @@ export const Route = createFileRoute("/api/public/workers/register")({
         const { data: existing, error: listErr } = await supabaseAdmin
           .from("gpu_workers")
           .select("id, endpoint_url");
-        if (listErr) return json({ error: listErr.message }, 500);
+        if (listErr) {
+          await logAttempt(supabaseAdmin, { name: data.name, endpoint_url: data.endpoint_url, protocol: data.protocol, ok: false, error: listErr.message });
+          return json({ error: listErr.message }, 500);
+        }
         const match = (existing ?? []).find((w) => normalizeWorkerBase(w.endpoint_url) === base);
 
         // A freshly-booted worker announcing itself is, by definition, up: set it
@@ -90,7 +134,11 @@ export const Route = createFileRoute("/api/public/workers/register")({
             .from("gpu_workers")
             .update(patch)
             .eq("id", match.id);
-          if (error) return json({ error: error.message }, 500);
+          if (error) {
+            await logAttempt(supabaseAdmin, { name: data.name, endpoint_url: data.endpoint_url, protocol: data.protocol, ok: false, error: error.message });
+            return json({ error: error.message }, 500);
+          }
+          await logAttempt(supabaseAdmin, { name: data.name, endpoint_url: data.endpoint_url, protocol: data.protocol, ok: true, outcome: "updated" });
           return json({ ok: true, id: match.id, updated: true });
         }
 
@@ -99,7 +147,11 @@ export const Route = createFileRoute("/api/public/workers/register")({
           .insert(patch)
           .select("id")
           .single();
-        if (error) return json({ error: error.message }, 500);
+        if (error) {
+          await logAttempt(supabaseAdmin, { name: data.name, endpoint_url: data.endpoint_url, protocol: data.protocol, ok: false, error: error.message });
+          return json({ error: error.message }, 500);
+        }
+        await logAttempt(supabaseAdmin, { name: data.name, endpoint_url: data.endpoint_url, protocol: data.protocol, ok: true, outcome: "created" });
         return json({ ok: true, id: row?.id, created: true });
       },
     },
