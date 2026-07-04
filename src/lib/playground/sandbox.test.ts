@@ -147,7 +147,6 @@ function bootMockWorker() {
   const mockSelf: Record<string, unknown> = Object.create(mockProto) as Record<string, unknown>;
   mockSelf.postMessage = (m: unknown) => posted.push(m);
   const mockConsole: Record<string, unknown> = {};
-  // eslint-disable-next-line @typescript-eslint/no-implied-eval
   const boot = new Function("self", "console", WORKER_SOURCE);
   boot(mockSelf, mockConsole);
   const onmessage = mockSelf.onmessage as (ev: { data: unknown }) => Promise<void>;

@@ -28,14 +28,18 @@ function getFontPath(): string {
     if (r && (r.endsWith(".ttf") || r.endsWith(".otf"))) {
       return (_fontPath = r);
     }
-  } catch {}
+  } catch {
+    // fc-match unavailable — fall through to the nix-store search below
+  }
   try {
     const r = execFileSync("bash", [
       "-c",
       "find /nix/store -name '*.ttf' 2>/dev/null | grep -iE 'sans|free|deja|ubuntu|liberation' | head -1",
     ], { encoding: "utf8", timeout: 3_000 }).trim();
     if (r) return (_fontPath = r);
-  } catch {}
+  } catch {
+    // nix-store search unavailable — fall back to FFmpeg's built-in default
+  }
   return (_fontPath = ""); // let FFmpeg try its built-in default
 }
 

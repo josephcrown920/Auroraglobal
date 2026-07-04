@@ -337,7 +337,6 @@ function ColorsStudio() {
       const ids = COLOR_PRESETS.map((c) => c.id);
       for (let i = 0; i < ids.length; i += 3) {
         const batch = ids.slice(i, i + 3);
-        // eslint-disable-next-line no-await-in-loop
         const res = await Promise.all(batch.map((c) => fire(c, setup)));
         results.push(...res);
         toast.message(`Rendered ${Math.min(i + 3, ids.length)}/${ids.length}`);

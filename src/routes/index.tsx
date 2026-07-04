@@ -110,7 +110,9 @@ function Index() {
     if (ref) {
       try {
         localStorage.setItem("aurora_ref", ref);
-      } catch {}
+      } catch {
+        // localStorage unavailable (e.g. private browsing) — non-fatal
+      }
       trackRef({ data: { code: ref } }).catch(() => {});
     }
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -202,7 +204,7 @@ function Index() {
             </Link>
             <Link
               to="/spin"
-              search={{}}
+              search={{ prompt: undefined, jobId: undefined }}
               className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
             >
               <Play className="size-3.5" /> Spin 30

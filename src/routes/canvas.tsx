@@ -836,8 +836,8 @@ function CanvasPage() {
           } else if (n.data.kind === "split") {
             if (images.length === 0) throw new Error("Split node needs an image upstream");
             const res = await splitFn({ data: { imageUrls: images.slice(0, 3), basePrompt: n.data.prompt ?? "" } });
-            resolved.set(id, { url: res.ultra.url, kind: "split" });
-            update(id, { status: "done", url: res.ultra.url, altUrl: res.cinematic.url });
+            resolved.set(id, { url: res.left.url, kind: "split" });
+            update(id, { status: "done", url: res.left.url, altUrl: res.right.url });
           } else if (n.data.kind === "lipsync") {
             if (audios.length === 0) throw new Error("Lip sync needs an audio node");
             let videoUrl = videos[0];

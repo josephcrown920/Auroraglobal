@@ -178,7 +178,6 @@ export function OnboardingModal({ userId, open, onOpenChange, onApply }: Props) 
               )}
             >
               {selfieUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img src={selfieUrl} alt="Selfie" className="size-full object-cover" />
               ) : uploading ? (
                 <Loader2 className="size-8 animate-spin text-muted-foreground" />

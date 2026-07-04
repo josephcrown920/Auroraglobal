@@ -83,7 +83,11 @@ export function ExitIntentModal() {
           to="/"
           hash="pricing"
           onClick={() => {
-            try { localStorage.setItem("aurora_promo", CODE); } catch {}
+            try {
+              localStorage.setItem("aurora_promo", CODE);
+            } catch {
+              // localStorage unavailable (e.g. private browsing) — non-fatal
+            }
             void track("exit_intent_claim");
             setOpen(false);
           }}
