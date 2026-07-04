@@ -5,6 +5,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { createHash } from "crypto";
 import { z } from "zod";
 import { PLANS, SUBSCRIPTION_TIERS } from "./billing.plans";
+import { applyPromoAtCheckout } from "./promo.functions";
 
 /** Stable MD5-based UUID that matches the SQL expression in grant_free_monthly_aura_all(). */
 function deterministicUuid(input: string): string {
@@ -67,6 +68,7 @@ export const getMyProfile = createServerFn({ method: "GET" })
 const InitPaystackSchema = z.object({
   plan: z.enum(["starter", "creator", "studio"]),
   currency: z.literal("USD").optional(),
+  promoCode: z.string().min(1).max(40).optional(),
 });
 
 export const createPaystackCheckout = createServerFn({ method: "POST" })
@@ -81,6 +83,15 @@ export const createPaystackCheckout = createServerFn({ method: "POST" })
     const currency = "USD" as const;
     const price = plan.prices[currency];
 
+    let amountMinor: number = price.amount_minor;
+    let appliedPromoCodeId: string | null = null;
+    let appliedPercentOff: number | null = null;
+    if (data.promoCode) {
+      const applied = await applyPromoAtCheckout(userId, data.promoCode, amountMinor);
+      amountMinor = applied.amountMinor;
+      appliedPromoCodeId = applied.promoCodeId;
+      appliedPercentOff = applied.percentOff;
+    }
 
     const { data: profile } = await supabaseAdmin.from("profiles").select("email").eq("user_id", userId).maybeSingle();
     const email = profile?.email;
@@ -101,11 +112,11 @@ export const createPaystackCheckout = createServerFn({ method: "POST" })
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         email,
-        amount: price.amount_minor,
+        amount: amountMinor,
         currency,
         reference,
         ...(callback_url ? { callback_url } : {}),
-        metadata: { user_id: userId, plan: data.plan, credits: plan.credits, currency },
+        metadata: { user_id: userId, plan: data.plan, credits: plan.credits, currency, promo_code_id: appliedPromoCodeId },
       }),
     });
     if (!res.ok) {
@@ -117,11 +128,12 @@ export const createPaystackCheckout = createServerFn({ method: "POST" })
     await supabaseAdmin.from("payments").insert({
       user_id: userId,
       reference: json.data.reference,
-      amount_kobo: price.amount_minor,
+      amount_kobo: amountMinor,
       currency,
       credits_granted: plan.credits,
       status: "pending",
-    });
+      ...(appliedPromoCodeId ? { promo_code_id: appliedPromoCodeId, discount_percent_off: appliedPercentOff } : {}),
+    } as any);
     return { authorizationUrl: json.data.authorization_url, reference: json.data.reference };
   });
 

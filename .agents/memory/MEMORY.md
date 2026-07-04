@@ -59,3 +59,4 @@
 - [Validation skill workflow-name conflict](validation-skill-workflow-name-conflict.md) — setValidationCommand fails if a plain (non-validation) workflow already owns that name; removeWorkflow it first, then register.
 - [BytePlus/ModelArk live verification](byteplus-modelark-live-verification.md) — ap-southeast base confirmed right region; 404 ModelNotOpen=account not activated (not a bug) vs NotFound=slug truly dead; neither is fatal/provider-down so fallback still fires.
 - [Studio bucket cross-origin download](studio-bucket-cross-origin-download.md) — `<a download>` on a public studio-bucket URL silently fails (cross-origin); fetch→Blob→objectURL anchor to actually save the file.
+- [Manual auth.users inserts](supabase-manual-auth-user-inserts.md) — direct SQL insert into auth.users 500s at login unless nullable token columns (confirmation_token etc.) are '' not NULL.

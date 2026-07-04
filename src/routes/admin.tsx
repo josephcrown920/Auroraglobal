@@ -6,9 +6,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { adminOverview, adminGrantCredits, adminEarnings, adminWithdrawalSummary, adminRecordWithdrawal } from "@/lib/admin.functions";
 import { listWorkers, upsertWorker, deleteWorker, pingWorker, setWorkerStatus, getFreeGpuMode, setFreeGpuMode } from "@/lib/workers.functions";
+import { issuePromoCode, listPromoCodes, setPromoCodeActive, type PromoCodeRow } from "@/lib/promo.functions";
 import { PROFIT_SPLIT_PCT } from "@/lib/profit-split";
 import { ModelBadge } from "@/components/ModelBadge";
-import { Shield, Sparkles, Loader2, Users, DollarSign, ImagePlay, Coins, ArrowRight, Server, Trash2, Activity, TrendingUp, Gift, Pause, Play, Zap, Store, Wallet } from "lucide-react";
+import { Shield, Sparkles, Loader2, Users, DollarSign, ImagePlay, Coins, ArrowRight, Server, Trash2, Activity, TrendingUp, Gift, Pause, Play, Zap, Store, Wallet, Tag, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,7 @@ function AdminPage() {
   });
 
 
-  const [tab, setTab] = useState<"gens" | "users" | "payments" | "earnings" | "workers">("gens");
+  const [tab, setTab] = useState<"gens" | "users" | "payments" | "earnings" | "workers" | "promos">("gens");
   const [grantUser, setGrantUser] = useState("");
   const [grantAmount, setGrantAmount] = useState(100);
 
@@ -140,9 +141,9 @@ function AdminPage() {
 
         {/* Tabs */}
         <div className="flex gap-2 border-b border-border">
-          {(["gens", "users", "payments", "earnings", "workers"] as const).map((t) => (
+          {(["gens", "users", "payments", "earnings", "workers", "promos"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 text-sm capitalize border-b-2 -mb-px transition-colors ${tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-              {t === "gens" ? "Generations" : t === "workers" ? "GPU Workers" : t}
+              {t === "gens" ? "Generations" : t === "workers" ? "GPU Workers" : t === "promos" ? "Promo Codes" : t}
             </button>
           ))}
         </div>
@@ -227,6 +228,7 @@ function AdminPage() {
         )}
         {tab === "earnings" && <EarningsPanel />}
         {tab === "workers" && <WorkersPanel />}
+        {tab === "promos" && <PromosPanel />}
       </div>
     </main>
   );
@@ -649,6 +651,132 @@ const WORKER_RECIPES: Record<WorkerProtocol, {
     ],
   },
 };
+
+function PromosPanel() {
+  const listFn = useServerFn(listPromoCodes);
+  const issueFn = useServerFn(issuePromoCode);
+  const toggleFn = useServerFn(setPromoCodeActive);
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery({ queryKey: ["promo-codes"], queryFn: () => listFn() });
+
+  const blank = {
+    kind: "discount" as "discount" | "bonus",
+    percentOff: 10,
+    bonusCredits: 20,
+    maxRedemptions: "" as string | number,
+    expiresAt: "",
+    note: "",
+    code: "",
+  };
+  const [form, setForm] = useState(blank);
+
+  const issueMut = useMutation({
+    mutationFn: () =>
+      issueFn({
+        data: {
+          kind: form.kind,
+          ...(form.kind === "discount" ? { percentOff: form.percentOff } : { bonusCredits: form.bonusCredits }),
+          ...(form.maxRedemptions !== "" ? { maxRedemptions: Number(form.maxRedemptions) } : {}),
+          ...(form.expiresAt ? { expiresAt: new Date(form.expiresAt).toISOString() } : {}),
+          ...(form.note.trim() ? { note: form.note.trim() } : {}),
+          ...(form.code.trim() ? { code: form.code.trim() } : {}),
+        },
+      }),
+    onSuccess: (row) => {
+      toast.success(`Promo code ${row.code} created`);
+      setForm(blank);
+      qc.invalidateQueries({ queryKey: ["promo-codes"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to create promo code"),
+  });
+
+  const toggleMut = useMutation({
+    mutationFn: (row: PromoCodeRow) => toggleFn({ data: { id: row.id, active: !row.active } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["promo-codes"] }),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  return (
+    <div className="space-y-6">
+      <section className="rounded-2xl border border-border bg-card/40 p-5 space-y-3">
+        <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+          <Tag className="size-4" /> Issue promo code
+        </h2>
+        <div className="grid sm:grid-cols-2 gap-2">
+          <select
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            value={form.kind}
+            onChange={(e) => setForm({ ...form, kind: e.target.value as "discount" | "bonus" })}
+          >
+            <option value="discount">Discount — % off at checkout</option>
+            <option value="bonus">Bonus — flat Aura on redeem</option>
+          </select>
+          <Input placeholder="Custom code (optional, auto-generated otherwise)" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
+          {form.kind === "discount" ? (
+            <Input type="number" placeholder="Percent off (1-100)" value={form.percentOff} onChange={(e) => setForm({ ...form, percentOff: parseInt(e.target.value || "0") })} />
+          ) : (
+            <Input type="number" placeholder="Bonus Aura credits" value={form.bonusCredits} onChange={(e) => setForm({ ...form, bonusCredits: parseInt(e.target.value || "0") })} />
+          )}
+          <Input type="number" placeholder="Max redemptions (optional)" value={form.maxRedemptions} onChange={(e) => setForm({ ...form, maxRedemptions: e.target.value })} />
+          <Input type="datetime-local" placeholder="Expires at (optional)" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} />
+          <Input placeholder="Note (internal, optional)" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
+        </div>
+        <Button onClick={() => issueMut.mutate()} disabled={issueMut.isPending}>
+          {issueMut.isPending ? <Loader2 className="size-4 animate-spin mr-1" /> : <Tag className="size-4 mr-1" />}
+          Create code
+        </Button>
+      </section>
+
+      <section className="rounded-xl border border-border overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-card/60 text-xs uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="text-left p-3">Code</th>
+              <th className="text-left p-3">Kind</th>
+              <th className="text-right p-3">Value</th>
+              <th className="text-right p-3">Redemptions</th>
+              <th className="text-left p-3">Expires</th>
+              <th className="text-left p-3">Status</th>
+              <th className="text-right p-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(data ?? []).map((p) => (
+              <tr key={p.id} className="border-t border-border hover:bg-card/40">
+                <td className="p-3">
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(p.code); toast.success("Copied"); }}
+                    className="font-mono text-xs inline-flex items-center gap-1 hover:text-foreground text-muted-foreground"
+                  >
+                    {p.code} <Copy className="size-3" />
+                  </button>
+                </td>
+                <td className="p-3 capitalize">{p.kind}</td>
+                <td className="p-3 text-right">{p.kind === "discount" ? `${p.percent_off}%` : `${p.bonus_credits} Aura`}</td>
+                <td className="p-3 text-right">{p.redemption_count}{p.max_redemptions != null ? ` / ${p.max_redemptions}` : ""}</td>
+                <td className="p-3 text-xs">{p.expires_at ? new Date(p.expires_at).toLocaleDateString() : "—"}</td>
+                <td className="p-3">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.active ? "bg-emerald-500/15 text-emerald-500" : "bg-muted text-muted-foreground"}`}>
+                    {p.active ? "Active" : "Disabled"}
+                  </span>
+                </td>
+                <td className="p-3 text-right">
+                  <Button size="sm" variant="ghost" onClick={() => toggleMut.mutate(p)} disabled={toggleMut.isPending}>
+                    {p.active ? "Disable" : "Enable"}
+                  </Button>
+                </td>
+              </tr>
+            ))}
+            {!isLoading && (data ?? []).length === 0 && (
+              <tr><td colSpan={7} className="p-6 text-center text-muted-foreground text-sm">No promo codes yet.</td></tr>
+            )}
+          </tbody>
+        </table>
+        {isLoading && <div className="text-sm text-muted-foreground p-3">Loading…</div>}
+      </section>
+    </div>
+  );
+}
 
 function WorkersPanel() {
   const listFn = useServerFn(listWorkers);

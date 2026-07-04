@@ -4,10 +4,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { getMyProfile, createPaystackCheckout, createProSubscriptionCheckout, cancelProSubscription } from "@/lib/billing.functions";
+import { redeemPromoCode } from "@/lib/promo.functions";
 import { PLANS, SUBSCRIPTION_TIERS } from "@/lib/billing.plans";
 import { toast } from "sonner";
-import { ArrowLeft, Zap, Star, CheckCircle2, XCircle, CreditCard, Loader2, Crown } from "lucide-react";
+import { ArrowLeft, Zap, Star, CheckCircle2, XCircle, CreditCard, Loader2, Crown, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 
 export const Route = createFileRoute("/billing")({
@@ -28,7 +30,10 @@ function BillingPage() {
   const checkoutFn = useServerFn(createPaystackCheckout);
   const proCheckoutFn = useServerFn(createProSubscriptionCheckout);
   const cancelFn = useServerFn(cancelProSubscription);
+  const redeemFn = useServerFn(redeemPromoCode);
   const [cancelConfirm, setCancelConfirm] = useState(false);
+  const [promoCode, setPromoCode] = useState("");
+  const [redeemCode, setRedeemCode] = useState("");
 
   const search = Route.useSearch() as Record<string, string>;
 
@@ -60,9 +65,20 @@ function BillingPage() {
   });
 
   const packMut = useMutation({
-    mutationFn: (plan: "starter" | "creator" | "studio") => checkoutFn({ data: { plan } }),
+    mutationFn: (plan: "starter" | "creator" | "studio") =>
+      checkoutFn({ data: { plan, ...(promoCode.trim() ? { promoCode: promoCode.trim() } : {}) } }),
     onSuccess: ({ authorizationUrl }) => { window.location.href = authorizationUrl; },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Checkout failed"),
+  });
+
+  const redeemMut = useMutation({
+    mutationFn: () => redeemFn({ data: { code: redeemCode.trim() } }),
+    onSuccess: (res) => {
+      toast.success(`+${res.credits} Aura added to your balance!`);
+      setRedeemCode("");
+      qc.invalidateQueries({ queryKey: ["profile"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't redeem that code"),
   });
 
   const cancelMut = useMutation({
@@ -254,6 +270,22 @@ function BillingPage() {
           <p className="text-sm text-muted-foreground mb-4">
             One-time credit packs — use them any time on top of your monthly allowance.
           </p>
+
+          <div className="flex items-center gap-2 mb-4">
+            <div className="relative flex-1 max-w-xs">
+              <Tag className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Promo code (optional)"
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+            {promoCode.trim() && (
+              <span className="text-xs text-muted-foreground">Applied at checkout below</span>
+            )}
+          </div>
+
           <div className="grid sm:grid-cols-3 gap-3">
             {(["starter", "creator", "studio"] as const).map((key) => {
               const p = PLANS[key];
@@ -282,6 +314,34 @@ function BillingPage() {
               );
             })}
           </div>
+        </section>
+
+        {/* Bonus code redemption */}
+        <section>
+          <h2 className="text-base font-medium mb-1">Have a bonus code?</h2>
+          <p className="text-sm text-muted-foreground mb-3">
+            Redeem a signup or campaign code for instant Aura — separate from discount codes above.
+          </p>
+          <form
+            className="flex flex-wrap gap-2 max-w-md"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (redeemCode.trim()) redeemMut.mutate();
+            }}
+          >
+            <div className="relative flex-1 min-w-[180px]">
+              <Tag className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+              <Input
+                placeholder="e.g. WELCOME2026"
+                value={redeemCode}
+                onChange={(e) => setRedeemCode(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+            <Button type="submit" variant="outline" disabled={!redeemCode.trim() || redeemMut.isPending}>
+              {redeemMut.isPending ? <Loader2 className="size-3.5 animate-spin" /> : "Redeem"}
+            </Button>
+          </form>
         </section>
       </div>
     </main>
