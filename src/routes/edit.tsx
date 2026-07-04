@@ -130,14 +130,18 @@ export const Route = createFileRoute("/edit")({
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type UploadSlot = { signedUrl: string; token: string; path: string };
-type FileProgress = { file: File; pct: number; done: boolean };
+type UploadStatus = "pending" | "uploading" | "done" | "error";
+type FileProgress = { file: File; pct: number; status: UploadStatus; error?: string };
 type Phase = "idle" | "uploading" | "dispatching" | "processing" | "done" | "error";
+
+const UPLOAD_TIMEOUT_MS = 60_000;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function uploadFileXhr(signedUrl: string, file: File, onProgress: (pct: number) => void): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    xhr.timeout = UPLOAD_TIMEOUT_MS;
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
     };
@@ -146,6 +150,7 @@ function uploadFileXhr(signedUrl: string, file: File, onProgress: (pct: number) 
       else reject(new Error(`Upload failed (HTTP ${xhr.status})`));
     };
     xhr.onerror = () => reject(new Error("Network error during upload"));
+    xhr.ontimeout = () => reject(new Error("Upload timed out — tap to retry"));
     xhr.open("PUT", signedUrl);
     xhr.setRequestHeader("Content-Type", file.type || "video/mp4");
     xhr.send(file);
@@ -166,6 +171,7 @@ function AutoCutPage() {
   // ── Job state ───────────────────────────────────────────────────────────
   const [phase, setPhase]             = useState<Phase>("idle");
   const [fileProgress, setFileProgress] = useState<FileProgress[]>([]);
+  const [uploadSlots, setUploadSlots] = useState<UploadSlot[]>([]);
   const [generationId, setGenerationId] = useState<string | null>(null);
   const [jobId, setJobId]             = useState<string | null>(null);
   const [serverStage, setServerStage] = useState<"analysing" | "assembling" | "rendering">("analysing");
@@ -174,6 +180,9 @@ function AutoCutPage() {
 
   const pollRef    = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Mirrors per-file success so we can decide "all uploaded" without racing
+  // against React's async state batching (updated in lockstep with fileProgress).
+  const uploadedRef = useRef<boolean[]>([]);
 
   // ── Server fns ──────────────────────────────────────────────────────────
   const uploadUrlsFn   = useServerFn(getAutocutUploadUrls);
@@ -248,6 +257,82 @@ function AutoCutPage() {
     }, POLL_INTERVAL_MS);
   };
 
+  // ── Upload orchestration ─────────────────────────────────────────────────
+  // Uploads are isolated per-file: one clip timing out or erroring never
+  // cancels its siblings, and a failed clip can be retried on its own without
+  // re-uploading anything that already succeeded.
+  const attemptUploadOne = useCallback(async (idx: number, slot: UploadSlot, file: File) => {
+    uploadedRef.current[idx] = false;
+    setFileProgress((prev) =>
+      prev.map((p, i) => (i === idx ? { ...p, status: "uploading", pct: 0, error: undefined } : p)),
+    );
+    try {
+      await uploadFileXhr(slot.signedUrl, file, (pct) =>
+        setFileProgress((prev) => prev.map((p, i) => (i === idx ? { ...p, pct } : p))),
+      );
+      setFileProgress((prev) =>
+        prev.map((p, i) => (i === idx ? { ...p, pct: 100, status: "done", error: undefined } : p)),
+      );
+      uploadedRef.current[idx] = true;
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Upload failed — tap to retry";
+      setFileProgress((prev) =>
+        prev.map((p, i) => (i === idx ? { ...p, status: "error", error: message } : p)),
+      );
+      uploadedRef.current[idx] = false;
+      return false;
+    }
+  }, []);
+
+  // Fires the autocut job creation once — and only once — every clip has
+  // successfully uploaded. This is the gate equivalent of a disabled Generate
+  // button: job creation simply never runs while any clip is pending/errored.
+  const proceedToDispatch = useCallback(
+    async (slots: UploadSlot[]) => {
+      try {
+        setPhase("dispatching");
+        const { generationId: genId, jobId: jId } = await createJobFn({
+          clipPaths: slots.map((s) => s.path),
+          style,
+          musicTrackId: noMusic ? undefined : musicTrackId,
+          aspect: "9:16",
+        });
+
+        setGenerationId(genId);
+        setJobId(jId);
+        setServerStage("analysing");
+        setPhase("processing");
+        startPolling(genId, jId);
+      } catch (err) {
+        handleGenerationError(err);
+        setPhase("error");
+        setErrorMsg(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [createJobFn, style, musicTrackId, noMusic],
+  );
+
+  const maybeProceedAfterUpload = useCallback(
+    (slots: UploadSlot[]) => {
+      if (slots.length > 0 && uploadedRef.current.length === slots.length && uploadedRef.current.every(Boolean)) {
+        void proceedToDispatch(slots);
+      }
+    },
+    [proceedToDispatch],
+  );
+
+  const retryUpload = useCallback(
+    async (idx: number) => {
+      const slot = uploadSlots[idx];
+      const file = fileProgress[idx]?.file;
+      if (!slot || !file) return;
+      await attemptUploadOne(idx, slot, file);
+      maybeProceedAfterUpload(uploadSlots);
+    },
+    [uploadSlots, fileProgress, attemptUploadOne, maybeProceedAfterUpload],
+  );
+
   // ── Submit handler ───────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!user) { toast.error("Sign in to use AutoCut"); return; }
@@ -255,7 +340,9 @@ function AutoCutPage() {
 
     setErrorMsg(null);
     setPhase("uploading");
-    setFileProgress(files.map((f) => ({ file: f, pct: 0, done: false })));
+    setUploadSlots([]);
+    uploadedRef.current = files.map(() => false);
+    setFileProgress(files.map((f) => ({ file: f, pct: 0, status: "pending" as const })));
 
     try {
       // 1. Request signed upload URLs from server
@@ -265,33 +352,18 @@ function AutoCutPage() {
           ext: (f.name.split(".").pop() ?? "mp4").toLowerCase(),
         })),
       });
+      setUploadSlots(slots);
 
-      // 2. Upload each file directly to Supabase storage via signed PUT URL
-      await Promise.all(
-        slots.map(({ signedUrl }, idx) =>
-          uploadFileXhr(signedUrl, files[idx], (pct) =>
-            setFileProgress((prev) =>
-              prev.map((p, i) => (i === idx ? { ...p, pct, done: pct === 100 } : p)),
-            ),
-          ),
-        ),
-      );
+      // 2. Upload each file directly to Supabase storage via signed PUT URL.
+      // Failures are isolated per-file (never Promise.all fail-fast) so one
+      // stalled clip doesn't cancel the others.
+      await Promise.all(slots.map((slot, idx) => attemptUploadOne(idx, slot, files[idx])));
 
-      // 3. Create the autocut job (server signs download URLs + enqueues)
-      setPhase("dispatching");
-      const { generationId: genId, jobId: jId } = await createJobFn({
-        clipPaths: slots.map((s) => s.path),
-        style,
-        musicTrackId: noMusic ? undefined : musicTrackId,
-        aspect: "9:16",
-      });
-
-      setGenerationId(genId);
-      setJobId(jId);
-      setServerStage("analysing");
-      setPhase("processing");
-      startPolling(genId, jId);
+      // 3. Only create the job once every clip is confirmed uploaded.
+      maybeProceedAfterUpload(slots);
     } catch (err) {
+      // Failure to even obtain upload URLs is a real infra error, not a
+      // per-file issue — abort the whole flow.
       handleGenerationError(err);
       setPhase("error");
       setErrorMsg(err instanceof Error ? err.message : String(err));
@@ -302,6 +374,8 @@ function AutoCutPage() {
     stopPolling();
     setFiles([]);
     setFileProgress([]);
+    setUploadSlots([]);
+    uploadedRef.current = [];
     setPhase("idle");
     setGenerationId(null);
     setJobId(null);
@@ -317,6 +391,7 @@ function AutoCutPage() {
   const overallPct = fileProgress.length
     ? Math.round(fileProgress.reduce((s, p) => s + p.pct, 0) / fileProgress.length)
     : 0;
+  const hasUploadErrors = fileProgress.some((p) => p.status === "error");
 
   // ── Stage indicator (driven by real backend state from getAutocutJobStage) ─
   const STAGES = [
@@ -465,17 +540,42 @@ function AutoCutPage() {
                 {fileProgress.map((p, i) => (
                   <div key={i} className="flex flex-col gap-0.5">
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span className="max-w-[70%] truncate">{p.file.name}</span>
-                      <span>{p.pct}%</span>
+                      <span className="max-w-[60%] truncate">{p.file.name}</span>
+                      {p.status === "error" ? (
+                        <button
+                          type="button"
+                          onClick={() => void retryUpload(i)}
+                          className="shrink-0 font-medium text-destructive underline-offset-2 hover:underline"
+                        >
+                          {p.error ?? "Upload failed"} — tap to retry
+                        </button>
+                      ) : (
+                        <span>{p.status === "done" ? "Done" : `${p.pct}%`}</span>
+                      )}
                     </div>
                     <div className="h-1 overflow-hidden rounded-full bg-muted">
                       <div
-                        className="h-full bg-[image:var(--gradient-hero)] transition-all duration-200"
-                        style={{ width: `${p.pct}%` }}
+                        className={cn(
+                          "h-full transition-all duration-200",
+                          p.status === "error"
+                            ? "w-full bg-destructive"
+                            : "bg-[image:var(--gradient-hero)]",
+                        )}
+                        style={p.status === "error" ? undefined : { width: `${p.pct}%` }}
                       />
                     </div>
                   </div>
                 ))}
+                {hasUploadErrors && (
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2">
+                    <p className="text-xs text-destructive">
+                      Some clips failed to upload. Retry them above to continue.
+                    </p>
+                    <Button size="sm" variant="outline" onClick={handleReset}>
+                      Cancel
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
