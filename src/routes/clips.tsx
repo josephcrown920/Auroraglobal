@@ -81,7 +81,9 @@ function ClipsPage() {
         setTweaks(parsed.tweaks ?? {});
         setStatus(parsed.status ?? {});
       }
-    } catch {}
+    } catch {
+      // localStorage unavailable or corrupt — fall back to defaults
+    }
   }, []);
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ tweaks, status }));

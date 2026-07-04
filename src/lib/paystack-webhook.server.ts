@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -31,18 +32,11 @@ export function verifyPaystackSignature(
   body: string,
   secret: string
 ): boolean {
-  const crypto = require("crypto");
-  const expected = crypto
-    .createHmac("sha512", secret)
-    .update(body)
-    .digest("hex");
+  const expected = createHmac("sha512", secret).update(body).digest("hex");
 
   // Timing-safe comparison to prevent timing attacks
   if (signature.length !== expected.length) return false;
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expected)
-  );
+  return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
 }
 
 /**

@@ -17,7 +17,9 @@ function getInitialTheme(): AppTheme {
   try {
     const stored = localStorage.getItem("aurora-theme");
     if (stored === "light" || stored === "dark") return stored;
-  } catch {}
+  } catch {
+    // localStorage unavailable (e.g. private browsing) — non-fatal
+  }
   return "dark";
 }
 
@@ -28,7 +30,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.setAttribute("data-theme", theme);
     try {
       localStorage.setItem("aurora-theme", theme);
-    } catch {}
+    } catch {
+      // localStorage unavailable (e.g. private browsing) — non-fatal
+    }
   }, [theme]);
 
   const toggle = () => setTheme((t) => (t === "dark" ? "light" : "dark"));

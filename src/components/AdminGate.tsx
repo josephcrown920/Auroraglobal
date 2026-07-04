@@ -23,7 +23,11 @@ export function AdminGate({ onUnlocked }: { onUnlocked: () => void }) {
     setBusy(true);
     try {
       const res = await unlockFn({ data: { username, passcode } });
-      try { sessionStorage.setItem(KEY, res.token); } catch {}
+      try {
+        sessionStorage.setItem(KEY, res.token);
+      } catch {
+        // sessionStorage unavailable (e.g. private browsing) — non-fatal
+      }
       onUnlocked();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Invalid credentials");

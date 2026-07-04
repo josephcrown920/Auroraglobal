@@ -628,7 +628,6 @@ function MusicVideoPage() {
                         autoPlay
                       />
                     ) : (
-                      // eslint-disable-next-line @next/next/no-img-element
                       <img src={url} alt="Generated result" className="w-full h-full object-cover" />
                     )}
                     <a

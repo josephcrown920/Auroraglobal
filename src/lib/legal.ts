@@ -258,7 +258,7 @@ export const LEGAL: Record<LegalDoc["slug"], LegalDoc> = {
         body: [
           "By default, Aurora may use anonymised, de-identified aggregates of generation metadata (prompt text, model used, quality signals) — but not your actual media files — to improve our routing, safety filters, and quality benchmarks.",
           "We will never use your uploaded reference photos, videos, or audio recordings to train any AI model without your explicit, opt-in consent.",
-          `To opt out of anonymised metadata use at any time, email ${COMPANY.email} with the subject line \"Opt out of model improvement\". We will action the request within 30 days.`,
+          `To opt out of anonymised metadata use at any time, email ${COMPANY.email} with the subject line "Opt out of model improvement". We will action the request within 30 days.`,
         ],
       },
       {

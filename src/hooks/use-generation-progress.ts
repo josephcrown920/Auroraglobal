@@ -187,7 +187,11 @@ export function useGenerationProgress(
       if (!prevPendingRef.current && (jobStatus == null)) {
         setState("idle");
         setProgress(0);
-        try { localStorage.removeItem(persistKey); } catch {}
+        try {
+          localStorage.removeItem(persistKey);
+        } catch {
+          // localStorage unavailable (e.g. private browsing) — non-fatal
+        }
       }
     }, 800);
     return () => clearTimeout(t);
@@ -207,7 +211,11 @@ export function useGenerationProgress(
       clearTicker();
       setProgress(100);
       if (persistKey) {
-        try { localStorage.removeItem(persistKey); } catch {}
+        try {
+          localStorage.removeItem(persistKey);
+        } catch {
+          // localStorage unavailable (e.g. private browsing) — non-fatal
+        }
       }
       const t = setTimeout(() => {
         setState("idle");
@@ -220,7 +228,11 @@ export function useGenerationProgress(
       clearTicker();
       setProgress(0);
       if (persistKey) {
-        try { localStorage.removeItem(persistKey); } catch {}
+        try {
+          localStorage.removeItem(persistKey);
+        } catch {
+          // localStorage unavailable (e.g. private browsing) — non-fatal
+        }
       }
       return;
     }
@@ -240,7 +252,9 @@ export function useGenerationProgress(
             JSON.stringify({ startedAt: Date.now(), estimatedMs }),
           );
         }
-      } catch {}
+      } catch {
+        // localStorage unavailable (e.g. private browsing) — non-fatal
+      }
     }
 
     // Keep ticking if we're mid-flight so the bar doesn't stall
@@ -284,7 +298,9 @@ export function useGenerationProgress(
             persistKey,
             JSON.stringify({ startedAt: Date.now(), estimatedMs }),
           );
-        } catch {}
+        } catch {
+          // localStorage unavailable (e.g. private browsing) — non-fatal
+        }
       }
 
       const tickInterval = 600;
@@ -313,7 +329,11 @@ export function useGenerationProgress(
       // Mutation just settled
       clearTicker();
       if (persistKey) {
-        try { localStorage.removeItem(persistKey); } catch {}
+        try {
+          localStorage.removeItem(persistKey);
+        } catch {
+          // localStorage unavailable (e.g. private browsing) — non-fatal
+        }
       }
 
       if (isSuccess) {

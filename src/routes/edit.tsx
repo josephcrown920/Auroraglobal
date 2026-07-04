@@ -232,7 +232,7 @@ function AutoCutPage() {
     pollRef.current = setInterval(async () => {
       try {
         // Poll generation completion status.
-        const s = await getStatusFn({ generationId: genId });
+        const s = await getStatusFn({ data: { generationId: genId } });
         if (s.status === "succeeded") {
           stopPolling();
           setResultUrl(s.videoUrl ?? s.imageUrl ?? null);
@@ -246,7 +246,7 @@ function AutoCutPage() {
         }
         // Still processing — fetch real worker stage from the DB.
         try {
-          const st = await getJobStageFn({ jobId: jId });
+          const st = await getJobStageFn({ data: { jobId: jId } });
           setServerStage(st.stage);
         } catch {
           // transient stage fetch error — keep current stage
@@ -293,10 +293,12 @@ function AutoCutPage() {
       try {
         setPhase("dispatching");
         const { generationId: genId, jobId: jId } = await createJobFn({
-          clipPaths: slots.map((s) => s.path),
-          style,
-          musicTrackId: noMusic ? undefined : musicTrackId,
-          aspect: "9:16",
+          data: {
+            clipPaths: slots.map((s) => s.path),
+            style,
+            musicTrackId: noMusic ? undefined : musicTrackId,
+            aspect: "9:16",
+          },
         });
 
         setGenerationId(genId);
@@ -347,10 +349,12 @@ function AutoCutPage() {
     try {
       // 1. Request signed upload URLs from server
       const slots: UploadSlot[] = await uploadUrlsFn({
-        files: files.map((f) => ({
-          name: f.name,
-          ext: (f.name.split(".").pop() ?? "mp4").toLowerCase(),
-        })),
+        data: {
+          files: files.map((f) => ({
+            name: f.name,
+            ext: (f.name.split(".").pop() ?? "mp4").toLowerCase(),
+          })),
+        },
       });
       setUploadSlots(slots);
 

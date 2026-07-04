@@ -83,7 +83,7 @@ export const Route = createFileRoute("/api/public/watermark-image")({
           return new Response("Watermark processing failed", { status: 500 });
         }
 
-        return new Response(watermarked, {
+        return new Response(new Uint8Array(watermarked), {
           status: 200,
           headers: {
             "Content-Type": "image/jpeg",

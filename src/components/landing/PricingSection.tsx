@@ -36,7 +36,11 @@ export function PricingSection() {
 
     void track("pricing_cta_click", { plan, currency });
     if (!user) {
-      try { localStorage.setItem("aurora_intent_plan", plan); } catch {}
+      try {
+        localStorage.setItem("aurora_intent_plan", plan);
+      } catch {
+        // localStorage unavailable (e.g. private browsing) — non-fatal
+      }
       toast.info("Sign in first to complete checkout.");
       navigate({ to: "/auth" });
       return;

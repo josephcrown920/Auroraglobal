@@ -8,6 +8,7 @@
 //   - sync        → Sync.so direct API (lipsync)
 //   - gpuWorker   → admin-registered HTTP workers (RunPod / vast / salad / self-hosted)
 
+import { createHmac } from "node:crypto";
 import OpenAI from "openai";
 import { GoogleGenAI, Modality } from "@google/genai";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -230,8 +231,7 @@ function klingJwt(accessKey: string, secretKey: string): string {
   const now = Math.floor(Date.now() / 1000);
   const payload = enc({ iss: accessKey, exp: now + 1800, nbf: now - 5 });
   const data = `${header}.${payload}`;
-  const crypto = require("crypto") as typeof import("crypto");
-  const sig = crypto.createHmac("sha256", secretKey).update(data).digest("base64url");
+  const sig = createHmac("sha256", secretKey).update(data).digest("base64url");
   return `${data}.${sig}`;
 }
 
