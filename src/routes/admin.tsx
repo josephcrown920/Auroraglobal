@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { adminOverview, adminGrantCredits, adminEarnings } from "@/lib/admin.functions";
+import { adminOverview, adminGrantCredits, adminEarnings, adminWithdrawalSummary, adminRecordWithdrawal } from "@/lib/admin.functions";
 import { listWorkers, upsertWorker, deleteWorker, pingWorker, setWorkerStatus, getFreeGpuMode, setFreeGpuMode } from "@/lib/workers.functions";
 import { PROFIT_SPLIT_PCT } from "@/lib/profit-split";
 import { ModelBadge } from "@/components/ModelBadge";
-import { Shield, Sparkles, Loader2, Users, DollarSign, ImagePlay, Coins, ArrowRight, Server, Trash2, Activity, TrendingUp, Gift, Pause, Play, Zap, Store } from "lucide-react";
+import { Shield, Sparkles, Loader2, Users, DollarSign, ImagePlay, Coins, ArrowRight, Server, Trash2, Activity, TrendingUp, Gift, Pause, Play, Zap, Store, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Button } from "@/components/ui/button";
@@ -379,7 +379,138 @@ function EarningsPanel() {
         </div>
         {isLoading && <div className="text-sm text-muted-foreground mt-2">Loading…</div>}
       </section>
+
+      <WithdrawalsPanel />
     </div>
+  );
+}
+
+// All-time profit vs. what the owner has actually withdrawn from the
+// business. Independent of the range selector above — a payout is recorded
+// against the whole accumulated pool, not a date slice of it.
+function WithdrawalsPanel() {
+  const summaryFn = useServerFn(adminWithdrawalSummary);
+  const recordFn = useServerFn(adminRecordWithdrawal);
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-withdrawals"],
+    queryFn: () => summaryFn(),
+  });
+  const todayLocal = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [withdrawnDate, setWithdrawnDate] = useState(todayLocal);
+
+  const recordMut = useMutation({
+    mutationFn: async () => {
+      const amountUsd = parseFloat(amount);
+      if (!Number.isFinite(amountUsd) || amountUsd <= 0) throw new Error("Enter a valid amount");
+      // Date-only input from the browser (YYYY-MM-DD); anchor to local
+      // midday before converting to ISO so the recorded date doesn't shift a
+      // day when serialized to UTC in timezones behind UTC.
+      const withdrawnAt = withdrawnDate
+        ? new Date(`${withdrawnDate}T12:00:00`).toISOString()
+        : undefined;
+      return recordFn({ data: { amountUsd, note: note.trim() || undefined, withdrawnAt } });
+    },
+    onSuccess: () => {
+      toast.success("Payout recorded");
+      setAmount("");
+      setNote("");
+      setWithdrawnDate(todayLocal());
+      qc.invalidateQueries({ queryKey: ["admin-withdrawals"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to record payout"),
+  });
+
+  const usd = (n: number | undefined) => (n == null ? "—" : `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+
+  return (
+    <section className="rounded-2xl border border-border bg-card/40 p-5 space-y-4">
+      <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+        <Wallet className="size-4" /> Owner payouts (all-time)
+      </h2>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Stat icon={TrendingUp} label="Total profit" value={usd(data?.totalProfitUsd)} sub="Accumulated since day one" />
+        <Stat icon={Wallet} label="Total withdrawn" value={usd(data?.totalWithdrawnUsd)} sub="Already paid out" />
+        <Stat
+          icon={DollarSign}
+          label="Remaining to withdraw"
+          value={usd(data?.remainingUsd)}
+          sub={(data?.remainingUsd ?? 0) < 0 ? "Withdrawn more than recorded profit" : "Still in the business"}
+        />
+      </div>
+
+      <form
+        className="flex flex-wrap items-end gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          recordMut.mutate();
+        }}
+      >
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-muted-foreground">Amount (USD)</label>
+          <Input
+            type="number"
+            min="0.01"
+            step="0.01"
+            placeholder="0.00"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="w-32"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-muted-foreground">Date</label>
+          <Input
+            type="date"
+            value={withdrawnDate}
+            max={todayLocal()}
+            onChange={(e) => setWithdrawnDate(e.target.value)}
+            className="w-40"
+          />
+        </div>
+        <div className="flex flex-col gap-1 flex-1 min-w-[180px]">
+          <label className="text-xs text-muted-foreground">Note (optional)</label>
+          <Input placeholder="e.g. Transferred to personal account" value={note} onChange={(e) => setNote(e.target.value)} />
+        </div>
+        <Button type="submit" disabled={recordMut.isPending || !amount}>
+          {recordMut.isPending ? <Loader2 className="size-4 animate-spin" /> : "Record payout"}
+        </Button>
+      </form>
+
+      <div className="rounded-xl border border-border overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-card/60 text-xs uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="text-left p-3">When</th>
+              <th className="text-right p-3">Amount</th>
+              <th className="text-left p-3">Note</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(data?.withdrawals ?? []).map((w) => (
+              <tr key={w.id} className="border-t border-border">
+                <td className="p-3 text-xs">{new Date(w.withdrawnAt).toLocaleString()}</td>
+                <td className="p-3 text-right">{usd(w.amountUsd)}</td>
+                <td className="p-3 text-xs text-muted-foreground">{w.note ?? "—"}</td>
+              </tr>
+            ))}
+            {!isLoading && (data?.withdrawals ?? []).length === 0 && (
+              <tr><td colSpan={3} className="p-6 text-center text-muted-foreground text-sm">No payouts recorded yet.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      {isLoading && <div className="text-sm text-muted-foreground mt-2">Loading…</div>}
+    </section>
   );
 }
 

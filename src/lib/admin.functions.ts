@@ -312,6 +312,160 @@ export const adminEarnings = createServerFn({ method: "GET" })
       },
     };
   });
+// ─── Owner withdrawals (payouts against accumulated profit) ─────────────────
+// `payments` tells us total profit ever accumulated; `owner_withdrawals` is a
+// simple ledger of how much of that profit the owner has actually taken out,
+// so the Earnings tab can show total profit / total withdrawn / remaining.
+// Deliberately its own table (not the ai-credit-system bundle's
+// profit_tracker schema) per the migration in supabase/migrations/.
+
+export interface OwnerWithdrawalRow {
+  id: string;
+  withdrawn_at: string;
+  amount_minor: number;
+  note: string | null;
+}
+
+// `owner_withdrawals` is not in the generated Supabase types yet (same
+// situation as scheduler_heartbeats above) — narrow-cast just this table.
+// Only `.range()` is exposed (no `.limit()`) so every read here is forced
+// through the pagination helper below — an all-time ledger total must never
+// be computed from an arbitrarily-capped page.
+interface WithdrawalsOrderable {
+  // Chainable so a secondary tie-breaker column can be added for a fully
+  // stable sort during pagination (see fetchAllWithdrawals below).
+  order: (col: string, opts: { ascending: boolean }) => WithdrawalsOrderable;
+  range: (
+    from: number,
+    to: number,
+  ) => Promise<{ data: OwnerWithdrawalRow[] | null; error: { message: string } | null }>;
+}
+
+const withdrawalsTable = supabaseAdmin as unknown as {
+  from: (t: "owner_withdrawals") => {
+    select: (c: string) => WithdrawalsOrderable;
+    insert: (row: {
+      amount_minor: number;
+      note: string | null;
+      withdrawn_at: string;
+      created_by: string;
+    }) => Promise<{ error: { message: string } | null }>;
+  };
+};
+
+const PAGE_SIZE = 1000;
+
+// All-time profit total, independent of the Earnings range selector — a
+// withdrawal is recorded against the whole accumulated pool, not a slice of
+// it, so "remaining to withdraw" must reconcile against every payment ever
+// made rather than whatever date range happens to be selected in the UI.
+// Paginated (not a single capped `.limit()`) so the total stays correct no
+// matter how many payments have accumulated.
+async function computeAllTimeProfitMinor(): Promise<number> {
+  let profitMinor = 0;
+  let from = 0;
+  for (;;) {
+    const { data, error } = await supabaseAdmin
+      .from("payments")
+      .select("amount_kobo, currency, profit_amount_minor")
+      .eq("status", "succeeded")
+      // Explicit stable order (by primary key) so pages don't drift/skip
+      // rows if new payments are inserted mid-scan.
+      .order("id", { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) throw new Error(error.message);
+    const rows = data ?? [];
+    for (const p of rows) {
+      if (p.currency !== "USD") continue;
+      profitMinor += p.profit_amount_minor ?? computeProfitSplit(p.amount_kobo).profit_minor;
+    }
+    if (rows.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return profitMinor;
+}
+
+// Fetches every recorded withdrawal (newest first), paginated so the
+// all-time "total withdrawn" figure is never derived from a capped page.
+async function fetchAllWithdrawals(): Promise<OwnerWithdrawalRow[]> {
+  const all: OwnerWithdrawalRow[] = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await withdrawalsTable
+      .from("owner_withdrawals")
+      .select("id, withdrawn_at, amount_minor, note")
+      .order("withdrawn_at", { ascending: false })
+      // Secondary tie-breaker on id — withdrawn_at alone isn't unique
+      // (same-day payouts), so pages could drift/skip without it.
+      .order("id", { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) throw new Error(error.message);
+    const rows = data ?? [];
+    all.push(...rows);
+    if (rows.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return all;
+}
+
+// Owner-facing withdrawal summary: all-time profit, total withdrawn, what's
+// left, plus a recent list of recorded payouts. Admin-only.
+export const adminWithdrawalSummary = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
+
+    const [totalProfitMinor, withdrawals] = await Promise.all([
+      computeAllTimeProfitMinor(),
+      fetchAllWithdrawals(),
+    ]);
+    const totalWithdrawnMinor = withdrawals.reduce((sum, w) => sum + w.amount_minor, 0);
+
+    return {
+      totalProfitUsd: totalProfitMinor / 100,
+      totalWithdrawnUsd: totalWithdrawnMinor / 100,
+      remainingUsd: (totalProfitMinor - totalWithdrawnMinor) / 100,
+      // Recent-first slice for display only — the totals above already
+      // reflect the full all-time set.
+      withdrawals: withdrawals.slice(0, 200).map((w) => ({
+        id: w.id,
+        withdrawnAt: w.withdrawn_at,
+        amountUsd: w.amount_minor / 100,
+        note: w.note,
+      })),
+    };
+  });
+
+// Records a payout the owner actually took out of the business. Amount is
+// entered in whole USD from the UI and converted to minor units here so the
+// ledger stays in the same unit as `payments.profit_amount_minor`.
+export const adminRecordWithdrawal = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        amountUsd: z.number().positive().finite(),
+        note: z.string().trim().max(500).optional(),
+        withdrawnAt: z.string().datetime().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+
+    const amount_minor = Math.round(data.amountUsd * 100);
+    if (amount_minor <= 0) throw new Error("Amount must be greater than zero");
+
+    const { error } = await withdrawalsTable.from("owner_withdrawals").insert({
+      amount_minor,
+      note: data.note?.length ? data.note : null,
+      withdrawn_at: data.withdrawnAt ?? new Date().toISOString(),
+      created_by: context.userId,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 // ─── Cost analytics (last 30 days) ────────────────────────────────────────────
 
 export const adminCostStats = createServerFn({ method: "GET" })
