@@ -2050,25 +2050,27 @@ const gpuWorker: ProviderAdapter = {
 };
 
 // ─── Priority chain per kind ─────────────────────────────────────────────────
-// REPLIT-FIRST for image/text/audio: the Replit AI Integrations proxy (billed
-// to the owner's Replit credits) is tried before anything else. When the
-// integration env vars are absent, or the call fails, the adapter reports
-// unavailable / throws and orchestrate() falls straight through to the
-// self-hosted gpuWorker pool, then the rest of the existing external chain
-// below — unchanged from before this hop was added.
-// GPU-FIRST for every OTHER modality (video/lipsync/upscale/motion/assemble/
-// caption_burn/autocut — Replit's proxy can't serve these): the self-hosted
-// gpuWorker pool is always tried first. When no eligible worker is up
-// (offline, stale heartbeat, at capacity, missing the capability) the adapter
-// throws a "GPU unavailable" signal that orchestrate() treats as a clean skip
-// — the request falls straight through to the external chain below. This
-// means a running GPU always saves credits, and the external providers act
-// purely as high-availability fallbacks.
+// GPU-FIRST for every modality: the self-hosted gpuWorker pool is always
+// tried first, full stop. When no eligible worker is up (offline, stale
+// heartbeat, at capacity, missing the capability) the adapter throws a "GPU
+// unavailable" signal that orchestrate() treats as a clean, near-instant,
+// silent skip (GPU_UNAVAILABLE_RE below) — no error log, no cooldown — and
+// the request falls straight through to the rest of the chain. This means a
+// running GPU always saves credits, and every hosted provider after it
+// (Replit-billed first for image/text/audio, then the paid external chain)
+// acts purely as a high-availability fallback. orchestrate() only fails a
+// generation once every model × every adapter in the chain has been tried
+// and failed — see the exhaustion check at the bottom of orchestrate().
 const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
+  // GPU-first everywhere: the self-hosted pool is always tried before any paid
+  // or Replit-billed hosted provider. "No GPU workers available" is a clean,
+  // silent, near-instant skip (see GPU_UNAVAILABLE_RE below) so this costs
+  // nothing when the pool is offline — every kind still falls straight through
+  // the rest of its chain automatically instead of failing the generation.
   image: [
+    gpuWorker,
     replitGeminiImage,
     replitOpenAIImage,
-    gpuWorker,
     byteplus,
     pollinations,
     geminiDirect,
@@ -2085,12 +2087,12 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   upscale: [gpuWorker, replicate, falFallback],
   // Motion transfer (MimicMotion) has no hosted provider — GPU/ComfyUI workers only.
   motion: [gpuWorker],
-  // Replit-first: gpt-5-nano then gemini-2.5-flash, both billed to the owner's
-  // Replit credits, before falling through to GPU / the external text chain.
+  // GPU-first, then Replit-billed (gpt-5-nano, gemini-2.5-flash), then the
+  // rest of the external text chain.
   text: [
+    gpuWorker,
     replitOpenAIText,
     replitGeminiText,
-    gpuWorker,
     pollinations,
     groqText,
     geminiText,
@@ -2100,9 +2102,8 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
     anthropicText,
     lovableText,
   ],
-  // Replit-first: gpt-audio-mini (billed to the owner's Replit credits), then
-  // GPU (local TTS), then ElevenLabs.
-  audio: [replitOpenAIAudio, gpuWorker, elevenlabs],
+  // GPU-first (local TTS), then Replit-billed gpt-audio-mini, then ElevenLabs.
+  audio: [gpuWorker, replitOpenAIAudio, elevenlabs],
   // Final assembly (ffmpeg): self-hosted GPU worker pool only — no hosted provider.
   assemble: [gpuWorker],
   // Caption burn: self-hosted GPU worker preferred (FFmpeg drawtext, fastest).
