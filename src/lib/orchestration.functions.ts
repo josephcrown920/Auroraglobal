@@ -594,9 +594,7 @@ export const orchestrateGenerate = createServerFn({ method: "POST" })
       costUsd: outcome.costUsd,
       creditsCost: cost,
       costBreakdown: quote.breakdown,
-      ...(previewOnly
-        ? { preview: true as const, previewGenerationId: outcome.generationId }
-        : {}),
+      ...(previewOnly ? { preview: true as const, previewGenerationId: outcome.generationId } : {}),
     };
   });
 

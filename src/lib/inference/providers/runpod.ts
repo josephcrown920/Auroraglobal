@@ -5,6 +5,11 @@
 // Required env:
 //   RUNPOD_API_KEY      — your RunPod API key
 //   RUNPOD_ENDPOINT_ID  — the serverless endpoint ID (e.g. "abc123xyz")
+// Optional env:
+//   RUNPOD_TASKS        — comma list declaring what this endpoint actually runs
+//                          (e.g. "image,video"). Defaults to every task the
+//                          RunPod protocol can carry, which may overstate a
+//                          single-model endpoint's real capability.
 //
 // Worker contract (your handler.py on RunPod receives the generalized job under
 // `input`): { input: { task, prompt?, image_urls?, audio_url?, video_url?, mode?,
@@ -19,13 +24,18 @@ export const runpodAdapter: ProviderAdapter = {
   label: "RunPod Serverless",
   requiredEnv: ["RUNPOD_API_KEY", "RUNPOD_ENDPOINT_ID"],
   tasks: ["image", "video", "lipsync", "motion"],
+  capabilitiesEnvVar: "RUNPOD_TASKS",
 
   async probeHealth(timeoutMs?: number): Promise<ProbeResult | null> {
     const apiKey = process.env.RUNPOD_API_KEY;
     const endpointId = process.env.RUNPOD_ENDPOINT_ID;
     if (!apiKey || !endpointId) return null;
     // RunPod serverless exposes /health (auth required) — require a 2xx.
-    return probeReachable(`https://api.runpod.ai/v2/${endpointId}/health`, { token: apiKey, expectOk: true, timeoutMs });
+    return probeReachable(`https://api.runpod.ai/v2/${endpointId}/health`, {
+      token: apiKey,
+      expectOk: true,
+      timeoutMs,
+    });
   },
 
   async run(input: InferenceInput): Promise<InferenceResult> {

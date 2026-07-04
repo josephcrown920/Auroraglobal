@@ -5,6 +5,11 @@
 // Required env:
 //   CUSTOM_INFERENCE_URL    — full URL to POST to, e.g. "https://abc.ngrok-free.app/generate"
 //   CUSTOM_INFERENCE_TOKEN  — optional bearer token
+//   CUSTOM_INFERENCE_TASKS  — optional comma list declaring what this server
+//                             actually runs (e.g. "lipsync,motion"). Defaults
+//                             to every task the flat protocol can carry, which
+//                             may overstate a single-model server's real
+//                             capability.
 //
 // Request body (flat JSON, undefined fields omitted):
 //   { task, prompt?, image_urls?, audio_url?, video_url?, mode?, params?, workflow?, workflow_inputs? }
@@ -18,6 +23,7 @@ export const customAdapter: ProviderAdapter = {
   label: "Custom URL (Colab / ngrok / self-hosted)",
   requiredEnv: ["CUSTOM_INFERENCE_URL"],
   tasks: ["image", "video", "lipsync", "motion"],
+  capabilitiesEnvVar: "CUSTOM_INFERENCE_TASKS",
 
   async probeHealth(timeoutMs?: number): Promise<ProbeResult | null> {
     const url = process.env.CUSTOM_INFERENCE_URL;
@@ -34,7 +40,12 @@ export const customAdapter: ProviderAdapter = {
     }
 
     const json = await postFlatJob(url, token, input);
-    if (json && typeof json === "object" && "error" in json && (json as { error?: unknown }).error) {
+    if (
+      json &&
+      typeof json === "object" &&
+      "error" in json &&
+      (json as { error?: unknown }).error
+    ) {
       throw new Error(`Custom error: ${String((json as { error?: unknown }).error)}`);
     }
     const outputUrl = extractOutputUrl(json);
