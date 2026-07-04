@@ -70,7 +70,7 @@ Tick each box (`[x]`) as it passes. Phase 1 (A–K) gates Phase 2. Phase 2 (L–
 - [ ] H3. Generated UGC saves to gallery
 
 ### I. Gallery
-- [x] I1. Lists favourites first, then recent — page renders existing generations live; ordering not specifically verified (QA_REPORT.md §8, area N)
+- [ ] I1. Lists favourites first, then recent — page renders existing generations live, but favourites-first ordering was not specifically verified (QA_REPORT.md §8, area N)
 - [ ] I2. Toggle favorite persists
 - [ ] I3. Download works for image + video
 
