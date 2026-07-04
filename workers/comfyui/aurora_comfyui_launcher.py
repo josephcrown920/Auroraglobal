@@ -308,6 +308,38 @@ def open_tunnel() -> str:
     return public
 
 
+# Secrets required to auto-register (see the module docstring). Checked up
+# front — before ComfyUI install + model downloads, which can take many
+# minutes — so a missing/misspelled secret is loud immediately instead of
+# discovered only after a long wait, deep inside register().
+_REQUIRED_FOR_REGISTER = [
+    ("NGROK_AUTHTOKEN", "ngrok dashboard -> Your Authtoken (dashboard.ngrok.com/get-started/your-authtoken)"),
+    ("NGROK_STATIC_DOMAIN", "ngrok dashboard -> Domains -> claim a free static domain (dashboard.ngrok.com/domains)"),
+    ("AURORA_URL", "your Aurora app base URL, e.g. https://your-app.replit.app"),
+    ("AURORA_REGISTER_KEY", "Supabase anon/publishable key (Project Settings -> API -> anon public) -- never the service-role key"),
+]
+
+
+def warn_if_register_secrets_missing():
+    """Print a loud, actionable warning before setup if auto-register can't work.
+
+    Does not raise: the worker still serves without registering (an owner can
+    add the URL by hand in Admin -> Workers), but they should know that before
+    waiting through ComfyUI install + model downloads, not after.
+    """
+    missing = [(k, hint) for k, hint in _REQUIRED_FOR_REGISTER if not os.environ.get(k, "").strip()]
+    if not missing:
+        print("[bootstrap] all auto-register secrets present — will self-register after setup.", flush=True)
+        return
+    print("\n" + "!" * 72, flush=True)
+    print("[bootstrap] WARNING: missing secret(s) needed to auto-register in", flush=True)
+    print("Admin -> Workers. The worker will still install and serve, but it will", flush=True)
+    print("NOT appear in Aurora until these are set and the cell is re-run:", flush=True)
+    for key, hint in missing:
+        print(f"  - {key}: {hint}", flush=True)
+    print("!" * 72 + "\n", flush=True)
+
+
 def register(public_url: str, caps: list[str]) -> bool:
     """Upsert this worker as protocol=comfyui via /api/public/workers/register.
 
@@ -346,6 +378,7 @@ def register(public_url: str, caps: list[str]) -> bool:
 
 def main():
     load_secrets()
+    warn_if_register_secrets_missing()
     caps = requested_caps()
     print(f"[boot] requested caps: {caps}", flush=True)
     install_comfyui()

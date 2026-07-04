@@ -97,6 +97,40 @@ def sh(cmd: str):
     subprocess.run(cmd, shell=True, check=True)
 
 
+# Secrets required for auto-registration. Checked up front (before the
+# multi-minute pip install / weight download in setup()) so a missing or
+# misspelled Kaggle Secret is loud on line 1 of the log, not silently
+# discovered 10+ minutes later inside register_with_aurora() when the owner
+# is staring at Admin -> Workers wondering why nothing showed up.
+_REQUIRED_FOR_REGISTER = [
+    ("NGROK_AUTHTOKEN", "ngrok dashboard -> Your Authtoken (dashboard.ngrok.com/get-started/your-authtoken)"),
+    ("NGROK_STATIC_DOMAIN", "ngrok dashboard -> Domains -> claim a free static domain (dashboard.ngrok.com/domains)"),
+    ("AURORA_URL", "your Aurora app base URL, e.g. https://your-app.replit.app"),
+    ("AURORA_REGISTER_KEY", "Supabase anon/publishable key (Project Settings -> API -> anon public) -- never the service-role key"),
+]
+
+
+def warn_if_register_secrets_missing():
+    """Print a loud, actionable warning before setup() if auto-register can't work.
+
+    Does not raise: the worker is still useful without registration (an owner
+    can add the URL by hand in Admin -> Workers), but they should know that
+    *before* waiting through the install instead of after.
+    """
+    missing = [(k, hint) for k, hint in _REQUIRED_FOR_REGISTER if not os.environ.get(k, "").strip()]
+    if not missing:
+        print("[bootstrap] all auto-register secrets present — will self-register after setup.", flush=True)
+        return
+    print("\n" + "!" * 72, flush=True)
+    print("[bootstrap] WARNING: missing Kaggle secret(s) needed to auto-register in", flush=True)
+    print("Admin -> Workers. The worker will still install and serve, but it will", flush=True)
+    print("NOT appear in Aurora until these are set (Add-ons -> Secrets) and the", flush=True)
+    print("cell is re-run:", flush=True)
+    for key, hint in missing:
+        print(f"  - {key}: {hint}", flush=True)
+    print("!" * 72 + "\n", flush=True)
+
+
 def _raw_bases():
     explicit = os.environ.get("AURORA_WORKER_REPO_RAW", "").strip().rstrip("/")
     return [explicit] if explicit else _DEFAULT_BASES
@@ -218,5 +252,6 @@ def serve_and_tunnel(tasks: str):
 
 if __name__ == "__main__":
     load_kaggle_secrets()
+    warn_if_register_secrets_missing()
     _tasks = setup()
     serve_and_tunnel(_tasks)

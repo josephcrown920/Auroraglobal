@@ -78,3 +78,64 @@ origin `https://<host>:8000` works too — it appends `/generate` and `/health` 
 > `lipsync` alone fits a 16 GB GPU (~10 GB download); `motion` (MimicMotion + SVD)
 > needs a ~24 GB GPU and ~25 GB disk and **refuses to install on smaller cards**
 > (clear error) rather than OOMing mid-job.
+
+## Colab (free GPU, `custom` protocol, self-registers)
+
+Colab has no secrets-manager API like Kaggle's — set env vars directly in a cell, then
+run the shared worker core. It self-registers the same way the Kaggle template does
+(`register_with_aurora()` inside `aurora_worker.py`), as long as the same four values
+are set: a stable tunnel domain, the Aurora URL, and the register key.
+
+```python
+# Cell 1 — one-time deps + a stable public URL (claim a free ngrok static domain first:
+# dashboard.ngrok.com/domains — without it the URL changes every restart and Aurora
+# treats each restart as a brand-new worker row).
+!pip install -q pyngrok fastapi 'uvicorn[standard]' requests
+import os
+os.environ["NGROK_AUTHTOKEN"] = "…"          # dashboard.ngrok.com/get-started/your-authtoken
+os.environ["NGROK_STATIC_DOMAIN"] = "foo-bar.ngrok-free.app"
+os.environ["AURORA_URL"] = "https://your-app.replit.app"
+os.environ["AURORA_REGISTER_KEY"] = "…"      # Supabase anon/publishable key — never service-role
+os.environ["AURORA_TASKS"] = "lipsync"       # or "lipsync,motion" on an A100 (≥24 GB VRAM)
+
+!curl -sO https://raw.githubusercontent.com/OWNER/REPO/BRANCH/workers/aurora_worker.py
+!curl -sO https://raw.githubusercontent.com/OWNER/REPO/BRANCH/workers/setup.sh
+!bash setup.sh /content
+```
+
+```python
+# Cell 2 — start the worker (blocks the cell; keep the tab open). It waits for its own
+# /health to answer, opens the ngrok tunnel, then calls register_with_aurora() —
+# printing "[register] OK — …" on success or a clear reason on failure/skip.
+import os, sys, threading, uvicorn
+sys.path.insert(0, "/content")
+os.environ["LATENTSYNC_DIR"] = "/content/LatentSync"
+from aurora_worker import app, auto_register_when_ready
+threading.Thread(target=auto_register_when_ready, daemon=True).start()
+uvicorn.run(app, host="0.0.0.0", port=8000)
+```
+
+Confirm it worked the same way as Kaggle (see `kaggle/README.md` § 3): the cell prints
+`[register] OK`, then **Admin → Workers** shows the row as **Active**.
+
+## Vast.ai (rented GPU, `custom` protocol, manual registration)
+
+Vast.ai instances expose a public port directly (no tunnel needed), so
+`register_with_aurora()` — which only knows how to build a URL from
+`NGROK_STATIC_DOMAIN` — does **not** apply here; register the instance once by hand
+in **Admin → Workers** (Protocol: *Vast.ai*) instead of expecting auto-registration:
+
+```bash
+bash workers/setup.sh /workspace                        # or AURORA_TASKS=lipsync bash …
+pip install -r workers/requirements.txt
+export AURORA_WORKER_TOKEN=$(openssl rand -hex 16)       # optional bearer
+uvicorn aurora_worker:app --host 0.0.0.0 --port 8000 --app-dir workers
+```
+
+Then paste the instance's public `https://<host>:<port>/generate` URL into
+**Admin → Workers** with capabilities `lipsync,motion` and the bearer token above. On
+every Vast.ai restart the instance gets a new public port/IP, so **re-paste the URL**
+(or wrap the same `curl … /api/public/workers/register` call the Kaggle/Colab
+templates use, with `endpoint_url` set to the instance's current address, in your own
+boot script) — Aurora de-dupes on the normalized endpoint, so re-registering the same
+worker under a new URL just updates its existing row once the old URL is replaced.
