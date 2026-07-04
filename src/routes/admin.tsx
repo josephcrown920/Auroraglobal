@@ -10,6 +10,7 @@ import { PROFIT_SPLIT_PCT } from "@/lib/profit-split";
 import { ModelBadge } from "@/components/ModelBadge";
 import { Shield, Sparkles, Loader2, Users, DollarSign, ImagePlay, Coins, ArrowRight, Server, Trash2, Activity, TrendingUp, Gift, Pause, Play, Zap, Store } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -289,6 +290,60 @@ function EarningsPanel() {
           </div>
         </section>
       )}
+
+      {/* Revenue/profit trend */}
+      <section className="rounded-2xl border border-border bg-card/40 p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Trend</h3>
+          {data?.series && (
+            <span className="text-xs text-muted-foreground capitalize">by {data.series.granularity}</span>
+          )}
+        </div>
+        {data && data.series.points.length > 0 ? (
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={data.series.points} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="profitFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis
+                  dataKey="bucket"
+                  tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                  tickLine={false}
+                  axisLine={false}
+                  minTickGap={24}
+                />
+                <YAxis
+                  tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v: number) => `$${v}`}
+                  width={48}
+                />
+                <Tooltip
+                  formatter={(value: number, name: string) => [`$${value.toFixed(2)}`, name === "revenueUsd" ? "Revenue" : "Profit"]}
+                  labelFormatter={(label: string) => label}
+                  contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
+                />
+                <Area type="monotone" dataKey="revenueUsd" stroke="var(--primary)" strokeWidth={2} fill="url(#revenueFill)" />
+                <Area type="monotone" dataKey="profitUsd" stroke="#10b981" strokeWidth={2} fill="url(#profitFill)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground py-8 text-center">
+            {isLoading ? "Loading…" : "No purchases in this range yet."}
+          </p>
+        )}
+      </section>
 
       <section>
         <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground mb-2">Recent customers</h3>
