@@ -74,7 +74,7 @@ Paystack handles NGN credit purchases. Webhook at `/api/public/paystack-webhook`
 
 ## Cron
 
-Public cron-style endpoints under `/api/public/*` are triggered by an external scheduler (Supabase pg_cron) because the app runs on Replit autoscale (request-driven, scales to zero) and therefore cannot keep a durable in-process timer. Authentication accepts a `CRON_SECRET` (preferred) **or**, for backward compatibility, the Supabase anon/publishable key — either credential may be sent as the `apikey` header or as `Authorization: Bearer <value>`. Use the stable URL `project--07d08629-5cb9-4317-a630-4f3e2c0ce79f.lovable.app` when wiring external schedulers.
+Public cron-style endpoints under `/api/public/*` are triggered by an external scheduler (Supabase pg_cron) because the app runs on Replit autoscale (request-driven, scales to zero) and therefore cannot keep a durable in-process timer. Authentication accepts a `CRON_SECRET` (preferred) **or**, for backward compatibility, the Supabase anon/publishable key — either credential may be sent as the `apikey` header or as `Authorization: Bearer <value>`. Use the app's Replit production URL (Deploy tab → your `*.replit.app` domain — the old Lovable `*.lovable.app` domain is retired) when wiring external schedulers.
 
 | Endpoint | Suggested schedule | Purpose |
 |---|---|---|
@@ -89,7 +89,7 @@ Each `jobs/tick` call: (1) re-queues jobs stuck in `processing` past `STALE_PROC
 
 ### Wiring pg_cron (Supabase dashboard)
 
-Run once in the Supabase SQL editor (enables the extensions, then schedules the ticks). Replace `<APP_URL>` with the stable URL above and `<ANON_OR_CRON_SECRET>` with either the anon key (`apikey` header) or `CRON_SECRET` (`Authorization` header):
+Run once in the Supabase SQL editor (enables the extensions, then schedules the ticks). Replace `<APP_URL>` with the app's Replit production URL and `<ANON_OR_CRON_SECRET>` with either the anon key (`apikey` header) or `CRON_SECRET` (`Authorization` header). As of 2026-07-04, `aurora-jobs-tick` and `aurora-workers-health` are scheduled and running against `https://aurora-prime.replit.app` — if the production domain ever changes (e.g. a redeploy under a new slug), `cron.unschedule(...)` the old jobs and re-run this block with the new `<APP_URL>`.
 
 ```sql
 create extension if not exists pg_cron;

@@ -708,6 +708,45 @@ function WorkersPanel() {
         </div>
       )}
       <section>
+        <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground mb-2">
+          Recent registration attempts
+        </h3>
+        <p className="text-xs text-muted-foreground mb-2">
+          Every call your Kaggle/Colab/Vast worker made to self-register, success or failure — so a
+          bad <code>AURORA_REGISTER_KEY</code> or misconfigured URL shows up here even when no
+          worker row was ever created.
+        </p>
+        <div className="rounded-xl border border-border overflow-hidden">
+          <table className="w-full text-xs">
+            <thead className="bg-card/60 uppercase text-muted-foreground">
+              <tr>
+                <th className="text-left p-2">When</th>
+                <th className="text-left p-2">Name</th>
+                <th className="text-left p-2">Endpoint</th>
+                <th className="text-left p-2">Result</th>
+                <th className="text-left p-2">Detail</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(data?.registerAttempts ?? []).map((a: Record<string, unknown>) => (
+                <tr key={a.id as string} className="border-t border-border">
+                  <td className="p-2">{new Date(a.created_at as string).toLocaleString()}</td>
+                  <td className="p-2">{(a.name as string) || "—"}</td>
+                  <td className="p-2 font-mono truncate max-w-[200px]">{(a.endpoint_url as string) || "—"}</td>
+                  <td className={`p-2 ${a.ok ? "text-emerald-500" : "text-red-500"}`}>{a.ok ? (a.outcome as string) || "ok" : "failed"}</td>
+                  <td className="p-2 truncate max-w-[300px]">{(a.error as string) || ""}</td>
+                </tr>
+              ))}
+              {(data?.registerAttempts ?? []).length === 0 && (
+                <tr><td colSpan={5} className="p-4 text-center text-muted-foreground">
+                  No registration attempts recorded yet — nothing has called /api/public/workers/register.
+                </td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section>
         <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground mb-2">Recent worker jobs</h3>
         <div className="rounded-xl border border-border overflow-hidden">
           <table className="w-full text-xs">

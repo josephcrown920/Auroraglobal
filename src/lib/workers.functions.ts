@@ -20,10 +20,19 @@ export const listWorkers = createServerFn({ method: "GET" })
     await assertAdmin(context.userId);
     const { data } = await supabaseAdmin.from("gpu_workers").select("*").order("priority");
     const { data: jobs } = await supabaseAdmin.from("worker_jobs").select("*").order("created_at", { ascending: false }).limit(50);
+    // Recent register-endpoint calls (success AND failure) — surfaces *why* a
+    // Kaggle/Colab/Vast worker never showed up as a gpu_workers row (bad
+    // AURORA_REGISTER_KEY, invalid payload, DB error) instead of the attempt
+    // just vanishing with nothing to look at but a notebook log.
+    const { data: registerAttempts } = await supabaseAdmin
+      .from("worker_register_attempts")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(15);
     // Never ship the per-worker auth_token (RunPod API key / bearer) to the client;
     // expose only whether one is set so the admin UI can show "configured".
     const workers = (data ?? []).map(({ auth_token, ...w }) => ({ ...w, has_auth_token: !!auth_token }));
-    return { workers, jobs: jobs ?? [] };
+    return { workers, jobs: jobs ?? [], registerAttempts: registerAttempts ?? [] };
   });
 
 export const upsertWorker = createServerFn({ method: "POST" })

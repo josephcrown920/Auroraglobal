@@ -65,3 +65,11 @@ the same row (Aurora de-dupes on the normalized URL), so the endpoint never goes
 - **No static domain?** If you skip `NGROK_STATIC_DOMAIN`, the worker still runs but
   the tunnel URL changes every restart — you'd then have to update Admin → Workers
   by hand each time. Claim the free domain to avoid that.
+- **Worker registers but never gets dispatched a job?** Registration only creates
+  the `gpu_workers` row — the app still needs a recurring `pg_cron` job hitting
+  `POST /api/public/jobs/tick` (drains the queue) and `POST /api/public/workers/health`
+  (keeps `active`/`paused` status accurate), because Replit autoscale has no durable
+  in-process timer. If `Admin → Workers` shows your worker but jobs never move past
+  `queued`, check with the app owner that these two cron jobs exist on the Supabase
+  project (see `docs/ARCHITECTURE.md` → "Wiring pg_cron") — a fresh Supabase project
+  does **not** have `pg_cron`/`pg_net` enabled or the jobs scheduled by default.
