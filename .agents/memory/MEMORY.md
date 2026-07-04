@@ -58,3 +58,4 @@
 - [Migration timestamp collisions](migration-timestamp-collisions.md) — a local migration's timestamp can already be taken on the live DB by another not-yet-merged task agent; diff `schema_migrations` vs local files before applying, rename if the live version is foreign.
 - [Validation skill workflow-name conflict](validation-skill-workflow-name-conflict.md) — setValidationCommand fails if a plain (non-validation) workflow already owns that name; removeWorkflow it first, then register.
 - [BytePlus/ModelArk live verification](byteplus-modelark-live-verification.md) — ap-southeast base confirmed right region; 404 ModelNotOpen=account not activated (not a bug) vs NotFound=slug truly dead; neither is fatal/provider-down so fallback still fires.
+- [Studio bucket cross-origin download](studio-bucket-cross-origin-download.md) — `<a download>` on a public studio-bucket URL silently fails (cross-origin); fetch→Blob→objectURL anchor to actually save the file.
