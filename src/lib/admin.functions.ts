@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { GENERATION_SUCCESS_STATUSES, aggregateByDayKind } from "./cost-stats";
+import { GENERATION_SUCCESS_STATUSES, aggregateByDayKind, bucketEarningsSeries } from "./cost-stats";
 import { computeProfitSplit, PROFIT_SPLIT_PCT, CREDIT_FUNDING_PCT } from "@/lib/profit-split";
 import { z } from "zod";
 
@@ -244,6 +244,23 @@ export const adminEarnings = createServerFn({ method: "GET" })
     const { transactions, revenueMinor, profitMinor, creditFundingMinor, creditsDistributed } =
       reconcileEarningsTotals(payments);
 
+    // Daily/weekly trend series for the earnings chart. Short ranges (<=30d)
+    // read best bucketed by day; longer ranges (90d/all) collapse to weekly
+    // buckets so the chart stays readable.
+    const granularity: "day" | "week" = days != null && days <= 30 ? "day" : "week";
+    const usdPayments = payments.filter((p) => p.currency === "USD");
+    const series = bucketEarningsSeries(
+      usdPayments.map((p) => {
+        const fallback = computeProfitSplit(p.amount_kobo);
+        return {
+          created_at: p.created_at,
+          revenueMinor: p.amount_kobo,
+          profitMinor: p.profit_amount_minor ?? fallback.profit_minor,
+        };
+      }),
+      granularity,
+    );
+
     // Recent purchases joined to the buyer's email / name (no FK relationship
     // defined on payments, so resolve profiles in a second query).
     const recent = payments.slice(0, 20);
@@ -285,6 +302,14 @@ export const adminEarnings = createServerFn({ method: "GET" })
         creditsDistributed,
       },
       recentPurchases,
+      series: {
+        granularity,
+        points: series.map((s) => ({
+          bucket: s.bucket,
+          revenueUsd: s.revenueMinor / 100,
+          profitUsd: s.profitMinor / 100,
+        })),
+      },
     };
   });
 // ─── Cost analytics (last 30 days) ────────────────────────────────────────────
