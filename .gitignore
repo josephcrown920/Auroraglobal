@@ -16,6 +16,11 @@ dist-ssr
 .nitro
 *.local
 
+# Playwright e2e artifacts
+playwright-report/
+test-results/
+blob-report/
+
 # Stray root-level artifact temp (platform blocks deleting it; flat-root apps
 # cannot be root artifacts). Root-anchored so artifacts/<slug>/.replit-artifact/
 # stays tracked.
