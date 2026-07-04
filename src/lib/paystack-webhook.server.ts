@@ -39,25 +39,95 @@ export function verifyPaystackSignature(
   return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const PAYMENT_COLUMNS = "id, user_id, credits_granted, status, currency, amount_kobo";
+
+type PaymentRow = {
+  id: string;
+  user_id: string;
+  credits_granted: number;
+  status: string;
+  currency: string;
+  amount_kobo: number;
+};
+
+async function fetchPayment(reference: string): Promise<PaymentRow | null> {
+  const { data } = await supabaseAdmin
+    .from("payments")
+    .select(PAYMENT_COLUMNS)
+    .eq("reference", reference)
+    .maybeSingle();
+  return (data as PaymentRow | null) ?? null;
+}
+
+/**
+ * Find the payments row for a webhook reference, tolerating the race where
+ * Paystack's webhook arrives before the checkout redirect has finished
+ * inserting the `payments` row. We retry with backoff first (the row usually
+ * shows up within a second or two); if it still hasn't appeared, we recover
+ * by reconstructing the row from the webhook's own metadata (set at checkout
+ * init time) so a paid customer never loses their credits to the race.
+ */
+async function findOrRecoverPayment(
+  event: z.infer<typeof PaymentEventSchema>,
+  retryDelaysMs: number[]
+): Promise<PaymentRow> {
+  const reference = event.data.reference;
+
+  let payment = await fetchPayment(reference);
+  for (let i = 0; !payment && i < retryDelaysMs.length; i++) {
+    await sleep(retryDelaysMs[i]);
+    payment = await fetchPayment(reference);
+  }
+  if (payment) return payment;
+
+  const meta = event.data.metadata;
+  if (!meta?.user_id || meta.credits == null) {
+    throw new Error(`Payment not found: ${reference}`);
+  }
+
+  // Attempt to create the missing row ourselves. If it was created
+  // concurrently in the meantime (unique `reference` constraint), fall back
+  // to reading whatever got persisted instead of overwriting it.
+  const { data: inserted, error: insertErr } = await supabaseAdmin
+    .from("payments")
+    .insert({
+      reference,
+      user_id: meta.user_id,
+      credits_granted: meta.credits,
+      amount_kobo: event.data.amount ?? 0,
+      currency: "USD",
+      status: "pending",
+    })
+    .select(PAYMENT_COLUMNS)
+    .maybeSingle();
+
+  if (!insertErr && inserted) {
+    return inserted as PaymentRow;
+  }
+
+  const recovered = await fetchPayment(reference);
+  if (!recovered) {
+    throw new Error(`Payment not found: ${reference}`);
+  }
+  return recovered;
+}
+
+const DEFAULT_RETRY_DELAYS_MS = [200, 500, 1000, 2000];
+
 /**
  * Process a successful payment charge event.
  * Grants credits and records affiliate conversion if applicable.
  */
 export async function processPaymentSuccess(
-  event: z.infer<typeof PaymentEventSchema>
+  event: z.infer<typeof PaymentEventSchema>,
+  opts: { retryDelaysMs?: number[] } = {}
 ) {
-  const reference = event.data.reference;
-
-  // Fetch payment record
-  const { data: payment, error: payErr } = await supabaseAdmin
-    .from("payments")
-    .select("id, user_id, credits_granted, status, currency, amount_kobo")
-    .eq("reference", reference)
-    .maybeSingle();
-
-  if (payErr || !payment) {
-    throw new Error(`Payment not found: ${reference}`);
-  }
+  const payment = await findOrRecoverPayment(
+    event,
+    opts.retryDelaysMs ?? DEFAULT_RETRY_DELAYS_MS
+  );
 
   if (payment.status === "succeeded") {
     return { status: "already_processed" };
