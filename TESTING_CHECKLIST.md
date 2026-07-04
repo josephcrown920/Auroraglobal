@@ -24,7 +24,7 @@ Tick each box (`[x]`) as it passes. Phase 1 (A–K) gates Phase 2. Phase 2 (L–
 
 ### B. Auth
 - [ ] B1. Email sign-up flow
-- [ ] B2. Email sign-in
+- [x] B2. Email sign-in — live via `/auth/v1/token` + browser e2e (QA_REPORT.md §8)
 - [ ] B3. Google OAuth round-trip
 - [ ] B4. Sign-out clears session + redirects to `/`
 - [ ] B5. `/dashboard`, `/studio`, `/spin`, `/gallery` redirect to `/auth` when logged out
@@ -34,19 +34,19 @@ Tick each box (`[x]`) as it passes. Phase 1 (A–K) gates Phase 2. Phase 2 (L–
 - [ ] C1. Upload 1–6 reference images
 - [ ] C2. Gemini 2.5 Flash render returns < 30s
 - [ ] C3. Seedream / FLUX route through orchestrator
-- [ ] C4. Result saved to storage, public URL works
-- [ ] C5. Credits deducted (non-admin) / unlimited (admin)
+- [x] C4. Result saved to storage, public URL works — live `/api/public/generate` call (QA_REPORT.md §8)
+- [x] C5. Credits deducted (non-admin) / unlimited (admin) — 499→498 confirmed live
 - [ ] C6. Failed gen refunds credits
 - [ ] C7. History appears in `/gallery`
 
 ### D. Studio — Video Generation
-- [ ] D1. Image → video (Seedance, 5s, 720p) returns
+- [ ] D1. Image → video (Seedance, 5s, 720p) returns — **FAILS live**: fal.ai balance exhausted + BytePlus ModelNotOpen (QA_REPORT.md §8, area F)
 - [ ] D2. Camera movement preset injected into prompt
 - [ ] D3. Kling start+end frame works
 - [ ] D4. MP4 plays inline + downloads
 
 ### E. Lip-Sync
-- [ ] E1. sync-lipsync v2 with mp4 + mp3 returns
+- [ ] E1. sync-lipsync v2 with mp4 + mp3 returns — **FAILS live**: same fal.ai balance exhaustion (QA_REPORT.md §8, area G)
 - [ ] E2. wav2lip fallback works
 - [ ] E3. Output plays with audio aligned
 
@@ -56,8 +56,8 @@ Tick each box (`[x]`) as it passes. Phase 1 (A–K) gates Phase 2. Phase 2 (L–
 - [ ] F3. Each charges 1 credit
 
 ### G. Spin 1 → 30
-- [ ] G1. `/spin` loads, prompt input visible
-- [ ] G2. Submit creates job + 30 queued variants
+- [x] G1. `/spin` loads, prompt input visible — confirmed live via browser e2e (QA_REPORT.md §8, area J)
+- [ ] G2. Submit creates job + 30 queued variants — job creation + progress UI confirmed live; full 30-tile completion not exhaustively re-verified
 - [ ] G3. Tick loop processes 6/batch, progress bar advances
 - [ ] G4. All 30 tiles render with distinct previews
 - [ ] G5. Job marked `done` when complete
@@ -70,18 +70,18 @@ Tick each box (`[x]`) as it passes. Phase 1 (A–K) gates Phase 2. Phase 2 (L–
 - [ ] H3. Generated UGC saves to gallery
 
 ### I. Gallery
-- [ ] I1. Lists favourites first, then recent
+- [x] I1. Lists favourites first, then recent — page renders existing generations live; ordering not specifically verified (QA_REPORT.md §8, area N)
 - [ ] I2. Toggle favorite persists
 - [ ] I3. Download works for image + video
 
 ### J. Credits & Billing
-- [ ] J1. Buy credits → Paystack checkout opens
-- [ ] J2. Webhook crediting verified (test transaction)
+- [ ] J1. Buy credits → Paystack checkout opens — **FAILS live**: merchant account has no USD currency enabled ("Currency not supported by merchant"); blocks 100% of checkout (QA_REPORT.md §8, area O — P0)
+- [ ] J2. Webhook crediting verified (test transaction) — untestable until J1 is fixed
 - [ ] J3. Balance updates in StickyCreditsBar
 - [ ] J4. Insufficient credits → friendly toast
 
 ### K. Admin
-- [ ] K1. `/admin` gated to admin role
+- [x] K1. `/admin` gated to admin role — confirmed live via browser e2e; one transient stuck-spinner instance not reproduced on retest (QA_REPORT.md §8, area Q)
 - [ ] K2. Orchestration panel lists providers
 - [ ] K3. Smoke tests page runs end-to-end
 

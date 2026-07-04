@@ -56,8 +56,18 @@ if have_task lipsync; then
   sed -i -E 's/^mediapipe==0\.10\.11/mediapipe==0.10.14/' LatentSync/requirements.txt
   ( cd LatentSync && pip install -r requirements.txt )
   # Official weights (LatentSync 1.5) from the ByteDance HF repo — minimal set.
-  huggingface-cli download ByteDance/LatentSync-1.5 \
-    --local-dir LatentSync/checkpoints --include "latentsync_unet.pt" "whisper/*"
+  # local-dir downloads default to symlink-from-cache in some huggingface_hub
+  # versions; Kaggle's /kaggle/working can be a different filesystem than the
+  # HF cache, which makes the symlink step fail silently-ish (exit 1, no
+  # visible stack trace in notebooks that don't show stderr inline). Force a
+  # real copy and surface the real error if it still fails.
+  export HF_HUB_ENABLE_HF_TRANSFER=0
+  if ! huggingface-cli download ByteDance/LatentSync-1.5 \
+      --local-dir LatentSync/checkpoints --include "latentsync_unet.pt" "whisper/*"; then
+    echo "ERROR: huggingface-cli download failed; retrying once with verbose logging so the real cause is visible:" >&2
+    HF_HUB_VERBOSITY=debug huggingface-cli download ByteDance/LatentSync-1.5 \
+      --local-dir LatentSync/checkpoints --include "latentsync_unet.pt" "whisper/*"
+  fi
 fi
 
 if have_task motion; then
