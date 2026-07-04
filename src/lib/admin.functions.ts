@@ -62,46 +62,61 @@ export const adminOverview = createServerFn({ method: "GET" })
       };
     };
 
-    const [usersRes, gensRes, paymentsRes, jobsRes, heartbeatRes] = await Promise.all([
-      supabaseAdmin
-        .from("profiles")
-        .select("user_id, email, display_name, credits, lifetime_credits_purchased, created_at")
-        .order("created_at", { ascending: false })
-        .limit(500),
-      supabaseAdmin
-        .from("generations")
-        .select(
-          "id, user_id, prompt, status, kind, model, result_image_url, result_video_url, credits_cost, created_at, error",
-        )
-        .order("created_at", { ascending: false })
-        .limit(200),
-      supabaseAdmin
-        .from("payments")
-        .select(
-          "id, user_id, reference, amount_kobo, currency, credits_granted, status, created_at",
-        )
-        .order("created_at", { ascending: false })
-        .limit(100),
-      supabaseAdmin
-        .from("jobs")
-        .select(
-          "id, generation_id, user_id, kind, status, attempts, error, scheduled_at, created_at",
-        )
-        .in("status", ["queued", "processing", "failed"])
-        .order("created_at", { ascending: false })
-        .limit(200),
-      heartbeatTable
-        .from("scheduler_heartbeats")
-        .select("name, last_run_at, last_ok_at, last_error")
-        .eq("name", "jobs_tick")
-        .maybeSingle(),
-    ]);
+    const [usersRes, gensRes, paymentsRes, jobsRes, heartbeatRes, stuckReservationsRes] =
+      await Promise.all([
+        supabaseAdmin
+          .from("profiles")
+          .select("user_id, email, display_name, credits, lifetime_credits_purchased, created_at")
+          .order("created_at", { ascending: false })
+          .limit(500),
+        supabaseAdmin
+          .from("generations")
+          .select(
+            "id, user_id, prompt, status, kind, model, result_image_url, result_video_url, credits_cost, created_at, error",
+          )
+          .order("created_at", { ascending: false })
+          .limit(200),
+        supabaseAdmin
+          .from("payments")
+          .select(
+            "id, user_id, reference, amount_kobo, currency, credits_granted, status, created_at",
+          )
+          .order("created_at", { ascending: false })
+          .limit(100),
+        supabaseAdmin
+          .from("jobs")
+          .select(
+            "id, generation_id, user_id, kind, status, attempts, error, scheduled_at, created_at",
+          )
+          .in("status", ["queued", "processing", "failed"])
+          .order("created_at", { ascending: false })
+          .limit(200),
+        heartbeatTable
+          .from("scheduler_heartbeats")
+          .select("name, last_run_at, last_ok_at, last_error")
+          .eq("name", "jobs_tick")
+          .maybeSingle(),
+        // Task #95: jobs left succeeded/failed with a reservation that
+        // sweepStuckReservations hasn't caught up to yet (or, if this keeps
+        // growing, evidence the sweep itself is stuck). Same grace window as
+        // the sweep (STUCK_RESERVATION_GRACE_SECONDS) — a job that finished a
+        // moment ago is normal (finalize_job settles it in the same
+        // transaction, but the sweep only runs once per tick).
+        supabaseAdmin
+          .from("jobs")
+          .select("id", { count: "exact", head: true })
+          .in("status", ["succeeded", "failed"])
+          .gt("credits_reserved", 0)
+          .is("credits_settled_at", null)
+          .lt("finished_at", new Date(Date.now() - 10 * 60_000).toISOString()),
+      ]);
 
     const users = usersRes.data ?? [];
     const generations = gensRes.data ?? [];
     const payments = paymentsRes.data ?? [];
     const jobs = jobsRes.data ?? [];
     const scheduler = heartbeatRes.data ?? null;
+    const stuckReservations = { count: stuckReservationsRes.count ?? 0 };
 
     const totalRevenueUsd = payments
       .filter((p) => p.status === "succeeded")
@@ -126,6 +141,7 @@ export const adminOverview = createServerFn({ method: "GET" })
       jobs,
       scheduler,
       queue,
+      stuckReservations,
       stats: { totalRevenueUsd, totalGens, totalImages, totalVideos, totalUsers: users.length },
     };
   });

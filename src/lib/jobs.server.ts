@@ -1254,6 +1254,54 @@ export async function sweepFailedJobs(
   return { requeued, skipped };
 }
 
+// How long a terminal job may sit with an un-settled reservation before the
+// reconciliation sweep treats it as genuinely stuck rather than a job that's
+// still mid-finalize_job. finalize_job settles credits in the SAME transaction
+// as the terminal status write, so under normal operation there is no real
+// window here — this is a generous safety margin, not a race we expect to hit.
+export const STUCK_RESERVATION_GRACE_SECONDS = 10 * 60; // 10m
+
+// How many stuck reservations to reconcile per sweep. Bounds the work (and the
+// credit-ledger writes) done in a single tick, matching FAILED_SWEEP_BATCH.
+export const STUCK_RESERVATION_BATCH = 25;
+
+// Task #95 — self-healing reconciliation for jobs left succeeded/failed with
+// their reservation neither committed nor released. finalize_job (task #94)
+// closes this for the normal worker-loop path by settling credits in the same
+// transaction as the terminal status write, but this sweep is the safety net
+// for anything that predates that fix or bypasses it (e.g. a manual admin
+// status fix-up). Detection is `credits_settled_at IS NULL` on a terminal job
+// with a nonzero reservation — finalize_job stamps that column itself, so a
+// NULL value on an old-enough row is unambiguous evidence nothing settled it.
+// Resolution mirrors finalize_job's rule: commit for succeeded, release for
+// failed. Each row is resolved via a single-job RPC that CASes the settled
+// marker before touching the ledger, so re-running the sweep (or two
+// schedulers overlapping) can never double-commit/double-release the same job.
+export async function sweepStuckReservations(
+  graceSeconds: number = STUCK_RESERVATION_GRACE_SECONDS,
+  batch: number = STUCK_RESERVATION_BATCH,
+): Promise<{ reconciled: number; checked: number }> {
+  const cutoffIso = new Date(Date.now() - graceSeconds * 1000).toISOString();
+  const { data, error } = await supabaseAdmin
+    .from("jobs")
+    .select("id")
+    .in("status", ["succeeded", "failed"])
+    .gt("credits_reserved", 0)
+    .is("credits_settled_at", null)
+    .lt("finished_at", cutoffIso)
+    .order("finished_at", { ascending: true })
+    .limit(batch);
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as Array<{ id: string }>;
+
+  let reconciled = 0;
+  for (const row of rows) {
+    const outcome = await rpc<string>("reconcile_stuck_reservation", { _job: row.id });
+    if (outcome === "reconciled") reconciled++;
+  }
+  return { reconciled, checked: rows.length };
+}
+
 // Untyped accessor — `scheduler_heartbeats` is not in the generated Supabase
 // types (same pattern the rest of the codebase uses for not-yet-typed tables).
 type HeartbeatUpsert = {

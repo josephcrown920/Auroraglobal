@@ -25,6 +25,14 @@ let requeueOutcome = "requeued";
 // Rows returned by a gpu_workers SELECT (the hasActiveWorkerForKind preflight).
 // Default empty = no worker online; set to an assemble-capable worker to pass it.
 let gpuWorkers: Array<Record<string, unknown>> = [];
+// Rows the stuck-reservation sweep (sweepStuckReservations) reads back from its
+// `jobs` SELECT, and the per-job reconcile_stuck_reservation RPC outcome. Both
+// sweepFailedJobs and sweepStuckReservations read from `jobs` without an
+// UPDATE, so `jobsReadMode` picks which fixture array the mock returns for
+// that read — each test sets it right before calling the sweep under test.
+let stuckJobsRows: Array<Record<string, unknown>> = [];
+let reconcileOutcome = "reconciled";
+let jobsReadMode: "failed" | "stuck" = "failed";
 // How many times the (dependency-injected) orchestrate was invoked — lets a test
 // assert a job failed a preflight BEFORE reaching any paid generation stage.
 let orchCalls = 0;
@@ -59,10 +67,19 @@ function builder(table: string) {
   const resolve = () =>
     updated
       ? { data: table === "jobs" && !jobsCasWins ? [] : [{ id: "x" }], error: null }
-      : // A read on `jobs` is the failed-orphan sweep SELECT, a read on `gpu_workers`
-        // is the worker preflight; everything else keeps the original {data:null} shape.
+      : // A read on `jobs` is either the failed-orphan sweep SELECT or the
+        // stuck-reservation sweep SELECT (picked via jobsReadMode), a read on
+        // `gpu_workers` is the worker preflight; everything else keeps the
+        // original {data:null} shape.
         {
-          data: table === "jobs" ? failedJobsRows : table === "gpu_workers" ? gpuWorkers : null,
+          data:
+            table === "jobs"
+              ? jobsReadMode === "stuck"
+                ? stuckJobsRows
+                : failedJobsRows
+              : table === "gpu_workers"
+                ? gpuWorkers
+                : null,
           error: null,
         };
   const b: Record<string, unknown> = {};
@@ -106,6 +123,7 @@ const supabaseAdmin = {
     calls.rpc.push({ name, args });
     if (name === "claim_next_job_v2") return { data: claimQueue.shift() ?? null, error: null };
     if (name === "requeue_failed_job") return { data: requeueOutcome, error: null };
+    if (name === "reconcile_stuck_reservation") return { data: reconcileOutcome, error: null };
     if (name === "finalize_job") {
       if (finalizeShouldThrow) return { data: null, error: { message: "finalize_job boom" } };
       return { data: jobsCasWins ? "finalized" : "stale", error: null };
@@ -123,6 +141,11 @@ const supabaseAdmin = {
 mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin }));
 mock.module("./hf.server", () => ({
   hfTextToSpeech: async () => ({ bytes: new Uint8Array(), contentType: "audio/flac" }),
+  // orchestrator.server.ts is still imported at the top of jobs.server.ts (only
+  // the orchestrate CALL is dependency-injected, not the module import itself),
+  // so this mock must cover every hf.server export orchestrator.server touches
+  // or the whole suite fails at import time with a missing-export error.
+  hfTextToImage: async () => ({ bytes: new Uint8Array(), contentType: "image/png" }),
 }));
 
 const {
@@ -134,6 +157,7 @@ const {
   retryDecision,
   sweepStaleProcessingJobs,
   sweepFailedJobs,
+  sweepStuckReservations,
   recordSchedulerHeartbeat,
   PERSISTENT_RETRY_MAX_ATTEMPTS,
   PERSISTENT_RETRY_MAX_AGE_MS,
@@ -174,6 +198,9 @@ beforeEach(() => {
   finalizeShouldThrow = false;
   failedJobsRows = [];
   requeueOutcome = "requeued";
+  stuckJobsRows = [];
+  reconcileOutcome = "reconciled";
+  jobsReadMode = "failed";
   gpuWorkers = [];
   orchCalls = 0;
   calls.rpc.length = 0;
@@ -667,6 +694,42 @@ describe("sweepFailedJobs", () => {
     const r = await sweepFailedJobs();
     expect(r).toEqual({ requeued: 0, skipped: 0 });
     expect(calls.rpc.find((c) => c.name === "requeue_failed_job")).toBeUndefined();
+  });
+});
+
+describe("sweepStuckReservations", () => {
+  it("reconciles each candidate job via reconcile_stuck_reservation", async () => {
+    jobsReadMode = "stuck";
+    stuckJobsRows = [{ id: "s1" }, { id: "s2" }];
+    reconcileOutcome = "reconciled";
+    const r = await sweepStuckReservations();
+    expect(r).toEqual({ reconciled: 2, checked: 2 });
+    const rpcCalls = calls.rpc.filter((c) => c.name === "reconcile_stuck_reservation");
+    expect(rpcCalls.map((c) => c.args._job)).toEqual(["s1", "s2"]);
+  });
+
+  it("does not count a no-op outcome (already settled by a racing sweep) as reconciled", async () => {
+    jobsReadMode = "stuck";
+    stuckJobsRows = [{ id: "s3" }];
+    reconcileOutcome = "already_settled";
+    const r = await sweepStuckReservations();
+    expect(r).toEqual({ reconciled: 0, checked: 1 });
+  });
+
+  it("does nothing when there are no stuck reservations", async () => {
+    jobsReadMode = "stuck";
+    stuckJobsRows = [];
+    const r = await sweepStuckReservations();
+    expect(r).toEqual({ reconciled: 0, checked: 0 });
+    expect(calls.rpc.find((c) => c.name === "reconcile_stuck_reservation")).toBeUndefined();
+  });
+
+  it("honors custom grace/batch args without changing behavior", async () => {
+    jobsReadMode = "stuck";
+    stuckJobsRows = [{ id: "s4" }];
+    reconcileOutcome = "reconciled";
+    const r = await sweepStuckReservations(60, 5);
+    expect(r).toEqual({ reconciled: 1, checked: 1 });
   });
 });
 
