@@ -25,16 +25,22 @@ export const Route = createFileRoute("/api/public/jobs/tick")({
           });
         }
 
-        const { processBatch, sweepStaleProcessingJobs, sweepFailedJobs, recordSchedulerHeartbeat } =
-          await import("@/lib/jobs.server");
+        const {
+          processBatch,
+          sweepStaleProcessingJobs,
+          sweepFailedJobs,
+          sweepStuckReservations,
+          recordSchedulerHeartbeat,
+        } = await import("@/lib/jobs.server");
 
         try {
           const swept = await sweepStaleProcessingJobs();
           const recovered = await sweepFailedJobs();
+          const reconciled = await sweepStuckReservations();
           const workerId = `tick:${crypto.randomUUID().slice(0, 8)}`;
           const results = await processBatch(workerId, 5);
           await recordSchedulerHeartbeat(HEARTBEAT_NAME, true);
-          return new Response(JSON.stringify({ ok: true, swept, recovered, results }), {
+          return new Response(JSON.stringify({ ok: true, swept, recovered, reconciled, results }), {
             status: 200,
             headers: { "Content-Type": "application/json" },
           });

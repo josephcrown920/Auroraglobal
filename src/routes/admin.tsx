@@ -120,7 +120,11 @@ function AdminPage() {
           <Stat icon={Coins} label={`Margin (${PROFIT_SPLIT_PCT}%)`} value={s ? `$${(s.totalRevenueUsd * (PROFIT_SPLIT_PCT / 100)).toFixed(2)}` : "—"} />
         </div>
 
-        <SchedulerBanner scheduler={data?.scheduler ?? null} queue={data?.queue ?? null} />
+        <SchedulerBanner
+          scheduler={data?.scheduler ?? null}
+          queue={data?.queue ?? null}
+          stuckReservations={data?.stuckReservations ?? null}
+        />
 
         {/* Grant credits */}
         <section className="rounded-2xl border border-border bg-card/40 p-5 space-y-3">
@@ -338,15 +342,19 @@ function heartbeatAge(ts: string | null | undefined): string {
 function SchedulerBanner({
   scheduler,
   queue,
+  stuckReservations,
 }: {
   scheduler: { last_run_at: string | null; last_ok_at: string | null; last_error: string | null } | null;
   queue: { queued: number; processing: number; failed: number; retrying: number } | null;
+  stuckReservations?: { count: number } | null;
 }) {
   const lastRun = scheduler?.last_run_at ?? null;
   const ageMs = lastRun ? Date.now() - new Date(lastRun).getTime() : Infinity;
   const stale = ageMs > 5 * 60_000; // no tick in 5 min ⇒ scheduler likely stalled
   const hasError = !!scheduler?.last_error;
-  const healthy = !!lastRun && !stale && !hasError;
+  const stuckCount = stuckReservations?.count ?? 0;
+  const hasStuck = stuckCount > 0;
+  const healthy = !!lastRun && !stale && !hasError && !hasStuck;
   return (
     <section
       className={`rounded-2xl border p-5 space-y-2 ${healthy ? "border-border bg-card/40" : "border-amber-500/40 bg-amber-500/10"}`}
@@ -373,6 +381,16 @@ function SchedulerBanner({
           <span>Retrying: <b className="text-foreground">{queue.retrying}</b></span>
           <span>Failed: <b className="text-foreground">{queue.failed}</b></span>
         </div>
+      )}
+      {hasStuck && (
+        // Task #95: jobs finished terminal but their reservation hasn't been
+        // committed/released yet. The tick's sweepStuckReservations self-heals
+        // these every run — a persistently nonzero count means the scheduler
+        // itself isn't ticking (see the banner above) rather than a new leak.
+        <p className="text-xs text-amber-500">
+          ⚠ {stuckCount} job{stuckCount === 1 ? "" : "s"} with an unsettled credit reservation — the
+          next scheduler tick will reconcile {stuckCount === 1 ? "it" : "them"} automatically.
+        </p>
       )}
     </section>
   );
