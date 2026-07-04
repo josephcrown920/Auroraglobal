@@ -117,6 +117,11 @@ print('[image] SDXL-Turbo cached.')
 fi
 
 echo "==> Done. Installed tasks: [$TASKS]. Before starting the worker, export:"
+# NOTE: each of these is `cond && echo`, so if the LAST one's condition is
+# false, that becomes the exit status of the whole script under `set -e`
+# (the script exits with whatever its final statement returned) — even
+# though every requested task installed successfully. Force success below.
 have_task lipsync && echo "    export LATENTSYNC_DIR=$ROOT/LatentSync"
 have_task motion  && echo "    export MIMICMOTION_DIR=$ROOT/MimicMotion"
 have_task image   && echo "    (image via diffusers — no extra export needed)"
+exit 0

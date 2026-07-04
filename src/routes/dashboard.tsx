@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { listGenerations } from "@/lib/studio.functions";
 import { getMyProfile } from "@/lib/billing.functions";
 import { ModelBadge } from "@/components/ModelBadge";
-import { Sparkles, Loader2, Coins, Film, Image as ImageIcon, ArrowRight, Shield } from "lucide-react";
+import { Sparkles, Loader2, Coins, Film, Image as ImageIcon, ArrowRight, Shield, Share2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ApiKeysPanel } from "@/components/dashboard/ApiKeysPanel";
@@ -121,6 +121,22 @@ function DashboardPage() {
         </section>
 
         <ApiKeysPanel />
+
+        <section className="rounded-3xl border border-emerald-400/30 bg-gradient-to-br from-emerald-500/15 via-teal-500/10 to-transparent p-6 md:p-8">
+          <span className="inline-flex items-center gap-1.5 text-xs text-emerald-300 border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 rounded-full">
+            <Share2 className="size-3" /> Affiliate
+          </span>
+          <h2 className="text-xl md:text-2xl font-semibold mt-3 leading-tight">Share Aurora. Earn 20% for life.</h2>
+          <p className="text-muted-foreground text-sm mt-2 max-w-xl">
+            Get your referral link in 30 seconds. Every Aura pack your audience buys pays you 20% — recurring, no cap, paid monthly.
+          </p>
+          <Link
+            to="/affiliate"
+            className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-400 text-emerald-950 text-sm font-semibold hover:bg-emerald-300 no-underline"
+          >
+            Become an affiliate <ArrowRight className="size-3.5" />
+          </Link>
+        </section>
 
         <section className="aurora-panel p-6 space-y-3">
           <div className="flex items-center gap-2">

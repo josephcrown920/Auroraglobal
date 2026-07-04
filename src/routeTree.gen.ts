@@ -61,6 +61,7 @@ import { Route as AdminComfyRouteImport } from './routes/admin.comfy'
 import { Route as ApiPublicWatermarkVideoRouteImport } from './routes/api/public/watermark-video'
 import { Route as ApiPublicWatermarkImageRouteImport } from './routes/api/public/watermark-image'
 import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/public/paystack-webhook'
+import { Route as ApiPublicLifecycleEmailsRouteImport } from './routes/api/public/lifecycle-emails'
 import { Route as ApiPublicGenerateRouteImport } from './routes/api/public/generate'
 import { Route as ApiPublicFreeMonthlyGrantRouteImport } from './routes/api/public/free-monthly-grant'
 import { Route as ApiPublicWorkersRegisterRouteImport } from './routes/api/public/workers/register'
@@ -330,6 +331,12 @@ const ApiPublicPaystackWebhookRoute =
     path: '/api/public/paystack-webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicLifecycleEmailsRoute =
+  ApiPublicLifecycleEmailsRouteImport.update({
+    id: '/api/public/lifecycle-emails',
+    path: '/api/public/lifecycle-emails',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicGenerateRoute = ApiPublicGenerateRouteImport.update({
   id: '/api/public/generate',
   path: '/api/public/generate',
@@ -420,6 +427,7 @@ export interface FileRoutesByFullPath {
   '/cli/': typeof CliIndexRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
+  '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
@@ -481,6 +489,7 @@ export interface FileRoutesByTo {
   '/cli': typeof CliIndexRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
+  '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
@@ -543,6 +552,7 @@ export interface FileRoutesById {
   '/cli/': typeof CliIndexRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
+  '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
@@ -606,6 +616,7 @@ export interface FileRouteTypes {
     | '/cli/'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
+    | '/api/public/lifecycle-emails'
     | '/api/public/paystack-webhook'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
@@ -667,6 +678,7 @@ export interface FileRouteTypes {
     | '/cli'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
+    | '/api/public/lifecycle-emails'
     | '/api/public/paystack-webhook'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
@@ -728,6 +740,7 @@ export interface FileRouteTypes {
     | '/cli/'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
+    | '/api/public/lifecycle-emails'
     | '/api/public/paystack-webhook'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
@@ -785,6 +798,7 @@ export interface RootRouteChildren {
   CliIndexRoute: typeof CliIndexRoute
   ApiPublicFreeMonthlyGrantRoute: typeof ApiPublicFreeMonthlyGrantRoute
   ApiPublicGenerateRoute: typeof ApiPublicGenerateRoute
+  ApiPublicLifecycleEmailsRoute: typeof ApiPublicLifecycleEmailsRoute
   ApiPublicPaystackWebhookRoute: typeof ApiPublicPaystackWebhookRoute
   ApiPublicWatermarkImageRoute: typeof ApiPublicWatermarkImageRoute
   ApiPublicWatermarkVideoRoute: typeof ApiPublicWatermarkVideoRoute
@@ -1161,6 +1175,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPaystackWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/lifecycle-emails': {
+      id: '/api/public/lifecycle-emails'
+      path: '/api/public/lifecycle-emails'
+      fullPath: '/api/public/lifecycle-emails'
+      preLoaderRoute: typeof ApiPublicLifecycleEmailsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/generate': {
       id: '/api/public/generate'
       path: '/api/public/generate'
@@ -1278,6 +1299,7 @@ const rootRouteChildren: RootRouteChildren = {
   CliIndexRoute: CliIndexRoute,
   ApiPublicFreeMonthlyGrantRoute: ApiPublicFreeMonthlyGrantRoute,
   ApiPublicGenerateRoute: ApiPublicGenerateRoute,
+  ApiPublicLifecycleEmailsRoute: ApiPublicLifecycleEmailsRoute,
   ApiPublicPaystackWebhookRoute: ApiPublicPaystackWebhookRoute,
   ApiPublicWatermarkImageRoute: ApiPublicWatermarkImageRoute,
   ApiPublicWatermarkVideoRoute: ApiPublicWatermarkVideoRoute,

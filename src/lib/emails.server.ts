@@ -17,7 +17,9 @@ export type EmailTemplate =
 export type LifecycleTemplate =
   | "signup_welcome"
   | "onboarding_done"
-  | "password_reset_acknowledged";
+  | "password_reset_acknowledged"
+  | "re_engagement"
+  | "first_purchase_nudge";
 
 type EmailPayload = {
   to: string;
@@ -94,6 +96,10 @@ function subjectFor(template: string, data: Record<string, unknown>): string {
       return "You received Aura";
     case "password_reset_acknowledged":
       return "Your Aurora password was reset";
+    case "re_engagement":
+      return "We miss you at Aurora — your Aura is waiting";
+    case "first_purchase_nudge":
+      return "A little something to try Aura for the first time";
     default:
       return "Aurora Studio";
   }
@@ -129,6 +135,12 @@ function renderTemplate(template: string, data: Record<string, unknown>): string
       break;
     case "onboarding_done":
       body = `<p>Nice — your studio is set up. Start with a performance shot or a UGC ad.</p>`;
+      break;
+    case "re_engagement":
+      body = `<p>It's been a while — your Aura balance is still here, and so is your last project. Come back and pick up where you left off.</p>`;
+      break;
+    case "first_purchase_nudge":
+      body = `<p>Still deciding? Your free Aura goes fast once you get going — grab a top-up pack and keep creating without waiting for the monthly refresh.</p>`;
       break;
     default:
       body = `<p>Update from Aurora Studio.</p>`;
@@ -258,6 +270,47 @@ export async function sendPaymentReceipt(
       creditsGranted,
       reference: paymentId,
     },
+    userId,
+  });
+}
+
+/**
+ * Win-back email for signed-up users who have gone quiet. Called from the
+ * lifecycle-emails cron (api/public/lifecycle-emails.ts) which does the
+ * inactivity + dedupe query; this helper just sends + logs.
+ */
+export async function sendReEngagementEmail(userId: string) {
+  const { data: user } = await supabaseAdmin
+    .from("profiles")
+    .select("email, display_name")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!user?.email) return;
+  return sendEmail({
+    to: user.email,
+    template: "re_engagement",
+    data: { displayName: user.display_name || "Creator" },
+    userId,
+  });
+}
+
+/**
+ * Nudge for Free-tier users who signed up but never made their first
+ * purchase. Called from the lifecycle-emails cron; the cron builds the
+ * candidate list (lifetime_credits_purchased = 0, account old enough,
+ * not emailed already) and this helper sends + logs the send.
+ */
+export async function sendFirstPurchaseNudgeEmail(userId: string) {
+  const { data: user } = await supabaseAdmin
+    .from("profiles")
+    .select("email, display_name")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!user?.email) return;
+  return sendEmail({
+    to: user.email,
+    template: "first_purchase_nudge",
+    data: { displayName: user.display_name || "Creator" },
     userId,
   });
 }
