@@ -68,8 +68,20 @@ async function signIn(page: Page) {
   await expect(emailInput).toHaveValue(testEmail);
   await passwordInput.fill(TEST_PASSWORD);
   await expect(passwordInput).toHaveValue(TEST_PASSWORD);
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await page.waitForURL(/\/studio/, { timeout: 15_000 });
+
+  const signInButton = page.getByRole("button", { name: "Sign in", exact: true });
+  await signInButton.click();
+  try {
+    await page.waitForURL(/\/studio/, { timeout: 15_000 });
+  } catch {
+    // Occasional slow auth round-trip — retry once rather than fail the whole test.
+    if (await emailInput.count() > 0) {
+      await emailInput.fill(testEmail);
+      await passwordInput.fill(TEST_PASSWORD);
+    }
+    await signInButton.click();
+    await page.waitForURL(/\/studio/, { timeout: 20_000 });
+  }
 }
 
 /**
@@ -166,42 +178,28 @@ test.describe("Playground sandbox (real browser)", () => {
     {
       name: "dynamic import",
       code: 'console.log("start"); const m = await import("data:text/javascript,console.log(1)");',
-      expect: /'import'/,
+      expect: /Blocked:\s*'import'/,
+    },
+    {
+      name: "Object.getPrototypeOf(self) chain access to fetch",
+      code: 'console.log("start"); Object.getPrototypeOf(self).fetch.call(self, "https://example.com");',
+      expect: /Blocked:\s*'fetch'/,
     },
   ];
 
   for (const snippet of blockedSnippets) {
     test(`blocks: ${snippet.name}`, async ({ page }) => {
+      const requests: string[] = [];
+      page.on("request", (req) => {
+        if (req.url().includes("example.com")) requests.push(req.url());
+      });
+
       await setEditorContent(page, snippet.code);
       const finalStatus = await runAndWaitForStatus(page);
 
       expect(finalStatus).not.toContain("Script finished");
       expect(finalStatus).toMatch(snippet.expect);
+      expect(requests).toHaveLength(0);
     });
   }
-
-  // The sandbox removes (rather than shadows) properties it can delete from the ORIGINAL
-  // prototype chain (see sandbox.ts __lockName: delete-first, throwing-getter fallback only
-  // if delete fails). So `Object.getPrototypeOf(self).fetch` legitimately evaluates to
-  // `undefined` instead of throwing a "Blocked: ..." error — reading it is inert. The real
-  // security property is that *invoking* fetch through that path can never succeed. This is
-  // still a genuine no-network-access guarantee, just surfaced as a plain TypeError instead
-  // of the sandbox's custom "Blocked" message.
-  test("blocks: Object.getPrototypeOf(self) chain access to fetch (no network call ever fires)", async ({
-    page,
-  }) => {
-    const requests: string[] = [];
-    page.on("request", (req) => {
-      if (req.url().includes("example.com")) requests.push(req.url());
-    });
-
-    await setEditorContent(
-      page,
-      'console.log("start"); Object.getPrototypeOf(self).fetch.call(self, "https://example.com");'
-    );
-    const finalStatus = await runAndWaitForStatus(page);
-
-    expect(finalStatus).not.toContain("Script finished");
-    expect(requests).toHaveLength(0);
-  });
 });

@@ -181,16 +181,19 @@ describe("sandbox worker runtime (mocked self)", () => {
     expect(err!.message).toContain("Blocked");
   });
 
-  test("prototype-chain access to blocked globals is dead too", async () => {
+  test("prototype-chain access to blocked globals throws Blocked too", async () => {
     const { posted, onmessage } = bootMockWorker();
     await onmessage({
       data: {
         type: "run",
-        code: 'console.log(typeof Object.getPrototypeOf(self).fetch, typeof Object.getPrototypeOf(self).WebSocket);',
+        code: 'Object.getPrototypeOf(self).fetch;',
       },
     });
-    expect(posted).toContainEqual({ type: "console", level: "log", text: "undefined undefined" });
-    expect(posted).toContainEqual({ type: "done" });
+    const err = posted.find((m) => (m as { type?: string }).type === "error") as
+      | { message: string }
+      | undefined;
+    expect(err).toBeDefined();
+    expect(err!.message).toContain("Blocked");
   });
 
   test("dynamic import is rejected before execution", async () => {
