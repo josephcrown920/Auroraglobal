@@ -17,6 +17,7 @@ import {
   Package,
   Hash,
   Image,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -26,6 +27,8 @@ import {
   generateDailyPosts,
   generateRolloutPlan,
   generateSocialPack,
+  listGrowthToolRuns,
+  type GrowthTool,
 } from "@/lib/growth-tools.functions";
 import {
   COST_DAILY_POSTS,
@@ -107,6 +110,75 @@ function AuraCostBadge({ cost }: { cost: number }) {
       <Zap className="size-3" />
       {cost} Aura
     </span>
+  );
+}
+
+function HistoryPanel<TOutput>({
+  tool,
+  isPro,
+  onLoad,
+  renderSummary,
+}: {
+  tool: GrowthTool;
+  isPro: boolean;
+  onLoad: (output: TOutput) => void;
+  renderSummary: (input: any) => { title: string; subtitle?: string };
+}) {
+  const [open, setOpen] = useState(false);
+  const listFn = useServerFn(listGrowthToolRuns);
+  const { data, isLoading } = useQuery({
+    queryKey: ["growth-tool-runs", tool],
+    queryFn: () => listFn({ data: { tool } }),
+    enabled: isPro && open,
+  });
+
+  if (!isPro) return null;
+
+  const runs = data?.ok ? data.runs : [];
+
+  return (
+    <div className="rounded-2xl border border-border bg-card/20 overflow-hidden">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left"
+      >
+        <span className="flex items-center gap-2 text-sm font-medium">
+          <History className="size-4 text-muted-foreground" />
+          Past runs
+        </span>
+        {open ? (
+          <ChevronUp className="size-4 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="size-4 text-muted-foreground" />
+        )}
+      </button>
+      {open && (
+        <div className="border-t border-border divide-y divide-border max-h-72 overflow-y-auto">
+          {isLoading && <p className="px-4 py-3 text-xs text-muted-foreground">Loading…</p>}
+          {!isLoading && runs.length === 0 && (
+            <p className="px-4 py-3 text-xs text-muted-foreground">No past runs yet.</p>
+          )}
+          {runs.map((run) => {
+            const { title, subtitle } = renderSummary(run.input);
+            return (
+              <button
+                key={run.id}
+                onClick={() => onLoad(run.output as TOutput)}
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-background/40 transition-colors"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{title}</p>
+                  {subtitle && <p className="text-xs text-muted-foreground truncate">{subtitle}</p>}
+                </div>
+                <span className="text-xs text-muted-foreground shrink-0">
+                  {new Date(run.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -344,6 +416,19 @@ function DailyPostGenerator({ isPro }: { isPro: boolean }) {
   return (
     <div className="space-y-5">
       {form}
+      <HistoryPanel
+        tool="daily_posts"
+        isPro={isPro}
+        onLoad={(output: { days: DailyPostsResult["days"]; cost: number }) => {
+          setResult({ ok: true, days: output.days, cost: output.cost });
+          setExpanded(0);
+          toast.success("Loaded past content calendar");
+        }}
+        renderSummary={(input) => ({
+          title: `${input.songTitle} — ${input.artistName}`,
+          subtitle: input.genre,
+        })}
+      />
       {result && (
         <div className="rounded-2xl border border-border bg-card/20 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
@@ -568,6 +653,19 @@ function RolloutPlanTool({ isPro }: { isPro: boolean }) {
   return (
     <div className="space-y-5">
       {form}
+      <HistoryPanel
+        tool="rollout_plan"
+        isPro={isPro}
+        onLoad={(output: { plan: RolloutPlanResult["plan"]; cost: number }) => {
+          setResult({ ok: true, plan: output.plan, cost: output.cost });
+          setExpandedWeek(null);
+          toast.success("Loaded past rollout plan");
+        }}
+        renderSummary={(input) => ({
+          title: `${input.songTitle} — ${input.artistName}`,
+          subtitle: input.genre,
+        })}
+      />
       {result && (
         <div className="rounded-2xl border border-border bg-card/20 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
@@ -795,6 +893,19 @@ function SocialPackTool({ isPro }: { isPro: boolean }) {
   return (
     <div className="space-y-5">
       {form}
+      <HistoryPanel
+        tool="social_pack"
+        isPro={isPro}
+        onLoad={(output: { pack: SocialPackResult["pack"]; cost: number }) => {
+          setResult({ ok: true, pack: output.pack, cost: output.cost });
+          setActiveTab("captions");
+          toast.success("Loaded past social pack");
+        }}
+        renderSummary={(input) => ({
+          title: `${input.songTitle} — ${input.artistName}`,
+          subtitle: input.genre,
+        })}
+      />
       {result && (
         <div className="rounded-2xl border border-border bg-card/20 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
