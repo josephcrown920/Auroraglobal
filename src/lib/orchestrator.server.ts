@@ -759,7 +759,10 @@ const BYTEPLUS_DEFAULTS: Record<string, BytePlusEntry> = {
   "fal-ai/seedream-4": { modelId: "seedream-4-0-250828", kind: "image" },
   "fal-ai/seedream-4.5": { modelId: "seedream-4-0-250828", kind: "image" },
   "seedance-2.0": { modelId: "seedance-1-0-pro-250528", kind: "video" },
-  "seedance-2.0-fast": { modelId: "seedance-1-0-lite-i2v-250428", kind: "video" },
+  // The old seedance-1-0-lite-i2v/t2v (…-250428) family is fully retired on
+  // ModelArk (confirmed live: InvalidEndpointOrModel.NotFound, not just
+  // unactivated) — seedance-1-0-pro-fast is the current "fast" tier replacement.
+  "seedance-2.0-fast": { modelId: "seedance-1-0-pro-fast-251015", kind: "video" },
 };
 const BYTEPLUS_MAP: Record<string, BytePlusEntry> = (() => {
   const out: Record<string, BytePlusEntry> = { ...BYTEPLUS_DEFAULTS };
