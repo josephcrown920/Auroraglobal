@@ -15,7 +15,7 @@ paths = [ "/" ]
 localPort = 8080
 
 [services.development]
-run = '"$(available-pid2-node-paths | head -1)" node_modules/vite/bin/vite.js dev --host 0.0.0.0 --port 8080'
+run = 'echo "Aurora dev server is already running via the Start application workflow on port 8080 (shared flat-root app, not a per-artifact process)." && sleep infinity'
 
 [services.production]
 build = [ "bash", "-c", "NODE_OPTIONS=--max-old-space-size=4096 exec bash scripts/replit-node.sh node_modules/vite/bin/vite.js build" ]
