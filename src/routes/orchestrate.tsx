@@ -52,6 +52,18 @@ const MODALITIES: { id: Modality; label: string; icon: typeof ImageIcon }[] = [
 const RESOLUTIONS: Resolution[] = ["480p", "720p", "1080p", "2160p"];
 const DURATIONS = [5, 8, 10, 12];
 
+// Curated ElevenLabs premade voices — stable IDs available on every ElevenLabs
+// account, so picking one always resolves to a real voice instead of a raw
+// text field where a typo/garbage id would 400 at generation time.
+const VOICE_OPTIONS: { id: string; label: string; description: string }[] = [
+  { id: "21m00Tcm4TlvDq8ikWAM", label: "Rachel", description: "Calm, narration" },
+  { id: "EXAVITQu4vr4xnSDxMaL", label: "Bella", description: "Warm, friendly" },
+  { id: "ErXwobaYiN019PkySvjV", label: "Antoni", description: "Deep, confident" },
+  { id: "TxGEqnHWrfWFTfGW9XjX", label: "Josh", description: "Casual, energetic" },
+  { id: "pNInz6obpgDQGcFmaJgB", label: "Adam", description: "Clear, authoritative" },
+  { id: "MF3mGyEYCl7XYWbV9V6O", label: "Elli", description: "Bright, youthful" },
+];
+
 const MODELS: Record<Modality, ModelOption[]> = {
   image: [
     { key: "pollinations/flux", label: "Pollinations · FLUX", free: true },
@@ -89,7 +101,7 @@ function OrchestratePage() {
   const [prompt, setPrompt] = useState("");
   const [model, setModel] = useState(MODELS.image[0].key);
   const [imageUrl, setImageUrl] = useState("");
-  const [voiceId, setVoiceId] = useState("");
+  const [voiceId, setVoiceId] = useState(VOICE_OPTIONS[0].id);
   const [resolution, setResolution] = useState<Resolution>("720p");
   const [duration, setDuration] = useState(5);
   const [busy, setBusy] = useState(false);
@@ -153,6 +165,33 @@ function OrchestratePage() {
   const cost = quote.total;
 
   const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0$/, ""));
+
+  const [downloading, setDownloading] = useState(false);
+  // Studio-hosted results (e.g. ElevenLabs TTS output) sit on a cross-origin
+  // bucket URL, so a plain <a download> is silently ignored by the browser —
+  // it just opens the file instead of saving it. Fetch the bytes ourselves
+  // and trigger the save via a blob URL so "Download" reliably saves to disk.
+  const downloadResult = async (url: string, kind: Modality) => {
+    setDownloading(true);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Download failed (${res.status})`);
+      const blob = await res.blob();
+      const ext = kind === "audio" ? "mp3" : kind === "video" ? "mp4" : "png";
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = `aurora-${kind}-${Date.now()}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't download this file");
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const switchModality = (m: Modality) => {
     setModality(m);
@@ -324,14 +363,25 @@ function OrchestratePage() {
             {modality === "audio" && (
               <div className="mt-4">
                 <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-neutral-500">
-                  Voice ID (optional)
+                  Voice
                 </label>
-                <input
-                  value={voiceId}
-                  onChange={(e) => setVoiceId(e.target.value)}
-                  placeholder="21m00Tcm4TlvDq8ikWAM"
-                  className="w-full rounded-xl border border-neutral-800 bg-neutral-950 px-4 py-2.5 text-sm outline-none focus:border-fuchsia-500"
-                />
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {VOICE_OPTIONS.map((v) => (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => setVoiceId(v.id)}
+                      className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
+                        voiceId === v.id
+                          ? "border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-300"
+                          : "border-neutral-800 text-neutral-400 hover:border-neutral-700"
+                      }`}
+                    >
+                      <div className="font-medium">{v.label}</div>
+                      <div className="text-[10px] text-neutral-500">{v.description}</div>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -505,14 +555,19 @@ function OrchestratePage() {
                   <p className="whitespace-pre-wrap text-sm text-neutral-200">{result.text}</p>
                 )}
                 {result.url && result.kind !== "text" && (
-                  <a
-                    href={result.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-3 inline-flex items-center gap-1 text-xs text-fuchsia-400 hover:text-fuchsia-300"
+                  <button
+                    type="button"
+                    onClick={() => void downloadResult(result.url, result.kind)}
+                    disabled={downloading}
+                    className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-fuchsia-400 transition hover:text-fuchsia-300 disabled:opacity-60"
                   >
-                    <Download className="h-3 w-3" /> Open
-                  </a>
+                    {downloading ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Download className="h-3 w-3" />
+                    )}
+                    {downloading ? "Downloading…" : "Download"}
+                  </button>
                 )}
               </div>
             )}
