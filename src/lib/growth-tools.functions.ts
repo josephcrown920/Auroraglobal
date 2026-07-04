@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Json } from "@/integrations/supabase/types";
 import { generateWithFallback } from "@/lib/llm-fallback.server";
 import {
   COST_DAILY_POSTS,
@@ -58,6 +59,83 @@ async function checkPro(userId: string): Promise<boolean> {
   const isAdmin = (roles ?? []).some((r) => r.role === "admin");
   return data?.plan === "pro" || isAdmin;
 }
+
+// ─── Growth Tool run history ────────────────────────────────────────────────
+// `growth_tool_runs` is not (yet) in the generated Supabase types, so the
+// insert/select go through a narrowly-typed cast, matching the pattern used
+// for the credit RPCs above.
+
+export type GrowthTool = "daily_posts" | "rollout_plan" | "social_pack";
+
+type JsonRecord = Json;
+
+type GrowthToolRunsTable = {
+  from: (table: "growth_tool_runs") => {
+    insert: (row: { user_id: string; tool: GrowthTool; input: JsonRecord; output: JsonRecord }) => Promise<{
+      error: { message: string } | null;
+    }>;
+    select: (columns: string) => {
+      eq: (
+        col: string,
+        val: string,
+      ) => {
+        eq: (
+          col: string,
+          val: string,
+        ) => {
+          order: (
+            col: string,
+            opts: { ascending: boolean },
+          ) => {
+            limit: (n: number) => Promise<{
+              data: Array<{ id: string; tool: GrowthTool; input: JsonRecord; output: JsonRecord; created_at: string }> | null;
+              error: { message: string } | null;
+            }>;
+          };
+        };
+      };
+    };
+  };
+};
+
+// Persisting a run is a nice-to-have alongside the already-committed
+// generation — never let a save failure block returning the result the user
+// already paid Aura credits for. Log loudly instead of failing silently.
+async function saveGrowthToolRun(
+  userId: string,
+  tool: GrowthTool,
+  input: JsonRecord,
+  output: JsonRecord,
+): Promise<void> {
+  const client = supabaseAdmin as unknown as GrowthToolRunsTable;
+  const { error } = await client.from("growth_tool_runs").insert({ user_id: userId, tool, input, output });
+  if (error) {
+    console.error(`[growth_tool_runs] failed to save ${tool} run for ${userId}:`, error.message);
+  }
+}
+
+export const listGrowthToolRuns = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      tool: z.enum(["daily_posts", "rollout_plan", "social_pack"]),
+    }).parse,
+  )
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    const client = supabaseAdmin as unknown as GrowthToolRunsTable;
+    const { data: rows, error } = await client
+      .from("growth_tool_runs")
+      .select("id, tool, input, output, created_at")
+      .eq("user_id", userId)
+      .eq("tool", data.tool)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    if (error) {
+      return { ok: false as const, error: error.message };
+    }
+    return { ok: true as const, runs: rows ?? [] };
+  });
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
@@ -173,6 +251,7 @@ Return exactly 7 day entries.`,
       });
 
       await commitReservation(ref);
+      await saveGrowthToolRun(userId, "daily_posts", data, { days: output.days, cost: COST_DAILY_POSTS });
       return { ok: true as const, days: output.days, cost: COST_DAILY_POSTS };
     } catch (err) {
       await releaseReservation(ref, "growth:daily_posts:failed");
@@ -233,6 +312,7 @@ Include specific hashtags that are active in this genre community.`,
       });
 
       await commitReservation(ref);
+      await saveGrowthToolRun(userId, "rollout_plan", data, { plan: output, cost: COST_ROLLOUT_PLAN });
       return { ok: true as const, plan: output, cost: COST_ROLLOUT_PLAN };
     } catch (err) {
       await releaseReservation(ref, "growth:rollout_plan:failed");
@@ -290,6 +370,7 @@ Make every piece feel cohesive with the song's mood and the artist's brand.`,
       });
 
       await commitReservation(ref);
+      await saveGrowthToolRun(userId, "social_pack", data, { pack: output, cost: COST_SOCIAL_PACK });
       return { ok: true as const, pack: output, cost: COST_SOCIAL_PACK };
     } catch (err) {
       await releaseReservation(ref, "growth:social_pack:failed");
