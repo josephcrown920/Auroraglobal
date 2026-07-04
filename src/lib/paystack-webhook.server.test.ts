@@ -8,6 +8,11 @@ import { createHmac } from "crypto";
 
 type TableData = { data: unknown; error: { message: string } | null };
 let tables: Record<string, TableData> = {};
+// Optional per-table queue of select() results, consumed in order — lets a test
+// simulate the row "appearing" only after a couple of retries.
+let selectQueues: Record<string, TableData[]> = {};
+// Optional per-table result for the row created via .insert().select().maybeSingle().
+let insertResults: Record<string, TableData> = {};
 let rpcResult: Record<string, { data: unknown; error: { message: string } | null }> = {};
 const calls = {
   rpc: [] as Array<{ name: string; args: Record<string, unknown> }>,
@@ -17,8 +22,17 @@ const calls = {
 
 function builder(table: string) {
   let op: "select" | "insert" | "update" | "delete" = "select";
-  const resolve = () =>
-    op === "select" ? (tables[table] ?? { data: null, error: null }) : { data: null, error: null };
+  const resolve = () => {
+    if (op === "insert") {
+      return insertResults[table] ?? { data: null, error: null };
+    }
+    if (op !== "select") return { data: null, error: null };
+    const queue = selectQueues[table];
+    if (queue && queue.length > 0) {
+      return queue.length > 1 ? queue.shift()! : queue[0];
+    }
+    return tables[table] ?? { data: null, error: null };
+  };
   const b: Record<string, unknown> = {};
   for (const m of ["select", "eq", "neq", "order", "limit", "contains", "is", "in", "gte", "lte"]) {
     b[m] = () => b;
@@ -61,6 +75,8 @@ const ev = (data: Record<string, unknown>) => ({ event: "charge.success", data }
 
 beforeEach(() => {
   tables = {};
+  selectQueues = {};
+  insertResults = {};
   rpcResult = {};
   calls.rpc.length = 0;
   calls.inserts.length = 0;
@@ -127,11 +143,82 @@ describe("processPaymentSuccess", () => {
     expect(calls.rpc.find((c) => c.name === "grant_credits")).toBeUndefined();
   });
 
-  it("throws when the payment reference is unknown", async () => {
+  it("throws when the payment reference is unknown and the webhook has no recovery metadata", async () => {
     tables.payments = { data: null, error: null };
     await expect(
-      processPaymentSuccess(ev({ reference: "missing", status: "success" })),
+      processPaymentSuccess(ev({ reference: "missing", status: "success" }), {
+        retryDelaysMs: [],
+      }),
     ).rejects.toThrow(/Payment not found/);
+    expect(calls.rpc.find((c) => c.name === "grant_credits")).toBeUndefined();
+  });
+
+  it("retries when the payments row hasn't landed yet and succeeds once it appears", async () => {
+    // Simulate the checkout redirect's insert finishing between the first
+    // (empty) lookup and the second retry attempt.
+    selectQueues.payments = [
+      { data: null, error: null },
+      {
+        data: { id: "p1", user_id: "u1", credits_granted: 500, status: "pending", amount_kobo: 1000 },
+        error: null,
+      },
+    ];
+    const r = await processPaymentSuccess(
+      ev({ reference: "ref1", status: "success", amount: 1000 }),
+      { retryDelaysMs: [0, 0] },
+    );
+    expect(r).toMatchObject({ status: "success", paymentId: "p1" });
+    expect(calls.rpc.find((c) => c.name === "grant_credits")).toBeTruthy();
+  });
+
+  it("recovers a never-persisted payment from webhook metadata instead of dropping the credit grant", async () => {
+    tables.payments = { data: null, error: null };
+    insertResults.payments = {
+      data: { id: "p-recovered", user_id: "u1", credits_granted: 500, status: "pending", amount_kobo: 1000 },
+      error: null,
+    };
+    const r = await processPaymentSuccess(
+      ev({
+        reference: "ref-race",
+        status: "success",
+        amount: 1000,
+        metadata: { user_id: "u1", credits: 500 },
+      }),
+      { retryDelaysMs: [] },
+    );
+    expect(r).toMatchObject({ status: "success", paymentId: "p-recovered" });
+
+    const insertedRow = calls.inserts.find((i) => i.table === "payments");
+    expect(insertedRow?.row).toMatchObject({
+      reference: "ref-race",
+      user_id: "u1",
+      credits_granted: 500,
+      status: "pending",
+    });
+    const grant = calls.rpc.find((c) => c.name === "grant_credits");
+    expect(grant?.args).toMatchObject({ _user: "u1", _amount: 500, _reason: "purchase" });
+  });
+
+  it("does not double-grant when the recovery insert races and another writer already created the row", async () => {
+    // Insert "fails" (unique constraint on reference) because the row was
+    // created concurrently and already marked succeeded — we must read that
+    // row, not throw and not re-grant.
+    tables.payments = {
+      data: { id: "p1", user_id: "u1", credits_granted: 500, status: "succeeded", amount_kobo: 1000 },
+      error: null,
+    };
+    insertResults.payments = { data: null, error: { message: "duplicate key value" } };
+    const r = await processPaymentSuccess(
+      ev({
+        reference: "ref-race2",
+        status: "success",
+        amount: 1000,
+        metadata: { user_id: "u1", credits: 500 },
+      }),
+      { retryDelaysMs: [] },
+    );
+    expect(r).toEqual({ status: "already_processed" });
+    expect(calls.rpc.find((c) => c.name === "grant_credits")).toBeUndefined();
   });
 
   it("records an affiliate conversion and bumps total earned when the buyer was referred", async () => {
