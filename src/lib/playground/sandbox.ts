@@ -143,15 +143,19 @@ function __lockName(root, name) {
   while (proto && proto !== Object.prototype) {
     if (Object.prototype.hasOwnProperty.call(proto, name)) {
       try { delete proto[name]; } catch (e) { /* not deletable */ }
-      if (Object.prototype.hasOwnProperty.call(proto, name)) {
-        try {
-          Object.defineProperty(proto, name, {
-            configurable: false,
-            get() { __deny(name); },
-            set() {},
-          });
-        } catch (e) { /* non-configurable — nothing more we can do */ }
-      }
+      // Always install a throwing getter — even after a successful delete — so
+      // Object.getPrototypeOf(self).<name> fails loudly with a "Blocked" error
+      // instead of silently resolving to undefined. A silent fallback here
+      // would be its own kind of leak (a script probing capabilities gets no
+      // signal that anything is being denied); fail explicit and consistent
+      // with every other lockdown path in this file.
+      try {
+        Object.defineProperty(proto, name, {
+          configurable: false,
+          get() { __deny(name); },
+          set() {},
+        });
+      } catch (e) { /* non-configurable — nothing more we can do */ }
     }
     proto = Object.getPrototypeOf(proto);
   }
