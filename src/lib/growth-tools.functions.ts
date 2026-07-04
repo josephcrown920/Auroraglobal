@@ -12,13 +12,20 @@ import {
 
 // ─── Simple credit helpers (pure LLM jobs — no orchestrator/media pipeline) ──
 
+// Deps-injected admin client so the Pro-gate + credit-reservation logic is
+// unit-testable without a live Supabase / Start request context (mirrors the
+// issueGiftCardCore pattern in gifts.functions.ts). The createServerFn
+// handlers below supply the real supabaseAdmin.
+type AdminClient = typeof supabaseAdmin;
+
 async function reserveCredits(
+  admin: AdminClient,
   userId: string,
   amount: number,
   reason: string,
   ref: string,
 ): Promise<boolean> {
-  const client = supabaseAdmin as unknown as {
+  const client = admin as unknown as {
     rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
   };
   const { data, error } = await client.rpc("reserve_credits", {
@@ -31,28 +38,28 @@ async function reserveCredits(
   return !!data;
 }
 
-async function commitReservation(ref: string): Promise<void> {
-  const client = supabaseAdmin as unknown as {
+async function commitReservation(admin: AdminClient, ref: string): Promise<void> {
+  const client = admin as unknown as {
     rpc: (name: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
   };
   const { error } = await client.rpc("commit_reservation", { _ref: ref });
   if (error) throw new Error(error.message);
 }
 
-async function releaseReservation(ref: string, reason: string): Promise<void> {
-  const client = supabaseAdmin as unknown as {
+async function releaseReservation(admin: AdminClient, ref: string, reason: string): Promise<void> {
+  const client = admin as unknown as {
     rpc: (name: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
   };
   await client.rpc("release_reservation", { _ref: ref, _reason: reason });
 }
 
-async function checkPro(userId: string): Promise<boolean> {
-  const { data } = await supabaseAdmin
+async function checkPro(admin: AdminClient, userId: string): Promise<boolean> {
+  const { data } = await admin
     .from("profiles")
     .select("plan")
     .eq("user_id", userId)
     .maybeSingle();
-  const { data: roles } = await supabaseAdmin
+  const { data: roles } = await admin
     .from("user_roles")
     .select("role")
     .eq("user_id", userId);
@@ -102,12 +109,13 @@ type GrowthToolRunsTable = {
 // generation — never let a save failure block returning the result the user
 // already paid Aura credits for. Log loudly instead of failing silently.
 async function saveGrowthToolRun(
+  admin: AdminClient,
   userId: string,
   tool: GrowthTool,
   input: JsonRecord,
   output: JsonRecord,
 ): Promise<void> {
-  const client = supabaseAdmin as unknown as GrowthToolRunsTable;
+  const client = admin as unknown as GrowthToolRunsTable;
   const { error } = await client.from("growth_tool_runs").insert({ user_id: userId, tool, input, output });
   if (error) {
     console.error(`[growth_tool_runs] failed to save ${tool} run for ${userId}:`, error.message);
@@ -186,51 +194,54 @@ const SocialPackOutputSchema = z.object({
 
 // ─── Server Functions ─────────────────────────────────────────────────────────
 
-export const generateDailyPosts = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator(
-    z.object({
-      songTitle: z.string().min(1).max(200),
-      artistName: z.string().min(1).max(200),
-      genre: z.string().min(1).max(100),
-      releaseStatus: z.enum(["upcoming", "out_now", "classic"]),
-      platforms: z.array(z.enum(["Instagram", "TikTok", "Twitter", "YouTube", "Facebook"])).min(1).max(5),
-      tone: z.enum(["hype", "authentic", "storytelling", "fan_engagement", "mixed"]),
-    }).parse
-  )
-  .handler(async ({ data, context }) => {
-    const { userId } = context;
+type DailyPostsInput = {
+  songTitle: string;
+  artistName: string;
+  genre: string;
+  releaseStatus: "upcoming" | "out_now" | "classic";
+  platforms: Array<"Instagram" | "TikTok" | "Twitter" | "YouTube" | "Facebook">;
+  tone: "hype" | "authentic" | "storytelling" | "fan_engagement" | "mixed";
+};
 
-    const isPro = await checkPro(userId);
-    if (!isPro) {
-      return { ok: false as const, error: "Pro subscription required", proRequired: true };
-    }
+// Deps-injected core so the Pro-gate + credit-reservation logic is
+// unit-testable without a live Supabase / Start request context (mirrors the
+// issueGiftCardCore pattern in gifts.functions.ts). The createServerFn
+// handler below supplies the real admin client + LLM caller.
+export async function generateDailyPostsCore(
+  deps: { admin: AdminClient; generate: typeof generateWithFallback },
+  userId: string,
+  data: DailyPostsInput,
+) {
+  const isPro = await checkPro(deps.admin, userId);
+  if (!isPro) {
+    return { ok: false as const, error: "Pro subscription required", proRequired: true };
+  }
 
-    const ref = crypto.randomUUID();
-    const reserved = await reserveCredits(userId, COST_DAILY_POSTS, "growth:daily_posts", ref);
-    if (!reserved) {
-      return { ok: false as const, error: "Insufficient Aura credits", insufficient: true };
-    }
+  const ref = crypto.randomUUID();
+  const reserved = await reserveCredits(deps.admin, userId, COST_DAILY_POSTS, "growth:daily_posts", ref);
+  if (!reserved) {
+    return { ok: false as const, error: "Insufficient Aura credits", insufficient: true };
+  }
 
-    try {
-      const statusLabel = {
-        upcoming: `releasing soon (not yet released)`,
-        out_now: `freshly released (out now)`,
-        classic: `an established track`,
-      }[data.releaseStatus];
+  try {
+    const statusLabel = {
+      upcoming: `releasing soon (not yet released)`,
+      out_now: `freshly released (out now)`,
+      classic: `an established track`,
+    }[data.releaseStatus];
 
-      const toneLabel = {
-        hype: "high-energy hype and excitement",
-        authentic: "authentic and personal storytelling",
-        storytelling: "narrative and behind-the-scenes",
-        fan_engagement: "fan interaction and community",
-        mixed: "a natural mix of tones across the week",
-      }[data.tone];
+    const toneLabel = {
+      hype: "high-energy hype and excitement",
+      authentic: "authentic and personal storytelling",
+      storytelling: "narrative and behind-the-scenes",
+      fan_engagement: "fan interaction and community",
+      mixed: "a natural mix of tones across the week",
+    }[data.tone];
 
-      const { output } = await generateWithFallback({
-        system:
-          "You are an expert music marketing strategist and social media manager for independent artists. Write engaging, platform-native social posts that drive real engagement.",
-        prompt: `Create a 7-day social media content calendar for the following:
+    const { output } = await deps.generate({
+      system:
+        "You are an expert music marketing strategist and social media manager for independent artists. Write engaging, platform-native social posts that drive real engagement.",
+      prompt: `Create a 7-day social media content calendar for the following:
 Artist: ${data.artistName}
 Song: "${data.songTitle}"
 Genre: ${data.genre}
@@ -247,52 +258,67 @@ Rules:
 - Vary the content types: teaser, lyric reveal, behind-the-scenes, fan shoutout, etc.
 
 Return exactly 7 day entries.`,
-        schema: DailyPostsOutputSchema,
-      });
+      schema: DailyPostsOutputSchema,
+    });
 
-      await commitReservation(ref);
-      await saveGrowthToolRun(userId, "daily_posts", data, { days: output.days, cost: COST_DAILY_POSTS });
-      return { ok: true as const, days: output.days, cost: COST_DAILY_POSTS };
-    } catch (err) {
-      await releaseReservation(ref, "growth:daily_posts:failed");
-      const msg = err instanceof Error ? err.message : "Content generation failed";
-      return { ok: false as const, error: msg };
-    }
-  });
+    await commitReservation(deps.admin, ref);
+    await saveGrowthToolRun(deps.admin, userId, "daily_posts", data, { days: output.days, cost: COST_DAILY_POSTS });
+    return { ok: true as const, days: output.days, cost: COST_DAILY_POSTS };
+  } catch (err) {
+    await releaseReservation(deps.admin, ref, "growth:daily_posts:failed");
+    const msg = err instanceof Error ? err.message : "Content generation failed";
+    return { ok: false as const, error: msg };
+  }
+}
 
-export const generateRolloutPlan = createServerFn({ method: "POST" })
+export const generateDailyPosts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
     z.object({
       songTitle: z.string().min(1).max(200),
       artistName: z.string().min(1).max(200),
       genre: z.string().min(1).max(100),
-      releaseDate: z.string().min(1).max(50),
-      targetPlatforms: z.array(z.enum(["Instagram", "TikTok", "Twitter", "YouTube", "Spotify", "Apple Music"])).min(1).max(6),
-      budget: z.enum(["zero", "low", "medium"]),
+      releaseStatus: z.enum(["upcoming", "out_now", "classic"]),
+      platforms: z.array(z.enum(["Instagram", "TikTok", "Twitter", "YouTube", "Facebook"])).min(1).max(5),
+      tone: z.enum(["hype", "authentic", "storytelling", "fan_engagement", "mixed"]),
     }).parse
   )
-  .handler(async ({ data, context }) => {
-    const { userId } = context;
+  .handler(async ({ data, context }) =>
+    generateDailyPostsCore({ admin: supabaseAdmin, generate: generateWithFallback }, context.userId, data),
+  );
 
-    const isPro = await checkPro(userId);
-    if (!isPro) {
-      return { ok: false as const, error: "Pro subscription required", proRequired: true };
-    }
+type RolloutPlanInput = {
+  songTitle: string;
+  artistName: string;
+  genre: string;
+  releaseDate: string;
+  targetPlatforms: Array<"Instagram" | "TikTok" | "Twitter" | "YouTube" | "Spotify" | "Apple Music">;
+  budget: "zero" | "low" | "medium";
+};
 
-    const ref = crypto.randomUUID();
-    const reserved = await reserveCredits(userId, COST_ROLLOUT_PLAN, "growth:rollout_plan", ref);
-    if (!reserved) {
-      return { ok: false as const, error: "Insufficient Aura credits", insufficient: true };
-    }
+export async function generateRolloutPlanCore(
+  deps: { admin: AdminClient; generate: typeof generateWithFallback },
+  userId: string,
+  data: RolloutPlanInput,
+) {
+  const isPro = await checkPro(deps.admin, userId);
+  if (!isPro) {
+    return { ok: false as const, error: "Pro subscription required", proRequired: true };
+  }
 
-    try {
-      const budgetLabel = { zero: "zero budget (organic only)", low: "low budget ($0–$200 ads)", medium: "medium budget ($200–$1000 ads)" }[data.budget];
+  const ref = crypto.randomUUID();
+  const reserved = await reserveCredits(deps.admin, userId, COST_ROLLOUT_PLAN, "growth:rollout_plan", ref);
+  if (!reserved) {
+    return { ok: false as const, error: "Insufficient Aura credits", insufficient: true };
+  }
 
-      const { output } = await generateWithFallback({
-        system:
-          "You are a senior music marketing strategist who has launched thousands of independent artist releases. You specialize in data-driven, platform-native release campaigns.",
-        prompt: `Create a detailed week-by-week music release promotion calendar for:
+  try {
+    const budgetLabel = { zero: "zero budget (organic only)", low: "low budget ($0–$200 ads)", medium: "medium budget ($200–$1000 ads)" }[data.budget];
+
+    const { output } = await deps.generate({
+      system:
+        "You are a senior music marketing strategist who has launched thousands of independent artist releases. You specialize in data-driven, platform-native release campaigns.",
+      prompt: `Create a detailed week-by-week music release promotion calendar for:
 Artist: ${data.artistName}
 Song: "${data.songTitle}"
 Genre: ${data.genre}
@@ -308,50 +334,65 @@ Structure the plan covering:
 For each week, provide 2-4 specific actionable posts with platform-native tips.
 Focus on tactics that actually work for independent artists in ${data.genre}.
 Include specific hashtags that are active in this genre community.`,
-        schema: RolloutPlanOutputSchema,
-      });
+      schema: RolloutPlanOutputSchema,
+    });
 
-      await commitReservation(ref);
-      await saveGrowthToolRun(userId, "rollout_plan", data, { plan: output, cost: COST_ROLLOUT_PLAN });
-      return { ok: true as const, plan: output, cost: COST_ROLLOUT_PLAN };
-    } catch (err) {
-      await releaseReservation(ref, "growth:rollout_plan:failed");
-      const msg = err instanceof Error ? err.message : "Plan generation failed";
-      return { ok: false as const, error: msg };
-    }
-  });
+    await commitReservation(deps.admin, ref);
+    await saveGrowthToolRun(deps.admin, userId, "rollout_plan", data, { plan: output, cost: COST_ROLLOUT_PLAN });
+    return { ok: true as const, plan: output, cost: COST_ROLLOUT_PLAN };
+  } catch (err) {
+    await releaseReservation(deps.admin, ref, "growth:rollout_plan:failed");
+    const msg = err instanceof Error ? err.message : "Plan generation failed";
+    return { ok: false as const, error: msg };
+  }
+}
 
-export const generateSocialPack = createServerFn({ method: "POST" })
+export const generateRolloutPlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
     z.object({
       songTitle: z.string().min(1).max(200),
       artistName: z.string().min(1).max(200),
       genre: z.string().min(1).max(100),
-      mood: z.string().min(1).max(200),
-      visualStyle: z.string().min(1).max(200),
-      keyMessage: z.string().min(1).max(500),
+      releaseDate: z.string().min(1).max(50),
+      targetPlatforms: z.array(z.enum(["Instagram", "TikTok", "Twitter", "YouTube", "Spotify", "Apple Music"])).min(1).max(6),
+      budget: z.enum(["zero", "low", "medium"]),
     }).parse
   )
-  .handler(async ({ data, context }) => {
-    const { userId } = context;
+  .handler(async ({ data, context }) =>
+    generateRolloutPlanCore({ admin: supabaseAdmin, generate: generateWithFallback }, context.userId, data),
+  );
 
-    const isPro = await checkPro(userId);
-    if (!isPro) {
-      return { ok: false as const, error: "Pro subscription required", proRequired: true };
-    }
+type SocialPackInput = {
+  songTitle: string;
+  artistName: string;
+  genre: string;
+  mood: string;
+  visualStyle: string;
+  keyMessage: string;
+};
 
-    const ref = crypto.randomUUID();
-    const reserved = await reserveCredits(userId, COST_SOCIAL_PACK, "growth:social_pack", ref);
-    if (!reserved) {
-      return { ok: false as const, error: "Insufficient Aura credits", insufficient: true };
-    }
+export async function generateSocialPackCore(
+  deps: { admin: AdminClient; generate: typeof generateWithFallback },
+  userId: string,
+  data: SocialPackInput,
+) {
+  const isPro = await checkPro(deps.admin, userId);
+  if (!isPro) {
+    return { ok: false as const, error: "Pro subscription required", proRequired: true };
+  }
 
-    try {
-      const { output } = await generateWithFallback({
-        system:
-          "You are a creative director and social media strategist for music artists. You create cohesive, visually striking social media packs that drive streams and follows.",
-        prompt: `Create a complete social media content pack for:
+  const ref = crypto.randomUUID();
+  const reserved = await reserveCredits(deps.admin, userId, COST_SOCIAL_PACK, "growth:social_pack", ref);
+  if (!reserved) {
+    return { ok: false as const, error: "Insufficient Aura credits", insufficient: true };
+  }
+
+  try {
+    const { output } = await deps.generate({
+      system:
+        "You are a creative director and social media strategist for music artists. You create cohesive, visually striking social media packs that drive streams and follows.",
+      prompt: `Create a complete social media content pack for:
 Artist: ${data.artistName}
 Song: "${data.songTitle}"
 Genre: ${data.genre}
@@ -366,15 +407,31 @@ Generate:
 4. Detailed AI image generation prompts for both square and portrait orientations that match the visual style
 
 Make every piece feel cohesive with the song's mood and the artist's brand.`,
-        schema: SocialPackOutputSchema,
-      });
+      schema: SocialPackOutputSchema,
+    });
 
-      await commitReservation(ref);
-      await saveGrowthToolRun(userId, "social_pack", data, { pack: output, cost: COST_SOCIAL_PACK });
-      return { ok: true as const, pack: output, cost: COST_SOCIAL_PACK };
-    } catch (err) {
-      await releaseReservation(ref, "growth:social_pack:failed");
-      const msg = err instanceof Error ? err.message : "Pack generation failed";
-      return { ok: false as const, error: msg };
-    }
-  });
+    await commitReservation(deps.admin, ref);
+    await saveGrowthToolRun(deps.admin, userId, "social_pack", data, { pack: output, cost: COST_SOCIAL_PACK });
+    return { ok: true as const, pack: output, cost: COST_SOCIAL_PACK };
+  } catch (err) {
+    await releaseReservation(deps.admin, ref, "growth:social_pack:failed");
+    const msg = err instanceof Error ? err.message : "Pack generation failed";
+    return { ok: false as const, error: msg };
+  }
+}
+
+export const generateSocialPack = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      songTitle: z.string().min(1).max(200),
+      artistName: z.string().min(1).max(200),
+      genre: z.string().min(1).max(100),
+      mood: z.string().min(1).max(200),
+      visualStyle: z.string().min(1).max(200),
+      keyMessage: z.string().min(1).max(500),
+    }).parse
+  )
+  .handler(async ({ data, context }) =>
+    generateSocialPackCore({ admin: supabaseAdmin, generate: generateWithFallback }, context.userId, data),
+  );
