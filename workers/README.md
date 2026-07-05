@@ -45,6 +45,7 @@ Aurora UI ──► orchestrator ──► your worker (this dir) ──► Late
 | `runpod/`    | RunPod Serverless         | `runpod`  | lipsync + motion  |
 | `hf-space/`  | Hugging Face Space        | `hfspace` | one task / Space  |
 | `kaggle/`    | Kaggle notebook + tunnel  | `custom`  | lipsync (motion opt-in) |
+| `colab/`     | Colab notebook + tunnel   | `custom`  | lipsync (motion opt-in, Pro+ A100 only) |
 | `aurora_worker.py` | any GPU VM (FastAPI)| `custom`  | lipsync + motion + assemble |
 
 > **Free-GPU swarm:** `comfyui/aurora_comfyui_launcher.py` runs stock ComfyUI on a
@@ -79,44 +80,17 @@ origin `https://<host>:8000` works too — it appends `/generate` and `/health` 
 > needs a ~24 GB GPU and ~25 GB disk and **refuses to install on smaller cards**
 > (clear error) rather than OOMing mid-job.
 
-## Colab (free GPU, `custom` protocol, self-registers)
+## Colab (free GPU, `custom` protocol, self-registers, turnkey)
 
-Colab has no secrets-manager API like Kaggle's — set env vars directly in a cell, then
-run the shared worker core. It self-registers the same way the Kaggle template does
-(`register_with_aurora()` inside `aurora_worker.py`), as long as the same four values
-are set: a stable tunnel domain, the Aurora URL, and the register key.
-
-```python
-# Cell 1 — one-time deps + a stable public URL (claim a free ngrok static domain first:
-# dashboard.ngrok.com/domains — without it the URL changes every restart and Aurora
-# treats each restart as a brand-new worker row).
-!pip install -q pyngrok fastapi 'uvicorn[standard]' requests
-import os
-os.environ["NGROK_AUTHTOKEN"] = "…"          # dashboard.ngrok.com/get-started/your-authtoken
-os.environ["NGROK_STATIC_DOMAIN"] = "foo-bar.ngrok-free.app"
-os.environ["AURORA_URL"] = "https://your-app.replit.app"
-os.environ["AURORA_REGISTER_SECRET"] = "…"      # private operator secret — set the same value in Aurora's env; never the Supabase key
-os.environ["AURORA_TASKS"] = "lipsync"       # or "lipsync,motion" on an A100 (≥24 GB VRAM)
-
-!curl -sO https://raw.githubusercontent.com/OWNER/REPO/BRANCH/workers/aurora_worker.py
-!curl -sO https://raw.githubusercontent.com/OWNER/REPO/BRANCH/workers/setup.sh
-!bash setup.sh /content
-```
-
-```python
-# Cell 2 — start the worker (blocks the cell; keep the tab open). It waits for its own
-# /health to answer, opens the ngrok tunnel, then calls register_with_aurora() —
-# printing "[register] OK — …" on success or a clear reason on failure/skip.
-import os, sys, threading, uvicorn
-sys.path.insert(0, "/content")
-os.environ["LATENTSYNC_DIR"] = "/content/LatentSync"
-from aurora_worker import app, auto_register_when_ready
-threading.Thread(target=auto_register_when_ready, daemon=True).start()
-uvicorn.run(app, host="0.0.0.0", port=8000)
-```
-
-Confirm it worked the same way as Kaggle (see `kaggle/README.md` § 3): the cell prints
-`[register] OK`, then **Admin → Workers** shows the row as **Active**.
+Same one-cell shape as Kaggle: paste [`colab/aurora_worker_colab.py`](./colab/aurora_worker_colab.py)
+or import [`colab/aurora_worker_colab.ipynb`](./colab/aurora_worker_colab.ipynb), add the
+secrets in Colab's **Secrets** panel (key icon, left sidebar — toggle notebook access ON
+for each), and **Runtime → Run all**. It bridges `google.colab.userdata` into the
+environment, fetches `aurora_worker.py` + `setup.sh` from your repo, installs the task(s)
+that fit your tier (lipsync by default — fits any free T4), opens a stable ngrok tunnel,
+and self-registers via `register_with_aurora()` — identical flow to `kaggle/`, just a
+different secrets API and root dir (`/content` vs `/kaggle/working`). See
+[`colab/README.md`](./colab/README.md) for the full secrets table and setup steps.
 
 ## Vast.ai (rented GPU, `custom` protocol, manual registration)
 
