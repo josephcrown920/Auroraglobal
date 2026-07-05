@@ -188,7 +188,10 @@ export const VIDEO_MODEL_LIST: ModelMeta[] = [
   },
   {
     value: "kling-3.0-omni",
-    endpoint: "fal-ai/kling-video/v2.1/master/image-to-video",
+    // Matches the real dispatched slug (REPLICATE_MAP in orchestrator.server.ts).
+    // Was previously a copy-pasted duplicate of kling-3.0's fal-style endpoint,
+    // which collided in the endpoint->meta index (ALL[m.endpoint]).
+    endpoint: "kwaivgi/kling-v2.1-master",
     label: "Kling 3.0 Omni",
     short: "Kling Omni",
     group: "Replicate",
@@ -196,6 +199,14 @@ export const VIDEO_MODEL_LIST: ModelMeta[] = [
     color: "text-teal-400",
     bg: "bg-teal-500/15 border-teal-500/30",
     tagline: "Omni-modal storytelling",
+    // Left as "preview" (Task #244): confirmed kwaivgi/kling-v2.1-master is a
+    // real, distinct Replicate model ("premium version of Kling v2.1...
+    // superb dynamics") from kwaivgi/kling-v2.1 (kling-3.0) via the Replicate
+    // models API, and it's now fully wired into fallback/priority routing —
+    // but a live end-to-end render could NOT be verified because the
+    // Replicate account currently has zero credit (confirmed account-wide:
+    // even black-forest-labs/flux-schnell 402s with "Insufficient credit").
+    // Promote to "live" once a real render completes after credit is added.
     status: "preview",
     category: "video",
   },
