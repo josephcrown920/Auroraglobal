@@ -18,6 +18,7 @@ import { usePageViewTracking } from "@/hooks/use-tracking";
 import { AuroraChatbot } from "@/components/AuroraChatbot";
 import { AdminHotkey } from "@/components/AdminHotkey";
 import { MobileNav } from "@/components/MobileNav";
+import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { useEffect } from "react";
 import { captureRefFromUrl } from "@/lib/referral";
 import { ReferralAttacher } from "@/components/ReferralAttacher";
@@ -225,6 +226,7 @@ function RootComponent() {
         <AdminHotkey />
         <ReferralAttacher />
         <MobileNav />
+        <CookieConsentBanner />
       </QueryClientProvider>
     </ThemeProvider>
   );
