@@ -58,7 +58,7 @@ import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import { ExampleChips } from "@/components/onboarding/ExampleChips";
 import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
 import { STUDIO_EXAMPLE_PRESETS } from "@/lib/example-presets";
-import { hasDismissedTour, markFirstGenComplete, hasCompletedFirstGen, isFirstPageVisit, markPageVisited } from "@/lib/first-run";
+import { hasDismissedTour, markFirstGenComplete, hasCompletedFirstGen, isFirstPageVisit, markPageVisited, markFirstPurchaseComplete } from "@/lib/first-run";
 
 export const Route = createFileRoute("/studio")({
   component: StudioPage,
@@ -158,6 +158,16 @@ function StudioPage() {
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth" });
   }, [user, loading, navigate]);
+
+  // Paystack redirects back here with ?paid=1 after a successful credit-pack
+  // checkout (see createPaystackCheckout's callback_url) — fire the funnel
+  // event once per browser, mirroring markFirstGenComplete's dedup pattern.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (new URLSearchParams(window.location.search).get("paid") === "1") {
+      markFirstPurchaseComplete();
+    }
+  }, []);
 
   useEffect(() => {
     if (!user) return;

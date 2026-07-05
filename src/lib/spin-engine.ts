@@ -468,7 +468,7 @@ Return the result as JSON matching the provided schema: an object with a "posts"
 
 // ─── Generators ────────────────────────────────────────────────────────────────
 
-function pick<T>(arr: T[], i: number): T {
+function pick<T>(arr: readonly T[], i: number): T {
   return arr[((i % arr.length) + arr.length) % arr.length];
 }
 
