@@ -9,6 +9,12 @@
 
 import { z } from "zod";
 import { PRICING, VIDEO_TIER_AURA, LIPSYNC_TIER_AURA } from "./pricing";
+import creatorsTemplateImg from "@/assets/spin-templates/creators.png";
+import rapperTemplateImg from "@/assets/spin-templates/rapper.png";
+import productShowcaseTemplateImg from "@/assets/spin-templates/product-showcase.png";
+import fitnessTemplateImg from "@/assets/spin-templates/fitness.png";
+import fashionTemplateImg from "@/assets/spin-templates/fashion.png";
+import beautyTemplateImg from "@/assets/spin-templates/beauty.png";
 
 // Kept at 30 for credit parity (1 Aura per piece, charged upfront). The engine
 // is count-driven so this can grow later without code changes.
@@ -243,15 +249,20 @@ export interface SpinTemplate {
   /** True if this template requires the reference photo to already show a
    * held object (a product) that must stay in-frame across every post. */
   requiresHeldObject?: boolean;
+  /** Illustration image shown on the template picker card. Bundled asset path
+   * (resolved to a URL by Vite) — kept optional so a template can ship without
+   * one and just show the emoji. */
+  image?: string;
 }
 
 export const SPIN_TEMPLATES: SpinTemplate[] = [
   {
     id: "default",
-    label: "Regular Creator",
+    label: "Creators",
     emoji: "✨",
     blurb: "Everyday candid content — any topic, ordinary poses.",
     topicSeed: "day in my life",
+    image: creatorsTemplateImg,
   },
   {
     id: "rapper",
@@ -259,6 +270,7 @@ export const SPIN_TEMPLATES: SpinTemplate[] = [
     emoji: "🎤",
     blurb: "Trap & hip-hop aesthetic — mic, chains, street style, moody lighting.",
     topicSeed: "rapper flexing my new single",
+    image: rapperTemplateImg,
   },
   {
     id: "product_showcase",
@@ -267,6 +279,7 @@ export const SPIN_TEMPLATES: SpinTemplate[] = [
     blurb: "Holding YOUR product across 30 different outfits, locations & angles — great for ads.",
     topicSeed: "showing off this product",
     requiresHeldObject: true,
+    image: productShowcaseTemplateImg,
   },
   {
     id: "fitness_creator",
@@ -274,6 +287,7 @@ export const SPIN_TEMPLATES: SpinTemplate[] = [
     emoji: "💪",
     blurb: "Gym, activewear, high-energy candid fitness content.",
     topicSeed: "fitness creator gym day",
+    image: fitnessTemplateImg,
   },
   {
     id: "fashion_lookbook",
@@ -281,6 +295,7 @@ export const SPIN_TEMPLATES: SpinTemplate[] = [
     emoji: "👗",
     blurb: "OOTD-style outfit changes across varied backdrops.",
     topicSeed: "outfit of the day lookbook",
+    image: fashionTemplateImg,
   },
   {
     id: "beauty_glam",
@@ -288,6 +303,7 @@ export const SPIN_TEMPLATES: SpinTemplate[] = [
     emoji: "💋",
     blurb: "Mirror selfies, vanity shots, glam beauty-influencer energy.",
     topicSeed: "glam get-ready-with-me",
+    image: beautyTemplateImg,
   },
 ];
 

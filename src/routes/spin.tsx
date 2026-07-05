@@ -289,13 +289,28 @@ function SpinPage() {
                 type="button"
                 onClick={() => pickTemplate(t.id)}
                 disabled={active}
-                className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition ${
-                  templateId === t.id ? "border-primary bg-primary/10" : "border-white/10 bg-white/5 hover:border-white/25"
+                className={`group relative flex flex-col items-start justify-end gap-0.5 overflow-hidden rounded-xl border p-3 text-left transition aspect-[3/4] ${
+                  templateId === t.id ? "border-primary" : "border-white/10 hover:border-white/25"
                 }`}
               >
-                <span className="text-lg leading-none">{t.emoji}</span>
-                <span className="text-xs font-semibold text-foreground">{t.label}</span>
-                <span className="text-[10px] leading-tight text-muted-foreground">{t.blurb}</span>
+                {t.image ? (
+                  <img
+                    src={t.image}
+                    alt={t.label}
+                    className="absolute inset-0 h-full w-full object-cover transition group-hover:scale-105"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-white/5" />
+                )}
+                <div
+                  className={`absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 ${
+                    templateId === t.id ? "ring-2 ring-inset ring-primary" : ""
+                  }`}
+                />
+                <span className="relative text-lg leading-none">{t.emoji}</span>
+                <span className="relative text-xs font-semibold text-white">{t.label}</span>
+                <span className="relative text-[10px] leading-tight text-white/70">{t.blurb}</span>
               </button>
             ))}
           </div>
