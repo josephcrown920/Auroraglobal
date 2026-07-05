@@ -114,6 +114,14 @@ export const LIPSYNC_TIER_AURA: Record<ModelTier, number> = {
 // Model → tier. Derived from the server MODEL_REGISTRY per-model `cost` (USD per
 // reference clip); pricing.test.ts asserts each model sits in a tier whose pool
 // covers its registry cost, so this table can't silently drift below margin.
+//
+// Adding a new video/lip-sync model to MODEL_REGISTRY (or to FALLBACK_MODELS in
+// orchestrator.server.ts) WITHOUT adding it here fails
+// pricing.test.ts's "model tiers cover real provider cost (margin guard)"
+// suite — that's intentional: an untiered model must fail a test, not silently
+// under-charge in production. Pick the cheapest tier whose pool (tierAura ×
+// $0.047, see POOL_PER_AURA in pricing.test.ts) still comfortably covers the
+// model's real USD cost × 1.15 (retry/fallback buffer).
 export const VIDEO_MODEL_TIERS: Record<string, ModelTier> = {
   "seedance-2.0-fast": "budget", // $0.05
   "kling-v1": "standard", // $0.30
