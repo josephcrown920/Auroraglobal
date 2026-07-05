@@ -11,7 +11,7 @@ import {
   tierForModel,
   type Feature,
 } from "./pricing";
-import { MODEL_REGISTRY } from "./orchestrator.server";
+import { MODEL_REGISTRY, FALLBACK_MODELS } from "./orchestrator.server";
 import { VIDEO_MODEL_LIST, LIPSYNC_MODEL_LIST } from "./models";
 
 // Pricing is the single source of truth shared by the public API, the AI Router
@@ -373,5 +373,21 @@ describe("model tiers cover real provider cost (margin guard)", () => {
     const defLip = MODEL_REGISTRY["fal-ai/sync-lipsync/v2"];
     expect(VIDEO_TIER_AURA.budget * POOL_PER_AURA).toBeGreaterThanOrEqual(defVideo.cost);
     expect(LIPSYNC_TIER_AURA.premium * POOL_PER_AURA).toBeGreaterThanOrEqual(defLip.cost);
+  });
+
+  // The two "every registry model is tiered" tests above only see models that
+  // ARE in MODEL_REGISTRY. A model added straight to FALLBACK_MODELS (what the
+  // orchestrator actually dispatches) but never added to MODEL_REGISTRY would
+  // silently evade both the tier guard AND cost tracking. Close that loophole
+  // by asserting every dispatchable video/lipsync candidate is registered.
+  it("every video/lipsync fallback candidate is registered in MODEL_REGISTRY", () => {
+    for (const model of FALLBACK_MODELS.video) {
+      expect(MODEL_REGISTRY[model], `video fallback candidate ${model} missing from MODEL_REGISTRY`).toBeDefined();
+      expect(MODEL_REGISTRY[model].kind, `video fallback candidate ${model} has wrong kind`).toBe("video");
+    }
+    for (const model of FALLBACK_MODELS.lipsync) {
+      expect(MODEL_REGISTRY[model], `lipsync fallback candidate ${model} missing from MODEL_REGISTRY`).toBeDefined();
+      expect(MODEL_REGISTRY[model].kind, `lipsync fallback candidate ${model} has wrong kind`).toBe("lipsync");
+    }
   });
 });

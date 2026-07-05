@@ -2244,7 +2244,11 @@ async function log(opts: {
 // On top of provider fallback: if the requested model's providers all fail, try
 // a bounded, cheapest-first list of alternate same-kind models (all reachable on
 // the Replicate key). Capped so paid video generations never run away on cost.
-const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
+// Exported (read-only) so pricing.test.ts can assert every video/lipsync
+// candidate that can actually be dispatched is also registered in
+// MODEL_REGISTRY — a model listed here but missing from the registry would
+// silently evade the margin-guard tests below (they only walk the registry).
+export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   // Replit-billed models first (cheap flash image, then gpt-image-1) to save
   // cost. After that, identity-capable models come BEFORE identity-blind
   // pollinations/flux: a Spin/reshoot batch that exhausts its requested model
