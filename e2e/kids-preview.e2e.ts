@@ -112,10 +112,13 @@ test.describe("Kids Story Studio cartoon previews", () => {
       .toBeGreaterThanOrEqual(2);
 
     // The showcase section ("See an example") further down the page uses the same
-    // CartoonPreview component with different assets — confirm it mounts too.
-    const showcaseHeading = page.getByText("See an example", { exact: false });
-    await showcaseHeading.scrollIntoViewIfNeeded();
-    const showcaseVideo = page.locator("video").nth(1);
+    // CartoonPreview component with different assets — confirm it mounts too. Scope
+    // the locator to the panel containing that heading so this genuinely checks the
+    // showcase video, not another character-grid preview that happens to be the
+    // Nth <video> on the page.
+    const showcasePanel = page.locator(".aurora-panel", { hasText: "See an example" });
+    await showcasePanel.scrollIntoViewIfNeeded();
+    const showcaseVideo = showcasePanel.locator("video").first();
     await showcaseVideo.waitFor({ state: "attached", timeout: 10_000 });
     await expect
       .poll(
