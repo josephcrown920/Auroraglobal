@@ -2,6 +2,11 @@
 // Server-only: cost constant + style/music manifest + storage helpers.
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { spawn } from "node:child_process";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 
 // ─── Credit cost ──────────────────────────────────────────────────────────────
 // Same as UGC Ad: a multi-stage assembly job (upload → assemble → deliver).
@@ -135,4 +140,207 @@ export async function createAutocutUploadUrl(
     .createSignedUploadUrl(path);
   if (error || !data) return null;
   return { signedUrl: data.signedUrl, token: data.token };
+}
+
+// ─── Local ffmpeg assembler (no self-hosted GPU worker required) ───────────
+//
+// AutoCut's assembly (normalize → concat → optional music mix) is pure
+// ffmpeg — no GPU/model weights involved (see workers/aurora_worker.py's
+// `run_assemble`, which the self-hosted worker runs). Every Aurora
+// environment already ships the system `ffmpeg`/`ffprobe` binaries (used by
+// compress.server.ts), so rather than making AutoCut depend entirely on an
+// external self-hosted worker being online — which today has zero
+// registered rows in `gpu_workers` and always refunds — this runs the same
+// pipeline locally as the primary path when no self-hosted worker is
+// available. It never depends on GPU/model access, so it can run anywhere
+// the app server runs.
+//
+// One deliberate improvement over the shared Python reference: that
+// implementation always replaces each scene's audio with either narration
+// or silence (built for kids-story picture+narration assembly). AutoCut has
+// no narration track — it's editing the user's OWN footage — so silencing
+// it here would drop real speech/ambience from every cut. This keeps a
+// clip's original audio when it has one, falling back to silence only when
+// a clip truly has no audio stream.
+const ASSEMBLE_W = 720;
+const ASSEMBLE_H = 1280;
+const ASSEMBLE_FPS = 24;
+const ASSEMBLE_MAX_SCENES = 12;
+const ASSEMBLE_STEP_TIMEOUT_MS = 180_000;
+
+function runFfmpegBinary(bin: "ffmpeg" | "ffprobe", args: string[], timeoutMs: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(bin, args, { stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    proc.stdout.on("data", (d: Buffer) => (stdout += d.toString()));
+    proc.stderr.on("data", (d: Buffer) => {
+      stderr += d.toString();
+      if (stderr.length > 4000) stderr = stderr.slice(-4000);
+    });
+    const timer = setTimeout(() => {
+      proc.kill("SIGKILL");
+      reject(new Error(`${bin} timed out`));
+    }, timeoutMs);
+    proc.on("error", (e) => {
+      clearTimeout(timer);
+      reject(e);
+    });
+    proc.on("close", (code) => {
+      clearTimeout(timer);
+      if (code === 0) resolve(stdout);
+      else reject(new Error(`${bin} exited ${code}: ${stderr.slice(-500)}`));
+    });
+  });
+}
+
+async function ffprobeDurationSec(path: string): Promise<number | null> {
+  try {
+    const out = await runFfmpegBinary(
+      "ffprobe",
+      ["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", path],
+      15_000,
+    );
+    const n = parseFloat(out.trim());
+    return Number.isFinite(n) && n > 0 ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+async function hasAudioStream(path: string): Promise<boolean> {
+  try {
+    const out = await runFfmpegBinary(
+      "ffprobe",
+      ["-v", "error", "-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0", path],
+      15_000,
+    );
+    return out.trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function downloadToFile(url: string, destPath: string): Promise<void> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`assemble: failed to download ${url}: ${res.status}`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  await writeFile(destPath, buf);
+}
+
+export type LocalAssembleParams = {
+  clips: string[];
+  musicUrl?: string | null;
+  musicVolume?: number;
+  maxDurationSec?: number;
+};
+
+/**
+ * Runs the AutoCut assembly pipeline (normalize each clip → concat in order
+ * → optional looped/ducked music mix) using the system ffmpeg locally, and
+ * returns the final MP4 bytes. Throws on any failure — callers must treat
+ * that as a terminal job failure (refund), same as an offline GPU worker.
+ */
+export async function runLocalFfmpegAssemble(params: LocalAssembleParams): Promise<Buffer> {
+  const clips = params.clips;
+  if (!clips?.length) throw new Error("assemble requires at least one clip");
+  if (clips.length > ASSEMBLE_MAX_SCENES) {
+    throw new Error(`assemble: too many scenes (${clips.length} > ${ASSEMBLE_MAX_SCENES})`);
+  }
+  for (const u of clips) {
+    if (typeof u !== "string" || !/^https?:\/\//.test(u)) {
+      throw new Error("assemble: every clip must be an http(s) url");
+    }
+  }
+
+  const dir = await mkdtemp(join(tmpdir(), "aurora-assemble-"));
+  try {
+    const sceneFiles: string[] = [];
+    for (let i = 0; i < clips.length; i++) {
+      const clipIn = join(dir, `clip${i}.mp4`);
+      await downloadToFile(clips[i], clipIn);
+      const probedDur = await ffprobeDurationSec(clipIn);
+      const dur = Math.max(0.5, Math.min(probedDur ?? 5, 60));
+      const withAudio = await hasAudioStream(clipIn);
+      const sceneOut = join(dir, `scene${i}_${randomUUID().slice(0, 8)}.mp4`);
+      const vf =
+        `scale=${ASSEMBLE_W}:${ASSEMBLE_H}:force_original_aspect_ratio=decrease,` +
+        `pad=${ASSEMBLE_W}:${ASSEMBLE_H}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${ASSEMBLE_FPS},` +
+        `tpad=stop_mode=clone:stop_duration=${dur.toFixed(3)},format=yuv420p`;
+
+      const args = ["-y", "-i", clipIn];
+      if (!withAudio) args.push("-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000");
+      args.push(
+        "-filter_complex", `[0:v]${vf}[v]`,
+        "-map", "[v]",
+        "-map", withAudio ? "0:a" : "1:a",
+        "-t", dur.toFixed(3),
+        "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-ar", "48000", "-ac", "2",
+        sceneOut,
+      );
+      await runFfmpegBinary("ffmpeg", args, ASSEMBLE_STEP_TIMEOUT_MS);
+      sceneFiles.push(sceneOut);
+    }
+
+    const listPath = join(dir, "concat.txt");
+    await writeFile(listPath, sceneFiles.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join("\n"));
+    const concatOut = join(dir, "concat.mp4");
+    await runFfmpegBinary(
+      "ffmpeg",
+      [
+        "-y", "-f", "concat", "-safe", "0", "-i", listPath,
+        "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-ar", "48000", "-ac", "2",
+        concatOut,
+      ],
+      ASSEMBLE_STEP_TIMEOUT_MS,
+    );
+
+    const maxDur = params.maxDurationSec ?? 60;
+    let finalPath = concatOut;
+
+    if (params.musicUrl) {
+      const musicIn = join(dir, "music.mp3");
+      await downloadToFile(params.musicUrl, musicIn);
+      const musicOut = join(dir, "final.mp4");
+      const vol = params.musicVolume ?? 0.15;
+      await runFfmpegBinary(
+        "ffmpeg",
+        [
+          "-y", "-i", concatOut, "-stream_loop", "-1", "-i", musicIn,
+          "-filter_complex",
+          `[1:a]volume=${vol}[m];[0:a][m]amix=inputs=2:duration=first:dropout_transition=0[a]`,
+          "-map", "0:v", "-map", "[a]",
+          "-t", String(maxDur),
+          "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest",
+          musicOut,
+        ],
+        ASSEMBLE_STEP_TIMEOUT_MS,
+      );
+      finalPath = musicOut;
+    } else {
+      const trimmed = join(dir, "trimmed.mp4");
+      await runFfmpegBinary(
+        "ffmpeg",
+        ["-y", "-i", concatOut, "-t", String(maxDur), "-c", "copy", trimmed],
+        ASSEMBLE_STEP_TIMEOUT_MS,
+      );
+      finalPath = trimmed;
+    }
+
+    return await readFile(finalPath);
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+/** Uploads assembled AutoCut bytes into the studio bucket and returns a public URL. */
+export async function uploadAutocutResult(userId: string, jobId: string, bytes: Buffer): Promise<string> {
+  const path = `${userId}/autocut/${jobId}.mp4`;
+  const { error } = await supabaseAdmin.storage
+    .from("studio")
+    .upload(path, bytes, { contentType: "video/mp4", upsert: true });
+  if (error) throw new Error(`autocut upload failed: ${error.message}`);
+  return supabaseAdmin.storage.from("studio").getPublicUrl(path).data.publicUrl;
 }
