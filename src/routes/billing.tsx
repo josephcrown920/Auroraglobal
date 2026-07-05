@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { getMyProfile, createPaystackCheckout, createProSubscriptionCheckout, cancelProSubscription } from "@/lib/billing.functions";
+import { markFirstPurchaseComplete } from "@/lib/first-run";
 import { redeemPromoCode } from "@/lib/promo.functions";
 import { PLANS, SUBSCRIPTION_TIERS } from "@/lib/billing.plans";
 import { toast } from "sonner";
@@ -45,6 +46,7 @@ function BillingPage() {
     if ((search as any)?.subscribed === "1") {
       toast.success("Welcome to Aurora Pro! Your plan is now active.");
       qc.invalidateQueries({ queryKey: ["profile"] });
+      markFirstPurchaseComplete();
     }
   }, []);
 
