@@ -105,6 +105,11 @@ export function getConsentStatus(): ConsentStatus | null {
   return readConsent()?.status ?? null;
 }
 
+// Fired whenever the stored consent decision changes, so non-React code
+// (e.g. the pre-hydration GTM loader inline script in __root.tsx) can react
+// without polling. Keep this name in sync with that inline script.
+export const CONSENT_CHANGED_EVENT = "aurora:cookie_consent_changed";
+
 export function setConsentStatus(status: ConsentStatus): void {
   if (typeof window === "undefined") return;
   try {
@@ -112,6 +117,8 @@ export function setConsentStatus(status: ConsentStatus): void {
     localStorage.setItem(CONSENT_STORAGE_KEY, JSON.stringify(record));
   } catch {
     /* ignore storage failures (private mode, quota, etc.) */
+  } finally {
+    window.dispatchEvent(new Event(CONSENT_CHANGED_EVENT));
   }
 }
 
