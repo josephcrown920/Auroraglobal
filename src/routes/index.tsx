@@ -172,6 +172,7 @@ function Index() {
             <img
               src={auroraLogo.url}
               alt="Aurora"
+              decoding="async"
               className="size-8 rounded-xl object-contain shadow-[var(--shadow-glow-soft)]"
             />
             <span className="text-white">Aurora</span>

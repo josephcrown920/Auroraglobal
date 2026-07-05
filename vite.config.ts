@@ -72,6 +72,26 @@ export default defineConfig({
         ignored: ["**/.cache/**"],
       },
     },
+    // Split heavy, route-specific dependencies (charts, code editor, flow
+    // diagrams, the Supabase client) into their own chunks instead of letting
+    // them fall into whatever chunk first imports them. These libraries are
+    // each used by only a handful of routes (admin/creator dashboard, the
+    // playground editor, canvas), so keeping them isolated means the landing
+    // page and other common routes don't pay for their weight on first load.
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id: string) {
+            if (!id.includes("node_modules")) return undefined;
+            if (id.includes("monaco-editor") || id.includes("@monaco-editor")) return "vendor-monaco";
+            if (id.includes("recharts") || id.includes("d3-")) return "vendor-charts";
+            if (id.includes("@xyflow")) return "vendor-xyflow";
+            if (id.includes("@supabase")) return "vendor-supabase";
+            return undefined;
+          },
+        },
+      },
+    },
     plugins: extraPlugins,
   },
 });
