@@ -763,8 +763,10 @@ const BYTEPLUS_DEFAULTS: Record<string, BytePlusEntry> = {
   "fal-ai/seedream-4.5": { modelId: "seedream-4-5-251128", kind: "image" },
   // Newest confirmed-live Seedream tier (2026-07-05 catalog pull, status
   // absent = live, not "Retiring"/"Shutdown"). ByteDance-only for now — no
-  // verified Replicate/fal slug exists yet, so this model has no fallback
-  // provider and fails explicitly if BYTEPLUS_API_KEY is absent.
+  // verified Replicate/fal slug exists yet, so byteplus is the ONLY provider
+  // that supports this model key: with BYTEPLUS_API_KEY absent, `supports()`
+  // returns false and orchestrate() throws (no other adapter maps this key),
+  // it does not silently degrade to a different model.
   "fal-ai/seedream-5": { modelId: "seedream-5-0-260128", kind: "image" },
   "seedance-2.0": { modelId: "seedance-1-0-pro-250528", kind: "video" },
   // The old seedance-1-0-lite-i2v/t2v (…-250428) family is fully retired on
