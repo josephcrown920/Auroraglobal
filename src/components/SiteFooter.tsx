@@ -2,6 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Sparkles } from "lucide-react";
 import { useRef } from "react";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
+import { openConsentManager } from "@/lib/consent";
 
 export function SiteFooter({ tone = "dark" }: { tone?: "dark" | "light" }) {
   const muted = tone === "dark" ? "text-white/50 hover:text-white" : "text-muted-foreground hover:text-foreground";
@@ -42,6 +43,8 @@ export function SiteFooter({ tone = "dark" }: { tone?: "dark" | "light" }) {
           <Link to="/legal/$slug" params={{ slug: "terms" }} className={`no-underline ${muted}`}>Terms</Link>
           <Link to="/legal/$slug" params={{ slug: "privacy" }} className={`no-underline ${muted}`}>Privacy</Link>
           <Link to="/legal/$slug" params={{ slug: "ai-policy" }} className={`no-underline ${muted}`}>AI Policy</Link>
+          <Link to="/legal/$slug" params={{ slug: "cookies" }} className={`no-underline ${muted}`}>Cookie Policy</Link>
+          <button type="button" onClick={openConsentManager} className={`no-underline text-left ${muted}`}>Cookie Preferences</button>
         </nav>
       </div>
       <p className={`text-center text-xs mt-8 ${dim}`}>

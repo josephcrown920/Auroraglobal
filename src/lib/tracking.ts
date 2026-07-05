@@ -1,8 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 import { hasBackendEnv } from "@/integrations/backend-config";
+import { hasAnalyticsConsent } from "@/lib/consent";
 
 const SESSION_KEY = "aurora.session_id";
 
+// Only ever creates/persists the session id once analytics consent is
+// granted — see hasAnalyticsConsent() in consent.ts. Callers must check
+// consent before calling this (track() below does).
 function getSessionId(): string {
   if (typeof window === "undefined") return "ssr";
   let id = localStorage.getItem(SESSION_KEY);
@@ -16,6 +20,9 @@ function getSessionId(): string {
 export async function track(name: string, payload?: Record<string, unknown>) {
   if (typeof window === "undefined") return;
   if (!hasBackendEnv()) return;
+  // Gate all non-essential analytics on cookie consent (GDPR/UK/CA). No
+  // session id is generated or stored unless/until consent is granted.
+  if (!hasAnalyticsConsent()) return;
   try {
     const { data: { session } } = await supabase.auth.getSession();
     await supabase.from("events").insert({
