@@ -52,6 +52,7 @@ import { HfAudioPanel } from "@/components/studio/HfAudioPanel";
 import { publishGeneration } from "@/lib/share.functions";
 import { Share2 } from "lucide-react";
 import { saveAssetToDisk } from "@/lib/save";
+import { ShareMenu } from "@/components/share/ShareMenu";
 import { ConnectReplicateBanner } from "@/components/ConnectReplicateBanner";
 import { JoshSlideshow } from "@/components/studio/JoshSlideshow";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
@@ -197,15 +198,6 @@ function StudioPage() {
   const profileFn = useServerFn(getMyProfile);
   const checkoutFn = useServerFn(createPaystackCheckout);
   const publishFn = useServerFn(publishGeneration);
-  const shareMut = useMutation({
-    mutationFn: async (id: string) => publishFn({ data: { id } }),
-    onSuccess: async (r) => {
-      const url = `${window.location.origin}${r.url}`;
-      try { await navigator.clipboard.writeText(url); toast.success("Public link copied", { description: url }); }
-      catch { toast.success("Published", { description: url }); }
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't publish"),
-  });
   const detectCurrencyFn = useServerFn(detectCurrency);
   const { data: geo } = useQuery({ queryKey: ["geo-currency"], queryFn: () => detectCurrencyFn(), staleTime: 60 * 60 * 1000 });
   const currency = geo?.currency ?? "USD";
@@ -707,14 +699,18 @@ function StudioPage() {
                   transitionMs={800}
                 />
                 <div className="absolute bottom-4 right-4 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => latest?.id && shareMut.mutate(latest.id)}
-                    disabled={shareMut.isPending}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-background/90 backdrop-blur text-sm font-medium hover:bg-background disabled:opacity-50"
-                  >
-                    {shareMut.isPending ? <Loader2 className="size-4 animate-spin" /> : <Share2 className="size-4" />} Share
-                  </button>
+                  <ShareMenu
+                    getShareTarget={async () => {
+                      if (!latest) throw new Error("Nothing to share yet");
+                      const r = await publishFn({ data: { id: latest.id } });
+                      return {
+                        url: `${window.location.origin}${r.url}`,
+                        text: latest.prompt ?? undefined,
+                        assetUrl: latest.result_image_url,
+                        filename: `aurora-${latest.id.slice(0, 8)}.png`,
+                      };
+                    }}
+                  />
                   <button
                     type="button"
                     onClick={() => latest?.result_image_url && saveAssetToDisk(latest.result_image_url, `aurora-${latest.id.slice(0,8)}.png`)}
@@ -982,8 +978,29 @@ function StudioPage() {
               </AlertDialog>
 
               {latestVideo?.result_video_url && (
-                <div className="rounded-xl overflow-hidden border border-border bg-background/40">
+                <div className="rounded-xl overflow-hidden border border-border bg-background/40 relative">
                   <video src={latestVideo.result_video_url} className="w-full h-auto" controls playsInline />
+                  <div className="absolute bottom-3 right-3 flex items-center gap-2">
+                    <ShareMenu
+                      getShareTarget={async () => {
+                        if (!latestVideo) throw new Error("Nothing to share yet");
+                        const r = await publishFn({ data: { id: latestVideo.id } });
+                        return {
+                          url: `${window.location.origin}${r.url}`,
+                          text: latestVideo.prompt ?? undefined,
+                          assetUrl: latestVideo.result_video_url,
+                          filename: `aurora-${latestVideo.id.slice(0, 8)}.mp4`,
+                        };
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => latestVideo?.result_video_url && saveAssetToDisk(latestVideo.result_video_url, `aurora-${latestVideo.id.slice(0,8)}.mp4`)}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-background/90 backdrop-blur text-sm font-medium hover:bg-background"
+                    >
+                      <Download className="size-4" /> Save
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

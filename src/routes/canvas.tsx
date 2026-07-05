@@ -56,7 +56,6 @@ import {
   Redo2,
   RotateCcw,
   Download,
-  Share2,
   Clock,
   CheckCircle2,
   XCircle,
@@ -70,6 +69,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SplitRealityPlayer } from "@/components/canvas/SplitRealityPlayer";
+import { ShareMenu } from "@/components/share/ShareMenu";
 
 import { TrendingTemplatesMenu, type TemplateGraph, getTemplateById } from "@/components/canvas/TrendingTemplatesMenu";
 import { AuroraAgentPanel } from "@/components/canvas/AuroraAgentPanel";
@@ -611,24 +611,21 @@ function ExportShareDock({ nodes, edges }: { nodes: Node<NodeData>[]; edges: Edg
       toast.error(e instanceof Error ? e.message : "Download failed");
     }
   };
-  const share = async () => {
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success("Share link copied to clipboard");
-    } catch {
-      toast.error("Could not copy link");
-    }
-  };
-
   return (
     <div className="absolute bottom-3 left-3 z-30 hidden md:flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-[oklch(0.13_0.04_290/0.92)] backdrop-blur-xl shadow-[0_0_30px_oklch(0.62_0.22_165/0.3)] p-2">
       <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-emerald-300 px-1">Final · {KIND_META[final.data.kind].label}</span>
       <Button size="sm" variant="outline" onClick={download} className="border-white/10 bg-white/5">
         <Download className="size-3.5 mr-1" /> Download
       </Button>
-      <Button size="sm" onClick={share} className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white">
-        <Share2 className="size-3.5 mr-1" /> Share
-      </Button>
+      <ShareMenu
+        triggerClassName="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium bg-gradient-to-r from-emerald-500 to-teal-500 text-white disabled:opacity-50"
+        getShareTarget={() => ({
+          url,
+          text: final.data.prompt,
+          assetUrl: url,
+          filename: `aurora-canvas-${final.id}.${isVideo ? "mp4" : "png"}`,
+        })}
+      />
     </div>
   );
 }

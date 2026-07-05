@@ -12,6 +12,8 @@ import { Sparkles, Loader2, ArrowLeft, Star, Download, Film, Image as ImageIcon,
 import { CaptionDialog } from "@/components/gallery/CaptionDialog";
 import { toast } from "sonner";
 import { saveAssetToDisk, isSplitRealityPrompt, splitRealityVariant } from "@/lib/save";
+import { ShareMenu } from "@/components/share/ShareMenu";
+import { publishGeneration } from "@/lib/share.functions";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 
 export const Route = createFileRoute("/gallery")({
@@ -34,6 +36,7 @@ function GalleryPage() {
   const qc = useQueryClient();
   const listFn = useServerFn(listGallery);
   const favFn = useServerFn(toggleFavorite);
+  const publishFn = useServerFn(publishGeneration);
   const [filter, setFilter] = useState<"all" | "favorites" | "images" | "videos">("all");
   const [editing, setEditing] = useState<{ id: string; url: string } | null>(null);
   const [captioning, setCaptioning] = useState<{ id: string; url: string } | null>(null);
@@ -222,6 +225,21 @@ function GalleryPage() {
                   >
                     <Download className="size-3.5" />
                   </button>
+                  {!isWatermarked && rawUrl && (
+                    <ShareMenu
+                      compact
+                      triggerClassName="size-8 rounded-full bg-background/70 backdrop-blur-md border border-border hover:bg-primary/20 hover:border-primary/50 flex items-center justify-center"
+                      getShareTarget={async () => {
+                        const r = await publishFn({ data: { id: g.id } });
+                        return {
+                          url: `${window.location.origin}${r.url}`,
+                          text: g.prompt ?? undefined,
+                          assetUrl: rawUrl,
+                          filename: `aurora-${g.id.slice(0, 8)}.${g.result_video_url ? "mp4" : "png"}`,
+                        };
+                      }}
+                    />
+                  )}
                   <button
                     type="button"
                     onClick={() => {
