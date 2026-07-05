@@ -55,18 +55,18 @@ export function SplitReality() {
     <section className="relative z-10 px-6 md:px-12 pb-24 animate-fade-in">
       <div className="flex items-end justify-between mb-5 animate-fade-in" style={{ animationDelay: "80ms", animationFillMode: "both" }}>
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-violet-300/80 mb-2">Split reality · Football × Basketball</p>
+          <p className="aurora-kicker mb-2">Split reality · Football × Basketball</p>
           <h2 className="text-2xl md:text-3xl font-semibold">One athlete. Two sports. Same shot.</h2>
-          <p className="text-white/60 text-sm mt-1">Drag the slider — hyper-real footballer on one side, NBA hooper on the other. Same render, same man.</p>
+          <p className="text-muted-foreground text-sm mt-1">Drag the slider — hyper-real footballer on one side, NBA hooper on the other. Same render, same man.</p>
         </div>
-        <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-violet-200/80 border border-violet-400/30 bg-violet-500/10 px-3 py-1 rounded-full">
+        <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-primary border border-primary/30 bg-primary/10 px-3 py-1 rounded-full">
           <Sparkles className="size-3" /> Live AI render
         </span>
       </div>
 
       <div
         ref={ref}
-        className="relative w-full aspect-[16/9] md:aspect-[21/9] rounded-3xl overflow-hidden border border-white/10 select-none cursor-ew-resize group bg-black animate-scale-in"
+        className="relative w-full aspect-[16/9] md:aspect-[21/9] rounded-3xl overflow-hidden border border-border select-none cursor-ew-resize group bg-black animate-scale-in"
         style={{ animationDelay: "160ms", animationFillMode: "both" }}
         onMouseMove={(e) => { setAuto(false); move(e.clientX); }}
         onTouchMove={(e) => { setAuto(false); move(e.touches[0].clientX); }}
@@ -115,13 +115,13 @@ export function SplitReality() {
           </div>
         {status === "loading" && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-30">
-            <Loader2 className="size-6 text-violet-300 animate-spin" />
+            <Loader2 className="size-6 text-primary animate-spin" />
           </div>
         )}
         {status === "error" && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/80 text-center px-6 z-30">
             <AlertTriangle className="size-6 text-amber-300" />
-            <p className="text-sm text-white/80">Couldn't load the split-reality clip. <button onClick={() => { setStatus("loading"); leftVideoRef.current?.load(); rightVideoRef.current?.load(); }} className="underline">Retry</button></p>
+            <p className="text-sm text-foreground/80">Couldn't load the split-reality clip. <button onClick={() => { setStatus("loading"); leftVideoRef.current?.load(); rightVideoRef.current?.load(); }} className="underline">Retry</button></p>
           </div>
         )}
       </div>

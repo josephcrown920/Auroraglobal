@@ -63,13 +63,13 @@ function ConnectorMark({ className = "size-6" }: { className?: string }) {
 
 function WindowChrome({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-2 border-b border-white/10 px-4 py-2.5">
+    <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
       <span className="flex items-center gap-2" aria-hidden>
         <span className="size-2.5 rounded-full bg-white/15" />
         <span className="size-2.5 rounded-full bg-white/15" />
         <span className="size-2.5 rounded-full bg-white/15" />
       </span>
-      <span className="ml-auto text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">
+      <span className="ml-auto text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
         {label}
       </span>
     </div>
@@ -79,7 +79,7 @@ function WindowChrome({ label }: { label: string }) {
 function UserBubble({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[85%] rounded-2xl rounded-br-md border border-white/10 bg-white/[0.06] px-4 py-3 text-sm leading-relaxed text-white/90">
+      <div className="max-w-[85%] rounded-2xl rounded-br-md border border-border bg-white/[0.06] px-4 py-3 text-sm leading-relaxed text-foreground/90">
         {children}
       </div>
     </div>
@@ -90,7 +90,7 @@ function AssistantLine({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-start gap-3">
       <ConnectorMark className="size-4" />
-      <div className="flex-1 text-sm leading-relaxed text-white/80">{children}</div>
+      <div className="flex-1 text-sm leading-relaxed text-foreground/80">{children}</div>
     </div>
   );
 }
@@ -102,7 +102,7 @@ export function McpConnector() {
   return (
     <section
       id="mcp"
-      className="relative z-10 mx-4 md:mx-12 my-16 overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-br from-[#160a22] via-[#0d0820] to-[#06070d]"
+      className="relative z-10 mx-4 md:mx-12 my-16 overflow-hidden rounded-[32px] border border-border bg-gradient-to-br from-[#160a22] via-[#0d0820] to-[#06070d]"
     >
       <div
         className="absolute inset-0 pointer-events-none opacity-60"
@@ -120,24 +120,24 @@ export function McpConnector() {
           </span>
         </div>
 
-        <h2 className="mt-5 max-w-3xl text-4xl font-extrabold leading-[1.05] tracking-tight text-white md:text-6xl">
+        <h2 className="mt-5 max-w-3xl text-4xl font-extrabold leading-[1.05] tracking-tight text-foreground md:text-6xl">
           Turn <ConnectorMark className="size-7 md:size-9" /> Claude into your{" "}
           <span className="bg-gradient-to-r from-amber-300 via-fuchsia-300 to-violet-300 bg-clip-text text-transparent">
             creative engine.
           </span>
         </h2>
-        <p className="mt-4 max-w-2xl text-base leading-7 text-white/72 md:text-lg">
+        <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground md:text-lg">
           Connect Aurora to Claude and generate avatar images, videos, talking UGC
-          ads and full campaigns right from your conversations. <strong className="text-white">13 tools, one
+          ads and full campaigns right from your conversations. <strong className="text-foreground">13 tools, one
           connection</strong> — manage avatars, generate, queue and track jobs, all from a chat.
         </p>
 
         {/* Primary chat mockup — bulk generation */}
-        <div className="mt-10 overflow-hidden rounded-3xl border border-white/10 bg-black/50 backdrop-blur">
+        <div className="mt-10 overflow-hidden rounded-3xl border border-border bg-black/50 backdrop-blur">
           <WindowChrome label="Claude · Aurora Connector" />
           <div className="space-y-4 p-5 md:p-6">
             <UserBubble>
-              Generate 8 IG-ready photos of <strong className="text-white">Lily</strong> for this week
+              Generate 8 IG-ready photos of <strong className="text-foreground">Lily</strong> for this week
               — vary the outfits, moods and lighting. Mix indoor and outdoor. 4:5 portrait.
             </UserBubble>
             <AssistantLine>
@@ -148,7 +148,7 @@ export function McpConnector() {
               {GRID_PHOTOS.map((src, i) => (
                 <div
                   key={i}
-                  className="relative aspect-[4/5] overflow-hidden rounded-xl border border-white/10"
+                  className="relative aspect-[4/5] overflow-hidden rounded-xl border border-border"
                 >
                   <img src={src} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
@@ -158,7 +158,7 @@ export function McpConnector() {
                 </div>
               ))}
             </div>
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/45">
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
               8 images · 60 Aura · ~38s
             </p>
           </div>
@@ -167,13 +167,13 @@ export function McpConnector() {
         {/* Numbered steps */}
         <div className="mt-8 grid gap-3 md:grid-cols-3">
           {STEPS.map((s) => (
-            <div key={s.n} className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+            <div key={s.n} className="aurora-card p-5">
               <div className="flex items-center gap-2 text-orange-200/80">
                 <span className="font-mono text-sm font-semibold">{s.n}</span>
                 {s.icon}
               </div>
-              <h3 className="mt-3 text-base font-semibold text-white">{s.title}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-white/65">{s.body}</p>
+              <h3 className="mt-3 text-base font-semibold text-foreground">{s.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{s.body}</p>
             </div>
           ))}
         </div>
@@ -181,7 +181,7 @@ export function McpConnector() {
         {/* Secondary mockups — avatar library + image to video */}
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           {/* Avatar library */}
-          <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+          <div className="overflow-hidden rounded-2xl border border-border bg-black/40">
             <WindowChrome label="Claude · Aurora" />
             <div className="space-y-3 p-5">
               <UserBubble>List my avatars</UserBubble>
@@ -190,13 +190,13 @@ export function McpConnector() {
                 {LIBRARY.map((a) => (
                   <div
                     key={a.name}
-                    className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5"
+                    className="flex items-center justify-between rounded-xl border border-border bg-white/[0.03] px-3 py-2.5"
                   >
                     <div className="flex items-center gap-2.5">
-                      <span className="size-7 overflow-hidden rounded-full border border-white/15">
+                      <span className="size-7 overflow-hidden rounded-full border border-border">
                         <img src={a.img} alt={a.name} className="size-full object-cover" loading="lazy" />
                       </span>
-                      <span className="text-sm font-medium text-white">{a.name}</span>
+                      <span className="text-sm font-medium text-foreground">{a.name}</span>
                     </div>
                     <span
                       className={`text-[10px] font-semibold uppercase tracking-widest ${
@@ -212,7 +212,7 @@ export function McpConnector() {
           </div>
 
           {/* Image to video */}
-          <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+          <div className="overflow-hidden rounded-2xl border border-border bg-black/40">
             <WindowChrome label="Claude · Aurora" />
             <div className="space-y-3 p-5">
               <UserBubble>
@@ -221,13 +221,13 @@ export function McpConnector() {
               <AssistantLine>
                 <span className="inline-flex items-center gap-1.5">
                   Running
-                  <code className="rounded bg-fuchsia-500/15 px-1.5 py-0.5 font-mono text-[12px] text-fuchsia-200">
+                  <code className="rounded bg-primary/15 px-1.5 py-0.5 font-mono text-[12px] text-primary">
                     kling-2.5-turbo
                   </code>
                   · 5s · 9:16
                 </span>
               </AssistantLine>
-              <div className="relative aspect-video overflow-hidden rounded-xl border border-white/10">
+              <div className="relative aspect-video overflow-hidden rounded-xl border border-border">
                 <img src={joshStill} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
                 <span className="absolute inset-0 grid place-items-center">
@@ -249,14 +249,14 @@ export function McpConnector() {
         {/* How it works */}
         <div
           id="mcp-how"
-          className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5 md:p-6"
+          className="mt-8 rounded-2xl border border-border bg-white/[0.03] p-5 md:p-6"
         >
-          <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-300/80">
+          <h3 className="aurora-kicker">
             How the Claude connector works
           </h3>
-          <p className="mt-3 max-w-3xl text-sm leading-relaxed text-white/70">
+          <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground">
             Aurora runs a Model Context Protocol (MCP) server at{" "}
-            <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[12px] text-white/90">
+            <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[12px] text-foreground/90">
               /api/mcp
             </code>{" "}
             on your account domain. In Claude Desktop, Cursor or any other MCP client, add that
@@ -272,18 +272,18 @@ export function McpConnector() {
           <Link
             to={connectTo}
             onClick={() => void track("mcp_connect_click")}
-            className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold text-black no-underline shadow-lg shadow-white/10 hover:opacity-90"
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-bold text-primary-foreground no-underline shadow-lg shadow-primary/10 hover:opacity-90"
           >
             Connect Claude <ArrowRight className="size-4" />
           </Link>
           <a
             href="#mcp-how"
-            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-white no-underline hover:bg-white/10"
+            className="inline-flex items-center gap-2 rounded-full border border-border bg-white/5 px-6 py-3 text-sm font-semibold text-foreground no-underline hover:bg-white/10"
           >
             See how it works
           </a>
         </div>
-        <p className="mt-4 text-xs text-white/45">
+        <p className="mt-4 text-xs text-muted-foreground">
           Available on Growth and Creator plans · 5-minute setup · Works with Claude Desktop,
           claude.ai &amp; Cursor
         </p>

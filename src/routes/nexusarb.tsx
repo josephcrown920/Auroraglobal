@@ -26,7 +26,7 @@ export const Route = createFileRoute("/nexusarb")({
 
 function NexusArbPage() {
   return (
-    <div style={{ minHeight: "100vh", background: "#020408" }}>
+    <div style={{ minHeight: "100vh", background: "var(--background)" }}>
       <div
         style={{
           position: "relative",

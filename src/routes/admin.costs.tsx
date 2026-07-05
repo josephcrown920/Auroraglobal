@@ -31,7 +31,7 @@ const KIND_COLORS: Record<string, string> = {
 };
 
 function kindStyle(kind: string) {
-  return KIND_COLORS[kind] ?? "text-neutral-400 bg-neutral-500/10";
+  return KIND_COLORS[kind] ?? "text-muted-foreground bg-muted";
 }
 
 function CostDashboard() {
@@ -76,16 +76,16 @@ function CostDashboard() {
   if (!unlocked) return <AdminGate onUnlocked={() => setUnlocked(true)} />;
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100">
+    <div className="min-h-screen bg-background text-foreground">
         <div className="mx-auto max-w-5xl px-4 py-10">
           <header className="mb-8 flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-2 text-sm text-fuchsia-400">
+              <div className="flex items-center gap-2 text-sm text-primary">
                 <BarChart2 className="h-4 w-4" />
                 Admin
               </div>
               <h1 className="mt-1 text-3xl font-bold tracking-tight">Cost Dashboard</h1>
-              <p className="mt-1 text-sm text-neutral-400">
+              <p className="mt-1 text-sm text-muted-foreground">
                 Generation spend by kind over the last{" "}
                 {data?.since ? `30 days (from ${data.since.slice(0, 10)})` : "30 days"}.
               </p>
@@ -94,14 +94,14 @@ function CostDashboard() {
               <button
                 onClick={() => refetch()}
                 disabled={isFetching}
-                className="flex items-center gap-1.5 rounded-lg border border-neutral-800 px-3 py-2 text-xs text-neutral-400 transition hover:border-neutral-700 hover:text-neutral-200 disabled:opacity-40"
+                className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground transition hover:border-[color:var(--border-strong)] hover:text-foreground disabled:opacity-40"
               >
                 <RefreshCw className={`h-3 w-3 ${isFetching ? "animate-spin" : ""}`} />
                 Refresh
               </button>
               <Link
                 to="/admin"
-                className="flex items-center gap-1.5 text-sm text-neutral-400 hover:text-neutral-100"
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
               >
                 <ArrowLeft className="h-4 w-4" /> Admin
               </Link>
@@ -110,12 +110,12 @@ function CostDashboard() {
 
           {isLoading && (
             <div className="flex h-48 items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-fuchsia-400" />
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
           )}
 
           {error && (
-            <div className="rounded-xl border border-red-900 bg-red-950/50 p-4 text-sm text-red-400">
+            <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
               {error instanceof Error ? error.message : "Failed to load cost stats"}
             </div>
           )}
@@ -130,8 +130,8 @@ function CostDashboard() {
                     onClick={() => setViewDays(d)}
                     className={`rounded-lg border px-4 py-2 text-xs transition ${
                       viewDays === d
-                        ? "border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-300"
-                        : "border-neutral-800 text-neutral-400 hover:border-neutral-700"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border text-muted-foreground hover:border-[color:var(--border-strong)]"
                     }`}
                   >
                     Last {d} days
@@ -145,13 +145,13 @@ function CostDashboard() {
                   label="Total Aura spent"
                   value={grandTotal.toLocaleString()}
                   sub={`${grandCount.toLocaleString()} generations`}
-                  icon={<Coins className="h-5 w-5 text-fuchsia-400" />}
+                  icon={<Coins className="h-5 w-5 text-primary" />}
                 />
                 <StatCard
                   label="Unique kinds"
                   value={String(kindRows.length)}
                   sub="generation modalities"
-                  icon={<TrendingUp className="h-5 w-5 text-pink-400" />}
+                  icon={<TrendingUp className="h-5 w-5 text-primary" />}
                 />
                 <StatCard
                   label="Avg cost / generation"
@@ -162,13 +162,13 @@ function CostDashboard() {
               </div>
 
               {/* Per-kind totals */}
-              <div className="mb-8 overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900">
-                <div className="border-b border-neutral-800 px-5 py-4 text-sm font-semibold text-neutral-200">
+              <div className="mb-8 overflow-hidden rounded-2xl border border-border bg-card/40">
+                <div className="border-b border-border px-5 py-4 text-sm font-semibold text-foreground">
                   Spend by kind — last {viewDays} days
                 </div>
-                <div className="divide-y divide-neutral-800">
+                <div className="divide-y divide-border">
                   {kindRows.length === 0 && (
-                    <div className="px-5 py-6 text-sm text-neutral-500">
+                    <div className="px-5 py-6 text-sm text-muted-foreground">
                       No succeeded generations in this window.
                     </div>
                   )}
@@ -182,18 +182,18 @@ function CostDashboard() {
                           {kind}
                         </span>
                         <div className="flex-1 min-w-0">
-                          <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-neutral-800">
+                          <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted">
                             <div
-                              className="absolute inset-y-0 left-0 rounded-full bg-fuchsia-500"
+                              className="absolute inset-y-0 left-0 rounded-full bg-primary"
                               style={{ width: `${pct.toFixed(1)}%` }}
                             />
                           </div>
                         </div>
                         <div className="flex w-36 items-center justify-end gap-4 text-right">
-                          <span className="text-xs text-neutral-500">
+                          <span className="text-xs text-muted-foreground">
                             {stats.count.toLocaleString()} jobs
                           </span>
-                          <span className="text-sm font-semibold tabular-nums text-fuchsia-300">
+                          <span className="text-sm font-semibold tabular-nums text-primary">
                             {stats.totalCredits.toLocaleString()} Aura
                           </span>
                         </div>
@@ -204,24 +204,24 @@ function CostDashboard() {
               </div>
 
               {/* Daily breakdown table */}
-              <div className="overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900">
-                <div className="border-b border-neutral-800 px-5 py-4 text-sm font-semibold text-neutral-200">
+              <div className="overflow-hidden rounded-2xl border border-border bg-card/40">
+                <div className="border-b border-border px-5 py-4 text-sm font-semibold text-foreground">
                   Daily breakdown
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-neutral-800 text-xs uppercase tracking-wide text-neutral-500">
+                      <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
                         <th className="px-5 py-3 text-left">Date</th>
                         <th className="px-5 py-3 text-left">Kind</th>
                         <th className="px-5 py-3 text-right">Jobs</th>
                         <th className="px-5 py-3 text-right">Aura spent</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-neutral-800/50">
+                    <tbody className="divide-y divide-border/50">
                       {(filteredDays ?? []).slice(0, 200).map((row) => (
-                        <tr key={`${row.day}-${row.kind}`} className="hover:bg-neutral-800/30">
-                          <td className="px-5 py-2.5 tabular-nums text-neutral-400">{row.day}</td>
+                        <tr key={`${row.day}-${row.kind}`} className="hover:bg-card/60">
+                          <td className="px-5 py-2.5 tabular-nums text-muted-foreground">{row.day}</td>
                           <td className="px-5 py-2.5">
                             <span
                               className={`rounded px-1.5 py-0.5 text-xs font-medium ${kindStyle(row.kind)}`}
@@ -229,10 +229,10 @@ function CostDashboard() {
                               {row.kind}
                             </span>
                           </td>
-                          <td className="px-5 py-2.5 text-right tabular-nums text-neutral-400">
+                          <td className="px-5 py-2.5 text-right tabular-nums text-muted-foreground">
                             {row.count}
                           </td>
-                          <td className="px-5 py-2.5 text-right tabular-nums font-semibold text-fuchsia-300">
+                          <td className="px-5 py-2.5 text-right tabular-nums font-semibold text-primary">
                             {row.totalCredits.toLocaleString()}
                           </td>
                         </tr>
@@ -240,7 +240,7 @@ function CostDashboard() {
                     </tbody>
                   </table>
                   {(filteredDays?.length ?? 0) > 200 && (
-                    <p className="px-5 py-3 text-xs text-neutral-500">
+                    <p className="px-5 py-3 text-xs text-muted-foreground">
                       Showing first 200 rows. Use the date filter for a narrower window.
                     </p>
                   )}
@@ -265,13 +265,13 @@ function StatCard({
   icon: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
-      <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-neutral-500">
+    <div className="rounded-2xl border border-border bg-card/40 p-5">
+      <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {icon}
         {label}
       </div>
       <div className="text-2xl font-bold tabular-nums">{value}</div>
-      <div className="mt-0.5 text-xs text-neutral-500">{sub}</div>
+      <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div>
     </div>
   );
 }
