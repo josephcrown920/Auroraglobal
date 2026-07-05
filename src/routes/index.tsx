@@ -307,6 +307,9 @@ function Index() {
       {/* 0. One-tap templates — trending strip right below the hero */}
       <TrendingTemplatesStrip />
 
+      {/* 0c. Canvas + finished workflows + UGC Factory — promoted near the top */}
+      <CanvasWorkflowShowcase />
+
       {/* 0. Viral engine — TikTok hook moved to the very top */}
       <ViralEngine />
 
@@ -330,9 +333,6 @@ function Index() {
 
       {/* 5. Our services */}
       <ServicesGrid />
-
-      {/* 6. Canvas + finished workflows + UGC Factory */}
-      <CanvasWorkflowShowcase />
 
       {/* 7. Trust + Why us */}
       <TrustBar />
