@@ -32,6 +32,7 @@ export const Route = createFileRoute("/api/public/jobs/tick")({
           sweepStuckReservations,
           recordSchedulerHeartbeat,
         } = await import("@/lib/jobs.server");
+        const { advanceSpinQueueAdmin } = await import("@/lib/spin.functions");
 
         try {
           const swept = await sweepStaleProcessingJobs();
@@ -39,8 +40,18 @@ export const Route = createFileRoute("/api/public/jobs/tick")({
           const reconciled = await sweepStuckReservations();
           const workerId = `tick:${crypto.randomUUID().slice(0, 8)}`;
           const results = await processBatch(workerId, 5);
+          // Spin (`/spin`) batches otherwise only advance while a browser tab is
+          // open polling tickSpinJob — this piggybacks on the same per-minute
+          // cron so a closed tab / lost connection never leaves a batch stuck
+          // mid-way. Best-effort: a spin render failure must never fail the tick.
+          let spin: { jobsAdvanced: number; variantsProcessed: number } | { error: string };
+          try {
+            spin = await advanceSpinQueueAdmin();
+          } catch (e) {
+            spin = { error: e instanceof Error ? e.message : String(e) };
+          }
           await recordSchedulerHeartbeat(HEARTBEAT_NAME, true);
-          return new Response(JSON.stringify({ ok: true, swept, recovered, reconciled, results }), {
+          return new Response(JSON.stringify({ ok: true, swept, recovered, reconciled, results, spin }), {
             status: 200,
             headers: { "Content-Type": "application/json" },
           });

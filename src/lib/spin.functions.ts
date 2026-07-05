@@ -14,11 +14,13 @@ import {
   SPIN_PIECE_COST,
   VIRAL_SYSTEM_PROMPT,
   SpinPlanSchema,
+  SPIN_TEMPLATES,
   buildFallbackSpecs,
   normalizeSpecs,
   buildVariantPrompt,
   specLabel,
   type SpinSpec,
+  type SpinTemplateId,
 } from "./spin-engine";
 
 // 1 Aura per spin piece — shared client-safe constant (also drives the cost
@@ -66,14 +68,17 @@ export const getSpinOptions = createServerFn({ method: "GET" })
     } catch {
       avatars = [];
     }
-    return { count: SPIN_COUNT, avatars };
+    return { count: SPIN_COUNT, avatars, templates: SPIN_TEMPLATES };
   });
 
 // ─── Start a batch ───────────────────────────────────────────────────────────
 
+const TEMPLATE_IDS = SPIN_TEMPLATES.map((t) => t.id) as [SpinTemplateId, ...SpinTemplateId[]];
+
 const SpinInput = z.object({
   prompt: z.string().min(1).max(2000),
   avatarId: z.string().uuid().optional(),
+  templateId: z.enum(TEMPLATE_IDS).optional().default("default"),
 });
 
 export const spinThirty = createServerFn({ method: "POST" })
@@ -132,6 +137,8 @@ export const spinThirty = createServerFn({ method: "POST" })
     // Fan the single idea out into SPIN_COUNT genuinely-varied post specs.
     // LLM first (viral engine prompt), deterministic fallback on ANY failure so
     // the feature never regresses to near-identical outputs.
+    const templateId = data.templateId;
+    const template = SPIN_TEMPLATES.find((t) => t.id === templateId);
     const base = data.prompt.trim();
     let specs: SpinSpec[];
     try {
@@ -140,12 +147,18 @@ export const spinThirty = createServerFn({ method: "POST" })
         prompt:
           `Creator: ${avatarName ?? "one single creator"} — keep the EXACT same person (same face/identity) in every post. ` +
           `Topic / hook idea: "${base}". Platform: TikTok / Reels / Shorts. ` +
+          (template && template.id !== "default"
+            ? `Template aesthetic: "${template.label}" — ${template.blurb} Every outfit, location and pose choice must fit this aesthetic. `
+            : "") +
+          (template?.requiresHeldObject
+            ? "The reference photo shows the creator holding a specific product — every post must keep that exact same product visibly in her hand/frame, varying only outfit/location/angle/pose around it. "
+            : "") +
           `Generate exactly ${SPIN_COUNT} unique posts with MAXIMUM variation as JSON.`,
         schema: SpinPlanSchema,
       });
-      specs = normalizeSpecs(output.posts ?? [], base, SPIN_COUNT);
+      specs = normalizeSpecs(output.posts ?? [], base, SPIN_COUNT, templateId);
     } catch {
-      specs = buildFallbackSpecs(base, SPIN_COUNT);
+      specs = buildFallbackSpecs(base, SPIN_COUNT, templateId);
     }
 
     const { data: job, error } = await db
@@ -173,7 +186,7 @@ export const spinThirty = createServerFn({ method: "POST" })
       status: "queued" as const,
       kind: "image",
       spec,
-      prompt: buildVariantPrompt(spec, { base, triggerWord, avatarName }),
+      prompt: buildVariantPrompt(spec, { base, triggerWord, avatarName, templateId }),
     }));
     const { error: vErr } = await db.from("spin_variants").insert(rows);
     if (vErr) {
@@ -202,6 +215,156 @@ export const getSpinJob = createServerFn({ method: "POST" })
     if (!job) throw new Error("Job not found");
     return { job, variants: variants ?? [] };
   });
+
+// ─── Cron-driven continuation (admin-scoped, no browser tab required) ───────
+// tickSpinJob above only ever runs while a browser tab is open and driving the
+// poll loop in spin.tsx — close the tab, background it, or lose the network
+// mid-batch and the job stalls forever at whatever count it reached (confirmed
+// live: a job left at "queued" for every variant, hours after being started).
+// This admin-scoped twin does the same claim → orchestrate → finalize work but
+// sweeps ALL users' "running" spin_jobs, so the existing per-minute
+// `/api/public/jobs/tick` cron (already scheduled via pg_cron) keeps every
+// batch moving to completion even if nobody is looking at /spin.
+export async function advanceSpinQueueAdmin(
+  maxJobs = 5,
+  batchPerJob = 3,
+): Promise<{ jobsAdvanced: number; variantsProcessed: number }> {
+  const db = supabaseAdmin as unknown as LooseClient;
+
+  // Reclaim variants stuck "running" for >3 min across every job (a server
+  // died mid-render) so they get picked up again below.
+  const staleCutoff = new Date(Date.now() - 3 * 60_000).toISOString();
+  await db
+    .from("spin_variants")
+    .update({ status: "queued" })
+    .eq("status", "running")
+    .lt("updated_at", staleCutoff);
+
+  const { data: runningJobs } = await db
+    .from("spin_jobs")
+    .select("id,user_id,face_url")
+    .eq("status", "running")
+    .order("created_at", { ascending: true })
+    .limit(maxJobs);
+
+  let jobsAdvanced = 0;
+  let variantsProcessed = 0;
+
+  for (const job of (runningJobs ?? []) as { id: string; user_id: string; face_url: string | null }[]) {
+    let faceUrl: string | null = job.face_url ?? null;
+    if (faceUrl) {
+      try {
+        assertTrustedUrl(faceUrl);
+      } catch {
+        faceUrl = null;
+      }
+    }
+
+    const { data: pending } = await db
+      .from("spin_variants")
+      .select("id,idx,label,prompt")
+      .eq("job_id", job.id)
+      .eq("status", "queued")
+      .order("idx", { ascending: true })
+      .limit(batchPerJob);
+
+    if (!pending || pending.length === 0) {
+      const { count: remaining } = await db
+        .from("spin_variants")
+        .select("id", { count: "exact", head: true })
+        .eq("job_id", job.id)
+        .in("status", ["queued", "running"]);
+      if ((remaining ?? 0) === 0) {
+        await db.from("spin_jobs").update({ status: "done" }).eq("id", job.id);
+        jobsAdvanced += 1;
+      }
+      continue;
+    }
+
+    const { data: claimedRows } = await db
+      .from("spin_variants")
+      .update({ status: "running" })
+      .in(
+        "id",
+        pending.map((p: { id: string }) => p.id),
+      )
+      .eq("status", "queued")
+      .select("id,idx,label,prompt");
+    const claimed = (claimedRows ?? []) as {
+      id: string;
+      idx: number;
+      label: string;
+      prompt: string | null;
+    }[];
+    if (claimed.length === 0) continue;
+    jobsAdvanced += 1;
+
+    await Promise.allSettled(
+      claimed.map(async (p) => {
+        variantsProcessed += 1;
+        try {
+          const out = await orchestrate({
+            kind: "image",
+            model: IMAGE_MODEL,
+            prompt: p.prompt || p.label,
+            imageUrls: faceUrl ? [faceUrl] : undefined,
+            userId: job.user_id,
+            refId: p.id,
+          });
+          const { bytes: rawBytes, mime: rawMime } = await fetchToBytes(out.url);
+          const img = await compressImageBytes(rawBytes, rawMime || "image/png");
+          const path = `${job.user_id}/spin/${job.id}/${p.idx}.${img.ext}`;
+          const { error: upErr } = await supabaseAdmin.storage
+            .from("studio")
+            .upload(path, img.bytes, { contentType: img.mime, upsert: true });
+          if (upErr) throw new Error(upErr.message);
+          const publicUrl = supabaseAdmin.storage.from("studio").getPublicUrl(path).data.publicUrl;
+
+          const { data: won } = await db
+            .from("spin_variants")
+            .update({ status: "done", url: publicUrl })
+            .eq("id", p.id)
+            .eq("status", "running")
+            .select("id");
+          if (((won ?? []) as { id: string }[]).length > 0) {
+            await supabaseAdmin.from("generations").insert({
+              user_id: job.user_id,
+              prompt: p.prompt ?? "",
+              kind: "image",
+              mode: "performance",
+              status: "succeeded",
+              model: out.provider,
+              input_images: faceUrl ? [faceUrl] : [],
+              result_image_url: publicUrl,
+              credits_cost: COST_SPIN_PIECE,
+            } as never);
+          }
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : "render failed";
+          const { data: lost } = await db
+            .from("spin_variants")
+            .update({ status: "error", error: msg })
+            .eq("id", p.id)
+            .eq("status", "running")
+            .select("id");
+          if (((lost ?? []) as { id: string }[]).length > 0) {
+            const admin = await isAdmin(job.user_id);
+            if (!admin) {
+              await supabaseAdmin.rpc("grant_credits", {
+                _user: job.user_id,
+                _amount: COST_SPIN_PIECE,
+                _reason: "refund_failed_generation",
+                _ref: p.id,
+              });
+            }
+          }
+        }
+      }),
+    );
+  }
+
+  return { jobsAdvanced, variantsProcessed };
+}
 
 // ─── Render the next batch ───────────────────────────────────────────────────
 // Picks up to `batch` queued variants, renders each as a real identity-locked
