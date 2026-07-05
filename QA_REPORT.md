@@ -257,3 +257,53 @@ Auth, image generation (with real credit deduction and DB persistence), text orc
 4. Optional: add `KLING_ACCESS_KEY`/`KLING_SECRET_KEY` and `SYNC_API_KEY` for additional video/lip-sync provider redundancy (not required once fal/BytePlus are fixed).
 
 With these added, every BLOCKED area above converts to a directly testable live run using the seeded test account.
+
+---
+
+## Addendum — Production secret verification (2026-07-05)
+
+**Scope:** Confirm the published app (`https://aurora-prime.replit.app`, autoscale, public) actually connects to Supabase and Replicate at runtime, per the SSR clients in `src/integrations/supabase/client.server.ts` / `client.ts` and `src/lib/replicate.server.ts`.
+
+### Findings
+
+- The project was already published with a successful build, and `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY` were present as **shared** env vars (available in both dev and prod).
+- Two secrets required by server code were **missing from the project entirely** (confirmed via `viewEnvVars`, not just "missing in prod"):
+  - `SUPABASE_SERVICE_ROLE_KEY` — read by `createSupabaseAdminClient()` in `client.server.ts`; `supabaseAdmin` is imported by nearly every server function (auth, billing, jobs, workers, orchestration). Without it, any code path touching `supabaseAdmin` throws `Missing Supabase environment variable(s): SUPABASE_SERVICE_ROLE_KEY`.
+  - `REPLICATE_API_KEY` — read by `src/lib/replicate.server.ts`; without it, `getReplicateToken()` throws `REPLICATE_API_KEY missing` and media generation via Replicate cannot run.
+
+### Actions taken
+
+- Requested both secrets from the user; both were provided and are now present in the project's secret store (secrets are global, not environment-scoped, so they apply to both dev and the existing production deployment without a rebuild).
+- Restarted all workflows to pick them up in dev.
+
+### Live production verification performed (not just code review)
+
+1. `GET https://aurora-prime.replit.app/` → `200`, full SSR HTML (~214KB), no error markers.
+2. `GET https://aurora-prime.replit.app/billing` → `200`.
+3. `GET https://aurora-prime.replit.app/api/mcp` → `200`, valid MCP manifest JSON.
+4. `POST https://aurora-prime.replit.app/api/public/workers/register` (no auth) → `401 {"error":"Unauthorized"}` — proves the route's `supabaseAdmin`-backed auth check runs and rejects correctly instead of 500ing on a missing-key throw.
+5. Fetched deployment logs (`fetchDeploymentLogs`) after the secret update and after the above requests: no `error`/`exception`/`500` entries; only expected transient healthcheck-during-boot lines from container startup.
+6. Directly validated the credential values (not just presence) against their providers from the sandbox:
+   - `GET $SUPABASE_URL/rest/v1/` with the service role key → `200`, valid PostgREST root JSON.
+   - `GET https://api.replicate.com/v1/account` with `REPLICATE_API_KEY` → `200`, returns the real Replicate org account.
+
+### Full authenticated login + end-to-end generate flow (live production, real user)
+
+To close the gap between "credentials are valid" and "auth/session works + a generate flow succeeds", a temporary real user was created and driven through production end-to-end, then deleted:
+
+1. Created a real Supabase user via the Admin API (`POST /auth/v1/admin/users`, service role key, `email_confirm: true`) → `200`, got a `user.id`.
+2. Signed in as that user via `POST /auth/v1/token?grant_type=password` with the publishable key → `200`, got a real `access_token` (session JWT) — proves login/session issuance works against the live Supabase project the prod app points at.
+3. Confirmed the new user's `profiles` row was auto-provisioned with starter credits (`credits: 5`) by the `on_auth_user_created` trigger.
+4. Called the **live production** endpoint `POST https://aurora-prime.replit.app/api/public/generate` with `Authorization: Bearer <that access_token>` and `{"kind":"text","prompt":"Say the word OK and nothing else."}` (cheapest kind, 1 credit) →
+   `200 {"ok":true,"text":"OK","provider":"replit-openai-text","endpoint":"replit-openai-text:gpt-5-nano","creditsCost":1,...}`
+   — this is a real authenticated request served by the production deployment, that authenticated the Bearer token via `supabaseAdmin.auth.getUser()`, ran the orchestrator, and called a live text provider.
+5. Verified server-side effects actually persisted (not just a 200 response): `profiles.credits` for that user dropped `5 → 4`, and a new `generations` row was written with `status: "succeeded"`, `result_text: "OK"`, `credits_cost: 1`.
+6. Cleaned up: deleted the test user (`DELETE /auth/v1/admin/users/{id}` → `200`) and its orphaned `profiles`/`generations` rows so no test data is left in the production database.
+
+### Verdict
+
+Production database (Supabase) and the Replicate/AI provider path are both reachable and authenticated from the live deployment, **and** a full login → authenticated request → real generation → credit deduction → DB persistence cycle was executed and verified end-to-end against `https://aurora-prime.replit.app` using a real (temporary) user. This resolves the "no Supabase connection / no AI provider keys" blocker noted in §0/§1 above for the Supabase + generation path specifically (Paystack currency and fal.ai/BytePlus video issues from the earlier pass are unrelated and remain open per the "still needs user action" list).
+
+### Known unrelated pre-existing issue (not touched here)
+
+The repo's `test` workflow (`npm test`) has flaky failures unrelated to this task: several suites make **real** network calls to rate-limited/quota-exhausted third-party APIs (e.g. `kids-story.test.ts` hitting live Gemini/OpenAI/Anthropic/OpenRouter/HuggingFace endpoints and getting 429/quota errors) and to an intentionally-nonexistent test host (`https://cdn.example`) in `generate-core.server.test.ts`, plus some `orchestrator.gpu-preference.test.ts` assertions about self-hosted GPU routing order. These failures pre-date this task, are unrelated to `SUPABASE_SERVICE_ROLE_KEY`/`REPLICATE_API_KEY`, and are out of scope here — they are a test-hygiene issue (tests should mock external calls) worth a dedicated follow-up.
