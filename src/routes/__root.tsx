@@ -163,11 +163,59 @@ function RootShell({ children }: { children: React.ReactNode }) {
             __html: `(function(){try{var t=localStorage.getItem('aurora-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`,
           }}
         />
-        {/* Google Tag Manager — fires on every page load when configured. */}
+        {/* Google Tag Manager — non-essential analytics, so it only loads once
+            cookie consent allows it (GDPR/UK GDPR/CA). Mirrors the region
+            heuristic + storage key in src/lib/consent.ts; this has to be a
+            standalone inline script (no imports) because it must run before
+            hydration. Re-evaluates on the aurora:cookie_consent_changed
+            event so accepting via the banner loads GTM immediately without
+            a reload, and it stays off entirely if the visitor declines. */}
         {gtmId ? (
           <script
             dangerouslySetInnerHTML={{
-              __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${gtmId}');`,
+              __html: `(function(){
+  try {
+    var GTM_ID='${gtmId}';
+    var KEY='aurora.cookie_consent.v1';
+    var REGULATED_COUNTRIES=["AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU","IE","IT","LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES","SE","GB","IS","LI","NO","CA"];
+    var CA_TZ=["America/St_Johns","America/Halifax","America/Moncton","America/Glace_Bay","America/Goose_Bay","America/Blanc-Sablon","America/Toronto","America/Nipigon","America/Thunder_Bay","America/Iqaluit","America/Pangnirtung","America/Resolute","America/Atikokan","America/Rankin_Inlet","America/Winnipeg","America/Rainy_River","America/Regina","America/Swift_Current","America/Edmonton","America/Cambridge_Bay","America/Yellowknife","America/Inuvik","America/Creston","America/Dawson_Creek","America/Fort_Nelson","America/Vancouver","America/Whitehorse","America/Dawson"];
+    var EU_ATLANTIC=["Atlantic/Faroe","Atlantic/Canary","Atlantic/Madeira","Atlantic/Azores","Atlantic/Reykjavik"];
+    function isRegulated(){
+      try{
+        var loc=(navigator.language||(navigator.languages&&navigator.languages[0])||"");
+        var parts=loc.split("-");
+        var country=parts.length>1?parts[parts.length-1].toUpperCase():null;
+        if(country&&REGULATED_COUNTRIES.indexOf(country)!==-1)return true;
+      }catch(e){}
+      try{
+        var tz=Intl.DateTimeFormat().resolvedOptions().timeZone||"";
+        if(tz.indexOf("Europe/")===0)return true;
+        if(EU_ATLANTIC.indexOf(tz)!==-1)return true;
+        if(CA_TZ.indexOf(tz)!==-1)return true;
+      }catch(e){}
+      return false;
+    }
+    function hasConsent(){
+      var raw=null;
+      try{raw=localStorage.getItem(KEY);}catch(e){}
+      if(raw){
+        try{
+          var parsed=JSON.parse(raw);
+          if(parsed.status==="declined")return false;
+          if(parsed.status==="accepted")return true;
+        }catch(e){}
+      }
+      return !isRegulated();
+    }
+    function loadGtm(){
+      if(window.__auroraGtmLoaded__)return;
+      window.__auroraGtmLoaded__=true;
+      (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer',GTM_ID);
+    }
+    if(hasConsent())loadGtm();
+    window.addEventListener("aurora:cookie_consent_changed",function(){if(hasConsent())loadGtm();});
+  } catch(e) {}
+})();`,
             }}
           />
         ) : null}
@@ -204,11 +252,14 @@ function RootComponent() {
   const isIsolated = pathname === "/nexusarb" || pathname.startsWith("/nexusarb/");
 
   if (isIsolated) {
-    // NexusARB stays a self-contained, full-bleed page: no phone frame, no chrome.
+    // NexusARB stays a self-contained, full-bleed page: no phone frame, no
+    // chrome — except the cookie consent banner, which must be reachable on
+    // every route for first-time EU/UK/CA visitors regardless of page.
     return (
       <QueryClientProvider client={queryClient}>
         <Outlet />
         <Toaster />
+        <CookieConsentBanner />
       </QueryClientProvider>
     );
   }
