@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -39,13 +39,28 @@ function DashboardPage() {
   const { data: profile } = useQuery({ queryKey: ["profile", user?.id], queryFn: () => profileFn(), enabled: !!user });
   const { data: hist, isLoading } = useQuery({ queryKey: ["gens", user?.id], queryFn: () => listFn(), enabled: !!user });
 
-  if (loading || !user) {
-    return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="size-6 animate-spin text-primary" /></div>;
-  }
+  const [filter, setFilter] = useState<"all" | "images" | "videos" | "processing" | "failed">("all");
 
   const items = hist?.items ?? [];
   const images = items.filter((i) => i.kind === "image" && i.result_image_url);
   const videos = items.filter((i) => i.kind === "video" && i.result_video_url);
+  const failed = items.filter((i) => i.status === "failed");
+  const processing = items.filter((i) => i.status !== "failed" && !i.result_image_url && !i.result_video_url);
+
+  const filteredItems = useMemo(() => {
+    switch (filter) {
+      case "images": return images;
+      case "videos": return videos;
+      case "processing": return processing;
+      case "failed": return failed;
+      default: return items;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, items]);
+
+  if (loading || !user) {
+    return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="size-6 animate-spin text-primary" /></div>;
+  }
 
   return (
     <main className="aurora-page-shell text-foreground">
@@ -84,7 +99,35 @@ function DashboardPage() {
         </div>
 
         <section>
-          <h2 className="aurora-kicker mb-4">All your generations</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h2 className="aurora-kicker">All your generations</h2>
+            {items.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {(
+                  [
+                    { key: "all", label: `All (${items.length})` },
+                    { key: "images", label: `Images (${images.length})` },
+                    { key: "videos", label: `Videos (${videos.length})` },
+                    { key: "processing", label: `In progress (${processing.length})` },
+                    { key: "failed", label: `Failed (${failed.length})` },
+                  ] as const
+                ).map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setFilter(t.key)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      filter === t.key
+                        ? "bg-primary text-primary-foreground"
+                        : "border border-border bg-card/60 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {isLoading ? (
             <div className="text-muted-foreground text-sm">Loading…</div>
           ) : items.length === 0 ? (
@@ -94,9 +137,13 @@ function DashboardPage() {
                 Open Studio <ArrowRight className="size-4" />
               </Link>
             </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+              Nothing in this category yet.
+            </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {items.map((g) => (
+              {filteredItems.map((g) => (
                 <article key={g.id} className="group rounded-2xl overflow-hidden border border-border bg-card/60 backdrop-blur-xl relative">
                   <div className="aspect-square bg-background/40">
                     {g.result_image_url ? (
