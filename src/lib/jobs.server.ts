@@ -961,18 +961,57 @@ async function runAutocut(job: JobRow, orch: Orchestrate, workerId: string): Pro
     };
   }
 
-  // ── No self-hosted assembler online: fail explicitly and refund ────────
-  // AutoCut is a TRUE multi-clip edit — concatenating every uploaded clip and
-  // beat-syncing style + music — which only the self-hosted FFmpeg "assemble"
-  // worker performs. No hosted provider replicates that pipeline (generative
-  // video models produce a NEW clip, not an edit of the user's footage), so
-  // rather than silently degrading to a single-clip approximation we fail
-  // cleanly. The message contains "requires", matched by TERMINAL_ERROR_RE, so
-  // processOneJob treats it as terminal and releases the credit reservation
-  // immediately — the user is never charged for an undelivered edit.
-  throw new Error(
-    "AutoCut requires an online video assembler and none is currently available — your Aura was not charged. Please try again shortly.",
-  );
+  // ── Fallback: local ffmpeg assembler (no GPU worker required) ──────────
+  // AutoCut's assembly is pure ffmpeg (normalize → concat → mix music) — no
+  // GPU/model weights involved — so when no self-hosted worker has
+  // registered, run the same pipeline directly in this process rather than
+  // refunding. See runLocalFfmpegAssemble in autocut.server.ts.
+  await supabaseAdmin
+    .from("jobs")
+    .update({ payload: { ...(job.payload as object), workerStage: "assembling" } })
+    .eq("id", job.id);
+
+  try {
+    const { runLocalFfmpegAssemble, uploadAutocutResult } = await import("./autocut.server");
+    await supabaseAdmin
+      .from("jobs")
+      .update({ payload: { ...(job.payload as object), workerStage: "rendering" } })
+      .eq("id", job.id);
+
+    const bytes = await runLocalFfmpegAssemble({
+      clips: p.clipUrls,
+      musicUrl,
+      musicVolume: 0.15,
+      maxDurationSec: 60,
+    });
+    const url = await uploadAutocutResult(job.user_id, job.id, bytes);
+
+    return {
+      url,
+      videoUrl: url,
+      provider: "local-ffmpeg",
+      endpoint: "embedded",
+      meta: {
+        style: p.style,
+        clip_count: p.clipUrls.length,
+        music_track: p.musicTrackId ?? null,
+        fallback: true,
+      },
+    };
+  } catch (e) {
+    // AutoCut is a TRUE multi-clip edit — concatenating every uploaded clip
+    // and beat-syncing style + music — which no hosted generative provider
+    // replicates (those produce a NEW clip, not an edit of the user's
+    // footage), so rather than silently degrading to a single-clip
+    // approximation we fail cleanly here too. The message contains
+    // "requires", matched by TERMINAL_ERROR_RE, so processOneJob treats it
+    // as terminal and releases the credit reservation immediately — the
+    // user is never charged for an undelivered edit.
+    console.error("[autocut] local ffmpeg assembly failed", job.id, e);
+    throw new Error(
+      "AutoCut requires a working video assembler and the render failed — your Aura was not charged. Please try again shortly.",
+    );
+  }
 }
 
 export async function processOneJob(
