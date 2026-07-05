@@ -1,0 +1,70 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+.output
+.vinxi
+.tanstack/**
+.nitro
+*.local
+
+# Playwright e2e artifacts
+playwright-report/
+test-results/
+blob-report/
+
+# Stray root-level artifact temp (platform blocks deleting it; flat-root apps
+# cannot be root artifacts). Root-anchored so artifacts/<slug>/.replit-artifact/
+# stays tracked.
+/.replit-artifact/
+
+# Wrangler / Cloudflare
+.wrangler/
+.dev.vars
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Secrets — NEVER commit. Real values live in Lovable Cloud → Secrets.
+# Only `.env.example` (template, no real values) is allowed in git.
+# Covers Kling (KLING_ACCESS_KEY / KLING_SECRET_KEY) and every other runtime
+# secret documented in docs/ENV.md and docs/KLING_SECRETS.md.
+.env
+.env.*
+!.env.example
+*.env
+*.env.local
+secrets.json
+secrets.*.json
+kling.json
+kling.*.json
+**/kling-credentials*
+
+# Large GPU worker template archives — stored in Replit Object Storage instead
+# of git (they exceed GitHub's 100 MB limit and bloat the repo). See
+# attached_assets/GPU_TEMPLATES.README.md for download instructions.
+attached_assets/Collab_inference*.zip
+attached_assets/Latentsync_export*.zip
+attached_assets/PerformAnywhereExport*.zip
+attached_assets/Motion_transfer_studio*.zip
+# Catch-all: never commit zip archives — uploads/exports belong in Object Storage,
+# not in git (they bloat the repo and exceed GitHub's 100 MB limit).
+attached_assets/*.zip
+notebooks/*.zip
+*.zip

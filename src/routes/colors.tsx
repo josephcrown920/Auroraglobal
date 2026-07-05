@@ -1,0 +1,730 @@
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
+import { generatePerformanceShot, generateVideoFromImage, listGenerations } from "@/lib/studio.functions";
+import {
+  COLOR_PRESETS,
+  SETUPS,
+  SETUP_KINDS,
+  WORKFLOWS,
+  ANIMATE_LOOP_PROMPT,
+  buildCompositorPrompt,
+  buildCompositorSpec,
+  describePerformance,
+  type SetupKind,
+} from "@/lib/colors.presets";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { getColorStudio } from "@/lib/colors.studios";
+import { computeCost } from "@/lib/pricing";
+import { Button } from "@/components/ui/button";
+import { Sparkles, Loader2, Palette, Wand2, ArrowLeft, Check, ImagePlus, X, ChevronDown } from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { getSetupScene } from "@/lib/colors.scenes";
+import { TriedTestedShowcase } from "@/components/studio/TriedTestedShowcase";
+import { ColorsShotsGallery } from "@/components/studio/ColorsShotsGallery";
+import { ColorStudioBackdrop } from "@/components/studio/ColorStudioBackdrop";
+import tutorialStudioRefs from "@/assets/tutorial-studio-refs.jpg.asset.json";
+import tutorialColorsBlueFinal from "@/assets/tutorial-colors-blue-final.jpg.asset.json";
+
+// Setups that take place on the seamless cyclorama get the real, per-color
+// animated COLORS studio environment as their preview backdrop (see
+// ColorStudioBackdrop). Other scene kinds (indoor / outdoor / street) keep their
+// gradient mockups since they aren't studio sets.
+const STUDIO_BACKDROP_KINDS = new Set(["performance", "studio"]);
+
+// ─── Scene reference upload ──────────────────────────────────────────────────
+// The compositor pipeline sends the ACTUAL studio scene image to the model as
+// the final reference (scene lock), so it composites the person into that
+// exact set instead of inventing a background. Bundled assets aren't reachable
+// by providers, so we mirror them into the user's studio bucket once (upsert)
+// and cache the signed URL for the session.
+const sceneRefCache = new Map<string, string>();
+
+async function ensureSceneRef(userId: string, key: string, assetUrl: string): Promise<string> {
+  const cached = sceneRefCache.get(key);
+  if (cached) return cached;
+  const res = await fetch(assetUrl);
+  if (!res.ok) throw new Error("Could not load the studio scene reference");
+  const blob = await res.blob();
+  const path = `${userId}/scene-refs/${key}.jpg`;
+  const { error } = await supabase.storage.from("studio").upload(path, blob, {
+    contentType: blob.type || "image/jpeg",
+    upsert: true,
+  });
+  if (error) throw error;
+  const { data: signed, error: signErr } = await supabase.storage
+    .from("studio")
+    .createSignedUrl(path, 60 * 60);
+  if (signErr || !signed?.signedUrl) throw signErr ?? new Error("Could not sign scene reference");
+  sceneRefCache.set(key, signed.signedUrl);
+  return signed.signedUrl;
+}
+
+export const Route = createFileRoute("/colors")({
+  component: ColorsStudio,
+  head: () => ({
+    meta: [
+      { title: "Colors Studio — Aurora" },
+      { name: "description", content: "Studio-grade color portrait shoots: pick a color, pick a scene (studio, indoor, rooftop, street), generate in seconds." },
+      { property: "og:title", content: "Colors Studio — Aurora" },
+      { property: "og:description", content: "Pick a color and a scene — get a finished cinematic portrait." },
+      { property: "og:url", content: "https://aurorastudiostar.lovable.app/colors" },
+    ],
+    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/colors" }],
+  }),
+});
+
+/** Tiny inline upload tile — much smaller than the full UploadSlot. */
+function MiniUpload({
+  userId,
+  label,
+  value,
+  onChange,
+}: {
+  userId: string;
+  label: string;
+  value: string | null;
+  onChange: (url: string | null) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+
+  const upload = async (file: File) => {
+    if (file.size > 20 * 1024 * 1024) return toast.error("Max 20MB");
+    setBusy(true);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${userId}/uploads/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from("studio").upload(path, file, {
+        contentType: file.type,
+        upsert: false,
+      });
+      if (error) throw error;
+      const { data: signed, error: signErr } = await supabase.storage
+        .from("studio").createSignedUrl(path, 60 * 60);
+      if (signErr || !signed?.signedUrl) throw signErr ?? new Error("Could not sign upload URL");
+      onChange(signed.signedUrl);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={() => inputRef.current?.click()}
+      className={cn(
+        "group relative h-16 rounded-xl border border-dashed flex items-center gap-3 px-3 transition-colors overflow-hidden text-left",
+        value ? "border-primary/40 bg-card/60" : "border-border bg-card/30 hover:border-primary/40",
+      )}
+    >
+      <div className="relative size-12 shrink-0 rounded-lg overflow-hidden bg-background/60 flex items-center justify-center">
+        {value ? (
+          <img src={value} alt={label} className="size-full object-cover" />
+        ) : busy ? (
+          <Loader2 className="size-4 animate-spin text-muted-foreground" />
+        ) : (
+          <ImagePlus className="size-4 text-muted-foreground group-hover:text-primary" />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+        <div className="text-xs text-foreground/80 truncate">{value ? "Uploaded" : "Tap to upload"}</div>
+      </div>
+      {value && (
+        <span
+          role="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onChange(null);
+          }}
+          className="text-muted-foreground hover:text-destructive p-1"
+        >
+          <X className="size-3.5" />
+        </span>
+      )}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) upload(f);
+          e.target.value = "";
+        }}
+      />
+    </button>
+  );
+}
+
+function ColorsStudio() {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const genFn = useServerFn(generatePerformanceShot);
+  const listFn = useServerFn(listGenerations);
+
+  const [selfieUrl, setSelfieUrl] = useState<string | null>(null);
+  const [outfitUrl, setOutfitUrl] = useState<string | null>(null);
+  const [color, setColor] = useState(COLOR_PRESETS[1].id); // royal blue — matches tried & tested
+  const [kind, setKind] = useState<SetupKind>("performance");
+  const [setup, setSetup] = useState("performance");
+  const [workflow, setWorkflow] = useState(WORKFLOWS[0].id);
+  const [tripletColors, setTripletColors] = useState<string[]>([
+    COLOR_PRESETS[0].id,
+    COLOR_PRESETS[1].id,
+    COLOR_PRESETS[3].id,
+  ]);
+
+  useEffect(() => {
+    if (!loading && !user) navigate({ to: "/auth" });
+  }, [user, loading, navigate]);
+
+  const refs = useMemo(() => [selfieUrl, outfitUrl].filter(Boolean) as string[], [selfieUrl, outfitUrl]);
+  const filteredSetups = useMemo(() => SETUPS.filter((s) => s.kind === kind), [kind]);
+
+  // Keep selected setup valid when kind changes.
+  useEffect(() => {
+    if (!filteredSetups.some((s) => s.id === setup)) {
+      setSetup(filteredSetups[0]?.id ?? SETUPS[0].id);
+    }
+  }, [kind, filteredSetups, setup]);
+
+  const { data: gens } = useQuery({
+    queryKey: ["color-gens"],
+    queryFn: () => listFn(),
+    enabled: !!user,
+    refetchInterval: 4000,
+  });
+  const recent = (gens?.items ?? [])
+    .filter((g) => g.result_image_url || g.result_video_url)
+    .slice(0, 8);
+
+  const fire = async (colorId: string, setupId: string) => {
+    if (refs.length === 0) throw new Error("Upload at least a selfie reference");
+    // Scene lock: mirror the exact studio scene into storage and attach it as
+    // the LAST reference image. Cyclorama setups use the real per-color studio
+    // poster; indoor/outdoor/street use the photoreal scene still.
+    const setupDef = SETUPS.find((s) => s.id === setupId);
+    const isStudioSet = STUDIO_BACKDROP_KINDS.has(setupDef?.kind ?? "");
+    const sceneAsset = isStudioSet ? getColorStudio(colorId).poster : getSetupScene(setupId);
+    let sceneRef: string | null = null;
+    if (sceneAsset && user) {
+      try {
+        sceneRef = await ensureSceneRef(
+          user.id,
+          isStudioSet ? `studio-${colorId}` : `scene-${setupId}`,
+          sceneAsset,
+        );
+      } catch {
+        toast.message("Scene reference unavailable — locking the scene from the prompt only");
+      }
+    }
+    const prompt = buildCompositorPrompt(colorId, setupId, {
+      hasOutfitRef: !!outfitUrl,
+      hasSceneRef: !!sceneRef,
+    });
+    return genFn({
+      data: {
+        prompt,
+        imageUrls: sceneRef ? [...refs, sceneRef] : refs,
+        motionVideoUrl: null,
+        model: "google/gemini-3.1-flash-image-preview",
+      },
+    });
+  };
+
+  const singleMut = useMutation({
+    mutationFn: () => fire(color, setup),
+    onSuccess: () => {
+      toast.success("Color shot ready");
+      qc.invalidateQueries({ queryKey: ["color-gens"] });
+      qc.invalidateQueries({ queryKey: ["gens"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  const tripletMut = useMutation({
+    mutationFn: async () => Promise.all(tripletColors.map((c) => fire(c, setup))),
+    onSuccess: () => {
+      toast.success("Triptych complete");
+      qc.invalidateQueries({ queryKey: ["color-gens"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  const allSetupsMut = useMutation({
+    mutationFn: async () => Promise.all(filteredSetups.map((s) => fire(color, s.id))),
+    onSuccess: () => {
+      toast.success("All setups complete");
+      qc.invalidateQueries({ queryKey: ["color-gens"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  const videoFn = useServerFn(generateVideoFromImage);
+  // Two-step preview→confirm flow (task #153 cost guardrail): the first click
+  // renders a cheap 480p preview; the server returns its generation id, which
+  // unlocks the full-quality render for that shot.
+  const animatePreviewCost = computeCost({
+    features: ["video"],
+    model: "seedance-2.0-fast",
+    durationSeconds: 5,
+    resolution: "480p",
+  }).total;
+  const animateFullCost = computeCost({
+    features: ["video"],
+    model: "seedance-2.0-fast",
+    durationSeconds: 5,
+    resolution: "720p",
+  }).total;
+  // imageUrl → succeeded preview generation id (the full-quality ticket).
+  const [animatePreviews, setAnimatePreviews] = useState<Record<string, string>>({});
+  const animateMut = useMutation({
+    mutationFn: (vars: { imageUrl: string; confirmPreviewId?: string }) =>
+      videoFn({
+        data: {
+          imageUrl: vars.imageUrl,
+          prompt: ANIMATE_LOOP_PROMPT,
+          duration: 5,
+          resolution: "720p",
+          modelKey: "seedance-2.0-fast",
+          cameraMovement: "static",
+          confirmPreviewId: vars.confirmPreviewId,
+        },
+      }),
+    onSuccess: (res, vars) => {
+      if (res.preview) {
+        setAnimatePreviews((prev) => ({ ...prev, [vars.imageUrl]: res.id }));
+        toast.success("Preview ready — check the clip, then render full quality");
+      } else {
+        setAnimatePreviews((prev) => {
+          const next = { ...prev };
+          delete next[vars.imageUrl];
+          return next;
+        });
+        toast.success("Performance clip ready");
+      }
+      qc.invalidateQueries({ queryKey: ["color-gens"] });
+      qc.invalidateQueries({ queryKey: ["gens"] });
+    },
+    onError: (e, vars) => {
+      const msg = e instanceof Error ? e.message : "Animate failed";
+      // A rejected/expired ticket is terminal — drop it so the next click
+      // starts a fresh preview instead of re-failing forever.
+      if (msg.includes("Unsupported preview confirmation")) {
+        setAnimatePreviews((prev) => {
+          const next = { ...prev };
+          delete next[vars.imageUrl];
+          return next;
+        });
+      }
+      toast.error(msg);
+    },
+  });
+
+  const allColorsMut = useMutation({
+    mutationFn: async () => {
+      // Run sequentially in batches of 3 so we don't slam the gateway.
+      const results: unknown[] = [];
+      const ids = COLOR_PRESETS.map((c) => c.id);
+      for (let i = 0; i < ids.length; i += 3) {
+        const batch = ids.slice(i, i + 3);
+        const res = await Promise.all(batch.map((c) => fire(c, setup)));
+        results.push(...res);
+        toast.message(`Rendered ${Math.min(i + 3, ids.length)}/${ids.length}`);
+      }
+      return results;
+    },
+    onSuccess: () => {
+      toast.success(`All ${COLOR_PRESETS.length} colors rendered`);
+      qc.invalidateQueries({ queryKey: ["color-gens"] });
+      qc.invalidateQueries({ queryKey: ["gens"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Bulk render failed"),
+  });
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="size-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const selectedColor = COLOR_PRESETS.find((c) => c.id === color)!;
+  const selectedSetup = SETUPS.find((s) => s.id === setup) ?? filteredSetups[0];
+
+  return (
+    <main className="aurora-page-shell text-foreground">
+      <span aria-hidden className="aurora-ambient" />
+      <header className="relative z-10 flex items-center justify-between px-6 md:px-10 py-4 border-b border-border bg-card/40 backdrop-blur-xl">
+        <Link to="/canvas" className="flex items-center gap-2 font-semibold tracking-tight">
+          <ArrowLeft className="size-4 text-muted-foreground" />
+          <span className="size-8 rounded-xl flex items-center justify-center shadow-[var(--shadow-glow-soft)]" style={{ background: "var(--gradient-hero)" }}>
+            <Palette className="size-4 text-primary-foreground" />
+          </span>
+          Colors Studio
+        </Link>
+        <div className="flex items-center gap-3 text-sm">
+          <Link to="/gallery" className="text-muted-foreground hover:text-foreground">Gallery</Link>
+          <Link to="/studio" className="text-muted-foreground hover:text-foreground">Full Studio</Link>
+        </div>
+      </header>
+
+      <div className="relative z-10 max-w-7xl mx-auto p-5 md:p-10 grid lg:grid-cols-[1fr_380px] gap-8">
+        {/* LEFT — pickers */}
+        <section className="space-y-7">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
+              Pick a color. <span className="aurora-gradient-text">Show up in that world.</span>
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              12 real seamless-cyclorama studio sets, each lit in its own bold color. Pick a swatch — the
+              studio switches live. Upload a selfie and Aurora places you inside it.
+            </p>
+          </div>
+
+          {/* Featured live studio set — switches with the selected swatch */}
+          <div className="relative w-full aspect-video rounded-3xl overflow-hidden border border-border shadow-2xl shadow-black/60">
+            <ColorStudioBackdrop
+              colorId={selectedColor.id}
+              label={`${selectedColor.name} studio set`}
+              preload="auto"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20 pointer-events-none" />
+            <div className="absolute top-3 left-3 flex items-center gap-2 aurora-glass px-3 py-1.5 rounded-full text-xs font-medium text-white/90">
+              <span className="size-2.5 rounded-full shadow-md shrink-0" style={{ background: selectedColor.swatch }} />
+              {selectedColor.name} · COLORS Studio
+            </div>
+            <div className="absolute bottom-0 inset-x-0 p-4 md:p-6">
+              <p className="text-[10px] text-white/55 mb-0.5 uppercase tracking-widest">
+                12 colors · 5 scene types · your face
+              </p>
+              <p className="text-base md:text-xl font-semibold text-white">
+                {selectedColor.name} — seamless cyclorama studio set
+              </p>
+            </div>
+          </div>
+
+          {/* Color swatch picker */}
+          <div>
+            <h2 className="aurora-kicker mb-3">Color</h2>
+            <div className="flex flex-wrap gap-2">
+              {COLOR_PRESETS.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setColor(c.id)}
+                  aria-label={`Select ${c.name} color`}
+                  aria-pressed={color === c.id}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200",
+                    color === c.id
+                      ? "border-primary/60 text-foreground shadow-md scale-105"
+                      : "border-border bg-card/40 text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                  )}
+                  style={
+                    color === c.id
+                      ? { background: `${c.swatch}33`, boxShadow: `0 0 16px ${c.swatch}55` }
+                      : undefined
+                  }
+                >
+                  <span className="size-3 rounded-full shrink-0 shadow-sm" style={{ background: c.swatch }} />
+                  {c.name}
+                </button>
+              ))}
+            </div>
+            {kind === "performance" && (
+              <div className="mt-2.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] text-foreground/85">
+                <span className="uppercase tracking-wider text-[9px] text-primary mr-1.5">Staging</span>
+                {describePerformance(color)}
+              </div>
+            )}
+          </div>
+
+          {/* COMPACT references */}
+          <div className="grid grid-cols-2 gap-3">
+            <MiniUpload userId={user.id} label="Selfie · required" value={selfieUrl} onChange={setSelfieUrl} />
+            <MiniUpload userId={user.id} label="Outfit · optional" value={outfitUrl} onChange={setOutfitUrl} />
+          </div>
+
+          <TriedTestedShowcase
+            accent="cyan"
+            title="Blue performance studio — tried & tested"
+            subtitle="One selfie + the royal-blue performance preset = this finished shot."
+            refsImage={tutorialStudioRefs.url}
+            refsCaption="Selfie · Outfit · Pose reference"
+            finalImage={tutorialColorsBlueFinal.url}
+            finalCaption="Royal-blue cyclorama · hanging vintage mic · red jersey + black puffer vest · ARRI rim light"
+            prompt="Editorial music-video performance shot of the subject on a seamless deep royal-blue cyclorama studio — background and floor are one continuous royal-blue surface, no visible seams. Full-body side profile, leaning into an exact suspended vintage silver microphone hanging from a thin cable at chest level. Outfit: bright red performance jersey with graphic print under a black hooded puffer vest, distressed black stacked jeans, white chunky sneakers. ARRI softbox key from camera-left + softbox fill from camera-right, professional dual softbox stands visible at far frame edges, gentle floor shadow, clean cinematic rim light separating the subject from the cyclorama. Preserve exact facial likeness, red dreadlocks, sunglasses, skin tone, body proportions. ARRI Alexa look, 50mm, 8K ultra-HD photoreal, no text or logos."
+          />
+
+          {/* Real shoots gallery — apply these looks to your selfie */}
+          <ColorsShotsGallery />
+
+
+          {/* Scene kind tabs */}
+          <div>
+            <h2 className="aurora-kicker mb-3">Scene type</h2>
+            <div className="flex gap-2 flex-wrap">
+              {SETUP_KINDS.map((k) => (
+                <button
+                  key={k.id}
+                  type="button"
+                  onClick={() => setKind(k.id)}
+                  className={cn(
+                    "px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors",
+                    kind === k.id
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border bg-card/40 text-muted-foreground hover:text-foreground hover:border-primary/40",
+                  )}
+                >
+                  {k.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Setup visual cards */}
+          <div>
+            <h2 className="aurora-kicker mb-3">Setup preview</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {filteredSetups.map((s) => {
+                const active = setup === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setSetup(s.id)}
+                    className={cn(
+                      "group rounded-xl border overflow-hidden text-left transition-all",
+                      active ? "border-primary shadow-[var(--shadow-glow)]" : "border-border hover:border-primary/40",
+                    )}
+                  >
+                    <div
+                      className="relative aspect-[4/3] w-full overflow-hidden"
+                      style={{ background: s.preview(selectedColor.swatch) }}
+                    >
+                      {STUDIO_BACKDROP_KINDS.has(s.kind) ? (
+                        <>
+                          {/* Real, per-color animated COLORS studio set. */}
+                          <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-[1.03]">
+                            <ColorStudioBackdrop
+                              colorId={selectedColor.id}
+                              label={`${selectedColor.name} ${s.name} studio`}
+                              preload={active ? "auto" : "metadata"}
+                            />
+                          </div>
+                          <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/70 to-transparent" />
+                        </>
+                      ) : (
+                        <>
+                          {/* Photoreal scene set, washed in the selected color like a lighting gel. */}
+                          <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-[1.03]">
+                            <img
+                              src={getSetupScene(s.id)}
+                              alt={`${s.name} scene set`}
+                              loading="lazy"
+                              className="absolute inset-0 size-full object-cover"
+                            />
+                          </div>
+                          <div
+                            aria-hidden
+                            className="absolute inset-0 mix-blend-overlay pointer-events-none"
+                            style={{
+                              background: `radial-gradient(ellipse at 50% 85%, ${selectedColor.swatch}dd 0%, transparent 65%)`,
+                            }}
+                          />
+                          <div
+                            aria-hidden
+                            className="absolute inset-0 pointer-events-none"
+                            style={{
+                              background: `linear-gradient(180deg, transparent 40%, ${selectedColor.swatch}40 100%)`,
+                            }}
+                          />
+                          <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/70 to-transparent" />
+                        </>
+                      )}
+                      {active && (
+                        <div className="absolute top-1.5 right-1.5 size-5 rounded-full bg-background/95 flex items-center justify-center z-10">
+                          <Check className="size-3 text-primary" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="px-2.5 py-2">
+                      <div className="text-xs font-medium">{s.name}</div>
+                      <div className="text-[10px] text-muted-foreground line-clamp-2">{s.description}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Workflows */}
+          <div>
+            <h2 className="aurora-kicker mb-3">Workflow</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+              {WORKFLOWS.map((w) => (
+                <button
+                  key={w.id}
+                  type="button"
+                  onClick={() => setWorkflow(w.id)}
+                  className={`rounded-xl border p-2.5 text-left transition-colors ${workflow === w.id ? "border-primary/60 bg-primary/10" : "border-border bg-card/40 hover:border-primary/30"}`}
+                >
+                  <div className="text-xs font-medium">{w.name}</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">{w.steps.join(" → ")}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Triplet picker */}
+          {workflow === "triptych" && (
+            <div className="rounded-xl border border-border bg-card/40 p-3 space-y-2.5">
+              <div className="aurora-kicker">Triptych colors (pick 3)</div>
+              <div className="flex flex-wrap gap-2">
+                {COLOR_PRESETS.map((c) => {
+                  const selected = tripletColors.includes(c.id);
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => {
+                        if (selected) setTripletColors(tripletColors.filter((x) => x !== c.id));
+                        else if (tripletColors.length < 3) setTripletColors([...tripletColors, c.id]);
+                      }}
+                      className={`size-8 rounded-full border-2 transition-transform ${selected ? "border-primary scale-110" : "border-border"}`}
+                      style={{ background: c.swatch }}
+                      aria-label={`${selected ? "Remove" : "Add"} ${c.name} to triptych`}
+                      aria-pressed={selected}
+                      title={c.name}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Render details — structured AI Performance Compositor spec for the current pick */}
+          <Collapsible className="rounded-xl border border-border bg-card/40">
+            <CollapsibleTrigger className="w-full flex items-center justify-between gap-2 px-3 py-2 text-[11px] text-muted-foreground hover:text-foreground group">
+              <span className="uppercase tracking-wider">Render details</span>
+              <ChevronDown className="size-3.5 transition-transform group-data-[state=open]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="px-3 pb-3 space-y-1.5 text-[11px] text-foreground/80">
+              {(() => {
+                const spec = buildCompositorSpec(color, setup, {
+                  hasOutfitRef: !!outfitUrl,
+                });
+                return (
+                  <>
+                    <div><span className="text-muted-foreground">Scene: </span>{spec.scene}</div>
+                    <div><span className="text-muted-foreground">Color: </span>{spec.color}</div>
+                    <div><span className="text-muted-foreground">Lighting: </span>{spec.lighting}</div>
+                    <div><span className="text-muted-foreground">Motion: </span>{spec.motion_description}</div>
+                  </>
+                );
+              })()}
+            </CollapsibleContent>
+          </Collapsible>
+
+          {/* Action */}
+          <div className="rounded-2xl border border-border bg-card/60 p-4 space-y-3 sticky bottom-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="size-3 rounded-full" style={{ background: selectedColor.swatch }} />
+              <span>{selectedColor.name} · {selectedSetup?.name}</span>
+            </div>
+            {workflow === "single" && (
+              <Button disabled={singleMut.isPending || refs.length === 0} onClick={() => singleMut.mutate()} variant="premium" className="w-full h-11">
+                {singleMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting…</> : <><Wand2 className="size-4 mr-2" /> Generate · 1 Aura · ~15s</>}
+              </Button>
+            )}
+            {workflow === "triptych" && (
+              <Button disabled={tripletMut.isPending || refs.length === 0 || tripletColors.length !== 3} onClick={() => tripletMut.mutate()} variant="premium" className="w-full h-11">
+                {tripletMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting 3×…</> : <><Wand2 className="size-4 mr-2" /> Generate triptych · 3 Aura</>}
+              </Button>
+            )}
+            {workflow === "all-setups" && (
+              <Button disabled={allSetupsMut.isPending || refs.length === 0} onClick={() => allSetupsMut.mutate()} variant="premium" className="w-full h-11">
+                {allSetupsMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting all…</> : <><Wand2 className="size-4 mr-2" /> Generate all {filteredSetups.length} setups</>}
+              </Button>
+            )}
+          </div>
+        </section>
+
+        {/* RIGHT — recent */}
+        <aside className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="size-4 text-primary" />
+            <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Recent shots</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {recent.length === 0 && (
+              <div className="col-span-2 rounded-xl border border-dashed border-border bg-card/30 p-8 text-center text-xs text-muted-foreground">
+                Your color shots will appear here.
+              </div>
+            )}
+            {recent.map((g) => (
+              <div key={g.id} className="relative group/shot">
+                <a
+                  href={(g.result_video_url ?? g.result_image_url)!}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block aurora-card-hover aspect-[4/5] rounded-xl overflow-hidden border border-border bg-background/40 hover:border-primary/40 transition-colors"
+                >
+                  {g.result_video_url ? (
+                    <video
+                      src={g.result_video_url}
+                      poster={g.result_image_url ?? undefined}
+                      muted
+                      loop
+                      playsInline
+                      autoPlay
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <img src={g.result_image_url!} alt="" className="w-full h-full object-cover" />
+                  )}
+                </a>
+                {!g.result_video_url && g.result_image_url && (
+                  <button
+                    type="button"
+                    disabled={animateMut.isPending}
+                    onClick={() =>
+                      animateMut.mutate(
+                        animatePreviews[g.result_image_url!]
+                          ? {
+                              imageUrl: g.result_image_url!,
+                              confirmPreviewId: animatePreviews[g.result_image_url!],
+                            }
+                          : { imageUrl: g.result_image_url! },
+                      )
+                    }
+                    className="absolute bottom-1.5 left-1.5 right-1.5 rounded-lg bg-background/80 backdrop-blur px-2 py-1.5 text-[10px] font-medium uppercase tracking-wider text-foreground/90 border border-border opacity-0 group-hover/shot:opacity-100 focus-visible:opacity-100 transition-opacity hover:border-primary/50 disabled:opacity-60"
+                  >
+                    {animateMut.isPending ? (
+                      <Loader2 className="size-3 animate-spin inline" />
+                    ) : animatePreviews[g.result_image_url!] ? (
+                      <>Render full quality · {animateFullCost} Aura</>
+                    ) : (
+                      <>Preview loop · 480p · {animatePreviewCost} Aura</>
+                    )}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </aside>
+      </div>
+    </main>
+  );
+}

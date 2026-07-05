@@ -1,0 +1,408 @@
+// ─── One-Tap Template Studio — manifest & cost helper ────────────────────────
+//
+// The single source of truth for the /templates page. Each template declares the
+// ordered orchestrator `kinds` it routes through and a `dispatch` backend, so the
+// gallery, the drawer and the cost preview all read from ONE manifest.
+//
+// Three dispatch backends — all EXISTING paths, no new models or kinds:
+//   • "studio" — chains the same server functions the Canvas uses
+//     (generatePerformanceShot → generateVideoFromImage → lipSyncVideo), gated by
+//     `kinds` (image / image→video / image→video→lipsync).
+//   • "ugc"    — generateUGCAd (async job on the generations queue).
+//   • "spin"   — the existing /spin experience (one prompt → 30 pieces).
+//
+// Studio cost is computed per orchestrator kind through pricing.ts `computeCost`
+// so the preview is exactly what each stage charges (preview == charge == refund).
+// The UGC price mirrors its server constant as a literal (parity asserted in
+// template-studio.test.ts). Spin discloses its real upfront batch charge
+// (SPIN_PIECE_COUNT × SPIN_PIECE_COST). This file is intentionally client-safe
+// and never imports a *.server module.
+
+import { computeCost, type Resolution } from "./pricing";
+import { SPIN_PIECE_COST } from "./spin-engine";
+import { AUDIO_ACCEPT } from "./utils";
+
+// ── Thumbnails (direct file imports resolve to a URL string) ────────────────
+import stillNeon from "@/assets/josh/generated/still-01-neon-closeup.jpg";
+import stillStage from "@/assets/josh/generated/still-03-stage-mic.jpg";
+import stillStudioGel from "@/assets/josh/generated/still-05-studio-gel.jpg";
+import stillRooftopSunset from "@/assets/josh/generated/still-06-rooftop-sunset.jpg";
+import stillBooth from "@/assets/josh/generated/still-07-booth-headphones.jpg";
+import stillAlley from "@/assets/josh/generated/still-08-alley-mural.jpg";
+import stillCarGolden from "@/assets/josh/generated/still-11-car-golden.jpg";
+import stillRooftopDay from "@/assets/josh/generated/still-17-rooftop-day.jpg";
+import stillCourtBall from "@/assets/josh/generated/still-13-court-ball.jpg";
+import clipNeon from "@/assets/josh/generated/clip-01-neon-closeup.mp4";
+import clipStage from "@/assets/josh/generated/clip-03-stage-mic.mp4";
+import kidsMeadow from "@/assets/kids/showcase-meadow.jpg";
+import kidsBedtime from "@/assets/kids/showcase-bedtime.jpg";
+import kidsBedtimeClip from "@/assets/kids/showcase-bedtime.mp4";
+// .asset.json imports expose { url }
+import productLipstick from "@/assets/ugc/product-lipstick-car.jpg.asset.json";
+
+// ── Types ────────────────────────────────────────────────────────────────────
+export type TemplateInputKind = "image" | "audio" | "text";
+
+/** The six spec categories, in display order. */
+export type TemplateCategory = "Lip-sync" | "Motion" | "UGC/Ad" | "Spin" | "Kids" | "Editing";
+
+/**
+ * Orchestrator kinds a template routes through. `image` / `video` / `lipsync`
+ * are the studio orchestrator GenerateKinds (see orchestrator.server.ts); `ugc_ad`
+ * and `spin` are the batch job kinds those dispatch backends enqueue. Mirrored here
+ * as a client-safe literal so this manifest never imports a *.server module.
+ */
+export type OrchestratorKind = "image" | "video" | "lipsync" | "ugc_ad" | "spin" | "autocut";
+
+/** Which backend runs a template on submit. */
+export type TemplateDispatch = "studio" | "ugc" | "spin" | "autocut";
+
+export type TemplateInput = {
+  kind: TemplateInputKind;
+  label: string;
+  hint?: string;
+  required: boolean;
+  /** `accept` for file inputs (image/audio). */
+  accept?: string;
+};
+
+export type StudioTemplate = {
+  id: string;
+  title: string;
+  category: TemplateCategory;
+  blurb: string;
+  thumbnail: string;
+  /** Optional looping preview clip (mp4) shown instead of the still. */
+  thumbnailVideo?: string;
+  /** Ordered orchestrator kinds — the single source of truth for flow + cost. */
+  kinds: OrchestratorKind[];
+  /** Which backend dispatches this template on submit. */
+  dispatch: TemplateDispatch;
+  /** Pro-only templates route free users to the upgrade prompt. */
+  premium?: boolean;
+  inputs: TemplateInput[];
+
+  // ── studio-pipeline params (dispatch === "studio") ──
+  imagePrompt?: string;
+  imageModel?: string;
+  /** If a text input is supplied it is appended to `imagePrompt`. */
+  videoPrompt?: string;
+  videoModel?: string;
+  cameraMovement?: string;
+  durationSeconds?: number;
+  resolution?: Resolution;
+  lipsyncModel?: string;
+
+  // ── ugc params (dispatch === "ugc") ──
+  ugcAspect?: "9:16" | "16:9" | "1:1" | "4:5";
+
+  // ── spin params (dispatch === "spin") ──
+  /** Optional preset appended in front of the user's idea before /spin. */
+  spinPreset?: string;
+};
+
+// ── Shared defaults (kept in step with pricing tiers) ────────────────────────
+export const TEMPLATE_DEFAULTS = {
+  imageModel: "google/gemini-3-pro-image-preview",
+  videoModel: "seedance-2.0-fast",
+  lipsyncModel: "fal-ai/sync-lipsync/v2",
+  durationSeconds: 5,
+  resolution: "720p" as Resolution,
+};
+
+// The UGC price mirrors its server constant (parity asserted in the co-located test).
+export const COST_UGC_AD = 8; // === COST_UGC_AD in ugc.server.ts
+// AutoCut flat cost — mirrors COST_AUTOCUT in autocut.server.ts.
+export const COST_AUTOCUT = 8;
+// Batch size for the Spin experience — every "1 → N" label reads from this.
+export const SPIN_PIECE_COUNT = 30; // === SPIN_COUNT in spin-engine.ts
+
+const IDENTITY =
+  "Preserve the exact facial likeness, skin tone, hair and identity from the uploaded reference photo with no drift.";
+
+// ── Input builders ───────────────────────────────────────────────────────────
+const IMG = (label = "Your photo", hint?: string): TemplateInput => ({
+  kind: "image",
+  label,
+  hint,
+  required: true,
+  accept: "image/*",
+});
+const AUD = (label = "Your song or audio", hint?: string): TemplateInput => ({
+  kind: "audio",
+  label,
+  hint,
+  required: true,
+  accept: AUDIO_ACCEPT,
+});
+const TXT = (label: string, required: boolean, hint?: string): TemplateInput => ({
+  kind: "text",
+  label,
+  hint,
+  required,
+});
+
+// ── Manifest ─────────────────────────────────────────────────────────────────
+export const STUDIO_TEMPLATES: StudioTemplate[] = [
+  // ───────────── Lip-sync ─────────────
+  {
+    id: "concert-lipsync",
+    title: "Concert Lip-sync",
+    category: "Lip-sync",
+    blurb: "Your photo + your song → a stage performance that sings every word.",
+    thumbnail: stillStage,
+    thumbnailVideo: clipStage,
+    kinds: ["image", "video", "lipsync"],
+    dispatch: "studio",
+    premium: true,
+    inputs: [
+      IMG("Your photo", "A clear front-facing photo works best"),
+      AUD("Your song or vocal", "MP3 / WAV, up to ~30s"),
+    ],
+    imagePrompt: `Portrait of the subject performing on a concert stage, holding a vintage SM7B microphone on a boom, dramatic spotlights and atmospheric haze, crowd silhouettes in front. ${IDENTITY} Vertical 9:16, photorealistic, 4K.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "The subject sings into the microphone, expressive, subtle head sway, locked confident camera.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "static",
+    lipsyncModel: TEMPLATE_DEFAULTS.lipsyncModel,
+  },
+  {
+    id: "music-video-mini",
+    title: "Music Video Mini",
+    category: "Lip-sync",
+    blurb: "A cinematic neon music-video moment, lip-synced to your track.",
+    thumbnail: stillNeon,
+    thumbnailVideo: clipNeon,
+    kinds: ["image", "video", "lipsync"],
+    dispatch: "studio",
+    premium: true,
+    inputs: [IMG("Your photo"), AUD("Your song or vocal")],
+    imagePrompt: `Cinematic vertical 9:16 close-up music-video still of the subject under glowing magenta and cyan neon studio lighting, looking into camera, shallow depth of field. ${IDENTITY} Photorealistic, 4K.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "Confident performance energy, subtle head movement, neon lights softly flickering, cinematic push-in.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "push_in",
+    lipsyncModel: TEMPLATE_DEFAULTS.lipsyncModel,
+  },
+
+  // ───────────── Motion ─────────────
+  {
+    id: "cinematic-reel",
+    title: "Cinematic Selfie Reel",
+    category: "Motion",
+    blurb: "One photo → a golden-hour cinematic clip with living motion.",
+    thumbnail: stillRooftopSunset,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [IMG("Your photo")],
+    imagePrompt: `Cinematic vertical 9:16 portrait of the subject on a city rooftop at golden hour, skyline behind, warm rim light, slight wind in the hair. ${IDENTITY} Photorealistic, 4K.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "Hair drifting in the wind, clouds moving behind, gentle natural micro-expressions, cinematic push-in.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "push_in",
+  },
+  {
+    id: "rooftop-golden",
+    title: "Golden Hour Orbit",
+    category: "Motion",
+    blurb: "A slow cinematic orbit around you in warm golden light.",
+    thumbnail: stillCarGolden,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [IMG("Your photo")],
+    imagePrompt: `Vertical 9:16 portrait of the subject leaning against a classic car at sunset, warm golden light, lens flare, street-fashion styling. ${IDENTITY} Photorealistic, 4K.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "Slow cinematic camera orbit around the subject, golden particles in the light, natural movement.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "orbit_cw",
+  },
+  {
+    id: "neon-night-move",
+    title: "Neon Night Move",
+    category: "Motion",
+    blurb: "A moody street-mural clip drenched in neon.",
+    thumbnail: stillAlley,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [IMG("Your photo")],
+    imagePrompt: `Vertical 9:16 portrait of the subject leaning against a colourful graffiti mural in an urban alley at night, neon signage glow, street fashion. ${IDENTITY} Photorealistic, 4K.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "Subtle confident sway, flickering neon reflections, slow counter-clockwise camera drift.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "orbit_ccw",
+  },
+
+  // ───────────── UGC/Ad ─────────────
+  {
+    id: "ugc-talking-ad",
+    title: "UGC Talking Ad",
+    category: "UGC/Ad",
+    blurb: "Your face + what you're selling → a native talking UGC ad.",
+    thumbnail: stillStudioGel,
+    kinds: ["ugc_ad"],
+    dispatch: "ugc",
+    ugcAspect: "9:16",
+    durationSeconds: 8,
+    inputs: [
+      IMG("Your photo / avatar", "A clear front-facing photo of the presenter"),
+      TXT("What are you promoting?", true, "e.g. a matte rose-gold lipstick that lasts all day"),
+    ],
+  },
+  {
+    id: "product-lifestyle",
+    title: "Product Lifestyle Ad",
+    category: "UGC/Ad",
+    blurb: "Drop your product photo → a cinematic lifestyle ad clip.",
+    thumbnail: productLipstick.url,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [IMG("Product photo", "A clean shot of your product")],
+    imagePrompt:
+      "Editorial lifestyle product photograph: the EXACT uploaded product placed naturally on a warm walnut cafe table with a soft-focus latte, an open notebook and golden-hour window light from camera-right. Shallow depth of field, 50mm, Kodak Portra 400 grain, magazine colour. Preserve the product's label, shape, colours and proportions exactly — do not redesign it. No people in frame.",
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "Slow cinematic push-in on the product, steam rising from the latte, soft particles in the light beam, locked tripod feel.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "push_in",
+  },
+  {
+    id: "app-hero",
+    title: "App Hero · iPhone",
+    category: "UGC/Ad",
+    blurb: "Drop your app screenshot → a photoreal iPhone-in-hand hero shot.",
+    thumbnail: stillRooftopDay,
+    kinds: ["image"],
+    dispatch: "studio",
+    inputs: [IMG("App screenshot", "A full-screen screenshot of your app")],
+    imagePrompt:
+      "Photorealistic hero shot of a person's hand holding a brand-new iPhone 15 Pro in titanium black. The phone screen displays the EXACT uploaded app UI screenshot, pixel-perfect, no distortion. Soft natural window light from camera-left, clean white seamless backdrop with a subtle gradient, professional product photography, 50mm f/2.8, ultra-sharp screen, gentle hand shadow. Preserve the screen content exactly. No text overlays, no logos.",
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+  },
+
+  // ───────────── Spin ─────────────
+  {
+    id: "viral-spin",
+    title: "Viral Spin · 1 → 30",
+    category: "Spin",
+    blurb: "One idea → 30 scroll-stopping pieces across every short-form format.",
+    thumbnail: stillBooth,
+    kinds: ["spin"],
+    dispatch: "spin",
+    inputs: [
+      TXT("Describe your idea", true, "e.g. hot-pink cyclorama magazine cover, hair-flip hook"),
+    ],
+  },
+  {
+    id: "trend-remix-spin",
+    title: "Trend Remix · 1 → 30",
+    category: "Spin",
+    blurb: "Turn a single trend into a full 30-piece content drop.",
+    thumbnail: stillCourtBall,
+    kinds: ["spin"],
+    dispatch: "spin",
+    spinPreset: "Trend remix, bold high-contrast colour grade, punchy captions",
+    inputs: [TXT("What's the trend?", true, "e.g. slow-mo outfit reveal to a viral audio")],
+  },
+
+  // ───────────── Kids ─────────────
+  {
+    id: "kids-storybook",
+    title: "Storybook Character",
+    category: "Kids",
+    blurb: "Turn a photo into a warm hand-painted storybook character.",
+    thumbnail: kidsMeadow,
+    kinds: ["image"],
+    dispatch: "studio",
+    inputs: [IMG("A photo", "A clear, friendly photo")],
+    imagePrompt:
+      "Transform the uploaded photo into a charming hand-painted children's storybook character: soft watercolour illustration, warm golden light, whimsical friendly style, cozy picture-book meadow background. Keep the likeness recognisable and wholesome. No text.",
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+  },
+  {
+    id: "kids-bedtime",
+    title: "Bedtime Reel",
+    category: "Kids",
+    blurb: "A gentle, dreamy bedtime clip from a single photo.",
+    thumbnail: kidsBedtime,
+    thumbnailVideo: kidsBedtimeClip,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [IMG("A photo")],
+    imagePrompt:
+      "Transform the uploaded photo into a soft, dreamy children's storybook bedtime scene: cozy bedroom, warm nightlight glow, gentle watercolour illustration, twinkling stars through the window. Keep the likeness wholesome and recognisable. No text.",
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "Very gentle drifting motion, stars softly twinkling, a calm slow push-in, dreamy bedtime mood.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "push_in",
+  },
+
+  // ───────────── Editing ─────────────
+  {
+    id: "autocut-hype",
+    title: "AutoCut — Hype",
+    category: "Editing",
+    blurb: "Drop your clips and Aurora cuts a beat-synced, fast-paced 9:16 short for you.",
+    thumbnail: stillRooftopDay,
+    kinds: ["autocut"],
+    dispatch: "autocut",
+    inputs: [],
+  },
+];
+
+// Category display order for the gallery.
+export const CATEGORY_ORDER: TemplateCategory[] = ["Lip-sync", "Motion", "UGC/Ad", "Spin", "Kids", "Editing"];
+
+export function getStudioTemplate(id: string): StudioTemplate | undefined {
+  return STUDIO_TEMPLATES.find((t) => t.id === id);
+}
+
+/**
+ * Total Aura for a template.
+ *  - studio: the SUM of each orchestrator kind's `computeCost`, matching exactly
+ *    what generatePerformanceShot / generateVideoFromImage / lipSyncVideo charge.
+ *  - ugc:  the flat COST_UGC_AD reserved by generateUGCAd.
+ *  - spin: SPIN_PIECE_COUNT × SPIN_PIECE_COST — spinThirty charges the whole
+ *    batch upfront (1 Aura per piece; failed pieces auto-refund their Aura).
+ * Preview can therefore never disagree with the real charge.
+ */
+export function templateCost(t: StudioTemplate): number {
+  if (t.dispatch === "ugc") return COST_UGC_AD;
+  if (t.dispatch === "spin") return SPIN_PIECE_COUNT * SPIN_PIECE_COST;
+  if (t.dispatch === "autocut") return COST_AUTOCUT;
+
+  let total = 0;
+  for (const kind of t.kinds) {
+    if (kind === "image") {
+      total += computeCost({ features: ["image"] }).total;
+    } else if (kind === "video") {
+      total += computeCost({
+        features: ["video"],
+        model: t.videoModel ?? TEMPLATE_DEFAULTS.videoModel,
+        durationSeconds: t.durationSeconds ?? TEMPLATE_DEFAULTS.durationSeconds,
+        resolution: t.resolution ?? TEMPLATE_DEFAULTS.resolution,
+      }).total;
+    } else if (kind === "lipsync") {
+      total += computeCost({
+        features: ["lipsync"],
+        model: t.lipsyncModel ?? TEMPLATE_DEFAULTS.lipsyncModel,
+      }).total;
+    }
+  }
+  return total;
+}
+
+/** Short flow label for a card badge, derived from the manifest (no hardcoding). */
+export function templateFlowLabel(t: StudioTemplate): string {
+  if (t.dispatch === "spin") return `1 → ${SPIN_PIECE_COUNT}`;
+  if (t.dispatch === "ugc") return "Talking ad";
+  if (t.dispatch === "autocut") return "Auto edit";
+  if (t.kinds.includes("lipsync")) return "Lip-sync";
+  if (t.kinds.includes("video")) return "Video";
+  return "Image";
+}

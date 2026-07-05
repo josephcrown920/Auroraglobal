@@ -1,0 +1,4 @@
+# HF Space deps. The model repos' own requirements (torch, diffusers, …) are pulled
+# by workers/setup.sh, which the Space should run on startup (see README).
+gradio>=4.0
+requests>=2.31

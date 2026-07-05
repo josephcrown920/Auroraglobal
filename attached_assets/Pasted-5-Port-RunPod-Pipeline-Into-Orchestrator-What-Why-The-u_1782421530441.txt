@@ -1,0 +1,45 @@
+5 - Port RunPod Pipeline Into Orchestrator
+
+What & Why
+
+The user supplied a standalone Python/FastAPI "Aurora GPU Pipeline" (attached_assets/aurora-gpu-pipeline-main_*.zip) that orchestrates RunPod GPU workers (ComfyUI image, Kling video, lip-sync, motion transfer) with health checks, failover, and a serverless fallback tier. The app already does GPU-worker orchestration in TypeScript via the gpuWorker adapter in src/lib/orchestrator.server.ts (Supabase gpu_workers registry + /admin registration). Rather than add a second runtime, we fold the useful RunPod capabilities from the Python package into the existing TypeScript orchestrator so there is one codebase, one runtime, one worker registry. No Python, FastAPI, or Redis is added. The Python files remain as reference only.
+
+Done looks like
+
+A RunPod worker registered through /admin can be driven end-to-end by the existing orchestrator, including RunPod's native serverless contract (POST {endpoint}/run or /runsync with a { "input": {...} } body), not just the current custom POST /generate contract.
+Each worker can be tagged with the contract/protocol it speaks (existing custom /generate vs RunPod /run), so both worker styles can coexist in the same registry and failover chain.
+The four pipeline roles from the package — ComfyUI (image/upscale), Kling (video), lip-sync, motion (video) — are expressible via the existing capabilities model, and routing picks the right worker for each GenerateKind.
+A serverless/auto-scale fallback tier works: serverless RunPod endpoints can be registered at lower priority so the orchestrator falls back to them when dedicated workers are busy/unhealthy, matching the package's primary→worker→serverless ordering.
+Worker health is tracked: unhealthy/stale workers are skipped during dispatch and surfaced in the admin list (building on the existing /health ping + last_heartbeat), without introducing a separate long-running daemon process.
+The admin "Register GPU worker" panel captures the new fields (protocol/contract, optional worker role/model tag) and its helper text documents both supported contracts.
+Existing non-RunPod providers and the current /generate-style workers keep working unchanged; the provider priority chain still ends with GPU workers before Fal.
+Out of scope
+
+Adding any Python, FastAPI, Redis, or a separate sidecar service/workflow — explicitly rejected by the user in favor of porting into TypeScript.
+Building the actual GPU worker container images, ComfyUI workflows, Wav2Lip/DWPose models, or the RunPod-side handlers — those run on RunPod, not in this repo.
+Porting scripts/deploy.py automation (it only prints manual console guides) and config/infrastructure.json as live config — capacity/cost numbers may inform defaults but are not wired in as a runtime config file.
+Env-var-based worker configuration (the package's .env worker list). Workers stay registered in the Supabase gpu_workers table via /admin, consistent with the existing pattern.
+Any change to billing/credits or the cost-accounting model beyond a reasonable per-kind cost estimate for RunPod workers.
+Steps
+
+Worker contract abstraction. In the gpuWorker adapter, support two request contracts selectable per worker: the existing custom POST /generate (flat body → { url }), and RunPod-native (POST /run async or /runsync, body wrapped as { input: { kind, prompt, image_urls, audio_url, video_url, model, duration, resolution } }, reading the output URL from the RunPod response shape). For async /run, poll the RunPod status endpoint until completion within the existing timeout; prefer /runsync when the worker is marked synchronous. Normalize both to the adapter's { url, endpoint } return.
+Schema + registry fields. Add a Supabase migration extending gpu_workers with a protocol/contract column (e.g. custom vs runpod) defaulting to custom so existing rows are unaffected, plus an optional worker role/model tag (comfyui/kling/lipsync/motion) for clarity. Preserve the existing RLS that hides auth_token from client reads. Keep the RunPod API key stored per-worker in auth_token (sent as Authorization: Bearer …), matching the current pattern — no new global secret.
+Routing + serverless fallback tier. Keep capability-based routing (image/video/lipsync/upscale) but ensure RunPod roles map correctly (comfyui→image/upscale, kling→video, lipsync→lipsync, motion→video). Confirm the orchestrator's priority/in_flight ordering lets lower-priority serverless RunPod endpoints act as the auto-scale fallback after dedicated workers, reproducing the package's primary→worker→serverless failover.
+Health tracking. Build on the existing per-worker /health ping and last_heartbeat: filter out workers whose health check fails or whose heartbeat is stale at dispatch time, and refresh heartbeat on successful/failed dispatch. Implement this as lazy/at-dispatch checks (and/or reuse the admin ping), NOT a separate always-on background loop, since this runs in a serverless-style request runtime.
+Admin UI updates. Extend the WorkersPanel registration form to set the new protocol/contract field and optional role/model tag, show health/heartbeat freshness in the worker list, and update the helper text to document both supported contracts (POST /generate returning { url } and RunPod POST /run / /runsync with { input }) plus GET /health.
+Parity check + reference doc. Verify the TS path covers the package's retry/failover semantics (retry count, backoff, skip-unhealthy) — the orchestrator already has withRetry and circuit-breaking, so reconcile rather than duplicate. Briefly note in the architecture docs how the registered gpu_workers map onto the package's worker roles, so the Python zip stays a clear reference.
+Critical constraints
+
+TypeScript only — do NOT add Python/FastAPI/Redis or a second service.
+Backward compatible — existing /generate-style workers and all other providers in the priority chain must keep working; the new contract is opt-in per worker via the protocol field.
+Keep auth_token RLS protection intact in the new migration.
+No always-on background daemon for health checks; use lazy/at-dispatch checks suited to the request runtime.
+Relevant files
+
+src/lib/orchestrator.server.ts:447-516
+src/lib/orchestrator.server.ts:46-94
+src/routes/admin.tsx:209-265
+supabase/migrations/20260612030147_61b957af-1545-4c8f-a661-b436fe84655a.sql
+docs/ARCHITECTURE.md
+docs/DATABASE.md
+attached_assets/aurora-gpu-pipeline-main_1782227478790.zip
