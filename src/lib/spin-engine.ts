@@ -8,6 +8,7 @@
 // near-identical outputs even with zero API keys.
 
 import { z } from "zod";
+import { PRICING, VIDEO_TIER_AURA, LIPSYNC_TIER_AURA } from "./pricing";
 
 // Kept at 30 for credit parity (1 Aura per piece, charged upfront). The engine
 // is count-driven so this can grow later without code changes.
@@ -16,6 +17,36 @@ export const SPIN_COUNT = 30;
 // charge. spin.functions.ts (server) and every cost label import THIS constant
 // so the disclosed price can never drift from what is actually charged.
 export const SPIN_PIECE_COST = 1;
+
+// ─── Video mode (Product Showcase only) ──────────────────────────────────────
+// A person uploads a product photo + a short script and gets SPIN_COUNT
+// TALKING videos instead of stills: each one is the avatar holding the SAME
+// product in a different outfit/location/angle, speaking the SAME script.
+// This is a real multi-stage render per piece (styled still → image-to-video
+// → lip-sync), so it is priced through the SAME stacked engine every other
+// video/lipsync feature uses (src/lib/pricing.ts) — never a made-up number —
+// at the PREMIUM tier on purpose: this is the flagship, most expensive thing
+// Spin can produce, and the price must reflect that.
+export type SpinMode = "photo" | "video";
+export const SPIN_VIDEO_DURATION_SECONDS = 15;
+// Forced models (not left to orchestrator default) so the price we quote is
+// the price we actually pay the provider for — both sit in the "premium" tier
+// (see VIDEO_MODEL_TIERS / LIPSYNC_MODEL_TIERS in pricing.ts).
+export const SPIN_VIDEO_MODEL = "wan-2.5";
+export const SPIN_VIDEO_LIPSYNC_MODEL = "fal-ai/sync-lipsync/v2";
+
+// Mirrors computeCost()'s formula (image base-only + video/lipsync scaled by
+// length, 720p reference) but tiers video and lip-sync INDEPENDENTLY at
+// "premium" — computeCost() only accepts a single `model` string to tier
+// both features at once, which can't correctly resolve two distinct model
+// namespaces (video models vs. lip-sync models never share a name), so the
+// arithmetic is inlined here instead, pulling every number straight from the
+// canonical pricing.ts tables so it can never drift from them.
+const spinVideoLengthFactor = SPIN_VIDEO_DURATION_SECONDS / PRICING.referenceSeconds;
+export const SPIN_VIDEO_PIECE_COST = Math.max(
+  1,
+  Math.ceil(PRICING.base.image + VIDEO_TIER_AURA.premium * spinVideoLengthFactor + LIPSYNC_TIER_AURA.premium * spinVideoLengthFactor),
+);
 
 // ─── Variation axes ───────────────────────────────────────────────────────────
 // Location(10) × Outfit(11) are coprime → LCM = 110, so every (location,outfit)
@@ -584,4 +615,28 @@ export function buildVariantPrompt(
 /** Short tile label for the grid. */
 export function specLabel(spec: SpinSpec): string {
   return spec.contentType;
+}
+
+/**
+ * Motion instruction for the image→video stage of a Video Mode piece
+ * (Product Showcase only). The rendered still (from buildVariantPrompt,
+ * already holding the same product) is animated into a short talking clip;
+ * lip-sync is layered on top in a separate stage using the shared script
+ * audio, so this prompt only needs to describe NATURAL body/camera motion —
+ * mouth movement is handled entirely by the lip-sync stage, not here.
+ */
+export function buildVariantVideoMotionPrompt(
+  spec: SpinSpec,
+  opts: { avatarName?: string | null } = {},
+): string {
+  return [
+    opts.avatarName ? `Same person as reference image — ${opts.avatarName}.` : "Same person as reference image.",
+    "Animate this exact photo into a short, natural talking-to-camera video clip.",
+    "CRITICAL: keep the exact same product visibly in hand/frame the entire clip — never let it drop, disappear, or change.",
+    `Motion: ${spec.motion}, subtle natural breathing and blinking, gentle head movement, keep the ${spec.framing} framing and ${spec.camera} stable.`,
+    "The person looks and speaks naturally toward the camera as if presenting the product to an audience.",
+    "Do not change the outfit, location, lighting, or identity established in the photo.",
+    "Ultra-realistic, cinematic, photorealistic, smooth natural motion, no warping or artifacts.",
+    "[9:16 vertical aspect ratio]",
+  ].join(" ");
 }

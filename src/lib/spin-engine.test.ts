@@ -1,14 +1,21 @@
 import { test, expect } from "bun:test";
 import {
   SPIN_COUNT,
+  SPIN_PIECE_COST,
+  SPIN_VIDEO_DURATION_SECONDS,
+  SPIN_VIDEO_MODEL,
+  SPIN_VIDEO_LIPSYNC_MODEL,
+  SPIN_VIDEO_PIECE_COST,
   SpinSpecSchema,
   SpinPlanSchema,
   buildFallbackSpecs,
   normalizeSpecs,
   buildVariantPrompt,
+  buildVariantVideoMotionPrompt,
   specLabel,
   type SpinSpec,
 } from "./spin-engine";
+import { PRICING, VIDEO_TIER_AURA, LIPSYNC_TIER_AURA, VIDEO_MODEL_TIERS, LIPSYNC_MODEL_TIERS } from "./pricing";
 
 test("buildFallbackSpecs returns exactly SPIN_COUNT complete specs", () => {
   const specs = buildFallbackSpecs("dancing in the rain");
@@ -133,4 +140,51 @@ test("buildVariantPrompt states the pose as mandatory staging and disclaims the 
   });
   expect(prompt).toContain(spec.pose);
   expect(prompt.toLowerCase()).toContain("ignore any hand position, prop, gesture, or body pose");
+});
+
+// ─── Video Mode pricing (product_showcase talking-portrait pieces) ──────────
+
+test("SPIN_VIDEO_PIECE_COST is derived from the real stacked pricing engine, not an arbitrary number", () => {
+  const lenMult = SPIN_VIDEO_DURATION_SECONDS / PRICING.referenceSeconds;
+  const expected = Math.max(
+    1,
+    Math.ceil(PRICING.base.image + VIDEO_TIER_AURA.premium * lenMult + LIPSYNC_TIER_AURA.premium * lenMult),
+  );
+  expect(SPIN_VIDEO_PIECE_COST).toBe(expected);
+  // Sanity: this must be a real premium price, well above a single flat still.
+  expect(SPIN_VIDEO_PIECE_COST).toBeGreaterThan(SPIN_PIECE_COST * 10);
+});
+
+test("video length is fixed at 15 seconds", () => {
+  expect(SPIN_VIDEO_DURATION_SECONDS).toBe(15);
+});
+
+test("forced video/lipsync models both actually sit in the premium tier they're priced at", () => {
+  expect(VIDEO_MODEL_TIERS[SPIN_VIDEO_MODEL]).toBe("premium");
+  expect(LIPSYNC_MODEL_TIERS[SPIN_VIDEO_LIPSYNC_MODEL]).toBe("premium");
+});
+
+test("a full 30-piece video batch costs strictly more than a full 30-piece photo batch", () => {
+  expect(SPIN_VIDEO_PIECE_COST * SPIN_COUNT).toBeGreaterThan(SPIN_PIECE_COST * SPIN_COUNT);
+});
+
+test("buildVariantVideoMotionPrompt describes natural motion, preserves the product, and never mentions mouth/lipsync (handled in a separate stage)", () => {
+  const spec = buildFallbackSpecs("unboxing skincare", 1)[0];
+  const prompt = buildVariantVideoMotionPrompt(spec, { avatarName: "Nova" });
+  expect(prompt).toContain(spec.motion);
+  expect(prompt).toContain(spec.framing);
+  expect(prompt).toContain(spec.camera);
+  expect(prompt).toContain("Nova");
+  expect(prompt.toLowerCase()).toContain("product");
+  expect(prompt).toContain("9:16");
+  expect(prompt.toLowerCase()).not.toContain("lip-sync");
+  expect(prompt.toLowerCase()).not.toContain("lipsync");
+});
+
+test("buildVariantVideoMotionPrompt omits the avatar name cleanly when absent", () => {
+  const spec = buildFallbackSpecs("holding a coffee mug", 1)[0];
+  const prompt = buildVariantVideoMotionPrompt(spec);
+  expect(prompt).not.toContain("undefined");
+  expect(prompt).not.toContain("null");
+  expect(prompt).toContain("Same person as reference image.");
 });
