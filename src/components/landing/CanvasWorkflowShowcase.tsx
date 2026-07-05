@@ -7,15 +7,11 @@ import avatar4 from "@/assets/ugc-avatar-4.jpg";
 import avatar5 from "@/assets/ugc-avatar-5.jpg";
 import avatar6 from "@/assets/ugc-avatar-6.jpg";
 import realStreet from "@/assets/ugc/ugc-street-coffee.jpeg.asset.json";
-import realMale from "@/assets/ugc/ugc-male-shades.jpeg.asset.json";
-import realHome from "@/assets/ugc/ugc-home-selfie.webp.asset.json";
 import realCar from "@/assets/ugc/ugc-car-product-hold.webp.asset.json";
 import joshPortrait from "@/assets/josh-red-portrait.png.asset.json";
 
 const UGC_AVATARS = [
   { name: "Sasha", vibe: "Street style · coffee run", img: (realStreet as { url: string }).url },
-  { name: "Marcus", vibe: "Eyewear · product hero", img: (realMale as { url: string }).url },
-  { name: "Priya", vibe: "At-home vlog selfie", img: (realHome as { url: string }).url },
   { name: "Emma", vibe: "Car-seat product hold", img: (realCar as { url: string }).url },
   { name: "Josh", vibe: "Cozy reviewer", img: (joshPortrait as { url: string }).url },
   { name: "Deon", vibe: "Tech talk", img: avatar2 },

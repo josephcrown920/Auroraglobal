@@ -21,7 +21,6 @@ import avatarNova from "@/assets/ugc/nova.jpg.asset.json";
 import productLipstick from "@/assets/ugc/product-lipstick-car.jpg.asset.json";
 import realCarHold from "@/assets/ugc/ugc-car-product-hold.webp.asset.json";
 import realStreet from "@/assets/ugc/ugc-street-coffee.jpeg.asset.json";
-import realMale from "@/assets/ugc/ugc-male-shades.jpeg.asset.json";
 import realHome from "@/assets/ugc/ugc-home-selfie.webp.asset.json";
 import demo1 from "@/assets/demo-1.mov.asset.json";
 import demo2 from "@/assets/demo-2.mov.asset.json";
@@ -53,8 +52,6 @@ const AVATARS = [
   { id: "nova",    name: "Nova",    vibe: "Glossy fitness creator",    img: avatarNova.url },
   { id: "emma",    name: "Emma",    vibe: "Car-selfie product reviewer", img: realCarHold.url },
   { id: "sasha",   name: "Sasha",   vibe: "Street-style coffee run",     img: realStreet.url },
-  { id: "marcus",  name: "Marcus",  vibe: "Male eyewear / hype",         img: realMale.url },
-  { id: "priya",   name: "Priya",   vibe: "At-home vlog selfie",         img: realHome.url },
 ];
 
 const PRESETS = [
