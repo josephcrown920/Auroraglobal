@@ -19,7 +19,9 @@ Set these in Kaggle -> Add-ons -> Secrets (this cell loads them for you):
   NGROK_STATIC_DOMAIN  free static domain, e.g. "foo-bar.ngrok-free.app"
                        (claim one at dashboard.ngrok.com/domains)
   AURORA_URL           your Aurora app base URL, e.g. "https://your-app.replit.app"
-  AURORA_REGISTER_KEY  Supabase anon/publishable key (the register `apikey`)
+  AURORA_REGISTER_SECRET  private operator secret (the register `apikey`); set the
+                       same value as AURORA_REGISTER_SECRET in Aurora's env — this
+                       is NOT the Supabase anon/publishable key.
   AURORA_WORKER_TOKEN  (optional) bearer that protects this worker's /generate
   AURORA_TASKS         (optional) comma list of tasks to install and serve:
                          "lipsync"           — default, lipsync only (~10 GB disk)
@@ -51,7 +53,7 @@ CONFIG_KEYS = [
     "NGROK_AUTHTOKEN",
     "NGROK_STATIC_DOMAIN",
     "AURORA_URL",
-    "AURORA_REGISTER_KEY",
+    "AURORA_REGISTER_SECRET",
     "AURORA_WORKER_TOKEN",
     "AURORA_TASKS",
     "AURORA_WORKER_REPO_RAW",
@@ -106,7 +108,7 @@ _REQUIRED_FOR_REGISTER = [
     ("NGROK_AUTHTOKEN", "ngrok dashboard -> Your Authtoken (dashboard.ngrok.com/get-started/your-authtoken)"),
     ("NGROK_STATIC_DOMAIN", "ngrok dashboard -> Domains -> claim a free static domain (dashboard.ngrok.com/domains)"),
     ("AURORA_URL", "your Aurora app base URL, e.g. https://your-app.replit.app"),
-    ("AURORA_REGISTER_KEY", "Supabase anon/publishable key (Project Settings -> API -> anon public) -- never the service-role key"),
+    ("AURORA_REGISTER_SECRET", "private operator secret -- set the SAME value as AURORA_REGISTER_SECRET in Aurora's env; NEVER the Supabase anon/publishable or service-role key"),
 ]
 
 
@@ -232,7 +234,7 @@ def serve_and_tunnel(tasks: str):
               "set it (Add-ons -> Secrets) for zero-touch reconnects.", flush=True)
 
     # Auto-register in Aurora so no Admin -> Workers edit is needed (reuses the
-    # shared worker's register helper; reads AURORA_URL + AURORA_REGISTER_KEY).
+    # shared worker's register helper; reads AURORA_URL + AURORA_REGISTER_SECRET).
     os.environ["NGROK_STATIC_DOMAIN"] = host or public_url.replace("https://", "")
     sys.path.insert(0, ROOT)
     try:
@@ -245,7 +247,7 @@ def serve_and_tunnel(tasks: str):
     print(f"Worker live (protocol=custom, caps={tasks}):")
     print(f"  Endpoint:     {public_url}/generate")
     print("  Auto-registered in Aurora if NGROK_STATIC_DOMAIN + AURORA_URL +")
-    print("  AURORA_REGISTER_KEY are set — otherwise add the URL in Admin -> Workers.")
+    print("  AURORA_REGISTER_SECRET are set — otherwise add the URL in Admin -> Workers.")
     print("=" * 64 + "\n", flush=True)
     server.wait()
 

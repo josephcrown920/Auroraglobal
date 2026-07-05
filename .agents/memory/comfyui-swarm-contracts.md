@@ -20,15 +20,15 @@ description: Filename/node-class contract between the ComfyUI launcher and the d
   launcher's model map AND its `CAP_NODE_CLASSES` (exact class names from the graph
   JSON) in lockstep, then run `servable_caps` after `/system_stats` is healthy.
 
-## Self-registration trust model (security)
-- `/api/public/workers/register` is gated by the **public** Supabase anon/publishable
-  key (`apikey` header) — the same key shipped to browsers (see
-  `worker-self-registration-tokens.md`). It is effectively open.
-- **Why it matters more now:** routing image/video swarm-first means a worker that
+## Self-registration trust model (security) — RESOLVED
+- `/api/public/workers/register` is now gated by a **private, operator-generated**
+  `AURORA_REGISTER_SECRET` (`apikey` header) — see `worker-self-registration-tokens.md`.
+  It is no longer the public Supabase anon/publishable key; the route fails closed
+  (503) if the secret isn't configured, and never falls back to the anon key.
+- **Why this mattered:** routing image/video swarm-first means a worker that
   self-registers is handed real job inputs (signed links to private user media) and
-  trusted to return outputs. So anyone who learns the Aurora URL can register a
-  "worker", harvest media refs, and return arbitrary results.
-- **How to apply:** this is a pre-existing, deliberate pattern (don't silently
-  "fix" it inside an unrelated task — it would break existing custom workers). Real
-  remediation = a dedicated operator registration secret or an admin approval queue;
-  filed as a follow-up task.
+  trusted to return outputs, so an open register endpoint let anyone who knew the
+  Aurora URL harvest media refs / return arbitrary results.
+- **How to apply:** any existing custom (RunPod/VM) worker config must be updated to
+  send the new secret; `/api/public/workers/health` (probes already-known workers,
+  no new capability grant) intentionally stayed on the public anon key.

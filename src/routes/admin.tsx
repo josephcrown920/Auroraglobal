@@ -1027,7 +1027,7 @@ function WorkersPanel() {
         </h3>
         <p className="text-xs text-muted-foreground mb-2">
           Every call your Kaggle/Colab/Vast worker made to self-register, success or failure — so a
-          bad <code>AURORA_REGISTER_KEY</code> or misconfigured URL shows up here even when no
+          bad <code>AURORA_REGISTER_SECRET</code> or misconfigured URL shows up here even when no
           worker row was ever created.
         </p>
         <div className="rounded-xl border border-border overflow-hidden">

@@ -41,7 +41,7 @@ Set on **Kaggle** under *Add-ons → Secrets*, on **Colab** via the 🔑 panel
 | `NGROK_AUTHTOKEN` | yes | ngrok dashboard → *Your Authtoken*. |
 | `NGROK_STATIC_DOMAIN` | yes | claim a free static domain (`dashboard.ngrok.com/domains`), e.g. `foo-bar.ngrok-free.app` — keeps the registered endpoint stable across restarts. |
 | `AURORA_URL` | yes | your Aurora base URL, e.g. `https://your-app.replit.app`. |
-| `AURORA_REGISTER_KEY` | yes | Supabase **anon / publishable** key (the register `apikey`). **Never** the service-role key. |
+| `AURORA_REGISTER_SECRET` | yes | a private secret **you generate** (e.g. `openssl rand -hex 32`) and set as `AURORA_REGISTER_SECRET` in Aurora's env too — the register `apikey`. **Never** the Supabase anon/publishable or service-role key. |
 | `AURORA_WORKER_NAME` | optional | row name in Admin → Workers. |
 | `AURORA_CAPABILITIES` | optional | force caps, e.g. `image,video`. Default by VRAM: `<20 GB → image,lipsync`; `≥20 GB → image,video,lipsync,motion`. A cap is advertised **only if** its weights are on disk **and** every custom node its graph references is loaded (verified against `/object_info`) after setup. |
 

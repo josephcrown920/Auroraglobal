@@ -19,7 +19,7 @@ then add these in the Kaggle notebook under **Add-ons → Secrets**:
 | `NGROK_AUTHTOKEN` | yes | ngrok dashboard → *Your Authtoken* (`dashboard.ngrok.com/get-started/your-authtoken`) |
 | `NGROK_STATIC_DOMAIN` | yes | ngrok dashboard → *Domains* → claim a free static domain, e.g. `foo-bar.ngrok-free.app` (`dashboard.ngrok.com/domains`) |
 | `AURORA_URL` | yes | your Aurora app base URL, e.g. `https://your-app.replit.app` |
-| `AURORA_REGISTER_KEY` | yes | your Supabase **anon / publishable** key (Supabase → Project Settings → API → `anon public`). This is the `apikey` the register endpoint expects — **never** the service-role key. |
+| `AURORA_REGISTER_SECRET` | yes | a private secret **you generate** (e.g. `openssl rand -hex 32`) and set as `AURORA_REGISTER_SECRET` in Aurora's env too. This is the `apikey` the register endpoint expects — **never** the Supabase anon/publishable or service-role key, since those are not private. |
 | `AURORA_WORKER_TOKEN` | optional | any random string (e.g. `openssl rand -hex 16`); if set, Aurora must send it as the `/generate` bearer. |
 | `AURORA_TASKS` | optional | `lipsync` (default) or `lipsync,motion` (only on a ≥24 GB GPU). |
 | `AURORA_WORKER_REPO_RAW` | optional | for a renamed repo, a non-default branch, or a public mirror: set it to your raw base, e.g. `https://raw.githubusercontent.com/OWNER/REPO/BRANCH/workers`. **A private repo won't fetch over raw URLs** — upload `aurora_worker.py` + `setup.sh` to the notebook instead. |

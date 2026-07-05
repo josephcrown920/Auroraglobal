@@ -550,15 +550,17 @@ def _capabilities() -> list[str]:
 def register_with_aurora() -> bool:
     """Upsert this worker's row in Aurora's gpu_workers table.
 
-    Reads the stable Ngrok domain + Aurora URL + register key from env and POSTs
-    to `${AURORA_URL}/api/public/workers/register`. Auth is the Supabase
-    anon/publishable key sent as the `apikey` header (same pattern as the health /
-    jobs-tick cron routes) — so the worker never needs a Supabase service key.
+    Reads the stable Ngrok domain + Aurora URL + register secret from env and
+    POSTs to `${AURORA_URL}/api/public/workers/register`. Auth is a private
+    operator secret sent as the `apikey` header — deliberately NOT the Supabase
+    anon/publishable key, since that key ships to every browser and would let
+    anyone register a fake worker. The worker never needs a Supabase service key.
 
     Env:
       NGROK_STATIC_DOMAIN  your free Ngrok static domain, e.g. "foo-bar.ngrok-free.app"
       AURORA_URL           base URL of the Aurora app, e.g. "https://aurora.example.com"
-      AURORA_REGISTER_KEY  Supabase anon/publishable key (the `apikey` header value)
+      AURORA_REGISTER_SECRET  private operator secret (set as AURORA_REGISTER_SECRET
+                           in Aurora too); NEVER the Supabase anon/publishable key.
       AURORA_WORKER_TOKEN  (optional) this worker's /generate bearer; sent as auth_token
 
     Never raises: a registration failure must not stop the worker from serving.
@@ -566,11 +568,11 @@ def register_with_aurora() -> bool:
     """
     domain = os.environ.get("NGROK_STATIC_DOMAIN", "").strip()
     aurora_url = os.environ.get("AURORA_URL", "").strip().rstrip("/")
-    register_key = os.environ.get("AURORA_REGISTER_KEY", "").strip()
+    register_key = os.environ.get("AURORA_REGISTER_SECRET", "").strip()
     if not (domain and aurora_url and register_key):
         print(
             "[register] skipped — set NGROK_STATIC_DOMAIN, AURORA_URL and "
-            "AURORA_REGISTER_KEY to auto-register (worker still serves jobs).",
+            "AURORA_REGISTER_SECRET to auto-register (worker still serves jobs).",
             flush=True,
         )
         return False

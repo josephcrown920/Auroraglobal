@@ -95,7 +95,7 @@ import os
 os.environ["NGROK_AUTHTOKEN"] = "…"          # dashboard.ngrok.com/get-started/your-authtoken
 os.environ["NGROK_STATIC_DOMAIN"] = "foo-bar.ngrok-free.app"
 os.environ["AURORA_URL"] = "https://your-app.replit.app"
-os.environ["AURORA_REGISTER_KEY"] = "…"      # Supabase anon/publishable key — never service-role
+os.environ["AURORA_REGISTER_SECRET"] = "…"      # private operator secret — set the same value in Aurora's env; never the Supabase key
 os.environ["AURORA_TASKS"] = "lipsync"       # or "lipsync,motion" on an A100 (≥24 GB VRAM)
 
 !curl -sO https://raw.githubusercontent.com/OWNER/REPO/BRANCH/workers/aurora_worker.py

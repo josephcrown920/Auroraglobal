@@ -21,8 +21,9 @@ Secrets / env it reads (Kaggle Secrets, Colab userdata, or plain env vars):
                         (claim one at dashboard.ngrok.com/domains) — keeps the
                         registered endpoint stable across restarts.
   AURORA_URL            your Aurora base URL, e.g. "https://your-app.replit.app"
-  AURORA_REGISTER_KEY   Supabase anon/publishable key (the register `apikey`);
-                        NEVER the service-role key.
+  AURORA_REGISTER_SECRET   private operator secret (the register `apikey`); set the
+                        same value as AURORA_REGISTER_SECRET in Aurora's env — this
+                        is NOT the Supabase anon/publishable key.
   AURORA_WORKER_NAME    (optional) row name in Admin → Workers.
   AURORA_CAPABILITIES   (optional) comma list to force which caps to serve, e.g.
                         "image,video". Default is chosen from detected VRAM:
@@ -49,7 +50,7 @@ CONFIG_KEYS = [
     "NGROK_AUTHTOKEN",
     "NGROK_STATIC_DOMAIN",
     "AURORA_URL",
-    "AURORA_REGISTER_KEY",
+    "AURORA_REGISTER_SECRET",
     "AURORA_WORKER_NAME",
     "AURORA_CAPABILITIES",
 ]
@@ -316,7 +317,7 @@ _REQUIRED_FOR_REGISTER = [
     ("NGROK_AUTHTOKEN", "ngrok dashboard -> Your Authtoken (dashboard.ngrok.com/get-started/your-authtoken)"),
     ("NGROK_STATIC_DOMAIN", "ngrok dashboard -> Domains -> claim a free static domain (dashboard.ngrok.com/domains)"),
     ("AURORA_URL", "your Aurora app base URL, e.g. https://your-app.replit.app"),
-    ("AURORA_REGISTER_KEY", "Supabase anon/publishable key (Project Settings -> API -> anon public) -- never the service-role key"),
+    ("AURORA_REGISTER_SECRET", "private operator secret -- set the SAME value as AURORA_REGISTER_SECRET in Aurora's env; NEVER the Supabase anon/publishable or service-role key"),
 ]
 
 
@@ -343,15 +344,16 @@ def warn_if_register_secrets_missing():
 def register(public_url: str, caps: list[str]) -> bool:
     """Upsert this worker as protocol=comfyui via /api/public/workers/register.
 
-    Auth = Supabase anon key in the `apikey` header (same as health/jobs-tick). The
-    endpoint base (…:8188 origin) is enough — Aurora appends /prompt, /history, /view
+    Auth = the private AURORA_REGISTER_SECRET in the `apikey` header (NOT the
+    Supabase anon key — that's public). The endpoint base (…:8188 origin) is
+    enough — Aurora appends /prompt, /history, /view
     itself (normalizeWorkerBase de-dupes bare-origin vs full-path registrations).
     Never raises: a registration miss must not stop the worker from serving.
     """
     aurora_url = os.environ.get("AURORA_URL", "").strip().rstrip("/")
-    register_key = os.environ.get("AURORA_REGISTER_KEY", "").strip()
+    register_key = os.environ.get("AURORA_REGISTER_SECRET", "").strip()
     if not (aurora_url and register_key):
-        print("[register] skipped — set AURORA_URL + AURORA_REGISTER_KEY to auto-register "
+        print("[register] skipped — set AURORA_URL + AURORA_REGISTER_SECRET to auto-register "
               "(worker still serves jobs; add the URL in Admin → Workers).", flush=True)
         return False
     payload = {
