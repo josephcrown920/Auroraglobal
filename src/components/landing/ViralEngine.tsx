@@ -341,15 +341,17 @@ export function ViralEngine() {
                   </div>
                 </div>
 
-                {/* video grid — one creator, a whole feed */}
+                {/* video grid — one creator, a whole feed. Capped to 2 rows (6 tiles)
+                    so the phone mockup stays compact — a full 4-row grid made this
+                    landing section run far taller than the rest of the page. */}
                 <div className="grid grid-cols-3 gap-[2px] bg-black pb-2">
-                  {PIECES.map((p, i) => {
+                  {PIECES.slice(0, 6).map((p, i) => {
                     const lit = i < revealed || phase === "done";
                     const isCurrent = phase === "spinning" && i === revealed;
                     return (
                       <div
                         key={p.label}
-                        className="relative aspect-[3/4] overflow-hidden bg-neutral-900"
+                        className="relative aspect-square overflow-hidden bg-neutral-900"
                       >
                         <img
                           src={GRID_PHOTOS[i % GRID_PHOTOS.length]}

@@ -17,12 +17,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { timingSafeEqual } from "crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { sendReEngagementEmail, sendFirstPurchaseNudgeEmail } from "@/lib/emails.server";
+import { sendReEngagementEmail, sendFirstPurchaseNudgeEmail, sendOnboardingResumeEmail } from "@/lib/emails.server";
 
 const RE_ENGAGEMENT_INACTIVE_DAYS = 14;
 const RE_ENGAGEMENT_COOLDOWN_DAYS = 30;
 const FIRST_PURCHASE_MIN_ACCOUNT_AGE_DAYS = 3;
 const FIRST_PURCHASE_MAX_ACCOUNT_AGE_DAYS = 45;
+const ONBOARDING_ABANDONED_MIN_AGE_HOURS = 2;
+const ONBOARDING_ABANDONED_MAX_AGE_DAYS = 14;
 const MAX_SENDS_PER_RUN = 150;
 
 function daysAgoIso(days: number): string {
@@ -81,6 +83,51 @@ async function collectFirstPurchaseNudgeTargets(): Promise<string[]> {
   return candidates.filter((p) => !sentSet.has(p.user_id)).map((p) => p.user_id);
 }
 
+/**
+ * Users who saw or explicitly skipped the onboarding modal (tracked via
+ * `onboarding_shown` / `onboarding_skipped` events) but never finished it —
+ * i.e. never claimed the onboarding bonus (profiles.onboarding_bonus_granted
+ * is still false). Windowed so we don't email people mid-session (>= 2h)
+ * or long after they've churned (<= 14d).
+ */
+async function collectOnboardingAbandonedTargets(): Promise<string[]> {
+  const windowStart = daysAgoIso(ONBOARDING_ABANDONED_MAX_AGE_DAYS);
+  const windowEnd = new Date(
+    Date.now() - ONBOARDING_ABANDONED_MIN_AGE_HOURS * 60 * 60 * 1000,
+  ).toISOString();
+
+  const { data: startedEvents } = await supabaseAdmin
+    .from("events")
+    .select("user_id, created_at")
+    .in("name", ["onboarding_shown", "onboarding_skipped"])
+    .not("user_id", "is", null)
+    .gte("created_at", windowStart)
+    .lte("created_at", windowEnd)
+    .limit(5000);
+  if (!startedEvents || startedEvents.length === 0) return [];
+
+  const startedUserIds = [...new Set(startedEvents.map((e) => e.user_id as string))];
+
+  const { data: bonusGranted } = await (supabaseAdmin as any)
+    .from("profiles")
+    .select("user_id, email, onboarding_bonus_granted")
+    .in("user_id", startedUserIds)
+    .not("email", "is", null);
+  const unfinished = ((bonusGranted ?? []) as Array<{ user_id: string; email: string; onboarding_bonus_granted: boolean }>).filter(
+    (p) => !p.onboarding_bonus_granted,
+  );
+  if (unfinished.length === 0) return [];
+
+  const { data: alreadySent } = await (supabaseAdmin as any)
+    .from("email_log")
+    .select("user_id")
+    .eq("template", "onboarding_resume")
+    .limit(5000);
+  const sentSet = new Set((alreadySent ?? []).map((e: { user_id: string }) => e.user_id));
+
+  return unfinished.filter((p) => !sentSet.has(p.user_id)).map((p) => p.user_id);
+}
+
 export const Route = createFileRoute("/api/public/lifecycle-emails")({
   server: {
     handlers: {
@@ -101,9 +148,10 @@ export const Route = createFileRoute("/api/public/lifecycle-emails")({
         if (!authorised) return new Response("Unauthorized", { status: 401 });
 
         try {
-          const [reEngagementTargets, firstPurchaseTargets] = await Promise.all([
+          const [reEngagementTargets, firstPurchaseTargets, onboardingAbandonedTargets] = await Promise.all([
             collectReEngagementTargets(),
             collectFirstPurchaseNudgeTargets(),
+            collectOnboardingAbandonedTargets(),
           ]);
 
           let reEngagementSent = 0;
@@ -118,14 +166,21 @@ export const Route = createFileRoute("/api/public/lifecycle-emails")({
             if (res?.success) firstPurchaseSent++;
           }
 
+          let onboardingResumeSent = 0;
+          for (const userId of onboardingAbandonedTargets.slice(0, MAX_SENDS_PER_RUN)) {
+            const res = await sendOnboardingResumeEmail(userId);
+            if (res?.success) onboardingResumeSent++;
+          }
+
           console.info(
-            `[lifecycle-emails] re_engagement: ${reEngagementSent}/${reEngagementTargets.length}, first_purchase_nudge: ${firstPurchaseSent}/${firstPurchaseTargets.length}`,
+            `[lifecycle-emails] re_engagement: ${reEngagementSent}/${reEngagementTargets.length}, first_purchase_nudge: ${firstPurchaseSent}/${firstPurchaseTargets.length}, onboarding_resume: ${onboardingResumeSent}/${onboardingAbandonedTargets.length}`,
           );
           return new Response(
             JSON.stringify({
               ok: true,
               reEngagement: { candidates: reEngagementTargets.length, sent: reEngagementSent },
               firstPurchaseNudge: { candidates: firstPurchaseTargets.length, sent: firstPurchaseSent },
+              onboardingResume: { candidates: onboardingAbandonedTargets.length, sent: onboardingResumeSent },
             }),
             { status: 200, headers: { "Content-Type": "application/json" } },
           );

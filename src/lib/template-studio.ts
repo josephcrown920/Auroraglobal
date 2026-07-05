@@ -31,13 +31,13 @@ import stillBooth from "@/assets/josh/generated/still-07-booth-headphones.jpg";
 import stillAlley from "@/assets/josh/generated/still-08-alley-mural.jpg";
 import stillCarGolden from "@/assets/josh/generated/still-11-car-golden.jpg";
 import stillRooftopDay from "@/assets/josh/generated/still-17-rooftop-day.jpg";
+import stillCourtBall from "@/assets/josh/generated/still-13-court-ball.jpg";
 import clipNeon from "@/assets/josh/generated/clip-01-neon-closeup.mp4";
 import clipStage from "@/assets/josh/generated/clip-03-stage-mic.mp4";
 import kidsMeadow from "@/assets/kids/showcase-meadow.jpg";
 import kidsBedtime from "@/assets/kids/showcase-bedtime.jpg";
 import kidsBedtimeClip from "@/assets/kids/showcase-bedtime.mp4";
 // .asset.json imports expose { url }
-import blueFullbody from "@/assets/josh/josh-blue-fullbody.png.asset.json";
 import productLipstick from "@/assets/ugc/product-lipstick-car.jpg.asset.json";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -302,7 +302,7 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
     title: "Trend Remix · 1 → 30",
     category: "Spin",
     blurb: "Turn a single trend into a full 30-piece content drop.",
-    thumbnail: blueFullbody.url,
+    thumbnail: stillCourtBall,
     kinds: ["spin"],
     dispatch: "spin",
     spinPreset: "Trend remix, bold high-contrast colour grade, punchy captions",
