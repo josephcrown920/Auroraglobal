@@ -240,9 +240,14 @@ const klingDirect: ProviderAdapter = {
   name: "kling",
   // Only handle EXPLICIT Kling model requests — never hijack a Seedance/Veo/Sora
   // video request just because Kling creds happen to be set (would silently cost more).
+  // Excludes kling-3.0-omni: this adapter's `run()` always calls Kling's own
+  // "kling-v1" API model, so letting it swallow an Omni request would silently
+  // downgrade quality/pricing instead of hitting the verified
+  // kwaivgi/kling-v2.1-master slug via the Replicate adapter (Task #244).
   supports: (r) =>
     r.kind === "video" &&
     (r.model?.startsWith("kling") ?? false) &&
+    r.model !== "kling-3.0-omni" &&
     !!process.env.KLING_ACCESS_KEY &&
     !!process.env.KLING_SECRET_KEY,
   estimateCost: () => 0.3,
@@ -2283,7 +2288,19 @@ export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
     "replicate/flux-schnell",
     "pollinations/flux",
   ],
-  video: ["seedance-2.0-fast", "seedance-2.0", "wan-2.5", "kling-3.0", "veo-3-fast", "sora-2"],
+  // kling-3.0-omni sits after kling-3.0 (its pricier sibling, $0.70 vs $0.60,
+  // both dispatched via the same Replicate provider) so it now participates
+  // in automatic model-fallback and provider-health routing (Task #244) —
+  // previously it only worked when explicitly requested by value.
+  video: [
+    "seedance-2.0-fast",
+    "seedance-2.0",
+    "wan-2.5",
+    "kling-3.0",
+    "kling-3.0-omni",
+    "veo-3-fast",
+    "sora-2",
+  ],
   lipsync: ["fal-ai/sync-lipsync/v2", "fal-ai/wav2lip"],
   upscale: [],
   motion: [],
