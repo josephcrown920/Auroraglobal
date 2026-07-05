@@ -9,18 +9,26 @@ import { compressImageBytes } from "./compress.server";
 import { assertTrustedUrl } from "./url-guard";
 import { listAvatars } from "./mcp/avatars.server";
 import { generateWithFallback } from "./llm-fallback.server";
+import { hfTextToSpeech } from "./hf.server";
+import { UGC_TTS_MODEL } from "./ugc.server";
 import {
   SPIN_COUNT,
   SPIN_PIECE_COST,
+  SPIN_VIDEO_PIECE_COST,
+  SPIN_VIDEO_DURATION_SECONDS,
+  SPIN_VIDEO_MODEL,
+  SPIN_VIDEO_LIPSYNC_MODEL,
   VIRAL_SYSTEM_PROMPT,
   SpinPlanSchema,
   SPIN_TEMPLATES,
   buildFallbackSpecs,
   normalizeSpecs,
   buildVariantPrompt,
+  buildVariantVideoMotionPrompt,
   specLabel,
   type SpinSpec,
   type SpinTemplateId,
+  type SpinMode,
 } from "./spin-engine";
 
 // 1 Aura per spin piece — shared client-safe constant (also drives the cost
@@ -53,6 +61,15 @@ type LooseTable = {
 };
 type LooseClient = { from: (table: string) => LooseTable };
 
+// Same pattern as jobs.server.ts's private uploadBytesToStudio — used here only
+// to stash the ONE shared TTS audio track for a Video Mode batch. `orchestrate`
+// re-signs private studio refs before handing them to a provider.
+async function uploadBytesToStudio(path: string, bytes: Uint8Array | Buffer, contentType: string): Promise<string> {
+  const { error } = await supabaseAdmin.storage.from("studio").upload(path, bytes, { contentType, upsert: true });
+  if (error) throw new Error(`studio upload failed: ${error.message}`);
+  return supabaseAdmin.storage.from("studio").getPublicUrl(path).data.publicUrl;
+}
+
 // ─── Avatar options for the identity picker ──────────────────────────────────
 
 export const getSpinOptions = createServerFn({ method: "GET" })
@@ -79,6 +96,13 @@ const SpinInput = z.object({
   prompt: z.string().min(1).max(2000),
   avatarId: z.string().uuid().optional(),
   templateId: z.enum(TEMPLATE_IDS).optional().default("default"),
+  // Video Mode: 30 talking-portrait videos instead of 30 stills. Restricted to
+  // the Product Showcase template only — see spin-engine.ts SPIN_VIDEO_PIECE_COST
+  // for why (a real held-object anchor is required for the identity+product lock
+  // across every clip). Enforced server-side below, never trusted from the client.
+  mode: z.enum(["photo", "video"]).optional().default("photo"),
+  script: z.string().trim().min(1).max(600).optional(),
+  productUrl: z.string().url().optional(),
 });
 
 export const spinThirty = createServerFn({ method: "POST" })
@@ -106,10 +130,52 @@ export const spinThirty = createServerFn({ method: "POST" })
       }
     }
 
+    // Video Mode is restricted to the Product Showcase template — enforced
+    // server-side (never trust the client). This mirrors the requiresHeldObject
+    // flag: a talking product-in-hand video needs the exact held-object anchor
+    // that only that template's pose bank + prompt guarantee.
+    const mode: SpinMode = data.mode ?? "photo";
+    if (mode === "video") {
+      if (data.templateId !== "product_showcase") {
+        throw new Error("Video Mode is only available for the Product Showcase template.");
+      }
+      if (!data.script) throw new Error("Video Mode requires a script for the avatar to speak.");
+      if (!data.productUrl) throw new Error("Video Mode requires a product photo.");
+      assertTrustedUrl(data.productUrl); // SSRF guard before this reaches any provider
+    }
+    const script = mode === "video" ? (data.script as string).trim() : null;
+    const productUrl = mode === "video" ? (data.productUrl as string) : null;
+
+    // Generate the spoken-audio track ONCE for the whole batch — every one of
+    // the 30 clips speaks the identical script, only the visuals vary — so we
+    // synthesize a single track up front and reuse it across every lip-sync
+    // stage at tick time, instead of paying for 30 redundant TTS calls.
+    // Failing BEFORE any credits are charged: a premium video batch must never
+    // silently degrade to a talking-but-mute clip after the user already paid.
+    let audioUrl: string | null = null;
+    if (mode === "video" && script) {
+      if (!process.env.HF_TOKEN) {
+        throw new Error("Video Mode needs voice synthesis configured (missing HF_TOKEN). Contact support.");
+      }
+      try {
+        const tts = await hfTextToSpeech(UGC_TTS_MODEL, script);
+        audioUrl = await uploadBytesToStudio(
+          `${userId}/spin/audio/${crypto.randomUUID()}.flac`,
+          Buffer.from(tts.bytes),
+          tts.contentType,
+        );
+      } catch (e) {
+        throw new Error(`Failed to synthesize the script's voice track: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+
     // Charge credits upfront for every piece. deduct_credits is a single atomic
     // SQL UPDATE (WHERE credits >= _amount RETURNING) — no double-spend possible.
     // Admins bypass the charge entirely, consistent with all other charge points.
-    const spinCost = SPIN_COUNT * COST_SPIN_PIECE;
+    // Video Mode pieces are priced through the real stacked engine (image +
+    // premium video + premium lip-sync at 15s) — see SPIN_VIDEO_PIECE_COST.
+    const costPerPiece = mode === "video" ? SPIN_VIDEO_PIECE_COST : COST_SPIN_PIECE;
+    const spinCost = SPIN_COUNT * costPerPiece;
     const creditRef = crypto.randomUUID();
     const adminUser = await isAdmin(userId);
     if (!adminUser) {
@@ -170,6 +236,10 @@ export const spinThirty = createServerFn({ method: "POST" })
         status: "running",
         avatar_id: avatarId,
         face_url: faceUrl,
+        mode,
+        script,
+        product_url: productUrl,
+        audio_url: audioUrl,
       })
       .select("id")
       .single();
@@ -184,7 +254,7 @@ export const spinThirty = createServerFn({ method: "POST" })
       idx,
       label: specLabel(spec),
       status: "queued" as const,
-      kind: "image",
+      kind: mode === "video" ? "video" : "image",
       spec,
       prompt: buildVariantPrompt(spec, { base, triggerWord, avatarName, templateId }),
     }));
@@ -242,7 +312,7 @@ export async function advanceSpinQueueAdmin(
 
   const { data: runningJobs } = await db
     .from("spin_jobs")
-    .select("id,user_id,face_url")
+    .select("id,user_id,face_url,mode,product_url,audio_url")
     .eq("status", "running")
     .order("created_at", { ascending: true })
     .limit(maxJobs);
@@ -250,7 +320,14 @@ export async function advanceSpinQueueAdmin(
   let jobsAdvanced = 0;
   let variantsProcessed = 0;
 
-  for (const job of (runningJobs ?? []) as { id: string; user_id: string; face_url: string | null }[]) {
+  for (const job of (runningJobs ?? []) as {
+    id: string;
+    user_id: string;
+    face_url: string | null;
+    mode: SpinMode | null;
+    product_url: string | null;
+    audio_url: string | null;
+  }[]) {
     let faceUrl: string | null = job.face_url ?? null;
     if (faceUrl) {
       try {
@@ -259,10 +336,21 @@ export async function advanceSpinQueueAdmin(
         faceUrl = null;
       }
     }
+    let productUrl: string | null = job.product_url ?? null;
+    if (productUrl) {
+      try {
+        assertTrustedUrl(productUrl);
+      } catch {
+        productUrl = null;
+      }
+    }
+    const mode: SpinMode = job.mode ?? "photo";
+    const costPerPiece = mode === "video" ? SPIN_VIDEO_PIECE_COST : COST_SPIN_PIECE;
+    const ctx: SpinJobCtx = { jobId: job.id, userId: job.user_id, mode, faceUrl, productUrl, audioUrl: job.audio_url ?? null };
 
     const { data: pending } = await db
       .from("spin_variants")
-      .select("id,idx,label,prompt")
+      .select("id,idx,label,prompt,spec")
       .eq("job_id", job.id)
       .eq("status", "queued")
       .order("idx", { ascending: true })
@@ -289,13 +377,8 @@ export async function advanceSpinQueueAdmin(
         pending.map((p: { id: string }) => p.id),
       )
       .eq("status", "queued")
-      .select("id,idx,label,prompt");
-    const claimed = (claimedRows ?? []) as {
-      id: string;
-      idx: number;
-      label: string;
-      prompt: string | null;
-    }[];
+      .select("id,idx,label,prompt,spec");
+    const claimed = (claimedRows ?? []) as SpinPiece[];
     if (claimed.length === 0) continue;
     jobsAdvanced += 1;
 
@@ -303,22 +386,7 @@ export async function advanceSpinQueueAdmin(
       claimed.map(async (p) => {
         variantsProcessed += 1;
         try {
-          const out = await orchestrate({
-            kind: "image",
-            model: IMAGE_MODEL,
-            prompt: p.prompt || p.label,
-            imageUrls: faceUrl ? [faceUrl] : undefined,
-            userId: job.user_id,
-            refId: p.id,
-          });
-          const { bytes: rawBytes, mime: rawMime } = await fetchToBytes(out.url);
-          const img = await compressImageBytes(rawBytes, rawMime || "image/png");
-          const path = `${job.user_id}/spin/${job.id}/${p.idx}.${img.ext}`;
-          const { error: upErr } = await supabaseAdmin.storage
-            .from("studio")
-            .upload(path, img.bytes, { contentType: img.mime, upsert: true });
-          if (upErr) throw new Error(upErr.message);
-          const publicUrl = supabaseAdmin.storage.from("studio").getPublicUrl(path).data.publicUrl;
+          const { publicUrl, provider, kind } = await renderSpinPiece(ctx, p);
 
           const { data: won } = await db
             .from("spin_variants")
@@ -330,13 +398,13 @@ export async function advanceSpinQueueAdmin(
             await supabaseAdmin.from("generations").insert({
               user_id: job.user_id,
               prompt: p.prompt ?? "",
-              kind: "image",
+              kind,
               mode: "performance",
               status: "succeeded",
-              model: out.provider,
+              model: provider,
               input_images: faceUrl ? [faceUrl] : [],
               result_image_url: publicUrl,
-              credits_cost: COST_SPIN_PIECE,
+              credits_cost: costPerPiece,
             } as never);
           }
         } catch (e) {
@@ -352,7 +420,7 @@ export async function advanceSpinQueueAdmin(
             if (!admin) {
               await supabaseAdmin.rpc("grant_credits", {
                 _user: job.user_id,
-                _amount: COST_SPIN_PIECE,
+                _amount: costPerPiece,
                 _reason: "refund_failed_generation",
                 _ref: p.id,
               });
@@ -364,6 +432,87 @@ export async function advanceSpinQueueAdmin(
   }
 
   return { jobsAdvanced, variantsProcessed };
+}
+
+// ─── Piece renderer (shared by tickSpinJob + advanceSpinQueueAdmin) ─────────
+// Photo mode: one identity-locked image via the orchestrator.
+// Video mode (Product Showcase only): a real 3-stage render per piece —
+// styled still (image, face+product refs) → image→video (forced premium
+// model, 15s) → lip-sync onto the ONE shared script audio (forced premium
+// model) — mirroring runUGCAd's pipeline in jobs.server.ts. Every stage is
+// required; a lip-sync failure throws rather than silently shipping a mute
+// clip, since the piece was charged the full premium video price.
+type SpinJobCtx = {
+  jobId: string;
+  userId: string;
+  mode: SpinMode;
+  faceUrl: string | null;
+  productUrl: string | null;
+  audioUrl: string | null;
+};
+type SpinPiece = { id: string; idx: number; label: string; prompt: string | null; spec?: SpinSpec | null };
+
+async function renderSpinPiece(
+  ctx: SpinJobCtx,
+  piece: SpinPiece,
+): Promise<{ publicUrl: string; provider: string; kind: "image" | "video" }> {
+  const refImages = [ctx.faceUrl, ctx.productUrl].filter((u): u is string => !!u);
+
+  if (ctx.mode !== "video") {
+    const out = await orchestrate({
+      kind: "image",
+      model: IMAGE_MODEL,
+      prompt: piece.prompt || piece.label,
+      imageUrls: refImages.length ? refImages : undefined,
+      userId: ctx.userId,
+      refId: piece.id,
+    });
+    const { bytes: rawBytes, mime: rawMime } = await fetchToBytes(out.url);
+    const img = await compressImageBytes(rawBytes, rawMime || "image/png");
+    const path = `${ctx.userId}/spin/${ctx.jobId}/${piece.idx}.${img.ext}`;
+    const publicUrl = await uploadBytesToStudio(path, img.bytes, img.mime);
+    return { publicUrl, provider: out.provider, kind: "image" };
+  }
+
+  if (!ctx.audioUrl) throw new Error("video mode requires a shared script audio track");
+
+  // Stage 1 — styled still holding the product (identity + product locked).
+  const still = await orchestrate({
+    kind: "image",
+    model: IMAGE_MODEL,
+    prompt: piece.prompt || piece.label,
+    imageUrls: refImages.length ? refImages : undefined,
+    userId: ctx.userId,
+    refId: piece.id,
+  });
+
+  // Stage 2 — animate the still (forced premium model, fixed 15s — no per-piece mixing).
+  const motionPrompt = piece.spec ? buildVariantVideoMotionPrompt(piece.spec) : `Animate this photo: ${piece.label}.`;
+  const clip = await orchestrate({
+    kind: "video",
+    model: SPIN_VIDEO_MODEL,
+    prompt: motionPrompt,
+    imageUrls: [still.url],
+    duration: SPIN_VIDEO_DURATION_SECONDS,
+    userId: ctx.userId,
+    refId: piece.id,
+  });
+
+  // Stage 3 — lip-sync the shared script audio onto the clip (forced premium model).
+  const final = await orchestrate({
+    kind: "lipsync",
+    model: SPIN_VIDEO_LIPSYNC_MODEL,
+    videoUrl: clip.url,
+    audioUrl: ctx.audioUrl,
+    userId: ctx.userId,
+    refId: piece.id,
+  });
+
+  const { bytes, mime } = await fetchToBytes(final.url);
+  const ext = mime.includes("webm") ? "webm" : "mp4";
+  const path = `${ctx.userId}/spin/${ctx.jobId}/${piece.idx}.${ext}`;
+  const publicUrl = await uploadBytesToStudio(path, bytes, mime || "video/mp4");
+  return { publicUrl, provider: final.provider, kind: "video" };
 }
 
 // ─── Render the next batch ───────────────────────────────────────────────────
@@ -392,11 +541,11 @@ export const tickSpinJob = createServerFn({ method: "POST" })
       .eq("status", "running")
       .lt("updated_at", staleCutoff);
 
-    // Load the job for its face reference, re-validating the stored URL (it
-    // round-trips through the DB before reaching a provider).
+    // Load the job for its face/product references, re-validating the stored
+    // URLs (they round-trip through the DB before reaching a provider).
     const { data: job } = await db
       .from("spin_jobs")
-      .select("id,face_url")
+      .select("id,face_url,mode,product_url,audio_url")
       .eq("id", data.jobId)
       .eq("user_id", userId)
       .single();
@@ -409,10 +558,28 @@ export const tickSpinJob = createServerFn({ method: "POST" })
         faceUrl = null;
       }
     }
+    let productUrl: string | null = (job.product_url as string | null) ?? null;
+    if (productUrl) {
+      try {
+        assertTrustedUrl(productUrl);
+      } catch {
+        productUrl = null;
+      }
+    }
+    const mode: SpinMode = (job.mode as SpinMode | null) ?? "photo";
+    const costPerPiece = mode === "video" ? SPIN_VIDEO_PIECE_COST : COST_SPIN_PIECE;
+    const ctx: SpinJobCtx = {
+      jobId: data.jobId,
+      userId,
+      mode,
+      faceUrl,
+      productUrl,
+      audioUrl: (job.audio_url as string | null) ?? null,
+    };
 
     const { data: pending } = await db
       .from("spin_variants")
-      .select("id,idx,label,prompt")
+      .select("id,idx,label,prompt,spec")
       .eq("job_id", data.jobId)
       .eq("user_id", userId)
       .eq("status", "queued")
@@ -443,34 +610,14 @@ export const tickSpinJob = createServerFn({ method: "POST" })
         pending.map((p: { id: string }) => p.id),
       )
       .eq("status", "queued")
-      .select("id,idx,label,prompt");
-    const claimed = (claimedRows ?? []) as {
-      id: string;
-      idx: number;
-      label: string;
-      prompt: string | null;
-    }[];
+      .select("id,idx,label,prompt,spec");
+    const claimed = (claimedRows ?? []) as SpinPiece[];
     if (claimed.length === 0) return { processed: 0, done: false };
 
     await Promise.allSettled(
       claimed.map(async (p) => {
         try {
-          const out = await orchestrate({
-            kind: "image",
-            model: IMAGE_MODEL,
-            prompt: p.prompt || p.label,
-            imageUrls: faceUrl ? [faceUrl] : undefined,
-            userId,
-            refId: p.id,
-          });
-          const { bytes: rawBytes, mime: rawMime } = await fetchToBytes(out.url);
-          const img = await compressImageBytes(rawBytes, rawMime || "image/png");
-          const path = `${userId}/spin/${data.jobId}/${p.idx}.${img.ext}`;
-          const { error: upErr } = await supabase.storage
-            .from("studio")
-            .upload(path, img.bytes, { contentType: img.mime, upsert: true });
-          if (upErr) throw new Error(upErr.message);
-          const publicUrl = supabase.storage.from("studio").getPublicUrl(path).data.publicUrl;
+          const { publicUrl, provider, kind } = await renderSpinPiece(ctx, p);
 
           // FINALIZE with a status fence: only the worker that flips
           // running → done records the generation. If this render raced a
@@ -484,17 +631,17 @@ export const tickSpinJob = createServerFn({ method: "POST" })
             .select("id");
           if (((won ?? []) as { id: string }[]).length > 0) {
             // Record the generation so the admin cost dashboard stays accurate
-            // (the 1 Aura was already deducted upfront — no second charge here).
+            // (the piece was already deducted upfront — no second charge here).
             await supabaseAdmin.from("generations").insert({
               user_id: userId,
               prompt: p.prompt ?? "",
-              kind: "image",
+              kind,
               mode: "performance",
               status: "succeeded",
-              model: out.provider,
+              model: provider,
               input_images: faceUrl ? [faceUrl] : [],
               result_image_url: publicUrl,
-              credits_cost: COST_SPIN_PIECE,
+              credits_cost: costPerPiece,
             } as never);
           }
         } catch (e) {
@@ -510,7 +657,7 @@ export const tickSpinJob = createServerFn({ method: "POST" })
           if (!adminUser && ((lost ?? []) as { id: string }[]).length > 0) {
             await supabaseAdmin.rpc("grant_credits", {
               _user: userId,
-              _amount: COST_SPIN_PIECE,
+              _amount: costPerPiece,
               _reason: "refund_failed_generation",
               _ref: p.id,
             });
