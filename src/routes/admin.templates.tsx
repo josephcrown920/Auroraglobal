@@ -80,7 +80,7 @@ function AdminTemplatesPage() {
 
   return (
     <main className="min-h-screen bg-background">
-      <header className="flex items-center justify-between px-6 md:px-10 py-5 border-b border-border bg-card/40 backdrop-blur-xl">
+      <header className="flex items-center justify-between pl-24 pr-6 md:pl-24 md:pr-10 py-5 border-b border-border bg-card/40 backdrop-blur-xl">
         <div className="flex items-center gap-4">
           <Link to="/admin" className="flex items-center gap-2 font-semibold tracking-tight">
             <img src={auroraLogo.url} alt="Aurora" className="size-8 rounded-xl object-contain" />
