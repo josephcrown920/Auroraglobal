@@ -216,6 +216,57 @@ describe("orchestrate — ByteDance direct preference for Seed models", () => {
     expect(res.url).toBe("https://byteplus/vid.mp4");
     expect(replicateHit).toBe(false);
   });
+
+  it("routes Seedream 4.5 to its own checkpoint, not the 4.0 alias", async () => {
+    process.env.BYTEPLUS_API_KEY = "bp";
+    installFetch(({ url }) => {
+      if (url.includes(BYTEPLUS_HOST))
+        return fakeResponse({ json: { data: [{ url: "https://byteplus/img45.png" }] } });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    const req: GenerateRequest = { kind: "image", prompt: "a fox", model: "fal-ai/seedream-4.5" };
+    const res = await orchestrate(req);
+
+    expect(res.provider).toBe("byteplus");
+    expect(res.endpoint).toBe("byteplus:seedream-4-5-251128");
+    expect(res.url).toBe("https://byteplus/img45.png");
+  });
+
+  it("serves the newest Seedream 5.0 model ByteDance-direct (no Replicate mapping exists)", async () => {
+    process.env.BYTEPLUS_API_KEY = "bp";
+    installFetch(({ url }) => {
+      if (url.includes(BYTEPLUS_HOST))
+        return fakeResponse({ json: { data: [{ url: "https://byteplus/img5.png" }] } });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    const req: GenerateRequest = { kind: "image", prompt: "a fox", model: "fal-ai/seedream-5" };
+    const res = await orchestrate(req);
+
+    expect(res.provider).toBe("byteplus");
+    expect(res.endpoint).toBe("byteplus:seedream-5-0-260128");
+    expect(res.url).toBe("https://byteplus/img5.png");
+  });
+
+  it("serves the newest Seedance 3.0 model ByteDance-direct (create + poll)", async () => {
+    installFastClock();
+    process.env.BYTEPLUS_API_KEY = "bp";
+    installFetch(({ url, index }) => {
+      if (!url.includes(BYTEPLUS_HOST)) throw new Error(`unexpected fetch ${url}`);
+      if (index === 0) return fakeResponse({ json: { id: "task_2" } });
+      return fakeResponse({
+        json: { status: "succeeded", content: { video_url: "https://byteplus/vid3.mp4" } },
+      });
+    });
+
+    const req: GenerateRequest = { kind: "video", prompt: "a dragon", model: "seedance-3.0" };
+    const res = await orchestrate(req);
+
+    expect(res.provider).toBe("byteplus");
+    expect(res.endpoint).toBe("byteplus:seedance-1-5-pro-251215");
+    expect(res.url).toBe("https://byteplus/vid3.mp4");
+  });
 });
 
 afterAll(() => {
