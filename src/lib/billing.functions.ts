@@ -65,6 +65,23 @@ export const getMyProfile = createServerFn({ method: "GET" })
     };
   });
 
+/** One-time reward for finishing the onboarding vibe+selfie flow — enforced
+ * server-side via claim_onboarding_bonus (CAS on profiles.onboarding_bonus_granted)
+ * so a retried client call can never double-grant. */
+export const ONBOARDING_BONUS_AURA = 3;
+
+export const claimOnboardingBonus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId } = context;
+    const { data: granted, error } = await supabaseAdmin.rpc("claim_onboarding_bonus" as any, {
+      _user: userId,
+      _amount: ONBOARDING_BONUS_AURA,
+    } as any);
+    if (error) throw new Error(error.message);
+    return { granted: Boolean(granted), amount: ONBOARDING_BONUS_AURA };
+  });
+
 const InitPaystackSchema = z.object({
   plan: z.enum(["starter", "creator", "studio"]),
   currency: z.literal("USD").optional(),

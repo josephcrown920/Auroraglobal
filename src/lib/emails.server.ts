@@ -19,7 +19,8 @@ export type LifecycleTemplate =
   | "onboarding_done"
   | "password_reset_acknowledged"
   | "re_engagement"
-  | "first_purchase_nudge";
+  | "first_purchase_nudge"
+  | "onboarding_resume";
 
 type EmailPayload = {
   to: string;
@@ -100,6 +101,8 @@ function subjectFor(template: string, data: Record<string, unknown>): string {
       return "We miss you at Aurora — your Aura is waiting";
     case "first_purchase_nudge":
       return "A little something to try Aura for the first time";
+    case "onboarding_resume":
+      return "You left before your first render — bonus Aura inside";
     default:
       return "Aurora Studio";
   }
@@ -141,6 +144,9 @@ function renderTemplate(template: string, data: Record<string, unknown>): string
       break;
     case "first_purchase_nudge":
       body = `<p>Still deciding? Your free Aura goes fast once you get going — grab a top-up pack and keep creating without waiting for the monthly refresh.</p>`;
+      break;
+    case "onboarding_resume":
+      body = `<p>You started setting up your studio but didn't finish your first render. Come back and finish — we'll add <strong>bonus Aura</strong> to your balance the moment you do.</p>`;
       break;
     default:
       body = `<p>Update from Aurora Studio.</p>`;
@@ -310,6 +316,27 @@ export async function sendFirstPurchaseNudgeEmail(userId: string) {
   return sendEmail({
     to: user.email,
     template: "first_purchase_nudge",
+    data: { displayName: user.display_name || "Creator" },
+    userId,
+  });
+}
+
+/**
+ * Recovery email for users who opened the onboarding modal (or explicitly
+ * skipped it) but never finished it — i.e. never claimed the onboarding
+ * bonus. Called from the lifecycle-emails cron; the cron builds the
+ * candidate list from the `events` table + dedupes via email_log.
+ */
+export async function sendOnboardingResumeEmail(userId: string) {
+  const { data: user } = await supabaseAdmin
+    .from("profiles")
+    .select("email, display_name")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!user?.email) return;
+  return sendEmail({
+    to: user.email,
+    template: "onboarding_resume",
     data: { displayName: user.display_name || "Creator" },
     userId,
   });

@@ -7,6 +7,11 @@ import { Sparkles, Camera, Wand2, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { triggerLifecycleEmail } from "@/lib/emails.functions";
+import { track } from "@/lib/tracking";
+import { claimOnboardingBonus, ONBOARDING_BONUS_AURA } from "@/lib/billing.functions";
+import vibeEditorialPreview from "@/assets/onboarding/vibe-editorial.png";
+import vibeNeonPreview from "@/assets/onboarding/vibe-neon.png";
+import vibeCycloPreview from "@/assets/onboarding/vibe-cyclo.png";
 
 const STORAGE_KEY = "aurora.onboarding.done.v1";
 
@@ -16,6 +21,7 @@ export type VibeChoice = {
   tag: string;
   gradient: string;
   prompt: string;
+  previewImg: string;
 };
 
 const VIBES: VibeChoice[] = [
@@ -26,6 +32,7 @@ const VIBES: VibeChoice[] = [
     gradient: "from-rose-500/60 via-amber-500/40 to-yellow-500/20",
     prompt:
       "High-fashion editorial cover shot of the subject, studio lighting with violet rim light, seamless paper backdrop, confident pose, magazine quality, medium format camera look",
+    previewImg: vibeEditorialPreview,
   },
   {
     id: "neon",
@@ -34,6 +41,7 @@ const VIBES: VibeChoice[] = [
     gradient: "from-cyan-500/60 via-blue-500/40 to-indigo-500/20",
     prompt:
       "Cinematic night street performance, neon purple and pink reflections, rain-soaked pavement, motion blur background, professional cinematic still",
+    previewImg: vibeNeonPreview,
   },
   {
     id: "cyclo",
@@ -42,6 +50,7 @@ const VIBES: VibeChoice[] = [
     gradient: "from-pink-500/60 via-rose-500/40 to-fuchsia-500/20",
     prompt:
       "Place the subject into a minimalist studio performance scene. Full-body side profile pose. Use an exact suspended vintage studio microphone hanging from ceiling at chest level. Environment is a seamless hot pink cyclorama — background and floor one continuous color. Soft glossy lighting. Preserve exact facial likeness, hairstyle, body proportions. Ultra-realistic, hyper-real 8K ultra-HD.",
+    previewImg: vibeCycloPreview,
   },
 ];
 
@@ -50,9 +59,10 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onApply: (args: { selfieUrl: string; prompt: string; vibeName: string }) => void;
+  onBonusGranted?: (amount: number) => void;
 };
 
-export function OnboardingModal({ userId, open, onOpenChange, onApply }: Props) {
+export function OnboardingModal({ userId, open, onOpenChange, onApply, onBonusGranted }: Props) {
   const [step, setStep] = useState<1 | 2>(1);
   const [vibe, setVibe] = useState<VibeChoice>(VIBES[0]);
   const [selfieUrl, setSelfieUrl] = useState<string | null>(null);
@@ -60,7 +70,10 @@ export function OnboardingModal({ userId, open, onOpenChange, onApply }: Props) 
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (open) setStep(1);
+    if (open) {
+      setStep(1);
+      void track("onboarding_shown");
+    }
   }, [open]);
 
   const upload = async (file: File) => {
@@ -81,6 +94,7 @@ export function OnboardingModal({ userId, open, onOpenChange, onApply }: Props) 
         .createSignedUrl(path, 60 * 60);
       if (signErr || !signed?.signedUrl) throw signErr ?? new Error("Could not sign upload URL");
       setSelfieUrl(signed.signedUrl);
+      void track("onboarding_selfie_uploaded");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -89,15 +103,34 @@ export function OnboardingModal({ userId, open, onOpenChange, onApply }: Props) 
   };
 
   const sendEmail = useServerFn(triggerLifecycleEmail);
-  const finish = () => {
-    if (!selfieUrl) return;
+  const claimBonus = useServerFn(claimOnboardingBonus);
+  const [finishing, setFinishing] = useState(false);
+  const finish = async () => {
+    if (!selfieUrl || finishing) return;
+    setFinishing(true);
     onApply({ selfieUrl, prompt: vibe.prompt, vibeName: vibe.name });
     try { localStorage.setItem(STORAGE_KEY, "1"); } catch { /* ignore */ }
+    void track("onboarding_completed", { vibe: vibe.id });
     // Fire-and-forget lifecycle emails (deduped server-side)
     void sendEmail({ data: { template: "signup_welcome" } }).catch(() => {});
     void sendEmail({ data: { template: "onboarding_done" } }).catch(() => {});
     onOpenChange(false);
-    toast.success(`Studio loaded with ${vibe.name}. Hit Generate.`, { duration: 5000 });
+    try {
+      const bonus = await claimBonus();
+      if (bonus?.granted) {
+        onBonusGranted?.(bonus.amount);
+        toast.success(
+          `Studio loaded with ${vibe.name} — +${bonus.amount} Aura bonus for finishing setup. Hit Generate.`,
+          { duration: 6000 },
+        );
+      } else {
+        toast.success(`Studio loaded with ${vibe.name}. Hit Generate.`, { duration: 5000 });
+      }
+    } catch {
+      toast.success(`Studio loaded with ${vibe.name}. Hit Generate.`, { duration: 5000 });
+    } finally {
+      setFinishing(false);
+    }
   };
 
   const skip = () => {
@@ -106,6 +139,7 @@ export function OnboardingModal({ userId, open, onOpenChange, onApply }: Props) 
     } catch {
       /* ignore */
     }
+    void track("onboarding_skipped", { step });
     onOpenChange(false);
   };
 
@@ -119,8 +153,8 @@ export function OnboardingModal({ userId, open, onOpenChange, onApply }: Props) 
           </DialogTitle>
           <DialogDescription>
             {step === 1
-              ? "Pick a vibe. We'll pre-load the prompt so you skip the blank page."
-              : "Drop a selfie. We use it as the identity reference for your first render."}
+              ? "Pick a vibe — each card is a real example render, not a mockup. We'll pre-load the prompt so you skip the blank page."
+              : `Drop a selfie. Finish setup and we'll add +${ONBOARDING_BONUS_AURA} bonus Aura on top of your free credits.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -138,13 +172,22 @@ export function OnboardingModal({ userId, open, onOpenChange, onApply }: Props) 
                     : "border-border hover:border-primary/50",
                 )}
               >
-                <div className={cn("absolute inset-0 bg-gradient-to-br", v.gradient)} />
-                <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/20 to-transparent" />
+                <img
+                  src={v.previewImg}
+                  alt={`${v.name} example render`}
+                  className="absolute inset-0 size-full object-cover"
+                  loading="lazy"
+                />
+                <div className={cn("absolute inset-0 bg-gradient-to-br opacity-30 mix-blend-overlay", v.gradient)} />
+                <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/10 to-transparent" />
                 {vibe.id === v.id && (
                   <div className="absolute right-2 top-2 rounded-full bg-primary p-1 text-primary-foreground">
                     <Check className="size-3" />
                   </div>
                 )}
+                <div className="absolute left-2 top-2 rounded-full bg-background/70 px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
+                  Example
+                </div>
                 <div className="absolute inset-x-0 bottom-0 p-3">
                   <div className="text-sm font-semibold">{v.name}</div>
                   <div className="text-xs text-muted-foreground">{v.tag}</div>
@@ -197,12 +240,22 @@ export function OnboardingModal({ userId, open, onOpenChange, onApply }: Props) 
             Skip for now
           </Button>
           {step === 1 ? (
-            <Button onClick={() => setStep(2)} className="gap-2">
+            <Button
+              onClick={() => {
+                void track("onboarding_vibe_selected", { vibe: vibe.id });
+                setStep(2);
+              }}
+              className="gap-2"
+            >
               Continue <Wand2 className="size-4" />
             </Button>
           ) : (
-            <Button onClick={finish} disabled={!selfieUrl} className="gap-2">
-              Load into Studio <Sparkles className="size-4" />
+            <Button onClick={finish} disabled={!selfieUrl || finishing} className="gap-2">
+              {finishing ? (
+                <>Loading… <Loader2 className="size-4 animate-spin" /></>
+              ) : (
+                <>Load into Studio · +{ONBOARDING_BONUS_AURA} Aura <Sparkles className="size-4" /></>
+              )}
             </Button>
           )}
         </div>

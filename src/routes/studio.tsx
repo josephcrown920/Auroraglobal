@@ -40,6 +40,7 @@ import { RECIPES } from "@/lib/tutorials";
 import { MODEL_LIST, VIDEO_MODEL_LIST, getModelMeta } from "@/lib/models";
 import { ModelBadge } from "@/components/ModelBadge";
 import { OnboardingModal, shouldShowOnboarding } from "@/components/studio/OnboardingModal";
+import { LowCreditBanner } from "@/components/studio/LowCreditBanner";
 import {
   Select,
   SelectContent,
@@ -465,6 +466,9 @@ function StudioPage() {
             setSelfie(selfieUrl);
             setPrompt(p);
           }}
+          onBonusGranted={() => {
+            qc.invalidateQueries({ queryKey: ["profile"] });
+          }}
         />
       )}
       <WelcomeTour show={showTour} onDismiss={() => setShowTour(false)} />
@@ -524,6 +528,7 @@ function StudioPage() {
               Studio is ready — you're signed in and pre-authorized. Just upload references and hit generate.
             </p>
           </div>
+          <LowCreditBanner credits={profile?.credits} />
           <div>
             <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
               {profile?.display_name ? (
