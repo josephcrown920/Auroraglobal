@@ -136,6 +136,7 @@ export const VIDEO_MODEL_TIERS: Record<string, ModelTier> = {
   "kling-3.0": "ultra", // $0.60
   "kling-3.0-omni": "ultra", // $0.70
   "veo-3": "ultra", // $0.75
+  "seedance-3.0": "ultra", // $0.75 (seedance-1-5-pro, ByteDance-direct only)
 };
 
 export const LIPSYNC_MODEL_TIERS: Record<string, ModelTier> = {

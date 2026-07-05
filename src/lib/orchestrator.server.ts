@@ -757,12 +757,23 @@ const replicate: ProviderAdapter = {
 type BytePlusEntry = { modelId: string; kind: "image" | "video" };
 const BYTEPLUS_DEFAULTS: Record<string, BytePlusEntry> = {
   "fal-ai/seedream-4": { modelId: "seedream-4-0-250828", kind: "image" },
-  "fal-ai/seedream-4.5": { modelId: "seedream-4-0-250828", kind: "image" },
+  // Confirmed live on the ModelArk catalog (2026-07-05): seedream-4-5-251128
+  // is the real Seedream 4.5 checkpoint — it used to alias seedream-4-0
+  // because 4.5 hadn't shipped yet. Now that it exists, route to it directly.
+  "fal-ai/seedream-4.5": { modelId: "seedream-4-5-251128", kind: "image" },
+  // Newest confirmed-live Seedream tier (2026-07-05 catalog pull, status
+  // absent = live, not "Retiring"/"Shutdown"). ByteDance-only for now — no
+  // verified Replicate/fal slug exists yet, so this model has no fallback
+  // provider and fails explicitly if BYTEPLUS_API_KEY is absent.
+  "fal-ai/seedream-5": { modelId: "seedream-5-0-260128", kind: "image" },
   "seedance-2.0": { modelId: "seedance-1-0-pro-250528", kind: "video" },
   // The old seedance-1-0-lite-i2v/t2v (…-250428) family is fully retired on
   // ModelArk (confirmed live: InvalidEndpointOrModel.NotFound, not just
   // unactivated) — seedance-1-0-pro-fast is the current "fast" tier replacement.
   "seedance-2.0-fast": { modelId: "seedance-1-0-pro-fast-251015", kind: "video" },
+  // Newest confirmed-live Seedance tier (2026-07-05 catalog pull). Same
+  // ByteDance-only caveat as seedream-5 above — no verified Replicate slug.
+  "seedance-3.0": { modelId: "seedance-1-5-pro-251215", kind: "video" },
 };
 const BYTEPLUS_MAP: Record<string, BytePlusEntry> = (() => {
   const out: Record<string, BytePlusEntry> = { ...BYTEPLUS_DEFAULTS };
@@ -2148,6 +2159,13 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     // Runway video (official REST, image-to-video)
     "runway/gen4-turbo": { provider: "runway", kind: "video", cost: 0.5 },
     "runway/gen3a-turbo": { provider: "runway", kind: "video", cost: 0.4 },
+    // Seedance 3.0 (seedance-1-5-pro) — ByteDance-direct only, no verified
+    // Replicate slug, so it isn't in REPLICATE_MAP and must be registered by
+    // hand here. Cost is a conservative estimate above the existing pro tier
+    // ($0.65) pending real invoice data.
+    "seedance-3.0": { provider: "byteplus", kind: "video", cost: 0.75 },
+    // Seedream 5.0 — same ByteDance-only caveat as seedance-3.0.
+    "fal-ai/seedream-5": { provider: "byteplus", kind: "image", cost: 0.06 },
     // ElevenLabs TTS (sentinel — adapter ignores the model key, picks voice via params)
     "elevenlabs/tts": { provider: "elevenlabs", kind: "audio", cost: 0.01 },
     // Self-hosted ffmpeg final assembly (kids story). Sentinel model so the
