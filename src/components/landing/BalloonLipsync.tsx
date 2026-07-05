@@ -5,6 +5,11 @@ import { toast } from "sonner";
 import audioAsset from "@/assets/the-one-hook.mp3.asset.json";
 import { transcribeAudio } from "@/lib/hf.functions";
 import { AUDIO_ACCEPT } from "@/lib/utils";
+// Served from public/videos/ — copied from the attached raw upload since this
+// project's asset pipeline expects hosted .asset.json pointers for imports,
+// not local file imports of raw media (see public/videos/user-reference.mp4
+// for the existing plain-file-in-public convention).
+const lipsyncDemoVideo = "/videos/balloon-lipsync-demo.mp4";
 
 /**
  * Every Face Sings — drives a clear lip-sync mouth, upper/lower lips and
@@ -256,78 +261,38 @@ export function BalloonLipsync() {
       <div className="relative grid md:grid-cols-[1.1fr_1fr] gap-0">
         {/* Visual stage */}
         <div className="relative aspect-[4/5] md:aspect-auto md:min-h-[560px] overflow-hidden">
+          <video
+            src={lipsyncDemoVideo}
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            className="absolute inset-0 size-full object-cover"
+          />
           <div
             className="absolute inset-0 w-full h-full"
             style={{
               background:
-                "radial-gradient(circle at 40% 45%, #2a0f4d 0%, #160a30 45%, #07041a 100%)",
+                "radial-gradient(circle at 40% 45%, rgba(42,15,77,0.35) 0%, rgba(22,10,48,0.55) 45%, rgba(7,4,26,0.75) 100%)",
             }}
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/70 pointer-events-none" />
 
-          {/* Reactive glow behind face */}
+          {/* Ambient edge glow — subtle, doesn't cover the real video */}
           <div
             ref={glowRef}
-            className="absolute left-[42%] top-[46%] -translate-x-1/2 -translate-y-1/2 size-72 rounded-full pointer-events-none"
+            className="absolute inset-x-0 bottom-0 h-32 pointer-events-none"
             style={{
-              background:
-                "radial-gradient(circle, rgba(236,72,153,0.7), rgba(139,92,246,0.3) 60%, transparent 75%)",
+              background: "linear-gradient(to top, rgba(236,72,153,0.35), transparent)",
               opacity: 0.35,
             }}
           />
-
-          {/* Upper lip */}
-          <div
-            ref={upperLipRef}
-            className="absolute pointer-events-none"
-            style={{
-              left: "42%",
-              top: "50.5%",
-              width: "22%",
-              height: "2.2%",
-              transform: "translate(-50%, 0)",
-              borderRadius: "9999px",
-              background: "linear-gradient(180deg, rgba(255,160,190,0.0) 0%, rgba(255,80,130,0.95) 100%)",
-              transition: "transform 50ms linear",
-              boxShadow: "0 0 12px rgba(236,72,153,0.6)",
-            }}
-          />
-
-          {/* Mouth — animates clearly */}
-          <div
-            ref={mouthRef}
-            className="absolute pointer-events-none"
-            style={{
-              left: "42%",
-              top: "55%",
-              width: "22%",
-              height: "10%",
-              transform: "translate(-50%, -50%) scaleY(0.22)",
-              borderRadius: "9999px",
-              background:
-                "radial-gradient(ellipse at 50% 35%, #ff4d8a 0%, #c2185b 35%, #4a0a1f 75%, rgba(20,0,8,0.95) 100%)",
-              boxShadow:
-                "0 0 50px 12px rgba(236,72,153,0.7), inset 0 -4px 8px rgba(255,140,180,0.6), inset 0 4px 12px rgba(0,0,0,0.65)",
-              transition: "opacity 50ms linear",
-            }}
-          />
-
-          {/* Lower lip */}
-          <div
-            ref={lowerLipRef}
-            className="absolute pointer-events-none"
-            style={{
-              left: "42%",
-              top: "59.5%",
-              width: "22%",
-              height: "2.6%",
-              transform: "translate(-50%, 0)",
-              borderRadius: "9999px",
-              background: "linear-gradient(0deg, rgba(255,160,190,0.0) 0%, rgba(255,80,130,0.95) 100%)",
-              transition: "transform 50ms linear",
-              boxShadow: "0 0 12px rgba(236,72,153,0.6)",
-            }}
-          />
+          {/* Off-screen refs kept mounted so the audio-reactive loop has stable
+              targets without rendering the old CSS mouth/lips over the real video. */}
+          <div ref={upperLipRef} className="sr-only" aria-hidden />
+          <div ref={mouthRef} className="sr-only" aria-hidden />
+          <div ref={lowerLipRef} className="sr-only" aria-hidden />
 
           {/* Lyrics overlay */}
           <div className="absolute inset-x-0 bottom-20 px-6 text-center pointer-events-none">
