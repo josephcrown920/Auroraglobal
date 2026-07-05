@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { adminListMarketplaceTemplates, adminReviewMarketplaceTemplate } from "@/lib/marketplace.functions";
-import { AdminGate, hasAdminToken } from "@/components/AdminGate";
+import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -32,7 +32,7 @@ function AdminTemplatesPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [unlocked, setUnlocked] = useState(() => hasAdminToken());
+  const [unlocked, setUnlocked] = useAdminAutoUnlock(!!user);
   const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { adminUnlock } from "@/lib/admin.functions";
+import { adminUnlock, amIAdmin } from "@/lib/admin.functions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Shield, Loader2 } from "lucide-react";
@@ -10,6 +10,38 @@ const KEY = "aurora_admin_token";
 export function hasAdminToken() {
   if (typeof window === "undefined") return false;
   try { return !!sessionStorage.getItem(KEY); } catch { return false; }
+}
+
+/**
+ * Shared unlock state for every /admin* page. Skips the passcode prompt
+ * entirely for accounts that already hold the "admin" role in Supabase
+ * (checked server-side via amIAdmin — never trusted from the client), so
+ * the account owner just lands on the dashboard. Everyone else still hits
+ * the passcode gate, and every admin.* server function independently
+ * re-checks the role anyway, so this is a convenience shortcut only, not
+ * a new security boundary.
+ */
+export function useAdminAutoUnlock(enabled: boolean) {
+  const [unlocked, setUnlocked] = useState<boolean>(() => hasAdminToken());
+  const amIAdminFn = useServerFn(amIAdmin);
+
+  useEffect(() => {
+    if (unlocked || !enabled) return;
+    let cancelled = false;
+    amIAdminFn()
+      .then((res) => {
+        if (!cancelled && res.isAdmin) setUnlocked(true);
+      })
+      .catch(() => {
+        // Not signed in yet, or role check failed — fall back to the
+        // manual passcode gate, no error surfaced.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, unlocked, amIAdminFn]);
+
+  return [unlocked, setUnlocked] as const;
 }
 
 export function AdminGate({ onUnlocked }: { onUnlocked: () => void }) {
