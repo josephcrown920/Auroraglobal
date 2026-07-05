@@ -21,6 +21,7 @@ import {
   Wifi,
   BatteryFull,
 } from "lucide-react";
+import { SPIN_COUNT } from "@/lib/spin-engine";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 // One creator, many posts — the whole grid is the SAME female avatar identity.
 // Profile photo is the identity reference; the grid tiles are REAL Spin output
@@ -62,7 +63,11 @@ const PIECES = [
   { label: "Single cover", kind: "image", color: "from-blue-500 to-indigo-500" },
 ] as const;
 
-const COUNT = PIECES.length;
+// Single source of truth for the post count — matches the real Spin backend
+// (SPIN_COUNT) so the landing page never advertises a number the product
+// doesn't deliver. PIECES/VIEWS/CAPTIONS below only need enough entries to
+// fill the 6-tile grid preview; the reveal counter runs to COUNT.
+const COUNT: number = SPIN_COUNT;
 
 // Per-tile view counts, captions, and framing so one face reads as a full feed.
 const VIEWS = [
@@ -128,11 +133,11 @@ export function ViralEngine() {
     timerRef.current = window.setInterval(() => {
       i += 1;
       setRevealed(i);
-      if (i >= PIECES.length) {
+      if (i >= COUNT) {
         if (timerRef.current) window.clearInterval(timerRef.current);
         setPhase("done");
       }
-    }, 140);
+    }, 70);
     return () => {
       if (timerRef.current) window.clearInterval(timerRef.current);
     };
