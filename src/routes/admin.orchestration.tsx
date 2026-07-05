@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { orchestrationHealth } from "@/lib/orchestration.functions";
-import { AdminGate, hasAdminToken } from "@/components/AdminGate";
+import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import {
   Activity,
   ArrowLeft,
@@ -89,7 +89,7 @@ function BillingBadge({ provider }: { provider: string }) {
 function OrchestrationDashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [unlocked, setUnlocked] = useState<boolean>(() => hasAdminToken());
+  const [unlocked, setUnlocked] = useAdminAutoUnlock(!!user);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth" });

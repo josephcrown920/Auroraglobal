@@ -14,7 +14,7 @@ import {
 import { listWorkers } from "@/lib/workers.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AdminGate, hasAdminToken } from "@/components/AdminGate";
+import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import { toast } from "sonner";
 import {
   Boxes,
@@ -66,7 +66,7 @@ const EMPTY_EDITOR: EditorState = {
 function AdminComfyPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [unlocked, setUnlocked] = useState<boolean>(() => hasAdminToken());
+  const [unlocked, setUnlocked] = useAdminAutoUnlock(!!user);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth" });

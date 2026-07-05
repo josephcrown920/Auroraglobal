@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { runSmokeTest, getSmokeRun, listSmokeRuns } from "@/lib/smoke.functions";
-import { AdminGate, hasAdminToken } from "@/components/AdminGate";
+import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, XCircle, MinusCircle, ArrowLeft, FlaskConical } from "lucide-react";
 import { toast } from "sonner";
@@ -22,7 +22,7 @@ export const Route = createFileRoute("/admin/smoke")({
 function SmokePage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [unlocked, setUnlocked] = useState<boolean>(() => hasAdminToken());
+  const [unlocked, setUnlocked] = useAdminAutoUnlock(!!user);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
 
   useEffect(() => {

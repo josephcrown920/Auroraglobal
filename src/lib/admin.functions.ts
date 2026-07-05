@@ -45,6 +45,24 @@ async function assertAdmin(userId: string) {
   if (!data) throw new Error("Forbidden — admin only");
 }
 
+// Lets the client auto-skip the hidden owner passcode gate for accounts
+// that already hold the "admin" role in `user_roles` — the passcode gate
+// is a UI convenience layer only; every admin.* server function still
+// independently calls assertAdmin() against the real Supabase role, so a
+// non-admin can never see admin data even if they somehow bypass the gate.
+export const amIAdmin = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId)
+      .eq("role", "admin")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return { isAdmin: !!data };
+  });
+
 export const adminOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

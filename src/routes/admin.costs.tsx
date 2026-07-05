@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { adminCostStats } from "@/lib/admin.functions";
-import { AdminGate, hasAdminToken } from "@/components/AdminGate";
+import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import { BarChart2, ArrowLeft, Coins, Loader2, TrendingUp, RefreshCw } from "lucide-react";
 
 export const Route = createFileRoute("/admin/costs")({
@@ -37,7 +37,7 @@ function kindStyle(kind: string) {
 function CostDashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [unlocked, setUnlocked] = useState<boolean>(() => hasAdminToken());
+  const [unlocked, setUnlocked] = useAdminAutoUnlock(!!user);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth" });
