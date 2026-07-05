@@ -139,12 +139,7 @@ export function ViralEngine() {
   }, [phase]);
 
   const goToSpin = () => {
-    const value = hook.trim();
-    if (value) {
-      navigate({ to: "/spin", search: { prompt: value, jobId: undefined } });
-    } else {
-      navigate({ to: "/spin", search: { prompt: undefined, jobId: undefined } });
-    }
+    navigate({ to: "/tiktok" });
   };
 
   return (
@@ -394,14 +389,14 @@ export function ViralEngine() {
           {phase === "done" && (
             <div className="mt-5 rounded-2xl border border-pink-300/30 bg-pink-300/10 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
               <p className="text-sm text-white">
-                <strong className="text-pink-200">{COUNT} pieces ready</strong> from "{hook}". Open
-                the studio to see the rest and render them for real.
+                <strong className="text-pink-200">{COUNT} pieces ready</strong> from "{hook}". Upload
+                your real song in Urban Cuts to render them for real.
               </p>
               <button
                 onClick={goToSpin}
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-pink-400 to-fuchsia-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-fuchsia-500/30 hover:opacity-95"
               >
-                See the rest in the studio <ArrowRight className="size-4" />
+                Open Urban Cuts <ArrowRight className="size-4" />
               </button>
             </div>
           )}
@@ -429,11 +424,10 @@ export function ViralEngine() {
         {/* One primary CTA */}
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <Link
-            to="/spin"
-            search={hook.trim() ? { prompt: hook.trim(), jobId: undefined } : { prompt: undefined, jobId: undefined }}
+            to="/tiktok"
             className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-pink-400 to-fuchsia-500 px-6 py-3 text-sm font-bold text-white no-underline shadow-lg shadow-fuchsia-500/30 hover:opacity-95"
           >
-            See all {COUNT} in Spin Studio <ArrowRight className="size-4" />
+            Upload your song in Urban Cuts <ArrowRight className="size-4" />
           </Link>
         </div>
       </div>

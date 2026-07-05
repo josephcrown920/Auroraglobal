@@ -83,6 +83,8 @@ function GalleryPage() {
 
   const favs = (data?.items ?? []).filter((g) => g.is_favorite).length;
 
+  const groups = groupByDate(items);
+
   return (
     <main className="aurora-page-shell text-foreground">
       <span aria-hidden className="aurora-ambient" />
@@ -130,8 +132,13 @@ function GalleryPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {items.map((g) => {
+        {groups.map((group) => (
+          <div key={group.label} className="space-y-3">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              {group.label} <span className="text-muted-foreground/50">· {group.items.length}</span>
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {group.items.map((g) => {
             // watermark_display_url replaces result_image_url for free-tier items
             const isWatermarked = !!(g as any).is_watermarked;
             // Display URL: watermark proxy for Free images, raw URL for Pro images/videos.
@@ -250,9 +257,11 @@ function GalleryPage() {
                   <p className="text-[10px] text-muted-foreground line-clamp-2">{g.prompt}</p>
                 </div>
               </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
       {editing && (
         <VisualEditDialog
@@ -275,4 +284,33 @@ function GalleryPage() {
       )}
     </main>
   );
+}
+
+type GalleryItem = { created_at: string; [key: string]: unknown };
+
+function groupByDate<T extends GalleryItem>(items: T[]): { label: string; items: T[] }[] {
+  const now = new Date();
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const today = startOfDay(now);
+  const yesterday = today - 86_400_000;
+  const weekAgo = today - 6 * 86_400_000;
+
+  const buckets: Record<string, T[]> = {
+    Today: [],
+    Yesterday: [],
+    "This week": [],
+    Older: [],
+  };
+
+  for (const item of items) {
+    const day = startOfDay(new Date(item.created_at));
+    if (day === today) buckets.Today.push(item);
+    else if (day === yesterday) buckets.Yesterday.push(item);
+    else if (day >= weekAgo) buckets["This week"].push(item);
+    else buckets.Older.push(item);
+  }
+
+  return Object.entries(buckets)
+    .filter(([, list]) => list.length > 0)
+    .map(([label, list]) => ({ label, items: list }));
 }

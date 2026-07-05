@@ -108,7 +108,7 @@ export const Route = createFileRoute("/tiktok")({
   component: TiktokRemixPage,
   head: () => ({
     meta: [
-      { title: "TikTok Remix Factory — Aurora" },
+      { title: "Urban Cuts — Aurora" },
       { name: "description", content: "Upload one video. Aurora remixes it into up to 10 TikTok-ready cuts from different hooks, angles, and beats." },
     ],
   }),
@@ -205,7 +205,7 @@ function TiktokRemixPage() {
   if (!user) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-24 text-center">
-        <h1 className="text-3xl font-bold text-white">TikTok Remix Factory</h1>
+        <h1 className="text-3xl font-bold text-white">Urban Cuts</h1>
         <p className="mt-3 text-white/70">Sign in to upload a video and spin up 10 variants.</p>
         <Link to="/auth" className="mt-6 inline-flex items-center rounded-full bg-white px-5 py-2.5 text-sm font-bold text-black no-underline">Sign in</Link>
       </div>
@@ -218,7 +218,7 @@ function TiktokRemixPage() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <span className="inline-flex items-center gap-2 rounded-full border border-pink-300/30 bg-pink-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-pink-200">
-            <Flame className="size-3.5" /> TikTok Remix Factory
+            <Flame className="size-3.5" /> Urban Cuts
           </span>
           <h1 className="mt-3 text-3xl font-extrabold text-white md:text-5xl">
             One video in. <span className="bg-gradient-to-r from-[#25F4EE] to-[#FE2C55] bg-clip-text text-transparent">Up to 10 cuts out.</span>
@@ -335,6 +335,11 @@ function TiktokRemixPage() {
             {startMut.isPending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
             Remix into {count} cuts
           </button>
+          {!sourceUrl && !startMut.isPending && (
+            <p className="-mt-2 text-center text-[11px] text-white/45">
+              Add a source video above (paste a link or upload) to enable this button.
+            </p>
+          )}
 
           <GenerationErrorCard
             visible={startMut.isError}
