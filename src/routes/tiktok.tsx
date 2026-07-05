@@ -11,6 +11,7 @@ import {
   startTiktokRemix,
   listTiktokRemixes,
   getTiktokRemix,
+  retryTiktokRemixChild,
   type CutStyle,
 } from "@/lib/tiktok-remix.functions";
 import { ExampleChips } from "@/components/onboarding/ExampleChips";
@@ -131,6 +132,7 @@ function TiktokRemixPage() {
   const startFn = useServerFn(startTiktokRemix);
   const listFn = useServerFn(listTiktokRemixes);
   const getFn = useServerFn(getTiktokRemix);
+  const retryFn = useServerFn(retryTiktokRemixChild);
 
   const list = useQuery({
     queryKey: ["tiktok-remixes"],
@@ -177,6 +179,18 @@ function TiktokRemixPage() {
       list.refetch();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to start remix"),
+  });
+
+  const retryMut = useMutation({
+    mutationFn: (failedJobId: string) => {
+      if (!activeRemixId) throw new Error("No active remix");
+      return retryFn({ data: { remixId: activeRemixId, failedJobId } });
+    },
+    onSuccess: () => {
+      toast.success("Retrying that cut — the other cuts are untouched");
+      detail.refetch();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to retry cut"),
   });
 
   async function onPickFile(f: File | null) {
@@ -392,7 +406,7 @@ function TiktokRemixPage() {
                 key={j.id}
                 jobStatus={normalizeJobStatus(j.status)}
                 label={j.status}
-                onRetry={() => startMut.mutate()}
+                onRetry={j.status === "failed" || j.status === "error" ? () => retryMut.mutate(j.id) : undefined}
               />
             ))}
             {childGens.map((g) => (
@@ -411,7 +425,15 @@ function TiktokRemixPage() {
                   <TiktokJobCard
                     jobStatus={normalizeJobStatus(g.status)}
                     label={g.status}
-                    onRetry={() => startMut.mutate()}
+                    onRetry={
+                      g.status === "failed"
+                        ? () => {
+                            const linkedJob = childJobs.find((j) => j.generation_id === g.id);
+                            if (linkedJob) retryMut.mutate(linkedJob.id);
+                            else toast.error("Couldn't find the failed job to retry");
+                          }
+                        : undefined
+                    }
                   />
                 )}
                 <div className="absolute bottom-2 left-2 right-2 rounded bg-black/60 p-1.5 text-[10px] leading-snug text-white/85 backdrop-blur">

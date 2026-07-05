@@ -239,6 +239,63 @@ export const startTiktokRemix = createServerFn({ method: "POST" })
     return { remixId, enqueued: jobIds.length, requested: prompts.length, failed };
   });
 
+/**
+ * Retries a single failed cut within a remix batch, without re-charging or
+ * re-enqueuing the other cuts. Reserves credits for exactly one new job,
+ * swaps its id in for the old failed job id, and leaves the rest untouched.
+ */
+export const retryTiktokRemixChild = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ remixId: z.string().uuid(), failedJobId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const userId = context.userId;
+    const { data: remix, error: remixErr } = await supabaseAdmin
+      .from("tiktok_remixes")
+      .select("*")
+      .eq("id", data.remixId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (remixErr || !remix) throw new Error(remixErr?.message || "Remix not found");
+
+    const failedJob = await supabaseAdmin
+      .from("jobs")
+      .select("id, payload")
+      .eq("id", data.failedJobId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (failedJob.error || !failedJob.data) throw new Error(failedJob.error?.message || "Job not found");
+    const payload = (failedJob.data as { payload: Record<string, unknown> | null }).payload ?? {};
+    const prompt = typeof payload.prompt === "string" ? payload.prompt : "viral TikTok cut, vertical 9:16, sharp, high energy";
+
+    const client = supabaseAdmin as unknown as {
+      rpc: (n: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+    };
+    const { data: out, error } = await client.rpc("create_generation_and_reserve", {
+      _user: userId,
+      _kind: "tiktok_remix_child",
+      _prompt: prompt,
+      _amount: 5,
+      _payload: { ...payload, remixId: data.remixId, retryOf: data.failedJobId },
+    });
+    if (error) throw new Error(error.message);
+    const row = Array.isArray(out) ? out[0] : out;
+    const newJobId = (row as { job_id: string }).job_id;
+
+    const jobIds = Array.isArray((remix as { child_job_ids: unknown }).child_job_ids)
+      ? [...((remix as { child_job_ids: string[] }).child_job_ids)]
+      : [];
+    const idx = jobIds.indexOf(data.failedJobId);
+    if (idx >= 0) jobIds[idx] = newJobId;
+    else jobIds.push(newJobId);
+
+    await supabaseAdmin
+      .from("tiktok_remixes")
+      .update({ child_job_ids: jobIds, status: "processing" } as never)
+      .eq("id", data.remixId);
+
+    return { newJobId };
+  });
+
 export const listTiktokRemixes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

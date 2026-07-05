@@ -223,7 +223,7 @@ export function ViralEngine() {
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-white/10 px-5 py-3 text-sm font-bold text-white/70"
                 >
                   <Sparkles className="size-4 animate-spin" />
-                  Spinning {revealed}/{COUNT}
+                  Generating {revealed}/{COUNT}
                 </button>
               ) : phase === "done" ? (
                 <button
@@ -239,7 +239,7 @@ export function ViralEngine() {
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-pink-400 to-fuchsia-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-fuchsia-500/30 hover:opacity-95"
                 >
                   <Play className="size-4 fill-white" />
-                  Spin 1 → {COUNT}
+                  Generate 1 → {COUNT}
                 </button>
               )}
             </div>

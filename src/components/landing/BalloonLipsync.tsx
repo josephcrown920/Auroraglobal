@@ -5,11 +5,12 @@ import { toast } from "sonner";
 import audioAsset from "@/assets/the-one-hook.mp3.asset.json";
 import { transcribeAudio } from "@/lib/hf.functions";
 import { AUDIO_ACCEPT } from "@/lib/utils";
-// Served from public/videos/ — copied from the attached raw upload since this
-// project's asset pipeline expects hosted .asset.json pointers for imports,
-// not local file imports of raw media (see public/videos/user-reference.mp4
-// for the existing plain-file-in-public convention).
-const lipsyncDemoVideo = "/videos/balloon-lipsync-demo.mp4";
+// Swapped from the old raw upload (public/videos/balloon-lipsync-demo.mp4) —
+// that clip was a "stepped on with a mic" scene carrying a third-party
+// ("HeyGen") watermark, which isn't something we want on our own marketing
+// page. This points at an already-hosted, watermark-free stage performance
+// clip. See public/videos/lipsync-performance.mp4.asset.json for provenance.
+const lipsyncDemoVideo = "/__l5e/assets-v1/f99bf1e3-686c-4b7f-80b3-cd49af93e510/lipsync-performance.mp4";
 
 /**
  * Every Face Sings — drives a clear lip-sync mouth, upper/lower lips and
