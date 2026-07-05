@@ -2,7 +2,7 @@ import { Quote, Star } from "lucide-react";
 
 const QUOTES = [
   {
-    name: "Maya R.",
+    name: "Josh A.",
     role: "Music artist",
     location: "Lagos, Nigeria",
     flag: "🇳🇬",
