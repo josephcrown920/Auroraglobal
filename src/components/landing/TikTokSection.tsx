@@ -12,9 +12,9 @@ import {
   Music2,
 } from "lucide-react";
 // One artist, many looks — the SAME identity across different outfits, poses and
-// locations. The feed mixes real AI video clips (clip-* — image-to-video where
-// available, text-to-video with a locked identity prompt otherwise) with
-// still-* frames (posters for the clips, and still-only tiles for the extra looks).
+// locations. All 6 tiles now play a real AI video clip (clip-* — image-to-video
+// where available, text-to-video with a detailed identity-locked prompt
+// otherwise); still-* frames are used only as <video> poster images.
 import stillNeon from "@/assets/josh/generated/still-01-neon-closeup.jpg";
 import stillStage from "@/assets/josh/generated/still-03-stage-mic.jpg";
 import stillStreet from "@/assets/josh/generated/still-02-street-golden.jpg";
@@ -25,6 +25,8 @@ import clipNeon from "@/assets/josh/generated/clip-01-neon-closeup.mp4";
 import clipStage from "@/assets/josh/generated/clip-03-stage-mic.mp4";
 import clipStudio from "@/assets/josh/generated/clip-05-studio-gel.mp4";
 import clipRooftop from "@/assets/josh/generated/clip-06-rooftop-sunset.mp4";
+import clipStreet from "@/assets/josh/generated/clip-02-street-golden.mp4";
+import clipCourt from "@/assets/josh/generated/clip-13-court-ball.mp4";
 
 const HANDLE = "@aurora.music";
 
@@ -44,9 +46,9 @@ type Clip = {
   poster: string;
 };
 
-// One artist — @aurora.music — a varied For You feed: real AI video clips
-// (image-to-video and identity-locked text-to-video) plus still-only tiles,
-// each a different outfit / pose / location.
+// One artist — @aurora.music — a varied For You feed: 6 real AI video clips
+// (image-to-video and identity-locked text-to-video), each a different
+// outfit / pose / location.
 const CLIPS: Clip[] = [
   {
     caption: "POV: the Afrobeats single is finally out 🌌",
@@ -73,6 +75,7 @@ const CLIPS: Clip[] = [
     caption: "runup clip before the sports anthem drops 🏀",
     likes: "903K",
     comments: "7.8K",
+    src: clipCourt,
     poster: stillCourt,
   },
   {
@@ -86,6 +89,7 @@ const CLIPS: Clip[] = [
     caption: "streetwear fit-check for the single art ✨",
     likes: "517K",
     comments: "4.4K",
+    src: clipStreet,
     poster: stillStreet,
   },
 ];
