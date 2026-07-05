@@ -140,15 +140,25 @@ test.describe("Kids Story Studio cartoon previews", () => {
       const firstCharacterButton = page.locator('button[aria-pressed]').first();
       await firstCharacterButton.waitFor({ state: "visible", timeout: 20_000 });
       await firstCharacterButton.scrollIntoViewIfNeeded();
+      // CartoonPreview's poster <img> is always rendered as the base layer, with
+      // reduced motion the video is never added on top of it — assert on the poster
+      // that lives inside this specific character card, not just "some image exists
+      // on the page" (which the header logo etc. would also satisfy).
+      const characterPoster = firstCharacterButton.locator("img");
+      await expect(characterPoster).toBeVisible();
 
-      const showcaseHeading = page.getByText("See an example", { exact: false });
-      await showcaseHeading.scrollIntoViewIfNeeded();
+      const showcasePanel = page.locator(".aurora-panel", { hasText: "See an example" });
+      await showcasePanel.scrollIntoViewIfNeeded();
+      const showcasePoster = showcasePanel.locator("img").first();
+      await expect(showcasePoster).toBeVisible();
 
       // Give the IntersectionObserver + mount effects a beat to run, then assert no
-      // <video> was ever mounted anywhere on the page, and poster <img>s are present.
+      // <video> was ever mounted anywhere on the page — reduced motion must keep the
+      // posters above as the only visual, never swap in the looping clip.
       await page.waitForTimeout(1500);
       await expect(page.locator("video")).toHaveCount(0);
-      await expect(page.locator('img[alt]').first()).toBeVisible();
+      await expect(characterPoster).toBeVisible();
+      await expect(showcasePoster).toBeVisible();
     } finally {
       await context.close();
     }
