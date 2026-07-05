@@ -60,6 +60,7 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
+  Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,6 +74,7 @@ import { SplitRealityPlayer } from "@/components/canvas/SplitRealityPlayer";
 import { TrendingTemplatesMenu, type TemplateGraph, getTemplateById } from "@/components/canvas/TrendingTemplatesMenu";
 import { AuroraAgentPanel } from "@/components/canvas/AuroraAgentPanel";
 import { FinishedWorkflowsGallery } from "@/components/canvas/FinishedWorkflowsGallery";
+import { GeneratedAssetGallery } from "@/components/canvas/GeneratedAssetGallery";
 
 
 export const Route = createFileRoute("/canvas")({
@@ -89,7 +91,8 @@ export const Route = createFileRoute("/canvas")({
   }),
 });
 
-type NodeKind = "input" | "audio" | "image" | "video" | "lipsync" | "split" | "comfy";
+type NodeKind = "input" | "audio" | "image" | "video" | "lipsync" | "split" | "comfy" | "batchVideo";
+type BatchVariant = { status: "idle" | "running" | "done" | "error"; url?: string; error?: string };
 type NodeData = {
   kind: NodeKind;
   label?: string; // optional human label (e.g. the camera angle for reshoot recipes)
@@ -105,6 +108,11 @@ type NodeData = {
   status?: "idle" | "running" | "done" | "error";
   error?: string;
   animating?: boolean;
+  // batchVideo-only: fan out one prompt/image into N independent video renders.
+  variantCount?: number;
+  resolution?: "480p" | "720p" | "1080p" | "2160p";
+  duration?: number;
+  variants?: BatchVariant[];
 };
 
 const initialNodes: Node<NodeData>[] = [
@@ -227,7 +235,12 @@ const KIND_META: Record<NodeKind, { label: string; Icon: typeof ImageIcon; accen
   lipsync: { label: "lip sync", Icon: Mic, accent: "from-rose-400 to-pink-500" },
   split: { label: "split reality", Icon: SplitSquareHorizontal, accent: "from-amber-400 to-orange-500" },
   comfy: { label: "comfyui", Icon: Boxes, accent: "from-sky-400 to-cyan-500" },
+  batchVideo: { label: "batch video", Icon: Layers, accent: "from-violet-400 to-fuchsia-500" },
 };
+
+const VARIANT_COUNTS = [1, 2, 3, 4, 5, 6] as const;
+const RESOLUTION_OPTIONS = ["480p", "720p", "1080p", "2160p"] as const;
+const DURATION_OPTIONS = [5, 8, 10, 15] as const;
 
 function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
   const h = useContext(HandlersCtx)!;
@@ -283,7 +296,24 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
         </div>
 
         {/* preview */}
-        {data.kind === "split" && (data.url || data.altUrl) ? (
+        {data.kind === "batchVideo" && (data.variants?.length ?? 0) > 0 ? (
+          <div className="grid grid-cols-2 gap-1.5 p-2 bg-black/30">
+            {data.variants!.map((v, i) => (
+              <div key={i} className="relative aspect-square rounded-md overflow-hidden bg-white/5 grid place-items-center">
+                {v.status === "done" && v.url ? (
+                  <AutoplayVideo src={v.url} className="w-full h-full object-cover" autoPlay={false} playsInline controls />
+                ) : v.status === "running" ? (
+                  <Loader2 className="size-4 animate-spin text-primary" />
+                ) : v.status === "error" ? (
+                  <span title={v.error} className="text-rose-400"><XCircle className="size-4" /></span>
+                ) : (
+                  <span className="size-1.5 rounded-full border border-white/20" />
+                )}
+                <span className="absolute top-1 left-1 text-[9px] font-mono text-white/60 bg-black/50 rounded px-1">#{i + 1}</span>
+              </div>
+            ))}
+          </div>
+        ) : data.kind === "split" && (data.url || data.altUrl) ? (
           <SplitRealityPlayer
             ultra={{ url: data.url, videoUrl: data.videoUrl, label: "ULTRA" }}
             cinematic={{ url: data.altUrl, videoUrl: data.altVideoUrl, label: "CINEMATIC" }}
@@ -429,6 +459,55 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
             </>
           )}
           {data.kind === "comfy" && <ComfyNodeControls id={id} data={data} />}
+          {data.kind === "batchVideo" && (
+            <>
+              <Textarea
+                rows={2}
+                value={data.prompt ?? ""}
+                onChange={(e) => h.update(id, { prompt: e.target.value })}
+                placeholder="describe the shared motion for every variant"
+                className="text-xs resize-none nodrag bg-black/30 border-white/10"
+                onMouseDownCapture={(e) => e.stopPropagation()}
+              />
+              <Select value={data.model} onValueChange={(v) => h.update(id, { model: v })}>
+                <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue placeholder="Model" /></SelectTrigger>
+                <SelectContent>
+                  {VIDEO_MODEL_LIST.map((m) => (
+                    <SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="grid grid-cols-3 gap-2">
+                <Select value={String(data.variantCount ?? 3)} onValueChange={(v) => h.update(id, { variantCount: Number(v) })}>
+                  <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {VARIANT_COUNTS.map((c) => (
+                      <SelectItem key={c} value={String(c)} className="text-xs">{c} variant{c > 1 ? "s" : ""}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={data.resolution ?? "720p"} onValueChange={(v) => h.update(id, { resolution: v as NodeData["resolution"] })}>
+                  <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {RESOLUTION_OPTIONS.map((r) => (
+                      <SelectItem key={r} value={r} className="text-xs">{r}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={String(data.duration ?? 5)} onValueChange={(v) => h.update(id, { duration: Number(v) })}>
+                  <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {DURATION_OPTIONS.map((d) => (
+                      <SelectItem key={d} value={String(d)} className="text-xs">{d}s</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Fans one image into {data.variantCount ?? 3} independent video renders — each charges &amp; refunds its own credits.
+              </p>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -722,6 +801,14 @@ function CanvasPage() {
     setEdges((es) => es.filter((e) => e.source !== id && e.target !== id));
   }, [setNodes, setEdges]);
 
+  const updateVariant = useCallback((id: string, index: number, patch: Partial<BatchVariant>) => {
+    setNodes((ns) => ns.map((n) => {
+      if (n.id !== id) return n;
+      const variants = (n.data.variants ?? []).map((v, i) => (i === index ? { ...v, ...patch } : v));
+      return { ...n, data: { ...n.data, variants } };
+    }));
+  }, [setNodes]);
+
   const onFile = useCallback(async (id: string, file: File) => {
     if (!user) return;
     const path = `${user.id}/canvas/${Date.now()}-${file.name}`;
@@ -885,6 +972,40 @@ function CanvasPage() {
                   : "image";
             resolved.set(id, { url: res.url as string, kind: okind as NodeKind });
             update(id, { status: "done", url: res.url, outputKind: okind });
+          } else if (n.data.kind === "batchVideo") {
+            if (images.length === 0) throw new Error("Batch video needs an image upstream");
+            const count = Math.min(6, Math.max(1, n.data.variantCount ?? 3));
+            update(id, { variants: Array.from({ length: count }, () => ({ status: "running" }) as BatchVariant) });
+            const settled = await Promise.allSettled(
+              Array.from({ length: count }, (_, i) =>
+                vidFn({ data: {
+                  imageUrl: images[0],
+                  prompt: n.data.prompt ?? "natural movement, expressive performance",
+                  duration: n.data.duration ?? 5,
+                  resolution: n.data.resolution ?? "720p",
+                  modelKey: n.data.model ?? VIDEO_MODEL_LIST[0].value,
+                  cameraMovement: "static",
+                  endFrameUrl: null,
+                } }).then((res) => {
+                  updateVariant(id, i, { status: "done", url: res.videoUrl });
+                  return res;
+                }).catch((e: unknown) => {
+                  const msg = e instanceof Error ? e.message : "Failed";
+                  updateVariant(id, i, { status: "error", error: msg });
+                  handleGenerationError(e);
+                  throw e;
+                }),
+              ),
+            );
+            const succeeded = settled.filter(
+              (r): r is PromiseFulfilledResult<{ id: string; videoUrl: string; preview: boolean }> => r.status === "fulfilled",
+            );
+            if (succeeded.length === 0) throw new Error("All batch video variants failed");
+            resolved.set(id, { url: succeeded[0].value.videoUrl, kind: "video" });
+            update(id, { status: "done", url: succeeded[0].value.videoUrl });
+            if (succeeded.length < count) {
+              toast.error(`${count - succeeded.length} of ${count} batch variants failed — the rest completed and were charged individually`);
+            }
           } else {
             // passthrough
             if (upstream[0]) resolved.set(id, upstream[0]);
@@ -916,8 +1037,13 @@ function CanvasPage() {
           kind === "image" ? MODEL_LIST[0].value
           : kind === "video" ? VIDEO_MODEL_LIST[0].value
           : kind === "lipsync" ? "fal-ai/sync-lipsync/v2"
+          : kind === "batchVideo" ? VIDEO_MODEL_LIST[0].value
           : undefined,
         cameraMovement: kind === "video" ? "static" : undefined,
+        variantCount: kind === "batchVideo" ? 3 : undefined,
+        resolution: kind === "batchVideo" ? "720p" : undefined,
+        duration: kind === "batchVideo" ? 5 : undefined,
+        variants: kind === "batchVideo" ? [] : undefined,
         status: "idle",
       } as NodeData,
     }]);
@@ -1018,6 +1144,7 @@ function CanvasPage() {
           <Button size="sm" variant="outline" onClick={() => addNode("lipsync")} className="border-white/10 bg-white/5"><Mic className="size-3.5 mr-1" /> Lip sync</Button>
           <Button size="sm" variant="outline" onClick={() => addNode("split")} className="border-white/10 bg-white/5"><SplitSquareHorizontal className="size-3.5 mr-1" /> Split</Button>
           <Button size="sm" variant="outline" onClick={() => addNode("comfy")} className="border-white/10 bg-white/5"><Boxes className="size-3.5 mr-1" /> ComfyUI</Button>
+          <Button size="sm" variant="outline" onClick={() => addNode("batchVideo")} className="border-white/10 bg-white/5"><Layers className="size-3.5 mr-1" /> Batch video</Button>
           <Dialog open={loadOpen} onOpenChange={setLoadOpen}>
             <DialogTrigger asChild>
               <Button size="sm" variant="outline" className="border-white/10 bg-white/5"><FolderOpen className="size-3.5 mr-1" /> Load</Button>
@@ -1115,12 +1242,17 @@ function CanvasPage() {
           <button onClick={() => addNode("lipsync")} className="size-9 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Lip sync"><Mic className="size-4" /></button>
           <button onClick={() => addNode("split")} className="size-9 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Split"><SplitSquareHorizontal className="size-4" /></button>
           <button onClick={() => addNode("comfy")} className="size-9 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="ComfyUI"><Boxes className="size-4" /></button>
+          <button onClick={() => addNode("batchVideo")} className="size-9 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Batch video"><Layers className="size-4" /></button>
           <button onClick={() => runMut.mutate()} disabled={runMut.isPending} className="ml-1 h-9 px-4 rounded-full text-primary-foreground text-sm font-medium inline-flex items-center gap-1.5 shadow-[0_0_24px_oklch(0.78_0.18_305/0.8)] disabled:opacity-60" style={{ background: "var(--gradient-hero)" }}>
             {runMut.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />} Run
           </button>
         </div>
       </div>
-      
+
+      {/* Docked, collapsible session asset gallery — rendered at the top level so its
+          fixed toggle/panel isn't trapped under the header by the canvas area's z-0 stacking context */}
+      <GeneratedAssetGallery />
+
       <AuroraAgentPanel
         open={agentOpen}
         onClose={() => setAgentOpen(false)}
