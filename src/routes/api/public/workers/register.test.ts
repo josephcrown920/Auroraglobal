@@ -57,9 +57,9 @@ function makeGpuWorkersBuilder() {
       updateCalls.push({ id: updateId, patch: updatePatch });
       return resolve({ error: null });
     }
-    // select("id, endpoint_url") — dedup lookup
+    // select("id, endpoint_url, status") — dedup lookup
     return resolve({
-      data: gpuWorkers.map((w) => ({ id: w.id, endpoint_url: w.endpoint_url })),
+      data: gpuWorkers.map((w) => ({ id: w.id, endpoint_url: w.endpoint_url, status: w.status })),
       error: null,
     });
   };
@@ -262,6 +262,50 @@ describe("POST /api/public/workers/register", () => {
     await post({ name: "colab-2", endpoint_url: "https://colab-2.example.com" }, AUTH);
     expect(gpuWorkers).toHaveLength(2);
     expect(insertCalls).toHaveLength(2);
+  });
+
+  // ── Admin-paused/draining workers stay parked on reconnect ──────────────
+
+  it("a reconnecting worker that an admin paused stays paused, but refreshes its heartbeat", async () => {
+    await post({ name: "colab-1", endpoint_url: "https://colab.example.com" }, AUTH);
+    expect(gpuWorkers[0].status).toBe("active");
+
+    // Admin pauses it directly in gpu_workers (simulating setWorkerStatus).
+    gpuWorkers[0].status = "paused";
+    gpuWorkers[0].paused_reason = "admin";
+    gpuWorkers[0].last_heartbeat = "2000-01-01T00:00:00.000Z";
+
+    // Colab session reboots and re-announces itself as up.
+    const res = await post(
+      { name: "colab-1", endpoint_url: "https://colab.example.com/generate", capabilities: ["lipsync"] },
+      AUTH,
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()).updated).toBe(true);
+
+    expect(gpuWorkers).toHaveLength(1);
+    expect(gpuWorkers[0].status).toBe("paused");
+    expect(gpuWorkers[0].last_heartbeat).not.toBe("2000-01-01T00:00:00.000Z");
+    expect(gpuWorkers[0].endpoint_url).toBe("https://colab.example.com/generate");
+  });
+
+  it("a reconnecting worker that an admin set to draining stays draining", async () => {
+    await post({ name: "colab-1", endpoint_url: "https://colab.example.com" }, AUTH);
+    gpuWorkers[0].status = "draining";
+
+    await post({ name: "colab-1", endpoint_url: "https://colab.example.com" }, AUTH);
+
+    expect(gpuWorkers[0].status).toBe("draining");
+  });
+
+  it("a fresh (never-before-seen) worker still comes up active even though other rows are paused", async () => {
+    await post({ name: "colab-1", endpoint_url: "https://colab-1.example.com" }, AUTH);
+    gpuWorkers[0].status = "paused";
+
+    await post({ name: "colab-2", endpoint_url: "https://colab-2.example.com" }, AUTH);
+
+    const fresh = gpuWorkers.find((w) => w.endpoint_url === "https://colab-2.example.com");
+    expect(fresh?.status).toBe("active");
   });
 });
 
