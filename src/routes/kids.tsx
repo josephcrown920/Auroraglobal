@@ -30,6 +30,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { saveAssetToDisk } from "@/lib/save";
+import { ShareMenu } from "@/components/share/ShareMenu";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import { CartoonPreview } from "@/components/kids/CartoonPreview";
 import { KIDS_CHARACTER_PREVIEWS, KIDS_STORY_SHOWCASE } from "@/lib/kids-previews";
@@ -808,6 +809,15 @@ function KidsPage() {
               >
                 <Download className="size-4 mr-2" /> Download MP4
               </Button>
+              <ShareMenu
+                getShareTarget={() => ({
+                  url: story.videoUrl!,
+                  text: "Check out this story I made with Aurora!",
+                  assetUrl: story.videoUrl!,
+                  filename: `aurora-kids-${story.id}.mp4`,
+                })}
+                triggerClassName="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-background/60 text-sm font-medium hover:bg-background disabled:opacity-50"
+              />
               <Link to="/gallery" className="text-sm text-primary hover:underline whitespace-nowrap">
                 Open gallery →
               </Link>

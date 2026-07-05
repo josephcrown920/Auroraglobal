@@ -14,13 +14,13 @@ import {
   ImagePlus,
   X,
   Download,
-  Share2,
   Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { saveAssetToDisk } from "@/lib/save";
 import { publishGeneration } from "@/lib/share.functions";
+import { ShareMenu } from "@/components/share/ShareMenu";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 
 export const Route = createFileRoute("/split-reality")({
@@ -160,18 +160,6 @@ function ResultCard({
   caption: string;
 }) {
   const shareFn = useServerFn(publishGeneration);
-  const shareMut = useMutation({
-    mutationFn: async (id: string) => shareFn({ data: { id } }),
-    onSuccess: async (r) => {
-      try {
-        await navigator.clipboard.writeText(r.url);
-        toast.success("Share link copied");
-      } catch {
-        toast.success("Shared — link: " + r.url);
-      }
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Share failed"),
-  });
 
   return (
     <div className="relative rounded-2xl overflow-hidden border border-border bg-card/40 aspect-[4/5]">
@@ -186,20 +174,18 @@ function ResultCard({
             className="w-full h-full object-cover"
           />
           <div className="absolute bottom-2 right-2 z-10 flex gap-1.5">
-            <button
-              type="button"
-              onClick={() => shareMut.mutate(side.id)}
-              disabled={shareMut.isPending}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background/85 backdrop-blur text-xs font-medium hover:bg-background disabled:opacity-50"
-              title="Share"
-            >
-              {shareMut.isPending ? (
-                <Loader2 className="size-3 animate-spin" />
-              ) : (
-                <Share2 className="size-3" />
-              )}
-              Share
-            </button>
+            <ShareMenu
+              triggerClassName="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background/85 backdrop-blur text-xs font-medium hover:bg-background disabled:opacity-50"
+              getShareTarget={async () => {
+                const r = await shareFn({ data: { id: side.id } });
+                return {
+                  url: `${window.location.origin}${r.url}`,
+                  text: caption,
+                  assetUrl: side.url,
+                  filename: `aurora-split-${side.variant}-${side.id.slice(0, 6)}.png`,
+                };
+              }}
+            />
             <button
               type="button"
               onClick={() =>
