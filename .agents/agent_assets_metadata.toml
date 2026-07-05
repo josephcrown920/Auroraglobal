@@ -138,6 +138,42 @@ uri = "file://src/assets/colors-studios/scenes/alley.png"
 type = "image"
 title = "noir alley set"
 
+[[generated]]
+id = "1sPqPZ4pgdfhZgk6_7OTc"
+uri = "file://src/assets/spin-templates/creators.png"
+type = "image"
+title = "creators template card"
+
+[[generated]]
+id = "cjOrEV2Eyq2SrcYcvfFy-"
+uri = "file://src/assets/spin-templates/rapper.png"
+type = "image"
+title = "rapper template card"
+
+[[generated]]
+id = "VDwHxy6jrlw6JfY-GE6I9"
+uri = "file://src/assets/spin-templates/product-showcase.png"
+type = "image"
+title = "product showcase template card"
+
+[[generated]]
+id = "GJ_r834TH5vhdgVwEjBCA"
+uri = "file://src/assets/spin-templates/fitness.png"
+type = "image"
+title = "fitness creator template card"
+
+[[generated]]
+id = "-WUOwTuPLnarTRePqPp0H"
+uri = "file://src/assets/spin-templates/fashion.png"
+type = "image"
+title = "fashion lookbook template card"
+
+[[generated]]
+id = "pBz0Nt-S1pyVZbhYk3DXE"
+uri = "file://src/assets/spin-templates/beauty.png"
+type = "image"
+title = "beauty glam template card"
+
 [[outputs]]
 id = "uuVDpq4W7VbbIZdWQslyD"
 uri = "file://notebooks/hybrid_ai_inference_colab.zip"
