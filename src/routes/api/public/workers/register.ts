@@ -118,7 +118,7 @@ export const Route = createFileRoute("/api/public/workers/register")({
         const base = normalizeWorkerBase(data.endpoint_url);
         const { data: existing, error: listErr } = await supabaseAdmin
           .from("gpu_workers")
-          .select("id, endpoint_url");
+          .select("id, endpoint_url, status");
         if (listErr) {
           await logAttempt(supabaseAdmin, { name: data.name, endpoint_url: data.endpoint_url, protocol: data.protocol, ok: false, error: listErr.message });
           return json({ error: listErr.message }, 500);
@@ -127,12 +127,28 @@ export const Route = createFileRoute("/api/public/workers/register")({
 
         // A freshly-booted worker announcing itself is, by definition, up: set it
         // active and stamp the heartbeat so dispatch routes to it immediately.
+        //
+        // EXCEPT when this call is actually re-registering an EXISTING worker that
+        // an admin deliberately parked in Admin -> Workers ("paused" or "draining").
+        // Colab/Kaggle sessions reboot on their own schedule and always announce
+        // themselves as up — if we blindly stamped status:"active" here, every
+        // session reconnect would silently undo the admin's pause/drain and the
+        // worker would start receiving jobs again behind their back. The admin's
+        // intent has to win, so a reconnecting worker that's paused/draining stays
+        // paused/draining; we still refresh last_heartbeat/endpoint_url/capabilities
+        // so the dashboard shows it as "reachable" while parked. Treating draining
+        // the same as paused here because both mean "an admin decided this worker
+        // should stop taking new work" — auto-registration is not a channel for
+        // overriding that.
+        const keepParkedStatus =
+          match?.status === "paused" || match?.status === "draining" ? match.status : null;
+
         const patch: WorkerInsert = {
           name: data.name,
           endpoint_url: data.endpoint_url,
           protocol: data.protocol,
           capabilities: data.capabilities,
-          status: "active",
+          status: keepParkedStatus ?? "active",
           last_heartbeat: new Date().toISOString(),
         };
         if (data.auth_token != null) patch.auth_token = data.auth_token;

@@ -11,6 +11,7 @@
 - [Bun mock.module is process-global](bun-mock-module-leakage.md) — never mock.module a module other suites import real; it leaks the stub across files (order-dependent); dependency-inject instead.
 - [Cron endpoints pattern](cron-endpoints.md) — scheduled work = protected `/api/public/*` route authed via anon-key `apikey` header (NOT CRON_SECRET); scheduling is external (no pg_cron in dev/migrations).
 - [Worker self-registration tokens](worker-self-registration-tokens.md) — register/health auth = Supabase anon key (AURORA_REGISTER_KEY, `apikey` header); /generate bearer = AURORA_WORKER_TOKEN; keep them separate, don't merge.
+- [Worker register preserves admin status](worker-register-preserves-admin-status.md) — auto-registration on reconnect must not stamp active over an existing paused/draining row; treat draining like paused.
 - [Aurora MCP server](aurora-mcp-server.md) — hand-rolled stateless JSON-RPC at /api/mcp (MCP SDK is Node-only, won't run on Workers); tools reuse /api/public/generate + jobs RPC; avatars live in DB but not in generated types.ts.
 - [BFL identity-locked stills](bfl-identity-stills.md) — pass faceId+brandId as input_medias to hold a character across stills; bare-skin prompts → MODERATED_OUTPUT; t2v can't preserve identity, i2v=Replicate only.
 - [Aurora single-column layout](aurora-single-column-layout.md) — breakpoints disabled (9990px+) so sm/md/lg never apply; full-screen chrome via .phone-* helpers; landing has a benign hydration warning.
