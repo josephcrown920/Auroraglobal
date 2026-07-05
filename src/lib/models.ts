@@ -85,6 +85,10 @@ export const MODEL_LIST: ModelMeta[] = [
   },
   {
     value: "fal-ai/seedream-5",
+    // BytePlus-direct only (see BYTEPLUS_DEFAULTS in orchestrator.server.ts) —
+    // no verified Replicate/fal slug exists yet, so `endpoint` below is a
+    // placeholder label, not a real dispatchable path. Actual routing keys
+    // off `value` (fal-ai/seedream-5), not this field.
     endpoint: "fal-ai/bytedance/seedream/v5/edit",
     label: "Seedream 5.0",
     short: "Seedream 5",
@@ -164,6 +168,10 @@ export const VIDEO_MODEL_LIST: ModelMeta[] = [
     tagline: "Newest ByteDance video model · best motion + fidelity",
     status: "live",
     category: "video",
+    // BytePlus-direct only (see BYTEPLUS_DEFAULTS in orchestrator.server.ts) —
+    // no verified Replicate/fal slug exists yet, so `endpoint` above is a
+    // placeholder label, not a real dispatchable path. Actual routing keys
+    // off `value` (seedance-3.0), not this field.
   },
   {
     value: "kling-3.0",
