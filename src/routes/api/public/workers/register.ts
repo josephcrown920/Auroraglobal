@@ -1,9 +1,12 @@
 // Worker self-registration endpoint — POST /api/public/workers/register
 // Lets a self-hosted GPU worker (e.g. the Colab/Kaggle notebook) upsert its own
 // row in gpu_workers on boot, so a restart never needs a manual Admin → Workers
-// edit. Authenticated via the Supabase anon/publishable `apikey` header — the same
-// pattern as /api/public/workers/health and /api/public/jobs/tick — so the worker
-// only needs the public anon key, never a Supabase service-role key.
+// edit. Authenticated via a dedicated, private AURORA_REGISTER_SECRET sent as the
+// `apikey` header — deliberately NOT the Supabase anon/publishable key, because
+// that key ships to every browser. Once image/video jobs route to this swarm
+// first, a worker that registers is handed real job inputs (including signed
+// links to private user media), so registration must require a secret only the
+// operator holds, never the same key every visitor already has.
 
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
@@ -37,7 +40,7 @@ function json(body: unknown, status = 200): Response {
 }
 
 // Best-effort audit log of every register attempt (success AND failure) so a
-// bad AURORA_REGISTER_KEY, invalid payload, or DB error shows up in Admin ->
+// bad AURORA_REGISTER_SECRET, invalid payload, or DB error shows up in Admin ->
 // Workers as a *reason*, instead of the attempt just vanishing with nothing to
 // look at but a Kaggle/Colab notebook log the owner may never check. Logging
 // itself must never fail the request — this is diagnostics, not the contract.
@@ -69,8 +72,17 @@ export const Route = createFileRoute("/api/public/workers/register")({
         const apikey =
           request.headers.get("apikey") ||
           request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
-        const expected = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;
-        if (!expected || apikey !== expected) {
+        // Deliberately gated on a private operator secret, not the Supabase
+        // anon/publishable key — that key is shipped to every browser and would
+        // let anyone who knows the Aurora URL register an arbitrary "worker" and
+        // start receiving real job inputs. If the operator hasn't set the secret
+        // yet, fail closed (never fall back to the public key).
+        const expected = process.env.AURORA_REGISTER_SECRET;
+        if (!expected) {
+          await logAttempt(supabaseAdmin, { ok: false, error: "Registration disabled: AURORA_REGISTER_SECRET is not configured" });
+          return json({ error: "Registration disabled" }, 503);
+        }
+        if (apikey !== expected) {
           await logAttempt(supabaseAdmin, { ok: false, error: "Unauthorized (apikey mismatch or missing)" });
           return json({ error: "Unauthorized" }, 401);
         }

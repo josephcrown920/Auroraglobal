@@ -22,7 +22,7 @@ export const listWorkers = createServerFn({ method: "GET" })
     const { data: jobs } = await supabaseAdmin.from("worker_jobs").select("*").order("created_at", { ascending: false }).limit(50);
     // Recent register-endpoint calls (success AND failure) — surfaces *why* a
     // Kaggle/Colab/Vast worker never showed up as a gpu_workers row (bad
-    // AURORA_REGISTER_KEY, invalid payload, DB error) instead of the attempt
+    // AURORA_REGISTER_SECRET, invalid payload, DB error) instead of the attempt
     // just vanishing with nothing to look at but a notebook log.
     const { data: registerAttempts } = await (supabaseAdmin as any)
       .from("worker_register_attempts")
