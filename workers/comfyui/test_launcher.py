@@ -6,14 +6,17 @@ These tests stand in for "does an under-provisioned worker correctly drop
 capabilities it can't serve" from Task #93 — the one part of that acceptance
 criterion that doesn't require a live Kaggle/Colab GPU to prove.
 
-Run with:  python3 -m unittest workers/comfyui/test_launcher.py -v
+Run with (from repo root):  python3 -m unittest discover -s workers/comfyui -p "test_launcher.py" -v
+Or (from this directory):   python3 -m unittest test_launcher -v
 """
 
 import os
+import sys
 import tempfile
 import unittest
 
-import aurora_comfyui_launcher as launcher
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import aurora_comfyui_launcher as launcher  # noqa: E402
 
 
 class ServableCapsTests(unittest.TestCase):
