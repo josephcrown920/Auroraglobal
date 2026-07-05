@@ -104,7 +104,7 @@ function AuthorizePage() {
             </Button>
           )}
           {status === "approved" && (
-            <div className="text-sm text-green-600 flex items-center justify-center gap-2 mt-2">
+            <div className="text-sm text-emerald-400 flex items-center justify-center gap-2 mt-2">
               <CheckCircle2 className="size-4" /> Done — return to your terminal.
             </div>
           )}

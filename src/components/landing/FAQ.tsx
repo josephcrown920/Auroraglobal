@@ -34,7 +34,7 @@ export function FAQ() {
     <section id="faq" className="relative z-10 px-6 md:px-12 pb-24">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-10">
-          <p className="text-xs uppercase tracking-[0.2em] text-violet-300/80 mb-2">FAQ</p>
+          <p className="aurora-kicker mb-2">FAQ</p>
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">Answers, before you ask.</h2>
         </div>
         <div className="space-y-2">
@@ -43,18 +43,18 @@ export function FAQ() {
             return (
               <div
                 key={f.q}
-                className={`rounded-2xl border transition-all ${isOpen ? "border-violet-400/40 bg-violet-500/[0.06]" : "border-white/10 bg-white/[0.02] hover:border-white/20"}`}
+                className={`rounded-2xl border transition-all ${isOpen ? "border-primary/40 bg-primary/[0.06]" : "border-border bg-white/[0.02] hover:border-border/80"}`}
               >
                 <button
                   onClick={() => setOpen(isOpen ? null : i)}
                   className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left"
                   aria-expanded={isOpen}
                 >
-                  <span className="font-medium text-white">{f.q}</span>
-                  <ChevronDown className={`size-4 text-white/60 transition-transform shrink-0 ${isOpen ? "rotate-180" : ""}`} />
+                  <span className="font-medium text-foreground">{f.q}</span>
+                  <ChevronDown className={`size-4 text-muted-foreground transition-transform shrink-0 ${isOpen ? "rotate-180" : ""}`} />
                 </button>
                 {isOpen && (
-                  <div className="px-5 pb-4 text-sm text-white/70 leading-relaxed animate-fade-in">
+                  <div className="px-5 pb-4 text-sm text-muted-foreground leading-relaxed animate-fade-in">
                     {f.a}
                   </div>
                 )}

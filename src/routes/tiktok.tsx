@@ -65,13 +65,13 @@ function TiktokJobCard({
 
   if (prog.state === "error") {
     return (
-      <div className="aspect-[9/16] rounded-xl border border-red-500/30 bg-red-500/10 p-3 flex flex-col justify-center items-center gap-2 text-center">
-        <p className="text-[11px] text-red-400 font-medium">Cut failed</p>
+      <div className="aspect-[9/16] rounded-xl border border-destructive/30 bg-destructive/10 p-3 flex flex-col justify-center items-center gap-2 text-center">
+        <p className="text-[11px] text-destructive font-medium">Cut failed</p>
         {onRetry && (
           <button
             type="button"
             onClick={onRetry}
-            className="mt-1 rounded-lg border border-red-400/40 px-2.5 py-1 text-[10px] font-semibold text-red-300 hover:bg-red-500/15 transition-colors"
+            className="mt-1 rounded-lg border border-destructive/40 px-2.5 py-1 text-[10px] font-semibold text-destructive hover:bg-destructive/15 transition-colors"
           >
             Try again
           </button>
@@ -81,10 +81,10 @@ function TiktokJobCard({
   }
 
   return (
-    <div className="aspect-[9/16] rounded-xl border border-white/10 bg-black/40 p-3 flex flex-col justify-between">
+    <div className="aspect-[9/16] rounded-xl border border-border bg-black/40 p-3 flex flex-col justify-between">
       <div className="flex-1 flex flex-col items-center justify-center gap-3">
-        <Loader2 className="size-5 animate-spin text-white/40" />
-        <p className="text-[11px] text-white/60 text-center">{prog.label || label}</p>
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        <p className="text-[11px] text-muted-foreground text-center">{prog.label || label}</p>
       </div>
       <div className="space-y-1">
         <div className="h-1 rounded-full bg-white/10 overflow-hidden">
@@ -93,7 +93,7 @@ function TiktokJobCard({
             style={{ width: `${prog.progress}%` }}
           />
         </div>
-        <p className="text-[10px] text-white/30 text-right tabular-nums">{prog.progress}%</p>
+        <p className="text-[10px] text-muted-foreground text-right tabular-nums">{prog.progress}%</p>
       </div>
     </div>
   );
@@ -113,8 +113,8 @@ export const Route = createFileRoute("/tiktok")({
       { name: "description", content: "Upload one video. Aurora remixes it into up to 10 TikTok-ready cuts from different hooks, angles, and beats." },
     ],
   }),
-  errorComponent: ({ error }) => <div className="p-8 text-sm text-red-400">Error: {error.message}</div>,
-  notFoundComponent: () => <div className="p-8 text-white/60">Not found.</div>,
+  errorComponent: ({ error }) => <div className="p-8 text-sm text-destructive">Error: {error.message}</div>,
+  notFoundComponent: () => <div className="p-8 text-muted-foreground">Not found.</div>,
 });
 
 function TiktokRemixPage() {
@@ -219,8 +219,8 @@ function TiktokRemixPage() {
   if (!user) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-24 text-center">
-        <h1 className="text-3xl font-bold text-white">Urban Cuts</h1>
-        <p className="mt-3 text-white/70">Sign in to upload a video and spin up 10 variants.</p>
+        <h1 className="text-3xl font-bold text-foreground">Urban Cuts</h1>
+        <p className="mt-3 text-muted-foreground">Sign in to upload a video and spin up 10 variants.</p>
         <Link to="/auth" className="mt-6 inline-flex items-center rounded-full bg-white px-5 py-2.5 text-sm font-bold text-black no-underline">Sign in</Link>
       </div>
     );
@@ -231,35 +231,35 @@ function TiktokRemixPage() {
       <WelcomeTour show={showTour} onDismiss={() => setShowTour(false)} />
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <span className="inline-flex items-center gap-2 rounded-full border border-pink-300/30 bg-pink-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-pink-200">
+          <span className="aurora-kicker inline-flex items-center gap-2 rounded-full border border-pink-300/30 bg-pink-300/10 px-3 py-1 text-pink-200">
             <Flame className="size-3.5" /> Urban Cuts
           </span>
-          <h1 className="mt-3 text-3xl font-extrabold text-white md:text-5xl">
+          <h1 className="mt-3 text-3xl font-extrabold text-foreground md:text-5xl">
             One video in. <span className="bg-gradient-to-r from-[#25F4EE] to-[#FE2C55] bg-clip-text text-transparent">Up to 10 cuts out.</span>
           </h1>
-          <p className="mt-2 max-w-2xl text-white/65">
+          <p className="mt-2 max-w-2xl text-muted-foreground">
             Aurora analyzes your source, picks distinct hooks, and runs each one as its own queued render.
           </p>
         </div>
       </header>
 
       {/* Composer */}
-      <section className="mt-8 grid gap-6 rounded-3xl border border-white/10 bg-white/[0.03] p-5 md:grid-cols-[1.2fr,1fr] md:p-7">
+      <section className="mt-8 grid gap-6 aurora-glass rounded-3xl p-5 md:grid-cols-[1.2fr,1fr] md:p-7">
         <div className="space-y-4">
           <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-white/55">Source video</label>
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Source video</label>
             <div className="mt-2 flex gap-2">
               <input
                 value={sourceUrl}
                 onChange={(e) => setSourceUrl(e.target.value)}
                 placeholder="https://… or upload below"
-                className="flex-1 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-pink-400/60"
+                className="flex-1 rounded-xl border border-border bg-black/40 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-pink-400/60"
               />
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 disabled={uploading}
-                className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                className="aurora-glass inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-foreground hover:bg-white/10 disabled:opacity-50"
               >
                 {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
                 Upload
@@ -275,13 +275,13 @@ function TiktokRemixPage() {
           </div>
 
           <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-white/55">Brief (optional)</label>
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Brief (optional)</label>
             <textarea
               value={basePrompt}
               onChange={(e) => setBasePrompt(e.target.value)}
               placeholder="e.g. moody neon city pop track, 9:16, lots of close-ups"
               rows={3}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-pink-400/60"
+              className="mt-2 w-full rounded-xl border border-border bg-black/40 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-pink-400/60"
             />
           </div>
 
@@ -305,7 +305,7 @@ function TiktokRemixPage() {
           />
 
           <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-white/55">Cut style</label>
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Cut style</label>
             <div className="mt-2 grid grid-cols-3 gap-2">
               {STYLE_OPTIONS.map((o) => (
                 <button
@@ -315,19 +315,19 @@ function TiktokRemixPage() {
                   aria-pressed={style === o.value}
                   className={`rounded-xl border px-3 py-2 text-xs font-semibold leading-tight transition ${
                     style === o.value
-                      ? "border-pink-400/60 bg-white/[0.08] text-white"
-                      : "border-white/10 bg-black/40 text-white/60 hover:bg-white/[0.05]"
+                      ? "border-pink-400/60 bg-white/[0.08] text-foreground"
+                      : "border-border bg-black/40 text-muted-foreground hover:bg-white/[0.05]"
                   }`}
                 >
                   {o.label}
                 </button>
               ))}
             </div>
-            <p className="mt-1 text-[11px] text-white/40">{STYLE_OPTIONS.find((o) => o.value === style)?.hint}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">{STYLE_OPTIONS.find((o) => o.value === style)?.hint}</p>
           </div>
 
           <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-white/55">How many cuts</label>
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">How many cuts</label>
             <div className="mt-2 flex items-center gap-3">
               <input
                 type="range" min={1} max={10} step={1}
@@ -335,9 +335,9 @@ function TiktokRemixPage() {
                 onChange={(e) => setCount(Number(e.target.value))}
                 className="flex-1 accent-pink-500"
               />
-              <span className="w-10 text-right font-bold text-white">{count}</span>
+              <span className="w-10 text-right font-bold text-foreground">{count}</span>
             </div>
-            <p className="mt-1 text-[11px] text-white/40">Each cut reserves 5 Aura. Reservations are released if a job fails.</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">Each cut reserves 5 Aura. Reservations are released if a job fails.</p>
           </div>
 
           <button
@@ -350,7 +350,7 @@ function TiktokRemixPage() {
             Remix into {count} cuts
           </button>
           {!sourceUrl && !startMut.isPending && (
-            <p className="-mt-2 text-center text-[11px] text-white/45">
+            <p className="-mt-2 text-center text-[11px] text-muted-foreground">
               Add a source video above (paste a link or upload) to enable this button.
             </p>
           )}
@@ -362,23 +362,23 @@ function TiktokRemixPage() {
           />
         </div>
 
-        <aside className="rounded-2xl border border-white/10 bg-black/30 p-4">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-white/55">Recent remixes</h3>
+        <aside className="rounded-2xl border border-border bg-black/30 p-4">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Recent remixes</h3>
           <div className="mt-3 space-y-2">
-            {(list.data ?? []).length === 0 && <p className="text-xs text-white/40">No remixes yet.</p>}
+            {(list.data ?? []).length === 0 && <p className="text-xs text-muted-foreground">No remixes yet.</p>}
             {(list.data ?? []).map((r) => (
               <button
                 key={r.id}
                 onClick={() => setActiveRemixId(r.id)}
                 className={`block w-full rounded-xl border px-3 py-2 text-left text-xs transition ${
-                  activeRemixId === r.id ? "border-pink-400/60 bg-white/[0.06]" : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05]"
+                  activeRemixId === r.id ? "border-pink-400/60 bg-white/[0.06]" : "border-border bg-white/[0.02] hover:bg-white/[0.05]"
                 }`}
               >
-                <div className="flex items-center justify-between text-white">
+                <div className="flex items-center justify-between text-foreground">
                   <span className="font-semibold">{r.target_count} cuts</span>
-                  <span className="text-[10px] uppercase tracking-widest text-white/50">{r.status}</span>
+                  <span className="text-[10px] uppercase tracking-widest text-muted-foreground">{r.status}</span>
                 </div>
-                <p className="mt-1 truncate text-white/55">{r.prompt || "—"}</p>
+                <p className="mt-1 truncate text-muted-foreground">{r.prompt || "—"}</p>
               </button>
             ))}
           </div>
@@ -389,12 +389,12 @@ function TiktokRemixPage() {
       {activeRemixId && (
         <section className="mt-10">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-white">
+            <h2 className="text-lg font-bold text-foreground">
               {completed}/{childGens.length || childJobs.length} ready
             </h2>
             <button
               onClick={() => detail.refetch()}
-              className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
+              className="aurora-glass inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-white/10"
             >
               <RefreshCw className="size-3" /> Refresh
             </button>
@@ -410,7 +410,7 @@ function TiktokRemixPage() {
               />
             ))}
             {childGens.map((g) => (
-              <div key={g.id} className="group relative aspect-[9/16] overflow-hidden rounded-xl border border-white/10 bg-black/60">
+              <div key={g.id} className="group relative aspect-[9/16] overflow-hidden rounded-xl border border-border bg-black/60">
                 {g.result_video_url ? (
                   <AutoplayVideo
                     src={g.result_video_url}

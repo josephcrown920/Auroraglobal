@@ -99,7 +99,7 @@ function CliPage() {
   };
 
   return (
-    <main className="min-h-screen relative overflow-hidden bg-[#070612] text-white pb-28 md:pb-24">
+    <main className="min-h-screen relative overflow-hidden bg-background text-foreground pb-28 md:pb-24">
       {/* Ambient glows */}
       <div
         className="pointer-events-none absolute -top-40 -right-40 size-[640px] rounded-full blur-3xl opacity-50"
@@ -110,14 +110,14 @@ function CliPage() {
         style={{ background: "radial-gradient(circle, hsl(290 80% 55% / 0.5), transparent 60%)" }}
       />
 
-      <header className="phone-fixed-x fixed top-0 z-40 w-full bg-[#070612]/80 backdrop-blur-xl border-b border-white/10">
+      <header className="phone-fixed-x fixed top-0 z-40 w-full bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="flex items-center justify-between pl-24 pr-6 md:px-12 py-4">
           <Link
             to="/"
             className="flex items-center gap-2 font-semibold tracking-tight no-underline"
           >
             <img src={auroraLogo.url} alt="Aurora" className="size-8 rounded-xl object-contain" />
-            <span className="text-white">Aurora</span>
+            <span className="text-foreground">Aurora</span>
           </Link>
           <Link
             to="/studio"
@@ -131,7 +131,7 @@ function CliPage() {
       <div className="relative z-10 mx-auto max-w-6xl px-5 pt-28 md:px-8 md:pt-36">
         {/* Hero */}
         <div className="text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-300/[0.06] px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-cyan-200">
+          <span className="aurora-kicker inline-flex items-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-300/[0.06] px-3 py-1 text-cyan-200">
             <Terminal className="size-3.5" /> Aurora CLI
           </span>
           <h1 className="mx-auto mt-5 max-w-3xl text-4xl font-bold tracking-tight md:text-6xl md:leading-[1.05]">
@@ -140,7 +140,7 @@ function CliPage() {
               from your terminal.
             </span>
           </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-white/68 md:text-lg">
+          <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-muted-foreground md:text-lg">
             Render images, video and lip-sync without leaving the command line. Script it, pipe it,
             drop it into CI — the same models and the same Aura balance as the web app.
           </p>
@@ -148,11 +148,11 @@ function CliPage() {
             {CAPS.map((c) => (
               <span
                 key={c.label}
-                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-sm text-white/80"
+                className="aurora-glass inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm text-foreground/80"
               >
                 <c.icon className="size-4 text-cyan-200" />
-                <span className="font-semibold text-white">{c.label}</span>
-                <span className="hidden text-white/40 sm:inline">· {c.hint}</span>
+                <span className="font-semibold text-foreground">{c.label}</span>
+                <span className="hidden text-muted-foreground sm:inline">· {c.hint}</span>
               </span>
             ))}
           </div>
@@ -161,7 +161,7 @@ function CliPage() {
         {/* Full-size interactive terminal */}
         <div className="mt-12">
           <AuroraTerminal heightClass="h-[420px] md:h-[520px]" title="aurora-cli — interactive" />
-          <p className="mt-3 text-center text-xs text-white/40">
+          <p className="mt-3 text-center text-xs text-muted-foreground">
             Live sandbox — type a command and press Enter. Use ↑ / ↓ for history, <code>clear</code>{" "}
             to reset.
           </p>
@@ -173,15 +173,15 @@ function CliPage() {
             <ScrollText className="size-5 text-cyan-200" />
             <h2 className="text-2xl font-bold tracking-tight md:text-3xl">Command reference</h2>
           </div>
-          <p className="mt-2 text-white/60">
+          <p className="mt-2 text-muted-foreground">
             Every command spends from your Aura balance. Hover a row to copy it.
           </p>
-          <div className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+          <div className="mt-6 overflow-hidden rounded-2xl aurora-glass">
             {COMMANDS.map((c, i) => (
               <div
                 key={c.cmd}
                 className={`group flex flex-col gap-2 px-5 py-4 sm:flex-row sm:items-center sm:gap-5 ${
-                  i !== 0 ? "border-t border-white/[0.07]" : ""
+                  i !== 0 ? "border-t border-border" : ""
                 }`}
               >
                 <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -190,7 +190,7 @@ function CliPage() {
                     type="button"
                     onClick={() => copy(c.cmd)}
                     aria-label={`Copy ${c.cmd}`}
-                    className="shrink-0 rounded-md p-1 text-white/30 transition hover:bg-white/10 hover:text-white sm:opacity-0 sm:group-hover:opacity-100"
+                    className="shrink-0 rounded-md p-1 text-muted-foreground transition hover:bg-white/10 hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100"
                   >
                     {copied === c.cmd ? (
                       <Check className="size-3.5 text-emerald-300" />
@@ -199,7 +199,7 @@ function CliPage() {
                     )}
                   </button>
                 </div>
-                <p className="flex-1 text-sm text-white/65">{c.desc}</p>
+                <p className="flex-1 text-sm text-muted-foreground">{c.desc}</p>
                 {c.cost && (
                   <span className="w-fit shrink-0 rounded-full bg-cyan-300/10 px-2.5 py-1 text-xs font-semibold text-cyan-200">
                     {c.cost}
@@ -216,21 +216,21 @@ function CliPage() {
             <KeyRound className="size-5 text-cyan-200" />
             <h2 className="text-2xl font-bold tracking-tight md:text-3xl">Sign in from the CLI</h2>
           </div>
-          <p className="mt-2 text-white/60">
+          <p className="mt-2 text-muted-foreground">
             The CLI uses a secure device-code flow — no API keys to paste, no secrets in your shell
             history.
           </p>
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             {STEPS.map((s, i) => (
-              <div key={s.title} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+              <div key={s.title} className="aurora-card rounded-2xl p-5">
                 <div className="flex items-center gap-3">
                   <span className="flex size-9 items-center justify-center rounded-xl bg-cyan-300/10 text-cyan-200">
                     <s.icon className="size-4.5" />
                   </span>
-                  <span className="font-mono text-xs text-white/40">Step {i + 1}</span>
+                  <span className="font-mono text-xs text-muted-foreground">Step {i + 1}</span>
                 </div>
-                <h3 className="mt-4 font-semibold text-white">{s.title}</h3>
-                <p className="mt-1.5 text-sm leading-6 text-white/60">{s.body}</p>
+                <h3 className="mt-4 font-semibold text-foreground">{s.title}</h3>
+                <p className="mt-1.5 text-sm leading-6 text-muted-foreground">{s.body}</p>
               </div>
             ))}
           </div>
@@ -243,7 +243,7 @@ function CliPage() {
             </Link>
             <Link
               to="/connect"
-              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-6 py-3 text-sm font-semibold text-white no-underline transition hover:bg-white/[0.08]"
+              className="aurora-glass inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-foreground no-underline transition hover:bg-white/[0.08]"
             >
               Prefer Claude? Connect via MCP
             </Link>

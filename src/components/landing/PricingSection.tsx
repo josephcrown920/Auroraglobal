@@ -58,11 +58,11 @@ export function PricingSection() {
   return (
     <section id="pricing" className="relative z-10 px-6 md:px-12 pb-24">
       <div className="text-center max-w-2xl mx-auto mb-8">
-        <p className="text-xs uppercase tracking-[0.2em] text-violet-300/80 mb-2">Pricing</p>
+        <p className="aurora-kicker mb-2">Pricing</p>
         <h2 className="text-3xl md:text-5xl font-semibold tracking-tight">
-          Simple Aura. <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-pink-200 bg-clip-text text-transparent">No subscriptions.</span>
+          Simple Aura. <span className="aurora-gradient-text">No subscriptions.</span>
         </h2>
-        <p className="text-white/65 mt-3 text-sm md:text-base">
+        <p className="text-muted-foreground mt-3 text-sm md:text-base">
           One Aura ≈ one image. Budget video &amp; lip-sync from 5 Aura; premium models cost more. Aura never expires.
         </p>
       </div>
@@ -81,33 +81,33 @@ export function PricingSection() {
               key={key}
               className={`relative rounded-3xl border p-6 md:p-8 flex flex-col gap-5 transition-all duration-300 hover:-translate-y-1 ${
                 meta.highlight
-                  ? "border-violet-400/50 bg-gradient-to-b from-violet-500/15 to-fuchsia-500/5 shadow-2xl shadow-violet-500/20"
-                  : "border-white/10 bg-white/[0.03] hover:border-white/25"
+                  ? "border-primary/50 bg-gradient-to-b from-primary/15 to-primary/5 shadow-2xl shadow-primary/20"
+                  : "border-border bg-white/[0.03] hover:border-border/80"
               }`}
             >
               {meta.highlight && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.18em] px-3 py-1 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-semibold shadow-lg shadow-violet-500/40">
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.18em] px-3 py-1 rounded-full bg-[image:var(--gradient-hero)] text-primary-foreground font-semibold shadow-lg shadow-primary/40">
                   Most popular
                 </span>
               )}
               <div className="flex items-center gap-2">
-                <span className={`size-9 rounded-xl flex items-center justify-center ${meta.highlight ? "bg-gradient-to-br from-violet-500 to-fuchsia-500" : "bg-white/10"}`}>
-                  <Icon className="size-4 text-white" />
+                <span className={`size-9 rounded-xl flex items-center justify-center ${meta.highlight ? "bg-[image:var(--gradient-hero)]" : "bg-white/10"}`}>
+                  <Icon className="size-4 text-primary-foreground" />
                 </span>
                 <div>
                   <p className="font-semibold text-lg leading-none">{meta.name}</p>
-                  <p className="text-[11px] text-white/50 mt-1">{meta.tagline}</p>
+                  <p className="text-[11px] text-muted-foreground mt-1">{meta.tagline}</p>
                 </div>
               </div>
               <div>
                 <div className="flex items-baseline gap-1">
                   <span className="text-4xl md:text-5xl font-semibold tracking-tight">{price.display}</span>
-                  <span className="text-xs text-white/50">one-time</span>
+                  <span className="text-xs text-muted-foreground">one-time</span>
                 </div>
-                <p className="text-sm text-violet-200 mt-1">{p.credits} Aura</p>
-                <p className="text-[11px] text-white/40">{perCreditDisplay(key, currency)}</p>
+                <p className="text-sm text-primary mt-1">{p.credits} Aura</p>
+                <p className="text-[11px] text-muted-foreground">{perCreditDisplay(key, currency)}</p>
               </div>
-              <ul className="space-y-2 text-sm text-white/80">
+              <ul className="space-y-2 text-sm text-foreground/80">
                 {meta.features.map((f) => (
                   <li key={f} className="flex items-start gap-2">
                     <Check className="size-4 text-emerald-400 shrink-0 mt-0.5" />
@@ -120,8 +120,8 @@ export function PricingSection() {
                 disabled={loadingPlan !== null}
                 className={`mt-auto w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full font-medium transition disabled:opacity-60 ${
                   meta.highlight
-                    ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-xl shadow-violet-500/30 hover:opacity-95"
-                    : "border border-white/15 text-white hover:bg-white/5"
+                    ? "bg-[image:var(--gradient-hero)] text-primary-foreground shadow-xl shadow-primary/30 hover:opacity-95"
+                    : "border border-border text-foreground hover:bg-white/5"
                 }`}
               >
                 {loadingPlan === key ? (
@@ -135,9 +135,9 @@ export function PricingSection() {
         })}
       </div>
 
-      <p className="text-center text-xs text-white/40 mt-8">
+      <p className="text-center text-xs text-muted-foreground mt-8">
         Secure payments by Paystack · USD billing · 7-day refund on unused Aura ·{" "}
-        <Link to="/gifts" className="underline hover:text-white/70">Gift cards available</Link>
+        <Link to="/gifts" className="underline hover:text-foreground/70">Gift cards available</Link>
       </p>
     </section>
   );

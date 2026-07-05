@@ -28,13 +28,13 @@ export function TrendingWorkflows() {
     <section className="relative z-10 px-6 md:px-12 pb-20">
       <div className="flex items-end justify-between mb-5">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-violet-300/80 mb-2 inline-flex items-center gap-1.5">
+          <p className="aurora-kicker mb-2 inline-flex items-center gap-1.5">
             <Flame className="size-3.5 text-rose-400" /> Trending workflows
           </p>
           <h2 className="text-2xl md:text-3xl font-semibold">Start from a pipeline the community loves.</h2>
-          <p className="text-white/60 text-sm mt-1 max-w-xl">One-click recipes on Canvas. Wire your selfie in, run, ship.</p>
+          <p className="text-muted-foreground text-sm mt-1 max-w-xl">One-click recipes on Canvas. Wire your selfie in, run, ship.</p>
         </div>
-        <Link to="/canvas" className="hidden md:inline-flex items-center gap-1 text-sm text-white/70 hover:text-white no-underline">
+        <Link to="/canvas" className="hidden md:inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground no-underline">
           Browse all <ArrowRight className="size-3.5" />
         </Link>
       </div>
@@ -47,12 +47,12 @@ export function TrendingWorkflows() {
             <a
               key={w.name}
               href={href}
-              className="group relative rounded-2xl border border-white/10 bg-white/[0.03] p-4 overflow-hidden hover:border-white/30 hover:-translate-y-0.5 transition-all no-underline"
+              className="group relative rounded-2xl aurora-card p-4 overflow-hidden hover:border-border/60 hover:-translate-y-0.5 transition-all no-underline"
             >
               <div className={`absolute -inset-16 opacity-50 blur-3xl bg-gradient-to-br ${w.glow} group-hover:opacity-80 transition-opacity`} />
               <div className="relative flex items-center justify-between mb-3">
-                <span className="size-9 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center">
-                  <Icon className="size-4 text-white" />
+                <span className="size-9 rounded-xl bg-white/10 border border-border flex items-center justify-center">
+                  <Icon className="size-4 text-foreground" />
                 </span>
                 <div className="flex items-center gap-1.5">
                   {w.badge && (
@@ -61,16 +61,16 @@ export function TrendingWorkflows() {
                       : "bg-sky-500/20 text-sky-300 border border-sky-400/30"
                     }`}>{w.badge}</span>
                   )}
-                  <span className="text-[10px] uppercase tracking-wider text-white/50">{w.uses} runs</span>
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{w.uses} runs</span>
                 </div>
               </div>
-              <p className="relative text-white font-medium text-sm leading-tight">{w.name}</p>
+              <p className="relative text-foreground font-medium text-sm leading-tight">{w.name}</p>
               <div className="relative mt-3 flex flex-wrap gap-1.5">
                 {w.nodes.map((n) => (
-                  <span key={n} className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/70">{n}</span>
+                  <span key={n} className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 border border-border text-muted-foreground">{n}</span>
                 ))}
               </div>
-              <div className="relative mt-3 inline-flex items-center gap-1 text-[11px] text-violet-300 group-hover:text-violet-200">
+              <div className="relative mt-3 inline-flex items-center gap-1 text-[11px] text-primary group-hover:opacity-80">
                 <Sparkles className="size-3" /> Open in Canvas <ArrowRight className="size-3" />
               </div>
             </a>
@@ -96,7 +96,7 @@ export function FeaturesGrid() {
   return (
     <section className="relative z-10 px-6 md:px-12 pb-20">
       <div className="mb-5">
-        <p className="text-xs uppercase tracking-[0.2em] text-violet-300/80 mb-2">Everything in Aurora</p>
+        <p className="aurora-kicker mb-2">Everything in Aurora</p>
         <h2 className="text-2xl md:text-3xl font-semibold">One app. Every creative move.</h2>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -106,12 +106,12 @@ export function FeaturesGrid() {
             <Link
               key={f.name}
               to={f.to}
-              className="group relative rounded-2xl border border-white/10 bg-white/[0.03] p-4 overflow-hidden hover:border-white/30 hover:-translate-y-0.5 transition-all no-underline"
+              className="group relative rounded-2xl aurora-card p-4 overflow-hidden hover:border-border/60 hover:-translate-y-0.5 transition-all no-underline"
             >
               <div className={`absolute -inset-12 opacity-40 blur-3xl bg-gradient-to-br ${f.glow} group-hover:opacity-70 transition-opacity`} />
-              <Icon className="relative size-5 text-white/80 mb-2" />
-              <p className="relative text-white font-medium text-sm leading-tight">{f.name}</p>
-              <p className="relative text-white/55 text-xs mt-1 leading-snug">{f.desc}</p>
+              <Icon className="relative size-5 text-foreground/80 mb-2" />
+              <p className="relative text-foreground font-medium text-sm leading-tight">{f.name}</p>
+              <p className="relative text-muted-foreground text-xs mt-1 leading-snug">{f.desc}</p>
             </Link>
           );
         })}

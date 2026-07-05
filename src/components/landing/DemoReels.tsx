@@ -10,13 +10,13 @@ export function DemoReels() {
     <section className="relative z-10 px-6 md:px-12 py-16 md:py-20">
       <div className="max-w-6xl mx-auto">
         <div className="text-center max-w-2xl mx-auto mb-10">
-          <p className="text-xs uppercase tracking-[0.2em] text-violet-300/80 mb-2 inline-flex items-center gap-2 justify-center">
+          <p className="aurora-kicker mb-2 inline-flex items-center gap-2 justify-center">
             <Film className="size-3.5" /> Real renders · not stock
           </p>
-          <h2 className="text-3xl md:text-5xl font-semibold tracking-tight text-white">
-            Image → <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">video</span> → <span className="bg-gradient-to-r from-cyan-300 to-emerald-300 bg-clip-text text-transparent">lip sync</span>.
+          <h2 className="text-3xl md:text-5xl font-semibold tracking-tight text-foreground">
+            Image → <span className="aurora-gradient-text">video</span> → <span className="bg-gradient-to-r from-cyan-300 to-emerald-300 bg-clip-text text-transparent">lip sync</span>.
           </h2>
-          <p className="text-white/65 mt-3 text-sm md:text-base">
+          <p className="text-muted-foreground mt-3 text-sm md:text-base">
             Two of Aurora's most-used pipelines, end-to-end.
           </p>
         </div>
@@ -24,7 +24,7 @@ export function DemoReels() {
         <div className="grid md:grid-cols-2 gap-5">
           <Link
             to="/motion"
-            className="group relative rounded-2xl overflow-hidden border border-white/10 bg-black/40 no-underline hover:border-violet-400/60 transition"
+            className="group relative rounded-2xl overflow-hidden border border-border bg-black/40 no-underline hover:border-primary/60 transition"
           >
             <div className="relative aspect-video bg-black">
               <AutoplayVideo
@@ -33,7 +33,7 @@ export function DemoReels() {
                 playsInline
                 className="absolute inset-0 size-full object-cover"
               />
-              <div className="absolute top-3 left-3 inline-flex items-center gap-1 px-2 py-1 rounded-full bg-violet-500/90 text-[10px] font-bold text-white">
+              <div className="absolute top-3 left-3 inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/90 text-[10px] font-bold text-primary-foreground">
                 <Film className="size-3" /> VIDEO GENERATION
               </div>
               <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black via-black/70 to-transparent">
@@ -48,7 +48,7 @@ export function DemoReels() {
 
           <Link
             to="/lipsync"
-            className="group relative rounded-2xl overflow-hidden border border-white/10 bg-black/40 no-underline hover:border-emerald-400/60 transition"
+            className="group relative rounded-2xl overflow-hidden border border-border bg-black/40 no-underline hover:border-emerald-400/60 transition"
           >
             <div className="relative aspect-video bg-black">
               <AutoplayVideo
