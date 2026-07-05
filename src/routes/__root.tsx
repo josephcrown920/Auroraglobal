@@ -177,6 +177,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
   try {
     var GTM_ID='${gtmId}';
     var KEY='aurora.cookie_consent.v1';
+    var CONSENT_VERSION='2026-07-05';
     var REGULATED_COUNTRIES=["AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU","IE","IT","LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES","SE","GB","IS","LI","NO","CA"];
     var CA_TZ=["America/St_Johns","America/Halifax","America/Moncton","America/Glace_Bay","America/Goose_Bay","America/Blanc-Sablon","America/Toronto","America/Nipigon","America/Thunder_Bay","America/Iqaluit","America/Pangnirtung","America/Resolute","America/Atikokan","America/Rankin_Inlet","America/Winnipeg","America/Rainy_River","America/Regina","America/Swift_Current","America/Edmonton","America/Cambridge_Bay","America/Yellowknife","America/Inuvik","America/Creston","America/Dawson_Creek","America/Fort_Nelson","America/Vancouver","America/Whitehorse","America/Dawson"];
     var EU_ATLANTIC=["Atlantic/Faroe","Atlantic/Canary","Atlantic/Madeira","Atlantic/Azores","Atlantic/Reykjavik"];
@@ -201,8 +202,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
       if(raw){
         try{
           var parsed=JSON.parse(raw);
-          if(parsed.status==="declined")return false;
-          if(parsed.status==="accepted")return true;
+          if(parsed.version===CONSENT_VERSION){
+            if(parsed.status==="declined")return false;
+            if(parsed.status==="accepted")return true;
+          }
         }catch(e){}
       }
       return !isRegulated();
@@ -221,18 +224,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
         ) : null}
       </head>
       <body>
-        {/* Google Tag Manager (noscript) — fallback for JS-disabled clients. */}
-        {gtmId ? (
-          <noscript>
-            <iframe
-              src={`https://www.googletagmanager.com/ns.html?id=${gtmId}`}
-              height="0"
-              width="0"
-              style={{ display: "none", visibility: "hidden" }}
-              title="Google Tag Manager"
-            />
-          </noscript>
-        ) : null}
+        {/* No <noscript> GTM fallback: with JS disabled there is no way to
+            show the consent banner or read a consent decision, so the only
+            compliant option for JS-disabled visitors is to not load
+            non-essential tracking for them at all. */}
         {children}
         <Scripts />
       </body>
