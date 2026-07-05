@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Flame, Loader2, Check, Sparkles, ArrowLeft, User, AlertCircle } from "lucide-react";
 import { getSpinOptions, spinThirty, getSpinJob, tickSpinJob } from "@/lib/spin.functions";
-import { SPIN_COUNT, SPIN_PIECE_COST, type SpinSpec } from "@/lib/spin-engine";
+import { SPIN_COUNT, SPIN_PIECE_COST, SPIN_TEMPLATES, type SpinSpec, type SpinTemplate, type SpinTemplateId } from "@/lib/spin-engine";
 
 export const Route = createFileRoute("/spin")({
   component: SpinPage,
@@ -66,6 +66,8 @@ function SpinPage() {
   const [prompt, setPrompt] = useState(search.prompt ?? "");
   const [avatars, setAvatars] = useState<AvatarOption[]>([]);
   const [avatarId, setAvatarId] = useState<string | undefined>(undefined);
+  const [templates, setTemplates] = useState<SpinTemplate[]>(SPIN_TEMPLATES);
+  const [templateId, setTemplateId] = useState<SpinTemplateId>("default");
   const [jobId, setJobId] = useState<string | null>(search.jobId ?? null);
   const [variants, setVariants] = useState<Variant[]>([]);
   const [busy, setBusy] = useState(false);
@@ -75,12 +77,29 @@ function SpinPage() {
   const drivingRef = useRef(false);
   const autoStartedRef = useRef(false);
 
-  // Load saved avatars for the identity picker.
+  // Load saved avatars + the template catalog for the pickers.
   useEffect(() => {
     optionsFn()
-      .then((o) => setAvatars(o.avatars))
+      .then((o) => {
+        setAvatars(o.avatars);
+        if (o.templates?.length) setTemplates(o.templates);
+      })
       .catch(() => setAvatars([]));
   }, [optionsFn]);
+
+  // Picking a template pre-fills the prompt box with its topic seed —
+  // most people don't know how to write a good prompt, so the whole point of
+  // a template is that they can just tap a card and go without typing.
+  const pickTemplate = useCallback(
+    (id: SpinTemplateId) => {
+      setTemplateId(id);
+      const t = templates.find((x) => x.id === id);
+      if (t && (!prompt.trim() || templates.some((x) => x.topicSeed === prompt.trim()))) {
+        setPrompt(t.topicSeed);
+      }
+    },
+    [templates, prompt],
+  );
 
   // Poll + advance a job to completion. Each tick renders a small batch, so we
   // read fresh state after every tick and stop once the job is done.
@@ -120,7 +139,7 @@ function SpinPage() {
       setPlanning(true);
       setVariants([]);
       try {
-        const { jobId: id } = await startFn({ data: { prompt: p.trim(), avatarId } });
+        const { jobId: id } = await startFn({ data: { prompt: p.trim(), avatarId, templateId } });
         setJobId(id);
         void navigate({ search: (prev) => ({ ...prev, jobId: id, prompt: undefined }), replace: true });
         setPlanning(false);
@@ -130,7 +149,7 @@ function SpinPage() {
         setErr(e instanceof Error ? e.message : "Could not start Spin");
       }
     },
-    [avatarId, busy, planning, startFn, navigate, drive],
+    [avatarId, templateId, busy, planning, startFn, navigate, drive],
   );
 
   // Resume an in-flight job from the URL (refresh / shared link).

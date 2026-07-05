@@ -98,3 +98,39 @@ test("specLabel returns the content type", () => {
   const spec = buildFallbackSpecs("test", 1)[0];
   expect(specLabel(spec)).toBe(spec.contentType);
 });
+
+test("a literal performer pose in the topic does not repeat across the batch (regression)", () => {
+  const specs = buildFallbackSpecs("gripping the mic, fist forward like a rapper", 30);
+  // The literal gesture must never leak into `scene` verbatim.
+  for (const s of specs) {
+    expect(s.scene.toLowerCase()).not.toContain("mic");
+    expect(s.scene.toLowerCase()).not.toContain("fist");
+  }
+  // At most 2-3 posts may use a mic/performance pose, and only on Lip-sync clips.
+  const micPoses = specs.filter((s) => /mic|fist/i.test(s.pose));
+  expect(micPoses.length).toBeLessThanOrEqual(3);
+  for (const s of micPoses) {
+    expect(s.contentType).toBe("Lip-sync clip");
+  }
+  // The vast majority of poses must be ordinary/candid, not performer poses.
+  const candidPoses = specs.filter((s) => !/mic|fist/i.test(s.pose));
+  expect(candidPoses.length).toBeGreaterThanOrEqual(27);
+});
+
+test("poses vary across the batch and are never blank", () => {
+  const specs = buildFallbackSpecs("morning routine", 30);
+  for (const s of specs) {
+    expect(s.pose.trim().length).toBeGreaterThan(0);
+  }
+  const uniquePoses = new Set(specs.map((s) => s.pose));
+  expect(uniquePoses.size).toBeGreaterThan(1);
+});
+
+test("buildVariantPrompt states the pose as mandatory staging and disclaims the raw topic's literal gesture", () => {
+  const spec = buildFallbackSpecs("normal topic", 1)[0];
+  const prompt = buildVariantPrompt(spec, {
+    base: "gripping the mic, fist forward like a rapper",
+  });
+  expect(prompt).toContain(spec.pose);
+  expect(prompt.toLowerCase()).toContain("ignore any hand position, prop, gesture, or body pose");
+});
