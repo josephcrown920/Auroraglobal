@@ -1,0 +1,153 @@
+/**
+ * Real-browser e2e coverage for the animated cartoon previews on the Kids
+ * Story Studio (/kids) — src/components/kids/CartoonPreview.tsx.
+ *
+ * Why this exists: CartoonPreview's lazy-mount (IntersectionObserver) and
+ * reduced-motion gate are client-only effects. A unit test can assert the
+ * component *would* render a <video>, but only a real browser can confirm
+ * the MP4 asset actually resolves, decodes, and reaches a playable
+ * `readyState` after a cold load — which is what "previews survive an app
+ * restart" really means in practice (stale/renamed asset paths, wrong MIME
+ * type, or a broken Vite asset import would all pass unit tests but fail
+ * here).
+ *
+ * Test user: created fresh via the Supabase admin API (service-role key) in
+ * a `beforeAll` hook, pre-confirmed so no email round-trip / rate limit is
+ * involved, and deleted in `afterAll` so repeated runs never accumulate
+ * users. Same pattern as e2e/playground-sandbox.e2e.ts.
+ */
+import { test, expect, type Page } from "@playwright/test";
+import { createClient } from "@supabase/supabase-js";
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error(
+    "kids-preview.e2e.ts requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to provision a test user."
+  );
+}
+
+const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
+
+const TEST_PASSWORD = "SandboxE2ePass!23";
+let testEmail: string;
+let testUserId: string;
+
+test.beforeAll(async () => {
+  testEmail = `kids-preview-e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@aurora-sandbox-qa.com`;
+  const { data, error } = await admin.auth.admin.createUser({
+    email: testEmail,
+    password: TEST_PASSWORD,
+    email_confirm: true,
+    user_metadata: { display_name: "Kids Preview E2E" },
+  });
+  if (error || !data.user) {
+    throw new Error(`Failed to provision e2e test user: ${error?.message}`);
+  }
+  testUserId = data.user.id;
+});
+
+test.afterAll(async () => {
+  if (testUserId) {
+    await admin.auth.admin.deleteUser(testUserId).catch(() => {});
+  }
+});
+
+async function signIn(page: Page) {
+  await page.goto("/auth");
+  // Wait for the SSR page to finish hydrating before interacting. Clicking too early
+  // hits a server-rendered button with no React submit handler attached yet, which
+  // falls through to a native HTML form GET submission (full page reload) instead of
+  // the SPA sign-in flow.
+  await page.waitForLoadState("networkidle");
+  const emailInput = page.locator("#email");
+  const passwordInput = page.locator("#password");
+  await emailInput.waitFor({ state: "visible" });
+  await emailInput.fill(testEmail);
+  await expect(emailInput).toHaveValue(testEmail);
+  await passwordInput.fill(TEST_PASSWORD);
+  await expect(passwordInput).toHaveValue(TEST_PASSWORD);
+
+  const signInButton = page.getByRole("button", { name: "Sign in", exact: true });
+  await signInButton.click();
+  try {
+    await page.waitForURL(/\/studio/, { timeout: 15_000 });
+  } catch {
+    // Occasional slow auth round-trip — retry once rather than fail the whole test.
+    if ((await emailInput.count()) > 0) {
+      await emailInput.fill(testEmail);
+      await passwordInput.fill(TEST_PASSWORD);
+    }
+    await signInButton.click();
+    await page.waitForURL(/\/studio/, { timeout: 20_000 });
+  }
+}
+
+test.describe("Kids Story Studio cartoon previews", () => {
+  test("character picker previews reach a playable state after a cold load", async ({ page }) => {
+    await signIn(page);
+    await page.goto("/kids");
+    await page.waitForLoadState("networkidle");
+
+    // The character picker grid renders once getKidsOptions() resolves — wait for at
+    // least one preset character button before scrolling to it.
+    const firstCharacterButton = page.locator('button[aria-pressed]').first();
+    await firstCharacterButton.waitFor({ state: "visible", timeout: 20_000 });
+    await firstCharacterButton.scrollIntoViewIfNeeded();
+
+    // Scrolling into view triggers CartoonPreview's IntersectionObserver, which mounts
+    // the <video>. Give it a moment to attach and start loading the MP4 asset.
+    const video = page.locator("video").first();
+    await video.waitFor({ state: "attached", timeout: 10_000 });
+
+    await expect
+      .poll(
+        async () =>
+          video.evaluate((el: HTMLVideoElement) => el.readyState),
+        { timeout: 15_000, message: "expected a preview <video> to reach HAVE_CURRENT_DATA" }
+      )
+      .toBeGreaterThanOrEqual(2);
+
+    // The showcase section ("See an example") further down the page uses the same
+    // CartoonPreview component with different assets — confirm it mounts too.
+    const showcaseHeading = page.getByText("See an example", { exact: false });
+    await showcaseHeading.scrollIntoViewIfNeeded();
+    const showcaseVideo = page.locator("video").nth(1);
+    await showcaseVideo.waitFor({ state: "attached", timeout: 10_000 });
+    await expect
+      .poll(
+        async () =>
+          showcaseVideo.evaluate((el: HTMLVideoElement) => el.readyState),
+        { timeout: 15_000, message: "expected the showcase <video> to reach HAVE_CURRENT_DATA" }
+      )
+      .toBeGreaterThanOrEqual(2);
+  });
+
+  test("reduced motion shows only the poster image, never a <video>", async ({ browser }) => {
+    const context = await browser.newContext({ reducedMotion: "reduce" });
+    const page = await context.newPage();
+    try {
+      await signIn(page);
+      await page.goto("/kids");
+      await page.waitForLoadState("networkidle");
+
+      const firstCharacterButton = page.locator('button[aria-pressed]').first();
+      await firstCharacterButton.waitFor({ state: "visible", timeout: 20_000 });
+      await firstCharacterButton.scrollIntoViewIfNeeded();
+
+      const showcaseHeading = page.getByText("See an example", { exact: false });
+      await showcaseHeading.scrollIntoViewIfNeeded();
+
+      // Give the IntersectionObserver + mount effects a beat to run, then assert no
+      // <video> was ever mounted anywhere on the page, and poster <img>s are present.
+      await page.waitForTimeout(1500);
+      await expect(page.locator("video")).toHaveCount(0);
+      await expect(page.locator('img[alt]').first()).toBeVisible();
+    } finally {
+      await context.close();
+    }
+  });
+});
