@@ -168,6 +168,8 @@ export function ViralEngine() {
               <img
                 src={auroraLogo.url}
                 alt="Aurora"
+                loading="lazy"
+                decoding="async"
                 className="size-full object-contain p-1.5"
               />
             </div>
@@ -284,6 +286,8 @@ export function ViralEngine() {
                     <img
                       src={creatorAvatar}
                       alt="Aurora creator"
+                      loading="lazy"
+                      decoding="async"
                       className="size-full object-cover"
                       style={{ objectPosition: "50% 28%" }}
                     />
