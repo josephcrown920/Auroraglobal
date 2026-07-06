@@ -361,27 +361,27 @@ function DailyPostGenerator({ isPro }: { isPro: boolean }) {
       return next;
     });
     const settled = await Promise.allSettled(
-      pending.map((d) => imgFn({ data: { prompt: d.imagePrompt, day: d.day } })),
+      pending.map(async (d) => {
+        try {
+          const r = await imgFn({ data: { prompt: d.imagePrompt, day: d.day } });
+          const day = r.day ?? d.day;
+          if (r.ok) {
+            setImages((s) => ({ ...s, [day]: r.url }));
+            setImageStatus((s) => ({ ...s, [day]: "done" }));
+            return { ok: true as const };
+          }
+          setImageErrors((s) => ({ ...s, [day]: r.error ?? "Image generation failed" }));
+          setImageStatus((s) => ({ ...s, [day]: "error" }));
+          return { ok: false as const };
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : "Image generation failed";
+          setImageErrors((s) => ({ ...s, [d.day]: msg }));
+          setImageStatus((s) => ({ ...s, [d.day]: "error" }));
+          return { ok: false as const };
+        }
+      }),
     );
-    let failCount = 0;
-    settled.forEach((r, i) => {
-      const day = pending[i]!.day;
-      if (r.status === "fulfilled" && r.value.ok) {
-        const url: string = r.value.url;
-        setImages((s) => ({ ...s, [day]: url }));
-        setImageStatus((s) => ({ ...s, [day]: "done" }));
-      } else {
-        failCount += 1;
-        const msg =
-          r.status === "fulfilled"
-            ? (r.value.error ?? "Image generation failed")
-            : r.reason instanceof Error
-              ? r.reason.message
-              : "Image generation failed";
-        setImageErrors((s) => ({ ...s, [day]: msg }));
-        setImageStatus((s) => ({ ...s, [day]: "error" }));
-      }
-    });
+    const failCount = settled.filter((r) => r.status === "rejected" || !r.value.ok).length;
     setGeneratingImages(false);
     if (failCount === 0) {
       toast.success("All cover art images generated!");
