@@ -280,10 +280,13 @@ ASSEMBLE_MAX_SCENES = int(os.environ.get("AURORA_ASSEMBLE_MAX_SCENES", "12"))
 # CUT_RATE_BOUNDS / getStyleCutRule() in src/lib/autocut.server.ts (that file
 # can't be imported from Python, so keep the two definitions in lockstep).
 STYLE_CUT_RULES: dict[str, dict[str, Any]] = {
+    # hype/tiktok_hook both use cutRate "fast" in autocut.server.ts's AUTOCUT_STYLES,
+    # cinematic uses "slow", talking_head uses "medium" — bounds below mirror
+    # CUT_RATE_BOUNDS there exactly, not the individual style ids.
     "hype": {"min": 0.6, "max": 1.5, "transition": "cut"},
     "cinematic": {"min": 3.0, "max": 5.0, "transition": "crossfade"},
     "talking_head": {"min": 4.0, "max": 8.0, "transition": "cut"},
-    "tiktok_hook": {"min": 0.8, "max": 2.5, "transition": "cut"},
+    "tiktok_hook": {"min": 0.6, "max": 1.5, "transition": "cut"},
 }
 DEFAULT_CUT_RULE = {"min": 0.5, "max": 8.0, "transition": "cut"}
 ASSEMBLE_CROSSFADE_SEC = 0.8
