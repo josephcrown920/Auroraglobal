@@ -3,7 +3,10 @@
 //   - tanstackStart, viteReact, tailwindcss, tsConfigPaths, cloudflare (build-only),
 //     componentTagger (dev-only), VITE_* env injection, @ path alias, React/TanStack dedupe,
 //     error logger plugins, and sandbox detection (port/host/strictPort).
-// You can pass additional config via defineConfig({ vite: { ... } }) if needed.
+// Custom plugins (extraPlugins below) must be passed via `vite: { plugins: ... }`
+// ONLY, not also as a top-level `plugins:` key — defineConfig merges both without
+// deduping, so passing the same array in both places runs every custom plugin
+// twice (bit us once already: a resolveId hook double-prefixed its virtual ids).
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { cartographer } from "@replit/vite-plugin-cartographer";
 
@@ -43,12 +46,76 @@ const monacoSsrStub = {
   },
 };
 
-const extraPlugins = [monacoSsrStub, ...replitPlugins];
+// `*.server.ts` files (orchestrator.server.ts, compress.server.ts, etc.) are
+// only ever meant to run inside `createServerFn` handlers — the client bundle
+// should just get TanStack Start's RPC-call stub for those, never the real
+// implementation. In practice several `.functions.ts` files import their
+// helpers at module scope, and when a helper is referenced across multiple
+// `createServerFn` handlers in the same file, Rollup's client-side
+// tree-shaking doesn't always fully elide the import — pulling Node builtins
+// (node:crypto, node:fs/promises, node:child_process, ...) into the client
+// graph and crashing the build ("X is not exported by __vite-browser-external").
+// Rather than patch each leaking file one at a time, generically stub EVERY
+// `*.server.ts`/`*.server.tsx` module out of the CLIENT build only (SSR build
+// is untouched) — read its real named exports off disk and re-export inert
+// throwing placeholders under the same names, so any client code that
+// (incorrectly) still references them fails loudly at runtime instead of
+// crashing the build. Mirrors the Monaco SSR stub above, for the opposite
+// (client) build pass.
+const serverFileClientStub = {
+  name: "aurora:server-file-client-stub",
+  enforce: "pre" as const,
+  async resolveId(
+    source: string,
+    importer: string | undefined,
+    options?: { ssr?: boolean },
+  ) {
+    if (options?.ssr) return null;
+    if (source.startsWith("\0server-stub:")) return null;
+    if (!/\.server(\.tsx?)?$/.test(source)) return null;
+    const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
+    if (!resolved) return null;
+    return "\0server-stub:" + resolved.id;
+  },
+  async load(id: string) {
+    if (!id.startsWith("\0server-stub:")) return null;
+    const realPath = id.slice("\0server-stub:".length);
+    const { readFile } = await import("node:fs/promises");
+    const src = await readFile(realPath, "utf-8");
+    const names = new Set<string>();
+    for (const m of src.matchAll(
+      /export\s+(?:async\s+)?(?:const|let|var|function\*?|class)\s+([A-Za-z0-9_$]+)/g,
+    )) {
+      names.add(m[1]);
+    }
+    for (const m of src.matchAll(/export\s*\{([^}]+)\}\s*(?!from)/g)) {
+      for (const part of m[1].split(",")) {
+        const piece = part.trim();
+        if (!piece) continue;
+        const asMatch = piece.match(/(?:.*\sas\s+)?([A-Za-z0-9_$]+)\s*$/);
+        if (asMatch) names.add(asMatch[1]);
+      }
+    }
+    names.delete("default");
+    const hasDefault = /export\s+default\s+/.test(src);
+    const lines = [
+      `const __stubThrow = () => { throw new Error(${JSON.stringify(
+        realPath + " is server-only and was stubbed out of the client bundle",
+      )}); };`,
+    ];
+    for (const name of names) {
+      lines.push(`export const ${name} = __stubThrow;`);
+    }
+    if (hasDefault) lines.push("export default __stubThrow;");
+    return lines.join("\n");
+  },
+};
+
+const extraPlugins = [monacoSsrStub, serverFileClientStub, ...replitPlugins];
 
 // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
 // @cloudflare/vite-plugin builds from this — wrangler.jsonc main alone is insufficient.
 export default defineConfig({
-  plugins: extraPlugins,
   tanstackStart: {
     server: { entry: "server" },
   },
