@@ -1,4 +1,5 @@
 - [Replit vite sandbox binding](replit-vite-sandbox.md) — Lovable vite-tanstack-config binds IPv6 `::` (sandbox fails) & blocks the proxy host; fix via vite passthrough host:0.0.0.0 + allowedHosts:true.
+- [Sub-100MB legacy blob stripping](github-sub-100mb-legacy-blob-strip.md) — daemon's autopush only strips >=100MB; known under-limit legacy files need a hardcoded strip list or they get silently resurrected; check per-commit for duplicate-name copies + confirm files actually exist on the branch in scope.
 - [Replit secrets mirroring](replit-secrets-mirroring.md) — secret values can't be read/copied; request public or duplicated values as env-type (readable) so they can be mirrored into other env names.
 - [Lovable model slugs may be dead](lovable-model-slugs.md) — Aurora's exported provider model slugs can 404; verify each via the provider's models API before trusting.
 - [Retiring registered artifacts](artifact-deregistration.md) — removeWorkflow is blocked for artifact-managed workflows; delete the artifact's `.replit-artifact/artifact.toml` marker and the platform auto-deregisters + drops the workflow.
