@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { listAvatars } from "@/lib/mcp/avatars.server";
+import { assertOwnedReferenceImage } from "@/lib/url-guard";
 import {
   generateKidsStoryScript,
   computeKidsStoryCost,
@@ -145,6 +146,9 @@ export const enqueueKidsStory = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => EnqueueSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { userId } = context;
+    if (data.characterImageUrl) {
+      await assertOwnedReferenceImage(data.characterImageUrl, userId);
+    }
     const len = KIDS_LENGTHS[data.lengthId] ?? KIDS_LENGTHS.short;
     const sceneCount = Math.max(1, Math.min(data.script.scenes.length, KIDS_MAX_SCENES));
     const secondsPerScene = len.secondsPerScene;

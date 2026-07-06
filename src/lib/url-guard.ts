@@ -2,6 +2,8 @@
 // user-supplied URL (reference images, audio, video, end-frame, etc.).
 // Keep this list narrow — additions widen our SSRF surface.
 
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+
 const ALLOWED_HOST_SUFFIXES = [
   ".supabase.co",
   ".supabase.in",
@@ -72,4 +74,56 @@ export function assertOwnStudioUpload(raw: string, userId: string): void {
   if (/(?:^|\/)\.\.(?:\/|$)|%2f|%2e/i.test(m[1])) throw new Error("Invalid photo URL");
   const owner = decodeURIComponent(m[1]).split("/")[0];
   if (owner !== userId) throw new Error("Not your photo");
+}
+
+/** Non-throwing variant of {@link assertOwnStudioUpload}. */
+function isOwnStudioUpload(raw: string, userId: string): boolean {
+  try {
+    assertOwnStudioUpload(raw, userId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Ownership guard for any user-supplied "character"/reference image URL
+ * (kids-story characterImageUrl, motion transfer imageUrl, performance
+ * reskin avatarImageUrl, etc). A crafted request could otherwise point a
+ * render's character reference at someone else's private studio asset.
+ *
+ * Accepts:
+ *  - the caller's own studio bucket upload/result (see assertOwnStudioUpload)
+ *  - a saved avatar the caller owns (avatars.preview_url, scoped to user_id)
+ * Rejects everything else, including a foreign user's studio object or a
+ * URL that merely resembles a supabase storage link.
+ */
+export async function assertOwnedReferenceImage(raw: string, userId: string): Promise<void> {
+  assertTrustedUrl(raw);
+  if (isOwnStudioUpload(raw, userId)) return;
+
+  // The generated Supabase types don't include `avatars` yet (added by a
+  // migration; types regenerate later) — same loose handle avatars.server.ts
+  // uses for this one table.
+  type LooseClient = {
+    from: (table: string) => {
+      select: (cols: string) => {
+        eq: (c: string, v: string) => {
+          eq: (
+            c: string,
+            v: string,
+          ) => { maybeSingle: () => Promise<{ data: unknown; error: { message: string } | null }> };
+        };
+      };
+    };
+  };
+  const { data, error } = await (supabaseAdmin as unknown as LooseClient)
+    .from("avatars")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("preview_url", raw)
+    .maybeSingle();
+  if (!error && data) return;
+
+  throw new Error("You can only use character images you own.");
 }
