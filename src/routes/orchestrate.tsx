@@ -170,7 +170,10 @@ function OrchestratePage() {
   // "Render Full Quality" button is about to be shown, fetch a fresh quote
   // from GET /api/estimate so the displayed price can never disagree with
   // what the server will actually charge.
-  const [serverEstimate, setServerEstimate] = useState<{ credits: number } | null>(null);
+  const [serverEstimate, setServerEstimate] = useState<{
+    credits: number;
+    blocked: { message: string } | null;
+  } | null>(null);
   const [estimateLoading, setEstimateLoading] = useState(false);
   useEffect(() => {
     if (!awaitingFullRender) {
@@ -182,9 +185,21 @@ function OrchestratePage() {
     const params = new URLSearchParams({ kind: modality, model });
     if (usesResolution) params.set("resolution", resolution);
     if (usesDuration) params.set("duration", String(duration));
-    fetch(`/api/estimate?${params.toString()}`)
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
-      .then((data: { credits: number }) => {
+    (async () => {
+      // Pass the caller's auth token so the server can apply the same
+      // tier-aware guardrails (duration cap, HD entitlement) that
+      // orchestrateGenerate enforces — otherwise a Free-plan user could see a
+      // valid-looking quote for a length/resolution their plan can't render.
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch(`/api/estimate?${params.toString()}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    })()
+      .then((data: { credits: number; blocked: { message: string } | null }) => {
         if (!cancelled) setServerEstimate(data);
       })
       .catch(() => {
@@ -502,9 +517,19 @@ function OrchestratePage() {
               )}
             </div>
 
+            {/* The server round-trip can reject a request the client-side preview
+                didn't know to block (plan duration cap, HD/4K entitlement) — surface
+                that here and disable the render button so the user can't click into
+                a guaranteed server-side rejection. */}
+            {awaitingFullRender && serverEstimate?.blocked && (
+              <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-400">
+                {serverEstimate.blocked.message}
+              </div>
+            )}
+
             <button
               onClick={onGenerate}
-              disabled={busy}
+              disabled={busy || !!(awaitingFullRender && serverEstimate?.blocked)}
               className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-fuchsia-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-fuchsia-500 disabled:opacity-60"
             >
               {busy ? (

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { estimateFromParams } from "./estimate";
+import { estimateFromParams, checkGuardrails } from "./estimate";
 
 // GET /api/estimate is a pure, side-effect-free quote — no auth, no credit
 // reservation, no DB writes. These tests pin its request→quote mapping so it
@@ -68,5 +68,55 @@ describe("estimateFromParams", () => {
   it("never charges 0 for a real request (minimum 1)", () => {
     const result = estimateFromParams({ kind: "text" });
     expect(result.credits).toBeGreaterThanOrEqual(1);
+  });
+
+  // Duration bounds must exactly match the executable charge paths
+  // (OrchestrateSchema in orchestration.functions.ts, Schema in
+  // api/public/generate.ts: both min(3).max(15)) — a quote for a length the
+  // render path would reject is a divergence, which is the exact bug class
+  // Task #177 exists to close.
+  it("rejects a duration below the shared 3s floor", () => {
+    expect(() => estimateFromParams({ kind: "video", duration: "1" })).toThrow();
+  });
+
+  it("rejects a duration above the shared 15s ceiling (even for Pro)", () => {
+    expect(() => estimateFromParams({ kind: "video", duration: "20" }, "pro")).toThrow();
+  });
+
+  it("does not block when no tier is supplied (unauthenticated caller)", () => {
+    const result = estimateFromParams({ kind: "video", duration: "12" });
+    expect(result.blocked).toBeNull();
+  });
+
+  it("blocks a Free-tier quote for a duration only Pro can render", () => {
+    const result = estimateFromParams({ kind: "video", duration: "12" }, "free");
+    expect(result.blocked?.message).toMatch(/Unsupported duration/);
+  });
+
+  it("allows a Pro-tier quote for the same duration a Free tier would block", () => {
+    const result = estimateFromParams({ kind: "video", duration: "12" }, "pro");
+    expect(result.blocked).toBeNull();
+  });
+
+  it("blocks a Free-tier quote for HD resolution", () => {
+    const result = estimateFromParams({ kind: "video", resolution: "1080p" }, "free");
+    expect(result.blocked?.message).toMatch(/Unsupported resolution/);
+  });
+
+  it("allows a Pro-tier quote for HD resolution", () => {
+    const result = estimateFromParams({ kind: "video", resolution: "1080p" }, "pro");
+    expect(result.blocked).toBeNull();
+  });
+
+  it("does not apply the duration cap to non-temporal kinds (e.g. lipsync has its own model-based cost, not the video cap)", () => {
+    const result = checkGuardrails("free", 12, undefined, false);
+    expect(result).toBeNull();
+  });
+
+  it("checkGuardrails matches assertDurationCap's exact terminal message text", async () => {
+    const { durationCapMessage } = await import("@/lib/billing.plans");
+    const expected = durationCapMessage("free", 12);
+    const result = checkGuardrails("free", 12, undefined, true);
+    expect(result?.message).toBe(expected);
   });
 });
