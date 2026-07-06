@@ -23,6 +23,7 @@ import time
 import uuid
 import socket
 import shutil
+import hashlib
 import tempfile
 import mimetypes
 import subprocess
@@ -655,6 +656,15 @@ def register_with_aurora() -> bool:
             flush=True,
         )
         return False
+
+    # Print a one-way fingerprint of the key we're about to send — NEVER the
+    # key itself. On a 401, Aurora's register endpoint logs the matching
+    # "received fp:" / "expected fp:" pair in Admin -> Workers -> Recent
+    # registration attempts; compare the two 8-char hex prefixes to instantly
+    # tell "wrong secret pasted here" apart from "secret not set in Aurora yet"
+    # without either side ever exposing the raw value.
+    key_fp = hashlib.sha256(register_key.encode()).hexdigest()[:8]
+    print(f"[register] using AURORA_REGISTER_SECRET fingerprint {key_fp} (compare against Admin -> Workers on a 401)", flush=True)
 
     # Accept a bare domain or a full URL; the worker always serves /generate.
     host = domain.replace("https://", "").replace("http://", "").rstrip("/")

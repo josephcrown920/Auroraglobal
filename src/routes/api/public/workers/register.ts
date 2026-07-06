@@ -9,9 +9,20 @@
 // operator holds, never the same key every visitor already has.
 
 import { createFileRoute } from "@tanstack/react-router";
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import { normalizeWorkerBase } from "@/lib/gpu-worker-health";
 import type { Database } from "@/integrations/supabase/types";
+
+// One-way, non-reversible fingerprint used ONLY for self-diagnosis of a
+// register-key mismatch. Never log or return the raw secret — a short hash
+// prefix lets the operator compare "what Aurora expects" vs "what my worker
+// sent" (the worker prints the same fingerprint of its own key) without ever
+// exposing either value. 8 hex chars is plenty to catch a wrong/stale value
+// while staying computationally useless to reconstruct the secret.
+function fingerprint(value: string): string {
+  return createHash("sha256").update(value).digest("hex").slice(0, 8);
+}
 
 type WorkerInsert = Database["public"]["Tables"]["gpu_workers"]["Insert"];
 
@@ -82,8 +93,24 @@ export const Route = createFileRoute("/api/public/workers/register")({
           await logAttempt(supabaseAdmin, { ok: false, error: "Registration disabled: AURORA_REGISTER_SECRET is not configured" });
           return json({ error: "Registration disabled" }, 503);
         }
-        if (apikey !== expected) {
-          await logAttempt(supabaseAdmin, { ok: false, error: "Unauthorized (apikey mismatch or missing)" });
+        // Trim defensively: a secret pasted into Kaggle/Colab's secrets UI (or
+        // set via the Replit Secrets pane) can pick up an invisible trailing
+        // newline/space, which would otherwise cause a byte-for-byte mismatch
+        // that's impossible to spot by eye.
+        const receivedTrimmed = apikey?.trim() ?? "";
+        const expectedTrimmed = expected.trim();
+        if (receivedTrimmed !== expectedTrimmed) {
+          // Log a one-way fingerprint (never the raw secret) of both sides so
+          // the operator can compare "what my worker sent" (the worker script
+          // prints its own key's fingerprint at boot) against "what Aurora
+          // expects" from Admin -> Workers, instead of guessing blindly at a
+          // bare 401.
+          const receivedFp = receivedTrimmed ? fingerprint(receivedTrimmed) : "none";
+          const expectedFp = fingerprint(expectedTrimmed);
+          await logAttempt(supabaseAdmin, {
+            ok: false,
+            error: `Unauthorized (apikey mismatch or missing) — received fp:${receivedFp} expected fp:${expectedFp}`,
+          });
           return json({ error: "Unauthorized" }, 401);
         }
 

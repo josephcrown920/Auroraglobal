@@ -1048,7 +1048,7 @@ function WorkersPanel() {
                   <td className="p-2">{(a.name as string) || "—"}</td>
                   <td className="p-2 font-mono truncate max-w-[200px]">{(a.endpoint_url as string) || "—"}</td>
                   <td className={`p-2 ${a.ok ? "text-emerald-500" : "text-red-500"}`}>{a.ok ? (a.outcome as string) || "ok" : "failed"}</td>
-                  <td className="p-2 truncate max-w-[300px]">{(a.error as string) || ""}</td>
+                  <td className="p-2 truncate max-w-[300px]" title={(a.error as string) || undefined}>{(a.error as string) || ""}</td>
                 </tr>
               ))}
               {(data?.registerAttempts ?? []).length === 0 && (
