@@ -980,6 +980,7 @@ async function runAutocut(job: JobRow, orch: Orchestrate, workerId: string): Pro
 
     const bytes = await runLocalFfmpegAssemble({
       clips: p.clipUrls,
+      style: p.style,
       musicUrl,
       musicVolume: 0.15,
       maxDurationSec: 60,

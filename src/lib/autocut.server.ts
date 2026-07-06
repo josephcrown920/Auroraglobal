@@ -59,6 +59,36 @@ export const AUTOCUT_STYLES: AutocutStyle[] = [
   },
 ];
 
+// ─── Cut-point rules derived from style.cutRate/transition ────────────────────
+// The assembler (local ffmpeg here, and workers/aurora_worker.py's run_assemble)
+// uses these bounds to decide how long each scene stays on screen and whether
+// scenes hard-cut or crossfade into each other. Keep the python worker's
+// STYLE_CUT_RULE_BOUNDS dict in lockstep with CUT_RATE_BOUNDS below — it can't
+// import this file directly.
+const CUT_RATE_BOUNDS: Record<AutocutStyle["cutRate"], { minClipSec: number; maxClipSec: number }> = {
+  fast: { minClipSec: 0.6, maxClipSec: 1.5 },
+  medium: { minClipSec: 4, maxClipSec: 8 },
+  slow: { minClipSec: 3, maxClipSec: 5 },
+};
+const DEFAULT_CUT_BOUNDS = { minClipSec: 0.5, maxClipSec: 8 };
+const DEFAULT_CROSSFADE_SEC = 0.8;
+
+export type StyleCutRule = {
+  minClipSec: number;
+  maxClipSec: number;
+  transition: AutocutStyle["transition"];
+  crossfadeSec: number;
+};
+
+/** Resolve the per-clip duration bounds + transition for a style id. Falls back to
+ * sane hard-cut defaults for an unknown/missing style (e.g. kids_story assembly,
+ * which doesn't send a `style` at all). */
+export function getStyleCutRule(styleId?: string | null): StyleCutRule {
+  const style = styleId ? AUTOCUT_STYLES.find((s) => s.id === styleId) : undefined;
+  const bounds = style ? (CUT_RATE_BOUNDS[style.cutRate] ?? DEFAULT_CUT_BOUNDS) : DEFAULT_CUT_BOUNDS;
+  return { ...bounds, transition: style?.transition ?? "cut", crossfadeSec: DEFAULT_CROSSFADE_SEC };
+}
+
 // ─── Music tracks ─────────────────────────────────────────────────────────────
 
 export type MusicTrack = {
@@ -230,16 +260,57 @@ async function downloadToFile(url: string, destPath: string): Promise<void> {
 
 export type LocalAssembleParams = {
   clips: string[];
+  /** AutoCut style id (hype/cinematic/talking_head/tiktok_hook) — drives per-clip
+   * duration bounds and hard-cut vs crossfade transitions via getStyleCutRule().
+   * Omitted for non-AutoCut callers (e.g. kids_story), which get the default
+   * hard-cut bounds. */
+  style?: string | null;
   musicUrl?: string | null;
   musicVolume?: number;
   maxDurationSec?: number;
 };
 
+/** Sequentially crossfades `scenes` (each pre-normalized to the same canvas/fps)
+ * into a single file using ffmpeg's xfade/acrossfade filters, honoring each
+ * scene's own duration for the cumulative offset. Returns the merged file path. */
+async function xfadeMergeScenes(
+  dir: string,
+  scenes: Array<{ path: string; dur: number }>,
+  crossfadeSec: number,
+): Promise<string> {
+  let accPath = scenes[0].path;
+  let accDur = scenes[0].dur;
+  for (let i = 1; i < scenes.length; i++) {
+    const next = scenes[i];
+    const cf = Math.max(0.1, Math.min(crossfadeSec, accDur - 0.1, next.dur - 0.1));
+    const offset = Math.max(0, accDur - cf);
+    const out = join(dir, `xfade${i}_${randomUUID().slice(0, 8)}.mp4`);
+    await runFfmpegBinary(
+      "ffmpeg",
+      [
+        "-y", "-i", accPath, "-i", next.path,
+        "-filter_complex",
+        `[0:v][1:v]xfade=transition=fade:duration=${cf.toFixed(3)}:offset=${offset.toFixed(3)}[v];` +
+          `[0:a][1:a]acrossfade=d=${cf.toFixed(3)}[a]`,
+        "-map", "[v]", "-map", "[a]",
+        "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-ar", "48000", "-ac", "2",
+        out,
+      ],
+      ASSEMBLE_STEP_TIMEOUT_MS,
+    );
+    accPath = out;
+    accDur = accDur + next.dur - cf;
+  }
+  return accPath;
+}
+
 /**
- * Runs the AutoCut assembly pipeline (normalize each clip → concat in order
- * → optional looped/ducked music mix) using the system ffmpeg locally, and
- * returns the final MP4 bytes. Throws on any failure — callers must treat
- * that as a terminal job failure (refund), same as an offline GPU worker.
+ * Runs the AutoCut assembly pipeline (normalize each clip per the style's
+ * cut-point rule → concat/crossfade in order → optional looped/ducked music
+ * mix) using the system ffmpeg locally, and returns the final MP4 bytes.
+ * Throws on any failure — callers must treat that as a terminal job failure
+ * (refund), same as an offline GPU worker.
  */
 export async function runLocalFfmpegAssemble(params: LocalAssembleParams): Promise<Buffer> {
   const clips = params.clips;
@@ -253,14 +324,18 @@ export async function runLocalFfmpegAssemble(params: LocalAssembleParams): Promi
     }
   }
 
+  const cutRule = getStyleCutRule(params.style);
+
   const dir = await mkdtemp(join(tmpdir(), "aurora-assemble-"));
   try {
-    const sceneFiles: string[] = [];
+    const scenes: Array<{ path: string; dur: number }> = [];
     for (let i = 0; i < clips.length; i++) {
       const clipIn = join(dir, `clip${i}.mp4`);
       await downloadToFile(clips[i], clipIn);
       const probedDur = await ffprobeDurationSec(clipIn);
-      const dur = Math.max(0.5, Math.min(probedDur ?? 5, 60));
+      // Trim per the style's cut-point rule: longer clips are cut down to the
+      // style's max, shorter clips are freeze-extended up to its min.
+      const dur = Math.max(cutRule.minClipSec, Math.min(probedDur ?? cutRule.maxClipSec, cutRule.maxClipSec));
       const withAudio = await hasAudioStream(clipIn);
       const sceneOut = join(dir, `scene${i}_${randomUUID().slice(0, 8)}.mp4`);
       const vf =
@@ -280,22 +355,30 @@ export async function runLocalFfmpegAssemble(params: LocalAssembleParams): Promi
         sceneOut,
       );
       await runFfmpegBinary("ffmpeg", args, ASSEMBLE_STEP_TIMEOUT_MS);
-      sceneFiles.push(sceneOut);
+      scenes.push({ path: sceneOut, dur });
     }
 
-    const listPath = join(dir, "concat.txt");
-    await writeFile(listPath, sceneFiles.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join("\n"));
-    const concatOut = join(dir, "concat.mp4");
-    await runFfmpegBinary(
-      "ffmpeg",
-      [
-        "-y", "-f", "concat", "-safe", "0", "-i", listPath,
-        "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
-        "-c:a", "aac", "-ar", "48000", "-ac", "2",
-        concatOut,
-      ],
-      ASSEMBLE_STEP_TIMEOUT_MS,
-    );
+    let concatOut: string;
+    if (cutRule.transition === "crossfade" && scenes.length > 1) {
+      concatOut = await xfadeMergeScenes(dir, scenes, cutRule.crossfadeSec);
+    } else {
+      const listPath = join(dir, "concat.txt");
+      await writeFile(
+        listPath,
+        scenes.map((s) => `file '${s.path.replace(/'/g, "'\\''")}'`).join("\n"),
+      );
+      concatOut = join(dir, "concat.mp4");
+      await runFfmpegBinary(
+        "ffmpeg",
+        [
+          "-y", "-f", "concat", "-safe", "0", "-i", listPath,
+          "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+          "-c:a", "aac", "-ar", "48000", "-ac", "2",
+          concatOut,
+        ],
+        ASSEMBLE_STEP_TIMEOUT_MS,
+      );
+    }
 
     const maxDur = params.maxDurationSec ?? 60;
     let finalPath = concatOut;
