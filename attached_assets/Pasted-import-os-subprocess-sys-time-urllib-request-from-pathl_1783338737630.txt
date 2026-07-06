@@ -1,0 +1,213 @@
+import os, subprocess, sys, time, urllib.request
+from pathlib import Path
+
+ROOT = "/kaggle/working"
+Path(ROOT).mkdir(parents=True, exist_ok=True)
+
+# Load Kaggle Secrets
+try:
+    from kaggle_secrets import UserSecretsClient
+    client = UserSecretsClient()
+    for key in ["NGROK_AUTHTOKEN", "NGROK_STATIC_DOMAIN", "AURORA_URL", "AURORA_REGISTER_SECRET", "AURORA_WORKER_TOKEN", "AURORA_TASKS"]:
+        try:
+            v = client.get_secret(key)
+            if v: os.environ[key] = v.strip()
+        except: pass
+except: pass
+
+# Create setup.sh with mediapipe fix
+with open(f"{ROOT}/setup.sh", "w") as f:
+    f.write("""#!/usr/bin/env bash
+set -euo pipefail
+ROOT="${1:-/workspace}"
+TASKS="${AURORA_TASKS:-lipsync}"
+mkdir -p "$ROOT"
+cd "$ROOT"
+pip install -q "huggingface_hub[cli]" 2>/dev/null || true
+if [[ "$TASKS" == *"lipsync"* ]]; then
+  echo "==> LatentSync"
+  [ -d LatentSync ] || git clone --depth 1 https://github.com/bytedance/LatentSync.git
+  cd LatentSync
+  sed -i 's/mediapipe==0.10.11/mediapipe==0.10.14/g' requirements.txt
+  pip install -r requirements.txt
+  cd ..
+  huggingface-cli download ByteDance/LatentSync-1.5 --local-dir LatentSync/checkpoints --include "latentsync_unet.pt" "whisper/*" 2>/dev/null || echo "Note: HF download may have rate limits"
+fi
+echo "==> Done. Installed tasks: [$TASKS]"
+exit 0
+""")
+os.chmod(f"{ROOT}/setup.sh", 0o755)
+print("[setup] ✅ setup.sh created with mediapipe fix", flush=True)
+
+# Create minimal aurora_worker.py locally
+with open(f"{ROOT}/aurora_worker.py", "w") as f:
+    f.write("""#!/usr/bin/env python3
+import os, socket, requests, subprocess, tempfile, uuid
+from pathlib import Path
+from typing import Any
+from fastapi import FastAPI, HTTPException, Request
+
+LATENTSYNC_DIR = os.environ.get("LATENTSYNC_DIR", "/workspace/LatentSync")
+WORK_DIR = Path(tempfile.gettempdir()) / "aurora"
+UPLOAD_BACKEND = os.environ.get("AURORA_UPLOAD", "catbox").lower()
+AUTH_TOKEN = os.environ.get("AURORA_WORKER_TOKEN")
+WORK_DIR.mkdir(parents=True, exist_ok=True)
+
+def _upload(path: str) -> str:
+    with open(path, "rb") as f:
+        r = requests.post("https://catbox.moe/user/api.php", data={"reqtype": "fileupload"}, files={"fileToUpload": f}, timeout=180)
+    r.raise_for_status()
+    return r.text.strip()
+
+def run_lipsync(video_url: str, audio_url: str, params: dict) -> str:
+    video = WORK_DIR / f"{uuid.uuid4().hex}.mp4"
+    audio = WORK_DIR / f"{uuid.uuid4().hex}.wav"
+    out = str(WORK_DIR / f"{uuid.uuid4().hex}_lipsync.mp4")
+    import urllib.request
+    urllib.request.urlretrieve(video_url, str(video))
+    urllib.request.urlretrieve(audio_url, str(audio))
+    cmd = ["python", "-m", "scripts.inference", "--unet_config_path", f"{LATENTSYNC_DIR}/configs/unet/stage2.yaml", "--inference_ckpt_path", f"{LATENTSYNC_DIR}/checkpoints/latentsync_unet.pt", "--inference_steps", str(int(params.get("inference_steps", 20))), "--guidance_scale", str(float(params.get("guidance_scale", 1.5))), "--seed", str(int(params.get("seed", 1247))), "--video_path", str(video), "--audio_path", str(audio), "--video_out_path", out]
+    subprocess.run(cmd, cwd=LATENTSYNC_DIR, check=True)
+    return out
+
+def process_job(job: dict[str, Any]) -> dict[str, str]:
+    kind = (job.get("kind") or "").lower()
+    if kind == "lipsync":
+        out = run_lipsync(job.get("video_url"), job.get("audio_url"), job.get("params", {}))
+        return {"url": _upload(out)}
+    return {"url": "https://example.com/result"}
+
+app = FastAPI(title="Aurora GPU worker", version="1.0")
+
+@app.get("/health")
+def health():
+    return {"ok": True, "tasks": ["lipsync"]}
+
+@app.post("/generate")
+async def generate(req: Request):
+    if AUTH_TOKEN and req.headers.get("authorization") != f"Bearer {AUTH_TOKEN}":
+        raise HTTPException(status_code=401, detail="unauthorized")
+    job = await req.json()
+    try:
+        return process_job(job)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def _worker_name() -> str:
+    return os.environ.get("AURORA_WORKER_NAME") or f"kaggle-{socket.gethostname()}"
+
+def register_with_aurora() -> bool:
+    domain = os.environ.get("NGROK_STATIC_DOMAIN", "").strip()
+    aurora_url = os.environ.get("AURORA_URL", "").strip().rstrip("/")
+    register_key = os.environ.get("AURORA_REGISTER_SECRET", "").strip()
+    if not (domain and aurora_url and register_key):
+        print("[register] skipped — set NGROK_STATIC_DOMAIN, AURORA_URL, AURORA_REGISTER_SECRET", flush=True)
+        return False
+    host = domain.replace("https://", "").replace("http://", "").rstrip("/")
+    endpoint_url = f"https://{host}/generate"
+    payload = {"name": _worker_name(), "endpoint_url": endpoint_url, "protocol": "custom", "capabilities": ["lipsync"]}
+    if AUTH_TOKEN:
+        payload["auth_token"] = AUTH_TOKEN
+    try:
+        r = requests.post(f"{aurora_url}/api/public/workers/register", json=payload, headers={"apikey": register_key, "content-type": "application/json"}, timeout=30)
+    except Exception as e:
+        print(f"[register] error: {e}", flush=True)
+        return False
+    if r.ok:
+        print(f"[register] OK — {endpoint_url} registered with Aurora.", flush=True)
+        return True
+    print(f"[register] failed {r.status_code}: {r.text.strip()[:300]}", flush=True)
+    return False
+
+if __name__ == "__main__":
+    import threading, uvicorn
+    port = int(os.environ.get("PORT", "8000"))
+    def auto_register():
+        import time
+        for _ in range(60):
+            try:
+                requests.get(f"http://127.0.0.1:{port}/health", timeout=2)
+                break
+            except:
+                time.sleep(1)
+        register_with_aurora()
+    threading.Thread(target=auto_register, daemon=True).start()
+    uvicorn.run(app, host="0.0.0.0", port=port)
+""")
+print("[setup] ✅ aurora_worker.py created locally", flush=True)
+
+# Install dependencies
+print("\n[setup] installing pip dependencies …", flush=True)
+subprocess.run("pip install -q requests fastapi uvicorn pyngrok", shell=True, check=True)
+
+tasks = os.environ.get("AURORA_TASKS") or "lipsync"
+os.environ["AURORA_CAPABILITIES"] = tasks
+
+# Run setup.sh
+print(f"\n[setup] running setup.sh with tasks=[{tasks}] …", flush=True)
+try:
+    subprocess.run(f"AURORA_TASKS='{tasks}' bash {ROOT}/setup.sh {ROOT}", shell=True, check=True)
+    print("[setup] ✅ setup complete", flush=True)
+except subprocess.CalledProcessError as e:
+    print(f"[setup] ⚠️  setup had issues but continuing: {e}", flush=True)
+
+os.environ["LATENTSYNC_DIR"] = f"{ROOT}/LatentSync"
+os.environ.setdefault("AURORA_UPLOAD", "catbox")
+
+# Start server
+print("\n[serve] starting FastAPI server on :8000 …", flush=True)
+server = subprocess.Popen([sys.executable, "-m", "uvicorn", "aurora_worker:app", "--host", "0.0.0.0", "--port", "8000"], cwd=ROOT)
+
+# Wait for health
+healthy = False
+for i in range(60):
+    if server.poll() is not None:
+        raise SystemExit(f"[serve] uvicorn exited (code {server.returncode})")
+    try:
+        urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=2)
+        healthy = True
+        print(f"[serve] ✅ healthy after {i*2}s", flush=True)
+        break
+    except:
+        time.sleep(2)
+
+if not healthy:
+    server.terminate()
+    raise SystemExit("[serve] worker never became healthy")
+
+# Open tunnel
+print("\n[ngrok] opening tunnel …", flush=True)
+from pyngrok import ngrok
+token = os.environ.get("NGROK_AUTHTOKEN")
+if token:
+    ngrok.set_auth_token(token)
+    print("[ngrok] ✅ auth token set", flush=True)
+domain = os.environ.get("NGROK_STATIC_DOMAIN", "").strip()
+host = domain.replace("https://", "").replace("http://", "").rstrip("/") if domain else ""
+if host:
+    print(f"[ngrok] connecting to {host} …", flush=True)
+    ngrok.connect(addr="8000", domain=host)
+    public_url = f"https://{host}"
+else:
+    print("[ngrok] no NGROK_STATIC_DOMAIN — using dynamic tunnel", flush=True)
+    public_url = ngrok.connect(8000).public_url
+print(f"[ngrok] ✅ tunnel: {public_url}", flush=True)
+
+# Register
+os.environ["NGROK_STATIC_DOMAIN"] = host or public_url.replace("https://", "")
+sys.path.insert(0, ROOT)
+print("\n[register] registering …", flush=True)
+try:
+    from aurora_worker import register_with_aurora
+    register_with_aurora()
+except Exception as e:
+    print(f"[register] {e}", flush=True)
+
+print("\n" + "="*70)
+print(f"✅ WORKER IS LIVE")
+print(f"   Endpoint: {public_url}/generate")
+print(f"   Tasks: {tasks}")
+print("="*70)
+print("\nKeep this cell running!")
+
+server.wait()
