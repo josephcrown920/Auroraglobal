@@ -53,6 +53,7 @@ import { Route as LegalSlugRouteImport } from './routes/legal.$slug'
 import { Route as CreatorDashboardRouteImport } from './routes/creator.dashboard'
 import { Route as CliAuthorizeRouteImport } from './routes/cli.authorize'
 import { Route as ApiMcpRouteImport } from './routes/api/mcp'
+import { Route as ApiEstimateRouteImport } from './routes/api/estimate'
 import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
 import { Route as AdminSmokeRouteImport } from './routes/admin.smoke'
 import { Route as AdminOrchestrationRouteImport } from './routes/admin.orchestration'
@@ -290,6 +291,11 @@ const ApiMcpRoute = ApiMcpRouteImport.update({
   path: '/api/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiEstimateRoute = ApiEstimateRouteImport.update({
+  id: '/api/estimate',
+  path: '/api/estimate',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminTemplatesRoute = AdminTemplatesRouteImport.update({
   id: '/templates',
   path: '/templates',
@@ -419,6 +425,7 @@ export interface FileRoutesByFullPath {
   '/admin/orchestration': typeof AdminOrchestrationRoute
   '/admin/smoke': typeof AdminSmokeRoute
   '/admin/templates': typeof AdminTemplatesRoute
+  '/api/estimate': typeof ApiEstimateRoute
   '/api/mcp': typeof ApiMcpRoute
   '/cli/authorize': typeof CliAuthorizeRoute
   '/creator/dashboard': typeof CreatorDashboardRoute
@@ -481,6 +488,7 @@ export interface FileRoutesByTo {
   '/admin/orchestration': typeof AdminOrchestrationRoute
   '/admin/smoke': typeof AdminSmokeRoute
   '/admin/templates': typeof AdminTemplatesRoute
+  '/api/estimate': typeof ApiEstimateRoute
   '/api/mcp': typeof ApiMcpRoute
   '/cli/authorize': typeof CliAuthorizeRoute
   '/creator/dashboard': typeof CreatorDashboardRoute
@@ -544,6 +552,7 @@ export interface FileRoutesById {
   '/admin/orchestration': typeof AdminOrchestrationRoute
   '/admin/smoke': typeof AdminSmokeRoute
   '/admin/templates': typeof AdminTemplatesRoute
+  '/api/estimate': typeof ApiEstimateRoute
   '/api/mcp': typeof ApiMcpRoute
   '/cli/authorize': typeof CliAuthorizeRoute
   '/creator/dashboard': typeof CreatorDashboardRoute
@@ -608,6 +617,7 @@ export interface FileRouteTypes {
     | '/admin/orchestration'
     | '/admin/smoke'
     | '/admin/templates'
+    | '/api/estimate'
     | '/api/mcp'
     | '/cli/authorize'
     | '/creator/dashboard'
@@ -670,6 +680,7 @@ export interface FileRouteTypes {
     | '/admin/orchestration'
     | '/admin/smoke'
     | '/admin/templates'
+    | '/api/estimate'
     | '/api/mcp'
     | '/cli/authorize'
     | '/creator/dashboard'
@@ -732,6 +743,7 @@ export interface FileRouteTypes {
     | '/admin/orchestration'
     | '/admin/smoke'
     | '/admin/templates'
+    | '/api/estimate'
     | '/api/mcp'
     | '/cli/authorize'
     | '/creator/dashboard'
@@ -790,6 +802,7 @@ export interface RootRouteChildren {
   TiktokRoute: typeof TiktokRoute
   UgcRoute: typeof UgcRoute
   WorkflowsRoute: typeof WorkflowsRoute
+  ApiEstimateRoute: typeof ApiEstimateRoute
   ApiMcpRoute: typeof ApiMcpRoute
   CliAuthorizeRoute: typeof CliAuthorizeRoute
   CreatorDashboardRoute: typeof CreatorDashboardRoute
@@ -1119,6 +1132,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMcpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/estimate': {
+      id: '/api/estimate'
+      path: '/api/estimate'
+      fullPath: '/api/estimate'
+      preLoaderRoute: typeof ApiEstimateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/templates': {
       id: '/admin/templates'
       path: '/templates'
@@ -1291,6 +1311,7 @@ const rootRouteChildren: RootRouteChildren = {
   TiktokRoute: TiktokRoute,
   UgcRoute: UgcRoute,
   WorkflowsRoute: WorkflowsRoute,
+  ApiEstimateRoute: ApiEstimateRoute,
   ApiMcpRoute: ApiMcpRoute,
   CliAuthorizeRoute: CliAuthorizeRoute,
   CreatorDashboardRoute: CreatorDashboardRoute,
