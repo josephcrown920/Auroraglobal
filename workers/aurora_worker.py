@@ -58,9 +58,59 @@ WORK_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # ── IO helpers ────────────────────────────────────────────────────────────────
+IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tiff", ".avif"}
+
+
 def _guess_suffix(url: str) -> str:
     ext = os.path.splitext(url.split("?")[0])[1]
     return ext or ".bin"
+
+
+def _looks_like_image(path: str) -> bool:
+    """True when `path`'s extension OR ffprobe's own codec_type say "image",
+    not video. Aurora's Studio UI lets users drop a still photo as the
+    lipsync "performance source" (accept="video/*,image/*") — LatentSync's
+    CLI needs an actual multi-frame video, so callers must convert first."""
+    if os.path.splitext(path)[1].lower() in IMAGE_EXTS:
+        return True
+    try:
+        out = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "v:0",
+             "-show_entries", "stream=codec_type,nb_frames",
+             "-of", "default=noprint_wrappers=1", path],
+            capture_output=True, text=True, timeout=20,
+        )
+        info = out.stdout or ""
+        if "codec_type=video" not in info:
+            return True
+        # A single-frame "video" (e.g. a still re-muxed by some pickers) is
+        # still effectively an image for LatentSync's purposes.
+        for line in info.splitlines():
+            if line.startswith("nb_frames="):
+                n = line.split("=", 1)[1].strip()
+                if n.isdigit() and int(n) <= 1:
+                    return True
+    except Exception:
+        pass
+    return False
+
+
+def _image_to_video(image_path: str, seconds: float = 6.0, fps: int = 25) -> str:
+    """Loop a still photo into a short silent video so image-only inputs
+    (still photo of a face) can feed the same LatentSync pipeline as a real
+    talking-head clip."""
+    out = str(WORK_DIR / f"{uuid.uuid4().hex}_stillvid.mp4")
+    subprocess.run(
+        [
+            "ffmpeg", "-y", "-loop", "1", "-i", image_path,
+            "-t", str(seconds), "-r", str(fps),
+            "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
+            "-pix_fmt", "yuv420p", "-c:v", "libx264",
+            out,
+        ],
+        check=True, capture_output=True,
+    )
+    return out
 
 
 def _download(url: str | None, suffix: str = "") -> str:
@@ -145,8 +195,16 @@ def _ffprobe_duration(path: str) -> float:
 
 # ── Inference ─────────────────────────────────────────────────────────────────
 def run_latentsync(video_url: str, audio_url: str, params: dict[str, Any]) -> str:
-    """LatentSync: re-render the mouth of `video_url` to match `audio_url`."""
-    video = _download(video_url, ".mp4")
+    """LatentSync: re-render the mouth of `video_url` to match `audio_url`.
+
+    `video_url` may actually be a still photo — Aurora's Studio UI accepts
+    "video/*,image/*" for this slot. Download preserving the real extension
+    (not a forced .mp4) so we can detect that case, then loop the photo into
+    a short silent clip before handing it to LatentSync's CLI, which only
+    understands real multi-frame video containers.
+    """
+    video_raw = _download(video_url, _guess_suffix(video_url))
+    video = _image_to_video(video_raw) if _looks_like_image(video_raw) else video_raw
     audio = _download(audio_url, ".wav")
     out = str(WORK_DIR / f"{uuid.uuid4().hex}_lipsync.mp4")
     cmd = [
