@@ -84,3 +84,56 @@ capacity summary above the table counts its free slots.
 > **Node names must match.** Aurora patches inputs by `nodeId.inputName` against the
 > graphs above. If your custom nodes expose different class/input names, rename them or
 > edit the default builders in the `*-workflows.server.ts` files.
+
+## C · Vast.ai — official "Recommended" `vastai/comfy` template
+
+Renting Vast's own **ComfyUI** template (search Vast's console for "Recommended" →
+`vastai/comfy`) is the fastest way to get a paid, always-on `comfyui` worker — but the
+stock image only ships base ComfyUI + a few general-purpose node packs. It is
+**missing every node pack `lipsync`/`motion` need**, so a fresh rental only safely
+advertises `image` (and `video` if AnimateDiff/SVD nodes+weights are present) until you
+install the rest. Skipping this step doesn't error loudly — Aurora just never routes
+`lipsync`/`motion` jobs there because the launcher's own `/object_info` check (see
+"fails closed" above) won't find the classes.
+
+1. **Rent the instance.** Vast console → Templates → search "comfy" → pick the
+   "Recommended" `vastai/comfy` template → rent an instance with ≥16 GB VRAM (24 GB+ if
+   you also want `motion`). Vast exposes ComfyUI's port directly on a public
+   `<host>:<port>` — no tunnel needed (same as the `custom`/Vast section in
+   `workers/README.md`).
+2. **Open a terminal on the instance** (Vast console → Instance → "Open" → Jupyter/SSH)
+   and install the missing node packs into ComfyUI's `custom_nodes/` dir:
+   ```bash
+   cd /opt/ComfyUI/custom_nodes   # path varies by template version — confirm with `pwd`/`ls /opt`
+   git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git
+   git clone https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved.git
+   git clone https://github.com/christian-byrne/comfyui-art-venture.git   # or any URL-loader pack providing LoadImageFromUrl/LoadAudioFromUrl
+   # LatentSync + MimicMotion wrapper nodes (pick the wrapper repo matching the
+   # class names in the table above — check ComfyUI Manager's registry if these
+   # repo names have moved):
+   git clone <latentsync-comfyui-wrapper-repo>
+   git clone <mimicmotion-comfyui-wrapper-repo>
+   for d in */; do [ -f "$d/requirements.txt" ] && pip install -r "$d/requirements.txt"; done
+   ```
+3. **Fetch the weights** the same wrapper nodes expect (SVD + an AnimateDiff motion
+   module under `models/checkpoints` / `models/animatediff_models`; LatentSync +
+   MimicMotion checkpoints wherever their wrapper node's README specifies — these are
+   the same checkpoints `workers/setup.sh` downloads for the `custom` protocol, so you
+   can reuse that script's URLs instead of hunting for them again).
+4. **Restart ComfyUI** (`supervisorctl restart comfyui` or the template's restart
+   script) and confirm the new classes are loaded:
+   ```bash
+   curl -s localhost:8188/object_info | python3 -c "import sys,json; d=json.load(sys.stdin); print([k for k in d if 'LatentSync' in k or 'MimicMotion' in k or 'VHS_' in k or 'ADE_' in k])"
+   ```
+   An empty list means a node pack failed to import — check ComfyUI's own startup log
+   for the real import error (missing Python dep is the usual cause) before registering.
+5. **Register in Admin → Workers**: Protocol `comfyui`, Endpoint `https://<host>:<port>`
+   (Aurora appends `/prompt`/`/history`/`/view` itself), Capabilities = only what you
+   verified loaded in step 4 (e.g. `image,video` first, add `lipsync,motion` once those
+   node checks pass too). On every Vast restart the public port can change — re-paste
+   the endpoint the same way the plain `custom` protocol Vast section describes.
+
+This template path is **not auto-registering** (Vast doesn't give you a stable
+`NGROK_STATIC_DOMAIN`-style tunnel), so unlike the Kaggle/Colab launcher above, you
+register it once by hand and re-paste the URL after a restart — identical trade-off to
+the `custom`/Vast.ai flow in `workers/README.md`.

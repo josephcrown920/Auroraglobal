@@ -73,3 +73,19 @@ the same row (Aurora de-dupes on the normalized URL), so the endpoint never goes
   `queued`, check with the app owner that these two cron jobs exist on the Supabase
   project (see `docs/ARCHITECTURE.md` → "Wiring pg_cron") — a fresh Supabase project
   does **not** have `pg_cron`/`pg_net` enabled or the jobs scheduled by default.
+- **Getting `[register] failed 401: {"error":"Unauthorized"}`?** This means the
+  `AURORA_REGISTER_SECRET` your notebook sent doesn't byte-for-byte match the one set
+  in Aurora's environment — almost always because the two were typed/pasted separately
+  instead of generating one value and copying it into both places. Nobody (including
+  the app owner) can *read back* the value already configured on either side, so
+  compare **fingerprints** instead of the raw secret:
+  1. The cell prints `[register] using AURORA_REGISTER_SECRET fingerprint <8 hex chars>`
+     right before it tries to register.
+  2. Open **Admin → Workers → Recent registration attempts** in Aurora: a failed
+     attempt now logs `received fp:<xxxxxxxx> expected fp:<yyyyyyyy>`.
+  3. If your cell's fingerprint matches "received fp" but not "expected fp", the
+     value set in Aurora's `AURORA_REGISTER_SECRET` is the stale/wrong one — the app
+     owner needs to update it (Replit → Secrets pane) to the same value you're using.
+  4. If it's simplest, just generate ONE fresh value (`openssl rand -hex 32`), set it
+     as `AURORA_REGISTER_SECRET` in **both** Kaggle's Add-ons → Secrets and Aurora's
+     Replit Secrets pane, then re-run the cell.
