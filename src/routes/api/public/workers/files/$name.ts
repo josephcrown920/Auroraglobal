@@ -18,6 +18,7 @@ const ALLOWED: Record<string, string> = {
   "setup.sh": "workers/setup.sh",
   "kaggle_bootstrap.py": "workers/kaggle/aurora_worker_kaggle.py",
   "colab_bootstrap.py": "workers/colab/aurora_worker_colab.py",
+  "comfyui_bootstrap.py": "workers/comfyui/aurora_comfyui_launcher.py",
 };
 
 export const Route = createFileRoute("/api/public/workers/files/$name")({
