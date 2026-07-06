@@ -332,6 +332,7 @@ function DailyPostGenerator({ isPro }: { isPro: boolean }) {
   const canGenerate = songTitle.trim() && artistName.trim() && genre.trim() && platforms.length > 0;
 
   const generateOneImage = async (day: number, prompt: string) => {
+    if (generatingImages || imageStatus[day] === "loading") return;
     setImageStatus((s) => ({ ...s, [day]: "loading" }));
     try {
       const r = await imgFn({ data: { prompt, day } });
@@ -350,7 +351,7 @@ function DailyPostGenerator({ isPro }: { isPro: boolean }) {
 
   const generateAllImages = async () => {
     if (!result || generatingImages) return;
-    const pending = result.days.filter((d) => imageStatus[d.day] !== "done");
+    const pending = result.days.filter((d) => imageStatus[d.day] !== "done" && imageStatus[d.day] !== "loading");
     if (pending.length === 0) return;
     setGeneratingImages(true);
     setImageStatus((s) => {
