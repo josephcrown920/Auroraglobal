@@ -25,20 +25,23 @@ import { AUDIO_ACCEPT } from "./utils";
 // ── Thumbnails (direct file imports resolve to a URL string) ────────────────
 import stillNeon from "@/assets/josh/generated/still-01-neon-closeup.jpg";
 import stillStage from "@/assets/josh/generated/still-03-stage-mic.jpg";
-import stillStudioGel from "@/assets/josh/generated/still-05-studio-gel.jpg";
 import stillRooftopSunset from "@/assets/josh/generated/still-06-rooftop-sunset.jpg";
 import stillBooth from "@/assets/josh/generated/still-07-booth-headphones.jpg";
 import stillAlley from "@/assets/josh/generated/still-08-alley-mural.jpg";
 import stillCarGolden from "@/assets/josh/generated/still-11-car-golden.jpg";
-import stillRooftopDay from "@/assets/josh/generated/still-17-rooftop-day.jpg";
 import stillCourtBall from "@/assets/josh/generated/still-13-court-ball.jpg";
+import stillFitcheckMirror from "@/assets/josh/generated/still-15-fitcheck-mirror.jpg";
+import stillBoardwalk from "@/assets/josh/generated/still-18-boardwalk.jpg";
 import clipNeon from "@/assets/josh/generated/clip-01-neon-closeup.mp4";
 import clipStage from "@/assets/josh/generated/clip-03-stage-mic.mp4";
+import clipRooftopSunset from "@/assets/josh/generated/clip-06-rooftop-sunset.mp4";
+import clipCourtBall from "@/assets/josh/generated/clip-13-court-ball.mp4";
 import kidsMeadow from "@/assets/kids/showcase-meadow.jpg";
 import kidsBedtime from "@/assets/kids/showcase-bedtime.jpg";
 import kidsBedtimeClip from "@/assets/kids/showcase-bedtime.mp4";
 // .asset.json imports expose { url }
 import productLipstick from "@/assets/ugc/product-lipstick-car.jpg.asset.json";
+import productLifestyleCafe from "@/assets/generated_thumbs/product-lifestyle-cafe-table.png";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export type TemplateInputKind = "image" | "audio" | "text";
@@ -194,6 +197,7 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
     category: "Motion",
     blurb: "One photo → a golden-hour cinematic clip with living motion.",
     thumbnail: stillRooftopSunset,
+    thumbnailVideo: clipRooftopSunset,
     kinds: ["image", "video"],
     dispatch: "studio",
     inputs: [IMG("Your photo")],
@@ -243,7 +247,7 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
     title: "UGC Talking Ad",
     category: "UGC/Ad",
     blurb: "Your face + what you're selling → a native talking UGC ad.",
-    thumbnail: stillStudioGel,
+    thumbnail: productLipstick.url,
     kinds: ["ugc_ad"],
     dispatch: "ugc",
     ugcAspect: "9:16",
@@ -258,7 +262,7 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
     title: "Product Lifestyle Ad",
     category: "UGC/Ad",
     blurb: "Drop your product photo → a cinematic lifestyle ad clip.",
-    thumbnail: productLipstick.url,
+    thumbnail: productLifestyleCafe,
     kinds: ["image", "video"],
     dispatch: "studio",
     inputs: [IMG("Product photo", "A clean shot of your product")],
@@ -275,7 +279,7 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
     title: "App Hero · iPhone",
     category: "UGC/Ad",
     blurb: "Drop your app screenshot → a photoreal iPhone-in-hand hero shot.",
-    thumbnail: stillRooftopDay,
+    thumbnail: stillFitcheckMirror,
     kinds: ["image"],
     dispatch: "studio",
     inputs: [IMG("App screenshot", "A full-screen screenshot of your app")],
@@ -302,7 +306,7 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
     title: "Trend Remix · 1 → 30",
     category: "Spin",
     blurb: "Turn a single trend into a full 30-piece content drop.",
-    thumbnail: stillCourtBall,
+    thumbnail: stillBoardwalk,
     kinds: ["spin"],
     dispatch: "spin",
     spinPreset: "Trend remix, bold high-contrast colour grade, punchy captions",
@@ -348,7 +352,8 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
     title: "AutoCut — Hype",
     category: "Editing",
     blurb: "Drop your clips and Aurora cuts a beat-synced, fast-paced 9:16 short for you.",
-    thumbnail: stillRooftopDay,
+    thumbnail: stillCourtBall,
+    thumbnailVideo: clipCourtBall,
     kinds: ["autocut"],
     dispatch: "autocut",
     inputs: [],
