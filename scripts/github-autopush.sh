@@ -31,6 +31,17 @@ REPOS=("aurora-charm-forge-87e3e757" "Auroraglobal")
 BRANCH="Main"
 LIMIT=104857600  # 100 MiB
 
+# Known legacy paths that are UNDER the 100MB hard limit (so detect_big never
+# catches them) but are still large enough (40-46MB) to meaningfully bloat
+# every clone. Stripped unconditionally on every sync so a daemon run can
+# never silently resurrect them into the published history. See Task #135.
+EXTRA_STRIP_PATHS=(
+  "attached_assets/Collab_inference_slim_1782518386269.zip"
+  "attached_assets/Collab_inference_slim_1782509661894.zip"
+  "attached_assets/49f23e5347eb41e69ccfb1aeeafb9ba7_1782179904593.mp4"
+  "attached_assets/c076509be6eb4ecc9c3e0cb16ad2ba38_1782179904594.mp4"
+)
+
 if [[ -z "${GITHUB_TOKEN:-}" ]]; then
   echo "[sync] ERROR: GITHUB_TOKEN is not set (need a token with repo + workflow scopes)." >&2
   echo "[sync] Refusing to run so we never silently fail. Set the secret and re-run." >&2
@@ -91,8 +102,11 @@ ORIG_TREE="$(git rev-parse "${BRANCH}^{tree}")"
 
 echo "[sync] Detecting blobs >=100MB across history"
 detect_big > "$WORK/bigpaths.nul"
+for p in "${EXTRA_STRIP_PATHS[@]}"; do
+  printf '%s\0' "$p" >> "$WORK/bigpaths.nul"
+done
 if [[ -s "$WORK/bigpaths.nul" ]]; then
-  echo "[sync]   stripping:"; tr '\0' '\n' < "$WORK/bigpaths.nul" | sed 's/^/[sync]     /'
+  echo "[sync]   stripping:"; tr '\0' '\n' < "$WORK/bigpaths.nul" | sed '/^$/d;s/^/[sync]     /'
   FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch --force --index-filter \
     "git rm -r --cached --ignore-unmatch --pathspec-from-file='$WORK/bigpaths.nul' --pathspec-file-nul" \
     -- "$BRANCH" >/dev/null
