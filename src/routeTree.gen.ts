@@ -68,6 +68,7 @@ import { Route as ApiPublicFreeMonthlyGrantRouteImport } from './routes/api/publ
 import { Route as ApiPublicWorkersRegisterRouteImport } from './routes/api/public/workers/register'
 import { Route as ApiPublicWorkersHealthRouteImport } from './routes/api/public/workers/health'
 import { Route as ApiPublicJobsTickRouteImport } from './routes/api/public/jobs/tick'
+import { Route as ApiPublicWorkersFilesNameRouteImport } from './routes/api/public/workers/files/$name'
 import { Route as ApiPublicCliDeviceStartRouteImport } from './routes/api/public/cli/device/start'
 import { Route as ApiPublicCliDevicePollRouteImport } from './routes/api/public/cli/device/poll'
 
@@ -370,6 +371,12 @@ const ApiPublicJobsTickRoute = ApiPublicJobsTickRouteImport.update({
   path: '/api/public/jobs/tick',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWorkersFilesNameRoute =
+  ApiPublicWorkersFilesNameRouteImport.update({
+    id: '/api/public/workers/files/$name',
+    path: '/api/public/workers/files/$name',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCliDeviceStartRoute = ApiPublicCliDeviceStartRouteImport.update({
   id: '/api/public/cli/device/start',
   path: '/api/public/cli/device/start',
@@ -443,6 +450,7 @@ export interface FileRoutesByFullPath {
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
   '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
   '/api/public/cli/device/start': typeof ApiPublicCliDeviceStartRoute
+  '/api/public/workers/files/$name': typeof ApiPublicWorkersFilesNameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -506,6 +514,7 @@ export interface FileRoutesByTo {
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
   '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
   '/api/public/cli/device/start': typeof ApiPublicCliDeviceStartRoute
+  '/api/public/workers/files/$name': typeof ApiPublicWorkersFilesNameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -570,6 +579,7 @@ export interface FileRoutesById {
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
   '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
   '/api/public/cli/device/start': typeof ApiPublicCliDeviceStartRoute
+  '/api/public/workers/files/$name': typeof ApiPublicWorkersFilesNameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -635,6 +645,7 @@ export interface FileRouteTypes {
     | '/api/public/workers/register'
     | '/api/public/cli/device/poll'
     | '/api/public/cli/device/start'
+    | '/api/public/workers/files/$name'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -698,6 +709,7 @@ export interface FileRouteTypes {
     | '/api/public/workers/register'
     | '/api/public/cli/device/poll'
     | '/api/public/cli/device/start'
+    | '/api/public/workers/files/$name'
   id:
     | '__root__'
     | '/'
@@ -761,6 +773,7 @@ export interface FileRouteTypes {
     | '/api/public/workers/register'
     | '/api/public/cli/device/poll'
     | '/api/public/cli/device/start'
+    | '/api/public/workers/files/$name'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -820,6 +833,7 @@ export interface RootRouteChildren {
   ApiPublicWorkersRegisterRoute: typeof ApiPublicWorkersRegisterRoute
   ApiPublicCliDevicePollRoute: typeof ApiPublicCliDevicePollRoute
   ApiPublicCliDeviceStartRoute: typeof ApiPublicCliDeviceStartRoute
+  ApiPublicWorkersFilesNameRoute: typeof ApiPublicWorkersFilesNameRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1237,6 +1251,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicJobsTickRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/workers/files/$name': {
+      id: '/api/public/workers/files/$name'
+      path: '/api/public/workers/files/$name'
+      fullPath: '/api/public/workers/files/$name'
+      preLoaderRoute: typeof ApiPublicWorkersFilesNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cli/device/start': {
       id: '/api/public/cli/device/start'
       path: '/api/public/cli/device/start'
@@ -1329,6 +1350,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicWorkersRegisterRoute: ApiPublicWorkersRegisterRoute,
   ApiPublicCliDevicePollRoute: ApiPublicCliDevicePollRoute,
   ApiPublicCliDeviceStartRoute: ApiPublicCliDeviceStartRoute,
+  ApiPublicWorkersFilesNameRoute: ApiPublicWorkersFilesNameRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
