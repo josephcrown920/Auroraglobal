@@ -2514,7 +2514,6 @@ export async function orchestrate(rawReq: GenerateRequest): Promise<GenerateResu
         // cue to fall back, not a provider failure — skip it silently (no error
         // log, no cooldown) so the dashboard isn't flooded while Colab is offline.
         if (adapter === gpuWorker && GPU_UNAVAILABLE_RE.test(msg)) continue;
-        if (process.env.AURORA_DEBUG_ORCH) console.error(`[DEBUG] model=${modelKey} adapter=${adapter.name} err=${msg.slice(0,150)}`);
         // Only back a provider off for genuine provider-down/quota signals, so a
         // single bad model never blacklists a healthy provider for other requests.
         if (PROVIDER_DOWN_RE.test(msg)) markFailure(adapter.name);
