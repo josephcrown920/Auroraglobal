@@ -30,7 +30,8 @@ import { handleGenerationError, friendlyGenerationMessage } from "@/lib/error-to
 import { useGenerationProgress } from "@/hooks/use-generation-progress";
 import { GenerationProgress } from "@/components/ui/GenerationProgress";
 import { BlurredPreview } from "@/components/ui/BlurredPreview";
-import { getMyProfile, createPaystackCheckout } from "@/lib/billing.functions";
+import { getMyProfile, createPaystackCheckout, getPaymentByReference } from "@/lib/billing.functions";
+import { trackPurchase, trackGenerationCompleted } from "@/lib/gtm";
 import { PLANS } from "@/lib/billing.plans";
 import { computeCost, type Resolution } from "@/lib/pricing";
 import { ResolutionPicker } from "@/components/ResolutionPicker";
@@ -165,9 +166,40 @@ function StudioPage() {
   // event once per browser, mirroring markFirstGenComplete's dedup pattern.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (new URLSearchParams(window.location.search).get("paid") === "1") {
-      markFirstPurchaseComplete();
-    }
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("paid") !== "1") return;
+    markFirstPurchaseComplete();
+    // Paystack appends its own `reference` (and `trxref`) to the callback
+    // URL — look the payment up server-side rather than trusting any
+    // client-supplied amount, so the dataLayer value always matches what
+    // was actually charged. The webhook that flips the row to "succeeded"
+    // can lag slightly behind this redirect, so retry a few times before
+    // giving up on the event.
+    const reference = params.get("reference") ?? params.get("trxref");
+    if (!reference) return;
+    let cancelled = false;
+    const attempt = async (retriesLeft: number): Promise<void> => {
+      if (cancelled) return;
+      try {
+        const payment = await paymentByRefFn({ data: { reference } });
+        if (payment) {
+          trackPurchase({ transactionId: payment.reference, value: payment.amount, currency: payment.currency });
+          return;
+        }
+      } catch {
+        // fall through to retry/give-up below
+      }
+      if (retriesLeft > 0 && !cancelled) {
+        await new Promise((r) => setTimeout(r, 2000));
+        return attempt(retriesLeft - 1);
+      }
+      // Best-effort — a payment row that never settles should never block the page.
+    };
+    void attempt(4);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -197,6 +229,7 @@ function StudioPage() {
   const lipSyncFn = useServerFn(lipSyncVideo);
   const profileFn = useServerFn(getMyProfile);
   const checkoutFn = useServerFn(createPaystackCheckout);
+  const paymentByRefFn = useServerFn(getPaymentByReference);
   const publishFn = useServerFn(publishGeneration);
   const detectCurrencyFn = useServerFn(detectCurrency);
   const { data: geo } = useQuery({ queryKey: ["geo-currency"], queryFn: () => detectCurrencyFn(), staleTime: 60 * 60 * 1000 });
@@ -249,6 +282,7 @@ function StudioPage() {
     },
     onSuccess: () => {
       markFirstGenComplete();
+      trackGenerationCompleted("image");
       toast.success("Shot ready");
       qc.invalidateQueries({ queryKey: ["gens"] });
       qc.invalidateQueries({ queryKey: ["profile"] });
@@ -294,6 +328,9 @@ function StudioPage() {
         toast.success("Preview ready — click again to render in full quality");
       } else {
         setVideoPreviewId(null);
+        // Previews are low-res drafts, not the final deliverable — only the
+        // full-quality render counts as a completed generation.
+        trackGenerationCompleted("video");
         toast.success("Video ready");
       }
       qc.invalidateQueries({ queryKey: ["gens"] });
@@ -326,6 +363,7 @@ function StudioPage() {
       return lipSyncFn({ data: { videoUrl, audioUrl, model: lipsyncModel } });
     },
     onSuccess: () => {
+      trackGenerationCompleted("lipsync");
       toast.success("Lip-sync ready");
       qc.invalidateQueries({ queryKey: ["gens"] });
       qc.invalidateQueries({ queryKey: ["profile"] });

@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useNavigate } from "@tanstack/react-router";
+import { trackSignUp } from "@/lib/gtm";
 
 export const Route = createFileRoute("/auth")({
   component: AuthPage,
@@ -35,8 +36,19 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
 
+  // Google OAuth normally redirects the whole page away and back (see
+  // handleGoogleSignIn), so a sign_up push made right before that redirect
+  // would never survive the navigation. Instead we stash intent in
+  // sessionStorage before redirecting and resolve it here once the session
+  // comes back — this covers both the redirect and same-tab OAuth paths.
+  const OAUTH_SIGNUP_INTENT_KEY = "aurora.oauth_signup_intent";
   useEffect(() => {
-    if (!loading && session) navigate({ to: "/studio" });
+    if (loading || !session) return;
+    if (typeof window !== "undefined" && sessionStorage.getItem(OAUTH_SIGNUP_INTENT_KEY)) {
+      sessionStorage.removeItem(OAUTH_SIGNUP_INTENT_KEY);
+      trackSignUp("google");
+    }
+    navigate({ to: "/studio" });
   }, [session, loading, navigate]);
 
   const submit = async (e: React.FormEvent) => {
@@ -59,6 +71,10 @@ function AuthPage() {
         if (uid) {
           await supabase.from("profiles").update({ display_name: name }).eq("user_id", uid);
         }
+        // Account is created (profiles row + trigger fires) regardless of
+        // whether the session is issued immediately or email confirmation
+        // is required first, so fire sign_up in both branches.
+        trackSignUp("email");
         if (data.session) {
           toast.success(`Welcome, ${name}!`);
           navigate({ to: "/studio" });
@@ -80,6 +96,14 @@ function AuthPage() {
   const handleGoogleSignIn = async () => {
     setGoogleBusy(true);
     try {
+      // Google covers both sign-in and sign-up from the same button; only
+      // attribute it as a sign_up conversion when the visitor was on the
+      // signup tab (we have no reliable "is this a new user" signal here).
+      // Stashed *before* the call because a redirect can happen synchronously
+      // inside it — the flag is resolved by the effect above once we're back.
+      if (mode === "signup" && typeof window !== "undefined") {
+        sessionStorage.setItem(OAUTH_SIGNUP_INTENT_KEY, "1");
+      }
       const result = await lovable.auth.signInWithOAuth("google", {
         redirect_uri: window.location.origin,
       });
@@ -94,8 +118,11 @@ function AuthPage() {
       }
 
       toast.success("Signed in with Google!");
+      // The effect above fires trackSignUp/navigate once `session` updates;
+      // navigate here too in case that update lags a tick behind this return.
       navigate({ to: "/studio" });
     } catch (err) {
+      if (typeof window !== "undefined") sessionStorage.removeItem(OAUTH_SIGNUP_INTENT_KEY);
       toast.error(err instanceof Error ? err.message : "Google sign-in failed");
     } finally {
       setGoogleBusy(false);

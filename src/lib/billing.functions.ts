@@ -154,6 +154,30 @@ export const createPaystackCheckout = createServerFn({ method: "POST" })
     return { authorizationUrl: json.data.authorization_url, reference: json.data.reference };
   });
 
+/** Looks up a succeeded payment by Paystack reference, scoped to the caller's
+ * own user_id, so the studio page can report the exact amount/currency to
+ * the GTM dataLayer after the ?paid=1 redirect without trusting client-side
+ * query params for the charge amount. */
+export const getPaymentByReference = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ reference: z.string().min(1).max(200) }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    const { data: payment } = await supabaseAdmin
+      .from("payments")
+      .select("reference, amount_kobo, currency, status")
+      .eq("reference", data.reference)
+      .eq("user_id", userId)
+      .eq("status", "succeeded")
+      .maybeSingle();
+    if (!payment) return null;
+    return {
+      reference: payment.reference,
+      amount: payment.amount_kobo / 100,
+      currency: payment.currency,
+    };
+  });
+
 // ── Pro subscription checkout ─────────────────────────────────────────────────
 
 /** Get or create the Aurora Pro Paystack plan, caching the plan_code. */
