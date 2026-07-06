@@ -6,7 +6,7 @@ import { buildLatentSyncRequest } from "./lipsync-workflows.server";
 import { fetchToBytes } from "./replicate.server";
 import { compressImageBytes, compressVideoBytes } from "./compress.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { assertTrustedUrl } from "./url-guard";
+import { assertTrustedUrl, assertOwnedReferenceImage } from "./url-guard";
 import { buildMimicMotionRequest, MOTION_TYPES, CAMERA_MOVEMENTS } from "./motion-workflows.server";
 import { computeCost } from "./pricing";
 import { isAdmin } from "./admin.server";
@@ -764,7 +764,7 @@ export const generateMimicMotion = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => MotionTransferSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { userId } = context;
-    assertTrustedUrl(data.imageUrl);
+    await assertOwnedReferenceImage(data.imageUrl, userId);
     assertTrustedUrl(data.drivingVideoUrl);
 
     if (!(await hasActiveWorkerForKind("motion"))) {
@@ -803,7 +803,7 @@ export const generatePerformanceReskin = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     assertTrustedUrl(data.performanceVideoUrl);
-    assertTrustedUrl(data.avatarImageUrl);
+    await assertOwnedReferenceImage(data.avatarImageUrl, userId);
     if (data.audioUrl) assertTrustedUrl(data.audioUrl);
 
     if (!(await hasActiveWorkerForKind("motion"))) {
