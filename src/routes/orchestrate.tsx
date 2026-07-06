@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -163,6 +163,44 @@ function OrchestratePage() {
     model,
   });
   const cost = quote.total;
+
+  // Live server round-trip for the full-quality render: the number above is
+  // computed client-side from the same pricing module the server uses, but a
+  // client bundle can go stale or drift. Once the preview resolves and the
+  // "Render Full Quality" button is about to be shown, fetch a fresh quote
+  // from GET /api/estimate so the displayed price can never disagree with
+  // what the server will actually charge.
+  const [serverEstimate, setServerEstimate] = useState<{ credits: number } | null>(null);
+  const [estimateLoading, setEstimateLoading] = useState(false);
+  useEffect(() => {
+    if (!awaitingFullRender) {
+      setServerEstimate(null);
+      return;
+    }
+    let cancelled = false;
+    setEstimateLoading(true);
+    const params = new URLSearchParams({ kind: modality, model });
+    if (usesResolution) params.set("resolution", resolution);
+    if (usesDuration) params.set("duration", String(duration));
+    fetch(`/api/estimate?${params.toString()}`)
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then((data: { credits: number }) => {
+        if (!cancelled) setServerEstimate(data);
+      })
+      .catch(() => {
+        // Non-fatal: keep showing the client-computed number if the round-trip fails.
+        if (!cancelled) setServerEstimate(null);
+      })
+      .finally(() => {
+        if (!cancelled) setEstimateLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [awaitingFullRender, modality, model, resolution, duration, usesResolution, usesDuration]);
+  // Prefer the server-confirmed number once it lands; it's what will actually be charged.
+  const displayCost = serverEstimate?.credits ?? cost;
 
   const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0$/, ""));
 
