@@ -1,0 +1,36 @@
+Requirement already satisfied: opt_einsum in /usr/local/lib/python3.12/dist-packages (from jax->mediapipe==0.10.14->-r requirements.txt (line 11)) (3.4.0)
+Requirement already satisfied: contourpy>=1.0.1 in /usr/local/lib/python3.12/dist-packages (from matplotlib->mediapipe==0.10.14->-r requirements.txt (line 11)) (1.3.3)
+Requirement already satisfied: cycler>=0.10 in /usr/local/lib/python3.12/dist-packages (from matplotlib->mediapipe==0.10.14->-r requirements.txt (line 11)) (0.12.1)
+Requirement already satisfied: fonttools>=4.22.0 in /usr/local/lib/python3.12/dist-packages (from matplotlib->mediapipe==0.10.14->-r requirements.txt (line 11)) (4.62.1)
+Requirement already satisfied: kiwisolver>=1.3.1 in /usr/local/lib/python3.12/dist-packages (from matplotlib->mediapipe==0.10.14->-r requirements.txt (line 11)) (1.5.0)
+Requirement already satisfied: pyparsing>=2.3.1 in /usr/local/lib/python3.12/dist-packages (from matplotlib->mediapipe==0.10.14->-r requirements.txt (line 11)) (3.3.2)
+Requirement already satisfied: wcwidth in /usr/local/lib/python3.12/dist-packages (from prettytable->insightface==0.7.3->-r requirements.txt (line 24)) (0.6.0)
+Requirement already satisfied: tifffile>=2022.8.12 in /usr/local/lib/python3.12/dist-packages (from scikit-image->face-alignment==1.4.1->-r requirements.txt (line 19)) (2026.3.3)
+Requirement already satisfied: pycparser in /usr/local/lib/python3.12/dist-packages (from cffi->sounddevice>=0.4.4->mediapipe==0.10.14->-r requirements.txt (line 11)) (3.0)
+Requirement already satisfied: six>=1.5 in /usr/local/lib/python3.12/dist-packages (from python-dateutil>=2.8.2->pandas<3.0,>=1.0->gradio==5.24.0->-r requirements.txt (line 20)) (1.17.0)
+Requirement already satisfied: markdown-it-py>=2.2.0 in /usr/local/lib/python3.12/dist-packages (from rich>=12.3.0->typer<1.0,>=0.12->gradio==5.24.0->-r requirements.txt (line 20)) (4.0.0)
+Requirement already satisfied: pygments<3.0.0,>=2.13.0 in /usr/local/lib/python3.12/dist-packages (from rich>=12.3.0->typer<1.0,>=0.12->gradio==5.24.0->-r requirements.txt (line 20)) (2.20.0)
+Requirement already satisfied: mdurl~=0.1 in /usr/local/lib/python3.12/dist-packages (from markdown-it-py>=2.2.0->rich>=12.3.0->typer<1.0,>=0.12->gradio==5.24.0->-r requirements.txt (line 20)) (0.1.2)
+/kaggle/working/LatentSync/checkpoints
+==> Done. Installed tasks: [lipsync]
+[setup] setup complete
+\n[serve] starting FastAPI server on :8000 ...
+INFO:     Started server process [292]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:35708 - "GET /health HTTP/1.1" 200 OK
+[serve] healthy after 2s
+\n[ngrok] opening tunnel ...
+[ngrok] auth token set
+[ngrok] connecting to remover-blinking-knoll.ngrok-free.dev ...
+[ngrok] tunnel: https://remover-blinking-knoll.ngrok-free.dev
+\n[register] registering ...
+[register] failed 401: {"error":"Unauthorized"}
+\n======================================================================
+WORKER IS LIVE
+   Endpoint: https://remover-blinking-knoll.ngrok-free.dev/generate
+   Tasks: lipsync
+======================================================================
+\nKeep this cell running!
+add Codeadd Markdown
