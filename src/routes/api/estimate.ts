@@ -13,6 +13,13 @@
 //
 // Intentionally side-effect-free: no auth, no credit reservation, no DB
 // writes — just a pure quote, safe to call as often as the UI likes.
+//
+// Contract note: this endpoint accepts the pricing-relevant SUBSET of the
+// orchestrate/public-generate payload (kind, resolution, duration, model,
+// features, and the URLs/camera-movement used only for feature detection) —
+// not every field those endpoints accept (e.g. prompt, imageUrls). Only the
+// params that feed computeCost()/detectFeatures() or the tier guardrails are
+// needed for an accurate quote.
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { detectFeatures, computeCost, type Feature } from "@/lib/pricing";
@@ -181,7 +188,10 @@ export const Route = createFileRoute("/api/estimate")({
           headers: {
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
+            // Authorization is included so cross-origin callers can pass a Bearer
+            // token to get tier-aware guardrail checks (see resolveTier below) —
+            // the same-origin orchestrate.tsx flow already sends this header.
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
           },
         }),
     },
