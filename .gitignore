@@ -69,3 +69,11 @@ attached_assets/Motion_transfer_studio*.zip
 attached_assets/*.zip
 notebooks/*.zip
 *.zip
+
+# Raw generated media staging area. Generated clips/images land here first,
+# then get copied into their permanent home (e.g. src/assets/kids/,
+# public/videos/) for use in the app. The staging copies must never be
+# committed too, or every regeneration duplicates multi-MB media in git
+# (happened with kids_*.mp4 duplicating src/assets/kids/*.mp4).
+attached_assets/generated_videos/
+attached_assets/generated_images/
