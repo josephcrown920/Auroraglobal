@@ -15,6 +15,7 @@ dist-ssr
 .tanstack/**
 .nitro
 *.local
+.local/
 
 # Playwright e2e artifacts
 playwright-report/
