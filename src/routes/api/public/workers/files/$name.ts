@@ -16,6 +16,7 @@ import path from "node:path";
 const ALLOWED: Record<string, string> = {
   "aurora_worker.py": "workers/aurora_worker.py",
   "setup.sh": "workers/setup.sh",
+  "kaggle_bootstrap.py": "workers/kaggle/aurora_worker_kaggle.py",
 };
 
 export const Route = createFileRoute("/api/public/workers/files/$name")({
