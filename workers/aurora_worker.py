@@ -276,21 +276,77 @@ ASSEMBLE_H = int(os.environ.get("AURORA_ASSEMBLE_H", "1280"))
 ASSEMBLE_FPS = int(os.environ.get("AURORA_ASSEMBLE_FPS", "24"))
 ASSEMBLE_MAX_SCENES = int(os.environ.get("AURORA_ASSEMBLE_MAX_SCENES", "12"))
 
+# AutoCut style id -> per-clip duration bounds + transition. Mirrors
+# CUT_RATE_BOUNDS / getStyleCutRule() in src/lib/autocut.server.ts (that file
+# can't be imported from Python, so keep the two definitions in lockstep).
+STYLE_CUT_RULES: dict[str, dict[str, Any]] = {
+    "hype": {"min": 0.6, "max": 1.5, "transition": "cut"},
+    "cinematic": {"min": 3.0, "max": 5.0, "transition": "crossfade"},
+    "talking_head": {"min": 4.0, "max": 8.0, "transition": "cut"},
+    "tiktok_hook": {"min": 0.8, "max": 2.5, "transition": "cut"},
+}
+DEFAULT_CUT_RULE = {"min": 0.5, "max": 8.0, "transition": "cut"}
+ASSEMBLE_CROSSFADE_SEC = 0.8
+
+
+def _has_audio_stream(path: str) -> bool:
+    try:
+        out = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "a",
+             "-show_entries", "stream=index", "-of", "csv=p=0", path],
+            capture_output=True, text=True, check=True,
+        )
+        return bool((out.stdout or "").strip())
+    except Exception:
+        return False
+
+
+def _xfade_merge_scenes(scenes: list[tuple[str, float]], crossfade_sec: float) -> str:
+    """Sequentially crossfades (path, duration) scenes into one file via
+    ffmpeg's xfade/acrossfade filters, mirroring xfadeMergeScenes() in
+    autocut.server.ts."""
+    acc_path, acc_dur = scenes[0]
+    for path, dur in scenes[1:]:
+        cf = max(0.1, min(crossfade_sec, acc_dur - 0.1, dur - 0.1))
+        offset = max(0.0, acc_dur - cf)
+        out = str(WORK_DIR / f"{uuid.uuid4().hex}_xfade.mp4")
+        subprocess.run(
+            ["ffmpeg", "-y", "-i", acc_path, "-i", path,
+             "-filter_complex",
+             f"[0:v][1:v]xfade=transition=fade:duration={cf:.3f}:offset={offset:.3f}[v];"
+             f"[0:a][1:a]acrossfade=d={cf:.3f}[a]",
+             "-map", "[v]", "-map", "[a]",
+             "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+             "-c:a", "aac", "-ar", "48000", "-ac", "2", out],
+            check=True,
+        )
+        acc_path, acc_dur = out, acc_dur + dur - cf
+    return acc_path
+
 
 def run_assemble(params: dict[str, Any]) -> str:
-    """Stitch a faceless kids story into one MP4.
+    """Stitch either a faceless kids story (picture + narration) or an AutoCut
+    edit (the user's own footage) into one MP4.
 
-    For each scene the picture is normalized to a single canvas/fps and its
-    narration becomes the scene's audio — the picture is freeze-extended or
-    trimmed so voice and picture stay in sync. Scenes are concatenated in order
-    and a looped, ducked music bed is mixed underneath. ffmpeg-only, so any
-    worker with ffmpeg can advertise the `assemble` capability.
+    Kids story: each scene's picture is normalized to a single canvas/fps and
+    its narration becomes the scene's audio, freeze-extended/trimmed to match.
+    AutoCut (`style` present, no narration): each clip's OWN audio is kept —
+    silencing it would drop real speech/ambience from the user's footage — and
+    scene length/transition follow the chosen style's cut-point rule (see
+    STYLE_CUT_RULES) instead of a narration track.
+
+    Either way, scenes are concatenated (or crossfaded, for styles that call
+    for it) in order and a looped, ducked music bed is mixed underneath, then
+    the result is hard-trimmed to `max_duration`. ffmpeg-only, so any worker
+    with ffmpeg can advertise the `assemble` capability.
     """
     clips = params.get("clips") or []
     narrations = params.get("narrations") or []
     durations = params.get("durations") or []
+    style = params.get("style")
     music_url = params.get("music_url")
     music_volume = float(params.get("music_volume", 0.18))
+    max_duration = float(params.get("max_duration", 60.0))
 
     if not clips:
         raise ValueError("assemble requires at least one clip")
@@ -300,23 +356,27 @@ def run_assemble(params: dict[str, Any]) -> str:
         if not isinstance(u, str) or not u.startswith(("http://", "https://")):
             raise ValueError("assemble: every clip must be an http(s) url")
 
-    scene_files: list[str] = []
+    cut_rule = STYLE_CUT_RULES.get(style, DEFAULT_CUT_RULE) if style else DEFAULT_CUT_RULE
+
+    scenes: list[tuple[str, float]] = []
     for i, clip_url in enumerate(clips):
         clip = _download(clip_url, ".mp4")
         narr_url = narrations[i] if i < len(narrations) else None
         narr = _download(narr_url, ".wav") if narr_url else None
-        # Scene length follows the narration when present, else the requested or
-        # probed clip duration.
         req = float(durations[i]) if i < len(durations) and durations[i] else 0.0
         if narr:
+            # Kids story: scene length follows the narration track.
             dur = _ffprobe_duration(narr) or req or _ffprobe_duration(clip) or 5.0
+            dur = max(0.5, min(dur, 60.0))
         else:
-            dur = req or _ffprobe_duration(clip) or 5.0
-        dur = max(0.5, min(dur, 60.0))
+            # AutoCut: trim/freeze-extend to the style's cut-point bounds.
+            probed = req or _ffprobe_duration(clip) or cut_rule["max"]
+            dur = max(cut_rule["min"], min(probed, cut_rule["max"]))
+        with_audio = (not narr) and _has_audio_stream(clip)
 
         scene_out = str(WORK_DIR / f"{uuid.uuid4().hex}_scene{i}.mp4")
         # Over-pad (clone last frame) then hard-trim to `dur`: longer clips are
-        # trimmed, shorter clips freeze on their final frame to fill the voice.
+        # trimmed, shorter clips freeze on their final frame.
         vf = (
             f"scale={ASSEMBLE_W}:{ASSEMBLE_H}:force_original_aspect_ratio=decrease,"
             f"pad={ASSEMBLE_W}:{ASSEMBLE_H}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={ASSEMBLE_FPS},"
@@ -325,40 +385,56 @@ def run_assemble(params: dict[str, Any]) -> str:
         cmd = ["ffmpeg", "-y", "-i", clip]
         if narr:
             cmd += ["-i", narr, "-filter_complex", f"[0:v]{vf}[v]", "-map", "[v]", "-map", "1:a"]
+        elif with_audio:
+            # AutoCut with its own audio: keep the clip's real audio track.
+            cmd += ["-filter_complex", f"[0:v]{vf}[v]", "-map", "[v]", "-map", "0:a"]
         else:
-            # Silent stereo track so every scene exposes matching streams for concat.
+            # No narration and no audio stream: pad with silence so every scene
+            # exposes matching streams for concat/xfade.
             cmd += ["-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000",
                     "-filter_complex", f"[0:v]{vf}[v]", "-map", "[v]", "-map", "1:a"]
         cmd += ["-t", f"{dur:.3f}", "-c:v", "libx264", "-preset", "veryfast",
                 "-pix_fmt", "yuv420p", "-c:a", "aac", "-ar", "48000", "-ac", "2", scene_out]
         subprocess.run(cmd, check=True)
-        scene_files.append(scene_out)
+        scenes.append((scene_out, dur))
 
-    # Concat scenes (identical codecs/canvas/fps) in order.
-    list_path = WORK_DIR / f"{uuid.uuid4().hex}_concat.txt"
-    list_path.write_text("".join(f"file '{p}'\n" for p in scene_files))
-    concat_out = str(WORK_DIR / f"{uuid.uuid4().hex}_concat.mp4")
+    if cut_rule["transition"] == "crossfade" and len(scenes) > 1:
+        concat_out = _xfade_merge_scenes(scenes, ASSEMBLE_CROSSFADE_SEC)
+    else:
+        list_path = WORK_DIR / f"{uuid.uuid4().hex}_concat.txt"
+        list_path.write_text("".join(f"file '{p}'\n" for p, _ in scenes))
+        concat_out = str(WORK_DIR / f"{uuid.uuid4().hex}_concat.mp4")
+        subprocess.run(
+            ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(list_path),
+             "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+             "-c:a", "aac", "-ar", "48000", "-ac", "2", concat_out],
+            check=True,
+        )
+
+    if music_url:
+        # Mix a looped, ducked music bed under the scene audio for the full duration.
+        music = _download(music_url, ".mp3")
+        final_out = str(WORK_DIR / f"{uuid.uuid4().hex}_final.mp4")
+        subprocess.run(
+            ["ffmpeg", "-y", "-i", concat_out, "-stream_loop", "-1", "-i", music,
+             "-filter_complex",
+             f"[1:a]volume={music_volume}[m];[0:a][m]amix=inputs=2:duration=first:dropout_transition=0[a]",
+             "-map", "0:v", "-map", "[a]",
+             "-t", f"{max_duration:.3f}",
+             "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-c:a", "aac",
+             "-shortest", final_out],
+            check=True,
+        )
+        return final_out
+
+    # No music: still hard-trim to max_duration so an over-long assembly never
+    # slips past the contract's "≤60s" bound.
+    trimmed_out = str(WORK_DIR / f"{uuid.uuid4().hex}_trimmed.mp4")
     subprocess.run(
-        ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(list_path),
-         "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
-         "-c:a", "aac", "-ar", "48000", "-ac", "2", concat_out],
+        ["ffmpeg", "-y", "-i", concat_out, "-t", f"{max_duration:.3f}", "-c", "copy", trimmed_out],
         check=True,
     )
-
-    if not music_url:
-        return concat_out
-
-    # Mix a looped, ducked music bed under the narration for the full duration.
-    music = _download(music_url, ".mp3")
-    final_out = str(WORK_DIR / f"{uuid.uuid4().hex}_final.mp4")
-    subprocess.run(
-        ["ffmpeg", "-y", "-i", concat_out, "-stream_loop", "-1", "-i", music,
-         "-filter_complex",
-         f"[1:a]volume={music_volume}[m];[0:a][m]amix=inputs=2:duration=first:dropout_transition=0[a]",
-         "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-shortest", final_out],
-        check=True,
-    )
-    return final_out
+    return trimmed_out
 
 
 # ── Lyric video (ffmpeg + libass only — no model weights) ─────────────────────
