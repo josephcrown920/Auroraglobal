@@ -5,7 +5,7 @@ import { toast } from "sonner";
  * Used throughout the app for consistent error messaging.
  */
 
-type GenErrorKind =
+export type GenErrorKind =
   | "insufficient_aura"
   | "no_workers"
   | "out_of_credit"
@@ -25,7 +25,7 @@ function rawMessage(error: unknown): string {
  * matters: more specific signals (out-of-credit) are checked before the broader
  * rate-limit bucket they overlap with.
  */
-function classifyGenerationError(error: unknown): GenErrorKind {
+export function classifyGenerationError(error: unknown): GenErrorKind {
   const msg = rawMessage(error).toLowerCase();
   if (!msg) return "unknown";
 
