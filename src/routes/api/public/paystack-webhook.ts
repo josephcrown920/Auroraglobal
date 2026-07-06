@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createHmac, createHash, timingSafeEqual } from "crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { computeProfitSplit } from "@/lib/profit-split";
 import { SUBSCRIPTION_TIERS } from "@/lib/billing.plans";
+import { processPaymentSuccess } from "@/lib/paystack-webhook.server";
 
 /**
  * Derive a stable, deterministic UUID from an arbitrary string input.
@@ -186,66 +186,28 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
 
         // ── One-time credit pack charge ───────────────────────────────────────
         if (event.event === "charge.success" && event.data.status === "success" && !event.data.subscription_code) {
-          const reference = event.data.reference ?? "";
-          const { data: payment } = await supabaseAdmin
-            .from("payments")
-            .select("id, user_id, credits_granted, status, currency, amount_kobo")
-            .eq("reference", reference)
-            .maybeSingle();
-          if (!payment) return new Response("not found", { status: 200 });
-          if (payment.status === "succeeded") return new Response("already processed", { status: 200 });
-
-          await supabaseAdmin.rpc("grant_credits", {
-            _user: payment.user_id,
-            _amount: payment.credits_granted,
-            _reason: "purchase",
-            _ref: payment.id,
-          });
-          const split = computeProfitSplit(payment.amount_kobo);
-          await supabaseAdmin.from("payments").update({
-            status: "succeeded",
-            raw: event,
-            profit_amount_minor: split.profit_minor,
-            credit_funding_amount_minor: split.credit_funding_minor,
-            split_profit_pct: split.profit_pct,
-          }).eq("id", payment.id);
-
-          // Affiliate conversion
+          // Delegate to the shared processor, which tolerates the race where
+          // this webhook arrives before the checkout redirect has finished
+          // inserting the `payments` row (retries with backoff, then recovers
+          // the row from the webhook's own metadata) so a paid customer never
+          // loses their credits. See paystack-webhook.server.ts.
           try {
-            const raw = (payment as { raw?: { ref?: string } }).raw;
-            let refCode = raw?.ref ?? event.data.metadata?.ref;
-            if (!refCode) {
-              const { data: prof } = await supabaseAdmin
-                .from("profiles")
-                .select("referred_by_code")
-                .eq("user_id", payment.user_id)
-                .maybeSingle();
-              refCode = prof?.referred_by_code ?? undefined;
-            }
-            if (refCode) {
-              const { data: aff } = await supabaseAdmin
-                .from("affiliates")
-                .select("code, commission_pct, total_earned_usd")
-                .eq("code", String(refCode).toLowerCase())
-                .maybeSingle();
-              if (aff) {
-                const minor = Number((event.data as { amount?: number }).amount ?? 0);
-                const usdValue = minor / 100;
-                const amountUsd = usdValue * (aff.commission_pct / 100);
-                await supabaseAdmin.from("affiliate_events").insert({
-                  code: aff.code,
-                  kind: "conversion",
-                  amount_usd: amountUsd,
-                  user_id: payment.user_id,
-                  ref_id: payment.id,
-                });
-                await supabaseAdmin.from("affiliates")
-                  .update({ total_earned_usd: Number(aff.total_earned_usd ?? 0) + amountUsd })
-                  .eq("code", aff.code);
-              }
-            }
-          } catch {
-            // never let affiliate accounting break a successful payment
+            await processPaymentSuccess({
+              event: event.event,
+              data: {
+                reference: event.data.reference ?? "",
+                status: event.data.status ?? "",
+                amount: event.data.amount,
+                metadata: event.data.metadata,
+              },
+            });
+          } catch (err) {
+            // Payment row still hasn't appeared after retries and the webhook
+            // carried no recovery metadata — return a retriable (non-2xx)
+            // response so Paystack redelivers instead of us silently dropping
+            // the charge.
+            console.error("[paystack-webhook] processPaymentSuccess failed", err);
+            return new Response("retry", { status: 409 });
           }
         }
 
