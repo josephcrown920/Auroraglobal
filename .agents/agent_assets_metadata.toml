@@ -228,6 +228,12 @@ uri = "file://attached_assets/generated_images/onboarding_vibe_cyclo.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "pilTtolKZNIshbJQuEL1g"
+uri = "file://attached_assets/generated_images/product_lifestyle_cafe_table.png"
+type = "image"
+title = "product lifestyle cafe table v2"
+
 [[outputs]]
 id = "uuVDpq4W7VbbIZdWQslyD"
 uri = "file://notebooks/hybrid_ai_inference_colab.zip"
