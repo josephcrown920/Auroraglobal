@@ -1,0 +1,55 @@
+t=2026-07-06T07:35:55+0000 lvl=eror msg="failed to reconnect session" obj=tunnels.session err="authentication failed: This ngrok session is not authenticated. ngrok requires an account and a valid credential to start a session.\n\nSign up for an account: https://dashboard.ngrok.com/signup\nGet your credential: https://dashboard.ngrok.com/get-started/your-authtoken\r\n\r\nERR_NGROK_4018\r\n"
+ERROR:  authentication failed: This ngrok session is not authenticated. ngrok requires an account and a valid credential to start a session.
+ERROR:  
+ERROR:  Sign up for an account: https://dashboard.ngrok.com/signup
+ERROR:  Get your credential: https://dashboard.ngrok.com/get-started/your-authtoken
+ERROR:  
+ERROR:  ERR_NGROK_4018
+ERROR:  https://ngrok.com/docs/errors/err_ngrok_4018
+ERROR:  
+t=2026-07-06T07:35:55+0000 lvl=eror msg="session closing" obj=tunnels.session err="authentication failed: This ngrok session is not authenticated. ngrok requires an account and a valid credential to start a session.\n\nSign up for an account: https://dashboard.ngrok.com/signup\nGet your credential: https://dashboard.ngrok.com/get-started/your-authtoken\r\n\r\nERR_NGROK_4018\r\n"
+---------------------------------------------------------------------------
+PyngrokNgrokError                         Traceback (most recent call last)
+/tmp/ipykernel_58/1672007229.py in <cell line: 0>()
+    185 else:
+    186     print("[ngrok] no NGROK_STATIC_DOMAIN — using dynamic tunnel", flush=True)
+--> 187     public_url = ngrok.connect(8000).public_url
+    188 print(f"[ngrok] ✅ tunnel: {public_url}", flush=True)
+    189 
+
+/usr/local/lib/python3.12/dist-packages/pyngrok/ngrok.py in connect(addr, proto, name, pyngrok_config, **options)
+    387     logger.info(f"Opening tunnel named: {name}")
+    388 
+--> 389     api_url = get_ngrok_process(pyngrok_config).api_url
+    390 
+    391     logger.debug(f"Creating tunnel with options: {options}")
+
+/usr/local/lib/python3.12/dist-packages/pyngrok/ngrok.py in get_ngrok_process(pyngrok_config)
+    215     install_ngrok(pyngrok_config)
+    216 
+--> 217     return process.get_process(pyngrok_config)
+    218 
+    219 
+
+/usr/local/lib/python3.12/dist-packages/pyngrok/process.py in get_process(pyngrok_config)
+    271         return _current_processes[pyngrok_config.ngrok_path]
+    272 
+--> 273     return _start_process(pyngrok_config)
+    274 
+    275 
+
+/usr/local/lib/python3.12/dist-packages/pyngrok/process.py in _start_process(pyngrok_config)
+    447 
+    448         if ngrok_process.startup_error is not None:
+--> 449             raise PyngrokNgrokError(f"The ngrok process errored on start: {ngrok_process.startup_error}.",
+    450                                     ngrok_process.logs,
+    451                                     ngrok_process.startup_error)
+
+PyngrokNgrokError: The ngrok process errored on start: authentication failed: This ngrok session is not authenticated. ngrok requires an account and a valid credential to start a session.\n\nSign up for an account: https://dashboard.ngrok.com/signup\nGet your credential: https://dashboard.ngrok.com/get-started/your-authtoken\r\n\r\nERR_NGROK_4018\r\n.
+INFO:     Started server process [333]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+add Codeadd Markdown
