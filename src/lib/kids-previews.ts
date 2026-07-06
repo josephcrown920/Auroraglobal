@@ -35,12 +35,14 @@ export const KIDS_CHARACTER_PREVIEWS: Record<string, CartoonClip> = {
  * here — the showcase carousel in src/routes/kids.tsx picks these up
  * automatically, no UI changes needed.
  */
-export const KIDS_STORY_SHOWCASE: {
+export type KidsShowcaseSample = {
   id: string;
   title: string;
   blurb: string;
   clip: CartoonClip;
-}[] = [
+};
+
+export const KIDS_STORY_SHOWCASE: KidsShowcaseSample[] = [
   {
     id: "bedtime",
     title: "Twinkle, the little star",
