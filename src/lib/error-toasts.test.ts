@@ -1,10 +1,30 @@
-// Generation error classifier (task #105) — pure classification tests.
+// Generation error classifier — pure classification tests.
 // classifyGenerationError/friendlyGenerationMessage decide what customers see
 // for a raw provider/app error string. Order matters (out_of_credit is a more
 // specific bucket than the broader rate_limited one it overlaps with), and
 // provider-dump / app-authored messages must never leak or be mangled.
-import { describe, expect, test } from "bun:test";
-import { classifyGenerationError, friendlyGenerationMessage } from "./error-toasts";
+//
+// This file also covers handlePaymentError/handleAuthError/handleWebhookError.
+// error-toasts.ts is the ONLY module under test that imports "sonner" (verified:
+// no other *.test.ts file imports sonner directly or transitively), so mocking
+// "sonner" here via mock.module is safe from the process-global leakage this
+// codebase has been bitten by before (see the Bun mock.module lesson) — this is
+// the single suite that ever touches it.
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+
+const toastError = mock(() => {});
+const toastSuccess = mock(() => {});
+mock.module("sonner", () => ({
+  toast: { error: toastError, success: toastSuccess },
+}));
+
+const {
+  classifyGenerationError,
+  friendlyGenerationMessage,
+  handlePaymentError,
+  handleAuthError,
+  handleWebhookError,
+} = await import("./error-toasts");
 
 describe("classifyGenerationError — ordering", () => {
   test("a Replicate low-balance 429 that also says 'rate limit' is out_of_credit, not rate_limited", () => {
@@ -127,5 +147,118 @@ describe("friendlyGenerationMessage", () => {
 
   test("a truly empty error falls back to a generic message", () => {
     expect(friendlyGenerationMessage(new Error(""))).toBe("Generation failed");
+  });
+});
+
+describe("handlePaymentError", () => {
+  beforeEach(() => {
+    toastError.mockClear();
+  });
+
+  test("a declined card shows the declined-card message", () => {
+    handlePaymentError(new Error("Your card was declined."));
+    expect(toastError).toHaveBeenCalledTimes(1);
+    expect(toastError).toHaveBeenCalledWith("Card declined. Check your payment method.");
+  });
+
+  test("an expired card shows the expired-card message", () => {
+    handlePaymentError(new Error("This card has expired."));
+    expect(toastError).toHaveBeenCalledWith("Card expired. Try a different card.");
+  });
+
+  test("a 3d Secure failure (lowercase substring match) shows the 3D Secure message", () => {
+    handlePaymentError(new Error("3d secure authentication failed."));
+    expect(toastError).toHaveBeenCalledWith("3D Secure verification failed. Try a different card.");
+  });
+
+  test("an uppercase '3D Secure' message is NOT matched by the case-sensitive check and passes through verbatim", () => {
+    handlePaymentError(new Error("3D Secure authentication failed."));
+    expect(toastError).toHaveBeenCalledWith("3D Secure authentication failed.");
+  });
+
+  test("an unrecognized Error message passes through verbatim", () => {
+    handlePaymentError(new Error("Stripe: card_error - insufficient_funds"));
+    expect(toastError).toHaveBeenCalledWith("Stripe: card_error - insufficient_funds");
+  });
+
+  test("a non-Error input falls back to the generic payment-failed message", () => {
+    handlePaymentError("some string, not an Error instance");
+    expect(toastError).toHaveBeenCalledWith("Payment failed");
+  });
+});
+
+describe("handleAuthError", () => {
+  beforeEach(() => {
+    toastError.mockClear();
+  });
+
+  test("invalid credentials shows the invalid-login message", () => {
+    handleAuthError(new Error("invalid credentials"));
+    expect(toastError).toHaveBeenCalledWith("Invalid email or password.");
+  });
+
+  test("user not found shows the no-account message", () => {
+    handleAuthError(new Error("user not found"));
+    expect(toastError).toHaveBeenCalledWith("No account found. Create one first.");
+  });
+
+  test("email not confirmed shows the confirm-email message", () => {
+    handleAuthError(new Error("email not confirmed"));
+    expect(toastError).toHaveBeenCalledWith("Check your email to confirm your account.");
+  });
+
+  test("an unrecognized Error message passes through verbatim", () => {
+    handleAuthError(new Error("Supabase: unexpected_failure"));
+    expect(toastError).toHaveBeenCalledWith("Supabase: unexpected_failure");
+  });
+
+  test("a non-Error input falls back to the generic auth-failed message", () => {
+    handleAuthError({ code: 500 });
+    expect(toastError).toHaveBeenCalledWith("Authentication failed");
+  });
+});
+
+describe("handleWebhookError", () => {
+  let errorSpy: ReturnType<typeof mock>;
+  let warnSpy: ReturnType<typeof mock>;
+  let originalError: typeof console.error;
+  let originalWarn: typeof console.warn;
+
+  beforeEach(() => {
+    originalError = console.error;
+    originalWarn = console.warn;
+    errorSpy = mock(() => {});
+    warnSpy = mock(() => {});
+    console.error = errorSpy as unknown as typeof console.error;
+    console.warn = warnSpy as unknown as typeof console.warn;
+    toastError.mockClear();
+  });
+
+  afterEach(() => {
+    console.error = originalError;
+    console.warn = originalWarn;
+  });
+
+  test("a signature failure logs a security error and never shows a customer toast", () => {
+    handleWebhookError(new Error("Webhook signature verification failed"));
+    expect(errorSpy).toHaveBeenCalledWith("[SECURITY] Invalid webhook signature");
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(toastError).not.toHaveBeenCalled();
+  });
+
+  test("a 'not found' event logs a duplicate-event warning, not an error", () => {
+    handleWebhookError(new Error("Event not found"));
+    expect(warnSpy).toHaveBeenCalledWith("[WEBHOOK] Event not found (duplicate?)");
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  test("an unrecognized webhook error logs the raw message as a plain error", () => {
+    handleWebhookError(new Error("Unhandled Stripe event type"));
+    expect(errorSpy).toHaveBeenCalledWith("[WEBHOOK]", "Unhandled Stripe event type");
+  });
+
+  test("a non-Error input falls back to the generic webhook-failed message", () => {
+    handleWebhookError(12345);
+    expect(errorSpy).toHaveBeenCalledWith("[WEBHOOK]", "Webhook failed");
   });
 });
