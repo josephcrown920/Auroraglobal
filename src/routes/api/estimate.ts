@@ -16,11 +16,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { detectFeatures, computeCost, type Feature } from "@/lib/pricing";
+import { durationCapMessage, tierFor, type SubscriptionTier } from "@/lib/billing.plans";
 
+// Duration bounds MUST match the executable charge paths (OrchestrateSchema in
+// orchestration.functions.ts, Schema in api/public/generate.ts) — a quote for a
+// length the render path would reject is worse than no quote at all.
 const EstimateSchema = z.object({
   kind: z.enum(["image", "upscale", "text", "audio", "lipsync", "motion", "video"]),
   resolution: z.enum(["480p", "720p", "1080p", "2160p"]).optional(),
-  duration: z.coerce.number().int().min(1).max(600).optional(),
+  duration: z.coerce.number().int().min(3).max(15).optional(),
   model: z.string().max(120).optional(),
   audioUrl: z.string().url().optional(),
   videoUrl: z.string().url().optional(),
@@ -30,8 +34,47 @@ const EstimateSchema = z.object({
     .optional(),
 });
 
-/** Pure request→quote logic, exported so it can be unit-tested without a Request object. */
-export function estimateFromParams(params: Record<string, string | string[] | undefined>) {
+export type EstimateBlock = { message: string } | null;
+
+/**
+ * Tier-aware guardrail check mirroring assertDurationCap/assertHdEntitlement
+ * (src/lib/cost-guardrails.server.ts) without requiring a DB round trip here —
+ * callers pass the already-resolved tier. Returns the same TERMINAL message
+ * text the real charge path would throw, or null when the request is allowed.
+ * Keeping this pure (no Supabase import) means it can be unit-tested directly
+ * and reused by both the authenticated and unauthenticated estimate paths.
+ */
+export function checkGuardrails(
+  tier: SubscriptionTier,
+  durationSeconds: number | undefined,
+  resolution: string | undefined,
+  isTemporalKind: boolean,
+): EstimateBlock {
+  if (isTemporalKind && durationSeconds) {
+    const msg = durationCapMessage(tier, durationSeconds);
+    if (msg) return { message: msg };
+  }
+  if ((resolution === "1080p" || resolution === "2160p") && tier !== "pro") {
+    const label = resolution === "2160p" ? "4K (2160p)" : "HD (1080p)";
+    return {
+      message: `Unsupported resolution for Free plan: ${label} requires Pro. Upgrade to unlock HD and 4K exports.`,
+    };
+  }
+  return null;
+}
+
+/**
+ * Pure request→quote logic, exported so it can be unit-tested without a
+ * Request object. `tier` is optional: when the caller is unauthenticated we
+ * can't know their plan, so we skip tier-specific guardrails (duration bounds
+ * are still clamped to the global 3-15s window every plan shares). Passing a
+ * tier (resolved from the caller's auth token by the route handler) makes the
+ * quote fully match what orchestrateGenerate/the public API would allow.
+ */
+export function estimateFromParams(
+  params: Record<string, string | string[] | undefined>,
+  tier?: SubscriptionTier,
+) {
   const raw = {
     kind: params.kind,
     resolution: params.resolution || undefined,
@@ -61,6 +104,8 @@ export function estimateFromParams(params: Record<string, string | string[] | un
     durationSeconds: data.duration,
     model: data.model,
   });
+  const isTemporalKind = data.kind === "video" || data.kind === "motion";
+  const blocked = tier ? checkGuardrails(tier, data.duration, data.resolution, isTemporalKind) : null;
   return {
     credits: quote.total,
     breakdown: quote.breakdown,
@@ -68,7 +113,35 @@ export function estimateFromParams(params: Record<string, string | string[] | un
     durationSeconds: quote.durationSeconds,
     features,
     primaryKind,
+    blocked,
   };
+}
+
+/**
+ * Best-effort tier resolution from an optional Bearer token — mirrors
+ * authUserId() in api/public/generate.ts. Returns null (not a throw) on any
+ * failure so an unauthenticated or expired-token caller still gets a quote;
+ * they just don't get tier-specific guardrail checks (duration bounds are
+ * still globally clamped by EstimateSchema).
+ */
+async function resolveTier(request: Request): Promise<SubscriptionTier | undefined> {
+  const h = request.headers.get("authorization") || request.headers.get("Authorization");
+  if (!h?.startsWith("Bearer ")) return undefined;
+  const token = h.slice(7);
+  if (!token) return undefined;
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+    if (userError || !userData.user) return undefined;
+    const { data } = await supabaseAdmin
+      .from("profiles")
+      .select("plan")
+      .eq("user_id", userData.user.id)
+      .maybeSingle();
+    return tierFor((data as { plan?: string | null } | null)?.plan ?? null);
+  } catch {
+    return undefined;
+  }
 }
 
 export const Route = createFileRoute("/api/estimate")({
@@ -94,7 +167,8 @@ export const Route = createFileRoute("/api/estimate")({
           ]) {
             params[key] = url.searchParams.get(key) ?? undefined;
           }
-          const result = estimateFromParams(params);
+          const tier = await resolveTier(request);
+          const result = estimateFromParams(params, tier);
           return new Response(JSON.stringify(result), { status: 200, headers: cors });
         } catch (e) {
           const message = e instanceof z.ZodError ? e.errors[0]?.message ?? "Invalid params" : e instanceof Error ? e.message : "Invalid params";
