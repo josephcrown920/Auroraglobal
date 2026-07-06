@@ -29,7 +29,12 @@ export const KIDS_CHARACTER_PREVIEWS: Record<string, CartoonClip> = {
   sunny: { loop: sunnyLoop, poster: sunnyPoster },
 };
 
-/** Finished-output samples shown so first-time visitors see what they'll get. */
+/**
+ * Finished-output samples shown so first-time visitors see what they'll get.
+ * To add a new sample: import a loop+poster pair above and append an entry
+ * here — the showcase carousel in src/routes/kids.tsx picks these up
+ * automatically, no UI changes needed.
+ */
 export const KIDS_STORY_SHOWCASE: {
   id: string;
   title: string;
@@ -47,5 +52,29 @@ export const KIDS_STORY_SHOWCASE: {
     title: "Pip & Ollie's meadow day",
     blurb: "Adventure · ages 5–8",
     clip: { loop: showcaseMeadowLoop, poster: showcaseMeadowPoster },
+  },
+  {
+    id: "fuzz",
+    title: "Fuzz makes a new friend",
+    blurb: "Friendship · ages 3–5",
+    clip: { loop: fuzzLoop, poster: fuzzPoster },
+  },
+  {
+    id: "pip",
+    title: "Pip's big hop home",
+    blurb: "Bedtime · ages 3–5",
+    clip: { loop: pipLoop, poster: pipPoster },
+  },
+  {
+    id: "ollie",
+    title: "Ollie learns to fly",
+    blurb: "Adventure · ages 5–8",
+    clip: { loop: ollieLoop, poster: olliePoster },
+  },
+  {
+    id: "sunny",
+    title: "Sunny lights up the sky",
+    blurb: "Bedtime · ages 3–5",
+    clip: { loop: sunnyLoop, poster: sunnyPoster },
   },
 ];

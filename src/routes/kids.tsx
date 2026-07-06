@@ -33,7 +33,8 @@ import { saveAssetToDisk } from "@/lib/save";
 import { ShareMenu } from "@/components/share/ShareMenu";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import { CartoonPreview } from "@/components/kids/CartoonPreview";
-import { KIDS_CHARACTER_PREVIEWS, KIDS_STORY_SHOWCASE } from "@/lib/kids-previews";
+import { KidsShowcaseCarousel } from "@/components/kids/ShowcaseCarousel";
+import { KIDS_CHARACTER_PREVIEWS } from "@/lib/kids-previews";
 
 export const Route = createFileRoute("/kids")({
   component: KidsPage,
@@ -867,28 +868,7 @@ function KidsPage() {
                 animated and narrated.
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              {KIDS_STORY_SHOWCASE.map((s) => (
-                <div key={s.id} className="relative">
-                  <CartoonPreview
-                    src={s.clip.loop}
-                    poster={s.clip.poster}
-                    alt={s.title}
-                    rounded="rounded-xl"
-                    className="aspect-[9/16] w-full"
-                  />
-                  <span className="absolute top-1.5 left-1.5 inline-flex items-center rounded-full bg-black/50 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-white/90 backdrop-blur pointer-events-none">
-                    Sample
-                  </span>
-                  <div className="absolute inset-x-0 bottom-0 rounded-b-xl bg-gradient-to-t from-black/80 to-transparent p-2 pt-6 pointer-events-none">
-                    <p className="text-[11px] font-medium text-white leading-tight truncate">
-                      {s.title}
-                    </p>
-                    <p className="text-[9px] text-white/70">{s.blurb}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <KidsShowcaseCarousel />
           </div>
 
           <div className="aurora-panel p-4 space-y-1.5">
