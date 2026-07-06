@@ -4,10 +4,12 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Json } from "@/integrations/supabase/types";
 import { generateWithFallback } from "@/lib/llm-fallback.server";
+import { reserveOrchestrateRecord } from "@/lib/generate-core.server";
 import {
   COST_DAILY_POSTS,
   COST_ROLLOUT_PLAN,
   COST_SOCIAL_PACK,
+  computeCost,
 } from "@/lib/pricing";
 
 // ─── Simple credit helpers (pure LLM jobs — no orchestrator/media pipeline) ──
@@ -435,3 +437,73 @@ export const generateSocialPack = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) =>
     generateSocialPackCore({ admin: supabaseAdmin, generate: generateWithFallback }, context.userId, data),
   );
+
+// ─── Daily Post Generator: per-day cover art render ──────────────────────────
+// Runs each day's imagePrompt through the SAME reserve→orchestrate→record
+// pipeline as every other render in the app (reserveOrchestrateRecord), so the
+// image is a real generation (billed, persisted, provider-routed) — not a
+// mocked placeholder. The frontend fires up to 7 of these in parallel (one per
+// day) and assembles the results into a ZIP client-side.
+
+/** Aura cost of a single cover-art image, from the same pricing module every other charge point uses. */
+export const COST_DAILY_POST_IMAGE = computeCost({ features: ["image"] }).total;
+
+export type ImageRenderFn = (input: {
+  userId: string;
+  prompt: string;
+  cost: number;
+}) => Promise<
+  | { ok: true; url: string; generationId: string }
+  | { ok: false; error: string; insufficient?: boolean }
+>;
+
+export async function generateDailyPostImageCore(
+  deps: { admin: AdminClient; render: ImageRenderFn },
+  userId: string,
+  data: { prompt: string },
+) {
+  const isPro = await checkPro(deps.admin, userId);
+  if (!isPro) {
+    return { ok: false as const, error: "Pro subscription required", proRequired: true };
+  }
+
+  const cost = computeCost({ features: ["image"] }).total;
+  const outcome = await deps.render({ userId, prompt: data.prompt, cost });
+  if (!outcome.ok) {
+    return { ok: false as const, error: outcome.error, insufficient: outcome.insufficient ?? false };
+  }
+  return { ok: true as const, url: outcome.url, generationId: outcome.generationId, cost };
+}
+
+export const generateDailyPostImage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      prompt: z.string().min(1).max(2000),
+      // Echoed back unchanged so the client can match a settled promise to its
+      // originating day when firing several of these in parallel.
+      day: z.number().int().min(1).max(7),
+    }).parse,
+  )
+  .handler(async ({ data, context }) => {
+    const result = await generateDailyPostImageCore(
+      {
+        admin: supabaseAdmin,
+        render: async ({ userId, prompt, cost }) => {
+          const outcome = await reserveOrchestrateRecord({
+            userId,
+            kind: "image",
+            prompt,
+            cost,
+            reason: "growth:daily_posts:image",
+          });
+          return outcome.ok
+            ? { ok: true as const, url: outcome.url, generationId: outcome.generationId }
+            : { ok: false as const, error: outcome.error, insufficient: outcome.insufficient };
+        },
+      },
+      context.userId,
+      data,
+    );
+    return { ...result, day: data.day };
+  });

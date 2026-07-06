@@ -19,12 +19,14 @@ import {
   Image,
   History,
 } from "lucide-react";
+import { zipSync, strToU8 } from "fflate";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { getMyProfile } from "@/lib/billing.functions";
 import {
   generateDailyPosts,
+  generateDailyPostImage,
   generateRolloutPlan,
   generateSocialPack,
   listGrowthToolRuns,
@@ -34,8 +36,14 @@ import {
   COST_DAILY_POSTS,
   COST_ROLLOUT_PLAN,
   COST_SOCIAL_PACK,
+  computeCost,
 } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
+
+// Same pure pricing module every other charge point uses — never a hardcoded
+// duplicate — so this preview can never disagree with what generateDailyPostImage
+// actually reserves per image.
+const IMAGE_COST = computeCost({ features: ["image"] }).total;
 
 export const Route = createFileRoute("/growth")({
   component: GrowthPage,
@@ -296,8 +304,14 @@ function DailyPostGenerator({ isPro }: { isPro: boolean }) {
   const [tone, setTone] = useState<"hype" | "authentic" | "storytelling" | "fan_engagement" | "mixed">("mixed");
   const [result, setResult] = useState<DailyPostsResult | null>(null);
   const [expanded, setExpanded] = useState<number | null>(0);
+  const [imageStatus, setImageStatus] = useState<Record<number, "loading" | "done" | "error">>({});
+  const [images, setImages] = useState<Record<number, string>>({});
+  const [imageErrors, setImageErrors] = useState<Record<number, string>>({});
+  const [generatingImages, setGeneratingImages] = useState(false);
+  const [zipping, setZipping] = useState(false);
 
   const genFn = useServerFn(generateDailyPosts);
+  const imgFn = useServerFn(generateDailyPostImage);
   const { mutate, isPending } = useMutation({
     mutationFn: () =>
       genFn({ data: { songTitle, artistName, genre, releaseStatus, platforms: platforms as never, tone } }),
@@ -307,12 +321,118 @@ function DailyPostGenerator({ isPro }: { isPro: boolean }) {
         return;
       }
       setResult(data as DailyPostsResult);
+      setImageStatus({});
+      setImages({});
+      setImageErrors({});
       toast.success("7-day content calendar ready!");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
   const canGenerate = songTitle.trim() && artistName.trim() && genre.trim() && platforms.length > 0;
+
+  const generateOneImage = async (day: number, prompt: string) => {
+    setImageStatus((s) => ({ ...s, [day]: "loading" }));
+    try {
+      const r = await imgFn({ data: { prompt, day } });
+      if (r.ok) {
+        setImages((s) => ({ ...s, [day]: r.url }));
+        setImageStatus((s) => ({ ...s, [day]: "done" }));
+      } else {
+        setImageErrors((s) => ({ ...s, [day]: r.error ?? "Image generation failed" }));
+        setImageStatus((s) => ({ ...s, [day]: "error" }));
+      }
+    } catch (e) {
+      setImageErrors((s) => ({ ...s, [day]: e instanceof Error ? e.message : "Image generation failed" }));
+      setImageStatus((s) => ({ ...s, [day]: "error" }));
+    }
+  };
+
+  const generateAllImages = async () => {
+    if (!result || generatingImages) return;
+    const pending = result.days.filter((d) => imageStatus[d.day] !== "done");
+    if (pending.length === 0) return;
+    setGeneratingImages(true);
+    setImageStatus((s) => {
+      const next = { ...s };
+      pending.forEach((d) => {
+        next[d.day] = "loading";
+      });
+      return next;
+    });
+    const settled = await Promise.allSettled(
+      pending.map((d) => imgFn({ data: { prompt: d.imagePrompt, day: d.day } })),
+    );
+    let failCount = 0;
+    settled.forEach((r, i) => {
+      const day = pending[i]!.day;
+      if (r.status === "fulfilled" && r.value.ok) {
+        const url: string = r.value.url;
+        setImages((s) => ({ ...s, [day]: url }));
+        setImageStatus((s) => ({ ...s, [day]: "done" }));
+      } else {
+        failCount += 1;
+        const msg =
+          r.status === "fulfilled"
+            ? (r.value.error ?? "Image generation failed")
+            : r.reason instanceof Error
+              ? r.reason.message
+              : "Image generation failed";
+        setImageErrors((s) => ({ ...s, [day]: msg }));
+        setImageStatus((s) => ({ ...s, [day]: "error" }));
+      }
+    });
+    setGeneratingImages(false);
+    if (failCount === 0) {
+      toast.success("All cover art images generated!");
+    } else {
+      toast.error(`${failCount} of ${pending.length} images failed — retry them individually.`);
+    }
+  };
+
+  const doneImageCount = result ? result.days.filter((d) => imageStatus[d.day] === "done").length : 0;
+  const pendingImageCount = result ? result.days.length - doneImageCount : 0;
+
+  const downloadZip = async () => {
+    if (!result || zipping) return;
+    const readyDays = result.days.filter((d) => images[d.day]);
+    if (readyDays.length === 0) {
+      toast.error("Generate images first");
+      return;
+    }
+    setZipping(true);
+    try {
+      const files: Record<string, Uint8Array> = {};
+      const captionsText = result.days
+        .map((d) => `=== Day ${d.day} — ${d.platform} (${d.tone}) ===\n\n${d.caption}`)
+        .join("\n\n" + "─".repeat(60) + "\n\n");
+      files["captions.txt"] = strToU8(`7-Day Content Calendar — ${songTitle} by ${artistName}\n\n${captionsText}`);
+
+      for (const d of readyDays) {
+        const url = images[d.day];
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Failed to download image for day ${d.day}`);
+        const buf = new Uint8Array(await res.arrayBuffer());
+        const rawExt = url.split("?")[0].split(".").pop()?.toLowerCase() ?? "";
+        const ext = /^[a-z0-9]{2,4}$/.test(rawExt) ? rawExt : "png";
+        files[`day-${d.day}-${d.platform.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.${ext}`] = buf;
+      }
+
+      const zipped = zipSync(files, { level: 6 });
+      const blob = new Blob([zipped as BlobPart], { type: "application/zip" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${songTitle || "content"}-cover-art.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("ZIP downloaded!");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "ZIP creation failed");
+    } finally {
+      setZipping(false);
+    }
+  };
 
   const downloadCalendar = () => {
     if (!result) return;
@@ -422,6 +542,9 @@ function DailyPostGenerator({ isPro }: { isPro: boolean }) {
         onLoad={(output: { days: DailyPostsResult["days"]; cost: number }) => {
           setResult({ ok: true, days: output.days, cost: output.cost });
           setExpanded(0);
+          setImageStatus({});
+          setImages({});
+          setImageErrors({});
           toast.success("Loaded past content calendar");
         }}
         renderSummary={(input) => ({
@@ -440,6 +563,44 @@ function DailyPostGenerator({ isPro }: { isPro: boolean }) {
               <Download className="size-3.5" />
               Download .txt
             </button>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-border bg-background/30">
+            <span className="text-xs text-muted-foreground">
+              {doneImageCount > 0
+                ? `${doneImageCount}/${result.days.length} cover art images generated`
+                : "Generate real cover art for each day's post"}
+            </span>
+            <div className="flex items-center gap-3">
+              {pendingImageCount > 0 && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={generateAllImages}
+                  disabled={generatingImages}
+                  className="h-7 gap-1.5 text-xs"
+                >
+                  {generatingImages ? (
+                    <span className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <Image className="size-3" />
+                  )}
+                  Generate All Images
+                  <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                    +{pendingImageCount * IMAGE_COST} Aura
+                  </span>
+                </Button>
+              )}
+              {doneImageCount > 0 && (
+                <button
+                  onClick={downloadZip}
+                  disabled={zipping}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                >
+                  <Download className="size-3.5" />
+                  {zipping ? "Zipping…" : "Download ZIP"}
+                </button>
+              )}
+            </div>
           </div>
           <div className="divide-y divide-border">
             {result.days.map((day) => (
@@ -488,6 +649,48 @@ function DailyPostGenerator({ isPro }: { isPro: boolean }) {
                       >
                         Generate in Studio →
                       </Link>
+                    </div>
+                    <div className="rounded-xl bg-background/40 p-3 space-y-2">
+                      <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        <Sparkles className="size-3" />
+                        Cover Art
+                      </span>
+                      {imageStatus[day.day] === "loading" && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                          Generating cover art…
+                        </div>
+                      )}
+                      {imageStatus[day.day] === "done" && images[day.day] && (
+                        <img
+                          src={images[day.day]}
+                          alt={`Day ${day.day} cover art`}
+                          className="w-full max-w-xs rounded-lg border border-border"
+                        />
+                      )}
+                      {imageStatus[day.day] === "error" && (
+                        <div className="flex items-center justify-between gap-2 text-xs text-destructive">
+                          <span>{imageErrors[day.day] ?? "Generation failed"}</span>
+                          <button
+                            onClick={() => generateOneImage(day.day, day.imagePrompt)}
+                            className="shrink-0 underline"
+                          >
+                            Retry
+                          </button>
+                        </div>
+                      )}
+                      {!imageStatus[day.day] && (
+                        <button
+                          onClick={() => generateOneImage(day.day, day.imagePrompt)}
+                          className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+                        >
+                          <Image className="size-3.5" />
+                          Generate this image
+                          <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold">
+                            +{IMAGE_COST} Aura
+                          </span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
