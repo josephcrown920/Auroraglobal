@@ -197,7 +197,6 @@ function OrchestratePage() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [awaitingFullRender, modality, model, resolution, duration, usesResolution, usesDuration]);
   // Prefer the server-confirmed number once it lands; it's what will actually be charged.
   const displayCost = serverEstimate?.credits ?? cost;
@@ -489,6 +488,18 @@ function OrchestratePage() {
                 <span>Total</span>
                 <span className="tabular-nums text-fuchsia-300">{quote.total} Aura</span>
               </div>
+              {awaitingFullRender && (
+                <div className="mt-2 flex items-center justify-between border-t border-neutral-800 pt-2 text-[11px] text-neutral-500">
+                  <span>Server-confirmed price</span>
+                  {estimateLoading ? (
+                    <span className="flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" /> confirming…
+                    </span>
+                  ) : (
+                    <span className="tabular-nums text-neutral-300">{displayCost} Aura</span>
+                  )}
+                </div>
+              )}
             </div>
 
             <button
@@ -504,7 +515,7 @@ function OrchestratePage() {
               {busy
                 ? "Generating…"
                 : awaitingFullRender
-                  ? `Render Full Quality · ${cost} Aura`
+                  ? `Render Full Quality · ${displayCost} Aura`
                   : isPreviewPass
                     ? "Preview · 480p · 5s"
                     : `Generate · ${cost} credit${cost === 1 ? "" : "s"}`}
@@ -517,7 +528,7 @@ function OrchestratePage() {
                     Render at {resolution === "2160p" ? "4K (2160p)" : "HD (1080p)"}?
                   </AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will charge <strong>{cost} Aura</strong> from your balance to produce a full-quality {resolution === "2160p" ? "4K" : "HD"} render.
+                    This will charge <strong>{displayCost} Aura</strong> from your balance to produce a full-quality {resolution === "2160p" ? "4K" : "HD"} render.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
