@@ -33,7 +33,7 @@ import {
   getMarketplaceTemplateForCanvas,
   chargeMarketplaceTemplateRun,
 } from "@/lib/marketplace.functions";
-import { handleGenerationError } from "@/lib/error-toasts";
+import { handleGenerationError, friendlyGenerationMessage } from "@/lib/error-toasts";
 import { listComfyTemplates, startComfyRun } from "@/lib/comfy.functions";
 import { MODEL_LIST, VIDEO_MODEL_LIST, getModelMeta } from "@/lib/models";
 import {
@@ -1009,13 +1009,13 @@ function CanvasPage() {
           }
           for (const t of outgoing.get(id) ?? []) queue.push(t);
         } catch (e) {
-          update(id, { status: "error", error: e instanceof Error ? e.message : "Failed" });
+          update(id, { status: "error", error: friendlyGenerationMessage(e) });
           throw e;
         }
       }
     },
     onSuccess: () => toast.success("Pipeline complete"),
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+    onError: (e) => handleGenerationError(e),
   });
 
   const addNode = (kind: NodeKind) => {
