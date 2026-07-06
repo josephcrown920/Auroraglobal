@@ -32,6 +32,10 @@ args = "typecheck"
 task = "workflow.run"
 args = "test"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "github-sync"
+
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
@@ -87,6 +91,17 @@ args = "npm test"
 
 [workflows.workflow.metadata]
 isValidation = true
+
+[[workflows.workflow]]
+name = "github-sync"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bash scripts/github-sync-daemon.sh"
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [agent]
 stack = "PNPM_WORKSPACE"
