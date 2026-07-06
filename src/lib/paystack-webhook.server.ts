@@ -154,9 +154,19 @@ export async function processPaymentSuccess(
     })
     .eq("id", payment.id);
 
-  // Track affiliate conversion if buyer was referred
+  // Track affiliate conversion if buyer was referred. Prefer the ref carried
+  // on the payment/webhook itself; fall back to the buyer's profile-level
+  // referral code (set at signup) if neither is present.
   const raw = (payment as { raw?: { ref?: string } }).raw;
-  const refCode = raw?.ref ?? event.data.metadata?.ref;
+  let refCode = raw?.ref ?? event.data.metadata?.ref;
+  if (!refCode) {
+    const { data: prof } = await supabaseAdmin
+      .from("profiles")
+      .select("referred_by_code")
+      .eq("user_id", payment.user_id)
+      .maybeSingle();
+    refCode = (prof as { referred_by_code?: string } | null)?.referred_by_code ?? undefined;
+  }
 
   if (refCode) {
     const { data: aff } = await supabaseAdmin
