@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
+  generateDailyPostImageCore,
   generateDailyPostsCore,
   generateRolloutPlanCore,
   generateSocialPackCore,
@@ -178,5 +179,56 @@ describe("generateSocialPackCore", () => {
     // Admins are treated as Pro by checkPro(); they still hit the credit gate.
     expect(result).toMatchObject({ ok: false, insufficient: true });
     expect(calls.rpc.find((c) => c.name === "reserve_credits")).toBeDefined();
+  });
+});
+
+describe("generateDailyPostImageCore", () => {
+  function unusedRender() {
+    return async () => {
+      throw new Error("deps.render should not be called in this test path");
+    };
+  }
+
+  it("blocks Free users with proRequired and never calls render", async () => {
+    const { admin } = fakeAdmin({ plan: "free", isAdmin: false });
+    const result = await generateDailyPostImageCore(
+      { admin, render: unusedRender() },
+      "u1",
+      { prompt: "neon album cover" },
+    );
+    expect(result).toMatchObject({ ok: false, proRequired: true });
+  });
+
+  it("passes the pricing-module image cost through to render for a Pro user", async () => {
+    const { admin } = fakeAdmin({ plan: "pro" });
+    const seen: Array<{ userId: string; prompt: string; cost: number }> = [];
+    const result = await generateDailyPostImageCore(
+      {
+        admin,
+        render: async (input) => {
+          seen.push(input);
+          return { ok: true, url: "https://example.com/day-1.png", generationId: "gen_1" };
+        },
+      },
+      "u1",
+      { prompt: "neon album cover" },
+    );
+    expect(result).toMatchObject({ ok: true, url: "https://example.com/day-1.png" });
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({ userId: "u1", prompt: "neon album cover" });
+    expect(seen[0]!.cost).toBeGreaterThan(0);
+  });
+
+  it("surfaces an insufficient-credit failure from render without masking it", async () => {
+    const { admin } = fakeAdmin({ plan: "pro" });
+    const result = await generateDailyPostImageCore(
+      {
+        admin,
+        render: async () => ({ ok: false, error: "Not enough Aura", insufficient: true }),
+      },
+      "u1",
+      { prompt: "neon album cover" },
+    );
+    expect(result).toMatchObject({ ok: false, error: "Not enough Aura", insufficient: true });
   });
 });
