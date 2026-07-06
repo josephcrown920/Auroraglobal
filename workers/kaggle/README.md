@@ -22,7 +22,6 @@ then add these in the Kaggle notebook under **Add-ons → Secrets**:
 | `AURORA_REGISTER_SECRET` | yes | a private secret **you generate** (e.g. `openssl rand -hex 32`) and set as `AURORA_REGISTER_SECRET` in Aurora's env too. This is the `apikey` the register endpoint expects — **never** the Supabase anon/publishable or service-role key, since those are not private. |
 | `AURORA_WORKER_TOKEN` | optional | any random string (e.g. `openssl rand -hex 16`); if set, Aurora must send it as the `/generate` bearer. |
 | `AURORA_TASKS` | optional | `lipsync` (default) or `lipsync,motion` (only on a ≥24 GB GPU). |
-| `AURORA_WORKER_REPO_RAW` | optional | for a renamed repo, a non-default branch, or a public mirror: set it to your raw base, e.g. `https://raw.githubusercontent.com/OWNER/REPO/BRANCH/workers`. **A private repo won't fetch over raw URLs** — upload `aurora_worker.py` + `setup.sh` to the notebook instead. |
 
 > Kaggle Secrets are **not** environment variables — the launcher reads them via
 > `UserSecretsClient` and mirrors them into the environment for you.
@@ -39,9 +38,8 @@ then add these in the Kaggle notebook under **Add-ons → Secrets**:
 2. Set Accelerator = GPU + Internet = ON, add the secrets, then **Run All**.
 
 The launcher fetches the shared worker core (`aurora_worker.py`) and `setup.sh`
-from your **public** repo automatically, installs the chosen task(s), opens the
-tunnel, and registers. (Private repo? See `AURORA_WORKER_REPO_RAW` in the table —
-upload the two files to the notebook instead.)
+directly from your Aurora app (no GitHub access or public repo needed), installs
+the chosen task(s), opens the tunnel, and registers.
 
 ## 3 · Confirm it worked (round-trip)
 

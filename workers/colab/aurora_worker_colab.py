@@ -40,11 +40,8 @@ loads them for you via google.colab.userdata:
                        image (SDXL-Turbo) needs ~8 GB extra disk and fits T4/P100.
   IMAGE_MODEL          (optional) override the image model, e.g.
                          "black-forest-labs/FLUX.1-schnell" for an A100/H100 tier
-  AURORA_WORKER_REPO_RAW  (optional) raw base for the worker files, e.g.
-                       "https://raw.githubusercontent.com/OWNER/REPO/BRANCH/workers".
-                       Set this for a renamed repo, a non-default branch, or a
-                       public mirror. A PRIVATE repo won't fetch over the raw URL —
-                       upload aurora_worker.py + setup.sh to /content instead.
+  (worker files are fetched directly from your Aurora app at AURORA_URL —
+   no GitHub access or public repo needed)
 
 Alternative: this same free GPU can instead join the stock-ComfyUI swarm (image /
 video / lipsync / motion via the `comfyui` protocol) — see workers/comfyui/ for
@@ -70,7 +67,6 @@ CONFIG_KEYS = [
     "AURORA_REGISTER_SECRET",
     "AURORA_WORKER_TOKEN",
     "AURORA_TASKS",
-    "AURORA_WORKER_REPO_RAW",
     "AURORA_UPLOAD",
     "AURORA_WORKER_NAME",
     # Image generation model override (default: stabilityai/sdxl-turbo on T4).
@@ -80,15 +76,6 @@ CONFIG_KEYS = [
     "SUPABASE_SERVICE_ROLE_KEY",
     "SUPABASE_BUCKET",
 ]
-
-# GitHub branch names are case-sensitive and Lovable exports vary, so we try a few
-# default raw bases in order. Set AURORA_WORKER_REPO_RAW to skip the guessing.
-_OWNER_REPO = "josephcrown920/Auroraglobal"
-_DEFAULT_BASES = [
-    f"https://raw.githubusercontent.com/{_OWNER_REPO}/{b}/workers"
-    for b in ("Main", "main", "master")
-]
-
 
 def load_colab_secrets():
     """Mirror Colab Secrets into os.environ (no-op off Colab / when unset)."""
@@ -146,41 +133,22 @@ def warn_if_register_secrets_missing():
     print("!" * 72 + "\n", flush=True)
 
 
-def _raw_bases():
-    explicit = os.environ.get("AURORA_WORKER_REPO_RAW", "").strip().rstrip("/")
-    return [explicit] if explicit else _DEFAULT_BASES
-
-
-def fetch_repo_file(rel_path: str, dest: str):
-    """Download workers/<rel_path> from the first raw base that serves it."""
+def fetch_from_aurora(name: str, dest: str):
+    """Download workers/<name> directly from your Aurora app (no GitHub needed)."""
     if os.path.exists(dest):
-        print(f"[bootstrap] {dest} already present — keeping it.", flush=True)
-        return
-    last_err = None
-    for base in _raw_bases():
-        url = f"{base}/{rel_path}"
-        try:
-            print(f"[bootstrap] fetching {url}", flush=True)
-            urllib.request.urlretrieve(url, dest)
-            return
-        except Exception as e:  # try the next candidate base
-            last_err = e
-            print(f"[bootstrap]   miss: {e}", flush=True)
-    raise SystemExit(
-        f"[bootstrap] could not fetch {rel_path} from any of {_raw_bases()}.\n"
-        "Fix one of these, then re-run the cell:\n"
-        "  - set the AURORA_WORKER_REPO_RAW secret to your repo's raw base, e.g.\n"
-        "    https://raw.githubusercontent.com/OWNER/REPO/BRANCH/workers\n"
-        "  - or make the GitHub repo public,\n"
-        "  - or upload workers/aurora_worker.py + workers/setup.sh to /content.\n"
-        f"  last error: {last_err}"
-    )
+        os.remove(dest)
+    aurora_url = os.environ.get("AURORA_URL", "").strip().rstrip("/")
+    if not aurora_url:
+        raise SystemExit("AURORA_URL is not set. Cannot fetch worker files.")
+    url = f"{aurora_url}/api/public/workers/files/{name}"
+    print(f"[bootstrap] fetching {url}", flush=True)
+    urllib.request.urlretrieve(url, dest)
 
 
 def setup() -> str:
     sh("pip install -q requests fastapi 'uvicorn[standard]' pyngrok 'huggingface_hub[cli]'")
-    fetch_repo_file("aurora_worker.py", f"{ROOT}/aurora_worker.py")
-    fetch_repo_file("setup.sh", f"{ROOT}/setup.sh")
+    fetch_from_aurora("aurora_worker.py", f"{ROOT}/aurora_worker.py")
+    fetch_from_aurora("setup.sh", f"{ROOT}/setup.sh")
 
     # Colab's free tier is usually a 16 GB T4 -> default to lipsync only. setup.sh
     # fails loudly if motion is requested on a <20 GB GPU rather than OOMing mid-job.
