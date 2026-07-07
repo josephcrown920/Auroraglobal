@@ -13,12 +13,12 @@
 //
 // Studio cost is computed per orchestrator kind through pricing.ts `computeCost`
 // so the preview is exactly what each stage charges (preview == charge == refund).
-// The UGC price mirrors its server constant as a literal (parity asserted in
-// template-studio.test.ts). Spin discloses its real upfront batch charge
+// UGC and AutoCut flat costs are imported directly from pricing.ts (the single
+// source) — no mirrors, no drift. Spin discloses its real upfront batch charge
 // (SPIN_PIECE_COUNT × SPIN_PIECE_COST). This file is intentionally client-safe
 // and never imports a *.server module.
 
-import { computeCost, type Resolution } from "./pricing";
+import { computeCost, COST_UGC_AD, COST_AUTOCUT, type Resolution } from "./pricing";
 import { SPIN_PIECE_COST } from "./spin-engine";
 import { AUDIO_ACCEPT } from "./utils";
 
@@ -113,11 +113,9 @@ export const TEMPLATE_DEFAULTS = {
   resolution: "720p" as Resolution,
 };
 
-// The UGC price mirrors its server constant (parity asserted in the co-located test).
-// 14 since the voice-lock upgrade: xAI fast path + mandatory relip to the voice track.
-export const COST_UGC_AD = 14; // === COST_UGC_AD in ugc.server.ts
-// AutoCut flat cost — mirrors COST_AUTOCUT in autocut.server.ts.
-export const COST_AUTOCUT = 8;
+// Re-export flat-rate costs from pricing.ts so UI consumers (ugc.tsx, drawer, etc.)
+// can import them from one place without pulling in server-only modules.
+export { COST_UGC_AD, COST_AUTOCUT };
 // Batch size for the Spin experience — every "1 → N" label reads from this.
 export const SPIN_PIECE_COUNT = 30; // === SPIN_COUNT in spin-engine.ts
 

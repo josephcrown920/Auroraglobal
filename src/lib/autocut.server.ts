@@ -9,8 +9,9 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 
 // ─── Credit cost ──────────────────────────────────────────────────────────────
-// Same as UGC Ad: a multi-stage assembly job (upload → assemble → deliver).
-export const COST_AUTOCUT = 8;
+// COST_AUTOCUT is the single source in pricing.ts; re-exported here so existing
+// server-side importers keep working without changes.
+export { COST_AUTOCUT } from "./pricing";
 
 // ─── Style presets ────────────────────────────────────────────────────────────
 
