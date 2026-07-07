@@ -9,13 +9,11 @@ import joshBlueOrange from "@/assets/josh/josh-blue-orange.jpg.asset.json";
 
 // New hot-pink mic session photos (sent to replace old errored versions)
 const PINK_MIC_PORTRAIT = "/josh/josh-pink-mic-portrait.jpg";
-const PINK_MIC_FULLBODY = "/josh/josh-pink-mic-fullbody.jpg";
 // Get Ready With Me — mirror session
 const MIRROR_GETREADY = "/josh/josh-mirror-getready.webp";
 
 const SHOTS = [
   { url: PINK_MIC_PORTRAIT, caption: "Hot-pink side profile · suspended mic" },
-  { url: PINK_MIC_FULLBODY, caption: "Full-body hot-pink · silver mic" },
   { url: MIRROR_GETREADY, caption: "Get Ready With Me · mirror session" },
   { url: joshBlueOrange.url, caption: "Blue × orange studio · color wash" },
   { url: josh3.url, caption: "Blue close-up · live mic portrait" },
