@@ -121,6 +121,14 @@ export type GenerateRequest = {
    */
   editStrict?: boolean;
   /**
+   * Pin the request to EXACTLY the requested model — no cross-model fallback.
+   * Used by engine-explicit flows (e.g. the xAI UGC lip-sync engine) where a
+   * silent fallback to a different model would deliver something the user did
+   * not choose (and was priced for). Fails explicitly if the model's provider
+   * can't serve it.
+   */
+  pinnedModelOnly?: boolean;
+  /**
    * Caption segments for `caption_burn` requests. Each entry is a timed text
    * cue: the GPU worker renders them over the video via FFmpeg `drawtext`.
    */
@@ -2427,6 +2435,9 @@ export function getCandidateModels(req: GenerateRequest): string[] {
   // Self-hosted requests pin to the single requested model — no cross-model
   // fallback (the worker pool serves the kind, not a specific hosted model).
   if (req.selfHostedOnly) return req.model ? [req.model] : [];
+  // Explicitly pinned requests (e.g. xAI UGC engine): the user chose THIS
+  // model; a silent substitute would misrepresent what they paid for.
+  if (req.pinnedModelOnly) return req.model ? [req.model] : [];
   const base = FALLBACK_MODELS[req.kind] ?? [];
   const ordered = [req.model, ...base].filter((m): m is string => !!m);
   const cap = Math.max(1, FALLBACK_CAP[req.kind] ?? 2);
