@@ -2237,6 +2237,10 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     // Self-hosted ffmpeg lyric-video synthesis. Sentinel model so the candidate
     // loop runs; routed self-hosted-only to the GPU worker pool (no fallback).
     "ffmpeg-lyricvideo": { provider: gpuWorker.name, kind: "lyric_video", cost: 0.005 },
+    // xAI Grok Imagine Video — UGC fast path (explicitly requested by runUGCAd).
+    // Not in FALLBACK_MODELS since it's not a general video fallback; the UGC job
+    // always requests it explicitly so getCandidateModels still routes it correctly.
+    "xai/grok-imagine-video-1.5": { provider: "xai", kind: "video", cost: 0.24 },
   };
   for (const [k, v] of Object.entries(REPLICATE_MAP))
     out[k] = { provider: "replicate", kind: v.kind, cost: v.cost };
@@ -2347,7 +2351,6 @@ export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   // in automatic model-fallback and provider-health routing (Task #244) —
   // previously it only worked when explicitly requested by value.
   video: [
-    "xai/grok-imagine-video-1.5",
     "seedance-2.0-fast",
     "seedance-2.0",
     "wan-2.5",
