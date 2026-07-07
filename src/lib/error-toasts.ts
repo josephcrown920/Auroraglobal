@@ -49,6 +49,17 @@ export function classifyGenerationError(error: unknown): GenErrorKind {
   ) {
     return "out_of_credit";
   }
+  // Provider account locked / drained — fal returns a 403 "User is locked.
+  // Reason: Exhausted balance…", Replicate a 402 "Insufficient credit". These
+  // are byte-exact substrings of the real provider responses (lowercased).
+  if (
+    msg.includes("exhausted balance") ||
+    msg.includes("user is locked") ||
+    msg.includes("insufficient credit to run") ||
+    msg.includes("top up your balance")
+  ) {
+    return "out_of_credit";
+  }
   // Generic provider throttle / rate limit.
   if (
     msg.includes("429") ||

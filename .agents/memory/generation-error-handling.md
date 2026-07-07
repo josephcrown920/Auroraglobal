@@ -45,3 +45,21 @@ classification with no type error. Keep the strings byte-stable when refactoring
 Retry *eligibility* is unchanged — still gated by `TRANSIENT_RE` (429/5xx/network).
 The hint object propagates because the Replicate adapter `await`s `replicateRun`
 without catching/rewrapping. Tests stay fast because fake clocks make setTimeout instant.
+
+## Balance-lock strings beyond 402
+fal's drained-account error is a **403** ("User is locked. Reason: Exhausted
+balance. Top up your balance…") and Replicate's is a 402 "insufficient credit to
+run this model" — both now map to out_of_credit via byte-exact substrings
+(exhausted balance / user is locked / insufficient credit to run / top up your
+balance), checked before the rate_limited and provider-dump buckets.
+**Why:** the 402-in-dump heuristic misses fal's 403, so a fully drained fal account
+surfaced as a generic "provider unavailable" with no owner funding signal.
+**How to apply:** when a provider changes its low-balance wording, add the new
+byte-exact substring here + a regression test in error-toasts.test.ts.
+
+## Diagnosing "all lipsync providers failed"
+Per-adapter attempt errors are persisted in `provider_logs` keyed by `ref_id`
+(= the lipsync_jobs/job row id) — query it instead of hunting console logs (dev
+restarts wipe them). The customer-surfaced error is only the LAST adapter's
+(fal, last in chain), which masks earlier, more actionable failures (e.g.
+Sync.so's 20s plan duration cap).

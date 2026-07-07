@@ -79,6 +79,22 @@ describe("classifyGenerationError — provider dumps", () => {
     expect(classifyGenerationError(new Error("Fal 402: {}"))).toBe("out_of_credit");
   });
 
+  test("fal's 403 'User is locked / Exhausted balance' dump maps to out_of_credit, not provider", () => {
+    // Real fal response (byte-exact): a 403 — not 402 — so the numeric-status
+    // heuristic alone would misfile it as a generic provider outage.
+    const err = new Error(
+      'Fal 403: {"detail": "User is locked. Reason: Exhausted balance. Top up your balance at fal.ai/dashboard/billing."}',
+    );
+    expect(classifyGenerationError(err)).toBe("out_of_credit");
+  });
+
+  test("Replicate's 402 'Insufficient credit' dump maps to out_of_credit", () => {
+    const err = new Error(
+      'Replicate create failed (402): {"title":"Insufficient credit","detail":"You have insufficient credit to run this model. Go to https://replicate.com/account/billing#billing to purchase credit."}',
+    );
+    expect(classifyGenerationError(err)).toBe("out_of_credit");
+  });
+
   test("a plain '500: ...' dump maps to provider", () => {
     expect(classifyGenerationError(new Error("500: Internal Server Error"))).toBe("provider");
   });
