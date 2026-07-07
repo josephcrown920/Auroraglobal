@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useAuth } from "@/hooks/use-auth";
 import { useServerFn } from "@tanstack/react-start";
@@ -78,7 +78,10 @@ const POLL_INTERVAL_MS = 4_000;
 
 export function GeneratedAssetGallery() {
   const { user } = useAuth();
-  const [open, setOpen] = useState(true);
+  // Start collapsed so the panel never covers the canvas on narrow screens;
+  // auto-open the first time this session actually produces an asset.
+  const [open, setOpen] = useState(false);
+  const autoOpenedRef = useRef(false);
   const [sessionStart] = useState(() => Date.now());
   const listFn = useServerFn(listGenerations);
 
@@ -99,6 +102,13 @@ export function GeneratedAssetGallery() {
       .filter((g) => new Date(g.created_at).getTime() >= cutoff)
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [data, sessionStart]);
+
+  useEffect(() => {
+    if (assets.length > 0 && !autoOpenedRef.current) {
+      autoOpenedRef.current = true;
+      setOpen(true);
+    }
+  }, [assets.length]);
 
   if (!user) return null;
 
