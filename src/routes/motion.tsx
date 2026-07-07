@@ -17,7 +17,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { UploadSlot } from "@/components/studio/UploadSlot";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, ArrowLeft, Loader2, Film, Wand2, Camera, Clapperboard, Users } from "lucide-react";
+import { Sparkles, ArrowLeft, Loader2, Film, Wand2, Camera, Clapperboard, Users, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import {
   generatePerformanceShot,
@@ -26,6 +26,7 @@ import {
   generatePerformanceReskin,
   listGenerations,
 } from "@/lib/studio.functions";
+import { checkWorkerCapability } from "@/lib/workers.functions";
 import { VIDEO_MODEL_LIST } from "@/lib/models";
 import { computeCost, type Resolution } from "@/lib/pricing";
 import { ResolutionPicker } from "@/components/ResolutionPicker";
@@ -37,7 +38,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { BringItToLifePreview } from "@/components/studio/BringItToLifePreview";
 import demoSelfie from "@/assets/demo-selfie.jpg";
 import { ExampleChips } from "@/components/onboarding/ExampleChips";
 import { MOTION_EXAMPLE_PRESETS } from "@/lib/example-presets";
@@ -200,6 +200,7 @@ function MotionStudio() {
   const reskinFn = useServerFn(generatePerformanceReskin);
   const listFn = useServerFn(listGenerations);
   const profileFn = useServerFn(getMyProfile);
+  const checkWorkerFn = useServerFn(checkWorkerCapability);
 
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -208,6 +209,15 @@ function MotionStudio() {
     staleTime: 30_000,
   });
   const isPro = !!(profile?.is_pro || profile?.isAdmin);
+
+  const { data: motionWorker } = useQuery({
+    queryKey: ["worker-capability", "motion"],
+    queryFn: () => checkWorkerFn({ data: { capability: "motion" } }),
+    enabled: !!user,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+  const motionOnline = motionWorker?.available ?? false;
 
   const { data: history } = useQuery({
     queryKey: ["motion-gens", user?.id],
@@ -651,7 +661,7 @@ function MotionStudio() {
                     {CAMERA_MOVES.map((c) => <SelectItem key={c.v} value={c.v}>{c.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <BringItToLifePreview active={cameraMovement} onPick={setCameraMovement} />
+                <p className="text-[11px] text-muted-foreground">Camera move is injected into the prompt — effect strength depends on the video model.</p>
               </div>
 
               <div className="space-y-2">
@@ -772,6 +782,16 @@ function MotionStudio() {
           {/* ── Motion Transfer (MimicMotion) ─────────────────────────── */}
           {mode === "transfer" && (
             <>
+              {!motionOnline && (
+                <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
+                  <WifiOff className="size-4 text-amber-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium text-amber-300">No motion GPU worker online</p>
+                    <p className="text-xs text-amber-300/70 mt-0.5">Motion Transfer runs on a self-hosted GPU (MimicMotion). Register a RunPod or Colab worker with the <strong>motion</strong> capability in the admin panel to enable this.</p>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Reference + driving video</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -788,13 +808,15 @@ function MotionStudio() {
               </div>
 
               <Button
-                disabled={transferMut.isPending || !mtImage || !mtVideo}
+                disabled={transferMut.isPending || !mtImage || !mtVideo || !motionOnline}
                 onClick={() => transferMut.mutate()}
                 variant="premium"
                 className="w-full h-12"
               >
                 {transferMut.isPending ? (
                   <><Loader2 className="size-4 mr-2 animate-spin" /> Queuing…</>
+                ) : !motionOnline ? (
+                  <><WifiOff className="size-4 mr-2" /> No motion worker online</>
                 ) : transferPreviewId ? (
                   <><Clapperboard className="size-4 mr-2" /> Render full clip · {computeCost({ features: ["motion"] }).total} Aura</>
                 ) : (
@@ -812,13 +834,23 @@ function MotionStudio() {
                 error={mtError}
                 onRetry={() => transferMut.mutate()}
               />
-              <p className="text-xs text-muted-foreground">First render is a short discounted preview — review it in Recent, then render the full clip. Runs on a GPU backend.</p>
+              <p className="text-xs text-muted-foreground">First render is a short discounted preview — review it in Recent, then render the full clip. Runs on a self-hosted GPU backend.</p>
             </>
           )}
 
           {/* ── Performance Shot (reskin) ─────────────────────────────── */}
           {mode === "reskin" && (
             <>
+              {!motionOnline && (
+                <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
+                  <WifiOff className="size-4 text-amber-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium text-amber-300">No motion GPU worker online</p>
+                    <p className="text-xs text-amber-300/70 mt-0.5">Performance Shot runs on a self-hosted GPU (MimicMotion). Register a RunPod or Colab worker with the <strong>motion</strong> capability in the admin panel to enable this.</p>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Performance + avatar</p>
                 <div className="grid grid-cols-3 gap-2">
@@ -852,13 +884,15 @@ function MotionStudio() {
               {motionControls(rsMotion, setRsMotion, rsCamera, setRsCamera)}
 
               <Button
-                disabled={reskinMut.isPending || !rsVideo || !rsAvatar}
+                disabled={reskinMut.isPending || !rsVideo || !rsAvatar || !motionOnline}
                 onClick={() => reskinMut.mutate()}
                 variant="premium"
                 className="w-full h-12"
               >
                 {reskinMut.isPending ? (
                   <><Loader2 className="size-4 mr-2 animate-spin" /> Queuing…</>
+                ) : !motionOnline ? (
+                  <><WifiOff className="size-4 mr-2" /> No motion worker online</>
                 ) : reskinPreviewId ? (
                   <><Users className="size-4 mr-2" /> Render full Performance Shot · {computeCost({ features: ["video", "motion"] }).total} Aura</>
                 ) : (
