@@ -58,7 +58,7 @@ export function TemplateCard({
         )}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
 
-        {/* Cost badge — Spin is a free live preview, so it never shows an Aura price. */}
+        {/* Cost badge — templateCost() returns 0 only for truly free templates. */}
         {cost > 0 ? (
           <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 rounded-full bg-primary/90 px-2 py-0.5 text-[11px] font-semibold text-primary-foreground shadow-[var(--shadow-glow-soft)] backdrop-blur">
             <Sparkles className="size-3" /> {cost}

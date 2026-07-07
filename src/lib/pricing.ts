@@ -320,8 +320,15 @@ export type DetectInput = {
  *    pair (both `audioUrl` and `videoUrl` present) on a non-lipsync primary.
  */
 // ─── Flat-rate job costs (no feature stack — reserved at enqueue time) ───────
-/** AutoCut: multi-clip assemble job. Must stay in sync with autocut.server.ts. */
+// These are the ONLY definitions of these values in the codebase. Server files
+// (ugc.server.ts, autocut.server.ts) re-export from here so there is no risk
+// of the displayed price and the reserved amount ever drifting apart.
+
+/** AutoCut: multi-clip assembly job. */
 export const COST_AUTOCUT = 8;
+
+/** Talking UGC ad: xAI fast path (image→video + mandatory relip to voice track). */
+export const COST_UGC_AD = 14;
 
 // ─── Growth Tools flat costs (Pro only, LLM-based) ───────────────────────────
 /** Daily Post Generator: 7 days of captions + image prompt pairs. */
