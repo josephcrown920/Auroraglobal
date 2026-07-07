@@ -6,13 +6,15 @@
  *    auto-select (it may land on seedance or other paid providers).
  *  - pollinations/flux  → free, keyless image
  *  - pollinations/openai → free, keyless text
- *  - fal-ai/wav2lip     → cheaper lipsync engine (vs sync-lipsync/v2 Studio)
+ *  - heygen/lipsync     → lipsync via HeyGen (Fal.ai balance exhausted)
  */
 
 import { orchestrate } from "@/lib/orchestrator.server";
 
 const TEST_SELFIE = "https://aurora-sparkle-charm.lovable.app/__l5e/assets-v1/24c6484d-42b7-4d6c-8d1d-aeeb71a19d30/josh-yellow-mic.jpg";
 const TEST_AUDIO  = "https://aurora-sparkle-charm.lovable.app/__l5e/assets-v1/04b233f7-4417-4708-a70a-761de327deef/the-one-hook.mp3";
+// Short public mp4 for lipsync (HeyGen requires an actual video, not a still image)
+const TEST_VIDEO  = "https://videos.pexels.com/video-files/3125979/3125979-hd_1080_1920_25fps.mp4";
 
 type Result = { surface: string; provider?: string; url?: string; text?: string; error?: string; ms: number };
 
@@ -48,11 +50,11 @@ const results = await Promise.all([
     prompt: "Write a 1-sentence cinematic shot description for a music video.",
   })),
 
-  // Lipsync — wav2lip (cheap engine)
-  run("lipsync/wav2lip", () => orchestrate({
+  // Lipsync — HeyGen (Fal.ai balance exhausted; HeyGen key now available)
+  run("lipsync/heygen", () => orchestrate({
     kind: "lipsync",
-    model: "fal-ai/wav2lip",
-    videoUrl: TEST_SELFIE,
+    model: "heygen/lipsync",
+    videoUrl: TEST_VIDEO,
     audioUrl: TEST_AUDIO,
   })),
 
