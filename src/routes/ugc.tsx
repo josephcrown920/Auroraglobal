@@ -8,10 +8,13 @@ import { useAuth } from "@/hooks/use-auth";
 import { generatePerformanceShot, generateVideoFromImage } from "@/lib/studio.functions";
 import { generateUGCAd, getGenerationStatus } from "@/lib/ugc-generation.functions";
 import { handleGenerationError } from "@/lib/error-toasts";
+import { supabase } from "@/integrations/supabase/client";
+import { COST_UGC_AD } from "@/lib/template-studio";
+import { AUDIO_ACCEPT } from "@/lib/utils";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Smartphone, Camera, ShoppingBag, Coffee, Dumbbell, Sparkles, Check, Loader2, Wand2, Film, AudioLines } from "lucide-react";
+import { Smartphone, Camera, ShoppingBag, Coffee, Dumbbell, Sparkles, Check, Loader2, Wand2, Film, AudioLines, Music2, X } from "lucide-react";
 import avatarMaya from "@/assets/ugc/maya.jpg.asset.json";
 import avatarLuna from "@/assets/ugc/luna.jpg.asset.json";
 import avatarAva from "@/assets/ugc/ava.jpg.asset.json";
@@ -72,6 +75,7 @@ function UGCStudio() {
   const [presetId, setPresetId] = useState<string>(PRESETS[0].id);
   const preset = PRESETS.find(p => p.id === presetId)!;
   const [productPrompt, setProductPrompt] = useState<string>("");
+  const [voiceFile, setVoiceFile] = useState<File | null>(null);
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [resultVideo, setResultVideo] = useState<string | null>(null);
 
@@ -112,6 +116,23 @@ function UGCStudio() {
     mutationFn: async () => {
       if (!user) throw new Error("Please sign in first.");
       if (!productPrompt.trim()) throw new Error("Describe your product (e.g. holding a glossy red lipstick).");
+      // Voice lock: when the user supplies their own voice track it drives the
+      // final lip-sync — the pipeline never ships a generated voice over it.
+      let audioUrl: string | undefined;
+      if (voiceFile) {
+        const ext = voiceFile.name.split(".").pop() || "mp3";
+        const path = `${user.id}/ugc/${Date.now()}-voice.${ext}`;
+        const { error } = await supabase.storage.from("studio").upload(path, voiceFile, {
+          contentType: voiceFile.type,
+          upsert: true,
+        });
+        if (error) throw new Error(`Voice upload failed: ${error.message}`);
+        const { data: signed, error: signErr } = await supabase.storage
+          .from("studio")
+          .createSignedUrl(path, 60 * 60);
+        if (signErr || !signed?.signedUrl) throw new Error(`Voice URL failed: ${signErr?.message ?? "no url"}`);
+        audioUrl = signed.signedUrl;
+      }
       const { generationId } = await genAd({
         data: {
           avatarImageUrl: toAbsolute(avatar.img),
@@ -122,6 +143,7 @@ function UGCStudio() {
           productPrompt: productPrompt.trim(),
           aspect: "9:16",
           duration: 8,
+          ...(audioUrl ? { audioUrl } : {}),
         },
       });
       setResultImage(null);
@@ -263,13 +285,39 @@ function UGCStudio() {
                     {videoMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Animating…</> : <><Film className="size-4 mr-2" /> Animate · 5 Aura</>}
                   </Button>
                   <Button onClick={() => adMut.mutate()} disabled={busy} variant="secondary" className="w-full sm:w-auto">
-                    {adMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Producing ad…</> : <><AudioLines className="size-4 mr-2" /> Generate talking ad · 8 Aura</>}
+                    {adMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Producing ad…</> : <><AudioLines className="size-4 mr-2" /> Generate talking ad · {COST_UGC_AD} Aura</>}
                   </Button>
                 </>
               )}
             </div>
+            {user && (
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border hover:border-primary text-xs text-muted-foreground hover:text-foreground cursor-pointer transition">
+                  <Music2 className="size-3.5 text-primary" />
+                  {voiceFile ? voiceFile.name : "Add your voice track (optional)"}
+                  <input
+                    type="file"
+                    accept={AUDIO_ACCEPT}
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] ?? null;
+                      if (f && f.size > 50 * 1024 * 1024) { toast.error("Audio must be under 50MB"); return; }
+                      setVoiceFile(f);
+                    }}
+                  />
+                </label>
+                {voiceFile && (
+                  <button type="button" onClick={() => setVoiceFile(null)} className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground">
+                    <X className="size-3" /> Remove
+                  </button>
+                )}
+                <span className="text-[11px] text-muted-foreground">
+                  {voiceFile ? "Your audio drives the final lip-sync — same voice, every render." : "No track? Aurora falls back to auto voice when configured."}
+                </span>
+              </div>
+            )}
             <p className="text-[11px] text-muted-foreground">
-              Avatar <strong className="text-foreground">{avatar.name}</strong> · scene <strong className="text-foreground">{preset.name}</strong>. Generate a still then Animate it, or run <strong className="text-foreground">Generate talking ad</strong> for the full script → voice → video → lip-sync pipeline in one click (voice &amp; lip-sync apply when configured, otherwise a silent clip).
+              Avatar <strong className="text-foreground">{avatar.name}</strong> · scene <strong className="text-foreground">{preset.name}</strong>. Generate a still then Animate it, or run <strong className="text-foreground">Generate talking ad</strong> for the full script → voice → video → lip-sync pipeline in one click. Upload your own voice track above to lock the character's voice across renders.
             </p>
           </div>
           <div className="rounded-xl border border-border bg-background/40 aspect-[9/16] overflow-hidden grid place-items-center relative">

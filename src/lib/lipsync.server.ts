@@ -1,15 +1,16 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { orchestrate, hasActiveWorkerForKind, assertFreeModeServable } from "./orchestrator.server";
 import { buildLatentSyncRequest } from "./lipsync-workflows.server";
-import { computeCost } from "./pricing";
+import { lipsyncEngineCost, XAI_UGC_RELIP_MODEL } from "./pricing";
 import { isAdmin } from "./admin.server";
 
 export type Engine = "sync-v2" | "wav2lip" | "latentsync" | "xai-ugc";
 
 // Engine → model key. "latentsync" is self-hosted: it carries no hosted-API
 // model, so it routes ONLY to the registered GPU worker pool (capability lipsync).
-// "xai-ugc" routes through the xAI video adapter with a hardcoded UGC prompt:
-// image + audio in → talking-head UGC video out (no separate lipsync pass needed).
+// "xai-ugc" is a two-stage chain: xAI video adapter renders the talking-head clip
+// from the still photo, then a MANDATORY relip stage syncs the lips to the user's
+// uploaded audio (xAI's own generated voice is never shipped — voice consistency).
 const MODEL: Record<Engine, string> = {
   "sync-v2": "fal-ai/sync-lipsync/v2",
   "wav2lip": "fal-ai/wav2lip",
@@ -76,8 +77,10 @@ export async function runLipsyncJob(opts: {
     .single();
   if (insertErr || !row) throw new Error(insertErr?.message ?? "Failed to create job");
 
-  // Charge credits before orchestration.
-  const lipsyncCost = computeCost({ features: ["lipsync"], model: MODEL[opts.engine] }).total;
+  // Charge credits before orchestration. xai-ugc is billed as a two-stage
+  // chain (xAI video + mandatory relip) — lipsyncEngineCost is the single
+  // source shared with the UI quote.
+  const lipsyncCost = lipsyncEngineCost(opts.engine);
   const adminUser = await isAdmin(opts.userId);
   if (!adminUser) {
     const { data: charged, error: creditErr } = await supabaseAdmin.rpc("deduct_credits", {
@@ -106,11 +109,14 @@ export async function runLipsyncJob(opts: {
     let out: Awaited<ReturnType<typeof orchestrate>>;
 
     if (isXaiUgc) {
-      // xAI UGC: image-to-video generation with a hardcoded UGC-style prompt.
-      // Routes through the xAI adapter in the standard "video" PRIORITY chain.
-      // The audio is recorded in the job row for reference but xAI embeds speech
-      // into the video via its internal lip-sync — no separate audio mux needed.
-      out = await orchestrate({
+      // xAI UGC — two mandatory stages:
+      //   1. xAI image→video: still photo → walking talking-head UGC clip.
+      //   2. Relip to the USER'S audio: xAI invents its own (inconsistent)
+      //      voice, so the clip is always re-synced to the uploaded track —
+      //      the character's voice must stay identical across renders.
+      // Both stages are required (see pipeline-stage strictness): a failure in
+      // either fails the whole job with a refund — never a wrong-voice output.
+      const xaiClip = await orchestrate({
         kind: "video",
         model: MODEL["xai-ugc"],
         // Never fall back to another video model: the user explicitly chose the
@@ -121,6 +127,14 @@ export async function runLipsyncJob(opts: {
         imageUrls: [opts.imageUrl!],
         duration: 10,
         resolution: "720p",
+        userId: opts.userId,
+        refId: row.id,
+      });
+      out = await orchestrate({
+        kind: "lipsync",
+        model: XAI_UGC_RELIP_MODEL,
+        videoUrl: xaiClip.url,
+        audioUrl: opts.audioUrl,
         userId: opts.userId,
         refId: row.id,
       });

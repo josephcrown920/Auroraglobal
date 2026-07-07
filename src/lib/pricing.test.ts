@@ -8,8 +8,11 @@ import {
   VIDEO_MODEL_TIERS,
   LIPSYNC_MODEL_TIERS,
   LIPSYNC_ENGINE_MODEL,
+  lipsyncEngineCost,
+  XAI_UGC_RELIP_MODEL,
   tierForModel,
   type Feature,
+  type LipsyncEngine,
 } from "./pricing";
 import { MODEL_REGISTRY, FALLBACK_MODELS } from "./orchestrator.server";
 import { VIDEO_MODEL_LIST, LIPSYNC_MODEL_LIST } from "./models";
@@ -219,21 +222,31 @@ describe("motion repricing — new base = 15", () => {
     expect(computeCost({ features: ["video", "motion"], resolution: "720p", durationSeconds: 5 }).total).toBe(20);
   });
 
-  it("lipsync UI price equals server charge for all three engines", () => {
-    // LIPSYNC_ENGINE_MODEL maps each UI engine key to the same model string that
-    // lipsync.server.ts MODEL uses, so both call computeCost with the same model
-    // and must produce the same Aura total. This verifies the mapping is correct
-    // and that each engine resolves to the expected tier.
-    const expectedByModel: Record<string, number> = {
-      "fal-ai/sync-lipsync/v2": LIPSYNC_TIER_AURA.premium,  // sync-v2 → 9 Aura
-      "fal-ai/wav2lip": LIPSYNC_TIER_AURA.standard,          // wav2lip → 6 Aura
-      "latentsync": LIPSYNC_TIER_AURA.budget,                // latentsync → 3 Aura
-      "xai/grok-imagine-video-1.5": LIPSYNC_TIER_AURA.premium, // xai-ugc → 9 Aura (~$0.30/10s run)
+  it("lipsync UI price equals server charge for every engine", () => {
+    // lipsyncEngineCost is THE shared source for the /lipsync UI quote AND the
+    // lipsync.server.ts charge, so parity holds by construction — this test pins
+    // the expected Aura per engine so a tier/model change can't slip through.
+    const expectedByEngine: Record<string, number> = {
+      "sync-v2": LIPSYNC_TIER_AURA.premium, // 9 Aura
+      "wav2lip": LIPSYNC_TIER_AURA.standard, // 6 Aura
+      "latentsync": LIPSYNC_TIER_AURA.budget, // 3 Aura
+      // xai-ugc is a TWO-stage chain: xAI video (standard video tier, 10) +
+      // mandatory relip to the user's audio (premium lipsync, 9) = 19 Aura.
+      // Covers real cost ~$0.60 (xAI ~$0.30 + Sync.so ~$0.30).
+      "xai-ugc": VIDEO_TIER_AURA.standard + LIPSYNC_TIER_AURA.premium,
     };
-    for (const [engine, model] of Object.entries(LIPSYNC_ENGINE_MODEL)) {
-      const uiCost = computeCost({ features: ["lipsync"], model }).total;
-      expect(uiCost, `engine "${engine}" model "${model}"`).toBe(expectedByModel[model]);
+    for (const engine of Object.keys(LIPSYNC_ENGINE_MODEL) as LipsyncEngine[]) {
+      expect(lipsyncEngineCost(engine), `engine "${engine}"`).toBe(expectedByEngine[engine]);
     }
+  });
+
+  it("xai-ugc two-stage price decomposes as video(xai) + lipsync(relip model)", () => {
+    const video = computeCost({
+      features: ["video"],
+      model: LIPSYNC_ENGINE_MODEL["xai-ugc"],
+    }).total;
+    const relip = computeCost({ features: ["lipsync"], model: XAI_UGC_RELIP_MODEL }).total;
+    expect(lipsyncEngineCost("xai-ugc")).toBe(video + relip);
   });
 });
 
