@@ -69,11 +69,13 @@ const serverFileClientStub = {
     source: string,
     importer: string | undefined,
     options?: { ssr?: boolean },
-  ) {
+  ): Promise<string | null> {
     if (options?.ssr) return null;
     if (source.startsWith("\0server-stub:")) return null;
     if (!/\.server(\.tsx?)?$/.test(source)) return null;
-    const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
+    // `this` is Vite's PluginContext (bound at runtime); cast to access .resolve.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const resolved: { id: string } | null = await (this as any).resolve(source, importer, { ...options, skipSelf: true });
     if (!resolved) return null;
     return "\0server-stub:" + resolved.id;
   },
