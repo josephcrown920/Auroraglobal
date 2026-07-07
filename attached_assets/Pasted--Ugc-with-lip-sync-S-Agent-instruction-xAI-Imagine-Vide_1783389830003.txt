@@ -1,0 +1,116 @@
+
+Ugc with lip sync
+S
+
+Agent instruction # xAI Imagine — Video Generation Integration Guide
+
+You are helping a developer integrate the xAI Video generation API into their application. The request body below reflects the settings they configured in the xAI Imagine playground.
+
+**Key rules:**
+- Ask the discovery questions first, in a single message.
+- Do not write code until the developer answers.
+- After receiving answers, generate an implementation tailored to those answers. Only include code and guidance relevant to their stack and use case.
+- The sections below are reference material for you, not steps to follow in order.
+
+---
+
+## 0. Discovery Questions (ask before any code)
+
+1. **Backend language** — Node.js, Python, or something else? (The API call must happen server-side; the key cannot ship to a browser.)
+2. **Backend framework** — Express, Next.js API routes, FastAPI, Flask, plain script, etc.?
+3. **Frontend** — Is there a UI that triggers generation or displays results (React, Next.js, none)? If both a backend and frontend are named, generate both halves: a server route that calls the API and a client that calls that route.
+4. **API key** — Do you already have an xAI API key? Keys are created at [console.x.ai](https://console.x.ai) → API Keys.
+5. **Use case** — On-demand (user-triggered), batch processing, or a background pipeline?
+6. **Output handling** — How should the video be handled? Multiple answers allowed: saved to file, uploaded to object storage (S3/GCS), rendered in the browser.
+
+---
+
+## 1. Auth
+
+API key starts with `xai-`. Pass it as a Bearer token:
+
+```bash
+export XAI_API_KEY="xai-..."
+```
+
+**Browser / client-side**: never expose the API key. Proxy through your backend.
+
+**SDKs:** Prefer an official SDK over raw HTTP when it fits the stack — Python: `xai-sdk` (`pip install xai-sdk`), JavaScript: Vercel AI SDK (`npm install ai @ai-sdk/xai`). Both handle video result polling automatically.
+
+## 2. API Endpoint
+
+```
+POST https://api.x.ai/v1/videos/generations
+```
+
+**Headers:**
+- `Authorization: Bearer <API_KEY>`
+- `Content-Type: application/json`
+
+## 3. Request Body
+
+The developer's playground configuration. The `prompt` value is what they typed in the playground — in their application it will likely be dynamic:
+
+```json
+{
+  "model": "grok-imagine-video-1.5",
+  "prompt": "Create a realistic UGC-style video from the reference image of the person. The person walks slowly and naturally toward the camera while speaking directly to the viewer with natural facial expressions, head movement, and realistic lip-sync.\nCamera: Handheld selfie-style shot, slight natural movement, vertical 9:16 format.\nMovement: The person starts a bit further away and walks casually toward the camera, maintaining eye contact, with natural body sway and subtle gestures.\nStyle: Authentic UGC / TikTok / Instagram Reels style — natural lighting, casual and relatable, high realism, slight film grain, not overly polished.\nScript (speak naturally, conversational tone):\n\"Hey guys, I just had to show you this. It's honestly been a game changer for me. The quality is insane, and it smells absolutely incredible. If you're thinking about getting one, just do it — you won't regret it.\"\nMake the lip movements perfectly synchronized with the spoken audio. Natural blinking, micro-expressions, and realistic walking motion. 8–10 seconds duration, smooth motion, high quality, photorealistic",
+  "duration": 10,
+  "resolution": "720p",
+  "image": {
+    "url": "https://data.x.ai/imagine-console/ugc-content-input.webp"
+  }
+}
+```
+
+## 4. Input media
+
+This request includes an input image. The `url` field accepts either:
+- A **public URL** pointing to the file, or
+- A **base64-encoded data URI** (e.g. `data:image/png;base64,...`).
+
+To send a local file, read it and encode it as a data URI before building the request body. Never paste an in-memory/blob URL — it is not reachable by the API.
+
+## 5. Example Request
+
+```bash
+curl https://api.x.ai/v1/videos/generations \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $XAI_API_KEY" \
+  -d '{
+  "model": "grok-imagine-video-1.5",
+  "prompt": "Create a realistic UGC-style video from the reference image of the person. The person walks slowly and naturally toward the camera while speaking directly to the viewer with natural facial expressions, head movement, and realistic lip-sync.\nCamera: Handheld selfie-style shot, slight natural movement, vertical 9:16 format.\nMovement: The person starts a bit further away and walks casually toward the camera, maintaining eye contact, with natural body sway and subtle gestures.\nStyle: Authentic UGC / TikTok / Instagram Reels style — natural lighting, casual and relatable, high realism, slight film grain, not overly polished.\nScript (speak naturally, conversational tone):\n\"Hey guys, I just had to show you this. It'\''s honestly been a game changer for me. The quality is insane, and it smells absolutely incredible. If you'\''re thinking about getting one, just do it — you won'\''t regret it.\"\nMake the lip movements perfectly synchronized with the spoken audio. Natural blinking, micro-expressions, and realistic walking motion. 8–10 seconds duration, smooth motion, high quality, photorealistic",
+  "duration": 10,
+  "resolution": "720p",
+  "image": {
+    "url": "https://data.x.ai/imagine-console/ugc-content-input.webp"
+  }
+}'
+```
+
+## 6. Polling for the result (video only)
+
+Video generation is asynchronous. The generation request returns a `request_id`. Poll the result endpoint until `video.url` is present:
+
+```
+GET https://api.x.ai/v1/videos/<REQUEST_ID>
+```
+
+The poll response looks like:
+
+```json
+{ "model": "...", "progress": 100, "video": { "url": "https://...", "duration": 6 } }
+```
+
+While generating, `video` is absent and `progress` counts up to 100. On failure the response contains an `error` object with `code` and `message`. Poll every ~5 seconds.
+
+## 7. Error Handling
+
+| Status | Meaning | Action |
+|---|---|---|
+| 200 | Success | Poll the result endpoint |
+| 400 | Bad request | Check the prompt, model, and parameters |
+| 401 | Unauthorized | Invalid or missing API key |
+| 402 | Payment required | Add credits to the team at [console.x.ai](https://console.x.ai) → Billing |
+| 429 | Rate limited | Exponential backoff: e.g. 5 retries, 1s base delay, doubling with jitter |
+| 500+ | Server error | Same backoff strategy as 429 |

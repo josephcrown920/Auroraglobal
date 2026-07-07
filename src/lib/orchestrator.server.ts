@@ -218,7 +218,8 @@ type ProviderAdapter = {
     | "gemini-text"
     | "lovable-text"
     | "hf-text"
-    | "anthropic";
+    | "anthropic"
+    | "xai";
   supports: (req: GenerateRequest) => boolean;
   estimateCost: (req: GenerateRequest) => number;
   run: (req: GenerateRequest) => Promise<{ url: string; endpoint: string; text?: string }>;
@@ -2067,6 +2068,59 @@ const gpuWorker: ProviderAdapter = {
   },
 };
 
+// ─── xAI Grok Imagine Video ──────────────────────────────────────────────────
+// Async image-to-video with built-in lip-sync. Takes a reference image + text
+// prompt and generates a talking-head UGC-style video in one API round-trip
+// (no separate TTS/lipsync stages). Poll GET /v1/videos/<request_id> until
+// video.url appears or an error object arrives.
+const XAI_VIDEO_BASE = "https://api.x.ai/v1";
+const xaiDirect: ProviderAdapter = {
+  name: "xai",
+  supports: (r) =>
+    r.kind === "video" &&
+    r.model === "xai/grok-imagine-video-1.5" &&
+    !!process.env.XAI_API_KEY,
+  estimateCost: (r) => 0.03 * Math.max(1, r.duration ?? 8), // ~$0.03/s
+  async run(r) {
+    const key = process.env.XAI_API_KEY!;
+    const body: Record<string, unknown> = {
+      model: "grok-imagine-video-1.5",
+      prompt: r.prompt ?? "",
+      duration: Math.min(15, Math.max(3, r.duration ?? 8)),
+      resolution: r.resolution ?? "720p",
+    };
+    if (r.imageUrls?.[0]) body.image = { url: r.imageUrls[0] };
+
+    const create = await fetch(`${XAI_VIDEO_BASE}/videos/generations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify(body),
+    });
+    if (!create.ok)
+      throw new Error(`xAI video ${create.status}: ${(await create.text()).slice(0, 300)}`);
+    const created = await create.json();
+    const requestId: string | undefined = created?.id ?? created?.request_id;
+    if (!requestId) throw new Error("xAI: no request_id in response");
+
+    const deadline = Date.now() + 15 * 60_000; // 15-min ceiling
+    while (Date.now() < deadline) {
+      await new Promise((s) => setTimeout(s, 5_000));
+      const poll = await fetch(`${XAI_VIDEO_BASE}/videos/${requestId}`, {
+        headers: { Authorization: `Bearer ${key}` },
+      });
+      if (!poll.ok) {
+        if (poll.status === 429) continue; // rate-limit — retry
+        throw new Error(`xAI poll ${poll.status}: ${(await poll.text()).slice(0, 200)}`);
+      }
+      const pj = await poll.json();
+      if (pj?.error) throw new Error(`xAI error: ${pj.error.message ?? JSON.stringify(pj.error)}`);
+      const videoUrl: string | undefined = pj?.video?.url;
+      if (videoUrl) return { url: videoUrl, endpoint: "xai:grok-imagine-video-1.5" };
+    }
+    throw new Error("xAI video poll timeout (15 min)");
+  },
+};
+
 // ─── Priority chain per kind ─────────────────────────────────────────────────
 // GPU-FIRST for every modality: the self-hosted gpuWorker pool is always
 // tried first, full stop. When no eligible worker is up (offline, stale
@@ -2099,7 +2153,7 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
     lovable,
     falFallback,
   ],
-  video: [gpuWorker, klingDirect, byteplus, replicate, runway, piapi, falFallback],
+  video: [gpuWorker, xaiDirect, klingDirect, byteplus, replicate, runway, piapi, falFallback],
   lipsync: [gpuWorker, sync, heygen, replicate, falFallback],
   // GPU-first: a worker advertising "upscale" is tried before Replicate.
   upscale: [gpuWorker, replicate, falFallback],
@@ -2293,6 +2347,7 @@ export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   // in automatic model-fallback and provider-health routing (Task #244) —
   // previously it only worked when explicitly requested by value.
   video: [
+    "xai/grok-imagine-video-1.5",
     "seedance-2.0-fast",
     "seedance-2.0",
     "wan-2.5",

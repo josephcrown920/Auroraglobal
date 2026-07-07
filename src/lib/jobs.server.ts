@@ -17,6 +17,7 @@ import {
   generateUGCScript,
   buildUGCImagePrompt,
   buildUGCMotionPrompt,
+  buildXAIUGCPrompt,
   UGC_TTS_MODEL,
 } from "./ugc.server";
 import {
@@ -498,6 +499,46 @@ async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
     sceneHint: p.sceneHint,
     durationSec: duration,
   });
+
+  // Fast path — xAI Grok Imagine Video: one API call generates a complete
+  // talking-head UGC clip (walk-toward-cam + built-in lip-sync) from the
+  // reference image + script. Skips stages 2-5 when the key is set.
+  if (process.env.XAI_API_KEY && p.avatarImageUrl) {
+    try {
+      const xaiClip = await orch({
+        kind: "video",
+        model: "xai/grok-imagine-video-1.5",
+        prompt: buildXAIUGCPrompt({
+          script,
+          productPrompt: p.productPrompt,
+          avatarName: p.avatarName,
+        }),
+        imageUrls: [p.avatarImageUrl],
+        duration,
+        resolution: "720p",
+        userId: job.user_id,
+        refId: job.id,
+      });
+      return {
+        url: xaiClip.url,
+        videoUrl: xaiClip.url,
+        provider: xaiClip.provider,
+        endpoint: xaiClip.endpoint,
+        meta: {
+          script: script.full,
+          script_source: scriptSource,
+          ...(scriptProvider ? { script_provider: scriptProvider } : {}),
+          tts_skipped: "xai_ugc_path",
+          lipsync_skipped: "xai_ugc_path",
+          duration,
+          xai_ugc: true,
+        },
+      };
+    } catch (e) {
+      console.warn("[ugc] xAI fast path failed, falling back to multi-stage pipeline:",
+        e instanceof Error ? e.message : String(e));
+    }
+  }
 
   // Stage 2 — voice (optional)
   let audioUrl: string | undefined;
