@@ -52,6 +52,15 @@ const MODALITIES: { id: Modality; label: string; icon: typeof ImageIcon }[] = [
 const RESOLUTIONS: Resolution[] = ["480p", "720p", "1080p", "2160p"];
 const DURATIONS = [5, 8, 10, 12];
 
+// "auto" is a UI-only sentinel: it means "don't pin a model" so the request
+// rides the orchestrator's full video fallback chain (which handles plain
+// text-to-video). It must be stripped before hitting pricing or the server.
+const AUTO_MODEL = "auto";
+// Runway is image-to-video only — it animates a start frame and rejects bare
+// text prompts. Every other video option (and Auto) supports text-to-video,
+// with the start image being an optional upgrade to image-to-video.
+const IMAGE_REQUIRED_VIDEO_MODELS = new Set(["runway/gen4-turbo", "runway/gen3a-turbo"]);
+
 // Curated ElevenLabs premade voices — stable IDs available on every ElevenLabs
 // account, so picking one always resolves to a real voice instead of a raw
 // text field where a typo/garbage id would 400 at generation time.
@@ -73,11 +82,12 @@ const MODELS: Record<Modality, ModelOption[]> = {
     { key: "piapi/midjourney-imagine", label: "PiAPI · Midjourney" },
   ],
   video: [
-    { key: "runway/gen4-turbo", label: "Runway · Gen-4 Turbo" },
-    { key: "runway/gen3a-turbo", label: "Runway · Gen-3 Alpha Turbo" },
+    { key: "auto", label: "Auto · best available" },
     { key: "seedance-2.0-fast", label: "Replicate · Seedance Lite" },
     { key: "kling-3.0", label: "Replicate · Kling v2.1" },
     { key: "piapi/kling-video", label: "PiAPI · Kling" },
+    { key: "runway/gen4-turbo", label: "Runway · Gen-4 Turbo" },
+    { key: "runway/gen3a-turbo", label: "Runway · Gen-3 Alpha Turbo" },
   ],
   text: [
     { key: "pollinations/openai", label: "Pollinations · OpenAI", free: true },
@@ -101,6 +111,11 @@ function OrchestratePage() {
   const [prompt, setPrompt] = useState("");
   const [model, setModel] = useState(MODELS.image[0].key);
   const [imageUrl, setImageUrl] = useState("");
+  // Optional uploaded start image (image-to-video): kept as a File until
+  // generation time, then uploaded to the studio bucket for a signed URL —
+  // same pattern as /lipsync and /ugc uploads.
+  const [startImageFile, setStartImageFile] = useState<File | null>(null);
+  const [startImagePreview, setStartImagePreview] = useState<string | null>(null);
   const [voiceId, setVoiceId] = useState(VOICE_OPTIONS[0].id);
   const [resolution, setResolution] = useState<Resolution>("720p");
   const [duration, setDuration] = useState(5);
@@ -154,13 +169,15 @@ function OrchestratePage() {
   // on the button is exactly what gets reserved.
   const usesResolution = modality === "image" || modality === "video";
   const usesDuration = modality === "video";
+  // "auto" is a UI-only sentinel — pricing and the server must never see it.
+  const effectiveModel = model === AUTO_MODEL ? undefined : model;
   const { features } = detectFeatures({ kind: modality as Feature });
   const quote = computeCost({
     features,
     resolution: usesResolution ? resolution : undefined,
     durationSeconds: usesDuration ? duration : undefined,
     // Switching models retiers the video base, so the previewed Aura updates live.
-    model,
+    model: effectiveModel,
   });
   const cost = quote.total;
 
@@ -182,7 +199,8 @@ function OrchestratePage() {
     }
     let cancelled = false;
     setEstimateLoading(true);
-    const params = new URLSearchParams({ kind: modality, model });
+    const params = new URLSearchParams({ kind: modality });
+    if (effectiveModel) params.set("model", effectiveModel);
     if (usesResolution) params.set("resolution", resolution);
     if (usesDuration) params.set("duration", String(duration));
     (async () => {
@@ -212,7 +230,7 @@ function OrchestratePage() {
     return () => {
       cancelled = true;
     };
-  }, [awaitingFullRender, modality, model, resolution, duration, usesResolution, usesDuration]);
+  }, [awaitingFullRender, modality, effectiveModel, resolution, duration, usesResolution, usesDuration]);
   // Prefer the server-confirmed number once it lands; it's what will actually be charged.
   const displayCost = serverEstimate?.credits ?? cost;
 
@@ -253,6 +271,47 @@ function OrchestratePage() {
     setPreviewTicket(null);
   };
 
+  const onStartImage = (f: File | null) => {
+    if (!f) return;
+    if (!f.type.startsWith("image/")) {
+      return toast.error("Please upload a JPG, PNG, or WebP image");
+    }
+    if (f.size > 20 * 1024 * 1024) return toast.error("Image must be under 20MB");
+    setStartImageFile(f);
+    if (startImagePreview) URL.revokeObjectURL(startImagePreview);
+    setStartImagePreview(URL.createObjectURL(f));
+    // The uploaded file supersedes any pasted URL.
+    setImageUrl("");
+  };
+
+  const clearStartImage = () => {
+    setStartImageFile(null);
+    if (startImagePreview) URL.revokeObjectURL(startImagePreview);
+    setStartImagePreview(null);
+  };
+
+  const uploadStartImage = async (file: File): Promise<string> => {
+    const { supabase } = await import("@/integrations/supabase/client");
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${user!.id}/orchestrate/${Date.now()}-start.${ext}`;
+    const { error } = await supabase.storage.from("studio").upload(path, file, {
+      contentType: file.type,
+      upsert: true,
+    });
+    if (error) throw new Error(`Image upload failed: ${error.message}`);
+    const { data: signed, error: signErr } = await supabase.storage
+      .from("studio")
+      .createSignedUrl(path, 60 * 60);
+    if (signErr || !signed?.signedUrl) {
+      throw new Error(`Image URL failed: ${signErr?.message ?? "no url"}`);
+    }
+    return signed.signedUrl;
+  };
+
+  // Runway models animate a start frame and can't run text-only; everything
+  // else (including Auto) does plain text-to-video with the image optional.
+  const startImageRequired = modality === "video" && IMAGE_REQUIRED_VIDEO_MODELS.has(model);
+
   // Preview-first flow for video: first pass runs at 480p/5s cheaply,
   // then the user confirms before the full-quality render.
   const isPreviewPass = modality === "video" && !awaitingFullRender;
@@ -262,19 +321,26 @@ function OrchestratePage() {
   const doGenerate = async () => {
     if (!user) return toast.error("Please sign in to generate");
     if (!prompt.trim()) return toast.error("Enter a prompt first");
-    if (modality === "video" && !imageUrl.trim()) {
-      return toast.error("Runway video needs a start image URL");
+    if (startImageRequired && !startImageFile && !imageUrl.trim()) {
+      return toast.error(
+        "Runway animates a start image — upload one, or pick Auto for text-to-video",
+      );
     }
     setBusy(true);
     setLastError(null);
     setResult(null);
     setPendingState("pending");
     try {
+      // Uploaded file wins over a pasted URL (picking a file clears the URL field).
+      let startImageUrl = imageUrl.trim();
+      if (modality === "video" && startImageFile) {
+        startImageUrl = await uploadStartImage(startImageFile);
+      }
       const res = await run({
         data: {
           kind: modality,
           prompt: prompt.trim(),
-          model,
+          ...(effectiveModel ? { model: effectiveModel } : {}),
           // Preview pass: first video generation runs cheap (480p/5s) so the
           // user can confirm the scene before paying for the full render.
           ...(usesResolution ? { resolution: isPreviewPass ? "480p" : resolution } : {}),
@@ -283,7 +349,7 @@ function OrchestratePage() {
           // Full-quality pass must present the preview's id or the server
           // gate forces it back down to a preview.
           ...(!isPreviewPass && previewTicket ? { confirmPreviewId: previewTicket } : {}),
-          ...(modality === "video" && imageUrl.trim() ? { imageUrls: [imageUrl.trim()] } : {}),
+          ...(modality === "video" && startImageUrl ? { imageUrls: [startImageUrl] } : {}),
           ...(modality === "audio" && voiceId.trim() ? { voiceId: voiceId.trim() } : {}),
         },
       });
@@ -401,14 +467,55 @@ function OrchestratePage() {
             {modality === "video" && (
               <div className="mt-4">
                 <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-neutral-500">
-                  Start image URL (required)
+                  Start image{" "}
+                  {startImageRequired ? "(required by Runway)" : "(optional — image to video)"}
                 </label>
-                <input
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://…"
-                  className="w-full rounded-xl border border-neutral-800 bg-neutral-950 px-4 py-2.5 text-sm outline-none focus:border-fuchsia-500"
-                />
+                {startImagePreview ? (
+                  <div className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-950 p-2.5">
+                    <img
+                      src={startImagePreview}
+                      alt="Start frame"
+                      className="h-14 w-14 rounded-lg object-cover"
+                    />
+                    <div className="min-w-0 flex-1 text-xs text-neutral-400">
+                      <div className="truncate">{startImageFile?.name}</div>
+                      <div className="text-[10px] text-neutral-500">
+                        This frame will be animated
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={clearStartImage}
+                      className="rounded-lg border border-neutral-800 px-2.5 py-1.5 text-xs text-neutral-400 transition hover:border-neutral-700 hover:text-neutral-200"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-neutral-700 bg-neutral-950 px-4 py-4 text-sm text-neutral-400 transition hover:border-fuchsia-500/60 hover:text-neutral-200">
+                      <ImageIcon className="h-4 w-4" />
+                      Upload a start image
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => onStartImage(e.target.files?.[0] ?? null)}
+                      />
+                    </label>
+                    <input
+                      value={imageUrl}
+                      onChange={(e) => setImageUrl(e.target.value)}
+                      placeholder="…or paste an image URL"
+                      className="w-full rounded-xl border border-neutral-800 bg-neutral-950 px-4 py-2.5 text-sm outline-none focus:border-fuchsia-500"
+                    />
+                  </div>
+                )}
+                {!startImageRequired && (
+                  <p className="mt-2 text-[11px] leading-relaxed text-neutral-500">
+                    Leave empty for pure text-to-video, or add an image to animate it.
+                  </p>
+                )}
               </div>
             )}
 
@@ -446,7 +553,7 @@ function OrchestratePage() {
                     isPro={isPro}
                     features={features}
                     durationSeconds={duration}
-                    model={model}
+                    model={effectiveModel}
                     className="col-span-full sm:col-span-1"
                   />
                 )}

@@ -54,6 +54,7 @@ const LIVE_FEATURES: Feature[] = [
   { to: "/studio",      label: "Image Generation", icon: Sparkles },
   { to: "/photo-edit",  label: "Photo Editor",      icon: Brush },
   { to: "/orchestrate", label: "Video Generation",  icon: Film },
+  { to: "/agent",       label: "Video Agent",       icon: Bot },
   { to: "/ugc",         label: "UGC Ads",           icon: Megaphone },
   { to: "/spin",        label: "Spin · 30 Posts",   icon: Flame },
   { to: "/colors",      label: "Colors Studio",     icon: Palette },
