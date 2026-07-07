@@ -223,6 +223,35 @@ export const LIPSYNC_ENGINE_MODEL: Record<LipsyncEngine, string> = {
   "xai-ugc": "xai/grok-imagine-video-1.5",
 };
 
+/**
+ * The model used for the MANDATORY relip stage of the xAI UGC engine. xAI
+ * generates its own (inconsistent) voice, so the clip is always re-synced to
+ * the user's uploaded audio — voice consistency is the whole point of letting
+ * the user supply their character's voice. Kept here (client-safe) so the UI
+ * quote and the server charge derive from the same two-stage stack.
+ */
+export const XAI_UGC_RELIP_MODEL = "fal-ai/sync-lipsync/v2";
+
+/**
+ * Canonical price for a lip-sync engine run. THE single source both the
+ * /lipsync UI quote and lipsync.server.ts charge must use (pricing.test.ts
+ * asserts parity).
+ *
+ * xai-ugc is a two-stage chain — xAI image→video PLUS a required relip to the
+ * user's audio — so it is billed as video + lipsync, not as one lipsync run.
+ */
+export function lipsyncEngineCost(engine: LipsyncEngine): number {
+  if (engine === "xai-ugc") {
+    const video = computeCost({
+      features: ["video"],
+      model: LIPSYNC_ENGINE_MODEL["xai-ugc"],
+    }).total;
+    const relip = computeCost({ features: ["lipsync"], model: XAI_UGC_RELIP_MODEL }).total;
+    return video + relip;
+  }
+  return computeCost({ features: ["lipsync"], model: LIPSYNC_ENGINE_MODEL[engine] }).total;
+}
+
 export function computeCost(input: {
   features: Feature[];
   resolution?: Resolution | null;

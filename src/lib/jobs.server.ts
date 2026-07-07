@@ -484,6 +484,9 @@ async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
     aspect?: string;
     duration?: number;
     voiceModel?: string;
+    /** User-supplied voice track — the character's OWN voice. When present it
+     *  always drives the final lip-sync; no generated voice is ever shipped. */
+    audioUrl?: string;
   };
   if (!p.productPrompt) throw new Error("ugc_ad requires productPrompt");
   const duration = Math.max(3, Math.min(12, p.duration ?? 8));
@@ -500,9 +503,37 @@ async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
     durationSec: duration,
   });
 
+  // Stage 2 — voice. Runs BEFORE the xAI fast path because the character's
+  // voice must stay CONSISTENT across renders: a user-supplied track is the
+  // character's own voice and always wins; otherwise TTS (when configured).
+  // Whatever audio exists here drives the final lip-sync on EVERY path — a
+  // model's built-in generated voice is never shipped when a voice track exists.
+  let audioUrl: string | undefined = p.audioUrl;
+  let ttsSkipped: string | null = null;
+  if (audioUrl) {
+    ttsSkipped = "user_audio_supplied";
+  } else if (process.env.HF_TOKEN) {
+    try {
+      const tts = await hfTextToSpeech(p.voiceModel || UGC_TTS_MODEL, script.full);
+      audioUrl = await uploadBytesToStudio(
+        `${job.user_id}/audio/${job.id}.flac`,
+        Buffer.from(tts.bytes),
+        tts.contentType,
+      );
+    } catch (e) {
+      ttsSkipped = `tts_failed: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  } else {
+    ttsSkipped = "no HF_TOKEN configured";
+  }
+
   // Fast path — xAI Grok Imagine Video: one API call generates a complete
   // talking-head UGC clip (walk-toward-cam + built-in lip-sync) from the
-  // reference image + script. Skips stages 2-5 when the key is set.
+  // reference image + script. When a voice track exists the clip is then
+  // relipped to it (full lipsync fallback chain: GPU pool → Sync.so → HeyGen →
+  // Replicate → Fal) so the voice never drifts between renders. A relip
+  // failure falls through to the multi-stage pipeline — the raw xAI voice is
+  // only ever shipped when NO voice track exists at all.
   if (process.env.XAI_API_KEY && p.avatarImageUrl) {
     try {
       const xaiClip = await orch({
@@ -519,17 +550,29 @@ async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
         userId: job.user_id,
         refId: job.id,
       });
+      let fastFinal = xaiClip;
+      let fastLipsyncSkipped: string | boolean = "no_voice_track_xai_builtin_voice";
+      if (audioUrl) {
+        fastFinal = await orch({
+          kind: "lipsync",
+          videoUrl: xaiClip.url,
+          audioUrl,
+          userId: job.user_id,
+          refId: job.id,
+        });
+        fastLipsyncSkipped = false;
+      }
       return {
-        url: xaiClip.url,
-        videoUrl: xaiClip.url,
-        provider: xaiClip.provider,
-        endpoint: xaiClip.endpoint,
+        url: fastFinal.url,
+        videoUrl: fastFinal.url,
+        provider: fastFinal.provider,
+        endpoint: fastFinal.endpoint,
         meta: {
           script: script.full,
           script_source: scriptSource,
           ...(scriptProvider ? { script_provider: scriptProvider } : {}),
-          tts_skipped: "xai_ugc_path",
-          lipsync_skipped: "xai_ugc_path",
+          tts_skipped: ttsSkipped,
+          lipsync_skipped: fastLipsyncSkipped,
           duration,
           xai_ugc: true,
         },
@@ -538,24 +581,6 @@ async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
       console.warn("[ugc] xAI fast path failed, falling back to multi-stage pipeline:",
         e instanceof Error ? e.message : String(e));
     }
-  }
-
-  // Stage 2 — voice (optional)
-  let audioUrl: string | undefined;
-  let ttsSkipped: string | null = null;
-  if (process.env.HF_TOKEN) {
-    try {
-      const tts = await hfTextToSpeech(p.voiceModel || UGC_TTS_MODEL, script.full);
-      audioUrl = await uploadBytesToStudio(
-        `${job.user_id}/audio/${job.id}.flac`,
-        Buffer.from(tts.bytes),
-        tts.contentType,
-      );
-    } catch (e) {
-      ttsSkipped = `tts_failed: ${e instanceof Error ? e.message : String(e)}`;
-    }
-  } else {
-    ttsSkipped = "no HF_TOKEN configured";
   }
 
   // Stage 3 — styled still featuring the avatar
@@ -589,9 +614,13 @@ async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
     refId: job.id,
   });
 
-  // Stage 5 — lip-sync only when we produced voice audio. If no lip-sync provider
-  // is configured (or the stage fails), degrade EXPLICITLY to the silent animated
-  // clip instead of failing the whole job; the reason is surfaced in `meta`.
+  // Stage 5 — lip-sync whenever a voice track exists. Failure semantics differ
+  // by who owns the voice:
+  //   • USER-supplied audio: the character's own voice is non-negotiable — a
+  //     failed relip FAILS the whole job (refunded by the job lifecycle) rather
+  //     than shipping a clip with the wrong/no voice.
+  //   • auto-TTS audio: degrade EXPLICITLY to the silent animated clip instead
+  //     of failing the whole job; the reason is surfaced in `meta`.
   let final = clip;
   let lipsyncSkipped: string | boolean = true;
   if (audioUrl) {
@@ -605,6 +634,7 @@ async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
       });
       lipsyncSkipped = false;
     } catch (e) {
+      if (p.audioUrl) throw e;
       final = clip;
       lipsyncSkipped = `lipsync_failed: ${e instanceof Error ? e.message : String(e)}`;
     }

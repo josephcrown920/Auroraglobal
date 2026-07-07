@@ -7,10 +7,12 @@ import { z } from "zod";
 import { generateWithFallback } from "./llm-fallback.server";
 
 // ─── Credit costs ─────────────────────────────────────────────────────────────
-// A talking UGC ad chains image → image-to-video → (optional) lip-sync, so it is
-// priced like the multi-stage Performance Shot. A campaign set is one image plus
-// one short clip.
-export const COST_UGC_AD = 8;
+// A talking UGC ad chains image → image-to-video → lip-sync. Since the voice-lock
+// upgrade the avatar fast path is xAI video (~$0.30) + a mandatory relip to the
+// voice track (~$0.30) — 14 Aura (≈$0.66) covers the ~$0.60 worst case. Faceless
+// Content Machine videos never run that chain and keep their own cheaper price
+// (COST_PER_VIDEO in cm.server.ts).
+export const COST_UGC_AD = 14;
 export const COST_CAMPAIGN_ITEM = 6;
 
 // Default Hugging Face text-to-speech model. Only used when HF_TOKEN is present;

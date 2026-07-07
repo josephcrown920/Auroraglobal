@@ -16,7 +16,7 @@ import { ExampleChips } from "@/components/onboarding/ExampleChips";
 import { LIPSYNC_EXAMPLE_PRESETS } from "@/lib/example-presets";
 import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
 import { hasCompletedFirstGen, hasDismissedTour, isFirstPageVisit, markFirstGenComplete, markPageVisited } from "@/lib/first-run";
-import { computeCost, LIPSYNC_ENGINE_MODEL, type LipsyncEngine } from "@/lib/pricing";
+import { computeCost, lipsyncEngineCost, LIPSYNC_ENGINE_MODEL, type LipsyncEngine } from "@/lib/pricing";
 import { AUDIO_ACCEPT } from "@/lib/utils";
 
 export const Route = createFileRoute("/lipsync")({
@@ -112,10 +112,9 @@ function LipSyncForm() {
 
   const isXaiUgc = engine === "xai-ugc";
 
-  const engineCost = useMemo(
-    () => computeCost({ features: ["lipsync"], model: LIPSYNC_ENGINE_MODEL[engine] }).total,
-    [engine],
-  );
+  // lipsyncEngineCost is the shared UI+server price source; for xai-ugc it is
+  // the full two-stage price (xAI video + mandatory relip to your audio).
+  const engineCost = useMemo(() => lipsyncEngineCost(engine), [engine]);
   const [status, setStatus] = useState<JobStatus>("idle");
   const [progress, setProgress] = useState(0);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
@@ -392,7 +391,8 @@ function LipSyncForm() {
                   and slight handheld-cam movement — optimised for TikTok / Reels.
                 </p>
                 <p className="text-[11px] text-white/50 mt-1 italic">
-                  Powered by xAI grok-imagine-video-1.5. The audio track is recorded for your reference but the model generates its own voice from the script.
+                  Powered by xAI grok-imagine-video-1.5. Your uploaded audio DRIVES the final voice — the
+                  clip is re-lip-synced to your track, so the character sounds identical on every render.
                 </p>
               </div>
             </div>

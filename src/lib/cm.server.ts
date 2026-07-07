@@ -11,9 +11,12 @@
 // ugc.server (which pulls server-only LLM code) — keeping it client-safe.
 
 /** Flat credits reserved per generated video — the SAME amount the batch reserves,
- *  so an up-front estimate can never disagree with what is actually charged. Kept
- *  in lockstep with COST_UGC_AD (the /ugc ad price); cm.server.test.ts asserts the
- *  two stay equal so this client-safe copy can never silently drift. */
+ *  so an up-front estimate can never disagree with what is actually charged.
+ *
+ *  DELIBERATELY decoupled from COST_UGC_AD (14): the avatar UGC ad price covers
+ *  the xAI talking-head + mandatory voice-lock relip chain, which FACELESS
+ *  Content Machine videos never run (no avatarImageUrl → no xAI fast path).
+ *  cm.server.test.ts documents this decoupling. */
 export const COST_PER_VIDEO = 8;
 
 /** Hard cap on videos per batch — limits runaway reservations, queue pressure and

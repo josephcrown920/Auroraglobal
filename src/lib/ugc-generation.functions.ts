@@ -27,6 +27,9 @@ const UGCAdSchema = z.object({
   aspect: z.enum(["9:16", "16:9", "1:1", "4:5"]).default("9:16"),
   duration: z.number().int().min(3).max(12).default(8),
   voiceModel: z.string().max(120).optional(),
+  /** The character's own voice track. When set it always drives the final
+   *  lip-sync — no generated/TTS voice is ever shipped in its place. */
+  audioUrl: z.string().url().optional(),
 });
 
 function rpcClient() {
@@ -54,6 +57,7 @@ export const generateUGCAd = createServerFn({ method: "POST" })
       aspect: data.aspect,
       duration: data.duration,
       voiceModel: data.voiceModel,
+      audioUrl: data.audioUrl,
     };
     const prompt = `UGC ad: ${data.productPrompt}${data.avatarName ? ` — ${data.avatarName}` : ""}`;
 

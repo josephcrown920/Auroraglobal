@@ -114,7 +114,8 @@ export const TEMPLATE_DEFAULTS = {
 };
 
 // The UGC price mirrors its server constant (parity asserted in the co-located test).
-export const COST_UGC_AD = 8; // === COST_UGC_AD in ugc.server.ts
+// 14 since the voice-lock upgrade: xAI fast path + mandatory relip to the voice track.
+export const COST_UGC_AD = 14; // === COST_UGC_AD in ugc.server.ts
 // AutoCut flat cost — mirrors COST_AUTOCUT in autocut.server.ts.
 export const COST_AUTOCUT = 8;
 // Batch size for the Spin experience — every "1 → N" label reads from this.
