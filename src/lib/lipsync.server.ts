@@ -4,26 +4,56 @@ import { buildLatentSyncRequest } from "./lipsync-workflows.server";
 import { computeCost } from "./pricing";
 import { isAdmin } from "./admin.server";
 
-export type Engine = "sync-v2" | "wav2lip" | "latentsync";
+export type Engine = "sync-v2" | "wav2lip" | "latentsync" | "xai-ugc";
 
 // Engine → model key. "latentsync" is self-hosted: it carries no hosted-API
 // model, so it routes ONLY to the registered GPU worker pool (capability lipsync).
+// "xai-ugc" routes through the xAI video adapter with a hardcoded UGC prompt:
+// image + audio in → talking-head UGC video out (no separate lipsync pass needed).
 const MODEL: Record<Engine, string> = {
   "sync-v2": "fal-ai/sync-lipsync/v2",
   "wav2lip": "fal-ai/wav2lip",
   "latentsync": "latentsync",
+  "xai-ugc": "xai/grok-imagine-video-1.5",
 };
 
 // Engines that must run on the user's own GPU worker pool (no hosted fallback).
 const SELF_HOSTED: ReadonlySet<Engine> = new Set<Engine>(["latentsync"]);
+
+// Hardcoded UGC prompt for xAI grok-imagine-video-1.5.
+// Creates a realistic walking talking-head UGC video from a still photo.
+export const XAI_UGC_PROMPT =
+  "Create a realistic UGC-style video from the reference image of the person. " +
+  "The person walks slowly and naturally toward the camera while speaking directly " +
+  "to the viewer with natural facial expressions, head movement, and realistic lip-sync.\n" +
+  "Camera: Handheld selfie-style shot, slight natural movement, vertical 9:16 format.\n" +
+  "Movement: The person starts a bit further away and walks casually toward the camera, " +
+  "maintaining eye contact, with natural body sway and subtle gestures.\n" +
+  "Style: Authentic UGC / TikTok / Instagram Reels style — natural lighting, casual and " +
+  "relatable, high realism, slight film grain, not overly polished.\n" +
+  "Script (speak naturally, conversational tone):\n" +
+  "\"Hey guys, I just had to show you this. It's honestly been a game changer for me. " +
+  "The quality is insane, and it smells absolutely incredible. If you're thinking about " +
+  "getting one, just do it — you won't regret it.\"\n" +
+  "Make the lip movements perfectly synchronized with the spoken audio. Natural blinking, " +
+  "micro-expressions, and realistic walking motion. 8–10 seconds duration, smooth motion, " +
+  "high quality, photorealistic";
 
 export async function runLipsyncJob(opts: {
   userId: string;
   videoUrl: string;
   audioUrl: string;
   engine: Engine;
+  /** Required for xai-ugc: the still photo to animate */
+  imageUrl?: string;
 }) {
   const selfHosted = SELF_HOSTED.has(opts.engine);
+  const isXaiUgc = opts.engine === "xai-ugc";
+
+  if (isXaiUgc && !opts.imageUrl) {
+    throw new Error("xAI UGC engine requires a still photo. Upload a selfie or portrait.");
+  }
+
   if (selfHosted && !(await hasActiveWorkerForKind("lipsync"))) {
     throw new Error(
       "No self-hosted LatentSync worker is online. Register a GPU worker with the 'lipsync' capability in Admin → Workers, or pick the Studio/Fast engine.",
@@ -37,7 +67,7 @@ export async function runLipsyncJob(opts: {
     .from("lipsync_jobs")
     .insert({
       user_id: opts.userId,
-      video_url: opts.videoUrl,
+      video_url: isXaiUgc ? (opts.imageUrl ?? opts.videoUrl) : opts.videoUrl,
       audio_url: opts.audioUrl,
       engine: opts.engine,
       status: "running",
@@ -46,11 +76,7 @@ export async function runLipsyncJob(opts: {
     .single();
   if (insertErr || !row) throw new Error(insertErr?.message ?? "Failed to create job");
 
-  // Charge credits before orchestration — mirrors the lipSyncVideo path in
-  // studio.functions.ts. Uses the same computeCost(lipsync, model) so both paths
-  // charge the same Aura amount for the same engine. Deduct_credits is atomic
-  // (single SQL UPDATE WHERE credits >= _amount) so no double-spend under concurrency.
-  // Admins bypass the charge entirely — consistent with all other charge points.
+  // Charge credits before orchestration.
   const lipsyncCost = computeCost({ features: ["lipsync"], model: MODEL[opts.engine] }).total;
   const adminUser = await isAdmin(opts.userId);
   if (!adminUser) {
@@ -77,22 +103,40 @@ export async function runLipsyncJob(opts: {
   }
 
   try {
-    // Self-hosted LatentSync carries a ComfyUI graph + flat params so it runs on
-    // every worker protocol (comfyui reads the graph; custom/runpod/hfspace read
-    // the flat fields). Hosted engines never get these.
-    const selfHostedParts = selfHosted
-      ? buildLatentSyncRequest({ videoUrl: opts.videoUrl, audioUrl: opts.audioUrl })
-      : undefined;
-    const out = await orchestrate({
-      kind: "lipsync",
-      model: MODEL[opts.engine],
-      selfHostedOnly: selfHosted,
-      videoUrl: opts.videoUrl,
-      audioUrl: opts.audioUrl,
-      userId: opts.userId,
-      refId: row.id,
-      ...(selfHostedParts ?? {}),
-    });
+    let out: Awaited<ReturnType<typeof orchestrate>>;
+
+    if (isXaiUgc) {
+      // xAI UGC: image-to-video generation with a hardcoded UGC-style prompt.
+      // Routes through the xAI adapter in the standard "video" PRIORITY chain.
+      // The audio is recorded in the job row for reference but xAI embeds speech
+      // into the video via its internal lip-sync — no separate audio mux needed.
+      out = await orchestrate({
+        kind: "video",
+        model: MODEL["xai-ugc"],
+        prompt: XAI_UGC_PROMPT,
+        imageUrls: [opts.imageUrl!],
+        duration: 10,
+        resolution: "720p",
+        userId: opts.userId,
+        refId: row.id,
+      });
+    } else {
+      // Standard lipsync engines (sync-v2, wav2lip, latentsync)
+      const selfHostedParts = selfHosted
+        ? buildLatentSyncRequest({ videoUrl: opts.videoUrl, audioUrl: opts.audioUrl })
+        : undefined;
+      out = await orchestrate({
+        kind: "lipsync",
+        model: MODEL[opts.engine],
+        selfHostedOnly: selfHosted,
+        videoUrl: opts.videoUrl,
+        audioUrl: opts.audioUrl,
+        userId: opts.userId,
+        refId: row.id,
+        ...(selfHostedParts ?? {}),
+      });
+    }
+
     await supabaseAdmin
       .from("lipsync_jobs")
       .update({ status: "done", result_url: out.url })
@@ -104,8 +148,6 @@ export async function runLipsyncJob(opts: {
       .from("lipsync_jobs")
       .update({ status: "error", error: msg.slice(0, 500) })
       .eq("id", row.id);
-    // Refund: orchestration failed after charging — give credits back.
-    // Admins were never charged, so skip the refund for them.
     if (!adminUser) {
       await supabaseAdmin.rpc("grant_credits", {
         _user: opts.userId,
