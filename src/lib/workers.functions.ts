@@ -160,3 +160,23 @@ export const setFreeGpuMode = createServerFn({ method: "POST" })
     await setFreeGpuOnlyMode(data.enabled);
     return { ok: true, enabled: data.enabled };
   });
+
+/** Public (non-admin) check: is there at least one live worker for a given capability? */
+export const checkWorkerCapability = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ capability: z.string() }).parse(d))
+  .handler(async ({ data }) => {
+    const STALE_MS = 5 * 60_000;
+    const now = Date.now();
+    const { data: workers } = await supabaseAdmin
+      .from("gpu_workers")
+      .select("in_flight, max_concurrency, last_heartbeat, capabilities")
+      .eq("status", "active")
+      .contains("capabilities", [data.capability]);
+    const available = (workers ?? []).some((w) => {
+      if ((w.in_flight ?? 0) >= (w.max_concurrency ?? 1)) return false;
+      if (w.last_heartbeat && now - new Date(w.last_heartbeat).getTime() > STALE_MS) return false;
+      return true;
+    });
+    return { available };
+  });
