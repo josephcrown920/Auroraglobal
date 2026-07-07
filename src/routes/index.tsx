@@ -29,12 +29,11 @@ import { WhyUs } from "@/components/landing/WhyUs";
 import { FinalCTA } from "@/components/landing/FinalCTA";
 import { CliSection } from "@/components/landing/CliSection";
 import { ViralEngine } from "@/components/landing/ViralEngine";
-import { TikTokSection } from "@/components/landing/TikTokSection";
 import { AffiliateRewardSection } from "@/components/landing/AffiliateRewardSection";
 import { CanvasWorkflowShowcase } from "@/components/landing/CanvasWorkflowShowcase";
+import { GetReadyWithMe } from "@/components/landing/GetReadyWithMe";
 import { TrendingTemplatesStrip } from "@/components/landing/TrendingTemplatesStrip";
 import { ColorsTeaser } from "@/components/landing/ColorsTeaser";
-import { BalloonLipsync } from "@/components/landing/BalloonLipsync";
 import { JoshSlideshow } from "@/components/studio/JoshSlideshow";
 
 import { SupercomputerSection } from "@/components/landing/ScreenshotSections";
@@ -308,23 +307,20 @@ function Index() {
       {/* 0. One-tap templates — trending strip right below the hero */}
       <TrendingTemplatesStrip />
 
-      {/* 0c. Canvas + finished workflows + UGC Factory — promoted near the top */}
+      {/* Spin 30 — wire it, ship it */}
+      <ViralEngine />
+
+      {/* 0c. Canvas + finished workflows + UGC Factory */}
       <CanvasWorkflowShowcase />
 
-      {/* 0. Viral engine — TikTok hook moved to the very top */}
-      <ViralEngine />
+      {/* Get Ready With Me — mirror selfie → 6 identity-locked angles */}
+      <GetReadyWithMe />
 
       {/* Colors Studio showcase — interactive swatch switcher */}
       <ColorsTeaser />
 
-      {/* Perform Anywhere — 3-step workflow hero section */}
+      {/* Perform Anywhere + Motion Control — 3-step workflow */}
       <PerformAnywhereSection />
-
-      {/* 0b. TikTok marketing section */}
-      <TikTokSection />
-
-      {/* 1. Balloon head lip-sync visualizer — sits right below TikTok hook */}
-      <BalloonLipsync />
 
       {/* 2. Hero + "Talk to Aurora" contact form */}
       <HeroContactForm greeting={greeting} />

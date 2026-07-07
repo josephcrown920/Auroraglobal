@@ -1,8 +1,23 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Palette } from "lucide-react";
+import { ArrowRight, Palette, Star } from "lucide-react";
 import { ColorStudioBackdrop } from "@/components/studio/ColorStudioBackdrop";
 import { COLOR_PRESETS } from "@/lib/colors.presets";
+import joshColorsSession from "@/assets/josh/josh-colors-session.png.asset.json";
+import joshPinkJersey from "@/assets/josh/josh-pink-jersey.png.asset.json";
+import joshMagenta from "@/assets/josh/josh-magenta-cyc-v2.jpg.asset.json";
+import joshBlueFullbody from "@/assets/josh/josh-blue-fullbody.png.asset.json";
+import joshNeonSeated from "@/assets/josh/josh-neon-seated.png.asset.json";
+import joshStudioMic from "@/assets/josh/josh-studio-mic.jpg.asset.json";
+
+const RESULT_SHOTS = [
+  { url: (joshColorsSession as { url: string }).url, color: "hot-pink", label: "Hot Pink" },
+  { url: (joshPinkJersey as { url: string }).url, color: "hot-pink", label: "Pink Jersey" },
+  { url: (joshMagenta as { url: string }).url, color: "electric-purple", label: "Magenta Cyc" },
+  { url: (joshBlueFullbody as { url: string }).url, color: "royal-blue", label: "Royal Blue" },
+  { url: (joshNeonSeated as { url: string }).url, color: "neon-green", label: "Neon Seated" },
+  { url: (joshStudioMic as { url: string }).url, color: "royal-blue", label: "Studio Mic" },
+];
 
 // Spotlight 8 of the 12 sets as preview tiles so the grid stays tight.
 const PREVIEW_IDS = [
@@ -83,6 +98,37 @@ export function ColorsTeaser() {
             <p className="text-lg md:text-2xl font-semibold text-white">
               {active.name} — seamless cyclorama studio set
             </p>
+          </div>
+        </div>
+
+        {/* Real results strip — Josh in Colors Studio sessions */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs uppercase tracking-[0.2em] text-white/45 flex items-center gap-2">
+              <Star className="size-3 fill-amber-300 text-amber-300" /> Real results — same artist, 6 colors
+            </p>
+            <Link to="/colors" className="text-xs text-white/40 hover:text-white/70 transition no-underline">
+              Try it free →
+            </Link>
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+            {RESULT_SHOTS.map((shot) => (
+              <button
+                key={shot.label}
+                onClick={() => setActiveId(shot.color)}
+                className="group relative aspect-[3/4] rounded-xl overflow-hidden border border-white/10 hover:border-white/30 transition-all duration-200"
+              >
+                <img
+                  src={shot.url}
+                  alt={`Josh in ${shot.label} Colors Studio`}
+                  className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-500"
+                  loading="lazy"
+                />
+                <div className="absolute inset-x-0 bottom-0 p-1.5 bg-gradient-to-t from-black/80 to-transparent">
+                  <p className="text-[9px] font-semibold text-white/80 text-center">{shot.label}</p>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
 

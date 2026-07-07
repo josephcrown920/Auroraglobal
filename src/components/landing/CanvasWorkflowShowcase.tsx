@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, CheckCircle2, Workflow, Megaphone, Check } from "lucide-react";
+import { ArrowRight, CheckCircle2, Workflow, Megaphone, Check, Sparkles, Camera } from "lucide-react";
 import { FINISHED_WORKFLOWS } from "@/components/canvas/FinishedWorkflowsGallery";
 import avatar2 from "@/assets/ugc-avatar-2.jpg";
 import avatar3 from "@/assets/ugc-avatar-3.jpg";
@@ -43,9 +43,9 @@ export function CanvasWorkflowShowcase() {
         </div>
 
         <div className="grid lg:grid-cols-[1.3fr_1fr] gap-5 max-w-6xl mx-auto">
-          {/* Hero workflow */}
+          {/* Hero workflow — multi-angle reshoot, wired to /reshoot */}
           <Link
-            to="/canvas"
+            to="/reshoot"
             className="group relative rounded-2xl overflow-hidden border border-border bg-black/40 no-underline hover:border-emerald-400/50 transition"
           >
             <div className="relative aspect-[4/3] overflow-hidden">
@@ -69,7 +69,7 @@ export function CanvasWorkflowShowcase() {
                   ))}
                 </div>
                 <div className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-white">
-                  Open in Canvas <ArrowRight className="size-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  Open Reshoot Studio <ArrowRight className="size-3.5 group-hover:translate-x-0.5 transition-transform" />
                 </div>
               </div>
             </div>

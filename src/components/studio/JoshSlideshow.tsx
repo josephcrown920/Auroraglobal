@@ -1,32 +1,30 @@
 import { useEffect, useState } from "react";
-import josh2 from "@/assets/josh/slideshow/josh-slide-02.png.asset.json";
 import josh3 from "@/assets/josh/slideshow/josh-slide-03.jpeg.asset.json";
 import josh4 from "@/assets/josh/slideshow/josh-slide-04.jpeg.asset.json";
-import josh5 from "@/assets/josh/slideshow/josh-slide-05.png.asset.json";
 import josh6 from "@/assets/josh/slideshow/josh-slide-06.png.asset.json";
 import josh7 from "@/assets/josh/slideshow/josh-slide-07.png.asset.json";
 import josh8 from "@/assets/josh/slideshow/josh-slide-08.png.asset.json";
 import josh10 from "@/assets/josh/slideshow/josh-slide-10.png.asset.json";
-import joshRed from "@/assets/josh/josh-red-spotlights.jpg.asset.json";
 import joshBlueOrange from "@/assets/josh/josh-blue-orange.jpg.asset.json";
-import joshStageShades from "@/assets/josh/josh-stage-shades.jpg.asset.json";
 
-const RAW_SHOTS = [
+// New hot-pink mic session photos (sent to replace old errored versions)
+const PINK_MIC_PORTRAIT = "/josh/josh-pink-mic-portrait.jpg";
+const PINK_MIC_FULLBODY = "/josh/josh-pink-mic-fullbody.jpg";
+// Get Ready With Me — mirror session
+const MIRROR_GETREADY = "/josh/josh-mirror-getready.webp";
+
+const SHOTS = [
+  { url: PINK_MIC_PORTRAIT, caption: "Hot-pink side profile · suspended mic" },
+  { url: PINK_MIC_FULLBODY, caption: "Full-body hot-pink · silver mic" },
+  { url: MIRROR_GETREADY, caption: "Get Ready With Me · mirror session" },
   { url: joshBlueOrange.url, caption: "Blue × orange studio · color wash" },
-  { url: joshRed.url, caption: "Red spotlights · stage close-up" },
-  { url: joshStageShades.url, caption: "Stage shades · neon glow" },
-  { url: josh2.url, caption: "Hot-pink full frame · performance stance" },
   { url: josh3.url, caption: "Blue close-up · live mic portrait" },
   { url: josh4.url, caption: "Electric cobalt crop · signature frames" },
-  { url: josh5.url, caption: "Neon stage portrait · mirrored visor" },
   { url: josh6.url, caption: "Cobalt tech portrait · blue visor" },
   { url: josh7.url, caption: "Crimson portrait · red mirror shield" },
   { url: josh8.url, caption: "Studio red · puffer vest · 4:44" },
   { url: josh10.url, caption: "Leather look · editorial red backdrop" },
 ];
-
-// Lead the rotation with the last four photos of the set, then the rest.
-const SHOTS = [...RAW_SHOTS.slice(-4), ...RAW_SHOTS.slice(0, -4)];
 
 export function JoshSlideshow() {
   const [i, setI] = useState(0);

@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Sparkles, ArrowRight, Phone, Palette, Film } from "lucide-react";
+import { Sparkles, ArrowRight, Phone, Palette, Film, Zap } from "lucide-react";
 
 const STEPS = [
   {
@@ -17,7 +17,7 @@ const STEPS = [
     n: "02",
     icon: Phone,
     label: "Record on your phone",
-    desc: "Film yourself performing your song from the same two angles as your AI images. Anywhere works — your couch, your car, your backyard.",
+    desc: "Film yourself performing your song. 30 seconds, any angle, anywhere — your couch, your car, your mirror. Phone camera is all you need.",
     accent: "from-cyan-500/30 to-blue-500/10",
     border: "border-cyan-500/30",
     badge: "Your phone",
@@ -27,11 +27,11 @@ const STEPS = [
   {
     n: "03",
     icon: Film,
-    label: "Aurora animates the scene",
-    desc: "Drop your AI image + phone recording into Perform Anywhere. Aurora transfers your real movement into the generated scene — motion, gestures, energy.",
+    label: "Aurora transfers your motion",
+    desc: "Drop your AI image + phone clip into Perform Anywhere. Aurora's Motion Control reads your real movement — gestures, body, energy — and transfers it into the generated scene.",
     accent: "from-primary/30 to-violet-500/10",
     border: "border-primary/30",
-    badge: "Perform Anywhere",
+    badge: "Motion Control · Style Transfer",
     badgeColor: "bg-primary/20 text-primary",
     to: "/motion",
   },
@@ -47,18 +47,59 @@ export function PerformAnywhereSection() {
 
       <div className="relative max-w-6xl mx-auto">
         {/* header */}
-        <div className="text-center max-w-3xl mx-auto mb-14">
+        <div className="text-center max-w-3xl mx-auto mb-10">
           <p className="aurora-kicker mb-3 inline-flex items-center gap-2 justify-center">
             <span className="size-1.5 rounded-full bg-primary animate-pulse" />
-            Perform Anywhere
+            Perform Anywhere · Motion Control
           </p>
           <h2 className="text-3xl md:text-5xl font-semibold tracking-tight">
             Film yourself anywhere.{" "}
             <span className="aurora-gradient-text">Aurora builds the world.</span>
           </h2>
           <p className="text-muted-foreground mt-4 text-base max-w-2xl mx-auto leading-relaxed">
-            Generate your AI scene in Colors Studio, record a 30-second performance on your phone, then Aurora transfers your real movement into the generated image. No studio. No crew. No budget.
+            Aurora's <strong className="text-white">Motion Control</strong> reads your real movement from a 30-second phone clip and transfers it into your AI-generated scene — style, motion, energy. No studio, no crew, no budget.
           </p>
+        </div>
+
+        {/* Before → After visual */}
+        <div className="mb-10 grid grid-cols-[1fr_auto_1fr] gap-4 items-center max-w-3xl mx-auto">
+          <div className="relative rounded-2xl overflow-hidden aspect-[3/4] border border-white/10">
+            <img
+              src="/josh/josh-mirror-getready.webp"
+              alt="Input — mirror selfie phone recording"
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+            <div className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur border border-white/10 text-[10px] font-bold uppercase tracking-widest text-white/80">
+              <Phone className="size-3 text-cyan-300" /> Your phone clip
+            </div>
+            <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+              <p className="text-xs text-white/50">Real movement · any room</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center gap-2 px-2">
+            <div className="size-10 rounded-full bg-primary/20 border border-primary/30 grid place-items-center">
+              <Zap className="size-5 text-primary" />
+            </div>
+            <p className="text-[10px] uppercase tracking-widest text-white/30 text-center rotate-0">Motion<br />Control</p>
+          </div>
+
+          <div className="relative rounded-2xl overflow-hidden aspect-[3/4] border border-primary/30 shadow-[0_0_40px_-10px_var(--color-primary)]">
+            <div className="w-full h-full bg-gradient-to-br from-violet-900/80 via-fuchsia-900/60 to-black flex items-center justify-center">
+              <div className="text-center px-4">
+                <Sparkles className="size-8 text-primary mx-auto mb-3 opacity-70" />
+                <p className="text-sm font-semibold text-white/80">Your moves.</p>
+                <p className="text-sm font-semibold aurora-gradient-text">AI-generated world.</p>
+              </div>
+            </div>
+            <div className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/20 backdrop-blur border border-primary/30 text-[10px] font-bold uppercase tracking-widest text-primary">
+              <Film className="size-3" /> AI scene output
+            </div>
+            <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+              <p className="text-xs text-white/50">Cinematic result · your identity locked</p>
+            </div>
+          </div>
         </div>
 
         {/* 3-step cards */}
