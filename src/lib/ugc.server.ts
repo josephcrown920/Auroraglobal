@@ -110,6 +110,31 @@ export function buildUGCMotionPrompt(input: {
     .trim();
 }
 
+/**
+ * Build the xAI Grok Imagine Video prompt for a UGC ad.
+ * The model takes the reference image + this prompt and generates a full
+ * talking-head video with built-in walk-toward-camera and lip-sync — no
+ * separate TTS → video → lipsync pipeline needed.
+ */
+export function buildXAIUGCPrompt(input: {
+  script: { hook: string; body: string; cta: string; full: string };
+  productPrompt: string;
+  avatarName?: string;
+}): string {
+  const spoken = input.script.full.trim();
+  const product = input.productPrompt.trim();
+  const name = input.avatarName ? ` (${input.avatarName})` : "";
+  return [
+    `Create a realistic UGC-style video from the reference image of the person${name}.`,
+    `The person walks slowly and naturally toward the camera while speaking directly to the viewer with natural facial expressions, head movement, and realistic lip-sync.`,
+    `Camera: Handheld selfie-style shot, slight natural movement, vertical 9:16 format.`,
+    `Movement: The person starts a bit further away and walks casually toward the camera, maintaining eye contact, with natural body sway and subtle gestures.`,
+    `The person is speaking these exact words: "${spoken}"`,
+    `Context: ${product}`,
+    `Style: Authentic creator content, warm natural lighting, relatable and conversational tone.`,
+  ].join(" ");
+}
+
 // ─── Campaign variations ──────────────────────────────────────────────────────
 
 function pick(arr: string[] | undefined, i: number): string | undefined {
