@@ -25,3 +25,10 @@ provider keys exist — check `app_settings.free_gpu_only` first. If it's ON,
 scope the e2e proof to charge-amount + failure-refund-symmetry (still real,
 still valuable) and call out the untested success branch explicitly rather
 than silently skipping or forcing the flag off.
+
+**Update (2026-07-07):** the flag is toggleable and was observed OFF; with it
+off, the success path (charge sticks, no refund) was fully verified via direct
+`reserveOrchestrateRecord` invocation as the QA user (own-studio-folder signed
+reference URL). So check the flag per-session — it is not permanently ON.
+A rerunnable spend-guarded smoke script exists at
+`scripts/e2e-feature-generations.ts` (requires `CONFIRM_SPEND=1`).
