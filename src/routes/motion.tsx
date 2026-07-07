@@ -603,7 +603,6 @@ function MotionStudio() {
             onChange={onChange}
             kind={kind}
             accept={kind === "video" ? "video/*" : "image/*"}
-            className="border-0 bg-transparent rounded-none h-40"
           />
         )}
       </div>
