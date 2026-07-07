@@ -113,6 +113,10 @@ export async function runLipsyncJob(opts: {
       out = await orchestrate({
         kind: "video",
         model: MODEL["xai-ugc"],
+        // Never fall back to another video model: the user explicitly chose the
+        // xAI UGC engine — a seedance/kling substitute would not be a UGC
+        // talking-head and must not be silently delivered (or charged for).
+        pinnedModelOnly: true,
         prompt: XAI_UGC_PROMPT,
         imageUrls: [opts.imageUrl!],
         duration: 10,

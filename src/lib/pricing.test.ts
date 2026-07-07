@@ -228,6 +228,7 @@ describe("motion repricing — new base = 15", () => {
       "fal-ai/sync-lipsync/v2": LIPSYNC_TIER_AURA.premium,  // sync-v2 → 9 Aura
       "fal-ai/wav2lip": LIPSYNC_TIER_AURA.standard,          // wav2lip → 6 Aura
       "latentsync": LIPSYNC_TIER_AURA.budget,                // latentsync → 3 Aura
+      "xai/grok-imagine-video-1.5": LIPSYNC_TIER_AURA.premium, // xai-ugc → 9 Aura (~$0.30/10s run)
     };
     for (const [engine, model] of Object.entries(LIPSYNC_ENGINE_MODEL)) {
       const uiCost = computeCost({ features: ["lipsync"], model }).total;

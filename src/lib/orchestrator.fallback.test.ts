@@ -526,6 +526,18 @@ describe("editStrict (photo editor)", () => {
     expect(c).toContain("pollinations/flux");
   });
 
+  it("pinnedModelOnly returns exactly the requested model — no video fallback (xAI UGC engine)", () => {
+    // The xai-ugc lip-sync engine pins to grok-imagine-video-1.5: a silent
+    // seedance/kling substitute would not be a UGC talking-head video and must
+    // never be delivered (or charged for) in its place.
+    const c = getCandidateModels({
+      kind: "video",
+      model: "xai/grok-imagine-video-1.5",
+      pinnedModelOnly: true,
+    } as GenerateRequest);
+    expect(c).toEqual(["xai/grok-imagine-video-1.5"]);
+  });
+
   it("every edit-capable model has a real edit route (fal edit, gemini direct, or replicate nano-banana-pro)", () => {
     for (const m of EDIT_CAPABLE_IMAGE_MODELS) {
       const routable =

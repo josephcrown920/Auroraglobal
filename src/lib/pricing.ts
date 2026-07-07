@@ -147,6 +147,9 @@ export const LIPSYNC_MODEL_TIERS: Record<string, ModelTier> = {
   "fal-ai/sync-lipsync/v2": "premium", // $0.30
   "fal-fallback/sync-lipsync": "premium", // $0.30
   "heygen/lipsync": "ultra", // $0.40
+  // xAI UGC (still photo → talking-head video via grok-imagine-video-1.5).
+  // ~$0.30 per 10s run ($0.03/s) — premium pool (≤ $0.42) covers it with buffer.
+  "xai/grok-imagine-video-1.5": "premium", // $0.30
 };
 
 // When a request omits the model, fall back to the tier of the model the
