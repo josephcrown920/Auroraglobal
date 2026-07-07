@@ -3,7 +3,7 @@ import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { LipSyncDemo } from "@/components/landing/LipSyncDemo";
-import { Mic2, ArrowRight, Upload, Music2, Wand2, Download, Loader2, Play, Pause, CheckCircle2, X, Zap, Sparkles, Server } from "lucide-react";
+import { Mic2, ArrowRight, Upload, Music2, Wand2, Download, Loader2, Play, Pause, CheckCircle2, X, Zap, Sparkles, Server, ImageIcon, Info } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -48,12 +48,13 @@ function LipSyncStudioPage() {
           </h1>
           <p className="mt-4 text-white/70 max-w-2xl">
             Drop a performance clip + a vocal. Pick Studio (Sync 1.9) for film-grade
-            mouth shapes, or Fast (Wav2Lip) for quick turnarounds. Stage-ready in under a minute.
+            mouth shapes, Fast (Wav2Lip) for quick turnarounds, or <strong className="text-white/90">xAI UGC</strong> to animate
+            a still photo into a walking talking-head video.
           </p>
 
           <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-3">
             {[
-              { icon: Upload, t: "1. Upload clip", d: "Any talking head, 5-30s" },
+              { icon: Upload, t: "1. Upload source", d: "Video/image or selfie for UGC" },
               { icon: Music2, t: "2. Add vocal", d: "MP3 / WAV stem" },
               { icon: Wand2, t: "3. Run sync", d: `${computeCost({ features: ["lipsync"], model: LIPSYNC_ENGINE_MODEL["sync-v2"] }).total} Aura · ~45s` },
             ].map((s, i) => (
@@ -103,9 +104,13 @@ function LipSyncForm() {
 
   const [video, setVideo] = useState<File | null>(null);
   const [audio, setAudio] = useState<File | null>(null);
+  const [image, setImage] = useState<File | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [engine, setEngine] = useState<Engine>("sync-v2");
+
+  const isXaiUgc = engine === "xai-ugc";
 
   const engineCost = useMemo(
     () => computeCost({ features: ["lipsync"], model: LIPSYNC_ENGINE_MODEL[engine] }).total,
@@ -125,8 +130,9 @@ function LipSyncForm() {
     return () => {
       if (videoUrl) URL.revokeObjectURL(videoUrl);
       if (audioUrl) URL.revokeObjectURL(audioUrl);
+      if (imageUrl) URL.revokeObjectURL(imageUrl);
     };
-  }, [videoUrl, audioUrl]);
+  }, [videoUrl, audioUrl, imageUrl]);
 
   useEffect(() => {
     if (!hasCompletedFirstGen() && isFirstPageVisit("lipsync")) {
@@ -154,10 +160,21 @@ function LipSyncForm() {
     setResultUrl(null);
   };
 
+  const onImage = (f: File | null) => {
+    if (!f) return;
+    if (!f.type.startsWith("image/")) {
+      return toast.error("Please upload a JPG, PNG, or WebP photo");
+    }
+    if (f.size > 20 * 1024 * 1024) return toast.error("Photo must be under 20MB");
+    setImage(f);
+    if (imageUrl) URL.revokeObjectURL(imageUrl);
+    setImageUrl(URL.createObjectURL(f));
+    setStatus("idle");
+    setResultUrl(null);
+  };
+
   const onAudio = (f: File | null) => {
     if (!f) return;
-    // Accept any audio file — browsers report blank MIME for some formats
-    // (flac, opus, aiff, m4a on certain platforms). Trust the extension/picker.
     if (f.size > 50 * 1024 * 1024) return toast.error("Audio must be under 50MB");
     setAudio(f);
     if (audioUrl) URL.revokeObjectURL(audioUrl);
@@ -166,8 +183,8 @@ function LipSyncForm() {
     setResultUrl(null);
   };
 
-  const uploadOne = async (file: File, kind: "video" | "audio"): Promise<string> => {
-    const ext = file.name.split(".").pop() || (kind === "video" ? "mp4" : "mp3");
+  const uploadOne = async (file: File, kind: "video" | "audio" | "image"): Promise<string> => {
+    const ext = file.name.split(".").pop() || (kind === "video" ? "mp4" : kind === "audio" ? "mp3" : "jpg");
     const path = `${user!.id}/lipsync/${Date.now()}-${kind}.${ext}`;
     const { error } = await supabase.storage.from("studio").upload(path, file, {
       contentType: file.type,
@@ -184,15 +201,22 @@ function LipSyncForm() {
   const run = async (opts?: { videoFile: File; audioFile: File }) => {
     const vid = opts?.videoFile ?? video;
     const aud = opts?.audioFile ?? audio;
+    const img = image;
+
     if (!likelyConsent) return toast.error("Please confirm you have the rights to use this voice and likeness before generating");
-    if (!vid || !aud) return toast.error("Upload both a clip and a vocal first");
+
+    if (isXaiUgc) {
+      if (!img) return toast.error("Upload a still photo for the xAI UGC engine");
+      if (!aud) return toast.error("Upload a vocal track");
+    } else {
+      if (!vid || !aud) return toast.error("Upload both a clip and a vocal first");
+    }
     if (!user) return toast.error("Sign in to run lip sync");
 
     setStatus("uploading");
     setProgress(5);
     setResultUrl(null);
 
-    // Coarse progress animator so the bar feels alive while the server runs.
     let p = 5;
     const ticker = setInterval(() => {
       p = Math.min(95, p + Math.random() * 4 + 1);
@@ -201,12 +225,31 @@ function LipSyncForm() {
     }, 600);
 
     try {
-      const [vUrl, aUrl] = await Promise.all([
-        uploadOne(vid, "video"),
-        uploadOne(aud, "audio"),
-      ]);
+      let vUrl: string;
+      let iUrl: string | undefined;
+
+      if (isXaiUgc) {
+        // For xAI UGC, upload the still photo as the "image" source.
+        // We still need a placeholder videoUrl for the server schema — pass the image URL there too.
+        [iUrl] = await Promise.all([
+          uploadOne(img!, "image"),
+        ]);
+        vUrl = iUrl; // schema requires videoUrl; server ignores it for xai-ugc
+      } else {
+        [vUrl] = await Promise.all([uploadOne(vid!, "video")]);
+      }
+
+      const [aUrl] = await Promise.all([uploadOne(aud!, "audio")]);
+
       setStatus("syncing");
-      const res = await runLipsync({ data: { videoUrl: vUrl, audioUrl: aUrl, engine } });
+      const res = await runLipsync({
+        data: {
+          videoUrl: vUrl,
+          audioUrl: aUrl,
+          engine,
+          ...(isXaiUgc && iUrl ? { imageUrl: iUrl } : {}),
+        },
+      });
       clearInterval(ticker);
       if (res.status === "done" && res.resultUrl) {
         setProgress(100);
@@ -236,8 +279,9 @@ function LipSyncForm() {
   const reset = () => {
     if (videoUrl) URL.revokeObjectURL(videoUrl);
     if (audioUrl) URL.revokeObjectURL(audioUrl);
-    setVideo(null); setAudio(null);
-    setVideoUrl(null); setAudioUrl(null);
+    if (imageUrl) URL.revokeObjectURL(imageUrl);
+    setVideo(null); setAudio(null); setImage(null);
+    setVideoUrl(null); setAudioUrl(null); setImageUrl(null);
     setStatus("idle"); setProgress(0); setPlaying(false); setResultUrl(null);
   };
 
@@ -245,7 +289,7 @@ function LipSyncForm() {
     if (!resultUrl) return;
     const a = document.createElement("a");
     a.href = resultUrl;
-    a.download = `synced-${(video?.name ?? "clip").replace(/\.[^.]+$/, "")}.mp4`;
+    a.download = `synced-${((isXaiUgc ? image?.name : video?.name) ?? "clip").replace(/\.[^.]+$/, "")}.mp4`;
     a.target = "_blank";
     document.body.appendChild(a);
     a.click();
@@ -255,7 +299,7 @@ function LipSyncForm() {
   const stageLabel: Record<JobStatus, string> = {
     idle: "Ready",
     uploading: "Uploading assets…",
-    syncing: "Aligning phonemes to mouth shapes…",
+    syncing: isXaiUgc ? "Animating photo into talking-head…" : "Aligning phonemes to mouth shapes…",
     rendering: "Rendering final clip…",
     done: "Sync complete",
     error: "Something went wrong",
@@ -263,19 +307,20 @@ function LipSyncForm() {
 
   const busy = status === "uploading" || status === "syncing" || status === "rendering";
 
-  // Shared progress hook fed by the real local status machine
   const genProgress = useGenerationProgress({
     jobStatus: lipsyncStatusToJobStatus(status),
     persistKey: "aurora.progress.lipsync",
-    estimatedMs: 45_000,
+    estimatedMs: isXaiUgc ? 90_000 : 45_000,
     labels: {
       queued: "Uploading assets…",
-      processing: "Aligning phonemes to mouth shapes…",
+      processing: isXaiUgc ? "Animating photo into talking-head…" : "Aligning phonemes to mouth shapes…",
       finalizing: "Rendering final clip…",
       done: "Sync complete",
       error: "Something went wrong",
     },
   });
+
+  const hasSource = isXaiUgc ? !!image : !!video;
 
   return (
     <section className="relative z-10 px-6 md:px-12 pb-12">
@@ -285,7 +330,7 @@ function LipSyncForm() {
             <p className="aurora-kicker">New job</p>
             <h2 className="text-xl md:text-2xl font-semibold mt-1">Run a lip sync</h2>
           </div>
-          {(video || audio) && (
+          {(video || audio || image) && (
             <button onClick={reset} className="text-xs text-white/60 hover:text-white inline-flex items-center gap-1">
               <X className="size-3" /> Reset
             </button>
@@ -299,75 +344,134 @@ function LipSyncForm() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <DropSlot label="Performance source" hint="MP4 / MOV / JPG / PNG · up to 100MB" icon={Upload} accept="video/*,image/*" file={video} onFile={onVideo} previewUrl={videoUrl} kind="video" />
-          <DropSlot label="Vocal track" hint="Any audio · up to 50MB" icon={Music2} accept={AUDIO_ACCEPT} file={audio} onFile={onAudio} previewUrl={audioUrl} kind="audio" />
+          {isXaiUgc ? (
+            <DropSlot
+              label="Still photo (selfie / portrait)"
+              hint="JPG / PNG / WebP · up to 20MB"
+              icon={ImageIcon}
+              accept="image/*"
+              file={image}
+              onFile={onImage}
+              previewUrl={imageUrl}
+              kind="image"
+            />
+          ) : (
+            <DropSlot
+              label="Performance source"
+              hint="MP4 / MOV / JPG / PNG · up to 100MB"
+              icon={Upload}
+              accept="video/*,image/*"
+              file={video}
+              onFile={onVideo}
+              previewUrl={videoUrl}
+              kind="video"
+            />
+          )}
+          <DropSlot
+            label="Vocal track"
+            hint="Any audio · up to 50MB"
+            icon={Music2}
+            accept={AUDIO_ACCEPT}
+            file={audio}
+            onFile={onAudio}
+            previewUrl={audioUrl}
+            kind="audio"
+          />
         </div>
 
+        {/* xAI UGC: show the hardcoded prompt so the user knows what will be generated */}
+        {isXaiUgc && (
+          <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <div className="flex items-start gap-2">
+              <Info className="size-4 text-primary mt-0.5 shrink-0" />
+              <div>
+                <p className="text-xs font-semibold text-primary mb-1">xAI UGC — hardcoded prompt</p>
+                <p className="text-[11px] text-white/60 leading-relaxed">
+                  Your still photo is animated into a realistic UGC-style walking talking-head video (9:16, ~10s).
+                  The person walks toward the camera speaking the built-in script with natural lip-sync, micro-expressions,
+                  and slight handheld-cam movement — optimised for TikTok / Reels.
+                </p>
+                <p className="text-[11px] text-white/50 mt-1 italic">
+                  Powered by xAI grok-imagine-video-1.5. The audio track is recorded for your reference but the model generates its own voice from the script.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <WelcomeTour show={showTour} onDismiss={() => setShowTour(false)} />
-        <ExampleChips
-          presets={LIPSYNC_EXAMPLE_PRESETS}
-          activeId={activeExampleId}
-          onSelect={(preset) => {
-            if (preset.extra?.engine) setEngine(preset.extra.engine as Engine);
-            setActiveExampleId(preset.id);
-          }}
-          onGenerate={() => {
-            if (video && audio) {
-              void run();
-              return;
-            }
-            const preset = LIPSYNC_EXAMPLE_PRESETS.find((p) => p.id === activeExampleId);
-            const demoVideo = typeof preset?.extra?.sampleVideoUrl === "string" ? preset.extra.sampleVideoUrl : null;
-            const demoAudio = typeof preset?.extra?.sampleAudioUrl === "string" ? preset.extra.sampleAudioUrl : null;
-            if (demoVideo && demoAudio) {
-              toast.loading("Loading demo media…", { id: "lipsync-demo" });
-              Promise.all([fetch(demoVideo), fetch(demoAudio)])
-                .then(([vr, ar]) => Promise.all([vr.blob(), ar.blob()]))
-                .then(([vb, ab]) => {
-                  toast.dismiss("lipsync-demo");
-                  void run({
-                    videoFile: new File([vb], "demo-video.mp4", { type: "video/mp4" }),
-                    audioFile: new File([ab], "demo-audio.mp3", { type: "audio/mpeg" }),
+        {!isXaiUgc && (
+          <ExampleChips
+            presets={LIPSYNC_EXAMPLE_PRESETS}
+            activeId={activeExampleId}
+            onSelect={(preset) => {
+              if (preset.extra?.engine) setEngine(preset.extra.engine as Engine);
+              setActiveExampleId(preset.id);
+            }}
+            onGenerate={() => {
+              if (video && audio) {
+                void run();
+                return;
+              }
+              const preset = LIPSYNC_EXAMPLE_PRESETS.find((p) => p.id === activeExampleId);
+              const demoVideo = typeof preset?.extra?.sampleVideoUrl === "string" ? preset.extra.sampleVideoUrl : null;
+              const demoAudio = typeof preset?.extra?.sampleAudioUrl === "string" ? preset.extra.sampleAudioUrl : null;
+              if (demoVideo && demoAudio) {
+                toast.loading("Loading demo media…", { id: "lipsync-demo" });
+                Promise.all([fetch(demoVideo), fetch(demoAudio)])
+                  .then(([vr, ar]) => Promise.all([vr.blob(), ar.blob()]))
+                  .then(([vb, ab]) => {
+                    toast.dismiss("lipsync-demo");
+                    void run({
+                      videoFile: new File([vb], "demo-video.mp4", { type: "video/mp4" }),
+                      audioFile: new File([ab], "demo-audio.mp3", { type: "audio/mpeg" }),
+                    });
+                  })
+                  .catch(() => {
+                    toast.dismiss("lipsync-demo");
+                    toast.error("Failed to fetch demo media");
                   });
-                })
-                .catch(() => {
-                  toast.dismiss("lipsync-demo");
-                  toast.error("Failed to fetch demo media");
-                });
-            } else {
-              void run();
-            }
-          }}
-          label="Pick a mode:"
-          className="mt-5"
-        />
+              } else {
+                void run();
+              }
+            }}
+            label="Pick a mode:"
+            className="mt-5"
+          />
+        )}
 
         {/* Engine toggle */}
         <div className="mt-4">
           <p className="aurora-kicker mb-2">Engine</p>
-          <div className="grid grid-cols-3 gap-2 rounded-full aurora-glass p-1">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 rounded-2xl aurora-glass p-1">
             {([
               { id: "sync-v2", label: "Studio", sub: "Sync 1.9 · film-grade", icon: Sparkles },
               { id: "wav2lip", label: "Fast", sub: "Wav2Lip · cheaper", icon: Zap },
               { id: "latentsync", label: "Self-hosted", sub: "LatentSync · your GPU", icon: Server },
+              { id: "xai-ugc", label: "xAI UGC", sub: "Still photo → talking head", icon: ImageIcon },
             ] as const).map(o => (
               <button
                 key={o.id}
                 onClick={() => setEngine(o.id)}
                 disabled={busy}
-                className={`flex items-center gap-2 justify-center rounded-full px-4 py-2 text-sm font-medium transition-all ${
+                className={`flex items-center gap-2 justify-center rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
                   engine === o.id ? "bg-[image:var(--gradient-hero)] text-white shadow-[var(--shadow-glow-soft)]" : "text-white/70 hover:text-white"
                 }`}
               >
-                <o.icon className="size-3.5" />
-                <span>{o.label}</span>
-                <span className="hidden sm:inline text-[10px] opacity-70">· {o.sub}</span>
+                <o.icon className="size-3.5 shrink-0" />
+                <span className="truncate">{o.label}</span>
               </button>
             ))}
           </div>
+          <p className="mt-1.5 text-[11px] text-white/40">
+            {engine === "sync-v2" && "Sync 1.9 — film-grade phoneme alignment on a video clip"}
+            {engine === "wav2lip" && "Wav2Lip — fast & cheap, slightly lower quality"}
+            {engine === "latentsync" && "LatentSync — runs on your registered GPU worker"}
+            {engine === "xai-ugc" && "grok-imagine-video-1.5 — animates a still photo into a 9:16 UGC talking-head video"}
+          </p>
         </div>
 
-        {/* Voice & likeness consent — required before generating */}
+        {/* Voice & likeness consent */}
         <label className="mt-5 flex items-start gap-3 cursor-pointer select-none">
           <input
             type="checkbox"
@@ -391,7 +495,7 @@ function LipSyncForm() {
         <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
           <button
             onClick={() => void run()}
-            disabled={!video || !audio || busy || !user || !likelyConsent}
+            disabled={!hasSource || !audio || busy || !user || !likelyConsent}
             className="inline-flex items-center justify-center gap-2 rounded-full bg-[image:var(--gradient-hero)] text-white shadow-[var(--shadow-glow-soft)] px-6 py-3 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover-scale"
           >
             {busy ? (
@@ -399,11 +503,15 @@ function LipSyncForm() {
             ) : status === "done" ? (
               <><CheckCircle2 className="size-4" /> Run again</>
             ) : (
-              <><Wand2 className="size-4" /> Run lip sync</>
+              <><Wand2 className="size-4" /> {isXaiUgc ? "Generate UGC video" : "Run lip sync"}</>
             )}
           </button>
           <p className="text-xs text-white/50">
-            {engine === "latentsync" ? `${engineCost} Aura · your GPU worker` : `${engineCost} Aura · ~${engine === "sync-v2" ? "45" : "25"}s`}
+            {engine === "latentsync"
+              ? `${engineCost} Aura · your GPU worker`
+              : engine === "xai-ugc"
+              ? `${engineCost} Aura · ~90s · 9:16 vertical`
+              : `${engineCost} Aura · ~${engine === "sync-v2" ? "45" : "25"}s`}
           </p>
         </div>
 
@@ -427,7 +535,9 @@ function LipSyncForm() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="size-4 text-emerald-300" />
-                <p className="text-sm font-semibold text-emerald-100">Synced render</p>
+                <p className="text-sm font-semibold text-emerald-100">
+                  {isXaiUgc ? "UGC video generated" : "Synced render"}
+                </p>
               </div>
               <button onClick={download} className="inline-flex items-center gap-1.5 rounded-full bg-white text-black px-4 py-2 text-xs font-semibold hover-scale">
                 <Download className="size-3.5" /> Download
@@ -452,7 +562,13 @@ function LipSyncForm() {
                 </span>
               </button>
             </div>
-            <p className="mt-2 text-[11px] text-white/50">Rendered with {engine === "sync-v2" ? "Sync 1.9 (Studio)" : engine === "wav2lip" ? "Wav2Lip (Fast)" : "LatentSync (self-hosted)"}.</p>
+            <p className="mt-2 text-[11px] text-white/50">
+              Rendered with{" "}
+              {engine === "sync-v2" ? "Sync 1.9 (Studio)"
+                : engine === "wav2lip" ? "Wav2Lip (Fast)"
+                : engine === "xai-ugc" ? "xAI grok-imagine-video-1.5 (UGC)"
+                : "LatentSync (self-hosted)"}.
+            </p>
           </div>
         )}
       </div>
@@ -470,7 +586,7 @@ function DropSlot({
   file: File | null;
   onFile: (f: File | null) => void;
   previewUrl: string | null;
-  kind: "video" | "audio";
+  kind: "video" | "audio" | "image";
 }) {
   const [drag, setDrag] = useState(false);
   return (
@@ -497,6 +613,8 @@ function DropSlot({
         <div className="mt-3 rounded-lg overflow-hidden bg-black/40">
           {kind === "video" ? (
             <AutoplayVideo src={previewUrl} className="w-full max-h-48 object-contain" controls autoPlay={false} />
+          ) : kind === "image" ? (
+            <img src={previewUrl} alt="preview" className="w-full max-h-48 object-contain" />
           ) : (
             <audio src={previewUrl} className="w-full" controls />
           )}

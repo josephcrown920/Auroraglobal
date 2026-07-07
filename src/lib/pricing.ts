@@ -212,11 +212,12 @@ function resolutionApplies(feature: Feature, hasTemporalOutput: boolean): boolea
 // ─── Client-safe engine→model map for the lip-sync page ─────────────────────
 // Mirrors lipsync.server.ts MODEL record but lives here so lipsync.tsx can call
 // computeCost without importing a .server.ts file.
-export type LipsyncEngine = "sync-v2" | "wav2lip" | "latentsync";
+export type LipsyncEngine = "sync-v2" | "wav2lip" | "latentsync" | "xai-ugc";
 export const LIPSYNC_ENGINE_MODEL: Record<LipsyncEngine, string> = {
   "sync-v2": "fal-ai/sync-lipsync/v2",
   "wav2lip": "fal-ai/wav2lip",
   "latentsync": "latentsync",
+  "xai-ugc": "xai/grok-imagine-video-1.5",
 };
 
 export function computeCost(input: {
