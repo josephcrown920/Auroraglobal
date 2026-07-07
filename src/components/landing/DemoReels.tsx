@@ -37,10 +37,10 @@ export function DemoReels() {
                 <Film className="size-3" /> VIDEO GENERATION
               </div>
               <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black via-black/70 to-transparent">
-                <h3 className="text-lg font-bold text-white">Split Reality · motion clip</h3>
-                <p className="text-xs text-white/70 mt-0.5">Selfie → cinematic motion. Pose presets + camera moves in /motion.</p>
+                <h3 className="text-lg font-bold text-white">Perform Anywhere · motion clip</h3>
+                <p className="text-xs text-white/70 mt-0.5">Generate your AI scene → record on phone → transfer motion. Full Colors workflow.</p>
                 <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-white">
-                  Open Motion Studio <ArrowRight className="size-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  Open Perform Anywhere <ArrowRight className="size-3.5 group-hover:translate-x-0.5 transition-transform" />
                 </div>
               </div>
             </div>

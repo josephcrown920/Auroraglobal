@@ -11,7 +11,7 @@ const SERVICES = [
   { icon: Film, title: "Video Generation", desc: "Cinematic 5–10s performance clips. Seedance 2.0 and Kling 3.0 in one canvas.", to: "/studio" as const, accent: "from-indigo-500/30 to-violet-500/10", video: demo2.url },
   { icon: ImageIcon, title: "Image Generation", desc: "Cover art and press shots from a selfie. Seedream 4.5, Nano Banana Pro.", to: "/studio" as const, accent: "from-violet-500/30 to-fuchsia-500/10", video: null as string | null },
   { icon: Palette, title: "Cover Art Studio", desc: "Pick a color, pick a studio. Pro mic, pro lighting, single-cover-grade portraits.", to: "/colors" as const, accent: "from-amber-500/30 to-orange-500/10", video: null as string | null },
-  { icon: Activity, title: "Motion Control", desc: "Drive your character with a reference move. Real dance, real choreography for your visuals.", to: "/motion" as const, accent: "from-cyan-500/30 to-blue-500/10", video: null as string | null },
+  { icon: Activity, title: "Perform Anywhere", desc: "Record yourself performing on your phone, then drop your AI-generated photo — Aurora transfers your motion into the scene.", to: "/motion" as const, accent: "from-cyan-500/30 to-blue-500/10", video: null as string | null },
   { icon: Workflow, title: "Canvas", desc: "Wire your song, selfie, outfit and prompt nodes. Save, share, re-run.", to: "/canvas" as const, accent: "from-fuchsia-500/30 to-purple-500/10", video: null as string | null },
 ];
 

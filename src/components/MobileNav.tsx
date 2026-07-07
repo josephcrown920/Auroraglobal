@@ -58,7 +58,7 @@ const LIVE_FEATURES: Feature[] = [
   { to: "/ugc",         label: "UGC Ads",           icon: Megaphone },
   { to: "/spin",        label: "Spin · 30 Posts",   icon: Flame },
   { to: "/colors",      label: "Colors Studio",     icon: Palette },
-  { to: "/motion",      label: "Motion",            icon: Wand2 },
+  { to: "/motion",      label: "Perform Anywhere",  icon: Wand2 },
   { to: "/lipsync",     label: "Lip Sync",          icon: Mic },
   { to: "/canvas",      label: "Canvas",            icon: Workflow },
   { to: "/music-video", label: "Lyric Video",       icon: Clapperboard },

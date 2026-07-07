@@ -49,15 +49,17 @@ import { useGenerationProgress, type BackendJobStatus } from "@/hooks/use-genera
 import { GenerationProgress } from "@/components/ui/GenerationProgress";
 import { GenerationErrorCard } from "@/components/ui/GenerationErrorCard";
 import { BlurredPreview } from "@/components/ui/BlurredPreview";
+import { PerformAnywhereGuide } from "@/components/onboarding/PerformAnywhereGuide";
+import { Check, ArrowRight } from "lucide-react";
 
 export const Route = createFileRoute("/motion")({
   component: MotionStudio,
   head: () => ({
     meta: [
-      { title: "Motion Studio — Aurora" },
-      { name: "description", content: "Pose-driven cinematic motion: drop a selfie, a pose reference and a camera move, get a clip." },
-      { property: "og:title", content: "Motion Studio — Aurora" },
-      { property: "og:description", content: "Pose presets + camera moves. Image → video in one screen." },
+      { title: "Perform Anywhere — Aurora" },
+      { name: "description", content: "Record yourself performing on your phone. Aurora transfers your motion into your AI-generated scene — no studio, no crew." },
+      { property: "og:title", content: "Perform Anywhere — Aurora" },
+      { property: "og:description", content: "Generate your AI scene in Colors Studio, film yourself performing, animate with motion transfer." },
     ],
   }),
 });
@@ -110,7 +112,8 @@ function MotionStudio() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const [mode, setMode] = useState<Mode>("pose");
+  const [mode, setMode] = useState<Mode>("reskin");
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
 
   // Pose → Video (existing two-step flow)
   const [selfie, setSelfie] = useState<string | null>(null);
@@ -174,6 +177,9 @@ function MotionStudio() {
   const [rsAudio, setRsAudio] = useState<string | null>(null);
   const [rsOutfit, setRsOutfit] = useState("");
   const [rsLocation, setRsLocation] = useState("");
+  const [rsOutfitImg, setRsOutfitImg] = useState<string | null>(null);
+  const [rsSceneImg, setRsSceneImg] = useState<string | null>(null);
+  const [rsTitle, setRsTitle] = useState("Untitled performance");
   const [rsMotion, setRsMotion] = useState("faithful");
   const [rsCamera, setRsCamera] = useState("static");
   const [rsError, setRsError] = useState<string | null>(null);
@@ -554,6 +560,56 @@ function MotionStudio() {
     </button>
   );
 
+  const WIZARD_STEPS = [
+    { n: 1, label: "Assets" },
+    { n: 2, label: "Direction" },
+    { n: 3, label: "Review" },
+  ];
+
+  const WizardUploadCard = ({
+    n, label, hint, required: req, value, onChange, kind = "image",
+  }: {
+    n: string; label: string; hint: string; required?: boolean;
+    value: string | null; onChange: (v: string | null) => void; kind?: "image" | "video";
+  }) => (
+    <div className={`relative rounded-2xl border overflow-hidden transition-colors ${value ? "border-primary/50 bg-primary/5" : "border-border bg-card/30"}`}>
+      <div className="flex items-center justify-between px-4 pt-3 pb-1.5">
+        <div className="flex items-center gap-2">
+          <span className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-bold ${value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+            {n}
+          </span>
+          <span className="text-sm font-semibold text-foreground">{label}{req && <span className="text-destructive ml-0.5">*</span>}</span>
+        </div>
+        {value && (
+          <button type="button" onClick={() => onChange(null)} className="text-muted-foreground hover:text-destructive transition-colors">
+            <span className="text-xs">✕</span>
+          </button>
+        )}
+      </div>
+      <p className="px-4 pb-2 text-[11px] text-muted-foreground">{hint}</p>
+      <div className="mx-3 mb-3 rounded-xl overflow-hidden border border-border bg-background/40" style={{ minHeight: 140 }}>
+        {value ? (
+          kind === "video" ? (
+            <AutoplayVideo src={value} className="w-full h-40 object-cover" loop playsInline />
+          ) : (
+            <img src={value} alt={label} className="w-full h-40 object-cover" />
+          )
+        ) : (
+          <UploadSlot
+            userId={user.id}
+            label=""
+            hint={`Click to upload`}
+            value={value}
+            onChange={onChange}
+            kind={kind}
+            accept={kind === "video" ? "video/*" : "image/*"}
+            className="border-0 bg-transparent rounded-none h-40"
+          />
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <main className="aurora-page-shell text-foreground">
       <span aria-hidden className="aurora-ambient" />
@@ -564,38 +620,282 @@ function MotionStudio() {
           <span className="size-8 rounded-xl flex items-center justify-center shadow-[var(--shadow-glow-soft)]" style={{ background: "var(--gradient-hero)" }}>
             <Film className="size-4 text-primary-foreground" />
           </span>
-          Motion Studio
+          Perform Anywhere
         </Link>
         <div className="flex items-center gap-3 text-sm">
-          <Link to="/colors" className="text-muted-foreground hover:text-foreground">Colors</Link>
+          <Link to="/colors" className="text-muted-foreground hover:text-foreground">Colors Studio</Link>
           <Link to="/studio" className="text-muted-foreground hover:text-foreground">Full Studio</Link>
           <Link to="/lipsync" className="text-muted-foreground hover:text-foreground">Lip Sync</Link>
         </div>
       </header>
       <ConnectReplicateBanner />
 
-      <div className="relative z-10 max-w-7xl mx-auto p-5 md:p-10 grid lg:grid-cols-[1fr_1fr] gap-8">
-        <section className="space-y-5">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
-              Direct the <span className="aurora-gradient-text">motion</span>.
-            </h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              {mode === "pose" && "Pose + camera move = a clip. Two steps, two retry buttons."}
-              {mode === "transfer" && "Drive a still image with the motion of any video (MimicMotion)."}
-              {mode === "reskin" && "Reskin a real performance video onto your avatar — outfit, location, optional lip-sync."}
-            </p>
-          </div>
+      <div className="relative z-10 max-w-7xl mx-auto p-5 md:p-10 space-y-6">
 
-          <div className="grid grid-cols-3 gap-2">
-            {tabBtn("pose", "Pose → Video", Wand2)}
-            {tabBtn("transfer", "Motion Transfer", Clapperboard)}
-            {tabBtn("reskin", "Performance Shot", Users)}
-          </div>
+        {/* ── Onboarding guide ──────────────────────────────────────── */}
+        <PerformAnywhereGuide />
 
-          {/* ── Pose → Video ─────────────────────────────────────────── */}
-          {mode === "pose" && (
-            <>
+        {/* ── Mode tabs ─────────────────────────────────────────────── */}
+        <div className="grid grid-cols-3 gap-2">
+          {tabBtn("reskin", "Performance Shot", Users)}
+          {tabBtn("pose", "Pose → Video", Wand2)}
+          {tabBtn("transfer", "Motion Transfer", Clapperboard)}
+        </div>
+
+        {/* ── Performance Shot (wizard) ──────────────────────────────── */}
+        {mode === "reskin" && (
+          <div className="grid lg:grid-cols-[1fr_360px] gap-8">
+            <section className="space-y-6">
+              {/* offline banner */}
+              {!motionOnline && (
+                <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
+                  <WifiOff className="size-4 text-amber-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium text-amber-300">No motion worker online</p>
+                    <p className="text-xs text-amber-300/70 mt-0.5">Performance Shot runs on a self-hosted GPU (MimicMotion). Finish the Vast.ai worker setup to enable this. Cloud image generation above works now.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* wizard step indicator */}
+              <div className="flex items-center gap-1">
+                {WIZARD_STEPS.map((s, i) => (
+                  <div key={s.n} className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (s.n < wizardStep || (s.n === 2 && rsVideo && rsAvatar) || (s.n === 3 && rsVideo && rsAvatar)) {
+                          setWizardStep(s.n as 1 | 2 | 3);
+                        }
+                      }}
+                      className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
+                        wizardStep === s.n
+                          ? "bg-primary text-primary-foreground shadow-[var(--shadow-glow-soft)]"
+                          : wizardStep > s.n
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                          : "bg-card/40 text-muted-foreground border border-border"
+                      }`}
+                    >
+                      {wizardStep > s.n ? <Check className="size-3" /> : <span>{s.n}</span>}
+                      {s.label}
+                    </button>
+                    {i < WIZARD_STEPS.length - 1 && (
+                      <ArrowRight className="size-3 text-muted-foreground/40 shrink-0" />
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* ── Step 1: Assets ─────────────────────────────────── */}
+              {wizardStep === 1 && (
+                <div className="space-y-5">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">New Project</p>
+                    <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Compose a performance</h1>
+                    <p className="text-muted-foreground text-sm mt-1.5 max-w-lg">
+                      Four inputs — Aurora routes them to the best motion model and renders a new take that preserves your timing.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 block">Project title</label>
+                    <input
+                      value={rsTitle}
+                      onChange={(e) => setRsTitle(e.target.value)}
+                      placeholder="Untitled performance"
+                      className="w-full h-11 rounded-xl border border-border bg-card/60 px-4 text-sm outline-none focus:border-primary/60 transition-colors"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <WizardUploadCard n="01" label="Performance video" hint="≤ 30s · MP4, MOV, WebM" required value={rsVideo} onChange={setRsVideo} kind="video" />
+                    <WizardUploadCard n="02" label="Identity photo" hint="Clear face · JPG, PNG" required value={rsAvatar} onChange={setRsAvatar} />
+                    <WizardUploadCard n="03" label="Outfit reference" hint="Optional · clothing" value={rsOutfitImg} onChange={setRsOutfitImg} />
+                    <WizardUploadCard n="04" label="Scene reference" hint="Optional · environment" value={rsSceneImg} onChange={setRsSceneImg} />
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">Performance video and identity photo are required to continue.</p>
+
+                  <Button
+                    disabled={!rsVideo || !rsAvatar}
+                    onClick={() => setWizardStep(2)}
+                    variant="premium"
+                    className="w-full h-12"
+                  >
+                    Continue to Direction <ArrowRight className="size-4 ml-2" />
+                  </Button>
+                </div>
+              )}
+
+              {/* ── Step 2: Direction ──────────────────────────────── */}
+              {wizardStep === 2 && (
+                <div className="space-y-5">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">Step 2 of 3</p>
+                    <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Direction</h1>
+                    <p className="text-muted-foreground text-sm mt-1.5">Describe the style, outfit, and scene. Keep the context prompt short and specific.</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Outfit notes <span className="normal-case text-muted-foreground/60">(optional)</span></label>
+                      <input
+                        value={rsOutfit}
+                        onChange={(e) => setRsOutfit(e.target.value)}
+                        placeholder="black leather jacket, white kicks"
+                        className="w-full h-10 rounded-xl border border-border bg-card/60 px-3 text-sm outline-none focus:border-primary/60 transition-colors"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Scene / location <span className="normal-case text-muted-foreground/60">(optional)</span></label>
+                      <input
+                        value={rsLocation}
+                        onChange={(e) => setRsLocation(e.target.value)}
+                        placeholder="golden hour, LA suburb street"
+                        className="w-full h-10 rounded-xl border border-border bg-card/60 px-3 text-sm outline-none focus:border-primary/60 transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Context prompt <span className="normal-case text-muted-foreground/60">— tells AI what's happening, prevents artifacts</span></label>
+                    <Textarea
+                      rows={2}
+                      value={rsMotion === "faithful" ? "a man rapping in a studio" : rsMotion}
+                      onChange={() => {}}
+                      placeholder="a man rapping inside a studio"
+                      className="resize-none bg-card/60 text-sm"
+                    />
+                    <p className="text-[11px] text-muted-foreground">Keep it simple: "a man rapping inside a car", "a woman dancing on a rooftop". This constrains the AI to the correct environment.</p>
+                  </div>
+
+                  {motionControls(rsMotion, setRsMotion, rsCamera, setRsCamera)}
+
+                  <div className="flex gap-3">
+                    <Button variant="secondary" onClick={() => setWizardStep(1)} className="flex-1 h-11">
+                      ← Back
+                    </Button>
+                    <Button variant="premium" onClick={() => setWizardStep(3)} className="flex-[2] h-11">
+                      Review & Generate <ArrowRight className="size-4 ml-2" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Step 3: Review ─────────────────────────────────── */}
+              {wizardStep === 3 && (
+                <div className="space-y-5">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">Step 3 of 3</p>
+                    <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Review</h1>
+                    <p className="text-muted-foreground text-sm mt-1.5">Double-check your inputs before rendering.</p>
+                  </div>
+
+                  <div className="rounded-2xl border border-border overflow-hidden">
+                    {[
+                      { label: "TITLE", value: rsTitle || "Untitled performance" },
+                      { label: "PERFORMANCE", value: rsVideo ? "Video uploaded ✓" : "—" },
+                      { label: "IDENTITY", value: rsAvatar ? "Photo uploaded ✓" : "—" },
+                      { label: "OUTFIT REF", value: rsOutfitImg ? "Image uploaded ✓" : rsOutfit || "—" },
+                      { label: "SCENE REF", value: rsSceneImg ? "Image uploaded ✓" : rsLocation || "—" },
+                      { label: "MOTION STYLE", value: rsMotion },
+                      { label: "CAMERA", value: rsCamera },
+                    ].map((row, i) => (
+                      <div key={i} className={`flex gap-4 px-5 py-3 text-sm ${i % 2 === 0 ? "bg-card/20" : "bg-card/40"}`}>
+                        <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground w-28 shrink-0 mt-0.5">{row.label}</span>
+                        <span className="text-foreground">{row.value}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">Rendering typically takes 2–3 min · standard quality. You can leave this page — the job updates live in Recent.</p>
+
+                  <GenerationProgress
+                    visible={reskinProgress.isActive}
+                    progress={reskinProgress.progress}
+                    label={reskinProgress.label}
+                  />
+
+                  <GenerationErrorCard
+                    visible={reskinMut.isError}
+                    error={rsError}
+                    onRetry={() => reskinMut.mutate()}
+                  />
+
+                  <div className="flex gap-3">
+                    <Button variant="secondary" onClick={() => setWizardStep(2)} className="flex-1 h-12">
+                      ← Back
+                    </Button>
+                    <Button
+                      disabled={reskinMut.isPending || !rsVideo || !rsAvatar || !motionOnline}
+                      onClick={() => reskinMut.mutate()}
+                      variant="premium"
+                      className="flex-[2] h-12"
+                    >
+                      {reskinMut.isPending ? (
+                        <><Loader2 className="size-4 mr-2 animate-spin" /> Submitting…</>
+                      ) : !motionOnline ? (
+                        <><WifiOff className="size-4 mr-2" /> No motion worker online</>
+                      ) : reskinPreviewId ? (
+                        <><Users className="size-4 mr-2" /> Render full Performance Shot · {computeCost({ features: ["video", "motion"] }).total} Aura</>
+                      ) : (
+                        <><Sparkles className="size-4 mr-2" /> Preview Performance Shot · {Math.max(1, Math.ceil(computeCost({ features: ["video", "motion"] }).total * 0.5))} Aura</>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            {/* aside — preview + recent */}
+            <aside className="space-y-4">
+              <div className="rounded-3xl overflow-hidden border border-border bg-card/60 backdrop-blur-xl aspect-[4/5] relative">
+                {reskinProgress.isActive ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-muted-foreground">
+                    <div className="size-14 rounded-full flex items-center justify-center" style={{ background: "var(--gradient-hero)" }}>
+                      <Loader2 className="size-6 animate-spin text-primary-foreground" />
+                    </div>
+                    <GenerationProgress visible progress={reskinProgress.progress} label={reskinProgress.label} />
+                  </div>
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground p-8 text-center">
+                    <Film className="size-10 text-primary/40" />
+                    <p className="text-sm">Your performance video will appear here when ready.</p>
+                    <p className="text-xs">Jobs render on GPU backend — watch the Recent strip below.</p>
+                  </div>
+                )}
+              </div>
+
+              {history && history.items.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Recent</h3>
+                  <div className="grid grid-cols-3 gap-2">
+                    {history.items.slice(0, 6).map((g) => (
+                      <div key={g.id} className="aspect-square rounded-lg overflow-hidden border border-border bg-card/40">
+                        {g.result_video_url ? (
+                          <AutoplayVideo src={g.result_video_url} className="w-full h-full object-cover" loop playsInline />
+                        ) : g.result_image_url ? (
+                          <img src={g.result_image_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground">{g.status}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </aside>
+          </div>
+        )}
+
+        {/* ── Pose → Video ─────────────────────────────────────────────── */}
+        {mode === "pose" && (
+          <div className="grid lg:grid-cols-[1fr_1fr] gap-8">
+            <section className="space-y-5">
+              <div>
+                <h1 className="text-2xl font-semibold tracking-tight">Pose → Video</h1>
+                <p className="text-muted-foreground text-sm mt-1">Stage a selfie into a cinematic pose, then animate it. Two steps, two retry buttons.</p>
+              </div>
               <div>
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Stage a pose</p>
                 <div className="grid grid-cols-3 gap-2">
@@ -776,12 +1076,60 @@ function MotionStudio() {
                 onRetry={() => animateMut.mutate()}
                 retryLabel="Retry animate"
               />
-            </>
-          )}
+            </section>
+            <aside className="space-y-4">
+              <div className="rounded-3xl overflow-hidden border border-border bg-card/60 backdrop-blur-xl aspect-[4/5] relative">
+                {videoUrl ? (
+                  <AutoplayVideo src={videoUrl} className="w-full h-full object-cover" controls playsInline loop />
+                ) : stagedImage ? (
+                  <BlurredPreview src={stagedImage} alt="Staged pose" aspectRatio="3/4" className="absolute inset-0 w-full h-full rounded-none border-0" transitionMs={700} />
+                ) : (stageMut.isPending || animateMut.isPending) ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 px-8 text-muted-foreground">
+                    <div className="size-14 rounded-full flex items-center justify-center" style={{ background: "var(--gradient-hero)" }}>
+                      <Loader2 className="size-6 animate-spin text-primary-foreground" />
+                    </div>
+                    <div className="w-full space-y-2">
+                      <p className="text-sm text-center">{stageMut.isPending ? stageProgress.label : animateProgress.label}</p>
+                      <GenerationProgress visible progress={stageMut.isPending ? stageProgress.progress : animateProgress.progress} />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground p-8 text-center">
+                    <Sparkles className="size-10 text-primary/50" />
+                    <p className="text-sm">Your motion clip will appear here.</p>
+                  </div>
+                )}
+              </div>
+              {history && history.items.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Recent</h3>
+                  <div className="grid grid-cols-3 gap-2">
+                    {history.items.slice(0, 6).map((g) => (
+                      <div key={g.id} className="aspect-square rounded-lg overflow-hidden border border-border bg-card/40">
+                        {g.result_video_url ? (
+                          <AutoplayVideo src={g.result_video_url} className="w-full h-full object-cover" loop playsInline />
+                        ) : g.result_image_url ? (
+                          <img src={g.result_image_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground">{g.status}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </aside>
+          </div>
+        )}
 
-          {/* ── Motion Transfer (MimicMotion) ─────────────────────────── */}
-          {mode === "transfer" && (
-            <>
+        {/* ── Motion Transfer ─────────────────────────────────────────── */}
+        {mode === "transfer" && (
+          <div className="grid lg:grid-cols-[1fr_1fr] gap-8">
+            <section className="space-y-5">
+              <div>
+                <h1 className="text-2xl font-semibold tracking-tight">Motion Transfer</h1>
+                <p className="text-muted-foreground text-sm mt-1">Drive a still image with the motion of any video (MimicMotion).</p>
+              </div>
               {!motionOnline && (
                 <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
                   <WifiOff className="size-4 text-amber-400 mt-0.5 shrink-0" />
@@ -791,7 +1139,6 @@ function MotionStudio() {
                   </div>
                 </div>
               )}
-
               <div>
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Reference + driving video</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -799,14 +1146,11 @@ function MotionStudio() {
                   <UploadSlot userId={user.id} kind="video" accept="video/*" label="Driving video" hint="Motion source" value={mtVideo} onChange={setMtVideo} />
                 </div>
               </div>
-
               {motionControls(mtMotion, setMtMotion, mtCamera, setMtCamera)}
-
               <div className="space-y-2">
                 <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Style prompt (optional)</label>
                 <Textarea rows={2} value={mtPrompt} onChange={(e) => setMtPrompt(e.target.value)} placeholder="cinematic lighting, 4K…" className="resize-none bg-card/60 text-sm" />
               </div>
-
               <Button
                 disabled={transferMut.isPending || !mtImage || !mtVideo || !motionOnline}
                 onClick={() => transferMut.mutate()}
@@ -823,154 +1167,39 @@ function MotionStudio() {
                   <><Clapperboard className="size-4 mr-2" /> Preview motion · {Math.max(1, Math.ceil(computeCost({ features: ["motion"] }).total * 0.5))} Aura</>
                 )}
               </Button>
-
-              <GenerationProgress
-                visible={transferProgress.isActive}
-                progress={transferProgress.progress}
-                label={transferProgress.label}
-              />
-              <GenerationErrorCard
-                visible={transferMut.isError}
-                error={mtError}
-                onRetry={() => transferMut.mutate()}
-              />
+              <GenerationProgress visible={transferProgress.isActive} progress={transferProgress.progress} label={transferProgress.label} />
+              <GenerationErrorCard visible={transferMut.isError} error={mtError} onRetry={() => transferMut.mutate()} />
               <p className="text-xs text-muted-foreground">First render is a short discounted preview — review it in Recent, then render the full clip. Runs on a self-hosted GPU backend.</p>
-            </>
-          )}
-
-          {/* ── Performance Shot (reskin) ─────────────────────────────── */}
-          {mode === "reskin" && (
-            <>
-              {!motionOnline && (
-                <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
-                  <WifiOff className="size-4 text-amber-400 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="font-medium text-amber-300">No motion GPU worker online</p>
-                    <p className="text-xs text-amber-300/70 mt-0.5">Performance Shot runs on a self-hosted GPU (MimicMotion). Register a RunPod or Colab worker with the <strong>motion</strong> capability in the admin panel to enable this.</p>
+            </section>
+            <aside className="space-y-4">
+              <div className="rounded-3xl overflow-hidden border border-border bg-card/60 backdrop-blur-xl aspect-[4/5] relative">
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground p-8 text-center">
+                  <Clapperboard className="size-10 text-primary/40" />
+                  <p className="text-sm">Queued jobs render on a GPU backend — watch the Recent strip below.</p>
+                </div>
+              </div>
+              {history && history.items.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Recent</h3>
+                  <div className="grid grid-cols-3 gap-2">
+                    {history.items.slice(0, 6).map((g) => (
+                      <div key={g.id} className="aspect-square rounded-lg overflow-hidden border border-border bg-card/40">
+                        {g.result_video_url ? (
+                          <AutoplayVideo src={g.result_video_url} className="w-full h-full object-cover" loop playsInline />
+                        ) : g.result_image_url ? (
+                          <img src={g.result_image_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground">{g.status}</div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
-
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Performance + avatar</p>
-                <div className="grid grid-cols-3 gap-2">
-                  <UploadSlot userId={user.id} kind="video" accept="video/*" label="Performance" hint="Source video" value={rsVideo} onChange={setRsVideo} />
-                  <UploadSlot userId={user.id} label="Avatar" hint="Persona image" value={rsAvatar} onChange={setRsAvatar} />
-                  <UploadSlot userId={user.id} kind="video" accept="audio/*,video/*" label="Audio" hint="Optional lip-sync" value={rsAudio} onChange={setRsAudio} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Outfit (optional)</label>
-                  <input
-                    value={rsOutfit}
-                    onChange={(e) => setRsOutfit(e.target.value)}
-                    placeholder="black leather jacket"
-                    className="w-full h-10 rounded-md border border-border bg-card/60 px-3 text-sm outline-none focus:border-primary/60"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Location (optional)</label>
-                  <input
-                    value={rsLocation}
-                    onChange={(e) => setRsLocation(e.target.value)}
-                    placeholder="neon-lit rooftop at night"
-                    className="w-full h-10 rounded-md border border-border bg-card/60 px-3 text-sm outline-none focus:border-primary/60"
-                  />
-                </div>
-              </div>
-
-              {motionControls(rsMotion, setRsMotion, rsCamera, setRsCamera)}
-
-              <Button
-                disabled={reskinMut.isPending || !rsVideo || !rsAvatar || !motionOnline}
-                onClick={() => reskinMut.mutate()}
-                variant="premium"
-                className="w-full h-12"
-              >
-                {reskinMut.isPending ? (
-                  <><Loader2 className="size-4 mr-2 animate-spin" /> Queuing…</>
-                ) : !motionOnline ? (
-                  <><WifiOff className="size-4 mr-2" /> No motion worker online</>
-                ) : reskinPreviewId ? (
-                  <><Users className="size-4 mr-2" /> Render full Performance Shot · {computeCost({ features: ["video", "motion"] }).total} Aura</>
-                ) : (
-                  <><Users className="size-4 mr-2" /> Preview Performance Shot · {Math.max(1, Math.ceil(computeCost({ features: ["video", "motion"] }).total * 0.5))} Aura</>
-                )}
-              </Button>
-
-              <GenerationProgress
-                visible={reskinProgress.isActive}
-                progress={reskinProgress.progress}
-                label={reskinProgress.label}
-              />
-              <GenerationErrorCard
-                visible={reskinMut.isError}
-                error={rsError}
-                onRetry={() => reskinMut.mutate()}
-              />
-              <p className="text-xs text-muted-foreground">First render is a short discounted preview — review it in Recent, then render the full shot. Runs on a GPU backend.</p>
-            </>
-          )}
-        </section>
-
-        <aside className="space-y-4">
-          <div className="rounded-3xl overflow-hidden border border-border bg-card/60 backdrop-blur-xl aspect-[4/5] relative">
-            {mode === "pose" && videoUrl ? (
-              <AutoplayVideo src={videoUrl} className="w-full h-full object-cover" controls playsInline loop />
-            ) : mode === "pose" && stagedImage ? (
-              <BlurredPreview
-                src={stagedImage}
-                alt="Staged pose"
-                aspectRatio="3/4"
-                className="absolute inset-0 w-full h-full rounded-none border-0"
-                transitionMs={700}
-              />
-            ) : (stageMut.isPending || animateMut.isPending) ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 px-8 text-muted-foreground">
-                <div className="size-14 rounded-full flex items-center justify-center" style={{ background: "var(--gradient-hero)" }}>
-                  <Loader2 className="size-6 animate-spin text-primary-foreground" />
-                </div>
-                <div className="w-full space-y-2">
-                  <p className="text-sm text-center">
-                    {stageMut.isPending ? stageProgress.label : animateProgress.label}
-                  </p>
-                  <GenerationProgress
-                    visible
-                    progress={stageMut.isPending ? stageProgress.progress : animateProgress.progress}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground p-8 text-center">
-                <Sparkles className="size-10 text-primary/50" />
-                <p className="text-sm">
-                  {mode === "pose" ? "Your motion clip will appear here." : "Queued jobs render on a GPU backend — watch the Recent strip below."}
-                </p>
-              </div>
-            )}
+            </aside>
           </div>
+        )}
 
-          {history && history.items.length > 0 && (
-            <div>
-              <h3 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Recent</h3>
-              <div className="grid grid-cols-3 gap-2">
-                {history.items.slice(0, 6).map((g) => (
-                  <div key={g.id} className="aspect-square rounded-lg overflow-hidden border border-border bg-card/40">
-                    {g.result_video_url ? (
-                      <AutoplayVideo src={g.result_video_url} className="w-full h-full object-cover" loop playsInline />
-                    ) : g.result_image_url ? (
-                      <img src={g.result_image_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground">{g.status}</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </aside>
       </div>
     </main>
   );

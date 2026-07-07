@@ -41,6 +41,7 @@ import { SupercomputerSection } from "@/components/landing/ScreenshotSections";
 import { FeatureRequest } from "@/components/landing/FeatureRequest";
 import { track } from "@/lib/tracking";
 import { LandingDemoModal } from "@/components/landing/LandingDemoModal";
+import { PerformAnywhereSection } from "@/components/landing/PerformAnywhereSection";
 
 const FAQ_ITEMS = [
   {
@@ -315,6 +316,9 @@ function Index() {
 
       {/* Colors Studio showcase — interactive swatch switcher */}
       <ColorsTeaser />
+
+      {/* Perform Anywhere — 3-step workflow hero section */}
+      <PerformAnywhereSection />
 
       {/* 0b. TikTok marketing section */}
       <TikTokSection />
