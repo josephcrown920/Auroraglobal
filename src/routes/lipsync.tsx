@@ -21,6 +21,14 @@ import { AUDIO_ACCEPT } from "@/lib/utils";
 
 export const Route = createFileRoute("/lipsync")({
   component: LipSyncStudioPage,
+  // Deep-link prefill used by Guided Workflows (/guides/$slug): hand off a
+  // generated still image straight into the image-based (xAI UGC) engine.
+  validateSearch: (search: Record<string, unknown>) => ({
+    image:
+      typeof search.image === "string" && /^https:\/\//.test(search.image)
+        ? search.image
+        : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Lip Sync Studio — Aurora" },
@@ -132,6 +140,34 @@ function LipSyncForm() {
       if (imageUrl) URL.revokeObjectURL(imageUrl);
     };
   }, [videoUrl, audioUrl, imageUrl]);
+
+  // Guided Workflows deep-link handoff: ?image=… pre-stages a generated still
+  // into the image-based engine (fetch → File, since this form uploads Files).
+  const search = Route.useSearch();
+  const prefilledRef = useRef<string | null>(null);
+  useEffect(() => {
+    const url = search.image;
+    if (!url || prefilledRef.current === url) return;
+    prefilledRef.current = url;
+    setEngine("xai-ugc");
+    (async () => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`fetch failed (${res.status})`);
+        const blob = await res.blob();
+        if (!blob.type.startsWith("image/")) throw new Error("not an image");
+        const file = new File([blob], "guided-workflow-still.jpg", { type: blob.type });
+        setImage(file);
+        setImageUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return URL.createObjectURL(file);
+        });
+      } catch {
+        toast.error("Couldn't load the image from your workflow — please upload it manually.");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.image]);
 
   useEffect(() => {
     if (!hasCompletedFirstGen() && isFirstPageVisit("lipsync")) {
