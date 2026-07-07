@@ -178,31 +178,31 @@ export function SupercomputerCard() {
   );
 }
 
-/* 4 ─ Motion Control */
+/* 4 ─ Perform Anywhere */
 export function MotionControlSection() {
   return (
     <section className="relative z-10 mx-4 md:mx-12 my-16 rounded-[32px] overflow-hidden border border-white/10 bg-black animate-fade-in">
       <div className="grid md:grid-cols-2 gap-8 px-6 md:px-12 py-16">
         <div>
-          <p className="text-xs uppercase tracking-widest text-[#d9ff4d] font-semibold">Motion Control</p>
+          <p className="text-xs uppercase tracking-widest text-[#d9ff4d] font-semibold">Perform Anywhere</p>
           <h2 className="mt-4 text-4xl md:text-6xl font-bold tracking-tight text-white">
-            RECREATE ANY
+            PERFORM ON
             <span className="block">
               <span className="text-[#d9ff4d]">[</span>
-              <span className="text-[#d9ff4d]">MOTION</span>
+              <span className="text-[#d9ff4d]">YOUR PHONE</span>
               <span className="text-[#d9ff4d]">]</span>
             </span>
-            WITH YOUR
-            <span className="block">IMAGE</span>
+            WE BUILD
+            <span className="block">THE SCENE</span>
           </h2>
           <p className="mt-4 text-white/65 max-w-md">
-            Copy motion from any video and place your character into the same movement.
+            Generate your AI scene in Colors Studio, then record yourself performing. Aurora transfers your real movement into the generated image — no studio, no crew.
           </p>
           <Link
-            to="/studio"
+            to="/motion"
             className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#d9ff4d] px-5 py-3 text-sm font-bold text-black no-underline hover:opacity-95"
           >
-            Generate <Sparkles className="size-4" />
+            Perform Anywhere <Sparkles className="size-4" />
           </Link>
         </div>
 

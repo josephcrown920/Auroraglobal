@@ -31,7 +31,7 @@ export function SiteFooter({ tone = "dark" }: { tone?: "dark" | "light" }) {
           <Link to="/studio" className={`no-underline ${muted}`}>Image &amp; Video</Link>
           <Link to="/canvas" className={`no-underline ${muted}`}>Canvas</Link>
           <Link to="/ugc" className={`no-underline ${muted}`}>UGC Ads Factory</Link>
-          <Link to="/canvas" className={`no-underline ${muted}`}>Motion Control</Link>
+          <Link to="/motion" className={`no-underline ${muted}`}>Perform Anywhere</Link>
           <Link to="/lipsync" className={`no-underline ${muted}`}>Lip Sync</Link>
           <Link to="/colors" className={`no-underline ${muted}`}>Colors Studio</Link>
           <Link to="/reshoot" className={`no-underline ${muted}`}>Multi-Angle Reshoot</Link>

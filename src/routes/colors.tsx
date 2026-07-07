@@ -29,6 +29,7 @@ import { ColorsShotsGallery } from "@/components/studio/ColorsShotsGallery";
 import { ColorStudioBackdrop } from "@/components/studio/ColorStudioBackdrop";
 import tutorialStudioRefs from "@/assets/tutorial-studio-refs.jpg.asset.json";
 import tutorialColorsBlueFinal from "@/assets/tutorial-colors-blue-final.jpg.asset.json";
+import { ColorsStudioGuide } from "@/components/onboarding/ColorsStudioGuide";
 
 // Setups that take place on the seamless cyclorama get the real, per-color
 // animated COLORS studio environment as their preview backdrop (see
@@ -391,6 +392,8 @@ function ColorsStudio() {
               studio switches live. Upload a selfie and Aurora places you inside it.
             </p>
           </div>
+
+          <ColorsStudioGuide />
 
           {/* Featured live studio set — switches with the selected swatch */}
           <div className="relative w-full aspect-video rounded-3xl overflow-hidden border border-border shadow-2xl shadow-black/60">
