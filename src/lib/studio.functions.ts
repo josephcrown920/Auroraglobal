@@ -70,7 +70,9 @@ export { trackServer };
 
 
 const GenerateSchema = z.object({
-  prompt: z.string().min(3).max(2000),
+  // 4000 to fit the Guided Workflows master compositing prompts (the 5-ref
+  // music video base prompt alone is ~2600 chars of guide-faithful text).
+  prompt: z.string().min(3).max(4000),
   imageUrls: z.array(z.string().url()).min(1).max(6),
   motionVideoUrl: z.string().url().optional().nullable(),
   // Default runs on the Replicate key alone (Gemini 2.5 Flash image, a.k.a.
@@ -140,7 +142,9 @@ export const generatePerformanceShot = createServerFn({ method: "POST" })
 
 const VideoSchema = z.object({
   imageUrl: z.string().url(),
-  prompt: z.string().min(2).max(1000),
+  // 2500 to fit Guided Workflows scene-pack video prompts (the character
+  // scene prompts run ~1800-2300 chars of guide-faithful text).
+  prompt: z.string().min(2).max(2500),
   // Schema ceiling = Pro's plan cap; per-tier enforcement (Free 10s) happens
   // in the handler via assertDurationCap so the two can never drift apart.
   duration: z.number().int().min(3).max(DURATION_CAPS.pro).default(5),

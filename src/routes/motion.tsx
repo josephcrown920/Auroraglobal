@@ -54,6 +54,18 @@ import { Check, ArrowRight } from "lucide-react";
 
 export const Route = createFileRoute("/motion")({
   component: MotionStudio,
+  // Deep-link prefill used by Guided Workflows (/guides/$slug): hand off a
+  // generated image + context prompt straight into Motion Transfer.
+  validateSearch: (search: Record<string, unknown>) => ({
+    prompt:
+      typeof search.prompt === "string" && search.prompt.trim()
+        ? search.prompt.slice(0, 2000)
+        : undefined,
+    image:
+      typeof search.image === "string" && /^https:\/\//.test(search.image)
+        ? search.image
+        : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Perform Anywhere — Aurora" },
@@ -132,6 +144,18 @@ function MotionStudio() {
   const [activeExampleId, setActiveExampleId] = useState<string | undefined>(undefined);
   const [showTour, setShowTour] = useState(false);
   const [videoResolution, setVideoResolution] = useState<Resolution>("720p");
+
+  // Guided Workflows deep-link handoff: ?image=…&prompt=… lands the user in
+  // Motion Transfer with the source image + context prompt pre-staged.
+  const search = Route.useSearch();
+  useEffect(() => {
+    if (search.image || search.prompt) {
+      setMode("transfer");
+      if (search.image) setMtImage(search.image);
+      if (search.prompt) setMtPrompt(search.prompt);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.image, search.prompt]);
 
   useEffect(() => {
     if (!hasCompletedFirstGen() && isFirstPageVisit("motion")) {
