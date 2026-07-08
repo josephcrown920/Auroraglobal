@@ -36,6 +36,10 @@ args = "test"
 task = "workflow.run"
 args = "github-sync"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "cron"
+
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
@@ -99,6 +103,17 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "bash scripts/github-sync-daemon.sh"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "cron"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bash scripts/aurora-cron-daemon.sh"
 
 [workflows.workflow.metadata]
 outputType = "console"
