@@ -63,6 +63,7 @@ const LIVE_FEATURES: Feature[] = [
   { to: "/canvas",      label: "Canvas",            icon: Workflow },
   { to: "/music-video", label: "Lyric Video",       icon: Clapperboard },
   { to: "/growth",      label: "Growth Tools",      icon: Sprout },
+  { to: "/guides",      label: "Viral Guides",      icon: BookOpen },
   { to: "/editor",      label: "Playground",        icon: Code2 },
 ];
 
