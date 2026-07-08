@@ -7,8 +7,12 @@ import {
   DIRECTOR_SYSTEM,
   buildDirectorPrompt,
   buildRefNote,
+  ChatTurnSchema,
+  CHAT_DIRECTOR_SYSTEM,
+  buildChatPrompt,
   type AgentPlan,
   type PlanIteration,
+  type AgentChatTurn,
 } from "@/lib/agent.schema";
 import { refinePlan } from "@/lib/agent-loop.server";
 import type { Json } from "@/integrations/supabase/types";
@@ -184,6 +188,136 @@ export const deleteAgentSession = createServerFn({ method: "POST" })
       .from("agent_sessions")
       .delete()
       .eq("id", data.sessionId)
+      .eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+// ─── Conversational Video Agent: persistent chat + permanent memory ──────────
+
+export type AgentChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  plan: AgentPlan | null;
+  created_at: string;
+};
+
+const CHAT_CONTEXT_MESSAGES = 20;
+const CHAT_CONTEXT_CHARS = 1000;
+
+export const chatWithAuroraAgent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ message: z.string().min(1).max(4000) }).parse(d))
+  .handler(async ({ data, context }) => {
+    // Load permanent memory + recent transcript (RLS scopes both to the caller).
+    const [{ data: memRow }, { data: recent, error: histErr }] = await Promise.all([
+      context.supabase.from("agent_user_memory").select("memory").eq("user_id", context.userId).maybeSingle(),
+      context.supabase
+        .from("agent_chat_messages")
+        .select("role, content")
+        .eq("user_id", context.userId)
+        .order("created_at", { ascending: false })
+        .limit(CHAT_CONTEXT_MESSAGES),
+    ]);
+    if (histErr) throw new Error(histErr.message);
+
+    const transcript = (recent ?? [])
+      .reverse()
+      .map((m) => ({
+        role: (m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
+        content: m.content.length > CHAT_CONTEXT_CHARS ? `${m.content.slice(0, CHAT_CONTEXT_CHARS)}…` : m.content,
+      }));
+
+    let turn: AgentChatTurn;
+    try {
+      const { output } = await generateWithFallback({
+        system: CHAT_DIRECTOR_SYSTEM,
+        prompt: buildChatPrompt({ memory: memRow?.memory ?? "", transcript, message: data.message }),
+        schema: ChatTurnSchema,
+      });
+      turn = output;
+    } catch (err) {
+      throw mapLlmError(err);
+    }
+
+    // Persist both turns server-side (never trust client-written assistant rows).
+    const { error: insErr } = await context.supabase.from("agent_chat_messages").insert([
+      { user_id: context.userId, role: "user", content: data.message },
+      {
+        user_id: context.userId,
+        role: "assistant",
+        content: turn.reply,
+        plan: (turn.plan ?? null) as unknown as Json,
+      },
+    ]);
+    if (insErr) throw new Error(insErr.message);
+
+    if (turn.memoryUpdate && turn.memoryUpdate.trim()) {
+      const { error: memErr } = await context.supabase.from("agent_user_memory").upsert({
+        user_id: context.userId,
+        memory: turn.memoryUpdate.trim(),
+        updated_at: new Date().toISOString(),
+      });
+      if (memErr) throw new Error(memErr.message);
+    }
+
+    return {
+      reply: turn.reply,
+      plan: turn.plan ?? null,
+      memoryUpdated: !!(turn.memoryUpdate && turn.memoryUpdate.trim()),
+    };
+  });
+
+export const listAgentChat = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const [{ data: msgs, error }, { data: memRow }] = await Promise.all([
+      context.supabase
+        .from("agent_chat_messages")
+        .select("id, role, content, plan, created_at")
+        .eq("user_id", context.userId)
+        .order("created_at", { ascending: true })
+        .limit(200),
+      context.supabase
+        .from("agent_user_memory")
+        .select("memory, updated_at")
+        .eq("user_id", context.userId)
+        .maybeSingle(),
+    ]);
+    if (error) throw new Error(error.message);
+    return {
+      messages: (msgs ?? []).map((m) => ({
+        id: m.id,
+        role: (m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
+        content: m.content,
+        plan: (m.plan as unknown as AgentPlan | null) ?? null,
+        created_at: m.created_at,
+      })) satisfies AgentChatMessage[],
+      hasMemory: !!memRow?.memory?.trim(),
+      memory: memRow?.memory ?? "",
+    };
+  });
+
+/** Wipes the visible conversation but KEEPS permanent memory — that's the point of it. */
+export const clearAgentChat = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { error } = await context.supabase
+      .from("agent_chat_messages")
+      .delete()
+      .eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+/** Explicit "forget me" — deletes the permanent memory document. */
+export const deleteAgentMemory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { error } = await context.supabase
+      .from("agent_user_memory")
+      .delete()
       .eq("user_id", context.userId);
     if (error) throw new Error(error.message);
     return { ok: true as const };

@@ -1,10 +1,35 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { useMutation } from "@tanstack/react-query";
-import { runAuroraAgent, type AgentPlan } from "@/lib/agent.functions";
-import { Sparkles, Send, Loader2, X, Plus, Wand2, Film, Palette, Lightbulb } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  chatWithAuroraAgent,
+  listAgentChat,
+  clearAgentChat,
+  deleteAgentMemory,
+  type AgentPlan,
+  type AgentChatMessage,
+} from "@/lib/agent.functions";
+import {
+  Sparkles,
+  Send,
+  Loader2,
+  X,
+  Plus,
+  Film,
+  Palette,
+  Brain,
+  MoreVertical,
+  Eraser,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import type { Node, Edge } from "@xyflow/react";
 
@@ -16,42 +41,142 @@ type Props = {
 };
 
 const SAMPLES = [
-  "A man and a chimpanzee rob a bank in the Albuquerque desert. Red Ferrari Testarossa. Hard midday sun, 16mm film look.",
-  "Music video for a moody R&B track. Rainy Tokyo rooftop, neon reflections, single performer, slow dolly.",
-  "UGC ad for a cold brew brand. Sunlit kitchen, hand pours coffee, condensation on glass, golden hour.",
+  "Plan a music video: moody R&B track, rainy Tokyo rooftop, neon reflections, single performer.",
+  "What's the best lens + lighting for a gritty 90s hip-hop look?",
+  "Remember this: my visual style is dark cinematic with violet neon accents.",
 ];
 
-export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
-  const [brief, setBrief] = useState("");
-  const [plan, setPlan] = useState<AgentPlan | null>(null);
-  const runAgent = useServerFn(runAuroraAgent);
+function planToGraph(plan: AgentPlan): { nodes: Node<any>[]; edges: Edge[] } {
+  const nodes: Node<any>[] = [
+    { id: "in", position: { x: 40, y: 60 }, type: "aurora", data: { kind: "input" } },
+  ];
+  const edges: Edge[] = [];
+  plan.shots.forEach((s, i) => {
+    const id = `shot-${i}`;
+    nodes.push({
+      id,
+      position: { x: 380 + (i % 3) * 360, y: 60 + Math.floor(i / 3) * 340 },
+      type: "aurora",
+      data: { kind: "image", prompt: s.prompt },
+    });
+    edges.push({ id: `in-${id}`, source: "in", target: id, animated: true });
+  });
+  return { nodes, edges };
+}
 
-  const mut = useMutation({
-    mutationFn: async (briefText: string) => runAgent({ data: { brief: briefText } }),
-    onSuccess: (p) => { setPlan(p); toast.success(`Plan ready: ${p.shots.length} shots`); },
+function PlanCard({ plan, onSend }: { plan: AgentPlan; onSend: () => void }) {
+  return (
+    <div className="mt-2 rounded-xl border border-violet-400/25 bg-violet-500/[0.07] overflow-hidden">
+      <div className="p-3 space-y-2">
+        <div>
+          <p className="text-[9px] uppercase tracking-[0.2em] text-violet-300/80">Production plan</p>
+          <p className="text-sm font-semibold text-white leading-tight mt-0.5">{plan.title}</p>
+          <p className="text-[11px] text-white/55 italic mt-0.5">"{plan.logline}"</p>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {plan.palette.slice(0, 6).map((c) => (
+            <span key={c} className="size-4 rounded-full border border-white/15" style={{ background: c }} title={c} />
+          ))}
+          <span className="text-[9px] text-white/40 ml-1 inline-flex items-center gap-1">
+            <Palette className="size-2.5" /> color story
+          </span>
+        </div>
+        <details className="group">
+          <summary className="cursor-pointer text-[11px] text-white/70 inline-flex items-center gap-1.5 hover:text-white">
+            <Film className="size-3 text-violet-300" /> {plan.shots.length} shots — tap to view
+          </summary>
+          <div className="mt-2 space-y-1.5">
+            {plan.shots.map((s) => (
+              <div key={s.id} className="rounded-lg bg-black/30 border border-white/5 p-2">
+                <p className="text-[11px] font-medium text-white leading-tight">
+                  <span className="font-mono text-violet-300 mr-1">{s.id}</span>
+                  {s.title}
+                </p>
+                <p className="text-[10px] text-white/45 mt-0.5">{s.shotType} · {s.camera}</p>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(s.prompt); toast.success("Prompt copied"); }}
+                  className="mt-1 text-[10px] text-violet-300 hover:text-violet-200"
+                >
+                  Copy prompt
+                </button>
+              </div>
+            ))}
+          </div>
+        </details>
+      </div>
+      <button
+        onClick={onSend}
+        className="w-full py-2 text-xs font-semibold text-white inline-flex items-center justify-center gap-1.5 hover:brightness-110 transition-[filter]"
+        style={{ background: "linear-gradient(135deg, oklch(0.65 0.22 305), oklch(0.62 0.22 340))" }}
+      >
+        <Plus className="size-3.5" /> Send storyboard to canvas
+      </button>
+    </div>
+  );
+}
+
+export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
+  const [draft, setDraft] = useState("");
+  const [pendingUserMsg, setPendingUserMsg] = useState<string | null>(null);
+  const chatFn = useServerFn(chatWithAuroraAgent);
+  const listFn = useServerFn(listAgentChat);
+  const clearFn = useServerFn(clearAgentChat);
+  const forgetFn = useServerFn(deleteAgentMemory);
+  const qc = useQueryClient();
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const history = useQuery({
+    queryKey: ["agent-chat"],
+    enabled: open,
+    queryFn: () => listFn({}),
+  });
+  const messages: AgentChatMessage[] = history.data?.messages ?? [];
+  const hasMemory = history.data?.hasMemory ?? false;
+
+  const sendMut = useMutation({
+    mutationFn: async (message: string) => chatFn({ data: { message } }),
+    onSuccess: (res) => {
+      setPendingUserMsg(null);
+      qc.invalidateQueries({ queryKey: ["agent-chat"] });
+      if (res.memoryUpdated) toast.success("Aurora updated its memory of you", { icon: "🧠" });
+    },
+    onError: (e: Error) => {
+      setPendingUserMsg(null);
+      toast.error(e.message);
+    },
+  });
+
+  const clearMut = useMutation({
+    mutationFn: async () => clearFn({}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["agent-chat"] });
+      toast.success("Chat cleared — memory kept");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const sendToCanvas = () => {
-    if (!plan) return;
-    const nodes: Node<any>[] = [
-      { id: "in", position: { x: 40, y: 60 }, type: "aurora", data: { kind: "input" } },
-    ];
-    const edges: Edge[] = [];
-    plan.shots.forEach((s, i) => {
-      const id = `shot-${i}`;
-      nodes.push({
-        id,
-        position: { x: 380 + (i % 3) * 360, y: 60 + Math.floor(i / 3) * 340 },
-        type: "aurora",
-        data: { kind: "image", prompt: s.prompt },
-      });
-      edges.push({ id: `in-${id}`, source: "in", target: id, animated: true });
-    });
-    onSendToCanvas({ nodes, edges });
-    toast.success("Storyboard added to canvas");
-    onClose();
+  const forgetMut = useMutation({
+    mutationFn: async () => forgetFn({}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["agent-chat"] });
+      toast.success("Memory erased");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const send = () => {
+    const text = draft.trim();
+    if (text.length < 2 || sendMut.isPending) return;
+    setPendingUserMsg(text);
+    setDraft("");
+    sendMut.mutate(text);
   };
+
+  // Keep the thread pinned to the latest message.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages.length, pendingUserMsg, sendMut.isPending, open]);
 
   if (!open) return null;
 
@@ -64,135 +189,140 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
           </span>
           <div>
             <p className="text-sm font-semibold text-white">Aurora Agent</p>
-            <p className="text-[10px] text-white/50">Your AI co-director</p>
+            <p className="text-[10px] text-white/50 inline-flex items-center gap-1">
+              {hasMemory ? (
+                <>
+                  <Brain className="size-2.5 text-violet-300" />
+                  <span className="text-violet-300/90">Remembers you</span>
+                </>
+              ) : (
+                "Your AI co-director"
+              )}
+            </p>
           </div>
         </div>
-        <button onClick={onClose} className="p-1.5 rounded-md text-white/60 hover:text-white hover:bg-white/5">
-          <X className="size-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="p-1.5 rounded-md text-white/60 hover:text-white hover:bg-white/5" aria-label="Chat options">
+                <MoreVertical className="size-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem
+                onSelect={() => clearMut.mutate()}
+                disabled={clearMut.isPending || messages.length === 0}
+              >
+                <Eraser className="size-3.5 mr-2" /> Clear chat (keep memory)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => forgetMut.mutate()}
+                disabled={forgetMut.isPending || !hasMemory}
+                className="text-rose-400 focus:text-rose-300"
+              >
+                <Trash2 className="size-3.5 mr-2" /> Forget everything about me
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <button onClick={onClose} className="p-1.5 rounded-md text-white/60 hover:text-white hover:bg-white/5" aria-label="Close">
+            <X className="size-4" />
+          </button>
+        </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-        {!plan && !mut.isPending && (
-          <>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+        {history.isLoading && (
+          <div className="flex justify-center py-10">
+            <Loader2 className="size-5 animate-spin text-violet-300" />
+          </div>
+        )}
+
+        {!history.isLoading && messages.length === 0 && !pendingUserMsg && (
+          <div className="space-y-4">
             <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs text-white/70 leading-relaxed">
-              Drop a single paragraph describing your story — characters, location, vibe, era.
-              The agent returns a full shot list with ready-to-run prompts, color palette, and next steps.
-              Click <span className="text-violet-300">Send to Canvas</span> to wire every shot into your node graph.
+              I'm your permanent co-director — I remember your style, characters and projects across every
+              conversation. Talk shop, ask for looks and lenses, or say{" "}
+              <span className="text-violet-300">"plan a video…"</span> and I'll build a full shot list you can
+              send straight to the canvas.
             </div>
             <div className="space-y-1.5">
-              <p className="text-[10px] uppercase tracking-wider text-white/40">Try a prompt</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/40">Try saying</p>
               {SAMPLES.map((s) => (
                 <button
                   key={s}
-                  onClick={() => setBrief(s)}
+                  onClick={() => setDraft(s)}
                   className="w-full text-left text-xs p-2.5 rounded-lg border border-white/10 bg-white/[0.02] hover:bg-white/5 hover:border-violet-400/30 text-white/75"
                 >
                   {s}
                 </button>
               ))}
             </div>
-          </>
-        )}
-
-        {mut.isPending && (
-          <div className="flex flex-col items-center justify-center py-12 gap-3 text-white/70">
-            <Loader2 className="size-6 animate-spin text-violet-300" />
-            <p className="text-sm">Aurora is building your shot list…</p>
-            <p className="text-[10px] text-white/40">Direction · palette · 4-8 shots · prompts</p>
           </div>
         )}
 
-        {plan && !mut.isPending && (
-          <div className="space-y-4 animate-fade-in">
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-violet-300/80">Concept</p>
-              <h3 className="text-lg font-semibold text-white leading-tight">{plan.title}</h3>
-              <p className="text-xs text-white/60 mt-1 italic">"{plan.logline}"</p>
+        {messages.map((m) => (
+          <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div
+              className={
+                m.role === "user"
+                  ? "max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2.5 text-xs leading-relaxed text-white bg-gradient-to-br from-violet-600/80 to-fuchsia-600/70 border border-violet-400/20"
+                  : "max-w-[92%] rounded-2xl rounded-bl-md px-3.5 py-2.5 text-xs leading-relaxed text-white/85 bg-white/[0.05] border border-white/10"
+              }
+            >
+              <p className="whitespace-pre-wrap">{m.content}</p>
+              {m.role === "assistant" && m.plan && (
+                <PlanCard
+                  plan={m.plan}
+                  onSend={() => {
+                    onSendToCanvas(planToGraph(m.plan!));
+                    toast.success("Storyboard added to canvas");
+                    onClose();
+                  }}
+                />
+              )}
             </div>
+          </div>
+        ))}
 
-            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-              <p className="text-[10px] uppercase tracking-wider text-white/40 mb-1 inline-flex items-center gap-1"><Lightbulb className="size-3" /> Direction</p>
-              <p className="text-xs text-white/80 leading-relaxed">{plan.direction}</p>
+        {pendingUserMsg && (
+          <div className="flex justify-end">
+            <div className="max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2.5 text-xs leading-relaxed text-white bg-gradient-to-br from-violet-600/80 to-fuchsia-600/70 border border-violet-400/20 opacity-80">
+              <p className="whitespace-pre-wrap">{pendingUserMsg}</p>
             </div>
+          </div>
+        )}
 
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-white/40 mb-2 inline-flex items-center gap-1"><Palette className="size-3" /> Color story</p>
-              <div className="flex gap-2">
-                {plan.palette.map((c) => (
-                  <div key={c} className="flex-1">
-                    <div className="aspect-square rounded-lg border border-white/10" style={{ background: c }} />
-                    <p className="text-[9px] text-white/50 mt-1 text-center font-mono">{c}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-white/40 mb-2 inline-flex items-center gap-1"><Film className="size-3" /> Shot list · {plan.shots.length}</p>
-              <div className="space-y-2">
-                {plan.shots.map((s) => (
-                  <details key={s.id} className="group rounded-xl border border-white/10 bg-white/[0.03] overflow-hidden">
-                    <summary className="cursor-pointer p-3 flex items-start gap-2 hover:bg-white/[0.05]">
-                      <span className="text-[10px] font-mono text-violet-300 mt-0.5">{s.id}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white leading-tight">{s.title}</p>
-                        <p className="text-[10px] text-white/50 mt-0.5">{s.shotType} · {s.camera}</p>
-                      </div>
-                    </summary>
-                    <div className="px-3 pb-3 space-y-2">
-                      <p className="text-xs text-white/70">{s.action}</p>
-                      <div className="rounded-lg bg-black/30 border border-white/5 p-2.5">
-                        <p className="text-[9px] uppercase tracking-wider text-emerald-300/70 mb-1">Prompt</p>
-                        <p className="text-[11px] text-white/85 leading-relaxed font-mono">{s.prompt}</p>
-                      </div>
-                      <button
-                        onClick={() => { navigator.clipboard.writeText(s.prompt); toast.success("Prompt copied"); }}
-                        className="text-[10px] text-violet-300 hover:text-violet-200 inline-flex items-center gap-1"
-                      >
-                        <Wand2 className="size-3" /> Copy prompt
-                      </button>
-                    </div>
-                  </details>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-violet-400/20 bg-violet-500/5 p-3">
-              <p className="text-[10px] uppercase tracking-wider text-violet-300/80 mb-1.5">Next moves</p>
-              <ul className="text-xs text-white/75 space-y-1 list-disc list-inside">
-                {plan.suggestions.map((s, i) => <li key={i}>{s}</li>)}
-              </ul>
+        {sendMut.isPending && (
+          <div className="flex justify-start">
+            <div className="rounded-2xl rounded-bl-md px-3.5 py-2.5 bg-white/[0.05] border border-white/10 inline-flex items-center gap-2 text-xs text-white/60">
+              <Loader2 className="size-3 animate-spin text-violet-300" /> Aurora is thinking…
             </div>
           </div>
         )}
       </div>
 
       <footer className="border-t border-white/10 p-3 space-y-2">
-        {plan && (
-          <Button
-            onClick={sendToCanvas}
-            className="w-full text-white shadow-lg shadow-violet-500/30"
-            style={{ background: "linear-gradient(135deg, oklch(0.65 0.22 305), oklch(0.62 0.22 340))" }}
-          >
-            <Plus className="size-4 mr-1" /> Send storyboard to canvas
-          </Button>
-        )}
         <Textarea
-          value={brief}
-          onChange={(e) => setBrief(e.target.value)}
-          placeholder={plan ? "Refine: 'make shot 3 darker' or send a new brief…" : "Concept: a man and a chimp rob a bank in the desert…"}
-          rows={3}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              send();
+            }
+          }}
+          placeholder="Talk to your co-director…"
+          rows={2}
           className="bg-black/30 border-white/10 text-white text-xs resize-none"
         />
         <Button
-          onClick={() => { if (brief.trim().length > 3) { setPlan(null); mut.mutate(brief.trim()); } }}
-          disabled={mut.isPending || brief.trim().length < 4}
-          variant="outline"
-          className="w-full border-white/15 bg-white/5 text-white hover:bg-white/10"
+          onClick={send}
+          disabled={sendMut.isPending || draft.trim().length < 2}
+          className="w-full text-white shadow-lg shadow-violet-500/30"
+          style={{ background: "linear-gradient(135deg, oklch(0.65 0.22 305), oklch(0.62 0.22 340))" }}
         >
-          {mut.isPending ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : <Send className="size-3.5 mr-1" />}
-          {plan ? "Regenerate plan" : "Direct my story"}
+          {sendMut.isPending ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : <Send className="size-3.5 mr-1" />}
+          Send
         </Button>
       </footer>
     </div>

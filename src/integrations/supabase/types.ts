@@ -8,6 +8,51 @@ export type Database = {
   };
   public: {
     Tables: {
+      agent_chat_messages: {
+        Row: {
+          content: string;
+          created_at: string;
+          id: string;
+          plan: Json | null;
+          role: string;
+          user_id: string;
+        };
+        Insert: {
+          content: string;
+          created_at?: string;
+          id?: string;
+          plan?: Json | null;
+          role: string;
+          user_id: string;
+        };
+        Update: {
+          content?: string;
+          created_at?: string;
+          id?: string;
+          plan?: Json | null;
+          role?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      agent_user_memory: {
+        Row: {
+          memory: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          memory?: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          memory?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       agent_sessions: {
         Row: {
           brief: string;
