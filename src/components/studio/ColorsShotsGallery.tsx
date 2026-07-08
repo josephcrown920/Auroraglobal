@@ -8,9 +8,12 @@ import a5 from "@/assets/josh/josh-yellow-mic.jpg.asset.json";
 const SHOTS = [
   { src: a1.url, label: "Hot-pink cyc · side profile", color: "Hot magenta + vintage mic" },
   { src: a2.url, label: "Hot-pink cyc · jersey portrait", color: "Hot magenta + chrome mic" },
+  { src: "/josh/josh-pink-mic-portrait.jpg", label: "Pink studio · mic portrait", color: "Hot pink + chrome mic" },
   { src: a3.url, label: "Moody blue stage · close-up", color: "Indigo wash + red rim" },
   { src: a4.url, label: "Stage spotlight · red shades", color: "Cool stage + warm rim" },
+  { src: "/josh/josh-red-girl-silhouette.jpg", label: "Crimson red · silhouette", color: "Deep crimson + shadow contrast" },
   { src: a5.url, label: "Yellow cyclorama · vintage mic", color: "Cadmium yellow" },
+  { src: "/josh/josh-concert-performance.webp", label: "Live concert · stage lights", color: "Performance energy" },
 ];
 
 export function ColorsShotsGallery() {

@@ -223,6 +223,31 @@ const TEMPLATES: TemplateDef[] = [
     }),
   },
   {
+    id: "my-life-fire",
+    name: "My Life · Fire Background",
+    desc: "Viral cinematic: drop your selfie → stand composed in front of a dramatic fire/chaos background. The 'My Life / Me' aesthetic — calm artist, burning world.",
+    icon: Flame,
+    tags: ["Selfie", "Image", "Video", "Preset"],
+    category: "Cinema",
+    build: () => ({
+      name: "My Life · Fire Background",
+      nodes: [
+        mk("in", "input", 40, 60),
+        mk("img", "image", 380, 60, {
+          prompt:
+            "Cinematic wide establishing shot: the EXACT person from the reference photo standing in the foreground, arms crossed or at sides, calm and unbothered expression, looking slightly away from camera. Behind them: a dramatic house fire rages — orange and red flames consuming a suburban home, thick smoke billowing into a dusk sky with deep purple and amber clouds. The subject is perfectly composed and lit from the front by a warm practical source, sharp and detailed against the soft-focus blaze. Shot on Alexa, anamorphic 1.85:1, shallow depth of field, cinematic colour grade. Viral editorial aesthetic — emotionally charged, high contrast.",
+          model: "google/gemini-3-pro-image-preview",
+        }),
+        mk("vid", "video", 760, 60, {
+          prompt: "Slow dolly push-in on the subject, fire roaring and flickering behind them, embers drifting past the lens, subject remains completely still — cinematic hero moment",
+          model: "seedance-2.0-fast",
+          cameraMovement: "push_in",
+        }),
+      ],
+      edges: [ed("in", "img"), ed("img", "vid")],
+    }),
+  },
+  {
     id: "ugc-loop",
     name: "UGC Ad Loop",
     desc: "Talent + product → looping social ad",

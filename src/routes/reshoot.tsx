@@ -367,6 +367,41 @@ function ReshootPage() {
             ))}
           </div>
 
+          {/* Example outputs — shown before any generation to demonstrate what's possible */}
+          {!results && !mut.isPending && (
+            <div className="aurora-panel p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="size-1.5 rounded-full bg-primary animate-pulse" />
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Example reshoot — red studio · 4 of 6 angles shown
+                </p>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { src: "/josh/josh-red-angle1.png", label: "Fish-eye" },
+                  { src: "/josh/josh-red-angle2.png", label: "Bird's-eye" },
+                  { src: "/josh/josh-red-angle3.png", label: "Low angle" },
+                  { src: "/josh/josh-red-angle4.png", label: "Dutch tilt" },
+                ].map((ex) => (
+                  <figure key={ex.src} className="relative overflow-hidden rounded-xl aspect-[3/4] bg-background/40 border border-border">
+                    <img
+                      src={ex.src}
+                      alt={ex.label}
+                      loading="lazy"
+                      className="absolute inset-0 size-full object-cover"
+                    />
+                    <div className="absolute inset-x-0 bottom-0 p-1.5 bg-gradient-to-t from-black/70 to-transparent">
+                      <figcaption className="text-[10px] font-medium text-white/90">{ex.label}</figcaption>
+                    </div>
+                  </figure>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Same subject, same outfit, same scene — six camera angles from one photo. Upload yours above to run.
+              </p>
+            </div>
+          )}
+
           {mut.isPending && (
             <div className="aurora-panel p-4 flex items-center gap-3">
               <Loader2 className="size-4 animate-spin text-primary" />
