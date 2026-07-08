@@ -101,6 +101,7 @@ with the LatentSync + MimicMotion custom nodes installed (see `comfyui/`).
 | `runpod/`           | `runpod`  | `https://api.runpod.ai/v2/<id>`                    | `lipsync,motion`  |
 | `aurora_worker.py`  | `custom`  | `https://<host>/generate`                          | `lipsync,motion,assemble,lyric_video` |
 | `kaggle/`           | `custom`  | `https://<tunnel>/generate`                        | `lipsync,motion`  |
+| `vast/`             | `vast`    | `http://<VAST_TCP_HOST>:<VAST_TCP_PORT_8000>/generate` | `lipsync,motion,assemble` |
 | `hf-space/` (lipsync) | `hfspace` | `https://<user>-<space>.hf.space`                | `lipsync`         |
 | `hf-space/` (motion)  | `hfspace` | `https://<user>-<space>.hf.space`                | `motion`          |
 | `comfyui/`          | `comfyui` | `https://<host>:8188`                              | `lipsync,motion`  |

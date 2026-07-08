@@ -46,6 +46,7 @@ Aurora UI ──► orchestrator ──► your worker (this dir) ──► Late
 | `hf-space/`  | Hugging Face Space        | `hfspace` | one task / Space  |
 | `kaggle/`    | Kaggle notebook + tunnel  | `custom`  | lipsync (motion opt-in) |
 | `colab/`     | Colab notebook + tunnel   | `custom`  | lipsync (motion opt-in, Pro+ A100 only) |
+| `vast/`      | Vast.ai rented GPU (auto-registers, no tunnel) | `vast` | lipsync + motion + assemble (GPU-tier dependent) |
 | `aurora_worker.py` | any GPU VM (FastAPI)| `custom`  | lipsync + motion + assemble |
 
 > **Free-GPU swarm:** `comfyui/aurora_comfyui_launcher.py` runs stock ComfyUI on a
@@ -92,24 +93,26 @@ and self-registers via `register_with_aurora()` — identical flow to `kaggle/`,
 different secrets API and root dir (`/content` vs `/kaggle/working`). See
 [`colab/README.md`](./colab/README.md) for the full secrets table and setup steps.
 
-## Vast.ai (rented GPU, `custom` protocol, manual registration)
+## Vast.ai (rented GPU, `vast` protocol, auto-registers)
 
-Vast.ai instances expose a public port directly (no tunnel needed), so
-`register_with_aurora()` — which only knows how to build a URL from
-`NGROK_STATIC_DOMAIN` — does **not** apply here; register the instance once by hand
-in **Admin → Workers** (Protocol: *Vast.ai*) instead of expecting auto-registration:
+Vast.ai instances expose container ports directly — no tunnel needed. The dedicated
+launcher at [`vast/aurora_worker_vast.py`](./vast/aurora_worker_vast.py) detects the
+public URL from Vast.ai's `VAST_TCP_HOST`/`VAST_TCP_PORT_8000` env vars, installs
+weights, starts the FastAPI worker, and **auto-registers** with Aurora.
+
+**Quick start** — set `AURORA_URL`, `AURORA_REGISTER_SECRET`, and optionally
+`AURORA_TASKS` / `AURORA_WORKER_TOKEN` in your Vast.ai instance template (under
+**Environment**), open port **8000**, then SSH in and run:
 
 ```bash
-bash workers/setup.sh /workspace                        # or AURORA_TASKS=lipsync bash …
-pip install -r workers/requirements.txt
-export AURORA_WORKER_TOKEN=$(openssl rand -hex 16)       # optional bearer
-uvicorn aurora_worker:app --host 0.0.0.0 --port 8000 --app-dir workers
+apt-get install -y ffmpeg 2>/dev/null || true
+python3 - << 'EOF'
+import os, urllib.request
+url = os.environ["AURORA_URL"].rstrip("/") + "/api/public/workers/files/vast_bootstrap.py"
+urllib.request.urlretrieve(url, "/workspace/aurora_worker_vast.py")
+EOF
+python3 /workspace/aurora_worker_vast.py
 ```
 
-Then paste the instance's public `https://<host>:<port>/generate` URL into
-**Admin → Workers** with capabilities `lipsync,motion` and the bearer token above. On
-every Vast.ai restart the instance gets a new public port/IP, so **re-paste the URL**
-(or wrap the same `curl … /api/public/workers/register` call the Kaggle/Colab
-templates use, with `endpoint_url` set to the instance's current address, in your own
-boot script) — Aurora de-dupes on the normalized endpoint, so re-registering the same
-worker under a new URL just updates its existing row once the old URL is replaced.
+See [`vast/README.md`](./vast/README.md) for the full secrets table, GPU tier guide,
+and troubleshooting steps.
