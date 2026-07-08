@@ -263,15 +263,22 @@ function Index() {
       {/* Spacer for fixed header */}
       <div className="h-20" />
 
-      {/* By Artists for Artists — hero statement */}
-      <div className="flex flex-col items-center pt-10 pb-2 px-6 text-center">
-        <p className="text-4xl md:text-6xl font-extrabold tracking-tight leading-tight">
-          By Artists,{" "}
-          <span className="aurora-gradient-text">for Artists.</span>
-        </p>
-        <p className="mt-3 text-white/50 text-base md:text-lg max-w-sm">
-          Built by creators who needed it. For creators who deserve it.
-        </p>
+      {/* By Artists for Artists — manifesto statement */}
+      <div className="relative flex flex-col items-center pt-14 pb-4 px-6 text-center overflow-hidden">
+        {/* glow orb behind text */}
+        <div aria-hidden className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[220px] rounded-full bg-primary/20 blur-[80px]" />
+        <div className="relative">
+          <p className="text-[11px] uppercase tracking-[0.35em] text-primary/80 mb-4 font-semibold">
+            ✦ Aurora Studio ✦
+          </p>
+          <h2 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[0.95] uppercase">
+            <span className="block text-white">By Artists,</span>
+            <span className="block aurora-gradient-text">For Artists.</span>
+          </h2>
+          <p className="mt-5 text-white/45 text-sm md:text-base max-w-xs mx-auto leading-relaxed">
+            Built by creators who needed it.<br />For creators who deserve it.
+          </p>
+        </div>
       </div>
 
       {/* 0a. Direct your shoot — auto-scrolling slideshow */}
