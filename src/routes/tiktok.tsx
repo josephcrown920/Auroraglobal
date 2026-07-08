@@ -16,6 +16,7 @@ import {
 } from "@/lib/tiktok-remix.functions";
 import { ExampleChips } from "@/components/onboarding/ExampleChips";
 import { TIKTOK_EXAMPLE_PRESETS } from "@/lib/example-presets";
+import { COST_TIKTOK_REMIX_CUT } from "@/lib/pricing";
 import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
 import { hasCompletedFirstGen, hasDismissedTour, isFirstPageVisit, markFirstGenComplete, markPageVisited } from "@/lib/first-run";
 import { useGenerationProgress, type BackendJobStatus } from "@/hooks/use-generation-progress";
@@ -337,7 +338,7 @@ function TiktokRemixPage() {
               />
               <span className="w-10 text-right font-bold text-foreground">{count}</span>
             </div>
-            <p className="mt-1 text-[11px] text-muted-foreground">Each cut reserves 5 Aura. Reservations are released if a job fails.</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">Each cut reserves {COST_TIKTOK_REMIX_CUT} Aura. Reservations are released if a job fails.</p>
           </div>
 
           <button

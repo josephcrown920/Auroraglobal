@@ -9,7 +9,7 @@ import {
 
 // The TikTok Remix Factory caps cuts at 10. The UI slider enforces this, but
 // the server-side zod validator (StartInput) is the real safeguard: each cut
-// reserves 5 Aura, so a direct call asking for more than 10 must be rejected
+// reserves COST_TIKTOK_REMIX_CUT Aura, so a direct call asking for more than 10 must be rejected
 // before any credits are reserved. These tests pin that cap so it can't quietly
 // regress.
 

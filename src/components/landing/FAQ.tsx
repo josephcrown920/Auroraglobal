@@ -4,7 +4,7 @@ import { ChevronDown } from "lucide-react";
 const FAQS = [
   {
     q: "How does Aura (our credit) work?",
-    a: "1 Aura ≈ 1 image. Budget video & lip-sync start at 5 Aura; premium models cost more, priced to match each model. Length and resolution scale the price. Aura never expires and rolls across every model.",
+    a: "1 Aura ≈ 1 image. Budget video starts at 10 Aura and lip-sync at 3; premium models cost more, priced to match each model. Length and resolution scale the price. Aura never expires and rolls across every model.",
   },
   {
     q: "Can I use the results commercially?",

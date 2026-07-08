@@ -9,6 +9,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertTrustedUrl } from "./url-guard";
+import { COST_TIKTOK_REMIX_CUT } from "./pricing";
 
 // Cut styles bias the generated concepts toward a themed look. "auto" keeps the
 // original behavior (distinct hooks pulled from the source).
@@ -206,7 +207,7 @@ export const startTiktokRemix = createServerFn({ method: "POST" })
           _user: userId,
           _kind: "tiktok_remix_child",
           _prompt: prompt,
-          _amount: 5,
+          _amount: COST_TIKTOK_REMIX_CUT,
           _payload: {
             kind: "video",
             prompt,
@@ -274,7 +275,7 @@ export const retryTiktokRemixChild = createServerFn({ method: "POST" })
       _user: userId,
       _kind: "tiktok_remix_child",
       _prompt: prompt,
-      _amount: 5,
+      _amount: COST_TIKTOK_REMIX_CUT,
       _payload: { ...payload, remixId: data.remixId, retryOf: data.failedJobId },
     });
     if (error) throw new Error(error.message);

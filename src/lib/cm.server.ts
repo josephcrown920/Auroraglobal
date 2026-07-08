@@ -13,11 +13,12 @@
 /** Flat credits reserved per generated video — the SAME amount the batch reserves,
  *  so an up-front estimate can never disagree with what is actually charged.
  *
- *  DELIBERATELY decoupled from COST_UGC_AD (14): the avatar UGC ad price covers
+ *  DELIBERATELY decoupled from COST_UGC_AD (28): the avatar UGC ad price covers
  *  the xAI talking-head + mandatory voice-lock relip chain, which FACELESS
  *  Content Machine videos never run (no avatarImageUrl → no xAI fast path).
- *  cm.server.test.ts documents this decoupling. */
-export const COST_PER_VIDEO = 8;
+ *  cm.server.test.ts documents this decoupling. Doubled 8 → 16 in the
+ *  2026-07-08 video repricing, in lockstep with the doubled video tiers. */
+export const COST_PER_VIDEO = 16;
 
 /** Hard cap on videos per batch — limits runaway reservations, queue pressure and
  *  the page's polling load. Enforced server-side in startBatch. */

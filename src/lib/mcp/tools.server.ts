@@ -16,6 +16,13 @@ import { hasActiveWorkerForKind, type GenerateKind } from "@/lib/orchestrator.se
 import { buildMimicMotionRequest, MOTION_TYPES, CAMERA_MOVEMENTS } from "@/lib/motion-workflows.server";
 import { assertTrustedUrl } from "@/lib/url-guard";
 import { COST_UGC_AD, COST_CAMPAIGN_ITEM, buildCampaignVariations } from "@/lib/ugc.server";
+import { computeCost } from "@/lib/pricing";
+
+// MCP motion tools must charge the SAME Aura as the in-app Transfer Motion /
+// Performance Shot buttons (studio.functions.ts routes both through computeCost
+// at the 5s/720p reference), so the MCP surface can never undercut the app.
+const COST_MCP_MOTION = computeCost({ features: ["motion"] }).total;
+const COST_MCP_PERFORMANCE_RESKIN = computeCost({ features: ["video", "motion"] }).total;
 import { enqueueJobForUser, listJobsForUser, cancelJobForUser } from "@/lib/jobs.functions";
 import type { ToolResult, Avatar } from "./types";
 
@@ -472,7 +479,7 @@ export async function animateFromDrivingVideoTool(args: z.infer<typeof animateFr
       _user: ctx.userId,
       _kind: "motion",
       _prompt: args.prompt ?? "Motion transfer",
-      _amount: 5,
+      _amount: COST_MCP_MOTION,
       _payload: payload as unknown as Record<string, unknown>,
     });
     if (error) return err(/insufficient_credits/i.test(error.message) ? "Not enough Aura" : error.message);
@@ -481,7 +488,7 @@ export async function animateFromDrivingVideoTool(args: z.infer<typeof animateFr
       job_id: row.job_id,
       generation_id: row.generation_id,
       status: "queued",
-      credits: 5,
+      credits: COST_MCP_MOTION,
       message: "MimicMotion job queued. Track with aurora_get_job_status.",
     });
   } catch (e) {
@@ -513,7 +520,7 @@ export async function performanceReskinTool(args: z.infer<typeof performanceResk
       _user: ctx.userId,
       _kind: "performance_reskin",
       _prompt: args.prompt ?? "Performance reskin",
-      _amount: 8,
+      _amount: COST_MCP_PERFORMANCE_RESKIN,
       _payload: payload as unknown as Record<string, unknown>,
     });
     if (error) return err(/insufficient_credits/i.test(error.message) ? "Not enough Aura" : error.message);
@@ -522,7 +529,7 @@ export async function performanceReskinTool(args: z.infer<typeof performanceResk
       job_id: row.job_id,
       generation_id: row.generation_id,
       status: "queued",
-      credits: 8,
+      credits: COST_MCP_PERFORMANCE_RESKIN,
       message: "Performance Shot job queued. Track with aurora_get_job_status.",
     });
   } catch (e) {

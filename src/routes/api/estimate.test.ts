@@ -22,15 +22,15 @@ describe("estimateFromParams", () => {
       duration: "10",
       model: "kling-3.0",
     });
-    // kling-3.0 is "ultra" tier (24 Aura @ 5s/720p) × 2 (1080p) × 2 (10s/5s ref).
-    expect(result.credits).toBe(96);
+    // kling-3.0 is "ultra" tier (48 Aura @ 5s/720p) × 2 (1080p) × 2 (10s/5s ref).
+    expect(result.credits).toBe(192);
     expect(result.resolution).toBe("1080p");
     expect(result.durationSeconds).toBe(10);
   });
 
   it("falls back to the default (budget) video tier when no model is given", () => {
     const result = estimateFromParams({ kind: "video" });
-    expect(result.credits).toBe(5);
+    expect(result.credits).toBe(10);
   });
 
   it("never returns a different total than computeCost would for the same inputs", async () => {
