@@ -11,17 +11,9 @@ import joshBlueOrange from "@/assets/josh/josh-blue-orange.jpg.asset.json";
 const PINK_MIC_PORTRAIT = "/josh/josh-pink-mic-portrait.jpg";
 // Get Ready With Me — mirror session
 const MIRROR_GETREADY = "/josh/josh-mirror-getready.webp";
-// New real-life performance shots
-const CONCERT_PERFORMANCE = "/josh/josh-concert-performance.webp";
-const ORANGE_PERFORMANCE = "/josh/josh-orange-performance.jpg";
-const PINK_LEATHER_MIC = "/josh/josh-pink-leather-mic.jpg";
-
 const SHOTS = [
-  { url: CONCERT_PERFORMANCE, caption: "Live concert · stage lights · sold-out crowd" },
   { url: PINK_MIC_PORTRAIT, caption: "Hot-pink side profile · suspended mic" },
-  { url: PINK_LEATHER_MIC, caption: "Pink studio · leather look · vintage mic" },
   { url: MIRROR_GETREADY, caption: "Get Ready With Me · mirror session" },
-  { url: ORANGE_PERFORMANCE, caption: "Orange studio · movement · platform energy" },
   { url: joshBlueOrange.url, caption: "Blue × orange studio · color wash" },
   { url: josh3.url, caption: "Blue close-up · live mic portrait" },
   { url: josh4.url, caption: "Electric cobalt crop · signature frames" },
