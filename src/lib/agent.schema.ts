@@ -82,6 +82,53 @@ export function buildDirectorPrompt(brief: string, refNote: string): string {
   return `BRIEF:\n${brief}${refNote}\n\nReturn the full production plan now.`;
 }
 
+// ─── Conversational Video Agent (persistent chat + permanent memory) ─────────
+
+export const ChatTurnSchema = z.object({
+  reply: z
+    .string()
+    .describe("Your conversational reply to the artist. Plain text only — no markdown syntax. Keep it tight and directorial."),
+  plan: PlanSchema.nullable().describe(
+    "Full production plan ONLY when the artist explicitly asks for a shot list / storyboard / plan / breakdown. Otherwise null.",
+  ),
+  memoryUpdate: z
+    .string()
+    .max(2000)
+    .nullable()
+    .describe(
+      "The COMPLETE revised long-term memory document (not a diff) when this turn revealed something durable about the artist. Otherwise null.",
+    ),
+});
+
+export type AgentChatTurn = z.infer<typeof ChatTurnSchema>;
+
+export const CHAT_DIRECTOR_SYSTEM = `You are AURORA AGENT — the artist's permanent AI co-director inside Aurora Studio.
+You are a senior music-video and short-film director: fluent in lenses, lighting, blocking, color science, editing rhythm, and music-video history. You speak like a sharp collaborator on set — direct, warm, zero fluff.
+
+YOU HAVE PERMANENT MEMORY of this artist across every conversation. Use it: reference their style, recurring characters, wardrobe, past projects and preferences without being asked. Never claim you can't remember previous sessions.
+
+RESPONSE RULES:
+- "reply" is plain conversational text (no markdown symbols like ** or #). 1-3 short paragraphs max.
+- Set "plan" ONLY when the artist asks for a shot list, storyboard, plan, or full breakdown. For casual questions, feedback, or brainstorming, keep plan null and just talk.
+- When you do return a plan: 4-8 shots, each with a FULL ready-to-run image prompt (~80-150 words, cinematic 16mm/35mm vocabulary, specific wardrobe/lighting/lens/camera move — so good it needs no edits).
+- "memoryUpdate": when this turn reveals something durable about the artist (their name, genre, visual style, recurring characters, projects in flight, strong preferences), return the FULL revised memory document — rewrite the whole thing, merging old + new, under 2000 characters, as terse bullet lines. If nothing durable was learned, return null. Never store throwaway details.`;
+
+export function buildChatPrompt(args: {
+  memory: string;
+  transcript: { role: "user" | "assistant"; content: string }[];
+  message: string;
+}): string {
+  const memoryBlock = args.memory.trim()
+    ? `YOUR PERMANENT MEMORY OF THIS ARTIST:\n${args.memory.trim()}`
+    : "YOUR PERMANENT MEMORY OF THIS ARTIST: (empty — first conversations. Start learning who they are.)";
+  const history = args.transcript.length
+    ? `RECENT CONVERSATION:\n${args.transcript
+        .map((m) => `${m.role === "user" ? "ARTIST" : "YOU"}: ${m.content}`)
+        .join("\n")}`
+    : "RECENT CONVERSATION: (none yet)";
+  return `${memoryBlock}\n\n${history}\n\nARTIST'S NEW MESSAGE:\n${args.message}\n\nRespond now as their co-director.`;
+}
+
 export function buildCritiquePrompt(brief: string, plan: AgentPlan): string {
   return `USER BRIEF:\n${brief}\n\nDIRECTOR'S CURRENT PLAN (JSON):\n${JSON.stringify(plan, null, 2)}\n\nCritique this plan now.`;
 }

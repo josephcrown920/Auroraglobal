@@ -60,12 +60,20 @@ import {
   CheckCircle2,
   XCircle,
   Layers,
+  MoreVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SplitRealityPlayer } from "@/components/canvas/SplitRealityPlayer";
@@ -1091,97 +1099,81 @@ function CanvasPage() {
         <div className="absolute inset-x-0 top-14 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
       </div>
 
-      <header className="relative z-10 flex items-center justify-between px-6 py-3 border-b border-border bg-background/80 backdrop-blur-xl">
-        <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <span className="size-7 rounded-lg flex items-center justify-center shadow-[0_0_20px_oklch(0.78_0.18_305/0.6)]" style={{ background: "var(--gradient-hero)" }}>
-            <Sparkles className="size-3.5 text-primary-foreground" />
+      <header className="relative z-10 flex items-center justify-between gap-2 px-3 py-2 border-b border-white/10 bg-background/70 backdrop-blur-xl">
+        <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight shrink-0">
+          <span className="size-8 rounded-xl flex items-center justify-center shadow-[0_0_24px_oklch(0.78_0.18_305/0.65)]" style={{ background: "var(--gradient-hero)" }}>
+            <Sparkles className="size-4 text-primary-foreground" />
           </span>
-          <span className="font-mono uppercase tracking-[0.2em] text-sm">Aurora<span className="text-primary">/</span>Canvas</span>
+          <span className="font-mono uppercase tracking-[0.2em] text-xs text-foreground/90">Canvas</span>
         </Link>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
-          <Button
-            size="sm"
-            variant="premium"
-            onClick={() => setAgentOpen(true)}
-          >
-            <Sparkles className="size-3.5 mr-1" /> Aurora Agent
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Button size="sm" variant="premium" onClick={() => setAgentOpen(true)} className="h-8">
+            <Sparkles className="size-3.5 mr-1" /> Agent
           </Button>
-          <TrendingTemplatesMenu
-            onPick={(g: TemplateGraph & { id?: string }) => {
-              setNodes(g.nodes);
-              setEdges(g.edges);
-              setCoachTplName(g.name);
-              setLastTemplateGraph(g);
-              setMarketplaceTemplateId(null);
-              toast.success(`Loaded "${g.name}"`);
-            }}
-          />
-          <Button size="sm" variant="outline" onClick={undo} disabled={pastRef.current.length === 0} className="border-white/10 bg-white/5" title="Undo (⌘Z)"><Undo2 className="size-3.5" /></Button>
-          <Button size="sm" variant="outline" onClick={redo} disabled={futureRef.current.length === 0} className="border-white/10 bg-white/5" title="Redo (⌘⇧Z)"><Redo2 className="size-3.5" /></Button>
-          <Button size="sm" variant="outline" onClick={resetTemplate} disabled={!lastTemplateGraph && !lastTemplateId} className="border-white/10 bg-white/5" title="Reset template"><RotateCcw className="size-3.5 mr-1" /> Reset</Button>
-          <FinishedWorkflowsGallery
-            onLoad={(id) => {
-              const g = getTemplateById(id);
-              if (g) {
-                setNodes(g.nodes);
-                setEdges(g.edges);
-                setCoachTplName(g.name);
-                setLastTemplateGraph(g);
-                setMarketplaceTemplateId(null);
-                toast.success(`Loaded "${g.name}"`);
-              } else {
-                toast.success(`Opening "${id}" — drag nodes to remix`);
-              }
-            }}
-          />
-          <Button size="sm" variant="outline" onClick={() => addNode("input")} className="border-white/10 bg-white/5"><Plus className="size-3.5 mr-1" /> Image</Button>
-          <Button size="sm" variant="outline" onClick={() => addNode("audio")} className="border-white/10 bg-white/5"><Music className="size-3.5 mr-1" /> Audio</Button>
-          <Button size="sm" variant="outline" onClick={() => addNode("image")} className="border-white/10 bg-white/5"><Wand2 className="size-3.5 mr-1" /> Img gen</Button>
-          <Button size="sm" variant="outline" onClick={() => addNode("video")} className="border-white/10 bg-white/5"><Film className="size-3.5 mr-1" /> Video</Button>
-          <Button size="sm" variant="outline" onClick={() => addNode("lipsync")} className="border-white/10 bg-white/5"><Mic className="size-3.5 mr-1" /> Lip sync</Button>
-          <Button size="sm" variant="outline" onClick={() => addNode("split")} className="border-white/10 bg-white/5"><SplitSquareHorizontal className="size-3.5 mr-1" /> Split</Button>
-          <Button size="sm" variant="outline" onClick={() => addNode("comfy")} className="border-white/10 bg-white/5"><Boxes className="size-3.5 mr-1" /> ComfyUI</Button>
-          <Button size="sm" variant="outline" onClick={() => addNode("batchVideo")} className="border-white/10 bg-white/5"><Layers className="size-3.5 mr-1" /> Batch video</Button>
-          <Dialog open={loadOpen} onOpenChange={setLoadOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="border-white/10 bg-white/5"><FolderOpen className="size-3.5 mr-1" /> Load</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Load workflow</DialogTitle></DialogHeader>
-              <div className="max-h-80 overflow-y-auto divide-y divide-border">
-                {(wfList.data?.workflows ?? []).map((w) => (
-                  <button key={w.id} onClick={() => handleLoad(w.id)} className="w-full text-left py-2.5 px-2 hover:bg-muted rounded-md">
-                    <div className="text-sm font-medium">{w.name}</div>
-                    <div className="text-xs text-muted-foreground">{new Date(w.updated_at).toLocaleString()}</div>
-                  </button>
-                ))}
-                {wfList.data && wfList.data.workflows.length === 0 && (
-                  <div className="py-8 text-center text-sm text-muted-foreground">No saved workflows yet</div>
-                )}
-              </div>
-            </DialogContent>
-          </Dialog>
-          <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="border-white/10 bg-white/5"><Save className="size-3.5 mr-1" /> Save</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>{wfId ? "Update workflow" : "Save workflow"}</DialogTitle></DialogHeader>
-              <Input value={wfName} onChange={(e) => setWfName(e.target.value)} placeholder="Workflow name" />
-              <DialogFooter>
-                <Button onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>
-                  {saveMut.isPending ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : <Save className="size-3.5 mr-1" />}
-                  {wfId ? "Update" : "Save"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <Button size="sm" onClick={() => runMut.mutate()} disabled={runMut.isPending} style={{ background: "var(--gradient-hero)" }} className="text-primary-foreground shadow-[0_0_24px_oklch(0.78_0.18_305/0.6)]">
-            {runMut.isPending ? <><Loader2 className="size-3.5 mr-1 animate-spin" /> Running</> : <><Play className="size-3.5 mr-1" /> Run pipeline</>}
+          <Button size="sm" onClick={() => runMut.mutate()} disabled={runMut.isPending} style={{ background: "var(--gradient-hero)" }} className="h-8 text-primary-foreground shadow-[0_0_24px_oklch(0.78_0.18_305/0.55)]">
+            {runMut.isPending ? <><Loader2 className="size-3.5 mr-1 animate-spin" /> Running</> : <><Play className="size-3.5 mr-1" /> Run</>}
           </Button>
-          <Link to="/studio" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">Studio <ArrowRight className="size-3.5" /></Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="h-8 w-8 p-0 border-white/10 bg-white/5" aria-label="Canvas menu">
+                <MoreVertical className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onSelect={undo} disabled={pastRef.current.length === 0}>
+                <Undo2 className="size-3.5 mr-2" /> Undo
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={redo} disabled={futureRef.current.length === 0}>
+                <Redo2 className="size-3.5 mr-2" /> Redo
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={resetTemplate} disabled={!lastTemplateGraph && !lastTemplateId}>
+                <RotateCcw className="size-3.5 mr-2" /> Reset template
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => setTimeout(() => setSaveOpen(true), 0)}>
+                <Save className="size-3.5 mr-2" /> Save workflow
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setTimeout(() => setLoadOpen(true), 0)}>
+                <FolderOpen className="size-3.5 mr-2" /> Load workflow
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to="/studio" className="flex items-center">
+                  <ArrowRight className="size-3.5 mr-2" /> Go to Studio
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
+      <Dialog open={loadOpen} onOpenChange={setLoadOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Load workflow</DialogTitle></DialogHeader>
+          <div className="max-h-80 overflow-y-auto divide-y divide-border">
+            {(wfList.data?.workflows ?? []).map((w) => (
+              <button key={w.id} onClick={() => handleLoad(w.id)} className="w-full text-left py-2.5 px-2 hover:bg-muted rounded-md">
+                <div className="text-sm font-medium">{w.name}</div>
+                <div className="text-xs text-muted-foreground">{new Date(w.updated_at).toLocaleString()}</div>
+              </button>
+            ))}
+            {wfList.data && wfList.data.workflows.length === 0 && (
+              <div className="py-8 text-center text-sm text-muted-foreground">No saved workflows yet</div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{wfId ? "Update workflow" : "Save workflow"}</DialogTitle></DialogHeader>
+          <Input value={wfName} onChange={(e) => setWfName(e.target.value)} placeholder="Workflow name" />
+          <DialogFooter>
+            <Button onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>
+              {saveMut.isPending ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : <Save className="size-3.5 mr-1" />}
+              {wfId ? "Update" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <div className="flex-1 relative z-0">
         <ComfyCtx.Provider value={comfyTemplates}>
         <HandlersCtx.Provider value={handlers}>
