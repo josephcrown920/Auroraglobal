@@ -286,6 +286,31 @@ function Index() {
           <div className="mt-6">
             <JoshSlideshow />
           </div>
+
+          {/* Real performance shots — mini reference boxes */}
+          <div className="mt-3 flex gap-2">
+            {[
+              { src: "/josh/josh-concert-performance.webp", label: "Live concert" },
+              { src: "/josh/josh-orange-performance.jpg", label: "Orange studio" },
+              { src: "/josh/josh-pink-leather-mic.jpg", label: "Pink leather" },
+            ].map((p) => (
+              <div
+                key={p.src}
+                className="relative flex-1 aspect-square rounded-xl overflow-hidden border border-white/10 bg-black/40"
+              >
+                <img
+                  src={p.src}
+                  alt={p.label}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  loading="lazy"
+                />
+                <div className="absolute inset-x-0 bottom-0 px-2 py-1.5 bg-gradient-to-t from-black/80 to-transparent">
+                  <p className="text-[10px] font-medium text-white/90 truncate">{p.label}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
           <div className="mt-5 flex flex-wrap gap-3">
             <Link
               to="/studio"
