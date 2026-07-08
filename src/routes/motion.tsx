@@ -56,7 +56,9 @@ export const Route = createFileRoute("/motion")({
   component: MotionStudio,
   // Deep-link prefill used by Guided Workflows (/guides/$slug): hand off a
   // generated image + context prompt straight into Motion Transfer.
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { prompt?: string; image?: string } => ({
     prompt:
       typeof search.prompt === "string" && search.prompt.trim()
         ? search.prompt.slice(0, 2000)
@@ -154,7 +156,6 @@ function MotionStudio() {
       if (search.image) setMtImage(search.image);
       if (search.prompt) setMtPrompt(search.prompt);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.image, search.prompt]);
 
   useEffect(() => {

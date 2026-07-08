@@ -23,7 +23,7 @@ export const Route = createFileRoute("/lipsync")({
   component: LipSyncStudioPage,
   // Deep-link prefill used by Guided Workflows (/guides/$slug): hand off a
   // generated still image straight into the image-based (xAI UGC) engine.
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { image?: string } => ({
     image:
       typeof search.image === "string" && /^https:\/\//.test(search.image)
         ? search.image
@@ -166,7 +166,6 @@ function LipSyncForm() {
         toast.error("Couldn't load the image from your workflow — please upload it manually.");
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.image]);
 
   useEffect(() => {

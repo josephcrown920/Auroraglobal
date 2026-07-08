@@ -31,3 +31,20 @@ create policy "guided_workflows_public_read"
 grant select on public.guided_workflows to anon, authenticated;
 -- Deliberately no insert/update/delete grants for anon/authenticated:
 -- all writes flow through admin server functions using the service role.
+
+-- Keep updated_at fresh on every write (same convention as marketplace_templates).
+create or replace function public.guided_workflows_set_updated_at()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists guided_workflows_updated_at on public.guided_workflows;
+create trigger guided_workflows_updated_at
+  before update on public.guided_workflows
+  for each row execute function public.guided_workflows_set_updated_at();

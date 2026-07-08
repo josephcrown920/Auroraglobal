@@ -47,13 +47,16 @@ import { Route as AgentRouteImport } from './routes/agent'
 import { Route as AffiliateRouteImport } from './routes/affiliate'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as GuidesIndexRouteImport } from './routes/guides.index'
 import { Route as CliIndexRouteImport } from './routes/cli.index'
 import { Route as RTokenRouteImport } from './routes/r.$token'
 import { Route as LegalSlugRouteImport } from './routes/legal.$slug'
+import { Route as GuidesSlugRouteImport } from './routes/guides.$slug'
 import { Route as CreatorDashboardRouteImport } from './routes/creator.dashboard'
 import { Route as CliAuthorizeRouteImport } from './routes/cli.authorize'
 import { Route as ApiMcpRouteImport } from './routes/api/mcp'
 import { Route as ApiEstimateRouteImport } from './routes/api/estimate'
+import { Route as AdminWorkflowsRouteImport } from './routes/admin.workflows'
 import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
 import { Route as AdminSmokeRouteImport } from './routes/admin.smoke'
 import { Route as AdminOrchestrationRouteImport } from './routes/admin.orchestration'
@@ -262,6 +265,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GuidesIndexRoute = GuidesIndexRouteImport.update({
+  id: '/guides/',
+  path: '/guides/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CliIndexRoute = CliIndexRouteImport.update({
   id: '/cli/',
   path: '/cli/',
@@ -275,6 +283,11 @@ const RTokenRoute = RTokenRouteImport.update({
 const LegalSlugRoute = LegalSlugRouteImport.update({
   id: '/legal/$slug',
   path: '/legal/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuidesSlugRoute = GuidesSlugRouteImport.update({
+  id: '/guides/$slug',
+  path: '/guides/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CreatorDashboardRoute = CreatorDashboardRouteImport.update({
@@ -296,6 +309,11 @@ const ApiEstimateRoute = ApiEstimateRouteImport.update({
   id: '/api/estimate',
   path: '/api/estimate',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminWorkflowsRoute = AdminWorkflowsRouteImport.update({
+  id: '/workflows',
+  path: '/workflows',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminTemplatesRoute = AdminTemplatesRouteImport.update({
   id: '/templates',
@@ -432,13 +450,16 @@ export interface FileRoutesByFullPath {
   '/admin/orchestration': typeof AdminOrchestrationRoute
   '/admin/smoke': typeof AdminSmokeRoute
   '/admin/templates': typeof AdminTemplatesRoute
+  '/admin/workflows': typeof AdminWorkflowsRoute
   '/api/estimate': typeof ApiEstimateRoute
   '/api/mcp': typeof ApiMcpRoute
   '/cli/authorize': typeof CliAuthorizeRoute
   '/creator/dashboard': typeof CreatorDashboardRoute
+  '/guides/$slug': typeof GuidesSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/r/$token': typeof RTokenRoute
   '/cli/': typeof CliIndexRoute
+  '/guides/': typeof GuidesIndexRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
@@ -496,13 +517,16 @@ export interface FileRoutesByTo {
   '/admin/orchestration': typeof AdminOrchestrationRoute
   '/admin/smoke': typeof AdminSmokeRoute
   '/admin/templates': typeof AdminTemplatesRoute
+  '/admin/workflows': typeof AdminWorkflowsRoute
   '/api/estimate': typeof ApiEstimateRoute
   '/api/mcp': typeof ApiMcpRoute
   '/cli/authorize': typeof CliAuthorizeRoute
   '/creator/dashboard': typeof CreatorDashboardRoute
+  '/guides/$slug': typeof GuidesSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/r/$token': typeof RTokenRoute
   '/cli': typeof CliIndexRoute
+  '/guides': typeof GuidesIndexRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
@@ -561,13 +585,16 @@ export interface FileRoutesById {
   '/admin/orchestration': typeof AdminOrchestrationRoute
   '/admin/smoke': typeof AdminSmokeRoute
   '/admin/templates': typeof AdminTemplatesRoute
+  '/admin/workflows': typeof AdminWorkflowsRoute
   '/api/estimate': typeof ApiEstimateRoute
   '/api/mcp': typeof ApiMcpRoute
   '/cli/authorize': typeof CliAuthorizeRoute
   '/creator/dashboard': typeof CreatorDashboardRoute
+  '/guides/$slug': typeof GuidesSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/r/$token': typeof RTokenRoute
   '/cli/': typeof CliIndexRoute
+  '/guides/': typeof GuidesIndexRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
@@ -627,13 +654,16 @@ export interface FileRouteTypes {
     | '/admin/orchestration'
     | '/admin/smoke'
     | '/admin/templates'
+    | '/admin/workflows'
     | '/api/estimate'
     | '/api/mcp'
     | '/cli/authorize'
     | '/creator/dashboard'
+    | '/guides/$slug'
     | '/legal/$slug'
     | '/r/$token'
     | '/cli/'
+    | '/guides/'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
     | '/api/public/lifecycle-emails'
@@ -691,13 +721,16 @@ export interface FileRouteTypes {
     | '/admin/orchestration'
     | '/admin/smoke'
     | '/admin/templates'
+    | '/admin/workflows'
     | '/api/estimate'
     | '/api/mcp'
     | '/cli/authorize'
     | '/creator/dashboard'
+    | '/guides/$slug'
     | '/legal/$slug'
     | '/r/$token'
     | '/cli'
+    | '/guides'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
     | '/api/public/lifecycle-emails'
@@ -755,13 +788,16 @@ export interface FileRouteTypes {
     | '/admin/orchestration'
     | '/admin/smoke'
     | '/admin/templates'
+    | '/admin/workflows'
     | '/api/estimate'
     | '/api/mcp'
     | '/cli/authorize'
     | '/creator/dashboard'
+    | '/guides/$slug'
     | '/legal/$slug'
     | '/r/$token'
     | '/cli/'
+    | '/guides/'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
     | '/api/public/lifecycle-emails'
@@ -819,9 +855,11 @@ export interface RootRouteChildren {
   ApiMcpRoute: typeof ApiMcpRoute
   CliAuthorizeRoute: typeof CliAuthorizeRoute
   CreatorDashboardRoute: typeof CreatorDashboardRoute
+  GuidesSlugRoute: typeof GuidesSlugRoute
   LegalSlugRoute: typeof LegalSlugRoute
   RTokenRoute: typeof RTokenRoute
   CliIndexRoute: typeof CliIndexRoute
+  GuidesIndexRoute: typeof GuidesIndexRoute
   ApiPublicFreeMonthlyGrantRoute: typeof ApiPublicFreeMonthlyGrantRoute
   ApiPublicGenerateRoute: typeof ApiPublicGenerateRoute
   ApiPublicLifecycleEmailsRoute: typeof ApiPublicLifecycleEmailsRoute
@@ -1104,6 +1142,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/guides/': {
+      id: '/guides/'
+      path: '/guides'
+      fullPath: '/guides/'
+      preLoaderRoute: typeof GuidesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cli/': {
       id: '/cli/'
       path: '/cli'
@@ -1123,6 +1168,13 @@ declare module '@tanstack/react-router' {
       path: '/legal/$slug'
       fullPath: '/legal/$slug'
       preLoaderRoute: typeof LegalSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/$slug': {
+      id: '/guides/$slug'
+      path: '/guides/$slug'
+      fullPath: '/guides/$slug'
+      preLoaderRoute: typeof GuidesSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/creator/dashboard': {
@@ -1152,6 +1204,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/estimate'
       preLoaderRoute: typeof ApiEstimateRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/workflows': {
+      id: '/admin/workflows'
+      path: '/workflows'
+      fullPath: '/admin/workflows'
+      preLoaderRoute: typeof AdminWorkflowsRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/templates': {
       id: '/admin/templates'
@@ -1281,6 +1340,7 @@ interface AdminRouteChildren {
   AdminOrchestrationRoute: typeof AdminOrchestrationRoute
   AdminSmokeRoute: typeof AdminSmokeRoute
   AdminTemplatesRoute: typeof AdminTemplatesRoute
+  AdminWorkflowsRoute: typeof AdminWorkflowsRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
@@ -1289,6 +1349,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminOrchestrationRoute: AdminOrchestrationRoute,
   AdminSmokeRoute: AdminSmokeRoute,
   AdminTemplatesRoute: AdminTemplatesRoute,
+  AdminWorkflowsRoute: AdminWorkflowsRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
@@ -1336,9 +1397,11 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMcpRoute: ApiMcpRoute,
   CliAuthorizeRoute: CliAuthorizeRoute,
   CreatorDashboardRoute: CreatorDashboardRoute,
+  GuidesSlugRoute: GuidesSlugRoute,
   LegalSlugRoute: LegalSlugRoute,
   RTokenRoute: RTokenRoute,
   CliIndexRoute: CliIndexRoute,
+  GuidesIndexRoute: GuidesIndexRoute,
   ApiPublicFreeMonthlyGrantRoute: ApiPublicFreeMonthlyGrantRoute,
   ApiPublicGenerateRoute: ApiPublicGenerateRoute,
   ApiPublicLifecycleEmailsRoute: ApiPublicLifecycleEmailsRoute,

@@ -73,7 +73,10 @@ const GenerateSchema = z.object({
   // 4000 to fit the Guided Workflows master compositing prompts (the 5-ref
   // music video base prompt alone is ~2600 chars of guide-faithful text).
   prompt: z.string().min(3).max(4000),
-  imageUrls: z.array(z.string().url()).min(1).max(6),
+  // min(0): Guided Workflows include pure text-to-image steps (no reference).
+  // The orchestrator treats an empty list as t2i (all adapters guard on
+  // imageUrls?.length), so nothing downstream requires a reference image.
+  imageUrls: z.array(z.string().url()).min(0).max(6),
   motionVideoUrl: z.string().url().optional().nullable(),
   // Default runs on the Replicate key alone (Gemini 2.5 Flash image, a.k.a.
   // Nano Banana). If a Gemini/Lovable key is added later, picking those models
