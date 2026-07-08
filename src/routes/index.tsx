@@ -263,12 +263,15 @@ function Index() {
       {/* Spacer for fixed header */}
       <div className="h-20" />
 
-      {/* By Artists for Artists tagline */}
-      <div className="flex justify-center pt-6 pb-0 px-6">
-        <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur">
-          <span className="size-1.5 rounded-full bg-primary animate-pulse" />
-          <span className="text-sm font-medium tracking-wide text-white/80">By Artists, for Artists</span>
-        </div>
+      {/* By Artists for Artists — hero statement */}
+      <div className="flex flex-col items-center pt-10 pb-2 px-6 text-center">
+        <p className="text-4xl md:text-6xl font-extrabold tracking-tight leading-tight">
+          By Artists,{" "}
+          <span className="aurora-gradient-text">for Artists.</span>
+        </p>
+        <p className="mt-3 text-white/50 text-base md:text-lg max-w-sm">
+          Built by creators who needed it. For creators who deserve it.
+        </p>
       </div>
 
       {/* 0a. Direct your shoot — auto-scrolling slideshow */}
