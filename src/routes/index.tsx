@@ -263,6 +263,14 @@ function Index() {
       {/* Spacer for fixed header */}
       <div className="h-20" />
 
+      {/* By Artists for Artists tagline */}
+      <div className="flex justify-center pt-6 pb-0 px-6">
+        <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur">
+          <span className="size-1.5 rounded-full bg-primary animate-pulse" />
+          <span className="text-sm font-medium tracking-wide text-white/80">By Artists, for Artists</span>
+        </div>
+      </div>
+
       {/* 0a. Direct your shoot — auto-scrolling slideshow */}
       <section className="px-6 md:px-12 pt-6 pb-2">
         <div className="max-w-5xl mx-auto">

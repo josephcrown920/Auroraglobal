@@ -176,7 +176,7 @@ function GalleryPage() {
                   ) : null}
                 </div>
                 {/* overlay actions */}
-                <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute top-2 right-2 flex gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                   <button
                     type="button"
                     onClick={() => favMut.mutate({ id: g.id, favorite: !g.is_favorite })}

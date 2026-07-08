@@ -5,8 +5,8 @@ const STEPS = [
   {
     n: "01",
     icon: Palette,
-    label: "Generate your AI scene",
-    desc: "Open Colors Studio. Upload a selfie + outfit refs. Generate a cinematic 9:16 portrait — your face, your outfit, any background color.",
+    label: "Turn a selfie into a cinematic performance",
+    desc: "Open Colors Studio. Upload a selfie — Aurora places you in a pro cyclorama set. Pick your color, your vibe, your energy. Full cinematic 9:16 portrait, your face, your outfit.",
     accent: "from-violet-500/30 to-fuchsia-500/10",
     border: "border-violet-500/30",
     badge: "Colors Studio",
