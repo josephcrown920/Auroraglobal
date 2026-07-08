@@ -30,6 +30,18 @@ stray audio URL alone, must NOT add a billable feature. Add-ons only fire on exp
 `motion` when a camera-control preset is supplied to a video; `lipsync` only for an unambiguous
 audio+video pair on a non-lipsync primary.
 
+## Flat product rates + MCP tools drift unless derived from computeCost
+**Why:** during the 2026-07-08 video/motion doubling, the MCP motion tools were found
+already stale — hardcoded `_amount` values a full repricing behind the in-app Transfer
+Motion/Performance Shot charges, silently undercutting the app.
+**How to apply:** any surface that charges a FLAT amount for a video-family product
+(UGC ad, content-machine per-video, tiktok remix cut, MCP tools) must either call
+`computeCost()` directly or use a named constant in pricing.ts whose value is asserted
+against `computeCost` in tests. When repricing video/motion tiers, sweep for hardcoded
+`_amount:` literals in non-test source — only `_amount: 1` (image) should remain.
+Marketing copy (landing FAQ, PricingSection pack math, chatbot system prompt, CLI page)
+is a fourth surface that must be updated by hand.
+
 ## There are TWO charge paths for video/lip-sync — reprice BOTH
 **Why:** the AI Router (`orchestrate` server fn + `/api/public/generate`) is NOT the only
 place credits are charged. The Studio surface (`src/lib/studio.functions.ts` →

@@ -53,7 +53,7 @@ const COMMANDS: Cmd[] = [
   {
     cmd: 'aurora video --prompt "slow dolly through fog"',
     desc: "Generate a 5-second cinematic clip with Seedance 2.0.",
-    cost: "5 Aura",
+    cost: "10 Aura",
   },
   {
     cmd: "aurora lipsync --audio vo.mp3 --image face.png",

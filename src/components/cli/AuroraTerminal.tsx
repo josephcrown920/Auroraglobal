@@ -46,7 +46,7 @@ function runCommand(raw: string): Line[] {
       kind: "out",
       text: `↻ Generating 5s video: ${m?.[1] ?? "cinematic motion"} (Seedance 2.0)`,
     });
-    out.push({ kind: "ok", text: "✓ Saved to clip.mp4 · 5 Aura" });
+    out.push({ kind: "ok", text: "✓ Saved to clip.mp4 · 10 Aura" });
   } else if (sub === "lipsync") {
     out.push({ kind: "out", text: "↻ Aligning audio → mouth shapes (Sync 1.9)" });
     out.push({ kind: "ok", text: "✓ Saved to lipsync.mp4 · 6 Aura" });

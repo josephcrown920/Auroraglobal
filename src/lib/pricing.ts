@@ -57,8 +57,8 @@ export const PRICING = {
     text: 1,
     audio: 2,
     lipsync: 3,
-    motion: 15,
-    video: 5,
+    motion: 30,
+    video: 10,
     caption_burn: 2,
     // Flat rate — deliberately NOT length-scaled (see LENGTH_FEATURES below): a
     // multi-minute song must not multiply this into a huge charge. Self-hosted
@@ -91,17 +91,21 @@ export const PRICING = {
 // owner can retune them without touching any pricing logic.
 //
 //   Tier      Video  Lip-sync   covers provider cost up to (≈ tierAura×$0.047)
-//   Budget        5         3     video ≤ $0.23 / lipsync ≤ $0.14  (self-hosted, Seedance Lite)
-//   Standard     10         6     video ≤ $0.47 / lipsync ≤ $0.28  (Kling direct, wav2lip)
-//   Premium      16         9     video ≤ $0.75 / lipsync ≤ $0.42  (Wan, Runway, Veo Fast, Sora, Sync.so, Fal)
-//   Ultra        24        10     video ≤ $1.13 / lipsync ≤ $0.47  (Seedance Pro, Kling Omni, Veo 3, HeyGen)
+//   Budget       10         3     video ≤ $0.47 / lipsync ≤ $0.14  (self-hosted, Seedance Lite)
+//   Standard     20         6     video ≤ $0.94 / lipsync ≤ $0.28  (Kling direct, wav2lip)
+//   Premium      32         9     video ≤ $1.50 / lipsync ≤ $0.42  (Wan, Runway, Veo Fast, Sora, Sync.so, Fal)
+//   Ultra        48        10     video ≤ $2.26 / lipsync ≤ $0.47  (Seedance Pro, Kling Omni, Veo 3, HeyGen)
+//
+// 2026-07-08 repricing (owner request): video tiers and the motion-control base
+// were DOUBLED (video 5/10/16/24 → 10/20/32/48, motion 15 → 30) — the old
+// prices were leaving margin on the table, especially motion control.
 export type ModelTier = "budget" | "standard" | "premium" | "ultra";
 
 export const VIDEO_TIER_AURA: Record<ModelTier, number> = {
-  budget: 5,
-  standard: 10,
-  premium: 16,
-  ultra: 24,
+  budget: 10,
+  standard: 20,
+  premium: 32,
+  ultra: 48,
 };
 
 export const LIPSYNC_TIER_AURA: Record<ModelTier, number> = {
@@ -154,8 +158,8 @@ export const LIPSYNC_MODEL_TIERS: Record<string, ModelTier> = {
 
 // When a request omits the model, fall back to the tier of the model the
 // orchestrator ACTUALLY runs first for that kind (FALLBACK_MODELS[kind][0]):
-//   • video   → seedance-2.0-fast (budget) — cheap default, also keeps the
-//     historical flat video price of 5 Aura for legacy/unspecified requests.
+//   • video   → seedance-2.0-fast (budget) — the cheapest tier, used for
+//     legacy/unspecified requests (10 Aura since the 2026-07-08 repricing).
 //   • lipsync → fal-ai/sync-lipsync/v2 (premium) — the real default lip-sync
 //     model costs $0.30, so the default tier MUST cover it or every unspecified
 //     lip-sync would lose money.
@@ -327,8 +331,15 @@ export type DetectInput = {
 /** AutoCut: multi-clip assembly job. */
 export const COST_AUTOCUT = 8;
 
-/** Talking UGC ad: xAI fast path (image→video + mandatory relip to voice track). */
-export const COST_UGC_AD = 14;
+/** Talking UGC ad: xAI fast path (image→video + mandatory relip to voice track).
+ *  Doubled 14 → 28 in the 2026-07-08 video repricing, tracking the underlying
+ *  xAI video (standard, 20) + relip (premium lip-sync, 9) stack. */
+export const COST_UGC_AD = 28;
+
+/** TikTok Remix Factory: flat reservation per generated cut (a budget-tier
+ *  video render). Doubled 5 → 10 in the 2026-07-08 video repricing, in lockstep
+ *  with VIDEO_TIER_AURA.budget so a remix cut can't undercut a plain video. */
+export const COST_TIKTOK_REMIX_CUT = 10;
 
 // ─── Growth Tools flat costs (Pro only, LLM-based) ───────────────────────────
 /** Daily Post Generator: 7 days of captions + image prompt pairs. */

@@ -1,16 +1,30 @@
 ---
-name: Pre-existing orchestrator GPU-preference test failures
-description: 4 tests in orchestrator.gpu-preference.test.ts fail on a clean checkout, unrelated to worker registration work
+name: Pre-existing orchestrator worker-routing test failures
+description: 10 orchestrator tests (gpu-preference, free-mode, selfhosted-integration) fail on a clean checkout — worker pool never selected in the mocks
 ---
 
-`bun test src/lib/orchestrator.gpu-preference.test.ts` fails 4 of 6 tests even run in
-isolation on an otherwise-unmodified checkout (confirmed 2026-07-06) — e.g. "falls back
-AND circuit-breaks the GPU pool when a real dispatch error occurs" expects a request to
-hit the GPU worker host first but the mock never records that call. This is not
-test-order/mock.module leakage (fails alone too) and is unrelated to
-`workers/register.ts` / `gpu-worker-health.ts` / Admin UI changes.
+10 tests fail on an otherwise-unmodified checkout (confirmed 2026-07-06 with 4;
+re-confirmed and expanded to 10 on 2026-07-08 by swapping the only touched file back to
+its HEAD version and re-running — identical failures):
 
-**Why this matters:** don't treat this suite's failures as something a worker
-self-registration fix caused or must fix — it's a pre-existing gap in the
-orchestrator's self-hosted-first dispatch path (or its test mock) that needs its own
-investigation.
+- `orchestrator.gpu-preference.test.ts` — 4 of 6 (self-hosted-first routing for
+  still/video/lipsync + circuit-break fallback)
+- `orchestrator.free-mode.test.ts` — 2 of 11 (Free-GPU-only still + video routing)
+- `orchestrator.selfhosted-integration.test.ts` — 4 of 9 (selfHostedOnly lipsync ×2,
+  assemble, lyric_video)
+
+Shared fingerprint: the mocked online worker is never dispatched to — orchestrate()
+goes straight to an external provider (or throws "Your free GPU isn't running") even
+though `workersQueryResult` returns an eligible worker. Not test-order/mock.module
+leakage (fails in file isolation too).
+
+**Why this matters:** don't treat these failures as caused by unrelated work (pricing,
+registration, etc.) and don't try to fix them as a side effect — it's a pre-existing
+gap in the orchestrator's self-hosted-pool eligibility path (or its test mocks) that
+needs its own investigation. Baseline for a "green" full run is currently
+`bun test src` = all pass EXCEPT these 10.
+
+**How to apply:** if the full suite shows unexpected failures after a change, prove
+pre-existence cheaply: copy the HEAD version of your touched file(s) over via
+`git show HEAD:path > /tmp/x && cp` (git stash is blocked for the main agent), re-run
+the failing files, restore.

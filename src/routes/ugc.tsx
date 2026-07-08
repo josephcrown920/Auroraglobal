@@ -10,6 +10,7 @@ import { generateUGCAd, getGenerationStatus } from "@/lib/ugc-generation.functio
 import { handleGenerationError } from "@/lib/error-toasts";
 import { supabase } from "@/integrations/supabase/client";
 import { COST_UGC_AD } from "@/lib/template-studio";
+import { computeCost } from "@/lib/pricing";
 import { AUDIO_ACCEPT } from "@/lib/utils";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
@@ -282,7 +283,7 @@ function UGCStudio() {
                     {imageMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting…</> : <><Wand2 className="size-4 mr-2" /> Generate UGC shot · 1 Aura</>}
                   </Button>
                   <Button onClick={() => videoMut.mutate()} disabled={busy || !resultImage} variant="outline" className="w-full sm:w-auto">
-                    {videoMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Animating…</> : <><Film className="size-4 mr-2" /> Animate · 5 Aura</>}
+                    {videoMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Animating…</> : <><Film className="size-4 mr-2" /> Animate · {computeCost({ features: ["video"], model: "seedance-2.0-fast", resolution: "720p", durationSeconds: 5 }).total} Aura</>}
                   </Button>
                   <Button onClick={() => adMut.mutate()} disabled={busy} variant="secondary" className="w-full sm:w-auto">
                     {adMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Producing ad…</> : <><AudioLines className="size-4 mr-2" /> Generate talking ad · {COST_UGC_AD} Aura</>}

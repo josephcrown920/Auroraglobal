@@ -1119,7 +1119,7 @@ function StudioPage() {
               <Coins className="size-4 text-primary" />
               <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Buy Aura</h3>
             </div>
-            <p className="text-xs text-muted-foreground">1 Aura per image · video &amp; lip-sync priced by model (budget from 3–5). Secure checkout via Paystack.</p>
+            <p className="text-xs text-muted-foreground">1 Aura per image · video &amp; lip-sync priced by model (budget from 3–10). Secure checkout via Paystack.</p>
             <div className="grid grid-cols-3 gap-2">
               {(Object.keys(PLANS) as Array<"starter" | "creator" | "studio">).map((k) => {
                 const p = PLANS[k];

@@ -10,12 +10,12 @@ import { COST_UGC_AD } from "./ugc.server";
 
 describe("content machine cost source", () => {
   it("stays DELIBERATELY cheaper than the avatar UGC ad price", () => {
-    // Since the voice-lock upgrade, COST_UGC_AD (14) covers the avatar-only
+    // Since the voice-lock upgrade, COST_UGC_AD (28) covers the avatar-only
     // xAI talking-head + mandatory relip chain. Faceless Content Machine videos
     // never run that chain (no avatarImageUrl → no xAI fast path), so they keep
     // the historical cheaper flat price. This guard documents the decoupling —
     // if COST_PER_VIDEO ever meets or exceeds the avatar price, re-check both.
-    expect(COST_PER_VIDEO).toBe(8);
+    expect(COST_PER_VIDEO).toBe(16);
     expect(COST_PER_VIDEO).toBeLessThan(COST_UGC_AD);
   });
 });

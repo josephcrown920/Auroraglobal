@@ -45,7 +45,7 @@ import { PerformAnywhereSection } from "@/components/landing/PerformAnywhereSect
 const FAQ_ITEMS = [
   {
     q: "How does Aura work?",
-    a: "1 Aura ≈ 1 image. Budget video & lip-sync start at 5 Aura; premium models cost more, priced to match each model. Length and resolution scale the price. Aura never expires and rolls across all models.",
+    a: "1 Aura ≈ 1 image. Budget video starts at 10 Aura and lip-sync at 3; premium models cost more, priced to match each model. Length and resolution scale the price. Aura never expires and rolls across all models.",
   },
   {
     q: "Can I use the results commercially?",

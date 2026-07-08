@@ -19,6 +19,7 @@ import {
   type ToolDeps,
 } from "./tools.server";
 import { COST_UGC_AD, COST_CAMPAIGN_ITEM } from "@/lib/ugc.server";
+import { computeCost } from "@/lib/pricing";
 import type { Avatar, ToolResult } from "./types";
 
 // These guard the "one avatar, many shots" identity contract for the MCP path.
@@ -230,20 +231,22 @@ describe("bulkGenerateTool (queued, 1 credit per image)", () => {
   });
 });
 
-describe("animateFromDrivingVideoTool (motion, 5 credits)", () => {
+describe("animateFromDrivingVideoTool (motion, priced via computeCost)", () => {
   const ARGS = {
     image_url: `${TRUSTED_HOST}ref.png`,
     driving_video_url: `${TRUSTED_HOST}drive.mp4`,
   };
 
-  it("reserves _kind=motion _amount=5 when a motion worker is online", async () => {
+  it("reserves _kind=motion at the Transfer Motion price (30) when a motion worker is online", async () => {
     const { deps, rpcCalls } = makeDeps({ hasActiveWorkerForKind: async () => true });
     const res = await animateFromDrivingVideoTool(ARGS, CTX, deps);
-    expect(parse(res).credits).toBe(5);
+    // Must equal the in-app Transfer Motion price at the 5s/720p reference.
+    expect(parse(res).credits).toBe(computeCost({ features: ["motion"] }).total);
+    expect(parse(res).credits).toBe(30);
     const reserves = reserveCalls(rpcCalls);
     expect(reserves).toHaveLength(1);
     expect(reserves[0].args._kind).toBe("motion");
-    expect(reserves[0].args._amount).toBe(5);
+    expect(reserves[0].args._amount).toBe(30);
   });
 
   it("fails BEFORE reserving when no motion-capable worker is connected", async () => {
@@ -265,20 +268,22 @@ describe("animateFromDrivingVideoTool (motion, 5 credits)", () => {
   });
 });
 
-describe("performanceReskinTool (performance_reskin, 8 credits)", () => {
+describe("performanceReskinTool (performance_reskin, priced via computeCost)", () => {
   const ARGS = {
     performance_video_url: `${TRUSTED_HOST}perf.mp4`,
     avatar_image_url: `${TRUSTED_HOST}avatar.png`,
   };
 
-  it("reserves _kind=performance_reskin _amount=8 when a motion worker is online", async () => {
+  it("reserves _kind=performance_reskin at the Performance Shot price (40) when a motion worker is online", async () => {
     const { deps, rpcCalls } = makeDeps({ hasActiveWorkerForKind: async () => true });
     const res = await performanceReskinTool(ARGS, CTX, deps);
-    expect(parse(res).credits).toBe(8);
+    // Must equal the in-app Performance Shot price (video + motion, 5s/720p).
+    expect(parse(res).credits).toBe(computeCost({ features: ["video", "motion"] }).total);
+    expect(parse(res).credits).toBe(40);
     const reserves = reserveCalls(rpcCalls);
     expect(reserves).toHaveLength(1);
     expect(reserves[0].args._kind).toBe("performance_reskin");
-    expect(reserves[0].args._amount).toBe(8);
+    expect(reserves[0].args._amount).toBe(40);
   });
 
   it("fails BEFORE reserving when no motion-capable worker is connected", async () => {
