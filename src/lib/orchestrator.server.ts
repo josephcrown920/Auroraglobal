@@ -355,6 +355,75 @@ const heygen: ProviderAdapter = {
   },
 };
 
+// ─── HeyGen Video Agent (real v3 Video Agent API — POST /v3/video-agents) ──
+// Prompt-in, full-video-out: HeyGen's agent auto-picks avatar/voice/layout
+// and renders an original video (not lipsync-onto-existing-footage). Optional
+// style_id lets the caller pin a curated visual style. Pinned-only: this is a
+// distinct "generate a whole video from a prompt" product, not a general
+// video fallback, so it must be explicitly requested by model key.
+const heygenVideoAgent: ProviderAdapter = {
+  name: "heygen",
+  supports: (r) =>
+    r.kind === "video" && r.model === "heygen/video-agent" && !!r.prompt && !!process.env.HEYGEN_API_KEY,
+  estimateCost: () => 1.5,
+  async run(r) {
+    if (!r.prompt) throw new Error("heygen video-agent: prompt required");
+    const key = process.env.HEYGEN_API_KEY!;
+    const orientation = (r.params?.orientation as string) ?? "landscape";
+    const styleId = r.params?.styleId as string | undefined;
+
+    const create = await fetch("https://api.heygen.com/v3/video-agents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Api-Key": key },
+      body: JSON.stringify({
+        prompt: r.prompt,
+        orientation,
+        ...(styleId ? { style_id: styleId } : {}),
+      }),
+    });
+    if (!create.ok)
+      throw new Error(`HeyGen VideoAgent ${create.status}: ${(await create.text()).slice(0, 200)}`);
+    const cj = await create.json();
+    const sessionId = cj?.data?.session_id;
+    let videoId = cj?.data?.video_id;
+    if (!sessionId && !videoId) throw new Error("HeyGen VideoAgent returned no session/video id");
+
+    const deadline = Date.now() + 20 * 60_000;
+    // The agent session may not have a video_id yet (still storyboarding) —
+    // poll the session until one is assigned.
+    while (!videoId && Date.now() < deadline) {
+      await new Promise((s) => setTimeout(s, 5000));
+      const sst = await fetch(`https://api.heygen.com/v3/video-agents/sessions/${sessionId}`, {
+        headers: { "X-Api-Key": key },
+      });
+      if (!sst.ok) continue;
+      const sj = await sst.json();
+      videoId = sj?.data?.video_id;
+      if (sj?.data?.status === "failed")
+        throw new Error(`HeyGen VideoAgent session failed: ${sj?.data?.failure_message ?? "unknown"}`);
+    }
+    if (!videoId) throw new Error("HeyGen VideoAgent: no video_id after session wait");
+
+    while (Date.now() < deadline) {
+      await new Promise((s) => setTimeout(s, 5000));
+      const st = await fetch(`https://api.heygen.com/v3/videos/${videoId}`, {
+        headers: { "X-Api-Key": key },
+      });
+      if (!st.ok) continue;
+      const sj = await st.json();
+      const status = sj?.data?.status;
+      if (status === "completed") {
+        const url = sj?.data?.video_url;
+        if (!url) throw new Error("HeyGen VideoAgent: no video url");
+        return { url, endpoint: "heygen:video-agent" };
+      }
+      if (status === "failed")
+        throw new Error(`HeyGen VideoAgent failed: ${sj?.data?.failure_message ?? "unknown"}`);
+    }
+    throw new Error("HeyGen VideoAgent poll timeout");
+  },
+};
+
 // ─── Fal (LAST fallback — user prefers other providers) ──────────────────────
 const FAL_MAP: Record<string, { path: string; kind: GenerateKind; cost: number }> = {
   "fal-fallback/flux-schnell": { path: "fal-ai/flux/schnell", kind: "image", cost: 0.005 },
@@ -2174,7 +2243,17 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
     lovable,
     falFallback,
   ],
-  video: [gpuWorker, xaiDirect, klingDirect, byteplus, replicate, runway, piapi, falFallback],
+  video: [
+    gpuWorker,
+    xaiDirect,
+    heygenVideoAgent,
+    klingDirect,
+    byteplus,
+    replicate,
+    runway,
+    piapi,
+    falFallback,
+  ],
   lipsync: [gpuWorker, sync, heygen, replicate, falFallback],
   // GPU-first: a worker advertising "upscale" is tried before Replicate.
   upscale: [gpuWorker, replicate, falFallback],
@@ -2234,6 +2313,8 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     "kling-v1": { provider: "kling", kind: "video", cost: 0.3 },
     // HeyGen lipsync
     "heygen/lipsync": { provider: "heygen", kind: "lipsync", cost: 0.4 },
+    // HeyGen Video Agent — prompt-in, full-video-out (agent picks avatar/voice/layout).
+    "heygen/video-agent": { provider: "heygen", kind: "video", cost: 1.5 },
     // Sync.so direct lipsync
     "sync/lipsync-2": { provider: "sync", kind: "lipsync", cost: 0.25 },
     // Self-hosted LatentSync — runs on the registered GPU worker pool only.
