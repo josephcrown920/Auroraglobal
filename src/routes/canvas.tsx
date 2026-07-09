@@ -7,7 +7,6 @@ import {
   Background,
   BackgroundVariant,
   Controls,
-  MiniMap,
   Handle,
   Position,
   addEdge,
@@ -44,7 +43,6 @@ import {
   Film,
   Wand2,
   ArrowRight,
-  Plus,
   Trash2,
   Save,
   FolderOpen,
@@ -547,7 +545,7 @@ function ProgressPanel({ nodes, edges, running }: { nodes: Node<NodeData>[]; edg
   const pct = Math.round((done / steps.length) * 100);
   if (!running && done === 0 && errored.length === 0) return null;
   return (
-    <div className="absolute bottom-3 right-3 z-30 w-[280px] rounded-xl border border-white/10 bg-[oklch(0.13_0.04_290/0.92)] backdrop-blur-xl shadow-[0_0_30px_oklch(0.78_0.18_305/0.4)] p-3 hidden md:block">
+    <div className="absolute bottom-20 right-3 z-30 w-[260px] max-w-[calc(100%-1.5rem)] rounded-xl border border-white/10 bg-[oklch(0.13_0.04_290/0.92)] backdrop-blur-xl shadow-[0_0_30px_oklch(0.78_0.18_305/0.4)] p-3">
       <div className="flex items-center justify-between mb-2">
         <div className="text-[11px] font-mono uppercase tracking-[0.15em] text-white/70 flex items-center gap-1.5">
           <Clock className="size-3" /> Pipeline · {done}/{steps.length}
@@ -620,7 +618,7 @@ function ExportShareDock({ nodes, edges }: { nodes: Node<NodeData>[]; edges: Edg
     }
   };
   return (
-    <div className="absolute bottom-3 left-3 z-30 hidden md:flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-[oklch(0.13_0.04_290/0.92)] backdrop-blur-xl shadow-[0_0_30px_oklch(0.62_0.22_165/0.3)] p-2">
+    <div className="absolute bottom-20 left-3 z-30 flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-xl border border-emerald-400/30 bg-[oklch(0.13_0.04_290/0.92)] backdrop-blur-xl shadow-[0_0_30px_oklch(0.62_0.22_165/0.3)] p-2">
       <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-emerald-300 px-1">Final · {KIND_META[final.data.kind].label}</span>
       <Button size="sm" variant="outline" onClick={download} className="border-white/10 bg-white/5">
         <Download className="size-3.5 mr-1" /> Download
@@ -1188,15 +1186,42 @@ function CanvasPage() {
             fitView
             proOptions={{ hideAttribution: true }}
           >
-            <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="oklch(0.78 0.18 305 / 0.25)" />
-            <MiniMap pannable zoomable className="!bg-[oklch(0.13_0.04_290/0.8)] !border-white/10" maskColor="oklch(0.13 0.04 290 / 0.6)" />
-            <Controls className="!bg-[oklch(0.13_0.04_290/0.8)] !border-white/10 [&>button]:!bg-transparent [&>button]:!border-white/10 [&>button]:!text-foreground" />
+            <Background variant={BackgroundVariant.Dots} gap={28} size={1} color="oklch(0.78 0.18 305 / 0.18)" />
+            <Controls position="bottom-right" className="!bottom-16 !bg-[oklch(0.13_0.04_290/0.8)] !border-white/10 [&>button]:!bg-transparent [&>button]:!border-white/10 [&>button]:!text-foreground" />
           </ReactFlow>
         </HandlersCtx.Provider>
         </ComfyCtx.Provider>
+        {/* Floating glass toolbar — templates + finished-work gallery live over the canvas */}
+        <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 rounded-full border border-white/10 bg-[oklch(0.13_0.04_290/0.85)] backdrop-blur-xl shadow-lg p-1.5">
+          <TrendingTemplatesMenu
+            onPick={(g: TemplateGraph & { id?: string }) => {
+              setNodes(g.nodes);
+              setEdges(g.edges);
+              setCoachTplName(g.name);
+              setLastTemplateGraph(g);
+              setMarketplaceTemplateId(null);
+              toast.success(`Loaded "${g.name}"`);
+            }}
+          />
+          <FinishedWorkflowsGallery
+            onLoad={(id) => {
+              const g = getTemplateById(id);
+              if (g) {
+                setNodes(g.nodes);
+                setEdges(g.edges);
+                setCoachTplName(g.name);
+                setLastTemplateGraph(g);
+                setMarketplaceTemplateId(null);
+                toast.success(`Loaded "${g.name}"`);
+              } else {
+                toast.success(`Opening "${id}" — drag nodes to remix`);
+              }
+            }}
+          />
+        </div>
         {/* Quick-start coach mark — appears after loading a template */}
         {coachTplName && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 max-w-xl w-[calc(100%-1.5rem)] rounded-xl border border-primary/30 bg-[oklch(0.15_0.05_290/0.95)] backdrop-blur-xl shadow-[0_0_30px_oklch(0.78_0.18_305/0.4)] p-3 animate-fade-in">
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 max-w-xl w-[calc(100%-1.5rem)] rounded-xl border border-primary/30 bg-[oklch(0.15_0.05_290/0.95)] backdrop-blur-xl shadow-[0_0_30px_oklch(0.78_0.18_305/0.4)] p-3 animate-fade-in">
             <div className="flex items-start gap-3">
               <div className="size-8 rounded-lg grid place-items-center text-white shrink-0" style={{ background: "var(--gradient-hero)" }}>
                 <Sparkles className="size-4" />
@@ -1224,15 +1249,16 @@ function CanvasPage() {
         <ProgressPanel nodes={nodes} edges={edges} running={runMut.isPending} />
         {/* Export / share dock */}
         <ExportShareDock nodes={nodes} edges={edges} />
-        <div className="md:hidden fixed bottom-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-2 py-2 rounded-full border border-white/10 bg-[oklch(0.13_0.04_290/0.92)] backdrop-blur-xl shadow-[0_0_30px_oklch(0.78_0.18_305/0.5)] animate-fade-in">
-          <button onClick={() => addNode("input")} className="size-9 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Image"><ImageIcon className="size-4" /></button>
-          <button onClick={() => addNode("audio")} className="size-9 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Audio"><Music className="size-4" /></button>
-          <button onClick={() => addNode("video")} className="size-9 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Video"><Film className="size-4" /></button>
-          <button onClick={() => addNode("lipsync")} className="size-9 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Lip sync"><Mic className="size-4" /></button>
-          <button onClick={() => addNode("split")} className="size-9 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Split"><SplitSquareHorizontal className="size-4" /></button>
-          <button onClick={() => addNode("comfy")} className="size-9 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="ComfyUI"><Boxes className="size-4" /></button>
-          <button onClick={() => addNode("batchVideo")} className="size-9 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Batch video"><Layers className="size-4" /></button>
-          <button onClick={() => runMut.mutate()} disabled={runMut.isPending} className="ml-1 h-9 px-4 rounded-full text-primary-foreground text-sm font-medium inline-flex items-center gap-1.5 shadow-[0_0_24px_oklch(0.78_0.18_305/0.8)] disabled:opacity-60" style={{ background: "var(--gradient-hero)" }}>
+        <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-2 py-2 rounded-full border border-white/10 bg-[oklch(0.13_0.04_290/0.92)] backdrop-blur-xl shadow-[0_0_30px_oklch(0.78_0.18_305/0.5)] animate-fade-in max-w-[calc(100%-1rem)] overflow-x-auto">
+          <button onClick={() => addNode("input")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Image"><ImageIcon className="size-4" /></button>
+          <button onClick={() => addNode("audio")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Audio"><Music className="size-4" /></button>
+          <button onClick={() => addNode("image")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Image gen"><Wand2 className="size-4" /></button>
+          <button onClick={() => addNode("video")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Video"><Film className="size-4" /></button>
+          <button onClick={() => addNode("lipsync")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Lip sync"><Mic className="size-4" /></button>
+          <button onClick={() => addNode("split")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Split"><SplitSquareHorizontal className="size-4" /></button>
+          <button onClick={() => addNode("comfy")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="ComfyUI"><Boxes className="size-4" /></button>
+          <button onClick={() => addNode("batchVideo")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Batch video"><Layers className="size-4" /></button>
+          <button onClick={() => runMut.mutate()} disabled={runMut.isPending} className="ml-1 h-9 px-4 shrink-0 rounded-full text-primary-foreground text-sm font-medium inline-flex items-center gap-1.5 shadow-[0_0_24px_oklch(0.78_0.18_305/0.8)] disabled:opacity-60" style={{ background: "var(--gradient-hero)" }}>
             {runMut.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />} Run
           </button>
         </div>
