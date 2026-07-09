@@ -1,0 +1,139 @@
+CLI
+Photo to Video
+
+Copy page
+
+Turn a photo into a talking avatar video with the HeyGen API. Upload an image, attach a script, and HeyGen renders a lipsynced video starring that photo.
+​
+Prerequisites
+
+HeyGen CLI installed and authenticated (heygen auth login)
+A headshot photo (PNG or JPEG, max 32 MB). Front-facing, good lighting, and a neutral expression works best.
+​
+Steps
+
+1
+Upload the photo
+
+Upload your image to get an asset_id:
+
+
+heygen asset create --file ./headshot.jpg
+
+
+{
+  "data": {
+    "asset_id": "ast_abc123"
+  }
+}
+2
+Create a Photo Avatar
+
+Pass the asset to avatar create. This trains a Photo Avatar from your image:
+
+
+heygen avatar create -d '{
+  "files": [{"type": "asset_id", "asset_id": "ast_abc123"}]
+}'
+
+
+{
+  "data": {
+    "avatar_id": "avt_xyz789",
+    "avatar_group_id": "grp_def456",
+    "status": "processing"
+  }
+}
+Avatar training takes a few minutes. Poll the status:
+
+
+heygen avatar looks get avt_xyz789
+Wait until status is completed before proceeding.
+Use --request-schema on any command to discover all available fields: heygen avatar create --request-schema
+3
+Pick a voice
+
+Browse available voices:
+
+
+heygen voice list --language English --gender female --limit 5
+
+
+{
+  "data": [
+    {
+      "voice_id": "1bd001e7e50f421d891986aad5e3e5d2",
+      "name": "Sara",
+      "gender": "female",
+      "language": "English"
+    }
+  ]
+}
+Copy the voice_id you want. If none of the stock voices fit, see the Design a Custom Voice recipe.
+4
+Generate the video
+
+
+
+heygen video create -d '{
+  "type": "avatar",
+  "avatar_id": "avt_xyz789",
+  "script": "Hi there! I was created from a single photo using the HeyGen CLI.",
+  "voice_id": "1bd001e7e50f421d891986aad5e3e5d2",
+  "aspect_ratio": "auto"
+}'
+Add --wait to block until the video is ready, or poll manually with heygen video get <video_id>.
+5
+Download
+
+
+
+heygen video download vid_qrs321 --output-path ./my-avatar-video.mp4
+​
+Full shell script
+
+Chain everything together in one script:
+
+
+#!/bin/bash
+set -e
+
+# 1. Upload
+ASSET_ID=$(heygen asset create --file ./headshot.jpg | jq -r '.data.asset_id')
+echo "Uploaded: $ASSET_ID"
+
+# 2. Create avatar
+AVATAR_ID=$(heygen avatar create -d "{\"files\": [{\"type\": \"asset_id\", \"asset_id\": \"$ASSET_ID\"}]}" \
+  | jq -r '.data.avatar_id')
+echo "Avatar: $AVATAR_ID (training...)"
+
+# 3. Wait for avatar training
+while true; do
+  STATUS=$(heygen avatar looks get "$AVATAR_ID" | jq -r '.data.status')
+  [ "$STATUS" = "completed" ] && break
+  [ "$STATUS" = "failed" ] && echo "Avatar training failed" && exit 1
+  sleep 10
+done
+echo "Avatar ready"
+
+# 4. Create video and wait
+VIDEO=$(heygen video create --wait -d "{
+  \"type\": \"avatar\",
+  \"avatar_id\": \"$AVATAR_ID\",
+  \"script\": \"Hello! This video was generated from a single photo.\",
+  \"voice_id\": \"1bd001e7e50f421d891986aad5e3e5d2\"
+}")
+VIDEO_ID=$(echo "$VIDEO" | jq -r '.data.id')
+echo "Video ready: $VIDEO_ID"
+
+# 5. Download
+heygen video download "$VIDEO_ID" --output-path ./result.mp4
+echo "Done: ./result.mp4"
+​
+Optional parameters
+
+Parameter	Description
+aspect_ratio	auto (recommended — matches the source, falling back to 16:9), 16:9 (landscape), or 9:16 (portrait)
+background	Set a solid color or image background
+callback_url	Webhook URL — skip polling and get notified when the video is ready
+Photo Avatars use the avatar_iv engine. The avatar_id you pass to video create is the look ID from avatar looks list, not the group ID.
