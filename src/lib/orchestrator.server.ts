@@ -304,24 +304,71 @@ const klingDirect: ProviderAdapter = {
   },
 };
 
-// ─── HeyGen (lipsync via video.translate; best-effort) ───────────────────────
+// ─── HeyGen (photo-avatar + custom audio; real v3 API) ──────────────────────
+// HeyGen has NO public endpoint that re-lips an arbitrary already-rendered
+// video to new audio — that "v2/video/lipsync" path does not exist (404).
+// Its real, documented capability is: upload a still photo as a "talking
+// photo", then generate a brand-new video from that photo driven by an
+// uploaded audio asset. So this adapter requires a still photo (imageUrls[0])
+// — NOT an existing video — and is only usable by callers that have one
+// (e.g. the xai-ugc chain's original portrait, not the xAI-rendered clip).
+async function heygenUploadAsset(key: string, url: string, contentType: string) {
+  const src = await fetch(url);
+  if (!src.ok) throw new Error(`HeyGen: could not fetch source asset (${src.status})`);
+  const buf = await src.arrayBuffer();
+  const up = await fetch("https://api.heygen.com/v3/assets", {
+    method: "POST",
+    headers: { "X-Api-Key": key, "Content-Type": contentType },
+    body: buf,
+  });
+  if (!up.ok) throw new Error(`HeyGen asset upload ${up.status}: ${(await up.text()).slice(0, 200)}`);
+  const uj = await up.json();
+  const assetId = uj?.data?.id ?? uj?.data?.asset_id;
+  if (!assetId) throw new Error("HeyGen: asset upload returned no id");
+  return assetId as string;
+}
+
 const heygen: ProviderAdapter = {
   name: "heygen",
-  supports: (r) => r.kind === "lipsync" && !!process.env.HEYGEN_API_KEY,
+  supports: (r) => r.kind === "lipsync" && !!r.imageUrls?.[0] && !!r.audioUrl && !!process.env.HEYGEN_API_KEY,
   estimateCost: () => 0.4,
   async run(r) {
-    if (!r.videoUrl || !r.audioUrl) throw new Error("heygen: video+audio required");
+    const photoUrl = r.imageUrls?.[0];
+    if (!photoUrl || !r.audioUrl) throw new Error("heygen: still photo + audio required");
     const key = process.env.HEYGEN_API_KEY!;
-    const create = await fetch("https://api.heygen.com/v2/video/lipsync", {
+
+    // 1. Upload the still photo as a talking photo.
+    const photoBuf = await (await fetch(photoUrl)).arrayBuffer();
+    const tpUp = await fetch("https://api.heygen.com/v1/talking_photo", {
+      method: "POST",
+      headers: { "X-Api-Key": key, "Content-Type": "image/jpeg" },
+      body: photoBuf,
+    });
+    if (!tpUp.ok)
+      throw new Error(`HeyGen talking_photo upload ${tpUp.status}: ${(await tpUp.text()).slice(0, 200)}`);
+    const tpj = await tpUp.json();
+    const talkingPhotoId = tpj?.data?.talking_photo_id;
+    if (!talkingPhotoId) throw new Error("HeyGen: talking_photo upload returned no id");
+
+    // 2. Upload the user's audio track as an asset.
+    const audioAssetId = await heygenUploadAsset(key, r.audioUrl, "audio/mpeg");
+
+    // 3. Generate the video: photo avatar driven by the uploaded audio.
+    const create = await fetch("https://api.heygen.com/v3/videos", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Api-Key": key },
-      body: JSON.stringify({ video_url: r.videoUrl, audio_url: r.audioUrl }),
+      body: JSON.stringify({
+        type: "photo_avatar",
+        avatar_id: talkingPhotoId,
+        audio_asset_id: audioAssetId,
+      }),
     });
     if (!create.ok)
       throw new Error(`HeyGen ${create.status}: ${(await create.text()).slice(0, 200)}`);
     const cj = await create.json();
     const videoId = cj?.data?.video_id ?? cj?.video_id;
     if (!videoId) throw new Error("HeyGen returned no video_id");
+
     const deadline = Date.now() + 10 * 60_000;
     while (Date.now() < deadline) {
       await new Promise((s) => setTimeout(s, 5000));
@@ -334,9 +381,10 @@ const heygen: ProviderAdapter = {
       if (status === "completed") {
         const url = sj?.data?.video_url;
         if (!url) throw new Error("HeyGen: no video url");
-        return { url, endpoint: "heygen:lipsync" };
+        return { url, endpoint: "heygen:photo_avatar" };
       }
-      if (status === "failed") throw new Error(`HeyGen failed: ${sj?.data?.error ?? "unknown"}`);
+      if (status === "failed")
+        throw new Error(`HeyGen failed: ${sj?.data?.error?.message ?? sj?.data?.error ?? "unknown"}`);
     }
     throw new Error("HeyGen poll timeout");
   },
