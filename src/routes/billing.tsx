@@ -8,7 +8,7 @@ import { markFirstPurchaseComplete } from "@/lib/first-run";
 import { redeemPromoCode } from "@/lib/promo.functions";
 import { PLANS, SUBSCRIPTION_TIERS } from "@/lib/billing.plans";
 import { toast } from "sonner";
-import { ArrowLeft, Zap, Star, CheckCircle2, XCircle, CreditCard, Loader2, Crown, Tag } from "lucide-react";
+import { ArrowLeft, Zap, Star, CheckCircle2, XCircle, CreditCard, Loader2, Crown, Tag, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
@@ -215,6 +215,28 @@ function BillingPage() {
             </div>
           </section>
         )}
+
+        {/* Growth Tools highlight */}
+        <section>
+          <div className="aurora-glass rounded-2xl p-5 border border-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Rocket className="size-4 text-primary" />
+                <h2 className="text-base font-semibold">Growth Tools</h2>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary font-medium uppercase tracking-wide">Pro</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Daily post generator, AI rollout plans and social media packs — promote every release like a label would.
+              </p>
+            </div>
+            <Link
+              to="/growth"
+              className="text-sm text-primary font-medium whitespace-nowrap hover:underline shrink-0"
+            >
+              Try it now →
+            </Link>
+          </div>
+        </section>
 
         {/* Pro management — cancel */}
         {isPro && (

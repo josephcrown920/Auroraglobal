@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { estimateFromParams, checkGuardrails } from "./estimate";
+import { estimateFromParams, checkGuardrails } from "@/routes/api/estimate";
 
 // GET /api/estimate is a pure, side-effect-free quote — no auth, no credit
 // reservation, no DB writes. These tests pin its request→quote mapping so it

@@ -61,6 +61,7 @@ export const SUBSCRIPTION_TIERS = {
       "Aurora watermark on exports",
       "Standard queue priority",
       "No premium templates",
+      "No Growth Tools (daily posts, rollout plans, social packs)",
     ],
   },
   pro: {
@@ -77,6 +78,7 @@ export const SUBSCRIPTION_TIERS = {
       "No watermark on exports",
       "Priority queue — faster generations",
       "All premium templates unlocked",
+      "Growth Tools — daily posts, rollout plans & social packs",
       "All generation types",
       "Permanent gallery",
       "Canvas pipeline editor",

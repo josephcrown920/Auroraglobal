@@ -81,7 +81,7 @@ const supabaseStub = {
 
 mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: supabaseStub }));
 
-const { Route } = await import("./register");
+const { Route } = await import("@/routes/api/public/workers/register");
 
 function req(body: unknown, headers: Record<string, string> = {}): Request {
   return new Request("https://example.test/api/public/workers/register", {

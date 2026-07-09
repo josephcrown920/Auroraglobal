@@ -28,6 +28,7 @@ export const Route = createFileRoute("/api/public/jobs/tick")({
         const {
           processBatch,
           sweepStaleProcessingJobs,
+          sweepHighValueStaleProcessingJobs,
           sweepFailedJobs,
           sweepStuckReservations,
           recordSchedulerHeartbeat,
@@ -35,6 +36,10 @@ export const Route = createFileRoute("/api/public/jobs/tick")({
         const { advanceSpinQueueAdmin } = await import("@/lib/spin.functions");
 
         try {
+          // High-value kinds (motion/performance_reskin) get a tighter reclaim
+          // window first so their bigger reservation isn't stuck for the full
+          // global window if the job never reached a worker.
+          const sweptHighValue = await sweepHighValueStaleProcessingJobs();
           const swept = await sweepStaleProcessingJobs();
           const recovered = await sweepFailedJobs();
           const reconciled = await sweepStuckReservations();
@@ -51,7 +56,7 @@ export const Route = createFileRoute("/api/public/jobs/tick")({
             spin = { error: e instanceof Error ? e.message : String(e) };
           }
           await recordSchedulerHeartbeat(HEARTBEAT_NAME, true);
-          return new Response(JSON.stringify({ ok: true, swept, recovered, reconciled, results, spin }), {
+          return new Response(JSON.stringify({ ok: true, sweptHighValue, swept, recovered, reconciled, results, spin }), {
             status: 200,
             headers: { "Content-Type": "application/json" },
           });
