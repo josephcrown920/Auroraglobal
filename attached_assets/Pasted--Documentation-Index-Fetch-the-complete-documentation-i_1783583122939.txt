@@ -1,0 +1,214 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://heygen-1fa696a7.mintlify.site/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# Quick Start
+
+> Generate your first AI video with the HeyGen API in minutes — authenticate, send one request, and get back an MP4.
+
+<video controls muted playsInline className="w-full aspect-video rounded-xl" src="https://mintcdn.com/heygen-1fa696a7/Df2ry28u582ZM9SJ/images/videos/first-video.mp4?fit=max&auto=format&n=Df2ry28u582ZM9SJ&q=85&s=a98b6f1ab08b35398773ab572a5c06f1" title="The HeyGen API in 30 seconds — pick your path (MCP/CLI or REST), make your first call, explore the favorites" data-path="images/videos/first-video.mp4" />
+
+<CardGroup cols={2}>
+  <Card title="Get your API key" icon="key" href="https://app.heygen.com/home?from=&nav=API">
+    Create a key in Settings → API. Every request below needs it.
+  </Card>
+
+  <Card title="Try it in the Playground" icon="play" href="/reference/create-video">
+    Fire a real request from your browser — before writing any code.
+  </Card>
+</CardGroup>
+
+<Info>
+  **Base URL** `https://api.heygen.com` · **Auth header** `X-Api-Key: <your-key>`
+</Info>
+
+## Your first video
+
+<Steps>
+  <Step title="Authenticate" icon="key">
+    Create a key in [Settings → API](https://app.heygen.com/home?from=\&nav=API). For OAuth and rotation, see the [API Key guide](/docs/api-key).
+
+    ```bash theme={null}
+    export HEYGEN_API_KEY="your-api-key-here"
+    ```
+  </Step>
+
+  <Step title="Create a video" icon="wand-magic-sparkles">
+    Send a prompt to the [Video Agent](/reference/create-video-agent-session) — it scripts, picks the avatar and voice, and renders.
+
+    <Tabs>
+      <Tab title="curl">
+        ```bash theme={null}
+        curl -X POST "https://api.heygen.com/v3/video-agents" \
+          -H "X-Api-Key: $HEYGEN_API_KEY" \
+          -H "Content-Type: application/json" \
+          -d '{"prompt": "A presenter explaining our product launch in 30 seconds"}'
+        ```
+      </Tab>
+
+      <Tab title="Python">
+        ```python theme={null}
+        import requests
+
+        resp = requests.post(
+            "https://api.heygen.com/v3/video-agents",
+            headers={"X-Api-Key": HEYGEN_API_KEY},
+            json={"prompt": "A presenter explaining our product launch in 30 seconds"},
+        )
+        session_id = resp.json()["data"]["session_id"]
+        ```
+      </Tab>
+
+      <Tab title="Node.js">
+        ```javascript theme={null}
+        const resp = await fetch("https://api.heygen.com/v3/video-agents", {
+          method: "POST",
+          headers: {
+            "X-Api-Key": process.env.HEYGEN_API_KEY,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            prompt: "A presenter explaining our product launch in 30 seconds",
+          }),
+        });
+        const { session_id } = (await resp.json()).data;
+        ```
+      </Tab>
+    </Tabs>
+
+    ```json Response theme={null}
+    { "data": { "session_id": "sess_abc123", "status": "generating", "video_id": null } }
+    ```
+
+    <Tip>
+      Watch it build live at `https://app.heygen.com/video-agent/{session_id}`.
+    </Tip>
+  </Step>
+
+  <Step title="Get the result" icon="circle-check">
+    Poll the session for a `video_id`, then the video for its `video_url` — or skip polling with a [webhook](/docs/webhooks) via `callback_url`.
+
+    <Tabs>
+      <Tab title="Python">
+        ```python theme={null}
+        import time
+
+        # 1. Wait for the video_id to be assigned
+        video_id = None
+        while not video_id:
+            sess = requests.get(
+                f"https://api.heygen.com/v3/video-agents/{session_id}",
+                headers={"X-Api-Key": HEYGEN_API_KEY},
+            ).json()["data"]
+            video_id = sess.get("video_id")
+            if not video_id:
+                time.sleep(5)
+
+        # 2. Poll the video until it's done
+        while True:
+            video = requests.get(
+                f"https://api.heygen.com/v3/videos/{video_id}",
+                headers={"X-Api-Key": HEYGEN_API_KEY},
+            ).json()["data"]
+            if video["status"] in ("completed", "failed"):
+                break
+            time.sleep(10)
+
+        print(video["video_url"])
+        ```
+      </Tab>
+
+      <Tab title="curl">
+        ```bash theme={null}
+        # 1. Session → video_id
+        curl "https://api.heygen.com/v3/video-agents/sess_abc123" \
+          -H "X-Api-Key: $HEYGEN_API_KEY"
+
+        # 2. video_id → video_url
+        curl "https://api.heygen.com/v3/videos/vid_xyz789" \
+          -H "X-Api-Key: $HEYGEN_API_KEY"
+        ```
+      </Tab>
+    </Tabs>
+
+    ```json Response (completed) theme={null}
+    { "data": { "id": "vid_xyz789", "status": "completed", "video_url": "https://files.heygen.ai/video/vid_xyz789.mp4", "duration": 32.5 } }
+    ```
+  </Step>
+</Steps>
+
+## Pick your endpoint
+
+<CardGroup cols={3}>
+  <Card title="Video Agent" icon="wand-magic-sparkles" href="/docs/video-agent">
+    Prompt → finished video. **Flagship.**
+  </Card>
+
+  <Card title="Avatar Video" icon="user" href="/generate-avatar-video">
+    Pick the avatar, voice, and script yourself.
+  </Card>
+
+  <Card title="Cinematic Avatar" icon="clapperboard" href="/cinematic-avatar">
+    Prompt-driven cinematic shots from avatar looks.
+  </Card>
+
+  <Card title="Video Translation" icon="language" href="/docs/video-translate">
+    30+ languages with voice cloning and lip-sync.
+  </Card>
+
+  <Card title="Text to Speech" icon="waveform-lines" href="/docs/voices/speech">
+    Text → natural speech audio.
+  </Card>
+
+  <Card title="HyperFrames" icon="layer-group" href="/hyperframes">
+    HTML/CSS/JS → motion-graphics video. **New.**
+  </Card>
+</CardGroup>
+
+## Working from an agent or terminal?
+
+Skip the raw HTTP — both surfaces wrap the same API.
+
+<CardGroup cols={2}>
+  <Card title="MCP Server" icon="plug" href="/mcp/overview">
+    Plug HeyGen into Claude, Cursor, or any MCP-capable agent — it handles the calls for you.
+  </Card>
+
+  <Card title="CLI" icon="terminal" href="/cli">
+    `heygen video create`, `heygen video download` — scriptable from any shell or CI job.
+  </Card>
+</CardGroup>
+
+## Build with your stack
+
+<CardGroup cols={3}>
+  <Card title="Webhooks" icon="bell" color="#6B7280" href="/docs/webhooks" horizontal />
+
+  <Card title="Authentication" icon="lock" color="#6B7280" href="/docs/api-key" horizontal />
+
+  <Card title="Limits & Pricing" icon="dollar-sign" color="#6B7280" href="/docs/pricing" horizontal />
+</CardGroup>
+
+<Note>
+  Migrating from **v1/v2**? Supported until **October 31, 2026** — see the [version comparison](/endpoint-version-comparison).
+</Note>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Video status is failed" icon="circle-xmark">
+    Inspect `failure_code` and `failure_message` on [`GET /v3/videos/{video_id}`](/reference/get-video). Full catalog in [Error Codes](/docs/error-codes).
+  </Accordion>
+
+  <Accordion title="401 Unauthorized" icon="key">
+    Confirm the `X-Api-Key` header is set and the key is active in [Settings → API](https://app.heygen.com/home?from=\&nav=API).
+  </Accordion>
+
+  <Accordion title="429 Too Many Requests" icon="gauge-high">
+    Rate or concurrency limit hit. Respect `Retry-After` and back off. See [Usage Limits](/docs/usage-limits).
+  </Accordion>
+
+  <Accordion title="400 download_failed" icon="link-slash">
+    A URL you passed couldn't be fetched — it must be publicly accessible and point directly at the file.
+  </Accordion>
+</AccordionGroup>
