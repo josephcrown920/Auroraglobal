@@ -7,7 +7,7 @@ import { reserveOrchestrateRecord } from "./generate-core.server";
 import { assertTrustedUrl } from "./url-guard";
 import { providerHealth, providerStatus } from "./inference";
 import { detectFeatures, computeCost, type Feature } from "./pricing";
-import { assertDurationCap, assertHdEntitlement } from "./cost-guardrails.server";
+import { assertDurationCap, assertHdEntitlement, assertDailyBudget } from "./cost-guardrails.server";
 
 // ─── Provider health (which keys are configured) ─────────────────────────────
 // Mirrors the priority chains in src/lib/orchestrator.server.ts.
@@ -563,6 +563,12 @@ export const orchestrateGenerate = createServerFn({ method: "POST" })
       model: data.model,
     });
     const cost = quote.total;
+
+    // Daily Aura cap: friendly early check before we reserve credits or call a
+    // provider. The reserve_credits() RPC enforces this for real (race-free);
+    // this just gives a clear error sooner for the common case.
+    await assertDailyBudget(context.userId, cost);
+
     const outcome = await reserveOrchestrateRecord({
       userId: context.userId,
       kind,

@@ -33,7 +33,18 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-export const Route = createFileRoute("/agent")({ component: AgentPage });
+export const Route = createFileRoute("/agent")({
+  component: AgentPage,
+  head: () => ({
+    meta: [
+      { title: "AI Creative Agent — Aurora" },
+      { name: "description", content: "Describe the shot you want in plain language — Aurora's agent plans it and renders it for you." },
+      { property: "og:title", content: "AI Creative Agent — Aurora" },
+      { property: "og:description", content: "Chat with Aurora's planning agent to iterate on and render creative shots." },
+    ],
+    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/agent" }],
+  }),
+});
 
 type RenderStatus = "idle" | "rendering" | "succeeded" | "failed";
 type RenderState = { status: RenderStatus; url?: string | null };

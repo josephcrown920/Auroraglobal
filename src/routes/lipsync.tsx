@@ -36,6 +36,7 @@ export const Route = createFileRoute("/lipsync")({
       { property: "og:title", content: "Lip Sync Studio — Aurora" },
       { property: "og:description", content: "Frame-perfect AI lip-sync. Bring a clip, a vocal, get a music video." },
     ],
+    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/lipsync" }],
   }),
 });
 
@@ -56,8 +57,9 @@ function LipSyncStudioPage() {
           </h1>
           <p className="mt-4 text-white/70 max-w-2xl">
             Drop a performance clip + a vocal. Pick Studio (Sync 1.9) for film-grade
-            mouth shapes, Fast (Wav2Lip) for quick turnarounds, or <strong className="text-white/90">xAI UGC</strong> to animate
-            a still photo into a walking talking-head video.
+            mouth shapes, Fast (Wav2Lip) for quick turnarounds, <strong className="text-white/90">xAI UGC</strong> to animate
+            a still photo into a walking talking-head video, or <strong className="text-white/90">HeyGen Photo</strong> to
+            bring a still photo to life singing your own audio.
           </p>
 
           <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -119,6 +121,8 @@ function LipSyncForm() {
   const [engine, setEngine] = useState<Engine>("sync-v2");
 
   const isXaiUgc = engine === "xai-ugc";
+  const isHeygenPhoto = engine === "heygen-photo";
+  const isPhotoEngine = isXaiUgc || isHeygenPhoto;
 
   // lipsyncEngineCost is the shared UI+server price source; for xai-ugc it is
   // the full two-stage price (xAI video + mandatory relip to your audio).
@@ -239,8 +243,8 @@ function LipSyncForm() {
 
     if (!likelyConsent) return toast.error("Please confirm you have the rights to use this voice and likeness before generating");
 
-    if (isXaiUgc) {
-      if (!img) return toast.error("Upload a still photo for the xAI UGC engine");
+    if (isPhotoEngine) {
+      if (!img) return toast.error(`Upload a still photo for the ${isXaiUgc ? "xAI UGC" : "HeyGen Photo"} engine`);
       if (!aud) return toast.error("Upload a vocal track");
     } else {
       if (!vid || !aud) return toast.error("Upload both a clip and a vocal first");
@@ -262,13 +266,13 @@ function LipSyncForm() {
       let vUrl: string;
       let iUrl: string | undefined;
 
-      if (isXaiUgc) {
-        // For xAI UGC, upload the still photo as the "image" source.
+      if (isPhotoEngine) {
+        // For xAI UGC / HeyGen Photo, upload the still photo as the "image" source.
         // We still need a placeholder videoUrl for the server schema — pass the image URL there too.
         [iUrl] = await Promise.all([
           uploadOne(img!, "image"),
         ]);
-        vUrl = iUrl; // schema requires videoUrl; server ignores it for xai-ugc
+        vUrl = iUrl; // schema requires videoUrl; server ignores it for photo engines
       } else {
         [vUrl] = await Promise.all([uploadOne(vid!, "video")]);
       }
@@ -281,7 +285,7 @@ function LipSyncForm() {
           videoUrl: vUrl,
           audioUrl: aUrl,
           engine,
-          ...(isXaiUgc && iUrl ? { imageUrl: iUrl } : {}),
+          ...(isPhotoEngine && iUrl ? { imageUrl: iUrl } : {}),
         },
       });
       clearInterval(ticker);
@@ -323,7 +327,7 @@ function LipSyncForm() {
     if (!resultUrl) return;
     const a = document.createElement("a");
     a.href = resultUrl;
-    a.download = `synced-${((isXaiUgc ? image?.name : video?.name) ?? "clip").replace(/\.[^.]+$/, "")}.mp4`;
+    a.download = `synced-${((isPhotoEngine ? image?.name : video?.name) ?? "clip").replace(/\.[^.]+$/, "")}.mp4`;
     a.target = "_blank";
     document.body.appendChild(a);
     a.click();
@@ -333,7 +337,7 @@ function LipSyncForm() {
   const stageLabel: Record<JobStatus, string> = {
     idle: "Ready",
     uploading: "Uploading assets…",
-    syncing: isXaiUgc ? "Animating photo into talking-head…" : "Aligning phonemes to mouth shapes…",
+    syncing: isPhotoEngine ? "Animating photo into talking-head…" : "Aligning phonemes to mouth shapes…",
     rendering: "Rendering final clip…",
     done: "Sync complete",
     error: "Something went wrong",
@@ -344,17 +348,17 @@ function LipSyncForm() {
   const genProgress = useGenerationProgress({
     jobStatus: lipsyncStatusToJobStatus(status),
     persistKey: "aurora.progress.lipsync",
-    estimatedMs: isXaiUgc ? 90_000 : 45_000,
+    estimatedMs: isPhotoEngine ? 90_000 : 45_000,
     labels: {
       queued: "Uploading assets…",
-      processing: isXaiUgc ? "Animating photo into talking-head…" : "Aligning phonemes to mouth shapes…",
+      processing: isPhotoEngine ? "Animating photo into talking-head…" : "Aligning phonemes to mouth shapes…",
       finalizing: "Rendering final clip…",
       done: "Sync complete",
       error: "Something went wrong",
     },
   });
 
-  const hasSource = isXaiUgc ? !!image : !!video;
+  const hasSource = isPhotoEngine ? !!image : !!video;
 
   return (
     <section className="relative z-10 px-6 md:px-12 pb-12">
@@ -378,7 +382,7 @@ function LipSyncForm() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {isXaiUgc ? (
+          {isPhotoEngine ? (
             <DropSlot
               label="Still photo (selfie / portrait)"
               hint="JPG / PNG / WebP · up to 20MB"
@@ -434,8 +438,28 @@ function LipSyncForm() {
           </div>
         )}
 
+        {/* HeyGen Photo: single-stage photo animator, no fixed script */}
+        {isHeygenPhoto && (
+          <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <div className="flex items-start gap-2">
+              <Info className="size-4 text-primary mt-0.5 shrink-0" />
+              <div>
+                <p className="text-xs font-semibold text-primary mb-1">HeyGen Photo — no script needed</p>
+                <p className="text-[11px] text-white/60 leading-relaxed">
+                  Your still photo is animated directly to your uploaded audio — HeyGen generates the talking
+                  motion and syncs the lips to whatever plays in your track. No fixed script, no walking shot —
+                  just a natural talking-head performance of your photo.
+                </p>
+                <p className="text-[11px] text-white/50 mt-1 italic">
+                  Powered by HeyGen. Works with any vocal, voiceover, or spoken track — the mouth follows your audio exactly.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <WelcomeTour show={showTour} onDismiss={() => setShowTour(false)} />
-        {!isXaiUgc && (
+        {!isPhotoEngine && (
           <ExampleChips
             presets={LIPSYNC_EXAMPLE_PRESETS}
             activeId={activeExampleId}
@@ -478,12 +502,13 @@ function LipSyncForm() {
         {/* Engine toggle */}
         <div className="mt-4">
           <p className="aurora-kicker mb-2">Engine</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 rounded-2xl aurora-glass p-1">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 rounded-2xl aurora-glass p-1">
             {([
               { id: "sync-v2", label: "Studio", sub: "Sync 1.9 · film-grade", icon: Sparkles },
               { id: "wav2lip", label: "Fast", sub: "Wav2Lip · cheaper", icon: Zap },
               { id: "latentsync", label: "Self-hosted", sub: "LatentSync · your GPU", icon: Server },
               { id: "xai-ugc", label: "xAI UGC", sub: "Still photo → talking head", icon: ImageIcon },
+              { id: "heygen-photo", label: "HeyGen Photo", sub: "Still photo → your audio", icon: ImageIcon },
             ] as const).map(o => (
               <button
                 key={o.id}
@@ -503,6 +528,7 @@ function LipSyncForm() {
             {engine === "wav2lip" && "Wav2Lip — fast & cheap, slightly lower quality"}
             {engine === "latentsync" && "LatentSync — runs on your registered GPU worker"}
             {engine === "xai-ugc" && "grok-imagine-video-1.5 — animates a still photo into a 9:16 UGC talking-head video"}
+            {engine === "heygen-photo" && "HeyGen — animates a still photo directly to your uploaded audio, no fixed script"}
           </p>
         </div>
 
@@ -538,7 +564,7 @@ function LipSyncForm() {
             ) : status === "done" ? (
               <><CheckCircle2 className="size-4" /> Run again</>
             ) : (
-              <><Wand2 className="size-4" /> {isXaiUgc ? "Generate UGC video" : "Run lip sync"}</>
+              <><Wand2 className="size-4" /> {isPhotoEngine ? "Generate video" : "Run lip sync"}</>
             )}
           </button>
           <p className="text-xs text-white/50">
@@ -546,6 +572,8 @@ function LipSyncForm() {
               ? `${engineCost} Aura · your GPU worker`
               : engine === "xai-ugc"
               ? `${engineCost} Aura · ~90s · 9:16 vertical`
+              : engine === "heygen-photo"
+              ? `${engineCost} Aura · ~60s`
               : `${engineCost} Aura · ~${engine === "sync-v2" ? "45" : "25"}s`}
           </p>
         </div>
@@ -571,7 +599,7 @@ function LipSyncForm() {
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="size-4 text-emerald-300" />
                 <p className="text-sm font-semibold text-emerald-100">
-                  {isXaiUgc ? "UGC video generated" : "Synced render"}
+                  {isXaiUgc ? "UGC video generated" : isHeygenPhoto ? "Photo video generated" : "Synced render"}
                 </p>
               </div>
               <button onClick={download} className="inline-flex items-center gap-1.5 rounded-full bg-white text-black px-4 py-2 text-xs font-semibold hover-scale">

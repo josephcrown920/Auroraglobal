@@ -196,6 +196,15 @@ export const Route = createFileRoute("/api/public/generate")({
           // Reserve credits → orchestrate → record → commit (shared core; also
           // used by the Aurora Agent per-shot renderer so the credit flow never drifts).
           const cost = quote.total;
+
+          // Daily Aura cap: friendly early check before we reserve credits or call
+          // a provider. The reserve_credits() RPC enforces this for real
+          // (race-free); this just gives a clear error sooner for the common case.
+          {
+            const { assertDailyBudget } = await import("@/lib/cost-guardrails.server");
+            await assertDailyBudget(userId, cost);
+          }
+
           const outcome = await reserveOrchestrateRecord({
             userId,
             kind: data.kind as GenerateKind,

@@ -4,6 +4,9 @@ import { useAuth } from "@/hooks/use-auth";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { listGenerations } from "@/lib/studio.functions";
+import { publishGeneration } from "@/lib/share.functions";
+import { saveAssetToDisk } from "@/lib/save";
+import { ShareMenu } from "@/components/share/ShareMenu";
 import {
   Loader2,
   CheckCircle2,
@@ -55,29 +58,11 @@ function StatusIcon({ status }: { status: string }) {
   return <Clock className="size-3 text-white/40" />;
 }
 
-// Studio buckets are private with no read-time signing, and result URLs can be
-// cross-origin — a plain <a download> silently no-ops, so fetch -> blob -> objectURL.
-async function downloadAsset(url: string, filename: string) {
-  try {
-    const res = await fetch(url);
-    const blob = await res.blob();
-    const objectUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = objectUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(objectUrl), 2_000);
-  } catch {
-    window.open(url, "_blank");
-  }
-}
-
 const POLL_INTERVAL_MS = 4_000;
 
 export function GeneratedAssetGallery() {
   const { user } = useAuth();
+  const publishFn = useServerFn(publishGeneration);
   // Start collapsed so the panel never covers the canvas on narrow screens;
   // auto-open the first time this session actually produces an asset.
   const [open, setOpen] = useState(false);
@@ -172,12 +157,25 @@ export function GeneratedAssetGallery() {
                               <ExternalLink className="size-3" />
                             </button>
                             <button
-                              onClick={() => downloadAsset(url, `aurora-${a.id}.${a.result_video_url ? "mp4" : "png"}`)}
+                              onClick={() => saveAssetToDisk(url, `aurora-${a.id}.${a.result_video_url ? "mp4" : "png"}`)}
                               className="text-white/40 hover:text-white"
-                              title="Download"
+                              title="Save"
                             >
                               <Download className="size-3" />
                             </button>
+                            <ShareMenu
+                              compact
+                              triggerClassName="text-white/40 hover:text-white"
+                              getShareTarget={async () => {
+                                const r = await publishFn({ data: { id: a.id } });
+                                return {
+                                  url: `${window.location.origin}${r.url}`,
+                                  text: a.prompt ?? undefined,
+                                  assetUrl: url,
+                                  filename: `aurora-${a.id}.${a.result_video_url ? "mp4" : "png"}`,
+                                };
+                              }}
+                            />
                           </div>
                         )}
                       </div>

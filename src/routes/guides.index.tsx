@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/guides/")({
   component: GuidesGallery,
   head: () => ({
+    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/guides" }],
     meta: [
       { title: "Viral Guides — Aurora" },
       {

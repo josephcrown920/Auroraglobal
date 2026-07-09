@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 export type GenErrorKind =
   | "insufficient_aura"
+  | "daily_limit_reached"
   | "no_workers"
   | "out_of_credit"
   | "rate_limited"
@@ -29,6 +30,12 @@ export function classifyGenerationError(error: unknown): GenErrorKind {
   const msg = rawMessage(error).toLowerCase();
   if (!msg) return "unknown";
 
+  // The user's own opt-in daily Aura cap (cost-guardrails.server.ts /
+  // reserve_credits RPC) — check before the broader "unsupported" bucket below,
+  // which would otherwise swallow this message.
+  if (msg.includes("daily_limit_reached")) {
+    return "daily_limit_reached";
+  }
   // The customer's own Aura balance (internal), not a provider issue.
   if (msg.includes("insufficient credits") || msg.includes("not enough aura")) {
     return "insufficient_aura";
@@ -110,6 +117,7 @@ export function classifyGenerationError(error: unknown): GenErrorKind {
 
 const GEN_MESSAGES: Record<Exclude<GenErrorKind, "unknown">, string> = {
   insufficient_aura: "Not enough Aura. Top up to generate.",
+  daily_limit_reached: "You've hit your daily Aura limit for today.",
   no_workers: "This feature needs a GPU worker online. Try again once a worker is connected.",
   out_of_credit: "The AI service is busy right now. Please wait a moment and try again.",
   rate_limited: "The image/video service is busy right now. Please wait a moment and try again.",
@@ -134,6 +142,12 @@ export function handleGenerationError(error: unknown) {
   if (kind === "insufficient_aura") {
     toast.error(GEN_MESSAGES.insufficient_aura, {
       action: { label: "Buy Aura", onClick: () => (window.location.href = "/dashboard/billing") },
+    });
+    return;
+  }
+  if (kind === "daily_limit_reached") {
+    toast.error(GEN_MESSAGES.daily_limit_reached, {
+      action: { label: "Manage limit", onClick: () => (window.location.href = "/dashboard/billing") },
     });
     return;
   }

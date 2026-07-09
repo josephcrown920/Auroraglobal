@@ -80,14 +80,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Aurora Studio — AI Performance Shots & Music-Video Stills" },
       { property: "og:title", content: "Aurora Studio — AI Performance Shots & Music-Video Stills" },
       { name: "twitter:title", content: "Aurora Studio — AI Performance Shots & Music-Video Stills" },
-
-      { property: "og:title", content: "Lovable App" },
-      { name: "twitter:title", content: "Lovable App" },
       { name: "description", content: "Aurora Studio Star creates performance-style shots from user photos and motion, adding virtual clothing and studio effects." },
       { property: "og:description", content: "Aurora Studio Star creates performance-style shots from user photos and motion, adding virtual clothing and studio effects." },
       { name: "twitter:description", content: "Aurora Studio Star creates performance-style shots from user photos and motion, adding virtual clothing and studio effects." },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/J2VHaBkD8FVvbqRyLts8vf9CNTt2/social-images/social-1780019855212-IMG_7719.webp" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/J2VHaBkD8FVvbqRyLts8vf9CNTt2/social-images/social-1780019855212-IMG_7719.webp" },
+      { property: "og:image", content: `https://aurorastudiostar.lovable.app${auroraLogo.url}` },
+      { name: "twitter:image", content: `https://aurorastudiostar.lovable.app${auroraLogo.url}` },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [

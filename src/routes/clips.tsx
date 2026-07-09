@@ -48,6 +48,7 @@ export const Route = createFileRoute("/clips")({
       { title: "Clip Preview — Generated Assets" },
       { name: "description", content: "Preview, compare, tweak, and approve generated clips." },
     ],
+    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/clips" }],
   }),
 });
 

@@ -6,8 +6,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { listGenerations } from "@/lib/studio.functions";
 import { getMyProfile } from "@/lib/billing.functions";
+import { publishGeneration } from "@/lib/share.functions";
+import { saveAssetToDisk } from "@/lib/save";
+import { ShareMenu } from "@/components/share/ShareMenu";
 import { ModelBadge } from "@/components/ModelBadge";
-import { Sparkles, Loader2, Coins, Film, Image as ImageIcon, ArrowRight, Shield, Share2 } from "lucide-react";
+import { Sparkles, Loader2, Coins, Film, Image as ImageIcon, ArrowRight, Shield, Share2, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ApiKeysPanel } from "@/components/dashboard/ApiKeysPanel";
@@ -35,6 +38,7 @@ function DashboardPage() {
 
   const profileFn = useServerFn(getMyProfile);
   const listFn = useServerFn(listGenerations);
+  const publishFn = useServerFn(publishGeneration);
 
   const { data: profile } = useQuery({ queryKey: ["profile", user?.id], queryFn: () => profileFn(), enabled: !!user });
   const { data: hist, isLoading } = useQuery({ queryKey: ["gens", user?.id], queryFn: () => listFn(), enabled: !!user });
@@ -143,7 +147,9 @@ function DashboardPage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {filteredItems.map((g) => (
+              {filteredItems.map((g) => {
+                const rawUrl = g.result_image_url || g.result_video_url;
+                return (
                 <article key={g.id} className="group rounded-2xl overflow-hidden border border-border bg-card/60 backdrop-blur-xl relative">
                   <div className="aspect-square bg-background/40">
                     {g.result_image_url ? (
@@ -154,6 +160,31 @@ function DashboardPage() {
                       <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">{g.status === "failed" ? "Failed" : g.status}</div>
                     )}
                   </div>
+                  {rawUrl && (
+                    <div className="absolute top-2 right-2 flex gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={() => saveAssetToDisk(rawUrl, `aurora-${g.id.slice(0, 8)}.${g.result_video_url ? "mp4" : "png"}`)}
+                        className="size-8 rounded-full bg-background/70 backdrop-blur-md border border-border hover:bg-background flex items-center justify-center"
+                        title="Save"
+                      >
+                        <Download className="size-3.5" />
+                      </button>
+                      <ShareMenu
+                        compact
+                        triggerClassName="size-8 rounded-full bg-background/70 backdrop-blur-md border border-border hover:bg-primary/20 hover:border-primary/50 flex items-center justify-center"
+                        getShareTarget={async () => {
+                          const r = await publishFn({ data: { id: g.id } });
+                          return {
+                            url: `${window.location.origin}${r.url}`,
+                            text: g.prompt ?? undefined,
+                            assetUrl: rawUrl,
+                            filename: `aurora-${g.id.slice(0, 8)}.${g.result_video_url ? "mp4" : "png"}`,
+                          };
+                        }}
+                      />
+                    </div>
+                  )}
                   <div className="p-3 space-y-2">
                     <div className="flex items-center justify-between">
                       <ModelBadge model={g.model} />
@@ -162,7 +193,8 @@ function DashboardPage() {
                     <p className="text-xs text-muted-foreground line-clamp-2">{g.prompt}</p>
                   </div>
                 </article>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>

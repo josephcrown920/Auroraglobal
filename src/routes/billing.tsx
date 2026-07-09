@@ -3,12 +3,12 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { getMyProfile, createPaystackCheckout, createProSubscriptionCheckout, cancelProSubscription } from "@/lib/billing.functions";
+import { getMyProfile, createPaystackCheckout, createProSubscriptionCheckout, cancelProSubscription, setDailySpendLimit } from "@/lib/billing.functions";
 import { markFirstPurchaseComplete } from "@/lib/first-run";
 import { redeemPromoCode } from "@/lib/promo.functions";
 import { PLANS, SUBSCRIPTION_TIERS } from "@/lib/billing.plans";
 import { toast } from "sonner";
-import { ArrowLeft, Zap, Star, CheckCircle2, XCircle, CreditCard, Loader2, Crown, Tag, Rocket } from "lucide-react";
+import { ArrowLeft, Zap, Star, CheckCircle2, XCircle, CreditCard, Loader2, Crown, Tag, Rocket, Gauge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
@@ -20,6 +20,7 @@ export const Route = createFileRoute("/billing")({
       { title: "Plan & Billing — Aurora" },
       { name: "description", content: "Manage your Aurora subscription, view your Aura balance, and purchase credit packs." },
     ],
+    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/billing" }],
   }),
 });
 
@@ -32,9 +33,11 @@ function BillingPage() {
   const proCheckoutFn = useServerFn(createProSubscriptionCheckout);
   const cancelFn = useServerFn(cancelProSubscription);
   const redeemFn = useServerFn(redeemPromoCode);
+  const setLimitFn = useServerFn(setDailySpendLimit);
   const [cancelConfirm, setCancelConfirm] = useState(false);
   const [promoCode, setPromoCode] = useState("");
   const [redeemCode, setRedeemCode] = useState("");
+  const [dailyLimitInput, setDailyLimitInput] = useState("");
 
   const search = Route.useSearch() as Record<string, string>;
 
@@ -59,6 +62,14 @@ function BillingPage() {
   const isPro = profile?.plan === "pro";
   const isCancellationPending = profile?.subscription_status === "cancellation_pending";
   const tier = SUBSCRIPTION_TIERS[isPro ? "pro" : "free"];
+
+  useEffect(() => {
+    if (profile && dailyLimitInput === "") {
+      const limit = (profile as { daily_spend_limit?: number | null }).daily_spend_limit;
+      if (limit) setDailyLimitInput(String(limit));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile]);
 
   const proMut = useMutation({
     mutationFn: () => proCheckoutFn({ data: undefined }),
@@ -91,6 +102,15 @@ function BillingPage() {
       setCancelConfirm(false);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Cancel failed"),
+  });
+
+  const setLimitMut = useMutation({
+    mutationFn: (limit: number | null) => setLimitFn({ data: { limit } }),
+    onSuccess: (res) => {
+      toast.success(res.daily_spend_limit ? `Daily limit set to ${res.daily_spend_limit} Aura.` : "Daily limit removed.");
+      qc.invalidateQueries({ queryKey: ["profile"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't update your limit"),
   });
 
   if (loading || !user) {
@@ -365,6 +385,56 @@ function BillingPage() {
             <Button type="submit" variant="outline" disabled={!redeemCode.trim() || redeemMut.isPending}>
               {redeemMut.isPending ? <Loader2 className="size-3.5 animate-spin" /> : "Redeem"}
             </Button>
+          </form>
+        </section>
+
+        {/* Daily Aura spend limit */}
+        <section>
+          <h2 className="text-base font-medium mb-1">Daily Spend Limit</h2>
+          <p className="text-sm text-muted-foreground mb-3">
+            Cap how much Aura you can spend generating in a single day. Leave it blank for no limit.
+          </p>
+          <form
+            className="flex flex-wrap gap-2 max-w-md"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const trimmed = dailyLimitInput.trim();
+              if (!trimmed) return;
+              const parsed = Number(trimmed);
+              if (!Number.isInteger(parsed) || parsed <= 0) {
+                toast.error("Enter a whole number of Aura greater than 0");
+                return;
+              }
+              setLimitMut.mutate(parsed);
+            }}
+          >
+            <div className="relative flex-1 min-w-[180px]">
+              <Gauge className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+              <Input
+                type="number"
+                min={1}
+                placeholder="e.g. 50"
+                value={dailyLimitInput}
+                onChange={(e) => setDailyLimitInput(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+            <Button type="submit" variant="outline" disabled={!dailyLimitInput.trim() || setLimitMut.isPending}>
+              {setLimitMut.isPending ? <Loader2 className="size-3.5 animate-spin" /> : "Save"}
+            </Button>
+            {!!(profile as { daily_spend_limit?: number | null } | undefined)?.daily_spend_limit && (
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={setLimitMut.isPending}
+                onClick={() => {
+                  setDailyLimitInput("");
+                  setLimitMut.mutate(null);
+                }}
+              >
+                Clear
+              </Button>
+            )}
           </form>
         </section>
       </div>

@@ -64,6 +64,7 @@ export const Route = createFileRoute("/music-video")({
         content: "Six AI video tools built for artists and directors.",
       },
     ],
+    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/music-video" }],
   }),
 });
 
