@@ -234,6 +234,9 @@ describe("motion repricing (2026-07-08) — new base = 30", () => {
       // mandatory relip to the user's audio (premium lipsync, 9) = 29 Aura.
       // Covers real cost ~$0.60 (xAI ~$0.30 + Sync.so ~$0.30).
       "xai-ugc": VIDEO_TIER_AURA.standard + LIPSYNC_TIER_AURA.premium,
+      // heygen-photo: single-stage photo→talking-head via HeyGen's own audio-driven
+      // API (no relip stage) — priced at the ultra lipsync tier (10 Aura).
+      "heygen-photo": LIPSYNC_TIER_AURA.ultra,
     };
     for (const engine of Object.keys(LIPSYNC_ENGINE_MODEL) as LipsyncEngine[]) {
       expect(lipsyncEngineCost(engine), `engine "${engine}"`).toBe(expectedByEngine[engine]);

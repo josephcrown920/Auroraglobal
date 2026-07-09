@@ -1474,6 +1474,7 @@ export type Database = {
           created_at: string
           credits: number
           credits_reserved: number
+          daily_spend_limit: number | null
           display_name: string | null
           email: string | null
           id: string
@@ -1490,6 +1491,7 @@ export type Database = {
           created_at?: string
           credits?: number
           credits_reserved?: number
+          daily_spend_limit?: number | null
           display_name?: string | null
           email?: string | null
           id?: string
@@ -1506,6 +1508,7 @@ export type Database = {
           created_at?: string
           credits?: number
           credits_reserved?: number
+          daily_spend_limit?: number | null
           display_name?: string | null
           email?: string | null
           id?: string

@@ -10,7 +10,7 @@ export const Route = createFileRoute("/legal/$slug")({
     if (!doc) throw notFound();
     return { doc };
   },
-  head: ({ loaderData }) => {
+  head: ({ loaderData, params }) => {
     const doc = loaderData?.doc;
     return {
       meta: [
@@ -18,6 +18,7 @@ export const Route = createFileRoute("/legal/$slug")({
         { name: "description", content: doc?.summary ?? "Aurora legal documents." },
         { name: "robots", content: "index, follow" },
       ],
+      links: [{ rel: "canonical", href: `https://aurorastudiostar.lovable.app/legal/${params.slug}` }],
     };
   },
   notFoundComponent: () => (

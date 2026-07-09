@@ -123,6 +123,46 @@ export async function assertHdEntitlement(
   );
 }
 
+// ─── Daily spend cap ──────────────────────────────────────────────────────────
+// Users can opt into a personal daily Aura cap (profiles.daily_spend_limit) so a
+// batch of expensive renders can't blow through their balance unnoticed. The
+// real enforcement is inside the reserve_credits() RPC (race-free, covers every
+// spend path including direct create_generation_and_reserve callers); this is a
+// friendly early check at the two named app entry points so the user gets a
+// clear message before a provider call is ever attempted, not just a DB error.
+
+/**
+ * Throw a TERMINAL error when the user has a daily_spend_limit set and this
+ * request's cost would push their today's (UTC) reserved+spent Aura over it.
+ * Message matches the "daily_limit_reached" classifier in error-toasts.ts.
+ */
+export async function assertDailyBudget(userId: string, estimatedCost: number): Promise<void> {
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("daily_spend_limit")
+    .eq("user_id", userId)
+    .maybeSingle();
+  const limit = (profile as { daily_spend_limit?: number | null } | null)?.daily_spend_limit;
+  if (!limit) return; // no cap set
+
+  const dayStartUtc = new Date();
+  dayStartUtc.setUTCHours(0, 0, 0, 0);
+  const { data: rows } = await supabaseAdmin
+    .from("credit_ledger")
+    .select("delta, reason")
+    .eq("user_id", userId)
+    .gte("created_at", dayStartUtc.toISOString());
+  const spentToday = ((rows as { delta: number; reason: string }[] | null) ?? [])
+    .filter((r) => r.reason.startsWith("reserve:") || r.reason.startsWith("release:"))
+    .reduce((sum, r) => sum - r.delta, 0);
+
+  if (spentToday + estimatedCost > limit) {
+    throw new Error(
+      `Unsupported: daily_limit_reached — you've used ${spentToday} of your ${limit} Aura daily limit. Raise or clear your limit in Billing, or try again tomorrow.`,
+    );
+  }
+}
+
 /**
  * Resolve whether this request is confirmed for full quality.
  * - No `confirmPreviewId` → `{ confirmed: false }` (caller must force preview caps).

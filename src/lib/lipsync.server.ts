@@ -4,19 +4,27 @@ import { buildLatentSyncRequest } from "./lipsync-workflows.server";
 import { lipsyncEngineCost, XAI_UGC_RELIP_MODEL } from "./pricing";
 import { isAdmin } from "./admin.server";
 
-export type Engine = "sync-v2" | "wav2lip" | "latentsync" | "xai-ugc";
+export type Engine = "sync-v2" | "wav2lip" | "latentsync" | "xai-ugc" | "heygen-photo";
 
 // Engine → model key. "latentsync" is self-hosted: it carries no hosted-API
 // model, so it routes ONLY to the registered GPU worker pool (capability lipsync).
 // "xai-ugc" is a two-stage chain: xAI video adapter renders the talking-head clip
 // from the still photo, then a MANDATORY relip stage syncs the lips to the user's
 // uploaded audio (xAI's own generated voice is never shipped — voice consistency).
+// "heygen-photo" is a SINGLE-stage photo animator: HeyGen's own API lip-syncs
+// the still photo directly to the user's uploaded audio in one call — no relip
+// needed (unlike xai-ugc, which invents its own voice first).
 const MODEL: Record<Engine, string> = {
   "sync-v2": "fal-ai/sync-lipsync/v2",
   "wav2lip": "fal-ai/wav2lip",
   "latentsync": "latentsync",
   "xai-ugc": "xai/grok-imagine-video-1.5",
+  "heygen-photo": "heygen/photo-video",
 };
+
+// Engines that require a still photo (rather than an existing video clip) as
+// their source.
+const PHOTO_ENGINES: ReadonlySet<Engine> = new Set<Engine>(["xai-ugc", "heygen-photo"]);
 
 // Engines that must run on the user's own GPU worker pool (no hosted fallback).
 const SELF_HOSTED: ReadonlySet<Engine> = new Set<Engine>(["latentsync"]);
@@ -50,9 +58,15 @@ export async function runLipsyncJob(opts: {
 }) {
   const selfHosted = SELF_HOSTED.has(opts.engine);
   const isXaiUgc = opts.engine === "xai-ugc";
+  const isHeygenPhoto = opts.engine === "heygen-photo";
+  const isPhotoEngine = PHOTO_ENGINES.has(opts.engine);
 
-  if (isXaiUgc && !opts.imageUrl) {
-    throw new Error("xAI UGC engine requires a still photo. Upload a selfie or portrait.");
+  if (isPhotoEngine && !opts.imageUrl) {
+    throw new Error(
+      isXaiUgc
+        ? "xAI UGC engine requires a still photo. Upload a selfie or portrait."
+        : "HeyGen Photo engine requires a still photo. Upload a selfie or portrait.",
+    );
   }
 
   if (selfHosted && !(await hasActiveWorkerForKind("lipsync"))) {
@@ -68,7 +82,7 @@ export async function runLipsyncJob(opts: {
     .from("lipsync_jobs")
     .insert({
       user_id: opts.userId,
-      video_url: isXaiUgc ? (opts.imageUrl ?? opts.videoUrl) : opts.videoUrl,
+      video_url: isPhotoEngine ? (opts.imageUrl ?? opts.videoUrl) : opts.videoUrl,
       audio_url: opts.audioUrl,
       engine: opts.engine,
       status: "running",
@@ -137,6 +151,22 @@ export async function runLipsyncJob(opts: {
         // Pass the original still photo through too: HeyGen's real API can
         // only lip-sync from a photo (photo-avatar + audio), not re-lip an
         // already-rendered video like sync.so/wav2lip can.
+        imageUrls: [opts.imageUrl!],
+        audioUrl: opts.audioUrl,
+        userId: opts.userId,
+        refId: row.id,
+      });
+    } else if (isHeygenPhoto) {
+      // HeyGen photo-video — single stage: HeyGen animates the still photo
+      // AND lip-syncs it to the user's own uploaded audio in one call (no
+      // separate relip stage needed, unlike xai-ugc).
+      out = await orchestrate({
+        kind: "lipsync",
+        model: MODEL["heygen-photo"],
+        // Never fall back to a different lipsync engine: the user explicitly
+        // chose HeyGen Photo, and a sync-v2/wav2lip substitute can't animate
+        // a still photo the same way.
+        pinnedModelOnly: true,
         imageUrls: [opts.imageUrl!],
         audioUrl: opts.audioUrl,
         userId: opts.userId,

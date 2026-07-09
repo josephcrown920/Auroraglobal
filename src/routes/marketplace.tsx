@@ -32,6 +32,7 @@ export const Route = createFileRoute("/marketplace")({
           "Browse creator-made AI canvas templates. One tap to load, instantly charged to your Aura balance.",
       },
     ],
+    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/marketplace" }],
   }),
 });
 

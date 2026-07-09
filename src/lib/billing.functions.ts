@@ -18,7 +18,9 @@ export const getMyProfile = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const { data } = await (supabase.from("profiles") as any)
-      .select("credits, plan, lifetime_credits_purchased, email, display_name, subscription_expires_at")
+      .select(
+        "credits, plan, lifetime_credits_purchased, email, display_name, subscription_expires_at, daily_spend_limit",
+      )
       .eq("user_id", userId)
       .maybeSingle();
     const { data: rolesData } = await supabase.from("user_roles").select("role").eq("user_id", userId);
@@ -52,6 +54,7 @@ export const getMyProfile = createServerFn({ method: "GET" })
         email: null as string | null,
         display_name: null as string | null,
         subscription_expires_at: null as string | null,
+        daily_spend_limit: null as number | null,
         is_pro: false,
         subscription_status,
         isAdmin,
@@ -63,6 +66,26 @@ export const getMyProfile = createServerFn({ method: "GET" })
       subscription_status,
       isAdmin,
     };
+  });
+
+const SetDailySpendLimitSchema = z.object({
+  limit: z.number().int().positive().max(1_000_000).nullable(),
+});
+
+/** Set or clear the caller's personal daily Aura cap. Enforced for real inside
+ * the reserve_credits() RPC; this just persists the setting. `null` clears it
+ * (no limit). */
+export const setDailySpendLimit = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => SetDailySpendLimitSchema.parse(input))
+  .handler(async ({ context, data }) => {
+    const { userId } = context;
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({ daily_spend_limit: data.limit } as any)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { daily_spend_limit: data.limit };
   });
 
 /** One-time reward for finishing the onboarding vibe+selfie flow — enforced

@@ -424,6 +424,63 @@ const heygenVideoAgent: ProviderAdapter = {
   },
 };
 
+// ─── HeyGen photo-to-video (real v3 API — POST /v3/videos, type:"image") ───
+// Animates a STILL PHOTO directly from the user's own uploaded audio in one
+// call — HeyGen lip-syncs + generates the talking motion together, so unlike
+// xai-ugc there is no separate mandatory relip stage. Pinned-only: this is a
+// distinct "photo + your audio" product from the sync-v2/wav2lip "existing
+// video + audio" lipsync engines, so it must be explicitly requested by
+// model key, not silently substituted for (or substitute) another engine.
+const heygenPhotoVideo: ProviderAdapter = {
+  name: "heygen",
+  supports: (r) =>
+    r.kind === "lipsync" &&
+    r.model === "heygen/photo-video" &&
+    !!r.imageUrls?.[0] &&
+    !!r.audioUrl &&
+    !!process.env.HEYGEN_API_KEY,
+  estimateCost: () => 0.4,
+  async run(r) {
+    if (!r.imageUrls?.[0] || !r.audioUrl)
+      throw new Error("heygen photo-video: photo + audio required");
+    const key = process.env.HEYGEN_API_KEY!;
+
+    const create = await fetch("https://api.heygen.com/v3/videos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Api-Key": key },
+      body: JSON.stringify({
+        type: "image",
+        image: { type: "url", url: r.imageUrls[0] },
+        audio_url: r.audioUrl,
+      }),
+    });
+    if (!create.ok)
+      throw new Error(`HeyGen photo-video ${create.status}: ${(await create.text()).slice(0, 200)}`);
+    const cj = await create.json();
+    const videoId = cj?.data?.video_id;
+    if (!videoId) throw new Error("HeyGen photo-video returned no video_id");
+
+    const deadline = Date.now() + 10 * 60_000;
+    while (Date.now() < deadline) {
+      await new Promise((s) => setTimeout(s, 5000));
+      const st = await fetch(`https://api.heygen.com/v3/videos/${videoId}`, {
+        headers: { "X-Api-Key": key },
+      });
+      if (!st.ok) continue;
+      const sj = await st.json();
+      const status = sj?.data?.status;
+      if (status === "completed") {
+        const url = sj?.data?.video_url;
+        if (!url) throw new Error("HeyGen photo-video: no video url");
+        return { url, endpoint: "heygen:photo-video" };
+      }
+      if (status === "failed")
+        throw new Error(`HeyGen photo-video failed: ${sj?.data?.error ?? "unknown"}`);
+    }
+    throw new Error("HeyGen photo-video poll timeout");
+  },
+};
+
 // ─── Fal (LAST fallback — user prefers other providers) ──────────────────────
 const FAL_MAP: Record<string, { path: string; kind: GenerateKind; cost: number }> = {
   "fal-fallback/flux-schnell": { path: "fal-ai/flux/schnell", kind: "image", cost: 0.005 },
@@ -2254,7 +2311,7 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
     piapi,
     falFallback,
   ],
-  lipsync: [gpuWorker, sync, heygen, replicate, falFallback],
+  lipsync: [gpuWorker, sync, heygen, heygenPhotoVideo, replicate, falFallback],
   // GPU-first: a worker advertising "upscale" is tried before Replicate.
   upscale: [gpuWorker, replicate, falFallback],
   // Motion transfer (MimicMotion) has no hosted provider — GPU/ComfyUI workers only.

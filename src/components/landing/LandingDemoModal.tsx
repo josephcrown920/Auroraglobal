@@ -4,10 +4,10 @@ import { cn } from "@/lib/utils";
 
 const DEMO_CLIPS = [
   {
-    id: "neon",
-    label: "Neon Street",
-    src: "https://videos.pexels.com/video-files/3125979/3125979-hd_1080_1920_25fps.mp4",
-    poster: "",
+    id: "new-single-reel",
+    label: "New Single Announcement Reel",
+    src: "/videos/landing-demo-reel.mp4",
+    poster: "/videos/landing-demo-reel-poster.jpg",
   },
 ];
 
@@ -75,6 +75,7 @@ export function LandingDemoModal({ open, onClose }: Props) {
           <video
             ref={videoRef}
             src={clip.src}
+            poster={clip.poster}
             className="w-full h-full object-cover"
             loop
             muted

@@ -142,6 +142,7 @@ export const VIDEO_MODEL_TIERS: Record<string, ModelTier> = {
   "veo-3": "ultra", // $0.75
   "seedance-3.0": "ultra", // $0.75 (seedance-1-5-pro, ByteDance-direct only)
   "xai/grok-imagine-video-1.5": "standard", // ~$0.24 (8s @ $0.03/s)
+  "heygen/video-agent": "ultra", // $1.50 — needs the ultra pool ($2.26) to clear the retry buffer
 };
 
 export const LIPSYNC_MODEL_TIERS: Record<string, ModelTier> = {
@@ -154,6 +155,12 @@ export const LIPSYNC_MODEL_TIERS: Record<string, ModelTier> = {
   // xAI UGC (still photo → talking-head video via grok-imagine-video-1.5).
   // ~$0.30 per 10s run ($0.03/s) — premium pool (≤ $0.42) covers it with buffer.
   "xai/grok-imagine-video-1.5": "premium", // $0.30
+  // HeyGen photo-to-video (POST /v3/videos, type:"image"): animates a still
+  // photo directly from the user's OWN audio in a single call — no relip
+  // stage needed (unlike xai-ugc). HeyGen credits run richer than a plain
+  // lipsync-onto-video call, so this is priced at the same ultra tier as
+  // heygen/lipsync ($0.40) with buffer.
+  "heygen/photo-video": "ultra", // ~$0.40
 };
 
 // When a request omits the model, fall back to the tier of the model the
@@ -219,12 +226,13 @@ function resolutionApplies(feature: Feature, hasTemporalOutput: boolean): boolea
 // ─── Client-safe engine→model map for the lip-sync page ─────────────────────
 // Mirrors lipsync.server.ts MODEL record but lives here so lipsync.tsx can call
 // computeCost without importing a .server.ts file.
-export type LipsyncEngine = "sync-v2" | "wav2lip" | "latentsync" | "xai-ugc";
+export type LipsyncEngine = "sync-v2" | "wav2lip" | "latentsync" | "xai-ugc" | "heygen-photo";
 export const LIPSYNC_ENGINE_MODEL: Record<LipsyncEngine, string> = {
   "sync-v2": "fal-ai/sync-lipsync/v2",
   "wav2lip": "fal-ai/wav2lip",
   "latentsync": "latentsync",
   "xai-ugc": "xai/grok-imagine-video-1.5",
+  "heygen-photo": "heygen/photo-video",
 };
 
 /**

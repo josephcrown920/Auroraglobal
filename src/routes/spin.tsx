@@ -32,6 +32,7 @@ export const Route = createFileRoute("/spin")({
       { title: `Spin 1 → ${SPIN_COUNT} · Aurora` },
       { name: "description", content: `Turn one prompt into ${SPIN_COUNT} scroll-stopping, high-variation posts — same face, endless looks.` },
     ],
+    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/spin" }],
   }),
 });
 
