@@ -96,6 +96,15 @@ const RETRY_BACKOFF_MAX_DOUBLINGS = 6; // base * 2^6 = 32m → clamped by the ca
 // against the (rare) chance of a duplicate provider call.
 export const STALE_PROCESSING_SECONDS = 15 * 60; // 15m
 
+// Motion Transfer (30 Aura) and Performance Shot (48 Aura) reserve a much
+// bigger charge than most job kinds. Waiting out the full 15-minute global
+// stale-processing window before releasing that reservation is a real cost to
+// a user whose job never reached a worker (queue full / worker dropped it
+// pre-ACK). Sweep just these kinds on a tighter window, ahead of the global
+// sweep, without shortening the safe window for slower-but-healthy job kinds.
+export const HIGH_VALUE_STALE_KINDS = ["motion", "performance_reskin"] as const;
+export const HIGH_VALUE_STALE_PROCESSING_SECONDS = 3 * 60; // 3m
+
 // Clearly-terminal failures: retrying will never help, so stop immediately and
 // release the reservation rather than burning credits. Everything else (network
 // blips, 429/5xx, timeouts, and unknown errors) is treated as transient and kept
@@ -1301,6 +1310,20 @@ export async function sweepStaleProcessingJobs(
   maxAgeSeconds: number = STALE_PROCESSING_SECONDS,
 ): Promise<{ reset: number }> {
   const out = await rpc<number | null>("reset_stale_processing_jobs", {
+    _max_age_seconds: maxAgeSeconds,
+    _backoff_seconds: 15,
+  });
+  return { reset: typeof out === "number" ? out : 0 };
+}
+
+// Tighter companion sweep for HIGH_VALUE_STALE_KINDS — call before the global
+// sweep so a stuck motion/performance-shot job's reservation is freed in
+// minutes, not up to 15, without touching every other job kind's window.
+export async function sweepHighValueStaleProcessingJobs(
+  maxAgeSeconds: number = HIGH_VALUE_STALE_PROCESSING_SECONDS,
+): Promise<{ reset: number }> {
+  const out = await rpc<number | null>("reset_stale_processing_jobs_for_kinds", {
+    _kinds: [...HIGH_VALUE_STALE_KINDS],
     _max_age_seconds: maxAgeSeconds,
     _backoff_seconds: 15,
   });

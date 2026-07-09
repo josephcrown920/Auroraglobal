@@ -409,12 +409,16 @@ export function getModelMeta(value?: string | null): ModelMeta {
   };
 }
 
-export function resolveImageEndpoint(value: string): { endpoint: string; provider: "lovable" | "replicate" | "huggingface" } {
+export function resolveImageEndpoint(value: string): {
+  endpoint: string;
+  provider: "lovable" | "replicate" | "huggingface" | "replit";
+} {
   const m = ALL[value];
   if (m && m.category === "image") {
     const provider =
       m.group === "Lovable AI" ? "lovable" :
-      m.group === "Hugging Face" ? "huggingface" : "replicate";
+      m.group === "Hugging Face" ? "huggingface" :
+      m.group === "Replit" ? "replit" : "replicate";
     return { endpoint: m.endpoint, provider };
   }
   return { endpoint: "google/gemini-2.5-flash-image", provider: "lovable" };

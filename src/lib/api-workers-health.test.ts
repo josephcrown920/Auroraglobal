@@ -8,13 +8,18 @@ const checkCalls: unknown[] = [];
 mock.module("@/integrations/supabase/client.server", () => ({
   supabaseAdmin: { marker: "fake-admin" },
 }));
+// Preserve every real export (normalizeWorkerBase etc.) — mock.module is
+// process-global in bun, so a partial stub would leak into sibling suites
+// (register.test imports normalizeWorkerBase through the register route).
+const realGpuWorkerHealth = await import("@/lib/gpu-worker-health");
 mock.module("@/lib/gpu-worker-health", () => ({
+  ...realGpuWorkerHealth,
   checkGPUWorkerHealth: mock(async (admin: unknown) => {
     checkCalls.push(admin);
   }),
 }));
 
-const { Route } = await import("./health");
+const { Route } = await import("@/routes/api/public/workers/health");
 
 function req(headers: Record<string, string> = {}): Request {
   return new Request("https://example.test/api/public/workers/health", {

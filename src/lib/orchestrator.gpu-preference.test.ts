@@ -44,7 +44,12 @@ const supabaseStub = {
     if (table === "gpu_workers") return makeQuery(workersQueryResult);
     return makeQuery({ data: [], error: null, count: 0 });
   },
-  rpc: async () => ({ data: null, error: null }),
+  // gpu_worker_inflight_inc must return a number: the dispatch loop treats a
+  // NULL result as "worker already full" and skips the candidate entirely.
+  rpc: async (fn: string) => ({
+    data: fn === "gpu_worker_inflight_inc" ? 1 : null,
+    error: null,
+  }),
   storage: {
     from: () => ({
       createSignedUrl: async () => ({

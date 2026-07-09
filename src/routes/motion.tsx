@@ -985,7 +985,7 @@ function MotionStudio() {
                     {CAMERA_MOVES.map((c) => <SelectItem key={c.v} value={c.v}>{c.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <p className="text-[11px] text-muted-foreground">Camera move is injected into the prompt — effect strength depends on the video model.</p>
+                <p className="text-[11px] text-muted-foreground">Camera move is injected into the prompt — included at no extra Aura; effect strength depends on the video model.</p>
               </div>
 
               <div className="space-y-2">
@@ -1019,6 +1019,23 @@ function MotionStudio() {
               <div className="grid grid-cols-2 gap-2">
                 {stepBadge("1. Stage pose (image)", imgState as "idle" | "running" | "ok" | "error", imageError)}
                 {stepBadge("2. Animate (video)", vidState as "idle" | "running" | "ok" | "error", videoError)}
+              </div>
+
+              {/* Exact next-click charge — mirrors the server's computeCost call so the
+                  shown price can never drift from what Animate actually deducts. */}
+              <div className="rounded-xl border border-border bg-card/40 px-3 py-2 text-xs text-muted-foreground">
+                <div className="flex items-center justify-between gap-2">
+                  <span>Animate will charge</span>
+                  <span className="font-semibold text-foreground">
+                    {animatePreviewId ? animateCost : animatePreviewCost} Aura
+                  </span>
+                </div>
+                <p className="mt-0.5">
+                  {animatePreviewId
+                    ? `Full-quality ${videoResolution === "2160p" ? "4K" : videoResolution} render · 5s video`
+                    : "480p preview · 5s video"}
+                  {" "}· pose preset & camera move included free
+                </p>
               </div>
 
               <div className="flex gap-2">
