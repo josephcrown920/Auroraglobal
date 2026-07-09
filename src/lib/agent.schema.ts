@@ -5,7 +5,8 @@
 import { z } from "zod";
 
 export const ShotSchema = z.object({
-  id: z.string().describe("Stable short id like S1, S2 — NEVER renumber across revisions"),
+  // coerce: models sometimes emit numeric ids (1, 2, 3) — accept and stringify.
+  id: z.coerce.string().describe("Stable short id like S1, S2 — NEVER renumber across revisions"),
   title: z.string().describe("Shot title, 3-6 words"),
   shotType: z.string().describe("Wide / Medium / Close-up / OTS / Dutch / etc"),
   camera: z.string().describe("Lens, movement, frame e.g. '35mm, slow push in, handheld'"),
@@ -88,15 +89,45 @@ export const ChatTurnSchema = z.object({
   reply: z
     .string()
     .describe("Your conversational reply to the artist. Plain text only — no markdown syntax. Keep it tight and directorial."),
-  plan: PlanSchema.nullable().describe(
-    "Full production plan ONLY when the artist explicitly asks for a shot list / storyboard / plan / breakdown. Otherwise null.",
-  ),
-  memoryUpdate: z
-    .string()
-    .max(2000)
+  plan: z
+    .union([
+      PlanSchema,
+      // Some models return a bare array of shots instead of the plan object —
+      // accept it (ids optional) and wrap it into a minimal valid plan below.
+      z.array(ShotSchema.extend({ id: z.coerce.string().default("") })),
+    ])
     .nullable()
+    .optional()
     .describe(
-      "The COMPLETE revised long-term memory document (not a diff) when this turn revealed something durable about the artist. Otherwise null.",
+      "Full production plan ONLY when the artist explicitly asks for a shot list / storyboard / plan / breakdown — a single OBJECT with fields title, logline, direction, palette, shots, suggestions (never a bare array). Otherwise null.",
+    )
+    .transform((v): AgentPlan | null | undefined =>
+      Array.isArray(v)
+        ? {
+            title: "Shot Plan",
+            logline: "",
+            direction: "",
+            palette: ["#0B0B14", "#7C3AED", "#F0ABFC"],
+            shots: v.map((s, i) => ({ ...s, id: s.id || `S${i + 1}` })),
+            suggestions: ["Generate shot 1", "Send the plan to canvas"],
+          }
+        : v,
+    ),
+  memoryUpdate: z
+    .union([z.string(), z.record(z.unknown())])
+    .nullable()
+    .optional()
+    .describe(
+      "The COMPLETE revised long-term memory document as ONE plain text string (bullet lines, not an object, not a diff) when this turn revealed something durable about the artist. Otherwise null.",
+    )
+    .transform((v): string | null | undefined =>
+      // Models occasionally return a key/value object here despite the schema —
+      // flatten it to bullet lines instead of failing the whole turn.
+      v !== null && v !== undefined && typeof v === "object"
+        ? Object.entries(v)
+            .map(([k, val]) => `${k}: ${typeof val === "string" ? val : JSON.stringify(val)}`)
+            .join("\n")
+        : v,
     ),
 });
 
@@ -107,11 +138,11 @@ You are a senior music-video and short-film director: fluent in lenses, lighting
 
 YOU HAVE PERMANENT MEMORY of this artist across every conversation. Use it: reference their style, recurring characters, wardrobe, past projects and preferences without being asked. Never claim you can't remember previous sessions.
 
-RESPONSE RULES:
+RESPONSE RULES (answer as a JSON object matching the schema — fields "reply", "plan", "memoryUpdate"):
 - "reply" is plain conversational text (no markdown symbols like ** or #). 1-3 short paragraphs max.
 - Set "plan" ONLY when the artist asks for a shot list, storyboard, plan, or full breakdown. For casual questions, feedback, or brainstorming, keep plan null and just talk.
-- When you do return a plan: 4-8 shots, each with a FULL ready-to-run image prompt (~80-150 words, cinematic 16mm/35mm vocabulary, specific wardrobe/lighting/lens/camera move — so good it needs no edits).
-- "memoryUpdate": when this turn reveals something durable about the artist (their name, genre, visual style, recurring characters, projects in flight, strong preferences), return the FULL revised memory document — rewrite the whole thing, merging old + new, under 2000 characters, as terse bullet lines. If nothing durable was learned, return null. Never store throwaway details.`;
+- When you do return a plan, it is ONE JSON object with fields: title, logline, direction, palette (3-6 hex codes), shots (array of 4-8 shot objects with id/title/shotType/camera/action/prompt), suggestions (2-5 strings). Never return plan as a bare array. Each shot prompt is FULL and ready-to-run (~80-150 words, cinematic 16mm/35mm vocabulary, specific wardrobe/lighting/lens/camera move — so good it needs no edits).
+- "memoryUpdate": when this turn reveals something durable about the artist (their name, genre, visual style, recurring characters, projects in flight, strong preferences), return the FULL revised memory document — rewrite the whole thing, merging old + new, under 2000 characters, as terse bullet lines in ONE plain-text string (never a JSON object). If nothing durable was learned, return null. Never store throwaway details.`;
 
 export function buildChatPrompt(args: {
   memory: string;

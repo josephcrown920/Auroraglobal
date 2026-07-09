@@ -92,7 +92,9 @@ export type FallbackResult<T> = { provider: string; output: T };
 export async function generateWithFallback<T>(args: {
   system: string;
   prompt: string;
-  schema: z.ZodType<T>;
+  // Input type is deliberately loose so schemas with .transform() infer T from
+  // their OUTPUT type rather than their raw wire shape.
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>;
 }): Promise<FallbackResult<T>> {
   const chain = providers().filter((p) => p.enabled);
   if (chain.length === 0) throw new Error("No LLM provider keys configured");

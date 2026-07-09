@@ -76,3 +76,4 @@
 - [Register-secret 401 fingerprint diagnosis](register-secret-fingerprint-diagnosis.md) — compare one-way SHA-256 fingerprints (never raw secret) to diagnose AURORA_REGISTER_SECRET value mismatches between worker and Aurora env.
 - [Pre-existing orchestrator worker-routing test failures](orchestrator-gpu-preference-test-failures.md) — 10 tests across gpu-preference/free-mode/selfhosted-integration fail on a clean checkout (worker pool never dispatched); green baseline = all pass except these.
 - [TanStack validateSearch optional types](tanstack-validatesearch-optional.md) — adding validateSearch to an existing route needs an explicit all-optional return annotation, or every `<Link>` to it fails TS2741.
+- [LLM structured-output tolerance](llm-structured-output-tolerance.md) — json_object mode does not enforce schemas; prompt must say "JSON", use union+transform (not preprocess) for model drift, ZodType<T,Def,unknown> for transformed schemas.

@@ -256,7 +256,7 @@ export const chatWithAuroraAgent = createServerFn({ method: "POST" })
     if (turn.memoryUpdate && turn.memoryUpdate.trim()) {
       const { error: memErr } = await context.supabase.from("agent_user_memory").upsert({
         user_id: context.userId,
-        memory: turn.memoryUpdate.trim(),
+        memory: turn.memoryUpdate.trim().slice(0, 2000),
         updated_at: new Date().toISOString(),
       });
       if (memErr) throw new Error(memErr.message);
@@ -277,7 +277,9 @@ export const listAgentChat = createServerFn({ method: "GET" })
         .from("agent_chat_messages")
         .select("id, role, content, plan, created_at")
         .eq("user_id", context.userId)
-        .order("created_at", { ascending: true })
+        // Newest 200, then reversed to chronological — ascending+limit would
+        // pin the window to the OLDEST rows once history exceeds the cap.
+        .order("created_at", { ascending: false })
         .limit(200),
       context.supabase
         .from("agent_user_memory")
@@ -287,13 +289,16 @@ export const listAgentChat = createServerFn({ method: "GET" })
     ]);
     if (error) throw new Error(error.message);
     return {
-      messages: (msgs ?? []).map((m) => ({
-        id: m.id,
-        role: (m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
-        content: m.content,
-        plan: (m.plan as unknown as AgentPlan | null) ?? null,
-        created_at: m.created_at,
-      })) satisfies AgentChatMessage[],
+      messages: (msgs ?? [])
+        .slice()
+        .reverse()
+        .map((m) => ({
+          id: m.id,
+          role: (m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
+          content: m.content,
+          plan: (m.plan as unknown as AgentPlan | null) ?? null,
+          created_at: m.created_at,
+        })) satisfies AgentChatMessage[],
       hasMemory: !!memRow?.memory?.trim(),
       memory: memRow?.memory ?? "",
     };
