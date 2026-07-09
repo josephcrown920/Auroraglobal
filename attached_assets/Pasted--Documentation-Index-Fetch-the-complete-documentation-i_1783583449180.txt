@@ -1,0 +1,168 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://heygen-1fa696a7.mintlify.site/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# Video Agent Styles
+
+> Apply curated visual styles to HeyGen Video Agent outputs. Choose cinematic looks, brand presets, or custom style references to control the agent's video.
+
+## Steps
+
+<Steps>
+  <Step title="Browse available styles">
+    List all visual styles to find one that fits:
+
+    ```bash theme={null}
+    heygen video-agent styles list
+    ```
+
+    ```json theme={null}
+    {
+      "data": [
+        {
+          "style_id": "349d91e1ad2444eabab2672a9057f298",
+          "name": "Thriller",
+          "aspect_ratio": "16:9",
+          "tags": ["cinematic"]
+        },
+        {
+          "style_id": "be9f5b18fb294c99a0e34c15707145fc",
+          "name": "Lego",
+          "aspect_ratio": "16:9",
+          "tags": ["handmade"]
+        },
+        {
+          "style_id": "13898c3b01ec4dafae5fc17753c7dd7a",
+          "name": "iOS",
+          "aspect_ratio": "9:16",
+          "tags": ["retro-tech"]
+        }
+      ]
+    }
+    ```
+
+    Each style has an `aspect_ratio` — some are landscape (`16:9`), others portrait (`9:16`). Use `--human` for a readable table view.
+
+    <Note>
+      Each style includes a `preview_video_url` and `thumbnail_url` — open them to preview the visual treatment before choosing.
+    </Note>
+  </Step>
+
+  <Step title="Generate a styled video">
+    Pass the `style_id` along with your prompt:
+
+    ```bash theme={null}
+    heygen video-agent create \
+      --prompt "A 30-second explainer about how AI is transforming video production" \
+      --style-id "349d91e1ad2444eabab2672a9057f298"
+    ```
+
+    ```json theme={null}
+    {
+      "data": {
+        "session_id": "sess_abc123",
+        "status": "generating",
+        "video_id": "vid_xyz789",
+        "created_at": 1711288320
+      }
+    }
+    ```
+
+    The agent picks the avatar, voice, and layout. The style controls the visual treatment.
+
+    To override the agent's choices, pass additional flags:
+
+    ```bash theme={null}
+    heygen video-agent create \
+      --prompt "A product launch announcement" \
+      --style-id "349d91e1ad2444eabab2672a9057f298" \
+      --avatar-id "avt_angela_01" \
+      --voice-id "1bd001e7e50f421d891986aad5e3e5d2" \
+      --orientation landscape
+    ```
+  </Step>
+
+  <Step title="Wait and download">
+    ```bash theme={null}
+    # Block until ready
+    heygen video-agent create \
+      --prompt "A quick intro to our company" \
+      --style-id "be9f5b18fb294c99a0e34c15707145fc" \
+      --wait
+
+    # Or poll manually
+    heygen video get vid_xyz789
+
+    # Download
+    heygen video download vid_xyz789 --output-path ./styled-video.mp4
+    ```
+  </Step>
+</Steps>
+
+## Batch: same content, multiple styles
+
+Generate the same prompt across different visual styles:
+
+```bash theme={null}
+#!/bin/bash
+set -e
+
+PROMPT="A 30-second pitch for an AI-powered design tool"
+
+STYLES=(
+  "349d91e1ad2444eabab2672a9057f298:Thriller"
+  "be9f5b18fb294c99a0e34c15707145fc:Lego"
+  "279082e3beda4ac5a4e9a4f2a36c7d74:Silent-Film"
+)
+
+for entry in "${STYLES[@]}"; do
+  STYLE_ID="${entry%%:*}"
+  STYLE_NAME="${entry##*:}"
+
+  echo "Generating $STYLE_NAME..."
+  VIDEO_ID=$(heygen video-agent create \
+    --prompt "$PROMPT" \
+    --style-id "$STYLE_ID" \
+    | jq -r '.data.video_id')
+
+  echo "  Video ID: $VIDEO_ID (generating...)"
+done
+
+echo "All videos submitted. Poll with: heygen video get <video-id>"
+```
+
+## Interactive sessions for iteration
+
+Review and refine before generating:
+
+```bash theme={null}
+# Start a session
+SESSION=$(heygen video-agent sessions create \
+  --prompt "A product demo video in Lego style" \
+  --style-id "be9f5b18fb294c99a0e34c15707145fc" \
+  | jq -r '.data.session_id')
+
+# Check the storyboard
+heygen video-agent sessions get "$SESSION"
+
+# Send feedback
+heygen video-agent sessions messages create "$SESSION" \
+  -d '{"message": "Make the intro more energetic and add a CTA at the end"}'
+
+# Stop if you want to start over
+heygen video-agent sessions stop "$SESSION"
+```
+
+## Available flags
+
+| Flag               | Description                                     |
+| ------------------ | ----------------------------------------------- |
+| `--prompt`         | Text prompt describing the video **(required)** |
+| `--style-id`       | Visual style from `styles list`                 |
+| `--avatar-id`      | Override the agent's avatar choice              |
+| `--voice-id`       | Override the agent's voice choice               |
+| `--orientation`    | `landscape` or `portrait`                       |
+| `--incognito-mode` | Disable memory for this session                 |
+| `--callback-url`   | Webhook URL for completion notifications        |
+| `--wait`           | Block until ready (default timeout: 20 min)     |
+| `--timeout`        | Override wait timeout (e.g. `--timeout 30m`)    |
