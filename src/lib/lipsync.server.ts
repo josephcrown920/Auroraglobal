@@ -134,6 +134,10 @@ export async function runLipsyncJob(opts: {
         kind: "lipsync",
         model: XAI_UGC_RELIP_MODEL,
         videoUrl: xaiClip.url,
+        // Pass the original still photo through too: HeyGen's real API can
+        // only lip-sync from a photo (photo-avatar + audio), not re-lip an
+        // already-rendered video like sync.so/wav2lip can.
+        imageUrls: [opts.imageUrl!],
         audioUrl: opts.audioUrl,
         userId: opts.userId,
         refId: row.id,
