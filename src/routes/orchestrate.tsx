@@ -83,6 +83,7 @@ const MODELS: Record<Modality, ModelOption[]> = {
   ],
   video: [
     { key: "auto", label: "Auto · best available" },
+    { key: "xai/grok-imagine-video-1.5", label: "xAI · Grok Imagine" },
     { key: "seedance-2.0-fast", label: "Replicate · Seedance Lite" },
     { key: "kling-3.0", label: "Replicate · Kling v2.1" },
     { key: "piapi/kling-video", label: "PiAPI · Kling" },

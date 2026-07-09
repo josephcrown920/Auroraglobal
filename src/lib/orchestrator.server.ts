@@ -2359,6 +2359,7 @@ export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   // in automatic model-fallback and provider-health routing (Task #244) —
   // previously it only worked when explicitly requested by value.
   video: [
+    "xai/grok-imagine-video-1.5",
     "seedance-2.0-fast",
     "seedance-2.0",
     "wan-2.5",
@@ -2403,7 +2404,7 @@ const FALLBACK_CAP: Record<GenerateKind, number> = {
   // requested model isn't already one of the 6 (Free-GPU-only mode relies
   // on reaching it).
   image: 7,
-  video: 2,
+  video: 3,
   lipsync: 2,
   upscale: 1,
   motion: 1,
