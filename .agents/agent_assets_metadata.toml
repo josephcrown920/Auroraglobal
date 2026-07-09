@@ -275,3 +275,9 @@ id = "hj6aIWrHLarzCZyOV25rb"
 uri = "file://aurora_worker_kaggle.tar.gz"
 type = "unspecified"
 title = "Aurora Kaggle Worker Notebook (.ipynb)"
+
+[[outputs]]
+id = "7G7HGnStlC3DX9OkbUaor"
+uri = "file://attached_assets/generated/heygen-video-agent-test.mp4"
+type = "video"
+title = "HeyGen Video Agent test — \"AI Music Video App Launch Intro\""
