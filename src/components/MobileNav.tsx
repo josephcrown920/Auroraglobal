@@ -50,22 +50,33 @@ type Feature = {
   badge?: string;
 };
 
-const LIVE_FEATURES: Feature[] = [
+// Grouped (not one flat 14-item list) and ordered within each group by real
+// page-visit demand, so the most-used tools surface first. See
+// .agents/memory for the underlying visit-count analysis.
+const CREATE_FEATURES: Feature[] = [
   { to: "/studio",      label: "Image Generation", icon: Sparkles },
-  { to: "/photo-edit",  label: "Photo Editor",      icon: Brush },
-  { to: "/orchestrate", label: "Video Generation",  icon: Film },
-  { to: "/agent",       label: "Video Agent",       icon: Bot },
-  { to: "/ugc",         label: "UGC Ads",           icon: Megaphone },
-  { to: "/spin",        label: "Spin · 30 Posts",   icon: Flame },
-  { to: "/colors",      label: "Colors Studio",     icon: Palette },
-  { to: "/motion",      label: "Perform Anywhere",  icon: Wand2 },
-  { to: "/lipsync",     label: "Lip Sync",          icon: Mic },
+  { to: "/editor",      label: "Playground",        icon: Code2 },
   { to: "/canvas",      label: "Canvas",            icon: Workflow },
+  { to: "/orchestrate", label: "Video Generation",  icon: Film },
+  { to: "/photo-edit",  label: "Photo Editor",      icon: Brush },
+  { to: "/agent",       label: "Video Agent",       icon: Bot },
+];
+
+const TEMPLATE_FEATURES: Feature[] = [
+  { to: "/lipsync",     label: "Lip Sync",          icon: Mic },
+  { to: "/spin",        label: "Spin · 30 Posts",   icon: Flame },
+  { to: "/ugc",         label: "UGC Ads",           icon: Megaphone },
+  { to: "/motion",      label: "Perform Anywhere",  icon: Wand2 },
+  { to: "/colors",      label: "Colors Studio",     icon: Palette },
   { to: "/music-video", label: "Lyric Video",       icon: Clapperboard },
+];
+
+const GROW_FEATURES: Feature[] = [
   { to: "/growth",      label: "Growth Tools",      icon: Sprout },
   { to: "/guides",      label: "Viral Guides",      icon: BookOpen },
-  { to: "/editor",      label: "Playground",        icon: Code2 },
 ];
+
+const LIVE_FEATURES: Feature[] = [...CREATE_FEATURES, ...TEMPLATE_FEATURES, ...GROW_FEATURES];
 
 const UTILITY_FEATURES: Feature[] = [
   { to: "/dashboard",          label: "Dashboard",       icon: LayoutDashboard },
@@ -284,9 +295,33 @@ export function MobileNav() {
           {/* ── Nav body ────────────────────────────────────────────────── */}
           <nav aria-label="All features" className="relative flex flex-1 flex-col gap-3 overflow-y-auto p-3 pb-4">
 
-            {/* Live section */}
-            <NavSection label="Live now">
-              {LIVE_FEATURES.map((f) => (
+            {/* Create — core generation tools, highest-traffic first */}
+            <NavSection label="Create">
+              {CREATE_FEATURES.map((f) => (
+                <LiveNavItem
+                  key={f.to}
+                  f={f}
+                  active={isActive(pathname, f.to)}
+                  onClick={() => setOpen(false)}
+                />
+              ))}
+            </NavSection>
+
+            {/* Templates & Trends — one-tap, styled formats */}
+            <NavSection label="Templates & trends">
+              {TEMPLATE_FEATURES.map((f) => (
+                <LiveNavItem
+                  key={f.to}
+                  f={f}
+                  active={isActive(pathname, f.to)}
+                  onClick={() => setOpen(false)}
+                />
+              ))}
+            </NavSection>
+
+            {/* Grow */}
+            <NavSection label="Grow">
+              {GROW_FEATURES.map((f) => (
                 <LiveNavItem
                   key={f.to}
                   f={f}
