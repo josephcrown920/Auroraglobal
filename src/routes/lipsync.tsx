@@ -7,7 +7,7 @@ import { Mic2, ArrowRight, Upload, Music2, Wand2, Download, Loader2, Play, Pause
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { startLipsync } from "@/lib/lipsync.functions";
+import { startLipsync, startBatchLipsync } from "@/lib/lipsync.functions";
 import { friendlyGenerationMessage, handleGenerationError } from "@/lib/error-toasts";
 import { GenerationProgress } from "@/components/ui/GenerationProgress";
 import { GenerationErrorCard } from "@/components/ui/GenerationErrorCard";
@@ -82,7 +82,7 @@ function LipSyncStudioPage() {
         </div>
       </section>
 
-      <LipSyncForm />
+      <LipSyncModeSwitcher />
 
       <section className="relative z-10 px-6 md:px-12 pb-12">
         <div className="max-w-5xl mx-auto flex flex-wrap gap-3">
@@ -105,6 +105,33 @@ function LipSyncStudioPage() {
         <LipSyncDemo />
       </div>
     </div>
+  );
+}
+
+function LipSyncModeSwitcher() {
+  const [mode, setMode] = useState<"single" | "batch">("single");
+  return (
+    <>
+      <section className="relative z-10 px-6 md:px-12">
+        <div className="max-w-5xl mx-auto flex items-center gap-2 rounded-2xl aurora-glass p-1 w-fit">
+          {([
+            { id: "single", label: "Single render" },
+            { id: "batch", label: "Batch Lip Sync" },
+          ] as const).map((o) => (
+            <button
+              key={o.id}
+              onClick={() => setMode(o.id)}
+              className={`rounded-xl px-4 py-2 text-sm font-medium transition-all ${
+                mode === o.id ? "bg-[image:var(--gradient-hero)] text-white shadow-[var(--shadow-glow-soft)]" : "text-white/70 hover:text-white"
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </section>
+      {mode === "single" ? <LipSyncForm /> : <BatchLipSyncForm />}
+    </>
   );
 }
 
@@ -632,6 +659,263 @@ function LipSyncForm() {
                 : engine === "xai-ugc" ? "xAI grok-imagine-video-1.5 (UGC)"
                 : "LatentSync (self-hosted)"}.
             </p>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+type BatchItemResult = {
+  sourceUrl: string;
+  id: string | null;
+  status: "done" | "error" | string;
+  resultUrl?: string;
+  error?: string;
+};
+
+function BatchLipSyncForm() {
+  const { user } = useAuth();
+  const runBatch = useServerFn(startBatchLipsync);
+
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const [audio, setAudio] = useState<File | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [engine, setEngine] = useState<Engine>("heygen-photo");
+  const [likelyConsent, setLikelyConsent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [results, setResults] = useState<BatchItemResult[] | null>(null);
+
+  const isPhotoEngine = engine === "xai-ugc" || engine === "heygen-photo";
+  const engineCost = useMemo(() => lipsyncEngineCost(engine), [engine]);
+  const totalCost = engineCost * photos.length;
+
+  useEffect(() => {
+    return () => {
+      previews.forEach((u) => URL.revokeObjectURL(u));
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+    };
+  }, [previews, audioUrl]);
+
+  const addPhotos = (files: FileList | null) => {
+    if (!files) return;
+    const valid = Array.from(files).filter((f) => f.type.startsWith("image/") && f.size <= 20 * 1024 * 1024);
+    if (!valid.length) return toast.error("Please add JPG/PNG/WebP photos under 20MB each");
+    setPhotos((prev) => {
+      const next = [...prev, ...valid].slice(0, 8);
+      setPreviews(next.map((f) => URL.createObjectURL(f)));
+      return next;
+    });
+    setResults(null);
+  };
+
+  const removePhoto = (idx: number) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== idx));
+    setPreviews((prev) => {
+      URL.revokeObjectURL(prev[idx]);
+      return prev.filter((_, i) => i !== idx);
+    });
+  };
+
+  const onAudio = (f: File | null) => {
+    if (!f) return;
+    if (f.size > 50 * 1024 * 1024) return toast.error("Audio must be under 50MB");
+    setAudio(f);
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    setAudioUrl(URL.createObjectURL(f));
+    setResults(null);
+  };
+
+  const uploadOne = async (file: File, kind: "audio" | "image"): Promise<string> => {
+    const ext = file.name.split(".").pop() || (kind === "audio" ? "mp3" : "jpg");
+    const path = `${user!.id}/lipsync/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${kind}.${ext}`;
+    const { error } = await supabase.storage.from("studio").upload(path, file, {
+      contentType: file.type,
+      upsert: true,
+    });
+    if (error) throw new Error(`${kind} upload failed: ${error.message}`);
+    const { data: signed, error: signErr } = await supabase.storage
+      .from("studio")
+      .createSignedUrl(path, 60 * 60);
+    if (signErr || !signed?.signedUrl) throw new Error(`${kind} URL failed: ${signErr?.message ?? "no url"}`);
+    return signed.signedUrl;
+  };
+
+  const run = async () => {
+    if (!user) return toast.error("Sign in to run batch lip sync");
+    if (photos.length < 2) return toast.error("Add at least 2 photos for a batch");
+    if (!audio) return toast.error("Upload a shared vocal track");
+    if (!likelyConsent) return toast.error("Please confirm you have the rights to use this voice and likeness before generating");
+
+    setBusy(true);
+    setResults(null);
+    try {
+      const sourceUrls = await Promise.all(photos.map((f) => uploadOne(f, "image")));
+      const aUrl = await uploadOne(audio, "audio");
+      const res = await runBatch({ data: { sourceUrls, audioUrl: aUrl, engine } });
+      setResults(res.results as BatchItemResult[]);
+      if (res.succeeded > 0) markFirstGenComplete();
+      if (res.failed === 0) toast.success(`All ${res.succeeded} videos rendered.`);
+      else toast.warning(`${res.succeeded} rendered, ${res.failed} failed.`);
+    } catch (e) {
+      handleGenerationError(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="relative z-10 px-6 md:px-12 pb-12">
+      <div className="max-w-5xl mx-auto rounded-3xl aurora-glass p-6 md:p-8 animate-fade-in">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="aurora-kicker">Batch Lip Sync</p>
+            <h2 className="text-xl md:text-2xl font-semibold mt-1">N photos, one audio, N videos</h2>
+            <p className="mt-1 text-xs text-white/60">Upload up to 8 photos and one shared vocal track — Aurora renders a lip-synced video for each photo.</p>
+          </div>
+          {(photos.length > 0 || audio) && (
+            <button
+              onClick={() => { setPhotos([]); previews.forEach((u) => URL.revokeObjectURL(u)); setPreviews([]); if (audioUrl) URL.revokeObjectURL(audioUrl); setAudio(null); setAudioUrl(null); setResults(null); }}
+              className="text-xs text-white/60 hover:text-white inline-flex items-center gap-1"
+            >
+              <X className="size-3" /> Reset
+            </button>
+          )}
+        </div>
+
+        {!user && (
+          <div className="mb-5 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs text-amber-100">
+            You need to <Link to="/auth" className="underline font-semibold">sign in</Link> to upload photos and run a batch.
+          </div>
+        )}
+
+        <label
+          className="relative block rounded-2xl border-2 border-dashed border-white/15 bg-white/5 hover:bg-white/10 p-4 cursor-pointer transition-colors"
+        >
+          <input type="file" accept="image/*" multiple className="sr-only" onChange={(e) => addPhotos(e.target.files)} />
+          <div className="flex items-center gap-2">
+            <ImageIcon className="size-4 text-primary" />
+            <p className="text-sm font-semibold">Photos ({photos.length}/8)</p>
+          </div>
+          <p className="text-[11px] text-white/50 mt-0.5">JPG / PNG / WebP · up to 20MB each · min 2, max 8</p>
+        </label>
+
+        {previews.length > 0 && (
+          <div className="mt-3 grid grid-cols-4 md:grid-cols-8 gap-2">
+            {previews.map((url, i) => (
+              <div key={url} className="relative aspect-square rounded-lg overflow-hidden bg-black/40 group">
+                <img src={url} alt={`photo ${i + 1}`} className="w-full h-full object-cover" />
+                <button
+                  onClick={() => removePhoto(i)}
+                  className="absolute top-1 right-1 size-5 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  aria-label="Remove photo"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-4">
+          <DropSlot
+            label="Shared vocal track"
+            hint="Any audio · up to 50MB · applied to every photo"
+            icon={Music2}
+            accept={AUDIO_ACCEPT}
+            file={audio}
+            onFile={onAudio}
+            previewUrl={audioUrl}
+            kind="audio"
+          />
+        </div>
+
+        <div className="mt-4">
+          <p className="aurora-kicker mb-2">Engine</p>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 rounded-2xl aurora-glass p-1">
+            {([
+              { id: "heygen-photo", label: "HeyGen Photo" },
+              { id: "xai-ugc", label: "xAI UGC" },
+              { id: "sync-v2", label: "Studio" },
+              { id: "wav2lip", label: "Fast" },
+              { id: "latentsync", label: "Self-hosted" },
+            ] as const).map((o) => (
+              <button
+                key={o.id}
+                onClick={() => setEngine(o.id)}
+                disabled={busy}
+                className={`rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+                  engine === o.id ? "bg-[image:var(--gradient-hero)] text-white shadow-[var(--shadow-glow-soft)]" : "text-white/70 hover:text-white"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-[11px] text-white/40">
+            {isPhotoEngine
+              ? "Each photo is used directly as the source still for this engine."
+              : "Non-photo engines treat each photo as a single-frame source clip."}
+          </p>
+        </div>
+
+        <label className="mt-5 flex items-start gap-3 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={likelyConsent}
+            onChange={(e) => setLikelyConsent(e.target.checked)}
+            className="mt-0.5 size-4 accent-[var(--color-primary)] flex-shrink-0"
+          />
+          <span className="text-xs text-white/70 leading-relaxed">
+            I confirm I have the legal right to use this voice and likeness for every photo in this batch.{" "}
+            <Link to="/legal/$slug" params={{ slug: "ai-policy" }} className="underline text-white/60 hover:text-white" target="_blank">
+              AI &amp; Content Policy
+            </Link>
+          </span>
+        </label>
+
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <button
+            onClick={() => void run()}
+            disabled={photos.length < 2 || !audio || busy || !user || !likelyConsent}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-[image:var(--gradient-hero)] text-white shadow-[var(--shadow-glow-soft)] px-6 py-3 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover-scale"
+          >
+            {busy ? (
+              <><Loader2 className="size-4 animate-spin" /> Rendering {photos.length} videos…</>
+            ) : (
+              <><Wand2 className="size-4" /> Run batch ({photos.length || 0})</>
+            )}
+          </button>
+          {photos.length > 0 && (
+            <p className="text-xs text-white/50">{engineCost} Aura × {photos.length} = {totalCost} Aura total</p>
+          )}
+        </div>
+
+        {results && (
+          <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+            {results.map((r, i) => (
+              <div key={i} className="rounded-xl border border-white/10 bg-black/20 overflow-hidden">
+                {r.status === "done" && r.resultUrl ? (
+                  <video src={r.resultUrl} controls playsInline loop className="w-full aspect-square object-cover bg-black" />
+                ) : (
+                  <div className="w-full aspect-square flex items-center justify-center bg-red-500/10 p-2">
+                    <p className="text-[10px] text-red-200 text-center leading-tight">{r.error ?? "Failed"}</p>
+                  </div>
+                )}
+                {r.status === "done" && r.resultUrl && (
+                  <a
+                    href={r.resultUrl}
+                    download={`batch-lipsync-${i + 1}.mp4`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center justify-center gap-1.5 text-[11px] py-1.5 bg-white/5 hover:bg-white/10 text-white/80"
+                  >
+                    <Download className="size-3" /> Save
+                  </a>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>

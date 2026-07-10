@@ -79,3 +79,4 @@
 - [TanStack validateSearch optional types](tanstack-validatesearch-optional.md) — adding validateSearch to an existing route needs an explicit all-optional return annotation, or every `<Link>` to it fails TS2741.
 - [LLM structured-output tolerance](llm-structured-output-tolerance.md) — json_object mode does not enforce schemas; prompt must say "JSON", use union+transform (not preprocess) for model drift, ZodType<T,Def,unknown> for transformed schemas.
 - [Live-DB rollback proof pattern](live-db-rollback-proof-pattern.md) — BEGIN...ROLLBACK a real psql script to genuinely prove a credit/lock-fencing RPC (e.g. finalize_job) is race-safe, with zero permanent side effects.
+- [Batch Lip Sync concurrent fan-out](batch-lipsync-concurrent-fanout.md) — N-photo batches reuse the single-job path via Promise.allSettled in one request, not an async jobs-queue; group via a nullable batch_id column.

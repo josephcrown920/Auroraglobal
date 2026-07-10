@@ -13,16 +13,15 @@ import {
 } from "lucide-react";
 import { SPIN_COUNT } from "@/lib/spin-engine";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
-// One creator, many posts — the grid tiles cycle the SAME female avatar identity
+// One creator, many posts — the grid tiles cycle the SAME artist identity
 // across different real Spin-style looks, proving "one photo in, many posts out."
-import joshPinkPortrait from "@/assets/josh/josh-pink-sideprofile.png.asset.json";
+// NOTE: josh-pink-sideprofile removed at user request.
 import joshMoodyMic from "@/assets/josh/josh-moody-mic.jpg.asset.json";
 import joshColorsSession from "@/assets/josh/josh-colors-session.png.asset.json";
 import joshNeonSeated from "@/assets/josh/josh-neon-seated.png.asset.json";
 
 const GRID_PHOTOS = [
   joshColorsSession.url,
-  joshPinkPortrait.url,
   joshNeonSeated.url,
   joshMoodyMic.url,
 ] as const;

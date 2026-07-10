@@ -1,17 +1,15 @@
-import a1 from "@/assets/josh/josh-pink-sideprofile.png.asset.json";
 import a2 from "@/assets/josh/josh-pink-jersey.png.asset.json";
 import a3 from "@/assets/josh/josh-moody-mic.jpg.asset.json";
 import a4 from "@/assets/josh/josh-stage-shades.jpg.asset.json";
 import a5 from "@/assets/josh/josh-yellow-mic.jpg.asset.json";
 
-// NOTE: josh-jxst-portrait, josh-studio-mic (chair/broadcast) and josh-blue-fullbody removed at user request.
+// NOTE: josh-jxst-portrait, josh-studio-mic (chair/broadcast), josh-blue-fullbody,
+// josh-pink-sideprofile and josh-red-girl-silhouette removed at user request.
 const SHOTS = [
-  { src: a1.url, label: "Hot-pink cyc · side profile", color: "Hot magenta + vintage mic" },
   { src: a2.url, label: "Hot-pink cyc · jersey portrait", color: "Hot magenta + chrome mic" },
   { src: "/josh/josh-pink-mic-portrait.jpg", label: "Pink studio · mic portrait", color: "Hot pink + chrome mic" },
   { src: a3.url, label: "Moody blue stage · close-up", color: "Indigo wash + red rim" },
   { src: a4.url, label: "Stage spotlight · red shades", color: "Cool stage + warm rim" },
-  { src: "/josh/josh-red-girl-silhouette.jpg", label: "Crimson red · silhouette", color: "Deep crimson + shadow contrast" },
   { src: a5.url, label: "Yellow cyclorama · vintage mic", color: "Cadmium yellow" },
   { src: "/josh/josh-concert-performance.webp", label: "Live concert · stage lights", color: "Performance energy" },
 ];

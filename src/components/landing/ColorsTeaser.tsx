@@ -4,19 +4,14 @@ import { ArrowRight, Palette, Star } from "lucide-react";
 import { ColorStudioBackdrop } from "@/components/studio/ColorStudioBackdrop";
 import { COLOR_PRESETS } from "@/lib/colors.presets";
 import joshColorsSession from "@/assets/josh/josh-colors-session.png.asset.json";
-import joshPinkJersey from "@/assets/josh/josh-pink-jersey.png.asset.json";
 import joshMagenta from "@/assets/josh/josh-magenta-cyc-v2.jpg.asset.json";
-import joshBlueFullbody from "@/assets/josh/josh-blue-fullbody.png.asset.json";
 import joshNeonSeated from "@/assets/josh/josh-neon-seated.png.asset.json";
-import joshStudioMic from "@/assets/josh/josh-studio-mic.jpg.asset.json";
 
+// NOTE: Pink Jersey, Royal Blue and Studio Mic tiles removed at user request.
 const RESULT_SHOTS = [
   { url: (joshColorsSession as { url: string }).url, color: "hot-pink", label: "Hot Pink" },
-  { url: (joshPinkJersey as { url: string }).url, color: "hot-pink", label: "Pink Jersey" },
   { url: (joshMagenta as { url: string }).url, color: "electric-purple", label: "Magenta Cyc" },
-  { url: (joshBlueFullbody as { url: string }).url, color: "royal-blue", label: "Royal Blue" },
   { url: (joshNeonSeated as { url: string }).url, color: "neon-green", label: "Neon Seated" },
-  { url: (joshStudioMic as { url: string }).url, color: "royal-blue", label: "Studio Mic" },
 ];
 
 // Spotlight 8 of the 12 sets as preview tiles so the grid stays tight.

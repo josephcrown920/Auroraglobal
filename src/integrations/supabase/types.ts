@@ -1246,6 +1246,7 @@ export type Database = {
       lipsync_jobs: {
         Row: {
           audio_url: string
+          batch_id: string | null
           created_at: string
           engine: string
           error: string | null
@@ -1258,6 +1259,7 @@ export type Database = {
         }
         Insert: {
           audio_url: string
+          batch_id?: string | null
           created_at?: string
           engine?: string
           error?: string | null
@@ -1270,6 +1272,7 @@ export type Database = {
         }
         Update: {
           audio_url?: string
+          batch_id?: string | null
           created_at?: string
           engine?: string
           error?: string | null

@@ -40,3 +40,31 @@ export const getLipsyncJob = createServerFn({ method: "POST" })
     const { fetchLipsyncJob } = await import("./lipsync.server");
     return fetchLipsyncJob(data.id, context.userId);
   });
+
+// Batch Lip Sync — same photo/audio upload flow as startLipsync, but takes N
+// source photos + ONE shared audio track and fans out into N independent
+// lipsync_jobs rows (grouped by batch_id). See lipsync.server.ts for the
+// per-photo charge/refund guarantees this reuses unchanged.
+export const startBatchLipsync = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    sourceUrls: z.array(z.string().url()).min(2).max(8),
+    audioUrl: z.string().url(),
+    engine: z.enum(["sync-v2", "wav2lip", "latentsync", "xai-ugc", "heygen-photo"]).default("heygen-photo"),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error: consentErr } = await supabaseAdmin.from("consent_logs").insert({
+      user_id: context.userId,
+      tool: "batch_lipsync",
+      policy_version: LEGAL_VERSION,
+    });
+    if (consentErr) throw new Error(`Consent could not be recorded: ${consentErr.message}`);
+
+    const { runBatchLipsyncJob } = await import("./lipsync.server");
+    return runBatchLipsyncJob({
+      userId: context.userId,
+      sourceUrls: data.sourceUrls,
+      audioUrl: data.audioUrl,
+      engine: data.engine,
+    });
+  });
