@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
-import { generateSplitReality } from "@/lib/studio.functions";
+import { useSplitRealityJobFn } from "@/lib/use-job-polling";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -222,7 +222,7 @@ function SplitRealityPage() {
     if (!loading && !user) navigate({ to: "/auth" });
   }, [user, loading, navigate]);
 
-  const splitFn = useServerFn(generateSplitReality);
+  const splitFn = useSplitRealityJobFn();
 
   const [mode, setMode] = useState<SplitMode>("mirror");
 

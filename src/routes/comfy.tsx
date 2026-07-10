@@ -6,9 +6,11 @@ import {
   saveComfyTemplate,
   deleteComfyTemplate,
   startComfyRun,
+  getComfyRun,
   listComfyRuns,
   comfyReachability,
 } from "@/lib/comfy.functions";
+import { pollComfyRunUntilDone } from "@/lib/use-job-polling";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -93,6 +95,7 @@ function ComfyPage() {
   const save = useServerFn(saveComfyTemplate);
   const del = useServerFn(deleteComfyTemplate);
   const run = useServerFn(startComfyRun);
+  const getRunFn = useServerFn(getComfyRun);
   const runsFn = useServerFn(listComfyRuns);
   const reachFn = useServerFn(comfyReachability);
 
@@ -167,11 +170,25 @@ function ComfyPage() {
     setResult(null);
     try {
       const r = (await run({ data: { workflowId: selected.id, values, source: "run" } })) as
-        | { ok: true; url?: string; outputKind?: string; creditsCost?: number }
+        | { ok: true; run: { id: string }; creditsCost?: number }
         | { ok: false; error: string };
-      setResult(r);
-      if (r.ok) toast.success("Run complete");
-      else toast.error(r.error);
+      if (!r.ok) {
+        setResult(r);
+        toast.error(r.error);
+        refreshRuns();
+        return;
+      }
+      // Enqueue-only server fn: the render runs in the background (survives
+      // closing the tab) — poll the run row until it goes terminal.
+      refreshRuns();
+      const done = await pollComfyRunUntilDone(getRunFn, r.run.id);
+      setResult({
+        ok: true,
+        url: done.output_url ?? undefined,
+        outputKind: done.output_kind ?? undefined,
+        creditsCost: r.creditsCost,
+      });
+      toast.success("Run complete");
       refreshRuns();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Run failed";

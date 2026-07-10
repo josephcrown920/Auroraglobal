@@ -4,7 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
-import { generatePerformanceShot, generateVideoFromImage, listGenerations } from "@/lib/studio.functions";
+import { listGenerations } from "@/lib/studio.functions";
+import { usePerformanceShotJobFn, useVideoFromImageJobFn } from "@/lib/use-job-polling";
 import {
   COLOR_PRESETS,
   SETUPS,
@@ -169,7 +170,7 @@ function ColorsStudio() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const genFn = useServerFn(generatePerformanceShot);
+  const genFn = usePerformanceShotJobFn();
   const listFn = useServerFn(listGenerations);
 
   const [selfieUrl, setSelfieUrl] = useState<string | null>(null);
@@ -270,7 +271,7 @@ function ColorsStudio() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
-  const videoFn = useServerFn(generateVideoFromImage);
+  const videoFn = useVideoFromImageJobFn();
   // Two-step preview→confirm flow (task #153 cost guardrail): the first click
   // renders a cheap 480p preview; the server returns its generation id, which
   // unlocks the full-quality render for that shot.

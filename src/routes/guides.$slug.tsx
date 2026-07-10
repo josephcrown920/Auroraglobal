@@ -11,7 +11,7 @@ import {
   fillPromptTemplate,
   type GuidedStep,
 } from "@/lib/guided-workflows.schema";
-import { generatePerformanceShot, generateVideoFromImage } from "@/lib/studio.functions";
+import { usePerformanceShotJobFn, useVideoFromImageJobFn } from "@/lib/use-job-polling";
 import { handleGenerationError } from "@/lib/error-toasts";
 import { computeCost } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
@@ -151,8 +151,8 @@ function GuideRunner() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const getFn = useServerFn(getGuidedWorkflow);
-  const genImageFn = useServerFn(generatePerformanceShot);
-  const genVideoFn = useServerFn(generateVideoFromImage);
+  const genImageFn = usePerformanceShotJobFn();
+  const genVideoFn = useVideoFromImageJobFn();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["guided-workflow", slug],

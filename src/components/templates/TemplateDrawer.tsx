@@ -17,11 +17,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { handleGenerationError } from "@/lib/error-toasts";
-import {
-  generatePerformanceShot,
-  generateVideoFromImage,
-  lipSyncVideo,
-} from "@/lib/studio.functions";
+import { usePerformanceShotJobFn, useVideoFromImageJobFn, useLipSyncJobFn } from "@/lib/use-job-polling";
 import { generateUGCAd, getGenerationStatus } from "@/lib/ugc-generation.functions";
 import {
   templateCost,
@@ -43,9 +39,9 @@ export function TemplateDrawer({
 }) {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const genFn = useServerFn(generatePerformanceShot);
-  const vidFn = useServerFn(generateVideoFromImage);
-  const lipFn = useServerFn(lipSyncVideo);
+  const genFn = usePerformanceShotJobFn();
+  const vidFn = useVideoFromImageJobFn();
+  const lipFn = useLipSyncJobFn();
   const ugcFn = useServerFn(generateUGCAd);
   const statusFn = useServerFn(getGenerationStatus);
 

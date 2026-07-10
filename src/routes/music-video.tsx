@@ -17,11 +17,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import {
-  generatePerformanceShot,
-  generateVideoFromImage,
-  listGenerations,
-} from "@/lib/studio.functions";
+import { listGenerations } from "@/lib/studio.functions";
+import { usePerformanceShotJobFn, useVideoFromImageJobFn } from "@/lib/use-job-polling";
 import { generateLyricVideoFromSong } from "@/lib/captions.functions";
 import { handleGenerationError } from "@/lib/error-toasts";
 import { markFirstGenComplete } from "@/lib/first-run";
@@ -148,8 +145,8 @@ function MusicVideoPage() {
     };
   }, [lyricAudioUrl]);
 
-  const genFn = useServerFn(generatePerformanceShot);
-  const videoFn = useServerFn(generateVideoFromImage);
+  const genFn = usePerformanceShotJobFn();
+  const videoFn = useVideoFromImageJobFn();
   const lyricVideoFn = useServerFn(generateLyricVideoFromSong);
   const listFn = useServerFn(listGenerations);
 
