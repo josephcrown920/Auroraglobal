@@ -17,7 +17,10 @@ except: pass
 
 print({k: bool(os.environ.get(k)) for k in ["NGROK_AUTHTOKEN","NGROK_STATIC_DOMAIN","AURORA_URL","AURORA_REGISTER_SECRET","AURORA_WORKER_TOKEN"]})
 
-# Create setup.sh with mediapipe fix
+# Create setup.sh with mediapipe fix.
+# Every network-bound step is wrapped in `timeout` — a stalled git clone / pip
+# resolve / HF download used to hang the whole notebook cell indefinitely (days,
+# not hours) with no error, no timeout, and no way to tell it was stuck vs slow.
 with open(f"{ROOT}/setup.sh", "w") as f:
     f.write("""#!/usr/bin/env bash
 set -euo pipefail
@@ -25,21 +28,24 @@ ROOT="${1:-/workspace}"
 TASKS="${AURORA_TASKS:-lipsync}"
 mkdir -p "$ROOT"
 cd "$ROOT"
-pip install -q "huggingface_hub[cli]" 2>/dev/null || true
+echo "==> [1/4] huggingface_hub[cli] (max 3min)"
+timeout 180 pip install -q "huggingface_hub[cli]" 2>/dev/null || echo "WARN: huggingface_hub[cli] install failed/timed out, continuing"
 if [[ "$TASKS" == *"lipsync"* ]]; then
-  echo "==> LatentSync"
-  [ -d LatentSync ] || git clone --depth 1 https://github.com/bytedance/LatentSync.git
+  echo "==> [2/4] LatentSync clone (max 3min)"
+  [ -d LatentSync ] || timeout 180 git clone --depth 1 https://github.com/bytedance/LatentSync.git
   cd LatentSync
   sed -i 's/mediapipe==0.10.11/mediapipe==0.10.14/g' requirements.txt
-  pip install -r requirements.txt
+  echo "==> [3/4] LatentSync pip deps (max 10min)"
+  timeout 600 pip install -r requirements.txt
   cd ..
-  huggingface-cli download ByteDance/LatentSync-1.5 --local-dir LatentSync/checkpoints --include "latentsync_unet.pt" "whisper/*" 2>/dev/null || echo "Note: HF download may have rate limits"
+  echo "==> [4/4] LatentSync checkpoints (max 15min)"
+  timeout 900 huggingface-cli download ByteDance/LatentSync-1.5 --local-dir LatentSync/checkpoints --include "latentsync_unet.pt" "whisper/*" 2>/dev/null || echo "WARN: HF checkpoint download failed/timed out/rate-limited, continuing"
 fi
 echo "==> Done. Installed tasks: [$TASKS]"
 exit 0
 """)
 os.chmod(f"{ROOT}/setup.sh", 0o755)
-print("[setup] setup.sh created with mediapipe fix", flush=True)
+print("[setup] setup.sh created with mediapipe fix + per-step timeouts", flush=True)
 
 # Create minimal aurora_worker.py locally
 with open(f"{ROOT}/aurora_worker.py", "w") as f:
@@ -140,16 +146,22 @@ print("[setup] aurora_worker.py created locally", flush=True)
 
 # Install dependencies
 print("\\n[setup] installing pip dependencies ...", flush=True)
-subprocess.run("pip install -q requests fastapi uvicorn pyngrok", shell=True, check=True)
+try:
+    subprocess.run("pip install -q requests fastapi uvicorn pyngrok", shell=True, check=True, timeout=180)
+except subprocess.TimeoutExpired:
+    raise SystemExit("[setup] core pip deps (requests/fastapi/uvicorn/pyngrok) timed out after 3min -- environment/network issue")
 
 tasks = os.environ.get("AURORA_TASKS") or "lipsync"
 os.environ["AURORA_CAPABILITIES"] = tasks
 
-# Run setup.sh
+# Run setup.sh. Each internal step already has its own `timeout`, so this
+# outer bound (35min) is just defense-in-depth against the whole cell hanging.
 print(f"\\n[setup] running setup.sh with tasks=[{tasks}] ...", flush=True)
 try:
-    subprocess.run(f"AURORA_TASKS='{tasks}' bash {ROOT}/setup.sh {ROOT}", shell=True, check=True)
+    subprocess.run(f"AURORA_TASKS='{tasks}' bash {ROOT}/setup.sh {ROOT}", shell=True, check=True, timeout=2100)
     print("[setup] setup complete", flush=True)
+except subprocess.TimeoutExpired:
+    print("[setup] setup.sh exceeded 35min overall timeout -- continuing anyway", flush=True)
 except subprocess.CalledProcessError as e:
     print(f"[setup] setup had issues but continuing: {e}", flush=True)
 
