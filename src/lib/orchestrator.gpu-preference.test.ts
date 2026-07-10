@@ -75,6 +75,7 @@ mock.module("./replicate.server", () => ({
   },
   pickReplicateUrl: (output: unknown) =>
     typeof output === "string" ? output : ((output as { url?: string })?.url ?? ""),
+  fetchToBytes: async () => ({ bytes: Buffer.from(""), mime: "application/octet-stream" }),
 }));
 mock.module("./hf.server", () => ({
   hfTextToImage: async () => ({ bytes: Buffer.from(""), contentType: "image/png" }),

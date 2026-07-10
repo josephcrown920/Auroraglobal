@@ -68,6 +68,7 @@ mock.module("./replicate.server", () => ({
   replicateRun: (slug: string, input: unknown, t?: number) => replicateRunImpl(slug, input, t),
   pickReplicateUrl: (output: unknown) =>
     typeof output === "string" ? output : ((output as { url?: string })?.url ?? ""),
+  fetchToBytes: async () => ({ bytes: Buffer.from(""), mime: "application/octet-stream" }),
 }));
 mock.module("./sync.server", () => ({
   syncLipsync: (opts: { videoUrl: string; audioUrl: string; model?: string }) =>

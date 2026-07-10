@@ -85,6 +85,7 @@ mock.module("./replicate.server", () => ({
   },
   pickReplicateUrl: (output: unknown) =>
     typeof output === "string" ? output : ((output as { url?: string })?.url ?? ""),
+  fetchToBytes: async () => ({ bytes: Buffer.from(""), mime: "application/octet-stream" }),
 }));
 let syncCallCount = 0;
 mock.module("./sync.server", () => ({
