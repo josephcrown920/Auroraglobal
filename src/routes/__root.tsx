@@ -150,7 +150,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
     gtmRaw && /^GTM-[A-Z0-9]+$/i.test(gtmRaw.trim()) ? gtmRaw.trim() : null;
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
         {/* FOUC prevention: set data-theme before first paint so the correct
