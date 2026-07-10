@@ -263,10 +263,10 @@ function Index() {
       {/* Spacer for fixed header */}
       <div className="h-20" />
 
-      {/* By Artists for Artists — manifesto statement */}
-      <div className="relative flex flex-col items-center pt-14 pb-4 px-6 text-center overflow-hidden">
+      {/* By Artists for Artists — manifesto statement + stronger CTA */}
+      <div className="relative flex flex-col items-center pt-14 pb-10 px-6 text-center overflow-hidden">
         {/* glow orb behind text */}
-        <div aria-hidden className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[220px] rounded-full bg-primary/20 blur-[80px]" />
+        <div aria-hidden className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[260px] rounded-full bg-primary/25 blur-[90px]" />
         <div className="relative">
           <p className="text-[11px] uppercase tracking-[0.35em] text-primary/80 mb-4 font-semibold">
             ✦ Aurora Studio ✦
@@ -278,6 +278,21 @@ function Index() {
           <p className="mt-5 text-white/45 text-sm md:text-base max-w-xs mx-auto leading-relaxed">
             Built by creators who needed it.<br />For creators who deserve it.
           </p>
+
+          {/* Stronger, action-oriented CTA row */}
+          <div className="mt-8 flex flex-col items-center gap-4">
+            <Link
+              to="/studio"
+              onClick={() => void track("manifesto_cta_click")}
+              className="group inline-flex items-center gap-2.5 px-8 py-3.5 text-base font-bold rounded-full text-white no-underline bg-[image:var(--gradient-hero)] shadow-[var(--shadow-glow-soft)] hover:brightness-110 hover:scale-[1.02] transition-all"
+            >
+              Start creating free
+              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+            <p className="text-[11px] text-white/35 tracking-wide">
+              No credit card · Free credits on signup · Cancel anytime
+            </p>
+          </div>
         </div>
       </div>
 

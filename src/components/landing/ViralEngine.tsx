@@ -5,14 +5,12 @@ import {
   TrendingUp,
   Zap,
   Video,
-  Image as ImageIcon,
   ArrowRight,
   Music,
   Users,
   Play,
 } from "lucide-react";
 import { SPIN_COUNT } from "@/lib/spin-engine";
-import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 // One creator, many posts — the grid tiles cycle the SAME artist identity
 // across different real Spin-style looks, proving "one photo in, many posts out."
 // NOTE: josh-pink-sideprofile removed at user request.
@@ -26,32 +24,19 @@ const GRID_PHOTOS = [
   joshMoodyMic.url,
 ] as const;
 
-// Accurate full-color TikTok logo (official glyph, layered cyan/red/white).
-function TikTokLogo({ className }: { className?: string }) {
-  const d =
-    "M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z";
-  return (
-    <svg viewBox="0 0 24 24" className={className} role="img" aria-label="TikTok">
-      <path d={d} transform="translate(-0.7,-0.7)" fill="#25F4EE" />
-      <path d={d} transform="translate(0.7,0.7)" fill="#FE2C55" />
-      <path d={d} fill="#FFFFFF" />
-    </svg>
-  );
-}
-
 const PIECES = [
-  { label: "Lyric video hook", kind: "video", color: "from-pink-500 to-rose-500" },
-  { label: "Beat-sync visual", kind: "video", color: "from-fuchsia-500 to-pink-500" },
-  { label: "Cover art reveal", kind: "image", color: "from-violet-500 to-fuchsia-500" },
-  { label: "Story teaser", kind: "image", color: "from-emerald-500 to-teal-500" },
-  { label: "Color-grade variant", kind: "image", color: "from-cyan-400 to-sky-500" },
-  { label: "YouTube Short", kind: "video", color: "from-red-500 to-orange-500" },
-  { label: "Lip-sync clip", kind: "video", color: "from-pink-500 to-violet-500" },
-  { label: "Album teaser", kind: "image", color: "from-yellow-400 to-amber-500" },
-  { label: "Vertical poster", kind: "image", color: "from-purple-500 to-violet-600" },
-  { label: "Performance clip", kind: "video", color: "from-rose-500 to-pink-500" },
-  { label: "Captioned hook", kind: "image", color: "from-fuchsia-400 to-purple-500" },
-  { label: "Single cover", kind: "image", color: "from-blue-500 to-indigo-500" },
+  { label: "Lyric video hook" },
+  { label: "Beat-sync visual" },
+  { label: "Cover art reveal" },
+  { label: "Story teaser" },
+  { label: "Color-grade variant" },
+  { label: "YouTube Short" },
+  { label: "Lip-sync clip" },
+  { label: "Album teaser" },
+  { label: "Vertical poster" },
+  { label: "Performance clip" },
+  { label: "Captioned hook" },
+  { label: "Single cover" },
 ] as const;
 
 // Single source of truth for the post count — matches the real Spin backend
@@ -70,31 +55,6 @@ export function ViralEngine() {
         }}
       />
       <div className="relative px-6 py-10 md:px-12 md:py-14">
-        {/* TikTok × Aurora pulsing lockup — real logos */}
-        <div className="mb-6 flex items-center justify-center gap-5">
-          {/* Actual TikTok logo */}
-          <div className="relative grid place-items-center">
-            <span className="absolute inset-0 rounded-2xl bg-pink-500/40 blur-2xl animate-pulse" />
-            <div className="relative grid size-12 md:size-14 place-items-center rounded-2xl bg-black shadow-lg shadow-pink-500/30">
-              <TikTokLogo className="size-7 md:size-8" />
-            </div>
-          </div>
-          <span className="text-2xl md:text-3xl font-black text-white/60">×</span>
-          {/* Actual Aurora logo */}
-          <div className="relative grid place-items-center">
-            <span className="absolute inset-0 rounded-2xl bg-fuchsia-500/40 blur-2xl animate-pulse [animation-delay:300ms]" />
-            <div className="relative grid size-12 md:size-14 place-items-center overflow-hidden rounded-2xl bg-white/5 ring-1 ring-white/10 shadow-lg shadow-fuchsia-500/40">
-              <img
-                src={auroraLogo.url}
-                alt="Aurora"
-                loading="lazy"
-                decoding="async"
-                className="size-full object-contain p-1.5"
-              />
-            </div>
-          </div>
-        </div>
-
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-2 rounded-full border border-pink-300/20 bg-pink-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-pink-200">
             <Flame className="size-3.5" /> Spin 30
@@ -122,18 +82,18 @@ export function ViralEngine() {
           performance clips, styled portraits — a full month of content from one idea.
         </p>
 
-        {/* Flat content-type grid — every post type Aurora ships, at a glance */}
+        {/* Plain photo collage — every post type Aurora ships, at a glance */}
         <div className="mt-6 rounded-3xl border border-white/10 bg-black/50 backdrop-blur p-4 md:p-5">
           <label className="text-[11px] uppercase tracking-[0.2em] text-pink-200/80">
             Every post type, one prompt
           </label>
 
-          <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-1.5 md:gap-2">
+          <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 md:gap-3">
             {PIECES.map((piece, i) => (
-              <div
+              <figure
                 key={piece.label}
-                className="relative overflow-hidden rounded-[14px] border border-white/10"
-                style={{ aspectRatio: "9/16" }}
+                className="group relative overflow-hidden rounded-xl bg-white/5 shadow-md shadow-black/40 transition-transform hover:-translate-y-0.5 hover:shadow-lg"
+                style={{ aspectRatio: "4/5" }}
               >
                 <img
                   src={GRID_PHOTOS[i % GRID_PHOTOS.length]}
@@ -141,27 +101,12 @@ export function ViralEngine() {
                   loading="lazy"
                   className="w-full h-full object-cover"
                 />
-                <div className={`absolute inset-0 bg-gradient-to-t ${piece.color} opacity-30`} />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-black/25" />
-
-                <div className="absolute top-1.5 left-1.5">
-                  {piece.kind === "video" ? (
-                    <Video className="size-3 text-white drop-shadow-sm" />
-                  ) : (
-                    <ImageIcon className="size-3 text-white drop-shadow-sm" />
-                  )}
-                </div>
-
-                <div className="absolute bottom-1.5 right-1.5">
-                  <TikTokLogo className="size-3 opacity-50" />
-                </div>
-
-                <div className="absolute inset-x-0 bottom-0 p-1.5">
-                  <p className="text-[9px] md:text-[10px] font-black text-white leading-tight line-clamp-2">
+                <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-2 py-1.5">
+                  <p className="text-[9px] md:text-[10px] font-semibold text-white leading-tight line-clamp-2">
                     {piece.label}
                   </p>
-                </div>
-              </div>
+                </figcaption>
+              </figure>
             ))}
           </div>
 
