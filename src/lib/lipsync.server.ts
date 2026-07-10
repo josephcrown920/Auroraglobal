@@ -55,6 +55,8 @@ export async function runLipsyncJob(opts: {
   engine: Engine;
   /** Required for xai-ugc: the still photo to animate */
   imageUrl?: string;
+  /** Groups this row with sibling rows from the same Batch Lip Sync request */
+  batchId?: string;
 }) {
   const selfHosted = SELF_HOSTED.has(opts.engine);
   const isXaiUgc = opts.engine === "xai-ugc";
@@ -86,6 +88,7 @@ export async function runLipsyncJob(opts: {
       audio_url: opts.audioUrl,
       engine: opts.engine,
       status: "running",
+      batch_id: opts.batchId ?? null,
     })
     .select("id")
     .single();
@@ -220,4 +223,62 @@ export async function fetchLipsyncJob(id: string, userId: string) {
     .eq("user_id", userId)
     .single();
   return data;
+}
+
+// Batch Lip Sync — N photos + ONE shared audio track → N independent videos.
+// Each photo reuses the exact single-job path above (own row, own charge/
+// refund, own orchestrate() call) so the existing credit-reservation and
+// job-finalization guarantees are never duplicated or bypassed. Dispatched
+// CONCURRENTLY (not sequentially) so total wall-clock time is ~one job's
+// duration, not N — keeps this inside a single request/response cycle
+// without needing the async jobs-queue infrastructure.
+const MAX_BATCH_LIPSYNC = 8;
+
+export async function runBatchLipsyncJob(opts: {
+  userId: string;
+  sourceUrls: string[];
+  audioUrl: string;
+  engine: Engine;
+}) {
+  if (opts.sourceUrls.length < 2) {
+    throw new Error("Batch lip sync needs at least 2 photos — use single mode for one.");
+  }
+  if (opts.sourceUrls.length > MAX_BATCH_LIPSYNC) {
+    throw new Error(`Batch lip sync is capped at ${MAX_BATCH_LIPSYNC} photos per run.`);
+  }
+
+  const isPhotoEngine = PHOTO_ENGINES.has(opts.engine);
+  const batchId = crypto.randomUUID();
+
+  const settled = await Promise.allSettled(
+    opts.sourceUrls.map((url) =>
+      runLipsyncJob({
+        userId: opts.userId,
+        engine: opts.engine,
+        audioUrl: opts.audioUrl,
+        batchId,
+        videoUrl: isPhotoEngine ? url : url,
+        imageUrl: isPhotoEngine ? url : undefined,
+      }),
+    ),
+  );
+
+  const results = settled.map((r, i) =>
+    r.status === "fulfilled"
+      ? { sourceUrl: opts.sourceUrls[i], ...r.value }
+      : {
+          sourceUrl: opts.sourceUrls[i],
+          id: null as string | null,
+          status: "error" as const,
+          error: r.reason instanceof Error ? r.reason.message : String(r.reason),
+        },
+  );
+
+  return {
+    batchId,
+    results,
+    succeeded: results.filter((r) => r.status === "done").length,
+    failed: results.filter((r) => r.status !== "done").length,
+    total: results.length,
+  };
 }

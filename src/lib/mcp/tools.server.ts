@@ -793,3 +793,31 @@ export async function cancelJobTool(args: z.infer<typeof cancelJobSchema>, ctx: 
     return err(e instanceof Error ? e.message : String(e));
   }
 }
+
+// Batch Lip Sync — N photos + ONE shared audio track → N independent videos.
+// Runs synchronously (same request/response cycle) since jobs dispatch
+// concurrently in runBatchLipsyncJob; each photo keeps its own independent
+// charge/refund via the same path as the single-photo /lipsync route.
+export const batchLipsyncSchema = z.object({
+  image_urls: z.array(z.string().url()).min(2).max(8).describe("2–8 photo URLs, one output video per photo"),
+  audio_url: z.string().url().describe("Single shared audio track applied to every photo"),
+  engine: z.enum(["sync-v2", "wav2lip", "latentsync", "xai-ugc", "heygen-photo"]).optional()
+    .describe("Lip-sync engine for every item. Default: heygen-photo"),
+});
+
+export async function batchLipsyncTool(args: z.infer<typeof batchLipsyncSchema>, ctx: ToolCtx): Promise<ToolResult> {
+  try {
+    assertTrustedUrl(args.audio_url);
+    for (const u of args.image_urls) assertTrustedUrl(u);
+    const { runBatchLipsyncJob } = await import("@/lib/lipsync.server");
+    const result = await runBatchLipsyncJob({
+      userId: ctx.userId,
+      sourceUrls: args.image_urls,
+      audioUrl: args.audio_url,
+      engine: (args.engine ?? "heygen-photo") as never,
+    });
+    return ok(result);
+  } catch (e) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}

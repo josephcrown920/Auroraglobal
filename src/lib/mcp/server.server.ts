@@ -19,6 +19,7 @@ import {
   submitJobSchema, submitJobTool,
   listJobsSchema, listJobsTool,
   cancelJobSchema, cancelJobTool,
+  batchLipsyncSchema, batchLipsyncTool,
   defaultToolDeps,
   type ToolCtx,
   type ToolDeps,
@@ -109,6 +110,12 @@ const TOOLS: ToolDef[] = [
       "Cancel one of your queued jobs and release its reserved Aura. Only jobs still in `queued` status can be cancelled.",
     schema: cancelJobSchema,
   },
+  {
+    name: "aurora_batch_lipsync",
+    description:
+      "Batch Lip Sync: take 2-8 photo URLs plus ONE shared audio track and render one lip-synced video per photo. Runs synchronously and returns each item's result (video URL or error) plus a shared batch_id — no polling needed.",
+    schema: batchLipsyncSchema,
+  },
 ];
 
 // ─── Minimal Zod → JSON Schema (enough for MCP tool input schemas) ────────────
@@ -184,6 +191,8 @@ export async function callTool(name: string, args: unknown, ctx: ToolCtx, deps: 
       return listJobsTool(listJobsSchema.parse(args), ctx, deps);
     case "aurora_cancel_job":
       return cancelJobTool(cancelJobSchema.parse(args), ctx, deps);
+    case "aurora_batch_lipsync":
+      return batchLipsyncTool(batchLipsyncSchema.parse(args), ctx);
     default:
       return { content: [{ type: "text", text: JSON.stringify({ error: `Unknown tool: ${name}` }) }], isError: true };
   }
