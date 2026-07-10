@@ -6,16 +6,17 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { generatePerformanceShot, generateVideoFromImage } from "@/lib/studio.functions";
-import { generateUGCAd, getGenerationStatus } from "@/lib/ugc-generation.functions";
+import { generateUGCAd, getGenerationStatus, generateProductDemo } from "@/lib/ugc-generation.functions";
 import { handleGenerationError } from "@/lib/error-toasts";
 import { supabase } from "@/integrations/supabase/client";
 import { COST_UGC_AD } from "@/lib/template-studio";
-import { computeCost } from "@/lib/pricing";
+import { computeCost, COST_PRODUCT_DEMO } from "@/lib/pricing";
 import { AUDIO_ACCEPT } from "@/lib/utils";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Smartphone, Camera, ShoppingBag, Coffee, Dumbbell, Sparkles, Check, Loader2, Wand2, Film, AudioLines, Music2, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Smartphone, Camera, ShoppingBag, Coffee, Dumbbell, Sparkles, Check, Loader2, Wand2, Film, AudioLines, Music2, X, Plus, ImagePlus, Presentation } from "lucide-react";
 import avatarMaya from "@/assets/ugc/maya.jpg.asset.json";
 import avatarLuna from "@/assets/ugc/luna.jpg.asset.json";
 import avatarAva from "@/assets/ugc/ava.jpg.asset.json";
@@ -80,10 +81,22 @@ function UGCStudio() {
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [resultVideo, setResultVideo] = useState<string | null>(null);
 
+  // Product Demo mode (Task #276): a separate feature-list-driven flow that
+  // produces a narrated HeyGen avatar walkthrough of a product's features.
+  const [showProductDemo, setShowProductDemo] = useState(false);
+  const [demoProductName, setDemoProductName] = useState("");
+  const [demoAudience, setDemoAudience] = useState("");
+  const [demoDuration, setDemoDuration] = useState<"quick" | "walkthrough" | "deep_dive" | "whats_new">("walkthrough");
+  const [demoFeatures, setDemoFeatures] = useState<{ name: string; description: string; screenshotUrl: string; uploading: boolean }[]>([
+    { name: "", description: "", screenshotUrl: "", uploading: false },
+  ]);
+  const [demoResultVideo, setDemoResultVideo] = useState<string | null>(null);
+
   const genShot = useServerFn(generatePerformanceShot);
   const genVid = useServerFn(generateVideoFromImage);
   const genAd = useServerFn(generateUGCAd);
   const genStatus = useServerFn(getGenerationStatus);
+  const genDemo = useServerFn(generateProductDemo);
 
   // Avatar images are bundled as relative asset paths; the async pipeline needs
   // an absolute, fetchable URL for both validation and the provider fetch.
@@ -164,6 +177,68 @@ function UGCStudio() {
     onSuccess: (r) => { setResultVideo(r.videoUrl); toast.success("Talking UGC ad ready."); },
     onError: (e) => handleGenerationError(e),
   });
+
+  const demoMut = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("Please sign in first.");
+      if (!demoProductName.trim()) throw new Error("Name your product.");
+      const features = demoFeatures
+        .filter((f) => f.name.trim())
+        .map((f) => ({
+          name: f.name.trim(),
+          description: f.description.trim() || undefined,
+          screenshotUrl: f.screenshotUrl || undefined,
+        }));
+      if (!features.length) throw new Error("Add at least one feature.");
+
+      const { generationId } = await genDemo({
+        data: {
+          productName: demoProductName.trim(),
+          features,
+          durationPresetId: demoDuration,
+          audience: demoAudience.trim() || undefined,
+        },
+      });
+      setDemoResultVideo(null);
+      for (let i = 0; i < 90; i++) {
+        await new Promise((r) => setTimeout(r, 5000));
+        const s = await genStatus({ data: { generationId } });
+        if (s.status === "succeeded") {
+          if (s.videoUrl) return { videoUrl: s.videoUrl };
+          throw new Error("Demo finished but produced no video.");
+        }
+        if (s.status === "failed") throw new Error(s.error || "Product demo generation failed.");
+      }
+      throw new Error("Still rendering — check your dashboard in a moment.");
+    },
+    onSuccess: (r) => { setDemoResultVideo(r.videoUrl); toast.success("Product demo ready."); },
+    onError: (e) => handleGenerationError(e),
+  });
+
+  const uploadDemoScreenshot = async (idx: number, file: File) => {
+    if (!user) { toast.error("Please sign in first."); return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error("Screenshot must be under 10MB"); return; }
+    setDemoFeatures((prev) => prev.map((f, i) => (i === idx ? { ...f, uploading: true } : f)));
+    try {
+      const ext = file.name.split(".").pop() || "png";
+      const path = `${user.id}/product-demo/${Date.now()}-${idx}.${ext}`;
+      const { error } = await supabase.storage.from("studio").upload(path, file, {
+        contentType: file.type,
+        upsert: true,
+      });
+      if (error) throw new Error(`Upload failed: ${error.message}`);
+      const { data: signed, error: signErr } = await supabase.storage
+        .from("studio")
+        .createSignedUrl(path, 60 * 60 * 24);
+      if (signErr || !signed?.signedUrl) throw new Error(`Screenshot URL failed: ${signErr?.message ?? "no url"}`);
+      setDemoFeatures((prev) =>
+        prev.map((f, i) => (i === idx ? { ...f, screenshotUrl: signed.signedUrl, uploading: false } : f)),
+      );
+    } catch (e) {
+      setDemoFeatures((prev) => prev.map((f, i) => (i === idx ? { ...f, uploading: false } : f)));
+      toast.error(e instanceof Error ? e.message : "Screenshot upload failed");
+    }
+  };
 
   const busy = imageMut.isPending || videoMut.isPending || adMut.isPending;
 
@@ -332,6 +407,141 @@ function UGCStudio() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Product Demo mode (Task #276) */}
+        <div className="mt-12 rounded-2xl border border-border bg-card p-6">
+          <button
+            type="button"
+            onClick={() => setShowProductDemo((v) => !v)}
+            className="w-full flex items-center justify-between gap-3 text-left"
+          >
+            <div className="flex items-center gap-3">
+              <Presentation className="size-5 text-primary" />
+              <div>
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Or: narrated product demo</h2>
+                <p className="text-xs text-muted-foreground mt-1">Turn a feature list + screenshots into an avatar walkthrough video · {COST_PRODUCT_DEMO} Aura</p>
+              </div>
+            </div>
+            <span className="text-xs text-primary">{showProductDemo ? "Hide" : "Show"}</span>
+          </button>
+
+          {showProductDemo && (
+            <div className="mt-6 grid lg:grid-cols-[1fr_360px] gap-6">
+              <div className="space-y-4">
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <Input
+                    value={demoProductName}
+                    onChange={(e) => setDemoProductName(e.target.value)}
+                    placeholder="Product name (e.g. Aurora Studio)"
+                  />
+                  <Input
+                    value={demoAudience}
+                    onChange={(e) => setDemoAudience(e.target.value)}
+                    placeholder="Audience (optional, e.g. indie creators)"
+                  />
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { id: "quick", label: "Quick (~20s)" },
+                    { id: "walkthrough", label: "Walkthrough (~45s)" },
+                    { id: "deep_dive", label: "Deep dive (~90s)" },
+                    { id: "whats_new", label: "What's new (~30s)" },
+                  ] as const).map((d) => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setDemoDuration(d.id)}
+                      className={`px-3 py-1.5 rounded-full border text-xs transition ${demoDuration === d.id ? "border-primary text-primary bg-primary/10" : "border-border text-muted-foreground hover:border-primary/50"}`}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="space-y-3">
+                  {demoFeatures.map((f, idx) => (
+                    <div key={idx} className="rounded-xl border border-border p-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={f.name}
+                          onChange={(e) =>
+                            setDemoFeatures((prev) => prev.map((x, i) => (i === idx ? { ...x, name: e.target.value } : x)))
+                          }
+                          placeholder={`Feature ${idx + 1} name`}
+                          className="flex-1"
+                        />
+                        {demoFeatures.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setDemoFeatures((prev) => prev.filter((_, i) => i !== idx))}
+                            className="text-muted-foreground hover:text-foreground"
+                            aria-label="Remove feature"
+                          >
+                            <X className="size-4" />
+                          </button>
+                        )}
+                      </div>
+                      <Textarea
+                        value={f.description}
+                        onChange={(e) =>
+                          setDemoFeatures((prev) => prev.map((x, i) => (i === idx ? { ...x, description: e.target.value } : x)))
+                        }
+                        placeholder="What does it do? (optional, helps the script)"
+                        className="min-h-[60px] text-sm"
+                      />
+                      <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border hover:border-primary text-xs text-muted-foreground hover:text-foreground cursor-pointer transition">
+                        {f.uploading ? <Loader2 className="size-3.5 animate-spin" /> : <ImagePlus className="size-3.5 text-primary" />}
+                        {f.uploading ? "Uploading…" : f.screenshotUrl ? "Screenshot attached" : "Attach screenshot (optional)"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={f.uploading}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) uploadDemoScreenshot(idx, file);
+                          }}
+                        />
+                      </label>
+                    </div>
+                  ))}
+                  {demoFeatures.length < 8 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDemoFeatures((prev) => [...prev, { name: "", description: "", screenshotUrl: "", uploading: false }])
+                      }
+                      className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+                    >
+                      <Plus className="size-3.5" /> Add feature
+                    </button>
+                  )}
+                </div>
+
+                {!user ? (
+                  <Button onClick={() => nav({ to: "/auth" })} variant="premium" className="w-full sm:w-auto">Sign in to generate</Button>
+                ) : (
+                  <Button onClick={() => demoMut.mutate()} disabled={demoMut.isPending} variant="premium" className="w-full sm:w-auto">
+                    {demoMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Producing demo…</> : <><Presentation className="size-4 mr-2" /> Generate product demo · {COST_PRODUCT_DEMO} Aura</>}
+                  </Button>
+                )}
+                <p className="text-[11px] text-muted-foreground">
+                  Aurora scripts a Hook → Walkthrough → CTA narration from your feature list and renders it as a HeyGen avatar video, with your screenshots shown alongside.
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-background/40 aspect-[9/16] overflow-hidden grid place-items-center relative">
+                {demoResultVideo ? (
+                  <AutoplayVideo src={demoResultVideo} controls muted={false} loop className="w-full h-full object-cover" />
+                ) : (
+                  <div className="text-xs text-muted-foreground p-4 text-center">
+                    {demoMut.isPending ? <><Loader2 className="size-5 mx-auto mb-2 animate-spin" /> Working… this can take a minute</> : <>Your product demo will appear here.</>}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </section>
       <SiteFooter tone="light" />

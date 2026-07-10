@@ -349,6 +349,12 @@ export const COST_UGC_AD = 28;
  *  with VIDEO_TIER_AURA.budget so a remix cut can't undercut a plain video. */
 export const COST_TIKTOK_REMIX_CUT = 10;
 
+/** HeyGen Product Demo: feature-list + screenshots → narrated avatar walkthrough
+ *  (Task #276). Priced above a plain talking UGC ad since it's a longer,
+ *  multi-feature narrated video, but flat regardless of feature count or
+ *  duration preset so the up-front estimate always matches what's reserved. */
+export const COST_PRODUCT_DEMO = 32;
+
 // ─── Growth Tools flat costs (Pro only, LLM-based) ───────────────────────────
 /** Daily Post Generator: 7 days of captions + image prompt pairs. */
 export const COST_DAILY_POSTS = 10;

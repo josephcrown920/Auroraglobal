@@ -14,6 +14,8 @@ import {
   getBatchStatus,
 } from "@/lib/cm-generation.functions";
 import { COST_PER_VIDEO, MAX_BATCH_VIDEOS, batchEstimate } from "@/lib/cm.server";
+import { generateProductDemo, getGenerationStatus } from "@/lib/ugc-generation.functions";
+import { COST_PRODUCT_DEMO } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
@@ -42,6 +44,7 @@ import {
   ChevronRight,
   Pencil,
   Music2,
+  Presentation,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -435,6 +438,49 @@ function ContentMachinePage() {
   const [showTemplateForm, setShowTemplateForm] = useState(false);
   const [activeBatchId, setActiveBatchId] = useState<string | null>(null);
 
+  // Product Demo (Task #276): generate a narrated HeyGen avatar walkthrough
+  // straight from a saved product's name/description/photos.
+  const genDemoFn = useServerFn(generateProductDemo);
+  const genStatusFn = useServerFn(getGenerationStatus);
+  const [demoProductId, setDemoProductId] = useState<string | null>(null);
+  const [demoResultVideo, setDemoResultVideo] = useState<string | null>(null);
+  const demoMut = useMutation({
+    mutationFn: async (product: ProductDTO) => {
+      setDemoProductId(product.id);
+      setDemoResultVideo(null);
+      const { generationId } = await genDemoFn({
+        data: {
+          productName: product.name,
+          features: [
+            {
+              name: product.name,
+              description: product.description || undefined,
+              screenshotUrl: product.photos[0] || undefined,
+            },
+            ...product.photos.slice(1, 8).map((url, i) => ({
+              name: `${product.name} — view ${i + 2}`,
+              screenshotUrl: url,
+            })),
+          ],
+          durationPresetId: "walkthrough" as const,
+          audience: product.audience || undefined,
+        },
+      });
+      for (let i = 0; i < 90; i++) {
+        await new Promise((r) => setTimeout(r, 5000));
+        const s = await genStatusFn({ data: { generationId } });
+        if (s.status === "succeeded") {
+          if (s.videoUrl) return s.videoUrl;
+          throw new Error("Demo finished but produced no video.");
+        }
+        if (s.status === "failed") throw new Error(s.error || "Product demo generation failed.");
+      }
+      throw new Error("Still rendering — check back in a moment.");
+    },
+    onSuccess: (videoUrl) => { setDemoResultVideo(videoUrl); toast.success("Product demo ready."); },
+    onError: (e) => { setDemoProductId(null); toast.error(e instanceof Error ? e.message : "Could not generate the demo"); },
+  });
+
   // Default the active product to the first one available.
   useEffect(() => {
     if (!selectedProductId && products.length) setSelectedProductId(products[0].id);
@@ -642,7 +688,28 @@ function ContentMachinePage() {
                         >
                           <Trash2 className="size-3" /> Delete
                         </button>
+                        <button
+                          onClick={() => demoMut.mutate(p)}
+                          disabled={demoMut.isPending && demoProductId === p.id}
+                          className="text-muted-foreground hover:text-primary flex items-center gap-1"
+                        >
+                          {demoMut.isPending && demoProductId === p.id ? (
+                            <><Loader2 className="size-3 animate-spin" /> Producing…</>
+                          ) : (
+                            <><Presentation className="size-3" /> Product demo · {COST_PRODUCT_DEMO} Aura</>
+                          )}
+                        </button>
                       </div>
+                      {demoProductId === p.id && demoResultVideo && (
+                        <div className="mt-3 pl-12">
+                          <video
+                            src={demoResultVideo}
+                            controls
+                            loop
+                            className="w-full max-w-[220px] rounded-lg border border-border aspect-[9/16] object-cover"
+                          />
+                        </div>
+                      )}
                     </div>
                   );
                 })}

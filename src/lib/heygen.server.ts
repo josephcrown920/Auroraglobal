@@ -12,6 +12,10 @@ const HeyGenRequestSchema = z.object({
   scriptText: z.string().optional(),
   voiceId: z.string().optional(), // e.g., "en_male_1"
   backgroundId: z.string().optional(), // e.g., "virtual-office", "beach"
+  /** Product Demo mode (Task #276): screenshot URLs shown as visual context
+   *  alongside the avatar's narration. Passed through as HeyGen "photo" file
+   *  inputs when present; harmless no-op for the plain talking-avatar path. */
+  photoUrls: z.array(z.string().url()).max(12).optional(),
 });
 
 export type HeyGenRequest = z.infer<typeof HeyGenRequestSchema>;
@@ -39,6 +43,9 @@ export async function submitHeyGenVideo(
     ...(req.scriptText && { script: { type: "text", input: req.scriptText } }),
     ...(req.voiceId && { voice: { voice_id: req.voiceId } }),
     ...(req.backgroundId && { background_id: req.backgroundId }),
+    ...(req.photoUrls?.length && {
+      files: req.photoUrls.map((url) => ({ type: "image", url })),
+    }),
   };
 
   const response = await fetch("https://api.heygen.com/v1/video_requests.submit", {
@@ -120,6 +127,63 @@ export const HEYGEN_VOICES = [
   { id: "en_male_2", name: "Male 2 (British)", lang: "en" },
   { id: "en_female_2", name: "Female 2 (British)", lang: "en" },
 ];
+
+/**
+ * Product Demo (Task #276) duration presets, following HeyGen's Video Agent
+ * product-demo guidance: pick a target length + rough word budget so the
+ * prompt builder can size the walkthrough per feature.
+ */
+export const PRODUCT_DEMO_DURATIONS = [
+  { id: "quick", label: "Quick overview", seconds: 30 },
+  { id: "walkthrough", label: "Feature walkthrough", seconds: 75 },
+  { id: "deep_dive", label: "Deep dive", seconds: 150 },
+  { id: "whats_new", label: "What's new", seconds: 40 },
+] as const;
+export type ProductDemoDurationId = (typeof PRODUCT_DEMO_DURATIONS)[number]["id"];
+
+export type ProductDemoFeature = {
+  name: string;
+  description?: string;
+  screenshotUrl?: string;
+};
+
+/**
+ * Build a Hook → Feature walkthrough → CTA structured prompt for HeyGen's
+ * Video Agent from a product name + ordered feature list, per the reference
+ * "Product Demo Videos" doc. Deliberately server-side and structured (not
+ * user-free-typed) so every demo follows the same proven pattern.
+ */
+export function buildProductDemoScript(input: {
+  productName: string;
+  features: ProductDemoFeature[];
+  durationPresetId?: ProductDemoDurationId;
+  audience?: string;
+}): string {
+  const preset =
+    PRODUCT_DEMO_DURATIONS.find((d) => d.id === input.durationPresetId) ?? PRODUCT_DEMO_DURATIONS[1];
+  const who = input.audience?.trim() ? ` for ${input.audience.trim()}` : "";
+
+  const hook = `Hey! Let me show you ${input.productName}${who} — here's what makes it worth your time.`;
+
+  const walkthrough = input.features
+    .filter((f) => f.name?.trim())
+    .map((f, i) => {
+      const desc = f.description?.trim();
+      return `${i + 1}. ${f.name.trim()}${desc ? ` — ${desc}` : ""}.`;
+    })
+    .join(" ");
+
+  const cta = `That's ${input.productName} in a nutshell. Try it today and see the difference for yourself.`;
+
+  return [
+    hook,
+    walkthrough,
+    cta,
+    `[Target length: about ${preset.seconds} seconds, natural conversational pace, first-person presenter tone, positive framing throughout.]`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
 
 /**
  * HeyGen background presets
