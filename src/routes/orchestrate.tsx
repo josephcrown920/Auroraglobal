@@ -25,6 +25,8 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { orchestrateGenerate, listOrchestrations } from "@/lib/orchestration.functions";
+import { enhanceVideoAgentPrompt } from "@/lib/video-agent.functions";
+import { VIDEO_AGENT_MODEL_KEY, VIDEO_AGENT_HELPER_TEXT } from "@/lib/video-agent-prompt";
 import { getMyProfile } from "@/lib/billing.functions";
 import { handleGenerationError, friendlyGenerationMessage } from "@/lib/error-toasts";
 import { detectFeatures, computeCost, type Feature, type Resolution } from "@/lib/pricing";
@@ -128,6 +130,11 @@ function OrchestratePage() {
   const [startImageFile, setStartImageFile] = useState<File | null>(null);
   const [startImagePreview, setStartImagePreview] = useState<string | null>(null);
   const [voiceId, setVoiceId] = useState(VOICE_OPTIONS[0].id);
+  // HeyGen Video Agent (task #274): script-shaping controls. The avatar reads
+  // the prompt verbatim, so "enhance" rewrites it into clean spoken lines.
+  const [portrait, setPortrait] = useState(false);
+  const [directToCamera, setDirectToCamera] = useState(false);
+  const [enhanceBusy, setEnhanceBusy] = useState(false);
   const [resolution, setResolution] = useState<Resolution>("720p");
   const [duration, setDuration] = useState(5);
   const [busy, setBusy] = useState(false);
@@ -323,6 +330,31 @@ function OrchestratePage() {
   // else (including Auto) does plain text-to-video with the image optional.
   const startImageRequired = modality === "video" && IMAGE_REQUIRED_VIDEO_MODELS.has(model);
 
+  // HeyGen Video Agent: the prompt IS the spoken script (avatar reads it verbatim).
+  const isVideoAgent = modality === "video" && model === VIDEO_AGENT_MODEL_KEY;
+  const enhanceFn = useServerFn(enhanceVideoAgentPrompt);
+
+  const doEnhance = async () => {
+    if (!user) return toast.error("Please sign in first");
+    if (!prompt.trim()) return toast.error("Type a rough idea or draft script first");
+    setEnhanceBusy(true);
+    try {
+      const res = await enhanceFn({
+        data: {
+          prompt: prompt.trim(),
+          targetSeconds: duration,
+          ...(directToCamera ? { directToCamera: true } : {}),
+        },
+      });
+      setPrompt(res.script);
+      toast.success("Script polished — review and edit before generating");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't enhance the script");
+    } finally {
+      setEnhanceBusy(false);
+    }
+  };
+
   // Preview-first flow for video: first pass runs at 480p/5s cheaply,
   // then the user confirms before the full-quality render.
   const isPreviewPass = modality === "video" && !awaitingFullRender;
@@ -343,8 +375,10 @@ function OrchestratePage() {
     setPendingState("pending");
     try {
       // Uploaded file wins over a pasted URL (picking a file clears the URL field).
-      let startImageUrl = imageUrl.trim();
-      if (modality === "video" && startImageFile) {
+      // HeyGen Video Agent is avatar-only — never upload or forward a start
+      // image left over from another video model's hidden state.
+      let startImageUrl = isVideoAgent ? "" : imageUrl.trim();
+      if (modality === "video" && !isVideoAgent && startImageFile) {
         startImageUrl = await uploadStartImage(startImageFile);
       }
       const res = await run({
@@ -362,6 +396,8 @@ function OrchestratePage() {
           ...(!isPreviewPass && previewTicket ? { confirmPreviewId: previewTicket } : {}),
           ...(modality === "video" && startImageUrl ? { imageUrls: [startImageUrl] } : {}),
           ...(modality === "audio" && voiceId.trim() ? { voiceId: voiceId.trim() } : {}),
+          // HeyGen Video Agent renders a vertical avatar video when asked.
+          ...(isVideoAgent && portrait ? { orientation: "portrait" as const } : {}),
         },
       });
       if (!res.ok) {
@@ -475,7 +511,59 @@ function OrchestratePage() {
               className="w-full resize-none rounded-xl border border-neutral-800 bg-neutral-950 px-4 py-3 text-sm outline-none focus:border-fuchsia-500"
             />
 
-            {modality === "video" && (
+            {isVideoAgent && (
+              <div className="mt-3 rounded-xl border border-fuchsia-500/25 bg-fuchsia-500/5 p-3">
+                <p className="text-[11px] leading-relaxed text-neutral-400">
+                  {VIDEO_AGENT_HELPER_TEXT}
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void doEnhance()}
+                    disabled={enhanceBusy || busy || !prompt.trim()}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-fuchsia-500/50 bg-fuchsia-500/10 px-3 py-1.5 text-xs font-medium text-fuchsia-300 transition hover:bg-fuchsia-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {enhanceBusy ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5" />
+                    )}
+                    {enhanceBusy ? "Polishing…" : "Enhance script"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPortrait((v) => !v)}
+                    className={`rounded-lg border px-3 py-1.5 text-xs transition ${
+                      portrait
+                        ? "border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-300"
+                        : "border-neutral-800 text-neutral-400 hover:border-neutral-700"
+                    }`}
+                  >
+                    Portrait 9:16
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDirectToCamera((v) => !v)}
+                    className={`rounded-lg border px-3 py-1.5 text-xs transition ${
+                      directToCamera
+                        ? "border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-300"
+                        : "border-neutral-800 text-neutral-400 hover:border-neutral-700"
+                    }`}
+                    title="Personal, direct-to-viewer delivery with no references to on-screen visuals — applied when you hit Enhance, so the script survives translation and redubbing."
+                  >
+                    Direct to camera
+                  </button>
+                </div>
+                {directToCamera && (
+                  <p className="mt-2 text-[10px] leading-relaxed text-neutral-500">
+                    Applied when you hit Enhance: the script is written straight to the viewer with
+                    no “as you can see here” references, so it stays translation-ready.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {modality === "video" && !isVideoAgent && (
               <div className="mt-4">
                 <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-neutral-500">
                   Start image{" "}
