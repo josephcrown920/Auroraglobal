@@ -355,12 +355,33 @@ const heygen: ProviderAdapter = {
   },
 };
 
-// ─── HeyGen Video Agent (real v3 Video Agent API — POST /v3/video-agents) ──
-// Prompt-in, full-video-out: HeyGen's agent auto-picks avatar/voice/layout
-// and renders an original video (not lipsync-onto-existing-footage). Optional
-// style_id lets the caller pin a curated visual style. Pinned-only: this is a
-// distinct "generate a whole video from a prompt" product, not a general
-// video fallback, so it must be explicitly requested by model key.
+// ─── HeyGen "Video Agent" (real, documented API — POST /v2/video/generate) ──
+// HeyGen has no public "/v3/video-agents" prompt-in-video-out product — that
+// was a fabricated endpoint that always 404'd, silently falling back to a
+// worse provider (root cause of "video agent is trash"). The real HeyGen
+// avatar-video pipeline is: pick a real avatar_id (GET /v2/avatars) + its
+// matched default_voice_id, submit a scripted video (POST /v2/video/generate),
+// then poll GET /v2/videos/{video_id}. There is no "auto-pick everything from
+// a bare prompt" mode, so the prompt IS the spoken script here.
+let heygenAvatarCache: { avatarId: string; voiceId: string } | null = null;
+let heygenAvatarCacheAt = 0;
+async function resolveDefaultHeygenAvatar(key: string): Promise<{ avatarId: string; voiceId: string }> {
+  if (heygenAvatarCache && Date.now() - heygenAvatarCacheAt < 60 * 60_000) return heygenAvatarCache;
+  const res = await fetch("https://api.heygen.com/v2/avatars", { headers: { "X-Api-Key": key } });
+  if (!res.ok) throw new Error(`HeyGen avatars ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const j = await res.json();
+  const avatars = (j?.data?.avatars ?? []) as {
+    avatar_id: string;
+    default_voice_id?: string;
+    type?: string;
+  }[];
+  const pick = avatars.find((a) => a.type === "public" && a.default_voice_id) ?? avatars[0];
+  if (!pick) throw new Error("HeyGen: no avatars available on this account");
+  heygenAvatarCache = { avatarId: pick.avatar_id, voiceId: pick.default_voice_id ?? "" };
+  heygenAvatarCacheAt = Date.now();
+  return heygenAvatarCache;
+}
+
 const heygenVideoAgent: ProviderAdapter = {
   name: "heygen",
   supports: (r) =>
@@ -370,43 +391,35 @@ const heygenVideoAgent: ProviderAdapter = {
     if (!r.prompt) throw new Error("heygen video-agent: prompt required");
     const key = process.env.HEYGEN_API_KEY!;
     const orientation = (r.params?.orientation as string) ?? "landscape";
-    const styleId = r.params?.styleId as string | undefined;
+    const avatarId = (r.params?.avatarId as string) || undefined;
+    const voiceId = (r.params?.voiceId as string) || undefined;
+    const resolved = avatarId && voiceId ? { avatarId, voiceId } : await resolveDefaultHeygenAvatar(key);
+    const dimension = orientation === "portrait" ? { width: 720, height: 1280 } : { width: 1280, height: 720 };
 
-    const create = await fetch("https://api.heygen.com/v3/video-agents", {
+    const create = await fetch("https://api.heygen.com/v2/video/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Api-Key": key },
       body: JSON.stringify({
-        prompt: r.prompt,
-        orientation,
-        ...(styleId ? { style_id: styleId } : {}),
+        title: "Aurora Video Agent",
+        video_inputs: [
+          {
+            character: { type: "avatar", avatar_id: resolved.avatarId, avatar_style: "normal" },
+            voice: { type: "text", input_text: r.prompt, voice_id: resolved.voiceId },
+          },
+        ],
+        dimension,
       }),
     });
     if (!create.ok)
-      throw new Error(`HeyGen VideoAgent ${create.status}: ${(await create.text()).slice(0, 200)}`);
+      throw new Error(`HeyGen video/generate ${create.status}: ${(await create.text()).slice(0, 200)}`);
     const cj = await create.json();
-    const sessionId = cj?.data?.session_id;
-    let videoId = cj?.data?.video_id;
-    if (!sessionId && !videoId) throw new Error("HeyGen VideoAgent returned no session/video id");
+    const videoId = cj?.data?.video_id;
+    if (!videoId) throw new Error("HeyGen video/generate returned no video_id");
 
     const deadline = Date.now() + 20 * 60_000;
-    // The agent session may not have a video_id yet (still storyboarding) —
-    // poll the session until one is assigned.
-    while (!videoId && Date.now() < deadline) {
-      await new Promise((s) => setTimeout(s, 5000));
-      const sst = await fetch(`https://api.heygen.com/v3/video-agents/sessions/${sessionId}`, {
-        headers: { "X-Api-Key": key },
-      });
-      if (!sst.ok) continue;
-      const sj = await sst.json();
-      videoId = sj?.data?.video_id;
-      if (sj?.data?.status === "failed")
-        throw new Error(`HeyGen VideoAgent session failed: ${sj?.data?.failure_message ?? "unknown"}`);
-    }
-    if (!videoId) throw new Error("HeyGen VideoAgent: no video_id after session wait");
-
     while (Date.now() < deadline) {
       await new Promise((s) => setTimeout(s, 5000));
-      const st = await fetch(`https://api.heygen.com/v3/videos/${videoId}`, {
+      const st = await fetch(`https://api.heygen.com/v2/videos/${videoId}`, {
         headers: { "X-Api-Key": key },
       });
       if (!st.ok) continue;
@@ -414,13 +427,13 @@ const heygenVideoAgent: ProviderAdapter = {
       const status = sj?.data?.status;
       if (status === "completed") {
         const url = sj?.data?.video_url;
-        if (!url) throw new Error("HeyGen VideoAgent: no video url");
+        if (!url) throw new Error("HeyGen video agent: no video url");
         return { url, endpoint: "heygen:video-agent" };
       }
       if (status === "failed")
-        throw new Error(`HeyGen VideoAgent failed: ${sj?.data?.failure_message ?? "unknown"}`);
+        throw new Error(`HeyGen video agent failed: ${sj?.data?.error?.message ?? "unknown"}`);
     }
-    throw new Error("HeyGen VideoAgent poll timeout");
+    throw new Error("HeyGen video agent poll timeout");
   },
 };
 

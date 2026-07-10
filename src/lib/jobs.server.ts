@@ -42,7 +42,6 @@ import {
   buildProductDemoScript,
   submitHeyGenVideo,
   pollHeyGenVideo,
-  HEYGEN_AVATARS,
   type ProductDemoFeature,
   type ProductDemoDurationId,
 } from "./heygen.server";
@@ -689,7 +688,7 @@ async function runProductDemo(job: JobRow, orch: Orchestrate): Promise<JobOutput
     audience?: string;
     avatarId?: string;
     voiceId?: string;
-    backgroundId?: string;
+    backgroundColor?: string;
     heygenVideoId?: string;
   };
   if (!p.productName?.trim()) throw new Error("product_demo requires productName");
@@ -705,10 +704,10 @@ async function runProductDemo(job: JobRow, orch: Orchestrate): Promise<JobOutput
     });
     const photoUrls = p.features.map((f) => f.screenshotUrl).filter(Boolean) as string[];
     const submitted = await submitHeyGenVideo({
-      avatarId: p.avatarId || HEYGEN_AVATARS[0].id,
+      avatarId: p.avatarId,
       scriptText,
       voiceId: p.voiceId,
-      backgroundId: p.backgroundId,
+      backgroundColor: p.backgroundColor,
       photoUrls,
     });
     videoId = submitted.videoId;
@@ -733,7 +732,7 @@ async function runProductDemo(job: JobRow, orch: Orchestrate): Promise<JobOutput
     url: status.video_url,
     videoUrl: status.video_url,
     provider: "heygen",
-    endpoint: "video_requests",
+    endpoint: "heygen:video/generate",
     meta: {
       productName: p.productName,
       featureCount: p.features.length,
