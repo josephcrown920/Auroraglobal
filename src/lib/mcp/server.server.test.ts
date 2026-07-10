@@ -29,6 +29,7 @@ const TOOL_NAMES = [
   "aurora_submit_job",
   "aurora_list_jobs",
   "aurora_cancel_job",
+  "aurora_batch_lipsync",
 ];
 
 function toolByName(name: string) {
@@ -38,7 +39,7 @@ function toolByName(name: string) {
 }
 
 describe("listTools manifest", () => {
-  it("exposes exactly the 13 aurora_* tools", () => {
+  it("exposes exactly the 14 aurora_* tools", () => {
     const names = listTools().tools.map((t) => t.name);
     expect(names.sort()).toEqual([...TOOL_NAMES].sort());
   });
@@ -120,11 +121,11 @@ describe("handleRpcMessage", () => {
     expect(r.result).toEqual({});
   });
 
-  it("tools/list is open (no auth) and lists all 13 tools", async () => {
+  it("tools/list is open (no auth) and lists all 14 tools", async () => {
     const r = (await handleRpcMessage({ id: 3, method: "tools/list" }, NO_AUTH, ORIGIN)) as {
       result: { tools: unknown[] };
     };
-    expect(r.result.tools).toHaveLength(13);
+    expect(r.result.tools).toHaveLength(14);
   });
 
   it("tools/call without a bearer is rejected with JSON-RPC -32001", async () => {
