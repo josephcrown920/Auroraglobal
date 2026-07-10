@@ -494,6 +494,42 @@ const heygenPhotoVideo: ProviderAdapter = {
   },
 };
 
+// ─── HeyGen Template render (Task #275 — "Aurora Template") ─────────────────
+// POST /v2/template/{template_id}/generate: renders an EXISTING HeyGen
+// template with a variables map (the Aurora Template flow swaps just the
+// character variable per run). Pinned-only, exactly like heygen/photo-video:
+// a template render is an explicit product, never a silent substitute for a
+// generic text/image-to-video request — so supports() requires the exact
+// model key AND a templateId param, and the model is NOT in FALLBACK_MODELS.
+const heygenTemplate: ProviderAdapter = {
+  name: "heygen",
+  supports: (r) =>
+    r.kind === "video" &&
+    r.model === "heygen/template" &&
+    typeof r.params?.templateId === "string" &&
+    !!(r.params.templateId as string).trim() &&
+    !!process.env.HEYGEN_API_KEY,
+  estimateCost: () => 1.5,
+  async run(r) {
+    const templateId = r.params?.templateId as string | undefined;
+    if (!templateId?.trim()) throw new Error("heygen template: templateId required");
+    const { submitHeyGenTemplateVideo, waitForHeyGenVideo, HeyGenTemplateVariablesSchema } =
+      await import("./heygen.server");
+    // Validate at the boundary — params travel as untyped JSON.
+    const variables = HeyGenTemplateVariablesSchema.parse(r.params?.variables ?? {});
+    const dimension =
+      (r.params?.orientation as string) === "portrait"
+        ? { width: 720, height: 1280 }
+        : undefined; // omit → template's own dimension
+    const { videoId } = await submitHeyGenTemplateVideo(templateId, variables, {
+      title: (r.params?.title as string) || "Aurora Template",
+      ...(dimension ? { dimension } : {}),
+    });
+    const url = await waitForHeyGenVideo(videoId);
+    return { url, endpoint: "heygen:template" };
+  },
+};
+
 // ─── Fal (LAST fallback — user prefers other providers) ──────────────────────
 const FAL_MAP: Record<string, { path: string; kind: GenerateKind; cost: number }> = {
   "fal-fallback/flux-schnell": { path: "fal-ai/flux/schnell", kind: "image", cost: 0.005 },
@@ -2317,6 +2353,7 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
     gpuWorker,
     xaiDirect,
     heygenVideoAgent,
+    heygenTemplate,
     klingDirect,
     byteplus,
     replicate,
@@ -2385,6 +2422,9 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     "heygen/lipsync": { provider: "heygen", kind: "lipsync", cost: 0.4 },
     // HeyGen Video Agent — prompt-in, full-video-out (agent picks avatar/voice/layout).
     "heygen/video-agent": { provider: "heygen", kind: "video", cost: 1.5 },
+    // HeyGen Template render (Aurora Template) — pinned-only, NOT in
+    // FALLBACK_MODELS: always requested explicitly with a templateId param.
+    "heygen/template": { provider: "heygen", kind: "video", cost: 1.5 },
     // Sync.so direct lipsync
     "sync/lipsync-2": { provider: "sync", kind: "lipsync", cost: 0.25 },
     // Self-hosted LatentSync — runs on the registered GPU worker pool only.

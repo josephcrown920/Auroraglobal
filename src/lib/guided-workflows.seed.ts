@@ -1110,4 +1110,149 @@ export const DEFAULT_GUIDED_WORKFLOWS: GuidedWorkflowContent[] = [
       },
     ],
   },
+
+  // ── 13. Product Shoot Studio ──────────────────────────────────────────────
+  // Sorted at 65 so it lands with the other prompt-pack guides (10–60),
+  // just before Realism Formula (70).
+  {
+    slug: "product-shoot-studio",
+    title: "Product Shoot Studio",
+    tagline: "Studio-quality fashion & product shots — model, mannequin, and editorial angles",
+    description:
+      "Turn any outfit or product into a full e-commerce shoot without a camera: a standing model shot, a runway-turn video, a clean mannequin product shot with a 360° spin, plus two editorial poses. Swap the [OUTFIT] and [MODEL DESCRIPTION] placeholders and rerun the whole set for every drop.",
+    category: "realism",
+    icon: "🛍️",
+    sourceCredit: "Sniply Studio",
+    isPublished: true,
+    sortOrder: 65,
+    steps: [
+      {
+        id: "standing-model",
+        title: "Standing model shot",
+        kind: "image",
+        description:
+          "The hero image: your outfit on a model in a relaxed streetwear stance against a clean white studio backdrop. This frame anchors the whole shoot — every later step reuses the same outfit description.",
+        promptTemplate:
+          "A [MODEL DESCRIPTION] is wearing [OUTFIT]. The outfit has a relaxed streetwear look. The model stands in a relaxed fashion stance with the body slightly angled rather than facing directly forward. Weight rests mostly on one leg, creating a natural shift in the hips. Legs are slightly apart with one knee subtly bent, giving the pose a casual and confident feel. One arm rests naturally by the side while the other hand lightly holds the garment near the [BRAND ITEM] to showcase it. Shoulders are relaxed, and the head tilts slightly with a calm, confident expression. The background is a clean white studio backdrop with a black studio floor. Professional soft studio lighting highlights the fabric and creates subtle shadows. Portrait fashion photo captured with a high-end DSLR camera, 85mm lens, ultra-realistic, sharp details, fashion editorial quality, 8K resolution. Aspect ratio 9:16.",
+        placeholders: [
+          { key: "MODEL DESCRIPTION", label: "Describe your model", example: "stylish light-skin Black male model with a small Afro" },
+          { key: "OUTFIT", label: "The outfit / product", example: "a grey and navy Baltimore Ravens zip jacket with short sleeves, loose black baggy jeans, modern sneakers, and a white Japanese-style baseball cap" },
+          { key: "BRAND ITEM", label: "Logo / detail to showcase", example: "jacket zipper area with the team logo" },
+        ],
+        referenceSlots: [
+          { key: "product", label: "Product photo (optional)", description: "A flat or hanger shot of the real garment helps lock colors and logos.", required: false },
+        ],
+        usesPreviousResult: false,
+        tips: [
+          "Keep the technical photography terms — 85mm lens, 8K, editorial quality — they do the heavy lifting.",
+          "Describe the outfit in obsessive detail (colors, cut, sleeve length): the same [OUTFIT] text gets reused in every step so the shoot stays consistent.",
+          "9:16 portrait is the e-commerce and social standard — don't switch aspect ratios mid-shoot.",
+        ],
+        variants: [],
+      },
+      {
+        id: "runway-turn-video",
+        title: "Runway turn video",
+        kind: "video",
+        description:
+          "Animate the standing shot into a 12-second fashion clip: pose, side turn, zipper adjust, then two runway steps toward a slowly pushing-in camera.",
+        promptTemplate:
+          "Scene: Minimal studio fashion shoot with a clean light gray background and glossy reflective floor. Soft professional studio lighting. Subject: A [MODEL DESCRIPTION] wearing [OUTFIT]. Natural confident facial expression. Action / Motion: Shot 1 (0–3s): Full body shot. The model stands in a relaxed pose similar to the reference image, one hand lightly touching the chest of the garment, looking confidently at the camera like a professional fashion model. Shot 2 (3–6s): The model slowly turns the body slightly to the side, showing the side profile of the outfit. The fabric subtly reflects the studio lights. Shot 3 (6–9s): The model adjusts the front of the garment near the [BRAND ITEM] with one hand and slightly nods, giving a stylish streetwear model attitude. Shot 4 (9–12s): The model takes two slow confident steps forward like a runway walk while the camera slightly pushes in to highlight the outfit details. Style: high-fashion streetwear modeling, confident model attitude, smooth cinematic motion, studio fashion commercial, ultra realistic, sharp focus, detailed clothing texture, soft shadows, 4K cinematic lighting.",
+        placeholders: [
+          { key: "MODEL DESCRIPTION", label: "Describe your model", example: "stylish young male model" },
+          { key: "OUTFIT", label: "The outfit (same as step 1)", example: "a grey Baltimore Ravens zip-up jersey shirt, loose black jeans, black and white chunky sneakers, and a beige baseball cap" },
+          { key: "BRAND ITEM", label: "Detail the model adjusts", example: "jacket zipper area" },
+        ],
+        referenceSlots: [],
+        usesPreviousResult: true,
+        tips: [
+          "Use the standing model shot as the first frame — the 4-shot timing structure (0–3s / 3–6s / 6–9s / 9–12s) keeps the motion readable.",
+          "The camera push-in in shot 4 is what makes it feel like a real fashion commercial.",
+        ],
+        toolLink: { label: "Animate it in Orchestrate", to: "/orchestrate" },
+        variants: [],
+      },
+      {
+        id: "mannequin-shot",
+        title: "Mannequin product shot",
+        kind: "image",
+        description:
+          "The clean catalog frame: the same outfit on a smooth grey retail mannequin, front-facing, evenly lit — pure e-commerce.",
+        promptTemplate:
+          "A smooth grey retail mannequin is dressed in [OUTFIT]. The outfit has a relaxed streetwear aesthetic and is styled neatly to showcase the clothing clearly. The mannequin stands upright facing directly toward the camera with a straight balanced posture. Both arms hang naturally by its sides so the garments are fully visible from the front. The legs are positioned slightly apart to create a stable stance while keeping the outfit clearly displayed. The garment front is centered and smooth, and any headwear sits properly on the mannequin's head to complete the outfit. The background is a clean white professional studio backdrop with a black studio floor. Soft, even studio lighting highlights the fabric texture and creates subtle shadows. High-quality product photography captured with a professional DSLR camera, 85mm lens, ultra-sharp details, realistic fabric texture, e-commerce fashion shoot style, portrait orientation, 8K resolution. Aspect ratio 9:16.",
+        placeholders: [
+          { key: "OUTFIT", label: "The outfit (same as step 1)", example: "a grey and navy Baltimore Ravens zip jacket with short sleeves, loose black baggy jeans, modern sneakers, and a white Japanese-style baseball cap" },
+        ],
+        referenceSlots: [],
+        usesPreviousResult: false,
+        tips: [
+          "Front-facing and evenly lit — this is the frame buyers zoom into, so clarity beats mood here.",
+          "Keep the exact same [OUTFIT] text as the model shots so your listing photos match.",
+        ],
+        variants: [],
+      },
+      {
+        id: "mannequin-spin",
+        title: "Mannequin 360° spin video",
+        kind: "video",
+        description:
+          "Animate the mannequin shot into a slow 360° rotation on a hidden platform — the classic product-page spin.",
+        promptTemplate:
+          "A grey retail mannequin wearing [OUTFIT] stands upright in a clean white studio with a black studio floor. The mannequin remains completely stiff and motionless with its arms naturally by its sides while slowly rotating 360 degrees in a smooth circle on a hidden rotating platform. The rotation is slow and steady to showcase the outfit from all angles. The camera remains fixed in front of the mannequin in a portrait frame, capturing a full-body view while the mannequin rotates. Soft professional studio lighting highlights the fabric textures while creating subtle shadows on the floor. Ultra-realistic fashion product showcase video, high-end studio quality, smooth motion, sharp details, cinematic lighting, 8K fashion product video.",
+        placeholders: [
+          { key: "OUTFIT", label: "The outfit (same as step 3)", example: "a grey and navy Baltimore Ravens zip jacket with short sleeves, loose black baggy jeans, modern sneakers, and a white Japanese-style baseball cap" },
+        ],
+        referenceSlots: [],
+        usesPreviousResult: true,
+        tips: [
+          "\"Completely stiff and motionless\" matters — without it the AI adds human sway to the mannequin.",
+          "Fixed camera + rotating subject reads as premium; a moving camera reads as amateur.",
+        ],
+        toolLink: { label: "Animate it in Orchestrate", to: "/orchestrate" },
+        variants: [],
+      },
+      {
+        id: "seated-editorial",
+        title: "Seated editorial pose",
+        kind: "image",
+        description:
+          "The magazine frame: your model seated on a metal folding chair with crossed legs and generous negative space around the subject.",
+        promptTemplate:
+          "A [MODEL DESCRIPTION] is seated on a simple metal folding chair in a minimalist studio, wearing [OUTFIT], creating a relaxed streetwear aesthetic. The model sits in a confident editorial pose similar to a high-fashion studio portrait. The body is slightly turned to the side rather than facing directly forward. One leg is crossed over the other at the knee, with the extended leg angled forward. The posture is relaxed but composed. One arm rests casually on the backrest of the chair while the other hand rests naturally on the lap or near the [BRAND ITEM], subtly showcasing it. Shoulders are relaxed, and the head turns slightly to the side as if looking off-camera, giving a calm, confident expression. The composition is clean and minimalist with a large amount of negative space around the subject. The background is a clean white studio backdrop with a black studio floor. Professional soft studio lighting creates gentle shadows and highlights the texture of the clothing. Portrait fashion editorial photograph, high-end DSLR camera, 85mm lens, ultra-realistic, sharp details, fashion magazine quality, 8K resolution. Aspect ratio: 9:16.",
+        placeholders: [
+          { key: "MODEL DESCRIPTION", label: "Describe your model", example: "stylish light-skin Black male model with a small Afro" },
+          { key: "OUTFIT", label: "The outfit (same as step 1)", example: "a grey and navy Baltimore Ravens short-sleeve zip jacket, loose black baggy jeans, modern sneakers, and a white Japanese-style baseball cap" },
+          { key: "BRAND ITEM", label: "Logo / detail to showcase", example: "jacket zipper showing the team logo" },
+        ],
+        referenceSlots: [],
+        usesPreviousResult: false,
+        tips: [
+          "The negative space is deliberate — it's where a designer drops the brand name or price.",
+          "Looking off-camera reads editorial; looking at camera reads catalog. Pick per use.",
+        ],
+        variants: [],
+      },
+      {
+        id: "top-down-editorial",
+        title: "Top-down editorial angle",
+        kind: "image",
+        description:
+          "Finish with the scroll-stopper: a slightly elevated camera looking down while the model leans forward and holds eye contact.",
+        promptTemplate:
+          "A [MODEL DESCRIPTION] is wearing [OUTFIT]. The outfit has a relaxed streetwear aesthetic. The model stands in a fashionable editorial pose viewed from a slightly top-down camera angle. The body leans slightly forward toward the camera while the head tilts upward, making direct eye contact with a confident expression. One hand lightly holds the front of the garment near the [BRAND ITEM], subtly showcasing it, while the other hand rests casually near the side. Shoulders are slightly rounded forward to create a relaxed, modern fashion posture. Legs are positioned close together with one foot slightly forward, giving the pose a stylish, composed look similar to a high-fashion editorial stance. The background is a clean white professional studio backdrop with a black studio floor. Soft studio lighting highlights the fabric texture and creates gentle shadows around the model. Portrait fashion photo captured from a slightly elevated angle using a high-end DSLR camera, 85mm lens, ultra-realistic, sharp details, fashion editorial quality, 8K resolution. Aspect ratio 9:16.",
+        placeholders: [
+          { key: "MODEL DESCRIPTION", label: "Describe your model", example: "stylish light-skin Black male model" },
+          { key: "OUTFIT", label: "The outfit (same as step 1)", example: "a grey and navy Baltimore Ravens zip jacket with short sleeves, loose black baggy jeans, modern sneakers, and a white Japanese-style baseball cap" },
+          { key: "BRAND ITEM", label: "Logo / detail to showcase", example: "zipper area with the team logo" },
+        ],
+        referenceSlots: [],
+        usesPreviousResult: false,
+        tips: [
+          "The lean-forward + upward eye contact combination is what makes this angle feel dynamic instead of awkward.",
+          "Run all four image steps with the same [OUTFIT] text and you have a complete drop-ready shoot in one sitting.",
+        ],
+        variants: [],
+      },
+    ],
+  },
 ];

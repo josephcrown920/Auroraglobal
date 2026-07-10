@@ -141,6 +141,164 @@ export async function pollHeyGenVideo(videoId: string): Promise<HeyGenVideoRespo
   };
 }
 
+// ─── HeyGen Template API (Task #275 — "Aurora Template") ────────────────────
+// POST /v2/template/{template_id}/generate: render an existing HeyGen template
+// with a map of variable overrides. Aurora stores a template's fixed variables
+// once (aurora_templates table) and swaps just the "character" variable per
+// generation for mass production of the same scene with different characters.
+// Docs: https://docs.heygen.com/reference/generate-from-template-v2
+
+const TemplateVariablePropertiesSchemas = {
+  text: z.object({ content: z.string().max(5000) }),
+  image: z.object({
+    url: z.string().url().optional(),
+    asset_id: z.string().optional(),
+    fit: z.enum(["contain", "cover", "crop", "none"]).optional(),
+  }),
+  video: z.object({
+    url: z.string().url().optional(),
+    asset_id: z.string().optional(),
+    play_style: z.enum(["fit_to_scene", "freeze", "loop", "once"]).optional(),
+    fit: z.enum(["contain", "cover", "crop", "none"]).optional(),
+  }),
+  audio: z.object({
+    url: z.string().url().optional(),
+    asset_id: z.string().optional(),
+  }),
+  voice: z.object({ voice_id: z.string() }),
+  character: z.object({
+    // "avatar" (studio avatar) or "talking_photo" per HeyGen's schema.
+    type: z.enum(["avatar", "talking_photo"]).default("avatar"),
+    character_id: z.string(),
+    voice_id: z.string().optional(),
+  }),
+} as const;
+
+/** The character member of the union, exported on its own so the Aurora
+ *  Template generate/batch endpoints can accept ONLY character swaps. */
+export const HeyGenTemplateCharacterVariableSchema = z.object({
+  name: z.string(),
+  type: z.literal("character"),
+  properties: TemplateVariablePropertiesSchemas.character,
+});
+export type HeyGenTemplateCharacterVariable = z.infer<typeof HeyGenTemplateCharacterVariableSchema>;
+
+export const HeyGenTemplateVariableSchema = z.discriminatedUnion("type", [
+  z.object({ name: z.string(), type: z.literal("text"), properties: TemplateVariablePropertiesSchemas.text }),
+  z.object({ name: z.string(), type: z.literal("image"), properties: TemplateVariablePropertiesSchemas.image }),
+  z.object({ name: z.string(), type: z.literal("video"), properties: TemplateVariablePropertiesSchemas.video }),
+  z.object({ name: z.string(), type: z.literal("audio"), properties: TemplateVariablePropertiesSchemas.audio }),
+  z.object({ name: z.string(), type: z.literal("voice"), properties: TemplateVariablePropertiesSchemas.voice }),
+  HeyGenTemplateCharacterVariableSchema,
+]);
+export type HeyGenTemplateVariable = z.infer<typeof HeyGenTemplateVariableSchema>;
+
+export const HeyGenTemplateVariablesSchema = z.record(z.string(), HeyGenTemplateVariableSchema);
+export type HeyGenTemplateVariables = z.infer<typeof HeyGenTemplateVariablesSchema>;
+
+export type HeyGenTemplateGenerateOptions = {
+  title?: string;
+  caption?: boolean;
+  dimension?: { width: number; height: number };
+  /** Restrict rendering to specific template scenes. */
+  sceneIds?: string[];
+  /** Frames per second (HeyGen accepts e.g. 25/30/60 where supported). */
+  fps?: number;
+};
+
+/**
+ * Merge a per-generation character value into a template's stored fixed
+ * variables. Pure + exported for tests: the character variable's `name` is
+ * always forced to the slot key so a mismatched payload can't create a
+ * second, unused variable on HeyGen's side.
+ */
+export function mergeCharacterVariable(
+  fixedVariables: HeyGenTemplateVariables,
+  characterVariableKey: string,
+  characterValue: HeyGenTemplateVariable,
+): HeyGenTemplateVariables {
+  return {
+    ...fixedVariables,
+    [characterVariableKey]: { ...characterValue, name: characterVariableKey },
+  };
+}
+
+/** Pure payload builder (exported for tests). */
+export function buildTemplateGeneratePayload(
+  variables: HeyGenTemplateVariables,
+  opts?: HeyGenTemplateGenerateOptions,
+): Record<string, unknown> {
+  // Normalize: each entry's `name` must equal its map key per HeyGen's schema.
+  const normalized: HeyGenTemplateVariables = {};
+  for (const [k, v] of Object.entries(variables)) normalized[k] = { ...v, name: k };
+  return {
+    title: opts?.title ?? "Aurora Template",
+    caption: opts?.caption ?? false,
+    variables: normalized,
+    ...(opts?.dimension ? { dimension: opts.dimension } : {}),
+    ...(opts?.sceneIds?.length ? { scene_ids: opts.sceneIds } : {}),
+    ...(opts?.fps ? { fps: opts.fps } : {}),
+  };
+}
+
+/**
+ * Submit a template render (POST /v2/template/{id}/generate). Returns a
+ * video_id pollable via the same GET /v2/videos/{id} endpoint as every other
+ * HeyGen video (`pollHeyGenVideo`).
+ */
+export async function submitHeyGenTemplateVideo(
+  templateId: string,
+  variables: HeyGenTemplateVariables,
+  opts?: HeyGenTemplateGenerateOptions,
+): Promise<{ videoId: string }> {
+  if (!templateId.trim()) throw new Error("HeyGen template: templateId is required");
+  const response = await fetch(
+    `${HEYGEN_API}/v2/template/${encodeURIComponent(templateId)}/generate`,
+    {
+      method: "POST",
+      headers: heygenHeaders(),
+      body: JSON.stringify(buildTemplateGeneratePayload(variables, opts)),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(
+      `HeyGen template generate failed [${response.status}]: ${(await response.text()).slice(0, 300)}`,
+    );
+  }
+  const j = (await response.json()) as { data?: { video_id?: string } };
+  const videoId = j.data?.video_id;
+  if (!videoId) throw new Error("HeyGen template generate returned no video_id");
+  return { videoId };
+}
+
+/**
+ * Poll a HeyGen video to completion (shared 5s-interval pattern used by the
+ * other HeyGen adapters). Throws on failure or timeout; returns the video URL.
+ */
+export async function waitForHeyGenVideo(
+  videoId: string,
+  timeoutMs = 20 * 60_000,
+): Promise<string> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    await new Promise((s) => setTimeout(s, 5000));
+    let v: HeyGenVideoResponse;
+    try {
+      v = await pollHeyGenVideo(videoId);
+    } catch (err) {
+      // pollHeyGenVideo throws for BOTH transient HTTP errors and a terminal
+      // "failed" status — only the terminal one should abort the wait.
+      if (err instanceof Error && err.message.startsWith("HeyGen video failed")) throw err;
+      continue;
+    }
+    if (v.status === "completed") {
+      if (!v.video_url) throw new Error("HeyGen video completed with no video url");
+      return v.video_url;
+    }
+  }
+  throw new Error("HeyGen video poll timeout");
+}
+
 /**
  * Product Demo (Task #276) duration presets, following HeyGen's avatar-video
  * guidance: pick a target length + rough word budget so the prompt builder
