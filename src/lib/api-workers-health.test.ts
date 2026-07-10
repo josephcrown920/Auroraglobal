@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
 // The health-sweep endpoint is triggered by an external cron (Supabase pg_cron)
 // hitting POST /api/public/workers/health with the Supabase anon `apikey`. It
@@ -47,6 +47,15 @@ describe("POST /api/public/workers/health", () => {
     else process.env.SUPABASE_PUBLISHABLE_KEY = realPublishable;
     if (realAnon === undefined) delete process.env.SUPABASE_ANON_KEY;
     else process.env.SUPABASE_ANON_KEY = realAnon;
+  });
+
+  // mock.module is process-global in bun: the stub above replaces
+  // checkGPUWorkerHealth for every file that resolves to this module (relative
+  // or aliased import), including gpu-worker-health.test.ts itself. Restore the
+  // real implementation once this suite is done so sibling suites see the real
+  // function again instead of the no-op stub.
+  afterAll(() => {
+    mock.module("@/lib/gpu-worker-health", () => realGpuWorkerHealth);
   });
 
   it("returns 401 with no credential at all", async () => {

@@ -99,6 +99,7 @@ async function interpretRunpodHealth(res: Response): Promise<WorkerProbeResult> 
 export async function probeWorkerHealth(
   worker: WorkerHealthTarget,
   timeoutMs = 8_000,
+  fetchImpl: typeof fetch = fetch,
 ): Promise<WorkerProbeResult> {
   const protocol = worker.protocol ?? "custom";
   const baseUrl = normalizeWorkerBase(worker.endpoint_url);
@@ -111,7 +112,7 @@ export async function probeWorkerHealth(
     : protocol === "hfspace" ? "/"
     : "/health";
   try {
-    const res = await fetch(baseUrl + path, {
+    const res = await fetchImpl(baseUrl + path, {
       headers,
       signal: AbortSignal.timeout(timeoutMs),
     });
@@ -151,7 +152,10 @@ export function isWorkerHealthy(worker: WorkerStatus): boolean {
  * Called every 5 minutes.
  * Updates worker status and routes around unhealthy instances.
  */
-export async function checkGPUWorkerHealth(supabaseAdmin: any) {
+export async function checkGPUWorkerHealth(
+  supabaseAdmin: any,
+  fetchImpl: typeof fetch = fetch,
+) {
   const { data: workers, error } = await supabaseAdmin
     .from("gpu_workers")
     .select("id, name, status, endpoint_url, auth_token, protocol")
@@ -168,7 +172,7 @@ export async function checkGPUWorkerHealth(supabaseAdmin: any) {
 
     // Probe live health, branching on protocol (custom GET /health vs RunPod
     // health payload). Unreachable workers are marked paused.
-    const result = await probeWorkerHealth(worker);
+    const result = await probeWorkerHealth(worker, 8_000, fetchImpl);
     const newStatus = result.ok ? "active" : "paused";
 
     const patch: Record<string, unknown> = {

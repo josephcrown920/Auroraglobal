@@ -139,6 +139,27 @@ const supabaseAdmin = {
 };
 
 mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin }));
+// result-store.server's default deps do a real fetch() of the provider URL to
+// re-persist/compress it. This suite has no real network, and worse, a leaked
+// global fetch mock from another test file running earlier in the same process
+// can make that fetch appear to "succeed" with bogus bytes (bun mock.module /
+// globalThis.fetch are process-global — see gpu-worker-health.test.ts for the
+// same class of bug). Stub persistResultUrl deterministically here instead of
+// depending on real or accidentally-leaked network behavior: this suite only
+// cares that jobs.server hands the (possibly persisted) URL to finalize_job,
+// not the persistence mechanics themselves — those are covered by
+// result-store.server's own tests.
+mock.module("./result-store.server", () => ({
+  persistResultUrl: async (args: { url: string }) => ({
+    url: args.url,
+    persisted: false,
+    compressed: false,
+  }),
+  resultMediaTypeForKind: (kind: string) =>
+    kind === "video" || kind === "lyric_video" || kind === "assemble" ? "video"
+    : kind === "tts" ? "audio"
+    : "image",
+}));
 mock.module("./hf.server", () => ({
   hfTextToSpeech: async () => ({ bytes: new Uint8Array(), contentType: "audio/flac" }),
   // orchestrator.server.ts is still imported at the top of jobs.server.ts (only

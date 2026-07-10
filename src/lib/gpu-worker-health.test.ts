@@ -55,12 +55,13 @@ function fakeResponse(opts: { ok?: boolean; status?: number; json?: unknown }): 
 const realFetch = globalThis.fetch;
 function installFetch(handler: (url: string) => Response) {
   const calls: string[] = [];
-  globalThis.fetch = mock((input: RequestInfo | URL) => {
+  const fetchImpl = mock((input: RequestInfo | URL) => {
     const url = typeof input === "string" ? input : input.toString();
     calls.push(url);
     return Promise.resolve(handler(url));
   }) as unknown as typeof fetch;
-  return { calls };
+  globalThis.fetch = fetchImpl;
+  return { calls, fetchImpl };
 }
 
 describe("probeWorkerHealth", () => {
@@ -192,8 +193,8 @@ describe("checkGPUWorkerHealth", () => {
         protocol: "custom",
       },
     ]);
-    installFetch(() => fakeResponse({ ok: false, status: 500 }));
-    await checkGPUWorkerHealth(admin);
+    const { fetchImpl } = installFetch(() => fakeResponse({ ok: false, status: 500 }));
+    await checkGPUWorkerHealth(admin, fetchImpl);
     expect(updates).toHaveLength(1);
     expect(updates[0]).toMatchObject({ id: "a", patch: { status: "paused" } });
   });
@@ -208,8 +209,8 @@ describe("checkGPUWorkerHealth", () => {
         protocol: "custom",
       },
     ]);
-    installFetch(() => fakeResponse({ ok: true, status: 200 }));
-    await checkGPUWorkerHealth(admin);
+    const { fetchImpl } = installFetch(() => fakeResponse({ ok: true, status: 200 }));
+    await checkGPUWorkerHealth(admin, fetchImpl);
     expect(updates).toHaveLength(1);
     expect(updates[0].patch.last_heartbeat).toBeDefined();
     // Already active → status is left untouched (only the heartbeat is patched).
@@ -230,8 +231,8 @@ describe("checkGPUWorkerHealth", () => {
         protocol: "custom",
       },
     ]);
-    installFetch(() => fakeResponse({ ok: true, status: 200 }));
-    await checkGPUWorkerHealth(admin);
+    const { fetchImpl } = installFetch(() => fakeResponse({ ok: true, status: 200 }));
+    await checkGPUWorkerHealth(admin, fetchImpl);
     expect(updates).toHaveLength(1);
     expect(updates[0]).toMatchObject({ id: "r", patch: { status: "active" } });
     expect(updates[0].patch.last_heartbeat).toBeDefined();
