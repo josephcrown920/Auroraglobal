@@ -37,6 +37,9 @@ export type RenderInput = {
   model?: string;
   /** Strict photo-edit mode — see GenerateRequest.editStrict in the orchestrator. */
   editStrict?: boolean;
+  /** Pinned-only model routing — see GenerateRequest.pinnedModelOnly. A failed
+   *  pinned render must fail (and refund), never fall back to another model. */
+  pinnedModelOnly?: boolean;
   params?: Record<string, unknown>;
   comfyWorkflow?: unknown;
   comfyInputs?: Record<string, unknown>;
@@ -110,6 +113,7 @@ export async function reserveOrchestrateRecord(
       resolution: input.resolution,
       model: input.model,
       editStrict: input.editStrict,
+      pinnedModelOnly: input.pinnedModelOnly,
       params: input.params,
       comfyWorkflow: input.comfyWorkflow,
       comfyInputs: input.comfyInputs,
