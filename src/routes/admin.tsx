@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { adminOverview, adminGrantCredits, adminEarnings, adminWithdrawalSummary, adminRecordWithdrawal } from "@/lib/admin.functions";
+import { adminOverview, adminGrantCredits, adminEarnings, adminWithdrawalSummary, adminRecordWithdrawal, adminCheckWithdrawalAmount, adminEditWithdrawal, adminDeleteWithdrawal } from "@/lib/admin.functions";
 import { listWorkers, upsertWorker, deleteWorker, pingWorker, setWorkerStatus, getFreeGpuMode, setFreeGpuMode } from "@/lib/workers.functions";
 import { issuePromoCode, listPromoCodes, setPromoCodeActive, type PromoCodeRow } from "@/lib/promo.functions";
 import { PROFIT_SPLIT_PCT } from "@/lib/profit-split";
@@ -394,6 +394,9 @@ function EarningsPanel() {
 function WithdrawalsPanel() {
   const summaryFn = useServerFn(adminWithdrawalSummary);
   const recordFn = useServerFn(adminRecordWithdrawal);
+  const checkFn = useServerFn(adminCheckWithdrawalAmount);
+  const editFn = useServerFn(adminEditWithdrawal);
+  const deleteFn = useServerFn(adminDeleteWithdrawal);
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["admin-withdrawals"],
@@ -409,17 +412,30 @@ function WithdrawalsPanel() {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [withdrawnDate, setWithdrawnDate] = useState(todayLocal);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editNote, setEditNote] = useState("");
+
+  const toIsoAtNoon = (dateStr: string) => new Date(`${dateStr}T12:00:00`).toISOString();
 
   const recordMut = useMutation({
     mutationFn: async () => {
       const amountUsd = parseFloat(amount);
       if (!Number.isFinite(amountUsd) || amountUsd <= 0) throw new Error("Enter a valid amount");
+      // Warn before recording a payout larger than what's actually left,
+      // rather than silently pushing "remaining" negative — the owner may
+      // still confirm (e.g. a legitimate backdated correction).
+      const check = await checkFn({ data: { amountUsd } });
+      if (check.exceedsRemaining) {
+        const proceed = window.confirm(
+          `This payout ($${amountUsd.toFixed(2)}) exceeds the remaining balance ($${check.remainingUsd.toFixed(2)}). Record it anyway?`,
+        );
+        if (!proceed) throw new Error("__cancelled__");
+      }
       // Date-only input from the browser (YYYY-MM-DD); anchor to local
       // midday before converting to ISO so the recorded date doesn't shift a
       // day when serialized to UTC in timezones behind UTC.
-      const withdrawnAt = withdrawnDate
-        ? new Date(`${withdrawnDate}T12:00:00`).toISOString()
-        : undefined;
+      const withdrawnAt = withdrawnDate ? toIsoAtNoon(withdrawnDate) : undefined;
       return recordFn({ data: { amountUsd, note: note.trim() || undefined, withdrawnAt } });
     },
     onSuccess: () => {
@@ -429,7 +445,33 @@ function WithdrawalsPanel() {
       setWithdrawnDate(todayLocal());
       qc.invalidateQueries({ queryKey: ["admin-withdrawals"] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to record payout"),
+    onError: (e) => {
+      if (e instanceof Error && e.message === "__cancelled__") return;
+      toast.error(e instanceof Error ? e.message : "Failed to record payout");
+    },
+  });
+
+  const editMut = useMutation({
+    mutationFn: async (id: string) => {
+      const amountUsd = parseFloat(editAmount);
+      if (!Number.isFinite(amountUsd) || amountUsd <= 0) throw new Error("Enter a valid amount");
+      return editFn({ data: { id, amountUsd, note: editNote.trim() || undefined } });
+    },
+    onSuccess: () => {
+      toast.success("Payout updated");
+      setEditingId(null);
+      qc.invalidateQueries({ queryKey: ["admin-withdrawals"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to update payout"),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => deleteFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Payout removed");
+      qc.invalidateQueries({ queryKey: ["admin-withdrawals"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to remove payout"),
   });
 
   const usd = (n: number | undefined) => (n == null ? "—" : `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
@@ -496,18 +538,76 @@ function WithdrawalsPanel() {
               <th className="text-left p-3">When</th>
               <th className="text-right p-3">Amount</th>
               <th className="text-left p-3">Note</th>
+              <th className="text-right p-3">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {(data?.withdrawals ?? []).map((w) => (
-              <tr key={w.id} className="border-t border-border">
-                <td className="p-3 text-xs">{new Date(w.withdrawnAt).toLocaleString()}</td>
-                <td className="p-3 text-right">{usd(w.amountUsd)}</td>
-                <td className="p-3 text-xs text-muted-foreground">{w.note ?? "—"}</td>
-              </tr>
-            ))}
+            {(data?.withdrawals ?? []).map((w) =>
+              editingId === w.id ? (
+                <tr key={w.id} className="border-t border-border bg-card/30">
+                  <td className="p-3 text-xs text-muted-foreground">{new Date(w.withdrawnAt).toLocaleString()}</td>
+                  <td className="p-3 text-right">
+                    <Input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={editAmount}
+                      onChange={(e) => setEditAmount(e.target.value)}
+                      className="w-28 ml-auto"
+                    />
+                  </td>
+                  <td className="p-3">
+                    <Input value={editNote} onChange={(e) => setEditNote(e.target.value)} placeholder="Note (optional)" />
+                  </td>
+                  <td className="p-3 text-right whitespace-nowrap">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={editMut.isPending}
+                      onClick={() => editMut.mutate(w.id)}
+                    >
+                      {editMut.isPending ? <Loader2 className="size-4 animate-spin" /> : "Save"}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                      Cancel
+                    </Button>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={w.id} className="border-t border-border">
+                  <td className="p-3 text-xs">{new Date(w.withdrawnAt).toLocaleString()}</td>
+                  <td className="p-3 text-right">{usd(w.amountUsd)}</td>
+                  <td className="p-3 text-xs text-muted-foreground">{w.note ?? "—"}</td>
+                  <td className="p-3 text-right whitespace-nowrap">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setEditingId(w.id);
+                        setEditAmount(String(w.amountUsd));
+                        setEditNote(w.note ?? "");
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={deleteMut.isPending}
+                      onClick={() => {
+                        if (window.confirm("Remove this payout entry? This cannot be undone.")) {
+                          deleteMut.mutate(w.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </td>
+                </tr>
+              ),
+            )}
             {!isLoading && (data?.withdrawals ?? []).length === 0 && (
-              <tr><td colSpan={3} className="p-6 text-center text-muted-foreground text-sm">No payouts recorded yet.</td></tr>
+              <tr><td colSpan={4} className="p-6 text-center text-muted-foreground text-sm">No payouts recorded yet.</td></tr>
             )}
           </tbody>
         </table>

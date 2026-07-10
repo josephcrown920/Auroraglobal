@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { computeProfitSplit, PROFIT_SPLIT_PCT } from "./profit-split";
-import { reconcileEarningsTotals, type EarningsPaymentRow } from "./admin.functions";
+import { reconcileEarningsTotals, computeWithdrawalSummaryTotals, type EarningsPaymentRow } from "./admin.functions";
 
 // reconcileEarningsTotals is the pure aggregation core behind the adminEarnings
 // dashboard. It must reconcile totals against the underlying `payments` rows —
@@ -123,5 +123,31 @@ describe("reconcileEarningsTotals", () => {
   it("keeps the fallback split percentage consistent with PROFIT_SPLIT_PCT", () => {
     const totals = reconcileEarningsTotals([row({ amount_kobo: 10_000, credits_granted: 1 })]);
     expect(totals.profitMinor).toBe(Math.round(10_000 * (PROFIT_SPLIT_PCT / 100)));
+  });
+});
+
+// computeWithdrawalSummaryTotals is the pure reconciliation core behind the
+// owner payout ledger (all-time profit − total withdrawn = remaining). It
+// must stay correct in isolation so a future schema/profit-split change
+// can't silently break the owner's "remaining to withdraw" figure.
+describe("computeWithdrawalSummaryTotals", () => {
+  it("sums withdrawals and subtracts from all-time profit", () => {
+    const totals = computeWithdrawalSummaryTotals(10_000, [
+      { amount_minor: 2_000 },
+      { amount_minor: 1_500 },
+    ]);
+    expect(totals.totalWithdrawnMinor).toBe(3_500);
+    expect(totals.remainingMinor).toBe(6_500);
+  });
+
+  it("returns zero withdrawn and full profit as remaining with no payouts", () => {
+    const totals = computeWithdrawalSummaryTotals(5_000, []);
+    expect(totals.totalWithdrawnMinor).toBe(0);
+    expect(totals.remainingMinor).toBe(5_000);
+  });
+
+  it("allows remaining to go negative when withdrawals exceed recorded profit", () => {
+    const totals = computeWithdrawalSummaryTotals(1_000, [{ amount_minor: 1_500 }]);
+    expect(totals.remainingMinor).toBe(-500);
   });
 });
