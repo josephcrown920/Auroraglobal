@@ -1,0 +1,36 @@
+#220 - Fix GPU worker self-registration (Kaggle/Colab/Vast)
+
+What & Why
+
+The owner has run the Kaggle and Colab worker bootstrap scripts, but Aurora shows no worker online (lipsync and motion generation both fail with "no worker connected"). GPU workers must reliably self-register and stay healthy so Studio/Spin/Lip-sync/Motion features actually work, instead of silently failing with a generic "AI provider unavailable" message.
+
+Done looks like
+
+Running the Kaggle bootstrap notebook and the Colab script each results in a worker row appearing in Admin → GPU Workers with status active and a fresh last_heartbeat.
+If registration or the health probe fails, the worker row (or a clear log/error) shows the real reason (bad auth key, tunnel down, capability probe failed) instead of just vanishing.
+Vast.ai's custom protocol setup path (via workers/setup.sh) is verified to work end-to-end the same way.
+Vast.ai's comfyui protocol path — renting an on-demand instance from Vast's official "Recommended" ComfyUI template (vastai/comfy Docker image) and registering it as protocol comfyui per workers/comfyui/README.md — is also verified end-to-end: the owner can rent that exact template, install the required custom node packs, and see the worker go active in Admin → GPU Workers.
+Common failure modes are fixed or clearly surfaced: register-key mismatch, Kaggle secrets not being read, GitHub raw branch casing when the bootstrap fetches aurora_worker.py/setup.sh, stale ngrok URLs after a restart, health probes timing out before the local server is ready, and (for the Vast ComfyUI template) missing custom node packs or weights that would make Aurora's default workflow graphs fail against stock vastai/comfy.
+Admin UI gives the owner enough information (without reading server logs) to tell why a worker isn't showing as active.
+Out of scope
+
+Building new GPU backends/protocols beyond custom, Kaggle, Colab, Vast (RunPod/HF Space already exist and are not part of this fix).
+Changing pricing/credit logic for these generation paths.
+Steps
+
+Reproduce and diagnose — Register a worker end-to-end (or simulate it) for Kaggle and Colab, capture the actual failure point (registration request rejected, tunnel never opens, health probe fails, capability mismatch), and confirm whether Vast.ai's custom protocol path (via workers/setup.sh) and comfyui protocol path (via the Vast "Recommended" vastai/comfy template) have the same or different issues.
+Fix registration & health-probe reliability — Harden workers/register.ts and gpu-worker-health.ts so failures are logged/surfaced with actionable reasons, and fix any bugs found in step 1 (e.g. stale endpoint URLs, branch-casing fetch failures, secret-loading issues in the Kaggle/Colab bootstrap scripts, missing custom nodes on the Vast ComfyUI template).
+Improve Admin visibility — Ensure the Admin GPU Workers tab surfaces last_probe_error/paused_reason clearly enough that the owner can self-diagnose future registration failures without needing developer help.
+Document the working setup flow — Update workers/README.md and workers/comfyui/README.md (or equivalent) with a clear, verified step-by-step for Kaggle, Colab, Vast custom-protocol, and Vast's vastai/comfy template path, including the exact secrets/env vars and node packs each needs (AURORA_URL, AURORA_REGISTER_KEY, NGROK_AUTHTOKEN, required ComfyUI custom nodes, etc.).
+Relevant files
+
+src/routes/api/public/workers/register.ts
+src/routes/api/public/workers/health.ts
+src/lib/gpu-worker-health.ts
+workers/aurora_worker.py
+workers/kaggle/aurora_worker_kaggle.py
+workers/setup.sh
+workers/CONTRACT.md
+workers/README.md
+workers/comfyui/README.md
+workers/comfyui/aurora_comfyui_launcher.py
