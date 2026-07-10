@@ -464,6 +464,9 @@ const OrchestrateSchema = z.object({
   resolution: z.enum(["480p", "720p", "1080p", "2160p"]).optional(),
   model: z.string().max(120).optional(),
   voiceId: z.string().max(120).optional(),
+  // HeyGen Video Agent (task #274): portrait vs landscape avatar video. The
+  // heygen adapter reads r.params.orientation; other providers ignore it.
+  orientation: z.enum(["landscape", "portrait"]).optional(),
   // Preview pass: generate at 480p/5s before the full-quality render.
   previewOnly: z.boolean().optional(),
   // Preview-confirm gate (task #153): id of a succeeded preview generation the
@@ -577,7 +580,13 @@ export const orchestrateGenerate = createServerFn({ method: "POST" })
       duration: effDuration,
       resolution: effResolution,
       model: data.model,
-      params: data.voiceId ? { voiceId: data.voiceId } : undefined,
+      params:
+        data.voiceId || data.orientation
+          ? {
+              ...(data.voiceId ? { voiceId: data.voiceId } : {}),
+              ...(data.orientation ? { orientation: data.orientation } : {}),
+            }
+          : undefined,
       cost,
       reason: previewOnly ? `orchestrate_${kind}_preview` : `orchestrate_${kind}`,
       mode: previewOnly ? "preview" : undefined,
