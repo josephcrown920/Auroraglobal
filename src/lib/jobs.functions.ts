@@ -7,23 +7,25 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertTrustedUrl } from "./url-guard";
 import type { GenerateKind } from "./orchestrator.server";
+import { computeCost, type Feature, type Resolution } from "./pricing";
 
-function creditCost(kind: string): number {
-  switch (kind) {
-    case "image":
-    case "upscale":
-      return 1;
-    case "lipsync":
-      return 3;
-    case "video":
-    case "tiktok_remix_child":
-    case "motion":
-      return 5;
-    case "performance_reskin":
-      return 8;
-    default:
-      return 1;
-  }
+/** Flat-per-kind reservation for this queue path, sourced from the shared
+ *  price list (src/lib/pricing.ts) instead of a local literal table — this
+ *  used to hardcode its own numbers (e.g. video=5) that silently drifted
+ *  behind a repricing of the shared table. Only "image"/"video"/"lipsync"/
+ *  "upscale" are ever passed in (see EnqueueInput below), all valid Features.
+ *  `model`/`resolution`/`durationSeconds` are honored so this path gains the
+ *  same stacked, resolution/length-aware pricing as every other charge point. */
+export function creditCost(
+  kind: string,
+  opts?: { model?: string | null; resolution?: Resolution | null; durationSeconds?: number | null },
+): number {
+  return computeCost({
+    features: [kind as Feature],
+    model: opts?.model,
+    resolution: opts?.resolution,
+    durationSeconds: opts?.durationSeconds,
+  }).total;
 }
 
 // Note: "motion" / "performance_reskin" are intentionally NOT enqueueable here.
@@ -85,14 +87,14 @@ export async function enqueueJobForUser(
     const { assertHdEntitlement } = await import("./cost-guardrails.server");
     await assertHdEntitlement(userId, data.resolution, previewPass);
 
-    // Previews are cheaper: the queue path prices flat (creditCost), so the
-    // preview is half of that flat price (matching the 480p ×0.5 multiplier).
-    // NOTE: never price the preview via the model-tiered computeCost here —
-    // premium tiers would make the "cheap" preview cost MORE than the flat
-    // full-price render it gates.
+    // Previews are cheaper: half of the DEFAULT-tier flat price (no model,
+    // no user-chosen resolution/duration — matching the 480p ×0.5 multiplier).
+    // NOTE: never price the preview via the model-tiered/resolution-aware
+    // creditCost() below — a premium model or 4K request would make the
+    // "cheap" preview cost MORE than the flat full-price render it gates.
     const amount = previewPass
       ? Math.max(1, Math.ceil(creditCost(data.kind) * 0.5))
-      : creditCost(data.kind);
+      : creditCost(data.kind, { model: data.model, resolution: data.resolution, durationSeconds: data.duration });
     const client = supabaseAdmin as unknown as {
       rpc: (n: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
     };
