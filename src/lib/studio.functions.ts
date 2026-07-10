@@ -4,7 +4,7 @@ import { z } from "zod";
 import { orchestrate, hasActiveWorkerForKind, assertFreeModeServable } from "./orchestrator.server";
 import { buildLatentSyncRequest } from "./lipsync-workflows.server";
 import { fetchToBytes } from "./replicate.server";
-import { compressImageBytes, compressVideoBytes } from "./compress.server";
+import { compressImageBytes } from "./compress.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertTrustedUrl, assertOwnedReferenceImage } from "./url-guard";
 import { buildMimicMotionRequest, MOTION_TYPES, CAMERA_MOVEMENTS } from "./motion-workflows.server";
@@ -87,63 +87,24 @@ const GenerateSchema = z.object({
   model: z.string().default("google/nano-banana"),
 });
 
+// Enqueue-only: reserves credits + creates the job/generation row atomically,
+// then returns immediately. The jobs/tick worker (running independently of
+// this request) renders it, so the result survives the tab closing — the
+// client polls getJobStatus (or listGenerations) to learn when it's ready.
 export const generatePerformanceShot = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => GenerateSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-
-    const { data: row, error: insErr } = await supabase
-      .from("generations")
-      .insert({
-        user_id: userId,
-        prompt: data.prompt,
-        status: "processing",
-        kind: "image",
-        model: data.model,
-        input_images: data.imageUrls,
-        motion_video_url: data.motionVideoUrl ?? null,
-        credits_cost: COST_IMAGE,
-      })
-      .select()
-      .single();
-    if (insErr || !row) throw new Error(insErr?.message || "Insert failed");
-
-    await chargeCredits(userId, COST_IMAGE, "image_generation", row.id);
-
-    try {
-      // All image models route through the orchestrator, which tries the chosen
-      // model/provider first and falls back to the next one automatically.
-      const out = await orchestrate({
-        kind: "image",
-        model: data.model,
-        prompt: data.prompt,
-        imageUrls: data.imageUrls,
-        userId,
-        refId: row.id,
-      });
-      const { bytes: rawBytes, mime: rawMime } = await fetchToBytes(out.url);
-      const img = await compressImageBytes(rawBytes, rawMime || "image/png");
-      const path = `${userId}/results/${row.id}.${img.ext}`;
-      const { error: upErr } = await supabase.storage
-        .from("studio")
-        .upload(path, img.bytes, { contentType: img.mime, upsert: true });
-      if (upErr) throw new Error(upErr.message);
-      const publicUrl = supabase.storage.from("studio").getPublicUrl(path).data.publicUrl;
-      await supabase
-        .from("generations")
-        .update({ status: "complete", result_image_url: publicUrl })
-        .eq("id", row.id);
-      return { id: row.id, resultUrl: publicUrl };
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Unknown error";
-      await supabase
-        .from("generations")
-        .update({ status: "failed", error: msg })
-        .eq("id", row.id);
-      await refundCredits(userId, COST_IMAGE, row.id);
-      throw new Error(msg);
-    }
+    const { userId } = context;
+    const out = await reserveGenerationJob(userId, "image", data.prompt, COST_IMAGE, {
+      kind: "image",
+      prompt: data.prompt,
+      imageUrls: data.imageUrls,
+      model: data.model,
+      motionVideoUrl: data.motionVideoUrl ?? null,
+    });
+    await trackServer("performance_shot_enqueued", userId, { jobId: out.jobId });
+    return out;
   });
 
 const VideoSchema = z.object({
@@ -222,21 +183,6 @@ export const generateVideoFromImage = createServerFn({ method: "POST" })
     // (always 480p). Terminal error so jobs fail immediately rather than retry.
     await assertHdEntitlement(userId, data.resolution, previewPass);
 
-    const { data: row, error: insErr } = await supabase
-      .from("generations")
-      .insert({
-        user_id: userId,
-        prompt: fullPrompt,
-        status: "processing",
-        kind: "video",
-        model: data.modelKey,
-        input_images: data.endFrameUrl ? [data.imageUrl, data.endFrameUrl] : [data.imageUrl],
-        camera_movement: data.cameraMovement ?? null,
-        ...(previewPass ? { mode: "preview" } : {}),
-      })
-      .select()
-      .single();
-    if (insErr || !row) throw new Error(insErr?.message || "Insert failed");
     // Free GPU only mode: video has no $0 hosted fallback, so fail before charging
     // credits if no free worker is online (no paid provider can ever be reached).
     await assertFreeModeServable("video");
@@ -248,38 +194,20 @@ export const generateVideoFromImage = createServerFn({ method: "POST" })
       durationSeconds: effDuration,
       resolution: effResolution,
     }).total;
-    await chargeCredits(userId, videoCost, previewPass ? "video_preview" : "video_generation", row.id);
-    try {
-      const out = await orchestrate({
-        kind: "video",
-        model: data.modelKey,
-        prompt: fullPrompt,
-        imageUrls: data.endFrameUrl ? [data.imageUrl, data.endFrameUrl] : [data.imageUrl],
-        duration: effDuration,
-        resolution: effResolution,
-        cameraMovement: data.cameraMovement,
-        userId,
-        refId: row.id,
-      });
-      const { bytes: rawBytes, mime: rawMime } = await fetchToBytes(out.url);
-      const vid = await compressVideoBytes(rawBytes, rawMime || "video/mp4");
-      const path = `${userId}/videos/${row.id}.mp4`;
-      const { error: upErr } = await supabase.storage
-        .from("studio")
-        .upload(path, vid.bytes, { contentType: vid.mime, upsert: true });
-      if (upErr) throw new Error(upErr.message);
-      const publicUrl = supabase.storage.from("studio").getPublicUrl(path).data.publicUrl;
-      await supabase
-        .from("generations")
-        .update({ status: "complete", result_video_url: publicUrl })
-        .eq("id", row.id);
-      return { id: row.id, videoUrl: publicUrl, preview: previewPass };
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Unknown error";
-      await supabase.from("generations").update({ status: "failed", error: msg }).eq("id", row.id);
-      await refundCredits(userId, videoCost, row.id);
-      throw new Error(msg);
-    }
+    const out = await reserveGenerationJob(userId, "video", fullPrompt, videoCost, {
+      kind: "video",
+      model: data.modelKey,
+      prompt: fullPrompt,
+      imageUrls: data.endFrameUrl ? [data.imageUrl, data.endFrameUrl] : [data.imageUrl],
+      duration: effDuration,
+      resolution: effResolution,
+      cameraMovement: data.cameraMovement,
+      cameraMovementKey: data.cameraMovement ?? null,
+      ...(previewPass ? { previewOnly: true } : {}),
+    });
+    if (previewPass) await markGenerationPreview(out.generationId);
+    await trackServer("video_enqueued", userId, { jobId: out.jobId });
+    return { ...out, preview: previewPass };
   });
 
 
@@ -340,51 +268,20 @@ export const generateSplitReality = createServerFn({ method: "POST" })
     return parsed.data;
   })
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { userId } = context;
     const model = "google/gemini-3.1-flash-image-preview";
 
+    // Each half is enqueued (not rendered inline) so both halves survive the
+    // tab closing — the client polls each returned jobId via getJobStatus.
     const runOne = async (variant: string, prompt: string, imageUrls: string[]) => {
-      const { data: row, error: insErr } = await supabase
-        .from("generations")
-        .insert({
-          user_id: userId,
-          prompt: `[Split Reality / ${variant}] ${prompt}`,
-          status: "processing",
-          kind: "image",
-          model,
-          input_images: imageUrls,
-          credits_cost: COST_IMAGE,
-        })
-        .select()
-        .single();
-      if (insErr || !row) throw new Error(insErr?.message || "Insert failed");
-      await chargeCredits(userId, COST_IMAGE, `split_${variant}`, row.id);
-
-      try {
-        const out = await orchestrate({
-          kind: "image",
-          model,
-          prompt,
-          imageUrls,
-          userId,
-          refId: row.id,
-        });
-        const { bytes: rawBytes, mime: rawMime } = await fetchToBytes(out.url);
-        const img = await compressImageBytes(rawBytes, rawMime || "image/png");
-        const path = `${userId}/results/${row.id}.${img.ext}`;
-        const { error: upErr } = await supabase.storage
-          .from("studio")
-          .upload(path, img.bytes, { contentType: img.mime, upsert: true });
-        if (upErr) throw new Error(upErr.message);
-        const publicUrl = supabase.storage.from("studio").getPublicUrl(path).data.publicUrl;
-        await supabase.from("generations").update({ status: "complete", result_image_url: publicUrl }).eq("id", row.id);
-        return { id: row.id, url: publicUrl, variant };
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : "Unknown error";
-        await supabase.from("generations").update({ status: "failed", error: msg }).eq("id", row.id);
-        await refundCredits(userId, COST_IMAGE, row.id);
-        throw new Error(msg);
-      }
+      const out = await reserveGenerationJob(userId, "image", `[Split Reality / ${variant}] ${prompt}`, COST_IMAGE, {
+        kind: "image",
+        model,
+        prompt,
+        imageUrls,
+      });
+      await trackServer("split_reality_enqueued", userId, { jobId: out.jobId, variant });
+      return { ...out, variant };
     };
 
     if (data.mode === "characters") {
@@ -427,7 +324,7 @@ export const lipSyncVideo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => LipSyncSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { userId } = context;
     const model = data.model;
     const selfHosted = model === "latentsync";
     if (selfHosted && !(await hasActiveWorkerForKind("lipsync"))) {
@@ -439,62 +336,27 @@ export const lipSyncVideo = createServerFn({ method: "POST" })
       model === "fal-ai/wav2lip" ? "lip sync (wav2lip)"
       : model === "latentsync" ? "lip sync (latentsync · self-hosted)"
       : "lip sync (sync 1.9)";
-    const { data: row, error: insErr } = await supabase
-      .from("generations")
-      .insert({
-        user_id: userId,
-        prompt: promptLabel,
-        status: "processing",
-        kind: "video",
-        model,
-        input_images: [data.videoUrl],
-        audio_url: data.audioUrl,
-      })
-      .select()
-      .single();
-    if (insErr || !row) throw new Error(insErr?.message || "Insert failed");
     // Free GPU only mode: lip-sync has no $0 hosted fallback, so a hosted engine
     // can't run for free — fail before charging credits unless a worker is online.
     await assertFreeModeServable("lipsync");
     // Model-tiered: premium engines (Sync 1.9) cost more Aura than the self-hosted
     // budget engine. Same computeCost the UI previews → preview == charge == refund.
     const lipsyncCost = computeCost({ features: ["lipsync"], model }).total;
-    await chargeCredits(userId, lipsyncCost, "lipsync", row.id);
-    try {
-      // Self-hosted LatentSync carries a ComfyUI graph + flat params so it runs
-      // on every worker protocol; hosted engines never get these.
-      const selfHostedParts = selfHosted
-        ? buildLatentSyncRequest({ videoUrl: data.videoUrl, audioUrl: data.audioUrl })
-        : undefined;
-      const out = await orchestrate({
-        kind: "lipsync",
-        model,
-        selfHostedOnly: selfHosted,
-        videoUrl: data.videoUrl,
-        audioUrl: data.audioUrl,
-        userId,
-        refId: row.id,
-        ...(selfHostedParts ?? {}),
-      });
-      const { bytes: rawBytes, mime: rawMime } = await fetchToBytes(out.url);
-      const vid = await compressVideoBytes(rawBytes, rawMime || "video/mp4");
-      const path = `${userId}/videos/${row.id}.mp4`;
-      const { error: upErr } = await supabase.storage
-        .from("studio")
-        .upload(path, vid.bytes, { contentType: vid.mime, upsert: true });
-      if (upErr) throw new Error(upErr.message);
-      const publicUrl = supabase.storage.from("studio").getPublicUrl(path).data.publicUrl;
-      await supabase
-        .from("generations")
-        .update({ status: "complete", result_video_url: publicUrl })
-        .eq("id", row.id);
-      return { id: row.id, videoUrl: publicUrl };
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Unknown error";
-      await supabase.from("generations").update({ status: "failed", error: msg }).eq("id", row.id);
-      await refundCredits(userId, lipsyncCost, row.id);
-      throw new Error(msg);
-    }
+    // Self-hosted LatentSync carries a ComfyUI graph + flat params so it runs
+    // on every worker protocol; hosted engines never get these.
+    const selfHostedParts = selfHosted
+      ? buildLatentSyncRequest({ videoUrl: data.videoUrl, audioUrl: data.audioUrl })
+      : undefined;
+    const out = await reserveGenerationJob(userId, "video", promptLabel, lipsyncCost, {
+      kind: "lipsync",
+      model,
+      selfHostedOnly: selfHosted,
+      videoUrl: data.videoUrl,
+      audioUrl: data.audioUrl,
+      ...(selfHostedParts ?? {}),
+    });
+    await trackServer("lipsync_enqueued", userId, { jobId: out.jobId });
+    return out;
   });
 
 // Toggle favorite flag — used by gallery to "save permanently"

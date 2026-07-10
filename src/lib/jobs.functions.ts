@@ -152,6 +152,41 @@ export const listMyJobs = createServerFn({ method: "GET" })
     return listJobsForUser(context.userId);
   });
 
+/** Single-job status lookup used by client-side poll loops after an
+ *  enqueue-only server fn returns {jobId, generationId} — lets the UI keep
+ *  showing progress (and eventually the result) even if the tab that started
+ *  the render is closed and reopened, since the job/generation rows are the
+ *  source of truth, not an in-memory request. */
+export const getJobStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ jobId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: job, error } = await supabaseAdmin
+      .from("jobs")
+      .select("id, kind, status, error, generation_id")
+      .eq("id", data.jobId)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!job) throw new Error("Job not found");
+
+    let generation: {
+      status: string | null;
+      result_image_url: string | null;
+      result_video_url: string | null;
+      error: string | null;
+    } | null = null;
+    if (job.generation_id) {
+      const { data: gen } = await supabaseAdmin
+        .from("generations")
+        .select("status, result_image_url, result_video_url, error")
+        .eq("id", job.generation_id)
+        .maybeSingle();
+      generation = gen ?? null;
+    }
+    return { job, generation };
+  });
+
 export const cancelMyJob = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))

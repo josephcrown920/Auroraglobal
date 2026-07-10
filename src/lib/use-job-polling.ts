@@ -1,0 +1,69 @@
+// Client-side helper that turns an enqueue-only server fn (returns
+// {jobId, generationId, ...}) back into a promise that resolves once the
+// underlying job/generation finishes — so every existing mutationFn/onSuccess
+// callsite that expected an inline blocking render keeps working unchanged.
+//
+// This is intentionally still a blocking await from the CALLER's point of
+// view, but the actual work is decoupled: the enqueue call returns almost
+// immediately, and the render itself is driven by the jobs/tick worker
+// (independent of this request/tab). If the tab closes mid-poll, the job
+// keeps progressing server-side and will show up in Gallery/My Jobs when the
+// user comes back — closing the loop on task #273.
+import { useServerFn } from "@tanstack/react-start";
+import { getJobStatus } from "./jobs.functions";
+
+export type JobPollResult = {
+  status: string;
+  resultImageUrl: string | null;
+  resultVideoUrl: string | null;
+  error: string | null;
+};
+
+const POLL_INTERVAL_MS = 2000;
+const MAX_POLL_ATTEMPTS = 150; // ~5 minutes
+
+const TERMINAL_OK = new Set(["succeeded", "complete"]);
+const TERMINAL_FAIL = new Set(["failed", "cancelled"]);
+
+export async function pollJobUntilDone(
+  statusFn: (opts: { data: { jobId: string } }) => Promise<Awaited<ReturnType<typeof getJobStatus>>>,
+  jobId: string,
+): Promise<JobPollResult> {
+  for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+    const { job, generation } = await statusFn({ data: { jobId } });
+    const status = generation?.status ?? job.status;
+    if (TERMINAL_OK.has(status ?? "")) {
+      return {
+        status: status!,
+        resultImageUrl: generation?.result_image_url ?? null,
+        resultVideoUrl: generation?.result_video_url ?? null,
+        error: null,
+      };
+    }
+    if (TERMINAL_FAIL.has(status ?? "") || TERMINAL_FAIL.has(job.status ?? "")) {
+      throw new Error(generation?.error || job.error || "Generation failed");
+    }
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+  }
+  throw new Error(
+    "This is taking longer than expected — it's still running in the background and will appear in your Gallery once it finishes.",
+  );
+}
+
+type EnqueueResult = { jobId: string; generationId: string } & Record<string, unknown>;
+
+/** Wrap a single-job enqueue-only server fn so callers can keep using it as
+ *  if it blocked until the render finished. `mapResult` shapes the final
+ *  return value to match whatever the old inline server fn used to return. */
+export function useJobPollingFn<TInput, TResult>(
+  enqueueFn: (opts: { data: TInput }) => Promise<EnqueueResult>,
+  mapResult: (enqueued: EnqueueResult, polled: JobPollResult) => TResult,
+) {
+  const enqueue = useServerFn(enqueueFn);
+  const statusFn = useServerFn(getJobStatus);
+  return async (opts: { data: TInput }): Promise<TResult> => {
+    const enqueued = await enqueue(opts);
+    const polled = await pollJobUntilDone(statusFn, enqueued.jobId);
+    return mapResult(enqueued, polled);
+  };
+}
