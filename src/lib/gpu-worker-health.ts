@@ -118,7 +118,14 @@ export async function probeWorkerHealth(
     if (protocol === "runpod") {
       return await interpretRunpodHealth(res);
     }
-    return { ok: res.ok, status: res.status };
+    // A non-2xx response is still a *received* answer (not a network error), but
+    // without an explicit `error` here the admin UI would show "failed" with no
+    // reason at all — the exact "worker vanished with nothing to look at" gap
+    // this task is about closing. Surface the status code as the reason.
+    if (!res.ok) {
+      return { ok: false, status: res.status, error: `HTTP ${res.status} from ${path}` };
+    }
+    return { ok: true, status: res.status };
   } catch (e) {
     return { ok: false, unreachable: true, error: e instanceof Error ? e.message : String(e) };
   }

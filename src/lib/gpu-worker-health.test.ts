@@ -109,6 +109,18 @@ describe("probeWorkerHealth", () => {
     const r = await probeWorkerHealth({ endpoint_url: "https://down:9", protocol: "custom" });
     expect(r).toMatchObject({ ok: false, unreachable: true });
   });
+
+  // A worker that answers with a non-2xx (dead tunnel, wrong port, app crashed
+  // behind a still-alive reverse proxy) is NOT a network error — fetch resolves
+  // fine, it just isn't healthy. Regression guard: this case used to leave
+  // `error` undefined, so Admin -> Workers showed "failed" with no reason at all.
+  it("surfaces the HTTP status as `error` on a non-2xx response", async () => {
+    installFetch(() => fakeResponse({ ok: false, status: 502 }));
+    const r = await probeWorkerHealth({ endpoint_url: "https://w:8000/generate", protocol: "custom" });
+    expect(r.ok).toBe(false);
+    expect(r.status).toBe(502);
+    expect(r.error).toContain("502");
+  });
 });
 
 describe("isWorkerHealthy", () => {
