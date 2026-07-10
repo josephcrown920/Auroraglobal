@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateWithFallback } from "@/lib/llm-fallback.server";
+import { computeCost } from "@/lib/pricing";
 import {
   PlanSchema,
   DIRECTOR_SYSTEM,
@@ -34,6 +35,8 @@ function mapLlmError(err: unknown): Error {
 }
 
 // ─── Single-shot planner (public, unchanged behaviour) ───────────────────────
+const COST_VIDEO = computeCost({ features: ["video"] }).total;
+
 export const runAuroraAgent = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z
@@ -372,6 +375,74 @@ export const renderAgentShot = createServerFn({ method: "POST" })
     } catch (err) {
       // orchestrate throws explicit errors when no provider can serve the request.
       const message = err instanceof Error ? err.message : "Render failed";
+      throw new Error(message);
+    }
+    if (!outcome.ok) throw new Error(outcome.error);
+
+    return {
+      shotId: shot.id,
+      status: "succeeded" as const,
+      url: outcome.url,
+      provider: outcome.provider,
+      generationId: outcome.generationId,
+    };
+  });
+
+// Turns an already-rendered shot still into a real motion clip. Looks up the
+// shot's own last successful image generation (never trusts a client-supplied
+// image URL — IDOR hardening) and feeds it into image-to-video ("video" kind,
+// which has hosted providers, unlike "motion" which is GPU-worker-only).
+export const renderAgentShotVideo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        sessionId: z.string().uuid(),
+        shotId: z.string().min(1).max(40),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: session, error } = await context.supabase
+      .from("agent_sessions")
+      .select("id, plan")
+      .eq("id", data.sessionId)
+      .single();
+    if (error || !session) throw new Error("Session not found");
+
+    const plan = session.plan as unknown as AgentPlan | null;
+    const shot = plan?.shots?.find((s) => s.id === data.shotId);
+    if (!shot) throw new Error(`Shot ${data.shotId} is not part of this plan`);
+
+    const { data: lastImage, error: imgErr } = await context.supabase
+      .from("generations")
+      .select("result_image_url")
+      .eq("session_id", data.sessionId)
+      .eq("agent_shot_id", data.shotId)
+      .eq("kind", "image")
+      .eq("status", "succeeded")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (imgErr || !lastImage?.result_image_url) {
+      throw new Error(`Render shot ${data.shotId} as an image first, then animate it`);
+    }
+
+    const { reserveOrchestrateRecord } = await import("@/lib/generate-core.server");
+    let outcome;
+    try {
+      outcome = await reserveOrchestrateRecord({
+        userId: context.userId,
+        kind: "video",
+        prompt: shot.camera ? `${shot.action} — camera: ${shot.camera}` : shot.action,
+        imageUrls: [lastImage.result_image_url],
+        cost: COST_VIDEO,
+        reason: "agent_shot_animate",
+        sessionId: data.sessionId,
+        agentShotId: shot.id,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Animate failed";
       throw new Error(message);
     }
     if (!outcome.ok) throw new Error(outcome.error);

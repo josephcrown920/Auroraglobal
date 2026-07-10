@@ -29,7 +29,7 @@ export const Route = createFileRoute("/spin")({
   notFoundComponent: () => <div className="p-8 text-white">Not found.</div>,
   head: () => ({
     meta: [
-      { title: `Spin 1 → ${SPIN_COUNT} · Aurora` },
+      { title: `TikTok30 · Aurora` },
       { name: "description", content: `Turn one prompt into ${SPIN_COUNT} scroll-stopping, high-variation posts — same face, endless looks.` },
     ],
     links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/spin" }],
@@ -301,7 +301,7 @@ function SpinPage() {
 
         <div className="mt-6 flex items-center gap-2">
           <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Flame className="size-3.5" /> Spin 1 → {SPIN_COUNT}
+            <Flame className="size-3.5" /> TikTok30
           </span>
         </div>
         <h1 className="mt-3 text-4xl md:text-5xl font-extrabold tracking-tight">
