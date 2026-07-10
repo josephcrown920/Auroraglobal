@@ -57,7 +57,7 @@ export function ViralEngine() {
       <div className="relative px-6 py-10 md:px-12 md:py-14">
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-2 rounded-full border border-pink-300/20 bg-pink-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-pink-200">
-            <Flame className="size-3.5" /> Spin 30
+            <Flame className="size-3.5" /> TikTok30
           </span>
           <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-white/70">
             <TrendingUp className="size-3.5" /> TikTok · Reels · Shorts · X

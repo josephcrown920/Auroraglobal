@@ -215,7 +215,7 @@ function Index() {
               search={{ prompt: undefined, jobId: undefined }}
               className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
             >
-              <Play className="size-3.5" /> Spin 30
+              <Play className="size-3.5" /> TikTok30
             </Link>
             {/* Lower-traffic tools consolidated behind one "More" menu instead of
                 4 separate top-level links — cuts header nav clutter. */}
@@ -379,7 +379,7 @@ function Index() {
       {/* 0. One-tap templates — trending strip right below the hero */}
       <TrendingTemplatesStrip />
 
-      {/* Spin 30 — wire it, ship it */}
+      {/* TikTok30 — wire it, ship it */}
       <ViralEngine />
 
       {/* 0c. Canvas + finished workflows + UGC Factory */}

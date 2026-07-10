@@ -9,6 +9,7 @@ import {
   getAgentSession,
   deleteAgentSession,
   renderAgentShot,
+  renderAgentShotVideo,
   type AgentPlan,
   type PlanIteration,
 } from "@/lib/agent.functions";
@@ -48,6 +49,8 @@ export const Route = createFileRoute("/agent")({
 
 type RenderStatus = "idle" | "rendering" | "succeeded" | "failed";
 type RenderState = { status: RenderStatus; url?: string | null };
+type VideoStatus = "idle" | "rendering" | "succeeded" | "failed";
+type VideoState = { status: VideoStatus; url?: string | null; error?: string };
 
 const SAMPLES = [
   "A man and a chimpanzee rob a bank in the Albuquerque desert. Red Ferrari Testarossa. Hard midday sun, 16mm film look.",
@@ -76,6 +79,7 @@ function AgentPage() {
   const getFn = useServerFn(getAgentSession);
   const delFn = useServerFn(deleteAgentSession);
   const renderFn = useServerFn(renderAgentShot);
+  const animateFn = useServerFn(renderAgentShotVideo);
 
   const [brief, setBrief] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -84,6 +88,7 @@ function AgentPage() {
   const [finalScore, setFinalScore] = useState<number | null>(null);
   const [stopReason, setStopReason] = useState<string | null>(null);
   const [renders, setRenders] = useState<Record<string, RenderState>>({});
+  const [videos, setVideos] = useState<Record<string, VideoState>>({});
   const [historyOpen, setHistoryOpen] = useState(false);
 
   useEffect(() => {
@@ -103,6 +108,7 @@ function AgentPage() {
     setFinalScore(null);
     setStopReason(null);
     setRenders({});
+    setVideos({});
     setBrief("");
   };
 
@@ -116,6 +122,7 @@ function AgentPage() {
       setFinalScore(r.finalScore);
       setStopReason(r.stopReason);
       setRenders({});
+      setVideos({});
       qc.invalidateQueries({ queryKey: ["agent-sessions"] });
       toast.success(`Plan ready — ${r.plan.shots.length} shots · scored ${r.finalScore}/100`);
     },
@@ -136,6 +143,7 @@ function AgentPage() {
         rmap[sid] = { status: v.status === "succeeded" ? "succeeded" : "rendering", url: v.url };
       }
       setRenders(rmap);
+      setVideos({});
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -159,10 +167,29 @@ function AgentPage() {
     try {
       const r = await renderFn({ data: { sessionId, shotId } });
       setRenders((m) => ({ ...m, [shotId]: { status: "succeeded", url: r.url } }));
+      // A fresh still invalidates any previously animated clip for this shot.
+      setVideos((m) => ({ ...m, [shotId]: { status: "idle" } }));
       toast.success(`Shot ${shotId} rendered`);
     } catch (e) {
       setRenders((m) => ({ ...m, [shotId]: { status: "failed" } }));
       toast.error(e instanceof Error ? e.message : "Render failed");
+    }
+  };
+
+  const animateShot = async (shotId: string) => {
+    if (!sessionId) {
+      toast.error("Save a plan before animating");
+      return;
+    }
+    setVideos((m) => ({ ...m, [shotId]: { status: "rendering" } }));
+    try {
+      const r = await animateFn({ data: { sessionId, shotId } });
+      setVideos((m) => ({ ...m, [shotId]: { status: "succeeded", url: r.url } }));
+      toast.success(`Shot ${shotId} animated`);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Animate failed";
+      setVideos((m) => ({ ...m, [shotId]: { status: "failed", error: message } }));
+      toast.error(message);
     }
   };
 
@@ -413,11 +440,14 @@ function AgentPage() {
                   <div className="space-y-2">
                     {plan.shots.map((s) => {
                       const rs = renders[s.id] ?? { status: "idle" as RenderStatus };
+                      const vs = videos[s.id] ?? { status: "idle" as VideoStatus };
                       return (
                         <div key={s.id} className="aurora-glass rounded-xl overflow-hidden">
                           <div className="flex gap-3 p-3">
                             <div className="size-20 shrink-0 rounded-lg border border-white/10 bg-black/40 overflow-hidden grid place-items-center">
-                              {rs.status === "succeeded" && rs.url ? (
+                              {vs.status === "succeeded" && vs.url ? (
+                                <video src={vs.url} className="size-full object-cover" autoPlay loop muted playsInline />
+                              ) : rs.status === "succeeded" && rs.url ? (
                                 <img src={rs.url} alt={s.title} className="size-full object-cover" />
                               ) : rs.status === "rendering" ? (
                                 <Loader2 className="size-5 animate-spin text-violet-300" />
@@ -436,7 +466,7 @@ function AgentPage() {
                                 {s.shotType} · {s.camera}
                               </p>
                               <p className="text-xs text-white/70 mt-1 line-clamp-2">{s.action}</p>
-                              <div className="flex items-center gap-2 mt-2">
+                              <div className="flex items-center gap-2 mt-2 flex-wrap">
                                 <Button
                                   onClick={() => renderShot(s.id)}
                                   disabled={rs.status === "rendering"}
@@ -451,6 +481,21 @@ function AgentPage() {
                                   )}
                                   {rs.status === "succeeded" ? "Re-render" : rs.status === "rendering" ? "Rendering…" : "Render"}
                                 </Button>
+                                <Button
+                                  onClick={() => animateShot(s.id)}
+                                  disabled={rs.status !== "succeeded" || vs.status === "rendering"}
+                                  size="sm"
+                                  variant="outline"
+                                  title={rs.status !== "succeeded" ? "Render the shot as an image first" : undefined}
+                                  className="h-7 border-violet-400/25 bg-violet-500/10 text-violet-200 hover:bg-violet-500/20 text-[11px]"
+                                >
+                                  {vs.status === "rendering" ? (
+                                    <Loader2 className="size-3 mr-1 animate-spin" />
+                                  ) : (
+                                    <Film className="size-3 mr-1" />
+                                  )}
+                                  {vs.status === "succeeded" ? "Re-animate" : vs.status === "rendering" ? "Animating…" : "Animate"}
+                                </Button>
                                 <button
                                   onClick={() => {
                                     navigator.clipboard.writeText(s.prompt);
@@ -463,6 +508,11 @@ function AgentPage() {
                                 {rs.status === "failed" && (
                                   <span className="text-[10px] text-rose-300 inline-flex items-center gap-1">
                                     <AlertTriangle className="size-3" /> failed
+                                  </span>
+                                )}
+                                {vs.status === "failed" && (
+                                  <span className="text-[10px] text-rose-300 inline-flex items-center gap-1">
+                                    <AlertTriangle className="size-3" /> {vs.error ?? "animate failed"}
                                   </span>
                                 )}
                               </div>

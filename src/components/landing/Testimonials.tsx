@@ -23,7 +23,7 @@ const REVIEWS = [
     location: "London 🇬🇧",
     device: "iPhone 15 Pro Max",
     stars: 5,
-    text: "Spin 30 gave me a month of content from one hook. My engagement is up 3×. No editing required.",
+    text: "TikTok30 gave me a month of content from one hook. My engagement is up 3×. No editing required.",
   },
   {
     name: "Aisha T.",
