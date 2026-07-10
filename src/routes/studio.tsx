@@ -22,7 +22,7 @@ import tutorialStudioRefs from "@/assets/tutorial-studio-refs.jpg.asset.json";
 import tutorialStudioFinal from "@/assets/tutorial-studio-final.jpg.asset.json";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Wand2, LogOut, Loader2, Download, Camera, Film, Mic2, Coins, Zap, LayoutDashboard, Shield, Workflow, Server, Captions } from "lucide-react";
+import { Sparkles, Wand2, LogOut, Loader2, Download, Camera, Film, Mic2, Coins, Zap, LayoutDashboard, Shield, Server, Captions } from "lucide-react";
 import { CaptionDialog } from "@/components/gallery/CaptionDialog";
 import { toast } from "sonner";
 import { generatePerformanceShot, listGenerations, generateVideoFromImage, lipSyncVideo } from "@/lib/studio.functions";
@@ -530,17 +530,7 @@ function StudioPage() {
           <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-foreground hidden md:inline-flex items-center gap-1.5">
             <LayoutDashboard className="size-3.5" /> Dashboard
           </Link>
-          <Link to="/canvas" className="text-xs sm:text-sm px-2.5 py-1.5 rounded-full border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 inline-flex items-center gap-1.5">
-            <Workflow className="size-3.5" /> Canvas
-          </Link>
-          <Link to="/motion" className="text-xs sm:text-sm px-2.5 py-1.5 rounded-full border border-fuchsia-500/40 bg-fuchsia-500/10 text-fuchsia-300 hover:bg-fuchsia-500/20 inline-flex items-center gap-1.5">
-            <Film className="size-3.5" /> Motion
-          </Link>
-          <Link to="/colors" className="text-sm text-muted-foreground hover:text-foreground hidden md:inline-flex items-center gap-1.5">Colors</Link>
-          <Link to="/reshoot" className="text-sm text-muted-foreground hover:text-foreground hidden md:inline-flex items-center gap-1.5">Reshoot</Link>
-          <Link to="/kids" className="text-sm text-muted-foreground hover:text-foreground hidden md:inline-flex items-center gap-1.5">Kids</Link>
           <Link to="/gallery" className="text-sm text-muted-foreground hover:text-foreground hidden md:inline-flex items-center gap-1.5">Gallery</Link>
-          <Link to="/gifts" className="text-sm text-muted-foreground hover:text-foreground hidden md:inline-flex items-center gap-1.5">Gifts</Link>
           {profile?.isAdmin && (
             <Link to="/admin" className="text-sm hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 transition-colors">
               <Shield className="size-3.5 text-amber-500" /> Admin

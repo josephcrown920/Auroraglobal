@@ -57,7 +57,7 @@ const CREATE_FEATURES: Feature[] = [
   { to: "/studio",      label: "Image Generation", icon: Sparkles },
   { to: "/editor",      label: "Playground",        icon: Code2 },
   { to: "/canvas",      label: "Canvas",            icon: Workflow },
-  { to: "/orchestrate", label: "Video Generation",  icon: Film },
+  { to: "/orchestrate", label: "AI Router (Multi-Model)", icon: Film },
   { to: "/photo-edit",  label: "Photo Editor",      icon: Brush },
   { to: "/agent",       label: "Video Agent",       icon: Bot },
 ];
@@ -103,7 +103,7 @@ const COMING_SOON: Feature[] = [
 
 const TAB_ITEMS: Feature[] = [
   { to: "/studio",      label: "Studio", icon: Sparkles },
-  { to: "/orchestrate", label: "Video",  icon: Film },
+  { to: "/orchestrate", label: "Router", icon: Film },
   { to: "/canvas",      label: "Canvas", icon: Workflow },
   { to: "/gallery",     label: "Gallery", icon: Images },
 ];
