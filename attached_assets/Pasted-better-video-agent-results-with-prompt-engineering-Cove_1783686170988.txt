@@ -1,0 +1,116 @@
+better video agent results with prompt engineering. Covers structure, specificity, style direction, and common pitfalls, with before-and-after prompt.
+Video Agent is prompt-driven. But “more detail” doesn’t always mean “better video.” We ran 14 experiments with different prompting strategies to find out what actually produces the best results. Here’s what we learned.
+​
+See the Difference
+
+Same topic, different prompts. Watch both — the difference is the entire argument of this page.
+Vague prompt
+Crafted prompt
+Prompt:
+
+
+Two years ago, I could only hire people within 30 miles of our
+office. Today, my team spans 4 countries and 3 time zones. We
+found engineers we never would have found locally. Our office
+costs dropped to nearly zero. And here's the surprising part —
+people actually stayed longer. Remote isn't the future. It's
+already the default.
+
+Tone: Like a founder on a podcast — reflective, honest, sharing
+a personal experience. Not a pitch, not a lecture. Just someone
+who tried something and it worked.
+Background: Casual home office or coffee shop. Warm, natural.
+30 seconds. Landscape.
+
+Both are about remote work benefits. The second used a natural story script with a tone description — no timestamps, no scene structure, no prescribed overlays. Just a great script and a feeling.
+​
+The #1 Rule: Write a Great Script
+
+The single biggest factor in video quality is the script — the actual words the presenter will say. Everything else (visuals, overlays, pacing) is secondary. Video Agent makes good production decisions on its own. Your job is to give it great words to work with.
+Weak script
+Strong script
+
+
+Here are three science-backed ways to sleep better tonight.
+First: cut screens 30 minutes before bed — blue light
+suppresses melatonin. Second: cool your room to 65 degrees.
+Third: wake up at the same time every day.
+Informational, clinical, reads like a textbook. The video will be competent but forgettable.
+In our experiments, the personal story consistently produced better videos than the informational version — better B-roll choices, better pacing, more engaging delivery.
+​
+What Makes a Script Work
+
+Stories beat lists. First-person narratives (“I tried X, then Y happened”) give Video Agent richer material to work with than bullet points. The agent generates better visuals when the script has emotional texture.
+Bold beats safe. Provocative framing (“Stop trying to sleep 8 hours. Seriously.”) produced more engaging videos than neutral framing. The agent matched the script’s energy with bolder visual choices.
+Flow beats structure. Scripts that read naturally — like someone talking to a friend — deliver better than scripts chopped into rigid segments. If it sounds awkward to read aloud, it’ll sound awkward in the video.
+Questions don’t work well. Scripts built around questions (“Do you check your phone before bed? What temperature is your bedroom?”) felt unnatural with a single speaker. Save the Socratic method for Live Avatar conversations.
+​
+Add Tone, Not Timestamps
+
+After writing your script, the most useful thing you can add is a tone description — how the video should feel, not how it should be structured.
+Tone description (do this)
+Timestamp structure (avoid this)
+
+
+[your script here]
+
+Tone: Like a founder on a podcast — reflective, honest, no
+corporate speak. The presenter should feel like they're sharing
+a personal experience, not reading a script.
+Background: Casual home office or coffee shop. Warm, natural.
+Duration: 30 seconds.
+Guides the delivery and mood without constraining the production.
+In our tests, adding tone improved delivery quality. Adding timestamps and scene structure gave more control but hurt the natural flow of speech.
+​
+Let Video Agent Handle Production
+
+Video Agent makes surprisingly good decisions about:
+B-roll selection — relevant, well-timed visuals
+Text overlays — clean typography, good placement
+Color palette — matches the mood of the script
+Music — appropriate energy and tone
+Pacing — natural rhythm based on the script
+You don’t always need to specify these. In our experiments (tested on a health/wellness topic), the minimal prompt (“Make a 30-second video about 3 tips for better sleep”) produced a video with solid B-roll, thoughtful overlays, and a calming color palette — all chosen by the agent. Results may vary by topic and content type.
+Only override production decisions when you have a specific need. For example:
+Orientation: portrait — when targeting TikTok/Reels
+Duration: 30 seconds — when you have a length constraint
+Keep the presenter on screen (see below for translation-ready videos)
+​
+Reference Files for Context
+
+When your video is about something visual — a product, a document, a website — attach files so the agent has context to work with.
+
+
+{
+  "prompt": "Create a product walkthrough based on the attached screenshots...",
+  "files": [
+    { "type": "url", "url": "https://example.com/screenshot.png" }
+  ]
+}
+This works well for product demos, content summaries, and brand-consistent videos. See Video Agent docs for supported file types.
+​
+Translation-Ready Videos
+
+If you plan to translate your video into other languages using Video Translation, the presenter’s face needs to be visible throughout for lip-sync to work. Add this to your prompt:
+
+
+This is a direct-to-camera message. Think of it like a FaceTime
+call — one person, one camera, sincere eye contact throughout.
+The presenter should be visible and speaking for the entire video.
+Don’t use restrictive language like “No B-roll, no cutaway scenes, no stock footage.” In our tests, this produced a flat, visually boring result. The positive framing above keeps the avatar on screen while still allowing the agent to add text overlays for visual interest.
+​
+Prompt Templates
+
+These templates use the patterns that worked best in our experiments: natural scripts, tone descriptions, and minimal production direction.
+Personal Story (30s)
+Bold Take (30s)
+Micro-Story (30s, portrait)
+Translation-Ready Message (30-45s)
+​
+Common Mistakes
+
+Don’t over-structure. Timestamps per scene (0-5s, 5-12s) make the delivery sound robotic. Write a flowing script and let the agent decide the pacing.
+Don’t prescribe visuals you don’t need. “Text overlay: Global Talent Pool” or “Show a visual of a thermostat” — the agent makes good visual choices on its own. Only specify visuals when they’re critical to the message.
+Don’t use question-driven scripts. “Do you check your phone before bed?” feels unnatural coming from a single presenter talking to camera. Questions work in conversations, not monologues.
+Don’t use restrictive instructions. “Do NOT use stock footage. Do NOT include music.” Telling the agent what NOT to do makes it play safe. Use positive framing: describe what you want, not what you don’t.
+How we know this: We ran 14 experiments generating the same topic (“3 tips for better sleep”) with different prompting strategies — varying detail level, script style, format instructions, and avatar visibility. The findings on this page are based on those rendered videos, not theory.
