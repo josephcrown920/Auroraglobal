@@ -7,6 +7,7 @@ import {
   clearAgentChat,
   deleteAgentMemory,
   type AgentPlan,
+  type AgentShot,
   type AgentChatMessage,
 } from "@/lib/agent.functions";
 import {
@@ -21,6 +22,11 @@ import {
   MoreVertical,
   Eraser,
   Trash2,
+  Clapperboard,
+  Camera,
+  Wand2,
+  Copy,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -46,6 +52,17 @@ const SAMPLES = [
   "Remember this: my visual style is dark cinematic with violet neon accents.",
 ];
 
+// Curated visual styles — modeled on HeyGen's Video Agent style gallery, tuned
+// to Aurora's own gradient/genre language so a tap actually steers the plan.
+const STYLES: { name: string; hint: string; gradient: string }[] = [
+  { name: "Cinematic", hint: "moody cinematic lighting, anamorphic lens, film grain", gradient: "from-slate-600 to-slate-900" },
+  { name: "Neon Noir", hint: "neon-drenched noir, rain-slicked streets, magenta/cyan rim light", gradient: "from-fuchsia-600 to-indigo-700" },
+  { name: "Retro VHS", hint: "90s VHS tape aesthetic, scan lines, warm grain, boxy framing", gradient: "from-amber-500 to-rose-600" },
+  { name: "Studio Clean", hint: "clean studio backdrop, soft key light, high production polish", gradient: "from-zinc-300 to-zinc-500" },
+  { name: "Documentary", hint: "handheld documentary realism, natural light, candid framing", gradient: "from-emerald-600 to-teal-700" },
+  { name: "Anime", hint: "vivid anime-style illustration, bold linework, cel shading", gradient: "from-sky-500 to-violet-600" },
+];
+
 function planToGraph(plan: AgentPlan): { nodes: Node<any>[]; edges: Edge[] } {
   const nodes: Node<any>[] = [
     { id: "in", position: { x: 40, y: 60 }, type: "aurora", data: { kind: "input" } },
@@ -64,49 +81,107 @@ function planToGraph(plan: AgentPlan): { nodes: Node<any>[]; edges: Edge[] } {
   return { nodes, edges };
 }
 
+function ShotCard({ shot, index, palette }: { shot: AgentShot; index: number; palette: string[] }) {
+  const [copied, setCopied] = useState(false);
+  const tint = palette[index % palette.length] ?? "#7C3AED";
+  return (
+    <div className="relative w-[168px] shrink-0 rounded-xl overflow-hidden border border-white/10 bg-black/40">
+      <div
+        className="relative h-24 flex items-end p-2"
+        style={{ background: `linear-gradient(160deg, ${tint}55, #05050a)` }}
+      >
+        <span className="absolute top-1.5 left-1.5 size-5 rounded-full bg-black/50 text-[10px] font-bold text-white grid place-items-center border border-white/15">
+          {index + 1}
+        </span>
+        <Clapperboard className="absolute right-2 top-2 size-3.5 text-white/40" />
+        <p className="text-[11px] font-semibold text-white leading-tight line-clamp-2">{shot.title}</p>
+      </div>
+      <div className="p-2 space-y-1.5">
+        <p className="text-[9.5px] text-white/50 inline-flex items-center gap-1">
+          <Camera className="size-2.5 text-violet-300" /> {shot.shotType} · {shot.camera}
+        </p>
+        <p className="text-[10px] text-white/60 leading-snug line-clamp-2">{shot.action}</p>
+        <button
+          onClick={() => {
+            navigator.clipboard.writeText(shot.prompt);
+            setCopied(true);
+            toast.success("Prompt copied");
+            setTimeout(() => setCopied(false), 1500);
+          }}
+          className="w-full mt-1 inline-flex items-center justify-center gap-1 text-[10px] font-medium text-violet-300 hover:text-violet-200 rounded-md py-1 bg-white/5 hover:bg-white/10"
+        >
+          {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
+          {copied ? "Copied" : "Copy prompt"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function PlanCard({ plan, onSend }: { plan: AgentPlan; onSend: () => void }) {
   return (
-    <div className="mt-2 rounded-xl border border-violet-400/25 bg-violet-500/[0.07] overflow-hidden">
-      <div className="p-3 space-y-2">
-        <div>
-          <p className="text-[9px] uppercase tracking-[0.2em] text-violet-300/80">Production plan</p>
-          <p className="text-sm font-semibold text-white leading-tight mt-0.5">{plan.title}</p>
-          <p className="text-[11px] text-white/55 italic mt-0.5">"{plan.logline}"</p>
+    <div className="mt-2 rounded-2xl border border-violet-400/25 bg-gradient-to-b from-violet-500/[0.09] to-transparent overflow-hidden shadow-lg shadow-violet-900/20">
+      <div className="p-3.5 space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="text-[9px] uppercase tracking-[0.25em] text-violet-300/80 inline-flex items-center gap-1.5">
+              <Clapperboard className="size-3" /> Storyboard built
+            </p>
+            <p className="text-base font-bold text-white leading-tight mt-1">{plan.title}</p>
+            <p className="text-[11px] text-white/55 italic mt-0.5">"{plan.logline}"</p>
+          </div>
+          <span className="shrink-0 rounded-full border border-violet-400/30 bg-violet-500/15 px-2 py-1 text-[10px] font-semibold text-violet-200">
+            {plan.shots.length} shots
+          </span>
         </div>
+
+        {plan.direction && (
+          <p className="text-[11px] text-white/60 leading-relaxed border-l-2 border-violet-400/40 pl-2">
+            {plan.direction}
+          </p>
+        )}
+
         <div className="flex items-center gap-1.5">
           {plan.palette.slice(0, 6).map((c) => (
-            <span key={c} className="size-4 rounded-full border border-white/15" style={{ background: c }} title={c} />
+            <span
+              key={c}
+              className="size-5 rounded-full border border-white/20 shadow-sm"
+              style={{ background: c }}
+              title={c}
+            />
           ))}
           <span className="text-[9px] text-white/40 ml-1 inline-flex items-center gap-1">
             <Palette className="size-2.5" /> color story
           </span>
         </div>
-        <details className="group">
-          <summary className="cursor-pointer text-[11px] text-white/70 inline-flex items-center gap-1.5 hover:text-white">
-            <Film className="size-3 text-violet-300" /> {plan.shots.length} shots — tap to view
-          </summary>
-          <div className="mt-2 space-y-1.5">
-            {plan.shots.map((s) => (
-              <div key={s.id} className="rounded-lg bg-black/30 border border-white/5 p-2">
-                <p className="text-[11px] font-medium text-white leading-tight">
-                  <span className="font-mono text-violet-300 mr-1">{s.id}</span>
-                  {s.title}
-                </p>
-                <p className="text-[10px] text-white/45 mt-0.5">{s.shotType} · {s.camera}</p>
-                <button
-                  onClick={() => { navigator.clipboard.writeText(s.prompt); toast.success("Prompt copied"); }}
-                  className="mt-1 text-[10px] text-violet-300 hover:text-violet-200"
-                >
-                  Copy prompt
-                </button>
+
+        {/* Filmstrip — the actual "building" visual, HeyGen-style */}
+        <div className="-mx-3.5 px-3.5">
+          <div className="flex gap-2 overflow-x-auto pb-1 snap-x">
+            {plan.shots.map((s, i) => (
+              <div className="snap-start" key={s.id}>
+                <ShotCard shot={s} index={i} palette={plan.palette} />
               </div>
             ))}
           </div>
-        </details>
+        </div>
+
+        {plan.suggestions?.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-0.5">
+            {plan.suggestions.slice(0, 3).map((s) => (
+              <span
+                key={s}
+                className="text-[9.5px] text-white/50 rounded-full border border-white/10 bg-white/[0.03] px-2 py-1"
+              >
+                {s}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
       <button
         onClick={onSend}
-        className="w-full py-2 text-xs font-semibold text-white inline-flex items-center justify-center gap-1.5 hover:brightness-110 transition-[filter]"
+        className="w-full py-2.5 text-xs font-bold text-white inline-flex items-center justify-center gap-1.5 hover:brightness-110 transition-[filter]"
         style={{ background: "linear-gradient(135deg, oklch(0.65 0.22 305), oklch(0.62 0.22 340))" }}
       >
         <Plus className="size-3.5" /> Send storyboard to canvas
@@ -118,6 +193,7 @@ function PlanCard({ plan, onSend }: { plan: AgentPlan; onSend: () => void }) {
 export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
   const [draft, setDraft] = useState("");
   const [pendingUserMsg, setPendingUserMsg] = useState<string | null>(null);
+  const [activeStyle, setActiveStyle] = useState<string | null>(null);
   const chatFn = useServerFn(chatWithAuroraAgent);
   const listFn = useServerFn(listAgentChat);
   const clearFn = useServerFn(clearAgentChat);
@@ -169,7 +245,22 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
     if (text.length < 2 || sendMut.isPending) return;
     setPendingUserMsg(text);
     setDraft("");
+    setActiveStyle(null);
     sendMut.mutate(text);
+  };
+
+  const toggleStyle = (style: (typeof STYLES)[number]) => {
+    if (activeStyle === style.name) {
+      // Toggle off — strip the hint back out if it's still present verbatim.
+      setActiveStyle(null);
+      setDraft((d) => d.replace(`, in a ${style.hint} style.`, "").trim());
+      return;
+    }
+    setActiveStyle(style.name);
+    setDraft((d) => {
+      const base = d.trim().length > 0 ? d.trim() : "Plan a video";
+      return `${base}, in a ${style.hint} style.`;
+    });
   };
 
   // Keep the thread pinned to the latest message.
@@ -184,11 +275,14 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
     <div className="phone-panel-col fixed inset-y-0 z-50 bg-[oklch(0.09_0.03_290/0.97)] backdrop-blur-xl border-l border-white/10 shadow-2xl flex flex-col animate-slide-in-right">
       <header className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="size-8 rounded-lg flex items-center justify-center bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg shadow-violet-500/40">
-            <Sparkles className="size-4 text-white" />
+          <span className="relative size-9 rounded-xl flex items-center justify-center bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg shadow-violet-500/40">
+            <Clapperboard className="size-4.5 text-white" />
+            <span className="absolute -bottom-1 -right-1 size-3.5 rounded-full bg-emerald-400 border-2 border-[#0c0a17]" />
           </span>
           <div>
-            <p className="text-sm font-semibold text-white">Aurora Agent</p>
+            <p className="text-sm font-semibold text-white inline-flex items-center gap-1.5">
+              Aurora Video Agent
+            </p>
             <p className="text-[10px] text-white/50 inline-flex items-center gap-1">
               {hasMemory ? (
                 <>
@@ -196,7 +290,7 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
                   <span className="text-violet-300/90">Remembers you</span>
                 </>
               ) : (
-                "Your AI co-director"
+                "Scripts, styles & storyboards — end to end"
               )}
             </p>
           </div>
@@ -238,15 +332,48 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
         )}
 
         {!history.isLoading && messages.length === 0 && !pendingUserMsg && (
-          <div className="space-y-4">
-            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs text-white/70 leading-relaxed">
-              I'm your permanent co-director — I remember your style, characters and projects across every
-              conversation. Talk shop, ask for looks and lenses, or say{" "}
-              <span className="text-violet-300">"plan a video…"</span> and I'll build a full shot list you can
-              send straight to the canvas.
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-violet-400/20 bg-gradient-to-br from-violet-500/10 via-fuchsia-500/[0.06] to-transparent p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="size-8 rounded-lg grid place-items-center bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg shadow-violet-500/30">
+                  <Wand2 className="size-4 text-white" />
+                </span>
+                <p className="text-sm font-bold text-white">Direct a full video, start to finish</p>
+              </div>
+              <p className="text-xs text-white/65 leading-relaxed">
+                Pick a look, describe the idea, and I'll write the script, shot list, camera direction and color
+                story — then build a storyboard you can drop straight onto the canvas.
+              </p>
             </div>
+
+            <div className="space-y-2">
+              <p className="text-[10px] uppercase tracking-wider text-white/40">Pick a visual style</p>
+              <div className="grid grid-cols-3 gap-2">
+                {STYLES.map((style) => (
+                  <button
+                    key={style.name}
+                    onClick={() => toggleStyle(style)}
+                    className={`group relative aspect-[4/3] rounded-lg overflow-hidden border transition-all ${
+                      activeStyle === style.name
+                        ? "border-violet-300 ring-2 ring-violet-400/50"
+                        : "border-white/10 hover:border-white/25"
+                    }`}
+                  >
+                    <div className={`absolute inset-0 bg-gradient-to-br ${style.gradient}`} />
+                    <div className="absolute inset-0 bg-black/25 group-hover:bg-black/10 transition-colors" />
+                    <span className="absolute inset-x-0 bottom-0 p-1.5 text-[9.5px] font-semibold text-white text-left leading-tight drop-shadow">
+                      {style.name}
+                    </span>
+                    {activeStyle === style.name && (
+                      <Check className="absolute top-1 right-1 size-3.5 text-white drop-shadow" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="space-y-1.5">
-              <p className="text-[10px] uppercase tracking-wider text-white/40">Try saying</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/40">Or try saying</p>
               {SAMPLES.map((s) => (
                 <button
                   key={s}
@@ -266,7 +393,7 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
               className={
                 m.role === "user"
                   ? "max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2.5 text-xs leading-relaxed text-white bg-gradient-to-br from-violet-600/80 to-fuchsia-600/70 border border-violet-400/20"
-                  : "max-w-[92%] rounded-2xl rounded-bl-md px-3.5 py-2.5 text-xs leading-relaxed text-white/85 bg-white/[0.05] border border-white/10"
+                  : "max-w-[94%] rounded-2xl rounded-bl-md px-3.5 py-2.5 text-xs leading-relaxed text-white/85 bg-white/[0.05] border border-white/10"
               }
             >
               <p className="whitespace-pre-wrap">{m.content}</p>
@@ -295,13 +422,30 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
         {sendMut.isPending && (
           <div className="flex justify-start">
             <div className="rounded-2xl rounded-bl-md px-3.5 py-2.5 bg-white/[0.05] border border-white/10 inline-flex items-center gap-2 text-xs text-white/60">
-              <Loader2 className="size-3 animate-spin text-violet-300" /> Aurora is thinking…
+              <Film className="size-3.5 text-violet-300 animate-pulse" /> Directing your storyboard…
             </div>
           </div>
         )}
       </div>
 
       <footer className="border-t border-white/10 p-3 space-y-2">
+        {messages.length > 0 && (
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5 -mt-0.5">
+            {STYLES.map((style) => (
+              <button
+                key={style.name}
+                onClick={() => toggleStyle(style)}
+                className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium border transition-colors ${
+                  activeStyle === style.name
+                    ? "border-violet-300/60 bg-violet-500/20 text-violet-100"
+                    : "border-white/10 bg-white/[0.03] text-white/55 hover:text-white/80 hover:border-white/25"
+                }`}
+              >
+                {style.name}
+              </button>
+            ))}
+          </div>
+        )}
         <Textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -311,7 +455,7 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
               send();
             }
           }}
-          placeholder="Talk to your co-director…"
+          placeholder="Describe the video you want — I'll write it, shoot it, and storyboard it…"
           rows={2}
           className="bg-black/30 border-white/10 text-white text-xs resize-none"
         />
