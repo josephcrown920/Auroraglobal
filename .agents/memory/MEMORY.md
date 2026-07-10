@@ -1,3 +1,4 @@
+- [index.tsx desktop header nav is unreachable](landing-nav-desktop-header-dead-code.md) — real nav lives in MobileNav.tsx (single-column build); edit header nav = no visible effect.
 - [xAI Grok Imagine Video integration](xai-grok-video.md) — UGC fast path: script→xAI single call (image+prompt→talking-head video with built-in lipsync), skips stages 2-5; falls back silently to full pipeline on error.
 - [Replit vite sandbox binding](replit-vite-sandbox.md) — Lovable vite-tanstack-config binds IPv6 `::` (sandbox fails) & blocks the proxy host; fix via vite passthrough host:0.0.0.0 + allowedHosts:true.
 - [Sub-100MB legacy blob stripping](github-sub-100mb-legacy-blob-strip.md) — daemon's autopush only strips >=100MB; known under-limit legacy files need a hardcoded strip list or they get silently resurrected; check per-commit for duplicate-name copies + confirm files actually exist on the branch in scope.

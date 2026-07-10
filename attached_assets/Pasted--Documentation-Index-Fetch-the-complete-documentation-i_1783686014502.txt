@@ -1,0 +1,223 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://heygen-1fa696a7.mintlify.site/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# Template API
+
+> Create reusable video templates with the HeyGen Template API. Define avatar, voice, layout, and branding once, then generate variations at scale via API.
+
+## Overview
+
+`POST https://api.heygen.com/v2/template/{template_id}/generate`
+
+Generates a video based on the specified template, replacing template placeholders with the values you supply via `variables`. You can also restrict generation to a subset of scenes, override the rendered dimension, attach subtitles, and more.
+
+## Path Parameters
+
+| Parameter     | Type   | Required | Description                        |
+| ------------- | ------ | -------- | ---------------------------------- |
+| `template_id` | string | Yes      | Unique identifier of the template. |
+
+## Request Body
+
+| Parameter                       | Type             | Required | Description                                                                                                                                                                  |
+| ------------------------------- | ---------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `variables`                     | object           | Yes      | Map of variable name → variable object. Each entry replaces a template placeholder. See [Variables](#variables) below for the per-type schema.                               |
+| `caption`                       | boolean          | No       | Enable captions in the video. Default: `false`.                                                                                                                              |
+| `title`                         | string           | No       | Title of the video.                                                                                                                                                          |
+| `callback_id`                   | string           | No       | Custom ID for callback/webhook tracking.                                                                                                                                     |
+| `callback_url`                  | string           | No       | URL to notify when video rendering is complete. If both a webhook and `callback_url` are configured, events are sent to both.                                                |
+| `dimension`                     | object           | No       | Custom output dimensions. Must match the template's aspect ratio. If omitted, the template's own dimension is used. Width and height must be even, between `128` and `4096`. |
+| `dimension.width`               | integer          | No       | Width of the output video.                                                                                                                                                   |
+| `dimension.height`              | integer          | No       | Height of the output video.                                                                                                                                                  |
+| `fps`                           | float            | No       | Output frame rate. Must be one of `25`, `30`, or `60`. Default: `25`.                                                                                                        |
+| `scene_ids`                     | array of strings | No       | Generate only this subset of scenes, in the given order. Repeats are allowed. If omitted, all scenes are generated.                                                          |
+| `reorder_music`                 | boolean          | No       | When `true` (default), background-audio tracks move with their scenes. When `false`, tracks stay pinned to the original layout positions.                                    |
+| `keep_text_vertically_centered` | boolean          | No       | When `true`, replaced text elements are vertically centered based on their actual rendered height.                                                                           |
+| `subtitles`                     | object           | No       | Burned-in subtitle overlay settings (see [Subtitles](#subtitles) below).                                                                                                     |
+| `include_gif`                   | boolean          | No       | Include a GIF preview URL in the webhook response. Default: `false`.                                                                                                         |
+| `enable_sharing`                | boolean          | No       | Make the video publicly shareable immediately after creation. Default: `false`.                                                                                              |
+| `folder_id`                     | string           | No       | Folder ID where the video is stored.                                                                                                                                         |
+| `brand_voice_id`                | string           | No       | Brand Glossary ID for applying predefined translation and pronunciation rules (translation exclusions, enforced terms, vocabulary mappings, tone preferences).               |
+| `test`                          | boolean          | No       | Render in test mode (lower quality, no quota deduction). Default: `false`.                                                                                                   |
+
+## Variables
+
+`variables` is an object keyed by variable name. Each value has the same outer shape:
+
+| Field        | Type   | Required | Description                                                                                                      |
+| ------------ | ------ | -------- | ---------------------------------------------------------------------------------------------------------------- |
+| `name`       | string | Yes      | The variable's name. Must match the key it's assigned to and a placeholder declared by the template.             |
+| `type`       | string | Yes      | Discriminator: `text`, `image`, `video`, `audio`, `voice`, or `character`. Determines the shape of `properties`. |
+| `properties` | object | Yes      | Type-specific replacement payload — see the per-type tables below.                                               |
+
+### `text` variable
+
+| `properties` field | Type   | Required | Description                                                            |
+| ------------------ | ------ | -------- | ---------------------------------------------------------------------- |
+| `content`          | string | Yes      | Replacement text. Maximum length: `10000` characters. Cannot be empty. |
+
+### `image` variable
+
+| `properties` field | Type   | Required | Description                                                                                |
+| ------------------ | ------ | -------- | ------------------------------------------------------------------------------------------ |
+| `url`              | string | Yes\*    | Public URL of the image. *Provide either `url` or `asset_id`, not both.*                   |
+| `asset_id`         | string | Yes\*    | Asset ID of an uploaded image. *Provide either `url` or `asset_id`, not both.*             |
+| `fit`              | string | No       | How the image fills the placeholder slot: `contain` (default), `cover`, `crop`, or `none`. |
+
+### `video` variable
+
+| `properties` field | Type   | Required | Description                                                                                |
+| ------------------ | ------ | -------- | ------------------------------------------------------------------------------------------ |
+| `url`              | string | Yes\*    | Public URL of the video. *Provide either `url` or `asset_id`, not both.*                   |
+| `asset_id`         | string | Yes\*    | Asset ID of an uploaded video. *Provide either `url` or `asset_id`, not both.*             |
+| `play_style`       | string | No       | Playback mode: `loop` (default), `freeze`, or `fit_to_scene`.                              |
+| `fit`              | string | No       | How the video fills the placeholder slot: `contain` (default), `cover`, `crop`, or `none`. |
+| `volume`           | float  | No       | Video volume. Range: `0.0`–`1.0`. Default: `1.0`.                                          |
+
+### `audio` variable
+
+| `properties` field | Type   | Required | Description                                                                         |
+| ------------------ | ------ | -------- | ----------------------------------------------------------------------------------- |
+| `url`              | string | Yes\*    | Public URL of the audio. *Provide either `url` or `asset_id`, not both.*            |
+| `asset_id`         | string | Yes\*    | Asset ID of an uploaded audio file. *Provide either `url` or `asset_id`, not both.* |
+
+### `voice` variable
+
+Replaces the voice that speaks the scene's script. The script content itself comes from the template (or a `text` variable).
+
+| `properties` field | Type   | Required | Description                                   |
+| ------------------ | ------ | -------- | --------------------------------------------- |
+| `voice_id`         | string | Yes      | Voice identifier.                             |
+| `locale`           | string | No       | Voice accent/locale (e.g., `en-US`, `pt-BR`). |
+
+### `character` variable
+
+Replaces an avatar or talking-photo placeholder in the template.
+
+| `properties` field         | Type    | Required | Description                                                                                                                                                                                        |
+| -------------------------- | ------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `character_id`             | string  | Yes      | The avatar or talking-photo identifier to use as the replacement. Cannot be empty.                                                                                                                 |
+| `type`                     | string  | Yes      | `avatar` or `talking_photo`.                                                                                                                                                                       |
+| `alignment_params`         | object  | No       | Containment and alignment for the replacement (see [`alignment_params`](#alignment-params) below). When omitted, the replacement uses the template's stored framing.                               |
+| `preserve_rounded_corners` | boolean | No       | Opt in to making the template's rounded corners visible on the rendered video (see [`preserve_rounded_corners`](#preserve-rounded-corners) below). When unset, the template's own setting is used. |
+
+#### `alignment_params`
+
+Use `alignment_params` when the replacement avatar has a different aspect ratio or framing from the original and you want it confined to the original element's box.
+
+| Field   | Type   | Required | Description                                                                                                                                                       |
+| ------- | ------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fit`   | string | No       | `none` (default) keeps the values returned by the replacement pipeline. `contain` rescales the replacement so it fits entirely inside the original element's box. |
+| `align` | string | No       | When `fit` is `contain`, which edge of the replacement to pin: `center` (default), `top`, `bottom`, `left`, or `right`. Has no effect when `fit` is `none`.       |
+
+```json theme={null}
+{
+  "alignment_params": {
+    "fit": "contain",
+    "align": "bottom"
+  }
+}
+```
+
+#### `preserve_rounded_corners`
+
+Avatars rendered without a background (expressive avatars, custom avatars with matting disabled) reserve transparent room around the silhouette so outstretched arms or hands aren't clipped. Because that bleed area extends past the visible display box, any `rounded_corners` baked into the template have nothing visible to round at the renderer's edges and the corners appear missing on the final video.
+
+Setting `preserve_rounded_corners: true` on the variable opts that placeholder back into a tighter crop — the avatar is constrained to its display box so the rounded corners are visible — at the cost of clipping anything that extends beyond it (e.g. a wave or outstretched arms).
+
+| Value   | Behaviour                                                                                                                                                 |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `true`  | The renderer keeps the display-box crop. Rounded corners render visibly. Content outside the display box (arms, hands, etc.) may be clipped.              |
+| `false` | The display-box crop is dropped. The full avatar silhouette is preserved, but the template's `rounded_corners` will not be visible on the rendered video. |
+| *unset* | Inherit the template's stored value. Defaults to `false` for templates that do not opt in.                                                                |
+
+```json theme={null}
+{
+  "avatar": {
+    "name": "avatar",
+    "type": "character",
+    "properties": {
+      "character_id": "Jason_public_3_20240312",
+      "type": "avatar",
+      "preserve_rounded_corners": true
+    }
+  }
+}
+```
+
+<Tip>
+  If you don't see the template's rounded corners in your rendered video and the avatar has no background, set `preserve_rounded_corners: true` on the `character` variable for that placeholder.
+</Tip>
+
+## Subtitles
+
+| Parameter           | Type    | Required | Description                                              |
+| ------------------- | ------- | -------- | -------------------------------------------------------- |
+| `preset_name`       | string  | Yes      | Subtitle preset name.                                    |
+| `alignment`         | integer | No       | Subtitle alignment code. Default: `2`.                   |
+| `disable_highlight` | boolean | No       | Override the preset's highlight style. Default: `false`. |
+| `font_size`         | integer | No       | Font size override.                                      |
+| `position`          | object  | No       | Subtitle position: `{ "x": 0.0, "y": 0.0 }`.             |
+
+## Example Request
+
+```json theme={null}
+POST /v2/template/YOUR_TEMPLATE_ID/generate
+
+{
+  "title": "My Template Video",
+  "caption": false,
+  "dimension": {
+    "width": 1920,
+    "height": 1080
+  },
+  "variables": {
+    "script": {
+      "name": "script",
+      "type": "text",
+      "properties": {
+        "content": "Hello, welcome to our product demo."
+      }
+    },
+    "headline": {
+      "name": "headline",
+      "type": "text",
+      "properties": {
+        "content": "Product Overview"
+      }
+    },
+    "avatar": {
+      "name": "avatar",
+      "type": "character",
+      "properties": {
+        "character_id": "Jason_public_3_20240312",
+        "type": "avatar",
+        "preserve_rounded_corners": true,
+        "alignment_params": {
+          "fit": "contain",
+          "align": "bottom"
+        }
+      }
+    }
+  }
+}
+```
+
+## Response
+
+### 200 — Success
+
+```json theme={null}
+{
+  "error": null,
+  "data": {
+    "video_id": "763fca2469b98a65b351eqr8c449f4e8"
+  }
+}
+```
+
+| Field           | Type           | Description                                            |
+| --------------- | -------------- | ------------------------------------------------------ |
+| `error`         | string \| null | Error message if the request fails; `null` on success. |
+| `data.video_id` | string         | Unique identifier of the generated video.              |

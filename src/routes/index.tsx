@@ -12,7 +12,14 @@ import {
   Terminal,
   Camera,
   Play,
+  ChevronDown,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import { useServerFn } from "@tanstack/react-start";
 import { trackAffiliateClick } from "@/lib/affiliate.functions";
@@ -198,10 +205,10 @@ function Index() {
               <Sparkles className="size-3.5" /> Canvas
             </Link>
             <Link
-              to="/ugc"
+              to="/lipsync"
               className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
             >
-              <Megaphone className="size-3.5" /> UGC Ads
+              <Wand2 className="size-3.5" /> Lip Sync
             </Link>
             <Link
               to="/spin"
@@ -210,30 +217,37 @@ function Index() {
             >
               <Play className="size-3.5" /> Spin 30
             </Link>
-            <Link
-              to="/colors"
-              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
-            >
-              <Palette className="size-3.5" /> Colors
-            </Link>
-            <Link
-              to="/reshoot"
-              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
-            >
-              <Camera className="size-3.5" /> Reshoot
-            </Link>
-            <Link
-              to="/motion"
-              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
-            >
-              <Wand2 className="size-3.5" /> Motion
-            </Link>
-            <Link
-              to="/lipsync"
-              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
-            >
-              <Wand2 className="size-3.5" /> Lip Sync
-            </Link>
+            {/* Lower-traffic tools consolidated behind one "More" menu instead of
+                4 separate top-level links — cuts header nav clutter. */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="hidden lg:inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5">
+                  More <ChevronDown className="size-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem asChild>
+                  <Link to="/ugc" className="no-underline flex items-center">
+                    <Megaphone className="size-3.5 mr-2" /> UGC Ads
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/motion" className="no-underline flex items-center">
+                    <Wand2 className="size-3.5 mr-2" /> Motion
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/colors" className="no-underline flex items-center">
+                    <Palette className="size-3.5 mr-2" /> Colors
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/reshoot" className="no-underline flex items-center">
+                    <Camera className="size-3.5 mr-2" /> Reshoot
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             {user ? (
               <Link
                 to="/dashboard"
@@ -371,14 +385,19 @@ function Index() {
       {/* 0c. Canvas + finished workflows + UGC Factory */}
       <CanvasWorkflowShowcase />
 
-      {/* Get Ready With Me — mirror selfie → 6 identity-locked angles */}
-      <GetReadyWithMe />
+      {/* 0d. Our services — surfaced early: covers Lip Sync + UGC, both solid
+          traffic draws with no dedicated hero section of their own yet */}
+      <ServicesGrid />
+
+      {/* Perform Anywhere + Motion Control — 3-step workflow */}
+      <PerformAnywhereSection />
 
       {/* Colors Studio showcase — interactive swatch switcher */}
       <ColorsTeaser />
 
-      {/* Perform Anywhere + Motion Control — 3-step workflow */}
-      <PerformAnywhereSection />
+      {/* Get Ready With Me — mirror selfie → 6 identity-locked angles
+          (lowest-traffic feature of this set — moved lower) */}
+      <GetReadyWithMe />
 
       {/* 2. Hero + "Talk to Aurora" contact form */}
       <HeroContactForm greeting={greeting} />
@@ -388,9 +407,6 @@ function Index() {
 
       {/* 4. Supercomputer / product hero */}
       <SupercomputerSection />
-
-      {/* 5. Our services */}
-      <ServicesGrid />
 
       {/* 7. Trust + Why us */}
       <TrustBar />
