@@ -107,7 +107,10 @@ export function ViralEngine() {
           </span>
         </div>
 
-        <h2 className="mt-4 max-w-3xl text-3xl font-extrabold tracking-tight text-white md:text-5xl">
+        <p className="mt-4 text-sm font-bold uppercase tracking-[0.25em] text-fuchsia-300">
+          Promote your music with AI
+        </p>
+        <h2 className="mt-2 max-w-3xl text-3xl font-extrabold tracking-tight text-white md:text-5xl">
           One prompt.{" "}
           <span className="bg-gradient-to-r from-pink-300 via-fuchsia-300 to-violet-300 bg-clip-text text-transparent">
             {COUNT} posts. Posted.
