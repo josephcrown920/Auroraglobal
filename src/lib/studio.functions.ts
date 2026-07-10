@@ -19,7 +19,10 @@ import {
 } from "./cost-guardrails.server";
 import { DURATION_CAPS } from "./billing.plans";
 
-const COST_IMAGE = 1;
+// Sourced from the shared price list (src/lib/pricing.ts) rather than a local
+// literal, so a future repricing of the "image" base can't silently drift
+// between this flat-priced studio path and every other charge point.
+export const COST_IMAGE = computeCost({ features: ["image"] }).total;
 
 // Shown when no GPU worker advertises the "motion" capability. Surfaced verbatim
 // to the UI / MCP caller; credits are never reserved when this fires.
