@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { COST_UGC_AD } from "@/lib/ugc.server";
+import { COST_PRODUCT_DEMO } from "@/lib/pricing";
 
 /**
  * UGC ad generation — turn an avatar + scene + product into a native talking ad.
@@ -102,5 +103,65 @@ export const getGenerationStatus = createServerFn({ method: "GET" })
       videoUrl: gen.result_video_url ?? null,
       error: gen.error ?? null,
       kind: gen.kind,
+    };
+  });
+
+/**
+ * Product Demo (Task #276) — product name + ordered feature list (name,
+ * description, screenshot) → a narrated HeyGen avatar walkthrough.
+ *
+ * Runs on the same public.jobs queue as the UGC ad pipeline (kind
+ * "product_demo", see runProductDemo in jobs.server.ts), reusing credit
+ * reservation + polling conventions; clients poll with getGenerationStatus.
+ */
+const ProductDemoFeatureSchema = z.object({
+  name: z.string().min(1).max(120),
+  description: z.string().max(400).optional(),
+  screenshotUrl: z.string().url().optional(),
+});
+
+const ProductDemoSchema = z.object({
+  productName: z.string().min(1).max(160),
+  features: z.array(ProductDemoFeatureSchema).min(1).max(8),
+  durationPresetId: z.enum(["quick", "walkthrough", "deep_dive", "whats_new"]).default("walkthrough"),
+  audience: z.string().max(200).optional(),
+  avatarId: z.string().max(80).optional(),
+  voiceId: z.string().max(80).optional(),
+  backgroundId: z.string().max(80).optional(),
+});
+
+export const generateProductDemo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => ProductDemoSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+
+    const payload = {
+      productName: data.productName,
+      features: data.features,
+      durationPresetId: data.durationPresetId,
+      audience: data.audience,
+      avatarId: data.avatarId,
+      voiceId: data.voiceId,
+      backgroundId: data.backgroundId,
+    };
+    const prompt = `Product demo: ${data.productName} (${data.features.length} feature${data.features.length === 1 ? "" : "s"})`;
+
+    const { data: rows, error } = await rpcClient().rpc("create_generation_and_reserve", {
+      _user: userId,
+      _kind: "product_demo",
+      _prompt: prompt,
+      _amount: COST_PRODUCT_DEMO,
+      _payload: payload,
+    });
+    if (error) {
+      throw new Error(/insufficient_credits/i.test(error.message) ? "Not enough Aura" : error.message);
+    }
+    const row = (Array.isArray(rows) ? rows[0] : rows) as { job_id: string; generation_id: string };
+    return {
+      jobId: row.job_id,
+      generationId: row.generation_id,
+      status: "queued" as const,
+      credits: COST_PRODUCT_DEMO,
     };
   });

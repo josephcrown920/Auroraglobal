@@ -38,6 +38,14 @@ import {
 import { getMusicTrack, signedAutocutUrl } from "./autocut.server";
 import { assertDurationCap } from "./cost-guardrails.server";
 import { persistResultUrl, resultMediaTypeForKind } from "./result-store.server";
+import {
+  buildProductDemoScript,
+  submitHeyGenVideo,
+  pollHeyGenVideo,
+  HEYGEN_AVATARS,
+  type ProductDemoFeature,
+  type ProductDemoDurationId,
+} from "./heygen.server";
 
 // `orchestrate` is dependency-injected (threaded through the runners) rather than
 // imported-and-called directly so the worker loop is unit-testable WITHOUT
@@ -665,6 +673,75 @@ async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
   };
 }
 
+// Product Demo (Task #276): product name + ordered feature list (name,
+// description, screenshot) → a HeyGen Video Agent narrated walkthrough.
+// HeyGen's video generation is itself async, so this reuses the job's own
+// retry/backoff loop as the poll: the first pass submits and stashes the
+// returned video_id on the job payload, then every retry re-checks status
+// via a NON-terminal "still processing" error until HeyGen reports
+// completed/failed. This mirrors the workerStage pattern used by autocut.
+async function runProductDemo(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
+  void orch; // no generic orchestrator path for this kind — HeyGen only.
+  const p = job.payload as {
+    productName: string;
+    features: ProductDemoFeature[];
+    durationPresetId?: ProductDemoDurationId;
+    audience?: string;
+    avatarId?: string;
+    voiceId?: string;
+    backgroundId?: string;
+    heygenVideoId?: string;
+  };
+  if (!p.productName?.trim()) throw new Error("product_demo requires productName");
+  if (!p.features?.length) throw new Error("product_demo requires at least one feature");
+
+  let videoId = p.heygenVideoId;
+  if (!videoId) {
+    const scriptText = buildProductDemoScript({
+      productName: p.productName,
+      features: p.features,
+      durationPresetId: p.durationPresetId,
+      audience: p.audience,
+    });
+    const photoUrls = p.features.map((f) => f.screenshotUrl).filter(Boolean) as string[];
+    const submitted = await submitHeyGenVideo({
+      avatarId: p.avatarId || HEYGEN_AVATARS[0].id,
+      scriptText,
+      voiceId: p.voiceId,
+      backgroundId: p.backgroundId,
+      photoUrls,
+    });
+    videoId = submitted.videoId;
+    await supabaseAdmin
+      .from("jobs")
+      .update({ payload: { ...p, heygenVideoId: videoId } } as never)
+      .eq("id", job.id);
+  }
+
+  const status = await pollHeyGenVideo(videoId);
+  if (status.status === "failed") {
+    throw new Error("HeyGen product demo generation failed");
+  }
+  if (status.status !== "completed" || !status.video_url) {
+    // Non-terminal (doesn't match TERMINAL_ERROR_RE) — the job is re-queued
+    // with backoff and this function runs again, picking up the stashed
+    // heygenVideoId to poll instead of re-submitting.
+    throw new Error("heygen product demo still processing");
+  }
+
+  return {
+    url: status.video_url,
+    videoUrl: status.video_url,
+    provider: "heygen",
+    endpoint: "video_requests",
+    meta: {
+      productName: p.productName,
+      featureCount: p.features.length,
+      durationPreset: p.durationPresetId ?? null,
+    },
+  };
+}
+
 // UGC campaign item: one matched image + video set for a named avatar. The still
 // and its animation are saved together on a single generations row.
 async function runCampaignItem(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
@@ -1112,6 +1189,8 @@ export async function processOneJob(
       out = await runPerformanceReskin(job, orch);
     } else if (job.kind === "ugc_ad") {
       out = await runUGCAd(job, orch);
+    } else if (job.kind === "product_demo") {
+      out = await runProductDemo(job, orch);
     } else if (job.kind === "ugc_campaign_item") {
       out = await runCampaignItem(job, orch);
     } else if (job.kind === "kids_story") {
@@ -1170,6 +1249,7 @@ export async function processOneJob(
         job.kind === "tiktok_remix_child" ||
         job.kind === "performance_reskin" ||
         job.kind === "ugc_ad" ||
+        job.kind === "product_demo" ||
         job.kind === "kids_story" ||
         job.kind === "motion" ||
         job.kind === "lipsync" ||
