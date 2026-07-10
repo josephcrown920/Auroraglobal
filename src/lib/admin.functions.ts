@@ -359,6 +359,10 @@ interface WithdrawalsOrderable {
   ) => Promise<{ data: OwnerWithdrawalRow[] | null; error: { message: string } | null }>;
 }
 
+interface WithdrawalsEqChain {
+  eq: (col: string, val: string) => Promise<{ error: { message: string } | null }>;
+}
+
 const withdrawalsTable = supabaseAdmin as unknown as {
   from: (t: "owner_withdrawals") => {
     select: (c: string) => WithdrawalsOrderable;
@@ -368,6 +372,12 @@ const withdrawalsTable = supabaseAdmin as unknown as {
       withdrawn_at: string;
       created_by: string;
     }) => Promise<{ error: { message: string } | null }>;
+    update: (row: {
+      amount_minor?: number;
+      note?: string | null;
+      withdrawn_at?: string;
+    }) => WithdrawalsEqChain;
+    delete: () => WithdrawalsEqChain;
   };
 };
 
@@ -379,7 +389,7 @@ const PAGE_SIZE = 1000;
 // made rather than whatever date range happens to be selected in the UI.
 // Paginated (not a single capped `.limit()`) so the total stays correct no
 // matter how many payments have accumulated.
-async function computeAllTimeProfitMinor(): Promise<number> {
+export async function computeAllTimeProfitMinor(): Promise<number> {
   let profitMinor = 0;
   let from = 0;
   for (;;) {
@@ -426,6 +436,17 @@ async function fetchAllWithdrawals(): Promise<OwnerWithdrawalRow[]> {
   return all;
 }
 
+// Pure reconciliation core: all-time profit minus total withdrawn = what's
+// left. Extracted so the math has direct unit test coverage independent of
+// the DB round-trips in computeAllTimeProfitMinor/fetchAllWithdrawals.
+export function computeWithdrawalSummaryTotals(
+  totalProfitMinor: number,
+  withdrawals: { amount_minor: number }[],
+): { totalWithdrawnMinor: number; remainingMinor: number } {
+  const totalWithdrawnMinor = withdrawals.reduce((sum, w) => sum + w.amount_minor, 0);
+  return { totalWithdrawnMinor, remainingMinor: totalProfitMinor - totalWithdrawnMinor };
+}
+
 // Owner-facing withdrawal summary: all-time profit, total withdrawn, what's
 // left, plus a recent list of recorded payouts. Admin-only.
 export const adminWithdrawalSummary = createServerFn({ method: "GET" })
@@ -437,7 +458,7 @@ export const adminWithdrawalSummary = createServerFn({ method: "GET" })
       computeAllTimeProfitMinor(),
       fetchAllWithdrawals(),
     ]);
-    const totalWithdrawnMinor = withdrawals.reduce((sum, w) => sum + w.amount_minor, 0);
+    const { totalWithdrawnMinor } = computeWithdrawalSummaryTotals(totalProfitMinor, withdrawals);
 
     return {
       totalProfitUsd: totalProfitMinor / 100,
@@ -480,6 +501,67 @@ export const adminRecordWithdrawal = createServerFn({ method: "POST" })
       withdrawn_at: data.withdrawnAt ?? new Date().toISOString(),
       created_by: context.userId,
     });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// Reconciles a proposed payout amount against what's actually left before it
+// gets recorded — the client uses this to show a confirmation prompt when the
+// amount exceeds the remaining pool, rather than silently pushing "remaining"
+// negative. Not a hard block: legitimate backdated corrections can exceed the
+// current balance, so the owner can still confirm and proceed.
+export const adminCheckWithdrawalAmount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ amountUsd: z.number().positive().finite() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    const [totalProfitMinor, withdrawals] = await Promise.all([
+      computeAllTimeProfitMinor(),
+      fetchAllWithdrawals(),
+    ]);
+    const { remainingMinor } = computeWithdrawalSummaryTotals(totalProfitMinor, withdrawals);
+    const remainingUsd = remainingMinor / 100;
+    return { exceedsRemaining: data.amountUsd > remainingUsd, remainingUsd };
+  });
+
+// Edits a previously recorded payout (amount/date/note). Owner-only, same as
+// recording — a mistaken entry (wrong amount, wrong date) should never
+// require a manual DB edit to correct.
+export const adminEditWithdrawal = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        amountUsd: z.number().positive().finite(),
+        note: z.string().trim().max(500).optional(),
+        withdrawnAt: z.string().datetime().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    const amount_minor = Math.round(data.amountUsd * 100);
+    if (amount_minor <= 0) throw new Error("Amount must be greater than zero");
+    const { error } = await withdrawalsTable
+      .from("owner_withdrawals")
+      .update({
+        amount_minor,
+        note: data.note?.length ? data.note : null,
+        ...(data.withdrawnAt ? { withdrawn_at: data.withdrawnAt } : {}),
+      })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// Removes a mistaken payout entry entirely. Owner-only.
+export const adminDeleteWithdrawal = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    const { error } = await withdrawalsTable.from("owner_withdrawals").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
