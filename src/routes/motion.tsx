@@ -20,12 +20,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, ArrowLeft, Loader2, Film, Wand2, Camera, Clapperboard, Users, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import {
-  generatePerformanceShot,
-  generateVideoFromImage,
   generateMimicMotion,
   generatePerformanceReskin,
   listGenerations,
 } from "@/lib/studio.functions";
+import { usePerformanceShotJobFn, useVideoFromImageJobFn } from "@/lib/use-job-polling";
 import { checkWorkerCapability } from "@/lib/workers.functions";
 import { VIDEO_MODEL_LIST } from "@/lib/models";
 import { computeCost, type Resolution } from "@/lib/pricing";
@@ -226,8 +225,8 @@ function MotionStudio() {
     if (!loading && !user) navigate({ to: "/auth" });
   }, [user, loading, navigate]);
 
-  const genFn = useServerFn(generatePerformanceShot);
-  const videoFn = useServerFn(generateVideoFromImage);
+  const genFn = usePerformanceShotJobFn();
+  const videoFn = useVideoFromImageJobFn();
   const motionFn = useServerFn(generateMimicMotion);
   const reskinFn = useServerFn(generatePerformanceReskin);
   const listFn = useServerFn(listGenerations);
@@ -281,7 +280,7 @@ function MotionStudio() {
     },
     onMutate: () => setImageError(null),
     onSuccess: (out) => {
-      setStagedImage((out as { imageUrl?: string } | null)?.imageUrl ?? null);
+      setStagedImage(out?.resultUrl ?? null);
       setVideoUrl(null);
       setVideoError(null);
       toast.success("Pose staged");
@@ -320,7 +319,7 @@ function MotionStudio() {
     onMutate: () => setVideoError(null),
     onSuccess: (out) => {
       markFirstGenComplete();
-      const res = out as { id?: string; videoUrl?: string; preview?: boolean } | null;
+      const res = out;
       setVideoUrl(res?.videoUrl ?? null);
       if (res?.preview) {
         setAnimatePreviewId(res.id ?? null);

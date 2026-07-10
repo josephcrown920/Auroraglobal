@@ -2,11 +2,13 @@
 //
 // Templates (`comfy_workflows`) hold a reusable ComfyUI /prompt graph plus a
 // declared-input schema; runs (`comfy_runs`) record each execution. Running a
-// template REUSES the existing credit → orchestrate → record core
-// (reserveOrchestrateRecord) and the worker registry, so the comfy path never
-// drifts from the rest of generation. A run is gated on an active comfyui-protocol
-// worker existing for the template's kind, so it fails explicitly instead of
-// silently falling back to an external provider that would ignore the graph.
+// template enqueues a background job through the shared atomic reserve RPC
+// (create_generation_and_reserve) — the jobs/tick worker renders the graph and
+// updates the comfy_runs row on finish (payload.comfyRunId), so the run
+// survives the user closing the tab. A run is gated on an active
+// comfyui-protocol worker existing for the template's kind, so it fails
+// explicitly instead of silently falling back to an external provider that
+// would ignore the graph.
 //
 // All access is service-role (bypasses RLS) and scoped manually by the
 // authenticated context.userId — same pattern as the other *.functions.ts.
@@ -15,7 +17,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { reserveOrchestrateRecord } from "./generate-core.server";
 import { type GenerateKind } from "./orchestrator.server";
 import { assertTrustedUrl } from "./url-guard";
 import { detectFeatures, computeCost, type Feature } from "./pricing";
@@ -24,7 +25,6 @@ import {
   validateInputValues,
   validateWorkflowJson,
   buildComfyInputs,
-  classifyComfyOutput,
   pickComfyWorkers,
   type DeclaredInput,
   type ComfyWorkerLite,
@@ -241,48 +241,58 @@ export const startComfyRun = createServerFn({ method: "POST" })
     const cost = computeCost({ features }).total;
     const promptText = pickPromptText(declared, v.values);
 
+    // Enqueue-only (task #273): reserve credits + create the generations/jobs
+    // rows atomically, then return immediately. The jobs/tick worker renders
+    // the graph in the background (survives the tab closing); it updates this
+    // comfy_runs row on finish via payload.comfyRunId, and the client polls
+    // getComfyRun until the row goes terminal.
     try {
-      const outcome = await reserveOrchestrateRecord({
-        userId,
-        kind,
-        prompt: promptText,
-        comfyWorkflow: tpl.workflow_json,
-        comfyInputs,
-        cost,
-        reason: `comfy_run_${kind}`,
+      const client = db() as unknown as {
+        rpc: (n: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+      };
+      const { data: reserved, error: resErr } = await client.rpc("create_generation_and_reserve", {
+        _user: userId,
+        _kind: kind,
+        _prompt: promptText,
+        _amount: cost,
+        _payload: {
+          kind,
+          prompt: promptText,
+          comfyWorkflow: tpl.workflow_json,
+          comfyInputs,
+          comfyRunId: runRow.id,
+        },
       });
-      if (!outcome.ok) {
+      if (resErr) {
+        const insufficient = /insufficient_credits/i.test(resErr.message);
+        const msg = insufficient ? "Not enough Aura. Buy more from the Aura panel." : resErr.message;
         await db()
           .from("comfy_runs")
-          .update({ status: "failed", error: outcome.error, updated_at: new Date().toISOString() })
+          .update({ status: "failed", error: msg, updated_at: new Date().toISOString() })
           .eq("id", runRow.id);
         return {
           ok: false as const,
-          run: { ...runRow, status: "failed", error: outcome.error },
-          error: outcome.error,
-          insufficient: outcome.insufficient ?? false,
+          run: { ...runRow, status: "failed", error: msg },
+          error: msg,
+          insufficient,
         };
       }
-      const outputKind = classifyComfyOutput(outcome.url);
-      const { data: done } = await db()
+      const row = (Array.isArray(reserved) ? reserved[0] : reserved) as {
+        job_id: string;
+        generation_id: string;
+      };
+      const { data: queuedRun } = await db()
         .from("comfy_runs")
-        .update({
-          status: "succeeded",
-          progress_pct: 100,
-          output_url: outcome.url,
-          output_kind: outputKind,
-          generation_id: outcome.generationId,
-          updated_at: new Date().toISOString(),
-        })
+        .update({ generation_id: row.generation_id, updated_at: new Date().toISOString() })
         .eq("id", runRow.id)
         .select("*")
         .single();
       return {
         ok: true as const,
-        run: done ?? runRow,
-        url: outcome.url,
-        outputKind,
-        provider: outcome.provider,
+        queued: true as const,
+        run: queuedRun ?? runRow,
+        jobId: row.job_id,
+        generationId: row.generation_id,
         creditsCost: cost,
       };
     } catch (e) {

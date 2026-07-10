@@ -25,7 +25,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, Wand2, LogOut, Loader2, Download, Camera, Film, Mic2, Coins, Zap, LayoutDashboard, Shield, Server, Captions } from "lucide-react";
 import { CaptionDialog } from "@/components/gallery/CaptionDialog";
 import { toast } from "sonner";
-import { generatePerformanceShot, listGenerations, generateVideoFromImage, lipSyncVideo } from "@/lib/studio.functions";
+import { listGenerations } from "@/lib/studio.functions";
+import { usePerformanceShotJobFn, useVideoFromImageJobFn, useLipSyncJobFn } from "@/lib/use-job-polling";
 import { handleGenerationError, friendlyGenerationMessage } from "@/lib/error-toasts";
 import { useGenerationProgress } from "@/hooks/use-generation-progress";
 import { GenerationProgress } from "@/components/ui/GenerationProgress";
@@ -223,10 +224,10 @@ function StudioPage() {
     setActiveExampleId(p.id);
   }, []);
 
-  const genFn = useServerFn(generatePerformanceShot);
+  const genFn = usePerformanceShotJobFn();
   const listFn = useServerFn(listGenerations);
-  const videoFn = useServerFn(generateVideoFromImage);
-  const lipSyncFn = useServerFn(lipSyncVideo);
+  const videoFn = useVideoFromImageJobFn();
+  const lipSyncFn = useLipSyncJobFn();
   const profileFn = useServerFn(getMyProfile);
   const checkoutFn = useServerFn(createPaystackCheckout);
   const paymentByRefFn = useServerFn(getPaymentByReference);

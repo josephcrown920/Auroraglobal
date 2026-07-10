@@ -22,18 +22,19 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import {
-  generatePerformanceShot,
-  generateVideoFromImage,
-  lipSyncVideo,
-  generateSplitReality,
-} from "@/lib/studio.functions";
+  usePerformanceShotJobFn,
+  useVideoFromImageJobFn,
+  useLipSyncJobFn,
+  useSplitRealityJobFn,
+  pollComfyRunUntilDone,
+} from "@/lib/use-job-polling";
 import { listWorkflows, saveWorkflow, getWorkflow } from "@/lib/workflows.functions";
 import {
   getMarketplaceTemplateForCanvas,
   chargeMarketplaceTemplateRun,
 } from "@/lib/marketplace.functions";
 import { handleGenerationError, friendlyGenerationMessage } from "@/lib/error-toasts";
-import { listComfyTemplates, startComfyRun } from "@/lib/comfy.functions";
+import { listComfyTemplates, startComfyRun, getComfyRun } from "@/lib/comfy.functions";
 import { MODEL_LIST, VIDEO_MODEL_LIST, getModelMeta } from "@/lib/models";
 import {
   Sparkles,
@@ -782,11 +783,12 @@ function CanvasPage() {
   // the charge gate is always scoped to the actual marketplace-origin graph.
   const [marketplaceTemplateId, setMarketplaceTemplateId] = useState<string | null>(null);
 
-  const genFn = useServerFn(generatePerformanceShot);
-  const vidFn = useServerFn(generateVideoFromImage);
-  const lipFn = useServerFn(lipSyncVideo);
-  const splitFn = useServerFn(generateSplitReality);
+  const genFn = usePerformanceShotJobFn();
+  const vidFn = useVideoFromImageJobFn();
+  const lipFn = useLipSyncJobFn();
+  const splitFn = useSplitRealityJobFn();
   const comfyRunFn = useServerFn(startComfyRun);
+  const comfyGetRunFn = useServerFn(getComfyRun);
   const comfyListFn = useServerFn(listComfyTemplates);
   const comfyTplQuery = useQuery({
     queryKey: ["comfy-templates-canvas"],
@@ -965,16 +967,20 @@ function CanvasPage() {
             imageKeys.forEach((k, i) => { if (images[i]) values[k] = images[i]; });
             const res = await comfyRunFn({ data: { workflowId: tplId, values, source: "canvas" } });
             if (!res.ok) throw new Error(res.error ?? "ComfyUI run failed");
+            // Enqueue-only server fn (task #273): the graph renders in the
+            // background job queue — poll the run row until it goes terminal.
+            const done = await pollComfyRunUntilDone(comfyGetRunFn, (res.run as { id: string }).id);
+            if (!done.output_url) throw new Error("ComfyUI run finished without an output");
             // Trust the server's classified output kind; fall back to the template's
             // declared kind when the URL couldn't be classified (outputKind "unknown").
             const okind: "image" | "video" =
-              res.outputKind === "video" || res.outputKind === "image"
-                ? res.outputKind
+              done.output_kind === "video" || done.output_kind === "image"
+                ? done.output_kind
                 : tpl.kind === "video"
                   ? "video"
                   : "image";
-            resolved.set(id, { url: res.url as string, kind: okind as NodeKind });
-            update(id, { status: "done", url: res.url, outputKind: okind });
+            resolved.set(id, { url: done.output_url, kind: okind as NodeKind });
+            update(id, { status: "done", url: done.output_url, outputKind: okind });
           } else if (n.data.kind === "batchVideo") {
             if (images.length === 0) throw new Error("Batch video needs an image upstream");
             const count = Math.min(6, Math.max(1, n.data.variantCount ?? 3));

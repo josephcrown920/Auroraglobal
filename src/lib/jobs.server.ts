@@ -45,6 +45,31 @@ import {
   type ProductDemoFeature,
   type ProductDemoDurationId,
 } from "./heygen.server";
+import { classifyComfyOutput } from "./comfy-core";
+
+// ─── comfy_runs mirror ──────────────────────────────────────────────────────
+// Canvas/Comfy runs enqueue through the shared jobs queue but the /comfy and
+// /canvas UIs poll the `comfy_runs` row (not jobs/generations). Jobs whose
+// payload carries `comfyRunId` mirror their terminal outcome onto that row —
+// best-effort and only after WINNING the finalize CAS, so a stale worker can
+// never clobber the authoritative run state. comfy_runs isn't in the generated
+// Supabase types yet, so use a loose-typed handle (same as comfy.functions.ts).
+async function mirrorComfyRun(
+  job: JobRow,
+  patch: Record<string, unknown>,
+): Promise<void> {
+  const runId = (job.payload as { comfyRunId?: string })?.comfyRunId;
+  if (!runId) return;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabaseAdmin as any)
+      .from("comfy_runs")
+      .update({ ...patch, updated_at: new Date().toISOString() })
+      .eq("id", runId);
+  } catch (e) {
+    console.error("[jobs] failed to mirror comfy_runs row", runId, e);
+  }
+}
 
 // `orchestrate` is dependency-injected (threaded through the runners) rather than
 // imported-and-called directly so the worker loop is unit-testable WITHOUT
@@ -1290,6 +1315,18 @@ export async function processOneJob(
       console.error("[jobs] finalize_job threw on success path", job.id, finalizeErr);
       return { processed: true, jobId: job.id, status: "stale", error: String(finalizeErr) };
     }
+    if (finalizeOutcome === "finalized") {
+      const mirrorUrl =
+        (genPatch.result_video_url as string | undefined) ??
+        (genPatch.result_image_url as string | undefined) ??
+        persistedUrl;
+      await mirrorComfyRun(job, {
+        status: "succeeded",
+        progress_pct: 100,
+        output_url: mirrorUrl,
+        output_kind: classifyComfyOutput(mirrorUrl),
+      });
+    }
     return {
       processed: true,
       jobId: job.id,
@@ -1355,6 +1392,9 @@ export async function processOneJob(
     // part of the credit-safety invariant finalize_job just closed.
     if (won && job.kind === "kids_story") {
       await failStory((job.payload as { storyId?: string })?.storyId ?? "", job.user_id, failError);
+    }
+    if (won) {
+      await mirrorComfyRun(job, { status: "failed", error: failError.slice(0, 1000) });
     }
     return { processed: true, jobId: job.id, status: won ? "failed" : "stale", error: failError };
   }

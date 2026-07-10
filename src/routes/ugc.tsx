@@ -5,7 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
-import { generatePerformanceShot, generateVideoFromImage } from "@/lib/studio.functions";
+import { usePerformanceShotJobFn, useVideoFromImageJobFn } from "@/lib/use-job-polling";
 import { generateUGCAd, getGenerationStatus, generateProductDemo } from "@/lib/ugc-generation.functions";
 import { handleGenerationError } from "@/lib/error-toasts";
 import { supabase } from "@/integrations/supabase/client";
@@ -92,8 +92,8 @@ function UGCStudio() {
   ]);
   const [demoResultVideo, setDemoResultVideo] = useState<string | null>(null);
 
-  const genShot = useServerFn(generatePerformanceShot);
-  const genVid = useServerFn(generateVideoFromImage);
+  const genShot = usePerformanceShotJobFn();
+  const genVid = useVideoFromImageJobFn();
   const genAd = useServerFn(generateUGCAd);
   const genStatus = useServerFn(getGenerationStatus);
   const genDemo = useServerFn(generateProductDemo);
