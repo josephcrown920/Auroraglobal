@@ -102,8 +102,41 @@ function SpinPage() {
   const [productUploading, setProductUploading] = useState(false);
   const productInputRef = useRef<HTMLInputElement>(null);
 
+  // Reference photo: upload a face and Spin locks that identity across all
+  // 30 posts directly — no separate "create an avatar" step required.
+  const [faceUrl, setFaceUrl] = useState<string | null>(null);
+  const [faceUploading, setFaceUploading] = useState(false);
+  const faceInputRef = useRef<HTMLInputElement>(null);
+
   const drivingRef = useRef(false);
   const autoStartedRef = useRef(false);
+
+  const uploadFace = useCallback(
+    async (file: File) => {
+      if (!user) {
+        setErr("Sign in to upload a reference photo.");
+        return;
+      }
+      setFaceUploading(true);
+      setErr(null);
+      try {
+        const ext = file.name.split(".").pop() || "jpg";
+        const path = `${user.id}/spin/face/${crypto.randomUUID()}.${ext}`;
+        const { error } = await supabase.storage
+          .from("studio")
+          .upload(path, file, { contentType: file.type, upsert: false });
+        if (error) throw error;
+        const { data } = supabase.storage.from("studio").getPublicUrl(path);
+        setFaceUrl(data.publicUrl);
+        setAvatarId(undefined); // an uploaded photo takes priority over a saved avatar
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : "Reference photo upload failed");
+      } finally {
+        setFaceUploading(false);
+      }
+    },
+    [user],
+  );
 
   const uploadProduct = useCallback(
     async (file: File) => {
@@ -213,7 +246,8 @@ function SpinPage() {
         const { jobId: id } = await startFn({
           data: {
             prompt: p.trim(),
-            avatarId,
+            avatarId: faceUrl ? undefined : avatarId,
+            faceUrl: faceUrl ?? undefined,
             templateId,
             mode,
             script: mode === "video" ? script.trim() : undefined,
@@ -229,7 +263,7 @@ function SpinPage() {
         setErr(e instanceof Error ? e.message : "Could not start Spin");
       }
     },
-    [avatarId, templateId, mode, script, productUrl, busy, planning, startFn, navigate, drive],
+    [avatarId, faceUrl, templateId, mode, script, productUrl, busy, planning, startFn, navigate, drive],
   );
 
   // Resume an in-flight job from the URL (refresh / shared link).
@@ -418,42 +452,80 @@ function SpinPage() {
           <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             <User className="size-3.5" /> Keep this face across every post
           </div>
-          {avatars.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No saved avatars yet — Spin will still vary every scene, but create an avatar to lock one identity across all posts.
-            </p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
+          <p className="mb-3 text-sm text-muted-foreground">
+            Upload a reference photo and Spin locks that exact face across all {SPIN_COUNT} posts — nothing else to set up.
+          </p>
+          <input
+            ref={faceInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void uploadFace(f);
+              e.target.value = "";
+            }}
+          />
+          {faceUrl ? (
+            <div className="flex items-center gap-3 rounded-xl aurora-glass p-2">
+              <img src={faceUrl} alt="Reference" className="size-12 rounded-lg object-cover" />
+              <div className="flex-1 text-sm text-foreground">Reference photo locked in</div>
               <button
                 type="button"
-                onClick={() => setAvatarId(undefined)}
+                onClick={() => setFaceUrl(null)}
                 disabled={active}
-                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                  avatarId === undefined ? "border-primary bg-primary/15 text-primary" : "border-white/10 bg-white/5 text-muted-foreground hover:text-foreground"
-                }`}
+                className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
               >
-                No avatar
+                <X className="size-3" /> Remove
               </button>
-              {avatars.map((a) => (
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => faceInputRef.current?.click()}
+              disabled={active || faceUploading}
+              className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-2 text-xs font-semibold text-primary transition hover:bg-primary/15 disabled:opacity-60"
+            >
+              {faceUploading ? <Loader2 className="size-3.5 animate-spin" /> : <ImageIcon className="size-3.5" />}
+              {faceUploading ? "Uploading…" : "Upload reference photo"}
+            </button>
+          )}
+
+          {!faceUrl && avatars.length > 0 && (
+            <div className="mt-3">
+              <div className="mb-1.5 text-[11px] uppercase tracking-widest text-muted-foreground">Or reuse a saved identity</div>
+              <div className="flex flex-wrap gap-2">
                 <button
-                  key={a.id}
                   type="button"
-                  onClick={() => setAvatarId(a.id)}
+                  onClick={() => setAvatarId(undefined)}
                   disabled={active}
-                  className={`inline-flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-xs font-medium transition ${
-                    avatarId === a.id ? "border-primary bg-primary/15 text-primary" : "border-white/10 bg-white/5 text-muted-foreground hover:text-foreground"
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                    avatarId === undefined ? "border-primary bg-primary/15 text-primary" : "border-white/10 bg-white/5 text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {a.previewUrl ? (
-                    <img src={a.previewUrl} alt={a.name} className="size-6 rounded-full object-cover" />
-                  ) : (
-                    <span className="grid size-6 place-items-center rounded-full bg-white/10">
-                      <User className="size-3" />
-                    </span>
-                  )}
-                  {a.name}
+                  No avatar
                 </button>
-              ))}
+                {avatars.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => setAvatarId(a.id)}
+                    disabled={active}
+                    className={`inline-flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-xs font-medium transition ${
+                      avatarId === a.id ? "border-primary bg-primary/15 text-primary" : "border-white/10 bg-white/5 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {a.previewUrl ? (
+                      <img src={a.previewUrl} alt={a.name} className="size-6 rounded-full object-cover" />
+                    ) : (
+                      <span className="grid size-6 place-items-center rounded-full bg-white/10">
+                        <User className="size-3" />
+                      </span>
+                    )}
+                    {a.name}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>

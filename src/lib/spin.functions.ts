@@ -6,7 +6,7 @@ import { z } from "zod";
 import { orchestrate } from "./orchestrator.server";
 import { fetchToBytes } from "./replicate.server";
 import { compressImageBytes } from "./compress.server";
-import { assertTrustedUrl } from "./url-guard";
+import { assertTrustedUrl, assertOwnedReferenceImage } from "./url-guard";
 import { listAvatars } from "./mcp/avatars.server";
 import { generateWithFallback } from "./llm-fallback.server";
 import { hfTextToSpeech } from "./hf.server";
@@ -95,6 +95,10 @@ const TEMPLATE_IDS = SPIN_TEMPLATES.map((t) => t.id) as [SpinTemplateId, ...Spin
 const SpinInput = z.object({
   prompt: z.string().min(1).max(2000),
   avatarId: z.string().uuid().optional(),
+  // A reference photo the user just uploaded, used directly to lock identity
+  // across all SPIN_COUNT posts — no separate "create an avatar" step
+  // required. Takes priority over avatarId when both are somehow present.
+  faceUrl: z.string().url().optional(),
   templateId: z.enum(TEMPLATE_IDS).optional().default("default"),
   // Video Mode: 30 talking-portrait videos instead of 30 stills. Restricted to
   // the Product Showcase template only — see spin-engine.ts SPIN_VIDEO_PIECE_COST
@@ -117,7 +121,13 @@ export const spinThirty = createServerFn({ method: "POST" })
     let faceUrl: string | null = null;
     let avatarName: string | null = null;
     let triggerWord: string | null = null;
-    if (data.avatarId) {
+    if (data.faceUrl) {
+      // Direct reference photo the user just uploaded — no saved avatar
+      // required. Must be their own upload (studio bucket), not an arbitrary
+      // remote URL, or this becomes an SSRF/impersonation vector.
+      await assertOwnedReferenceImage(data.faceUrl, userId);
+      faceUrl = data.faceUrl;
+    } else if (data.avatarId) {
       const avatars = await listAvatars(userId, 50);
       const a = avatars.find((x) => x.id === data.avatarId);
       if (!a) throw new Error("Avatar not found");

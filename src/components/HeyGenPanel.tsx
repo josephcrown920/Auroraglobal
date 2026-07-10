@@ -11,14 +11,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { generateHeyGenVideo, HEYGEN_AVATARS, HEYGEN_VOICES, HEYGEN_BACKGROUNDS } from "@/lib/heygen.server";
+import { generateHeyGenVideo } from "@/lib/heygen.server";
 import { Loader2, Play } from "lucide-react";
 
 export function HeyGenPanel() {
   const genFn = useServerFn(generateHeyGenVideo);
-  const [avatarId, setAvatarId] = useState(HEYGEN_AVATARS[0].id);
-  const [voiceId, setVoiceId] = useState(HEYGEN_VOICES[0].id);
-  const [backgroundId, setBackgroundId] = useState(HEYGEN_BACKGROUNDS[0].id);
   const [scriptText, setScriptText] = useState("");
 
   const mut = useMutation({
@@ -26,9 +23,6 @@ export function HeyGenPanel() {
       if (!scriptText.trim()) throw new Error("Script is required");
       return genFn({
         data: {
-          avatarId,
-          voiceId,
-          backgroundId,
           scriptText,
         },
       });
@@ -47,53 +41,9 @@ export function HeyGenPanel() {
 
   return (
     <div className="space-y-6 rounded-xl border border-border bg-card/40 p-6">
-      <div className="space-y-2">
-        <h3 className="font-semibold">Avatar</h3>
-        <Select value={avatarId} onValueChange={setAvatarId}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {HEYGEN_AVATARS.map((a) => (
-              <SelectItem key={a.id} value={a.id}>
-                {a.name} — {a.description}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-2">
-        <h3 className="font-semibold">Voice</h3>
-        <Select value={voiceId} onValueChange={setVoiceId}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {HEYGEN_VOICES.map((v) => (
-              <SelectItem key={v.id} value={v.id}>
-                {v.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-2">
-        <h3 className="font-semibold">Background</h3>
-        <Select value={backgroundId} onValueChange={setBackgroundId}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {HEYGEN_BACKGROUNDS.map((b) => (
-              <SelectItem key={b.id} value={b.id}>
-                {b.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <p className="text-xs text-muted-foreground">
+        We pick a real HeyGen avatar and matching voice for you automatically.
+      </p>
 
       <div className="space-y-2">
         <h3 className="font-semibold">Script</h3>
