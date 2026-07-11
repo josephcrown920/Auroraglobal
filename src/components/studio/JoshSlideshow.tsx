@@ -12,7 +12,6 @@ const PINK_MIC_PORTRAIT = "/josh/josh-pink-mic-portrait.jpg";
 // (Mirror session slide removed — that photo now lives exclusively in the
 // Get Ready With Me landing section so no image repeats across the page.)
 const SHOTS = [
-  { url: PINK_MIC_PORTRAIT, caption: "Hot-pink side profile · suspended mic" },
   { url: joshBlueOrange.url, caption: "Blue × orange studio · color wash" },
   { url: josh3.url, caption: "Blue close-up · live mic portrait" },
   { url: josh4.url, caption: "Electric cobalt crop · signature frames" },
@@ -20,6 +19,7 @@ const SHOTS = [
   { url: josh7.url, caption: "Crimson portrait · red mirror shield" },
   { url: josh8.url, caption: "Studio red · puffer vest · 4:44" },
   { url: josh10.url, caption: "Leather look · editorial red backdrop" },
+  { url: PINK_MIC_PORTRAIT, caption: "Hot-pink side profile · suspended mic" },
 ];
 
 export function JoshSlideshow() {
