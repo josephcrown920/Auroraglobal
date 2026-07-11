@@ -2455,7 +2455,8 @@ const soraAdapter: ProviderAdapter = {
   name: "sora",
   supports: (r) =>
     r.kind === "video" &&
-    !!process.env.OPENAI_API_KEY,
+    !!process.env.OPENAI_API_KEY &&
+    (r.model === "openai/sora-2" || r.model === "sora-2" || r.model === "openai/sora-2-pro"),
   estimateCost: () => 0.5, // ~$0.50/video at sora-2
   async run(r) {
     const key = process.env.OPENAI_API_KEY!;
@@ -2604,14 +2605,14 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   ],
   video: [
     gpuWorker,
+    byteplus,        // model-specific first (BYTEPLUS_MAP-gated), so seedance/seedream
+    klingDirect,     // model-specific (kling-gated) before generic catch-alls
     xaiDirect,
     soraAdapter,
     ltxAdapter,
     geminiVideo,
     heygenVideoAgent,
     heygenTemplate,
-    klingDirect,
-    byteplus,
     replicate,
     runway,
     piapi,
@@ -2708,6 +2709,11 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     "ffmpeg-lyricvideo": { provider: gpuWorker.name, kind: "lyric_video", cost: 0.005 },
     // xAI Grok Imagine Video — general video + motion fallback (key is set).
     "xai/grok-imagine-video-1.5": { provider: "xai", kind: "video", cost: 0.24 },
+    // LTX Video (Lightricks) — direct REST API, cheaper than Sora/Kling.
+    "ltx/ltx-video": { provider: "ltx", kind: "video", cost: 0.15 },
+    // Sora (OpenAI direct) — sora-2 and sora-2-pro via /v1/video/generations.
+    "sora-2": { provider: "sora", kind: "video", cost: 0.5 },
+    "openai/sora-2-pro": { provider: "sora", kind: "video", cost: 0.5 },
     // Gemini Veo 2 — direct API, no Replicate credits needed.
     "veo-2": { provider: "gemini-video", kind: "video", cost: 0.35 },
   };
@@ -2821,7 +2827,6 @@ export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   // previously it only worked when explicitly requested by value.
   video: [
     "xai/grok-imagine-video-1.5",
-    "openai/sora-2",
     "ltx/ltx-video",
     "veo-2",
     "seedance-2.0-fast",
