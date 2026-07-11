@@ -227,7 +227,8 @@ type ProviderAdapter = {
     | "lovable-text"
     | "hf-text"
     | "anthropic"
-    | "xai";
+    | "xai"
+    | "gemini-video";
   supports: (req: GenerateRequest) => boolean;
   estimateCost: (req: GenerateRequest) => number;
   run: (req: GenerateRequest) => Promise<{ url: string; endpoint: string; text?: string }>;
@@ -754,6 +755,70 @@ const geminiDirect: ProviderAdapter = {
     if (error) throw new Error(`Gemini upload failed: ${error.message}`);
     const { data } = supabaseAdmin.storage.from("studio").getPublicUrl(path);
     return { url: data.publicUrl, endpoint: `gemini:${model}` };
+  },
+};
+
+// ─── Gemini Video (Veo 2) ────────────────────────────────────────────────────
+// Direct Gemini API for video generation via Veo 2. Handles any video or motion
+// request when GEMINI_API_KEY is present — does not require Replicate credits.
+const GEMINI_VIDEO_MODEL = "veo-3.1-fast-generate-preview";
+const geminiVideo: ProviderAdapter = {
+  name: "gemini-video",
+  supports: (r) =>
+    (r.kind === "video" || r.kind === "motion") && !!process.env.GEMINI_API_KEY,
+  estimateCost: () => 0.35,
+  async run(r) {
+    const key = process.env.GEMINI_API_KEY!;
+    const instance: Record<string, unknown> = { prompt: r.prompt ?? "" };
+    // Attach reference image for image-to-video or motion requests
+    const refUrl = r.imageUrls?.[0];
+    if (refUrl) {
+      try {
+        if (isTrustedUrl(refUrl)) {
+          const fetched = await fetch(refUrl);
+          if (fetched.ok) {
+            const buf = Buffer.from(await fetched.arrayBuffer());
+            const mime = fetched.headers.get("content-type") || "image/jpeg";
+            instance.image = { bytesBase64Encoded: buf.toString("base64"), mimeType: mime };
+          }
+        }
+      } catch { /* skip bad ref */ }
+    }
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_VIDEO_MODEL}:predictLongRunning?key=${key}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          instances: [instance],
+          parameters: {
+            aspectRatio: "16:9",
+            sampleCount: 1,
+            durationSeconds: Math.min(8, Math.max(5, r.duration ?? 8)),
+          },
+        }),
+      },
+    );
+    if (!res.ok) throw new Error(`Gemini video ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const op = await res.json() as { name?: string };
+    const opName = op?.name;
+    if (!opName) throw new Error("Gemini video: no operation name in response");
+    // Poll the long-running operation (max 10 min)
+    const deadline = Date.now() + 10 * 60_000;
+    while (Date.now() < deadline) {
+      await new Promise((s) => setTimeout(s, 5_000));
+      const poll = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/${opName}?key=${key}`,
+      );
+      if (!poll.ok) throw new Error(`Gemini video poll ${poll.status}: ${(await poll.text()).slice(0, 100)}`);
+      const state = await poll.json() as { done?: boolean; error?: unknown; response?: { generateVideoResponse?: { generatedSamples?: Array<{ video?: { uri?: string } }> } } };
+      if (!state.done) continue;
+      if (state.error) throw new Error(`Gemini video error: ${JSON.stringify(state.error).slice(0, 200)}`);
+      const videoUri = state.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri;
+      if (!videoUri) throw new Error("Gemini video: no video URI in response");
+      return { url: videoUri, endpoint: `gemini-video:${GEMINI_VIDEO_MODEL}` };
+    }
+    throw new Error("Gemini video: timed out after 10 minutes");
   },
 };
 
@@ -2273,8 +2338,7 @@ const XAI_VIDEO_BASE = "https://api.x.ai/v1";
 const xaiDirect: ProviderAdapter = {
   name: "xai",
   supports: (r) =>
-    r.kind === "video" &&
-    r.model === "xai/grok-imagine-video-1.5" &&
+    (r.kind === "video" || r.kind === "motion") &&
     !!process.env.XAI_API_KEY,
   estimateCost: (r) => 0.03 * Math.max(1, r.duration ?? 8), // ~$0.03/s
   async run(r) {
@@ -2352,6 +2416,7 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   video: [
     gpuWorker,
     xaiDirect,
+    geminiVideo,
     heygenVideoAgent,
     heygenTemplate,
     klingDirect,
@@ -2364,8 +2429,9 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   lipsync: [gpuWorker, sync, heygen, heygenPhotoVideo, replicate, falFallback],
   // GPU-first: a worker advertising "upscale" is tried before Replicate.
   upscale: [gpuWorker, replicate, falFallback],
-  // Motion transfer (MimicMotion) has no hosted provider — GPU/ComfyUI workers only.
-  motion: [gpuWorker],
+  // Motion transfer: GPU/ComfyUI workers first (MimicMotion), then xAI image-to-video
+  // and Gemini Veo 2 as hosted fallbacks when no worker is online.
+  motion: [gpuWorker, xaiDirect, geminiVideo],
   // GPU-first, then Replit-billed (gpt-5-nano, gemini-2.5-flash), then the
   // rest of the external text chain.
   text: [
@@ -2449,10 +2515,10 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     // Self-hosted ffmpeg lyric-video synthesis. Sentinel model so the candidate
     // loop runs; routed self-hosted-only to the GPU worker pool (no fallback).
     "ffmpeg-lyricvideo": { provider: gpuWorker.name, kind: "lyric_video", cost: 0.005 },
-    // xAI Grok Imagine Video — UGC fast path (explicitly requested by runUGCAd).
-    // Not in FALLBACK_MODELS since it's not a general video fallback; the UGC job
-    // always requests it explicitly so getCandidateModels still routes it correctly.
+    // xAI Grok Imagine Video — general video + motion fallback (key is set).
     "xai/grok-imagine-video-1.5": { provider: "xai", kind: "video", cost: 0.24 },
+    // Gemini Veo 2 — direct API, no Replicate credits needed.
+    "veo-2": { provider: "gemini-video", kind: "video", cost: 0.35 },
   };
   for (const [k, v] of Object.entries(REPLICATE_MAP))
     out[k] = { provider: "replicate", kind: v.kind, cost: v.cost };
@@ -2564,6 +2630,7 @@ export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   // previously it only worked when explicitly requested by value.
   video: [
     "xai/grok-imagine-video-1.5",
+    "veo-2",
     "seedance-2.0-fast",
     "seedance-2.0",
     "wan-2.5",
@@ -2574,7 +2641,8 @@ export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   ],
   lipsync: ["fal-ai/sync-lipsync/v2", "fal-ai/wav2lip"],
   upscale: [],
-  motion: [],
+  // motion sentinels: xAI + Gemini Veo 2 as hosted fallbacks when no GPU worker online.
+  motion: ["xai/grok-imagine-video-1.5", "veo-2"],
   // Replit-billed models first (gpt-5-nano, then gemini-2.5-flash), then the
   // existing free/keyed chain unchanged: Pollinations → Groq → Gemini → Claude
   // → Lovable.

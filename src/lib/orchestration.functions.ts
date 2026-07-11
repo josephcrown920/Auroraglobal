@@ -147,13 +147,40 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
       },
       // video
       {
+        id: "xai",
+        name: "xAI (Grok)",
+        kind: "video",
+        envKey: "XAI_API_KEY",
+        configured: has("XAI_API_KEY"),
+        free: false,
+        notes: "Grok Imagine Video 1.5 — UGC fast path (script→talking-head, built-in lipsync)",
+      },
+      {
+        id: "gemini-video",
+        name: "Gemini (Veo 2)",
+        kind: "video",
+        envKey: "GEMINI_API_KEY",
+        configured: has("GEMINI_API_KEY"),
+        free: false,
+        notes: "Veo 2 direct via Gemini API — no Replicate credits needed",
+      },
+      {
+        id: "inference-sh-video",
+        name: "inference.sh",
+        kind: "video",
+        envKey: "INFERENCE_SH_API_KEY",
+        configured: has("INFERENCE_SH_API_KEY"),
+        free: false,
+        notes: "Requires INFERENCE_SH_APP_VIDEO env var pointing to your registered app",
+      },
+      {
         id: "byteplus-video",
         name: "ByteDance direct",
         kind: "video",
         envKey: "BYTEPLUS_API_KEY",
         configured: has("BYTEPLUS_API_KEY") || has("ARK_API_KEY"),
         free: false,
-        notes: "Seedance (native ModelArk) — preferred over Replicate for Seed models",
+        notes: "Seedance (native ModelArk) — activate models in Ark Console first",
       },
       {
         id: "replicate-video",
@@ -395,11 +422,17 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
                     ? "pollinations"
                     : p.id === "fal-video" || p.id === "fal-lipsync"
                       ? "fal"
-                      : p.id.startsWith("byteplus")
-                        ? "byteplus"
-                        : p.id.startsWith("replicate")
-                          ? "replicate"
-                          : p.id;
+                      : p.id === "xai"
+                        ? "xai"
+                        : p.id === "gemini-video"
+                          ? "gemini-video"
+                          : p.id === "inference-sh-video"
+                            ? "inference-sh"
+                            : p.id.startsWith("byteplus")
+                              ? "byteplus"
+                              : p.id.startsWith("replicate")
+                                ? "replicate"
+                                : p.id;
       const h = health[adapterName];
       return {
         ...p,
