@@ -358,15 +358,33 @@ function GeneratePanel({ template }: { template: AuroraTemplateRow }) {
                 controls
                 className="w-full rounded-lg max-h-64 object-contain bg-black"
               />
-              <a
-                href={result.url}
-                download
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-xs text-primary underline"
-              >
-                <ExternalLink className="size-3" /> Open / download
-              </a>
+              <div className="flex gap-3">
+                <a
+                  href={result.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-xs text-primary underline"
+                >
+                  <ExternalLink className="size-3" /> Open
+                </a>
+                <button
+                  onClick={async () => {
+                    try {
+                      const blob = await fetch(result.url).then((r) => r.blob());
+                      const a = document.createElement("a");
+                      a.href = URL.createObjectURL(blob);
+                      a.download = `heygen-template-${result.generationId}.mp4`;
+                      a.click();
+                      URL.revokeObjectURL(a.href);
+                    } catch {
+                      window.open(result.url, "_blank");
+                    }
+                  }}
+                  className="flex items-center gap-1.5 text-xs text-primary underline"
+                >
+                  Download
+                </button>
+              </div>
             </div>
           )}
         </div>
