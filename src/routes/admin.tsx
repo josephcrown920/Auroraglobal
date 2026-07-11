@@ -140,6 +140,45 @@ function AdminPage() {
           <p className="text-xs text-muted-foreground">Tip: copy a user_id from the Users tab below.</p>
         </section>
 
+        {/* Feature Vault — archived features, reachable from here */}
+        <section className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium uppercase tracking-wider text-amber-400">Feature Vault</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">archived · hidden from nav</span>
+          </div>
+          <p className="text-xs text-muted-foreground">These features are live but hidden from the main sidebar. Click any to open it, or add it back to the nav in the codebase.</p>
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              { to: "/editor",           label: "Playground" },
+              { to: "/agent",            label: "Video Agent" },
+              { to: "/heygen-templates", label: "HeyGen Templates" },
+              { to: "/growth",           label: "Growth Tools" },
+              { to: "/guides",           label: "Viral Guides" },
+              { to: "/dashboard",        label: "Dashboard" },
+              { to: "/marketplace",      label: "Marketplace" },
+              { to: "/roadmap",          label: "Roadmap" },
+              { to: "/workflows",        label: "Workflows" },
+              { to: "/content-machine",  label: "Content Machine" },
+              { to: "/split-reality",    label: "Split Reality" },
+              { to: "/tiktok",           label: "TikTok Studio" },
+              { to: "/clips",            label: "Clips" },
+              { to: "/edit",             label: "AutoCut" },
+              { to: "/cli",              label: "CLI" },
+              { to: "/gifts",            label: "Gifts" },
+              { to: "/nexusarb",         label: "NexusARB (Sim)" },
+            ] as const).map((f) => (
+              <Link
+                key={f.to}
+                to={f.to}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-card/40 hover:border-primary/50 hover:bg-card transition-colors text-sm text-muted-foreground hover:text-foreground no-underline"
+              >
+                <span className="size-1.5 rounded-full bg-amber-400/60 shrink-0" />
+                {f.label}
+              </Link>
+            ))}
+          </div>
+        </section>
+
         {/* Tabs */}
         <div className="flex gap-2 border-b border-border">
           {(["gens", "users", "payments", "earnings", "workers", "promos"] as const).map((t) => (

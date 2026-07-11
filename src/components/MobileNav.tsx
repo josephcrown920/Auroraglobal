@@ -4,35 +4,21 @@ import {
   Sparkles,
   Images,
   Menu,
-  LayoutDashboard,
   Palette,
   Film,
   Mic,
   Flame,
-  SplitSquareHorizontal,
   Music2,
-  LayoutTemplate,
-  Gift,
   Users,
   TrendingUp,
-  Terminal,
-  BookOpen,
   Sun,
   Moon,
   Clapperboard,
   UserCircle2,
-  Code2,
   CreditCard,
   Wand2,
-  Bot,
   Workflow,
-  Scissors,
-  Factory,
   Megaphone,
-  Map,
-  Lock,
-  Sprout,
-  Store,
   Brush,
   Shield,
   type LucideIcon,
@@ -51,57 +37,57 @@ type Feature = {
   badge?: string;
 };
 
-// Grouped (not one flat 14-item list) and ordered within each group by real
-// page-visit demand, so the most-used tools surface first. See
-// .agents/memory for the underlying visit-count analysis.
-const CREATE_FEATURES: Feature[] = [
+// ── Active features, ordered by demand for artists & creators ─────────────────
+
+/** Core creation tools — highest-traffic first. */
+const MAKE_FEATURES: Feature[] = [
   { to: "/studio",      label: "Image Generation", icon: Sparkles },
-  { to: "/editor",      label: "Playground",        icon: Code2 },
-  { to: "/canvas",      label: "Canvas",            icon: Workflow },
-  { to: "/orchestrate", label: "Video · Image · Text · Voice", icon: Film },
-  { to: "/photo-edit",  label: "Photo Editor",      icon: Brush },
-  { to: "/agent",       label: "Video Agent",       icon: Bot },
+  { to: "/colors",      label: "Colors Studio",    icon: Palette },
+  { to: "/canvas",      label: "Canvas",           icon: Workflow },
+  { to: "/orchestrate", label: "Video",            icon: Film },
+  { to: "/photo-edit",  label: "Photo Editor",     icon: Brush },
 ];
 
-const TEMPLATE_FEATURES: Feature[] = [
-  { to: "/lipsync",          label: "Lip Sync",          icon: Mic },
-  { to: "/spin",             label: "TikTok30",          icon: Flame },
-  { to: "/ugc",              label: "UGC Ads",           icon: Megaphone },
-  { to: "/motion",           label: "Perform Anywhere",  icon: Wand2 },
-  { to: "/colors",           label: "Colors Studio",     icon: Palette },
-  { to: "/music-video",      label: "Lyric Video",       icon: Clapperboard },
-  { to: "/avatar",           label: "Talking Avatars",   icon: UserCircle2 },
-  { to: "/heygen-templates", label: "HeyGen Templates",  icon: Film },
+/** Creator & viral templates — ordered by demand. */
+const VIRAL_FEATURES: Feature[] = [
+  { to: "/lipsync",     label: "Lip Sync",        icon: Mic },
+  { to: "/ugc",         label: "UGC Ads",         icon: Megaphone },
+  { to: "/spin",        label: "TikTok30",        icon: Flame },
+  { to: "/motion",      label: "Perform Anywhere",icon: Wand2 },
+  { to: "/music-video", label: "Lyric Video",     icon: Clapperboard },
+  { to: "/avatar",      label: "Talking Avatars", icon: UserCircle2 },
 ];
 
-const GROW_FEATURES: Feature[] = [
-  { to: "/growth",      label: "Growth Tools",      icon: Sprout },
-  { to: "/guides",      label: "Viral Guides",      icon: BookOpen },
+/** Account & monetization — affiliate promoted to live. */
+const ACCOUNT_FEATURES: Feature[] = [
+  { to: "/gallery",           label: "Gallery",        icon: Images },
+  { to: "/creator/dashboard", label: "Creator Hub",    icon: TrendingUp },
+  { to: "/billing",           label: "Plan & Billing", icon: CreditCard },
+  { to: "/affiliate",         label: "Affiliate",      icon: Users },
+  { to: "/admin",             label: "Admin",          icon: Shield },
 ];
 
-const LIVE_FEATURES: Feature[] = [...CREATE_FEATURES, ...TEMPLATE_FEATURES, ...GROW_FEATURES];
+const LIVE_FEATURES: Feature[] = [...MAKE_FEATURES, ...VIRAL_FEATURES, ...ACCOUNT_FEATURES];
 
-const UTILITY_FEATURES: Feature[] = [
-  { to: "/dashboard",          label: "Dashboard",       icon: LayoutDashboard },
-  { to: "/gallery",            label: "Gallery",         icon: Images },
-  { to: "/marketplace",        label: "Marketplace",     icon: Store },
-  { to: "/creator/dashboard",  label: "Creator Hub",     icon: TrendingUp },
-  { to: "/billing",            label: "Plan & Billing",  icon: CreditCard },
-  { to: "/roadmap",            label: "Roadmap",         icon: Map },
-  { to: "/admin",              label: "Admin",           icon: Shield },
-];
-
-const COMING_SOON: Feature[] = [
-  { to: "/content-machine", label: "Content Machine", icon: Factory,           badge: "Soon" },
-  { to: "/split-reality", label: "Split Reality",    icon: SplitSquareHorizontal, badge: "Soon" },
-  { to: "/tiktok",        label: "TikTok Studio",    icon: Music2,             badge: "Soon" },
-  { to: "/clips",         label: "Clips",            icon: Scissors,           badge: "Soon" },
-  { to: "/edit",          label: "AutoCut",          icon: Wand2,              badge: "Soon" },
-  { to: "/workflows",     label: "Workflows",        icon: LayoutTemplate,     badge: "Soon" },
-  { to: "/cli",           label: "CLI",              icon: Terminal,           badge: "Soon" },
-  { to: "/gifts",         label: "Gifts",            icon: Gift,               badge: "Soon" },
-  { to: "/affiliate",     label: "Affiliate",        icon: Users,              badge: "Soon" },
-  { to: "/nexusarb",      label: "NexusARB (Sim)",   icon: TrendingUp,         badge: "Soon" },
+/** Archived — hidden from the main nav; still reachable from /admin. */
+export const ARCHIVED_FEATURES: Feature[] = [
+  { to: "/editor",           label: "Playground",       icon: Sparkles },
+  { to: "/agent",            label: "Video Agent",      icon: Film },
+  { to: "/heygen-templates", label: "HeyGen Templates", icon: Film },
+  { to: "/growth",           label: "Growth Tools",     icon: Sparkles },
+  { to: "/guides",           label: "Viral Guides",     icon: Sparkles },
+  { to: "/dashboard",        label: "Dashboard",        icon: Sparkles },
+  { to: "/marketplace",      label: "Marketplace",      icon: Sparkles },
+  { to: "/roadmap",          label: "Roadmap",          icon: Sparkles },
+  { to: "/workflows",        label: "Workflows",        icon: Sparkles },
+  { to: "/content-machine",  label: "Content Machine",  icon: Sparkles },
+  { to: "/split-reality",    label: "Split Reality",    icon: Sparkles },
+  { to: "/tiktok",           label: "TikTok Studio",    icon: Music2 },
+  { to: "/clips",            label: "Clips",            icon: Sparkles },
+  { to: "/edit",             label: "AutoCut",          icon: Sparkles },
+  { to: "/cli",              label: "CLI",              icon: Sparkles },
+  { to: "/gifts",            label: "Gifts",            icon: Sparkles },
+  { to: "/nexusarb",         label: "NexusARB (Sim)",   icon: Sparkles },
 ];
 
 const TAB_ITEMS: Feature[] = [
@@ -154,20 +140,6 @@ function LiveNavItem({ f, active, onClick }: { f: Feature; active: boolean; onCl
   );
 }
 
-function ComingSoonItem({ f }: { f: Feature }) {
-  return (
-    <div className="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm opacity-50 cursor-default select-none">
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-lg aurora-glass">
-        <f.icon className="size-3.5 text-muted-foreground" />
-      </span>
-      <span className="flex-1 text-muted-foreground">{f.label}</span>
-      <span className="flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
-        <Lock className="size-2.5" />
-        Soon
-      </span>
-    </div>
-  );
-}
 
 export function MobileNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -175,7 +147,7 @@ export function MobileNav() {
   const touchStartX = useRef<number | null>(null);
   const { theme, toggle } = useTheme();
 
-  const allFeatures = [...LIVE_FEATURES, ...UTILITY_FEATURES, ...COMING_SOON];
+  const allFeatures = [...LIVE_FEATURES, ...ARCHIVED_FEATURES];
   const activeFeature = allFeatures.find((f) => isActive(pathname, f.to));
 
   const isCanvas = isActive(pathname, "/canvas");
@@ -298,9 +270,9 @@ export function MobileNav() {
           {/* ── Nav body ────────────────────────────────────────────────── */}
           <nav aria-label="All features" className="relative flex flex-1 flex-col gap-3 overflow-y-auto p-3 pb-4">
 
-            {/* Create — core generation tools, highest-traffic first */}
-            <NavSection label="Create">
-              {CREATE_FEATURES.map((f) => (
+            {/* Make — core creation tools, highest demand first */}
+            <NavSection label="Make">
+              {MAKE_FEATURES.map((f) => (
                 <LiveNavItem
                   key={f.to}
                   f={f}
@@ -310,9 +282,9 @@ export function MobileNav() {
               ))}
             </NavSection>
 
-            {/* Templates & Trends — one-tap, styled formats */}
-            <NavSection label="Templates & trends">
-              {TEMPLATE_FEATURES.map((f) => (
+            {/* Go Viral — creator & artist templates */}
+            <NavSection label="Go Viral">
+              {VIRAL_FEATURES.map((f) => (
                 <LiveNavItem
                   key={f.to}
                   f={f}
@@ -322,21 +294,9 @@ export function MobileNav() {
               ))}
             </NavSection>
 
-            {/* Grow */}
-            <NavSection label="Grow">
-              {GROW_FEATURES.map((f) => (
-                <LiveNavItem
-                  key={f.to}
-                  f={f}
-                  active={isActive(pathname, f.to)}
-                  onClick={() => setOpen(false)}
-                />
-              ))}
-            </NavSection>
-
-            {/* Utility section */}
+            {/* Account — utility + monetization */}
             <NavSection label="Account">
-              {UTILITY_FEATURES.map((f) => (
+              {ACCOUNT_FEATURES.map((f) => (
                 <LiveNavItem
                   key={f.to}
                   f={f}
@@ -345,23 +305,6 @@ export function MobileNav() {
                 />
               ))}
             </NavSection>
-
-            {/* Divider with label */}
-            <div className="flex items-center gap-2 px-1 pt-1">
-              <span className="h-px flex-1 bg-border" />
-              <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
-                <Lock className="size-2.5" />
-                Coming soon
-              </span>
-              <span className="h-px flex-1 bg-border" />
-            </div>
-
-            {/* Coming soon section */}
-            <div className="flex flex-col gap-0.5">
-              {COMING_SOON.map((f) => (
-                <ComingSoonItem key={f.to} f={f} />
-              ))}
-            </div>
           </nav>
 
           {/* ── Footer ──────────────────────────────────────────────────── */}
