@@ -15,6 +15,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { reserveOrchestrateRecord, type RenderDeps } from "@/lib/generate-core.server";
+import { assertDailyBudget } from "@/lib/cost-guardrails.server";
 import { computeCost } from "@/lib/pricing";
 import {
   HeyGenTemplateCharacterVariableSchema,
@@ -173,6 +174,11 @@ export async function renderOneCharacter(
   opts: { orientation?: "landscape" | "portrait"; title?: string },
   deps?: RenderDeps,
 ): Promise<AuroraTemplateRenderResult> {
+  // Friendly early-check before attempting a HeyGen API call — gives the user
+  // a clear message if their daily cap is already at its limit. The
+  // reserve_credits() RPC enforces this for real (race-free).
+  await assertDailyBudget(userId, AURORA_TEMPLATE_COST, deps?.dailyBudget);
+
   const variables = mergeCharacterVariable(
     tpl.fixed_variables,
     tpl.character_variable_key,
