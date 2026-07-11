@@ -128,31 +128,60 @@ export async function assertHdEntitlement(
 // batch of expensive renders can't blow through their balance unnoticed. The
 // real enforcement is inside the reserve_credits() RPC (race-free, covers every
 // spend path including direct create_generation_and_reserve callers); this is a
-// friendly early check at the two named app entry points so the user gets a
+// friendly early check at the named app entry points so the user gets a
 // clear message before a provider call is ever attempted, not just a DB error.
+
+export type DailyBudgetDeps = {
+  /** Return the user's profile (or null on lookup failure). */
+  getProfile: (userId: string) => Promise<{ daily_spend_limit?: number | null } | null>;
+  /** Return net spend-and-reserve ledger rows for today (UTC). */
+  getLedgerRows: (
+    userId: string,
+    dayStart: string,
+  ) => Promise<{ delta: number; reason: string }[]>;
+};
+
+const defaultDailyBudgetDeps: DailyBudgetDeps = {
+  getProfile: async (userId) => {
+    const { data } = await supabaseAdmin
+      .from("profiles")
+      .select("daily_spend_limit")
+      .eq("user_id", userId)
+      .maybeSingle();
+    return data as { daily_spend_limit?: number | null } | null;
+  },
+  getLedgerRows: async (userId, dayStart) => {
+    const { data } = await supabaseAdmin
+      .from("credit_ledger")
+      .select("delta, reason")
+      .eq("user_id", userId)
+      .gte("created_at", dayStart);
+    return (data as { delta: number; reason: string }[] | null) ?? [];
+  },
+};
 
 /**
  * Throw a TERMINAL error when the user has a daily_spend_limit set and this
  * request's cost would push their today's (UTC) reserved+spent Aura over it.
  * Message matches the "daily_limit_reached" classifier in error-toasts.ts.
+ *
+ * `deps` is injectable for unit tests — omit in production (defaults to live DB).
  */
-export async function assertDailyBudget(userId: string, estimatedCost: number): Promise<void> {
-  const { data: profile } = await supabaseAdmin
-    .from("profiles")
-    .select("daily_spend_limit")
-    .eq("user_id", userId)
-    .maybeSingle();
-  const limit = (profile as { daily_spend_limit?: number | null } | null)?.daily_spend_limit;
+export async function assertDailyBudget(
+  userId: string,
+  estimatedCost: number,
+  deps: DailyBudgetDeps = defaultDailyBudgetDeps,
+): Promise<void> {
+  const profile = await deps.getProfile(userId);
+  const limit = profile?.daily_spend_limit ?? null;
   if (!limit) return; // no cap set
 
   const dayStartUtc = new Date();
   dayStartUtc.setUTCHours(0, 0, 0, 0);
-  const { data: rows } = await supabaseAdmin
-    .from("credit_ledger")
-    .select("delta, reason")
-    .eq("user_id", userId)
-    .gte("created_at", dayStartUtc.toISOString());
-  const spentToday = ((rows as { delta: number; reason: string }[] | null) ?? [])
+  const rows = await deps.getLedgerRows(userId, dayStartUtc.toISOString());
+  // reserve: entries have negative delta (credits leave); release: have positive delta (credits return).
+  // net spend = -(sum of all deltas) across both kinds.
+  const spentToday = rows
     .filter((r) => r.reason.startsWith("reserve:") || r.reason.startsWith("release:"))
     .reduce((sum, r) => sum - r.delta, 0);
 

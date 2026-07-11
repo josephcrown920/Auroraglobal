@@ -20,6 +20,8 @@ export type RenderDeps = {
   rpc: (name: string, args: Record<string, unknown>) => Promise<RpcResult>;
   orchestrate: typeof orchestrate;
   insertGeneration: (row: GenerationInsert) => Promise<{ id: string }>;
+  /** Injectable daily-budget guard (omit to use live Supabase; inject in tests). */
+  dailyBudget?: import("./cost-guardrails.server").DailyBudgetDeps;
 };
 
 export type RenderInput = {
