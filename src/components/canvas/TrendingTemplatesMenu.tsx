@@ -347,6 +347,33 @@ const TEMPLATES: TemplateDef[] = [
     }),
   },
   {
+    id: "floor-rap-lipsync",
+    name: "Floor Rap · Viral Drop",
+    desc: "Drop your selfie + a rap audio clip → Gemini puts your character on the floor spitting bars, Seedance animates, Sync locks your lips to the beat. NBA Josh energy.",
+    icon: Mic2,
+    tags: ["Selfie", "Audio", "Lipsync", "Preset"],
+    category: "Cinema",
+    build: () => ({
+      name: "Floor Rap · Viral Drop",
+      nodes: [
+        mk("in", "input", 40, 60),
+        mk("aud", "audio", 40, 380),
+        mk("img", "image", 380, 60, {
+          prompt:
+            "Cinematic mid-shot: the EXACT person from the reference photo is sitting/leaning against a wall on the floor, head tilted back slightly, one hand gripping a mic or gesturing, totally locked in — raw rap energy. Hard concrete or brick background, dramatic single-source key light from above casting deep shadows under the eyes and jaw. Grain, grit, desaturated with a slight teal-shadow colour grade. Shot handheld on a 35mm lens, 4K. Vertical 9:16 framing. Preserve the person's exact face, skin tone, and clothing perfectly.",
+          model: "google/gemini-3-pro-image-preview",
+        }),
+        mk("vid", "video", 760, 60, {
+          prompt: "Slow handheld push-in on the subject against the wall — subtle kinetic energy, dust particles in the single overhead light beam, shadows deepen as camera creeps closer, raw intimate rap performance vibe",
+          model: "seedance-2.0-fast",
+          cameraMovement: "push_in",
+        }),
+        mk("lip", "lipsync", 1080, 220, { model: "fal-ai/sync-lipsync/v2" }),
+      ],
+      edges: [ed("in", "img"), ed("img", "vid"), ed("vid", "lip"), ed("aud", "lip")],
+    }),
+  },
+  {
     id: "ugc-loop",
     name: "UGC Ad Loop",
     desc: "Talent + product → looping social ad",
