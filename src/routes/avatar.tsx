@@ -14,8 +14,11 @@ import {
 } from "@/lib/photo-avatar.functions";
 import {
   generateFromPlatformTemplate,
+  generateAvatarShot,
   templateCost,
   GENERATE_ALL_COST,
+  SHOT_IMAGE_COST,
+  SHOT_KLING_COST,
 } from "@/lib/platform-template.functions";
 import {
   PLATFORM_TEMPLATES,
@@ -65,7 +68,8 @@ const VOICES = [
 ] as const;
 
 type VoiceId = (typeof VOICES)[number]["id"];
-type StudioTab = "script" | "preview" | "avatars";
+type StudioTab = "script" | "preview" | "avatars" | "shots";
+type ShotEngine = "seedream" | "gemini" | "kling";
 type CardState =
   | { status: "idle" }
   | { status: "loading" }
@@ -109,6 +113,14 @@ function AvatarStudioPage() {
   const [aiDuration, setAiDuration] = useState<AIDuration>("medium");
   const [aiLoading, setAiLoading] = useState(false);
 
+  // ── shots tab state ─────────────────────────────────────────────────────────
+  const [shotEngine, setShotEngine] = useState<ShotEngine>("seedream");
+  const [shotPrompt, setShotPrompt] = useState("");
+  const [shotLoading, setShotLoading] = useState(false);
+  const [shotResults, setShotResults] = useState<
+    Array<{ url: string; engine: ShotEngine; kind: "image" | "video" }>
+  >([]);
+
   // ── personal avatar state ───────────────────────────────────────────────────
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -129,6 +141,7 @@ function AvatarStudioPage() {
   const deleteFn = useServerFn(deletePhotoAvatar);
   const generatePhotoFn = useServerFn(generateFromPhotoAvatar);
   const generateTemplateFn = useServerFn(generateFromPlatformTemplate);
+  const shotFn = useServerFn(generateAvatarShot);
   const writeFn = useServerFn(writeAvatarScript);
   const improveFn = useServerFn(improveAvatarScript);
 
@@ -343,6 +356,7 @@ function AvatarStudioPage() {
             { id: "script", label: "Script", icon: "📝" },
             { id: "preview", label: "Preview", icon: "🎬" },
             { id: "avatars", label: "Avatars", icon: "👤" },
+            { id: "shots", label: "Shots", icon: "🎨" },
           ] as { id: StudioTab; label: string; icon: string }[]
         ).map((tab) => (
           <button
@@ -952,6 +966,178 @@ function AvatarStudioPage() {
             </div>
           </div>
         )}
+
+        {/* ══ SHOTS TAB ══ */}
+        {activeTab === "shots" && (
+          <div className="h-full overflow-y-auto">
+            {/* Header */}
+            <div className="px-4 pt-4 pb-3 border-b border-border/20 bg-muted/10 shrink-0">
+              <h3 className="text-sm font-semibold mb-0.5">Avatar Shots</h3>
+              <p className="text-[11px] text-muted-foreground">
+                Generate AI portraits &amp; live videos with SeedDream, Gemini Omni, or KlingAI
+              </p>
+            </div>
+
+            {/* Engine picker */}
+            <div className="px-4 pt-3 pb-2">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">
+                AI Engine
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {(
+                  [
+                    {
+                      id: "seedream" as ShotEngine,
+                      label: "SeedDream",
+                      sub: "Portrait",
+                      cost: SHOT_IMAGE_COST,
+                      icon: "🌱",
+                      kind: "image" as const,
+                    },
+                    {
+                      id: "gemini" as ShotEngine,
+                      label: "Gemini Omni",
+                      sub: "Enhanced",
+                      cost: SHOT_IMAGE_COST,
+                      icon: "✨",
+                      kind: "image" as const,
+                    },
+                    {
+                      id: "kling" as ShotEngine,
+                      label: "KlingAI",
+                      sub: "Live Video",
+                      cost: SHOT_KLING_COST,
+                      icon: "🎬",
+                      kind: "video" as const,
+                    },
+                  ] satisfies { id: ShotEngine; label: string; sub: string; cost: number; icon: string; kind: "image" | "video" }[]
+                ).map((eng) => (
+                  <button
+                    key={eng.id}
+                    onClick={() => setShotEngine(eng.id)}
+                    className={`flex flex-col items-center gap-0.5 px-2 py-2.5 rounded-xl border text-center transition-all ${
+                      shotEngine === eng.id
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border/30 bg-background/40 text-muted-foreground hover:border-primary/40"
+                    }`}
+                  >
+                    <span className="text-base">{eng.icon}</span>
+                    <span className="text-[10px] font-semibold leading-tight">{eng.label}</span>
+                    <span className="text-[9px] opacity-60">{eng.sub}</span>
+                    <span className="text-[9px] font-medium mt-0.5 text-primary/80">
+                      {eng.cost}✦
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Prompt */}
+            <div className="px-4 pb-3">
+              <textarea
+                placeholder={
+                  shotEngine === "kling"
+                    ? "Describe the scene: 'Rapper in neon-lit studio, confident energy, cinematic camera move…'"
+                    : "Describe your avatar shot: 'Professional rapper portrait, studio lighting, dark background…'"
+                }
+                value={shotPrompt}
+                onChange={(e) => setShotPrompt(e.target.value)}
+                rows={3}
+                className="w-full bg-background/60 border border-border/40 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/60 resize-none mb-2"
+              />
+              <button
+                onClick={async () => {
+                  const trimmed = shotPrompt.trim();
+                  if (!trimmed) return toast.error("Enter a prompt first");
+                  setShotLoading(true);
+                  try {
+                    const res = await shotFn({ data: { prompt: trimmed, engine: shotEngine } });
+                    if (!res.ok) {
+                      toast.error(res.error ?? "Generation failed");
+                    } else {
+                      setShotResults((prev) => [
+                        { url: res.url, engine: shotEngine, kind: shotEngine === "kling" ? "video" : "image" },
+                        ...prev,
+                      ]);
+                      toast.success("Shot ready!");
+                    }
+                  } catch {
+                    toast.error("Generation failed");
+                  } finally {
+                    setShotLoading(false);
+                  }
+                }}
+                disabled={shotLoading || !shotPrompt.trim()}
+                className="w-full py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-40 hover:bg-primary/90 transition-colors"
+              >
+                {shotLoading ? (
+                  <><Loader2 className="size-4 animate-spin" />Generating…</>
+                ) : (
+                  <><Sparkles className="size-4" />Generate · {shotEngine === "kling" ? SHOT_KLING_COST : SHOT_IMAGE_COST}✦</>
+                )}
+              </button>
+            </div>
+
+            {/* Results */}
+            {shotResults.length > 0 && (
+              <div className="px-4 pb-6">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">
+                  Generated Shots ({shotResults.length})
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {shotResults.map((r, i) => (
+                    <div key={i} className="aurora-panel rounded-xl overflow-hidden">
+                      {r.kind === "video" ? (
+                        <video
+                          src={r.url}
+                          controls
+                          playsInline
+                          className="w-full aspect-video object-cover"
+                        />
+                      ) : (
+                        <img
+                          src={r.url}
+                          alt={`Shot ${i + 1}`}
+                          className="w-full aspect-square object-cover"
+                          loading="lazy"
+                        />
+                      )}
+                      <div className="p-1.5 flex items-center justify-between">
+                        <span className="text-[9px] text-muted-foreground capitalize">
+                          {r.engine === "kling" ? "KlingAI" : r.engine === "gemini" ? "Gemini" : "SeedDream"}
+                        </span>
+                        <button
+                          onClick={() => {
+                            fetch(r.url).then((res) => res.blob()).then((b) => {
+                              const a = document.createElement("a");
+                              a.href = URL.createObjectURL(b);
+                              a.download = `avatar-shot-${Date.now()}.${r.kind === "video" ? "mp4" : "jpg"}`;
+                              a.click();
+                            });
+                          }}
+                          className="text-[9px] text-primary flex items-center gap-0.5"
+                        >
+                          <Download className="size-3" />Save
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {shotResults.length === 0 && !shotLoading && (
+              <div className="px-4 py-6 text-center text-muted-foreground/50">
+                <div className="text-3xl mb-2">🎨</div>
+                <p className="text-xs">
+                  {shotEngine === "kling"
+                    ? "Describe a scene and KlingAI will create a live avatar video"
+                    : "Describe your avatar and get an AI-generated portrait"}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -975,7 +1161,13 @@ function TemplateCard({
   onGenerate: (e: React.MouseEvent) => void;
 }) {
   const kindLabel =
-    tpl.kind === "heygen-avatar" ? "HeyGen" : tpl.kind === "photo" ? "Photo" : "Video";
+    tpl.kind === "heygen-avatar"
+      ? "HeyGen"
+      : tpl.kind === "photo"
+        ? "Photo"
+        : tpl.kind === "live"
+          ? "Kling"
+          : "Video";
 
   return (
     <div
@@ -1065,11 +1257,13 @@ function TemplateCard({
           }`}
         >
           {state.status === "loading" ? (
-            <><Loader2 className="size-2.5 animate-spin" />Gen…</>
+            <><Loader2 className="size-2.5 animate-spin" />{tpl.kind === "live" ? "Animating…" : "Gen…"}</>
           ) : state.status === "done" ? (
             "✓ Retry"
           ) : state.status === "error" ? (
             "Retry"
+          ) : tpl.kind === "live" ? (
+            <><Sparkles className="size-2.5" />Animate</>
           ) : (
             <><Sparkles className="size-2.5" />Gen</>
           )}
