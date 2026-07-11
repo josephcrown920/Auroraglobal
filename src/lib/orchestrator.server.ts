@@ -228,7 +228,9 @@ type ProviderAdapter = {
     | "hf-text"
     | "anthropic"
     | "xai"
-    | "gemini-video";
+    | "gemini-video"
+    | "sora"
+    | "ltx";
   supports: (req: GenerateRequest) => boolean;
   estimateCost: (req: GenerateRequest) => number;
   run: (req: GenerateRequest) => Promise<{ url: string; endpoint: string; text?: string }>;
@@ -2381,6 +2383,136 @@ const xaiDirect: ProviderAdapter = {
   },
 };
 
+// ─── Sora (OpenAI direct) ─────────────────────────────────────────────────────
+// POST /v1/video/generations creates a job; poll GET /v1/video/generations/{id}
+// until status==="completed". The account has sora-2 and sora-2-pro confirmed.
+// Sizes: 480p | 720p | 1080p. No per-second billing — flat per video.
+const SORA_SIZES: Record<string, string> = {
+  "480p": "480p",
+  "720p": "720p",
+  "1080p": "1080p",
+  hd: "720p",
+  fhd: "1080p",
+};
+const soraAdapter: ProviderAdapter = {
+  name: "sora",
+  supports: (r) =>
+    r.kind === "video" &&
+    !!process.env.OPENAI_API_KEY,
+  estimateCost: () => 0.5, // ~$0.50/video at sora-2
+  async run(r) {
+    const key = process.env.OPENAI_API_KEY!;
+    const model =
+      r.model === "openai/sora-2-pro" ? "sora-2-pro" : "sora-2";
+    const size = SORA_SIZES[r.resolution ?? ""] ?? "480p";
+
+    const body: Record<string, unknown> = {
+      model,
+      prompt: r.prompt ?? "",
+      n: 1,
+      size,
+    };
+    if (r.imageUrls?.[0]) body.image = r.imageUrls[0];
+
+    const create = await fetch("https://api.openai.com/v1/video/generations", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!create.ok)
+      throw new Error(`Sora create ${create.status}: ${(await create.text()).slice(0, 300)}`);
+    const cj = await create.json();
+    const jobId: string | undefined = cj?.id ?? cj?.job_id;
+    if (!jobId) throw new Error(`Sora: no job id — ${JSON.stringify(cj).slice(0, 200)}`);
+
+    const deadline = Date.now() + 20 * 60_000; // 20-min ceiling
+    while (Date.now() < deadline) {
+      await new Promise((s) => setTimeout(s, 8_000));
+      const poll = await fetch(`https://api.openai.com/v1/video/generations/${jobId}`, {
+        headers: { Authorization: `Bearer ${key}` },
+      });
+      if (!poll.ok) {
+        if (poll.status === 429) continue;
+        throw new Error(`Sora poll ${poll.status}: ${(await poll.text()).slice(0, 200)}`);
+      }
+      const pj = await poll.json();
+      const status: string = pj?.status ?? "";
+      if (status === "failed" || pj?.error)
+        throw new Error(`Sora failed: ${pj?.error?.message ?? pj?.error ?? "unknown"}`);
+      // completed — extract video url from data[0]
+      if (status === "completed") {
+        const videoUrl: string | undefined =
+          pj?.data?.[0]?.url ?? pj?.generations?.[0]?.url ?? pj?.url;
+        if (!videoUrl) throw new Error(`Sora completed but no url: ${JSON.stringify(pj).slice(0, 200)}`);
+        return { url: videoUrl, endpoint: `sora:${model}` };
+      }
+    }
+    throw new Error("Sora video poll timeout (20 min)");
+  },
+};
+
+// ─── LTX Video (Lightricks) ───────────────────────────────────────────────────
+// Direct REST API at api.ltxstudio.com. POST /api/v1/generate/video creates a
+// job; poll GET /api/v1/tasks/{task_id} until status==="completed".
+// Key env var: LTX_API_KEY (user confirmed they have this key).
+const ltxAdapter: ProviderAdapter = {
+  name: "ltx",
+  supports: (r) =>
+    r.kind === "video" &&
+    !!process.env.LTX_API_KEY,
+  estimateCost: () => 0.15, // LTX Video is cheaper than Sora/Kling
+  async run(r) {
+    const key = process.env.LTX_API_KEY!;
+
+    const body: Record<string, unknown> = {
+      prompt: r.prompt ?? "",
+      duration: Math.min(8, Math.max(2, r.duration ?? 5)),
+      resolution: r.resolution === "1080p" ? "1080p" : "720p",
+    };
+    if (r.imageUrls?.[0]) body.image_url = r.imageUrls[0];
+
+    const create = await fetch("https://api.ltxstudio.com/api/v1/generate/video", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!create.ok)
+      throw new Error(`LTX create ${create.status}: ${(await create.text()).slice(0, 300)}`);
+    const cj = await create.json();
+    const taskId: string | undefined = cj?.task_id ?? cj?.id ?? cj?.generation_id;
+    if (!taskId) throw new Error(`LTX: no task_id — ${JSON.stringify(cj).slice(0, 200)}`);
+
+    const deadline = Date.now() + 15 * 60_000;
+    while (Date.now() < deadline) {
+      await new Promise((s) => setTimeout(s, 6_000));
+      const poll = await fetch(`https://api.ltxstudio.com/api/v1/tasks/${taskId}`, {
+        headers: { Authorization: `Bearer ${key}` },
+      });
+      if (!poll.ok) {
+        if (poll.status === 429) continue;
+        throw new Error(`LTX poll ${poll.status}: ${(await poll.text()).slice(0, 200)}`);
+      }
+      const pj = await poll.json();
+      const status: string = pj?.status ?? pj?.state ?? "";
+      if (status === "failed" || status === "error")
+        throw new Error(`LTX failed: ${pj?.error ?? pj?.message ?? "unknown"}`);
+      if (status === "completed" || status === "succeeded") {
+        const videoUrl: string | undefined =
+          pj?.output?.url ?? pj?.video_url ?? pj?.result?.url ?? pj?.url;
+        if (!videoUrl) throw new Error(`LTX completed but no url: ${JSON.stringify(pj).slice(0, 200)}`);
+        return { url: videoUrl, endpoint: "ltx:ltx-video" };
+      }
+    }
+    throw new Error("LTX video poll timeout (15 min)");
+  },
+};
+
 // ─── Priority chain per kind ─────────────────────────────────────────────────
 // GPU-FIRST for every modality: the self-hosted gpuWorker pool is always
 // tried first, full stop. When no eligible worker is up (offline, stale
@@ -2416,6 +2548,8 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   video: [
     gpuWorker,
     xaiDirect,
+    soraAdapter,
+    ltxAdapter,
     geminiVideo,
     heygenVideoAgent,
     heygenTemplate,
@@ -2630,6 +2764,8 @@ export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   // previously it only worked when explicitly requested by value.
   video: [
     "xai/grok-imagine-video-1.5",
+    "openai/sora-2",
+    "ltx/ltx-video",
     "veo-2",
     "seedance-2.0-fast",
     "seedance-2.0",
@@ -2638,6 +2774,7 @@ export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
     "kling-3.0-omni",
     "veo-3-fast",
     "sora-2",
+    "openai/sora-2-pro",
   ],
   lipsync: ["fal-ai/sync-lipsync/v2", "fal-ai/wav2lip"],
   upscale: [],

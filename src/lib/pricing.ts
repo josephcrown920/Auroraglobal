@@ -136,6 +136,9 @@ export const VIDEO_MODEL_TIERS: Record<string, ModelTier> = {
   "fal-fallback/kling-video": "premium", // $0.40
   "wan-2.5": "premium", // $0.45
   "sora-2": "premium", // $0.50
+  "openai/sora-2": "premium", // $0.50 — direct OpenAI endpoint
+  "openai/sora-2-pro": "ultra", // $1.00 — higher-quality Sora
+  "ltx/ltx-video": "standard", // $0.15 — LTX Video (Lightricks)
   "seedance-2.0": "ultra", // $0.65
   "kling-3.0": "ultra", // $0.60
   "kling-3.0-omni": "ultra", // $0.70
