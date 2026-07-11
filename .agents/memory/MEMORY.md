@@ -83,3 +83,4 @@
 - [Live-DB rollback proof pattern](live-db-rollback-proof-pattern.md) — BEGIN...ROLLBACK a real psql script to genuinely prove a credit/lock-fencing RPC (e.g. finalize_job) is race-safe, with zero permanent side effects.
 - [Gemini proxy image generation](gemini-proxy-image-generation.md) — Replit Gemini proxy image recipe (no /v1beta, role:user, inline_data refs, responseModalities TEXT+IMAGE) works when fal/Replicate/BytePlus/own-key all fail.
 - [Batch Lip Sync concurrent fan-out](batch-lipsync-concurrent-fanout.md) — N-photo batches reuse the single-job path via Promise.allSettled in one request, not an async jobs-queue; group via a nullable batch_id column.
+- [Talking Avatar (photo-video) feature](talking-avatar-feature.md) — user_photo_avatars table; storage_path stored (not URL), signed at gen time; HF TTS → heygen/photo-video adapter.
