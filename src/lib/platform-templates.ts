@@ -8,6 +8,8 @@
 //
 // Assets for photo/video templates live in studio bucket under platform-templates/.
 // Thumbnails live in public/videos/thumbs/ and are served as static files.
+//
+// featured: true  → highlighted as a "best pick" in the studio UI with a special badge.
 
 export type PlatformTemplateKind = "photo" | "video" | "heygen-avatar";
 
@@ -17,6 +19,8 @@ export type PlatformTemplate = {
   name: string;
   description: string;
   thumbnailPath: string;
+  featured?: boolean;
+  featuredLabel?: string;
   // photo / video templates
   storagePath?: string;
   // heygen-avatar templates
@@ -25,7 +29,39 @@ export type PlatformTemplate = {
 };
 
 export const PLATFORM_TEMPLATES: PlatformTemplate[] = [
-  // ── HeyGen hosted avatars (high-quality, studio-grade) ─────────────────────
+  // ── FEATURED / Best picks ──────────────────────────────────────────────────
+  {
+    id: "heygen-loop",
+    kind: "video",
+    name: "HeyGen Loop",
+    description: "Surreal street loop — exported from HeyGen",
+    storagePath: "platform-templates/heygen-loop.mp4",
+    thumbnailPath: "/videos/thumbs/heygen-loop.jpg",
+    featured: true,
+    featuredLabel: "🔥 Top Pick",
+  },
+  {
+    id: "man-on-floor",
+    kind: "video",
+    name: "Man on Floor",
+    description: "Floor-level performance clip",
+    storagePath: "platform-templates/man-on-floor.mp4",
+    thumbnailPath: "/videos/thumbs/man-on-floor.jpg",
+    featured: true,
+    featuredLabel: "⭐ Best",
+  },
+  {
+    id: "golden-hour",
+    kind: "video",
+    name: "Golden Hour",
+    description: "Rapper in yellow — golden hour chase",
+    storagePath: "platform-templates/golden-hour.mp4",
+    thumbnailPath: "/videos/thumbs/golden-hour.jpg",
+    featured: true,
+    featuredLabel: "⭐ Best",
+  },
+
+  // ── HeyGen hosted avatars ──────────────────────────────────────────────────
   {
     id: "heygen-avatar-1",
     kind: "heygen-avatar",
@@ -45,7 +81,7 @@ export const PLATFORM_TEMPLATES: PlatformTemplate[] = [
     voiceId: "m3Fp8hA8nS1Gc1Ne9FIf",
   },
 
-  // ── Still photo (HeyGen talking photo) ─────────────────────────────────────
+  // ── Still photo ────────────────────────────────────────────────────────────
   {
     id: "street-floor",
     kind: "photo",
@@ -55,14 +91,14 @@ export const PLATFORM_TEMPLATES: PlatformTemplate[] = [
     thumbnailPath: "/videos/thumbs/street-floor.jpg",
   },
 
-  // ── Video clips (sync.so lipsync) ──────────────────────────────────────────
+  // ── Additional video clips ─────────────────────────────────────────────────
   {
-    id: "man-on-floor",
+    id: "surreal-street",
     kind: "video",
-    name: "Man on Floor",
-    description: "Floor-level performance clip",
-    storagePath: "platform-templates/man-on-floor.mp4",
-    thumbnailPath: "/videos/thumbs/man-on-floor.jpg",
+    name: "Surreal Street",
+    description: "Surreal street performance",
+    storagePath: "platform-templates/surreal-street.mp4",
+    thumbnailPath: "/videos/thumbs/surreal-street.jpg",
   },
   {
     id: "avatar-casual",
@@ -89,3 +125,6 @@ export const PLATFORM_TEMPLATES: PlatformTemplate[] = [
     thumbnailPath: "/videos/thumbs/avatar-main.jpg",
   },
 ];
+
+export const FEATURED_TEMPLATES = PLATFORM_TEMPLATES.filter((t) => t.featured);
+export const OTHER_TEMPLATES = PLATFORM_TEMPLATES.filter((t) => !t.featured);
