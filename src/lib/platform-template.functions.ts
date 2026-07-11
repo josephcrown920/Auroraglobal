@@ -18,6 +18,9 @@ import { PLATFORM_TEMPLATES } from "@/lib/platform-templates";
 export const PLATFORM_VIDEO_MODEL = "sync/lipsync-2";
 export const PLATFORM_PHOTO_MODEL = "heygen/photo-video";
 export const PLATFORM_AVATAR_MODEL = "heygen/avatar";
+export const LIVE_AVATAR_MODEL = "kling-v1";
+export const SHOT_IMAGE_MODEL_SEEDREAM = "fal-ai/seedream-4";
+export const SHOT_IMAGE_MODEL_GEMINI = "google/gemini-2.5-flash-image";
 
 export const PLATFORM_VIDEO_COST = computeCost({
   features: ["lipsync"],
@@ -34,10 +37,23 @@ export const PLATFORM_AVATAR_COST = computeCost({
   model: PLATFORM_AVATAR_MODEL,
 }).total;
 
+export const LIVE_AVATAR_COST = computeCost({
+  features: ["video"],
+  model: LIVE_AVATAR_MODEL,
+}).total;
+
+export const SHOT_IMAGE_COST = computeCost({ features: ["image"] }).total;
+
+export const SHOT_KLING_COST = computeCost({
+  features: ["video"],
+  model: LIVE_AVATAR_MODEL,
+}).total;
+
 /** Cost in Aura for the given template kind — used by the UI. */
-export function templateCost(kind: "photo" | "video" | "heygen-avatar"): number {
+export function templateCost(kind: "photo" | "video" | "heygen-avatar" | "live"): number {
   if (kind === "photo") return PLATFORM_PHOTO_COST;
   if (kind === "heygen-avatar") return PLATFORM_AVATAR_COST;
+  if (kind === "live") return LIVE_AVATAR_COST;
   return PLATFORM_VIDEO_COST;
 }
 
@@ -74,6 +90,45 @@ export type TemplateGenerateResult =
   | { ok: true; generationId: string; url: string }
   | { ok: false; error: string; insufficient?: boolean };
 
+// ── Avatar Shots — SeedDream / Gemini Omni / KlingAI ─────────────────────────
+
+export const generateAvatarShot = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        prompt: z.string().min(1).max(500),
+        engine: z.enum(["seedream", "gemini", "kling"]).default("seedream"),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }): Promise<TemplateGenerateResult> => {
+    if (data.engine === "kling") {
+      const outcome = await reserveOrchestrateRecord({
+        userId: context.userId,
+        kind: "video",
+        cost: SHOT_KLING_COST,
+        reason: "avatar_shot_kling",
+        prompt: data.prompt,
+        model: LIVE_AVATAR_MODEL,
+      });
+      if (!outcome.ok) return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
+      return { ok: true, generationId: outcome.generationId, url: outcome.url };
+    }
+    const model =
+      data.engine === "gemini" ? SHOT_IMAGE_MODEL_GEMINI : SHOT_IMAGE_MODEL_SEEDREAM;
+    const outcome = await reserveOrchestrateRecord({
+      userId: context.userId,
+      kind: "image",
+      cost: SHOT_IMAGE_COST,
+      reason: "avatar_shot_image",
+      prompt: data.prompt,
+      model,
+    });
+    if (!outcome.ok) return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
+    return { ok: true, generationId: outcome.generationId, url: outcome.url };
+  });
+
 export const generateFromPlatformTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
@@ -104,6 +159,21 @@ export const generateFromPlatformTemplate = createServerFn({ method: "POST" })
           avatarId: template.avatarId,
           voiceId: data.voiceId ?? template.voiceId ?? "m3Fp8hA8nS1Gc1Ne9FIf",
         },
+      });
+      if (!outcome.ok)
+        return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
+      return { ok: true, generationId: outcome.generationId, url: outcome.url };
+    }
+
+    // ── Live (KlingAI): text-to-video, no TTS/lipsync needed ─────────────────
+    if (template.kind === "live") {
+      const outcome = await reserveOrchestrateRecord({
+        userId: context.userId,
+        kind: "video",
+        cost: LIVE_AVATAR_COST,
+        reason: "platform_template_live",
+        prompt: data.script,
+        model: LIVE_AVATAR_MODEL,
       });
       if (!outcome.ok)
         return { ok: false, error: outcome.error, insufficient: outcome.insufficient };

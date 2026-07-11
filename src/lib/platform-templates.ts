@@ -11,7 +11,7 @@
 //
 // featured: true  → highlighted as a "best pick" in the studio UI with a special badge.
 
-export type PlatformTemplateKind = "photo" | "video" | "heygen-avatar";
+export type PlatformTemplateKind = "photo" | "video" | "heygen-avatar" | "live";
 
 export type PlatformTemplate = {
   id: string;
@@ -123,6 +123,25 @@ export const PLATFORM_TEMPLATES: PlatformTemplate[] = [
     description: "Full-length signature avatar",
     storagePath: "platform-templates/avatar-main.mp4",
     thumbnailPath: "/videos/thumbs/avatar-main.jpg",
+  },
+
+  // ── Avatar V ────────────────────────────────────────────────────────────────
+  {
+    id: "avatar-v",
+    kind: "video",
+    name: "Avatar V",
+    description: "High-energy performance — V series",
+    storagePath: "platform-templates/avatar-v.mp4",
+    thumbnailPath: "/videos/thumbs/avatar-v.jpg",
+  },
+
+  // ── Live Avatar (KlingAI) ────────────────────────────────────────────────────
+  {
+    id: "live-avatar",
+    kind: "live",
+    name: "Live Avatar",
+    description: "KlingAI generates a cinematic avatar video from your script",
+    thumbnailPath: "/videos/thumbs/heygen-avatar-1.jpg",
   },
 ];
 
