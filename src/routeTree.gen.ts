@@ -28,6 +28,7 @@ import { Route as MotionRouteImport } from './routes/motion'
 import { Route as MarketplaceRouteImport } from './routes/marketplace'
 import { Route as LipsyncRouteImport } from './routes/lipsync'
 import { Route as KidsRouteImport } from './routes/kids'
+import { Route as HeygenTemplatesRouteImport } from './routes/heygen-templates'
 import { Route as GrowthRouteImport } from './routes/growth'
 import { Route as GiftsRouteImport } from './routes/gifts'
 import { Route as GalleryRouteImport } from './routes/gallery'
@@ -168,6 +169,11 @@ const LipsyncRoute = LipsyncRouteImport.update({
 const KidsRoute = KidsRouteImport.update({
   id: '/kids',
   path: '/kids',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HeygenTemplatesRoute = HeygenTemplatesRouteImport.update({
+  id: '/heygen-templates',
+  path: '/heygen-templates',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GrowthRoute = GrowthRouteImport.update({
@@ -426,6 +432,7 @@ export interface FileRoutesByFullPath {
   '/gallery': typeof GalleryRoute
   '/gifts': typeof GiftsRoute
   '/growth': typeof GrowthRoute
+  '/heygen-templates': typeof HeygenTemplatesRoute
   '/kids': typeof KidsRoute
   '/lipsync': typeof LipsyncRoute
   '/marketplace': typeof MarketplaceRoute
@@ -493,6 +500,7 @@ export interface FileRoutesByTo {
   '/gallery': typeof GalleryRoute
   '/gifts': typeof GiftsRoute
   '/growth': typeof GrowthRoute
+  '/heygen-templates': typeof HeygenTemplatesRoute
   '/kids': typeof KidsRoute
   '/lipsync': typeof LipsyncRoute
   '/marketplace': typeof MarketplaceRoute
@@ -561,6 +569,7 @@ export interface FileRoutesById {
   '/gallery': typeof GalleryRoute
   '/gifts': typeof GiftsRoute
   '/growth': typeof GrowthRoute
+  '/heygen-templates': typeof HeygenTemplatesRoute
   '/kids': typeof KidsRoute
   '/lipsync': typeof LipsyncRoute
   '/marketplace': typeof MarketplaceRoute
@@ -630,6 +639,7 @@ export interface FileRouteTypes {
     | '/gallery'
     | '/gifts'
     | '/growth'
+    | '/heygen-templates'
     | '/kids'
     | '/lipsync'
     | '/marketplace'
@@ -697,6 +707,7 @@ export interface FileRouteTypes {
     | '/gallery'
     | '/gifts'
     | '/growth'
+    | '/heygen-templates'
     | '/kids'
     | '/lipsync'
     | '/marketplace'
@@ -764,6 +775,7 @@ export interface FileRouteTypes {
     | '/gallery'
     | '/gifts'
     | '/growth'
+    | '/heygen-templates'
     | '/kids'
     | '/lipsync'
     | '/marketplace'
@@ -832,6 +844,7 @@ export interface RootRouteChildren {
   GalleryRoute: typeof GalleryRoute
   GiftsRoute: typeof GiftsRoute
   GrowthRoute: typeof GrowthRoute
+  HeygenTemplatesRoute: typeof HeygenTemplatesRoute
   KidsRoute: typeof KidsRoute
   LipsyncRoute: typeof LipsyncRoute
   MarketplaceRoute: typeof MarketplaceRoute
@@ -1007,6 +1020,13 @@ declare module '@tanstack/react-router' {
       path: '/kids'
       fullPath: '/kids'
       preLoaderRoute: typeof KidsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/heygen-templates': {
+      id: '/heygen-templates'
+      path: '/heygen-templates'
+      fullPath: '/heygen-templates'
+      preLoaderRoute: typeof HeygenTemplatesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/growth': {
@@ -1374,6 +1394,7 @@ const rootRouteChildren: RootRouteChildren = {
   GalleryRoute: GalleryRoute,
   GiftsRoute: GiftsRoute,
   GrowthRoute: GrowthRoute,
+  HeygenTemplatesRoute: HeygenTemplatesRoute,
   KidsRoute: KidsRoute,
   LipsyncRoute: LipsyncRoute,
   MarketplaceRoute: MarketplaceRoute,
