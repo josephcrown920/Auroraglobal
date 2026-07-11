@@ -3,15 +3,14 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight, Palette, Star } from "lucide-react";
 import { ColorStudioBackdrop } from "@/components/studio/ColorStudioBackdrop";
 import { COLOR_PRESETS } from "@/lib/colors.presets";
-import joshColorsSession from "@/assets/josh/josh-colors-session.png.asset.json";
-import joshMagenta from "@/assets/josh/josh-magenta-cyc-v2.jpg.asset.json";
-import joshNeonSeated from "@/assets/josh/josh-neon-seated.png.asset.json";
 
-// NOTE: Pink Jersey, Royal Blue and Studio Mic tiles removed at user request.
+// Fresh identity-locked cyclorama shots (2026-07) — each tile is a UNIQUE
+// color set; the old duplicated shots (magenta cyc / hot-pink floor /
+// neon-seated) were removed at user request.
 const RESULT_SHOTS = [
-  { url: (joshColorsSession as { url: string }).url, color: "hot-pink", label: "Hot Pink" },
-  { url: (joshMagenta as { url: string }).url, color: "electric-purple", label: "Magenta Cyc" },
-  { url: (joshNeonSeated as { url: string }).url, color: "neon-green", label: "Neon Seated" },
+  { url: "/josh/generated2/colors-royal-blue.webp", color: "royal-blue", label: "Royal Blue" },
+  { url: "/josh/generated2/colors-neon-green.webp", color: "neon-green", label: "Neon Green" },
+  { url: "/josh/generated2/colors-sunset-orange.webp", color: "sunset-orange", label: "Sunset Orange" },
 ];
 
 // Spotlight 8 of the 12 sets as preview tiles so the grid stays tight.
@@ -100,13 +99,13 @@ export function ColorsTeaser() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs uppercase tracking-[0.2em] text-white/45 flex items-center gap-2">
-              <Star className="size-3 fill-amber-300 text-amber-300" /> Real results — same artist, 6 colors
+              <Star className="size-3 fill-amber-300 text-amber-300" /> Real results — same artist, 3 colors
             </p>
             <Link to="/colors" className="text-xs text-white/40 hover:text-white/70 transition no-underline">
               Try it free →
             </Link>
           </div>
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {RESULT_SHOTS.map((shot) => (
               <button
                 key={shot.label}

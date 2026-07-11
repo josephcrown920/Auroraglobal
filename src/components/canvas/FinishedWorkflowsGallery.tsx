@@ -293,10 +293,78 @@ function CopyButton({ value, label }: { value: string; label?: string }) {
 export type { FinishedWorkflow };
 export const FINISHED_WORKFLOWS = FINISHED;
 
-// Helper: returns a minimal node graph clone for a finished workflow id.
-// Real graphs would come from saved templates; this is a sensible default
-// so "Clone into canvas" produces a usable starting point.
-export function defaultGraphFor(id: string): { nodes: Node[]; edges: Edge[] } | null {
-  void id;
-  return null;
+// ---------------------------------------------------------------------------
+// Graph cloning: builds a runnable canvas graph from a finished workflow's
+// recipe steps so "Clone into canvas" actually loads nodes (previously this
+// returned null and the button was a dead end).
+// ---------------------------------------------------------------------------
+
+// Map the display model names shown in recipes to real canvas model values
+// (must match MODEL_LIST / VIDEO_MODEL_LIST / lipsync values in src/lib/models.ts).
+const IMAGE_MODEL_MAP: Record<string, string> = {
+  "Nano Banana 2": "google/gemini-3-pro-image-preview",
+  "Nano Banana Pro": "google/gemini-3-pro-image-preview",
+  "Seedream 4.5": "fal-ai/seedream-4.5",
+};
+const VIDEO_MODEL_MAP: Record<string, string> = {
+  "Seedance 2.0": "seedance-2.0",
+  "Kling 3.0": "kling-3.0",
+};
+const DEFAULT_IMAGE_MODEL = "google/gemini-3-pro-image-preview";
+const LIPSYNC_MODEL = "fal-ai/sync-lipsync/v2";
+
+type StepKind = "image" | "video" | "lipsync";
+
+function classifyStep(step: WorkflowStep): StepKind | null {
+  if (step.model === "—") return null; // render/grade notes, not a generation step
+  if (/lip.?sync|sync 1\.9/i.test(step.node) || /^sync/i.test(step.model)) return "lipsync";
+  if (VIDEO_MODEL_MAP[step.model] || /motion/i.test(step.node)) return "video";
+  return "image";
+}
+
+export function defaultGraphFor(
+  id: string,
+): { name: string; nodes: Node[]; edges: Edge[] } | null {
+  const wf = FINISHED.find((w) => w.id === id);
+  if (!wf) return null;
+
+  const usable = wf.steps
+    .map((step) => ({ step, kind: classifyStep(step) }))
+    .filter((s): s is { step: WorkflowStep; kind: StepKind } => s.kind !== null);
+  if (usable.length === 0) return null;
+
+  const nodes: Node[] = [
+    { id: "in", position: { x: 40, y: 80 }, data: { kind: "input" }, type: "aurora" },
+  ];
+  const edges: Edge[] = [];
+  const hasLipsync = usable.some((s) => s.kind === "lipsync");
+  if (hasLipsync) {
+    nodes.push({ id: "aud", position: { x: 40, y: 420 }, data: { kind: "audio" }, type: "aurora" });
+  }
+
+  let prevId = "in";
+  usable.forEach(({ step, kind }, i) => {
+    const nodeId = `step-${i}`;
+    const x = 420 + i * 360;
+    const y = kind === "lipsync" ? 240 : 60 + (i % 2) * 40;
+    const data: Record<string, unknown> = { kind, label: step.node, status: "idle" };
+    if (kind === "image") {
+      data.prompt = step.prompt;
+      data.model = IMAGE_MODEL_MAP[step.model] ?? DEFAULT_IMAGE_MODEL;
+    } else if (kind === "video") {
+      data.prompt = step.prompt;
+      data.model = VIDEO_MODEL_MAP[step.model] ?? "seedance-2.0";
+      data.cameraMovement = "static";
+    } else {
+      data.model = LIPSYNC_MODEL;
+    }
+    nodes.push({ id: nodeId, position: { x, y }, data, type: "aurora" } as Node);
+    edges.push({ id: `${prevId}-${nodeId}`, source: prevId, target: nodeId, animated: true });
+    if (kind === "lipsync") {
+      edges.push({ id: `aud-${nodeId}`, source: "aud", target: nodeId, animated: true });
+    }
+    prevId = nodeId;
+  });
+
+  return { name: wf.name, nodes, edges };
 }
