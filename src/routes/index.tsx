@@ -376,52 +376,51 @@ function Index() {
         </div>
       </section>
 
-      {/* 0. One-tap templates — trending strip right below the hero */}
+      {/* 1. Templates strip — right below hero */}
       <TrendingTemplatesStrip />
 
-      {/* TikTok30 — wire it, ship it */}
-      <ViralEngine />
+      {/* 2. Trust bar — earn credibility before asking for anything */}
+      <TrustBar />
 
-      {/* 0c. Canvas + finished workflows + UGC Factory */}
-      <CanvasWorkflowShowcase />
-
-      {/* 0d. Our services — surfaced early: covers Lip Sync + UGC, both solid
-          traffic draws with no dedicated hero section of their own yet */}
+      {/* 3. Services — show what Aurora does */}
       <ServicesGrid />
 
-      {/* Perform Anywhere + Motion Control — 3-step workflow */}
-      <PerformAnywhereSection />
-
-      {/* Colors Studio showcase — interactive swatch switcher */}
-      <ColorsTeaser />
-
-      {/* Get Ready With Me — mirror selfie → 6 identity-locked angles
-          (lowest-traffic feature of this set — moved lower) */}
-      <GetReadyWithMe />
-
-      {/* 2. Hero + "Talk to Aurora" contact form */}
+      {/* 4. Contact form — ask for action while interest is high */}
       <HeroContactForm greeting={greeting} />
 
-      {/* 3. CLI section — developer-focused, re-enable when CLI is consumer-ready */}
-      {/* <CliSection /> */}
+      {/* 5. TikTok30 viral engine */}
+      <ViralEngine />
 
-      {/* 4. Supercomputer / product hero */}
+      {/* 6. Canvas + finished workflows + UGC Factory */}
+      <CanvasWorkflowShowcase />
+
+      {/* 7. Perform Anywhere + Motion Control */}
+      <PerformAnywhereSection />
+
+      {/* 8. Colors Studio showcase */}
+      <ColorsTeaser />
+
+      {/* 9. Get Ready With Me */}
+      <GetReadyWithMe />
+
+      {/* 10. Supercomputer / product hero */}
       <SupercomputerSection />
 
-      {/* 7. Trust + Why us */}
-      <TrustBar />
+      {/* 11. Why us */}
       <WhyUs />
 
-      {/* 8. Reviews */}
+      {/* 12. Reviews */}
       <Testimonials />
 
-      {/* 8b. Affiliate rewards */}
+      {/* 13. Affiliate rewards */}
       <AffiliateRewardSection />
 
-      {/* 9. Final CTA */}
+      {/* 14. Final CTA */}
       <FinalCTA />
 
-      {/* 10. Feature request — re-enable post-launch */}
+      {/* CLI section — developer-focused, re-enable when CLI is consumer-ready */}
+      {/* <CliSection /> */}
+      {/* Feature request — re-enable post-launch */}
       {/* <FeatureRequest /> */}
 
       <SiteFooter />
