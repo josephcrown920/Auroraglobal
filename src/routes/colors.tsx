@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
-import { listGenerations } from "@/lib/studio.functions";
+import { listGenerations, generatePerformanceShot } from "@/lib/studio.functions";
 import { usePerformanceShotJobFn, useVideoFromImageJobFn } from "@/lib/use-job-polling";
 import {
   COLOR_PRESETS,
@@ -14,7 +14,12 @@ import {
   ANIMATE_LOOP_PROMPT,
   buildCompositorPrompt,
   buildCompositorSpec,
+  buildCustomCompositorSpec,
   describePerformance,
+  CUSTOM_MIC_OPTIONS,
+  CUSTOM_SCENE_FIELD_MAX,
+  EMPTY_CUSTOM_SCENE,
+  type CustomScene,
   type SetupKind,
 } from "@/lib/colors.presets";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -179,6 +184,9 @@ function ColorsStudio() {
   const [kind, setKind] = useState<SetupKind>("performance");
   const [setup, setSetup] = useState("performance");
   const [workflow, setWorkflow] = useState(WORKFLOWS[0].id);
+  // Scene source: preset setups vs the user-composed Scene Builder.
+  const [sceneMode, setSceneMode] = useState<"presets" | "builder">("presets");
+  const [customScene, setCustomScene] = useState<CustomScene>(EMPTY_CUSTOM_SCENE);
   const [tripletColors, setTripletColors] = useState<string[]>([
     COLOR_PRESETS[0].id,
     COLOR_PRESETS[1].id,
@@ -205,12 +213,43 @@ function ColorsStudio() {
     enabled: !!user,
     refetchInterval: 4000,
   });
-  const recent = (gens?.items ?? [])
+  const allItems = gens?.items ?? [];
+  const recent = allItems
     .filter((g) => g.result_image_url || g.result_video_url)
     .slice(0, 8);
+  // Shots still rendering server-side (they keep going even if the tab closes).
+  // Same kinds the Recent grid can display (image stills + animate loops) —
+  // other studios' job kinds (lipsync, UGC, …) are excluded.
+  const inFlight = allItems.filter(
+    (g) =>
+      ["image", "video"].includes(g.kind ?? "") &&
+      !g.result_image_url &&
+      !g.result_video_url &&
+      !g.error &&
+      ["queued", "pending", "processing"].includes(g.status ?? ""),
+  );
 
-  const fire = async (colorId: string, setupId: string) => {
+  const usingBuilder = sceneMode === "builder";
+  const builderReady = customScene.environment.trim().length >= 10;
+
+  /** Build the request payload for one shot — shared by the blocking single
+   *  render and the enqueue-only bulk paths. */
+  const buildShotData = async (colorId: string, setupId: string) => {
     if (refs.length === 0) throw new Error("Upload at least a selfie reference");
+    if (usingBuilder) {
+      // Scene Builder: the scene is entirely the user's composition, so the
+      // scene lock is prompt-only (no bundled scene asset to attach).
+      if (!builderReady) throw new Error("Describe your scene first (at least 10 characters)");
+      const prompt = buildCustomCompositorSpec(colorId, customScene, {
+        hasOutfitRef: !!outfitUrl,
+      }).final_render_prompt;
+      return {
+        prompt,
+        imageUrls: refs,
+        motionVideoUrl: null,
+        model: "google/gemini-3.1-flash-image-preview",
+      };
+    }
     // Scene lock: mirror the exact studio scene into storage and attach it as
     // the LAST reference image. Cyclorama setups use the real per-color studio
     // poster; indoor/outdoor/street use the photoreal scene still.
@@ -233,14 +272,40 @@ function ColorsStudio() {
       hasOutfitRef: !!outfitUrl,
       hasSceneRef: !!sceneRef,
     });
-    return genFn({
-      data: {
-        prompt,
-        imageUrls: sceneRef ? [...refs, sceneRef] : refs,
-        motionVideoUrl: null,
-        model: "google/gemini-3.1-flash-image-preview",
-      },
-    });
+    return {
+      prompt,
+      imageUrls: sceneRef ? [...refs, sceneRef] : refs,
+      motionVideoUrl: null,
+      model: "google/gemini-3.1-flash-image-preview",
+    };
+  };
+
+  /** Blocking render: enqueue + poll until the shot is done (single mode). */
+  const fire = async (colorId: string, setupId: string) =>
+    genFn({ data: await buildShotData(colorId, setupId) });
+
+  // Enqueue-only server fn (no client polling). Bulk modes queue every shot
+  // upfront through this, so ALL of them are safely in the server jobs queue
+  // the moment the button is clicked — closing the tab loses nothing; the
+  // jobs/tick worker renders them and results land in Recent shots + Gallery.
+  const enqueueFn = useServerFn(generatePerformanceShot);
+  const enqueueShot = async (colorId: string, setupId: string) =>
+    enqueueFn({ data: await buildShotData(colorId, setupId) });
+
+  /** Queue a batch of shots upfront; report how many made it into the queue. */
+  const enqueueBatch = async (shots: { colorId: string; setupId: string }[]) => {
+    const results = await Promise.allSettled(
+      shots.map((s) => enqueueShot(s.colorId, s.setupId)),
+    );
+    const ok = results.filter((r) => r.status === "fulfilled").length;
+    if (ok === 0) {
+      const first = results.find((r): r is PromiseRejectedResult => r.status === "rejected");
+      throw first?.reason instanceof Error ? first.reason : new Error("Could not queue the shots");
+    }
+    if (ok < shots.length) {
+      toast.warning(`Queued ${ok}/${shots.length} shots — the rest failed to queue`);
+    }
+    return ok;
   };
 
   const singleMut = useMutation({
@@ -254,18 +319,18 @@ function ColorsStudio() {
   });
 
   const tripletMut = useMutation({
-    mutationFn: async () => Promise.all(tripletColors.map((c) => fire(c, setup))),
-    onSuccess: () => {
-      toast.success("Triptych complete");
+    mutationFn: () => enqueueBatch(tripletColors.map((c) => ({ colorId: c, setupId: setup }))),
+    onSuccess: (n) => {
+      toast.success(`${n} triptych shots queued — they keep rendering even if you leave`);
       qc.invalidateQueries({ queryKey: ["color-gens"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
   const allSetupsMut = useMutation({
-    mutationFn: async () => Promise.all(filteredSetups.map((s) => fire(color, s.id))),
-    onSuccess: () => {
-      toast.success("All setups complete");
+    mutationFn: () => enqueueBatch(filteredSetups.map((s) => ({ colorId: color, setupId: s.id }))),
+    onSuccess: (n) => {
+      toast.success(`${n} setups queued — they keep rendering even if you leave`);
       qc.invalidateQueries({ queryKey: ["color-gens"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
@@ -332,25 +397,17 @@ function ColorsStudio() {
     },
   });
 
+  // Every shot is queued upfront (no client-side batching) — the server jobs
+  // worker throttles concurrency itself, and nothing is lost if the tab closes.
   const allColorsMut = useMutation({
-    mutationFn: async () => {
-      // Run sequentially in batches of 3 so we don't slam the gateway.
-      const results: unknown[] = [];
-      const ids = COLOR_PRESETS.map((c) => c.id);
-      for (let i = 0; i < ids.length; i += 3) {
-        const batch = ids.slice(i, i + 3);
-        const res = await Promise.all(batch.map((c) => fire(c, setup)));
-        results.push(...res);
-        toast.message(`Rendered ${Math.min(i + 3, ids.length)}/${ids.length}`);
-      }
-      return results;
-    },
-    onSuccess: () => {
-      toast.success(`All ${COLOR_PRESETS.length} colors rendered`);
+    mutationFn: () =>
+      enqueueBatch(COLOR_PRESETS.map((c) => ({ colorId: c.id, setupId: setup }))),
+    onSuccess: (n) => {
+      toast.success(`${n} color shots queued — they keep rendering even if you leave`);
       qc.invalidateQueries({ queryKey: ["color-gens"] });
       qc.invalidateQueries({ queryKey: ["gens"] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Bulk render failed"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Bulk queue failed"),
   });
 
   if (loading || !user) {
@@ -475,7 +532,138 @@ function ColorsStudio() {
           <ColorsShotsGallery />
 
 
+          {/* Scene source — preset setups vs the Scene Builder */}
+          <div>
+            <h2 className="aurora-kicker mb-3">Scene</h2>
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setSceneMode("presets")}
+                className={cn(
+                  "rounded-xl border p-3 text-left transition-colors",
+                  !usingBuilder ? "border-primary/60 bg-primary/10" : "border-border bg-card/40 hover:border-primary/30",
+                )}
+              >
+                <div className="text-xs font-medium">Preset scenes</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">
+                  {SETUPS.length} tried &amp; tested sets — studio, indoor, rooftop, street.
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSceneMode("builder");
+                  if (workflow === "all-setups") setWorkflow("single");
+                }}
+                className={cn(
+                  "rounded-xl border p-3 text-left transition-colors",
+                  usingBuilder ? "border-primary/60 bg-primary/10" : "border-border bg-card/40 hover:border-primary/30",
+                )}
+              >
+                <div className="text-xs font-medium">Scene Builder</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">
+                  Compose your own set — environment, mic, pose, lighting, props.
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Scene Builder form */}
+          {usingBuilder && (
+            <div className="rounded-2xl border border-border bg-card/40 p-4 space-y-3.5">
+              <div>
+                <label htmlFor="sb-environment" className="aurora-kicker block mb-1.5">
+                  Environment · required
+                </label>
+                <textarea
+                  id="sb-environment"
+                  value={customScene.environment}
+                  maxLength={CUSTOM_SCENE_FIELD_MAX}
+                  onChange={(e) => setCustomScene({ ...customScene, environment: e.target.value })}
+                  placeholder="e.g. Rain-soaked rooftop helipad at night, city lights below, a single spotlight cutting through the mist…"
+                  rows={3}
+                  className="w-full rounded-xl border border-border bg-background/60 px-3 py-2 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 resize-none"
+                />
+                <div className="text-[10px] text-muted-foreground mt-1 text-right">
+                  {customScene.environment.length}/{CUSTOM_SCENE_FIELD_MAX}
+                </div>
+              </div>
+              <div>
+                <div className="aurora-kicker mb-1.5">Microphone</div>
+                <div className="flex flex-wrap gap-2">
+                  {CUSTOM_MIC_OPTIONS.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setCustomScene({ ...customScene, mic: m.id })}
+                      aria-pressed={customScene.mic === m.id}
+                      className={cn(
+                        "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
+                        customScene.mic === m.id
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "border-border bg-card/40 text-muted-foreground hover:text-foreground hover:border-primary/40",
+                      )}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="sb-pose" className="aurora-kicker block mb-1.5">Pose · optional</label>
+                  <input
+                    id="sb-pose"
+                    value={customScene.pose}
+                    maxLength={CUSTOM_SCENE_FIELD_MAX}
+                    onChange={(e) => setCustomScene({ ...customScene, pose: e.target.value })}
+                    placeholder="e.g. leaning on the railing, looking over shoulder"
+                    className="w-full rounded-xl border border-border bg-background/60 px-3 py-2 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="sb-energy" className="aurora-kicker block mb-1.5">Energy · optional</label>
+                  <input
+                    id="sb-energy"
+                    value={customScene.energy}
+                    maxLength={CUSTOM_SCENE_FIELD_MAX}
+                    onChange={(e) => setCustomScene({ ...customScene, energy: e.target.value })}
+                    placeholder="e.g. calm, brooding, mid-verse hype"
+                    className="w-full rounded-xl border border-border bg-background/60 px-3 py-2 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="sb-lighting" className="aurora-kicker block mb-1.5">Lighting · optional</label>
+                  <input
+                    id="sb-lighting"
+                    value={customScene.lighting}
+                    maxLength={CUSTOM_SCENE_FIELD_MAX}
+                    onChange={(e) => setCustomScene({ ...customScene, lighting: e.target.value })}
+                    placeholder="e.g. hard key from above, soft neon fill"
+                    className="w-full rounded-xl border border-border bg-background/60 px-3 py-2 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="sb-props" className="aurora-kicker block mb-1.5">Props · optional</label>
+                  <input
+                    id="sb-props"
+                    value={customScene.props}
+                    maxLength={CUSTOM_SCENE_FIELD_MAX}
+                    onChange={(e) => setCustomScene({ ...customScene, props: e.target.value })}
+                    placeholder="e.g. vintage stool, haze machine, road cases"
+                    className="w-full rounded-xl border border-border bg-background/60 px-3 py-2 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50"
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Your scene is rendered in the selected color's grade — switch swatches to restyle the same set.
+              </p>
+            </div>
+          )}
+
           {/* Scene kind tabs */}
+          {!usingBuilder && (
+          <>
           <div>
             <h2 className="aurora-kicker mb-3">Scene type</h2>
             <div className="flex gap-2 flex-wrap">
@@ -572,12 +760,14 @@ function ColorsStudio() {
               })}
             </div>
           </div>
+          </>
+          )}
 
-          {/* Workflows */}
+          {/* Workflows — "all setups" only applies to preset scenes */}
           <div>
             <h2 className="aurora-kicker mb-3">Workflow</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-              {WORKFLOWS.map((w) => (
+              {WORKFLOWS.filter((w) => !usingBuilder || w.id !== "all-setups").map((w) => (
                 <button
                   key={w.id}
                   type="button"
@@ -626,9 +816,9 @@ function ColorsStudio() {
             </CollapsibleTrigger>
             <CollapsibleContent className="px-3 pb-3 space-y-1.5 text-[11px] text-foreground/80">
               {(() => {
-                const spec = buildCompositorSpec(color, setup, {
-                  hasOutfitRef: !!outfitUrl,
-                });
+                const spec = usingBuilder
+                  ? buildCustomCompositorSpec(color, customScene, { hasOutfitRef: !!outfitUrl })
+                  : buildCompositorSpec(color, setup, { hasOutfitRef: !!outfitUrl });
                 return (
                   <>
                     <div><span className="text-muted-foreground">Scene: </span>{spec.scene}</div>
@@ -645,23 +835,41 @@ function ColorsStudio() {
           <div className="rounded-2xl border border-border bg-card/60 p-4 space-y-3 sticky bottom-4">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <div className="size-3 rounded-full" style={{ background: selectedColor.swatch }} />
-              <span>{selectedColor.name} · {selectedSetup?.name}</span>
+              <span>{selectedColor.name} · {usingBuilder ? "Custom scene" : selectedSetup?.name}</span>
             </div>
             {workflow === "single" && (
-              <Button disabled={singleMut.isPending || refs.length === 0} onClick={() => singleMut.mutate()} variant="premium" className="w-full h-11">
+              <Button disabled={singleMut.isPending || refs.length === 0 || (usingBuilder && !builderReady)} onClick={() => singleMut.mutate()} variant="premium" className="w-full h-11">
                 {singleMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting…</> : <><Wand2 className="size-4 mr-2" /> Generate · 1 Aura · ~15s</>}
               </Button>
             )}
             {workflow === "triptych" && (
-              <Button disabled={tripletMut.isPending || refs.length === 0 || tripletColors.length !== 3} onClick={() => tripletMut.mutate()} variant="premium" className="w-full h-11">
-                {tripletMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting 3×…</> : <><Wand2 className="size-4 mr-2" /> Generate triptych · 3 Aura</>}
+              <Button disabled={tripletMut.isPending || refs.length === 0 || tripletColors.length !== 3 || (usingBuilder && !builderReady)} onClick={() => tripletMut.mutate()} variant="premium" className="w-full h-11">
+                {tripletMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Queueing 3×…</> : <><Wand2 className="size-4 mr-2" /> Generate triptych · 3 Aura</>}
               </Button>
             )}
-            {workflow === "all-setups" && (
+            {workflow === "all-setups" && !usingBuilder && (
               <Button disabled={allSetupsMut.isPending || refs.length === 0} onClick={() => allSetupsMut.mutate()} variant="premium" className="w-full h-11">
-                {allSetupsMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting all…</> : <><Wand2 className="size-4 mr-2" /> Generate all {filteredSetups.length} setups</>}
+                {allSetupsMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Queueing all…</> : <><Wand2 className="size-4 mr-2" /> Generate all {filteredSetups.length} setups</>}
               </Button>
             )}
+            <Button
+              disabled={allColorsMut.isPending || refs.length === 0 || (usingBuilder && !builderReady)}
+              onClick={() => allColorsMut.mutate()}
+              variant="outline"
+              className="w-full h-9 text-xs"
+            >
+              {allColorsMut.isPending ? (
+                <><Loader2 className="size-3.5 mr-2 animate-spin" /> Queueing {COLOR_PRESETS.length} colors…</>
+              ) : (
+                <>Queue all {COLOR_PRESETS.length} colors · {COLOR_PRESETS.length} Aura</>
+              )}
+            </Button>
+            {usingBuilder && !builderReady && (
+              <p className="text-[11px] text-muted-foreground">Describe your scene above to enable rendering.</p>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              Queued shots keep rendering on our servers even if you close this page — results land in Recent shots and your Gallery.
+            </p>
           </div>
         </section>
 
@@ -671,8 +879,25 @@ function ColorsStudio() {
             <Sparkles className="size-4 text-primary" />
             <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Recent shots</h2>
           </div>
+          {inFlight.length > 0 && (
+            <div className="rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5 flex items-center gap-2.5 text-xs text-foreground/85">
+              <Loader2 className="size-3.5 animate-spin text-primary shrink-0" />
+              <span>
+                {inFlight.length} shot{inFlight.length === 1 ? "" : "s"} rendering — safe to leave, they'll finish on their own.
+              </span>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2">
-            {recent.length === 0 && (
+            {inFlight.slice(0, 8).map((g) => (
+              <div
+                key={g.id}
+                className="aspect-[4/5] rounded-xl overflow-hidden border border-dashed border-primary/30 bg-card/30 flex flex-col items-center justify-center gap-2 text-[10px] text-muted-foreground"
+              >
+                <Loader2 className="size-4 animate-spin text-primary" />
+                <span className="uppercase tracking-wider">Rendering…</span>
+              </div>
+            ))}
+            {recent.length === 0 && inFlight.length === 0 && (
               <div className="col-span-2 rounded-xl border border-dashed border-border bg-card/30 p-8 text-center text-xs text-muted-foreground">
                 Your color shots will appear here.
               </div>
