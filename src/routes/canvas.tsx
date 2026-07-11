@@ -35,6 +35,11 @@ import {
 } from "@/lib/marketplace.functions";
 import { handleGenerationError, friendlyGenerationMessage } from "@/lib/error-toasts";
 import { listComfyTemplates, startComfyRun, getComfyRun } from "@/lib/comfy.functions";
+import {
+  listAuroraTemplates,
+  generateAuroraTemplateVideo,
+  type AuroraTemplateRow,
+} from "@/lib/aurora-templates.functions";
 import { MODEL_LIST, VIDEO_MODEL_LIST, getModelMeta } from "@/lib/models";
 import {
   Sparkles,
@@ -98,7 +103,7 @@ export const Route = createFileRoute("/canvas")({
   }),
 });
 
-type NodeKind = "input" | "audio" | "image" | "video" | "lipsync" | "split" | "comfy" | "batchVideo";
+type NodeKind = "input" | "audio" | "image" | "video" | "lipsync" | "split" | "comfy" | "batchVideo" | "heygenTemplate";
 type BatchVariant = { status: "idle" | "running" | "done" | "error"; url?: string; error?: string };
 type NodeData = {
   kind: NodeKind;
@@ -120,6 +125,9 @@ type NodeData = {
   resolution?: "480p" | "720p" | "1080p" | "2160p";
   duration?: number;
   variants?: BatchVariant[];
+  // heygenTemplate-only
+  auroraTemplateId?: string;
+  talkingPhotoUrl?: string;
 };
 
 const initialNodes: Node<NodeData>[] = [
@@ -178,6 +186,44 @@ type ComfyTemplate = {
   declared_inputs: { key: string; label: string; type: string }[];
 };
 const ComfyCtx = createContext<ComfyTemplate[]>([]);
+const HeyGenTplCtx = createContext<AuroraTemplateRow[]>([]);
+
+function HeyGenTemplateNodeControls({ id, data }: { id: string; data: NodeData }) {
+  const h = useContext(HandlersCtx)!;
+  const templates = useContext(HeyGenTplCtx);
+  return (
+    <>
+      <Select
+        value={data.auroraTemplateId ?? ""}
+        onValueChange={(v) => h.update(id, { auroraTemplateId: v })}
+      >
+        <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10">
+          <SelectValue placeholder="Pick an Aurora template" />
+        </SelectTrigger>
+        <SelectContent>
+          {templates.length === 0 && (
+            <div className="px-2 py-1.5 text-xs text-muted-foreground">No templates — save one on /heygen-templates</div>
+          )}
+          {templates.map((t) => (
+            <SelectItem key={t.id} value={t.id} className="text-xs">{t.name}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Input
+        value={data.talkingPhotoUrl ?? ""}
+        onChange={(e) => h.update(id, { talkingPhotoUrl: e.target.value })}
+        placeholder="Photo URL (or connect an image node)"
+        className="h-8 text-xs nodrag bg-black/30 border-white/10"
+        onMouseDownCapture={(e) => e.stopPropagation()}
+      />
+      <p className="text-[10px] text-muted-foreground">
+        {data.auroraTemplateId
+          ? "Connects upstream image as talking-head photo — or paste a URL above."
+          : "Select a HeyGen template, then supply a face photo."}
+      </p>
+    </>
+  );
+}
 
 function ComfyNodeControls({ id, data }: { id: string; data: NodeData }) {
   const h = useContext(HandlersCtx)!;
@@ -243,6 +289,7 @@ const KIND_META: Record<NodeKind, { label: string; Icon: typeof ImageIcon; accen
   split: { label: "split reality", Icon: SplitSquareHorizontal, accent: "from-amber-400 to-orange-500" },
   comfy: { label: "comfyui", Icon: Boxes, accent: "from-sky-400 to-cyan-500" },
   batchVideo: { label: "batch video", Icon: Layers, accent: "from-violet-400 to-fuchsia-500" },
+  heygenTemplate: { label: "heygen template", Icon: Sparkles, accent: "from-pink-400 to-rose-500" },
 };
 
 const VARIANT_COUNTS = [1, 2, 3, 4, 5, 6] as const;
@@ -253,7 +300,7 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
   const h = useContext(HandlersCtx)!;
   const meta = data.model ? getModelMeta(data.model) : null;
   const showTarget = !(data.kind === "input" || data.kind === "audio");
-  const showSource = data.kind !== "lipsync";
+  const showSource = data.kind !== "lipsync" && data.kind !== "heygenTemplate";
   const km = KIND_META[data.kind];
   const Icon = km.Icon;
 
@@ -328,6 +375,8 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
             animating={data.animating}
             onAnimateBoth={() => h.animateSplit(id)}
           />
+        ) : data.kind === "heygenTemplate" && data.url ? (
+          <AutoplayVideo src={data.url} className="w-full aspect-video object-cover" autoPlay={false} playsInline controls />
         ) : data.url ? (
           data.kind === "video" || data.kind === "lipsync" || (data.kind === "comfy" && data.outputKind === "video") ? (
             <AutoplayVideo src={data.url} className="w-full aspect-square object-cover" autoPlay={false} playsInline controls />
@@ -466,6 +515,7 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
             </>
           )}
           {data.kind === "comfy" && <ComfyNodeControls id={id} data={data} />}
+          {data.kind === "heygenTemplate" && !data.url && <HeyGenTemplateNodeControls id={id} data={data} />}
           {data.kind === "batchVideo" && (
             <>
               <Textarea
@@ -531,11 +581,12 @@ function estimateSeconds(kind: NodeKind): number {
     case "lipsync": return 90;
     case "split": return 50;
     case "comfy": return 60;
+    case "heygenTemplate": return 120;
     default: return 5;
   }
 }
 function ProgressPanel({ nodes, edges, running }: { nodes: Node<NodeData>[]; edges: Edge[]; running: boolean }) {
-  const steps = nodes.filter((n) => ["image", "video", "lipsync", "split", "comfy"].includes(n.data.kind));
+  const steps = nodes.filter((n) => ["image", "video", "lipsync", "split", "comfy", "heygenTemplate"].includes(n.data.kind));
   if (steps.length === 0) return null;
   const done = steps.filter((n) => n.data.status === "done").length;
   const active = steps.find((n) => n.data.status === "running");
@@ -593,7 +644,7 @@ function ExportShareDock({ nodes, edges }: { nodes: Node<NodeData>[]; edges: Edg
     (n) => !outgoing.has(n.id)
       && n.data.status === "done"
       && (n.data.url || n.data.altUrl)
-      && ["image", "video", "lipsync", "split", "comfy"].includes(n.data.kind),
+      && ["image", "video", "lipsync", "split", "comfy", "heygenTemplate"].includes(n.data.kind),
   );
   if (terminals.length === 0) return null;
   const final = terminals[terminals.length - 1];
@@ -797,6 +848,15 @@ function CanvasPage() {
   });
   const comfyTemplates = (comfyTplQuery.data?.templates ?? []) as unknown as ComfyTemplate[];
 
+  const generateTplCanvasFn = useServerFn(generateAuroraTemplateVideo);
+  const auroraListFn = useServerFn(listAuroraTemplates);
+  const auroraTemplatesQuery = useQuery({
+    queryKey: ["aurora-templates-canvas"],
+    enabled: !!user,
+    queryFn: () => auroraListFn({}),
+  });
+  const auroraTemplates = (auroraTemplatesQuery.data ?? []) as AuroraTemplateRow[];
+
   const update = useCallback((id: string, patch: Partial<NodeData>) => {
     setNodes((ns) => ns.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...patch } } : n)));
   }, [setNodes]);
@@ -875,13 +935,18 @@ function CanvasPage() {
 
       // seed inputs (image + audio)
       const seeds = nodes.filter((n) => n.data.kind === "input" || n.data.kind === "audio");
-      if (seeds.length === 0) throw new Error("Add at least one input node");
+      // Standalone heygenTemplate nodes (no incoming edges, no input seeds) can run via their own talkingPhotoUrl
+      const heygenStandalones = nodes.filter(
+        (n) => n.data.kind === "heygenTemplate" && !(incoming.get(n.id) ?? []).length
+      );
+      if (seeds.length === 0 && heygenStandalones.length === 0) throw new Error("Add at least one input node");
       const queue: string[] = [];
       for (const n of seeds) {
         if (!n.data.url) throw new Error(`Upload a file into the ${n.data.kind} node`);
         resolved.set(n.id, { url: n.data.url, kind: n.data.kind });
         for (const t of outgoing.get(n.id) ?? []) queue.push(t);
       }
+      for (const n of heygenStandalones) queue.push(n.id);
 
       const seen = new Set<string>();
       while (queue.length) {
@@ -981,6 +1046,28 @@ function CanvasPage() {
                   : "image";
             resolved.set(id, { url: done.output_url, kind: okind as NodeKind });
             update(id, { status: "done", url: done.output_url, outputKind: okind });
+          } else if (n.data.kind === "heygenTemplate") {
+            const tplId = n.data.auroraTemplateId;
+            if (!tplId) throw new Error("Pick an Aurora template for this node");
+            const tpl = auroraTemplates.find((t) => t.id === tplId);
+            if (!tpl) throw new Error("Aurora template still loading — try again in a moment");
+            const photoUrl = images[0] ?? n.data.talkingPhotoUrl?.trim();
+            if (!photoUrl) throw new Error("Connect an image node or paste a photo URL in the HeyGen Template node");
+            const res = await generateTplCanvasFn({
+              data: {
+                auroraTemplateId: tplId,
+                character: {
+                  name: tpl.character_variable_key,
+                  type: "character" as const,
+                  properties: { type: "talking_photo", character_id: photoUrl },
+                },
+              },
+            });
+            if (!res.ok) {
+              throw new Error(res.error ?? "HeyGen template generation failed");
+            }
+            resolved.set(id, { url: res.url, kind: "heygenTemplate" });
+            update(id, { status: "done", url: res.url });
           } else if (n.data.kind === "batchVideo") {
             if (images.length === 0) throw new Error("Batch video needs an image upstream");
             const count = Math.min(6, Math.max(1, n.data.variantCount ?? 3));
@@ -1179,6 +1266,7 @@ function CanvasPage() {
         </DialogContent>
       </Dialog>
       <div className="flex-1 relative z-0">
+        <HeyGenTplCtx.Provider value={auroraTemplates}>
         <ComfyCtx.Provider value={comfyTemplates}>
         <HandlersCtx.Provider value={handlers}>
           <ReactFlow
@@ -1197,6 +1285,7 @@ function CanvasPage() {
           </ReactFlow>
         </HandlersCtx.Provider>
         </ComfyCtx.Provider>
+        </HeyGenTplCtx.Provider>
         {/* Floating glass toolbar — templates + finished-work gallery live over the canvas */}
         <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 rounded-full border border-white/10 bg-[oklch(0.13_0.04_290/0.85)] backdrop-blur-xl shadow-lg p-1.5">
           <TrendingTemplatesMenu
@@ -1264,6 +1353,7 @@ function CanvasPage() {
           <button onClick={() => addNode("split")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Split"><SplitSquareHorizontal className="size-4" /></button>
           <button onClick={() => addNode("comfy")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="ComfyUI"><Boxes className="size-4" /></button>
           <button onClick={() => addNode("batchVideo")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Batch video"><Layers className="size-4" /></button>
+          <button onClick={() => addNode("heygenTemplate")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="HeyGen Template"><Sparkles className="size-4" /></button>
           <button onClick={() => runMut.mutate()} disabled={runMut.isPending} className="ml-1 h-9 px-4 shrink-0 rounded-full text-primary-foreground text-sm font-medium inline-flex items-center gap-1.5 shadow-[0_0_24px_oklch(0.78_0.18_305/0.8)] disabled:opacity-60" style={{ background: "var(--gradient-hero)" }}>
             {runMut.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />} Run
           </button>

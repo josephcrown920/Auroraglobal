@@ -1,10 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Flame, Loader2, Check, Sparkles, ArrowLeft, User, AlertCircle, Image as ImageIcon, Video, Mic, Package, X } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Flame, Loader2, Check, Sparkles, ArrowLeft, User, AlertCircle, Image as ImageIcon, Video, Mic, Package, X, Film, ChevronDown, ChevronUp } from "lucide-react";
 import { getSpinOptions, spinThirty, getSpinJob, tickSpinJob } from "@/lib/spin.functions";
+import {
+  listAuroraTemplates,
+  generateAuroraTemplateVideo,
+  AURORA_TEMPLATE_MODEL,
+  type AuroraTemplateRow,
+} from "@/lib/aurora-templates.functions";
+import { computeCost } from "@/lib/pricing";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { toast } from "sonner";
 import {
   SPIN_COUNT,
   SPIN_PIECE_COST,
@@ -107,6 +116,49 @@ function SpinPage() {
   const [faceUrl, setFaceUrl] = useState<string | null>(null);
   const [faceUploading, setFaceUploading] = useState(false);
   const faceInputRef = useRef<HTMLInputElement>(null);
+
+  // ── HeyGen Template ────────────────────────────────────────────────────
+  const [heygenOpen, setHeygenOpen] = useState(false);
+  const [selectedHeygenTplId, setSelectedHeygenTplId] = useState<string>("");
+  const [heygenPhotoUrl, setHeygenPhotoUrl] = useState<string>("");
+  const [heygenResult, setHeygenResult] = useState<{ url: string } | null>(null);
+  const listAuroraTemplatesFn = useServerFn(listAuroraTemplates);
+  const generateTplFn = useServerFn(generateAuroraTemplateVideo);
+  const HEYGEN_COST = computeCost({ features: ["video"], model: AURORA_TEMPLATE_MODEL }).total;
+  const heygenTplQuery = useQuery({
+    queryKey: ["aurora-templates-spin"],
+    enabled: !!user && heygenOpen,
+    queryFn: () => listAuroraTemplatesFn(),
+  });
+  const heygenTpls = (heygenTplQuery.data ?? []) as AuroraTemplateRow[];
+  const heygenMut = useMutation({
+    mutationFn: async () => {
+      if (!selectedHeygenTplId) throw new Error("Pick a template");
+      const tpl = heygenTpls.find((t) => t.id === selectedHeygenTplId);
+      if (!tpl) throw new Error("Template not found");
+      const photo = heygenPhotoUrl.trim() || faceUrl;
+      if (!photo) throw new Error("Upload a reference photo above or paste a photo URL");
+      const res = await generateTplFn({
+        data: {
+          auroraTemplateId: selectedHeygenTplId,
+          character: {
+            name: tpl.character_variable_key,
+            type: "character" as const,
+            properties: { type: "talking_photo", character_id: photo },
+          },
+        },
+      });
+      if (!res.ok) throw new Error(res.error ?? "Generation failed");
+      return res;
+    },
+    onSuccess: (res) => {
+      if (res.ok) {
+        setHeygenResult({ url: res.url });
+        toast.success("HeyGen video ready!");
+      }
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Generation failed"),
+  });
 
   const drivingRef = useRef(false);
   const autoStartedRef = useRef(false);
@@ -549,6 +601,118 @@ function SpinPage() {
               : `Spin ${SPIN_COUNT} ${mode === "video" ? "videos" : ""} · ${SPIN_COUNT * (mode === "video" ? SPIN_VIDEO_PIECE_COST : SPIN_PIECE_COST)} Aura`}
           </button>
         </form>
+
+        {/* ── HeyGen Template: one-click talking-head video ──────────────── */}
+        <div className="mt-4 rounded-2xl border border-pink-400/20 bg-pink-500/5">
+          <button
+            type="button"
+            onClick={() => setHeygenOpen((o) => !o)}
+            className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-white/80 hover:text-white transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <Film className="size-4 text-pink-400" />
+              Generate one HeyGen template video
+              <span className="rounded-full bg-pink-500/20 px-2 py-0.5 text-[10px] font-semibold text-pink-300">
+                {HEYGEN_COST} Aura
+              </span>
+            </span>
+            {heygenOpen ? <ChevronUp className="size-4 text-white/40" /> : <ChevronDown className="size-4 text-white/40" />}
+          </button>
+
+          {heygenOpen && (
+            <div className="px-4 pb-4 space-y-3 border-t border-pink-400/10 pt-3">
+              <p className="text-[11px] text-muted-foreground">
+                Pick one of your saved Aurora templates. Uses the reference photo you uploaded above — or paste a URL below.
+              </p>
+
+              {/* template picker */}
+              {heygenTplQuery.isLoading ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="size-3.5 animate-spin" /> Loading templates…
+                </div>
+              ) : heygenTpls.length === 0 ? (
+                <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-xs text-muted-foreground">
+                  No Aurora templates saved yet. Visit{" "}
+                  <Link to="/heygen-templates" className="text-primary underline underline-offset-2">
+                    HeyGen Templates
+                  </Link>{" "}
+                  to create one.
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {heygenTpls.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setSelectedHeygenTplId(t.id)}
+                      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                        selectedHeygenTplId === t.id
+                          ? "border-pink-400 bg-pink-500/20 text-pink-200"
+                          : "border-white/10 bg-white/5 text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {t.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* photo URL override */}
+              <div className="space-y-1">
+                <label className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                  Photo URL {faceUrl ? "(auto-filled from reference photo above)" : "(required)"}
+                </label>
+                <input
+                  value={heygenPhotoUrl}
+                  onChange={(e) => setHeygenPhotoUrl(e.target.value)}
+                  placeholder={faceUrl ? faceUrl.slice(0, 60) + "…" : "https://…"}
+                  className="w-full rounded-xl aurora-glass px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-pink-400 focus:outline-none"
+                />
+              </div>
+
+              {/* generate button */}
+              <button
+                type="button"
+                onClick={() => { setHeygenResult(null); heygenMut.mutate(); }}
+                disabled={heygenMut.isPending || !selectedHeygenTplId || (!heygenPhotoUrl.trim() && !faceUrl)}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-5 py-2.5 text-sm font-bold text-white shadow-[0_0_20px_oklch(0.65_0.28_350/0.4)] transition-[filter] hover:brightness-110 disabled:opacity-50"
+              >
+                {heygenMut.isPending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                {heygenMut.isPending ? "Generating…" : `Generate · ${HEYGEN_COST} Aura`}
+              </button>
+
+              {/* result */}
+              {heygenResult && (
+                <div className="mt-2 rounded-xl overflow-hidden border border-pink-400/20">
+                  <video
+                    src={heygenResult.url}
+                    className="w-full max-h-72 object-contain bg-black"
+                    controls
+                    playsInline
+                    autoPlay
+                    muted
+                  />
+                  <div className="flex items-center gap-2 px-3 py-2 bg-black/30">
+                    <a
+                      href={heygenResult.url}
+                      download
+                      className="text-[11px] text-pink-300 hover:text-pink-100 underline underline-offset-2"
+                    >
+                      Download
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => { navigator.clipboard.writeText(heygenResult!.url); toast.success("URL copied"); }}
+                      className="text-[11px] text-white/50 hover:text-white"
+                    >
+                      Copy URL
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {err && (
           <div className="mt-4 flex items-start gap-2 rounded-lg border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-200">
