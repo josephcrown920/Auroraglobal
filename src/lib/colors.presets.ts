@@ -444,6 +444,102 @@ export function buildCompositorPrompt(
   return buildCompositorSpec(colorId, setupId, opts).final_render_prompt;
 }
 
+// ─── Scene Builder — user-composed custom scenes ────────────────────────────
+
+export type CustomMic = ColorPreset["performance"]["mic"] | "none";
+
+export const CUSTOM_MIC_OPTIONS: { id: CustomMic; label: string }[] = [
+  { id: "none", label: "No mic" },
+  { id: "hanging", label: "Hanging vintage" },
+  { id: "standing", label: "Standing chrome" },
+  { id: "handheld", label: "Handheld SM58" },
+  { id: "boom", label: "Overhead boom" },
+];
+
+export type CustomScene = {
+  /** The environment / set description — the core of the scene. Required. */
+  environment: string;
+  mic: CustomMic;
+  /** Optional pose / body direction. */
+  pose: string;
+  /** Optional performance energy / mood. */
+  energy: string;
+  /** Optional lighting direction (otherwise graded from the color theme). */
+  lighting: string;
+  /** Optional props / set dressing. */
+  props: string;
+};
+
+export const EMPTY_CUSTOM_SCENE: CustomScene = {
+  environment: "",
+  mic: "none",
+  pose: "",
+  energy: "",
+  lighting: "",
+  props: "",
+};
+
+// GenerateSchema caps prompts at 4000 chars server-side; the fixed compositor
+// blocks total ~1200, so cap each free-text field well under the remainder.
+export const CUSTOM_SCENE_FIELD_MAX = 400;
+
+/**
+ * Same strict AI Performance Compositor contract as `buildCompositorSpec`,
+ * but the scene comes from the user's Scene Builder inputs instead of a
+ * preset setup. The selected color still drives the grade so custom scenes
+ * stay on-brand for the Colors look. No bundled scene asset exists for a
+ * custom scene, so the scene lock is prompt-only (opts.hasSceneRef ignored).
+ */
+export function buildCustomCompositorSpec(
+  colorId: string,
+  custom: CustomScene,
+  opts: Pick<CompositorOpts, "hasOutfitRef"> = {},
+): CompositorSpec {
+  const c = COLOR_PRESETS.find((x) => x.id === colorId) ?? COLOR_PRESETS[0];
+  const clip = (s: string) => s.trim().slice(0, CUSTOM_SCENE_FIELD_MAX);
+
+  const sceneBits = [clip(custom.environment)];
+  if (custom.props.trim()) sceneBits.push(`Set dressing: ${clip(custom.props)}.`);
+  const scene = sceneBits.join(" ");
+
+  const lighting = custom.lighting.trim()
+    ? `${clip(custom.lighting)} — graded to the ${c.promptName} theme.`
+    : `${c.promptName} lighting tone — background, reflections and shadows graded to match.`;
+
+  const poseBits: string[] = [];
+  if (custom.pose.trim()) poseBits.push(clip(custom.pose));
+  if (custom.energy.trim()) poseBits.push(`Energy: ${clip(custom.energy)}.`);
+  if (custom.mic !== "none") poseBits.push(`Microphone: ${MIC_DETAIL[custom.mic]}.`);
+  const motion_description = poseBits.length
+    ? `${poseBits.join(" ")} Subtle implied motion, natural stance.`
+    : "Natural relaxed stance — no specific pose directed.";
+
+  const parts: string[] = [
+    "You are an AI performance compositor: place the REAL person from the reference photos into the custom scene below and render one photoreal performance still.",
+    `IDENTITY LOCK: use the uploaded face as identity reference — keep it EXACTLY the same (face, skin tone, hairstyle, facial hair, body proportions) and maintain facial consistency across all frames. Never change identity. ${
+      opts.hasOutfitRef
+        ? "Dress them in the exact outfit from reference photo 2."
+        : "Keep the outfit they wear in photo 1."
+    }`,
+    `SCENE LOCK: build this exact scene, do not invent a different setting — ${scene}`,
+    `COLOR CONTROL: the entire set follows the ${c.promptName} theme — background, lighting tone, reflections and shadows are all graded ${c.promptName}.`,
+    `LIGHTING: ${lighting}`,
+    `STAGING: ${motion_description}`,
+    CAMERA_BLOCK,
+    COMPOSITOR_REALISM,
+  ];
+
+  return {
+    type: "ai_performance_compositor",
+    scene,
+    color: c.promptName,
+    camera: CAMERA_BLOCK,
+    lighting,
+    motion_description,
+    final_render_prompt: parts.join("\n"),
+  };
+}
+
 /**
  * Motion directive for animating a finished COLORS still into a short
  * loopable performance clip (image → video). Must stay ≤ 1000 chars.
