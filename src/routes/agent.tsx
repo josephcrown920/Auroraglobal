@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -13,9 +13,19 @@ import {
   type AgentPlan,
   type PlanIteration,
 } from "@/lib/agent.functions";
+import {
+  listAuroraTemplates,
+  createAuroraTemplate,
+  deleteAuroraTemplate,
+  generateAuroraTemplateVideo,
+  AURORA_TEMPLATE_MODEL,
+  type AuroraTemplateRow,
+} from "@/lib/aurora-templates.functions";
+import { computeCost } from "@/lib/pricing";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
   Sparkles,
   Send,
@@ -24,7 +34,7 @@ import {
   Palette,
   Lightbulb,
   Wand2,
-  ImageIcon,
+  Image as ImageIcon,
   Plus,
   Trash2,
   History,
@@ -32,6 +42,13 @@ import {
   Check,
   AlertTriangle,
   ChevronDown,
+  ChevronUp,
+  Upload,
+  User,
+  Copy,
+  CheckCircle2,
+  Bot,
+  Play,
 } from "lucide-react";
 
 export const Route = createFileRoute("/agent")({
@@ -51,6 +68,24 @@ type RenderStatus = "idle" | "rendering" | "succeeded" | "failed";
 type RenderState = { status: RenderStatus; url?: string | null };
 type VideoStatus = "idle" | "rendering" | "succeeded" | "failed";
 type VideoState = { status: VideoStatus; url?: string | null; error?: string };
+
+type AgentMode = "agent" | "templates";
+
+const TEMPLATE_COST = computeCost({ features: ["video"], model: AURORA_TEMPLATE_MODEL }).total;
+
+function extractTemplateId(raw: string): string | null {
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    const parts = url.pathname.split("/").filter(Boolean);
+    const idx = parts.indexOf("templates");
+    if (idx !== -1 && parts[idx + 1]) return parts[idx + 1];
+  } catch {
+    // not a URL — treat as bare ID
+  }
+  const trimmed = raw.trim();
+  return trimmed.length > 4 ? trimmed : null;
+}
 
 const SAMPLES = [
   "A man and a chimpanzee rob a bank in the Albuquerque desert. Red Ferrari Testarossa. Hard midday sun, 16mm film look.",
@@ -80,7 +115,14 @@ function AgentPage() {
   const delFn = useServerFn(deleteAgentSession);
   const renderFn = useServerFn(renderAgentShot);
   const animateFn = useServerFn(renderAgentShotVideo);
+  const listTplFn = useServerFn(listAuroraTemplates);
+  const createTplFn = useServerFn(createAuroraTemplate);
+  const deleteTplFn = useServerFn(deleteAuroraTemplate);
+  const generateTplFn = useServerFn(generateAuroraTemplateVideo);
 
+  const [mode, setMode] = useState<AgentMode>("agent");
+
+  // ── Agent state ──────────────────────────────────────────────────────────
   const [brief, setBrief] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [plan, setPlan] = useState<AgentPlan | null>(null);
@@ -91,6 +133,20 @@ function AgentPage() {
   const [videos, setVideos] = useState<Record<string, VideoState>>({});
   const [historyOpen, setHistoryOpen] = useState(false);
 
+  // ── Template state ───────────────────────────────────────────────────────
+  const [tplFormOpen, setTplFormOpen] = useState(false);
+  const [tplName, setTplName] = useState("");
+  const [tplRawId, setTplRawId] = useState("");
+  const [tplCharKey, setTplCharKey] = useState("character");
+  // per-template generate form open state
+  const [genOpen, setGenOpen] = useState<Record<string, boolean>>({});
+  // per-template generate inputs
+  const [genPhotoUrl, setGenPhotoUrl] = useState<Record<string, string>>({});
+  const [genAvatarId, setGenAvatarId] = useState<Record<string, string>>({});
+  const [genMode, setGenMode] = useState<Record<string, "photo" | "avatar">>({});
+  // per-template result
+  const [tplResult, setTplResult] = useState<Record<string, { status: "rendering" | "done" | "failed"; url?: string }>>({});
+
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth" });
   }, [user, loading, navigate]);
@@ -99,6 +155,76 @@ function AgentPage() {
     queryKey: ["agent-sessions"],
     queryFn: () => listFn(),
     enabled: !!user,
+  });
+
+  const templatesQuery = useQuery({
+    queryKey: ["aurora-templates"],
+    queryFn: () => listTplFn(),
+    enabled: !!user,
+  });
+
+  const saveTplMut = useMutation({
+    mutationFn: async () => {
+      if (!tplName.trim()) throw new Error("Give this template a name");
+      const tid = extractTemplateId(tplRawId.trim());
+      if (!tid) throw new Error("Paste a HeyGen template ID or URL");
+      if (!tplCharKey.trim()) throw new Error("Enter the character variable key");
+      return createTplFn({
+        data: {
+          name: tplName.trim(),
+          heygenTemplateId: tid,
+          fixedVariables: {
+            [tplCharKey.trim()]: {
+              name: tplCharKey.trim(),
+              type: "character",
+              properties: { url: "", talking_photo_id: "" },
+            },
+          },
+          characterVariableKey: tplCharKey.trim(),
+        },
+      });
+    },
+    onSuccess: () => {
+      setTplName(""); setTplRawId(""); setTplCharKey("character"); setTplFormOpen(false);
+      qc.invalidateQueries({ queryKey: ["aurora-templates"] });
+      toast.success("Template saved");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteTplMut = useMutation({
+    mutationFn: (id: string) => deleteTplFn({ data: { id } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["aurora-templates"] });
+      toast.success("Template deleted");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const generateTplMut = useMutation({
+    mutationFn: async ({ tpl, gMode }: { tpl: AuroraTemplateRow; gMode: "photo" | "avatar" }) => {
+      const photo = genPhotoUrl[tpl.id]?.trim();
+      const avatar = genAvatarId[tpl.id]?.trim();
+      if (gMode === "photo" && !photo) throw new Error("Enter a photo URL");
+      if (gMode === "avatar" && !avatar) throw new Error("Enter an avatar ID");
+      setTplResult((r) => ({ ...r, [tpl.id]: { status: "rendering" } }));
+      return generateTplFn({
+        data: {
+          auroraTemplateId: tpl.id,
+          ...(gMode === "photo"
+            ? { talkingPhotoUrl: photo! }
+            : { avatarId: avatar! }),
+        },
+      });
+    },
+    onSuccess: (r, { tpl }) => {
+      setTplResult((prev) => ({ ...prev, [tpl.id]: { status: "done", url: r.ok ? r.url : undefined } }));
+      toast.success("Video ready!");
+    },
+    onError: (e: Error, { tpl }) => {
+      setTplResult((prev) => ({ ...prev, [tpl.id]: { status: "failed" } }));
+      toast.error(e.message);
+    },
   });
 
   const startNew = () => {
@@ -231,6 +357,30 @@ function AgentPage() {
         </Button>
       </header>
 
+      {/* Mode tab bar */}
+      <div className="relative z-20 flex border-b border-white/10 bg-background/60 backdrop-blur-sm shrink-0">
+        <button
+          onClick={() => setMode("agent")}
+          className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${
+            mode === "agent"
+              ? "border-violet-400 text-violet-300"
+              : "border-transparent text-white/45 hover:text-white/70"
+          }`}
+        >
+          <Bot className="size-3.5" /> Story Agent
+        </button>
+        <button
+          onClick={() => setMode("templates")}
+          className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${
+            mode === "templates"
+              ? "border-violet-400 text-violet-300"
+              : "border-transparent text-white/45 hover:text-white/70"
+          }`}
+        >
+          <Film className="size-3.5" /> HeyGen Templates
+        </button>
+      </div>
+
       <div className="relative z-10 flex-1 flex min-h-0">
         {/* Sidebar: resumable sessions */}
         <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-white/10 bg-white/[0.02]">
@@ -281,6 +431,241 @@ function AgentPage() {
 
         {/* Main column */}
         <main className="flex-1 min-w-0 overflow-y-auto">
+
+          {/* ── HeyGen Templates panel ─────────────────────────────────── */}
+          {mode === "templates" && (
+            <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+
+              {/* Save form */}
+              <section className="aurora-panel p-4 space-y-3">
+                <button
+                  onClick={() => setTplFormOpen((o) => !o)}
+                  className="w-full flex items-center justify-between text-left"
+                >
+                  <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-violet-300/80">
+                    <Plus className="size-3" /> Add HeyGen template
+                  </span>
+                  {tplFormOpen ? <ChevronUp className="size-4 text-white/40" /> : <ChevronDown className="size-4 text-white/40" />}
+                </button>
+
+                {tplFormOpen && (
+                  <div className="space-y-2.5 pt-1">
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-white/50">Template name</label>
+                      <Input
+                        value={tplName}
+                        onChange={(e) => setTplName(e.target.value)}
+                        placeholder="e.g. Sales hook v1"
+                        className="bg-black/30 border-white/10 text-white text-sm h-8"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-white/50">HeyGen template ID or URL</label>
+                      <Input
+                        value={tplRawId}
+                        onChange={(e) => setTplRawId(e.target.value)}
+                        placeholder="Paste template ID or app.heygen.com/… URL"
+                        className="bg-black/30 border-white/10 text-white text-sm h-8 font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-white/50">Character variable key</label>
+                      <Input
+                        value={tplCharKey}
+                        onChange={(e) => setTplCharKey(e.target.value)}
+                        placeholder="character"
+                        className="bg-black/30 border-white/10 text-white text-sm h-8 font-mono"
+                      />
+                      <p className="text-[10px] text-white/35 leading-relaxed">
+                        The variable name you assigned to the avatar slot in HeyGen Template Editor.
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => saveTplMut.mutate()}
+                      disabled={saveTplMut.isPending}
+                      variant="premium"
+                      className="w-full"
+                    >
+                      {saveTplMut.isPending ? <Loader2 className="size-4 mr-1 animate-spin" /> : <CheckCircle2 className="size-4 mr-1" />}
+                      Save template
+                    </Button>
+                  </div>
+                )}
+              </section>
+
+              {/* Template list */}
+              {templatesQuery.isLoading && (
+                <div className="flex justify-center py-10 text-white/40">
+                  <Loader2 className="size-5 animate-spin" />
+                </div>
+              )}
+
+              {!templatesQuery.isLoading && (templatesQuery.data ?? []).length === 0 && !tplFormOpen && (
+                <div className="text-center py-10 text-white/40 text-sm space-y-2">
+                  <Film className="size-8 mx-auto opacity-30" />
+                  <p>No templates yet.</p>
+                  <p className="text-[11px]">Click "Add HeyGen template" above to save one.</p>
+                </div>
+              )}
+
+              {(templatesQuery.data ?? []).map((tpl) => {
+                const open = genOpen[tpl.id] ?? false;
+                const gm = genMode[tpl.id] ?? "photo";
+                const res = tplResult[tpl.id];
+                return (
+                  <div key={tpl.id} className="aurora-glass rounded-2xl overflow-hidden">
+                    {/* Header row */}
+                    <div className="flex items-center justify-between px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold truncate">{tpl.name}</p>
+                        <p className="text-[10px] text-white/40 font-mono truncate mt-0.5">{tpl.heygen_template_id}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => setGenOpen((o) => ({ ...o, [tpl.id]: !open }))}
+                          className="flex items-center gap-1 text-[11px] text-violet-300 hover:text-violet-200 transition-colors"
+                        >
+                          <Play className="size-3.5" />
+                          {open ? "Close" : "Generate"}
+                        </button>
+                        <button
+                          onClick={() => deleteTplMut.mutate(tpl.id)}
+                          disabled={deleteTplMut.isPending}
+                          className="text-white/30 hover:text-rose-300 transition-colors"
+                          aria-label="Delete"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Generate panel */}
+                    {open && (
+                      <div className="border-t border-white/10 px-4 py-3 space-y-3">
+                        {/* Photo vs avatar toggle */}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setGenMode((m) => ({ ...m, [tpl.id]: "photo" }))}
+                            className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg border py-2 text-xs transition-colors ${
+                              gm === "photo"
+                                ? "border-violet-400/50 bg-violet-500/15 text-violet-200"
+                                : "border-white/10 bg-white/[0.03] text-white/50 hover:bg-white/[0.07]"
+                            }`}
+                          >
+                            <Upload className="size-3.5" /> My photo
+                          </button>
+                          <button
+                            onClick={() => setGenMode((m) => ({ ...m, [tpl.id]: "avatar" }))}
+                            className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg border py-2 text-xs transition-colors ${
+                              gm === "avatar"
+                                ? "border-violet-400/50 bg-violet-500/15 text-violet-200"
+                                : "border-white/10 bg-white/[0.03] text-white/50 hover:bg-white/[0.07]"
+                            }`}
+                          >
+                            <User className="size-3.5" /> HeyGen avatar
+                          </button>
+                        </div>
+
+                        {gm === "photo" ? (
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-white/50">Photo URL</label>
+                            <Input
+                              value={genPhotoUrl[tpl.id] ?? ""}
+                              onChange={(e) => setGenPhotoUrl((u) => ({ ...u, [tpl.id]: e.target.value }))}
+                              placeholder="https://… direct image URL"
+                              className="bg-black/30 border-white/10 text-white text-xs h-8"
+                            />
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-white/50">HeyGen avatar ID</label>
+                            <Input
+                              value={genAvatarId[tpl.id] ?? ""}
+                              onChange={(e) => setGenAvatarId((a) => ({ ...a, [tpl.id]: e.target.value }))}
+                              placeholder="Paste avatar ID from HeyGen"
+                              className="bg-black/30 border-white/10 text-white text-xs h-8 font-mono"
+                            />
+                          </div>
+                        )}
+
+                        <Button
+                          onClick={() => generateTplMut.mutate({ tpl, gMode: gm })}
+                          disabled={generateTplMut.isPending && generateTplMut.variables?.tpl.id === tpl.id}
+                          variant="premium"
+                          size="sm"
+                          className="w-full"
+                        >
+                          {generateTplMut.isPending && generateTplMut.variables?.tpl.id === tpl.id ? (
+                            <><Loader2 className="size-3.5 mr-1 animate-spin" /> Generating…</>
+                          ) : (
+                            <><Sparkles className="size-3.5 mr-1" /> Generate · {TEMPLATE_COST} Aura</>
+                          )}
+                        </Button>
+
+                        {/* Result */}
+                        {res?.status === "rendering" && (
+                          <div className="flex items-center gap-2 text-xs text-white/50 justify-center py-2">
+                            <Loader2 className="size-4 animate-spin text-violet-300" /> Rendering video…
+                          </div>
+                        )}
+                        {res?.status === "failed" && (
+                          <p className="text-xs text-rose-300 text-center flex items-center justify-center gap-1">
+                            <AlertTriangle className="size-3.5" /> Render failed — try again
+                          </p>
+                        )}
+                        {res?.status === "done" && res.url && (
+                          <div className="space-y-2">
+                            <video
+                              src={res.url}
+                              controls
+                              playsInline
+                              className="w-full rounded-xl border border-white/10 bg-black"
+                            />
+                            <div className="flex gap-2">
+                              <a
+                                href={res.url}
+                                download
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  fetch(res.url!).then((r) => r.blob()).then((blob) => {
+                                    const a = document.createElement("a");
+                                    a.href = URL.createObjectURL(blob);
+                                    a.download = `${tpl.name}-heygen.mp4`;
+                                    a.click();
+                                  });
+                                }}
+                                className="flex-1 flex items-center justify-center gap-1 text-[11px] py-1.5 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 text-white/70 transition-colors no-underline"
+                              >
+                                <ImageIcon className="size-3.5" /> Download
+                              </a>
+                              <button
+                                onClick={() => { navigator.clipboard.writeText(res.url!); toast.success("URL copied"); }}
+                                className="flex-1 flex items-center justify-center gap-1 text-[11px] py-1.5 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 text-white/70 transition-colors"
+                              >
+                                <Copy className="size-3.5" /> Copy URL
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* How-to hint */}
+              <div className="aurora-glass rounded-xl p-4 space-y-1.5">
+                <p className="text-[10px] uppercase tracking-wider text-white/40">How to find your template ID</p>
+                <ol className="text-[11px] text-white/60 space-y-1 list-decimal list-inside leading-relaxed">
+                  <li>Go to <a href="https://app.heygen.com/templates" target="_blank" rel="noreferrer" className="text-violet-300 hover:underline">app.heygen.com/templates</a></li>
+                  <li>Open any template → copy the URL or the ID from the address bar</li>
+                  <li>Note the variable name you set for the character/avatar slot</li>
+                </ol>
+              </div>
+            </div>
+          )}
+
+          {mode === "agent" && (
           <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6">
             {/* Brief composer */}
             <section className="aurora-panel p-4 space-y-3">
@@ -542,6 +927,7 @@ function AgentPage() {
               </div>
             )}
           </div>
+          )}
         </main>
       </div>
     </div>
