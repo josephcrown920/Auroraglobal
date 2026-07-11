@@ -1,0 +1,62 @@
+Showcase
+
+Copy page
+
+See real HeyGen CLI recipes in action - README-to-video, social media pipelines, sales outreach, and more. Each recipe is a copy-paste command set you can run.
+These projects demonstrate what’s possible when you combine Video Agent with AI coding agents, browser extensions, CI/CD pipelines, and more.
+​
+README-to-Video
+
+Auto-generate video walkthroughs from GitHub README changes.
+A GitHub Action watches for README changes, uses Claude to write a scene-by-scene production prompt, and sends it to Video Agent. The rendered video is automatically embedded back in the README.
+HeyGen features: Video Agent API
+Stack: TypeScript, GitHub Actions, Claude
+Key insight: The quality gap between good and mediocre videos comes down to the prompt. This project uses an LLM to write production-quality briefs with specific visual directions — not just narration scripts.
+Cost: ~$0.05–0.15 per video
+How the prompt pipeline works
+​
+Viral Video Pipeline
+
+Research trending topics, then batch-generate short-form videos.
+Researches trending self-improvement topics via web search, then generates 6 TikTok/Reels/Shorts-ready videos in one run. Fully automated — no camera, no mic, no editing.
+HeyGen features: Video Agent API (batch generation, portrait mode)
+Stack: Claude Code + HeyGen Skills
+Key insight: Rate limit handling is critical for batch generation. This pipeline fires videos sequentially with 5–10 second gaps and tracks all video IDs for async polling.
+Output: 6 videos (25–40s each) + batch report with performance predictions
+Cost: ~$6 in HeyGen credits for the full batch
+​
+Site2Video — Chrome Extension
+
+One-click: turn any website into a professional, brand-consistent video.
+A Chrome extension captures a full-page screenshot, analyzes the site’s visual DNA (colors, typography, layout), generates a style-aware Video Agent prompt, and renders a branded video.
+HeyGen features: Video Agent API, Asset Upload, 1,200+ avatars
+Stack: Vite + React (extension), Next.js (backend), Gemini/Claude (LLM)
+Key insight: Every prompt is generated from scratch using LLM analysis — no static templates. The system extracts visual style from the page itself and translates it into Video Agent prompt instructions.
+Video modes: Founder Pitch (60s), Product Walkthrough (90s), Teardown (75s), Investor Summary (45s), Social Ad (30s)
+Visual styles: 14 curated styles + Auto mode that extracts style from the website
+​
+AI News Broadcast
+
+Automated daily AI briefings: scrape → script → render → distribute.
+A pipeline that gathers AI papers from arXiv and Hacker News, builds a script with an LLM, generates a video via Video Agent, and posts it to Telegram.
+HeyGen features: Video Agent API
+Stack: Bun + TypeScript
+Key insight: The modular architecture (research → script → video → deliver) makes each stage independently testable and swappable. You could replace the Telegram delivery with email, Slack, or YouTube upload.
+​
+AI Mafia — Live Avatar Game
+
+Social deduction game with AI-powered Live Avatar NPCs.
+A Mafia/Werewolf game where 3 AI players argue, accuse, bluff, and vote in real-time using HeyGen Live Avatars. Each NPC has a distinct personality and is powered by Claude for decision-making.
+HeyGen features: Live Avatar SDK (real-time streaming)
+Stack: Next.js, React, HeyGen Live Avatar SDK, Claude
+Key insight: Live Avatars enable real-time interactive experiences — not just pre-rendered videos. The NPCs read game state, develop strategies, and respond with natural speech and expressions.
+Characters: Maria (expressive), Chen (calm analyst), Alex (emotional reactor)
+This project uses Live Avatars (real-time streaming), not Video Agent. It showcases a different interaction model — live, conversational AI rather than pre-rendered video content.
+​
+Build Your Own
+
+These projects share common patterns you can reuse:
+Content → LLM → Video Agent prompt — The meta-prompt pattern works for any content type
+Batch generation with rate limit handling — Sequential queuing with status tracking
+Style extraction → prompt instructions — Translate visual context into Video Agent language
+Modular pipelines — Separate research, scripting, rendering, and deliver
