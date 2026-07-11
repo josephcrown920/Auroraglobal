@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { listGenerations, generatePerformanceShot } from "@/lib/studio.functions";
-import { usePerformanceShotJobFn, useVideoFromImageJobFn } from "@/lib/use-job-polling";
+import { usePerformanceShotJobFn, useVideoFromImageJobFn, useLipSyncJobFn } from "@/lib/use-job-polling";
 import {
   COLOR_PRESETS,
   SETUPS,
@@ -26,7 +26,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { getColorStudio } from "@/lib/colors.studios";
 import { computeCost } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Loader2, Palette, Wand2, ArrowLeft, Check, ImagePlus, X, ChevronDown } from "lucide-react";
+import { Sparkles, Loader2, Palette, Wand2, ArrowLeft, Check, ImagePlus, X, ChevronDown, Music2, Mic2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getSetupScene } from "@/lib/colors.scenes";
@@ -85,23 +86,41 @@ export const Route = createFileRoute("/colors")({
   }),
 });
 
+const COLORS_CAMERA_OPTIONS: [string, string][] = [
+  ["static",    "Static"],
+  ["push_in",   "Push in"],
+  ["pull_out",  "Pull out"],
+  ["zoom_in",   "Zoom in"],
+  ["zoom_out",  "Zoom out"],
+  ["pan_left",  "Pan left"],
+  ["pan_right", "Pan right"],
+  ["tilt_up",   "Tilt up"],
+  ["tilt_down", "Tilt down"],
+  ["orbit_cw",  "Orbit CW"],
+  ["orbit_ccw", "Orbit CCW"],
+];
+
 /** Tiny inline upload tile — much smaller than the full UploadSlot. */
 function MiniUpload({
   userId,
   label,
   value,
   onChange,
+  accept = "image/*",
+  icon: Icon = ImagePlus,
 }: {
   userId: string;
   label: string;
   value: string | null;
   onChange: (url: string | null) => void;
+  accept?: string;
+  icon?: React.ElementType;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
 
   const upload = async (file: File) => {
-    if (file.size > 20 * 1024 * 1024) return toast.error("Max 20MB");
+    if (file.size > 50 * 1024 * 1024) return toast.error("Max 50MB");
     setBusy(true);
     try {
       const ext = file.name.split(".").pop() || "jpg";
@@ -132,12 +151,14 @@ function MiniUpload({
       )}
     >
       <div className="relative size-12 shrink-0 rounded-lg overflow-hidden bg-background/60 flex items-center justify-center">
-        {value ? (
+        {value && accept === "image/*" ? (
           <img src={value} alt={label} className="size-full object-cover" />
+        ) : value ? (
+          <Icon className="size-4 text-primary" />
         ) : busy ? (
           <Loader2 className="size-4 animate-spin text-muted-foreground" />
         ) : (
-          <ImagePlus className="size-4 text-muted-foreground group-hover:text-primary" />
+          <Icon className="size-4 text-muted-foreground group-hover:text-primary" />
         )}
       </div>
       <div className="min-w-0 flex-1">
@@ -159,7 +180,7 @@ function MiniUpload({
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept={accept}
         hidden
         onChange={(e) => {
           const f = e.target.files?.[0];
@@ -176,10 +197,15 @@ function ColorsStudio() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const genFn = usePerformanceShotJobFn();
+  const videoFn = useVideoFromImageJobFn();
+  const lipFn = useLipSyncJobFn();
   const listFn = useServerFn(listGenerations);
 
   const [selfieUrl, setSelfieUrl] = useState<string | null>(null);
   const [outfitUrl, setOutfitUrl] = useState<string | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [cameraMovement, setCameraMovement] = useState("push_in");
+  const [lipSyncResults, setLipSyncResults] = useState<Record<string, string>>({});
   const [color, setColor] = useState(COLOR_PRESETS[1].id); // royal blue — matches tried & tested
   const [kind, setKind] = useState<SetupKind>("performance");
   const [setup, setSetup] = useState("performance");
@@ -336,7 +362,16 @@ function ColorsStudio() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
-  const videoFn = useVideoFromImageJobFn();
+  const lipMut = useMutation({
+    mutationFn: (videoUrl: string) =>
+      lipFn({ data: { videoUrl, audioUrl: audioUrl!, model: "fal-ai/sync-lipsync/v2" } }),
+    onSuccess: (res, videoUrl) => {
+      setLipSyncResults((prev) => ({ ...prev, [videoUrl]: res.videoUrl }));
+      toast.success("Lipsync done — scroll down to see the result");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Lipsync failed"),
+  });
+
   // Two-step preview→confirm flow (task #153 cost guardrail): the first click
   // renders a cheap 480p preview; the server returns its generation id, which
   // unlocks the full-quality render for that shot.
@@ -363,7 +398,7 @@ function ColorsStudio() {
           duration: 5,
           resolution: "720p",
           modelKey: "seedance-2.0-fast",
-          cameraMovement: "static",
+          cameraMovement: cameraMovement,
           confirmPreviewId: vars.confirmPreviewId,
         },
       }),
@@ -512,9 +547,10 @@ function ColorsStudio() {
           </div>
 
           {/* COMPACT references */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <MiniUpload userId={user.id} label="Selfie · required" value={selfieUrl} onChange={setSelfieUrl} />
             <MiniUpload userId={user.id} label="Outfit · optional" value={outfitUrl} onChange={setOutfitUrl} />
+            <MiniUpload userId={user.id} label="Audio · lipsync" value={audioUrl} onChange={setAudioUrl} accept="audio/*,video/mp4" icon={Music2} />
           </div>
 
           <TriedTestedShowcase
@@ -837,6 +873,27 @@ function ColorsStudio() {
               <div className="size-3 rounded-full" style={{ background: selectedColor.swatch }} />
               <span>{selectedColor.name} · {usingBuilder ? "Custom scene" : selectedSetup?.name}</span>
             </div>
+            {/* Motion control — applies when animating a generated shot */}
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                <Mic2 className="size-3" /> Motion control
+              </p>
+              <Select value={cameraMovement} onValueChange={setCameraMovement}>
+                <SelectTrigger className="h-8 text-xs bg-black/30 border-white/10 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {COLORS_CAMERA_OPTIONS.map(([v, l]) => (
+                    <SelectItem key={v} value={v} className="text-xs">{l}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {audioUrl && (
+                <p className="text-[10px] text-primary mt-1 flex items-center gap-1">
+                  <Music2 className="size-3" /> Audio loaded — hover an animated clip to add lipsync
+                </p>
+              )}
+            </div>
             {workflow === "single" && (
               <Button disabled={singleMut.isPending || refs.length === 0 || (usingBuilder && !builderReady)} onClick={() => singleMut.mutate()} variant="premium" className="w-full h-11">
                 {singleMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting…</> : <><Wand2 className="size-4 mr-2" /> Generate · 1 Aura · ~15s</>}
@@ -948,6 +1005,30 @@ function ColorsStudio() {
                       <>Preview loop · 480p · {animatePreviewCost} Aura</>
                     )}
                   </button>
+                )}
+                {g.result_video_url && audioUrl && !lipSyncResults[g.result_video_url] && (
+                  <button
+                    type="button"
+                    disabled={lipMut.isPending}
+                    onClick={() => lipMut.mutate(g.result_video_url!)}
+                    className="absolute bottom-1.5 left-1.5 right-1.5 rounded-lg bg-primary/90 backdrop-blur px-2 py-1.5 text-[10px] font-medium uppercase tracking-wider text-primary-foreground border border-primary/60 opacity-0 group-hover/shot:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-primary disabled:opacity-60"
+                  >
+                    {lipMut.isPending ? (
+                      <><Loader2 className="size-3 animate-spin inline mr-1" />Syncing…</>
+                    ) : (
+                      <><Mic2 className="size-3 inline mr-1" />Add Lipsync</>
+                    )}
+                  </button>
+                )}
+                {g.result_video_url && lipSyncResults[g.result_video_url] && (
+                  <a
+                    href={lipSyncResults[g.result_video_url]}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="absolute bottom-1.5 left-1.5 right-1.5 rounded-lg bg-emerald-500/90 backdrop-blur px-2 py-1.5 text-[10px] font-medium uppercase tracking-wider text-white border border-emerald-400/60 opacity-0 group-hover/shot:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-emerald-500"
+                  >
+                    <Mic2 className="size-3 inline mr-1" />View Lipsync ↗
+                  </a>
                 )}
               </div>
             ))}
