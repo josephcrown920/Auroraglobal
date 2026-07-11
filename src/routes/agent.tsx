@@ -26,6 +26,29 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { UploadSlot } from "@/components/studio/UploadSlot";
+import { generateLyricVideoFromSong } from "@/lib/captions.functions";
+import { useVideoFromImageJobFn, usePerformanceShotJobFn } from "@/lib/use-job-polling";
+import { listGenerations } from "@/lib/studio.functions";
+import {
+  MUSIC_VIDEO_STYLES,
+  MUSIC_VIDEO_MODES,
+  buildMusicVideoPrompt,
+  buildEvenLyricSegments,
+  LOCATION_SUGGESTIONS,
+  SUBJECT_SUGGESTIONS,
+  type MusicVideoMode,
+  type MusicVideoStyle,
+} from "@/lib/music-video-prompts";
+import { VIDEO_MODEL_LIST } from "@/lib/models";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn, AUDIO_ACCEPT } from "@/lib/utils";
 import {
   Sparkles,
   Send,
@@ -49,6 +72,10 @@ import {
   CheckCircle2,
   Bot,
   Play,
+  Music2,
+  Download,
+  Zap,
+  RefreshCw,
 } from "lucide-react";
 
 export const Route = createFileRoute("/agent")({
@@ -69,7 +96,7 @@ type RenderState = { status: RenderStatus; url?: string | null };
 type VideoStatus = "idle" | "rendering" | "succeeded" | "failed";
 type VideoState = { status: VideoStatus; url?: string | null; error?: string };
 
-type AgentMode = "agent" | "templates" | "recipes";
+type AgentMode = "agent" | "templates" | "recipes" | "lyric-video" | "music-video";
 
 const TEMPLATE_COST = computeCost({ features: ["video"], model: AURORA_TEMPLATE_MODEL }).total;
 
@@ -119,8 +146,49 @@ function AgentPage() {
   const createTplFn = useServerFn(createAuroraTemplate);
   const deleteTplFn = useServerFn(deleteAuroraTemplate);
   const generateTplFn = useServerFn(generateAuroraTemplateVideo);
+  const lyricVideoFn = useServerFn(generateLyricVideoFromSong);
+  const genFn = usePerformanceShotJobFn();
+  const videoFn = useVideoFromImageJobFn();
+  const listGensFn = useServerFn(listGenerations);
 
   const [mode, setMode] = useState<AgentMode>("agent");
+
+  // ── Lyric Video state ─────────────────────────────────────────────────────
+  const [lyricAudioUrl, setLyricAudioUrl] = useState<string | null>(null);
+  const [lyricAudioDuration, setLyricAudioDuration] = useState<number | null>(null);
+  const [lyricsText, setLyricsText] = useState("");
+  const lyricLines = lyricsText.split("\n").map((l) => l.trim()).filter(Boolean);
+  const lyricSegments = lyricAudioDuration ? buildEvenLyricSegments(lyricAudioDuration, lyricLines) : [];
+  const lyricVideoCost = computeCost({ features: ["lyric_video"] }).total;
+
+  useEffect(() => {
+    if (!lyricAudioUrl) { setLyricAudioDuration(null); return; }
+    const audio = new Audio();
+    audio.preload = "metadata";
+    const onLoaded = () => setLyricAudioDuration(audio.duration || null);
+    const onError = () => { setLyricAudioDuration(null); toast.error("Couldn't read that audio file's duration"); };
+    audio.addEventListener("loadedmetadata", onLoaded);
+    audio.addEventListener("error", onError);
+    audio.src = lyricAudioUrl;
+    return () => { audio.removeEventListener("loadedmetadata", onLoaded); audio.removeEventListener("error", onError); };
+  }, [lyricAudioUrl]);
+
+  // ── Music Video state ─────────────────────────────────────────────────────
+  const [mvStyle, setMvStyle] = useState<MusicVideoStyle>("trap");
+  const [mvMode, setMvMode] = useState<MusicVideoMode>("text-to-video");
+  const [mvLocation, setMvLocation] = useState(LOCATION_SUGGESTIONS[0]);
+  const [mvSubject, setMvSubject] = useState(SUBJECT_SUGGESTIONS[0]);
+  const [mvPrompt, setMvPrompt] = useState(() =>
+    buildMusicVideoPrompt("text-to-video", "trap", LOCATION_SUGGESTIONS[0], SUBJECT_SUGGESTIONS[0]),
+  );
+  const [mvImage, setMvImage] = useState<string | null>(null);
+  const [mvVideoModel, setMvVideoModel] = useState(VIDEO_MODEL_LIST[0].value);
+  const mvCurrentMode = MUSIC_VIDEO_MODES.find((m) => m.key === mvMode)!;
+  const mvVideoCost = computeCost({ features: ["video"], model: mvVideoModel, durationSeconds: 5, resolution: "720p" }).total;
+
+  useEffect(() => {
+    setMvPrompt(buildMusicVideoPrompt(mvMode, mvStyle, mvLocation, mvSubject));
+  }, [mvMode, mvStyle, mvLocation, mvSubject]);
 
   // ── Agent state ──────────────────────────────────────────────────────────
   const [brief, setBrief] = useState("");
@@ -363,10 +431,10 @@ function AgentPage() {
       </header>
 
       {/* Mode tab bar */}
-      <div className="relative z-20 flex border-b border-white/10 bg-background/60 backdrop-blur-sm shrink-0">
+      <div className="relative z-20 flex overflow-x-auto border-b border-white/10 bg-background/60 backdrop-blur-sm shrink-0">
         <button
           onClick={() => setMode("agent")}
-          className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${
+          className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
             mode === "agent"
               ? "border-violet-400 text-violet-300"
               : "border-transparent text-white/45 hover:text-white/70"
@@ -376,7 +444,7 @@ function AgentPage() {
         </button>
         <button
           onClick={() => setMode("templates")}
-          className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${
+          className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
             mode === "templates"
               ? "border-violet-400 text-violet-300"
               : "border-transparent text-white/45 hover:text-white/70"
@@ -386,13 +454,33 @@ function AgentPage() {
         </button>
         <button
           onClick={() => setMode("recipes")}
-          className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${
+          className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
             mode === "recipes"
               ? "border-violet-400 text-violet-300"
               : "border-transparent text-white/45 hover:text-white/70"
           }`}
         >
           <Sparkles className="size-3.5" /> Showcase
+        </button>
+        <button
+          onClick={() => setMode("lyric-video")}
+          className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
+            mode === "lyric-video"
+              ? "border-violet-400 text-violet-300"
+              : "border-transparent text-white/45 hover:text-white/70"
+          }`}
+        >
+          <Music2 className="size-3.5" /> Lyric Video
+        </button>
+        <button
+          onClick={() => setMode("music-video")}
+          className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
+            mode === "music-video"
+              ? "border-violet-400 text-violet-300"
+              : "border-transparent text-white/45 hover:text-white/70"
+          }`}
+        >
+          <Film className="size-3.5" /> Make a Video
         </button>
       </div>
 
@@ -827,6 +915,218 @@ function AgentPage() {
                   ))}
                 </ul>
               </div>
+            </div>
+          )}
+
+          {/* ── Lyric Video panel ──────────────────────────────────────── */}
+          {mode === "lyric-video" && (
+            <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+              <div>
+                <h2 className="text-lg font-bold text-foreground">Lyric Video</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Upload your song and paste your lyrics — Aurora times each line evenly and builds the video automatically.</p>
+              </div>
+
+              <section className="aurora-panel p-4 space-y-3">
+                <p className="text-[10px] uppercase tracking-wider text-violet-300/80 font-medium">Song</p>
+                <UploadSlot
+                  userId={user!.id}
+                  label="Upload"
+                  hint="MP3 / WAV / M4A — your track"
+                  accept={AUDIO_ACCEPT}
+                  kind="video"
+                  value={lyricAudioUrl}
+                  onChange={setLyricAudioUrl}
+                />
+                {lyricAudioUrl && lyricAudioDuration == null && (
+                  <p className="text-xs text-white/50 flex items-center gap-1.5"><Loader2 className="size-3 animate-spin" /> Reading duration…</p>
+                )}
+                {lyricAudioDuration != null && (
+                  <p className="text-xs text-white/50">Duration: {Math.round(lyricAudioDuration)}s</p>
+                )}
+              </section>
+
+              <section className="aurora-panel p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] uppercase tracking-wider text-violet-300/80 font-medium">Lyrics</p>
+                  <span className="text-[10px] text-white/35">one line per lyric — evenly timed</span>
+                </div>
+                <Textarea
+                  rows={8}
+                  value={lyricsText}
+                  onChange={(e) => setLyricsText(e.target.value)}
+                  className="bg-black/30 border-white/10 text-white text-sm resize-none"
+                  placeholder={"Paste your lyrics here, one line at a time…\n\nLine one\nLine two\nLine three"}
+                />
+                {lyricLines.length > 0 && (
+                  <p className="text-xs text-white/40">
+                    {lyricLines.length} line{lyricLines.length === 1 ? "" : "s"}
+                    {lyricAudioDuration != null && lyricSegments.length > 0
+                      ? ` · ~${(lyricAudioDuration / lyricLines.length).toFixed(1)}s per line`
+                      : ""}
+                  </p>
+                )}
+              </section>
+
+              <div className="flex items-center gap-2 text-xs text-white/50 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
+                <Zap className="size-3.5 text-violet-400" />
+                Cost: <span className="text-white font-medium">{lyricVideoCost} Aura</span>
+                <span className="opacity-50">·</span>
+                ETA: <span className="text-white font-medium">~20–40s</span>
+              </div>
+
+              <Button
+                disabled={!lyricAudioUrl || lyricSegments.length === 0}
+                onClick={async () => {
+                  if (!lyricAudioUrl) return toast.error("Upload a song first");
+                  if (lyricSegments.length === 0) return toast.error("Paste at least one lyric line");
+                  try {
+                    const res = await lyricVideoFn({ data: { audioUrl: lyricAudioUrl, lines: lyricSegments } });
+                    if (!res.ok) { toast.error(res.error); return; }
+                    toast.success("Lyric video queued — check your studio");
+                    qc.invalidateQueries({ queryKey: ["agent-gens"] });
+                  } catch (e: unknown) {
+                    toast.error((e instanceof Error ? e.message : null) ?? "Generation failed");
+                  }
+                }}
+                className="w-full h-12 text-base font-medium"
+                style={{ background: "var(--gradient-hero)" }}
+              >
+                <Wand2 className="size-4 mr-2" /> Generate Lyric Video · {lyricVideoCost} Aura
+              </Button>
+              {(!lyricAudioUrl || lyricSegments.length === 0) && (
+                <p className="text-center text-xs text-white/35">
+                  {!lyricAudioUrl ? "↑ Upload a song to continue" : "↑ Paste at least one lyric line"}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* ── Music Video panel ──────────────────────────────────────────── */}
+          {mode === "music-video" && (
+            <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+              <div>
+                <h2 className="text-lg font-bold text-foreground">Make a Video</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Build cinematic music videos with AI — pick a genre, choose a mode, and generate.</p>
+              </div>
+
+              {/* Genre / Style */}
+              <section className="aurora-panel p-4 space-y-3">
+                <p className="text-[10px] uppercase tracking-wider text-violet-300/80 font-medium">Genre / Style</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {(Object.entries(MUSIC_VIDEO_STYLES) as [MusicVideoStyle, (typeof MUSIC_VIDEO_STYLES)[MusicVideoStyle]][]).map(([key, meta]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setMvStyle(key)}
+                      className={cn(
+                        "relative rounded-xl border p-3 text-left transition-all",
+                        `bg-gradient-to-br ${meta.colorClass}`,
+                        mvStyle === key ? "ring-2 ring-violet-400 border-violet-400/60" : "border-white/10 hover:border-white/20",
+                      )}
+                    >
+                      <div className="text-xl mb-0.5">{meta.emoji}</div>
+                      <div className="font-semibold text-sm text-white">{meta.label}</div>
+                      <div className="text-[10px] text-white/60 mt-0.5">{meta.description}</div>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              {/* Mode tabs */}
+              <section className="aurora-panel p-4 space-y-3">
+                <p className="text-[10px] uppercase tracking-wider text-violet-300/80 font-medium">What to create</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {MUSIC_VIDEO_MODES.map((m) => (
+                    <button
+                      key={m.key}
+                      type="button"
+                      onClick={() => setMvMode(m.key)}
+                      className={cn(
+                        "rounded-lg border px-2 py-2 text-xs font-medium text-left transition-colors",
+                        mvMode === m.key
+                          ? "border-violet-400/60 bg-violet-500/15 text-white"
+                          : "border-white/10 bg-white/[0.02] text-white/50 hover:border-white/20",
+                      )}
+                    >
+                      <div className="font-semibold">{m.label}</div>
+                      <div className="mt-0.5 text-[10px] opacity-60">{m.description}</div>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              {/* Reference image */}
+              {mvCurrentMode?.needsImage && (
+                <section className="aurora-panel p-4 space-y-3">
+                  <p className="text-[10px] uppercase tracking-wider text-violet-300/80 font-medium">Reference image</p>
+                  <UploadSlot userId={user!.id} label="Upload" hint="Cover art, still, or footage frame" value={mvImage} onChange={setMvImage} />
+                </section>
+              )}
+
+              {/* Scene details */}
+              {(mvMode === "text-to-video" || mvMode === "ai-performance" || mvMode === "beat-sync") && (
+                <section className="aurora-panel p-4 space-y-3">
+                  <p className="text-[10px] uppercase tracking-wider text-violet-300/80 font-medium">Scene details</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-white/50">Location</label>
+                      <Select value={mvLocation} onValueChange={setMvLocation}>
+                        <SelectTrigger className="bg-black/30 border-white/10 text-white"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {LOCATION_SUGGESTIONS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-white/50">Subject</label>
+                      <Select value={mvSubject} onValueChange={setMvSubject}>
+                        <SelectTrigger className="bg-black/30 border-white/10 text-white"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {SUBJECT_SUGGESTIONS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {/* Direction prompt */}
+              <section className="aurora-panel p-4 space-y-3">
+                <p className="text-[10px] uppercase tracking-wider text-violet-300/80 font-medium">
+                  Direction <span className="ml-1 font-normal normal-case text-white/30">auto-built · editable</span>
+                </p>
+                <Textarea
+                  rows={5}
+                  value={mvPrompt}
+                  onChange={(e) => setMvPrompt(e.target.value)}
+                  className="bg-black/30 border-white/10 text-white text-sm resize-none"
+                />
+                <div className="flex items-center gap-2 text-xs text-white/50">
+                  <Zap className="size-3.5 text-violet-400" />
+                  Cost: <span className="text-white font-medium">{mvVideoCost} Aura</span>
+                </div>
+                <Button
+                  disabled={!mvPrompt.trim() || (mvCurrentMode?.needsImage && !mvImage)}
+                  onClick={async () => {
+                    if (!mvPrompt.trim()) return toast.error("Enter a prompt first");
+                    try {
+                      if (mvCurrentMode?.needsImage && mvImage) {
+                        await videoFn({ data: { imageUrl: mvImage, prompt: mvPrompt, duration: 5, resolution: "720p", modelKey: mvVideoModel, cameraMovement: "static", endFrameUrl: null } });
+                      } else {
+                        await genFn({ data: { prompt: mvPrompt, imageUrls: [], motionVideoUrl: null, model: "black-forest-labs/flux-1.1-pro" } });
+                      }
+                      toast.success("Queued — result will appear in your studio");
+                      qc.invalidateQueries({ queryKey: ["agent-gens"] });
+                    } catch (e: unknown) {
+                      toast.error((e instanceof Error ? e.message : null) ?? "Generation failed");
+                    }
+                  }}
+                  className="w-full h-12 text-base font-medium"
+                  style={{ background: "var(--gradient-hero)" }}
+                >
+                  <Music2 className="size-4 mr-2" /> Generate · {mvVideoCost} Aura
+                </Button>
+              </section>
             </div>
           )}
 

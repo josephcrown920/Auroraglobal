@@ -17,7 +17,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { UploadSlot } from "@/components/studio/UploadSlot";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, ArrowLeft, Loader2, Film, Wand2, Camera, Clapperboard, Users, WifiOff } from "lucide-react";
+import { Sparkles, ArrowLeft, Loader2, Film, Wand2, Camera, Clapperboard, Users, WifiOff, Music2, Download, Zap } from "lucide-react";
 import { toast } from "sonner";
 import {
   generateMimicMotion,
@@ -50,6 +50,24 @@ import { GenerationErrorCard } from "@/components/ui/GenerationErrorCard";
 import { BlurredPreview } from "@/components/ui/BlurredPreview";
 import { PerformAnywhereGuide } from "@/components/onboarding/PerformAnywhereGuide";
 import { Check, ArrowRight } from "lucide-react";
+import {
+  generateAvatarShot,
+  SHOT_IMAGE_COST,
+  SHOT_KLING_COST,
+} from "@/lib/platform-template.functions";
+import { generateLyricVideoFromSong } from "@/lib/captions.functions";
+import {
+  MUSIC_VIDEO_STYLES,
+  MUSIC_VIDEO_MODES,
+  buildMusicVideoPrompt,
+  buildEvenLyricSegments,
+  LOCATION_SUGGESTIONS,
+  SUBJECT_SUGGESTIONS,
+  type MusicVideoMode,
+  type MusicVideoStyle,
+} from "@/lib/music-video-prompts";
+import { useBeatDetect } from "@/hooks/use-beat-detect";
+import { cn, AUDIO_ACCEPT } from "@/lib/utils";
 
 export const Route = createFileRoute("/motion")({
   component: MotionStudio,
@@ -119,7 +137,8 @@ const MOTION_CAMERA = [
   { v: "handheld", label: "Handheld" },
 ];
 
-type Mode = "pose" | "transfer" | "reskin";
+type Mode = "pose" | "transfer" | "reskin" | "avatar-shots" | "live-avatar" | "music-video";
+type ShotEngine = "seedream" | "gemini" | "kling";
 
 function MotionStudio() {
   const { user, loading } = useAuth();
@@ -225,8 +244,59 @@ function MotionStudio() {
     if (!loading && !user) navigate({ to: "/auth" });
   }, [user, loading, navigate]);
 
+  // ── Avatar Shots state ────────────────────────────────────────────────────
+  const [shotEngine, setShotEngine] = useState<ShotEngine>("seedream");
+  const [shotPrompt, setShotPrompt] = useState("");
+  const [shotResults, setShotResults] = useState<Array<{ url: string; engine: ShotEngine; kind: "image" | "video" }>>([]);
+  const [shotLoading, setShotLoading] = useState(false);
+
+  // ── Music Video (embedded) state ──────────────────────────────────────────
+  const [mvStyle, setMvStyle] = useState<MusicVideoStyle>("trap");
+  const [mvMode, setMvMode] = useState<MusicVideoMode>("text-to-video");
+  const [mvLocation, setMvLocation] = useState(LOCATION_SUGGESTIONS[0]);
+  const [mvSubject, setMvSubject] = useState(SUBJECT_SUGGESTIONS[0]);
+  const [mvPrompt, setMvPrompt] = useState(() =>
+    buildMusicVideoPrompt("text-to-video", "trap", LOCATION_SUGGESTIONS[0], SUBJECT_SUGGESTIONS[0]),
+  );
+  const [mvImage, setMvImage] = useState<string | null>(null);
+  const [mvVideoModel, setMvVideoModel] = useState(VIDEO_MODEL_LIST[0].value);
+  const [lyricAudioUrl, setLyricAudioUrl] = useState<string | null>(null);
+  const [lyricAudioDuration, setLyricAudioDuration] = useState<number | null>(null);
+  const [lyricsText, setLyricsText] = useState("");
+
+  const beatFileRef = useRef<HTMLInputElement>(null);
+  const [beatFileName, setBeatFileName] = useState<string | null>(null);
+  const { state: beatState, analyze: analyzeBeat, reset: resetBeat } = useBeatDetect();
+
+  const isMvLyric = mvMode === "lyric-style";
+  const mvCurrentMode = MUSIC_VIDEO_MODES.find((m) => m.key === mvMode)!;
+  const mvVideoCost = computeCost({ features: ["video"], model: mvVideoModel, durationSeconds: 5, resolution: "720p" }).total;
+  const mvLyricCost = computeCost({ features: ["lyric_video"] }).total;
+  const mvDisplayCost = isMvLyric ? mvLyricCost : mvCurrentMode?.needsImage ? mvVideoCost : 1;
+
+  const lyricLines = lyricsText.split("\n").map((l) => l.trim()).filter(Boolean);
+  const lyricSegments = lyricAudioDuration ? buildEvenLyricSegments(lyricAudioDuration, lyricLines) : [];
+
+  useEffect(() => {
+    setMvPrompt(buildMusicVideoPrompt(mvMode, mvStyle, mvLocation, mvSubject));
+  }, [mvMode, mvStyle, mvLocation, mvSubject]);
+
+  useEffect(() => {
+    if (!lyricAudioUrl) { setLyricAudioDuration(null); return; }
+    const audio = new Audio();
+    audio.preload = "metadata";
+    const onLoaded = () => setLyricAudioDuration(audio.duration || null);
+    const onError = () => { setLyricAudioDuration(null); toast.error("Couldn't read that audio file's duration"); };
+    audio.addEventListener("loadedmetadata", onLoaded);
+    audio.addEventListener("error", onError);
+    audio.src = lyricAudioUrl;
+    return () => { audio.removeEventListener("loadedmetadata", onLoaded); audio.removeEventListener("error", onError); };
+  }, [lyricAudioUrl]);
+
   const genFn = usePerformanceShotJobFn();
   const videoFn = useVideoFromImageJobFn();
+  const shotFn = useServerFn(generateAvatarShot);
+  const lyricVideoFn = useServerFn(generateLyricVideoFromSong);
   const motionFn = useServerFn(generateMimicMotion);
   const reskinFn = useServerFn(generatePerformanceReskin);
   const listFn = useServerFn(listGenerations);
@@ -664,6 +734,9 @@ function MotionStudio() {
           {tabBtn("reskin", "Performance Shot", Users)}
           {tabBtn("pose", "Pose → Video", Wand2)}
           {tabBtn("transfer", "Motion Transfer", Clapperboard)}
+          {tabBtn("avatar-shots", "Avatar Shots", Sparkles)}
+          {tabBtn("live-avatar", "Live Avatar", Film)}
+          {tabBtn("music-video", "Music Video", Music2)}
         </div>
 
         {/* ── Performance Shot (wizard) ──────────────────────────────── */}
@@ -1238,6 +1311,432 @@ function MotionStudio() {
                 </div>
               )}
             </aside>
+          </div>
+        )}
+
+        {/* ── Avatar Shots ──────────────────────────────────────────── */}
+        {mode === "avatar-shots" && (
+          <div className="max-w-3xl mx-auto space-y-6">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">Avatar Shots</h1>
+              <p className="text-muted-foreground text-sm mt-1">Generate AI portraits and live videos with SeedDream, Gemini Omni, or KlingAI.</p>
+            </div>
+
+            {/* Engine picker */}
+            <section className="space-y-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">AI Engine</p>
+              <div className="grid grid-cols-3 gap-3">
+                {(
+                  [
+                    { id: "seedream" as ShotEngine, label: "SeedDream", sub: "Portrait", cost: SHOT_IMAGE_COST, icon: "🌱", kind: "image" as const },
+                    { id: "gemini" as ShotEngine, label: "Gemini Omni", sub: "Enhanced", cost: SHOT_IMAGE_COST, icon: "✨", kind: "image" as const },
+                    { id: "kling" as ShotEngine, label: "KlingAI", sub: "Live Video", cost: SHOT_KLING_COST, icon: "🎬", kind: "video" as const },
+                  ]
+                ).map((eng) => (
+                  <button
+                    key={eng.id}
+                    type="button"
+                    onClick={() => setShotEngine(eng.id)}
+                    className={`flex flex-col items-center gap-1 px-3 py-4 rounded-2xl border text-center transition-all ${
+                      shotEngine === eng.id
+                        ? "border-primary bg-primary/15 text-foreground"
+                        : "border-border bg-card/60 text-muted-foreground hover:border-primary/40"
+                    }`}
+                  >
+                    <span className="text-xl">{eng.icon}</span>
+                    <span className="text-sm font-semibold">{eng.label}</span>
+                    <span className="text-[10px] opacity-60">{eng.sub}</span>
+                    <span className="text-xs font-medium text-primary mt-1">{eng.cost} Aura</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            {/* Prompt */}
+            <section className="space-y-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Prompt</p>
+              <Textarea
+                rows={4}
+                value={shotPrompt}
+                onChange={(e) => setShotPrompt(e.target.value)}
+                placeholder={
+                  shotEngine === "kling"
+                    ? "Describe the scene: 'Rapper in neon-lit studio, confident energy, cinematic camera move…'"
+                    : "Describe your avatar shot: 'Professional rapper portrait, studio lighting, dark background…'"
+                }
+                className="resize-none bg-card/60 text-sm"
+              />
+              <Button
+                disabled={shotLoading || !shotPrompt.trim()}
+                onClick={async () => {
+                  const trimmed = shotPrompt.trim();
+                  if (!trimmed) return toast.error("Enter a prompt first");
+                  setShotLoading(true);
+                  try {
+                    const res = await shotFn({ data: { prompt: trimmed, engine: shotEngine } });
+                    if (!res.ok) {
+                      toast.error(res.error ?? "Generation failed");
+                    } else {
+                      setShotResults((prev) => [
+                        { url: res.url, engine: shotEngine, kind: shotEngine === "kling" ? "video" : "image" },
+                        ...prev,
+                      ]);
+                      toast.success("Shot ready!");
+                    }
+                  } catch {
+                    toast.error("Generation failed");
+                  } finally {
+                    setShotLoading(false);
+                  }
+                }}
+                variant="premium"
+                className="w-full h-12"
+              >
+                {shotLoading ? (
+                  <><Loader2 className="size-4 mr-2 animate-spin" /> Generating…</>
+                ) : (
+                  <><Sparkles className="size-4 mr-2" /> Generate · {shotEngine === "kling" ? SHOT_KLING_COST : SHOT_IMAGE_COST} Aura</>
+                )}
+              </Button>
+            </section>
+
+            {/* Results */}
+            {shotResults.length > 0 && (
+              <section className="space-y-3">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Generated Shots ({shotResults.length})</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {shotResults.map((r, i) => (
+                    <div key={i} className="rounded-2xl border border-border bg-card/60 overflow-hidden">
+                      {r.kind === "video" ? (
+                        <video src={r.url} controls playsInline className="w-full aspect-video object-cover" />
+                      ) : (
+                        <img src={r.url} alt={`Shot ${i + 1}`} className="w-full aspect-square object-cover" loading="lazy" />
+                      )}
+                      <div className="p-2 flex items-center justify-between">
+                        <span className="text-[10px] text-muted-foreground capitalize">
+                          {r.engine === "kling" ? "KlingAI" : r.engine === "gemini" ? "Gemini" : "SeedDream"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => fetch(r.url).then((res) => res.blob()).then((b) => {
+                            const a = document.createElement("a");
+                            a.href = URL.createObjectURL(b);
+                            a.download = `shot-${Date.now()}.${r.kind === "video" ? "mp4" : "jpg"}`;
+                            a.click();
+                          })}
+                          className="text-xs text-primary flex items-center gap-1"
+                        >
+                          <Download className="size-3" /> Save
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {shotResults.length === 0 && !shotLoading && (
+              <div className="text-center py-12 text-muted-foreground/50">
+                <div className="text-4xl mb-3">🎨</div>
+                <p className="text-sm">
+                  {shotEngine === "kling"
+                    ? "Describe a scene and KlingAI will create a live avatar video"
+                    : "Describe your avatar and get an AI-generated portrait"}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Live Avatar ───────────────────────────────────────────────── */}
+        {mode === "live-avatar" && (
+          <div className="max-w-2xl mx-auto space-y-6">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">Live Avatar</h1>
+              <p className="text-muted-foreground text-sm mt-1">Describe a scene and KlingAI animates your avatar as a live talking-head video.</p>
+            </div>
+            <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm flex items-start gap-2">
+              <Zap className="size-4 text-primary shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium">Powered by KlingAI</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Generates a 5-second animated avatar video. No source video required.</p>
+              </div>
+            </div>
+            <section className="space-y-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Scene prompt</p>
+              <Textarea
+                rows={5}
+                value={shotPrompt}
+                onChange={(e) => setShotPrompt(e.target.value)}
+                placeholder="A confident artist in a neon-lit recording studio, gesturing expressively, cinematic slow zoom…"
+                className="resize-none bg-card/60 text-sm"
+              />
+              <Button
+                disabled={shotLoading || !shotPrompt.trim()}
+                onClick={async () => {
+                  const trimmed = shotPrompt.trim();
+                  if (!trimmed) return toast.error("Enter a prompt first");
+                  setShotLoading(true);
+                  try {
+                    const res = await shotFn({ data: { prompt: trimmed, engine: "kling" } });
+                    if (!res.ok) {
+                      toast.error(res.error ?? "Generation failed");
+                    } else {
+                      setShotResults((prev) => [{ url: res.url, engine: "kling", kind: "video" }, ...prev]);
+                      toast.success("Live avatar ready!");
+                    }
+                  } catch {
+                    toast.error("Generation failed");
+                  } finally {
+                    setShotLoading(false);
+                  }
+                }}
+                variant="premium"
+                className="w-full h-12"
+              >
+                {shotLoading ? (
+                  <><Loader2 className="size-4 mr-2 animate-spin" /> Generating live avatar…</>
+                ) : (
+                  <><Film className="size-4 mr-2" /> Generate Live Avatar · {SHOT_KLING_COST} Aura</>
+                )}
+              </Button>
+            </section>
+
+            {shotResults.filter((r) => r.kind === "video").length > 0 && (
+              <section className="space-y-3">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Live Avatar Results</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {shotResults.filter((r) => r.kind === "video").map((r, i) => (
+                    <div key={i} className="rounded-2xl border border-border bg-card/60 overflow-hidden">
+                      <video src={r.url} controls playsInline className="w-full aspect-video object-cover" />
+                      <div className="p-2 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => fetch(r.url).then((res) => res.blob()).then((b) => {
+                            const a = document.createElement("a");
+                            a.href = URL.createObjectURL(b);
+                            a.download = `live-avatar-${Date.now()}.mp4`;
+                            a.click();
+                          })}
+                          className="text-xs text-primary flex items-center gap-1"
+                        >
+                          <Download className="size-3" /> Save
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+        )}
+
+        {/* ── Music Video ───────────────────────────────────────────────── */}
+        {mode === "music-video" && (
+          <div className="max-w-3xl mx-auto space-y-6">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">Music Video Maker</h1>
+              <p className="text-muted-foreground text-sm mt-1">Build cinematic music videos with AI — beat-sync, lyric video, or AI performance.</p>
+            </div>
+
+            {/* Genre / Style */}
+            <section className="space-y-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Genre / Style</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {(Object.entries(MUSIC_VIDEO_STYLES) as [MusicVideoStyle, (typeof MUSIC_VIDEO_STYLES)[MusicVideoStyle]][]).map(([key, meta]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setMvStyle(key)}
+                    className={cn(
+                      "relative rounded-2xl border p-3 text-left transition-all",
+                      `bg-gradient-to-br ${meta.colorClass}`,
+                      mvStyle === key ? "ring-2 ring-primary border-primary/60" : "border-white/10 hover:border-white/20",
+                    )}
+                  >
+                    <div className="text-xl mb-0.5">{meta.emoji}</div>
+                    <div className="font-semibold text-sm">{meta.label}</div>
+                    <div className="text-[10px] text-white/60 mt-0.5">{meta.description}</div>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            {/* Mode tabs */}
+            <section className="space-y-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">What to create</p>
+              <div className="grid grid-cols-3 gap-2">
+                {MUSIC_VIDEO_MODES.map((m) => (
+                  <button
+                    key={m.key}
+                    type="button"
+                    onClick={() => setMvMode(m.key)}
+                    className={cn(
+                      "rounded-xl border px-3 py-2.5 text-xs font-medium text-left transition-colors",
+                      mvMode === m.key
+                        ? "border-primary bg-primary/15 text-foreground"
+                        : "border-border bg-card/60 text-muted-foreground hover:border-primary/40",
+                    )}
+                  >
+                    <div className="font-semibold">{m.label}</div>
+                    <div className="mt-0.5 text-[10px] opacity-70">{m.description}</div>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            {/* Lyric Video: song + lyrics */}
+            {isMvLyric && (
+              <section className="space-y-3">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Song</p>
+                <UploadSlot
+                  userId={user.id}
+                  label="Upload"
+                  hint="MP3 / WAV / M4A — your track"
+                  accept={AUDIO_ACCEPT}
+                  kind="video"
+                  value={lyricAudioUrl}
+                  onChange={setLyricAudioUrl}
+                />
+                {lyricAudioUrl && lyricAudioDuration == null && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Loader2 className="size-3 animate-spin" /> Reading duration…</p>
+                )}
+                {lyricAudioDuration != null && (
+                  <p className="text-xs text-muted-foreground">Duration: {Math.round(lyricAudioDuration)}s</p>
+                )}
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground pt-1">
+                  Lyrics <span className="ml-1 font-normal normal-case opacity-60">one line per lyric</span>
+                </p>
+                <Textarea
+                  rows={7}
+                  value={lyricsText}
+                  onChange={(e) => setLyricsText(e.target.value)}
+                  className="resize-none bg-card/60 text-sm"
+                  placeholder={"Paste your lyrics here, one line at a time…\n\nLine one\nLine two\nLine three"}
+                />
+                {lyricLines.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {lyricLines.length} line{lyricLines.length === 1 ? "" : "s"}
+                    {lyricAudioDuration != null && lyricSegments.length > 0
+                      ? ` · ~${(lyricAudioDuration / lyricLines.length).toFixed(1)}s per line`
+                      : ""}
+                  </p>
+                )}
+                <div className="flex items-center gap-2 text-xs text-muted-foreground rounded-xl border border-border bg-card/40 px-3 py-2">
+                  <Zap className="size-3.5 text-primary" />
+                  Cost: <span className="text-foreground font-medium">{mvDisplayCost} Aura</span>
+                  <span className="opacity-50">·</span>
+                  ETA: <span className="text-foreground font-medium">~20–40s</span>
+                </div>
+                <Button
+                  disabled={!lyricAudioUrl || lyricSegments.length === 0}
+                  onClick={async () => {
+                    if (!lyricAudioUrl) return toast.error("Upload a song first");
+                    if (lyricSegments.length === 0) return toast.error("Paste at least one lyric line");
+                    const res = await lyricVideoFn({ data: { audioUrl: lyricAudioUrl, lines: lyricSegments } });
+                    if (!res.ok) { toast.error(res.error); return; }
+                    markFirstGenComplete();
+                    toast.success("Lyric video queued — check Recent in the studio");
+                    qc.invalidateQueries({ queryKey: ["motion-gens"] });
+                  }}
+                  variant="premium"
+                  className="w-full h-12"
+                >
+                  <Wand2 className="size-4 mr-2" /> Generate Lyric Video · {mvDisplayCost} Aura
+                </Button>
+              </section>
+            )}
+
+            {/* Reference image (for modes that need it) */}
+            {!isMvLyric && mvCurrentMode?.needsImage && (
+              <section className="space-y-3">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Reference image</p>
+                <UploadSlot userId={user.id} label="Upload" hint="Cover art, still, or footage frame" value={mvImage} onChange={setMvImage} />
+              </section>
+            )}
+
+            {/* Scene details */}
+            {!isMvLyric && (mvMode === "text-to-video" || mvMode === "ai-performance" || mvMode === "beat-sync") && (
+              <section className="space-y-3">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Scene details</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">Location</label>
+                    <Select value={mvLocation} onValueChange={setMvLocation}>
+                      <SelectTrigger className="bg-card/60"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {LOCATION_SUGGESTIONS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">Subject</label>
+                    <Select value={mvSubject} onValueChange={setMvSubject}>
+                      <SelectTrigger className="bg-card/60"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {SUBJECT_SUGGESTIONS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* Direction prompt + generate */}
+            {!isMvLyric && (
+              <section className="space-y-3">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Direction <span className="ml-1 font-normal normal-case opacity-60">auto-built · editable</span>
+                </p>
+                <Textarea rows={5} value={mvPrompt} onChange={(e) => setMvPrompt(e.target.value)} className="resize-none bg-card/60 text-sm" />
+                <div className="flex items-center gap-2 text-xs text-muted-foreground rounded-xl border border-border bg-card/40 px-3 py-2">
+                  <Zap className="size-3.5 text-primary" />
+                  Cost: <span className="text-foreground font-medium">{mvDisplayCost} Aura</span>
+                </div>
+                <Button
+                  disabled={!mvPrompt.trim() || (mvCurrentMode?.needsImage && !mvImage)}
+                  onClick={async () => {
+                    if (!mvPrompt.trim()) return toast.error("Enter a prompt first");
+                    try {
+                      if (mvCurrentMode?.needsImage && mvImage) {
+                        await videoFn({ data: { imageUrl: mvImage, prompt: mvPrompt, duration: 5, resolution: "720p", modelKey: mvVideoModel, cameraMovement: "static", endFrameUrl: null } });
+                      } else {
+                        await genFn({ data: { prompt: mvPrompt, imageUrls: [], motionVideoUrl: null, model: "black-forest-labs/flux-1.1-pro" } });
+                      }
+                      markFirstGenComplete();
+                      toast.success("Queued — result will appear in Recent below");
+                      qc.invalidateQueries({ queryKey: ["motion-gens"] });
+                    } catch (e) {
+                      handleGenerationError(e as Error);
+                    }
+                  }}
+                  variant="premium"
+                  className="w-full h-12"
+                >
+                  <Music2 className="size-4 mr-2" /> Generate · {mvDisplayCost} Aura
+                </Button>
+              </section>
+            )}
+
+            {/* Recent results */}
+            {history && history.items.filter((i) => i.status === "complete").length > 0 && (
+              <section className="space-y-3">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Recent</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {history.items.filter((i) => i.status === "complete" && (i.result_video_url ?? i.result_image_url)).slice(0, 6).map((g) => (
+                    <div key={g.id} className="aspect-square rounded-lg overflow-hidden border border-border bg-card/40">
+                      {g.result_video_url ? (
+                        <AutoplayVideo src={g.result_video_url} className="w-full h-full object-cover" loop playsInline />
+                      ) : g.result_image_url ? (
+                        <img src={g.result_image_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground">{g.status}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         )}
 
