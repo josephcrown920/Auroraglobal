@@ -67,6 +67,11 @@ const PRESETS = [
   { id: "gym-mirror", name: "Gym mirror", icon: Dumbbell, hint: "Mirror selfie at the gym, post-workout glow, fluorescent overhead.", video: undefined as unknown as string, poster: undefined as string | undefined },
   { id: "get-ready", name: "Get-ready-with-me", icon: Camera, hint: "Bathroom mirror, ring light, candid morning routine.", video: undefined as unknown as string, poster: realHome.url },
   { id: "tiktok-pov", name: "TikTok POV", icon: Sparkles, hint: "POV holding phone, talking-to-camera framing, 9:16 vertical.", video: undefined as unknown as string, poster: undefined as string | undefined },
+  { id: "street-walk", name: "Street walk product reveal", icon: Film, hint: "Walking on a city sidewalk, golden hour, avatar reveals product from a bag mid-stride — candid handheld, vertical 9:16.", video: demo3.url, poster: undefined as string | undefined },
+  { id: "gym-hold", name: "Gym product hold", icon: Dumbbell, hint: "Post-workout, standing near a squat rack or cable machine, holding the product label-out toward camera — sweat, pump, authentic energy.", video: demo4.url, poster: undefined as string | undefined },
+  { id: "desk-review", name: "Desk setup review", icon: Camera, hint: "Sitting at a clean minimal desk, ring light from front, product placed on desk surface and lifted to camera — YouTube/TikTok reviewer energy.", video: demo5.url, poster: undefined as string | undefined },
+  { id: "outdoor-athlete", name: "Outdoor athlete shot", icon: Dumbbell, hint: "Outside on a track or court, athlete holding product post-workout with golden-hour rim light — high-energy sports brand vibe.", video: demo6.url, poster: undefined as string | undefined },
+  { id: "meme-unbothered", name: "Unbothered product drop", icon: Sparkles, hint: "Sitting or lying back, relaxed and unbothered, casually tossing the product up in the air or inspecting it — deadpan, viral meme energy.", video: undefined as unknown as string, poster: undefined as string | undefined },
 ];
 
 function UGCStudio() {

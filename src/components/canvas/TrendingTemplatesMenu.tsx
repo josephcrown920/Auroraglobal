@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Flame, Mic2, Camera, SplitSquareHorizontal, Palette, Film, ImageIcon, Wand2, Smartphone, Monitor, ShoppingBag, Layout, Aperture, Crown, Lock, Store } from "lucide-react";
+import { Flame, Mic2, Camera, SplitSquareHorizontal, Palette, Film, ImageIcon, Wand2, Smartphone, Monitor, ShoppingBag, Layout, Aperture, Crown, Lock, Store, Bot, Zap, Users } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -85,6 +85,55 @@ const TEMPLATES: TemplateDef[] = [
         ),
       ],
       edges: RESHOOT_ANGLES.map((angle) => ed("in", `angle-${angle.id}`)),
+    }),
+  },
+  {
+    id: "character-dossier",
+    name: "Character Dossier · 360° Shoot",
+    desc: "Drop ONE portrait → generate a full character reference sheet: front, side, back, close-up expression, hand/arm detail, and a signature cinematic pose. Pro-grade identity doc.",
+    icon: Users,
+    tags: ["Selfie", "Image", "Preset"],
+    category: "Portrait & Colors",
+    premium: true,
+    build: () => ({
+      name: "Character Dossier · 360° Shoot",
+      nodes: [
+        mk("in", "input", 40, 600),
+        mk("front", "image", 420, 40, {
+          label: "Front view",
+          prompt: "Clean full-body front-facing character reference: EXACT person from reference, neutral A-pose, arms slightly away from body. Pure white seamless background, even diffused studio lighting. Head-to-toe visible, no shadow, character reference sheet aesthetic. Preserve every detail of face, hair, clothing.",
+          model: "google/gemini-3-pro-image-preview",
+        }),
+        mk("side", "image", 420, 280, {
+          label: "Side profile",
+          prompt: "Clean full-body side profile character reference: EXACT person from reference, 90° left-facing, neutral standing pose. Pure white seamless background, even studio light. Full silhouette visible head-to-toe. Preserve precise face structure, hair, clothing from the reference.",
+          model: "google/gemini-3-pro-image-preview",
+        }),
+        mk("back", "image", 420, 520, {
+          label: "Back view",
+          prompt: "Clean full-body rear-facing character reference: EXACT person from reference shown from behind, neutral standing pose, arms visible at sides. Pure white background, even lighting. Hair, clothing back details and shoes all visible. Character reference sheet style.",
+          model: "google/gemini-3-pro-image-preview",
+        }),
+        mk("face", "image", 420, 760, {
+          label: "Expression close-up",
+          prompt: "Extreme tight close-up portrait of EXACT person from the reference: neutral expression, eyes open, looking straight at camera. Clean white backdrop, diffused Rembrandt lighting. Ultra-sharp skin texture, pore-level detail. Preserve skin tone, eye colour, lip colour, facial structure exactly.",
+          model: "google/gemini-3-pro-image-preview",
+        }),
+        mk("arm", "image", 420, 1000, {
+          label: "Arm / detail",
+          prompt: "Close-up of the arm and hand of the EXACT person from the reference — capturing any tattoos, accessories or distinctive skin detail. Clean studio light from above, white background, sharp focus. Anatomically accurate to the reference's proportions.",
+          model: "google/gemini-3-pro-image-preview",
+        }),
+        mk("signature", "image", 420, 1240, {
+          label: "Signature pose",
+          prompt: "Cinematic full-body signature pose of the EXACT person from the reference: their most expressive, iconic stance — arms crossed, or mid-stride, or pointing to camera. Dark gradient studio background, dramatic three-point studio lighting with violet rim light. Vertical 9:16, editorial quality.",
+          model: "google/gemini-3-pro-image-preview",
+        }),
+      ],
+      edges: [
+        ed("in", "front"), ed("in", "side"), ed("in", "back"),
+        ed("in", "face"), ed("in", "arm"), ed("in", "signature"),
+      ],
     }),
   },
   {
@@ -248,6 +297,56 @@ const TEMPLATES: TemplateDef[] = [
     }),
   },
   {
+    id: "meme-plans-vs-existence",
+    name: "Meme Shot · Plans vs Existence",
+    desc: "Drop ONE selfie → the viral 'my plans vs existence' format: subject lying flat in an urban alley while life carries on around them. Calm, photorealistic, scroll-stopping.",
+    icon: Flame,
+    tags: ["Selfie", "Image", "Preset"],
+    category: "Cinema",
+    build: () => ({
+      name: "Meme Shot · Plans vs Existence",
+      nodes: [
+        mk("in", "input", 40, 60),
+        mk("img", "image", 380, 60, {
+          prompt:
+            "Cinematic wide shot: the EXACT person from the reference photo lying flat on their back on a gritty urban sidewalk/alley, legs crossed at the ankle, arms at sides, completely unbothered — eyes staring at the sky, peaceful expression. The world around them is busy: pigeons walking nearby, a pair of boots stepping over them, city noise implied. Hard overcast city light, slight fisheye-adjacent lens distortion, shot from slightly above looking down at a 45° angle. Photorealistic, editorial quality, hyper-detailed concrete texture. Vertical 9:16 framing. Preserve the person's exact face, skin tone, and clothing.",
+          model: "google/gemini-3-pro-image-preview",
+        }),
+        mk("vid", "video", 760, 60, {
+          prompt: "Slow crane-up reveal: camera pulls up and away from the subject lying on the ground, city life moving around them — pigeons scurrying, feet passing, a coffee cup rolling — subject remains still and unbothered, cinematic city ambiance",
+          model: "seedance-2.0-fast",
+          cameraMovement: "pull_out",
+        }),
+      ],
+      edges: [ed("in", "img"), ed("img", "vid")],
+    }),
+  },
+  {
+    id: "athlete-power-shot",
+    name: "Athlete Power Shot",
+    desc: "Drop ONE selfie → dramatic low-angle athlete hero with studio/arena lighting. Insane for sports brands, gym content, hype reels.",
+    icon: Zap,
+    tags: ["Selfie", "Image", "Video", "Preset"],
+    category: "Cinema",
+    build: () => ({
+      name: "Athlete Power Shot",
+      nodes: [
+        mk("in", "input", 40, 60),
+        mk("img", "image", 380, 60, {
+          prompt:
+            "Dramatic low-angle hero shot of the EXACT person from the reference photo: they stand tall, chest out, jaw set — intense athlete energy. Arena spotlights beam down from above creating a sharp rim light across the shoulders. Deep dark background with faint crowd blur, hard shadows underfoot. Gym chalk or sweat-dust particles catching the light. Shot on a tilt-shift 24mm lens, 4K, dark and epic colour grade — shadow-lift to teal, highlights burned orange. Vertical 9:16. Preserve exact face and physique.",
+          model: "google/gemini-3-pro-image-preview",
+        }),
+        mk("vid", "video", 760, 60, {
+          prompt: "Slow dramatic push-in from a low angle, spotlight beams sweeping the ceiling, chalk dust floating in the air, subject breathing heavily with intensity — cinematic sports hype energy",
+          model: "seedance-2.0-fast",
+          cameraMovement: "push_in",
+        }),
+      ],
+      edges: [ed("in", "img"), ed("img", "vid")],
+    }),
+  },
+  {
     id: "ugc-loop",
     name: "UGC Ad Loop",
     desc: "Talent + product → looping social ad",
@@ -396,6 +495,32 @@ const TEMPLATES: TemplateDef[] = [
         }),
       ],
       edges: [ed("in", "img"), ed("img", "vid")],
+    }),
+  },
+  {
+    id: "product-viral-factory",
+    name: "Product Viral Factory · Claude × Seedance",
+    desc: "Drop your product image → describe it → Claude writes 5 unique viral TikTok hooks → Seedance generates 5 video variants in one click. The full makeUGC pipeline in Canvas.",
+    icon: Bot,
+    tags: ["Product", "Video", "Preset", "Claude"],
+    category: "Product & App",
+    premium: true,
+    build: () => ({
+      name: "Product Viral Factory · Claude × Seedance",
+      nodes: [
+        mk("in", "input", 40, 60),
+        mk("batch", "batchVideo", 420, 60, {
+          productDescription: "",
+          prompt: "person holds the product naturally, authentic creator energy, handheld camera feel",
+          model: "seedance-2.0-fast",
+          variantCount: 5,
+          resolution: "720p",
+          duration: 5,
+          variants: [],
+          claudePrompts: undefined,
+        }),
+      ],
+      edges: [ed("in", "batch")],
     }),
   },
 ];

@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { AUDIO_ACCEPT } from "@/lib/utils";
+import { generateProductVideoHooks } from "@/lib/claude-hooks.functions";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
@@ -65,6 +66,7 @@ import {
   XCircle,
   Layers,
   MoreVertical,
+  Bot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -125,6 +127,9 @@ type NodeData = {
   resolution?: "480p" | "720p" | "1080p" | "2160p";
   duration?: number;
   variants?: BatchVariant[];
+  // Claude-generated per-variant prompts (overrides shared prompt when set)
+  claudePrompts?: string[];
+  productDescription?: string;
   // heygenTemplate-only
   auroraTemplateId?: string;
   talkingPhotoUrl?: string;
@@ -261,6 +266,120 @@ function ComfyNodeControls({ id, data }: { id: string; data: NodeData }) {
         {tpl
           ? `${tpl.kind} · binds upstream image(s) into the graph's image inputs`
           : "Runs a saved ComfyUI graph on your GPU worker."}
+      </p>
+    </>
+  );
+}
+
+function BatchVideoControls({ id, data }: { id: string; data: NodeData }) {
+  const h = useContext(HandlersCtx)!;
+  const claudeFn = useServerFn(generateProductVideoHooks);
+  const [claudeLoading, setClaudeLoading] = useState(false);
+
+  const expandWithClaude = async () => {
+    if (!data.productDescription?.trim()) {
+      toast.error("Describe your product first (use the field above)");
+      return;
+    }
+    setClaudeLoading(true);
+    try {
+      const count = Math.min(6, Math.max(1, data.variantCount ?? 5));
+      const { prompts } = await claudeFn({ data: { productDescription: data.productDescription, count } });
+      h.update(id, { claudePrompts: prompts, variantCount: prompts.length });
+      toast.success(`Claude generated ${prompts.length} unique video hooks`);
+    } catch (e) {
+      handleGenerationError(e);
+    } finally {
+      setClaudeLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="space-y-1.5">
+        <Input
+          value={data.productDescription ?? ""}
+          onChange={(e) => h.update(id, { productDescription: e.target.value })}
+          placeholder="Describe your product (e.g. energy drink, sneakers)"
+          className="h-8 text-xs nodrag bg-black/30 border-white/10"
+          onMouseDownCapture={(e) => e.stopPropagation()}
+        />
+        <button
+          type="button"
+          onClick={expandWithClaude}
+          disabled={claudeLoading || !data.productDescription?.trim()}
+          className="w-full h-7 flex items-center justify-center gap-1.5 rounded-md bg-violet-500/20 hover:bg-violet-500/30 border border-violet-400/30 text-xs text-violet-300 disabled:opacity-50 nodrag transition-colors"
+          onMouseDownCapture={(e) => e.stopPropagation()}
+        >
+          {claudeLoading ? <Loader2 className="size-3 animate-spin" /> : <Bot className="size-3" />}
+          {claudeLoading ? "Claude thinking…" : "Expand with Claude · generate unique hooks"}
+        </button>
+      </div>
+
+      {(data.claudePrompts?.length ?? 0) > 0 && (
+        <div className="rounded-lg bg-violet-500/10 border border-violet-400/20 p-2 space-y-1.5">
+          <p className="text-[9px] font-mono uppercase tracking-wider text-violet-400/70">Claude hooks (per-variant)</p>
+          {data.claudePrompts!.map((p, i) => (
+            <p key={i} className="text-[10px] text-white/70 line-clamp-2">
+              <span className="text-violet-400/60 font-mono mr-1">#{i + 1}</span>{p}
+            </p>
+          ))}
+          <button
+            type="button"
+            onClick={() => h.update(id, { claudePrompts: undefined })}
+            className="text-[10px] text-rose-400/60 hover:text-rose-400 nodrag"
+            onMouseDownCapture={(e) => e.stopPropagation()}
+          >
+            Clear Claude hooks
+          </button>
+        </div>
+      )}
+
+      <Textarea
+        rows={2}
+        value={data.prompt ?? ""}
+        onChange={(e) => h.update(id, { prompt: e.target.value })}
+        placeholder={(data.claudePrompts?.length ?? 0) > 0 ? "Shared fallback (Claude hooks override per-variant)" : "describe the shared motion for every variant"}
+        className="text-xs resize-none nodrag bg-black/30 border-white/10"
+        onMouseDownCapture={(e) => e.stopPropagation()}
+      />
+      <Select value={data.model} onValueChange={(v) => h.update(id, { model: v })}>
+        <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue placeholder="Model" /></SelectTrigger>
+        <SelectContent>
+          {VIDEO_MODEL_LIST.map((m) => (
+            <SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <div className="grid grid-cols-3 gap-2">
+        <Select value={String(data.variantCount ?? 3)} onValueChange={(v) => h.update(id, { variantCount: Number(v) })}>
+          <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {VARIANT_COUNTS.map((c) => (
+              <SelectItem key={c} value={String(c)} className="text-xs">{c} variant{c > 1 ? "s" : ""}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={data.resolution ?? "720p"} onValueChange={(v) => h.update(id, { resolution: v as NodeData["resolution"] })}>
+          <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {RESOLUTION_OPTIONS.map((r) => (
+              <SelectItem key={r} value={r} className="text-xs">{r}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={String(data.duration ?? 5)} onValueChange={(v) => h.update(id, { duration: Number(v) })}>
+          <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {DURATION_OPTIONS.map((d) => (
+              <SelectItem key={d} value={String(d)} className="text-xs">{d}s</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <p className="text-[10px] text-muted-foreground">
+        Fans one image into {data.variantCount ?? 3} independent video renders — each charges &amp; refunds its own credits.
+        {(data.claudePrompts?.length ?? 0) > 0 && " Claude hooks active: each variant uses a unique prompt."}
       </p>
     </>
   );
@@ -517,53 +636,7 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
           {data.kind === "comfy" && <ComfyNodeControls id={id} data={data} />}
           {data.kind === "heygenTemplate" && !data.url && <HeyGenTemplateNodeControls id={id} data={data} />}
           {data.kind === "batchVideo" && (
-            <>
-              <Textarea
-                rows={2}
-                value={data.prompt ?? ""}
-                onChange={(e) => h.update(id, { prompt: e.target.value })}
-                placeholder="describe the shared motion for every variant"
-                className="text-xs resize-none nodrag bg-black/30 border-white/10"
-                onMouseDownCapture={(e) => e.stopPropagation()}
-              />
-              <Select value={data.model} onValueChange={(v) => h.update(id, { model: v })}>
-                <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue placeholder="Model" /></SelectTrigger>
-                <SelectContent>
-                  {VIDEO_MODEL_LIST.map((m) => (
-                    <SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="grid grid-cols-3 gap-2">
-                <Select value={String(data.variantCount ?? 3)} onValueChange={(v) => h.update(id, { variantCount: Number(v) })}>
-                  <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {VARIANT_COUNTS.map((c) => (
-                      <SelectItem key={c} value={String(c)} className="text-xs">{c} variant{c > 1 ? "s" : ""}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={data.resolution ?? "720p"} onValueChange={(v) => h.update(id, { resolution: v as NodeData["resolution"] })}>
-                  <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {RESOLUTION_OPTIONS.map((r) => (
-                      <SelectItem key={r} value={r} className="text-xs">{r}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={String(data.duration ?? 5)} onValueChange={(v) => h.update(id, { duration: Number(v) })}>
-                  <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {DURATION_OPTIONS.map((d) => (
-                      <SelectItem key={d} value={String(d)} className="text-xs">{d}s</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <p className="text-[10px] text-muted-foreground">
-                Fans one image into {data.variantCount ?? 3} independent video renders — each charges &amp; refunds its own credits.
-              </p>
-            </>
+            <BatchVideoControls id={id} data={data} />
           )}
         </div>
       </div>
@@ -1076,7 +1149,7 @@ function CanvasPage() {
               Array.from({ length: count }, (_, i) =>
                 vidFn({ data: {
                   imageUrl: images[0],
-                  prompt: n.data.prompt ?? "natural movement, expressive performance",
+                  prompt: n.data.claudePrompts?.[i] ?? n.data.prompt ?? "natural movement, expressive performance",
                   duration: n.data.duration ?? 5,
                   resolution: n.data.resolution ?? "720p",
                   modelKey: n.data.model ?? VIDEO_MODEL_LIST[0].value,
