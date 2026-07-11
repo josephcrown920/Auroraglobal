@@ -46,3 +46,4 @@ Must be provided by the user:
 ## User preferences
 - User is non-technical. Explain in plain language; avoid jargon.
 - Goal was: pick the best of 3 repos, merge missing features, and run it fully in Replit.
+- Always give selectable options (choice/boolean queries) when asking questions — never a blank text box.
