@@ -159,6 +159,8 @@ const ENV_KEYS = [
   "REPLICATE_API_KEY",
   "LOVABLE_CONNECTOR_REPLICATE_API_KEY",
   "PIAPI_API_KEY",
+  "XAI_API_KEY",
+  "OPENAI_API_KEY",
   // Task #206: Replit AI Integrations is now tried FIRST for image/text/audio.
   // These must be cleared like every other provider key so this file's
   // "nothing can serve the request" scenarios still hold with it unconfigured.
@@ -178,6 +180,8 @@ const PROVIDER_NAMES = [
   "piapi",
   "heygen",
   "fal",
+  "xai",
+  "sora",
 ];
 const savedEnv: Record<string, string | undefined> = {};
 for (const k of ENV_KEYS) savedEnv[k] = process.env[k];
@@ -253,24 +257,28 @@ describe("orchestrate fallback", () => {
     expect(calls.some((c) => c.url.includes(FAL_URL))).toBe(true);
   });
 
-  it("falls across FALLBACK_MODELS (same Replicate provider) and respects FALLBACK_CAP", async () => {
-    process.env.REPLICATE_API_KEY = "r8_test";
-    getReplicateKeyImpl = () => "r8_test";
-    const slugs: string[] = [];
-    replicateRunImpl = async (slug) => {
-      slugs.push(slug);
-      if (slug === "bytedance/seedance-1-lite") throw new Error("Replicate model crashed");
-      return { output: "https://replicate.out/seedance.mp4" };
-    };
+  it("falls across FALLBACK_MODELS to the first available provider and respects FALLBACK_CAP", async () => {
+    // After removing unregistered openai/sora-2, video FALLBACK_MODELS start:
+    //   ["xai/grok-imagine-video-1.5", "ltx/ltx-video", "veo-2", ...]
+    // FALLBACK_CAP.video = 3 → candidates (no explicit model) = [xai, ltx, veo-2].
+    // ltx and veo-2 have no keys in this test → adapters filtered out.
+    // xAI has a key and fetch is mocked → succeeds as the first working candidate.
+    installFakeClock();
+    process.env.XAI_API_KEY = "xai_test";
+    markSuccess("xai");
+    const { calls } = installFetch(({ url, index }) => {
+      if (!url.includes("api.x.ai")) throw new Error(`unexpected fetch ${url}`);
+      if (index === 0) return fakeResponse({ json: { id: "req_xai_1" } }); // create
+      return fakeResponse({ json: { video: { url: "https://xai.out/video.mp4" } } }); // poll
+    });
 
     const req: GenerateRequest = { kind: "video", prompt: "a dragon" };
     const res = await orchestrate(req);
 
-    expect(res.provider).toBe("replicate");
-    expect(res.endpoint).toBe("replicate:bytedance/seedance-1-pro");
-    expect(res.url).toBe("https://replicate.out/seedance.mp4");
-    // FALLBACK_CAP.video === 2 → exactly the first two video models were tried.
-    expect(slugs).toEqual(["bytedance/seedance-1-lite", "bytedance/seedance-1-pro"]);
+    expect(res.provider).toBe("xai");
+    expect(res.url).toBe("https://xai.out/video.mp4");
+    // Only api.x.ai was ever contacted (create + one poll round).
+    expect(calls.every((c) => c.url.includes("api.x.ai"))).toBe(true);
   });
 
   it("returns generated text from a text-modality provider (Pollinations, keyless)", async () => {

@@ -181,7 +181,7 @@ describe("getCandidateModels", () => {
     expect(getCandidateModels({ kind: "video", prompt: "x", model: "kling-3.0" })).toEqual([
       "kling-3.0",
       "xai/grok-imagine-video-1.5",
-      "seedance-2.0-fast",
+      "ltx/ltx-video",
     ]);
   });
 
