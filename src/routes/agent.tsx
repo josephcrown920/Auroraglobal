@@ -211,9 +211,14 @@ function AgentPage() {
       return generateTplFn({
         data: {
           auroraTemplateId: tpl.id,
-          ...(gMode === "photo"
-            ? { talkingPhotoUrl: photo! }
-            : { avatarId: avatar! }),
+          character: {
+            name: tpl.character_variable_key,
+            type: "character" as const,
+            properties: {
+              type: gMode === "photo" ? "talking_photo" : "avatar",
+              character_id: gMode === "photo" ? photo! : avatar!,
+            },
+          },
         },
       });
     },
