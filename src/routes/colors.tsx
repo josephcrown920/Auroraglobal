@@ -733,63 +733,51 @@ function ColorsStudio() {
                     type="button"
                     onClick={() => setSetup(s.id)}
                     className={cn(
-                      "group rounded-xl border overflow-hidden text-left transition-all",
-                      active ? "border-primary shadow-[var(--shadow-glow)]" : "border-border hover:border-primary/40",
+                      "group relative aspect-[4/3] rounded-2xl overflow-hidden text-left transition-all",
+                      active ? "ring-2 ring-primary shadow-[0_0_28px_oklch(0.78_0.18_305/0.45)]" : "ring-1 ring-white/10 hover:ring-primary/50",
                     )}
+                    style={{ background: s.preview(selectedColor.swatch) }}
                   >
-                    <div
-                      className="relative aspect-[4/3] w-full overflow-hidden"
-                      style={{ background: s.preview(selectedColor.swatch) }}
-                    >
-                      {STUDIO_BACKDROP_KINDS.has(s.kind) ? (
-                        <>
-                          {/* Real, per-color animated COLORS studio set. */}
-                          <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-[1.03]">
-                            <ColorStudioBackdrop
-                              colorId={selectedColor.id}
-                              label={`${selectedColor.name} ${s.name} studio`}
-                              preload={active ? "auto" : "metadata"}
-                            />
-                          </div>
-                          <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/70 to-transparent" />
-                        </>
-                      ) : (
-                        <>
-                          {/* Photoreal scene set, washed in the selected color like a lighting gel. */}
-                          <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-[1.03]">
-                            <img
-                              src={getSetupScene(s.id)}
-                              alt={`${s.name} scene set`}
-                              loading="lazy"
-                              className="absolute inset-0 size-full object-cover"
-                            />
-                          </div>
-                          <div
-                            aria-hidden
-                            className="absolute inset-0 mix-blend-overlay pointer-events-none"
-                            style={{
-                              background: `radial-gradient(ellipse at 50% 85%, ${selectedColor.swatch}dd 0%, transparent 65%)`,
-                            }}
+                    {STUDIO_BACKDROP_KINDS.has(s.kind) ? (
+                      <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-[1.04]">
+                        <ColorStudioBackdrop
+                          colorId={selectedColor.id}
+                          label={`${selectedColor.name} ${s.name} studio`}
+                          preload={active ? "auto" : "metadata"}
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-[1.04]">
+                          <img
+                            src={getSetupScene(s.id)}
+                            alt={`${s.name} scene set`}
+                            loading="lazy"
+                            className="absolute inset-0 size-full object-cover"
                           />
-                          <div
-                            aria-hidden
-                            className="absolute inset-0 pointer-events-none"
-                            style={{
-                              background: `linear-gradient(180deg, transparent 40%, ${selectedColor.swatch}40 100%)`,
-                            }}
-                          />
-                          <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/70 to-transparent" />
-                        </>
-                      )}
-                      {active && (
-                        <div className="absolute top-1.5 right-1.5 size-5 rounded-full bg-background/95 flex items-center justify-center z-10">
-                          <Check className="size-3 text-primary" />
                         </div>
-                      )}
-                    </div>
-                    <div className="px-2.5 py-2">
-                      <div className="text-xs font-medium">{s.name}</div>
-                      <div className="text-[10px] text-muted-foreground line-clamp-2">{s.description}</div>
+                        <div
+                          aria-hidden
+                          className="absolute inset-0 mix-blend-overlay pointer-events-none"
+                          style={{ background: `radial-gradient(ellipse at 50% 85%, ${selectedColor.swatch}dd 0%, transparent 65%)` }}
+                        />
+                      </>
+                    )}
+
+                    {/* Dark gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+                    {/* Selected badge */}
+                    {active && (
+                      <div className="absolute top-2.5 right-2.5 size-6 rounded-full bg-primary flex items-center justify-center z-10">
+                        <Check className="size-3 text-white" />
+                      </div>
+                    )}
+
+                    {/* Text overlay */}
+                    <div className="absolute bottom-0 inset-x-0 p-3 z-10">
+                      <div className="font-bold text-white text-sm leading-snug mb-0.5">{s.name}</div>
+                      <div className="text-[10px] text-white/55 line-clamp-1">{s.description} →</div>
                     </div>
                   </button>
                 );

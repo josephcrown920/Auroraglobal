@@ -297,36 +297,47 @@ function UGCStudio() {
         {/* Preset gallery */}
         <div className="mt-12">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4">2. Pick a scene</h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {PRESETS.map(p => (
               <button
                 key={p.id}
                 onClick={() => setPresetId(p.id)}
                 aria-pressed={p.id === presetId}
-                className={`aurora-card-hover text-left rounded-xl border bg-card hover:border-primary transition group overflow-hidden ${p.id === presetId ? "border-primary shadow-[0_0_24px_oklch(0.78_0.18_305/0.35)]" : "border-border"}`}
+                className={`group relative aspect-[4/3] rounded-2xl overflow-hidden text-left transition-all ${p.id === presetId ? "ring-2 ring-primary shadow-[0_0_28px_oklch(0.78_0.18_305/0.45)]" : "ring-1 ring-white/10 hover:ring-primary/50"}`}
               >
-                <div className="aspect-video bg-black/40 overflow-hidden">
-                  {p.poster ? (
-                    <img src={p.poster} alt={p.name} loading="lazy" className="w-full h-full object-cover opacity-95 group-hover:opacity-100 transition" />
-                  ) : p.video ? (
+                {/* Background media */}
+                {p.poster ? (
+                  <img src={p.poster} alt={p.name} loading="lazy" className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
+                ) : p.video ? (
                   <AutoplayVideo
                     src={p.video}
                     loop
                     playsInline
                     preload="metadata"
-                    className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition"
+                    className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
                   />
-                  ) : (
-                    <div className="w-full h-full grid place-items-center bg-gradient-to-br from-primary/30 via-background to-background">
-                      <p.icon className="h-10 w-10 text-primary/80" />
-                    </div>
-                  )}
-                </div>
-                <div className="p-5">
-                  <p.icon className="h-6 w-6 text-primary mb-3" />
-                  <h3 className="font-semibold group-hover:text-primary">{p.name}</h3>
-                  <p className="text-xs text-muted-foreground mt-1">{p.hint}</p>
-                  <p className="text-[11px] text-primary/80 mt-3">{p.id === presetId ? `✓ Selected · paired with ${avatar.name}` : `Tap to pair with ${avatar.name}`}</p>
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/40 via-background/80 to-background flex items-center justify-center">
+                    <p.icon className="h-12 w-12 text-primary/60" />
+                  </div>
+                )}
+
+                {/* Dark gradient overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+                {/* Selected badge */}
+                {p.id === presetId && (
+                  <div className="absolute top-2.5 right-2.5 size-6 rounded-full bg-primary flex items-center justify-center z-10">
+                    <svg className="size-3 text-white" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
+                )}
+
+                {/* Text overlay */}
+                <div className="absolute bottom-0 inset-x-0 p-4 z-10">
+                  <h3 className="font-bold text-white text-sm leading-snug mb-0.5">{p.name}</h3>
+                  <p className="text-[11px] text-white/60">
+                    {p.id === presetId ? `✓ Selected · ${avatar.name} →` : `${p.hint.split(",")[0]} →`}
+                  </p>
                 </div>
               </button>
             ))}
