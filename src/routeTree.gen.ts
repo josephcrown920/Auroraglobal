@@ -43,6 +43,7 @@ import { Route as ColorsRouteImport } from './routes/colors'
 import { Route as ClipsRouteImport } from './routes/clips'
 import { Route as CanvasRouteImport } from './routes/canvas'
 import { Route as BillingRouteImport } from './routes/billing'
+import { Route as AvatarRouteImport } from './routes/avatar'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AgentRouteImport } from './routes/agent'
 import { Route as AffiliateRouteImport } from './routes/affiliate'
@@ -246,6 +247,11 @@ const BillingRoute = BillingRouteImport.update({
   path: '/billing',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AvatarRoute = AvatarRouteImport.update({
+  id: '/avatar',
+  path: '/avatar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -418,6 +424,7 @@ export interface FileRoutesByFullPath {
   '/affiliate': typeof AffiliateRoute
   '/agent': typeof AgentRoute
   '/auth': typeof AuthRoute
+  '/avatar': typeof AvatarRoute
   '/billing': typeof BillingRoute
   '/canvas': typeof CanvasRoute
   '/clips': typeof ClipsRoute
@@ -486,6 +493,7 @@ export interface FileRoutesByTo {
   '/affiliate': typeof AffiliateRoute
   '/agent': typeof AgentRoute
   '/auth': typeof AuthRoute
+  '/avatar': typeof AvatarRoute
   '/billing': typeof BillingRoute
   '/canvas': typeof CanvasRoute
   '/clips': typeof ClipsRoute
@@ -555,6 +563,7 @@ export interface FileRoutesById {
   '/affiliate': typeof AffiliateRoute
   '/agent': typeof AgentRoute
   '/auth': typeof AuthRoute
+  '/avatar': typeof AvatarRoute
   '/billing': typeof BillingRoute
   '/canvas': typeof CanvasRoute
   '/clips': typeof ClipsRoute
@@ -625,6 +634,7 @@ export interface FileRouteTypes {
     | '/affiliate'
     | '/agent'
     | '/auth'
+    | '/avatar'
     | '/billing'
     | '/canvas'
     | '/clips'
@@ -693,6 +703,7 @@ export interface FileRouteTypes {
     | '/affiliate'
     | '/agent'
     | '/auth'
+    | '/avatar'
     | '/billing'
     | '/canvas'
     | '/clips'
@@ -761,6 +772,7 @@ export interface FileRouteTypes {
     | '/affiliate'
     | '/agent'
     | '/auth'
+    | '/avatar'
     | '/billing'
     | '/canvas'
     | '/clips'
@@ -830,6 +842,7 @@ export interface RootRouteChildren {
   AffiliateRoute: typeof AffiliateRoute
   AgentRoute: typeof AgentRoute
   AuthRoute: typeof AuthRoute
+  AvatarRoute: typeof AvatarRoute
   BillingRoute: typeof BillingRoute
   CanvasRoute: typeof CanvasRoute
   ClipsRoute: typeof ClipsRoute
@@ -1127,6 +1140,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BillingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/avatar': {
+      id: '/avatar'
+      path: '/avatar'
+      fullPath: '/avatar'
+      preLoaderRoute: typeof AvatarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -1380,6 +1400,7 @@ const rootRouteChildren: RootRouteChildren = {
   AffiliateRoute: AffiliateRoute,
   AgentRoute: AgentRoute,
   AuthRoute: AuthRoute,
+  AvatarRoute: AvatarRoute,
   BillingRoute: BillingRoute,
   CanvasRoute: CanvasRoute,
   ClipsRoute: ClipsRoute,

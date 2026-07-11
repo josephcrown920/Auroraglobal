@@ -20,6 +20,7 @@ import {
   Sun,
   Moon,
   Clapperboard,
+  UserCircle2,
   Code2,
   CreditCard,
   Wand2,
@@ -69,6 +70,7 @@ const TEMPLATE_FEATURES: Feature[] = [
   { to: "/motion",           label: "Perform Anywhere",  icon: Wand2 },
   { to: "/colors",           label: "Colors Studio",     icon: Palette },
   { to: "/music-video",      label: "Lyric Video",       icon: Clapperboard },
+  { to: "/avatar",           label: "Talking Avatars",   icon: UserCircle2 },
   { to: "/heygen-templates", label: "HeyGen Templates",  icon: Film },
 ];
 
