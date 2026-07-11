@@ -81,6 +81,7 @@ export const generateFromPlatformTemplate = createServerFn({ method: "POST" })
       .object({
         templateId: z.string().min(1),
         script: z.string().min(1).max(2000),
+        voiceId: z.string().optional(),
       })
       .parse(d),
   )
@@ -101,7 +102,7 @@ export const generateFromPlatformTemplate = createServerFn({ method: "POST" })
         pinnedModelOnly: true,
         params: {
           avatarId: template.avatarId,
-          voiceId: template.voiceId ?? "m3Fp8hA8nS1Gc1Ne9FIf",
+          voiceId: data.voiceId ?? template.voiceId ?? "m3Fp8hA8nS1Gc1Ne9FIf",
         },
       });
       if (!outcome.ok)
