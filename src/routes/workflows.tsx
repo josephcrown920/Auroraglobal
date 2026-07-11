@@ -78,7 +78,7 @@ function WorkflowsPage() {
             <Sparkles className="h-4 w-4 text-primary" />
             <h2 className="aurora-kicker">Featured templates</h2>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-3">
             {FEATURED_TEMPLATES.map((tpl) => (
               <button
                 key={tpl.slug}
@@ -91,16 +91,25 @@ function WorkflowsPage() {
                     toast.error("Sign in to save templates");
                   }
                 }}
-                className="group text-left overflow-hidden aurora-card aurora-card-hover"
+                className="group relative aspect-[4/3] rounded-2xl overflow-hidden text-left transition-all ring-1 ring-white/10 hover:ring-primary/50"
               >
-                <div className={`h-20 bg-gradient-to-br ${tpl.accent} relative flex items-end p-3`}>
-                  <tpl.icon className="h-6 w-6 text-white drop-shadow" />
+                {/* Full-bleed gradient background */}
+                <div className={`absolute inset-0 bg-gradient-to-br ${tpl.accent} transition-transform duration-500 group-hover:scale-[1.04]`} />
+
+                {/* Dark overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+
+                {/* Icon top-left */}
+                <div className="absolute top-4 left-4 size-9 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center">
+                  <tpl.icon className="size-5 text-white drop-shadow" />
                 </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-sm group-hover:text-primary transition-colors">{tpl.name}</h3>
-                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{tpl.description}</p>
-                  <p className="text-[11px] text-primary/80 mt-2 inline-flex items-center gap-1">
-                    <Plus className="h-3 w-3" /> Use template
+
+                {/* Text overlay bottom */}
+                <div className="absolute bottom-0 inset-x-0 p-4">
+                  <h3 className="font-bold text-white text-sm leading-snug mb-0.5">{tpl.name}</h3>
+                  <p className="text-[11px] text-white/60 line-clamp-1">{tpl.description}</p>
+                  <p className="text-[10px] text-white/40 mt-1.5 inline-flex items-center gap-1">
+                    <Plus className="size-3" /> Use template →
                   </p>
                 </div>
               </button>

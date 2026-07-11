@@ -297,7 +297,7 @@ function UGCStudio() {
         {/* Preset gallery */}
         <div className="mt-12">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4">2. Pick a scene</h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {PRESETS.map(p => (
               <button
                 key={p.id}
