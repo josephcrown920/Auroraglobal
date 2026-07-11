@@ -81,42 +81,42 @@ const WorkflowsRoute = WorkflowsRouteImport.update({
   id: '/workflows',
   path: '/workflows',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/workflows.lazy').then((d) => d.Route))
 const UgcRoute = UgcRouteImport.update({
   id: '/ugc',
   path: '/ugc',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/ugc.lazy').then((d) => d.Route))
 const TiktokRoute = TiktokRouteImport.update({
   id: '/tiktok',
   path: '/tiktok',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/tiktok.lazy').then((d) => d.Route))
 const TemplatesRoute = TemplatesRouteImport.update({
   id: '/templates',
   path: '/templates',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/templates.lazy').then((d) => d.Route))
 const StudioRoute = StudioRouteImport.update({
   id: '/studio',
   path: '/studio',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/studio.lazy').then((d) => d.Route))
 const SplitRealityRoute = SplitRealityRouteImport.update({
   id: '/split-reality',
   path: '/split-reality',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/split-reality.lazy').then((d) => d.Route))
 const SpinRoute = SpinRouteImport.update({
   id: '/spin',
   path: '/spin',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/spin.lazy').then((d) => d.Route))
 const SpeechRoute = SpeechRouteImport.update({
   id: '/speech',
   path: '/speech',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/speech.lazy').then((d) => d.Route))
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -126,132 +126,136 @@ const RoadmapRoute = RoadmapRouteImport.update({
   id: '/roadmap',
   path: '/roadmap',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/roadmap.lazy').then((d) => d.Route))
 const ReshootRoute = ReshootRouteImport.update({
   id: '/reshoot',
   path: '/reshoot',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/reshoot.lazy').then((d) => d.Route))
 const PhotoEditRoute = PhotoEditRouteImport.update({
   id: '/photo-edit',
   path: '/photo-edit',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/photo-edit.lazy').then((d) => d.Route))
 const OrchestrateRoute = OrchestrateRouteImport.update({
   id: '/orchestrate',
   path: '/orchestrate',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/orchestrate.lazy').then((d) => d.Route))
 const NexusarbRoute = NexusarbRouteImport.update({
   id: '/nexusarb',
   path: '/nexusarb',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/nexusarb.lazy').then((d) => d.Route))
 const MusicVideoRoute = MusicVideoRouteImport.update({
   id: '/music-video',
   path: '/music-video',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/music-video.lazy').then((d) => d.Route))
 const MotionRoute = MotionRouteImport.update({
   id: '/motion',
   path: '/motion',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/motion.lazy').then((d) => d.Route))
 const MarketplaceRoute = MarketplaceRouteImport.update({
   id: '/marketplace',
   path: '/marketplace',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/marketplace.lazy').then((d) => d.Route))
 const LipsyncRoute = LipsyncRouteImport.update({
   id: '/lipsync',
   path: '/lipsync',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/lipsync.lazy').then((d) => d.Route))
 const KidsRoute = KidsRouteImport.update({
   id: '/kids',
   path: '/kids',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/kids.lazy').then((d) => d.Route))
 const HeygenTemplatesRoute = HeygenTemplatesRouteImport.update({
   id: '/heygen-templates',
   path: '/heygen-templates',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() =>
+  import('./routes/heygen-templates.lazy').then((d) => d.Route),
+)
 const GrowthRoute = GrowthRouteImport.update({
   id: '/growth',
   path: '/growth',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/growth.lazy').then((d) => d.Route))
 const GiftsRoute = GiftsRouteImport.update({
   id: '/gifts',
   path: '/gifts',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/gifts.lazy').then((d) => d.Route))
 const GalleryRoute = GalleryRouteImport.update({
   id: '/gallery',
   path: '/gallery',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/gallery.lazy').then((d) => d.Route))
 const EditorRoute = EditorRouteImport.update({
   id: '/editor',
   path: '/editor',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/editor.lazy').then((d) => d.Route))
 const EditRoute = EditRouteImport.update({
   id: '/edit',
   path: '/edit',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/edit.lazy').then((d) => d.Route))
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/dashboard.lazy').then((d) => d.Route))
 const ContentMachineRoute = ContentMachineRouteImport.update({
   id: '/content-machine',
   path: '/content-machine',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() =>
+  import('./routes/content-machine.lazy').then((d) => d.Route),
+)
 const ContactRoute = ContactRouteImport.update({
   id: '/contact',
   path: '/contact',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/contact.lazy').then((d) => d.Route))
 const ConnectRoute = ConnectRouteImport.update({
   id: '/connect',
   path: '/connect',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/connect.lazy').then((d) => d.Route))
 const ComfyRoute = ComfyRouteImport.update({
   id: '/comfy',
   path: '/comfy',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/comfy.lazy').then((d) => d.Route))
 const ColorsRoute = ColorsRouteImport.update({
   id: '/colors',
   path: '/colors',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/colors.lazy').then((d) => d.Route))
 const ClipsRoute = ClipsRouteImport.update({
   id: '/clips',
   path: '/clips',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/clips.lazy').then((d) => d.Route))
 const CanvasRoute = CanvasRouteImport.update({
   id: '/canvas',
   path: '/canvas',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/canvas.lazy').then((d) => d.Route))
 const BillingRoute = BillingRouteImport.update({
   id: '/billing',
   path: '/billing',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/billing.lazy').then((d) => d.Route))
 const AvatarRoute = AvatarRouteImport.update({
   id: '/avatar',
   path: '/avatar',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/avatar.lazy').then((d) => d.Route))
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -261,17 +265,17 @@ const AgentRoute = AgentRouteImport.update({
   id: '/agent',
   path: '/agent',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/agent.lazy').then((d) => d.Route))
 const AffiliateRoute = AffiliateRouteImport.update({
   id: '/affiliate',
   path: '/affiliate',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/affiliate.lazy').then((d) => d.Route))
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/admin.lazy').then((d) => d.Route))
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -306,7 +310,9 @@ const CreatorDashboardRoute = CreatorDashboardRouteImport.update({
   id: '/creator/dashboard',
   path: '/creator/dashboard',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() =>
+  import('./routes/creator.dashboard.lazy').then((d) => d.Route),
+)
 const CliAuthorizeRoute = CliAuthorizeRouteImport.update({
   id: '/cli/authorize',
   path: '/cli/authorize',
