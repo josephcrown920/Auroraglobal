@@ -497,6 +497,63 @@ const heygenPhotoVideo: ProviderAdapter = {
   },
 };
 
+// ─── HeyGen Avatar Template — POST /v3/videos type:"avatar" ─────────────────
+// Takes avatar_id + voice_id + script text; HeyGen handles TTS internally so
+// no audioUrl is required. Pinned-only (pinnedModelOnly:true), never a fallback.
+const heygenAvatarTemplate: ProviderAdapter = {
+  name: "heygen",
+  supports: (r) =>
+    r.kind === "lipsync" &&
+    r.model === "heygen/avatar" &&
+    typeof r.params?.avatarId === "string" &&
+    !!(r.params.avatarId as string).trim() &&
+    !!r.prompt &&
+    !!process.env.HEYGEN_API_KEY,
+  estimateCost: () => 0.4,
+  async run(r) {
+    const avatarId = (r.params?.avatarId as string | undefined)?.trim();
+    const voiceId = (r.params?.voiceId as string | undefined) ?? "m3Fp8hA8nS1Gc1Ne9FIf";
+    if (!avatarId) throw new Error("heygen avatar: avatarId required");
+    if (!r.prompt) throw new Error("heygen avatar: script/prompt required");
+    const key = process.env.HEYGEN_API_KEY!;
+
+    const create = await fetch("https://api.heygen.com/v3/videos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Api-Key": key },
+      body: JSON.stringify({
+        type: "avatar",
+        avatar_id: avatarId,
+        voice_id: voiceId,
+        script: r.prompt,
+      }),
+    });
+    if (!create.ok)
+      throw new Error(`HeyGen avatar ${create.status}: ${(await create.text()).slice(0, 200)}`);
+    const cj = (await create.json()) as { data?: { video_id?: string } };
+    const videoId = cj?.data?.video_id;
+    if (!videoId) throw new Error("HeyGen avatar returned no video_id");
+
+    const deadline = Date.now() + 10 * 60_000;
+    while (Date.now() < deadline) {
+      await new Promise((s) => setTimeout(s, 5000));
+      const st = await fetch(`https://api.heygen.com/v3/videos/${videoId}`, {
+        headers: { "X-Api-Key": key },
+      });
+      if (!st.ok) continue;
+      const sj = (await st.json()) as { data?: { status?: string; video_url?: string; error?: string } };
+      const status = sj?.data?.status;
+      if (status === "completed") {
+        const url = sj?.data?.video_url;
+        if (!url) throw new Error("HeyGen avatar: no video url in completed response");
+        return { url, endpoint: "heygen:avatar-template" };
+      }
+      if (status === "failed")
+        throw new Error(`HeyGen avatar failed: ${sj?.data?.error ?? "unknown"}`);
+    }
+    throw new Error("HeyGen avatar poll timeout (10 min)");
+  },
+};
+
 // ─── HeyGen Template render (Task #275 — "Aurora Template") ─────────────────
 // POST /v2/template/{template_id}/generate: renders an EXISTING HeyGen
 // template with a variables map (the Aurora Template flow swaps just the
@@ -2560,7 +2617,7 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
     piapi,
     falFallback,
   ],
-  lipsync: [gpuWorker, sync, heygen, heygenPhotoVideo, replicate, falFallback],
+  lipsync: [gpuWorker, sync, heygen, heygenPhotoVideo, heygenAvatarTemplate, replicate, falFallback],
   // GPU-first: a worker advertising "upscale" is tried before Replicate.
   upscale: [gpuWorker, replicate, falFallback],
   // Motion transfer: GPU/ComfyUI workers first (MimicMotion), then xAI image-to-video
