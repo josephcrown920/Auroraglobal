@@ -3,6 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { orchestrate } from "./orchestrator.server";
+import { refinePlan } from "./agent-loop.server";
 
 // Test fixtures (existing CDN assets)
 const TEST_SELFIE_URL = "https://aurora-sparkle-charm.lovable.app/__l5e/assets-v1/24c6484d-42b7-4d6c-8d1d-aeeb71a19d30/josh-yellow-mic.jpg";
@@ -17,6 +18,8 @@ const STEPS = [
   "CLI (npm package)",
   "Colors studio",
   "Motion control",
+  "HeyGen template",
+  "Aurora agent (plan)",
 ] as const;
 
 async function assertAdmin(userId: string) {
@@ -203,12 +206,83 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       await writeCheck(run.id, 8, STEPS[7], r8);
       total += r8.cost_usd;
 
+      // 9. HeyGen template — find any template owned by this admin user and attempt
+      //    a generate. Skipped when HEYGEN_API_KEY is absent or no templates saved.
+      //    aurora_templates is not yet in the generated Supabase types so we cast.
+      type SmokeAuroraTemplate = {
+        id: string; name: string; heygen_template_id: string;
+        character_variable_key: string; fixed_variables: Record<string, unknown>;
+      };
+      type SmokeTemplatesTable = {
+        from: (t: "aurora_templates") => {
+          select: (c: string) => {
+            eq: (col: string, val: string) => {
+              limit: (n: number) => {
+                maybeSingle: () => Promise<{ data: SmokeAuroraTemplate | null; error: unknown }>;
+              };
+            };
+          };
+        };
+      };
+      const _tdb = supabaseAdmin as unknown as SmokeTemplatesTable;
+      const r9: StepResult = await (async (): Promise<StepResult> => {
+        if (!process.env.HEYGEN_API_KEY) {
+          return { status: "skip", latency_ms: 0, cost_usd: 0, error: "HEYGEN_API_KEY not configured" };
+        }
+        const { data: tpl } = await _tdb
+          .from("aurora_templates")
+          .select("id, name, heygen_template_id, character_variable_key, fixed_variables")
+          .eq("user_id", context.userId)
+          .limit(1)
+          .maybeSingle();
+        if (!tpl) {
+          return { status: "skip", latency_ms: 0, cost_usd: 0, error: "No Aurora templates saved — add one at /heygen-templates first" };
+        }
+        return runStep(async () => {
+          const variables = {
+            ...tpl.fixed_variables,
+            [tpl.character_variable_key]: {
+              name: tpl.character_variable_key,
+              type: "character" as const,
+              properties: { type: "talking_photo", character_id: TEST_SELFIE_URL },
+            },
+          };
+          const out = await orchestrate({
+            kind: "video",
+            prompt: `smoke test: HeyGen template "${tpl.name}"`,
+            model: "heygen/template",
+            params: { templateId: tpl.heygen_template_id, variables },
+            userId: context.userId,
+            refId: run.id,
+          });
+          return { url: out.url, cost: out.costUsd, raw: { provider: out.provider, templateId: tpl.heygen_template_id } };
+        });
+      })();
+      await writeCheck(run.id, 9, STEPS[8], r9);
+      total += r9.cost_usd;
+
+      // 10. Aurora Agent — LLM planning loop (no HeyGen spend needed; just verifies
+      //     the director→critic refinement cycle returns a usable shot plan).
+      const r10 = await runStep(async () => {
+        const result = await refinePlan({
+          brief: "smoke test: one-shot cinematic portrait, studio backdrop",
+          maxIterations: 1,
+        });
+        if (!result.plan.shots?.length) throw new Error("Agent plan returned 0 shots");
+        return {
+          url: undefined,
+          cost: 0,
+          raw: { shots: result.plan.shots.length, score: result.finalScore, stopReason: result.stopReason },
+        };
+      });
+      await writeCheck(run.id, 10, STEPS[9], r10);
+
       await supabaseAdmin
         .from("smoke_runs")
         .update({
           finished_at: new Date().toISOString(),
           total_cost_usd: total,
-          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8].filter(r => r.status === "pass").length, total: 8 } as never,
+          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10].filter(r => r.status === "pass").length, total: 10 } as never,
         })
         .eq("id", run.id);
     })().catch(async (e) => {

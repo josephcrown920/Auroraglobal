@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { COMPANY } from "@/lib/legal";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
