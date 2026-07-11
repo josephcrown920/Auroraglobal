@@ -41,7 +41,7 @@ import {
   generateAuroraTemplateVideo,
   type AuroraTemplateRow,
 } from "@/lib/aurora-templates.functions";
-import { MODEL_LIST, VIDEO_MODEL_LIST, getModelMeta } from "@/lib/models";
+import { MODEL_LIST, VIDEO_MODEL_LIST, getModelMeta, AUTO_MODEL_OPTIONS, resolveAutoModel } from "@/lib/models";
 import {
   Sparkles,
   Play,
@@ -574,6 +574,9 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
                 <Select value={data.model} onValueChange={(v) => h.update(id, { model: v })}>
                   <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    {AUTO_MODEL_OPTIONS.map((a) => (
+                      <SelectItem key={a.value} value={a.value} className="text-xs font-semibold text-violet-300">{a.label}</SelectItem>
+                    ))}
                     {MODEL_LIST.map((m) => (
                       <SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>
                     ))}
@@ -585,6 +588,9 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
                   <Select value={data.model} onValueChange={(v) => h.update(id, { model: v })}>
                     <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue placeholder="Model" /></SelectTrigger>
                     <SelectContent>
+                      {AUTO_MODEL_OPTIONS.map((a) => (
+                        <SelectItem key={a.value} value={a.value} className="text-xs font-semibold text-violet-300">{a.label}</SelectItem>
+                      ))}
                       {VIDEO_MODEL_LIST.map((m) => (
                         <SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>
                       ))}
@@ -608,6 +614,9 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
               <Select value={data.model ?? "fal-ai/sync-lipsync/v2"} onValueChange={(v) => h.update(id, { model: v })}>
                 <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
                 <SelectContent>
+                  {AUTO_MODEL_OPTIONS.map((a) => (
+                    <SelectItem key={a.value} value={a.value} className="text-xs font-semibold text-violet-300">{a.label}</SelectItem>
+                  ))}
                   <SelectItem value="fal-ai/sync-lipsync/v2" className="text-xs">Sync 1.9 (premium)</SelectItem>
                   <SelectItem value="fal-ai/wav2lip" className="text-xs">Wav2Lip (fast)</SelectItem>
                   <SelectItem value="latentsync" className="text-xs">LatentSync (self-hosted)</SelectItem>
@@ -1044,7 +1053,7 @@ function CanvasPage() {
               prompt: n.data.prompt ?? "cinematic portrait",
               imageUrls: images,
               motionVideoUrl: null,
-              model: n.data.model ?? MODEL_LIST[0].value,
+              model: resolveAutoModel(n.data.model ?? MODEL_LIST[0].value, "image"),
             } });
             resolved.set(id, { url: res.resultUrl, kind: "image" });
             update(id, { status: "done", url: res.resultUrl });
@@ -1057,9 +1066,9 @@ function CanvasPage() {
     prompt: n.data.prompt ?? "natural movement",
     duration: 5,
     resolution: "720p",
-    modelKey: n.data.model ?? VIDEO_MODEL_LIST[0].value,
+    modelKey: resolveAutoModel(n.data.model ?? VIDEO_MODEL_LIST[0].value, "video"),
     cameraMovement: n.data.cameraMovement ?? "static",
-    endFrameUrl: endFrame,  // ✅ Pass end frame if available
+    endFrameUrl: endFrame,
   } });
             resolved.set(id, { url: res.videoUrl, kind: "video" });
             update(id, { status: "done", url: res.videoUrl });
@@ -1088,7 +1097,7 @@ function CanvasPage() {
             const res = await lipFn({ data: {
               videoUrl,
               audioUrl: audios[0],
-              model: (n.data.model as "fal-ai/sync-lipsync/v2" | "fal-ai/wav2lip" | "latentsync") ?? "fal-ai/sync-lipsync/v2",
+              model: resolveAutoModel(n.data.model ?? "fal-ai/sync-lipsync/v2", "lipsync") as "fal-ai/sync-lipsync/v2" | "fal-ai/wav2lip" | "latentsync",
             } });
             resolved.set(id, { url: res.videoUrl, kind: "lipsync" });
             update(id, { status: "done", url: res.videoUrl });
@@ -1152,7 +1161,7 @@ function CanvasPage() {
                   prompt: n.data.claudePrompts?.[i] ?? n.data.prompt ?? "natural movement, expressive performance",
                   duration: n.data.duration ?? 5,
                   resolution: n.data.resolution ?? "720p",
-                  modelKey: n.data.model ?? VIDEO_MODEL_LIST[0].value,
+                  modelKey: resolveAutoModel(n.data.model ?? VIDEO_MODEL_LIST[0].value, "video"),
                   cameraMovement: "static",
                   endFrameUrl: null,
                 } }).then((res) => {
