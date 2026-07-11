@@ -17,7 +17,12 @@ import {
   templateCost,
   GENERATE_ALL_COST,
 } from "@/lib/platform-template.functions";
-import { PLATFORM_TEMPLATES, type PlatformTemplate } from "@/lib/platform-templates";
+import {
+  PLATFORM_TEMPLATES,
+  FEATURED_TEMPLATES,
+  OTHER_TEMPLATES,
+  type PlatformTemplate,
+} from "@/lib/platform-templates";
 import { writeAvatarScript, improveAvatarScript } from "@/lib/avatar-script.functions";
 import { toast } from "sonner";
 import {
@@ -91,7 +96,7 @@ function AvatarStudioPage() {
   // ── studio state ────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<StudioTab>("script");
   const [script, setScript] = useState("");
-  const [selectedId, setSelectedId] = useState(PLATFORM_TEMPLATES[0].id);
+  const [selectedId, setSelectedId] = useState("heygen-loop");
   const [selectedVoice, setSelectedVoice] = useState<VoiceId>("m3Fp8hA8nS1Gc1Ne9FIf");
   const [cardStates, setCardStates] = useState<Record<string, CardState>>(
     Object.fromEntries(PLATFORM_TEMPLATES.map((t) => [t.id, { status: "idle" }])),
@@ -711,105 +716,55 @@ function AvatarStudioPage() {
               </div>
             </div>
 
-            {/* Template grid */}
+            {/* ── FEATURED templates ── */}
             <div className="px-4 py-3">
+              <p className="text-[10px] uppercase tracking-wider mb-2 font-semibold flex items-center gap-1.5">
+                <span className="text-amber-400">★</span>
+                <span className="text-amber-400/90">Best Picks</span>
+                <span className="text-muted-foreground/50 font-normal">— our top 3</span>
+              </p>
+              <div className="grid grid-cols-3 gap-2 mb-1">
+                {FEATURED_TEMPLATES.map((tpl) => (
+                  <TemplateCard
+                    key={tpl.id}
+                    tpl={tpl}
+                    state={cardStates[tpl.id] ?? { status: "idle" }}
+                    isSelected={tpl.id === selectedId}
+                    featured
+                    onSelect={() => { setSelectedId(tpl.id); setActiveTab("preview"); }}
+                    onGenerate={(e) => {
+                      e.stopPropagation();
+                      const trimmed = script.trim();
+                      if (!trimmed) { toast.error("Write your script first"); setActiveTab("script"); return; }
+                      generateOne(tpl.id, trimmed);
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* ── All other templates ── */}
+            <div className="px-4 pb-3">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 font-medium">
                 All Templates ({PLATFORM_TEMPLATES.length})
               </p>
               <div className="grid grid-cols-2 gap-2">
-                {PLATFORM_TEMPLATES.map((tpl) => {
-                  const state = cardStates[tpl.id] ?? { status: "idle" };
-                  const isSelected = tpl.id === selectedId;
-                  return (
-                    <div
-                      key={tpl.id}
-                      className={`aurora-panel rounded-xl overflow-hidden cursor-pointer transition-all ${
-                        isSelected ? "ring-2 ring-primary" : "hover:ring-1 hover:ring-primary/40"
-                      }`}
-                      onClick={() => {
-                        setSelectedId(tpl.id);
-                        setActiveTab("preview");
-                      }}
-                    >
-                      {/* Thumbnail */}
-                      <div className="aspect-[9/16] bg-background/40 relative">
-                        <img
-                          src={tpl.thumbnailPath}
-                          alt={tpl.name}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                        {/* State dot */}
-                        {state.status === "loading" && (
-                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                            <Loader2 className="size-5 animate-spin text-primary" />
-                          </div>
-                        )}
-                        {state.status === "done" && (
-                          <div className="absolute top-1.5 right-1.5">
-                            <CheckCircle2 className="size-4 text-green-400 drop-shadow" />
-                          </div>
-                        )}
-                        {state.status === "error" && (
-                          <div className="absolute top-1.5 right-1.5">
-                            <AlertCircle className="size-4 text-red-400 drop-shadow" />
-                          </div>
-                        )}
-                        {isSelected && (
-                          <div className="absolute inset-0 bg-primary/10 border-2 border-primary rounded-xl" />
-                        )}
-                        <div className="absolute top-1.5 left-1.5 bg-black/50 backdrop-blur-sm rounded px-1 py-0.5">
-                          <span className="text-[8px] text-white/70">
-                            {tpl.kind === "heygen-avatar"
-                              ? "HeyGen"
-                              : tpl.kind === "photo"
-                                ? "Photo"
-                                : "Video"}
-                          </span>
-                        </div>
-                        <div className="absolute bottom-1.5 right-1.5 bg-primary/80 rounded px-1 py-0.5">
-                          <span className="text-[8px] text-white font-medium">
-                            {templateCost(tpl.kind)}✦
-                          </span>
-                        </div>
-                      </div>
-                      {/* Footer */}
-                      <div className="p-2">
-                        <p className="text-[11px] font-semibold truncate mb-1">{tpl.name}</p>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const trimmed = script.trim();
-                            if (!trimmed) {
-                              toast.error("Write your script first");
-                              setActiveTab("script");
-                              return;
-                            }
-                            generateOne(tpl.id, trimmed);
-                          }}
-                          disabled={state.status === "loading"}
-                          className={`w-full text-[10px] py-1.5 rounded font-medium transition-colors flex items-center justify-center gap-1 ${
-                            state.status === "done"
-                              ? "bg-green-500/15 text-green-400"
-                              : state.status === "error"
-                                ? "bg-red-500/15 text-red-400"
-                                : "bg-primary/15 text-primary hover:bg-primary/25 disabled:opacity-40"
-                          }`}
-                        >
-                          {state.status === "loading" ? (
-                            <><Loader2 className="size-3 animate-spin" />Generating</>
-                          ) : state.status === "done" ? (
-                            "✓ Done · Retry"
-                          ) : state.status === "error" ? (
-                            "Retry"
-                          ) : (
-                            <><Sparkles className="size-3" />Generate</>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                {OTHER_TEMPLATES.map((tpl) => (
+                  <TemplateCard
+                    key={tpl.id}
+                    tpl={tpl}
+                    state={cardStates[tpl.id] ?? { status: "idle" }}
+                    isSelected={tpl.id === selectedId}
+                    featured={false}
+                    onSelect={() => { setSelectedId(tpl.id); setActiveTab("preview"); }}
+                    onGenerate={(e) => {
+                      e.stopPropagation();
+                      const trimmed = script.trim();
+                      if (!trimmed) { toast.error("Write your script first"); setActiveTab("script"); return; }
+                      generateOne(tpl.id, trimmed);
+                    }}
+                  />
+                ))}
               </div>
             </div>
 
@@ -997,6 +952,128 @@ function AvatarStudioPage() {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Reusable template card ───────────────────────────────────────────────────
+
+function TemplateCard({
+  tpl,
+  state,
+  isSelected,
+  featured,
+  onSelect,
+  onGenerate,
+}: {
+  tpl: PlatformTemplate;
+  state: CardState;
+  isSelected: boolean;
+  featured: boolean;
+  onSelect: () => void;
+  onGenerate: (e: React.MouseEvent) => void;
+}) {
+  const kindLabel =
+    tpl.kind === "heygen-avatar" ? "HeyGen" : tpl.kind === "photo" ? "Photo" : "Video";
+
+  return (
+    <div
+      className={`rounded-xl overflow-hidden cursor-pointer transition-all flex flex-col ${
+        featured
+          ? isSelected
+            ? "ring-2 ring-amber-400 bg-amber-400/5 border border-amber-400/30"
+            : "border border-amber-400/20 bg-amber-400/5 hover:ring-2 hover:ring-amber-400/50"
+          : isSelected
+            ? "aurora-panel ring-2 ring-primary"
+            : "aurora-panel hover:ring-1 hover:ring-primary/40"
+      }`}
+      onClick={onSelect}
+    >
+      {/* Thumbnail */}
+      <div className="aspect-[9/16] bg-background/40 relative">
+        <img
+          src={tpl.thumbnailPath}
+          alt={tpl.name}
+          className="w-full h-full object-cover"
+          loading="lazy"
+        />
+
+        {/* Loading overlay */}
+        {state.status === "loading" && (
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+            <Loader2 className="size-4 animate-spin text-primary" />
+          </div>
+        )}
+
+        {/* Done / error status */}
+        {state.status === "done" && (
+          <div className="absolute top-1 right-1">
+            <CheckCircle2 className="size-3.5 text-green-400 drop-shadow" />
+          </div>
+        )}
+        {state.status === "error" && (
+          <div className="absolute top-1 right-1">
+            <AlertCircle className="size-3.5 text-red-400 drop-shadow" />
+          </div>
+        )}
+
+        {/* Selected ring */}
+        {isSelected && (
+          <div
+            className={`absolute inset-0 rounded-xl border-2 ${
+              featured ? "border-amber-400/70 bg-amber-400/10" : "border-primary bg-primary/10"
+            }`}
+          />
+        )}
+
+        {/* Kind badge */}
+        <div className="absolute top-1 left-1 bg-black/55 backdrop-blur-sm rounded px-1 py-0.5">
+          <span className="text-[7px] text-white/70">{kindLabel}</span>
+        </div>
+
+        {/* Featured label OR cost badge */}
+        {featured && tpl.featuredLabel ? (
+          <div className="absolute bottom-1 left-0 right-0 flex justify-center">
+            <span className="bg-amber-400/90 text-black text-[8px] font-bold px-1.5 py-0.5 rounded-full shadow">
+              {tpl.featuredLabel}
+            </span>
+          </div>
+        ) : (
+          <div className="absolute bottom-1 right-1 bg-primary/80 rounded px-1 py-0.5">
+            <span className="text-[7px] text-white font-medium">{templateCost(tpl.kind)}✦</span>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="p-1.5 flex-1 flex flex-col justify-between gap-1">
+        <p className={`text-[10px] font-semibold truncate ${featured ? "text-amber-300" : ""}`}>
+          {tpl.name}
+        </p>
+        <button
+          onClick={onGenerate}
+          disabled={state.status === "loading"}
+          className={`w-full text-[9px] py-1 rounded font-medium transition-colors flex items-center justify-center gap-0.5 ${
+            state.status === "done"
+              ? "bg-green-500/15 text-green-400"
+              : state.status === "error"
+                ? "bg-red-500/15 text-red-400"
+                : featured
+                  ? "bg-amber-400/15 text-amber-400 hover:bg-amber-400/25 disabled:opacity-40"
+                  : "bg-primary/15 text-primary hover:bg-primary/25 disabled:opacity-40"
+          }`}
+        >
+          {state.status === "loading" ? (
+            <><Loader2 className="size-2.5 animate-spin" />Gen…</>
+          ) : state.status === "done" ? (
+            "✓ Retry"
+          ) : state.status === "error" ? (
+            "Retry"
+          ) : (
+            <><Sparkles className="size-2.5" />Gen</>
+          )}
+        </button>
       </div>
     </div>
   );
