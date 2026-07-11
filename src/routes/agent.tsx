@@ -69,7 +69,7 @@ type RenderState = { status: RenderStatus; url?: string | null };
 type VideoStatus = "idle" | "rendering" | "succeeded" | "failed";
 type VideoState = { status: VideoStatus; url?: string | null; error?: string };
 
-type AgentMode = "agent" | "templates";
+type AgentMode = "agent" | "templates" | "recipes";
 
 const TEMPLATE_COST = computeCost({ features: ["video"], model: AURORA_TEMPLATE_MODEL }).total;
 
@@ -384,6 +384,16 @@ function AgentPage() {
         >
           <Film className="size-3.5" /> HeyGen Templates
         </button>
+        <button
+          onClick={() => setMode("recipes")}
+          className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${
+            mode === "recipes"
+              ? "border-violet-400 text-violet-300"
+              : "border-transparent text-white/45 hover:text-white/70"
+          }`}
+        >
+          <Sparkles className="size-3.5" /> Showcase
+        </button>
       </div>
 
       <div className="relative z-10 flex-1 flex min-h-0">
@@ -666,6 +676,156 @@ function AgentPage() {
                   <li>Open any template → copy the URL or the ID from the address bar</li>
                   <li>Note the variable name you set for the character/avatar slot</li>
                 </ol>
+              </div>
+            </div>
+          )}
+
+          {/* ── Recipes / Showcase panel ─────────────────────────────────── */}
+          {mode === "recipes" && (
+            <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+              <div>
+                <h2 className="text-lg font-bold text-foreground">Showcase</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Real HeyGen Video Agent recipes — copy-paste command sets you can run with AI coding agents, CI/CD pipelines, and browser extensions.
+                </p>
+              </div>
+
+              {[
+                {
+                  title: "README-to-Video",
+                  subtitle: "Auto-generate video walkthroughs from GitHub README changes.",
+                  badge: "GitHub Actions",
+                  accent: "from-emerald-400 to-teal-500",
+                  features: "Video Agent API",
+                  stack: "TypeScript · GitHub Actions · Claude",
+                  cost: "~$0.05–0.15 per video",
+                  insight: "Quality gap comes down to the prompt. Use an LLM to write production-quality briefs with specific visual directions — not just narration scripts.",
+                  steps: [
+                    "A GitHub Action watches for README changes",
+                    "Claude writes a scene-by-scene production prompt",
+                    "Video Agent renders and embeds the video back in the README",
+                  ],
+                },
+                {
+                  title: "Viral Video Pipeline",
+                  subtitle: "Research trending topics, then batch-generate short-form videos.",
+                  badge: "Batch · Portrait",
+                  accent: "from-violet-400 to-purple-500",
+                  features: "Video Agent API (batch, portrait mode)",
+                  stack: "Claude Code · HeyGen Skills",
+                  cost: "~$6 for 6 videos",
+                  insight: "Rate limit handling is critical for batch generation. Fire videos sequentially with 5–10s gaps and track all IDs for async polling.",
+                  steps: [
+                    "Web search for trending self-improvement topics",
+                    "Generate 6 TikTok/Reels/Shorts-ready videos in one run",
+                    "Batch report with performance predictions",
+                  ],
+                },
+                {
+                  title: "Site2Video — Chrome Extension",
+                  subtitle: "One-click: turn any website into a professional, brand-consistent video.",
+                  badge: "Chrome Extension",
+                  accent: "from-blue-400 to-cyan-500",
+                  features: "Video Agent API · Asset Upload · 1,200+ avatars",
+                  stack: "Vite + React · Next.js · Gemini / Claude",
+                  cost: "Per-render",
+                  insight: "Every prompt is generated from scratch via LLM analysis — the system extracts visual style from the page itself and translates it into Video Agent prompt instructions.",
+                  steps: [
+                    "Extension captures full-page screenshot",
+                    "Analyzes site's visual DNA (colors, typography, layout)",
+                    "Generates style-aware Video Agent prompt and renders branded video",
+                  ],
+                },
+                {
+                  title: "AI News Broadcast",
+                  subtitle: "Automated daily AI briefings: scrape → script → render → distribute.",
+                  badge: "Automated Pipeline",
+                  accent: "from-amber-400 to-orange-500",
+                  features: "Video Agent API",
+                  stack: "Bun · TypeScript",
+                  cost: "Per-video",
+                  insight: "Modular architecture (research → script → video → deliver) makes each stage independently testable. Swap Telegram delivery for email, Slack, or YouTube upload.",
+                  steps: [
+                    "Gathers AI papers from arXiv and Hacker News",
+                    "Builds a script with an LLM",
+                    "Generates video via Video Agent and posts to Telegram",
+                  ],
+                },
+                {
+                  title: "AI Mafia — Live Avatar Game",
+                  subtitle: "Social deduction game with AI-powered Live Avatar NPCs.",
+                  badge: "Live Avatars · Real-time",
+                  accent: "from-rose-400 to-pink-500",
+                  features: "Live Avatar SDK (real-time streaming)",
+                  stack: "Next.js · React · HeyGen Live Avatar SDK · Claude",
+                  cost: "Live streaming",
+                  insight: "Live Avatars enable real-time interactive experiences — not pre-rendered video. NPCs read game state, develop strategies, and respond with natural speech and expressions.",
+                  steps: [
+                    "3 AI players (Maria, Chen, Alex) argue, accuse, bluff, and vote",
+                    "Claude powers decision-making and distinct personalities",
+                    "Real-time streaming — not pre-rendered video content",
+                  ],
+                },
+              ].map((recipe) => (
+                <div
+                  key={recipe.title}
+                  className="aurora-panel p-4 space-y-3 relative overflow-hidden"
+                >
+                  <div className={`absolute top-0 left-0 w-1 h-full bg-gradient-to-b ${recipe.accent} rounded-l-xl`} />
+                  <div className="pl-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-bold text-foreground">{recipe.title}</h3>
+                          <span className={`rounded-full bg-gradient-to-r ${recipe.accent} px-2 py-0.5 text-[9px] font-bold text-white uppercase tracking-wider`}>
+                            {recipe.badge}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">{recipe.subtitle}</p>
+                      </div>
+                      <span className="shrink-0 text-[10px] text-white/30 font-mono">{recipe.cost}</span>
+                    </div>
+
+                    <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
+                      <div>
+                        <span className="text-white/35 uppercase tracking-wider">HeyGen features</span>
+                        <div className="text-white/70 mt-0.5">{recipe.features}</div>
+                      </div>
+                      <div>
+                        <span className="text-white/35 uppercase tracking-wider">Stack</span>
+                        <div className="text-white/70 mt-0.5">{recipe.stack}</div>
+                      </div>
+                    </div>
+
+                    <ol className="mt-2.5 space-y-0.5 list-decimal list-inside text-[11px] text-white/60">
+                      {recipe.steps.map((s, i) => (
+                        <li key={i}>{s}</li>
+                      ))}
+                    </ol>
+
+                    <div className="mt-2.5 rounded-lg bg-white/[0.04] border border-white/5 px-3 py-2 text-[11px] text-white/55 italic">
+                      <span className="text-white/35 not-italic font-semibold uppercase tracking-wider text-[9px]">Key insight · </span>
+                      {recipe.insight}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <div className="aurora-panel p-4">
+                <h3 className="text-xs font-semibold text-foreground mb-2">Common Patterns</h3>
+                <ul className="space-y-1.5 text-[11px] text-white/60">
+                  {[
+                    "Content → LLM → Video Agent prompt — the meta-prompt pattern works for any content type",
+                    "Batch generation with rate limit handling — sequential queuing with status tracking",
+                    "Style extraction → prompt instructions — translate visual context into Video Agent language",
+                    "Modular pipelines — separate research, scripting, rendering, and delivery stages",
+                  ].map((p) => (
+                    <li key={p} className="flex items-start gap-2">
+                      <span className="mt-0.5 size-1.5 rounded-full bg-violet-400 shrink-0" />
+                      {p}
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           )}
