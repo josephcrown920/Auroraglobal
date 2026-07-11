@@ -80,7 +80,7 @@ import { ShareMenu } from "@/components/share/ShareMenu";
 
 import { TrendingTemplatesMenu, type TemplateGraph, getTemplateById } from "@/components/canvas/TrendingTemplatesMenu";
 import { AuroraAgentPanel } from "@/components/canvas/AuroraAgentPanel";
-import { FinishedWorkflowsGallery } from "@/components/canvas/FinishedWorkflowsGallery";
+import { FinishedWorkflowsGallery, defaultGraphFor } from "@/components/canvas/FinishedWorkflowsGallery";
 import { GeneratedAssetGallery } from "@/components/canvas/GeneratedAssetGallery";
 
 
@@ -1211,7 +1211,7 @@ function CanvasPage() {
           />
           <FinishedWorkflowsGallery
             onLoad={(id) => {
-              const g = getTemplateById(id);
+              const g = getTemplateById(id) ?? defaultGraphFor(id);
               if (g) {
                 setNodes(g.nodes);
                 setEdges(g.edges);
@@ -1220,7 +1220,7 @@ function CanvasPage() {
                 setMarketplaceTemplateId(null);
                 toast.success(`Loaded "${g.name}"`);
               } else {
-                toast.success(`Opening "${id}" — drag nodes to remix`);
+                toast.error(`Couldn't load "${id}" — template not found`);
               }
             }}
           />

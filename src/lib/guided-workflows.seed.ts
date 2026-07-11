@@ -1255,4 +1255,303 @@ export const DEFAULT_GUIDED_WORKFLOWS: GuidedWorkflowContent[] = [
       },
     ],
   },
+
+  // ── 14. Helicopter Reveal ─────────────────────────────────────────────────
+  {
+    slug: "helicopter-reveal",
+    title: "Helicopter Reveal",
+    tagline: "A helicopter peels a giant cover off your building, car, or cover art",
+    description:
+      "The viral reveal effect: take a photo of any structure (building, car, billboard — anything), have AI drape a massive black cover over it held by a hovering helicopter, then animate the helicopter flying away and pulling the cover off to reveal what's underneath. Perfect for album drops, store openings, and product launches.",
+    category: "effects",
+    icon: "🚁",
+    sourceCredit: "@learnwithkayo",
+    isPublished: true,
+    sortOrder: 130,
+    steps: [
+      {
+        id: "take-photo",
+        title: "Take your photo",
+        kind: "instruction",
+        description:
+          "Photograph the thing you want to reveal — a building, storefront, car, or even a printed poster of your cover art on a wall. Shoot it straight-on or at a slight angle with the whole structure in frame and some sky visible above it (the helicopter needs somewhere to hover).",
+        promptTemplate: "",
+        placeholders: [],
+        referenceSlots: [],
+        usesPreviousResult: false,
+        tips: [
+          "Leave sky above the structure — the cables need room to stretch upward to the helicopter.",
+          "Daylight shots read best: the black cover pops against a bright sky.",
+        ],
+        variants: [],
+      },
+      {
+        id: "covered-image",
+        title: "Create the covered image",
+        kind: "image",
+        description:
+          "Upload your photo and generate the 'before' frame: the entire structure hidden under a taut black cover, suspended by cables from a helicopter hovering above.",
+        promptTemplate:
+          "A large black cover is draped over the entire [STRUCTURE], completely hiding it from view. The cover is held in place by cables that stretch upward into the sky, connecting to a helicopter hovering above. The helicopter is suspending the whole structure mid-reveal, cables taut, the black fabric hugging every curve of the [STRUCTURE] beneath it.",
+        placeholders: [
+          { key: "STRUCTURE", label: "What's being covered", example: "building" },
+        ],
+        referenceSlots: [
+          { key: "structure", label: "Your photo", description: "The building, car, or object that gets covered — the AI keeps the scene and swaps in the draped cover.", required: true },
+        ],
+        usesPreviousResult: false,
+        tips: [
+          "The phrase \"hugging every curve\" is what makes the fabric look real instead of like a flat box.",
+          "Keep the original photo's angle — the reveal video only works if the covered frame matches the scene.",
+        ],
+        variants: [],
+      },
+      {
+        id: "reveal-animation",
+        title: "Animate the reveal",
+        kind: "video",
+        description:
+          "Animate the covered image: the helicopter flies out of frame, dragging the cover with it and revealing the structure underneath.",
+        promptTemplate:
+          "A helicopter flies out of frame to the right, carrying a large black cover with it. The cover is attached to the helicopter by cables and is being pulled away, slowly revealing the [STRUCTURE] beneath as it goes. The fabric peels back smoothly as the helicopter moves, the cables staying taut throughout the motion. The helicopter and cover exit the frame completely to the right, leaving the [STRUCTURE] fully revealed.",
+        placeholders: [
+          { key: "STRUCTURE", label: "What's being revealed", example: "building" },
+        ],
+        referenceSlots: [],
+        usesPreviousResult: true,
+        tips: [
+          "Use the covered image as the start frame and (if your tool supports it) your original photo as the end frame — the reveal lands exactly on reality.",
+          "\"Cables staying taut throughout\" stops the AI from letting the cover float away like a loose sheet.",
+        ],
+        toolLink: { label: "Animate it in Orchestrate", to: "/orchestrate" },
+        variants: [],
+      },
+      {
+        id: "get-creative",
+        title: "Get creative",
+        kind: "instruction",
+        description:
+          "Swap the structure for anything: your album cover printed on a billboard, a new car, your merch table. The covered frame + fly-away reveal works on any object with a recognizable silhouette.",
+        promptTemplate: "",
+        placeholders: [],
+        referenceSlots: [],
+        usesPreviousResult: false,
+        tips: [
+          "Time the reveal to the beat drop when you cut it into a teaser.",
+          "Run the same reveal on 3–4 different structures and cut them together for a launch-day montage.",
+        ],
+        variants: [],
+      },
+    ],
+  },
+
+  // ── 15. Floating Music Cards ──────────────────────────────────────────────
+  {
+    slug: "floating-music-cards",
+    title: "Floating Music Cards",
+    tagline: "Your music world materializes around you in AR — floating player cards",
+    description:
+      "Surround yourself with semi-transparent music player UI cards — Spotify and Apple Music style panels floating at different depths in 3D space, featuring your artists and songs. Then animate a slow camera orbit while you stay frozen in time. An instant scroll-stopper for playlist promos and artist announcements.",
+    category: "music-video",
+    icon: "🎧",
+    sourceCredit: "@learnwithkayo",
+    isPublished: true,
+    sortOrder: 140,
+    steps: [
+      {
+        id: "take-photo",
+        title: "Take your photo",
+        kind: "instruction",
+        description:
+          "Take a clean photo of yourself — standing or seated, any location. Leave some space around you in the frame: the floating cards need room to hover in the foreground and background.",
+        promptTemplate: "",
+        placeholders: [],
+        referenceSlots: [],
+        usesPreviousResult: false,
+        tips: [
+          "A slightly wider shot works better than a tight portrait — the parallax effect needs depth.",
+          "Moody or evening lighting makes the glowing card outlines pop harder.",
+        ],
+        variants: [],
+      },
+      {
+        id: "cards-image",
+        title: "Generate the floating cards image",
+        kind: "image",
+        description:
+          "Upload your photo and generate the AR frame: layered music player cards hovering around you at different depths, with your chosen artists and songs on them.",
+        promptTemplate:
+          "Floating around the person are multiple semi-transparent music player UI cards — a mix of Spotify and Apple Music interfaces — hovering at different depths in 3D space. Some cards overlap in the foreground, others fade softly into the background, creating a layered parallax feel. The cards feature artists like [ARTIST 1], [ARTIST 2], and [ARTIST 3] with songs like [SONG 1], [SONG 2], and [SONG 3]. UI style: frosted glass panels with warm amber glowing outlines, pill-shaped progress bars, album art thumbnails, and playback controls. Cinematic depth of field keeps the subject sharp while the cards drift at varying distances. The overall mood feels like the person's entire music world has materialized around them in augmented reality.",
+        placeholders: [
+          { key: "ARTIST 1", label: "First artist", example: "your artist name" },
+          { key: "ARTIST 2", label: "Second artist", example: "a collaborator" },
+          { key: "ARTIST 3", label: "Third artist", example: "an inspiration" },
+          { key: "SONG 1", label: "First song", example: "your new single" },
+          { key: "SONG 2", label: "Second song", example: "a fan favorite" },
+          { key: "SONG 3", label: "Third song", example: "a deep cut" },
+        ],
+        referenceSlots: [
+          { key: "photo", label: "Your photo", description: "Locks your identity, outfit, and scene — the cards get composited around you.", required: true },
+        ],
+        usesPreviousResult: false,
+        tips: [
+          "Use your own artist name and real song titles — the cards become free promo for your actual catalog.",
+          "\"Frosted glass panels with warm amber glowing outlines\" is the styling that sells the AR look; keep it.",
+        ],
+        variants: [],
+      },
+      {
+        id: "orbit-animation",
+        title: "Animate the camera orbit",
+        kind: "video",
+        description:
+          "Bring the frame to life: you stay perfectly frozen while the camera orbits slowly, letting the cards drift past at different depths.",
+        promptTemplate:
+          "Slow camera orbit. Person stays static, frozen in time — only the camera orbits very slowly around them. The floating music player cards hold their positions in 3D space, drifting past the lens at different depths as the camera moves, creating a layered parallax effect.",
+        placeholders: [],
+        referenceSlots: [],
+        usesPreviousResult: true,
+        tips: [
+          "\"Frozen in time, only camera orbits\" is the key phrase — it stops the AI from animating your body.",
+          "The parallax between near and far cards is what makes the orbit feel 3D, not flat.",
+        ],
+        toolLink: { label: "Animate it in Orchestrate", to: "/orchestrate" },
+        variants: [],
+      },
+      {
+        id: "get-creative",
+        title: "Get creative",
+        kind: "instruction",
+        description:
+          "Swap the card contents for anything: podcast episodes, tour dates, merch drops, or your top-played tracks of the year. Same frame, endless promos.",
+        promptTemplate: "",
+        placeholders: [],
+        referenceSlots: [],
+        usesPreviousResult: false,
+        tips: [
+          "Post it when a new single drops with the single's card front and center.",
+          "A version with tour-date cards makes a great announcement reel.",
+        ],
+        variants: [],
+      },
+    ],
+  },
+
+  // ── 16. Wong Kar-wai Look ─────────────────────────────────────────────────
+  {
+    slug: "wong-kar-wai-look",
+    title: "The Wong Kar-wai Look",
+    tagline: "Amber-and-emerald split tones, strict profiles, one tungsten practical",
+    description:
+      "Shoot in the visual language of Wong Kar-wai: single warm tungsten practicals, split-toned amber-and-emerald grades, off-centre framing through obstructions, and step-printed slow motion. This guide distills the full craft reference — camera, palette, composition, and the negative prompt that keeps AI defaults from breaking the aesthetic.",
+    category: "realism",
+    icon: "🎞️",
+    sourceCredit: "Wong Kar-wai — The Complete Visual Language",
+    isPublished: true,
+    sortOrder: 150,
+    steps: [
+      {
+        id: "choose-register",
+        title: "Choose your film register",
+        kind: "instruction",
+        description:
+          "Pick which Wong Kar-wai era you're channeling — it decides your palette and aspect ratio. In the Mood for Love (1.66:1, amber-and-emerald split tones) is the iconic default. Chungking Express / Fallen Angels bring neon-chaos saturation (magenta, cyan, electric yellow through rain and glass). Ashes of Time is bleached desert and gold.",
+        promptTemplate: "",
+        placeholders: [],
+        referenceSlots: [],
+        usesPreviousResult: false,
+        tips: [
+          "If in doubt, default to In the Mood for Love — the most recognizable register.",
+          "Non-negotiables in every register: lifted blacks that carry color (never pure #000000), warm amber highlights (never neutral white), no HDR, no direct eye contact between subjects.",
+          "Vertical 9:16 is forbidden in this style — if you need vertical, letterbox a wide frame instead.",
+        ],
+        variants: [],
+      },
+      {
+        id: "portrait",
+        title: "Single-character portrait",
+        kind: "image",
+        description:
+          "The signature frame: your character in a textured interior, framed through an obstruction, lit by one warm tungsten practical, graded amber-and-emerald.",
+        promptTemplate:
+          "[CHARACTER] in [LOCATION] with textured surfaces and a visible practical light source, framed through [OBSTRUCTION] with the foreground out of focus bleeding colored bokeh, camera offset from the subject's sightline, gaze directed away from the lens, lit by a single bare warm tungsten practical producing halation and casting the face half in amber key and half in deep emerald shadow, split-toned color grade with warm amber-orange highlights and emerald shadows, lifted blacks that carry color, honey-warm skin, shot on 35mm Kodak Vision 500T with an 85mm Zeiss prime at f/2, aspect ratio 1.66:1, fine organic film grain, [ATMOSPHERE], restrained melancholic register, in the style of Wong Kar-wai's In the Mood for Love, cinematography by Christopher Doyle and Mark Lee Ping-bing. Negative: clean studio lighting, high-key illumination, flat neutral daylight, crushed pure-black shadows, blown highlights, HDR, oversaturated Instagram filter, flat untextured walls, drone shot, fisheye, vertical 9:16, smiling, direct eye contact, CGI, cartoon, text, watermark.",
+        placeholders: [
+          { key: "CHARACTER", label: "Character + wardrobe + posture", example: "a woman in her late twenties in a deep crimson silk cheongsam with gold embroidery, hair in a low 1960s chignon, seated on a wooden chair" },
+          { key: "LOCATION", label: "Location (textured, with a light source)", example: "a narrow 1962 Hong Kong boarding-house room with emerald-green floral wallpaper" },
+          { key: "OBSTRUCTION", label: "What you shoot through", example: "an open doorway with a blurred dark doorframe filling the left 40% of the image" },
+          { key: "ATMOSPHERE", label: "Atmosphere", example: "cigarette smoke curling through the lamp light, humid still interior" },
+        ],
+        referenceSlots: [
+          { key: "face", label: "Your face reference (optional)", description: "Add yourself as the character while keeping the period styling.", required: false },
+        ],
+        usesPreviousResult: false,
+        tips: [
+          "The obstruction is not optional — a doorframe, beaded curtain, or window mullion in the near plane is what makes it Wong Kar-wai.",
+          "Every wall must be textured: patterned, papered, aged, or damp. Flat clean walls instantly break the aesthetic.",
+          "Keep the negative prompt block — AI defaults produce the exact opposites of this look.",
+        ],
+        variants: [],
+      },
+      {
+        id: "two-shot",
+        title: "Two-character scene",
+        kind: "image",
+        description:
+          "The strict-profile two-shot: two characters framed in rigid side-profile separated by a partition, neither looking at the other, one practical lighting the whole frame.",
+        promptTemplate:
+          "[CHARACTER A] and [CHARACTER B] in [LOCATION], framed as a strict profile two-shot separated by a vertical partition, neither looking directly at the other, restrained posture, no physical contact, lit by a single warm tungsten practical motivating the whole frame, split-toned amber-and-emerald palette with lifted colored shadows, shot on 35mm Kodak Vision 500T with a 50mm prime at f/2, fine organic film grain with halation, [ATMOSPHERE], restrained unresolved emotional tension, in the style of Wong Kar-wai, cinematography by Christopher Doyle. Negative: shot-reverse-shot framing, direct eye contact, smiling, embracing, clean studio lighting, crushed blacks, HDR, flat walls, vertical 9:16, CGI, text, watermark.",
+        placeholders: [
+          { key: "CHARACTER A", label: "First character", example: "a man in a dark 1960s suit with pomaded hair" },
+          { key: "CHARACTER B", label: "Second character", example: "a woman in a high-collared floral cheongsam" },
+          { key: "LOCATION", label: "Location", example: "a cramped noodle stall at night, steam rising" },
+          { key: "ATMOSPHERE", label: "Atmosphere", example: "steam and cigarette smoke under a bare bulb" },
+        ],
+        referenceSlots: [],
+        usesPreviousResult: false,
+        tips: [
+          "Restraint is the register: no touching, no eye contact, gazes past each other or at the floor.",
+          "The vertical partition (wall edge, curtain, shelf) between them carries the emotional distance.",
+        ],
+        variants: [],
+      },
+      {
+        id: "slow-motion",
+        title: "Step-printed slow-motion passage",
+        kind: "video",
+        description:
+          "The moving signature: a simple action rendered in step-printed slow motion with visible motion smear, camera drifting laterally, one practical burning in frame.",
+        promptTemplate:
+          "[SUBJECT] performing a simple action — [ACTION] — rendered in step-printed optical-printer slow motion with visible motion smear, camera tracking laterally with a patient one-beat-per-second drift, lit by a single practical light source with heavy halation bloom, split-toned amber-and-emerald palette with lifted colored shadows, 35mm Kodak Vision 500T film grain, [ATMOSPHERE], restrained melancholic mood, in the style of Wong Kar-wai, cinematography by Christopher Doyle. Negative: clean overcranked slow motion, sharp frozen frames, studio lighting, crushed blacks, HDR, drone shot, vertical 9:16, smiling, direct eye contact, CGI, text, watermark.",
+        placeholders: [
+          { key: "SUBJECT", label: "Your subject", example: "a woman in a crimson cheongsam carrying a thermos of noodles" },
+          { key: "ACTION", label: "The simple action", example: "descending a dim staircase past a peeling wall" },
+          { key: "ATMOSPHERE", label: "Atmosphere", example: "humid air, faint smoke drifting through the lamplight" },
+        ],
+        referenceSlots: [],
+        usesPreviousResult: true,
+        tips: [
+          "\"Step-printed with visible motion smear\" is the signature — clean smooth slow motion reads as generic, not Wong Kar-wai.",
+          "Keep the action mundane: walking, turning to leave, lighting a cigarette. The mood carries it, not the event.",
+        ],
+        toolLink: { label: "Animate it in Orchestrate", to: "/orchestrate" },
+        variants: [],
+      },
+      {
+        id: "grade-check",
+        title: "Check the grade",
+        kind: "instruction",
+        description:
+          "Before you post, audit your output against the five most common failure modes: clean high-key lighting, pure-black shadows, direct eye contact between leads, oversaturated Instagram grading, and flat untextured walls. If any appear, regenerate — the look breaks easily under AI defaults.",
+        promptTemplate: "",
+        placeholders: [],
+        referenceSlots: [],
+        usesPreviousResult: false,
+        tips: [
+          "Shadows should carry emerald, teal, or oxblood color — if they're pure black, the grade is wrong.",
+          "Global saturation low, red and green channels rich — that split is the WKW grade, not a generic 'moody filter'.",
+        ],
+        variants: [],
+      },
+    ],
+  },
 ];

@@ -11,32 +11,24 @@ import {
   Play,
 } from "lucide-react";
 import { SPIN_COUNT } from "@/lib/spin-engine";
-// One creator, many posts — the grid tiles cycle the SAME artist identity
-// across different real Spin-style looks, proving "one photo in, many posts out."
-// NOTE: josh-pink-sideprofile removed at user request.
-import joshMoodyMic from "@/assets/josh/josh-moody-mic.jpg.asset.json";
-import joshColorsSession from "@/assets/josh/josh-colors-session.png.asset.json";
-import joshNeonSeated from "@/assets/josh/josh-neon-seated.png.asset.json";
 
-const GRID_PHOTOS = [
-  joshColorsSession.url,
-  joshNeonSeated.url,
-  joshMoodyMic.url,
-] as const;
-
+// One creator, many posts — every tile is a UNIQUE identity-locked shot of the
+// same artist (Josh) in a different outfit/scene, proving "one photo in, many
+// posts out." Generated 2026-07 via Gemini identity edit from the reference
+// selfie; files live in public/josh/generated2/.
 const PIECES = [
-  { label: "Lyric video hook" },
-  { label: "Beat-sync visual" },
-  { label: "Cover art reveal" },
-  { label: "Story teaser" },
-  { label: "Color-grade variant" },
-  { label: "YouTube Short" },
-  { label: "Lip-sync clip" },
-  { label: "Album teaser" },
-  { label: "Vertical poster" },
-  { label: "Performance clip" },
-  { label: "Captioned hook" },
-  { label: "Single cover" },
+  { label: "Lyric video hook", src: "/josh/generated2/viral-01-lyric-hook.webp" },
+  { label: "Beat-sync visual", src: "/josh/generated2/viral-02-beat-sync.webp" },
+  { label: "Cover art reveal", src: "/josh/generated2/viral-03-cover-reveal.webp" },
+  { label: "Story teaser", src: "/josh/generated2/viral-04-story-teaser.webp" },
+  { label: "Color-grade variant", src: "/josh/generated2/viral-05-color-grade.webp" },
+  { label: "YouTube Short", src: "/josh/generated2/viral-06-youtube-short.webp" },
+  { label: "Lip-sync clip", src: "/josh/generated2/viral-07-lipsync-clip.webp" },
+  { label: "Album teaser", src: "/josh/generated2/viral-08-album-teaser.webp" },
+  { label: "Vertical poster", src: "/josh/generated2/viral-09-vertical-poster.webp" },
+  { label: "Performance clip", src: "/josh/generated2/viral-10-performance.webp" },
+  { label: "Captioned hook", src: "/josh/generated2/viral-11-captioned-hook.webp" },
+  { label: "Single cover", src: "/josh/generated2/viral-12-single-cover.webp" },
 ] as const;
 
 // Single source of truth for the post count — matches the real Spin backend
@@ -89,14 +81,14 @@ export function ViralEngine() {
           </label>
 
           <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 md:gap-3">
-            {PIECES.map((piece, i) => (
+            {PIECES.map((piece) => (
               <figure
                 key={piece.label}
                 className="group relative overflow-hidden rounded-xl bg-white/5 shadow-md shadow-black/40 transition-transform hover:-translate-y-0.5 hover:shadow-lg"
                 style={{ aspectRatio: "4/5" }}
               >
                 <img
-                  src={GRID_PHOTOS[i % GRID_PHOTOS.length]}
+                  src={piece.src}
                   alt={piece.label}
                   loading="lazy"
                   className="w-full h-full object-cover"

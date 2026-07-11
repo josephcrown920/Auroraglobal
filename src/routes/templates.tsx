@@ -102,6 +102,23 @@ function TemplatesPage() {
           </p>
         </div>
 
+        {/* Viral Guides cross-link */}
+        <Link
+          to="/guides"
+          className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 no-underline transition hover:bg-primary/10"
+        >
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              Prefer step-by-step? Browse the Viral Guides
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Helicopter Reveal, Floating Music Cards, the Wong Kar-wai Look and more — full
+              prompt walkthroughs you run at your own pace.
+            </p>
+          </div>
+          <ArrowLeft className="size-4 shrink-0 rotate-180 text-primary" />
+        </Link>
+
         {/* Category chips */}
         <div className="mb-6 flex flex-wrap gap-2">
           <Chip active={!activeCategory} onClick={() => setCategory(null)}>

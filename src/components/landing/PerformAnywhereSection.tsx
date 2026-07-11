@@ -65,8 +65,8 @@ export function PerformAnywhereSection() {
         <div className="mb-10 grid grid-cols-[1fr_auto_1fr] gap-4 items-center max-w-3xl mx-auto">
           <div className="relative rounded-2xl overflow-hidden aspect-[3/4] border border-white/10">
             <img
-              src="/josh/josh-mirror-getready.webp"
-              alt="Input — mirror selfie phone recording"
+              src="/josh/generated2/perform-phone-clip.webp"
+              alt="Input — phone clip recorded at home"
               className="w-full h-full object-cover"
               loading="lazy"
             />
