@@ -14,7 +14,7 @@ import {
 } from "@/lib/photo-avatar.functions";
 import {
   generateFromPlatformTemplate,
-  PLATFORM_TEMPLATE_COST,
+  templateCost,
   type TemplateGenerateResult,
 } from "@/lib/platform-template.functions";
 import { PLATFORM_TEMPLATES, type PlatformTemplate } from "@/lib/platform-templates";
@@ -181,7 +181,9 @@ function AvatarPage() {
         : null;
 
   const activeCost =
-    selection?.kind === "template" ? PLATFORM_TEMPLATE_COST : PHOTO_AVATAR_COST;
+    selection?.kind === "template"
+      ? templateCost(selection.template.kind)
+      : PHOTO_AVATAR_COST;
 
   if (loading) {
     return (
