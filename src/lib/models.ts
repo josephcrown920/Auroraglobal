@@ -393,6 +393,36 @@ const ALL: Record<string, ModelMeta> = Object.fromEntries(
   if (!ALL[m.endpoint]) ALL[m.endpoint] = m;
 });
 
+// ── Auto-select sentinels ─────────────────────────────────────────────────────
+// When users choose "Auto" in Canvas the system resolves these to a real model
+// at run time based on priority: best = highest quality, cheapest = lowest cost.
+
+export const AUTO_BEST = "auto:best";
+export const AUTO_CHEAPEST = "auto:cheapest";
+
+export const AUTO_MODEL_OPTIONS = [
+  { value: AUTO_BEST,     label: "✦ Auto · Best Quality",  desc: "System picks the highest-quality active model" },
+  { value: AUTO_CHEAPEST, label: "✦ Auto · Cheapest",       desc: "System picks the fastest, lowest-cost model" },
+] as const;
+
+/** Resolve an auto-sentinel (or any real value) to a concrete model key. */
+export function resolveAutoModel(
+  value: string | undefined | null,
+  category: "image" | "video" | "lipsync",
+): string {
+  if (value === AUTO_BEST) {
+    if (category === "image")   return "google/gemini-3-pro-image-preview"; // Nano Banana Pro
+    if (category === "video")   return "seedance-3.0";                       // Seedance 3.0 — best motion
+    if (category === "lipsync") return "fal-ai/sync-lipsync/v2";             // Sync 1.9 premium
+  }
+  if (value === AUTO_CHEAPEST) {
+    if (category === "image")   return "hf/flux-schnell";                    // FLUX Schnell — free tier
+    if (category === "video")   return "seedance-2.0-fast";                  // Seedance Fast — cheapest
+    if (category === "lipsync") return "fal-ai/wav2lip";                     // Wav2Lip — fast & cheap
+  }
+  return value ?? "";
+}
+
 export function getModelMeta(value?: string | null): ModelMeta {
   if (value && ALL[value]) return ALL[value];
   return {
