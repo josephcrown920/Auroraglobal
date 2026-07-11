@@ -165,6 +165,7 @@ export const LIPSYNC_MODEL_TIERS: Record<string, ModelTier> = {
   // lipsync-onto-video call, so this is priced at the same ultra tier as
   // heygen/lipsync ($0.40) with buffer.
   "heygen/photo-video": "ultra", // ~$0.40
+  "heygen/avatar": "ultra", // ~$0.40 — avatar-id + script, HeyGen TTS internally
 };
 
 // When a request omits the model, fall back to the tier of the model the

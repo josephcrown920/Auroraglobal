@@ -1,8 +1,9 @@
 // Server functions for Platform Talking Avatar Templates.
 //
-// Two generation paths depending on template kind:
-//   "video"  → sign video URL → TTS → sync/lipsync-2  (lipsync on the clip)
-//   "photo"  → sign photo URL → TTS → heygen/photo-video  (animate the face)
+// Three generation paths by template kind:
+//   "photo"         → TTS → HeyGen photo-video (heygen/photo-video, ultra)
+//   "video"         → TTS → sync.so lipsync-2 (sync/lipsync-2, premium)
+//   "heygen-avatar" → NO TTS — HeyGen handles speech internally via avatar_id+voice_id (heygen/avatar, ultra)
 
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -16,6 +17,7 @@ import { PLATFORM_TEMPLATES } from "@/lib/platform-templates";
 
 export const PLATFORM_VIDEO_MODEL = "sync/lipsync-2";
 export const PLATFORM_PHOTO_MODEL = "heygen/photo-video";
+export const PLATFORM_AVATAR_MODEL = "heygen/avatar";
 
 export const PLATFORM_VIDEO_COST = computeCost({
   features: ["lipsync"],
@@ -26,6 +28,24 @@ export const PLATFORM_PHOTO_COST = computeCost({
   features: ["lipsync"],
   model: PLATFORM_PHOTO_MODEL,
 }).total;
+
+export const PLATFORM_AVATAR_COST = computeCost({
+  features: ["lipsync"],
+  model: PLATFORM_AVATAR_MODEL,
+}).total;
+
+/** Cost in Aura for the given template kind — used by the UI. */
+export function templateCost(kind: "photo" | "video" | "heygen-avatar"): number {
+  if (kind === "photo") return PLATFORM_PHOTO_COST;
+  if (kind === "heygen-avatar") return PLATFORM_AVATAR_COST;
+  return PLATFORM_VIDEO_COST;
+}
+
+/** Total Aura to generate ALL platform templates (for "Generate All" button). */
+export const GENERATE_ALL_COST = PLATFORM_TEMPLATES.reduce(
+  (sum, t) => sum + templateCost(t.kind),
+  0,
+);
 
 async function signPath(path: string, expiresIn = 3600): Promise<string> {
   const { data, error } = await supabaseAdmin.storage
@@ -68,19 +88,34 @@ export const generateFromPlatformTemplate = createServerFn({ method: "POST" })
     const template = PLATFORM_TEMPLATES.find((t) => t.id === data.templateId);
     if (!template) throw new Error("Unknown template");
 
-    // Sign the asset URL so the provider can fetch it
-    const assetUrl = await signPath(template.storagePath, 3600);
+    // ── HeyGen avatar: no TTS needed — HeyGen handles speech internally ─────
+    if (template.kind === "heygen-avatar") {
+      if (!template.avatarId) throw new Error("Template missing avatarId");
+      const outcome = await reserveOrchestrateRecord({
+        userId: context.userId,
+        kind: "lipsync",
+        cost: PLATFORM_AVATAR_COST,
+        reason: "platform_template_avatar",
+        prompt: data.script,
+        model: PLATFORM_AVATAR_MODEL,
+        pinnedModelOnly: true,
+        params: {
+          avatarId: template.avatarId,
+          voiceId: template.voiceId ?? "m3Fp8hA8nS1Gc1Ne9FIf",
+        },
+      });
+      if (!outcome.ok)
+        return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
+      return { ok: true, generationId: outcome.generationId, url: outcome.url };
+    }
 
-    // TTS → upload audio
+    // ── Photo / video: TTS first, then sign asset URL ────────────────────────
+    if (!template.storagePath) throw new Error("Template missing storagePath");
+    const assetUrl = await signPath(template.storagePath, 3600);
     const tts = await hfTextToSpeech(UGC_TTS_MODEL, data.script);
-    const audioUrl = await uploadAudioToStudio(
-      context.userId,
-      tts.bytes,
-      tts.contentType,
-    );
+    const audioUrl = await uploadAudioToStudio(context.userId, tts.bytes, tts.contentType);
 
     if (template.kind === "photo") {
-      // Photo template → HeyGen photo-video (face animation)
       const outcome = await reserveOrchestrateRecord({
         userId: context.userId,
         kind: "lipsync",
@@ -95,26 +130,21 @@ export const generateFromPlatformTemplate = createServerFn({ method: "POST" })
       if (!outcome.ok)
         return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
       return { ok: true, generationId: outcome.generationId, url: outcome.url };
-    } else {
-      // Video template → sync.so lipsync-2 (mouth-sync on the clip)
-      const outcome = await reserveOrchestrateRecord({
-        userId: context.userId,
-        kind: "lipsync",
-        cost: PLATFORM_VIDEO_COST,
-        reason: "platform_template_video",
-        prompt: data.script.slice(0, 200),
-        model: PLATFORM_VIDEO_MODEL,
-        pinnedModelOnly: true,
-        videoUrl: assetUrl,
-        audioUrl,
-      });
-      if (!outcome.ok)
-        return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
-      return { ok: true, generationId: outcome.generationId, url: outcome.url };
     }
-  });
 
-/** Cost in Aura for a given template — used by the UI. */
-export function templateCost(kind: "video" | "photo"): number {
-  return kind === "photo" ? PLATFORM_PHOTO_COST : PLATFORM_VIDEO_COST;
-}
+    // kind === "video"
+    const outcome = await reserveOrchestrateRecord({
+      userId: context.userId,
+      kind: "lipsync",
+      cost: PLATFORM_VIDEO_COST,
+      reason: "platform_template_video",
+      prompt: data.script.slice(0, 200),
+      model: PLATFORM_VIDEO_MODEL,
+      pinnedModelOnly: true,
+      videoUrl: assetUrl,
+      audioUrl,
+    });
+    if (!outcome.ok)
+      return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
+    return { ok: true, generationId: outcome.generationId, url: outcome.url };
+  });
