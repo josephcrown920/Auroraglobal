@@ -63,12 +63,13 @@ const CREATE_FEATURES: Feature[] = [
 ];
 
 const TEMPLATE_FEATURES: Feature[] = [
-  { to: "/lipsync",     label: "Lip Sync",          icon: Mic },
-  { to: "/spin",        label: "TikTok30",          icon: Flame },
-  { to: "/ugc",         label: "UGC Ads",           icon: Megaphone },
-  { to: "/motion",      label: "Perform Anywhere",  icon: Wand2 },
-  { to: "/colors",      label: "Colors Studio",     icon: Palette },
-  { to: "/music-video", label: "Lyric Video",       icon: Clapperboard },
+  { to: "/lipsync",          label: "Lip Sync",          icon: Mic },
+  { to: "/spin",             label: "TikTok30",          icon: Flame },
+  { to: "/ugc",              label: "UGC Ads",           icon: Megaphone },
+  { to: "/motion",           label: "Perform Anywhere",  icon: Wand2 },
+  { to: "/colors",           label: "Colors Studio",     icon: Palette },
+  { to: "/music-video",      label: "Lyric Video",       icon: Clapperboard },
+  { to: "/heygen-templates", label: "HeyGen Templates",  icon: Film },
 ];
 
 const GROW_FEATURES: Feature[] = [
