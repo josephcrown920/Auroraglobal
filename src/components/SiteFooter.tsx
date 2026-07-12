@@ -35,7 +35,6 @@ export function SiteFooter({ tone = "dark" }: { tone?: "dark" | "light" }) {
           <Link to="/lipsync" className={`no-underline ${muted}`}>Lip Sync</Link>
           <Link to="/colors" className={`no-underline ${muted}`}>Colors Studio</Link>
           <Link to="/reshoot" className={`no-underline ${muted}`}>Multi-Angle Reshoot</Link>
-          <Link to="/kids" className={`no-underline ${muted}`}>Kids Story Studio</Link>
           <Link to="/gallery" className={`no-underline ${muted}`}>Gallery</Link>
           <Link to="/gifts" className={`no-underline ${muted}`}>Gift cards</Link>
           <Link to="/affiliate" className={`no-underline ${muted}`}>Affiliate</Link>

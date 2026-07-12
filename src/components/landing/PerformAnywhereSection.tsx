@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Sparkles, ArrowRight, Phone, Palette, Film, Zap } from "lucide-react";
+import { Sparkles, ArrowRight, Phone, Palette, Film, Zap, Crown } from "lucide-react";
 
 const STEPS = [
   {
@@ -39,128 +39,151 @@ const STEPS = [
 
 export function PerformAnywhereSection() {
   return (
-    <section className="relative z-10 px-6 md:px-12 py-16 md:py-24">
-      {/* background glow */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <div className="w-[600px] h-[400px] rounded-full bg-primary/5 blur-[120px]" />
-      </div>
-
-      <div className="relative max-w-6xl mx-auto">
-        {/* header */}
-        <div className="text-center max-w-3xl mx-auto mb-10">
-          <p className="aurora-kicker mb-3 inline-flex items-center gap-2 justify-center">
-            <span className="size-1.5 rounded-full bg-primary animate-pulse" />
-            Perform Anywhere · Motion Control
-          </p>
-          <h2 className="text-3xl md:text-5xl font-semibold tracking-tight">
-            Film yourself anywhere.{" "}
-            <span className="aurora-gradient-text">Aurora builds the world.</span>
-          </h2>
-          <p className="text-muted-foreground mt-4 text-base max-w-2xl mx-auto leading-relaxed">
-            Aurora's <strong className="text-white">Motion Control</strong> reads your real movement from a 30-second phone clip and transfers it into your AI-generated scene — style, motion, energy. No studio, no crew, no budget.
-          </p>
+    <section className="relative z-10 px-4 md:px-8 py-8 md:py-12">
+      {/* Premium bordered container */}
+      <div className="relative max-w-6xl mx-auto rounded-[28px] overflow-hidden border border-primary/40 bg-gradient-to-br from-violet-950/60 via-[#0d0820]/80 to-fuchsia-950/30 shadow-[0_0_100px_-30px_oklch(0.72_0.2_300),inset_0_1px_0_rgba(168,85,247,0.2)]">
+        {/* ambient glow */}
+        <div aria-hidden className="pointer-events-none absolute inset-0">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] rounded-full bg-primary/10 blur-[120px]" />
+          <div className="absolute bottom-0 right-0 w-[400px] h-[300px] rounded-full bg-fuchsia-600/8 blur-[100px]" />
         </div>
 
-        {/* Before → After visual */}
-        <div className="mb-10 grid grid-cols-[1fr_auto_1fr] gap-4 items-center max-w-3xl mx-auto">
-          <div className="relative rounded-2xl overflow-hidden aspect-[3/4] border border-white/10">
-            <img
-              src="/josh/generated2/perform-phone-clip.webp"
-              alt="Input — phone clip recorded at home"
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
-            <div className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur border border-white/10 text-[10px] font-bold uppercase tracking-widest text-white/80">
-              <Phone className="size-3 text-cyan-300" /> Your phone clip
-            </div>
-            <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
-              <p className="text-xs text-white/50">Real movement · any room</p>
+        {/* top accent line */}
+        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
+
+        <div className="relative px-6 py-10 md:px-12 md:py-14">
+
+          {/* Premium badge */}
+          <div className="flex justify-center mb-5">
+            <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/35 bg-gradient-to-r from-amber-500/15 via-yellow-400/10 to-orange-500/10 px-4 py-1.5 backdrop-blur-sm shadow-[0_0_20px_-8px_rgba(251,191,36,0.5)]">
+              <Crown className="size-3.5 text-amber-400" />
+              <span className="text-[11px] font-bold uppercase tracking-[0.3em] text-amber-300">
+                Premium Feature
+              </span>
             </div>
           </div>
 
-          <div className="flex flex-col items-center gap-2 px-2">
-            <div className="size-10 rounded-full bg-primary/20 border border-primary/30 grid place-items-center">
-              <Zap className="size-5 text-primary" />
-            </div>
-            <p className="text-[10px] uppercase tracking-widest text-white/30 text-center rotate-0">Motion<br />Control</p>
+          {/* header */}
+          <div className="text-center max-w-3xl mx-auto mb-10">
+            <p className="aurora-kicker mb-3 inline-flex items-center gap-2 justify-center">
+              <span className="size-1.5 rounded-full bg-primary animate-pulse" />
+              Perform Anywhere · Motion Control
+            </p>
+            <h2 className="text-4xl md:text-6xl font-black tracking-tight leading-[1.05]">
+              Film yourself anywhere.{" "}
+              <span className="aurora-gradient-text">Aurora builds the world.</span>
+            </h2>
+            <p className="text-muted-foreground mt-4 text-base max-w-2xl mx-auto leading-relaxed">
+              Aurora's <strong className="text-white">Motion Control</strong> reads your real movement from a 30-second phone clip and transfers it into your AI-generated scene — style, motion, energy. No studio, no crew, no budget.
+            </p>
           </div>
 
-          <div className="relative rounded-2xl overflow-hidden aspect-[3/4] border border-primary/30 shadow-[0_0_40px_-10px_var(--color-primary)]">
-            <div className="w-full h-full bg-gradient-to-br from-violet-900/80 via-fuchsia-900/60 to-black flex items-center justify-center">
-              <div className="text-center px-4">
-                <Sparkles className="size-8 text-primary mx-auto mb-3 opacity-70" />
-                <p className="text-sm font-semibold text-white/80">Your moves.</p>
-                <p className="text-sm font-semibold aurora-gradient-text">AI-generated world.</p>
+          {/* Before → After visual */}
+          <div className="mb-10 grid grid-cols-[1fr_auto_1fr] gap-4 items-center max-w-3xl mx-auto">
+            <div className="relative rounded-2xl overflow-hidden aspect-[3/4] border border-white/10">
+              <img
+                src="/josh/generated2/perform-phone-clip.webp"
+                alt="Input — phone clip recorded at home"
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+              <div className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur border border-white/10 text-[10px] font-bold uppercase tracking-widest text-white/80">
+                <Phone className="size-3 text-cyan-300" /> Your phone clip
+              </div>
+              <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+                <p className="text-xs text-white/50">Real movement · any room</p>
               </div>
             </div>
-            <div className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/20 backdrop-blur border border-primary/30 text-[10px] font-bold uppercase tracking-widest text-primary">
-              <Film className="size-3" /> AI scene output
-            </div>
-            <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
-              <p className="text-xs text-white/50">Cinematic result · your identity locked</p>
-            </div>
-          </div>
-        </div>
 
-        {/* 3-step cards */}
-        <div className="grid md:grid-cols-3 gap-4 mb-10">
-          {STEPS.map((s, i) => {
-            const Icon = s.icon;
-            const card = (
-              <div className={`group relative aurora-card overflow-hidden ${s.to ? "aurora-card-hover cursor-pointer" : ""}`}>
-                <div className={`absolute -inset-10 blur-3xl opacity-30 bg-gradient-to-br ${s.accent} group-hover:opacity-50 transition-opacity pointer-events-none`} />
-                <div className="relative p-6 space-y-4">
-                  <div className="flex items-start justify-between">
-                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${s.border} ${s.badgeColor}`}>
-                      <Icon className="size-3" />
-                      {s.badge}
-                    </span>
-                    <span className="text-4xl font-bold text-muted-foreground/20 leading-none">{s.n}</span>
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-foreground mb-1.5">{s.label}</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{s.desc}</p>
-                  </div>
-                  {s.to && (
-                    <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
-                      Open <ArrowRight className="size-3 group-hover:translate-x-0.5 transition-transform" />
-                    </div>
-                  )}
+            <div className="flex flex-col items-center gap-2 px-2">
+              <div className="size-10 rounded-full bg-primary/20 border border-primary/30 grid place-items-center shadow-[0_0_20px_-4px_var(--color-primary)]">
+                <Zap className="size-5 text-primary" />
+              </div>
+              <p className="text-[10px] uppercase tracking-widest text-white/30 text-center">Motion<br />Control</p>
+            </div>
+
+            <div className="relative rounded-2xl overflow-hidden aspect-[3/4] border border-primary/40 shadow-[0_0_50px_-10px_var(--color-primary)]">
+              <div className="w-full h-full bg-gradient-to-br from-violet-900/80 via-fuchsia-900/60 to-black flex items-center justify-center">
+                <div className="text-center px-4">
+                  <Sparkles className="size-8 text-primary mx-auto mb-3 opacity-70" />
+                  <p className="text-sm font-semibold text-white/80">Your moves.</p>
+                  <p className="text-sm font-semibold aurora-gradient-text">AI-generated world.</p>
                 </div>
               </div>
-            );
+              <div className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/20 backdrop-blur border border-primary/30 text-[10px] font-bold uppercase tracking-widest text-primary">
+                <Film className="size-3" /> AI scene output
+              </div>
+              <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+                <p className="text-xs text-white/50">Cinematic result · your identity locked</p>
+              </div>
+            </div>
+          </div>
 
-            return s.to ? (
-              <Link key={i} to={s.to as "/colors" | "/motion"} className="no-underline">
-                {card}
+          {/* 3-step cards */}
+          <div className="grid md:grid-cols-3 gap-4 mb-10">
+            {STEPS.map((s, i) => {
+              const Icon = s.icon;
+              const card = (
+                <div className={`group relative aurora-card overflow-hidden ${s.to ? "aurora-card-hover cursor-pointer" : ""}`}>
+                  <div className={`absolute -inset-10 blur-3xl opacity-30 bg-gradient-to-br ${s.accent} group-hover:opacity-50 transition-opacity pointer-events-none`} />
+                  <div className="relative p-6 space-y-4">
+                    <div className="flex items-start justify-between">
+                      <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${s.border} ${s.badgeColor}`}>
+                        <Icon className="size-3" />
+                        {s.badge}
+                      </span>
+                      <span className="text-4xl font-bold text-muted-foreground/20 leading-none">{s.n}</span>
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-foreground mb-1.5">{s.label}</h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{s.desc}</p>
+                    </div>
+                    {s.to && (
+                      <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
+                        Open <ArrowRight className="size-3 group-hover:translate-x-0.5 transition-transform" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+
+              return s.to ? (
+                <Link key={i} to={s.to as "/colors" | "/motion"} className="no-underline">
+                  {card}
+                </Link>
+              ) : (
+                <div key={i}>{card}</div>
+              );
+            })}
+          </div>
+
+          {/* bottom CTA strip */}
+          <div className="rounded-2xl border border-primary/20 bg-black/30 backdrop-blur px-6 md:px-10 py-6 flex flex-col md:flex-row items-center justify-between gap-5">
+            <div>
+              <div className="inline-flex items-center gap-1.5 mb-1.5">
+                <Crown className="size-3.5 text-amber-400" />
+                <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-amber-400/80">Pro · Premium</span>
+              </div>
+              <p className="font-semibold text-base">Ready to make your first performance video?</p>
+              <p className="text-sm text-muted-foreground mt-0.5">Start in Colors Studio — generate your AI scene in under 60 seconds.</p>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <Link
+                to="/colors"
+                className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-5 py-2.5 text-sm font-semibold text-foreground no-underline hover:border-primary/40 transition-colors"
+              >
+                <Palette className="size-4 text-violet-400" /> Colors Studio
               </Link>
-            ) : (
-              <div key={i}>{card}</div>
-            );
-          })}
-        </div>
+              <Link
+                to="/motion"
+                className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold text-primary-foreground no-underline hover:opacity-90 transition-opacity shadow-[0_0_24px_-6px_var(--color-primary)]"
+                style={{ background: "var(--gradient-hero)" }}
+              >
+                <Sparkles className="size-4" /> Perform Anywhere
+              </Link>
+            </div>
+          </div>
 
-        {/* bottom CTA strip */}
-        <div className="rounded-2xl border border-border bg-card/40 backdrop-blur px-6 md:px-10 py-6 flex flex-col md:flex-row items-center justify-between gap-5">
-          <div>
-            <p className="font-semibold text-base">Ready to make your first performance video?</p>
-            <p className="text-sm text-muted-foreground mt-0.5">Start in Colors Studio — generate your AI scene in under 60 seconds.</p>
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <Link
-              to="/colors"
-              className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-5 py-2.5 text-sm font-semibold text-foreground no-underline hover:border-primary/40 transition-colors"
-            >
-              <Palette className="size-4 text-violet-400" /> Colors Studio
-            </Link>
-            <Link
-              to="/motion"
-              className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold text-primary-foreground no-underline hover:opacity-90 transition-opacity"
-              style={{ background: "var(--gradient-hero)" }}
-            >
-              <Sparkles className="size-4" /> Perform Anywhere
-            </Link>
-          </div>
         </div>
       </div>
     </section>
