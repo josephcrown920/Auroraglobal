@@ -76,6 +76,7 @@ import {
   Download,
   Zap,
   RefreshCw,
+  Key,
 } from "lucide-react";
 
 export const Route = createLazyFileRoute("/agent")({ component: AgentPage });
@@ -421,56 +422,27 @@ function AgentPage() {
 
       {/* Mode tab bar */}
       <div className="relative z-20 flex overflow-x-auto border-b border-white/10 bg-background/60 backdrop-blur-sm shrink-0">
-        <button
-          onClick={() => setMode("agent")}
-          className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
-            mode === "agent"
-              ? "border-violet-400 text-violet-300"
-              : "border-transparent text-white/45 hover:text-white/70"
-          }`}
-        >
-          <Bot className="size-3.5" /> Story Agent
-        </button>
-        <button
-          onClick={() => setMode("templates")}
-          className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
-            mode === "templates"
-              ? "border-violet-400 text-violet-300"
-              : "border-transparent text-white/45 hover:text-white/70"
-          }`}
-        >
-          <Film className="size-3.5" /> HeyGen Templates
-        </button>
-        <button
-          onClick={() => setMode("recipes")}
-          className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
-            mode === "recipes"
-              ? "border-violet-400 text-violet-300"
-              : "border-transparent text-white/45 hover:text-white/70"
-          }`}
-        >
-          <Sparkles className="size-3.5" /> Showcase
-        </button>
-        <button
-          onClick={() => setMode("lyric-video")}
-          className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
-            mode === "lyric-video"
-              ? "border-violet-400 text-violet-300"
-              : "border-transparent text-white/45 hover:text-white/70"
-          }`}
-        >
-          <Music2 className="size-3.5" /> Lyric Video
-        </button>
-        <button
-          onClick={() => setMode("music-video")}
-          className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
-            mode === "music-video"
-              ? "border-violet-400 text-violet-300"
-              : "border-transparent text-white/45 hover:text-white/70"
-          }`}
-        >
-          <Film className="size-3.5" /> Make a Video
-        </button>
+        {(
+          [
+            { key: "agent",       icon: Bot,     label: "Story Agent"      },
+            { key: "templates",   icon: Film,    label: "HeyGen Templates" },
+            { key: "recipes",     icon: Sparkles,label: "Showcase"         },
+            { key: "lyric-video", icon: Music2,  label: "Lyric Video"      },
+            { key: "music-video", icon: Film,    label: "Make a Video"     },
+          ] as const
+        ).map(({ key, icon: Icon, label }) => (
+          <button
+            key={key}
+            onClick={() => setMode(key)}
+            className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-all whitespace-nowrap ${
+              mode === key
+                ? "border-violet-400 text-violet-300 bg-white/[0.04]"
+                : "border-transparent text-white/45 hover:text-white/70 hover:bg-white/[0.025]"
+            }`}
+          >
+            <Icon className="size-3.5" /> {label}
+          </button>
+        ))}
       </div>
 
       <div className="relative z-10 flex-1 flex min-h-0">
@@ -526,24 +498,39 @@ function AgentPage() {
 
           {/* ── HeyGen Templates panel ─────────────────────────────────── */}
           {mode === "templates" && (
-            <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+            <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-4">
 
-              {/* Save form */}
-              <section className="aurora-panel p-4 space-y-3">
-                <button
+              {/* Section title + add button */}
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-bold flex items-center gap-2">
+                    <span className="size-6 rounded-lg flex items-center justify-center bg-[var(--teal-dim)] border border-[var(--teal-border)]">
+                      <Film className="size-3.5 text-[var(--teal)]" />
+                    </span>
+                    HeyGen Templates
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Saved templates — swap the face, keep the scene.</p>
+                </div>
+                <Button
                   onClick={() => setTplFormOpen((o) => !o)}
-                  className="w-full flex items-center justify-between text-left"
+                  variant="glass"
+                  size="sm"
+                  className="shrink-0"
                 >
-                  <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-violet-300/80">
-                    <Plus className="size-3" /> Add HeyGen template
-                  </span>
-                  {tplFormOpen ? <ChevronUp className="size-4 text-white/40" /> : <ChevronDown className="size-4 text-white/40" />}
-                </button>
+                  <Plus className="size-3.5 mr-1" />
+                  {tplFormOpen ? "Cancel" : "Add template"}
+                </Button>
+              </div>
 
-                {tplFormOpen && (
-                  <div className="space-y-2.5 pt-1">
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-white/50">Template name</label>
+              {/* Add form — revealed inline */}
+              {tplFormOpen && (
+                <section className="aurora-card-raised p-4 space-y-3">
+                  <p className="text-xs font-bold">New template</p>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground mb-1">
+                        <Sparkles className="size-3" /> Template name
+                      </label>
                       <Input
                         value={tplName}
                         onChange={(e) => setTplName(e.target.value)}
@@ -551,8 +538,10 @@ function AgentPage() {
                         className="bg-black/30 border-white/10 text-white text-sm h-8"
                       />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-white/50">HeyGen template ID or URL</label>
+                    <div>
+                      <label className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground mb-1">
+                        <Copy className="size-3" /> HeyGen template ID or URL
+                      </label>
                       <Input
                         value={tplRawId}
                         onChange={(e) => setTplRawId(e.target.value)}
@@ -560,43 +549,52 @@ function AgentPage() {
                         className="bg-black/30 border-white/10 text-white text-sm h-8 font-mono"
                       />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-white/50">Character variable key</label>
+                    <div>
+                      <label className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground mb-1">
+                        <Key className="size-3" /> Character variable key
+                      </label>
                       <Input
                         value={tplCharKey}
                         onChange={(e) => setTplCharKey(e.target.value)}
                         placeholder="character"
                         className="bg-black/30 border-white/10 text-white text-sm h-8 font-mono"
                       />
-                      <p className="text-[10px] text-white/35 leading-relaxed">
-                        The variable name you assigned to the avatar slot in HeyGen Template Editor.
+                      <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+                        The variable name you set for the avatar slot in HeyGen Template Editor — usually{" "}
+                        <code className="bg-white/10 px-1 rounded">character</code>.
                       </p>
                     </div>
-                    <Button
-                      onClick={() => saveTplMut.mutate()}
-                      disabled={saveTplMut.isPending}
-                      variant="premium"
-                      className="w-full"
-                    >
-                      {saveTplMut.isPending ? <Loader2 className="size-4 mr-1 animate-spin" /> : <CheckCircle2 className="size-4 mr-1" />}
-                      Save template
-                    </Button>
                   </div>
-                )}
-              </section>
+                  <Button
+                    onClick={() => saveTplMut.mutate()}
+                    disabled={saveTplMut.isPending}
+                    variant="premium"
+                    className="w-full"
+                  >
+                    {saveTplMut.isPending ? <Loader2 className="size-4 mr-1 animate-spin" /> : <CheckCircle2 className="size-4 mr-1" />}
+                    Save template
+                  </Button>
+                </section>
+              )}
 
               {/* Template list */}
               {templatesQuery.isLoading && (
-                <div className="flex justify-center py-10 text-white/40">
+                <div className="flex justify-center py-10 text-muted-foreground">
                   <Loader2 className="size-5 animate-spin" />
                 </div>
               )}
 
               {!templatesQuery.isLoading && (templatesQuery.data ?? []).length === 0 && !tplFormOpen && (
-                <div className="text-center py-10 text-white/40 text-sm space-y-2">
-                  <Film className="size-8 mx-auto opacity-30" />
-                  <p>No templates yet.</p>
-                  <p className="text-[11px]">Click "Add HeyGen template" above to save one.</p>
+                <div className="aurora-card-raised p-10 text-center flex flex-col items-center gap-3">
+                  <div className="size-12 rounded-2xl bg-[var(--teal-dim)] border border-[var(--teal-border)] flex items-center justify-center">
+                    <Film className="size-6 text-[var(--teal)] opacity-60" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">No templates yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Click "Add template" above to save your first one.
+                    </p>
+                  </div>
                 </div>
               )}
 
@@ -605,151 +603,189 @@ function AgentPage() {
                 const gm = genMode[tpl.id] ?? "photo";
                 const res = tplResult[tpl.id];
                 return (
-                  <div key={tpl.id} className="aurora-glass rounded-2xl overflow-hidden">
-                    {/* Header row */}
-                    <div className="flex items-center justify-between px-4 py-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold truncate">{tpl.name}</p>
-                        <p className="text-[10px] text-white/40 font-mono truncate mt-0.5">{tpl.heygen_template_id}</p>
+                  <div key={tpl.id} className="aurora-card-raised overflow-hidden">
+                    {/* Thumbnail placeholder */}
+                    <div className="relative h-20 bg-[var(--teal-dim)] border-b border-[var(--teal-border)] flex items-center justify-center overflow-hidden">
+                      <div className="size-11 rounded-2xl bg-[var(--teal-dim)] border border-[var(--teal-border)] flex items-center justify-center shadow-[var(--shadow-elevated)]">
+                        <User className="size-5 text-[var(--teal)] opacity-70" />
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => setGenOpen((o) => ({ ...o, [tpl.id]: !open }))}
-                          className="flex items-center gap-1 text-[11px] text-violet-300 hover:text-violet-200 transition-colors"
+                      <div className="absolute top-2 right-2">
+                        <span className="text-[9px] font-mono text-white/25 bg-black/30 px-1.5 py-0.5 rounded-md backdrop-blur-sm">
+                          {tpl.heygen_template_id.slice(0, 10)}…
+                        </span>
+                      </div>
+                      <div className="absolute bottom-2 left-3">
+                        <span
+                          className="inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full border"
+                          style={{ color: "var(--teal)", borderColor: "var(--teal-border)", background: "var(--teal-dim)" }}
                         >
-                          <Play className="size-3.5" />
-                          {open ? "Close" : "Generate"}
-                        </button>
-                        <button
-                          onClick={() => deleteTplMut.mutate(tpl.id)}
-                          disabled={deleteTplMut.isPending}
-                          className="text-white/30 hover:text-rose-300 transition-colors"
-                          aria-label="Delete"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
+                          <Film className="size-2.5" /> HeyGen
+                        </span>
                       </div>
                     </div>
 
-                    {/* Generate panel */}
-                    {open && (
-                      <div className="border-t border-white/10 px-4 py-3 space-y-3">
-                        {/* Photo vs avatar toggle */}
-                        <div className="flex gap-2">
+                    {/* Card body */}
+                    <div className="px-4 py-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold truncate">{tpl.name}</p>
+                          <p className="text-[10px] text-muted-foreground font-mono truncate mt-0.5">
+                            {tpl.heygen_template_id}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
                           <button
-                            onClick={() => setGenMode((m) => ({ ...m, [tpl.id]: "photo" }))}
-                            className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg border py-2 text-xs transition-colors ${
-                              gm === "photo"
-                                ? "border-violet-400/50 bg-violet-500/15 text-violet-200"
-                                : "border-white/10 bg-white/[0.03] text-white/50 hover:bg-white/[0.07]"
-                            }`}
+                            onClick={() => setGenOpen((o) => ({ ...o, [tpl.id]: !open }))}
+                            className="flex items-center gap-1 text-[11px] font-semibold text-[var(--teal)] hover:opacity-80 transition-opacity"
                           >
-                            <Upload className="size-3.5" /> My photo
+                            <Play className="size-3 fill-current" />
+                            {open ? "Close" : "Generate"}
                           </button>
                           <button
-                            onClick={() => setGenMode((m) => ({ ...m, [tpl.id]: "avatar" }))}
-                            className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg border py-2 text-xs transition-colors ${
-                              gm === "avatar"
-                                ? "border-violet-400/50 bg-violet-500/15 text-violet-200"
-                                : "border-white/10 bg-white/[0.03] text-white/50 hover:bg-white/[0.07]"
-                            }`}
+                            onClick={() => deleteTplMut.mutate(tpl.id)}
+                            disabled={deleteTplMut.isPending}
+                            className="text-white/30 hover:text-rose-300 transition-colors"
+                            aria-label="Delete"
                           >
-                            <User className="size-3.5" /> HeyGen avatar
+                            <Trash2 className="size-3.5" />
                           </button>
                         </div>
-
-                        {gm === "photo" ? (
-                          <div className="space-y-1">
-                            <label className="text-[10px] text-white/50">Photo URL</label>
-                            <Input
-                              value={genPhotoUrl[tpl.id] ?? ""}
-                              onChange={(e) => setGenPhotoUrl((u) => ({ ...u, [tpl.id]: e.target.value }))}
-                              placeholder="https://… direct image URL"
-                              className="bg-black/30 border-white/10 text-white text-xs h-8"
-                            />
-                          </div>
-                        ) : (
-                          <div className="space-y-1">
-                            <label className="text-[10px] text-white/50">HeyGen avatar ID</label>
-                            <Input
-                              value={genAvatarId[tpl.id] ?? ""}
-                              onChange={(e) => setGenAvatarId((a) => ({ ...a, [tpl.id]: e.target.value }))}
-                              placeholder="Paste avatar ID from HeyGen"
-                              className="bg-black/30 border-white/10 text-white text-xs h-8 font-mono"
-                            />
-                          </div>
-                        )}
-
-                        <Button
-                          onClick={() => generateTplMut.mutate({ tpl, gMode: gm })}
-                          disabled={generateTplMut.isPending && generateTplMut.variables?.tpl.id === tpl.id}
-                          variant="premium"
-                          size="sm"
-                          className="w-full"
-                        >
-                          {generateTplMut.isPending && generateTplMut.variables?.tpl.id === tpl.id ? (
-                            <><Loader2 className="size-3.5 mr-1 animate-spin" /> Generating…</>
-                          ) : (
-                            <><Sparkles className="size-3.5 mr-1" /> Generate · {TEMPLATE_COST} Aura</>
-                          )}
-                        </Button>
-
-                        {/* Result */}
-                        {res?.status === "rendering" && (
-                          <div className="flex items-center gap-2 text-xs text-white/50 justify-center py-2">
-                            <Loader2 className="size-4 animate-spin text-violet-300" /> Rendering video…
-                          </div>
-                        )}
-                        {res?.status === "failed" && (
-                          <p className="text-xs text-rose-300 text-center flex items-center justify-center gap-1">
-                            <AlertTriangle className="size-3.5" /> Render failed — try again
-                          </p>
-                        )}
-                        {res?.status === "done" && res.url && (
-                          <div className="space-y-2">
-                            <video
-                              src={res.url}
-                              controls
-                              playsInline
-                              className="w-full rounded-xl border border-white/10 bg-black"
-                            />
-                            <div className="flex gap-2">
-                              <a
-                                href={res.url}
-                                download
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  fetch(res.url!).then((r) => r.blob()).then((blob) => {
-                                    const a = document.createElement("a");
-                                    a.href = URL.createObjectURL(blob);
-                                    a.download = `${tpl.name}-heygen.mp4`;
-                                    a.click();
-                                  });
-                                }}
-                                className="flex-1 flex items-center justify-center gap-1 text-[11px] py-1.5 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 text-white/70 transition-colors no-underline"
-                              >
-                                <ImageIcon className="size-3.5" /> Download
-                              </a>
-                              <button
-                                onClick={() => { navigator.clipboard.writeText(res.url!); toast.success("URL copied"); }}
-                                className="flex-1 flex items-center justify-center gap-1 text-[11px] py-1.5 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 text-white/70 transition-colors"
-                              >
-                                <Copy className="size-3.5" /> Copy URL
-                              </button>
-                            </div>
-                          </div>
-                        )}
                       </div>
-                    )}
+
+                      {/* Char key badge */}
+                      <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-1">
+                        <Key className="size-3 text-[var(--teal)] opacity-70" />
+                        Character slot:{" "}
+                        <code className="font-mono text-white/50 text-[10px] bg-white/5 px-1 rounded">
+                          {tpl.character_variable_key}
+                        </code>
+                      </p>
+
+                      {/* Generate panel */}
+                      {open && (
+                        <div className="border-t border-white/10 mt-3 pt-3 space-y-3">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setGenMode((m) => ({ ...m, [tpl.id]: "photo" }))}
+                              className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl border py-2.5 text-xs font-medium transition-colors ${
+                                gm === "photo"
+                                  ? "border-[var(--teal-border)] bg-[var(--teal-dim)] text-[var(--teal)]"
+                                  : "border-white/10 bg-white/[0.03] text-white/50 hover:bg-white/[0.07]"
+                              }`}
+                            >
+                              <Upload className="size-3.5" /> My photo
+                            </button>
+                            <button
+                              onClick={() => setGenMode((m) => ({ ...m, [tpl.id]: "avatar" }))}
+                              className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl border py-2.5 text-xs font-medium transition-colors ${
+                                gm === "avatar"
+                                  ? "border-[var(--teal-border)] bg-[var(--teal-dim)] text-[var(--teal)]"
+                                  : "border-white/10 bg-white/[0.03] text-white/50 hover:bg-white/[0.07]"
+                              }`}
+                            >
+                              <User className="size-3.5" /> HeyGen avatar
+                            </button>
+                          </div>
+
+                          {gm === "photo" ? (
+                            <div>
+                              <label className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground mb-1">
+                                <ImageIcon className="size-3" /> Photo URL
+                              </label>
+                              <Input
+                                value={genPhotoUrl[tpl.id] ?? ""}
+                                onChange={(e) => setGenPhotoUrl((u) => ({ ...u, [tpl.id]: e.target.value }))}
+                                placeholder="https://… direct image URL"
+                                className="bg-black/30 border-white/10 text-white text-xs h-8"
+                              />
+                            </div>
+                          ) : (
+                            <div>
+                              <label className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground mb-1">
+                                <User className="size-3" /> HeyGen avatar ID
+                              </label>
+                              <Input
+                                value={genAvatarId[tpl.id] ?? ""}
+                                onChange={(e) => setGenAvatarId((a) => ({ ...a, [tpl.id]: e.target.value }))}
+                                placeholder="Paste avatar ID from HeyGen"
+                                className="bg-black/30 border-white/10 text-white text-xs h-8 font-mono"
+                              />
+                            </div>
+                          )}
+
+                          <Button
+                            onClick={() => generateTplMut.mutate({ tpl, gMode: gm })}
+                            disabled={generateTplMut.isPending && generateTplMut.variables?.tpl.id === tpl.id}
+                            variant="premium"
+                            size="sm"
+                            className="w-full"
+                          >
+                            {generateTplMut.isPending && generateTplMut.variables?.tpl.id === tpl.id ? (
+                              <><Loader2 className="size-3.5 mr-1 animate-spin" /> Generating…</>
+                            ) : (
+                              <><Sparkles className="size-3.5 mr-1" /> Generate · {TEMPLATE_COST} Aura</>
+                            )}
+                          </Button>
+
+                          {res?.status === "rendering" && (
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center py-2">
+                              <Loader2 className="size-4 animate-spin text-[var(--teal)]" /> Rendering video…
+                            </div>
+                          )}
+                          {res?.status === "failed" && (
+                            <p className="text-xs text-rose-300 text-center flex items-center justify-center gap-1">
+                              <AlertTriangle className="size-3.5" /> Render failed — try again
+                            </p>
+                          )}
+                          {res?.status === "done" && res.url && (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-1.5 text-xs text-[var(--teal)] font-semibold">
+                                <CheckCircle2 className="size-3.5" /> Video ready
+                              </div>
+                              <video
+                                src={res.url}
+                                controls
+                                playsInline
+                                className="w-full rounded-xl border border-[var(--teal-border)] bg-black"
+                              />
+                              <div className="flex gap-2">
+                                <a
+                                  href={res.url}
+                                  download
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    fetch(res.url!).then((r) => r.blob()).then((blob) => {
+                                      const a = document.createElement("a");
+                                      a.href = URL.createObjectURL(blob);
+                                      a.download = `${tpl.name}-heygen.mp4`;
+                                      a.click();
+                                    });
+                                  }}
+                                  className="flex-1 flex items-center justify-center gap-1 text-[11px] py-1.5 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 text-white/70 transition-colors no-underline"
+                                >
+                                  <ImageIcon className="size-3.5" /> Download
+                                </a>
+                                <button
+                                  onClick={() => { navigator.clipboard.writeText(res.url!); toast.success("URL copied"); }}
+                                  className="flex-1 flex items-center justify-center gap-1 text-[11px] py-1.5 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 text-white/70 transition-colors"
+                                >
+                                  <Copy className="size-3.5" /> Copy URL
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}
 
-              {/* How-to hint */}
-              <div className="aurora-glass rounded-xl p-4 space-y-1.5">
-                <p className="text-[10px] uppercase tracking-wider text-white/40">How to find your template ID</p>
-                <ol className="text-[11px] text-white/60 space-y-1 list-decimal list-inside leading-relaxed">
-                  <li>Go to <a href="https://app.heygen.com/templates" target="_blank" rel="noreferrer" className="text-violet-300 hover:underline">app.heygen.com/templates</a></li>
+              {/* How-to guide */}
+              <div className="aurora-glass rounded-2xl p-4 space-y-2">
+                <p className="text-xs font-bold">How to find your template ID</p>
+                <ol className="text-[11px] text-muted-foreground space-y-1.5 list-decimal list-inside leading-relaxed">
+                  <li>Go to <a href="https://app.heygen.com/templates" target="_blank" rel="noreferrer" className="text-primary underline">app.heygen.com/templates</a></li>
                   <li>Open any template → copy the URL or the ID from the address bar</li>
                   <li>Note the variable name you set for the character/avatar slot</li>
                 </ol>
@@ -1123,8 +1159,14 @@ function AgentPage() {
           <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6">
             {/* Brief composer */}
             <section className="aurora-panel p-4 space-y-3">
-              <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-violet-300/80">
-                <Wand2 className="size-3" /> {sessionId ? "Refine this brief" : "Your brief"}
+              <div className="flex items-center gap-2">
+                <span className="size-7 rounded-xl flex items-center justify-center bg-primary/15 border border-primary/25 shrink-0">
+                  <Wand2 className="size-3.5 text-primary" />
+                </span>
+                <div>
+                  <p className="text-sm font-bold leading-tight">{sessionId ? "Refine your brief" : "Your brief"}</p>
+                  <p className="text-[10px] text-muted-foreground">Director ↔ critic refinement loop</p>
+                </div>
               </div>
               <Textarea
                 value={brief}
@@ -1134,15 +1176,17 @@ function AgentPage() {
                 className="bg-black/30 border-white/10 text-white text-sm resize-none"
               />
               {!plan && !busy && (
-                <div className="space-y-1.5">
-                  <p className="text-[10px] uppercase tracking-wider text-white/40">Try a prompt</p>
+                <div className="space-y-2 pt-1">
+                  <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <Lightbulb className="size-3" /> Try a prompt
+                  </p>
                   {SAMPLES.map((s) => (
                     <button
                       key={s}
                       onClick={() => setBrief(s)}
-                      className="w-full text-left text-xs p-2.5 rounded-lg border border-white/10 bg-white/[0.02] hover:bg-white/5 hover:border-violet-400/30 text-white/75"
+                      className="w-full text-left text-xs p-3 rounded-xl border border-white/[0.08] bg-white/[0.025] hover:bg-white/[0.05] hover:border-primary/30 text-white/70 transition-all leading-relaxed"
                     >
-                      {s}
+                      <span className="text-primary/50 mr-1.5">→</span>{s}
                     </button>
                   ))}
                 </div>

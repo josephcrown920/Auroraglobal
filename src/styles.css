@@ -116,6 +116,9 @@
   --surface-glass: oklch(1 0 0 / 4%);
   --surface-glass-strong: oklch(1 0 0 / 7%);
   --border-strong: oklch(1 0 0 / 16%);
+  --teal: oklch(0.68 0.13 185);
+  --teal-dim: oklch(0.68 0.13 185 / 12%);
+  --teal-border: oklch(0.68 0.13 185 / 28%);
   --gradient-text: linear-gradient(120deg, oklch(0.98 0 0), oklch(0.82 0.16 315) 55%, oklch(0.72 0.2 300));
 
   --chart-1: oklch(0.73 0.19 44);
@@ -171,6 +174,9 @@ html[data-theme="light"] {
   --surface-glass: oklch(0 0 0 / 3%);
   --surface-glass-strong: oklch(0 0 0 / 6%);
   --border-strong: oklch(0 0 0 / 15%);
+  --teal: oklch(0.55 0.13 185);
+  --teal-dim: oklch(0.55 0.13 185 / 10%);
+  --teal-border: oklch(0.55 0.13 185 / 25%);
   --gradient-text: linear-gradient(120deg, oklch(0.12 0.02 272), oklch(0.42 0.16 305) 55%, oklch(0.55 0.22 300));
 
   --chart-1: oklch(0.64 0.19 44);
@@ -311,6 +317,14 @@ html[data-theme="light"] {
     box-shadow: var(--shadow-elevated);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
+  }
+  .aurora-card-raised {
+    background: var(--surface-glass-strong);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-elevated), 0 1px 0 0 oklch(1 0 0 / 5%) inset;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
   }
   .aurora-hairline {
     border: 1px solid var(--border);
