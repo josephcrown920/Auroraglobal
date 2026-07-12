@@ -125,5 +125,16 @@ export async function assertOwnedReferenceImage(raw: string, userId: string): Pr
     .maybeSingle();
   if (!error && data) return;
 
+  // Also accept result URLs from generations the caller owns — covers both the
+  // persisted studio-bucket URL and the raw-provider fallback stored in
+  // result_image_url when persistResultUrl fails.
+  const { data: genRow, error: genErr } = await supabaseAdmin
+    .from("generations")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("result_image_url", raw)
+    .maybeSingle();
+  if (!genErr && genRow) return;
+
   throw new Error("You can only use character images you own.");
 }

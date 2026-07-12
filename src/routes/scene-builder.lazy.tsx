@@ -82,14 +82,33 @@ function SceneBuilderPage() {
   const enqueueFn = useServerFn(generatePerformanceShot);
   const listFn = useServerFn(listGenerations);
 
-  // Poll listGenerations while there are any tracked angle jobs. Stops when all
-  // are in a terminal state (done / error). Results arrive in the Gallery too.
+  const isDone = (s: string) =>
+    s === "done" || s === "completed" || s === "succeeded" || s === "complete";
+  const isFailed = (s: string) => s === "error" || s === "failed";
+
   const hasActiveJobs = angleJobs.length > 0;
+
+  // Poll listGenerations while there are tracked angle jobs. refetchInterval is a
+  // function so it can inspect the query's own cached data and return false once
+  // every tracked job has reached a terminal state — preventing an infinite poll.
   const { data: genData } = useQuery({
     queryKey: ["scene-builder-gens", user?.id],
     queryFn: () => listFn(),
     enabled: !!user && hasActiveJobs,
-    refetchInterval: 3_000,
+    refetchInterval: (query) => {
+      if (!angleJobs.length) return false;
+      type Item = { id: string; status: string };
+      const items = (
+        query.state.data as { items?: Item[] } | undefined
+      )?.items;
+      if (!items) return 3_000;
+      const allTerminal = angleJobs.every((job) => {
+        const gen = items.find((g) => g.id === job.generationId);
+        if (!gen) return false;
+        return isDone(gen.status) || isFailed(gen.status);
+      });
+      return allTerminal ? false : 3_000;
+    },
     staleTime: 0,
   });
 
@@ -107,10 +126,6 @@ function SceneBuilderPage() {
       error: gen?.error ?? null,
     };
   });
-
-  const isDone = (s: string) =>
-    s === "done" || s === "completed" || s === "succeeded" || s === "complete";
-  const isFailed = (s: string) => s === "error" || s === "failed";
 
   const filledSlots = slots.filter(Boolean).length;
 
