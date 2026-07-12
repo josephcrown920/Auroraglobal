@@ -525,7 +525,7 @@ function ColorsShowPage() {
                     </div>
                     <Link
                       to="/motion"
-                      search={{ image: wideResult.url }}
+                      search={{ image: wideResult.url, ...(closeupResult ? { image2: closeupResult.url } : {}) }}
                       className="flex items-center justify-center gap-1.5 w-full py-2.5 px-3 rounded-xl bg-primary/20 border border-primary/40 text-primary text-xs font-semibold hover:bg-primary/30 transition-colors"
                     >
                       <Video className="w-3.5 h-3.5" />
@@ -545,7 +545,7 @@ function ColorsShowPage() {
                     </div>
                     <Link
                       to="/motion"
-                      search={{ image: closeupResult.url }}
+                      search={{ image: closeupResult.url, ...(wideResult ? { image2: wideResult.url } : {}) }}
                       className="flex items-center justify-center gap-1.5 w-full py-2.5 px-3 rounded-xl bg-primary/20 border border-primary/40 text-primary text-xs font-semibold hover:bg-primary/30 transition-colors"
                     >
                       <Video className="w-3.5 h-3.5" />
