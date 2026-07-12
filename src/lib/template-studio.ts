@@ -19,7 +19,8 @@
 // and never imports a *.server module.
 
 import { computeCost, COST_UGC_AD, COST_AUTOCUT, type Resolution } from "./pricing";
-import { SPIN_PIECE_COST } from "./spin-engine";
+// SPIN_PIECE_COST intentionally not imported here: spin dispatch templates
+// navigate to /spin (no credit charge in the drawer) so templateCost returns 0.
 import { AUDIO_ACCEPT } from "./utils";
 
 // ── Thumbnails (direct file imports resolve to a URL string) ────────────────
@@ -382,7 +383,9 @@ export function getStudioTemplate(id: string): StudioTemplate | undefined {
  */
 export function templateCost(t: StudioTemplate): number {
   if (t.dispatch === "ugc") return COST_UGC_AD;
-  if (t.dispatch === "spin") return SPIN_PIECE_COUNT * SPIN_PIECE_COST;
+  // Spin templates navigate to /spin where the user explicitly pays 30 Aura.
+  // No credits are charged in the template drawer itself → cost = 0 (Free).
+  if (t.dispatch === "spin") return 0;
   if (t.dispatch === "autocut") return COST_AUTOCUT;
 
   let total = 0;
