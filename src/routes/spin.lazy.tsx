@@ -2,7 +2,7 @@ import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Flame, Loader2, Check, Sparkles, ArrowLeft, User, AlertCircle, Image as ImageIcon, Video, Mic, Package, X, Film, ChevronDown, ChevronUp } from "lucide-react";
+import { Flame, Loader2, Check, Sparkles, ArrowLeft, User, AlertCircle, Image as ImageIcon, Video, Mic, Package, X, Film, ChevronDown, ChevronUp, Download } from "lucide-react";
 import { getSpinOptions, spinThirty, getSpinJob, tickSpinJob } from "@/lib/spin.functions";
 import {
   listAuroraTemplates,
@@ -41,6 +41,24 @@ type Variant = {
 type AvatarOption = { id: string; name: string; previewUrl: string | null };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Fetch → Blob → objectURL so the browser actually saves the file even when
+// the image lives in a cross-origin bucket (a plain <a download> is silently
+// ignored for cross-origin URLs). Caller should .catch() and surface a toast.
+async function downloadVariant(url: string, idx: number, kind: "image" | "video") {
+  const ext = kind === "video" ? "mp4" : "jpg";
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = `spin-${idx + 1}.${ext}`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(objectUrl);
+}
 
 function toVariant(v: {
   id: string;
@@ -754,6 +772,16 @@ function SpinPage() {
                         <span className="size-2 rounded-full bg-white/30" />
                       )}
                     </div>
+                  )}
+                  {v.status === "done" && v.url && (
+                    <button
+                      type="button"
+                      onClick={() => downloadVariant(v.url!, v.idx, v.kind).catch(() => toast.error("Download failed"))}
+                      className="absolute right-2 top-2 rounded-full bg-black/60 p-1.5 opacity-0 backdrop-blur-sm transition group-hover:opacity-100"
+                      title="Download"
+                    >
+                      <Download className="size-3 text-white" />
+                    </button>
                   )}
                   <div className="absolute inset-x-0 bottom-0 flex flex-col gap-0.5 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-2">
                     <div className="flex items-center justify-between gap-1">
