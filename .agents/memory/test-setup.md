@@ -34,3 +34,9 @@ chain per test via `process.env` provider keys; reset the shared in-memory HEALT
 map between tests by calling exported `markSuccess(name)` for every provider name.
 Note `gpuWorker.supports()` returns true for EVERY kind, so it's always in the
 chain unless cooled down or the (stubbed) worker query is empty.
+
+**Bun per-test timeout:** Bun's per-test timeout must be set as the **3rd arg**
+to `it("name", fn, timeoutMs)` and `beforeAll(fn, timeoutMs)`. The `{ timeout }`
+option on `describe()` does NOT propagate to contained `it()` calls — every
+slow test needs its own explicit timeout or it times out at the default 5000 ms.
+Long-running integration tests (e.g. real ffmpeg assembly) need 180_000+ ms.
