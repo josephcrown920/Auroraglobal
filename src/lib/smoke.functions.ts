@@ -20,6 +20,7 @@ const STEPS = [
   "Motion control",
   "HeyGen template",
   "Aurora agent (plan)",
+  "Lip sync (photo+audio)",
 ] as const;
 
 async function assertAdmin(userId: string) {
@@ -277,12 +278,37 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       });
       await writeCheck(run.id, 10, STEPS[9], r10);
 
+      // 11. Lip sync (photo+audio) — standalone HeyGen Photo path that doesn't depend
+      //     on a prior video-gen step: feeds a portrait still image directly to the
+      //     heygen/photo-video adapter alongside the test audio track, asserting a
+      //     working lipsync video URL is returned.
+      const r11: StepResult = await (async (): Promise<StepResult> => {
+        if (!process.env.HEYGEN_API_KEY) {
+          return { status: "skip", latency_ms: 0, cost_usd: 0, error: "HEYGEN_API_KEY not configured — skipping photo lipsync step" };
+        }
+        return runStep(async () => {
+          const out = await orchestrate({
+            kind: "lipsync",
+            model: "heygen/photo-video",
+            pinnedModelOnly: true,
+            imageUrls: [TEST_SELFIE_URL],
+            audioUrl: TEST_AUDIO_URL,
+            userId: context.userId,
+            refId: run.id,
+          });
+          if (!out.url) throw new Error("Photo lipsync returned no output URL");
+          return { url: out.url, cost: out.costUsd, raw: { provider: out.provider } };
+        });
+      })();
+      await writeCheck(run.id, 11, STEPS[10], r11);
+      total += r11.cost_usd;
+
       await supabaseAdmin
         .from("smoke_runs")
         .update({
           finished_at: new Date().toISOString(),
           total_cost_usd: total,
-          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10].filter(r => r.status === "pass").length, total: 10 } as never,
+          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11].filter(r => r.status === "pass").length, total: 11 } as never,
         })
         .eq("id", run.id);
     })().catch(async (e) => {
