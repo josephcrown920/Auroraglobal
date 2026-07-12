@@ -8,7 +8,7 @@ import { markFirstPurchaseComplete } from "@/lib/first-run";
 import { redeemPromoCode } from "@/lib/promo.functions";
 import { PLANS, SUBSCRIPTION_TIERS } from "@/lib/billing.plans";
 import { toast } from "sonner";
-import { ArrowLeft, Zap, Star, CheckCircle2, XCircle, CreditCard, Loader2, Crown, Tag, Rocket, Gauge } from "lucide-react";
+import { ArrowLeft, Zap, Star, CheckCircle2, XCircle, CreditCard, Loader2, Crown, Tag, Rocket, Gauge, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
@@ -227,25 +227,45 @@ function BillingPage() {
           </section>
         )}
 
-        {/* Growth Tools highlight */}
+        {/* Growth Tools highlight — Pro feature */}
         <section>
-          <div className="aurora-glass rounded-2xl p-5 border border-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
+          <div className={`aurora-glass rounded-2xl p-5 border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${isPro ? "border-primary/30" : "border-border opacity-80"}`}>
+            <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
-                <Rocket className="size-4 text-primary" />
+                {isPro ? (
+                  <Rocket className="size-4 text-primary" />
+                ) : (
+                  <Lock className="size-4 text-muted-foreground" />
+                )}
                 <h2 className="text-base font-semibold">Growth Tools</h2>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary font-medium uppercase tracking-wide">Pro</span>
               </div>
               <p className="text-sm text-muted-foreground">
                 Daily post generator, AI rollout plans and social media packs — promote every release like a label would.
               </p>
+              {!isPro && (
+                <p className="text-xs text-muted-foreground/60 mt-1">Upgrade to Pro to unlock this feature.</p>
+              )}
             </div>
-            <Link
-              to="/growth"
-              className="text-sm text-primary font-medium whitespace-nowrap hover:underline shrink-0"
-            >
-              Try it now →
-            </Link>
+            {isPro ? (
+              <Link
+                to="/growth"
+                className="text-sm text-primary font-medium whitespace-nowrap hover:underline shrink-0"
+              >
+                Try it now →
+              </Link>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 border-primary/40 text-primary hover:bg-primary/10"
+                onClick={() => proMut.mutate()}
+                disabled={proMut.isPending}
+              >
+                {proMut.isPending ? <Loader2 className="size-3 animate-spin mr-1" /> : <Crown className="size-3 mr-1" />}
+                Upgrade to unlock
+              </Button>
+            )}
           </div>
         </section>
 
