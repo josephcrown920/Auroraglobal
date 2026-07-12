@@ -51,6 +51,12 @@ const MAKE_FEATURES: Feature[] = [
   { to: "/agent",       label: "Video Agent",      icon: Bot },
 ];
 
+/** Guided creator workflows — music video & scene compositing. */
+const CREATOR_TOOLS_FEATURES: Feature[] = [
+  { to: "/colors-show",   label: "Colors Show Creator", icon: Film },
+  { to: "/scene-builder", label: "Scene Builder",       icon: Layers },
+];
+
 /** Creator & viral templates — ordered by demand. */
 const VIRAL_FEATURES: Feature[] = [
   { to: "/templates",   label: "Templates",        icon: Layers },
@@ -71,7 +77,12 @@ const ACCOUNT_FEATURES: Feature[] = [
   { to: "/admin",             label: "Admin",          icon: Shield },
 ];
 
-const LIVE_FEATURES: Feature[] = [...MAKE_FEATURES, ...VIRAL_FEATURES, ...ACCOUNT_FEATURES];
+const LIVE_FEATURES: Feature[] = [
+  ...MAKE_FEATURES,
+  ...CREATOR_TOOLS_FEATURES,
+  ...VIRAL_FEATURES,
+  ...ACCOUNT_FEATURES,
+];
 
 /** Archived — hidden from the main nav; still reachable from /admin. */
 export const ARCHIVED_FEATURES: Feature[] = [
@@ -276,6 +287,18 @@ export function MobileNav() {
             {/* Make — core creation tools, highest demand first */}
             <NavSection label="Make">
               {MAKE_FEATURES.map((f) => (
+                <LiveNavItem
+                  key={f.to}
+                  f={f}
+                  active={isActive(pathname, f.to)}
+                  onClick={() => setOpen(false)}
+                />
+              ))}
+            </NavSection>
+
+            {/* Creator Tools — guided music video & scene workflows */}
+            <NavSection label="Creator Tools">
+              {CREATOR_TOOLS_FEATURES.map((f) => (
                 <LiveNavItem
                   key={f.to}
                   f={f}
