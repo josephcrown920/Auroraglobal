@@ -10,7 +10,8 @@ name when one is provided. If they ask "what can you do?", suggest Studio (image
 Canvas (node workflows), Lipsync, UGC, Colors, Gallery, Gifts. New users get 5 free Aura.
 1 Aura ≈ 1 image; budget videos cost 10 (5s) or 20 (10s), premium models more; lip-sync starts at 3 Aura per 5s clip.
 Commercial license is included on all paid plans. Never invent features that don't exist.
-Keep replies under 120 words unless the user asks for more detail.`;
+Keep replies under 120 words unless the user asks for more detail.
+Active limited offer: first Aura pack purchase gives 25% extra Aura free — 24-hour countdown, code applied automatically at checkout. Mention this naturally when the user asks about pricing or credits.`;
 
 const Msg = z.object({
   role: z.enum(["user", "assistant"]),

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { MessageCircle, X, Send, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -9,6 +9,59 @@ import { track } from "@/lib/tracking";
 type Msg = { role: "user" | "assistant"; content: string };
 
 const GREETED_KEY = "aurora.chatbot.greeted";
+const SHOWN_TIPS_KEY = "aurora.chatbot.shown_tips";
+const OFFER_START_KEY = "aurora_offer_start";
+const OFFER_DURATION_MS = 1000 * 60 * 60 * 24;
+
+const TIPS_GENERAL = [
+  "Stuck? Just tell me the vibe — I'll build your creative brief in 30 seconds. 🎬",
+  "Did you know you can lip-sync any face to your track in under 2 minutes? Check the Lipsync tab.",
+  "Canvas lets you chain image → video → lip-sync into one pipeline. Want me to walk you through it?",
+  "Aurora's UGC Factory turns a product photo into a TikTok-ready ad — want a template to start from?",
+  "Colors Studio creates editorial mood boards from a single reference photo. It's worth a look!",
+  "Need a full music video? Aurora handles beat-sync, lyric hooks, and cover art. Just drop your track.",
+  "The Gallery saves every render you've made — download, share, or remix any of them any time.",
+  "Nano Banana Pro is our best identity-locked model. Perfect for keeping your face consistent across multiple shots.",
+  "Canvas templates like 'NBA Josh Balloon Head' and 'Cops Chase' are ready to load — tap Finished Workflows on the canvas.",
+  "You can upload your own audio to the lip-sync demo and Whisper will auto-transcribe the lyrics for you.",
+  "Pro tip: the Studio photo editor can swap outfits, backgrounds, and lighting — all with one prompt.",
+];
+
+const TIP_SALE = "⚡ Quick heads-up — your first Aura pack comes with 25% extra Aura free right now. The timer is ticking! Tap Claim to lock it in before it expires.";
+
+function getShownTips(): Set<string> {
+  try {
+    const raw = sessionStorage.getItem(SHOWN_TIPS_KEY);
+    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function saveShownTip(tip: string) {
+  try {
+    const s = getShownTips();
+    s.add(tip);
+    sessionStorage.setItem(SHOWN_TIPS_KEY, JSON.stringify([...s]));
+  } catch {}
+}
+
+function isSaleActive(): boolean {
+  try {
+    const start = Number(localStorage.getItem(OFFER_START_KEY));
+    return !!start && Date.now() - start < OFFER_DURATION_MS;
+  } catch {
+    return false;
+  }
+}
+
+function pickNextTip(): string {
+  const shown = getShownTips();
+  const pool = isSaleActive() ? [...TIPS_GENERAL, TIP_SALE] : TIPS_GENERAL;
+  const unseen = pool.filter((t) => !shown.has(t));
+  const candidates = unseen.length > 0 ? unseen : TIPS_GENERAL;
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
 
 export function AuroraChatbot() {
   const { user } = useAuth();
@@ -24,15 +77,53 @@ export function AuroraChatbot() {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const tipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Welcome toast once per visitor session
+  const openRef = useRef(open);
+  openRef.current = open;
+
+  const userMsgCount = messages.filter((m) => m.role === "user").length;
+  const userMsgCountRef = useRef(userMsgCount);
+  userMsgCountRef.current = userMsgCount;
+
+  const scheduleTip = useCallback(() => {
+    if (tipTimerRef.current) clearTimeout(tipTimerRef.current);
+    const delay = (5 + Math.random() * 5) * 60 * 1000;
+    tipTimerRef.current = setTimeout(() => {
+      if (userMsgCountRef.current >= 2) return;
+      const tip = pickNextTip();
+      saveShownTip(tip);
+      if (openRef.current) {
+        setMessages((m) => [...m, { role: "assistant", content: tip }]);
+      } else {
+        toast("Aurora Concierge 💬", {
+          description: tip,
+          duration: 12000,
+          action: {
+            label: "Open chat",
+            onClick: () => setOpen(true),
+          },
+        });
+        void track("chatbot_proactive_tip");
+      }
+      scheduleTip();
+    }, delay);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const init = setTimeout(() => scheduleTip(), 5000);
+    return () => {
+      clearTimeout(init);
+      if (tipTimerRef.current) clearTimeout(tipTimerRef.current);
+    };
+  }, [scheduleTip]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (sessionStorage.getItem(GREETED_KEY)) return;
     const id = window.setTimeout(() => {
-      const greet = firstName
-        ? `Welcome back, ${firstName} ✨`
-        : "Welcome to Aurora ✨";
+      const greet = firstName ? `Welcome back, ${firstName} ✨` : "Welcome to Aurora ✨";
       toast(greet, {
         description: "Need help? Tap the chat bubble — Aurora Concierge is on call.",
         duration: 6000,
@@ -43,7 +134,6 @@ export function AuroraChatbot() {
     return () => window.clearTimeout(id);
   }, [firstName]);
 
-  // Seed first assistant message when opened
   useEffect(() => {
     if (open && messages.length === 0) {
       setMessages([
