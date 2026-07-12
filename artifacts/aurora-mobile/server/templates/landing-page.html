@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>APP_NAME_PLACEHOLDER</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Aurora Studio — AI-powered creative studio for generating stunning photos and videos." />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg width='180' height='180' viewBox='0 0 180 180' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='180' height='180' rx='36' fill='%23a855f7'/%3E%3Cpath d='M90 40L106 76H144L114 98L126 134L90 112L54 134L66 98L36 76H74L90 40Z' fill='white'/%3E%3C/svg%3E" />
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      :root {
+        --bg: #0b0b14;
+        --card: #141422;
+        --fg: #f8f8f8;
+        --muted: #8888a0;
+        --primary: #a855f7;
+        --border: rgba(255,255,255,0.10);
+        --radius: 12px;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 32px 20px;
+        text-align: center;
+        line-height: 1.5;
+      }
+      .gradient-bg {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: radial-gradient(ellipse at top, rgba(168,85,247,0.15) 0%, transparent 60%);
+        pointer-events: none;
+        z-index: 0;
+      }
+      .wrapper {
+        max-width: 480px;
+        width: 100%;
+        position: relative;
+        z-index: 1;
+      }
+      .logo {
+        width: 80px; height: 80px;
+        background: linear-gradient(135deg, #a855f7, #4a1d96);
+        border-radius: 20px;
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 24px;
+        font-size: 36px;
+        box-shadow: 0 0 40px rgba(168,85,247,0.3);
+      }
+      h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; }
+      .subtitle { font-size: 15px; color: var(--muted); margin-top: 8px; margin-bottom: 40px; }
+      .cta-section { display: flex; flex-direction: column; gap: 16px; align-items: center; }
+      .loading { display: none; }
+      .open-btn {
+        background: var(--primary);
+        color: #fff;
+        border: none;
+        border-radius: var(--radius);
+        padding: 16px 32px;
+        font-size: 17px;
+        font-weight: 700;
+        cursor: pointer;
+        width: 100%;
+        max-width: 320px;
+        transition: opacity 0.15s;
+        text-decoration: none;
+        display: inline-block;
+      }
+      .open-btn:hover { opacity: 0.9; }
+      .expo-btn {
+        background: var(--card);
+        color: var(--fg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px 32px;
+        font-size: 17px;
+        font-weight: 600;
+        cursor: pointer;
+        width: 100%;
+        max-width: 320px;
+        transition: opacity 0.15s;
+        text-decoration: none;
+        display: inline-block;
+      }
+      .expo-btn:hover { opacity: 0.8; }
+      .qr-hint { font-size: 13px; color: var(--muted); margin-top: 4px; }
+      .spinner {
+        border: 2px solid rgba(168,85,247,0.3);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        width: 28px; height: 28px;
+        animation: spin 0.8s linear infinite;
+        margin: 0 auto;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .features {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin: 40px 0;
+      }
+      .feature {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px;
+        text-align: left;
+      }
+      .feature-icon { font-size: 22px; margin-bottom: 8px; }
+      .feature-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+      .feature-desc { font-size: 12px; color: var(--muted); }
+      .footer { margin-top: 40px; font-size: 12px; color: var(--muted); }
+      .footer a { color: var(--primary); text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <div class="gradient-bg"></div>
+    <div class="wrapper">
+      <div class="logo">⚡</div>
+      <h1>APP_NAME_PLACEHOLDER</h1>
+      <p class="subtitle">AI-powered creative studio for performers, creators & artists</p>
+
+      <div class="cta-section">
+        <a id="open-btn" class="open-btn" href="exps://EXPS_URL_PLACEHOLDER">
+          Open in Expo Go
+        </a>
+        <div class="qr-hint">Scan this URL with the Expo Go app on your Android device</div>
+        <div class="loading" id="loading">
+          <div class="spinner"></div>
+        </div>
+      </div>
+
+      <div class="features">
+        <div class="feature">
+          <div class="feature-icon">✨</div>
+          <div class="feature-title">AI Generation</div>
+          <div class="feature-desc">Create stunning performance shots, music videos & more</div>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🖼️</div>
+          <div class="feature-title">Personal Gallery</div>
+          <div class="feature-desc">All your creations in one beautiful place</div>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🎵</div>
+          <div class="feature-title">Music Video</div>
+          <div class="feature-desc">Cinematic editorial stills & video content</div>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">📱</div>
+          <div class="feature-title">UGC Ads</div>
+          <div class="feature-desc">Authentic creator-style content for social media</div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <p>Aurora Studio for Android · <a href="BASE_URL_PLACEHOLDER/privacy">Privacy</a> · <a href="BASE_URL_PLACEHOLDER/terms">Terms</a></p>
+      </div>
+    </div>
+  </body>
+</html>

@@ -234,6 +234,18 @@ uri = "file://attached_assets/generated_images/product_lifestyle_cafe_table.png"
 type = "image"
 title = "product lifestyle cafe table v2"
 
+[[generated]]
+id = "CTEGJLmKaTyfCJQTUjEah"
+uri = "file://attached_assets/aurora-icon.png"
+type = "image"
+title = "aurora studio app icon"
+
+[[generated]]
+id = "vzcEzphpeaTjnVC0ekfuu"
+uri = "file://attached_assets/aurora-splash.png"
+type = "image"
+title = "aurora studio splash screen"
+
 [[outputs]]
 id = "uuVDpq4W7VbbIZdWQslyD"
 uri = "file://notebooks/hybrid_ai_inference_colab.zip"

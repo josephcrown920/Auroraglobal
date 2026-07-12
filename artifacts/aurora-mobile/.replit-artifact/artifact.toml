@@ -1,0 +1,25 @@
+kind = "mobile"
+previewPath = "/aurora-mobile/"
+title = "Aurora Studio"
+version = "1.0.0"
+id = "artifacts/aurora-mobile"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+name = "expo"
+paths = [ "/aurora-mobile/" ]
+localPort = 8081
+
+[services.development]
+run = "cd /home/runner/workspace/artifacts/aurora-mobile && EXPO_PACKAGER_PROXY_URL=https://$REPLIT_EXPO_DEV_DOMAIN EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_REPL_ID=$REPL_ID REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN ./node_modules/.bin/expo start --localhost --port 8081"
+
+[services.production]
+build = [ "node", "scripts/build.js" ]
+run = [ "node", "server/serve.js" ]
+
+[services.env]
+BASE_PATH = "/aurora-mobile/"
+PORT = "8081"
