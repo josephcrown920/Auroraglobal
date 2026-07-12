@@ -3,91 +3,50 @@ import { computeCost } from "@/lib/pricing";
 
 export const COLORS_SHOW_COST_PER_SHOT = computeCost({ features: ["image"] }).total;
 
-export type ColorsShowShot = {
-  id: string;
-  label: string;
-  description: string;
-  framingPrompt: string;
-};
+// ─── Shot template strings with {color} and {outfit} replacement tokens ───────
+// These are the two canonical Colors Show framing presets. At render time,
+// {color} → the color name (e.g. "deep royal blue") and
+// {outfit} → the user's outfit description.
 
-export const COLORS_SHOW_SHOTS: ColorsShowShot[] = [
-  {
-    id: "wide",
-    label: "Wide Full Body",
-    description: "Head-to-toe in the studio set",
-    framingPrompt:
-      "Full-body performance shot, head to toe, subject centered, wide negative space around the subject, vertical 9:16 framing.",
-  },
-  {
-    id: "closeup",
-    label: "Beauty Close-Up",
-    description: "Shoulders-up beauty crop",
-    framingPrompt:
-      "Intimate beauty close-up, framed from upper chest to crown, face fills the frame, background softly bokeh'd, 85mm portrait lens feel.",
-  },
-];
+export const WIDE_SHOT_TEMPLATE = `You are an AI performance compositor. Place the REAL person from the selfie reference photo into this exact studio scene and render one photoreal performance still.
 
-export const OUTFIT_OPTIONS = [
-  {
-    id: "match",
-    label: "Match my upload",
-    description: "Keep the exact outfit from my reference photo",
-  },
-  {
-    id: "stage",
-    label: "Stage-ready",
-    description: "Elevated performance outfit — bold, camera-ready",
-  },
-  {
-    id: "streetwear",
-    label: "Streetwear",
-    description: "Oversized hoodie, fresh sneakers, relaxed but stylish",
-  },
-  {
-    id: "formal",
-    label: "Sharp & Formal",
-    description: "Tailored suit or formal wear, polished and powerful",
-  },
-  {
-    id: "custom",
-    label: "Custom…",
-    description: "Type your own outfit description",
-  },
-] as const;
+IDENTITY LOCK: preserve the subject's exact face, skin tone, hairstyle, facial hair, and body proportions from the selfie. Never alter their identity.
 
-export const ENERGY_OPTIONS = [
-  {
-    id: "auto",
-    label: "Auto (from color)",
-    description: "Use the energy this color was designed for",
-  },
-  {
-    id: "ballad",
-    label: "Slow Ballad",
-    description: "Still, contemplative power",
-  },
-  {
-    id: "hype",
-    label: "High Hype",
-    description: "Explosive energy, mid-verse peak",
-  },
-  {
-    id: "anthem",
-    label: "Anthem",
-    description: "Raised chin, hero pose, crowd moment",
-  },
-  {
-    id: "brooding",
-    label: "Brooding",
-    description: "Dark, cinematic, introspective",
-  },
-] as const;
+OUTFIT: {outfit}
+
+SCENE LOCK — reproduce this studio exactly: {color} Cyclorama Studio — seamless curved cyc wall and floor in {color} with no visible seams. Single vintage silver studio microphone hanging on a thin cable from center-top descending to chest height. Warm {color}-tinted softbox key from camera-right, soft {color} rim light from behind. Faint floor reflection of the subject's silhouette. No furniture.
+
+CAMERA & FRAMING: Full-body performance shot, head to toe, subject centered, vertical 9:16 portrait, 50mm at eye level, gentle depth of field.
+
+PERFORMANCE: Natural mic-interaction stance — one hand lightly near the hanging mic, body turned slightly toward camera, eyes meeting the lens, subtle implied motion.
+
+${REALISM_SUFFIX}`;
+
+export const CLOSEUP_SHOT_TEMPLATE = `You are an AI performance compositor. Place the REAL person from the selfie reference photo into this exact studio scene and render one photoreal beauty close-up.
+
+IDENTITY LOCK: preserve the subject's exact face, skin tone, hairstyle, facial hair, and eye detail from the selfie. Never alter their identity.
+
+OUTFIT: {outfit} — only the neckline and collar are visible at the bottom of frame.
+
+SCENE LOCK — reproduce this studio exactly: {color} Cyclorama Studio — {color} seamless backdrop filling the frame behind the subject. Warm {color}-tinted softbox key from camera-right, soft fill from camera-left. The hanging vintage silver microphone is softly blurred in the upper background.
+
+CAMERA & FRAMING: Intimate beauty close-up, framed from upper chest to crown, face fills the frame, background softly bokeh'd, 85mm portrait lens at f/1.8. Crisp catch-lights in the eyes.
+
+${REALISM_SUFFIX}`;
+
+export function buildWidePrompt(color: string, outfit: string): string {
+  return WIDE_SHOT_TEMPLATE.replace(/{color}/g, color).replace(/{outfit}/g, outfit);
+}
+
+export function buildCloseupPrompt(color: string, outfit: string): string {
+  return CLOSEUP_SHOT_TEMPLATE.replace(/{color}/g, color).replace(/{outfit}/g, outfit);
+}
 
 export const COLORS_SHOW_STEPS = [
   {
-    id: "portrait",
-    title: "Your Portrait",
-    subtitle: "Upload a clear front-facing photo",
+    id: "upload",
+    title: "Your References",
+    subtitle: "Upload your selfie and any Colors reference shots",
   },
   {
     id: "color",
@@ -97,106 +56,61 @@ export const COLORS_SHOW_STEPS = [
   {
     id: "outfit",
     title: "Your Look",
-    subtitle: "What are you wearing in the shoot?",
+    subtitle: "Describe exactly what you are wearing",
   },
   {
-    id: "shots",
-    title: "Shot Types",
-    subtitle: "Choose which angles to generate",
+    id: "wide",
+    title: "Wide Shot",
+    subtitle: "Generate your full-body performance still",
   },
   {
-    id: "energy",
-    title: "Stage Energy",
-    subtitle: "Set the vibe and performance feel",
+    id: "closeup",
+    title: "Close-Up Shot",
+    subtitle: "Generate your beauty close-up",
   },
   {
-    id: "title",
-    title: "Song Title",
-    subtitle: "Optional — brand the shoot with your track name",
+    id: "record",
+    title: "Now Record",
+    subtitle: "Shoot your real video matching these angles",
   },
   {
-    id: "review",
-    title: "Review & Generate",
-    subtitle: "Everything looks good? Let's shoot.",
+    id: "animate",
+    title: "Animate",
+    subtitle: "Bring your stills to life in Motion Control",
   },
 ] as const;
 
 export type ColorsShowStep = (typeof COLORS_SHOW_STEPS)[number]["id"];
 
-export type ColorsShowConfig = {
-  portraitUrl: string | null;
-  colorId: string;
-  outfitOption: string;
-  customOutfit: string;
-  selectedShots: string[];
-  energyOption: string;
-  songTitle: string;
-};
-
-export const DEFAULT_COLORS_SHOW_CONFIG: ColorsShowConfig = {
-  portraitUrl: null,
-  colorId: "hot-pink",
-  outfitOption: "match",
-  customOutfit: "",
-  selectedShots: ["wide", "closeup"],
-  energyOption: "auto",
-  songTitle: "",
-};
-
-function outfitInstruction(option: string, custom: string): string {
-  if (option === "stage")
-    return "Dress the subject in an elevated stage-ready performance outfit: bold colors, fitted silhouette, camera-ready energy.";
-  if (option === "streetwear")
-    return "Dress the subject in clean streetwear: oversized hoodie or graphic tee, fresh sneakers, relaxed but stylish.";
-  if (option === "formal")
-    return "Dress the subject in a sharply tailored suit or formal wear — polished, minimal, powerful.";
-  if (option === "custom" && custom.trim())
-    return `Dress the subject in: ${custom.trim()}.`;
-  return "Keep the exact outfit worn in the reference photo — reproduce it faithfully.";
-}
-
-function energyInstruction(colorId: string, energyOption: string): string {
-  if (energyOption === "auto") {
-    const color = COLOR_PRESETS.find((c) => c.id === colorId);
-    if (color)
-      return `Energy and performance stance: ${color.performance.energy}. Pose: ${color.performance.pose}.`;
-  }
-  const MAP: Record<string, string> = {
-    ballad:
-      "Still, contemplative power — standing centered, chin slightly down, eyes closed or half-closed, both hands loosely at sides.",
-    hype:
-      "Explosive high-energy mid-verse peak — mid-stride, one arm raised, leaning into the mic, eyes wide open.",
-    anthem:
-      "Anthemic hero pose — chest open, chin raised, one fist lightly clenched, crowd-moment energy.",
-    brooding:
-      "Dark brooding stance — back slightly turned to camera, looking over one shoulder at the lens, one side of face in deep shadow.",
-  };
-  return MAP[energyOption] ?? MAP["ballad"];
-}
-
-export function buildColorsShowPrompt(
-  config: ColorsShowConfig,
-  shot: ColorsShowShot,
-): string {
-  const color = COLOR_PRESETS.find((c) => c.id === config.colorId) ?? COLOR_PRESETS[0];
-
-  const parts: string[] = [
-    "You are an AI performance compositor. Place the REAL person from the reference photo into the studio scene below and render one photoreal performance still.",
-    `IDENTITY LOCK: preserve the subject's exact face, skin tone, hairstyle, facial hair, and body proportions from the reference photo. Never alter their identity or appearance.`,
-    `OUTFIT: ${outfitInstruction(config.outfitOption, config.customOutfit)}`,
-    `SCENE LOCK — reproduce this studio exactly: ${color.studioTemplate}`,
-    `LIGHTING: ${color.promptName} lighting tone — background reflections and shadows all graded to match the color theme.`,
-    `PERFORMANCE STANCE: ${energyInstruction(config.colorId, config.energyOption)}`,
-    `CAMERA & FRAMING: ${shot.framingPrompt} Locked tripod, cinematic quality, gentle depth of field.`,
-  ];
-
-  if (config.songTitle.trim()) {
-    parts.push(
-      `SHOOT CONTEXT: This is a promo shoot for the track titled "${config.songTitle.trim()}".`,
-    );
-  }
-
-  parts.push(REALISM_SUFFIX);
-
-  return parts.join("\n\n");
-}
+export const RECORD_CHECKLIST = [
+  {
+    icon: "📐",
+    label: "Wide angle first",
+    detail: "Stand the same distance from camera as the generated wide shot — full body in frame",
+  },
+  {
+    icon: "🎤",
+    label: "Mime the hanging mic pose",
+    detail: "Hold one hand near an imaginary mic at chest height; interact with it naturally",
+  },
+  {
+    icon: "👗",
+    label: "Wear exactly what you described",
+    detail: "The outfit must match step 3 for the compositor to lock identity correctly",
+  },
+  {
+    icon: "📷",
+    label: "Steady camera",
+    detail: "Tripod or phone holder — a still camera gives crisper frames for Motion Control",
+  },
+  {
+    icon: "💡",
+    label: "Light from your right side",
+    detail: "Face a window or softbox on your right to mimic the studio key light direction",
+  },
+  {
+    icon: "🔍",
+    label: "Then shoot the close-up",
+    detail: "Move the camera closer — frame from upper chest to crown, matching the 85mm crop",
+  },
+];
