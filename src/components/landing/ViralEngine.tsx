@@ -211,7 +211,7 @@ export function ViralEngine() {
                 <figure
                   key={`${tile.contentType}-${i}`}
                   className="group relative overflow-hidden rounded-xl bg-white/5 shadow-md shadow-black/40 transition-transform hover:-translate-y-0.5 hover:shadow-lg"
-                  style={{ aspectRatio: "4/5" }}
+                  style={{ aspectRatio: "1/1" }}
                 >
                   <img
                     src={tile.src}

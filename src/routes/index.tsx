@@ -277,35 +277,69 @@ function Index() {
       {/* Spacer for fixed header */}
       <div className="h-20" />
 
-      {/* By Artists for Artists — manifesto statement + stronger CTA */}
-      <div className="relative flex flex-col items-center pt-14 pb-10 px-6 text-center overflow-hidden">
-        {/* glow orb behind text */}
-        <div aria-hidden className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[260px] rounded-full bg-primary/25 blur-[90px]" />
-        <div className="relative">
-          <p className="text-[11px] uppercase tracking-[0.35em] text-primary/80 mb-4 font-semibold">
-            ✦ Aurora Studio ✦
-          </p>
-          <h2 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[0.95] uppercase">
-            <span className="block text-white">By Artists,</span>
-            <span className="block aurora-gradient-text">For Artists.</span>
-          </h2>
-          <p className="mt-5 text-white/45 text-sm md:text-base max-w-xs mx-auto leading-relaxed">
-            Built by creators who needed it.<br />For creators who deserve it.
-          </p>
+      {/* By Artists for Artists */}
+      <div className="relative px-4 md:px-8 py-6">
+        <div className="relative max-w-4xl mx-auto rounded-[28px] overflow-hidden border border-white/8 bg-gradient-to-br from-white/[0.03] to-transparent px-6 py-12 md:px-12 md:py-16 text-center">
+          {/* glow */}
+          <div aria-hidden className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] rounded-full bg-primary/20 blur-[100px]" />
+          <div className="relative">
 
-          {/* Stronger, action-oriented CTA row */}
-          <div className="mt-8 flex flex-col items-center gap-4">
-            <Link
-              to="/studio"
-              onClick={() => void track("manifesto_cta_click")}
-              className="group inline-flex items-center gap-2.5 px-8 py-3.5 text-base font-bold rounded-full text-white no-underline bg-[image:var(--gradient-hero)] shadow-[var(--shadow-glow-soft)] hover:brightness-110 hover:scale-[1.02] transition-all"
-            >
-              Start creating free
-              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-            </Link>
-            <p className="text-[11px] text-white/35 tracking-wide">
-              No credit card · Free credits on signup · Cancel anytime
+            {/* kicker */}
+            <p className="text-[11px] uppercase tracking-[0.35em] text-primary/70 mb-5 font-semibold">
+              ✦ Aurora Studio ✦
             </p>
+
+            {/* headline */}
+            <h2 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[0.95] uppercase">
+              <span className="block text-white">By Artists,</span>
+              <span className="block aurora-gradient-text">For Artists.</span>
+            </h2>
+
+            {/* genre/creator identity tags */}
+            <div className="mt-7 flex flex-wrap justify-center gap-2">
+              {["Afrobeats", "Trap & Drill", "R&B", "Pop", "Dance", "Hip-Hop", "Dancehall", "Gospel", "Amapiano"].map((g) => (
+                <span
+                  key={g}
+                  className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] font-medium text-white/55"
+                >
+                  {g}
+                </span>
+              ))}
+            </div>
+
+            {/* proof stats */}
+            <div className="mt-8 flex justify-center gap-0 divide-x divide-white/10 rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden max-w-sm mx-auto">
+              {[
+                { n: "40+", l: "AI models" },
+                { n: "30", l: "Posts per run" },
+                { n: "5", l: "Platforms" },
+              ].map((s) => (
+                <div key={s.l} className="flex-1 py-4 flex flex-col items-center gap-0.5">
+                  <span className="text-xl font-black text-white">{s.n}</span>
+                  <span className="text-[9px] uppercase tracking-wider text-white/35">{s.l}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* tagline */}
+            <p className="mt-6 text-white/40 text-sm max-w-xs mx-auto leading-relaxed">
+              Built by creators who needed it.<br />For creators who deserve it.
+            </p>
+
+            {/* CTA */}
+            <div className="mt-7 flex flex-col items-center gap-3">
+              <Link
+                to="/studio"
+                onClick={() => void track("manifesto_cta_click")}
+                className="group inline-flex items-center gap-2.5 px-8 py-3.5 text-base font-bold rounded-full text-white no-underline bg-[image:var(--gradient-hero)] shadow-[var(--shadow-glow-soft)] hover:brightness-110 hover:scale-[1.02] transition-all"
+              >
+                Start creating free
+                <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+              <p className="text-[11px] text-white/30 tracking-wide">
+                No credit card · Free credits on signup · Cancel anytime
+              </p>
+            </div>
           </div>
         </div>
       </div>
