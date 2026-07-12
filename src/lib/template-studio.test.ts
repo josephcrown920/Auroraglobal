@@ -76,8 +76,10 @@ describe("template-studio manifest", () => {
         // generateUGCAd reserves exactly COST_UGC_AD (from pricing.ts).
         expect(templateCost(t)).toBe(COST_UGC_AD);
       } else if (t.dispatch === "spin") {
-        // spinThirty charges the full batch upfront: SPIN_COUNT pieces × 1 Aura.
-        expect(templateCost(t)).toBe(SPIN_COUNT * SPIN_PIECE_COST);
+        // Spin templates navigate to /spin; no credits are reserved in the drawer.
+        // The 30 Aura (SPIN_COUNT × SPIN_PIECE_COST) is charged on /spin when the
+        // user explicitly clicks "Spin 30 posts" — templateCost returns 0 (Free).
+        expect(templateCost(t)).toBe(0);
       } else if (t.dispatch === "autocut") {
         // createAutocutJob reserves exactly COST_AUTOCUT (from pricing.ts).
         expect(templateCost(t)).toBe(COST_AUTOCUT);
@@ -85,13 +87,19 @@ describe("template-studio manifest", () => {
     }
   });
 
-  it("every template discloses a nonzero cost and routes to a charging backend", () => {
+  it("non-spin templates disclose a nonzero cost; spin templates are Free (charge on /spin)", () => {
     // Contract guard: any template that previews an Aura cost must route to a
     // backend that actually charges that amount (studio chain, UGC job, AutoCut
-    // job, or the upfront-charged spinThirty batch) — no phantom charges and no
-    // undisclosed ones.
+    // job) — no phantom charges and no undisclosed ones.
+    // Spin dispatch is the ONE intentional exception: templateCost returns 0
+    // because the drawer is a free launcher; the 30 Aura charge is disclosed and
+    // collected on /spin itself when the user clicks "Spin 30 posts".
     for (const t of STUDIO_TEMPLATES) {
-      expect(templateCost(t)).toBeGreaterThan(0);
+      if (t.dispatch === "spin") {
+        expect(templateCost(t)).toBe(0); // Free in drawer, 30 Aura charged on /spin
+      } else {
+        expect(templateCost(t)).toBeGreaterThan(0);
+      }
       expect(["studio", "ugc", "autocut", "spin"]).toContain(t.dispatch);
     }
   });
