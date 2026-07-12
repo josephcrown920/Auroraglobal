@@ -4,6 +4,7 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { orchestrate } from "./orchestrator.server";
 import { refinePlan } from "./agent-loop.server";
+import { lipsyncEngineCost } from "./pricing";
 
 // Test fixtures (existing CDN assets)
 const TEST_SELFIE_URL = "https://aurora-sparkle-charm.lovable.app/__l5e/assets-v1/24c6484d-42b7-4d6c-8d1d-aeeb71a19d30/josh-yellow-mic.jpg";
@@ -21,6 +22,7 @@ const STEPS = [
   "HeyGen template",
   "Aurora agent (plan)",
   "Lip sync (photo+audio)",
+  "Lip sync (image+audio → generate API path)",
 ] as const;
 
 async function assertAdmin(userId: string) {
@@ -303,12 +305,51 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       await writeCheck(run.id, 11, STEPS[10], r11);
       total += r11.cost_usd;
 
+      // 12. Lip sync via the public-generate API code path — exercises the full
+      //     credit-reservation → orchestrate → record pipeline that
+      //     /api/public/generate runs internally for lipsync requests. This is
+      //     the path the Aurora web app, CLI, and MCP tool all share. Uses a
+      //     portrait still + test audio (HeyGen photo path if key is present,
+      //     otherwise falls back to Sync.so with the video from step 2).
+      const r12: StepResult = await (async (): Promise<StepResult> => {
+        const usePhoto = !!process.env.HEYGEN_API_KEY;
+        const model = usePhoto ? "heygen/photo-video" : "fal-ai/sync-lipsync/v2";
+        if (!usePhoto && !videoUrl) {
+          return {
+            status: "skip",
+            latency_ms: 0,
+            cost_usd: 0,
+            error: "No video from step 2 and no HEYGEN_API_KEY — skipping generate-API lipsync",
+          };
+        }
+        return runStep(async () => {
+          const { reserveOrchestrateRecord } = await import("./generate-core.server");
+          const cost = lipsyncEngineCost(usePhoto ? "heygen-photo" : "sync-v2");
+          const outcome = await reserveOrchestrateRecord({
+            userId: context.userId,
+            kind: "lipsync",
+            imageUrls: usePhoto ? [TEST_SELFIE_URL] : undefined,
+            videoUrl: usePhoto ? undefined : videoUrl!,
+            audioUrl: TEST_AUDIO_URL,
+            model,
+            pinnedModelOnly: usePhoto,
+            cost,
+            reason: "smoke_lipsync_generate_api",
+          });
+          if (!outcome.ok) throw new Error(outcome.error ?? "generate-API lipsync failed");
+          if (!outcome.url) throw new Error("generate-API lipsync returned no output URL");
+          return { url: outcome.url, cost: outcome.costUsd ?? cost, raw: { provider: outcome.provider } };
+        });
+      })();
+      await writeCheck(run.id, 12, STEPS[11], r12);
+      total += r12.cost_usd;
+
       await supabaseAdmin
         .from("smoke_runs")
         .update({
           finished_at: new Date().toISOString(),
           total_cost_usd: total,
-          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11].filter(r => r.status === "pass").length, total: 11 } as never,
+          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12].filter(r => r.status === "pass").length, total: 12 } as never,
         })
         .eq("id", run.id);
     })().catch(async (e) => {
