@@ -26,6 +26,15 @@ export const Route = createLazyFileRoute("/scene-builder")({
 
 const SLOT_COUNT = SLOT_LABELS.length;
 
+// Convert a relative URL (e.g. watermark proxy "/api/public/...") to an
+// absolute HTTPS URL so motion.tsx validateSearch (which requires ^https://)
+// accepts it when an angle card links to /motion.
+function toAbsoluteUrl(url: string): string {
+  if (typeof url !== "string" || url.startsWith("http")) return url;
+  if (typeof window !== "undefined") return `${window.location.origin}${url.startsWith("/") ? "" : "/"}${url}`;
+  return url;
+}
+
 async function uploadToStudio(userId: string, file: File): Promise<string> {
   if (file.size > 20 * 1024 * 1024) throw new Error("Image must be under 20 MB");
   const ext = file.name.split(".").pop() || "jpg";
@@ -519,7 +528,7 @@ function SceneBuilderPage() {
                         {isDone(card.status) && card.url && (
                           <Link
                             to="/motion"
-                            search={{ image: card.url }}
+                            search={{ image: toAbsoluteUrl(card.url) }}
                             className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl bg-primary/20 border border-primary/40 text-primary text-xs font-semibold hover:bg-primary/30 transition-colors"
                           >
                             <Video className="w-3 h-3" />

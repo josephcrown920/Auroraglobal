@@ -72,6 +72,7 @@ function ColorsShowPage() {
           colorName: selectedColor.name,
           outfit: outfit.trim(),
           shotType: "wide",
+          ...(colorRefUrl ? { colorRefUrl } : {}),
         },
       }),
     onSuccess: (res) => {
@@ -90,6 +91,7 @@ function ColorsShowPage() {
           colorName: selectedColor.name,
           outfit: outfit.trim(),
           shotType: "closeup",
+          ...(colorRefUrl ? { colorRefUrl } : {}),
         },
       }),
     onSuccess: (res) => {
