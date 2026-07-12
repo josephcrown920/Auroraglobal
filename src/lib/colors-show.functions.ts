@@ -25,7 +25,7 @@ export const generateColorsShowShot = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => ColorsShowShotSchema.parse(input))
   .handler(async ({ data, context }): Promise<ColorsShowShotOutcome> => {
-    const { userId } = context;
+    const { userId, supabase } = context;
     const { reserveOrchestrateRecord } = await import("@/lib/generate-core.server");
 
     const label = data.shotType === "wide" ? "Wide Shot" : "Close-Up";
@@ -47,5 +47,16 @@ export const generateColorsShowShot = createServerFn({ method: "POST" })
     });
 
     if (!result.ok) return { ok: false, error: result.error };
-    return { ok: true, url: result.url, generationId: result.generationId };
+
+    // Return the persisted studio-bucket URL (stored in generations.result_image_url)
+    // rather than the raw provider URL (result.url), so the Animate → Motion
+    // deep-link passes assertOwnedReferenceImage on the Motion Transfer server fn.
+    const { data: genRow } = await supabase
+      .from("generations")
+      .select("result_image_url")
+      .eq("id", result.generationId)
+      .maybeSingle();
+    const url = (genRow?.result_image_url as string | null | undefined) ?? result.url;
+
+    return { ok: true, url, generationId: result.generationId };
   });
