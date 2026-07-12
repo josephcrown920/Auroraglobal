@@ -4,7 +4,7 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { orchestrate } from "./orchestrator.server";
 import { refinePlan } from "./agent-loop.server";
-import { lipsyncEngineCost } from "./pricing";
+import { lipsyncEngineCost, computeCost } from "./pricing";
 
 // Test fixtures (existing CDN assets)
 const TEST_SELFIE_URL = "https://aurora-sparkle-charm.lovable.app/__l5e/assets-v1/24c6484d-42b7-4d6c-8d1d-aeeb71a19d30/josh-yellow-mic.jpg";
@@ -23,6 +23,7 @@ const STEPS = [
   "Aurora agent (plan)",
   "Lip sync (photo+audio)",
   "Lip sync (image+audio → generate API path)",
+  "Templates: lip-sync dispatch",
 ] as const;
 
 async function assertAdmin(userId: string) {
@@ -344,12 +345,51 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       await writeCheck(run.id, 12, STEPS[11], r12);
       total += r12.cost_usd;
 
+      // 13. Templates: lip-sync dispatch — exercises the concert-lipsync template's
+      //     model config end-to-end through the full generate-API pipeline. Derives
+      //     cost via computeCost (the exact call templateCost() makes for the lipsync
+      //     kind) so the smoke cost matches exactly what the TemplateDrawer shows.
+      //     This proves: (a) the template manifest is parseable, (b) the model slug is
+      //     accepted by the orchestrator, (c) the cost preview == charge.
+      const r13: StepResult = await (async (): Promise<StepResult> => {
+        if (!videoUrl) {
+          return {
+            status: "skip",
+            latency_ms: 0,
+            cost_usd: 0,
+            error: "No video from step 2 — skipping template lipsync dispatch",
+          };
+        }
+        return runStep(async () => {
+          const { getStudioTemplate, TEMPLATE_DEFAULTS } = await import("./template-studio");
+          const { reserveOrchestrateRecord } = await import("./generate-core.server");
+          const tpl = getStudioTemplate("concert-lipsync");
+          if (!tpl) throw new Error("concert-lipsync not found in template manifest");
+          const model = tpl.lipsyncModel ?? TEMPLATE_DEFAULTS.lipsyncModel;
+          const cost = computeCost({ features: ["lipsync"], model }).total;
+          const outcome = await reserveOrchestrateRecord({
+            userId: context.userId,
+            kind: "lipsync",
+            videoUrl: videoUrl!,
+            audioUrl: TEST_AUDIO_URL,
+            model,
+            cost,
+            reason: "smoke_template_lipsync",
+          });
+          if (!outcome.ok) throw new Error(outcome.error ?? "Template lipsync dispatch failed");
+          if (!outcome.url) throw new Error("Template lipsync returned no output URL");
+          return { url: outcome.url, cost: outcome.costUsd ?? cost, raw: { provider: outcome.provider, templateId: tpl.id } };
+        });
+      })();
+      await writeCheck(run.id, 13, STEPS[12], r13);
+      total += r13.cost_usd;
+
       await supabaseAdmin
         .from("smoke_runs")
         .update({
           finished_at: new Date().toISOString(),
           total_cost_usd: total,
-          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12].filter(r => r.status === "pass").length, total: 12 } as never,
+          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13].filter(r => r.status === "pass").length, total: 13 } as never,
         })
         .eq("id", run.id);
     })().catch(async (e) => {
