@@ -15,7 +15,7 @@ const STEPS = [
   "Video gen",
   "Lip sync",
   "Canvas (workflow)",
-  "UGC factory",
+  "UGC Ad (image→video)",
   "CLI (npm package)",
   "Colors studio",
   "Motion control",
@@ -158,14 +158,41 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       await writeCheck(run.id, 4, STEPS[3], r4);
       total += r4.cost_usd;
 
-      // 5. UGC — current impl is a stub (just inserts a row, doesn't call HeyGen yet)
-      const r5: StepResult = {
-        status: "skip",
-        latency_ms: 0,
-        cost_usd: 0,
-        error: "UGC handler is a stub (generations row only). HeyGen call not wired yet.",
-      };
+      // 5. UGC Ad (image→video) — exercises the exact pipeline the /ugc page runs:
+      //    imageMut (generatePerformanceShot via google/gemini-2.5-flash-image) →
+      //    videoMut (generateVideoFromImage via seedance-2.0-fast, 5s 720p).
+      //    Both stages use orchestrate() directly, mirroring what genShot + genVid
+      //    call under the hood in ugc.lazy.tsx.
+      const r5 = await runStep(async () => {
+        const shot = await orchestrate({
+          kind: "image",
+          prompt:
+            "smoke test: hyper-realistic UGC iPhone-style shot, beauty creator holding a glossy red lipstick label-out toward camera, golden-hour car-selfie, 9:16 framing, photoreal skin",
+          imageUrls: [TEST_SELFIE_URL],
+          model: "google/gemini-2.5-flash-image",
+          userId: context.userId,
+          refId: run.id,
+        });
+        const vid = await orchestrate({
+          kind: "video",
+          prompt:
+            "smoke test: UGC natural micro-movements, subtle handheld shake, lifelike expression, iPhone-style handheld",
+          imageUrls: [shot.url],
+          duration: 5,
+          resolution: "720p",
+          model: "seedance-2.0-fast",
+          userId: context.userId,
+          refId: run.id,
+        });
+        if (!vid.url) throw new Error("UGC Ad video returned no output URL");
+        return {
+          url: vid.url,
+          cost: shot.costUsd + vid.costUsd,
+          raw: { provider_image: shot.provider, provider_video: vid.provider },
+        };
+      });
       await writeCheck(run.id, 5, STEPS[4], r5);
+      total += r5.cost_usd;
 
       // 6. CLI — HEAD npm to see if @aurora-studio/cli is published
       const r6 = await runStep(async () => {
