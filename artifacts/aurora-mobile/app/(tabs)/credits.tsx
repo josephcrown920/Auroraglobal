@@ -1,5 +1,4 @@
 import { Feather } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import * as WebBrowser from "expo-web-browser";
 import React from "react";
@@ -18,13 +17,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
 import { getCreditTransactions, getUserProfile, CreditTransaction } from "@/lib/api";
 
-const CREDIT_PACKS = [
-  { id: "starter", name: "Starter", credits: 20, price: "$4.99", popular: false },
-  { id: "creator", name: "Creator", credits: 60, price: "$12.99", popular: true },
-  { id: "pro", name: "Pro", credits: 150, price: "$24.99", popular: false },
-  { id: "studio", name: "Studio", credits: 400, price: "$59.99", popular: false },
-];
-
 function getApiBase(): string {
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
   if (domain) return `https://${domain}`;
@@ -37,22 +29,21 @@ export default function CreditsScreen() {
 
   const { data: profile, isLoading: profileLoading, refetch: refetchProfile } = useQuery({
     queryKey: ["profile"],
-    queryFn: getUserProfile,
+    queryFn: () => getUserProfile(),
     staleTime: 10_000,
   });
 
   const { data: txns, isLoading: txnsLoading, refetch: refetchTxns } = useQuery({
     queryKey: ["transactions"],
-    queryFn: getCreditTransactions,
+    queryFn: () => getCreditTransactions(50),
     staleTime: 30_000,
   });
 
   const credits = profile?.credits_balance ?? 0;
 
-  const handleBuy = async (packId: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  const openBilling = async () => {
     const base = getApiBase();
-    await WebBrowser.openBrowserAsync(`${base}/billing?pack=${packId}`);
+    await WebBrowser.openBrowserAsync(`${base}/billing`);
     setTimeout(() => {
       refetchProfile();
       refetchTxns();
@@ -72,7 +63,7 @@ export default function CreditsScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.txnDesc, { color: colors.foreground }]} numberOfLines={1}>
-            {item.description || (isCredit ? "Credits purchased" : "Generation")}
+            {item.description || (isCredit ? "Credits added" : "Generation")}
           </Text>
           <Text style={[styles.txnDate, { color: colors.mutedForeground }]}>
             {new Date(item.created_at).toLocaleDateString("en-US", {
@@ -142,62 +133,25 @@ export default function CreditsScreen() {
               </Text>
             </LinearGradient>
 
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Top Up</Text>
-            <View style={styles.packs}>
-              {CREDIT_PACKS.map((pack) => (
-                <Pressable
-                  key={pack.id}
-                  onPress={() => handleBuy(pack.id)}
-                  style={({ pressed }) => [
-                    styles.packCard,
-                    {
-                      backgroundColor: pack.popular ? colors.primary : colors.card,
-                      borderColor: pack.popular ? colors.primary : colors.border,
-                      borderRadius: colors.radius,
-                      opacity: pressed ? 0.85 : 1,
-                    },
-                  ]}
-                >
-                  {pack.popular && (
-                    <View style={[styles.popularBadge, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
-                      <Text style={styles.popularText}>Popular</Text>
-                    </View>
-                  )}
-                  <Text
-                    style={[
-                      styles.packName,
-                      { color: pack.popular ? colors.primaryForeground : colors.foreground },
-                    ]}
-                  >
-                    {pack.name}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.packCredits,
-                      { color: pack.popular ? colors.primaryForeground : colors.primary },
-                    ]}
-                  >
-                    {pack.credits}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.packCreditsLabel,
-                      { color: pack.popular ? "rgba(255,255,255,0.7)" : colors.mutedForeground },
-                    ]}
-                  >
-                    credits
-                  </Text>
-                  <Text
-                    style={[
-                      styles.packPrice,
-                      { color: pack.popular ? colors.primaryForeground : colors.foreground },
-                    ]}
-                  >
-                    {pack.price}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+            <Pressable
+              onPress={openBilling}
+              style={({ pressed }) => [
+                styles.addBtn,
+                {
+                  backgroundColor: colors.primary,
+                  borderRadius: colors.radius,
+                  opacity: pressed ? 0.85 : 1,
+                },
+              ]}
+            >
+              <Feather name="plus-circle" size={18} color={colors.primaryForeground} />
+              <Text style={[styles.addBtnText, { color: colors.primaryForeground }]}>
+                Add Credits on Web
+              </Text>
+            </Pressable>
+            <Text style={[styles.addHint, { color: colors.mutedForeground }]}>
+              Opens auroraperformancestudio.com in your browser
+            </Text>
 
             {(txns?.length ?? 0) > 0 && (
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>History</Text>
@@ -222,29 +176,24 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { paddingHorizontal: 20, paddingBottom: 16 },
   title: { fontSize: 28, fontWeight: "800", fontFamily: "Inter_700Bold" },
-  balanceCard: { marginHorizontal: 20, borderRadius: 16, borderWidth: 1, padding: 20, marginBottom: 28, gap: 12 },
+  balanceCard: { marginHorizontal: 20, borderRadius: 16, borderWidth: 1, padding: 20, marginBottom: 20, gap: 12 },
   balanceRow: { flexDirection: "row", alignItems: "center", gap: 16 },
   balanceIconWrap: { width: 56, height: 56, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   balanceLabel: { fontSize: 12, fontFamily: "Inter_400Regular", marginBottom: 4 },
   balanceValue: { fontSize: 40, fontWeight: "800", fontFamily: "Inter_700Bold" },
   balanceHint: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  sectionTitle: { fontSize: 18, fontWeight: "700", paddingHorizontal: 20, marginBottom: 14, fontFamily: "Inter_700Bold" },
-  packs: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 20, gap: 10, marginBottom: 28 },
-  packCard: {
-    width: "47%",
-    padding: 16,
-    borderWidth: 1,
+  addBtn: {
+    marginHorizontal: 20,
+    flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    minHeight: 130,
     justifyContent: "center",
+    gap: 10,
+    paddingVertical: 14,
+    marginBottom: 8,
   },
-  popularBadge: { position: "absolute", top: 8, right: 8, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  popularText: { color: "#fff", fontSize: 9, fontWeight: "700" },
-  packName: { fontSize: 12, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
-  packCredits: { fontSize: 32, fontWeight: "800", fontFamily: "Inter_700Bold" },
-  packCreditsLabel: { fontSize: 11 },
-  packPrice: { fontSize: 15, fontWeight: "700", fontFamily: "Inter_700Bold", marginTop: 4 },
+  addBtnText: { fontSize: 15, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
+  addHint: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center", marginBottom: 28 },
+  sectionTitle: { fontSize: 18, fontWeight: "700", paddingHorizontal: 20, marginBottom: 14, fontFamily: "Inter_700Bold" },
   txnRow: {
     flexDirection: "row",
     alignItems: "center",
