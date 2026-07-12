@@ -331,15 +331,23 @@ function LipSyncForm() {
     setStatus("idle"); setProgress(0); setPlaying(false); setResultUrl(null);
   };
 
-  const download = () => {
+  const download = async () => {
     if (!resultUrl) return;
-    const a = document.createElement("a");
-    a.href = resultUrl;
-    a.download = `synced-${((isPhotoEngine ? image?.name : video?.name) ?? "clip").replace(/\.[^.]+$/, "")}.mp4`;
-    a.target = "_blank";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    try {
+      const res = await fetch(resultUrl);
+      if (!res.ok) throw new Error(`fetch ${res.status}`);
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = `synced-${((isPhotoEngine ? image?.name : video?.name) ?? "clip").replace(/\.[^.]+$/, "")}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objUrl);
+    } catch {
+      toast.error("Download failed — try right-clicking the video and choosing Save.");
+    }
   };
 
   const stageLabel: Record<JobStatus, string> = {
@@ -886,15 +894,29 @@ function BatchLipSyncForm() {
                   </div>
                 )}
                 {r.status === "done" && r.resultUrl && (
-                  <a
-                    href={r.resultUrl}
-                    download={`batch-lipsync-${i + 1}.mp4`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center justify-center gap-1.5 text-[11px] py-1.5 bg-white/5 hover:bg-white/10 text-white/80"
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(r.resultUrl!);
+                        if (!res.ok) throw new Error(`fetch ${res.status}`);
+                        const blob = await res.blob();
+                        const objUrl = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = objUrl;
+                        a.download = `batch-lipsync-${i + 1}.mp4`;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        URL.revokeObjectURL(objUrl);
+                      } catch {
+                        toast.error("Download failed — try right-clicking the video to save.");
+                      }
+                    }}
+                    className="flex items-center justify-center gap-1.5 text-[11px] py-1.5 bg-white/5 hover:bg-white/10 text-white/80 w-full"
                   >
                     <Download className="size-3" /> Save
-                  </a>
+                  </button>
                 )}
               </div>
             ))}
