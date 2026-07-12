@@ -21,6 +21,7 @@ import {
   Loader2,
   Download,
   ArrowRight,
+  Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
@@ -28,6 +29,8 @@ import { orchestrateGenerate, listOrchestrations } from "@/lib/orchestration.fun
 import { getMyProfile } from "@/lib/billing.functions";
 import { handleGenerationError, friendlyGenerationMessage } from "@/lib/error-toasts";
 import { detectFeatures, computeCost, type Feature, type Resolution } from "@/lib/pricing";
+import { VIDEO_AGENT_MODEL_KEY, VIDEO_AGENT_HELPER_TEXT } from "@/lib/video-agent-prompt";
+import { enhanceVideoAgentPrompt } from "@/lib/video-agent.functions";
 import { ResolutionPicker } from "@/components/ResolutionPicker";
 import { useGenerationProgress } from "@/hooks/use-generation-progress";
 import { GenerationProgress } from "@/components/ui/GenerationProgress";
@@ -81,6 +84,7 @@ const MODELS: Record<Modality, ModelOption[]> = {
   ],
   video: [
     { key: "auto", label: "Auto · best available" },
+    { key: VIDEO_AGENT_MODEL_KEY, label: "HeyGen · Video Agent" },
     { key: "xai/grok-imagine-video-1.5", label: "xAI · Grok Imagine" },
     { key: "seedance-2.0-fast", label: "Replicate · Seedance Lite" },
     { key: "kling-3.0", label: "Replicate · Kling v2.1" },
@@ -105,6 +109,7 @@ function OrchestratePage() {
   const run = useServerFn(orchestrateGenerate);
   const list = useServerFn(listOrchestrations);
   const profileFn = useServerFn(getMyProfile);
+  const enhanceFn = useServerFn(enhanceVideoAgentPrompt);
 
   const [modality, setModality] = useState<Modality>("image");
   const [prompt, setPrompt] = useState("");
@@ -163,11 +168,16 @@ function OrchestratePage() {
     enabled: !!user,
   });
 
+  // Derived early so resolution/duration guards can reference it below.
+  const isVideoAgent = model === VIDEO_AGENT_MODEL_KEY;
+
   // Resolution applies to image/video; length only to video. Price the live
   // preview with the SAME pricing module the server charges with, so the number
   // on the button is exactly what gets reserved.
-  const usesResolution = modality === "image" || modality === "video";
-  const usesDuration = modality === "video";
+  // HeyGen Video Agent uses a fixed avatar-video pipeline — it ignores
+  // resolution/duration params and controls output length from the script.
+  const usesResolution = (modality === "image" || modality === "video") && !isVideoAgent;
+  const usesDuration = modality === "video" && !isVideoAgent;
   // "auto" is a UI-only sentinel — pricing and the server must never see it.
   const effectiveModel = model === AUTO_MODEL ? undefined : model;
   const { features } = detectFeatures({ kind: modality as Feature });
@@ -234,6 +244,12 @@ function OrchestratePage() {
   const displayCost = serverEstimate?.credits ?? cost;
 
   const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0$/, ""));
+
+  // Video Agent (HeyGen) specific state — portrait orientation and
+  // translation-ready (direct-to-camera) mode that affects the Enhance pass.
+  const [vaPortrait, setVaPortrait] = useState(false);
+  const [vaDirectToCamera, setVaDirectToCamera] = useState(false);
+  const [vaEnhancing, setVaEnhancing] = useState(false);
 
   const [downloading, setDownloading] = useState(false);
   // Studio-hosted results (e.g. ElevenLabs TTS output) sit on a cross-origin
@@ -313,9 +329,36 @@ function OrchestratePage() {
 
   // Preview-first flow for video: first pass runs at 480p/5s cheaply,
   // then the user confirms before the full-quality render.
-  const isPreviewPass = modality === "video" && !awaitingFullRender;
+  // Video Agent bypasses this — HeyGen always renders a full avatar video.
+  const isPreviewPass = modality === "video" && !awaitingFullRender && !isVideoAgent;
 
   const isHdResolution = resolution === "1080p" || resolution === "2160p";
+
+  // Enhance the user's raw idea into a polished first-person spoken script via
+  // an LLM pass. The enhanced result replaces the textarea content so the user
+  // can review and tweak before submitting.
+  const doEnhance = async () => {
+    if (!user) return toast.error("Please sign in first");
+    if (!prompt.trim()) return toast.error("Enter a prompt idea first");
+    setVaEnhancing(true);
+    try {
+      const res = await enhanceFn({
+        data: {
+          prompt: prompt.trim(),
+          // Use a 30-second target as a sensible default when the duration
+          // picker is hidden (HeyGen controls actual length from script).
+          targetSeconds: 30,
+          directToCamera: vaDirectToCamera,
+        },
+      });
+      setPrompt(res.script);
+      toast.success("Script enhanced — review and edit freely before submitting");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Enhance failed — try again");
+    } finally {
+      setVaEnhancing(false);
+    }
+  };
 
   const doGenerate = async () => {
     if (!user) return toast.error("Please sign in to generate");
@@ -348,8 +391,12 @@ function OrchestratePage() {
           // Full-quality pass must present the preview's id or the server
           // gate forces it back down to a preview.
           ...(!isPreviewPass && previewTicket ? { confirmPreviewId: previewTicket } : {}),
-          ...(modality === "video" && startImageUrl ? { imageUrls: [startImageUrl] } : {}),
+          // Video Agent doesn't accept start images (avatar pipeline); other
+          // video models treat a start image as an animate-frame hint.
+          ...(modality === "video" && !isVideoAgent && startImageUrl ? { imageUrls: [startImageUrl] } : {}),
           ...(modality === "audio" && voiceId.trim() ? { voiceId: voiceId.trim() } : {}),
+          // Portrait orientation for HeyGen avatar videos (720×1280 vs default 1280×720).
+          ...(isVideoAgent ? { orientation: vaPortrait ? "portrait" : "landscape" } as const : {}),
         },
       });
       if (!res.ok) {
@@ -458,12 +505,66 @@ function OrchestratePage() {
                   ? "Ask anything…"
                   : modality === "audio"
                     ? "Text to speak aloud…"
-                    : "Describe what to generate…"
+                    : isVideoAgent
+                      ? "Write what the presenter says — or describe your idea and hit Enhance…"
+                      : "Describe what to generate…"
               }
               className="w-full resize-none rounded-xl border border-neutral-800 bg-neutral-950 px-4 py-3 text-sm outline-none focus:border-fuchsia-500"
             />
 
-            {modality === "video" && (
+            {/* HeyGen Video Agent helpers: inline guide, Enhance button, orientation + mode toggles */}
+            {isVideoAgent && (
+              <div className="mt-3 space-y-3">
+                <p className="text-xs leading-relaxed text-neutral-400">
+                  {VIDEO_AGENT_HELPER_TEXT}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void doEnhance()}
+                  disabled={vaEnhancing || !prompt.trim()}
+                  className="flex items-center gap-1.5 rounded-lg border border-fuchsia-500/40 bg-fuchsia-500/10 px-3 py-1.5 text-xs font-medium text-fuchsia-300 transition hover:border-fuchsia-500/70 hover:bg-fuchsia-500/20 disabled:opacity-50"
+                >
+                  {vaEnhancing ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-3.5 w-3.5" />
+                  )}
+                  {vaEnhancing ? "Enhancing…" : "Enhance prompt"}
+                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setVaPortrait((v) => !v)}
+                    className={`rounded-lg border px-3 py-1.5 text-xs transition ${
+                      vaPortrait
+                        ? "border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-300"
+                        : "border-neutral-700 text-neutral-400 hover:border-neutral-600"
+                    }`}
+                  >
+                    Portrait (TikTok / Reels)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVaDirectToCamera((v) => !v)}
+                    className={`rounded-lg border px-3 py-1.5 text-xs transition ${
+                      vaDirectToCamera
+                        ? "border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-300"
+                        : "border-neutral-700 text-neutral-400 hover:border-neutral-600"
+                    }`}
+                  >
+                    Translation-ready
+                  </button>
+                </div>
+                {vaDirectToCamera && (
+                  <p className="text-[11px] leading-relaxed text-neutral-500">
+                    Translation-ready: Enhance will write a self-contained script with no references to on-screen visuals — ideal for redubbing into other languages.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Start image: only relevant for non-Video-Agent video models */}
+            {modality === "video" && !isVideoAgent && (
               <div className="mt-4">
                 <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-neutral-500">
                   Start image{" "}
