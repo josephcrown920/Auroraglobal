@@ -335,17 +335,25 @@ export function TemplateDrawer({
               </div>
 
               {/* Cost — templateCost() is the single source of truth shared with the
-                  charging backend; the number shown here is exactly what is reserved. */}
+                  charging backend; the number shown here is exactly what is reserved.
+                  Spin dispatch is Free here: it navigates to /spin where the user
+                  explicitly pays 30 Aura when they click "Spin 30 posts". */}
               <div className="mt-5 rounded-xl border border-border bg-white/[0.03] px-4 py-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">
                     {template.dispatch === "spin"
-                      ? `${SPIN_PIECE_COUNT} posts · charged upfront`
+                      ? `${SPIN_PIECE_COUNT} posts · 30 Aura charged on /spin`
                       : "This render uses"}
                   </span>
-                  <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
-                    <Sparkles className="size-4" /> {cost} Aura
-                  </span>
+                  {cost === 0 ? (
+                    <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-400">
+                      Free
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
+                      <Sparkles className="size-4" /> {cost} Aura
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -368,7 +376,7 @@ export function TemplateDrawer({
                   </>
                 ) : template.dispatch === "spin" ? (
                   <>
-                    <Layers className="size-4" /> Spin {SPIN_PIECE_COUNT} posts · {cost} Aura{" "}
+                    <Layers className="size-4" /> Open Spin · Free{" "}
                     <ArrowRight className="size-4" />
                   </>
                 ) : !user ? (

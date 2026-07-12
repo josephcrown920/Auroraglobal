@@ -70,6 +70,100 @@ async function uploadBytesToStudio(path: string, bytes: Uint8Array | Buffer, con
   return supabaseAdmin.storage.from("studio").getPublicUrl(path).data.publicUrl;
 }
 
+// ─── Smoke-test helper ────────────────────────────────────────────────────────
+/**
+ * Creates a 1-variant spin job, renders the single piece via the EXACT
+ * production renderSpinPiece path (same orchestrate() call, same studio
+ * upload), then marks it done. Admin callers bypass credit deduction.
+ * Used only by the smoke test runner — not exposed to any public route.
+ */
+export async function runSmokeSpinOne(
+  userId: string,
+  faceUrl: string,
+): Promise<{ url: string; provider: string }> {
+  const db = supabaseAdmin as unknown as LooseClient;
+  const base = "smoke test: confident creator lifestyle post";
+  const spec = buildFallbackSpecs(base, 1, "default")[0];
+  const prompt = buildVariantPrompt(spec, {
+    base,
+    triggerWord: null,
+    avatarName: null,
+    templateId: "default",
+  });
+
+  // 1. Create a minimal spin_jobs row (no credit charge — caller is admin).
+  const { data: job } = await db
+    .from("spin_jobs")
+    .insert({
+      user_id: userId,
+      prompt: base,
+      total: 1,
+      status: "running",
+      avatar_id: null,
+      face_url: faceUrl,
+      mode: "photo",
+      script: null,
+      product_url: null,
+      audio_url: null,
+    })
+    .select("id")
+    .single();
+  if (!job) throw new Error("smoke: failed to create spin job");
+
+  // 2. Enqueue 1 variant (same columns spinThirty uses).
+  const { data: insertedRow } = await db
+    .from("spin_variants")
+    .insert([{
+      job_id: job.id,
+      user_id: userId,
+      idx: 0,
+      label: specLabel(spec),
+      status: "queued",
+      kind: "image",
+      spec,
+      prompt,
+    }])
+    .select("id")
+    .single();
+  if (!insertedRow) throw new Error("smoke: failed to create spin variant");
+
+  // 3. Claim the variant via the same CAS the tick functions use.
+  const { data: claimed } = await db
+    .from("spin_variants")
+    .update({ status: "running" })
+    .eq("id", insertedRow.id)
+    .eq("status", "queued")
+    .select("id,idx,label,prompt,spec");
+  if (!claimed || !(claimed as unknown[]).length) throw new Error("smoke: failed to claim spin variant");
+
+  // 4. Render via the production renderSpinPiece function.
+  const ctx: SpinJobCtx = {
+    jobId: job.id as string,
+    userId,
+    mode: "photo",
+    faceUrl,
+    productUrl: null,
+    audioUrl: null,
+  };
+  const piece: SpinPiece = {
+    id: insertedRow.id as string,
+    idx: 0,
+    label: specLabel(spec),
+    prompt,
+  };
+  const { publicUrl, provider } = await renderSpinPiece(ctx, piece);
+
+  // 5. Mark done (same fence logic as production).
+  await db
+    .from("spin_variants")
+    .update({ status: "done", url: publicUrl })
+    .eq("id", insertedRow.id)
+    .eq("status", "running");
+  await db.from("spin_jobs").update({ status: "done" }).eq("id", job.id);
+
+  return { url: publicUrl, provider };
+}
+
 // ─── Avatar options for the identity picker ──────────────────────────────────
 
 export const getSpinOptions = createServerFn({ method: "GET" })
