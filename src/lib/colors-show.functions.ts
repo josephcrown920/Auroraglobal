@@ -14,6 +14,7 @@ const ColorsShowShotSchema = z.object({
   colorName: z.string().min(1).max(100),
   outfit: z.string().min(3).max(300),
   shotType: z.enum(["wide", "closeup"]),
+  colorRefUrl: z.string().url().optional(),
 });
 
 export type ColorsShowShotOutcome =
@@ -38,7 +39,9 @@ export const generateColorsShowShot = createServerFn({ method: "POST" })
       kind: "image",
       prompt: `[Colors Show / ${label}]\n\n${prompt}`,
       model: MODEL,
-      imageUrls: [data.selfieUrl],
+      imageUrls: data.colorRefUrl
+        ? [data.selfieUrl, data.colorRefUrl]
+        : [data.selfieUrl],
       cost: COLORS_SHOW_COST_PER_SHOT,
       reason: "colors_show",
     });
