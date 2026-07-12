@@ -26,14 +26,15 @@ import { AUDIO_ACCEPT } from "./utils";
 import stillNeon from "@/assets/josh/generated/still-01-neon-closeup.jpg";
 import stillStage from "@/assets/josh/generated/still-03-stage-mic.jpg";
 import stillRooftopSunset from "@/assets/josh/generated/still-06-rooftop-sunset.jpg";
-import stillBooth from "@/assets/josh/generated/still-07-booth-headphones.jpg";
 import stillAlley from "@/assets/josh/generated/still-08-alley-mural.jpg";
 import stillCarGolden from "@/assets/josh/generated/still-11-car-golden.jpg";
 import stillCourtBall from "@/assets/josh/generated/still-13-court-ball.jpg";
 import stillFitcheckMirror from "@/assets/josh/generated/still-15-fitcheck-mirror.jpg";
 import stillBoardwalk from "@/assets/josh/generated/still-18-boardwalk.jpg";
 import clipNeon from "@/assets/josh/generated/clip-01-neon-closeup.mp4";
+import clipStreetGolden from "@/assets/josh/generated/clip-02-street-golden.mp4";
 import clipStage from "@/assets/josh/generated/clip-03-stage-mic.mp4";
+import clipStudioGel from "@/assets/josh/generated/clip-05-studio-gel.mp4";
 import clipRooftopSunset from "@/assets/josh/generated/clip-06-rooftop-sunset.mp4";
 import clipCourtBall from "@/assets/josh/generated/clip-13-court-ball.mp4";
 import kidsMeadow from "@/assets/kids/showcase-meadow.jpg";
@@ -213,6 +214,7 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
     category: "Motion",
     blurb: "A slow cinematic orbit around you in warm golden light.",
     thumbnail: stillCarGolden,
+    thumbnailVideo: clipStreetGolden,
     kinds: ["image", "video"],
     dispatch: "studio",
     inputs: [IMG("Your photo")],
@@ -229,6 +231,7 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
     category: "Motion",
     blurb: "A moody street-mural clip drenched in neon.",
     thumbnail: stillAlley,
+    thumbnailVideo: clipStudioGel,
     kinds: ["image", "video"],
     dispatch: "studio",
     inputs: [IMG("Your photo")],
@@ -293,7 +296,9 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
     title: "Viral Spin · 1 → 30",
     category: "Spin",
     blurb: "One idea → 30 scroll-stopping pieces across every short-form format.",
-    thumbnail: stillBooth,
+    // Talking-head hook frame from the viral-output pool — reads as creator
+    // content output rather than a generic headphones portrait.
+    thumbnail: "/josh/generated2/viral-01-lyric-hook.webp",
     kinds: ["spin"],
     dispatch: "spin",
     inputs: [
