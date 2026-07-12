@@ -638,6 +638,7 @@ function LipSyncForm() {
               {engine === "sync-v2" ? "Sync 1.9 (Studio)"
                 : engine === "wav2lip" ? "Wav2Lip (Fast)"
                 : engine === "xai-ugc" ? "xAI grok-imagine-video-1.5 (UGC)"
+                : engine === "heygen-photo" ? "HeyGen Photo"
                 : "LatentSync (self-hosted)"}.
             </p>
           </div>

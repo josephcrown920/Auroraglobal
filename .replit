@@ -137,3 +137,11 @@ SUPABASE_URL = "https://tpzmvbczwahxajujvnrq.supabase.co"
 VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_SGO6FEm9zbgYEOsFqlSX8Q_dFVMJf4x"
 SUPABASE_PUBLISHABLE_KEY = "sb_publishable_SGO6FEm9zbgYEOsFqlSX8Q_dFVMJf4x"
 VITE_GTM_CONTAINER_ID = ""
+
+[[ports]]
+localPort = 8080
+externalPort = 80
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
