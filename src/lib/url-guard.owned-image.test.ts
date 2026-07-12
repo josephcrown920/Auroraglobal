@@ -5,8 +5,11 @@ import { describe, expect, it, beforeEach, mock } from "bun:test";
 // reskin avatarImageUrl) against pointing at someone else's private asset.
 // mock.module must be registered before url-guard is imported.
 
-type Row = { user_id: string; preview_url: string };
-let avatarRows: Row[] = [];
+type AvatarRow = { user_id: string; preview_url: string };
+type GenRow = { user_id: string; result_image_url: string };
+
+let avatarRows: AvatarRow[] = [];
+let generationRows: GenRow[] = [];
 
 function makeAvatarsQuery() {
   const state: { userId?: string; previewUrl?: string } = {};
@@ -27,9 +30,29 @@ function makeAvatarsQuery() {
   return q;
 }
 
+function makeGenerationsQuery() {
+  const state: { userId?: string; resultImageUrl?: string } = {};
+  const q = {
+    select: () => q,
+    eq: (col: string, val: string) => {
+      if (col === "user_id") state.userId = val;
+      if (col === "result_image_url") state.resultImageUrl = val;
+      return q;
+    },
+    maybeSingle: async () => {
+      const match = generationRows.find(
+        (r) => r.user_id === state.userId && r.result_image_url === state.resultImageUrl,
+      );
+      return { data: match ? { id: "gen-1" } : null, error: null };
+    },
+  };
+  return q;
+}
+
 const supabaseAdmin = {
   from: (table: string) => {
     if (table === "avatars") return makeAvatarsQuery();
+    if (table === "generations") return makeGenerationsQuery();
     throw new Error(`unexpected table: ${table}`);
   },
 };
@@ -44,6 +67,7 @@ const BASE = "https://proj.supabase.co/storage/v1/object";
 
 beforeEach(() => {
   avatarRows = [];
+  generationRows = [];
 });
 
 describe("assertOwnedReferenceImage", () => {
@@ -66,7 +90,16 @@ describe("assertOwnedReferenceImage", () => {
     ).rejects.toThrow(/own/i);
   });
 
-  it("rejects a URL that is neither an own upload nor an owned avatar", async () => {
+  it("accepts a result URL from a generation the caller owns", async () => {
+    generationRows = [
+      { user_id: UID, result_image_url: "https://cdn.replicate.delivery/pbxt/output.jpg" },
+    ];
+    await expect(
+      assertOwnedReferenceImage("https://cdn.replicate.delivery/pbxt/output.jpg", UID),
+    ).resolves.toBeUndefined();
+  });
+
+  it("rejects a URL that is neither an own upload, owned avatar, nor owned generation", async () => {
     avatarRows = [{ user_id: OTHER_UID, preview_url: "https://proj.supabase.co/some/avatar.png" }];
     await expect(
       assertOwnedReferenceImage("https://proj.supabase.co/some/avatar.png", UID),
