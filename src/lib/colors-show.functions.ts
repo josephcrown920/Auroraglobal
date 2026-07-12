@@ -2,72 +2,47 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
-  buildColorsShowPrompt,
+  buildWidePrompt,
+  buildCloseupPrompt,
   COLORS_SHOW_COST_PER_SHOT,
-  COLORS_SHOW_SHOTS,
 } from "@/lib/colors-show.templates";
 
 const MODEL = "google/gemini-3.1-flash-image-preview";
 
-const ColorsShowSchema = z.object({
-  portraitUrl: z.string().url(),
-  colorId: z.string().min(1),
-  outfitOption: z.string().min(1),
-  customOutfit: z.string().max(300),
-  selectedShots: z.array(z.string()).min(1).max(4),
-  energyOption: z.string().min(1),
-  songTitle: z.string().max(100),
+const ColorsShowShotSchema = z.object({
+  selfieUrl: z.string().url(),
+  colorName: z.string().min(1).max(100),
+  outfit: z.string().min(3).max(300),
+  shotType: z.enum(["wide", "closeup"]),
 });
 
-export type ColorsShowResult = {
-  shotId: string;
-  label: string;
-  status: "succeeded" | "failed";
-  url?: string;
-  generationId?: string;
-  error?: string;
-};
+export type ColorsShowShotOutcome =
+  | { ok: true; url: string; generationId: string }
+  | { ok: false; error: string };
 
-export const generateColorsShow = createServerFn({ method: "POST" })
+export const generateColorsShowShot = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => ColorsShowSchema.parse(input))
-  .handler(async ({ data, context }): Promise<{ results: ColorsShowResult[] }> => {
+  .inputValidator((input: unknown) => ColorsShowShotSchema.parse(input))
+  .handler(async ({ data, context }): Promise<ColorsShowShotOutcome> => {
     const { userId } = context;
     const { reserveOrchestrateRecord } = await import("@/lib/generate-core.server");
 
-    const shots = COLORS_SHOW_SHOTS.filter((s) => data.selectedShots.includes(s.id));
+    const label = data.shotType === "wide" ? "Wide Shot" : "Close-Up";
+    const prompt =
+      data.shotType === "wide"
+        ? buildWidePrompt(data.colorName, data.outfit)
+        : buildCloseupPrompt(data.colorName, data.outfit);
 
-    const settled = await Promise.allSettled(
-      shots.map((shot) =>
-        reserveOrchestrateRecord({
-          userId,
-          kind: "image",
-          prompt: `[Colors Show / ${shot.label}]\n\n${buildColorsShowPrompt(data, shot)}`,
-          model: MODEL,
-          imageUrls: [data.portraitUrl],
-          cost: COLORS_SHOW_COST_PER_SHOT,
-          reason: "colors_show",
-        }),
-      ),
-    );
-
-    const results: ColorsShowResult[] = settled.map((outcome, i) => {
-      const shot = shots[i];
-      const meta = { shotId: shot.id, label: shot.label };
-      if (outcome.status === "rejected") {
-        const error =
-          outcome.reason instanceof Error ? outcome.reason.message : "Render failed";
-        return { ...meta, status: "failed", error };
-      }
-      const r = outcome.value;
-      if (!r.ok) return { ...meta, status: "failed", error: r.error };
-      return {
-        ...meta,
-        status: "succeeded",
-        url: r.url,
-        generationId: r.generationId,
-      };
+    const result = await reserveOrchestrateRecord({
+      userId,
+      kind: "image",
+      prompt: `[Colors Show / ${label}]\n\n${prompt}`,
+      model: MODEL,
+      imageUrls: [data.selfieUrl],
+      cost: COLORS_SHOW_COST_PER_SHOT,
+      reason: "colors_show",
     });
 
-    return { results };
+    if (!result.ok) return { ok: false, error: result.error };
+    return { ok: true, url: result.url, generationId: result.generationId };
   });

@@ -2,456 +2,460 @@ import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation } from "@tanstack/react-query";
+import { Layers, Upload, Sparkles, Video, RefreshCw, Plus, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  SLOT_LABELS,
+  SLOT_HINTS,
   RE_ANGLE_CHIPS,
-  SCENE_BUILDER_SLOT_COUNT,
-  SCENE_BUILDER_COST_PER_ANGLE,
-  DEFAULT_COMPOSITOR_PROMPT,
-  type ReAngleChip,
+  SCENE_BUILDER_COST_BASE,
+  SCENE_BUILDER_COST_REANGLE,
+  buildBaseScenePrompt,
 } from "@/lib/scene-builder.templates";
-import {
-  generateSceneBuilder,
-  type SceneBuilderResult,
-} from "@/lib/scene-builder.functions";
+import { generateBaseScene, generateReAngles } from "@/lib/scene-builder.functions";
+import type { ReAngleResult } from "@/lib/scene-builder.functions";
 import { Button } from "@/components/ui/button";
-import {
-  ArrowLeft,
-  Check,
-  ImagePlus,
-  Loader2,
-  Sparkles,
-  Wand2,
-  X,
-  Layers,
-} from "lucide-react";
-import { toast } from "sonner";
-import { cn } from "@/lib/utils";
-import { saveAssetToDisk } from "@/lib/save";
 
-export const Route = createLazyFileRoute("/scene-builder")({ component: SceneBuilderPage });
+export const Route = createLazyFileRoute("/scene-builder")({
+  component: SceneBuilderPage,
+});
 
-// ─── Reference slot uploader ─────────────────────────────────────────────────
-function ReferenceSlot({
-  index,
-  userId,
-  value,
-  onChange,
-}: {
-  index: number;
-  userId: string;
-  value: string | null;
-  onChange: (url: string | null) => void;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
+const SLOT_COUNT = SLOT_LABELS.length;
 
-  const upload = async (file: File) => {
-    if (file.size > 20 * 1024 * 1024) {
-      toast.error("Max 20 MB");
-      return;
-    }
-    setBusy(true);
-    try {
-      const ext = file.name.split(".").pop() || "jpg";
-      const path = `${userId}/uploads/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage
-        .from("studio")
-        .upload(path, file, { contentType: file.type, upsert: false });
-      if (error) throw error;
-      const { data: signed, error: signErr } = await supabase.storage
-        .from("studio")
-        .createSignedUrl(path, 60 * 60);
-      if (signErr || !signed?.signedUrl)
-        throw signErr ?? new Error("Could not sign upload URL");
-      onChange(signed.signedUrl);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Upload failed");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className={cn(
-          "group relative aspect-square w-full rounded-2xl border-2 border-dashed transition-all overflow-hidden",
-          value
-            ? "border-primary/30 bg-card/60"
-            : "border-border bg-card/30 hover:border-primary/50",
-        )}
-      >
-        {value ? (
-          <img
-            src={value}
-            alt={`Reference ${index + 1}`}
-            className="size-full object-cover"
-          />
-        ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-muted-foreground group-hover:text-primary transition-colors">
-            {busy ? (
-              <Loader2 className="size-5 animate-spin" />
-            ) : (
-              <ImagePlus className="size-5" />
-            )}
-            <span className="text-[10px] font-medium">Ref {index + 1}</span>
-          </div>
-        )}
-      </button>
-      {value && (
-        <button
-          type="button"
-          onClick={() => onChange(null)}
-          className="absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-black/60 text-white hover:bg-destructive transition-colors"
-        >
-          <X className="size-3" />
-        </button>
-      )}
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        hidden
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) upload(f);
-          e.target.value = "";
-        }}
-      />
-    </div>
-  );
+async function uploadToStudio(userId: string, file: File): Promise<string> {
+  if (file.size > 20 * 1024 * 1024) throw new Error("Image must be under 20 MB");
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `${userId}/uploads/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from("studio").upload(path, file, {
+    contentType: file.type,
+    upsert: false,
+  });
+  if (error) throw error;
+  const { data: signed, error: signErr } = await supabase.storage
+    .from("studio")
+    .createSignedUrl(path, 60 * 60);
+  if (signErr || !signed?.signedUrl) throw signErr ?? new Error("Could not sign upload URL");
+  return signed.signedUrl;
 }
 
-// ─── Re-angle chip ────────────────────────────────────────────────────────────
-function AngleChip({
-  chip,
-  active,
-  onToggle,
-}: {
-  chip: ReAngleChip;
-  active: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className={cn(
-        "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition-all",
-        active
-          ? "border-primary bg-primary/20 text-primary"
-          : "border-border bg-card/40 text-muted-foreground hover:border-primary/40 hover:text-foreground",
-      )}
-    >
-      {active && <Check className="size-3" />}
-      {chip.label}
-    </button>
-  );
-}
-
-// ─── Result card ──────────────────────────────────────────────────────────────
-function ResultCard({ result }: { result: SceneBuilderResult }) {
-  const handleDownload = () => {
-    if (result.url)
-      saveAssetToDisk(result.url, `aurora-scene-${result.angleId}.jpg`);
-  };
-
-  if (result.status === "failed") {
-    return (
-      <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-destructive/30 bg-destructive/5 p-5 text-center">
-        <span className="text-sm font-medium text-destructive">
-          {result.label} failed
-        </span>
-        {result.error && (
-          <span className="text-xs text-muted-foreground">{result.error}</span>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="relative aspect-[9/16] w-full overflow-hidden rounded-2xl bg-card/40">
-        {result.url && (
-          <img
-            src={result.url}
-            alt={result.label}
-            className="size-full object-cover"
-          />
-        )}
-        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2.5">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-white">
-            {result.label}
-          </span>
-        </div>
-      </div>
-      <div className="flex gap-2">
-        {result.url && (
-          <Link to="/motion" search={{ image: result.url }} className="flex-1">
-            <Button variant="premium" size="sm" className="w-full gap-1.5">
-              <Wand2 className="size-3.5" /> Animate
-            </Button>
-          </Link>
-        )}
-        <Button
-          variant="glass"
-          size="sm"
-          onClick={handleDownload}
-          className="shrink-0"
-        >
-          Save
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// ─── Main page ────────────────────────────────────────────────────────────────
 function SceneBuilderPage() {
   const { user } = useAuth();
-  const userId = user?.id ?? "";
 
-  const [refs, setRefs] = useState<(string | null)[]>(
-    Array.from({ length: SCENE_BUILDER_SLOT_COUNT }, () => null),
-  );
-  const [prompt, setPrompt] = useState(DEFAULT_COMPOSITOR_PROMPT);
-  const [selectedAngles, setSelectedAngles] = useState<string[]>(["wide", "closeup"]);
-  const [results, setResults] = useState<SceneBuilderResult[] | null>(null);
+  // 5 labeled upload slots: Selfie, Outfit, Location, Pose, Prop/Car
+  const [slots, setSlots] = useState<(string | null)[]>(Array(SLOT_COUNT).fill(null));
+  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pendingSlotIdx, setPendingSlotIdx] = useState<number>(0);
 
-  const generateFn = useServerFn(generateSceneBuilder);
-  const mutation = useMutation({
-    mutationFn: () => {
-      const referenceUrls = refs.filter((r): r is string => !!r);
-      return generateFn({
+  // Swap fields for {outfit}, {location}, {prop} tokens
+  const [outfit, setOutfit] = useState("");
+  const [location, setLocation] = useState("");
+  const [prop, setProp] = useState("");
+
+  // Editable compositor prompt — starts from template, user can override
+  const [promptOverride, setPromptOverride] = useState<string | null>(null);
+  const compositorPrompt = promptOverride ?? buildBaseScenePrompt(outfit, location, prop);
+
+  // Base scene result
+  const [baseResult, setBaseResult] = useState<{ url: string; generationId: string } | null>(null);
+
+  // Re-angle state
+  const [selectedChips, setSelectedChips] = useState<Set<string>>(new Set());
+  const [freeformAngle, setFreeformAngle] = useState("");
+  const [angleResults, setAngleResults] = useState<ReAngleResult[]>([]);
+
+  const baseFn = useServerFn(generateBaseScene);
+  const angleFn = useServerFn(generateReAngles);
+
+  const filledSlots = slots.filter(Boolean).length;
+
+  const baseMut = useMutation({
+    mutationFn: () =>
+      baseFn({
         data: {
-          referenceUrls,
-          compositorPrompt: prompt,
-          selectedAngles,
+          referenceUrls: slots.filter((s): s is string => !!s),
+          compositorPrompt,
         },
-      });
-    },
-    onSuccess: (data) => {
-      setResults(data.results);
-      const failed = data.results.filter((r) => r.status === "failed");
-      if (failed.length === data.results.length) {
-        toast.error("All angles failed — check credits and try again.");
-      } else if (failed.length > 0) {
-        toast.warning(
-          `${data.results.length - failed.length} angle(s) succeeded, ${failed.length} failed.`,
-        );
-      } else {
-        toast.success("Scene built!");
-      }
+      }),
+    onSuccess: (res) => {
+      if (!res.ok) { toast.error(res.error); return; }
+      setBaseResult({ url: res.url, generationId: res.generationId });
+      toast.success("Base scene ready");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Generation failed"),
   });
 
-  const uploadedCount = refs.filter(Boolean).length;
-  const totalCost = selectedAngles.length * SCENE_BUILDER_COST_PER_ANGLE;
-  const canGenerate =
-    uploadedCount >= 1 && selectedAngles.length >= 1 && prompt.trim().length >= 10;
+  const angleMut = useMutation({
+    mutationFn: () =>
+      angleFn({
+        data: {
+          baseImageUrl: baseResult!.url,
+          chipIds: Array.from(selectedChips),
+          freeform: freeformAngle.trim() || undefined,
+        },
+      }),
+    onSuccess: ({ results }) => {
+      const ok = results.filter((r) => r.status === "succeeded").length;
+      const failed = results.length - ok;
+      setAngleResults((prev) => [...prev, ...results]);
+      if (ok > 0) toast.success(`${ok} angle${ok > 1 ? "s" : ""} ready`);
+      if (failed > 0) toast.warning(`${failed} angle${failed > 1 ? "s" : ""} failed`);
+      setSelectedChips(new Set());
+      setFreeformAngle("");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Re-angle failed"),
+  });
 
-  function toggleAngle(id: string) {
-    setSelectedAngles((prev) =>
-      prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id],
-    );
-  }
+  const handleFileUpload = async (file: File, slotIdx: number) => {
+    if (!file.type.startsWith("image/")) { toast.error("Please upload an image file"); return; }
+    if (!user) { toast.error("Please sign in first"); return; }
+    setUploadingIdx(slotIdx);
+    try {
+      const url = await uploadToStudio(user.id, file);
+      setSlots((prev) => { const next = [...prev]; next[slotIdx] = url; return next; });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploadingIdx(null);
+    }
+  };
 
-  // ─── Results screen ─────────────────────────────────────────────────────
-  if (results) {
-    return (
-      <div className="aurora-page-shell">
-        <span aria-hidden className="aurora-ambient" />
-        <div className="relative z-10 mx-auto max-w-xl px-4 pb-24 pt-16">
-          <div className="mb-6 flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setResults(null)}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ArrowLeft className="size-4" /> Back
-            </button>
-          </div>
+  const anglesOrFreeform = selectedChips.size > 0 || freeformAngle.trim().length > 0;
+  const angleCount = selectedChips.size + (freeformAngle.trim() ? 1 : 0);
 
-          <h1 className="mb-6 text-lg font-bold">Your Scene</h1>
-
-          <div className="grid gap-6">
-            {results.map((r) => (
-              <ResultCard key={r.angleId} result={r} />
-            ))}
-          </div>
-
-          <div className="mt-8 flex flex-col gap-3">
-            <Button
-              variant="glass"
-              className="w-full gap-2"
-              onClick={() => {
-                setResults(null);
-                setRefs(Array.from({ length: SCENE_BUILDER_SLOT_COUNT }, () => null));
-                setSelectedAngles(["wide", "closeup"]);
-              }}
-            >
-              <Sparkles className="size-4" /> New scene
-            </Button>
-            <Link to="/gallery">
-              <Button variant="ghost" className="w-full text-muted-foreground">
-                View in Gallery
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ─── Builder screen ──────────────────────────────────────────────────────
   return (
     <div className="aurora-page-shell">
-      <span aria-hidden className="aurora-ambient" />
-      <div className="relative z-10 mx-auto max-w-xl px-4 pb-28 pt-16">
+      <div className="aurora-ambient" />
 
+      <div className="relative z-10 min-h-[100dvh] pb-24">
         {/* Header */}
-        <div className="mb-6 flex items-center gap-3">
-          <Link to="/studio" className="text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="size-4" />
-          </Link>
-          <div className="flex items-center gap-2">
-            <Layers className="size-4 text-primary" />
-            <span className="text-xs font-semibold uppercase tracking-widest text-primary">
-              Scene Builder
-            </span>
-          </div>
+        <div className="px-4 pt-4 pb-4 flex items-center gap-2">
+          <Layers className="w-4 h-4 text-primary shrink-0" />
+          <span className="text-xs font-semibold tracking-widest uppercase text-primary">
+            Scene Builder
+          </span>
         </div>
 
-        <h1 className="mb-1 text-2xl font-bold tracking-tight">Build Your Scene</h1>
-        <p className="mb-8 text-sm text-muted-foreground">
-          Upload up to {SCENE_BUILDER_SLOT_COUNT} reference images, describe your scene, and pick
-          camera angles — Aurora composites everything into cinematic stills.
-        </p>
-
-        {/* ── Reference slots ────────────────────────────────────────── */}
-        <div className="mb-6">
-          <div className="mb-2 flex items-baseline justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Reference Images
-            </h2>
-            <span className="text-xs text-muted-foreground">
-              {uploadedCount} / {SCENE_BUILDER_SLOT_COUNT} uploaded
-            </span>
+        <div className="px-4 space-y-8">
+          <div>
+            <h1 className="text-2xl font-bold text-white mb-1">Build Your Scene</h1>
+            <p className="text-sm text-white/60 leading-relaxed">
+              Upload up to 5 labeled references, fill in the outfit, location, and prop fields — Aurora composites everything into a cinematic still.
+            </p>
           </div>
-          <div className="grid grid-cols-5 gap-2">
-            {refs.map((url, i) => (
-              <ReferenceSlot
-                key={i}
-                index={i}
-                userId={userId}
-                value={url}
-                onChange={(newUrl) =>
-                  setRefs((prev) => prev.map((u, idx) => (idx === i ? newUrl : u)))
-                }
-              />
+
+          {/* ── 5 Labeled upload slots ── */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold uppercase tracking-wider text-white/50">
+                Reference Images
+              </span>
+              <span className="text-xs text-white/30">{filledSlots} / {SLOT_COUNT} uploaded</span>
+            </div>
+
+            <div className="grid grid-cols-5 gap-2">
+              {SLOT_LABELS.map((label, idx) => (
+                <div key={label} className="flex flex-col gap-1">
+                  <button
+                    onClick={() => {
+                      setPendingSlotIdx(idx);
+                      fileInputRef.current?.click();
+                    }}
+                    disabled={uploadingIdx === idx}
+                    className={cn(
+                      "w-full rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 transition-all overflow-hidden relative group",
+                      slots[idx] ? "border-primary/40" : "border-white/20 bg-white/5 hover:border-white/35",
+                    )}
+                    style={{ aspectRatio: "3/4" }}
+                  >
+                    {uploadingIdx === idx ? (
+                      <RefreshCw className="w-5 h-5 text-primary animate-spin" />
+                    ) : slots[idx] ? (
+                      <>
+                        <img
+                          src={slots[idx]!}
+                          alt={label}
+                          className="absolute inset-0 w-full h-full object-cover"
+                        />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSlots((prev) => { const next = [...prev]; next[idx] = null; return next; });
+                          }}
+                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3 text-white" />
+                        </button>
+                      </>
+                    ) : (
+                      <Upload className="w-4 h-4 text-white/30" />
+                    )}
+                  </button>
+                  <span className="text-[10px] font-semibold text-center text-white/50 truncate leading-tight">
+                    {label}
+                  </span>
+                  {!slots[idx] && (
+                    <span className="text-[9px] text-center text-white/25 leading-tight line-clamp-2">
+                      {SLOT_HINTS[idx]}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void handleFileUpload(f, pendingSlotIdx);
+                e.target.value = "";
+              }}
+            />
+          </section>
+
+          {/* ── Swap fields: {outfit}, {location}, {prop} ── */}
+          <section className="space-y-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-white/50 mb-1">
+                Scene Token Fields
+              </p>
+              <p className="text-xs text-white/40 leading-relaxed">
+                Fill in these fields — they replace the{" "}
+                <code className="text-primary/80">{"{outfit}"}</code>,{" "}
+                <code className="text-primary/80">{"{location}"}</code>, and{" "}
+                <code className="text-primary/80">{"{prop}"}</code> tokens in the compositor prompt below.
+              </p>
+            </div>
+
+            {(
+              [
+                { label: "Outfit", placeholder: "e.g. oversized denim jacket, white crop top, black cargo pants", value: outfit, set: setOutfit },
+                { label: "Location", placeholder: "e.g. rooftop at golden hour, downtown street with neon signs", value: location, set: setLocation },
+                { label: "Prop / Car", placeholder: "e.g. matte black sports car, vintage cassette player", value: prop, set: setProp },
+              ] as const
+            ).map(({ label, placeholder, value, set }) => (
+              <div key={label}>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-white/50 mb-1.5">
+                  {label}
+                </label>
+                <input
+                  type="text"
+                  value={value}
+                  onChange={(e) => {
+                    (set as (v: string) => void)(e.target.value);
+                    setPromptOverride(null);
+                  }}
+                  placeholder={placeholder}
+                  className="w-full bg-white/8 border border-white/15 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-primary/60 transition-colors"
+                />
+              </div>
             ))}
-          </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            Portraits, outfit refs, set photos — any image that helps lock the scene.
-          </p>
-        </div>
+          </section>
 
-        {/* ── Scene description ───────────────────────────────────────── */}
-        <div className="mb-6">
-          <div className="mb-2 flex items-baseline justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Scene Description
-            </h2>
-            <span
-              className={cn(
-                "text-[11px]",
-                prompt.length > 1900 ? "text-destructive" : "text-muted-foreground",
+          {/* ── Compositor prompt — fully editable ── */}
+          <section>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-white/50">
+                Compositor Prompt
+              </span>
+              {promptOverride !== null && (
+                <button
+                  onClick={() => setPromptOverride(null)}
+                  className="text-[10px] text-primary/70 hover:text-primary underline"
+                >
+                  Reset to template
+                </button>
               )}
+            </div>
+            <textarea
+              value={compositorPrompt}
+              onChange={(e) => setPromptOverride(e.target.value)}
+              rows={10}
+              maxLength={3000}
+              className="w-full bg-white/8 border border-white/15 rounded-xl px-4 py-3 text-xs text-white/80 resize-none focus:outline-none focus:border-primary/60 transition-colors font-mono leading-relaxed"
+            />
+            <p className="text-xs text-white/25 mt-1 text-right">
+              {compositorPrompt.length}/3000
+            </p>
+          </section>
+
+          {/* ── Generate Base Scene ── */}
+          <section className="space-y-4">
+            {baseResult && (
+              <div className="relative rounded-2xl overflow-hidden">
+                <img
+                  src={baseResult.url}
+                  alt="Base scene"
+                  className="w-full object-cover"
+                  style={{ aspectRatio: "9/16" }}
+                />
+                <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 to-transparent flex items-end justify-between">
+                  <p className="text-xs text-white/80 font-medium">Base scene ready ✓</p>
+                  <Link
+                    to="/motion"
+                    search={{ image: baseResult.url }}
+                    className="flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-primary/30 border border-primary/50 text-primary text-xs font-semibold hover:bg-primary/40 transition-colors"
+                  >
+                    <Video className="w-3 h-3" />
+                    Animate
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            <Button
+              variant={baseResult ? "glass" : "premium"}
+              className="w-full"
+              onClick={() => baseMut.mutate()}
+              disabled={baseMut.isPending || filledSlots === 0}
             >
-              {prompt.length} / 2000
-            </span>
-          </div>
-          <textarea
-            className="w-full rounded-2xl border border-border bg-card/60 px-4 py-3 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none resize-none leading-relaxed"
-            rows={6}
-            maxLength={2000}
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Describe the set, lighting, atmosphere, and what you want in the scene…"
-          />
-        </div>
+              {baseMut.isPending ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                  Generating base scene…
+                </>
+              ) : baseResult ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Regenerate Base Scene — {SCENE_BUILDER_COST_BASE} Aura
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Generate Base Scene — {SCENE_BUILDER_COST_BASE} Aura
+                </>
+              )}
+            </Button>
 
-        {/* ── Re-angle chips ──────────────────────────────────────────── */}
-        <div className="mb-8">
-          <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Camera Angles
-            </h2>
-            <span className="text-xs text-muted-foreground">
-              {selectedAngles.length} selected
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {RE_ANGLE_CHIPS.map((chip) => (
-              <AngleChip
-                key={chip.id}
-                chip={chip}
-                active={selectedAngles.includes(chip.id)}
-                onToggle={() => toggleAngle(chip.id)}
+            {filledSlots === 0 && (
+              <p className="text-xs text-center text-white/30">Upload at least one reference to generate</p>
+            )}
+          </section>
+
+          {/* ── Add Angle — only visible after base scene is generated ── */}
+          {baseResult && (
+            <section className="space-y-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-white/50 mb-1">
+                  Add Angle
+                </p>
+                <p className="text-xs text-white/40 leading-relaxed">
+                  Re-angle this exact scene from a new camera position. The base scene image is the reference — only the framing changes.
+                </p>
+              </div>
+
+              {/* Quick-add chips */}
+              <div className="flex flex-wrap gap-2">
+                {RE_ANGLE_CHIPS.map((chip) => (
+                  <button
+                    key={chip.id}
+                    onClick={() =>
+                      setSelectedChips((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(chip.id)) next.delete(chip.id);
+                        else next.add(chip.id);
+                        return next;
+                      })
+                    }
+                    className={cn(
+                      "px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
+                      selectedChips.has(chip.id)
+                        ? "border-primary bg-primary/20 text-primary"
+                        : "border-white/20 bg-white/5 text-white/60 hover:border-white/35 hover:text-white/80",
+                    )}
+                  >
+                    {selectedChips.has(chip.id) && "✓ "}
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Freeform angle input */}
+              <input
+                type="text"
+                value={freeformAngle}
+                onChange={(e) => setFreeformAngle(e.target.value)}
+                placeholder="Or describe any angle… e.g. bird's-eye looking straight down"
+                maxLength={300}
+                className="w-full bg-white/8 border border-white/15 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-primary/60 transition-colors"
               />
-            ))}
-          </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            Each angle is composited independently ({SCENE_BUILDER_COST_PER_ANGLE} Aura each).
-          </p>
-        </div>
 
-        {/* ── Cost + Generate ─────────────────────────────────────────── */}
-        {selectedAngles.length > 0 && (
-          <div className="mb-4 flex items-center justify-between rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
-            <span className="text-sm text-muted-foreground">
-              {selectedAngles.length} angle{selectedAngles.length !== 1 ? "s" : ""}
-            </span>
-            <span className="text-sm font-bold text-primary">{totalCost} Aura</span>
-          </div>
-        )}
+              <Button
+                variant="premium"
+                className="w-full"
+                onClick={() => angleMut.mutate()}
+                disabled={angleMut.isPending || !anglesOrFreeform}
+              >
+                {angleMut.isPending ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                    Generating {angleCount > 1 ? `${angleCount} angles` : "angle"}…
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Generate {angleCount > 1 ? `${angleCount} Angles` : "Angle"}{" "}
+                    — {angleCount * SCENE_BUILDER_COST_REANGLE} Aura
+                  </>
+                )}
+              </Button>
 
-        <Button
-          variant="premium"
-          size="lg"
-          className="w-full gap-2"
-          disabled={!canGenerate || mutation.isPending}
-          onClick={() => mutation.mutate()}
-        >
-          {mutation.isPending ? (
-            <>
-              <Loader2 className="size-4 animate-spin" />
-              Building scene…
-            </>
-          ) : !canGenerate ? (
-            uploadedCount === 0 ? (
-              "Upload at least 1 reference"
-            ) : selectedAngles.length === 0 ? (
-              "Pick at least 1 angle"
-            ) : (
-              "Describe the scene"
-            )
-          ) : (
-            <>
-              <Sparkles className="size-4" />
-              Build Scene · {totalCost} Aura
-            </>
+              {/* Angle results gallery — each result has its own Animate button */}
+              {angleResults.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-white/50">
+                    Angle Results
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {angleResults.map((r, i) => (
+                      <div key={`${r.id}-${i}`} className="space-y-2">
+                        <div className="relative rounded-xl overflow-hidden bg-white/5">
+                          {r.status === "succeeded" && r.url ? (
+                            <img
+                              src={r.url}
+                              alt={r.label}
+                              className="w-full object-cover"
+                              style={{ aspectRatio: "9/16" }}
+                            />
+                          ) : (
+                            <div
+                              className="w-full flex items-center justify-center bg-red-500/10 border border-red-500/20 rounded-xl"
+                              style={{ aspectRatio: "9/16" }}
+                            >
+                              <p className="text-xs text-red-400/70 text-center px-2">
+                                {r.error ?? "Failed"}
+                              </p>
+                            </div>
+                          )}
+                          {r.status === "succeeded" && r.url && (
+                            <div className="absolute bottom-0 inset-x-0 p-2 bg-gradient-to-t from-black/70 to-transparent">
+                              <p className="text-[10px] font-medium text-white/70">{r.label}</p>
+                            </div>
+                          )}
+                        </div>
+                        {r.status === "succeeded" && r.url && (
+                          <Link
+                            to="/motion"
+                            search={{ image: r.url }}
+                            className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl bg-primary/20 border border-primary/40 text-primary text-xs font-semibold hover:bg-primary/30 transition-colors"
+                          >
+                            <Video className="w-3 h-3" />
+                            Animate in Motion
+                          </Link>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
           )}
-        </Button>
-
-        <p className="mt-3 text-center text-[11px] text-muted-foreground">
-          After generating, use Animate to bring any still to life with Motion Control.
-        </p>
+        </div>
       </div>
     </div>
   );
