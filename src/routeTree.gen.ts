@@ -18,6 +18,7 @@ import { Route as SplitRealityRouteImport } from './routes/split-reality'
 import { Route as SpinRouteImport } from './routes/spin'
 import { Route as SpeechRouteImport } from './routes/speech'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as SceneBuilderRouteImport } from './routes/scene-builder'
 import { Route as RoadmapRouteImport } from './routes/roadmap'
 import { Route as ReshootRouteImport } from './routes/reshoot'
 import { Route as PhotoEditRouteImport } from './routes/photo-edit'
@@ -39,6 +40,7 @@ import { Route as ContentMachineRouteImport } from './routes/content-machine'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as ConnectRouteImport } from './routes/connect'
 import { Route as ComfyRouteImport } from './routes/comfy'
+import { Route as ColorsShowRouteImport } from './routes/colors-show'
 import { Route as ColorsRouteImport } from './routes/colors'
 import { Route as ClipsRouteImport } from './routes/clips'
 import { Route as CanvasRouteImport } from './routes/canvas'
@@ -122,6 +124,11 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SceneBuilderRoute = SceneBuilderRouteImport.update({
+  id: '/scene-builder',
+  path: '/scene-builder',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/scene-builder.lazy').then((d) => d.Route))
 const RoadmapRoute = RoadmapRouteImport.update({
   id: '/roadmap',
   path: '/roadmap',
@@ -231,6 +238,11 @@ const ComfyRoute = ComfyRouteImport.update({
   path: '/comfy',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/comfy.lazy').then((d) => d.Route))
+const ColorsShowRoute = ColorsShowRouteImport.update({
+  id: '/colors-show',
+  path: '/colors-show',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/colors-show.lazy').then((d) => d.Route))
 const ColorsRoute = ColorsRouteImport.update({
   id: '/colors',
   path: '/colors',
@@ -435,6 +447,7 @@ export interface FileRoutesByFullPath {
   '/canvas': typeof CanvasRoute
   '/clips': typeof ClipsRoute
   '/colors': typeof ColorsRoute
+  '/colors-show': typeof ColorsShowRoute
   '/comfy': typeof ComfyRoute
   '/connect': typeof ConnectRoute
   '/contact': typeof ContactRoute
@@ -456,6 +469,7 @@ export interface FileRoutesByFullPath {
   '/photo-edit': typeof PhotoEditRoute
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
+  '/scene-builder': typeof SceneBuilderRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
@@ -504,6 +518,7 @@ export interface FileRoutesByTo {
   '/canvas': typeof CanvasRoute
   '/clips': typeof ClipsRoute
   '/colors': typeof ColorsRoute
+  '/colors-show': typeof ColorsShowRoute
   '/comfy': typeof ComfyRoute
   '/connect': typeof ConnectRoute
   '/contact': typeof ContactRoute
@@ -525,6 +540,7 @@ export interface FileRoutesByTo {
   '/photo-edit': typeof PhotoEditRoute
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
+  '/scene-builder': typeof SceneBuilderRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
@@ -574,6 +590,7 @@ export interface FileRoutesById {
   '/canvas': typeof CanvasRoute
   '/clips': typeof ClipsRoute
   '/colors': typeof ColorsRoute
+  '/colors-show': typeof ColorsShowRoute
   '/comfy': typeof ComfyRoute
   '/connect': typeof ConnectRoute
   '/contact': typeof ContactRoute
@@ -595,6 +612,7 @@ export interface FileRoutesById {
   '/photo-edit': typeof PhotoEditRoute
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
+  '/scene-builder': typeof SceneBuilderRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
@@ -645,6 +663,7 @@ export interface FileRouteTypes {
     | '/canvas'
     | '/clips'
     | '/colors'
+    | '/colors-show'
     | '/comfy'
     | '/connect'
     | '/contact'
@@ -666,6 +685,7 @@ export interface FileRouteTypes {
     | '/photo-edit'
     | '/reshoot'
     | '/roadmap'
+    | '/scene-builder'
     | '/sitemap.xml'
     | '/speech'
     | '/spin'
@@ -714,6 +734,7 @@ export interface FileRouteTypes {
     | '/canvas'
     | '/clips'
     | '/colors'
+    | '/colors-show'
     | '/comfy'
     | '/connect'
     | '/contact'
@@ -735,6 +756,7 @@ export interface FileRouteTypes {
     | '/photo-edit'
     | '/reshoot'
     | '/roadmap'
+    | '/scene-builder'
     | '/sitemap.xml'
     | '/speech'
     | '/spin'
@@ -783,6 +805,7 @@ export interface FileRouteTypes {
     | '/canvas'
     | '/clips'
     | '/colors'
+    | '/colors-show'
     | '/comfy'
     | '/connect'
     | '/contact'
@@ -804,6 +827,7 @@ export interface FileRouteTypes {
     | '/photo-edit'
     | '/reshoot'
     | '/roadmap'
+    | '/scene-builder'
     | '/sitemap.xml'
     | '/speech'
     | '/spin'
@@ -853,6 +877,7 @@ export interface RootRouteChildren {
   CanvasRoute: typeof CanvasRoute
   ClipsRoute: typeof ClipsRoute
   ColorsRoute: typeof ColorsRoute
+  ColorsShowRoute: typeof ColorsShowRoute
   ComfyRoute: typeof ComfyRoute
   ConnectRoute: typeof ConnectRoute
   ContactRoute: typeof ContactRoute
@@ -874,6 +899,7 @@ export interface RootRouteChildren {
   PhotoEditRoute: typeof PhotoEditRoute
   ReshootRoute: typeof ReshootRoute
   RoadmapRoute: typeof RoadmapRoute
+  SceneBuilderRoute: typeof SceneBuilderRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SpeechRoute: typeof SpeechRoute
   SpinRoute: typeof SpinRoute
@@ -969,6 +995,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scene-builder': {
+      id: '/scene-builder'
+      path: '/scene-builder'
+      fullPath: '/scene-builder'
+      preLoaderRoute: typeof SceneBuilderRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/roadmap': {
@@ -1116,6 +1149,13 @@ declare module '@tanstack/react-router' {
       path: '/comfy'
       fullPath: '/comfy'
       preLoaderRoute: typeof ComfyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/colors-show': {
+      id: '/colors-show'
+      path: '/colors-show'
+      fullPath: '/colors-show'
+      preLoaderRoute: typeof ColorsShowRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/colors': {
@@ -1411,6 +1451,7 @@ const rootRouteChildren: RootRouteChildren = {
   CanvasRoute: CanvasRoute,
   ClipsRoute: ClipsRoute,
   ColorsRoute: ColorsRoute,
+  ColorsShowRoute: ColorsShowRoute,
   ComfyRoute: ComfyRoute,
   ConnectRoute: ConnectRoute,
   ContactRoute: ContactRoute,
@@ -1432,6 +1473,7 @@ const rootRouteChildren: RootRouteChildren = {
   PhotoEditRoute: PhotoEditRoute,
   ReshootRoute: ReshootRoute,
   RoadmapRoute: RoadmapRoute,
+  SceneBuilderRoute: SceneBuilderRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SpeechRoute: SpeechRoute,
   SpinRoute: SpinRoute,
