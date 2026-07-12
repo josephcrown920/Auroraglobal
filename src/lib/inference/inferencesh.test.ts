@@ -73,6 +73,35 @@ describe("inferenceShInput", () => {
   it("omits undefined fields", () => {
     expect(inferenceShInput({ task: "image", prompt: "hi" })).toEqual({ prompt: "hi" });
   });
+
+  it("forwards media_url and mode for lipsync tasks", () => {
+    expect(
+      inferenceShInput({
+        task: "lipsync",
+        audioUrl: "https://cdn/voice.wav",
+        mediaUrl: "https://cdn/face.mp4",
+        mode: "video",
+      }),
+    ).toEqual({
+      audio_url: "https://cdn/voice.wav",
+      media_url: "https://cdn/face.mp4",
+      mode: "video",
+    });
+  });
+
+  it("params win over conventional fields including media_url", () => {
+    expect(
+      inferenceShInput({
+        task: "lipsync",
+        audioUrl: "https://cdn/audio.wav",
+        mediaUrl: "https://cdn/face.mp4",
+        params: { media_url: "https://cdn/override.mp4" },
+      }),
+    ).toEqual({
+      audio_url: "https://cdn/audio.wav",
+      media_url: "https://cdn/override.mp4",
+    });
+  });
 });
 
 describe("runInferenceShTask", () => {

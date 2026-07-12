@@ -1,0 +1,18 @@
+name: aurora-tts
+display_name: Aurora TTS
+description: >
+  High-quality text-to-speech using Kokoro-82M.
+  Required: text (up to 5 000 characters).
+  Optional: voice (default "af_sky"), speed (0.5-2.0, default 1.0),
+  lang (auto-detected from voice), split_pattern (sentence-splitting regex).
+  Output is a 24 kHz mono WAV file.
+
+resources:
+  gpu: T4
+  gpu_count: 1
+
+runtime:
+  python: "3.11"
+
+env:
+  HF_HOME: /workspace/.cache/huggingface

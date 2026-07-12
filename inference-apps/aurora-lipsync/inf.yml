@@ -1,0 +1,21 @@
+name: aurora-lipsync
+display_name: Aurora Lip Sync
+description: >
+  Synchronise lip movements in a video or portrait image to a driving audio
+  track using LatentSync-1.5 (ByteDance).
+  Required: audio_url (WAV/MP3/M4A public URL).
+  Source: video_url (MP4) OR image_url (portrait JPEG/PNG).
+  Optional: mode (video|image), inference_steps (10-50, default 25),
+  guidance_scale (default 1.5), seed (-1 = random).
+
+resources:
+  gpu: A100
+  gpu_count: 1
+
+runtime:
+  python: "3.11"
+
+env:
+  HF_HOME: /workspace/.cache/huggingface
+  TORCH_HOME: /workspace/.cache/torch
+  LIPSYNC_MODEL_ID: ByteDance/LatentSync-1.5

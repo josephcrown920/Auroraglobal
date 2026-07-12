@@ -159,6 +159,8 @@ export function inferenceShInput(input: InferenceInput): Record<string, unknown>
     image_urls: input.imageUrls,
     audio_url: input.audioUrl,
     video_url: input.videoUrl,
+    media_url: input.mediaUrl,
+    mode: input.mode,
     ...(input.params ?? {}),
   };
   for (const k of Object.keys(body)) if (body[k] === undefined) delete body[k];
