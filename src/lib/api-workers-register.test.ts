@@ -135,6 +135,26 @@ describe("POST /api/public/workers/register", () => {
     expect(gpuWorkers).toHaveLength(0);
   });
 
+  it("rejects the public Supabase anon/publishable key — must never be accepted as a register credential", async () => {
+    // The anon key ships to every browser. If it were accepted here, anyone
+    // who knows the Aurora URL could register a rogue "worker" and start
+    // receiving real job inputs including signed links to private user media.
+    const fakeAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiJ9.fake";
+    process.env.SUPABASE_PUBLISHABLE_KEY = fakeAnonKey;
+    process.env.SUPABASE_ANON_KEY = fakeAnonKey;
+
+    const res = await post(
+      { name: "rogue-worker", endpoint_url: "https://attacker.example.com" },
+      { apikey: fakeAnonKey },
+    );
+    expect(res.status).toBe(401);
+    expect(gpuWorkers).toHaveLength(0);
+    expect(insertCalls).toHaveLength(0);
+
+    delete process.env.SUPABASE_PUBLISHABLE_KEY;
+    delete process.env.SUPABASE_ANON_KEY;
+  });
+
   it("fails closed (503) when AURORA_REGISTER_SECRET is not configured, even with a plausible apikey", async () => {
     delete process.env.AURORA_REGISTER_SECRET;
     const res = await post(
