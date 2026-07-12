@@ -148,9 +148,10 @@ function MotionStudio() {
     if (search.image || search.prompt) {
       setMode("transfer");
       if (search.image) setMtImage(search.image);
+      if (search.image2) setMtImage2(search.image2);
       if (search.prompt) setMtPrompt(search.prompt);
     }
-  }, [search.image, search.prompt]);
+  }, [search.image, search.image2, search.prompt]);
 
   useEffect(() => {
     if (!hasCompletedFirstGen() && isFirstPageVisit("motion")) {
@@ -184,6 +185,7 @@ function MotionStudio() {
 
   // Motion Transfer (MimicMotion)
   const [mtImage, setMtImage] = useState<string | null>(null);
+  const [mtImage2, setMtImage2] = useState<string | null>(null);
   const [mtVideo, setMtVideo] = useState<string | null>(null);
   const [mtMotion, setMtMotion] = useState("faithful");
   const [mtCamera, setMtCamera] = useState("static");
@@ -1234,6 +1236,21 @@ function MotionStudio() {
                   <UploadSlot userId={user.id} label="Subject" hint="Still image" value={mtImage} onChange={setMtImage} />
                   <UploadSlot userId={user.id} kind="video" accept="video/*" label="Driving video" hint="Motion source" value={mtVideo} onChange={setMtVideo} />
                 </div>
+                {mtImage2 && mtImage2 !== mtImage && (
+                  <div className="flex items-center gap-3 p-3 rounded-xl border border-primary/20 bg-primary/5 mt-2">
+                    <img src={mtImage2} alt="Second shot" className="w-12 h-16 object-cover rounded-lg shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-white/70">Second shot available</p>
+                      <p className="text-xs text-white/40 mt-0.5">Tap to animate this one instead</p>
+                    </div>
+                    <button
+                      onClick={() => { const tmp = mtImage2; setMtImage2(mtImage ?? null); setMtImage(tmp); }}
+                      className="shrink-0 px-3 py-1.5 rounded-lg border border-primary/40 bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors"
+                    >
+                      Swap
+                    </button>
+                  </div>
+                )}
               </div>
               {motionControls(mtMotion, setMtMotion, mtCamera, setMtCamera)}
               <div className="space-y-2">

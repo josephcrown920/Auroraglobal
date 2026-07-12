@@ -5,7 +5,7 @@ export const Route = createFileRoute("/motion")({
   // generated image + context prompt straight into Motion Transfer.
   validateSearch: (
     search: Record<string, unknown>,
-  ): { prompt?: string; image?: string } => ({
+  ): { prompt?: string; image?: string; image2?: string } => ({
     prompt:
       typeof search.prompt === "string" && search.prompt.trim()
         ? search.prompt.slice(0, 2000)
@@ -13,6 +13,10 @@ export const Route = createFileRoute("/motion")({
     image:
       typeof search.image === "string" && /^https:\/\//.test(search.image)
         ? search.image
+        : undefined,
+    image2:
+      typeof search.image2 === "string" && /^https:\/\//.test(search.image2)
+        ? search.image2
         : undefined,
   }),
   head: () => ({

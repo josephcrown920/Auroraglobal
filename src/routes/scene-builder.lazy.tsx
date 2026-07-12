@@ -14,9 +14,10 @@ import {
   SCENE_BUILDER_COST_BASE,
   SCENE_BUILDER_COST_REANGLE,
   buildBaseScenePrompt,
+  buildReAnglePrompt,
 } from "@/lib/scene-builder.templates";
-import { generateBaseScene, generateReAngles } from "@/lib/scene-builder.functions";
-import type { ReAngleResult } from "@/lib/scene-builder.functions";
+import { generateBaseScene } from "@/lib/scene-builder.functions";
+import { generatePerformanceShot } from "@/lib/studio.functions";
 import { Button } from "@/components/ui/button";
 
 export const Route = createLazyFileRoute("/scene-builder")({
@@ -65,10 +66,10 @@ function SceneBuilderPage() {
   // Re-angle state
   const [selectedChips, setSelectedChips] = useState<Set<string>>(new Set());
   const [freeformAngle, setFreeformAngle] = useState("");
-  const [angleResults, setAngleResults] = useState<ReAngleResult[]>([]);
+  const [queuedCount, setQueuedCount] = useState(0);
 
   const baseFn = useServerFn(generateBaseScene);
-  const angleFn = useServerFn(generateReAngles);
+  const enqueueFn = useServerFn(generatePerformanceShot);
 
   const filledSlots = slots.filter(Boolean).length;
 
@@ -89,20 +90,45 @@ function SceneBuilderPage() {
   });
 
   const angleMut = useMutation({
-    mutationFn: () =>
-      angleFn({
-        data: {
-          baseImageUrl: baseResult!.url,
-          chipIds: Array.from(selectedChips),
-          freeform: freeformAngle.trim() || undefined,
-        },
-      }),
-    onSuccess: ({ results }) => {
-      const ok = results.filter((r) => r.status === "succeeded").length;
-      const failed = results.length - ok;
-      setAngleResults((prev) => [...prev, ...results]);
-      if (ok > 0) toast.success(`${ok} angle${ok > 1 ? "s" : ""} ready`);
-      if (failed > 0) toast.warning(`${failed} angle${failed > 1 ? "s" : ""} failed`);
+    mutationFn: async () => {
+      // Collect all angles to enqueue
+      const tasks = [
+        ...Array.from(selectedChips).map((chipId) => {
+          const chip = RE_ANGLE_CHIPS.find((c) => c.id === chipId)!;
+          return { label: chip.label, cameraPrompt: chip.cameraPrompt };
+        }),
+        ...(freeformAngle.trim()
+          ? [{ label: "Custom Angle", cameraPrompt: freeformAngle.trim() }]
+          : []),
+      ];
+
+      // Enqueue-only: one reserveGenerationJob call per angle (same path as
+      // /colors bulk modes). Jobs survive tab navigation; results appear in
+      // the Gallery once the tick worker renders them.
+      const results = await Promise.allSettled(
+        tasks.map((t) =>
+          enqueueFn({
+            data: {
+              prompt: `[Scene Builder / ${t.label}]\n\n${buildReAnglePrompt(t.cameraPrompt)}`,
+              imageUrls: [baseResult!.url],
+              motionVideoUrl: null,
+              model: "google/gemini-3.1-flash-image-preview",
+            },
+          }),
+        ),
+      );
+
+      const ok = results.filter((r) => r.status === "fulfilled").length;
+      if (ok === 0) {
+        const first = results.find((r) => r.status === "rejected") as PromiseRejectedResult;
+        throw first?.reason instanceof Error ? first.reason : new Error("Could not queue angles");
+      }
+      return { ok, total: tasks.length };
+    },
+    onSuccess: ({ ok, total }) => {
+      setQueuedCount((prev) => prev + ok);
+      if (ok < total) toast.warning(`${ok}/${total} angles queued — the rest failed`);
+      else toast.success(`${ok} angle${ok > 1 ? "s" : ""} queued — they'll appear in your Gallery when ready`);
       setSelectedChips(new Set());
       setFreeformAngle("");
     },
@@ -405,52 +431,25 @@ function SceneBuilderPage() {
                 )}
               </Button>
 
-              {/* Angle results gallery — each result has its own Animate button */}
-              {angleResults.length > 0 && (
-                <div className="space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-white/50">
-                    Angle Results
-                  </p>
-                  <div className="grid grid-cols-2 gap-3">
-                    {angleResults.map((r, i) => (
-                      <div key={`${r.id}-${i}`} className="space-y-2">
-                        <div className="relative rounded-xl overflow-hidden bg-white/5">
-                          {r.status === "succeeded" && r.url ? (
-                            <img
-                              src={r.url}
-                              alt={r.label}
-                              className="w-full object-cover"
-                              style={{ aspectRatio: "9/16" }}
-                            />
-                          ) : (
-                            <div
-                              className="w-full flex items-center justify-center bg-red-500/10 border border-red-500/20 rounded-xl"
-                              style={{ aspectRatio: "9/16" }}
-                            >
-                              <p className="text-xs text-red-400/70 text-center px-2">
-                                {r.error ?? "Failed"}
-                              </p>
-                            </div>
-                          )}
-                          {r.status === "succeeded" && r.url && (
-                            <div className="absolute bottom-0 inset-x-0 p-2 bg-gradient-to-t from-black/70 to-transparent">
-                              <p className="text-[10px] font-medium text-white/70">{r.label}</p>
-                            </div>
-                          )}
-                        </div>
-                        {r.status === "succeeded" && r.url && (
-                          <Link
-                            to="/motion"
-                            search={{ image: r.url }}
-                            className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl bg-primary/20 border border-primary/40 text-primary text-xs font-semibold hover:bg-primary/30 transition-colors"
-                          >
-                            <Video className="w-3 h-3" />
-                            Animate in Motion
-                          </Link>
-                        )}
-                      </div>
-                    ))}
+              {/* Queued-angles status — results render in the background and
+                  appear in the Gallery once the tick worker completes them. */}
+              {queuedCount > 0 && (
+                <div className="flex items-center gap-3 p-3 rounded-xl border border-primary/20 bg-primary/5">
+                  <Sparkles className="w-4 h-4 text-primary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-white/80">
+                      {queuedCount} angle{queuedCount > 1 ? "s" : ""} rendering in the background
+                    </p>
+                    <p className="text-xs text-white/40 mt-0.5">
+                      They'll appear in your Gallery when ready
+                    </p>
                   </div>
+                  <Link
+                    to="/gallery"
+                    className="shrink-0 px-3 py-1.5 rounded-lg border border-primary/40 bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors"
+                  >
+                    View Gallery
+                  </Link>
                 </div>
               )}
             </section>
