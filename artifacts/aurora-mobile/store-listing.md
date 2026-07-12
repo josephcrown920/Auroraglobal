@@ -35,7 +35,6 @@ AI-powered creative studio for generating stunning performance photos & videos.
 
 ✓ Sign in with email — no social login required
 ✓ Personal gallery of all your AI generations
-✓ Save directly to your photo library
 ✓ Share creations instantly to social media
 ✓ Transparent credit system — pay only for what you use
 ✓ Reference photo support for identity-consistent results
@@ -51,12 +50,7 @@ AI-powered creative studio for generating stunning performance photos & videos.
 
 ### Credits
 
-Aurora uses a simple credit system. Each generation costs 2 credits. Top up credits in-app with our transparent pricing:
-
-- Starter: 20 credits ($4.99)
-- Creator: 60 credits ($12.99)
-- Pro: 150 credits ($24.99)
-- Studio: 400 credits ($59.99)
+Aurora uses a simple credit system. Each generation costs 2 credits. Credits can be purchased at auroraperformancestudio.com — your balance syncs instantly to the app.
 
 Credits never expire.
 

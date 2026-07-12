@@ -31,9 +31,9 @@ function AuthGate() {
     if (loading) return;
     const inAuthGroup = segments[0] === "(auth)";
     if (!session && !inAuthGroup) {
-      router.replace("/(auth)/");
+      router.replace("/(auth)" as any);
     } else if (session && inAuthGroup) {
-      router.replace("/(tabs)/");
+      router.replace("/(tabs)" as any);
     }
   }, [session, loading, segments]);
 
