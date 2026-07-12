@@ -138,6 +138,7 @@ function LipSyncForm() {
   const [status, setStatus] = useState<JobStatus>("idle");
   const [progress, setProgress] = useState(0);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [activeExampleId, setActiveExampleId] = useState("studio-quality");
   const [showTour, setShowTour] = useState(false);
@@ -262,6 +263,7 @@ function LipSyncForm() {
     setStatus("uploading");
     setProgress(5);
     setResultUrl(null);
+    setErrorMsg(null);
 
     let p = 5;
     const ticker = setInterval(() => {
@@ -306,11 +308,14 @@ function LipSyncForm() {
       } else {
         setStatus("error");
         const reason = res.status === "error" ? (res as { error?: string }).error ?? "Render failed" : "Render failed";
-        toast.error(friendlyGenerationMessage(reason));
+        const friendly = friendlyGenerationMessage(reason);
+        setErrorMsg(friendly);
+        toast.error(friendly);
       }
     } catch (e) {
       clearInterval(ticker);
       setStatus("error");
+      setErrorMsg(friendlyGenerationMessage(e));
       handleGenerationError(e);
     }
   };
@@ -328,7 +333,7 @@ function LipSyncForm() {
     if (imageUrl) URL.revokeObjectURL(imageUrl);
     setVideo(null); setAudio(null); setImage(null);
     setVideoUrl(null); setAudioUrl(null); setImageUrl(null);
-    setStatus("idle"); setProgress(0); setPlaying(false); setResultUrl(null);
+    setStatus("idle"); setProgress(0); setPlaying(false); setResultUrl(null); setErrorMsg(null);
   };
 
   const download = async () => {
@@ -603,7 +608,7 @@ function LipSyncForm() {
         {status === "error" && (
           <GenerationErrorCard
             visible
-            error={null}
+            error={errorMsg}
             onRetry={() => void run()}
             retryLabel="Try again"
           />
