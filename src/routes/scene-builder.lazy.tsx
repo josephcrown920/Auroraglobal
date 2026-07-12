@@ -1,7 +1,7 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Layers, Upload, Sparkles, Video, RefreshCw, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -17,7 +17,7 @@ import {
   buildReAnglePrompt,
 } from "@/lib/scene-builder.templates";
 import { generateBaseScene } from "@/lib/scene-builder.functions";
-import { generatePerformanceShot } from "@/lib/studio.functions";
+import { generatePerformanceShot, listGenerations } from "@/lib/studio.functions";
 import { Button } from "@/components/ui/button";
 
 export const Route = createLazyFileRoute("/scene-builder")({
@@ -66,10 +66,42 @@ function SceneBuilderPage() {
   // Re-angle state
   const [selectedChips, setSelectedChips] = useState<Set<string>>(new Set());
   const [freeformAngle, setFreeformAngle] = useState("");
-  const [queuedCount, setQueuedCount] = useState(0);
+  // Each enqueued angle is tracked by its generation ID so we can poll for results.
+  const [angleJobs, setAngleJobs] = useState<{ generationId: string; label: string }[]>([]);
 
   const baseFn = useServerFn(generateBaseScene);
   const enqueueFn = useServerFn(generatePerformanceShot);
+  const listFn = useServerFn(listGenerations);
+
+  // Poll listGenerations while there are any tracked angle jobs. Stops when all
+  // are in a terminal state (done / error). Results arrive in the Gallery too.
+  const hasActiveJobs = angleJobs.length > 0;
+  const { data: genData } = useQuery({
+    queryKey: ["scene-builder-gens", user?.id],
+    queryFn: () => listFn(),
+    enabled: !!user && hasActiveJobs,
+    refetchInterval: 3_000,
+    staleTime: 0,
+  });
+
+  // Derive per-angle card data by cross-referencing tracked jobs with live gens.
+  const angleCards = angleJobs.map((job) => {
+    const gen = (genData?.items as Array<{
+      id: string; status: string;
+      result_image_url: string | null; error: string | null;
+    }> | undefined)?.find((g) => g.id === job.generationId);
+    return {
+      generationId: job.generationId,
+      label: job.label,
+      status: gen?.status ?? "queued",
+      url: gen?.result_image_url ?? null,
+      error: gen?.error ?? null,
+    };
+  });
+
+  const isDone = (s: string) =>
+    s === "done" || s === "completed" || s === "succeeded" || s === "complete";
+  const isFailed = (s: string) => s === "error" || s === "failed";
 
   const filledSlots = slots.filter(Boolean).length;
 
@@ -118,17 +150,24 @@ function SceneBuilderPage() {
         ),
       );
 
-      const ok = results.filter((r) => r.status === "fulfilled").length;
-      if (ok === 0) {
+      // Pair each settled result with its task label to track gen IDs for polling.
+      const enqueued: { generationId: string; label: string }[] = [];
+      for (let i = 0; i < results.length; i++) {
+        const r = results[i];
+        if (r.status === "fulfilled") {
+          enqueued.push({ generationId: r.value.generationId, label: tasks[i].label });
+        }
+      }
+      if (enqueued.length === 0) {
         const first = results.find((r) => r.status === "rejected") as PromiseRejectedResult;
         throw first?.reason instanceof Error ? first.reason : new Error("Could not queue angles");
       }
-      return { ok, total: tasks.length };
+      return { enqueued, total: tasks.length };
     },
-    onSuccess: ({ ok, total }) => {
-      setQueuedCount((prev) => prev + ok);
-      if (ok < total) toast.warning(`${ok}/${total} angles queued — the rest failed`);
-      else toast.success(`${ok} angle${ok > 1 ? "s" : ""} queued — they'll appear in your Gallery when ready`);
+    onSuccess: ({ enqueued, total }) => {
+      setAngleJobs((prev) => [...prev, ...enqueued]);
+      if (enqueued.length < total) toast.warning(`${enqueued.length}/${total} angles queued — the rest failed`);
+      else toast.success(`${enqueued.length} angle${enqueued.length > 1 ? "s" : ""} queued — rendering in the background`);
       setSelectedChips(new Set());
       setFreeformAngle("");
     },
@@ -431,25 +470,65 @@ function SceneBuilderPage() {
                 )}
               </Button>
 
-              {/* Queued-angles status — results render in the background and
-                  appear in the Gallery once the tick worker completes them. */}
-              {queuedCount > 0 && (
-                <div className="flex items-center gap-3 p-3 rounded-xl border border-primary/20 bg-primary/5">
-                  <Sparkles className="w-4 h-4 text-primary shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-white/80">
-                      {queuedCount} angle{queuedCount > 1 ? "s" : ""} rendering in the background
-                    </p>
-                    <p className="text-xs text-white/40 mt-0.5">
-                      They'll appear in your Gallery when ready
-                    </p>
+              {/* Per-angle result cards — poll listGenerations every 3 s until all
+                  enqueued jobs reach a terminal state (done / error). Each card
+                  shows a spinner while queued/running, the rendered image when
+                  done (with an "Animate in Motion Studio" deep-link), or an
+                  error message if the worker rejected the job. */}
+              {angleCards.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-white/50">
+                    Angle Results
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {angleCards.map((card) => (
+                      <div key={card.generationId} className="space-y-2">
+                        <div className="relative rounded-xl overflow-hidden bg-white/5">
+                          {isDone(card.status) && card.url ? (
+                            <img
+                              src={card.url}
+                              alt={card.label}
+                              className="w-full object-cover"
+                              style={{ aspectRatio: "9/16" }}
+                            />
+                          ) : isFailed(card.status) ? (
+                            <div
+                              className="w-full flex items-center justify-center bg-red-500/10 border border-red-500/20 rounded-xl"
+                              style={{ aspectRatio: "9/16" }}
+                            >
+                              <p className="text-xs text-red-400/70 text-center px-2">
+                                {card.error ?? "Failed"}
+                              </p>
+                            </div>
+                          ) : (
+                            <div
+                              className="w-full flex flex-col items-center justify-center gap-2"
+                              style={{ aspectRatio: "9/16" }}
+                            >
+                              <RefreshCw className="w-5 h-5 text-primary/60 animate-spin" />
+                              <p className="text-xs text-white/50 text-center">{card.label}</p>
+                              <p className="text-[10px] text-white/30">Rendering…</p>
+                            </div>
+                          )}
+                          {isDone(card.status) && card.url && (
+                            <div className="absolute bottom-0 inset-x-0 p-2 bg-gradient-to-t from-black/70 to-transparent">
+                              <p className="text-[10px] font-medium text-white/70">{card.label}</p>
+                            </div>
+                          )}
+                        </div>
+                        {isDone(card.status) && card.url && (
+                          <Link
+                            to="/motion"
+                            search={{ image: card.url }}
+                            className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl bg-primary/20 border border-primary/40 text-primary text-xs font-semibold hover:bg-primary/30 transition-colors"
+                          >
+                            <Video className="w-3 h-3" />
+                            Animate in Motion Studio
+                          </Link>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                  <Link
-                    to="/gallery"
-                    className="shrink-0 px-3 py-1.5 rounded-lg border border-primary/40 bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors"
-                  >
-                    View Gallery
-                  </Link>
                 </div>
               )}
             </section>
