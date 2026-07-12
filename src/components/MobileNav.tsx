@@ -21,6 +21,8 @@ import {
   Megaphone,
   Brush,
   Shield,
+  Bot,
+  Layers,
   type LucideIcon,
 } from "lucide-react";
 
@@ -46,10 +48,12 @@ const MAKE_FEATURES: Feature[] = [
   { to: "/canvas",      label: "Canvas",           icon: Workflow },
   { to: "/orchestrate", label: "Video",            icon: Film },
   { to: "/photo-edit",  label: "Photo Editor",     icon: Brush },
+  { to: "/agent",       label: "Video Agent",      icon: Bot },
 ];
 
 /** Creator & viral templates — ordered by demand. */
 const VIRAL_FEATURES: Feature[] = [
+  { to: "/templates",   label: "Templates",        icon: Layers },
   { to: "/lipsync",     label: "Lip Sync",        icon: Mic },
   { to: "/ugc",         label: "UGC Ads",         icon: Megaphone },
   { to: "/spin",        label: "TikTok30",        icon: Flame },
@@ -72,7 +76,6 @@ const LIVE_FEATURES: Feature[] = [...MAKE_FEATURES, ...VIRAL_FEATURES, ...ACCOUN
 /** Archived — hidden from the main nav; still reachable from /admin. */
 export const ARCHIVED_FEATURES: Feature[] = [
   { to: "/editor",           label: "Playground",       icon: Sparkles },
-  { to: "/agent",            label: "Video Agent",      icon: Film },
   { to: "/heygen-templates", label: "HeyGen Templates", icon: Film },
   { to: "/growth",           label: "Growth Tools",     icon: Sparkles },
   { to: "/guides",           label: "Viral Guides",     icon: Sparkles },
