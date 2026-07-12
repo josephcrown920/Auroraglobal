@@ -24,6 +24,7 @@ const STEPS = [
   "Lip sync (photo+audio)",
   "Lip sync (image+audio → generate API path)",
   "Templates: lip-sync dispatch",
+  "Spin carousel",
 ] as const;
 
 async function assertAdmin(userId: string) {
@@ -411,12 +412,32 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       await writeCheck(run.id, 13, STEPS[12], r13);
       total += r13.cost_usd;
 
+      // 14. Spin carousel — exercises the identity-locked image generation path
+      //     that renderSpinPiece uses: same Gemini model, same selfie-reference-locked
+      //     orchestrate() call that fires for every Spin piece. One piece (not 30)
+      //     keeps the smoke cost to a single Aura while still proving the full path.
+      const r14 = await runStep(async () => {
+        const out = await orchestrate({
+          kind: "image",
+          model: "google/gemini-3.1-flash-image-preview",
+          prompt:
+            "smoke test: Spin piece — confident creator on a sunlit city rooftop, casual oversized tee and jeans, handheld selfie angle 9:16 vertical, soft natural daylight golden-hour glow, cinematic depth of field. Keep the exact face and identity from the reference photo.",
+          imageUrls: [TEST_SELFIE_URL],
+          userId: context.userId,
+          refId: run.id,
+        });
+        if (!out.url) throw new Error("Spin image piece returned no URL");
+        return { url: out.url, cost: out.costUsd, raw: { provider: out.provider, mode: "spin-image" } };
+      });
+      await writeCheck(run.id, 14, STEPS[13], r14);
+      total += r14.cost_usd;
+
       await supabaseAdmin
         .from("smoke_runs")
         .update({
           finished_at: new Date().toISOString(),
           total_cost_usd: total,
-          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13].filter(r => r.status === "pass").length, total: 13 } as never,
+          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14].filter(r => r.status === "pass").length, total: 14 } as never,
         })
         .eq("id", run.id);
     })().catch(async (e) => {
