@@ -43,7 +43,9 @@ function saveShownTip(tip: string) {
     const s = getShownTips();
     s.add(tip);
     sessionStorage.setItem(SHOWN_TIPS_KEY, JSON.stringify([...s]));
-  } catch {}
+  } catch {
+    // sessionStorage unavailable — silently skip dedup
+  }
 }
 
 function isSaleActive(): boolean {
