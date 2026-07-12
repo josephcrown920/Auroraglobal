@@ -12,43 +12,93 @@ import {
   Image as ImageIcon,
   Mic2,
 } from "lucide-react";
-import { SPIN_COUNT } from "@/lib/spin-engine";
+import { SPIN_COUNT, SPIN_CONTENT_TYPES } from "@/lib/spin-engine";
+import { CATEGORY_ORDER } from "@/lib/template-studio";
 
 // Single source of truth — matches what the Spin backend actually ships.
 const COUNT: number = SPIN_COUNT;
 
-// Format-labeled content tiles. Every label maps to a real SPIN_CONTENT_TYPE
-// or a platform format Aurora produces; no invented categories. Images are
-// the real identity-locked generated2 assets (one creator, many posts).
-const TILES = [
-  { label: "Lyric hook",    fmt: "Reels",    aspect: "9:16",  src: "/josh/generated2/viral-01-lyric-hook.webp",    isVideo: false },
-  { label: "Beat-sync",     fmt: "TikTok",   aspect: "9:16",  src: "/josh/generated2/viral-02-beat-sync.webp",     isVideo: true  },
-  { label: "Cover reveal",  fmt: "Story",    aspect: "9:16",  src: "/josh/generated2/viral-03-cover-reveal.webp",  isVideo: false },
-  { label: "Story teaser",  fmt: "Story",    aspect: "9:16",  src: "/josh/generated2/viral-04-story-teaser.webp",  isVideo: false },
-  { label: "Color grade",   fmt: "Reels",    aspect: "9:16",  src: "/josh/generated2/viral-05-color-grade.webp",   isVideo: false },
-  { label: "YouTube Short", fmt: "Shorts",   aspect: "9:16",  src: "/josh/generated2/viral-06-youtube-short.webp", isVideo: true  },
-  { label: "Lip-sync",      fmt: "Lip-sync", aspect: "9:16",  src: "/josh/generated2/viral-07-lipsync-clip.webp",  isVideo: true  },
-  { label: "Album teaser",  fmt: "Carousel", aspect: "1:1",   src: "/josh/generated2/viral-08-album-teaser.webp",  isVideo: false },
-  { label: "B-roll",        fmt: "B-roll",   aspect: "16:9",  src: "/josh/generated2/viral-09-vertical-poster.webp",isVideo: true  },
-  { label: "Talking-head",  fmt: "Hook",     aspect: "9:16",  src: "/josh/generated2/viral-10-performance.webp",   isVideo: true  },
-  { label: "Caption hook",  fmt: "Caption",  aspect: "4:5",   src: "/josh/generated2/viral-11-captioned-hook.webp", isVideo: false },
-  { label: "UGC ad",        fmt: "UGC",      aspect: "9:16",  src: "/josh/generated2/viral-12-single-cover.webp",  isVideo: false },
-] as const;
+// ─── Canonical label derivation ────────────────────────────────────────────
+// Every tile badge must trace to either SPIN_CONTENT_TYPES or CATEGORY_ORDER
+// so labels can never drift from what Aurora actually produces.
 
-// Badge colours keyed by format — gives the grid visual variety at a glance.
-const FMT_COLOR: Record<string, string> = {
-  "Reels":    "bg-pink-500/80",
-  "TikTok":   "bg-fuchsia-500/80",
-  "Story":    "bg-violet-500/80",
-  "Shorts":   "bg-red-500/80",
-  "Lip-sync": "bg-pink-400/80",
-  "Carousel": "bg-indigo-500/80",
-  "B-roll":   "bg-sky-600/80",
-  "Hook":     "bg-orange-500/80",
-  "Caption":  "bg-teal-500/80",
-  "UGC":      "bg-emerald-600/80",
+type SpinType     = typeof SPIN_CONTENT_TYPES[number];
+type CategoryType = typeof CATEGORY_ORDER[number];
+
+// Strip trailing descriptor words to get a short display label.
+// "Carousel cover" → "Carousel", "Lip-sync clip" → "Lip-sync", etc.
+const SPIN_LABEL: Record<SpinType, string> = Object.fromEntries(
+  SPIN_CONTENT_TYPES.map((t) => [
+    t,
+    t.replace(/ (hook|clip|cover|post|visual|edit|scenario|scenes)$/i, "").trim(),
+  ]),
+) as Record<SpinType, string>;
+
+// Template-category short labels for tiles that map to a STUDIO_TEMPLATES
+// category rather than a Spin content type.
+const CAT_LABEL: Partial<Record<CategoryType, string>> = {
+  "Lip-sync": "Lip-sync",
+  "Motion":   "Motion reel",
+  "UGC/Ad":   "UGC ad",
+  "Spin":     "TikTok30",
 };
 
+function deriveFmt(contentType: SpinType | CategoryType): string {
+  if ((SPIN_CONTENT_TYPES as ReadonlyArray<string>).includes(contentType)) {
+    return SPIN_LABEL[contentType as SpinType];
+  }
+  return CAT_LABEL[contentType as CategoryType] ?? contentType;
+}
+
+// ─── Content-type grid ─────────────────────────────────────────────────────
+// Each tile's `contentType` must be a value from SPIN_CONTENT_TYPES or
+// CATEGORY_ORDER — no freeform label strings allowed here. The grid spans
+// both content types (what Aurora generates) and platform categories (Motion,
+// UGC/Ad) to show the full range of output formats.
+
+interface GridTile {
+  contentType: SpinType | CategoryType;
+  aspect: string;
+  src: string;
+  isVideo: boolean;
+}
+
+const GRID_TILES: GridTile[] = [
+  { contentType: "Talking-head hook",  aspect: "9:16", src: "/josh/generated2/viral-01-lyric-hook.webp",    isVideo: false },
+  { contentType: "Lip-sync clip",      aspect: "9:16", src: "/josh/generated2/viral-02-beat-sync.webp",     isVideo: true  },
+  { contentType: "Story-style post",   aspect: "9:16", src: "/josh/generated2/viral-03-cover-reveal.webp",  isVideo: false },
+  { contentType: "Story-style post",   aspect: "9:16", src: "/josh/generated2/viral-04-story-teaser.webp",  isVideo: false },
+  { contentType: "Meme edit",          aspect: "1:1",  src: "/josh/generated2/viral-05-color-grade.webp",   isVideo: false },
+  { contentType: "Talking-head hook",  aspect: "9:16", src: "/josh/generated2/viral-06-youtube-short.webp", isVideo: true  },
+  { contentType: "Lip-sync",           aspect: "9:16", src: "/josh/generated2/viral-07-lipsync-clip.webp",  isVideo: true  },
+  { contentType: "Carousel cover",     aspect: "1:1",  src: "/josh/generated2/viral-08-album-teaser.webp",  isVideo: false },
+  { contentType: "Motion",             aspect: "9:16", src: "/josh/generated2/viral-09-vertical-poster.webp",isVideo: true  },
+  { contentType: "Behind-the-scenes",  aspect: "9:16", src: "/josh/generated2/viral-10-performance.webp",   isVideo: false },
+  { contentType: "Caption hook visual",aspect: "4:5",  src: "/josh/generated2/viral-11-captioned-hook.webp", isVideo: false },
+  { contentType: "UGC/Ad",             aspect: "9:16", src: "/josh/generated2/viral-12-single-cover.webp",  isVideo: false },
+];
+
+// Badge colours keyed by derived label for visual variety.
+const FMT_COLOR: Record<string, string> = {
+  "Talking-head":  "bg-pink-500/80",
+  "Lip-sync":      "bg-fuchsia-500/80",
+  "Story-style":   "bg-violet-500/80",
+  "Meme":          "bg-orange-500/80",
+  "Carousel":      "bg-indigo-500/80",
+  "Motion reel":   "bg-sky-600/80",
+  "Behind-the-sc": "bg-teal-600/80",  // "Behind-the-scenes" truncated key
+  "Caption hook":  "bg-teal-500/80",
+  "UGC ad":        "bg-emerald-600/80",
+  "TikTok30":      "bg-red-500/80",
+};
+
+function badgeColor(fmt: string): string {
+  // Match on prefix so truncated keys still hit the right colour.
+  const entry = Object.entries(FMT_COLOR).find(([k]) => fmt.startsWith(k));
+  return entry?.[1] ?? "bg-white/20";
+}
+
+// ─── Sample hooks for the interactive demo ─────────────────────────────────
 const SAMPLE_HOOKS = [
   "POV: my morning routine",
   "Day in my life as an artist",
@@ -97,8 +147,8 @@ export function ViralEngine() {
           </span>
         </h2>
         <p className="mt-3 max-w-2xl text-base leading-7 text-white/72 md:text-lg">
-          Drop your hook. Aurora plans a full content campaign — Reels, Stories, Carousels,
-          Lip-sync clips, UGC ads — across every format, every platform, from one idea.
+          Drop your hook. Aurora plans a full content campaign — Talking-head hooks, Lip-sync clips,
+          Carousels, Stories, UGC ads — across every format, every platform, from one idea.
         </p>
 
         {/* ── Interactive hook demo ────────────────────────────────── */}
@@ -107,7 +157,7 @@ export function ViralEngine() {
             Try it — type your hook
           </label>
 
-          {/* Sample chips */}
+          {/* Sample hook chips */}
           <div className="mt-3 flex flex-wrap gap-2">
             {SAMPLE_HOOKS.map((s) => (
               <button
@@ -125,7 +175,7 @@ export function ViralEngine() {
             ))}
           </div>
 
-          {/* Input row */}
+          {/* Input + generate action */}
           <div className="mt-3 flex gap-2">
             <input
               type="text"
@@ -145,6 +195,7 @@ export function ViralEngine() {
         </div>
 
         {/* ── Content-type grid ────────────────────────────────────── */}
+        {/* Every fmt badge is derived from SPIN_CONTENT_TYPES or CATEGORY_ORDER */}
         <div className="mt-5 rounded-2xl border border-white/10 bg-black/30 p-3 md:p-4">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-[11px] uppercase tracking-[0.2em] text-pink-200/80">
@@ -154,52 +205,51 @@ export function ViralEngine() {
           </div>
 
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 md:gap-2.5">
-            {TILES.map((tile) => (
-              <figure
-                key={tile.label}
-                className="group relative overflow-hidden rounded-xl bg-white/5 shadow-md shadow-black/40 transition-transform hover:-translate-y-0.5 hover:shadow-lg"
-                style={{ aspectRatio: "4/5" }}
-              >
-                <img
-                  src={tile.src}
-                  alt={tile.label}
-                  loading="lazy"
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
-                {/* Gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
-
-                {/* Format badge — top-left */}
-                <span
-                  className={`absolute left-1.5 top-1.5 rounded-md px-1.5 py-0.5 text-[8px] md:text-[9px] font-bold text-white backdrop-blur-sm ${FMT_COLOR[tile.fmt] ?? "bg-white/20"}`}
+            {GRID_TILES.map((tile, i) => {
+              const fmt = deriveFmt(tile.contentType);
+              return (
+                <figure
+                  key={`${tile.contentType}-${i}`}
+                  className="group relative overflow-hidden rounded-xl bg-white/5 shadow-md shadow-black/40 transition-transform hover:-translate-y-0.5 hover:shadow-lg"
+                  style={{ aspectRatio: "4/5" }}
                 >
-                  {tile.fmt}
-                </span>
+                  <img
+                    src={tile.src}
+                    alt={fmt}
+                    loading="lazy"
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
 
-                {/* Video / image indicator — top-right */}
-                <span className="absolute right-1.5 top-1.5 text-white/60">
-                  {tile.isVideo
-                    ? <Film className="size-2.5 md:size-3" />
-                    : <ImageIcon className="size-2.5 md:size-3" />}
-                </span>
+                  {/* Format badge — derived from canonical source */}
+                  <span
+                    className={`absolute left-1.5 top-1.5 rounded-md px-1.5 py-0.5 text-[8px] md:text-[9px] font-bold text-white backdrop-blur-sm ${badgeColor(fmt)}`}
+                  >
+                    {fmt}
+                  </span>
 
-                {/* Content label — bottom */}
-                <figcaption className="absolute inset-x-0 bottom-0 px-1.5 py-1.5">
-                  <p className="text-[8px] md:text-[9px] font-semibold text-white leading-tight line-clamp-1">
-                    {tile.label}
-                  </p>
-                  <p className="text-[7px] md:text-[8px] text-white/40">{tile.aspect}</p>
-                </figcaption>
-              </figure>
-            ))}
+                  {/* Media type indicator */}
+                  <span className="absolute right-1.5 top-1.5 text-white/60">
+                    {tile.isVideo
+                      ? <Film className="size-2.5 md:size-3" />
+                      : <ImageIcon className="size-2.5 md:size-3" />}
+                  </span>
+
+                  {/* Aspect ratio footer */}
+                  <figcaption className="absolute inset-x-0 bottom-0 px-1.5 py-1.5">
+                    <p className="text-[7px] md:text-[8px] text-white/45">{tile.aspect}</p>
+                  </figcaption>
+                </figure>
+              );
+            })}
           </div>
 
           {/* Results proof bar */}
           <div className="mt-3 grid grid-cols-3 overflow-hidden rounded-xl border border-white/10 bg-white/[0.04]">
             {[
-              { icon: <Play className="size-3.5" />, n: "6.1M",    l: "Views"         },
-              { icon: <Mic2 className="size-3.5" />, n: "21K",     l: "New followers"  },
-              { icon: <Sparkles className="size-3.5" />, n: `${COUNT}`, l: "Posts shipped" },
+              { icon: <Play className="size-3.5" />,     n: COUNT,                    l: "Posts per run"     },
+              { icon: <Mic2 className="size-3.5" />,     n: SPIN_CONTENT_TYPES.length, l: "Content formats"  },
+              { icon: <Sparkles className="size-3.5" />, n: CATEGORY_ORDER.length,     l: "Template categories" },
             ].map((s, i) => (
               <div
                 key={s.l}
@@ -229,16 +279,16 @@ export function ViralEngine() {
           />
           <Feature
             icon={<Zap className="size-4" />}
-            title="30 formats, one click"
-            body="Reels, Stories, Carousels, UGC ads, B-roll — every platform format in one campaign."
+            title={`${COUNT} formats, one click`}
+            body="Talking-head hooks, Stories, Carousels, UGC ads, Motion reels — every format in one campaign."
           />
         </div>
 
         {/* ── CTAs ─────────────────────────────────────────────────── */}
+        {/* Primary → Aurora Studio; Secondary → UGC Factory */}
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <Link
-            to="/spin"
-            search={{ prompt: undefined, jobId: undefined }}
+            to="/studio"
             className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-pink-400 to-fuchsia-500 px-6 py-3 text-sm font-bold text-white no-underline shadow-lg shadow-fuchsia-500/30 hover:opacity-95 transition-opacity"
           >
             Open Spin Studio · 1 → {COUNT} <ArrowRight className="size-4" />
