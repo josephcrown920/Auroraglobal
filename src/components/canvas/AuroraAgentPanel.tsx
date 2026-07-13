@@ -36,6 +36,7 @@ import {
   Save,
   Captions,
   VideoIcon,
+  UserRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -81,6 +82,7 @@ const SKILL_ICONS: Record<string, React.ReactNode> = {
   recall_brand_memory: <BookOpen className="size-2.5" />,
   update_brand_memory: <Save className="size-2.5" />,
   add_captions:        <Captions className="size-2.5" />,
+  heygen_avatar:       <UserRound className="size-2.5" />,
 };
 
 // ─── SkillChip ───────────────────────────────────────────────────────────────
