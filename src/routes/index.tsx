@@ -50,6 +50,7 @@ import { FeatureRequest } from "@/components/landing/FeatureRequest";
 import { track } from "@/lib/tracking";
 import { LandingDemoModal } from "@/components/landing/LandingDemoModal";
 import { PerformAnywhereSection } from "@/components/landing/PerformAnywhereSection";
+import { KenBurnsShowcase } from "@/components/landing/KenBurnsShowcase";
 
 const FAQ_ITEMS = [
   {
@@ -357,7 +358,11 @@ function Index() {
                 <img
                   src={photo.src}
                   alt={photo.label}
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                  className="absolute inset-0 w-full h-full object-cover"
+                  style={{
+                    animation: `ken-burns ${18 + i * 3}s ease-in-out infinite alternate`,
+                    animationDelay: `${i * -4}s`,
+                  }}
                   loading="lazy"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
@@ -372,6 +377,9 @@ function Index() {
 
       {/* 1. Auto-scroll photo strip */}
       <PhotoStrip />
+
+      {/* 1b. Ken Burns photo showcase + text-only app sections */}
+      <KenBurnsShowcase />
 
       {/* 2. TikTok30 viral engine — 30 posts hook */}
       <ViralEngine />

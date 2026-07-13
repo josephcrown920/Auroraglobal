@@ -370,3 +370,8 @@ html[data-theme="light"] {
   from { transform: translateY(0px) scale(1); }
   to   { transform: translateY(-5px) scale(1.01); }
 }
+
+@keyframes ken-burns {
+  from { transform: scale(1)    translate(0%, 0%); }
+  to   { transform: scale(1.12) translate(-1.5%, -1.5%); }
+}
