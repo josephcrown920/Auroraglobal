@@ -159,7 +159,8 @@ export const pollTiktokPostStatus = createServerFn({ method: "POST" })
     const p = postRow as unknown as { publish_id: string | null; status: string; error_msg: string | null };
 
     // Terminal states — no need to hit TikTok.
-    if (p.status === "publish_complete" || p.status === "failed") {
+    const TERMINAL_STATUSES = ["publish_complete", "failed", "publish_from_creator_fail"];
+    if (TERMINAL_STATUSES.includes(p.status)) {
       return { status: p.status, errorMsg: p.error_msg };
     }
 

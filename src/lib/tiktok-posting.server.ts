@@ -39,23 +39,45 @@ export async function initiateTiktokOAuth(
   const state = crypto.randomUUID();
   const redirectUri = buildTiktokRedirectUri(origin);
 
-  // Upsert a pending account row with just the state so the callback can look it up.
-  await supabaseAdmin
+  // Check if there is already a connected (non-pending) account.
+  // If so, only update the oauth_state fields — preserve existing tokens so a
+  // cancelled reconnect doesn't disconnect the user.
+  const { data: existing } = await supabaseAdmin
     .from("tiktok_accounts" as any)
-    .upsert(
-      {
-        user_id: userId,
-        // Placeholder values overwritten on callback — required by NOT NULL constraints.
-        open_id: "pending",
-        access_token: "pending",
-        refresh_token: "pending",
-        token_expires_at: new Date(Date.now() + 10 * 60_000).toISOString(), // 10 min
-        refresh_expires_at: new Date(Date.now() + 10 * 60_000).toISOString(),
+    .select("open_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const existingConnected =
+    existing && (existing as unknown as { open_id: string }).open_id !== "pending";
+
+  if (existingConnected) {
+    // Preserve the existing connected account; only write the new CSRF state.
+    await supabaseAdmin
+      .from("tiktok_accounts" as any)
+      .update({
         oauth_state: state,
         oauth_state_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" },
-    );
+      })
+      .eq("user_id", userId);
+  } else {
+    // No connected account yet — upsert a pending placeholder row.
+    await supabaseAdmin
+      .from("tiktok_accounts" as any)
+      .upsert(
+        {
+          user_id: userId,
+          open_id: "pending",
+          access_token: "pending",
+          refresh_token: "pending",
+          token_expires_at: new Date(Date.now() + 10 * 60_000).toISOString(),
+          refresh_expires_at: new Date(Date.now() + 10 * 60_000).toISOString(),
+          oauth_state: state,
+          oauth_state_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" },
+      );
+  }
 
   const params = new URLSearchParams({
     client_key: process.env.TIKTOK_CLIENT_KEY!,
