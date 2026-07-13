@@ -112,6 +112,7 @@ function AvatarStudioPage() {
   const [shotEngine, setShotEngine] = useState<ShotEngine>("seedream");
   const [shotPrompt, setShotPrompt] = useState("");
   const [shotLoading, setShotLoading] = useState(false);
+  const [shotAvatarUrl, setShotAvatarUrl] = useState<string | null>(null);
   const [shotResults, setShotResults] = useState<
     Array<{ url: string; engine: ShotEngine; kind: "image" | "video" }>
   >([]);
@@ -1031,6 +1032,47 @@ function AvatarStudioPage() {
               </div>
             </div>
 
+            {/* Optional reference photo picker (SeedDream / Gemini only) */}
+            {shotEngine !== "kling" && myAvatars.length > 0 && (
+              <div className="px-4 pb-2">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5 font-medium">
+                  Reference photo <span className="normal-case opacity-60">(optional — locks identity)</span>
+                </p>
+                <div className="flex gap-1.5 overflow-x-auto pb-1">
+                  <button
+                    onClick={() => setShotAvatarUrl(null)}
+                    className={`shrink-0 w-10 h-10 rounded-lg border text-[9px] flex items-center justify-center transition-all ${
+                      !shotAvatarUrl
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border/30 bg-background/40 text-muted-foreground"
+                    }`}
+                  >
+                    None
+                  </button>
+                  {myAvatars.map((av) => (
+                    <button
+                      key={av.id}
+                      onClick={() => setShotAvatarUrl(av.signedUrl || null)}
+                      title={av.name}
+                      className={`shrink-0 w-10 h-10 rounded-lg border overflow-hidden transition-all ${
+                        shotAvatarUrl === av.signedUrl
+                          ? "border-primary ring-1 ring-primary"
+                          : "border-border/30 hover:border-primary/40"
+                      }`}
+                    >
+                      {av.signedUrl ? (
+                        <img src={av.signedUrl} alt={av.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-muted/30 flex items-center justify-center">
+                          <span className="text-[8px] text-muted-foreground">?</span>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Prompt */}
             <div className="px-4 pb-3">
               <textarea
@@ -1050,7 +1092,13 @@ function AvatarStudioPage() {
                   if (!trimmed) return toast.error("Enter a prompt first");
                   setShotLoading(true);
                   try {
-                    const res = await shotFn({ data: { prompt: trimmed, engine: shotEngine } });
+                    const res = await shotFn({
+                      data: {
+                        prompt: trimmed,
+                        engine: shotEngine,
+                        imageUrl: shotEngine !== "kling" && shotAvatarUrl ? shotAvatarUrl : undefined,
+                      },
+                    });
                     if (!res.ok) {
                       toast.error(res.error ?? "Generation failed");
                     } else {
