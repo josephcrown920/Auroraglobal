@@ -9,12 +9,13 @@
 
 import { z } from "zod";
 import { PRICING, VIDEO_TIER_AURA, LIPSYNC_TIER_AURA } from "./pricing";
-import creatorsTemplateImg from "@/assets/spin-templates/creators.png";
-import rapperTemplateImg from "@/assets/spin-templates/rapper.png";
-import productShowcaseTemplateImg from "@/assets/spin-templates/product-showcase.png";
-import fitnessTemplateImg from "@/assets/spin-templates/fitness.png";
-import fashionTemplateImg from "@/assets/spin-templates/fashion.png";
-import beautyTemplateImg from "@/assets/spin-templates/beauty.png";
+// Template card illustrations — AI-generated images served from /public/josh/
+const creatorsTemplateImg      = "/josh/generated2/viral-03-cover-reveal.webp";
+const rapperTemplateImg        = "/josh/generated2/viral-10-performance.webp";
+const productShowcaseTemplateImg = "/josh/generated2/viral-12-single-cover.webp";
+const fitnessTemplateImg       = "/josh/generated2/viral-09-vertical-poster.webp";
+const fashionTemplateImg       = "/josh/generated2/colors-royal-blue.webp";
+const beautyTemplateImg        = "/josh/generated2/colors-sunset-orange.webp";
 
 // Kept at 30 for credit parity (1 Aura per piece, charged upfront). The engine
 // is count-driven so this can grow later without code changes.
