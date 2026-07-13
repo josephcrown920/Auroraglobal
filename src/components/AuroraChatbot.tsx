@@ -98,7 +98,7 @@ export function AuroraChatbot() {
       if (openRef.current) {
         setMessages((m) => [...m, { role: "assistant", content: tip }]);
       } else {
-        toast("Aurora Concierge 💬", {
+        toast("Aurora Prime 💬", {
           description: tip,
           duration: 12000,
           action: {
@@ -127,7 +127,7 @@ export function AuroraChatbot() {
     const id = window.setTimeout(() => {
       const greet = firstName ? `Welcome back, ${firstName} ✨` : "Welcome to Aurora ✨";
       toast(greet, {
-        description: "Need help? Tap the chat bubble — Aurora Concierge is on call.",
+        description: "Need help? Tap the chat bubble — Aurora Prime is on call.",
         duration: 6000,
       });
       sessionStorage.setItem(GREETED_KEY, "1");
@@ -142,8 +142,8 @@ export function AuroraChatbot() {
         {
           role: "assistant",
           content: firstName
-            ? `Hey ${firstName} — I'm Aurora Concierge. Want to make a music video, a lip-sync clip, a UGC ad, or an editorial cover? Tell me the vibe and I'll point you to the right tool.`
-            : `Hi! I'm Aurora Concierge. Tell me what you want to make — music video, lip-sync, UGC ad, editorial cover — and I'll guide you.`,
+            ? `Hey ${firstName} — I'm Aurora Prime, your AI creative director. Drop a vibe, a track, or an idea and I'll build the video, the look, and the moment. What are we making?`
+            : `Hey — I'm Aurora Prime, your AI creative director. Drop a vibe, a track, or an idea and I'll build the video, the look, and the moment. What are we making?`,
         },
       ]);
       void track("chatbot_opened");
@@ -181,7 +181,7 @@ export function AuroraChatbot() {
       {/* Floating launcher */}
       <button
         type="button"
-        aria-label={open ? "Close chat" : "Open chat with Aurora Concierge"}
+        aria-label={open ? "Close chat" : "Open chat with Aurora Prime"}
         onClick={() => setOpen((o) => !o)}
         className="phone-edge-right fixed bottom-[calc(5rem_+_env(safe-area-inset-bottom))] z-50 size-14 rounded-full flex items-center justify-center text-white shadow-2xl shadow-violet-900/50 bg-gradient-to-br from-violet-500 to-fuchsia-500 hover:scale-105 transition-transform"
       >
@@ -199,7 +199,7 @@ export function AuroraChatbot() {
               <Sparkles className="size-4 text-white" />
             </span>
             <div className="flex-1">
-              <div className="text-sm font-semibold text-white">Aurora Concierge</div>
+              <div className="text-sm font-semibold text-white">Aurora Prime</div>
               <div className="text-[11px] text-emerald-300 flex items-center gap-1.5">
                 <span className="size-1.5 rounded-full bg-emerald-400" /> Online · replies instantly
               </div>
