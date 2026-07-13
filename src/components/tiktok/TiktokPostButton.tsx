@@ -9,7 +9,7 @@
  *
  * If the user hasn't connected TikTok it shows a link to /settings instead.
  */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
 import { ExternalLink, Loader2, Send, CheckCircle2, AlertCircle } from "lucide-react";
@@ -78,21 +78,39 @@ export function TiktokPostButton({
       .catch(() => {});
   }, [generationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Stable ref to hold the polling interval so it can be cleared on unmount.
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Clear on unmount to avoid state updates on an unmounted component.
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current !== null) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, []);
+
   // Poll status while in a processing state.
   const poll = useCallback(
-    async (id: string) => {
+    (id: string) => {
       if (!id) return;
+      if (intervalRef.current !== null) clearInterval(intervalRef.current);
       let rounds = 0;
-      const interval = setInterval(async () => {
+      intervalRef.current = setInterval(async () => {
         rounds++;
-        if (rounds > 120) { clearInterval(interval); return; } // ~10 min max
+        if (rounds > 120) {
+          // ~10 min max
+          if (intervalRef.current !== null) { clearInterval(intervalRef.current); intervalRef.current = null; }
+          return;
+        }
         try {
           const res = await pollFn({ data: { postId: id } });
           const s = res.status as PostStatus;
           setStatus(s);
           setErrorMsg(res.errorMsg ?? null);
           if (TERMINAL.includes(s)) {
-            clearInterval(interval);
+            if (intervalRef.current !== null) { clearInterval(intervalRef.current); intervalRef.current = null; }
             if (s === "publish_complete") {
               toast.success("Posted to TikTok ✓");
             } else {
@@ -100,7 +118,7 @@ export function TiktokPostButton({
             }
           }
         } catch {
-          clearInterval(interval);
+          if (intervalRef.current !== null) { clearInterval(intervalRef.current); intervalRef.current = null; }
         }
       }, 5000);
     },
