@@ -40,6 +40,7 @@ import { AffiliateRewardSection } from "@/components/landing/AffiliateRewardSect
 import { CanvasWorkflowShowcase } from "@/components/landing/CanvasWorkflowShowcase";
 import { GetReadyWithMe } from "@/components/landing/GetReadyWithMe";
 import { TrendingTemplatesStrip } from "@/components/landing/TrendingTemplatesStrip";
+import { PhotoStrip } from "@/components/landing/PhotoStrip";
 import { ColorsTeaser } from "@/components/landing/ColorsTeaser";
 import { JoshSlideshow } from "@/components/studio/JoshSlideshow";
 
@@ -363,22 +364,29 @@ function Index() {
           {/* Real performance shots — mini reference boxes */}
           <div className="mt-3 flex gap-2">
             {[
-              { src: "/josh/josh-concert-performance.webp", label: "Live concert" },
-              { src: "/josh/josh-orange-performance.jpg", label: "Orange studio" },
-              { src: "/josh/josh-pink-leather-mic.jpg", label: "Pink leather" },
-            ].map((p) => (
+              { src: "/gallery/josh-blue-portrait.png",    label: "AI portrait" },
+              { src: "/josh/josh-concert-performance.webp",label: "Live concert" },
+              { src: "/gallery/josh-pink-mic.png",         label: "Pink mic" },
+              { src: "/gallery/violet-haze.webp",          label: "Violet Haze" },
+              { src: "/josh/josh-pink-leather-mic.jpg",    label: "Pink leather" },
+            ].map((p, i) => (
               <div
                 key={p.src}
-                className="relative flex-1 aspect-square rounded-xl overflow-hidden border border-white/10 bg-black/40"
+                className="group relative flex-1 aspect-square rounded-xl overflow-hidden border border-white/10 bg-black/40 cursor-pointer"
+                style={{
+                  animation: `photo-float ${2.4 + i * 0.3}s ease-in-out infinite alternate`,
+                  animationDelay: `${i * 0.18}s`,
+                }}
               >
                 <img
                   src={p.src}
                   alt={p.label}
-                  className="absolute inset-0 w-full h-full object-cover"
+                  className="absolute inset-0 w-full h-full object-cover transition-all duration-500 group-hover:scale-110 group-hover:brightness-110"
                   loading="lazy"
                 />
-                <div className="absolute inset-x-0 bottom-0 px-2 py-1.5 bg-gradient-to-t from-black/80 to-transparent">
-                  <p className="text-[10px] font-medium text-white/90 truncate">{p.label}</p>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent pointer-events-none" />
+                <div className="absolute inset-x-0 bottom-0 px-2 py-1.5">
+                  <p className="text-[9px] font-medium text-white/80 truncate">{p.label}</p>
                 </div>
               </div>
             ))}
@@ -409,6 +417,9 @@ function Index() {
           </div>
         </div>
       </section>
+
+      {/* 1a. Auto-scroll photo strip */}
+      <PhotoStrip />
 
       {/* 1. Templates strip — right below hero */}
       <TrendingTemplatesStrip />

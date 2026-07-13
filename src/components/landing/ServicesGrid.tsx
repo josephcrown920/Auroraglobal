@@ -4,7 +4,7 @@ import { AutoplayVideo } from "@/components/landing/AutoplayVideo";
 import demo1 from "@/assets/demo-1.mov.asset.json";
 import demo2 from "@/assets/demo-2.mov.asset.json";
 
-type ServicePreview = "spin" | "lipsync" | "imagegen" | "colors" | "motion" | "canvas" | "video";
+type ServicePreview = "spin" | "lipsync" | "imagegen" | "colors" | "motion" | "canvas" | "video" | "photo";
 
 const SERVICES: {
   icon: React.ElementType;
@@ -14,15 +14,17 @@ const SERVICES: {
   accent: string;
   preview: ServicePreview;
   videoUrl?: string;
+  photoUrl?: string;
+  photoAlt?: string;
 }[] = [
-  { icon: Flame, title: "Spin 1 → 30 Posts", desc: "Type one prompt. Aurora spins it into 30 high-variation posts — same face, endless looks, captions and styles all different.", to: "/spin", accent: "from-orange-500/30 to-amber-500/10", preview: "spin" },
+  { icon: Flame, title: "Spin 1 → 30 Posts", desc: "Type one prompt. Aurora spins it into 30 high-variation posts — same face, endless looks, captions and styles all different.", to: "/spin", accent: "from-orange-500/30 to-amber-500/10", preview: "photo", photoUrl: "/gallery/rapper-grid.jpg", photoAlt: "30 post grid" },
   { icon: Wand2, title: "Music Video Lip Sync", desc: "Frame-accurate Sync 1.9 lip-sync. Drop your track — get a music video that looks like you really sang it.", to: "/lipsync", accent: "from-emerald-500/30 to-teal-500/10", preview: "lipsync" },
   { icon: Megaphone, title: "UGC Ads Factory", desc: "Pick an AI creator, drop your product, ship iPhone-real UGC ads in seconds — scroll-stopping content, no camera needed.", to: "/ugc", accent: "from-rose-500/30 to-pink-500/10", preview: "video", videoUrl: demo1.url },
   { icon: Film, title: "Video Generation", desc: "Cinematic 5–10s performance clips. Seedance 2.0 and Kling 3.0 in one canvas.", to: "/studio", accent: "from-indigo-500/30 to-violet-500/10", preview: "video", videoUrl: demo2.url },
-  { icon: ImageIcon, title: "Image Generation", desc: "Cover art and press shots from a selfie. Seedream 4.5, Nano Banana Pro.", to: "/studio", accent: "from-violet-500/30 to-fuchsia-500/10", preview: "imagegen" },
-  { icon: Palette, title: "Colors Studio", desc: "Pick a color, pick a studio. Pro mic, pro lighting, single-cover-grade portraits.", to: "/colors", accent: "from-amber-500/30 to-orange-500/10", preview: "colors" },
-  { icon: Activity, title: "Perform Anywhere", desc: "Record yourself performing on your phone, then drop your AI-generated photo — Aurora transfers your motion into the scene.", to: "/motion", accent: "from-cyan-500/30 to-blue-500/10", preview: "motion" },
-  { icon: Workflow, title: "Canvas", desc: "Wire your song, selfie, outfit and prompt nodes. Save, share, re-run.", to: "/canvas", accent: "from-fuchsia-500/30 to-purple-500/10", preview: "canvas" },
+  { icon: ImageIcon, title: "Image Generation", desc: "Cover art and press shots from a selfie. Seedream 4.5, Nano Banana Pro.", to: "/studio", accent: "from-violet-500/30 to-fuchsia-500/10", preview: "photo", photoUrl: "/gallery/violet-haze.webp", photoAlt: "AI generated cover art – Violet Haze" },
+  { icon: Palette, title: "Colors Studio", desc: "Pick a color, pick a studio. Pro mic, pro lighting, single-cover-grade portraits.", to: "/colors", accent: "from-amber-500/30 to-orange-500/10", preview: "photo", photoUrl: "/gallery/ichroma-cover.webp", photoAlt: "ICHROMA Colors Studio portrait" },
+  { icon: Activity, title: "Perform Anywhere", desc: "Record yourself performing on your phone, then drop your AI-generated photo — Aurora transfers your motion into the scene.", to: "/motion", accent: "from-cyan-500/30 to-blue-500/10", preview: "photo", photoUrl: "/gallery/josh-neon-tech.png", photoAlt: "Josh neon tech performance" },
+  { icon: Workflow, title: "Canvas", desc: "Wire your song, selfie, outfit and prompt nodes. Save, share, re-run.", to: "/canvas", accent: "from-fuchsia-500/30 to-purple-500/10", preview: "photo", photoUrl: "/gallery/josh-balloon.jpg", photoAlt: "Josh balloon art – Canvas creativity" },
 ];
 
 function SpinPreview() {
@@ -214,6 +216,20 @@ function renderPreview(s: typeof SERVICES[number]) {
       </div>
     );
   }
+  if (s.preview === "photo" && s.photoUrl) {
+    return (
+      <div className="aspect-video overflow-hidden border-b border-border relative bg-black/40">
+        <img
+          src={s.photoUrl}
+          alt={s.photoAlt ?? s.title}
+          loading="lazy"
+          decoding="async"
+          className="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:opacity-100 group-hover:scale-[1.06] transition-all duration-500 [filter:contrast(1.04)_saturate(1.1)]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+      </div>
+    );
+  }
   const previewMap: Record<ServicePreview, React.ReactNode> = {
     spin: <SpinPreview />,
     lipsync: <LipSyncPreview />,
@@ -222,6 +238,7 @@ function renderPreview(s: typeof SERVICES[number]) {
     motion: <MotionPreview />,
     canvas: <CanvasPreview />,
     video: null,
+    photo: null,
   };
   const node = previewMap[s.preview];
   if (!node) return null;
