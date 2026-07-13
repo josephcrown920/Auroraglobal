@@ -167,7 +167,11 @@ function AvatarStudioPage() {
             ...p,
             [templateId]: { status: "error", message: res.error },
           }));
-          if (res.insufficient) toast.error("Not enough Aura credits");
+          if (res.insufficient) {
+            toast.error("Not enough Aura credits");
+          } else {
+            toast.error(res.error ?? "Generation failed", { duration: 6000 });
+          }
         }
       } catch (e) {
         setCardStates((p) => ({

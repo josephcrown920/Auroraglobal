@@ -26,6 +26,7 @@ const STEPS = [
   "Templates: lip-sync dispatch",
   "Spin carousel",
   "Lyric Video",
+  "Avatar shot (SeedDream image)",
 ] as const;
 
 async function assertAdmin(userId: string) {
@@ -468,12 +469,31 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       await writeCheck(run.id, 15, STEPS[14], r15);
       total += r15.cost_usd;
 
+      // 16. Avatar shot (SeedDream image) — exercises the Shots tab engine path:
+      //     text-to-portrait via ByteDance/SeedDream-4 image model (same call as
+      //     generateAvatarShot with engine="seedream"). Routed through byteplus
+      //     adapter (BYTEPLUS_API_KEY) → Replicate fallback (REPLICATE_API_KEY).
+      //     No reference image — pure text-to-image, matching what the UI generates.
+      const r16 = await runStep(async () => {
+        const out = await orchestrate({
+          kind: "image",
+          prompt: "smoke test: cinematic AI avatar portrait, soft studio lighting, neutral backdrop",
+          model: "fal-ai/seedream-4",
+          userId: context.userId,
+          refId: run.id,
+        });
+        if (!out.url) throw new Error("Avatar shot returned no image URL");
+        return { url: out.url, cost: out.costUsd, raw: { provider: out.provider } };
+      });
+      await writeCheck(run.id, 16, STEPS[15], r16);
+      total += r16.cost_usd;
+
       await supabaseAdmin
         .from("smoke_runs")
         .update({
           finished_at: new Date().toISOString(),
           total_cost_usd: total,
-          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15].filter(r => r.status === "pass").length, total: 15 } as never,
+          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16].filter(r => r.status === "pass").length, total: 16 } as never,
         })
         .eq("id", run.id);
     })().catch(async (e) => {
