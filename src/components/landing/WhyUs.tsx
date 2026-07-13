@@ -1,15 +1,10 @@
-import { Layers, Shield, Music, Rocket } from "lucide-react";
+import { Layers, Shield, Rocket } from "lucide-react";
 
 const PILLARS = [
   {
     icon: Layers,
     title: "Every frontier model, one canvas",
     desc: "Seedance 2.0, Kling 3.0, Seedream 4.5, Nano Banana Pro, Sync 1.9. Switch between them mid-project — no extra subscription.",
-  },
-  {
-    icon: Music,
-    title: "Drop your song. Get your video. In 30 seconds.",
-    desc: "No shoot day. No director fee. No CapCut template. Upload your track, pick a look, and Aurora renders a music video ready for TikTok.",
   },
   {
     icon: Rocket,
