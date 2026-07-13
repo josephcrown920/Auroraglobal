@@ -1092,33 +1092,58 @@ function StudioPage() {
 
 
 
-          {/* ── Buy Aura — premium redesign ──────────────────────────── */}
-          <div className="relative rounded-3xl overflow-hidden border border-primary/25 bg-gradient-to-br from-violet-950/70 via-[#0d0820]/80 to-fuchsia-950/30 shadow-[0_0_60px_-20px_oklch(0.72_0.2_300)]">
-            {/* top shimmer line */}
-            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-            {/* ambient glow */}
-            <div aria-hidden className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[200px] rounded-full bg-primary/8 blur-[80px]" />
+          {/* ── Buy Aura — full value-proposition redesign ──────────── */}
+          <div className="relative rounded-3xl overflow-hidden border border-primary/30 bg-gradient-to-br from-[#110826] via-[#0d0820] to-[#130b24] shadow-[0_0_80px_-20px_oklch(0.72_0.2_300/0.6)]">
+            {/* shimmer top line */}
+            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
+            {/* ambient glow orb */}
+            <div aria-hidden className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 w-[500px] h-[220px] rounded-full bg-primary/12 blur-[90px]" />
 
-            <div className="relative p-5 space-y-5">
-              {/* Header */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <Coins className="size-4 text-primary" />
-                    <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Top Up Aura</span>
-                  </div>
-                  <p className="text-[11px] text-white/40">Secure checkout · never expires · rolls across all tools</p>
-                </div>
-                {checkoutMut.isPending && (
-                  <span className="inline-flex items-center gap-1.5 text-[11px] text-white/50">
-                    <Loader2 className="size-3 animate-spin" /> Opening…
-                  </span>
-                )}
+            <div className="relative p-5 space-y-6">
+
+              {/* ── Value headline ─────────────────────────────────── */}
+              <div>
+                <p className="aurora-kicker mb-3 flex items-center gap-2">
+                  <Coins className="size-3" />
+                  Aura Credits
+                </p>
+                <h3 className="text-2xl font-black tracking-tight leading-tight text-white">
+                  Every tool.{" "}
+                  <span className="aurora-gradient-text">One balance.</span>
+                </h3>
+                <p className="mt-2 text-[13px] leading-relaxed text-white/50">
+                  Photos, videos, lip-syncs, 4K exports — all charged from the same Aura wallet. Buy once, use everywhere, never expires.
+                </p>
               </div>
 
-              {/* Day passes — quick-entry row */}
+              {/* ── What Aura unlocks ──────────────────────────────── */}
+              <div className="rounded-2xl border border-white/8 bg-white/4 p-4 space-y-3">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/35">What you can make</p>
+                <div className="grid grid-cols-2 gap-y-3 gap-x-4">
+                  {([
+                    { icon: Camera,   label: "Hyperrealistic photo",    cost: "1 Aura" },
+                    { icon: Film,     label: "Music video frame",       cost: "3–10 Aura" },
+                    { icon: Mic2,     label: "Lip-sync video",          cost: "from 8 Aura" },
+                    { icon: Sparkles, label: "AI Director session",     cost: "included" },
+                    { icon: Wand2,    label: "Style transfer & edit",   cost: "from 3 Aura" },
+                    { icon: Zap,      label: "4K export upgrade",       cost: "+30 Aura" },
+                  ] as const).map(({ icon: Icon, label, cost }) => (
+                    <div key={label} className="flex items-start gap-2">
+                      <div className="mt-0.5 size-5 rounded-md bg-primary/15 grid place-items-center shrink-0">
+                        <Icon className="size-3 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-medium text-white/80 leading-tight">{label}</p>
+                        <p className="text-[10px] text-primary/70 font-semibold">{cost}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Day passes ─────────────────────────────────────── */}
               <div>
-                <p className="text-[10px] uppercase tracking-[0.15em] text-white/30 mb-2">Quick passes</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30 mb-2.5">Try it today</p>
                 <div className="flex gap-2">
                   {(["day1", "day2"] as const).map((k) => {
                     const p = PLANS[k];
@@ -1128,68 +1153,102 @@ function StudioPage() {
                         type="button"
                         disabled={checkoutMut.isPending}
                         onClick={() => checkoutMut.mutate(k)}
-                        className="flex-1 flex flex-col gap-0.5 rounded-xl border border-white/10 bg-white/5 hover:border-primary/30 hover:bg-primary/10 transition-all p-3 text-left disabled:opacity-50"
+                        className="flex-1 flex flex-col gap-1 rounded-xl border border-white/12 bg-white/6 hover:border-primary/35 hover:bg-primary/10 active:scale-[0.98] transition-all p-3.5 text-left disabled:opacity-50"
                       >
-                        <span className="text-[10px] uppercase tracking-wider text-white/40">{k === "day1" ? "1-Day" : "2-Day"}</span>
-                        <span className="text-base font-bold text-white">{p.credits} <span className="text-[10px] font-normal text-white/40">Aura</span></span>
-                        <span className="text-[11px] text-white/55">{p.prices[currency].display}</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-white/35">{k === "day1" ? "1-Day Pass" : "2-Day Pass"}</span>
+                        <span className="text-xl font-black text-white leading-none">{p.credits}<span className="text-xs font-normal text-white/40 ml-1">Aura</span></span>
+                        <span className="text-[12px] font-semibold text-white/60">{p.prices[currency].display}</span>
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Credit packs — main 3 */}
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.15em] text-white/30 mb-2">Credit packs</p>
-                <div className="space-y-2">
-                  {(["starter", "creator", "studio"] as const).map((k) => {
-                    const p = PLANS[k];
-                    const isPopular = k === "creator";
-                    const isBest = k === "studio";
-                    return (
-                      <button
-                        key={k}
-                        type="button"
-                        disabled={checkoutMut.isPending}
-                        onClick={() => checkoutMut.mutate(k)}
-                        className={`w-full flex items-center justify-between rounded-xl border p-3.5 text-left transition-all disabled:opacity-50 ${
-                          isPopular
-                            ? "border-primary/50 bg-primary/10 hover:bg-primary/15 shadow-[0_0_24px_-6px_oklch(0.72_0.2_300)]"
-                            : isBest
-                            ? "border-amber-400/30 bg-amber-500/8 hover:border-amber-400/50 hover:bg-amber-500/12"
-                            : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`size-8 rounded-lg grid place-items-center ${isPopular ? "bg-primary/20 border border-primary/30" : isBest ? "bg-amber-500/15 border border-amber-400/25" : "bg-white/8 border border-white/10"}`}>
-                            {isPopular ? <Sparkles className="size-4 text-primary" /> : isBest ? <Crown className="size-4 text-amber-400" /> : <Zap className="size-4 text-white/50" />}
+              {/* ── Credit packs — main 3 ─────────────────────────── */}
+              <div className="space-y-2.5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">Top up your wallet</p>
+
+                {(["starter", "creator", "studio"] as const).map((k) => {
+                  const p = PLANS[k];
+                  const isPopular = k === "creator";
+                  const isBest = k === "studio";
+                  const usageHint =
+                    k === "starter" ? `${p.credits} photos · ${Math.floor(p.credits / 10)} lip-syncs` :
+                    k === "creator" ? `${p.credits} photos · ${Math.floor(p.credits / 10)} lip-syncs · ${Math.floor(p.credits / 5)} edits` :
+                    `${p.credits} photos · ${Math.floor(p.credits / 3)} video frames · full month`;
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      disabled={checkoutMut.isPending}
+                      onClick={() => checkoutMut.mutate(k)}
+                      className={`w-full rounded-2xl border p-4 text-left transition-all active:scale-[0.98] disabled:opacity-50 ${
+                        isPopular
+                          ? "border-primary/55 bg-gradient-to-br from-primary/15 to-primary/5 shadow-[0_0_32px_-8px_oklch(0.72_0.2_300/0.5)] hover:shadow-[0_0_40px_-6px_oklch(0.72_0.2_300/0.7)]"
+                          : isBest
+                          ? "border-amber-400/35 bg-gradient-to-br from-amber-500/10 to-amber-900/10 hover:border-amber-400/55"
+                          : "border-white/10 bg-white/5 hover:border-white/22 hover:bg-white/8"
+                      }`}
+                    >
+                      {/* top row: name + badge + price */}
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className={`size-7 rounded-lg grid place-items-center ${isPopular ? "bg-primary/25 border border-primary/40" : isBest ? "bg-amber-500/20 border border-amber-400/30" : "bg-white/10 border border-white/12"}`}>
+                            {isPopular ? <Sparkles className="size-3.5 text-primary" /> : isBest ? <Crown className="size-3.5 text-amber-400" /> : <Zap className="size-3.5 text-white/55" />}
                           </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold text-white capitalize">{k}</span>
-                              {isPopular && (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-primary/25 border border-primary/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary">
-                                  <Flame className="size-2.5" /> Popular
-                                </span>
-                              )}
-                              {isBest && (
-                                <span className="inline-flex items-center rounded-full bg-amber-500/15 border border-amber-400/30 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-400">
-                                  Best Value
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-[11px] text-white/40">{p.credits} Aura</span>
-                          </div>
+                          <span className={`text-[15px] font-black capitalize tracking-tight ${isPopular ? "text-white" : isBest ? "text-amber-100" : "text-white/80"}`}>{k}</span>
+                          {isPopular && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-primary/25 border border-primary/45 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-primary">
+                              <Flame className="size-2.5" />Most Popular
+                            </span>
+                          )}
+                          {isBest && (
+                            <span className="inline-flex items-center rounded-full bg-amber-500/20 border border-amber-400/35 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-amber-400">
+                              Best Value
+                            </span>
+                          )}
                         </div>
-                        <span className={`text-base font-bold ${isPopular ? "text-primary" : isBest ? "text-amber-300" : "text-white/80"}`}>
-                          {p.prices[currency].display}
+                        <div className="text-right">
+                          <span className={`text-xl font-black ${isPopular ? "text-primary" : isBest ? "text-amber-300" : "text-white/85"}`}>
+                            {p.prices[currency].display}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* credit count — big number */}
+                      <div className="flex items-baseline gap-1.5 mb-1.5">
+                        <span className={`text-4xl font-black leading-none tabular-nums ${isPopular ? "text-white" : isBest ? "text-amber-100" : "text-white/70"}`}>
+                          {p.credits}
                         </span>
-                      </button>
-                    );
-                  })}
-                </div>
+                        <span className="text-sm font-bold text-white/35">Aura</span>
+                      </div>
+
+                      {/* usage hint */}
+                      <p className={`text-[11px] leading-tight ${isPopular ? "text-primary/70" : isBest ? "text-amber-400/60" : "text-white/35"}`}>
+                        {usageHint}
+                      </p>
+                    </button>
+                  );
+                })}
               </div>
+
+              {/* ── Footer trust line ──────────────────────────────── */}
+              <div className="flex items-center justify-center gap-4 pt-1">
+                {checkoutMut.isPending ? (
+                  <span className="inline-flex items-center gap-2 text-[11px] text-white/40">
+                    <Loader2 className="size-3 animate-spin" /> Opening secure checkout…
+                  </span>
+                ) : (
+                  <>
+                    <span className="text-[10px] text-white/28 flex items-center gap-1"><Shield className="size-3" />Paystack secured</span>
+                    <span className="text-[10px] text-white/28">·</span>
+                    <span className="text-[10px] text-white/28">Credits never expire</span>
+                    <span className="text-[10px] text-white/28">·</span>
+                    <span className="text-[10px] text-white/28">No subscription</span>
+                  </>
+                )}
+              </div>
+
             </div>
           </div>
         </section>
