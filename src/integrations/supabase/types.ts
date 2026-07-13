@@ -2107,6 +2107,118 @@ export type Database = {
         }
         Relationships: []
       }
+      tiktok_accounts: {
+        Row: {
+          id: string
+          user_id: string
+          open_id: string
+          username: string | null
+          display_name: string | null
+          avatar_url: string | null
+          access_token: string
+          refresh_token: string
+          token_expires_at: string
+          refresh_expires_at: string
+          scope: string | null
+          oauth_state: string | null
+          oauth_state_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          open_id: string
+          username?: string | null
+          display_name?: string | null
+          avatar_url?: string | null
+          access_token: string
+          refresh_token: string
+          token_expires_at: string
+          refresh_expires_at: string
+          scope?: string | null
+          oauth_state?: string | null
+          oauth_state_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          open_id?: string
+          username?: string | null
+          display_name?: string | null
+          avatar_url?: string | null
+          access_token?: string
+          refresh_token?: string
+          token_expires_at?: string
+          refresh_expires_at?: string
+          scope?: string | null
+          oauth_state?: string | null
+          oauth_state_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tiktok_accounts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      tiktok_posts: {
+        Row: {
+          id: string
+          user_id: string
+          generation_id: string | null
+          video_url: string
+          title: string | null
+          publish_id: string | null
+          status: string
+          error_msg: string | null
+          posted_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          generation_id?: string | null
+          video_url: string
+          title?: string | null
+          publish_id?: string | null
+          status?: string
+          error_msg?: string | null
+          posted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          generation_id?: string | null
+          video_url?: string
+          title?: string | null
+          publish_id?: string | null
+          status?: string
+          error_msg?: string | null
+          posted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tiktok_posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

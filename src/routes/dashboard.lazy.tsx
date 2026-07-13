@@ -7,10 +7,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { listGenerations } from "@/lib/studio.functions";
 import { getMyProfile } from "@/lib/billing.functions";
 import { publishGeneration } from "@/lib/share.functions";
+import { getMyTiktokAccount } from "@/lib/tiktok-posting.functions";
 import { saveAssetToDisk } from "@/lib/save";
 import { ShareMenu } from "@/components/share/ShareMenu";
 import { ModelBadge } from "@/components/ModelBadge";
-import { Sparkles, Loader2, Coins, Film, Image as ImageIcon, ArrowRight, Shield, Share2, Download } from "lucide-react";
+import { TiktokPostButton } from "@/components/tiktok/TiktokPostButton";
+import { Sparkles, Loader2, Coins, Film, Image as ImageIcon, ArrowRight, Settings, Shield, Share2, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ApiKeysPanel } from "@/components/dashboard/ApiKeysPanel";
@@ -29,9 +31,11 @@ function DashboardPage() {
   const profileFn = useServerFn(getMyProfile);
   const listFn = useServerFn(listGenerations);
   const publishFn = useServerFn(publishGeneration);
+  const tiktokAccountFn = useServerFn(getMyTiktokAccount);
 
   const { data: profile } = useQuery({ queryKey: ["profile", user?.id], queryFn: () => profileFn(), enabled: !!user });
   const { data: hist, isLoading } = useQuery({ queryKey: ["gens", user?.id], queryFn: () => listFn(), enabled: !!user });
+  const { data: tiktokAccount } = useQuery({ queryKey: ["tiktok-account"], queryFn: () => tiktokAccountFn(), enabled: !!user });
 
   const [filter, setFilter] = useState<"all" | "images" | "videos" | "processing" | "failed">("all");
 
@@ -73,6 +77,9 @@ function DashboardPage() {
               <Shield className="size-3.5 text-amber-500" /> Admin
             </Link>
           )}
+          <Link to="/settings" search={{ tiktok: undefined, msg: undefined }} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-2 text-sm text-muted-foreground hover:text-foreground">
+            <Settings className="size-3.5" /> Settings
+          </Link>
           <Button variant="ghost" size="sm" onClick={async () => { await supabase.auth.signOut(); navigate({ to: "/" }); }}>Sign out</Button>
         </div>
       </header>
@@ -181,6 +188,15 @@ function DashboardPage() {
                       <span className="text-[10px] text-muted-foreground">{new Date(g.created_at).toLocaleDateString()}</span>
                     </div>
                     <p className="text-xs text-muted-foreground line-clamp-2">{g.prompt}</p>
+                    {g.result_video_url && (
+                      <TiktokPostButton
+                        compact
+                        videoUrl={g.result_video_url}
+                        generationId={g.id}
+                        title={g.prompt?.slice(0, 150)}
+                        isConnected={tiktokAccount?.connected}
+                      />
+                    )}
                   </div>
                 </article>
                 );
