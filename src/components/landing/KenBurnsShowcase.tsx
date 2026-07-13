@@ -11,45 +11,34 @@ const PHOTOS = [
 
 const TEXT_SECTIONS = [
   {
-    kicker: "Text to cinematic",
-    headline: "Describe it. Watch it render.",
-    body: "Any aesthetic. Any scene. Type what you see in your head and Aurora builds it — frame-perfect cinematics from a single line of text. No camera. No crew. No compromise.",
+    kicker: "One prompt",
+    headline: "Describe it.\nWatch it render.",
+    body: "Any scene. Any aesthetic. Any mood. Type what you see in your head — Aurora builds it frame-perfect, hyperrealistic, ready to post.",
   },
   {
     kicker: "Identity-locked",
-    headline: "Your face. Every world.",
-    body: "Drop one selfie. Aurora locks your identity across hundreds of scenes, styles, and moods — no two the same, all unmistakably you. Concert wash, editorial black, golden hour. Your call.",
+    headline: "Your face.\nEvery world.",
+    body: "One selfie. Hundreds of scenes — concert wash, editorial black, golden hour, magazine cover. All unmistakably you.",
   },
   {
     kicker: "Motion transfer",
-    headline: "From photo to performance.",
-    body: "Aurora reads your movement from a 30-second phone clip and maps it into your AI-generated world. Your gestures. Your energy. The scene Aurora builds.",
+    headline: "From photo\nto performance.",
+    body: "Film 30 seconds on your phone. Aurora maps your real movement into the generated world — your gestures, your energy, the scene it builds.",
   },
   {
-    kicker: "One studio",
-    headline: "Every tool. One balance.",
-    body: "Image, video, lip-sync, motion. Every model. Every format. One credit balance rolls across the entire studio with no extra subscriptions — ever.",
+    kicker: "Every tool. One balance.",
+    headline: "Image, video,\nlip-sync. All in.",
+    body: "Every model. Every format. One Aura balance rolls across the entire studio with no extra subscriptions — ever.",
   },
 ];
 
 function KenBurnsPhoto({
-  src,
-  label,
-  duration,
-  delay,
-  aspect = "9/16",
+  src, label, duration, delay, aspect = "9/16",
 }: {
-  src: string;
-  label: string;
-  duration: number;
-  delay: number;
-  aspect?: string;
+  src: string; label: string; duration: number; delay: number; aspect?: string;
 }) {
   return (
-    <div
-      className="relative overflow-hidden rounded-2xl w-full"
-      style={{ aspectRatio: aspect }}
-    >
+    <div className="relative overflow-hidden rounded-2xl w-full" style={{ aspectRatio: aspect }}>
       <img
         src={src}
         alt={label}
@@ -60,8 +49,8 @@ function KenBurnsPhoto({
         }}
         loading="lazy"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
-      <span className="absolute bottom-2.5 left-3 text-[9px] font-bold uppercase tracking-[0.2em] text-white/60">
+      <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
+      <span className="absolute bottom-3 left-3 text-[9px] font-bold uppercase tracking-[0.22em] text-white/55">
         {label}
       </span>
     </div>
@@ -70,52 +59,70 @@ function KenBurnsPhoto({
 
 export function KenBurnsShowcase() {
   return (
-    <section className="relative z-10 py-8 space-y-14">
+    <section className="relative z-10 py-4">
 
-      {/* First photo row — 2 tall portraits */}
+      {/* Section header */}
+      <div className="px-6 mb-10 text-center">
+        <p className="aurora-kicker mb-3 justify-center inline-flex items-center gap-2">
+          <span className="size-1.5 rounded-full bg-primary animate-pulse" />
+          What Aurora creates
+        </p>
+        <h2 className="text-4xl font-black tracking-tight leading-[1.05] text-white">
+          Real results.{" "}
+          <span className="aurora-gradient-text">Real creators.</span>
+        </h2>
+      </div>
+
+      {/* First photo pair — tall portraits */}
       <div className="grid grid-cols-2 gap-2 px-4">
         <KenBurnsPhoto src={PHOTOS[0].src} label={PHOTOS[0].label} duration={22} delay={0} />
         <KenBurnsPhoto src={PHOTOS[1].src} label={PHOTOS[1].label} duration={26} delay={-6} />
       </div>
 
-      {/* Text-only sections — no icons, no illustrations */}
-      <div className="px-6 space-y-14">
+      {/* Text sections 1–2 */}
+      <div className="mt-14 px-6 space-y-14">
         {TEXT_SECTIONS.slice(0, 2).map((s) => (
           <div key={s.kicker}>
-            <p className="aurora-kicker mb-3">{s.kicker}</p>
-            <h2 className="text-[2rem] font-black tracking-tight leading-[1.08] text-white">
+            <p className="aurora-kicker mb-4">{s.kicker}</p>
+            <h2
+              className="text-[2.6rem] font-black tracking-tight leading-[1.05] text-white whitespace-pre-line"
+              style={{ textShadow: "0 2px 40px oklch(0.72 0.2 300 / 0.25)" }}
+            >
               {s.headline}
             </h2>
-            <p className="mt-4 text-white/50 leading-relaxed text-[0.95rem]">
+            <p className="mt-5 text-white/48 leading-relaxed text-[0.95rem] max-w-sm">
               {s.body}
             </p>
           </div>
         ))}
       </div>
 
-      {/* Second photo row — 2 portraits */}
-      <div className="grid grid-cols-2 gap-2 px-4">
+      {/* Second photo pair */}
+      <div className="grid grid-cols-2 gap-2 px-4 mt-14">
         <KenBurnsPhoto src={PHOTOS[2].src} label={PHOTOS[2].label} duration={24} delay={-4} />
         <KenBurnsPhoto src={PHOTOS[3].src} label={PHOTOS[3].label} duration={20} delay={-10} />
       </div>
 
-      {/* More text-only sections */}
-      <div className="px-6 space-y-14">
+      {/* Text sections 3–4 */}
+      <div className="mt-14 px-6 space-y-14">
         {TEXT_SECTIONS.slice(2).map((s) => (
           <div key={s.kicker}>
-            <p className="aurora-kicker mb-3">{s.kicker}</p>
-            <h2 className="text-[2rem] font-black tracking-tight leading-[1.08] text-white">
+            <p className="aurora-kicker mb-4">{s.kicker}</p>
+            <h2
+              className="text-[2.6rem] font-black tracking-tight leading-[1.05] text-white whitespace-pre-line"
+              style={{ textShadow: "0 2px 40px oklch(0.72 0.2 300 / 0.25)" }}
+            >
               {s.headline}
             </h2>
-            <p className="mt-4 text-white/50 leading-relaxed text-[0.95rem]">
+            <p className="mt-5 text-white/48 leading-relaxed text-[0.95rem] max-w-sm">
               {s.body}
             </p>
           </div>
         ))}
       </div>
 
-      {/* Third photo row — wide landscape + portrait pair */}
-      <div className="px-4 space-y-2">
+      {/* Final photo trio — wide + 3 portraits */}
+      <div className="mt-14 px-4 space-y-2">
         <KenBurnsPhoto
           src={PHOTOS[7].src}
           label={PHOTOS[7].label}
