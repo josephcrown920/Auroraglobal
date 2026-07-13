@@ -28,3 +28,5 @@ needs its own investigation. Baseline for a "green" full run is currently
 pre-existence cheaply: copy the HEAD version of your touched file(s) over via
 `git show HEAD:path > /tmp/x && cp` (git stash is blocked for the main agent), re-run
 the failing files, restore.
+
+**Update 2026-07-13:** a full `bun test src/` run on a clean tree came back 732 pass / 0 fail — the 10 worker-routing failures did NOT reproduce. Before dismissing failures in these files as "pre-existing baseline", re-run once; the baseline may now be green.
