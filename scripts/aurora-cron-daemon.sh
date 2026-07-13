@@ -4,8 +4,11 @@
 # and GPU worker health is checked entirely within Replit — no external scheduler.
 #
 # Calls:
-#   POST /api/public/jobs/tick   every 60 s  — drains the job queue
-#   POST /api/public/workers/health  every 5 min — flips active/paused workers
+#   POST /api/public/jobs/tick           every 60 s   — drains the job queue
+#   POST /api/public/workers/health      every 5 min  — flips active/paused workers
+#   GET  /api/public/check-api-balances  every 6 h    — logs provider credit balance
+#   POST /api/public/payments/sweep-stuck every 6 h   — alerts on stuck pending payments
+#                                                        (Paystack retries exhausted)
 #
 # Auth: SUPABASE_PUBLISHABLE_KEY (already in env).
 # App:  localhost:8080 (same container as this daemon).
@@ -16,6 +19,7 @@ APP="http://localhost:8080"
 TICK_INTERVAL=60       # seconds between job-queue ticks
 HEALTH_INTERVAL=300      # seconds between worker health checks
 BALANCE_INTERVAL=21600   # seconds between API balance checks (6 hours)
+SWEEP_INTERVAL=21600     # seconds between stuck-payment sweeps (6 hours)
 
 # ── Auth key ────────────────────────────────────────────────────────────────
 APIKEY="${SUPABASE_PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-${CRON_SECRET:-}}}"
@@ -42,6 +46,7 @@ done
 # ── Main loop ────────────────────────────────────────────────────────────────
 last_health=0
 last_balance=0
+last_sweep=0
 
 while true; do
   now=$(date +%s)
@@ -88,6 +93,27 @@ while true; do
       echo "[$ts][balances] WARN — $resp (rc=$rc)"
     fi
     last_balance=$now
+  fi
+
+  # Stuck-payment sweep (every 6 hours).
+  # Finds payments still in "pending" >73 h after creation — these have
+  # almost certainly exhausted Paystack's 72-hour retry window.  Each
+  # stuck payment is logged as STUCK_PAYMENT so operators can search the
+  # deployment logs and intervene manually (Paystack dashboard resend or
+  # direct credit grant).
+  if [ $((now - last_sweep)) -ge $SWEEP_INTERVAL ]; then
+    resp=$(curl -sf "$APP/api/public/payments/sweep-stuck" \
+      -X POST \
+      -H "apikey: $APIKEY" \
+      -H "content-type: application/json" \
+      --max-time 30 2>&1) && rc=0 || rc=$?
+    ts=$(date -u +"%H:%M:%S")
+    if [ $rc -eq 0 ]; then
+      echo "[$ts][payments-sweep] OK — $resp"
+    else
+      echo "[$ts][payments-sweep] WARN — $resp (rc=$rc)"
+    fi
+    last_sweep=$now
   fi
 
   sleep $TICK_INTERVAL

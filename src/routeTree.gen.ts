@@ -77,6 +77,7 @@ import { Route as ApiPublicCheckApiBalancesRouteImport } from './routes/api/publ
 import { Route as ApiAdminUploadSiteImageRouteImport } from './routes/api/admin/upload-site-image'
 import { Route as ApiPublicWorkersRegisterRouteImport } from './routes/api/public/workers/register'
 import { Route as ApiPublicWorkersHealthRouteImport } from './routes/api/public/workers/health'
+import { Route as ApiPublicPaymentsSweepStuckRouteImport } from './routes/api/public/payments/sweep-stuck'
 import { Route as ApiPublicJobsTickRouteImport } from './routes/api/public/jobs/tick'
 import { Route as ApiPublicWorkersFilesNameRouteImport } from './routes/api/public/workers/files/$name'
 import { Route as ApiPublicCliDeviceStartRouteImport } from './routes/api/public/cli/device/start'
@@ -433,6 +434,12 @@ const ApiPublicWorkersHealthRoute = ApiPublicWorkersHealthRouteImport.update({
   path: '/api/public/workers/health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPaymentsSweepStuckRoute =
+  ApiPublicPaymentsSweepStuckRouteImport.update({
+    id: '/api/public/payments/sweep-stuck',
+    path: '/api/public/payments/sweep-stuck',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicJobsTickRoute = ApiPublicJobsTickRouteImport.update({
   id: '/api/public/jobs/tick',
   path: '/api/public/jobs/tick',
@@ -523,6 +530,7 @@ export interface FileRoutesByFullPath {
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
+  '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
   '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
@@ -597,6 +605,7 @@ export interface FileRoutesByTo {
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
+  '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
   '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
@@ -672,6 +681,7 @@ export interface FileRoutesById {
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
+  '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
   '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
@@ -748,6 +758,7 @@ export interface FileRouteTypes {
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
     | '/api/public/jobs/tick'
+    | '/api/public/payments/sweep-stuck'
     | '/api/public/workers/health'
     | '/api/public/workers/register'
     | '/api/public/cli/device/poll'
@@ -822,6 +833,7 @@ export interface FileRouteTypes {
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
     | '/api/public/jobs/tick'
+    | '/api/public/payments/sweep-stuck'
     | '/api/public/workers/health'
     | '/api/public/workers/register'
     | '/api/public/cli/device/poll'
@@ -896,6 +908,7 @@ export interface FileRouteTypes {
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
     | '/api/public/jobs/tick'
+    | '/api/public/payments/sweep-stuck'
     | '/api/public/workers/health'
     | '/api/public/workers/register'
     | '/api/public/cli/device/poll'
@@ -965,6 +978,7 @@ export interface RootRouteChildren {
   ApiPublicWatermarkImageRoute: typeof ApiPublicWatermarkImageRoute
   ApiPublicWatermarkVideoRoute: typeof ApiPublicWatermarkVideoRoute
   ApiPublicJobsTickRoute: typeof ApiPublicJobsTickRoute
+  ApiPublicPaymentsSweepStuckRoute: typeof ApiPublicPaymentsSweepStuckRoute
   ApiPublicWorkersHealthRoute: typeof ApiPublicWorkersHealthRoute
   ApiPublicWorkersRegisterRoute: typeof ApiPublicWorkersRegisterRoute
   ApiPublicCliDevicePollRoute: typeof ApiPublicCliDevicePollRoute
@@ -1450,6 +1464,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWorkersHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/payments/sweep-stuck': {
+      id: '/api/public/payments/sweep-stuck'
+      path: '/api/public/payments/sweep-stuck'
+      fullPath: '/api/public/payments/sweep-stuck'
+      preLoaderRoute: typeof ApiPublicPaymentsSweepStuckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/jobs/tick': {
       id: '/api/public/jobs/tick'
       path: '/api/public/jobs/tick'
@@ -1563,6 +1584,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicWatermarkImageRoute: ApiPublicWatermarkImageRoute,
   ApiPublicWatermarkVideoRoute: ApiPublicWatermarkVideoRoute,
   ApiPublicJobsTickRoute: ApiPublicJobsTickRoute,
+  ApiPublicPaymentsSweepStuckRoute: ApiPublicPaymentsSweepStuckRoute,
   ApiPublicWorkersHealthRoute: ApiPublicWorkersHealthRoute,
   ApiPublicWorkersRegisterRoute: ApiPublicWorkersRegisterRoute,
   ApiPublicCliDevicePollRoute: ApiPublicCliDevicePollRoute,
