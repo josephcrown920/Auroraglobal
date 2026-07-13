@@ -36,7 +36,7 @@ describe("durationCapMessage", () => {
     expect(durationCapMessage("free", 10)).toBeNull();
     const msg = durationCapMessage("free", 11);
     expect(msg).toMatch(/^Unsupported duration/);
-    expect(msg).toContain("Free");
+    expect(msg).toContain("Starter");
     expect(msg).toContain("10s limit");
     expect(msg).toContain("Upgrade to Pro");
   });
