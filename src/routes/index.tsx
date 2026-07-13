@@ -50,7 +50,6 @@ import { FeatureRequest } from "@/components/landing/FeatureRequest";
 import { track } from "@/lib/tracking";
 import { LandingDemoModal } from "@/components/landing/LandingDemoModal";
 import { PerformAnywhereSection } from "@/components/landing/PerformAnywhereSection";
-import { KenBurnsShowcase } from "@/components/landing/KenBurnsShowcase";
 
 const FAQ_ITEMS = [
   {
@@ -377,9 +376,6 @@ function Index() {
 
       {/* 1. Auto-scroll photo strip */}
       <PhotoStrip />
-
-      {/* 1b. Ken Burns photo showcase + text-only app sections */}
-      <KenBurnsShowcase />
 
       {/* 2. TikTok30 viral engine — 30 posts hook */}
       <ViralEngine />
