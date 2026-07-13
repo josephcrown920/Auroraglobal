@@ -21,6 +21,7 @@ import {
   markPageVisited,
 } from "@/lib/first-run";
 import { handleGenerationError, friendlyGenerationMessage } from "@/lib/error-toasts";
+import { saveAssetToDisk } from "@/lib/save";
 import { useGenerationProgress } from "@/hooks/use-generation-progress";
 import { GenerationProgress } from "@/components/ui/GenerationProgress";
 import { GenerationErrorCard } from "@/components/ui/GenerationErrorCard";
@@ -225,14 +226,14 @@ function SpeechPage() {
                 <p className="text-sm font-medium">Voiceover ready</p>
                 <p className="text-xs text-muted-foreground truncate">{script.slice(0, 60)}{script.length > 60 ? "…" : ""}</p>
               </div>
-              <a
-                href={resultUrl}
-                download="aurora-voiceover.mp3"
+              <button
+                onClick={() => saveAssetToDisk(resultUrl, "aurora-voiceover.mp3")}
                 className="text-muted-foreground hover:text-foreground"
                 title="Download"
+                type="button"
               >
                 <Download className="size-4" />
-              </a>
+              </button>
             </div>
           </section>
         )}

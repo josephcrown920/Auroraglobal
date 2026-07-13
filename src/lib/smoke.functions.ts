@@ -28,6 +28,7 @@ const STEPS = [
   "Lyric Video",
   "Avatar shot (SeedDream image)",
   "Photo Edit",
+  "Speech TTS",
 ] as const;
 
 async function assertAdmin(userId: string) {
@@ -510,12 +511,44 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       await writeCheck(run.id, 17, STEPS[16], r17);
       total += r17.cost_usd;
 
+      // 18. Speech TTS — verifies the audio generation pipeline end-to-end.
+      //     Skipped when neither ELEVENLABS_API_KEY nor the Replit AI
+      //     Integrations OpenAI proxy (gpt-audio-mini) is configured.
+      const r18: StepResult = await (async (): Promise<StepResult> => {
+        const hasElevenLabs = !!process.env.ELEVENLABS_API_KEY;
+        const hasReplitAudio =
+          !!process.env.AI_INTEGRATIONS_OPENAI_BASE_URL &&
+          !!process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+        if (!hasElevenLabs && !hasReplitAudio) {
+          return {
+            status: "skip",
+            latency_ms: 0,
+            cost_usd: 0,
+            error: "No audio provider configured — set ELEVENLABS_API_KEY or Replit AI Integrations (OpenAI) to enable",
+          };
+        }
+        const model = hasElevenLabs ? "elevenlabs/tts" : "replit/gpt-audio-mini";
+        return runStep(async () => {
+          const out = await orchestrate({
+            kind: "audio",
+            prompt: "Aurora smoke test — verifying audio generation pipeline.",
+            model,
+            userId: context.userId,
+            refId: run.id,
+          });
+          if (!out.url) throw new Error("Speech TTS returned no audio URL");
+          return { url: out.url, cost: out.costUsd, raw: { provider: out.provider, model } };
+        });
+      })();
+      await writeCheck(run.id, 18, STEPS[17], r18);
+      total += r18.cost_usd;
+
       await supabaseAdmin
         .from("smoke_runs")
         .update({
           finished_at: new Date().toISOString(),
           total_cost_usd: total,
-          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17].filter(r => r.status === "pass").length, total: 17 } as never,
+          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18].filter(r => r.status === "pass").length, total: 18 } as never,
         })
         .eq("id", run.id);
     })().catch(async (e) => {
