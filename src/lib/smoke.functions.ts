@@ -469,21 +469,28 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       await writeCheck(run.id, 15, STEPS[14], r15);
       total += r15.cost_usd;
 
-      // 16. Avatar shot (SeedDream image) — exercises the Shots tab engine path:
-      //     text-to-portrait via ByteDance/SeedDream-4 image model (same call as
-      //     generateAvatarShot with engine="seedream"). Routed through byteplus
-      //     adapter (BYTEPLUS_API_KEY) → Replicate fallback (REPLICATE_API_KEY).
-      //     No reference image — pure text-to-image, matching what the UI generates.
+      // 16. Avatar shot (SeedDream image) — exercises the full /avatar Shots-tab
+      //     code path: reserveOrchestrateRecord with SHOT_IMAGE_COST + model
+      //     constants from platform-template.functions (exactly what the UI's
+      //     generateAvatarShot server fn does for engine="seedream"). Includes the
+      //     test selfie as a reference face image so the smoke confirms the
+      //     image-input → identity-conditioned portrait path, not just text-to-image.
       const r16 = await runStep(async () => {
-        const out = await orchestrate({
-          kind: "image",
-          prompt: "smoke test: cinematic AI avatar portrait, soft studio lighting, neutral backdrop",
-          model: "fal-ai/seedream-4",
+        const { SHOT_IMAGE_COST: shotCost, SHOT_IMAGE_MODEL_SEEDREAM } =
+          await import("./platform-template.functions");
+        const { reserveOrchestrateRecord } = await import("./generate-core.server");
+        const outcome = await reserveOrchestrateRecord({
           userId: context.userId,
-          refId: run.id,
+          kind: "image",
+          cost: shotCost,
+          reason: "smoke_avatar_shot",
+          prompt: "smoke test: cinematic AI avatar portrait, soft studio lighting, neutral backdrop",
+          model: SHOT_IMAGE_MODEL_SEEDREAM,
+          imageUrls: [TEST_SELFIE_URL],
         });
-        if (!out.url) throw new Error("Avatar shot returned no image URL");
-        return { url: out.url, cost: out.costUsd, raw: { provider: out.provider } };
+        if (!outcome.ok) throw new Error(outcome.error ?? "Avatar shot dispatch failed");
+        if (!outcome.url) throw new Error("Avatar shot returned no image URL");
+        return { url: outcome.url, cost: outcome.costUsd ?? shotCost, raw: { provider: outcome.provider } };
       });
       await writeCheck(run.id, 16, STEPS[15], r16);
       total += r16.cost_usd;
