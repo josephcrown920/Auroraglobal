@@ -511,6 +511,8 @@ const OrchestrateSchema = z.object({
   kind: z.enum(["image", "video", "text", "audio"]),
   prompt: z.string().max(4000).optional(),
   imageUrls: z.array(z.string().url()).max(6).optional(),
+  videoUrl: z.string().url().optional(),
+  xaiMode: z.enum(["image-to-video", "edit-video", "reference-to-video", "ugc-lipsync"]).optional(),
   duration: z.number().int().min(3).max(15).optional(),
   resolution: z.enum(["480p", "720p", "1080p", "2160p"]).optional(),
   model: z.string().max(120).optional(),
@@ -573,8 +575,9 @@ export const orchestrateGenerate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => OrchestrateSchema.parse(d))
   .handler(async ({ context, data }) => {
-    // SSRF guard for any reference image URLs.
+    // SSRF guard for any reference image/video URLs.
     for (const url of data.imageUrls ?? []) assertTrustedUrl(url);
+    if (data.videoUrl) assertTrustedUrl(data.videoUrl);
 
     const kind = data.kind as GenerateKind;
 
@@ -628,14 +631,16 @@ export const orchestrateGenerate = createServerFn({ method: "POST" })
       kind,
       prompt: data.prompt,
       imageUrls: data.imageUrls,
+      videoUrl: data.videoUrl,
       duration: effDuration,
       resolution: effResolution,
       model: data.model,
       params:
-        data.voiceId || data.orientation
+        data.voiceId || data.orientation || data.xaiMode
           ? {
               ...(data.voiceId ? { voiceId: data.voiceId } : {}),
               ...(data.orientation ? { orientation: data.orientation } : {}),
+              ...(data.xaiMode ? { xaiMode: data.xaiMode === "ugc-lipsync" ? "image-to-video" : data.xaiMode } : {}),
             }
           : undefined,
       cost,
