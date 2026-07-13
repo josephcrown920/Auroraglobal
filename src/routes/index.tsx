@@ -338,10 +338,14 @@ function Index() {
               { src: "/gallery/josh-neon-tech.png",          label: "Neon Dreams" },
               { src: "/gallery/josh-blue-portrait.png",      label: "Rembrandt" },
               { src: "/gallery/violet-haze.webp",            label: "Violet Haze" },
-            ].map((photo) => (
+            ].map((photo, i) => (
               <div
                 key={photo.src}
                 className="relative aspect-[3/4] rounded-2xl overflow-hidden border border-white/10 bg-white/5 group"
+                style={{
+                  animation: `photo-float ${2.4 + i * 0.28}s ease-in-out infinite alternate`,
+                  animationDelay: `${i * 0.15}s`,
+                }}
               >
                 <img
                   src={photo.src}
