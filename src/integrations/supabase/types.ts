@@ -76,6 +76,7 @@ export type Database = {
           id: string
           plan: Json | null
           role: string
+          skill_meta: Json | null
           user_id: string
         }
         Insert: {
@@ -84,6 +85,7 @@ export type Database = {
           id?: string
           plan?: Json | null
           role: string
+          skill_meta?: Json | null
           user_id: string
         }
         Update: {
@@ -92,6 +94,7 @@ export type Database = {
           id?: string
           plan?: Json | null
           role?: string
+          skill_meta?: Json | null
           user_id?: string
         }
         Relationships: []
@@ -138,16 +141,19 @@ export type Database = {
       agent_user_memory: {
         Row: {
           memory: string
+          structured_memory: Json | null
           updated_at: string
           user_id: string
         }
         Insert: {
           memory?: string
+          structured_memory?: Json | null
           updated_at?: string
           user_id: string
         }
         Update: {
           memory?: string
+          structured_memory?: Json | null
           updated_at?: string
           user_id?: string
         }
