@@ -57,6 +57,14 @@ function makeDeps(orchestrateImpl?: RenderDeps["orchestrate"]) {
       if (name === "finalize_sync_render") return { data: `gen_${++genSeq}`, error: null };
       return { data: null, error: null };
     },
+    // Inject a pass-through daily budget dep so assertDailyBudget never calls
+    // supabaseAdmin directly.  Without this, the leaked supabaseAdmin mock from
+    // api-workers-*.test.ts (which has no .from() method) throws in the full
+    // test suite, causing every character item to settle as rejected → succeeded:0.
+    dailyBudget: {
+      getProfile: async () => null,     // null → no limit set → skip check
+      getLedgerRows: async () => [],    // not reached when no limit
+    },
     orchestrate:
       orchestrateImpl ??
       (async (req) => {

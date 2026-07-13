@@ -191,11 +191,23 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
           // inserting the `payments` row (retries with backoff, then recovers
           // the row from the webhook's own metadata) so a paid customer never
           // loses their credits. See paystack-webhook.server.ts.
+          // Paystack retry schedule (confirmed against official docs, 2026-07):
+          //   Live mode — every 3 min for the first 4 attempts, then hourly
+          //               for up to 72 hours total (~67 hourly retries).
+          //   Test mode — hourly for 10 hours.
+          //   Timeout   — 30 seconds per attempt.
+          // Any non-2xx response (including 409) counts as a failed delivery
+          // and triggers the next retry.  After 72 h the event is permanently
+          // abandoned by Paystack.  The /api/public/payments/sweep-stuck cron
+          // endpoint (runs every 6 h) detects payments still stuck in "pending"
+          // beyond the 72-hour window and logs a STUCK_PAYMENT alert so an
+          // operator can intervene manually.
+          const ref = event.data.reference ?? "(unknown)";
           try {
             await processPaymentSuccess({
               event: event.event,
               data: {
-                reference: event.data.reference ?? "",
+                reference: ref,
                 status: event.data.status ?? "",
                 amount: event.data.amount,
                 metadata: event.data.metadata,
@@ -205,8 +217,9 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
             // Payment row still hasn't appeared after retries and the webhook
             // carried no recovery metadata — return a retriable (non-2xx)
             // response so Paystack redelivers instead of us silently dropping
-            // the charge.
-            console.error("[paystack-webhook] processPaymentSuccess failed", err);
+            // the charge.  Include the reference so operators can correlate
+            // repeated failures for the same charge across log lines.
+            console.error(`[paystack-webhook] RETRY_NEEDED ref=${ref}`, err);
             return new Response("retry", { status: 409 });
           }
         }
