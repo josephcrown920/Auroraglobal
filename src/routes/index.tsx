@@ -42,7 +42,7 @@ import { GetReadyWithMe } from "@/components/landing/GetReadyWithMe";
 import { TrendingTemplatesStrip } from "@/components/landing/TrendingTemplatesStrip";
 import { PhotoStrip } from "@/components/landing/PhotoStrip";
 import { ColorsTeaser } from "@/components/landing/ColorsTeaser";
-import { JoshSlideshow } from "@/components/studio/JoshSlideshow";
+import { CreatorEconomySection } from "@/components/landing/CreatorEconomySection";
 
 import { SupercomputerSection } from "@/components/landing/ScreenshotSections";
 import { FeatureRequest } from "@/components/landing/FeatureRequest";
@@ -278,189 +278,133 @@ function Index() {
       {/* Spacer for fixed header */}
       <div className="h-20" />
 
-      {/* By Artists for Artists */}
-      <div className="relative px-4 md:px-8 py-6">
-        <div className="relative max-w-4xl mx-auto rounded-[28px] overflow-hidden border border-white/8 bg-gradient-to-br from-white/[0.03] to-transparent px-6 py-12 md:px-12 md:py-16 text-center">
-          {/* glow */}
-          <div aria-hidden className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] rounded-full bg-primary/20 blur-[100px]" />
-          <div className="relative">
+      {/* ── Hero — TikTok viral hook ────────────────────────────────────── */}
+      <section className="relative px-6 md:px-12 pt-4 pb-10">
+        <div className="max-w-6xl mx-auto grid gap-10 items-center" style={{ gridTemplateColumns: "1fr" }}>
 
+          {/* Left: copy */}
+          <div>
             {/* kicker */}
-            <p className="text-[11px] uppercase tracking-[0.35em] text-primary/70 mb-5 font-semibold">
-              ✦ Aurora Studio ✦
-            </p>
-
-            {/* headline */}
-            <h2 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[0.95] uppercase">
-              <span className="block text-white">By Artists,</span>
-              <span className="block aurora-gradient-text">For Artists.</span>
-            </h2>
-
-            {/* genre/creator identity tags */}
-            <div className="mt-7 flex flex-wrap justify-center gap-2">
-              {["Afrobeats", "Trap & Drill", "R&B", "Pop", "Dance", "Hip-Hop", "Dancehall", "Gospel", "Amapiano"].map((g) => (
-                <span
-                  key={g}
-                  className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] font-medium text-white/55"
-                >
-                  {g}
-                </span>
-              ))}
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-[11px] font-semibold tracking-wide mb-6">
+              <Sparkles className="size-3" /> Welcome to Aurora · Creativity lives here
             </div>
 
-            {/* proof stats */}
-            <div className="mt-8 flex justify-center gap-0 divide-x divide-white/10 rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden max-w-sm mx-auto">
-              {[
-                { n: "40+", l: "AI models" },
-                { n: "30", l: "Posts per run" },
-                { n: "5", l: "Platforms" },
-              ].map((s) => (
-                <div key={s.l} className="flex-1 py-4 flex flex-col items-center gap-0.5">
-                  <span className="text-xl font-black text-white">{s.n}</span>
-                  <span className="text-[9px] uppercase tracking-wider text-white/35">{s.l}</span>
-                </div>
-              ))}
-            </div>
+            {/* headline — white + solid violet, no pink drift */}
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[1.05]">
+              <span className="text-white">Turn a selfie into a</span>{" "}
+              <span className="text-primary">cinematic performance.</span>
+            </h1>
 
-            {/* tagline */}
-            <p className="mt-6 text-white/40 text-sm max-w-xs mx-auto leading-relaxed">
-              Built by creators who needed it.<br />For creators who deserve it.
+            {/* sub */}
+            <p className="mt-5 text-white/60 text-base md:text-lg leading-relaxed max-w-lg">
+              One studio. Every model that matters — Seedance 2.0, Kling 3.0, Nano Banana Pro,
+              Seedream 4.5, Sync lip-sync. Drop a photo, pick a vibe, get magazine-grade shots
+              and motion in seconds.
             </p>
 
-            {/* CTA */}
-            <div className="mt-7 flex flex-col items-center gap-3">
+            {/* CTAs */}
+            <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 to="/studio"
-                onClick={() => void track("manifesto_cta_click")}
-                className="group inline-flex items-center gap-2.5 px-8 py-3.5 text-base font-bold rounded-full text-white no-underline bg-[image:var(--gradient-hero)] shadow-[var(--shadow-glow-soft)] hover:brightness-110 hover:scale-[1.02] transition-all"
+                onClick={() => void track("hero_cta_click", { variant: "primary" })}
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full font-bold text-white no-underline bg-[image:var(--gradient-hero)] hover:brightness-110 shadow-[var(--shadow-glow-soft)] transition-all hover:scale-[1.02]"
               >
-                Start creating
-                <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+                <Play className="size-4 fill-current" /> Start creating — 5 Aura
               </Link>
-              <p className="text-[11px] text-white/30 tracking-wide">
-                No credit card · Starter Aura included · Cancel anytime
-              </p>
+              <a
+                href="#pricing"
+                onClick={() => void track("hero_cta_click", { variant: "pricing" })}
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full font-medium text-white/80 no-underline aurora-glass-strong hover:brightness-110 transition-all"
+              >
+                See pricing
+              </a>
+            </div>
+
+            {/* micro trust */}
+            <div className="mt-6 flex flex-wrap gap-4 text-[11px] text-white/40 font-medium">
+              <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-primary inline-block" /> 5 image models</span>
+              <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-primary inline-block" /> 4 video models</span>
+              <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-primary inline-block" /> Lip-sync built-in</span>
+              <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-primary inline-block" /> 12,000+ creators</span>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* 0a. Direct your shoot — auto-scrolling slideshow */}
-      <section className="px-6 md:px-12 pt-6 pb-2">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">
-            Direct your{" "}
-            <span className="aurora-gradient-text">
-              shoot.
-            </span>
-          </h2>
-          <p className="text-white/65 mt-2">
-            Drop references → write direction → generate. That's it.
-          </p>
-          <div className="mt-6">
-            <JoshSlideshow />
-          </div>
-
-          {/* Real performance shots — mini reference boxes */}
-          <div className="mt-3 flex gap-2">
+          {/* Right: 2×3 photo grid */}
+          <div className="grid grid-cols-3 gap-2 mt-8 sm:mt-0">
             {[
-              { src: "/gallery/josh-blue-portrait.png",    label: "AI portrait" },
-              { src: "/josh/josh-concert-performance.webp",label: "Live concert" },
-              { src: "/gallery/josh-pink-mic.png",         label: "Pink mic" },
-              { src: "/gallery/violet-haze.webp",          label: "Violet Haze" },
-              { src: "/josh/josh-pink-leather-mic.jpg",    label: "Pink leather" },
-            ].map((p, i) => (
+              { src: "/gallery/josh-pink-mic.png",           label: "Concert Wash" },
+              { src: "/josh/josh-concert-performance.webp",  label: "Editorial" },
+              { src: "/josh/josh-orange-performance.jpg",    label: "Golden Hour" },
+              { src: "/gallery/josh-neon-tech.png",          label: "Neon Dreams" },
+              { src: "/gallery/josh-blue-portrait.png",      label: "Rembrandt" },
+              { src: "/gallery/violet-haze.webp",            label: "Violet Haze" },
+            ].map((photo) => (
               <div
-                key={p.src}
-                className="group relative flex-1 aspect-square rounded-xl overflow-hidden border border-white/10 bg-black/40 cursor-pointer"
-                style={{
-                  animation: `photo-float ${2.4 + i * 0.3}s ease-in-out infinite alternate`,
-                  animationDelay: `${i * 0.18}s`,
-                }}
+                key={photo.src}
+                className="relative aspect-[3/4] rounded-2xl overflow-hidden border border-white/10 bg-white/5 group"
               >
                 <img
-                  src={p.src}
-                  alt={p.label}
-                  className="absolute inset-0 w-full h-full object-cover transition-all duration-500 group-hover:scale-110 group-hover:brightness-110"
+                  src={photo.src}
+                  alt={photo.label}
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
                   loading="lazy"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent pointer-events-none" />
-                <div className="absolute inset-x-0 bottom-0 px-2 py-1.5">
-                  <p className="text-[9px] font-medium text-white/80 truncate">{p.label}</p>
-                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                <span className="absolute bottom-2 left-2 text-[9px] font-semibold uppercase tracking-widest text-white/70">
+                  {photo.label}
+                </span>
               </div>
             ))}
-          </div>
-
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Link
-              to="/studio"
-              onClick={() => void track("hero_start_click")}
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-full text-white no-underline bg-[image:var(--gradient-hero)] shadow-[var(--shadow-glow-soft)] hover:brightness-110"
-            >
-              <Sparkles className="size-4" /> Start creating
-            </Link>
-            <Link
-              to="/templates"
-              onClick={() => void track("hero_templates_click")}
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-full no-underline aurora-glass-strong text-foreground hover:brightness-110"
-            >
-              <Wand2 className="size-4" /> Try a template
-            </Link>
-            <button
-              type="button"
-              onClick={() => setDemoOpen(true)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-full bg-white/5 border border-white/10 text-white/80 hover:text-white hover:border-white/20 transition-colors"
-            >
-              <Play className="size-3.5 fill-current" /> See it in action
-            </button>
           </div>
         </div>
       </section>
 
-      {/* 1a. Auto-scroll photo strip */}
+      {/* 1. Auto-scroll photo strip */}
       <PhotoStrip />
 
-      {/* 1. Templates strip — right below hero */}
-      <TrendingTemplatesStrip />
-
-      {/* 2. Trust bar — earn credibility before asking for anything */}
-      <TrustBar />
-
-      {/* 3. Services — show what Aurora does */}
-      <ServicesGrid />
-
-      {/* 4. Contact form — ask for action while interest is high */}
-      <HeroContactForm greeting={greeting} />
-
-      {/* 5. TikTok30 viral engine */}
+      {/* 2. TikTok30 viral engine — 30 posts hook */}
       <ViralEngine />
 
-      {/* 6. Canvas + finished workflows + UGC Factory */}
-      <CanvasWorkflowShowcase />
-
-      {/* 7. Perform Anywhere + Motion Control */}
+      {/* 3. Perform / Record Anywhere */}
       <PerformAnywhereSection />
 
-      {/* 8. Colors Studio showcase */}
+      {/* 4. Colors Studio */}
       <ColorsTeaser />
 
-      {/* 9. Get Ready With Me */}
+      {/* 5. Multi-angle photoshoot */}
+      <ServicesGrid />
+
+      {/* 6. Canvas + UGC */}
+      <CanvasWorkflowShowcase />
+
+      {/* 7. Adult / creator economy */}
+      <CreatorEconomySection />
+
+      {/* 8. Templates strip */}
+      <TrendingTemplatesStrip />
+
+      {/* 9. Trust bar */}
+      <TrustBar />
+
+      {/* 10. Contact form */}
+      <HeroContactForm greeting={greeting} />
+
+      {/* 11. Get Ready With Me */}
       <GetReadyWithMe />
 
-      {/* 10. Supercomputer / product hero */}
+      {/* 12. Supercomputer / product hero */}
       <SupercomputerSection />
 
-      {/* 11. Why us */}
+      {/* 13. Why us */}
       <WhyUs />
 
-      {/* 12. Reviews */}
+      {/* 14. Reviews */}
       <Testimonials />
 
-      {/* 13. Affiliate rewards */}
+      {/* 15. Affiliate rewards */}
       <AffiliateRewardSection />
 
-      {/* 14. Final CTA */}
+      {/* 16. Final CTA */}
       <FinalCTA />
 
       {/* CLI section — developer-focused, re-enable when CLI is consumer-ready */}
