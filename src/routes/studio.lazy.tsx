@@ -422,7 +422,7 @@ function StudioPage() {
   }, [user, demoUrl, recipeFired, genFn, model, qc]);
 
   const checkoutMut = useMutation({
-    mutationFn: async (plan: "starter" | "creator" | "studio") => checkoutFn({ data: { plan, currency } }),
+    mutationFn: async (plan: keyof typeof PLANS) => checkoutFn({ data: { plan, currency } }),
     onSuccess: (res) => {
       window.location.href = res.authorizationUrl;
     },

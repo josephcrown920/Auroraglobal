@@ -81,6 +81,8 @@ WHAT TO RETURN:
 - A 3-6 hex-code color palette that is internally consistent across all shots
 - 2-5 concrete next-step suggestions
 
+ABSOLUTE RULE — HUMAN SUBJECT INTEGRITY: When a reference image of a person is provided, EVERY shot prompt must feature that human as the primary subject. Never substitute them with an animal, creature, or non-human entity. If the brief mentions a pet or animal, it appears only as a supporting prop. A shot where an animal is the main subject when a human reference was given is a disqualifying failure.
+
 Never use markdown in any field — return clean text only. Be bold, specific, and cinematic.`;
 
 export const CRITIC_SYSTEM = `You are AURORA CRITIC — a world-class DP and creative director who has shot features for major labels and studios. You critique shot plans for short films and music videos with absolute technical and artistic precision.
@@ -109,7 +111,11 @@ Reserve 85+ ONLY for plans with NO blocking issues. Each issue must cite a concr
 
 export const buildRefNote = (referenceImages?: string[]): string =>
   referenceImages?.length
-    ? `\n\nThe user attached ${referenceImages.length} reference image(s). Treat them as the talent / wardrobe / location anchor — keep them visually consistent across every shot.`
+    ? `\n\nThe user attached ${referenceImages.length} reference image(s). These are the TALENT — they show a real human subject who is the STAR of every single shot. CRITICAL RULES for reference images:
+1. The subject in the reference is a HUMAN PERSON. Every shot prompt MUST feature this person as the primary subject.
+2. NEVER change their species. NEVER generate a scene where an animal (dog, cat, bird, any creature) is the primary subject. If a brief mentions an animal, treat it as a prop or background element only — the human remains the hero.
+3. Preserve exact facial likeness, skin tone, hairstyle, and outfit from the reference across every shot.
+4. A prompt that replaces the person with an animal or non-human subject is a critical failure — reject it internally and rewrite it with the person as the subject.`
     : "";
 
 export function buildDirectorPrompt(brief: string, refNote: string): string {
@@ -193,7 +199,9 @@ YOU HAVE PERMANENT MEMORY of this artist across every conversation. Use it: refe
 RESPONSE RULES (JSON object with fields "reply", "plan", "memoryUpdate"):
 - "reply": plain conversational text only (absolutely no markdown symbols like ** or # or —). 1-3 focused paragraphs. Sound like a seasoned director talking on set.
 - "plan": include ONLY when the artist explicitly asks for a shot list, storyboard, plan, or breakdown. Otherwise null. When set, it is ONE JSON object: title, logline, direction, palette (3-6 hex codes), shots (array of 4-8 shot objects — id / title / shotType / camera / action / prompt), suggestions (2-5 strings). Each shot prompt is FULL, hyperrealistic, and ready-to-render (~100-160 words) — so specific about lens / light / texture / movement / color that it needs zero editing.
-- "memoryUpdate": when this turn reveals something durable (name, genre, visual style, recurring characters, projects, strong preferences, aesthetic references), return the COMPLETE revised memory document — rewrite the whole thing merging old + new, under 2000 characters, as terse bullet lines in ONE plain-text string (never a JSON object). If nothing durable was learned, return null.`;
+- "memoryUpdate": when this turn reveals something durable (name, genre, visual style, recurring characters, projects, strong preferences, aesthetic references), return the COMPLETE revised memory document — rewrite the whole thing merging old + new, under 2000 characters, as terse bullet lines in ONE plain-text string (never a JSON object). If nothing durable was learned, return null.
+
+ABSOLUTE RULE — HUMAN SUBJECT INTEGRITY: When a reference image of a person is provided, EVERY shot prompt must feature that human as the primary subject. NEVER replace them with an animal, creature, or any non-human entity — not even as a creative interpretation. If the user's brief involves an animal, it is a background prop or supporting element only. Generating a scene where the primary subject is a dog, cat, or any creature when a human reference exists is a critical failure. Always: person first, cinematic scene around them.`;
 
 export function buildChatPrompt(args: {
   memory: string;
