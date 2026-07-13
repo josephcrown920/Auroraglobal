@@ -72,6 +72,7 @@ import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/publi
 import { Route as ApiPublicLifecycleEmailsRouteImport } from './routes/api/public/lifecycle-emails'
 import { Route as ApiPublicGenerateRouteImport } from './routes/api/public/generate'
 import { Route as ApiPublicFreeMonthlyGrantRouteImport } from './routes/api/public/free-monthly-grant'
+import { Route as ApiPublicCheckApiBalancesRouteImport } from './routes/api/public/check-api-balances'
 import { Route as ApiPublicWorkersRegisterRouteImport } from './routes/api/public/workers/register'
 import { Route as ApiPublicWorkersHealthRouteImport } from './routes/api/public/workers/health'
 import { Route as ApiPublicJobsTickRouteImport } from './routes/api/public/jobs/tick'
@@ -403,6 +404,12 @@ const ApiPublicFreeMonthlyGrantRoute =
     path: '/api/public/free-monthly-grant',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCheckApiBalancesRoute =
+  ApiPublicCheckApiBalancesRouteImport.update({
+    id: '/api/public/check-api-balances',
+    path: '/api/public/check-api-balances',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicWorkersRegisterRoute =
   ApiPublicWorkersRegisterRouteImport.update({
     id: '/api/public/workers/register',
@@ -494,6 +501,7 @@ export interface FileRoutesByFullPath {
   '/r/$token': typeof RTokenRoute
   '/cli/': typeof CliIndexRoute
   '/guides/': typeof GuidesIndexRoute
+  '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
@@ -565,6 +573,7 @@ export interface FileRoutesByTo {
   '/r/$token': typeof RTokenRoute
   '/cli': typeof CliIndexRoute
   '/guides': typeof GuidesIndexRoute
+  '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
@@ -637,6 +646,7 @@ export interface FileRoutesById {
   '/r/$token': typeof RTokenRoute
   '/cli/': typeof CliIndexRoute
   '/guides/': typeof GuidesIndexRoute
+  '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
@@ -710,6 +720,7 @@ export interface FileRouteTypes {
     | '/r/$token'
     | '/cli/'
     | '/guides/'
+    | '/api/public/check-api-balances'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
     | '/api/public/lifecycle-emails'
@@ -781,6 +792,7 @@ export interface FileRouteTypes {
     | '/r/$token'
     | '/cli'
     | '/guides'
+    | '/api/public/check-api-balances'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
     | '/api/public/lifecycle-emails'
@@ -852,6 +864,7 @@ export interface FileRouteTypes {
     | '/r/$token'
     | '/cli/'
     | '/guides/'
+    | '/api/public/check-api-balances'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
     | '/api/public/lifecycle-emails'
@@ -918,6 +931,7 @@ export interface RootRouteChildren {
   RTokenRoute: typeof RTokenRoute
   CliIndexRoute: typeof CliIndexRoute
   GuidesIndexRoute: typeof GuidesIndexRoute
+  ApiPublicCheckApiBalancesRoute: typeof ApiPublicCheckApiBalancesRoute
   ApiPublicFreeMonthlyGrantRoute: typeof ApiPublicFreeMonthlyGrantRoute
   ApiPublicGenerateRoute: typeof ApiPublicGenerateRoute
   ApiPublicLifecycleEmailsRoute: typeof ApiPublicLifecycleEmailsRoute
@@ -1375,6 +1389,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicFreeMonthlyGrantRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/check-api-balances': {
+      id: '/api/public/check-api-balances'
+      path: '/api/public/check-api-balances'
+      fullPath: '/api/public/check-api-balances'
+      preLoaderRoute: typeof ApiPublicCheckApiBalancesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/workers/register': {
       id: '/api/public/workers/register'
       path: '/api/public/workers/register'
@@ -1492,6 +1513,7 @@ const rootRouteChildren: RootRouteChildren = {
   RTokenRoute: RTokenRoute,
   CliIndexRoute: CliIndexRoute,
   GuidesIndexRoute: GuidesIndexRoute,
+  ApiPublicCheckApiBalancesRoute: ApiPublicCheckApiBalancesRoute,
   ApiPublicFreeMonthlyGrantRoute: ApiPublicFreeMonthlyGrantRoute,
   ApiPublicGenerateRoute: ApiPublicGenerateRoute,
   ApiPublicLifecycleEmailsRoute: ApiPublicLifecycleEmailsRoute,
