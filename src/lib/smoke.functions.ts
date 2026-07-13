@@ -511,9 +511,10 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       await writeCheck(run.id, 17, STEPS[16], r17);
       total += r17.cost_usd;
 
-      // 18. Speech TTS — exercises the ElevenLabs audio pipeline end-to-end
-      //     via the same reserveOrchestrateRecord path that /api/public/generate
-      //     uses internally: reserve credits → ElevenLabs TTS → commit.
+      // 18. Speech TTS — calls the real /api/public/generate HTTP route with
+      //     kind:"audio" + model:"elevenlabs/tts" and asserts a non-empty MP3
+      //     URL, exercising the full endpoint path (schema validation, auth,
+      //     credit accounting, and ElevenLabs adapter).
       //     Skipped when ELEVENLABS_API_KEY is not configured.
       const r18: StepResult = await (async (): Promise<StepResult> => {
         if (!process.env.ELEVENLABS_API_KEY) {
@@ -525,25 +526,40 @@ export const runSmokeTest = createServerFn({ method: "POST" })
           };
         }
         return runStep(async () => {
-          const { reserveOrchestrateRecord } = await import("./generate-core.server");
-          const { PRICING } = await import("./pricing");
-          const outcome = await reserveOrchestrateRecord({
-            userId: context.userId,
-            kind: "audio",
-            model: "elevenlabs/tts",
-            prompt: "Aurora smoke test — verifying ElevenLabs TTS audio pipeline.",
-            params: { voiceId: "21m00Tcm4TlvDq8ikWAM" },
-            cost: PRICING.base.audio,
-            reason: "smoke_speech_tts",
-            pinnedModelOnly: true,
-          });
-          if (!outcome.ok) throw new Error(`Speech TTS failed: ${outcome.error}`);
-          const url = outcome.url ?? "";
-          if (!url) throw new Error("Speech TTS returned no audio URL");
-          if (!url.includes("mp3") && !url.includes("audio") && !url.includes("tts")) {
-            throw new Error(`Speech TTS URL does not look like an audio file: ${url.slice(0, 120)}`);
+          // Forward the caller's Bearer token so /api/public/generate can
+          // authenticate the request with the same user identity that triggered
+          // the smoke run.
+          const { getRequest } = await import("@tanstack/react-start/server");
+          const req = getRequest();
+          const authHeader = req.headers.get("authorization") ?? req.headers.get("Authorization") ?? "";
+          if (!authHeader.startsWith("Bearer ")) {
+            throw new Error("Smoke step 18: could not extract Bearer token from request context");
           }
-          return { url, cost: outcome.costUsd, raw: { provider: outcome.provider } };
+          const port = process.env.PORT ?? "8080";
+          const endpoint = `http://localhost:${port}/api/public/generate`;
+          const res = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: authHeader,
+            },
+            body: JSON.stringify({
+              kind: "audio",
+              model: "elevenlabs/tts",
+              prompt: "Aurora smoke test — verifying ElevenLabs TTS audio pipeline.",
+              params: { voiceId: "21m00Tcm4TlvDq8ikWAM" },
+            }),
+          });
+          const json = (await res.json()) as { ok?: boolean; url?: string; error?: string; estimatedCostUsd?: number; provider?: string };
+          if (!res.ok || !json.ok) {
+            throw new Error(`Speech TTS /api/public/generate returned ${res.status}: ${json.error ?? "unknown error"}`);
+          }
+          const url = json.url ?? "";
+          if (!url) throw new Error("Speech TTS returned no audio URL");
+          if (!url.endsWith(".mp3") && !url.includes(".mp3?")) {
+            throw new Error(`Speech TTS URL does not appear to be an MP3 file: ${url.slice(0, 120)}`);
+          }
+          return { url, cost: json.estimatedCostUsd ?? 0, raw: { provider: json.provider } };
         });
       })();
       await writeCheck(run.id, 18, STEPS[17], r18);
