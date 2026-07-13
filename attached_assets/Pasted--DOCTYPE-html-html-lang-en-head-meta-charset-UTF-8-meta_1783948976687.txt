@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NBA JOSH — Looping Video Production Plan</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red: #e63b2e;
+    --gold: #f0c040;
+    --dark: #080808;
+    --mid: #111;
+    --panel: #161616;
+    --border: #222;
+    --text: #efefef;
+    --muted: #555;
+    --green: #2ecc71;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--dark);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    padding: 24px 16px 48px;
+    line-height: 1.6;
+  }
+
+  .doc {
+    max-width: 820px;
+    margin: 0 auto;
+  }
+
+  /* ── HEADER ── */
+  .cover {
+    border: 1px solid var(--border);
+    background: var(--mid);
+    padding: 36px 32px;
+    margin-bottom: 2px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cover::after {
+    content: 'PLAN';
+    position: absolute;
+    right: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 140px;
+    color: var(--red);
+    opacity: 0.04;
+    pointer-events: none;
+    line-height: 1;
+  }
+
+  .cover-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 4px;
+    color: var(--red);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .cover h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(36px, 8vw, 64px);
+    letter-spacing: 3px;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .cover h1 span { color: var(--red); }
+
+  .cover-sub {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+  }
+
+  .cover-meta {
+    margin-top: 20px;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .meta-item { font-size: 12px; }
+  .meta-item .k { color: var(--muted); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; display: block; margin-bottom: 2px; }
+  .meta-item .v { color: var(--gold); font-family: 'Space Mono', monospace; font-size: 11px; }
+
+  /* ── SECTION ── */
+  .section {
+    border: 1px solid var(--border);
+    border-top: none;
+    background: var(--mid);
+  }
+
+  .section-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .section-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    color: var(--red);
+    line-height: 1;
+    min-width: 28px;
+  }
+
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 2px;
+    color: var(--text);
+  }
+
+  .section-body {
+    padding: 20px 24px;
+  }
+
+  /* ── CONCEPT BLOCK ── */
+  .concept-box {
+    background: var(--panel);
+    border-left: 3px solid var(--red);
+    padding: 16px 18px;
+    font-size: 13px;
+    color: #bbb;
+    line-height: 1.9;
+    margin-bottom: 16px;
+  }
+
+  .concept-box strong { color: var(--text); }
+
+  /* ── LAYER CARDS ── */
+  .layers {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  @media (max-width: 560px) { .layers { grid-template-columns: 1fr; } }
+
+  .layer-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 16px 18px;
+  }
+
+  .layer-tag {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: inline-block;
+    padding: 3px 8px;
+  }
+
+  .layer-tag.a { background: var(--red); color: white; }
+  .layer-tag.b { background: #1a3a5c; color: #5a9fd4; border: 1px solid #1e4a70; }
+
+  .layer-card h3 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    color: var(--text);
+  }
+
+  .layer-card ul {
+    list-style: none;
+    font-size: 12px;
+    color: #aaa;
+    line-height: 1.9;
+  }
+
+  .layer-card ul li::before {
+    content: '→ ';
+    color: var(--red);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* ── PROMPT BLOCKS ── */
+  .prompt-block {
+    background: #0a0a0a;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--gold);
+    padding: 14px 16px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    line-height: 1.9;
+    color: #ccc;
+    margin-bottom: 12px;
+    position: relative;
+  }
+
+  .prompt-label {
+    position: absolute;
+    top: -1px;
+    right: 0;
+    background: var(--gold);
+    color: #000;
+    font-size: 8px;
+    letter-spacing: 2px;
+    padding: 3px 8px;
+    font-family: 'Space Mono', monospace;
+    text-transform: uppercase;
+  }
+
+  .prompt-block .hi { color: var(--gold); }
+  .prompt-block .key { color: var(--red); }
+
+  /* ── SETTINGS TABLE ── */
+  .settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  @media (max-width: 460px) { .settings-grid { grid-template-columns: 1fr; } }
+
+  .setting-row {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+  }
+
+  .setting-row .sk { color: var(--muted); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; }
+  .setting-row .sv { color: var(--gold); font-family: 'Space Mono', monospace; font-size: 11px; }
+
+  /* ── TIMELINE ── */
+  .timeline {
+    position: relative;
+    padding-left: 24px;
+    margin-bottom: 8px;
+  }
+
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 6px;
+    bottom: 6px;
+    width: 1px;
+    background: var(--border);
+  }
+
+  .tl-item {
+    position: relative;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+
+  .tl-item::before {
+    content: '';
+    position: absolute;
+    left: -20px;
+    top: 6px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--red);
+    border: 2px solid var(--dark);
+  }
+
+  .tl-item .tl-time {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--red);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+
+  .tl-item .tl-title {
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .tl-item .tl-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* ── CAPCUT STEPS ── */
+  .steps {
+    counter-reset: step;
+  }
+
+  .step-item {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 14px;
+    align-items: flex-start;
+  }
+
+  .step-circle {
+    counter-increment: step;
+    min-width: 28px;
+    height: 28px;
+    background: var(--red);
+    color: white;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .step-content .step-heading {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 3px;
+  }
+
+  .step-content .step-note {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .step-content .step-note code {
+    font-family: 'Space Mono', monospace;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 1px 5px;
+    font-size: 10px;
+    color: var(--gold);
+  }
+
+  /* ── TOOL TABLE ── */
+  .tool-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-bottom: 12px;
+  }
+
+  .tool-table th {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    text-align: left;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+
+  .tool-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: #bbb;
+    vertical-align: top;
+  }
+
+  .tool-table tr:last-child td { border-bottom: none; }
+  .tool-table .tool-name { color: var(--gold); font-family: 'Space Mono', monospace; }
+  .tool-table .free-tag { color: var(--green); font-size: 10px; }
+  .tool-table .paid-tag { color: var(--red); font-size: 10px; }
+
+  /* ── TIPS ── */
+  .tip {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--gold);
+    padding: 12px 16px;
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 8px;
+    line-height: 1.6;
+  }
+
+  .tip strong { color: var(--gold); }
+
+  /* ── COMPOSITION DIAGRAM ── */
+  .composition {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 20px;
+    margin-bottom: 12px;
+    position: relative;
+    aspect-ratio: 16/9;
+    overflow: hidden;
+  }
+
+  .comp-zone {
+    position: absolute;
+    border: 1px dashed;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 11px;
+    padding: 8px;
+  }
+
+  .comp-zone.officers {
+    top: 5%;
+    left: 5%;
+    width: 38%;
+    height: 45%;
+    border-color: #1e4a70;
+    background: rgba(30, 74, 112, 0.15);
+    color: #5a9fd4;
+  }
+
+  .comp-zone.josh {
+    bottom: 5%;
+    right: 5%;
+    width: 40%;
+    height: 60%;
+    border-color: var(--red);
+    background: rgba(230, 59, 46, 0.08);
+    color: var(--red);
+  }
+
+  .comp-zone .zone-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+
+  .comp-zone .zone-note {
+    font-size: 9px;
+    letter-spacing: 1px;
+    opacity: 0.8;
+    text-transform: uppercase;
+  }
+
+  .comp-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--border);
+    text-align: center;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  /* ── FOOTER ── */
+  .doc-footer {
+    margin-top: 2px;
+    border: 1px solid var(--border);
+    border-top: none;
+    background: var(--panel);
+    padding: 14px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .doc-footer .brand {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 3px;
+    color: var(--muted);
+  }
+
+  .doc-footer .brand span { color: var(--red); }
+  .doc-footer .ref { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--muted); letter-spacing: 2px; }
+
+  /* ── NOTE BOX ── */
+  .note {
+    background: rgba(240, 192, 64, 0.05);
+    border: 1px solid rgba(240, 192, 64, 0.2);
+    padding: 12px 16px;
+    font-size: 12px;
+    color: #aaa;
+    line-height: 1.7;
+    margin-bottom: 8px;
+  }
+
+  .note strong { color: var(--gold); }
+</style>
+</head>
+<body>
+
+<div class="doc">
+
+  <!-- COVER -->
+  <div class="cover">
+    <div class="cover-label">Production Plan · Music Video</div>
+    <h1>LOOPING <span>OFFICERS</span><br>VIDEO PLAN</h1>
+    <div class="cover-sub">NBA JOSH · SURREAL URBAN NIGHT SCENE · 15 SECONDS</div>
+    <div class="cover-meta">
+      <div class="meta-item"><span class="k">Duration</span><span class="v">15 seconds</span></div>
+      <div class="meta-item"><span class="k">Format</span><span class="v">16:9 Cinematic</span></div>
+      <div class="meta-item"><span class="k">Layers</span><span class="v">2 + Composite</span></div>
+      <div class="meta-item"><span class="k">Primary Tool</span><span class="v">Kling v3 via fal.ai</span></div>
+      <div class="meta-item"><span class="k">Edit Tool</span><span class="v">CapCut</span></div>
+    </div>
+  </div>
+
+  <!-- 01 CONCEPT -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">01</div>
+      <div class="section-title">The Concept</div>
+    </div>
+    <div class="section-body">
+      <div class="concept-box">
+        A <strong>cinematic 15-second urban night scene</strong>. NBA Josh stands calmly in the bottom-right of frame performing his hook with relaxed, fearless energy. Behind him in the top-left, two police officers are aggressively running toward him — but they are <strong>stuck in a looping glitch</strong>, running continuously without making any progress forward.
+        <br><br>
+        The camera is <strong>completely static and locked-off</strong>. Josh remains composed, delivering his lyrics with subtle hand gestures. Midway through, tension builds as the officers keep running in place. Near the end, Josh glances back at them with a calm smirk — then casually turns and <strong>walks out of frame</strong> while the officers are still running, unable to catch him.
+      </div>
+      <div class="note">
+        <strong>Key Effect:</strong> The "loop" is not an AI trick — it is created in post by taking 2–3 seconds of officer footage and looping it for the full 15 seconds while Josh's clip plays normally. Simple, effective, surreal.
+      </div>
+    </div>
+  </div>
+
+  <!-- 02 COMPOSITION -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">02</div>
+      <div class="section-title">Frame Composition</div>
+    </div>
+    <div class="section-body">
+      <div class="composition">
+        <div class="comp-zone officers">
+          <div class="zone-label">Officers</div>
+          <div class="zone-note">Top Left · Full body · Looping</div>
+        </div>
+        <div class="comp-zone josh">
+          <div class="zone-label">NBA Josh</div>
+          <div class="zone-note">Bottom Right · Waist up · Foreground</div>
+        </div>
+        <div class="comp-center">Empty space<br>creates depth<br>+ tension</div>
+      </div>
+      <div class="tip"><strong>Why this works:</strong> The diagonal composition creates natural visual tension — officers top-left chasing toward Josh bottom-right. The empty middle space gives the frame cinematic breathing room and makes Josh feel unreachable.</div>
+    </div>
+  </div>
+
+  <!-- 03 LAYERS -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">03</div>
+      <div class="section-title">The Two Layers</div>
+    </div>
+    <div class="section-body">
+      <div class="layers">
+        <div class="layer-card">
+          <span class="layer-tag a">Layer A</span>
+          <h3>NBA Josh — Foreground</h3>
+          <ul>
+            <li>10–15 second clip</li>
+            <li>Bottom right of frame</li>
+            <li>Waist up, medium shot</li>
+            <li>Performing hook, subtle gestures</li>
+            <li>Glances over shoulder near end</li>
+            <li>Walks out of frame at close</li>
+            <li>Static camera, no movement</li>
+          </ul>
+        </div>
+        <div class="layer-card">
+          <span class="layer-tag b">Layer B</span>
+          <h3>Officers — Background</h3>
+          <ul>
+            <li>Only 2–3 seconds needed</li>
+            <li>Top left of frame</li>
+            <li>Full body, running hard</li>
+            <li>Arms pumping, leaning forward</li>
+            <li>Intense, urgent expression</li>
+            <li>This clip gets looped 5–7x</li>
+            <li>Motion blur applied in edit</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 04 PROMPTS -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">04</div>
+      <div class="section-title">AI Generation Prompts</div>
+    </div>
+    <div class="section-body">
+
+      <p style="font-size:12px;color:var(--muted);margin-bottom:14px;letter-spacing:0.5px;">Use <strong style="color:var(--text)">Kling v3 Standard — Image to Video</strong> on fal.ai for both layers. Upload character reference photo first, then paste prompt.</p>
+
+      <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--red);text-transform:uppercase;margin-bottom:8px;">Layer A Prompt — NBA Josh</div>
+      <div class="prompt-block">
+        <div class="prompt-label">COPY → KLING</div>
+        Cinematic music video scene. A <span class="hi">tall athletic Black male rapper with long red-tipped dreadlocks</span>, diamond "NBA JOSH" chain, arm tattoos, studded leather belt, black leather pants and gold watch, stands in the <span class="key">bottom right of frame</span>, shot from waist up, facing slightly left toward camera. <span class="hi">Dark wet urban street at night</span>. Performs his hook with calm fearless energy, subtle hand gestures, relaxed confidence. <span class="key">Static locked-off camera. Zero camera movement.</span> Dramatic overhead streetlight, high contrast, moody atmosphere. Near the end he glances over his left shoulder with a smirk, then turns and slowly walks out of frame. Realistic, cinematic, music video aesthetic, shallow depth of field.
+      </div>
+
+      <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:3px;color:#5a9fd4;text-transform:uppercase;margin-bottom:8px;">Layer B Prompt — Officers</div>
+      <div class="prompt-block" style="border-left-color:#1e4a70;">
+        <div class="prompt-label" style="background:#1e4a70;color:#5a9fd4;">COPY → KLING</div>
+        Two <span class="hi">white male police officers in full navy uniforms</span> with silver badges and black tactical belts run aggressively in the <span class="key">upper left of frame</span>, full body visible, running hard toward the right side of screen. Dark wet urban street at night. Arms pumping intensely, leaning forward, determined urgent expressions. <span class="hi">Dramatic high contrast night lighting. Motion blur on their bodies.</span> Static locked-off camera. Cinematic, realistic, 2–3 seconds of strong running motion.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 05 KLING SETTINGS -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">05</div>
+      <div class="section-title">Kling Generation Settings</div>
+    </div>
+    <div class="section-body">
+      <div class="settings-grid">
+        <div class="setting-row"><span class="sk">Model</span><span class="sv">kling-video/v3/standard</span></div>
+        <div class="setting-row"><span class="sk">Mode</span><span class="sv">Image to Video</span></div>
+        <div class="setting-row"><span class="sk">Layer A Duration</span><span class="sv">10 seconds</span></div>
+        <div class="setting-row"><span class="sk">Layer B Duration</span><span class="sv">5 seconds</span></div>
+        <div class="setting-row"><span class="sk">Aspect Ratio</span><span class="sv">16:9</span></div>
+        <div class="setting-row"><span class="sk">Variations</span><span class="sv">Generate 3, pick best</span></div>
+      </div>
+      <div class="tip"><strong>Tip:</strong> Upload the character reference image before pasting the prompt. If Josh's face drifts from the reference after generation, regenerate — Kling sometimes needs 2–3 attempts to lock in likeness.</div>
+    </div>
+  </div>
+
+  <!-- 06 SCENE TIMELINE -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">06</div>
+      <div class="section-title">15-Second Scene Timeline</div>
+    </div>
+    <div class="section-body">
+      <div class="timeline">
+        <div class="tl-item">
+          <div class="tl-time">0:00 – 0:03</div>
+          <div class="tl-title">Opening</div>
+          <div class="tl-desc">Josh appears bottom-right, performing calmly. Officers begin running in top-left. Loop starts.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-time">0:03 – 0:08</div>
+          <div class="tl-title">Build</div>
+          <div class="tl-desc">Officers continue looping. Josh performs hook with confident hand gestures. No one is gaining ground.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-time">0:08 – 0:12</div>
+          <div class="tl-title">Tension Peak</div>
+          <div class="tl-desc">Officers still stuck in the loop. Running hard, going nowhere. The surreal glitch energy is obvious. Josh completely unbothered.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-time">0:12 – 0:14</div>
+          <div class="tl-title">The Look</div>
+          <div class="tl-desc">Josh finishes his hook. Pauses briefly. Glances over his left shoulder at the officers with a calm, confident smirk.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-time">0:14 – 0:15</div>
+          <div class="tl-title">Exit</div>
+          <div class="tl-desc">Josh casually turns and walks out of frame. Officers still running in place. Scene ends.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 07 CAPCUT COMPOSITE -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">07</div>
+      <div class="section-title">CapCut Composite — Step by Step</div>
+    </div>
+    <div class="section-body">
+      <div class="steps">
+        <div class="step-item">
+          <div class="step-circle">1</div>
+          <div class="step-content">
+            <div class="step-heading">Import Layer B (Officers) as base track</div>
+            <div class="step-note">Open CapCut → New Project → Add the officers clip to the main timeline first. This is your background.</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-circle">2</div>
+          <div class="step-content">
+            <div class="step-heading">Loop the officers clip to 15 seconds</div>
+            <div class="step-note">Tap the clip → <code>Copy</code> → paste it back-to-back until total length reaches 15 seconds. Or use CapCut's <code>Loop</code> feature if available.</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-circle">3</div>
+          <div class="step-content">
+            <div class="step-heading">Add Layer A (Josh) as overlay</div>
+            <div class="step-note">Tap <code>+</code> → <code>Overlay</code> → import the Josh clip. Place it over the officers timeline. Scale and position him to the bottom-right of frame.</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-circle">4</div>
+          <div class="step-content">
+            <div class="step-heading">Apply blur to the officers layer</div>
+            <div class="step-note">Select the officers clip → <code>Effects</code> → add a soft blur filter. This creates depth and the shallow DOF look, pushing them into the background.</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-circle">5</div>
+          <div class="step-content">
+            <div class="step-heading">Add motion blur to officers</div>
+            <div class="step-note">Select officers layer → <code>Video Effects</code> → search <code>Motion Blur</code>. Apply at medium intensity to reinforce the running energy.</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-circle">6</div>
+          <div class="step-content">
+            <div class="step-heading">Colour grade the whole scene</div>
+            <div class="step-note">Select all → <code>Adjust</code>: Brightness -10, Contrast +20, Saturation -15. Then add a <code>Cinematic</code> LUT filter from CapCut's filter library (look for teal/orange presets).</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-circle">7</div>
+          <div class="step-content">
+            <div class="step-heading">Add vignette</div>
+            <div class="step-note">Go to <code>Effects</code> → <code>Vignette</code>. Apply at 30–40% intensity. This darkens the corners and focuses attention on Josh.</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-circle">8</div>
+          <div class="step-content">
+            <div class="step-heading">Export at highest quality</div>
+            <div class="step-note">Tap <code>Export</code> → select <code>1080p</code> at <code>60fps</code>. Save to camera roll.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 08 TOOLS -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">08</div>
+      <div class="section-title">Tools & Cost</div>
+    </div>
+    <div class="section-body">
+      <table class="tool-table">
+        <thead>
+          <tr>
+            <th>Tool</th>
+            <th>Purpose</th>
+            <th>Cost</th>
+            <th>Access</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="tool-name">Kling v3 via fal.ai</td>
+            <td>Generate both video layers</td>
+            <td><span class="free-tag">Free tier available</span></td>
+            <td>fal.ai → Sign in with Google</td>
+          </tr>
+          <tr>
+            <td class="tool-name">CapCut</td>
+            <td>Layer composite + colour grade</td>
+            <td><span class="free-tag">Free</span></td>
+            <td>App Store / capcut.com</td>
+          </tr>
+          <tr>
+            <td class="tool-name">Kling Credits (optional)</td>
+            <td>Higher quality / no watermark</td>
+            <td><span class="paid-tag">Paid — buy as needed</span></td>
+            <td>klingai.com</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="tip"><strong>Strategy:</strong> Test everything on the Kling free tier first. Only buy credits once you have confirmed that the generations look right — good likeness on Josh, right composition, right energy. Don't spend until you're happy with the free output.</div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="doc-footer">
+    <div class="brand">OUT THE MUD <span>RECORDS</span></div>
+    <div class="ref">VIDEO PLAN · NBA JOSH · REF-002</div>
+  </div>
+
+</div>
+</body>
+</html>

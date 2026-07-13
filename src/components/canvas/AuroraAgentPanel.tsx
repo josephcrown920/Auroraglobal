@@ -9,6 +9,7 @@ import {
   type AgentPlan,
   type AgentShot,
   type AgentChatMessage,
+  type SkillMeta,
 } from "@/lib/agent.functions";
 import {
   Sparkles,
@@ -27,6 +28,14 @@ import {
   Wand2,
   Copy,
   Check,
+  Search,
+  Globe,
+  Anchor,
+  Image,
+  BookOpen,
+  Save,
+  Captions,
+  VideoIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -63,6 +72,45 @@ const STYLES: { name: string; hint: string; gradient: string }[] = [
   { name: "Anime", hint: "vivid anime-style illustration, bold linework, cel shading", gradient: "from-sky-500 to-violet-600" },
 ];
 
+// Map skill names → Lucide icons (keeps the chip consistent with the registry).
+const SKILL_ICONS: Record<string, React.ReactNode> = {
+  web_search:          <Search className="size-2.5" />,
+  scrape_url:          <Globe className="size-2.5" />,
+  generate_hooks:      <Anchor className="size-2.5" />,
+  generate_broll:      <Image className="size-2.5" />,
+  recall_brand_memory: <BookOpen className="size-2.5" />,
+  update_brand_memory: <Save className="size-2.5" />,
+  add_captions:        <Captions className="size-2.5" />,
+};
+
+// ─── SkillChip ───────────────────────────────────────────────────────────────
+
+function SkillChip({ meta }: { meta: SkillMeta }) {
+  const icon = SKILL_ICONS[meta.name] ?? <Sparkles className="size-2.5" />;
+  const secs = (meta.durationMs / 1000).toFixed(1);
+  return (
+    <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full border border-violet-400/30 bg-violet-500/10 px-2 py-0.5 text-[9.5px] font-medium text-violet-200/90 max-w-full">
+      <span className="text-violet-300 shrink-0">{icon}</span>
+      <span className="truncate">{meta.label}</span>
+      <span className="text-violet-400/70 shrink-0">· {meta.summary.slice(0, 55)}</span>
+      <span className="text-violet-400/50 shrink-0 ml-0.5">{secs}s</span>
+    </div>
+  );
+}
+
+// ─── SkillPulse (shown during pending while a skill is running) ───────────────
+
+function SkillPulse({ label }: { label: string }) {
+  return (
+    <div className="inline-flex items-center gap-1.5 rounded-full border border-violet-400/25 bg-violet-500/10 px-2 py-0.5 text-[9.5px] font-medium text-violet-200/80">
+      <span className="size-1.5 rounded-full bg-violet-400 animate-pulse" />
+      {label}…
+    </div>
+  );
+}
+
+// ─── planToGraph ─────────────────────────────────────────────────────────────
+
 function planToGraph(plan: AgentPlan): { nodes: Node<any>[]; edges: Edge[] } {
   const nodes: Node<any>[] = [
     { id: "in", position: { x: 40, y: 60 }, type: "aurora", data: { kind: "input" } },
@@ -80,6 +128,8 @@ function planToGraph(plan: AgentPlan): { nodes: Node<any>[]; edges: Edge[] } {
   });
   return { nodes, edges };
 }
+
+// ─── ShotCard ────────────────────────────────────────────────────────────────
 
 function ShotCard({ shot, index, palette }: { shot: AgentShot; index: number; palette: string[] }) {
   const [copied, setCopied] = useState(false);
@@ -117,6 +167,8 @@ function ShotCard({ shot, index, palette }: { shot: AgentShot; index: number; pa
     </div>
   );
 }
+
+// ─── PlanCard ────────────────────────────────────────────────────────────────
 
 function PlanCard({ plan, onSend }: { plan: AgentPlan; onSend: () => void }) {
   return (
@@ -190,10 +242,14 @@ function PlanCard({ plan, onSend }: { plan: AgentPlan; onSend: () => void }) {
   );
 }
 
+// ─── AuroraAgentPanel ────────────────────────────────────────────────────────
+
 export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
   const [draft, setDraft] = useState("");
   const [pendingUserMsg, setPendingUserMsg] = useState<string | null>(null);
   const [activeStyle, setActiveStyle] = useState<string | null>(null);
+  const [cinematicMode, setCinematicMode] = useState(false);
+  const [activeSkillLabel, setActiveSkillLabel] = useState<string | null>(null);
   const chatFn = useServerFn(chatWithAuroraAgent);
   const listFn = useServerFn(listAgentChat);
   const clearFn = useServerFn(clearAgentChat);
@@ -210,13 +266,21 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
   const hasMemory = history.data?.hasMemory ?? false;
 
   const sendMut = useMutation({
-    mutationFn: async (message: string) => chatFn({ data: { message } }),
+    mutationFn: async (message: string) => chatFn({ data: { message, cinematicMode } }),
     onSuccess: (res) => {
+      setActiveSkillLabel(null);
       setPendingUserMsg(null);
       qc.invalidateQueries({ queryKey: ["agent-chat"] });
       if (res.memoryUpdated) toast.success("Aurora updated its memory of you", { icon: "🧠" });
+      if (res.skillInvoked) {
+        toast.success(`${res.skillInvoked.icon} ${res.skillInvoked.label} completed`, {
+          description: res.skillInvoked.summary,
+          duration: 3000,
+        });
+      }
     },
     onError: (e: Error) => {
+      setActiveSkillLabel(null);
       setPendingUserMsg(null);
       toast.error(e.message);
     },
@@ -246,12 +310,12 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
     setPendingUserMsg(text);
     setDraft("");
     setActiveStyle(null);
+    setActiveSkillLabel(null);
     sendMut.mutate(text);
   };
 
   const toggleStyle = (style: (typeof STYLES)[number]) => {
     if (activeStyle === style.name) {
-      // Toggle off — strip the hint back out if it's still present verbatim.
       setActiveStyle(null);
       setDraft((d) => d.replace(`, in a ${style.hint} style.`, "").trim());
       return;
@@ -282,6 +346,11 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
           <div>
             <p className="text-sm font-semibold text-white inline-flex items-center gap-1.5">
               Aurora Video Agent
+              {cinematicMode && (
+                <span className="text-[9px] font-bold uppercase tracking-wider text-amber-300/90 bg-amber-500/15 border border-amber-400/25 rounded-full px-1.5 py-0.5">
+                  Cinematic
+                </span>
+              )}
             </p>
             <p className="text-[10px] text-white/50 inline-flex items-center gap-1">
               {hasMemory ? (
@@ -296,6 +365,18 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-1">
+          {/* Cinematic mode toggle */}
+          <button
+            onClick={() => setCinematicMode((v) => !v)}
+            title={cinematicMode ? "Cinematic mode ON — click to toggle off" : "Enable cinematic mode (director-tier prompts)"}
+            className={`p-1.5 rounded-md transition-colors ${
+              cinematicMode
+                ? "text-amber-300 bg-amber-500/20 border border-amber-400/30"
+                : "text-white/40 hover:text-white/80 hover:bg-white/5"
+            }`}
+          >
+            <VideoIcon className="size-4" />
+          </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="p-1.5 rounded-md text-white/60 hover:text-white hover:bg-white/5" aria-label="Chat options">
@@ -343,6 +424,10 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
               <p className="text-xs text-white/65 leading-relaxed">
                 Pick a look, describe the idea, and I'll write the script, shot list, camera direction and color
                 story — then build a storyboard you can drop straight onto the canvas.
+              </p>
+              <p className="text-[10px] text-violet-300/70 mt-2 leading-relaxed">
+                Enable <strong className="text-amber-300/90">Cinematic mode</strong> (🎬 button above) for director-tier
+                prompts with film stocks, focal lengths, and auto-generated B-roll.
               </p>
             </div>
 
@@ -396,6 +481,10 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
                   : "max-w-[94%] rounded-2xl rounded-bl-md px-3.5 py-2.5 text-xs leading-relaxed text-white/85 bg-white/[0.05] border border-white/10"
               }
             >
+              {/* Skill chip — shown above the reply text on assistant messages */}
+              {m.role === "assistant" && m.skillMeta && (
+                <SkillChip meta={m.skillMeta} />
+              )}
               <p className="whitespace-pre-wrap">{m.content}</p>
               {m.role === "assistant" && m.plan && (
                 <PlanCard
@@ -421,8 +510,12 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
 
         {sendMut.isPending && (
           <div className="flex justify-start">
-            <div className="rounded-2xl rounded-bl-md px-3.5 py-2.5 bg-white/[0.05] border border-white/10 inline-flex items-center gap-2 text-xs text-white/60">
-              <Film className="size-3.5 text-violet-300 animate-pulse" /> Directing your storyboard…
+            <div className="rounded-2xl rounded-bl-md px-3.5 py-2.5 bg-white/[0.05] border border-white/10 space-y-1.5">
+              {activeSkillLabel && <SkillPulse label={activeSkillLabel} />}
+              <div className="inline-flex items-center gap-2 text-xs text-white/60">
+                <Film className="size-3.5 text-violet-300 animate-pulse" />
+                {activeSkillLabel ? "Integrating results…" : "Directing your storyboard…"}
+              </div>
             </div>
           </div>
         )}
@@ -459,15 +552,29 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
           rows={2}
           className="bg-black/30 border-white/10 text-white text-xs resize-none"
         />
-        <Button
-          onClick={send}
-          disabled={sendMut.isPending || draft.trim().length < 2}
-          className="w-full text-white shadow-lg shadow-violet-500/30"
-          style={{ background: "linear-gradient(135deg, oklch(0.65 0.22 305), oklch(0.62 0.22 340))" }}
-        >
-          {sendMut.isPending ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : <Send className="size-3.5 mr-1" />}
-          Send
-        </Button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setCinematicMode((v) => !v)}
+            title={cinematicMode ? "Cinematic mode active" : "Enable cinematic mode"}
+            className={`shrink-0 rounded-lg px-2.5 py-2 text-[10px] font-semibold border transition-all flex items-center gap-1 ${
+              cinematicMode
+                ? "border-amber-400/40 bg-amber-500/15 text-amber-200"
+                : "border-white/10 bg-white/[0.03] text-white/45 hover:text-white/70 hover:border-white/20"
+            }`}
+          >
+            <VideoIcon className="size-3" />
+            {cinematicMode ? "Cinematic ON" : "Cinematic"}
+          </button>
+          <Button
+            onClick={send}
+            disabled={sendMut.isPending || draft.trim().length < 2}
+            className="flex-1 text-white shadow-lg shadow-violet-500/30"
+            style={{ background: "linear-gradient(135deg, oklch(0.65 0.22 305), oklch(0.62 0.22 340))" }}
+          >
+            {sendMut.isPending ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : <Send className="size-3.5 mr-1" />}
+            Send
+          </Button>
+        </div>
       </footer>
     </div>
   );
