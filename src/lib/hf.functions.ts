@@ -4,6 +4,11 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { hfSpeechToText, hfTextToSpeech } from "./hf.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertTrustedUrl } from "./url-guard";
+import { PRICING } from "./pricing";
+
+type _Rpc = (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+const rpcAdmin = (name: string, args: Record<string, unknown>) =>
+  (supabaseAdmin as unknown as { rpc: _Rpc }).rpc(name, args);
 
 /**
  * Transcribe an audio file (Whisper). Accepts a base64-encoded blob.
@@ -67,8 +72,10 @@ export const transcribeVideoForCaptions = createServerFn({ method: "POST" })
   });
 
 /**
- * Synthesize speech (Bark / SpeechT5). Uploads the audio to the studio
- * bucket and returns a public URL.
+ * Synthesize speech (Bark / SpeechT5). Reserves 2 Aura credits, runs HF
+ * TTS, uploads the audio to the studio bucket as a signed URL (studio bucket
+ * is private — getPublicUrl returns a 403), commits credits, and returns the
+ * signed URL so the client can play and download the result.
  */
 export const synthesizeSpeech = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -79,13 +86,66 @@ export const synthesizeSpeech = createServerFn({ method: "POST" })
     }).parse
   )
   .handler(async ({ data, context }) => {
-    const { bytes, contentType } = await hfTextToSpeech(data.model, data.text);
-    const ext = contentType.includes("flac") ? "flac" : contentType.includes("wav") ? "wav" : "mp3";
-    const path = `tts/${context.userId}/${crypto.randomUUID()}.${ext}`;
-    const { error: upErr } = await supabaseAdmin.storage
-      .from("studio")
-      .upload(path, new Uint8Array(bytes), { contentType, upsert: false });
-    if (upErr) throw new Error(`Storage upload failed: ${upErr.message}`);
-    const { data: pub } = supabaseAdmin.storage.from("studio").getPublicUrl(path);
-    return { url: pub.publicUrl, contentType };
+    const cost = PRICING.base.audio;
+    const ref = crypto.randomUUID();
+
+    // Reserve credits upfront (same pattern as generate-core.server)
+    const { data: reserved, error: resErr } = await rpcAdmin("reserve_credits", {
+      _user: context.userId,
+      _amount: cost,
+      _reason: "speech_tts",
+      _ref: ref,
+    });
+    if (resErr) throw new Error(resErr.message);
+    if (!reserved) throw new Error("Insufficient credits");
+
+    try {
+      const { bytes, contentType } = await hfTextToSpeech(data.model, data.text);
+      const ext = contentType.includes("flac") ? "flac" : contentType.includes("wav") ? "wav" : "mp3";
+      const path = `tts/${context.userId}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabaseAdmin.storage
+        .from("studio")
+        .upload(path, new Uint8Array(bytes), { contentType, upsert: false });
+      if (upErr) throw new Error(`Storage upload failed: ${upErr.message}`);
+
+      // Studio bucket is PRIVATE — getPublicUrl returns a non-working URL.
+      // Use a 4-hour signed URL so the client can play and download the file.
+      const { data: signed, error: signErr } = await supabaseAdmin.storage
+        .from("studio")
+        .createSignedUrl(path, 4 * 60 * 60);
+      if (signErr || !signed?.signedUrl) throw new Error("Could not create signed audio URL");
+      const signedUrl = signed.signedUrl;
+
+      // Atomically commit credits + record the generation in one transaction
+      const { error: finalizeErr } = await rpcAdmin("finalize_sync_render", {
+        _user_id: context.userId,
+        _prompt: data.text,
+        _kind: "audio",
+        _mode: "performance",
+        _input_images: [],
+        _audio_url: signedUrl,
+        _model: data.model,
+        _result_image_url: null,
+        _result_video_url: null,
+        _result_text: null,
+        _credits_cost: cost,
+        _session_id: null,
+        _agent_shot_id: null,
+        _amount: cost,
+        _reason: "speech_tts",
+        _ref: ref,
+      });
+      if (finalizeErr) throw new Error(`Failed to commit credits: ${finalizeErr.message}`);
+
+      return { url: signedUrl, contentType };
+    } catch (e) {
+      // Release the reservation so credits are returned on any failure
+      await rpcAdmin("release_reservation", {
+        _user: context.userId,
+        _amount: cost,
+        _reason: "release_speech_tts",
+        _ref: ref,
+      }).catch(() => {});
+      throw e;
+    }
   });
