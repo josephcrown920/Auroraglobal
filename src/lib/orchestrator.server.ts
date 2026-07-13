@@ -2467,17 +2467,30 @@ const xaiDirect: ProviderAdapter = {
   name: "xai",
   supports: (r) =>
     (r.kind === "video" || r.kind === "motion") &&
-    !!process.env.XAI_API_KEY,
+    !!process.env.XAI_API_KEY &&
+    (!r.model || r.model === "xai/grok-imagine-video-1.5" || r.model === "xai/grok-imagine-video"),
   estimateCost: (r) => 0.03 * Math.max(1, r.duration ?? 8), // ~$0.03/s
   async run(r) {
     const key = process.env.XAI_API_KEY!;
+    const xaiMode = typeof r.params?.xaiMode === "string" ? r.params.xaiMode : undefined;
+    const isEditVideo = xaiMode === "edit-video" || !!r.videoUrl;
+    const isReferenceToVideo = xaiMode === "reference-to-video" || (r.imageUrls?.length ?? 0) > 1;
     const body: Record<string, unknown> = {
-      model: "grok-imagine-video-1.5",
+      model: r.model === "xai/grok-imagine-video" ? "grok-imagine-video" : "grok-imagine-video-1.5",
       prompt: r.prompt ?? "",
       duration: Math.min(15, Math.max(3, r.duration ?? 8)),
       resolution: r.resolution ?? "720p",
     };
-    if (r.imageUrls?.[0]) body.image = { url: r.imageUrls[0] };
+    if (isEditVideo) {
+      if (!r.videoUrl) throw new Error("xAI edit-video requires videoUrl");
+      body.mode = "edit-video";
+      body.video_url = r.videoUrl;
+    } else if (isReferenceToVideo) {
+      body.mode = "reference-to-video";
+      body.reference_images = (r.imageUrls ?? []).map((url) => ({ url }));
+    } else if (r.imageUrls?.[0]) {
+      body.image = { url: r.imageUrls[0] };
+    }
 
     const create = await fetch(`${XAI_VIDEO_BASE}/videos/generations`, {
       method: "POST",
@@ -2503,7 +2516,7 @@ const xaiDirect: ProviderAdapter = {
       const pj = await poll.json();
       if (pj?.error) throw new Error(`xAI error: ${pj.error.message ?? JSON.stringify(pj.error)}`);
       const videoUrl: string | undefined = pj?.video?.url;
-      if (videoUrl) return { url: videoUrl, endpoint: "xai:grok-imagine-video-1.5" };
+      if (videoUrl) return { url: videoUrl, endpoint: `xai:${body.model}${isEditVideo ? ":edit-video" : isReferenceToVideo ? ":reference-to-video" : ""}` };
     }
     throw new Error("xAI video poll timeout (15 min)");
   },

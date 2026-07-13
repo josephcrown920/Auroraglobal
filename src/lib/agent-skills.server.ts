@@ -325,42 +325,166 @@ async function addCaptions(args: unknown, ctx: SkillContext): Promise<SkillResul
   };
 }
 
+
 // ─── heygen_avatar ───────────────────────────────────────────────────────────
 
-async function heygenAvatar(args: unknown, _ctx: SkillContext): Promise<SkillResult> {
-  const { name_or_description, target } = z
+async function heygenAvatar(args: unknown, ctx: SkillContext): Promise<SkillResult> {
+  const parsed = z
     .object({
-      name_or_description: z.string().min(1).max(300).optional(),
-      target: z.enum(["agent", "user", "character"]).optional(),
+      avatarId: z.string().min(1).max(160).optional(),
+      voiceId: z.string().min(1).max(160).optional(),
     })
     .parse(args);
 
-  const inferredTarget = target ?? (name_or_description ? "character" : "agent");
+  const patch: BrandMemory = {};
+  if (parsed.avatarId) patch.preferred_avatar_id = parsed.avatarId;
+
+  if (parsed.avatarId || parsed.voiceId) {
+    const { data: existing } = await ctx.supabase
+      .from("agent_user_memory")
+      .select("structured_memory")
+      .eq("user_id", ctx.userId)
+      .maybeSingle();
+    const current = (existing?.structured_memory as BrandMemory | null) ?? {};
+    await ctx.supabase.from("agent_user_memory").upsert({
+      user_id: ctx.userId,
+      structured_memory: {
+        ...current,
+        ...patch,
+        preferred_voice_id: parsed.voiceId ?? current.preferred_voice_id,
+      } as never,
+      updated_at: new Date().toISOString(),
+    });
+  }
 
   return {
     ok: true,
-    summary: `Started HeyGen avatar setup${name_or_description ? `: ${name_or_description.slice(0, 40)}` : ""}`,
+    summary: parsed.avatarId ? "Saved HeyGen avatar" : "HeyGen avatar ready",
     data: {
-      skill: "heygen-avatar",
-      target: inferredTarget,
-      name_or_description: name_or_description ?? null,
-      docsIndex: "https://heygen-1fa696a7.mintlify.site/llms.txt",
-      source: "https://github.com/heygen-com/skills/tree/master/heygen-avatar",
-      workflow: [
-        "Default to creating an avatar for the agent unless the user explicitly says my/me or names a character.",
-        "Extract identity from workspace SOUL.md, IDENTITY.md, or existing AVATAR-*.md before asking questions.",
-        "Use prompt-based avatar creation by default; use photo upload only for explicit real-person digital twins.",
-        "Ask for approval of the appearance prompt before creating the avatar.",
-        "Design or browse a voice in the user's language and wait for the user's explicit voice choice.",
-        "Save the reusable identity as AVATAR-<NAME>.md with Group ID, Voice ID, voice metadata, and current looks.",
-        "Maintain AVATAR-AGENT.md or AVATAR-USER.md aliases for downstream video skills.",
-      ],
-      avatarFileTemplate: {
-        appearance: ["Age", "Gender", "Ethnicity", "Hair", "Build", "Features", "Style", "Reference"],
-        voice: ["Tone", "Accent", "Energy", "Think"],
-        heygen: ["Group ID", "Voice ID", "Voice Name", "Voice Designed", "Voice Seed", "Looks", "Last Synced"],
-      },
+      avatarId: parsed.avatarId ?? null,
+      voiceId: parsed.voiceId ?? null,
+      message: parsed.avatarId
+        ? "Saved this HeyGen avatar as the artist's preferred Video Agent presenter."
+        : "Ask the artist for a HeyGen avatar ID, or render with Aurora's default HeyGen avatar selection.",
     },
+  };
+}
+
+// ─── heygen_video ────────────────────────────────────────────────────────────
+
+async function heygenVideo(args: unknown, ctx: SkillContext): Promise<SkillResult> {
+  const parsed = z
+    .object({
+      script: z.string().min(10).max(5000),
+      orientation: z.enum(["portrait", "landscape"]).default("portrait"),
+      avatarId: z.string().min(1).max(160).optional(),
+      voiceId: z.string().min(1).max(160).optional(),
+    })
+    .parse(args);
+
+  const { sanitizeVideoAgentScript, VIDEO_AGENT_MODEL_KEY } = await import("@/lib/video-agent-prompt");
+  const { reserveOrchestrateRecord } = await import("@/lib/generate-core.server");
+  const { computeCost } = await import("@/lib/pricing");
+  const cleanScript = sanitizeVideoAgentScript(parsed.script);
+  const quote = computeCost({ features: ["video"], model: VIDEO_AGENT_MODEL_KEY });
+  const outcome = await reserveOrchestrateRecord({
+    userId: ctx.userId,
+    kind: "video",
+    prompt: cleanScript,
+    model: VIDEO_AGENT_MODEL_KEY,
+    pinnedModelOnly: true,
+    params: {
+      orientation: parsed.orientation,
+      ...(parsed.avatarId ? { avatarId: parsed.avatarId } : {}),
+      ...(parsed.voiceId ? { voiceId: parsed.voiceId } : {}),
+    },
+    cost: quote.total,
+    reason: "agent_skill_heygen_video",
+  });
+
+  if (!outcome.ok) {
+    return { ok: false, summary: "HeyGen video failed", data: {}, error: outcome.error };
+  }
+
+  return {
+    ok: true,
+    summary: "Generated HeyGen video",
+    data: {
+      generationId: outcome.generationId,
+      url: outcome.url,
+      provider: outcome.provider,
+      endpoint: outcome.endpoint,
+      script: cleanScript,
+      orientation: parsed.orientation,
+    },
+  };
+}
+
+// ─── heygen_translate ────────────────────────────────────────────────────────
+
+async function heygenTranslate(args: unknown, ctx: SkillContext): Promise<SkillResult> {
+  const parsed = z
+    .object({
+      videoUrl: z.string().url().optional(),
+      languages: z.array(z.string().min(2).max(80)).min(1).max(8),
+      mode: z.enum(["speed", "precision"]).default("speed"),
+    })
+    .parse(args);
+
+  let videoUrl = parsed.videoUrl;
+  if (!videoUrl) {
+    const { data: lastVideo } = await ctx.supabase
+      .from("generations")
+      .select("result_video_url")
+      .eq("user_id", ctx.userId)
+      .eq("status", "succeeded")
+      .in("kind", ["video", "lipsync", "caption_burn"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    videoUrl = lastVideo?.result_video_url ?? undefined;
+  }
+
+  if (!videoUrl) {
+    return {
+      ok: false,
+      summary: "No video to translate",
+      data: {},
+      error: "No completed video was found. Generate a video first, or provide a videoUrl.",
+    };
+  }
+
+  const apiKey = process.env.HEYGEN_API_KEY;
+  if (!apiKey) {
+    return {
+      ok: false,
+      summary: "HeyGen auth missing",
+      data: {},
+      error: "HEYGEN_API_KEY is not configured, so HeyGen translation cannot run.",
+    };
+  }
+
+  const response = await fetch("https://api.heygen.com/v3/video-translations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Api-Key": apiKey },
+    body: JSON.stringify({ video_url: videoUrl, output_languages: parsed.languages, mode: parsed.mode }),
+  });
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      summary: "HeyGen translation failed",
+      data: {},
+      error: `HeyGen translation ${response.status}: ${(await response.text()).slice(0, 250)}`,
+    };
+  }
+
+  const body = (await response.json()) as { data?: { video_translation_ids?: string[]; video_translation_id?: string } };
+  const ids = body.data?.video_translation_ids ?? (body.data?.video_translation_id ? [body.data.video_translation_id] : []);
+  return {
+    ok: true,
+    summary: `Started HeyGen translations: ${parsed.languages.join(", ")}`,
+    data: { sourceVideoUrl: videoUrl, languages: parsed.languages, mode: parsed.mode, translationIds: ids },
   };
 }
 
@@ -377,7 +501,9 @@ export const SKILL_REGISTRY: Record<
   recall_brand_memory:  { icon: "🧠", label: "Brand Memory",       execute: recallBrandMemory },
   update_brand_memory:  { icon: "💾", label: "Save Brand Profile", execute: updateBrandMemory },
   add_captions:         { icon: "💬", label: "Add Captions",       execute: addCaptions },
-  heygen_avatar:        { icon: "🧑‍🎤", label: "HeyGen Avatar",      execute: heygenAvatar },
+  heygen_avatar:        { icon: "🧑", label: "HeyGen Avatar",      execute: heygenAvatar },
+  heygen_video:         { icon: "🎥", label: "HeyGen Video",       execute: heygenVideo },
+  heygen_translate:     { icon: "🌍", label: "HeyGen Translate",   execute: heygenTranslate },
 };
 
 export async function dispatchSkill(
