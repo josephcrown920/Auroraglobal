@@ -21,6 +21,7 @@ import {
   AURORA_TEMPLATE_MODEL,
   type AuroraTemplateRow,
 } from "@/lib/aurora-templates.functions";
+import { listGallery } from "@/lib/studio.functions";
 import { computeCost } from "@/lib/pricing";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -90,7 +91,7 @@ type RenderState = { status: RenderStatus; url?: string | null };
 type VideoStatus = "idle" | "rendering" | "succeeded" | "failed";
 type VideoState = { status: VideoStatus; url?: string | null; error?: string };
 
-type AgentMode = "agent" | "templates" | "recipes" | "lyric-video" | "music-video";
+type AgentMode = "agent" | "templates" | "recipes" | "lyric-video" | "music-video" | "media";
 
 const TEMPLATE_COST = computeCost({ features: ["video"], model: AURORA_TEMPLATE_MODEL }).total;
 
@@ -128,7 +129,7 @@ function scoreBar(score: number): string {
 const SIDEBAR_ITEMS = [
   { id: "avatar",    icon: User,       label: "Avatar",    mode: "templates" as AgentMode, nav: null },
   { id: "ai-tools",  icon: Bot,        label: "AI Tools",  mode: "agent" as AgentMode, nav: null },
-  { id: "media",     icon: ImageIcon,  label: "Media",     mode: null, nav: "/studio" },
+  { id: "media",     icon: ImageIcon,  label: "Media",     mode: "media" as AgentMode, nav: null },
   { id: "elements",  icon: Sparkles,   label: "Elements",  mode: "recipes" as AgentMode, nav: null },
   { id: "music",     icon: Music2,     label: "Music",     mode: "music-video" as AgentMode, nav: null },
   { id: "captions",  icon: AlignLeft,  label: "Captions",  mode: "lyric-video" as AgentMode, nav: null },
@@ -152,6 +153,7 @@ function AgentPage() {
   const deleteTplFn = useServerFn(deleteAuroraTemplate);
   const generateTplFn = useServerFn(generateAuroraTemplateVideo);
   const lyricVideoFn  = useServerFn(generateLyricVideoFromSong);
+  const galleryFn     = useServerFn(listGallery);
   const genFn   = usePerformanceShotJobFn();
   const videoFn = useVideoFromImageJobFn();
 
@@ -223,6 +225,7 @@ function AgentPage() {
   const [genAvatarId, setGenAvatarId] = useState<Record<string, string>>({});
   const [genMode,     setGenMode]     = useState<Record<string, "photo" | "avatar">>({});
   const [tplResult,   setTplResult]   = useState<Record<string, { status: "rendering" | "done" | "failed"; url?: string }>>({});
+  const [referenceImageUrl, setReferenceImageUrl] = useState<string | null>(null);
 
   // ── Auth redirect ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -240,6 +243,13 @@ function AgentPage() {
     queryKey: ["aurora-templates"],
     queryFn: () => listTplFn(),
     enabled: !!user,
+  });
+
+  const galleryQuery = useQuery({
+    queryKey: ["agent-gallery"],
+    queryFn: () => galleryFn(),
+    enabled: !!user && mode === "media",
+    staleTime: 30_000,
   });
 
   // Derived: selected template
@@ -694,14 +704,6 @@ function AgentPage() {
             {/* ─ Agent mode script ─ */}
             {mode === "agent" && (
               <div className="p-3 space-y-3">
-                <Textarea
-                  value={brief}
-                  onChange={(e) => setBrief(e.target.value)}
-                  placeholder={"Characters, location, vibe, era…\ne.g. a man and a chimp rob a bank in the desert"}
-                  rows={4}
-                  className="resize-none text-xs bg-white/5 border-white/12 text-white placeholder:text-white/25"
-                />
-
                 {/* Shot list as scenes */}
                 {plan && (
                   <div className="space-y-1.5">
@@ -848,15 +850,45 @@ function AgentPage() {
             )}
           </div>
 
-          {/* Footer */}
-          <div className="shrink-0 border-t border-white/10 px-3 py-2 flex items-center justify-between">
-            <button className="flex items-center gap-1.5 text-[11px] text-white/35 hover:text-white/65 transition-colors">
-              <Plus className="size-3.5" /> Add scene
-            </button>
-            <button className="flex h-6 w-6 items-center justify-center rounded text-white/30 hover:text-white/65 hover:bg-white/10 transition-colors">
-              <Mic className="size-3.5" />
-            </button>
-          </div>
+          {/* Footer — agent mode gets a chat-input bar; other modes keep the scene controls */}
+          {mode === "agent" ? (
+            <div className="shrink-0 border-t border-white/10 p-3 space-y-2">
+              <Textarea
+                value={brief}
+                onChange={(e) => setBrief(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && brief.trim().length >= 4 && !busy) {
+                    e.preventDefault();
+                    submitBrief();
+                  }
+                }}
+                placeholder={"Characters, location, vibe, era…\ne.g. a man and a chimp rob a bank in the desert"}
+                rows={3}
+                className="resize-none text-xs bg-white/5 border-white/12 text-white placeholder:text-white/25"
+              />
+              <button
+                onClick={submitBrief}
+                disabled={busy || brief.trim().length < 4}
+                className="w-full flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-40"
+                style={{ background: "var(--gradient-hero)" }}
+              >
+                {busy ? <Loader2 className="size-3 animate-spin" /> : <Send className="size-3" />}
+                {busy ? "Directing…" : plan ? "Re-direct" : "Direct story"}
+              </button>
+              {brief.trim().length >= 4 && !busy && (
+                <p className="text-[9px] text-white/20 text-center">⌘↵ to send</p>
+              )}
+            </div>
+          ) : (
+            <div className="shrink-0 border-t border-white/10 px-3 py-2 flex items-center justify-between">
+              <button className="flex items-center gap-1.5 text-[11px] text-white/35 hover:text-white/65 transition-colors">
+                <Plus className="size-3.5" /> Add scene
+              </button>
+              <button className="flex h-6 w-6 items-center justify-center rounded text-white/30 hover:text-white/65 hover:bg-white/10 transition-colors">
+                <Mic className="size-3.5" />
+              </button>
+            </div>
+          )}
         </aside>
 
         {/* ─── Center: Preview Canvas ──────────────────────────────────────── */}
@@ -1512,6 +1544,82 @@ function AgentPage() {
               >
                 <Music2 className="size-3.5 mr-1.5" /> Generate · {mvVideoCost} Aura
               </Button>
+            </div>
+          )}
+
+          {/* ── MEDIA / Gallery picker ── */}
+          {mode === "media" && (
+            <div className="flex flex-col h-full">
+              <div className="px-3 py-2.5 border-b border-white/10 shrink-0">
+                <p className="text-[11px] font-semibold text-white/75">Pick a reference photo</p>
+                <p className="text-[10px] text-white/35 mt-0.5">Tap any image to use it as the character photo</p>
+              </div>
+              {referenceImageUrl && (
+                <div className="px-3 py-2 border-b border-white/10 shrink-0 flex items-center gap-2">
+                  <img src={referenceImageUrl} alt="Selected" className="size-8 rounded-md object-cover border border-violet-400/50" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] text-violet-300 font-medium">Selected</p>
+                    <p className="text-[9px] text-white/30 truncate">{referenceImageUrl.split("/").pop()}</p>
+                  </div>
+                  <button onClick={() => setReferenceImageUrl(null)} className="text-white/25 hover:text-white/55 transition-colors shrink-0">
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              )}
+              <div className="flex-1 overflow-y-auto p-2">
+                {galleryQuery.isLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="size-5 animate-spin text-white/25" />
+                  </div>
+                ) : ((galleryQuery.data?.items ?? []).filter((item: any) => item.result_image_url || item.watermark_display_url).length === 0) ? (
+                  <div className="flex flex-col items-center gap-3 py-8 px-4 text-center">
+                    <ImageIcon className="size-8 text-white/10" />
+                    <p className="text-[11px] text-white/30 leading-relaxed">
+                      No images in your gallery yet. Generate some images in the Studio first.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {(galleryQuery.data?.items ?? [])
+                      .filter((item: any) => item.result_image_url || item.watermark_display_url)
+                      .map((item: any) => {
+                        const url = item.result_image_url ?? item.watermark_display_url;
+                        const isSelected = referenceImageUrl === url;
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              setReferenceImageUrl(url);
+                              if (selectedTpl) {
+                                setGenPhotoUrl((prev) => ({ ...prev, [selectedTpl.id]: url }));
+                                setGenMode((prev) => ({ ...prev, [selectedTpl.id]: "photo" }));
+                              }
+                              toast.success("Reference photo selected");
+                              setMode("templates");
+                              setActiveSidebarId("avatar");
+                            }}
+                            className={cn(
+                              "relative aspect-square rounded-lg overflow-hidden border-2 transition-all",
+                              isSelected ? "border-violet-400 shadow-lg shadow-violet-500/20" : "border-transparent hover:border-white/30",
+                            )}
+                          >
+                            <img
+                              src={url}
+                              alt={item.prompt ?? "Gallery image"}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                            {isSelected && (
+                              <div className="absolute inset-0 bg-violet-500/20 flex items-center justify-center">
+                                <CheckCircle2 className="size-5 text-violet-300" />
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
