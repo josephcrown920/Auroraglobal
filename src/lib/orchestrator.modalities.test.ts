@@ -148,6 +148,9 @@ const ENV_KEYS = [
   "FAL_KEY",
   "REPLICATE_API_KEY",
   "PIAPI_API_KEY",
+  // inference.sh cloud adapter — must be cleared so it doesn't bleed through
+  // from the Replit secret into tests that expect specific provider counts.
+  "INFERENCE_SH_API_KEY",
 ] as const;
 const PROVIDER_NAMES = [
   "pollinations",
@@ -169,6 +172,7 @@ const PROVIDER_NAMES = [
   "lovable",
   "gemini",
   "piapi",
+  "inferencesh",
 ];
 const savedEnv: Record<string, string | undefined> = {};
 for (const k of ENV_KEYS) savedEnv[k] = process.env[k];
@@ -190,8 +194,9 @@ describe("getCandidateModels", () => {
     expect(c[0]).toBe("pollinations/flux");
     expect(c.filter((m) => m === "pollinations/flux")).toHaveLength(1);
     // Task #206: image gained 2 Replit-billed candidates ahead of the existing
-    // chain, so FALLBACK_CAP.image rose 4 -> 6.
-    expect(c.length).toBeLessThanOrEqual(6);
+    // chain (FALLBACK_CAP.image rose 4→6). inference.sh cloud Flux added one
+    // more keyed fallback (cap→7 entries + 1 for any explicit model = cap 8).
+    expect(c.length).toBeLessThanOrEqual(8);
   });
 
   it("pins self-hosted requests to the single requested model", () => {

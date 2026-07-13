@@ -168,6 +168,9 @@ const ENV_KEYS = [
   "AI_INTEGRATIONS_OPENAI_API_KEY",
   "AI_INTEGRATIONS_GEMINI_BASE_URL",
   "AI_INTEGRATIONS_GEMINI_API_KEY",
+  // inference.sh cloud adapter — must be cleared so it doesn't bleed through
+  // from the Replit secret into tests that expect only specific providers.
+  "INFERENCE_SH_API_KEY",
 ] as const;
 const PROVIDER_NAMES = [
   "lovable",
@@ -182,6 +185,7 @@ const PROVIDER_NAMES = [
   "fal",
   "xai",
   "sora",
+  "inferencesh",
 ];
 const savedEnv: Record<string, string | undefined> = {};
 for (const k of ENV_KEYS) savedEnv[k] = process.env[k];
