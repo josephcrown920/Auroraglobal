@@ -20,6 +20,8 @@ const PaymentEventSchema = z.object({
       user_id: z.string().optional(),
       credits: z.number().optional(),
       ref: z.string().optional(),
+      /** Set for day1/day2 passes — auto-applied as daily_spend_limit on success. */
+      daily_limit: z.number().optional(),
     }).optional(),
   }),
 });
@@ -140,6 +142,17 @@ export async function processPaymentSuccess(
     _reason: "purchase",
     _ref: payment.id,
   });
+
+  // Day passes: auto-set the daily spend limit so usage is naturally spread
+  // across the pass duration (e.g. 1-Day Pass → 15 Aura/day, 2-Day → 13/day).
+  // Carried on metadata.daily_limit by createPaystackCheckout.
+  const dailyLimit = event.data.metadata?.daily_limit;
+  if (typeof dailyLimit === "number" && dailyLimit > 0) {
+    await supabaseAdmin
+      .from("profiles")
+      .update({ daily_spend_limit: dailyLimit } as never)
+      .eq("user_id", payment.user_id);
+  }
 
   // Mark payment as succeeded and persist the owner profit / credit-funding split.
   const split = computeProfitSplit(payment.amount_kobo);

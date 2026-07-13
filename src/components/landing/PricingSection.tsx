@@ -9,7 +9,9 @@ import { detectGeoRegion, type GeoRegion } from "@/lib/geo-pricing";
 import { useAuth } from "@/hooks/use-auth";
 import { track } from "@/lib/tracking";
 
-const META: Record<PlanKey, { name: string; tagline: string; features: string[]; icon: typeof Sparkles; highlight?: boolean }> = {
+type CreditPackKey = "starter" | "creator" | "studio";
+
+const META: Record<CreditPackKey, { name: string; tagline: string; features: string[]; icon: typeof Sparkles; highlight?: boolean }> = {
   starter: {
     name: "Starter", tagline: "Test-drive the studio.", icon: Sparkles,
     features: ["80 Aura (~16 images)", "All image models", "Lip-sync up to 8s", "Standard queue"],
@@ -24,7 +26,7 @@ const META: Record<PlanKey, { name: string; tagline: string; features: string[];
   },
 };
 
-const ORDER: PlanKey[] = ["starter", "creator", "studio"];
+const ORDER: CreditPackKey[] = ["starter", "creator", "studio"];
 
 export function PricingSection() {
   const { user } = useAuth();
