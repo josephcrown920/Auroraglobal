@@ -237,6 +237,11 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   usePageViewTracking();
   useEffect(() => { captureRefFromUrl(); }, []);
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }
+  }, []);
 
   // NexusARB is an intentionally isolated, off-domain page: suppress all Aurora
   // chrome (chatbot, mobile nav, referral attacher, admin hotkey) so it stays
