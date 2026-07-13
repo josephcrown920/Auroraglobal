@@ -1,6 +1,6 @@
 ---
-name: Pre-existing orchestrator worker-routing test failures
-description: 10 orchestrator tests (gpu-preference, free-mode, selfhosted-integration) fail on a clean checkout — worker pool never selected in the mocks
+name: Orchestrator worker-routing test failures (baseline may be green)
+description: 10 orchestrator tests (gpu-preference, free-mode, selfhosted-integration) once failed on clean checkouts but ran green 2026-07-13 — re-run before calling failures pre-existing
 ---
 
 10 tests fail on an otherwise-unmodified checkout (confirmed 2026-07-06 with 4;
