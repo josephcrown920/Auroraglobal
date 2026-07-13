@@ -129,6 +129,9 @@ export const SKILL_NAMES = [
   "scrape_url",
   "generate_hooks",
   "generate_broll",
+  "heygen_avatar",
+  "heygen_video",
+  "heygen_translate",
   "recall_brand_memory",
   "update_brand_memory",
   "add_captions",
@@ -261,6 +264,12 @@ AVAILABLE SKILLS — You may invoke exactly ONE skill per turn by returning it i
 - generate_hooks: { "topic": string, "platform": "tiktok" | "instagram" | "youtube_shorts" } — Generate 3 competing opening-hook variants with quality scores. Use when the artist is about to start a video and hasn't locked the opening line. Example: { "skill": "generate_hooks", "args": { "topic": "luxury skincare launch", "platform": "tiktok" } }
 
 - generate_broll: { "shot_description": string } — Generate a cinematic B-roll still for a specific scene using the image pipeline. Use when the artist asks for visual references or you are building a multi-scene plan that includes non-presenter shots. Example: { "skill": "generate_broll", "args": { "shot_description": "Golden-hour rooftop with steam rising off wet concrete, teal shadows" } }
+
+- heygen_avatar: { "description"?: string, "source_asset_url"?: string, "name"?: string } — Prepare a HeyGen avatar creation brief for a persistent digital twin/photo/prompt avatar. Use when the artist asks to create, save, reuse, or set up a presenter/avatar identity. Follow HeyGen agent rules: prefer MCP when available, then authenticated HeyGen CLI, then raw v3 API only when HEYGEN_API_KEY is configured. Example: { "skill": "heygen_avatar", "args": { "description": "confident founder in black hoodie, warm studio lighting", "name": "Founder Avatar" } }
+
+- heygen_video: { "prompt": string, "duration_seconds"?: number, "avatar_id"?: string, "aspect_ratio"?: "16:9" | "9:16" | "1:1" | "auto", "style"?: string } — Prepare a HeyGen Video Agent run from a prompt with avatar, voice, style, and file-input guidance. Use when the artist explicitly wants a HeyGen/avatar-led generated video, presenter video, product demo, training video, or one-prompt video agent output. Requires HeyGen v3 only; default direct video requests to 1080p and aspect_ratio auto when applicable. Example: { "skill": "heygen_video", "args": { "prompt": "Make a 45-second founder intro in a cinematic studio", "duration_seconds": 45, "aspect_ratio": "9:16" } }
+
+- heygen_translate: { "video_url"?: string, "languages": string[], "mode"?: "speed" | "precision" } — Prepare HeyGen video translation/localization for an existing finished video with voice cloning and lip-sync. Use when the artist asks to translate, dub, localize, or make multilingual versions. Example: { "skill": "heygen_translate", "args": { "languages": ["Spanish", "Japanese"], "mode": "speed" } }
 
 - recall_brand_memory: {} — Retrieve the artist's structured brand profile (voice, tone, characters, themes). Use when you need to recall their preferences and the memory context is unclear. Example: { "skill": "recall_brand_memory", "args": {} }
 

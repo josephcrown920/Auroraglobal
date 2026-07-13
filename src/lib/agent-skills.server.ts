@@ -196,6 +196,118 @@ async function generateBroll(args: unknown, ctx: SkillContext): Promise<SkillRes
   };
 }
 
+
+// ─── HeyGen official agent skills ─────────────────────────────────────────────
+
+const HEYGEN_DOCS_INDEX_URL = "https://heygen-1fa696a7.mintlify.site/llms.txt";
+const HEYGEN_SKILLS_REPO = "https://github.com/heygen-com/skills";
+
+function heygenAuthPlan() {
+  return {
+    docsIndex: HEYGEN_DOCS_INDEX_URL,
+    skillsRepo: HEYGEN_SKILLS_REPO,
+    installCommands: [
+      "gh skill install heygen-com/skills heygen-avatar",
+      "gh skill install heygen-com/skills heygen-video",
+      "gh skill install heygen-com/skills heygen-translate",
+    ],
+    authPriority: [
+      "Use visible mcp__heygen__* tools first (OAuth-backed MCP, no API key handling).",
+      "If no MCP tools are available, use the authenticated HeyGen CLI (`heygen auth status`).",
+      "Use raw v3 API only when HEYGEN_API_KEY is configured; never use v1/v2 endpoints for these workflows.",
+    ],
+  };
+}
+
+async function heygenAvatar(args: unknown, _ctx: SkillContext): Promise<SkillResult> {
+  const input = z
+    .object({
+      description: z.string().min(1).max(1200).optional(),
+      source_asset_url: z.string().url().optional(),
+      name: z.string().min(1).max(120).optional(),
+    })
+    .parse(args);
+
+  return {
+    ok: true,
+    summary: `Prepared HeyGen avatar${input.name ? `: ${input.name}` : " workflow"}`,
+    data: {
+      skill: "heygen-avatar",
+      ...heygenAuthPlan(),
+      request: input,
+      recommendedNextStep: input.source_asset_url
+        ? "Create a persistent HeyGen avatar from the provided photo/video asset, then save the returned avatar look ID as preferred_avatar_id."
+        : "Create a persistent HeyGen prompt avatar from the description, then save the returned avatar look ID as preferred_avatar_id.",
+      outputsToRemember: ["avatar_group_id", "avatar_id/look_id", "voice_id", "consent_url if required"],
+    },
+  };
+}
+
+async function heygenVideo(args: unknown, _ctx: SkillContext): Promise<SkillResult> {
+  const input = z
+    .object({
+      prompt: z.string().min(1).max(4000),
+      duration_seconds: z.number().min(5).max(600).optional(),
+      avatar_id: z.string().min(1).max(200).optional(),
+      aspect_ratio: z.enum(["16:9", "9:16", "1:1", "auto"]).default("auto"),
+      style: z.string().max(200).optional(),
+    })
+    .parse(args);
+
+  return {
+    ok: true,
+    summary: `Prepared HeyGen video agent run (${input.aspect_ratio})`,
+    data: {
+      skill: "heygen-video",
+      ...heygenAuthPlan(),
+      request: { resolution: "1080p", ...input },
+      workflow: [
+        "Fetch the HeyGen documentation index before exploring endpoint details.",
+        "Use Video Agent prompt-to-video for one-prompt generated videos, or direct v3 videos when the user provides exact avatar/script assets.",
+        "Poll the session/video until complete and return the share/download URL.",
+      ],
+    },
+  };
+}
+
+async function heygenTranslate(args: unknown, ctx: SkillContext): Promise<SkillResult> {
+  const input = z
+    .object({
+      video_url: z.string().url().optional(),
+      languages: z.array(z.string().min(2).max(80)).min(1).max(20),
+      mode: z.enum(["speed", "precision"]).default("speed"),
+    })
+    .parse(args);
+
+  let sourceVideoUrl = input.video_url;
+  if (!sourceVideoUrl) {
+    const { data: lastVideo } = await ctx.supabase
+      .from("generations")
+      .select("result_video_url")
+      .eq("user_id", ctx.userId)
+      .eq("status", "succeeded")
+      .in("kind", ["video", "lipsync"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    sourceVideoUrl = lastVideo?.result_video_url ?? undefined;
+  }
+
+  return {
+    ok: Boolean(sourceVideoUrl),
+    summary: sourceVideoUrl
+      ? `Prepared HeyGen translation: ${input.languages.join(", ")}`
+      : "No source video found for translation",
+    data: {
+      skill: "heygen-translate",
+      ...heygenAuthPlan(),
+      request: { ...input, video_url: sourceVideoUrl },
+      workflow: "Translate an existing finished video with voice cloning and lip-sync; use speed for fast localization or precision for higher-quality proofreading/rendering.",
+    },
+    error: sourceVideoUrl ? undefined : "Provide a video_url or generate a video first, then ask Aurora to translate it.",
+  };
+}
+
 // ─── recall_brand_memory ──────────────────────────────────────────────────────
 
 async function recallBrandMemory(_args: unknown, ctx: SkillContext): Promise<SkillResult> {
@@ -335,6 +447,9 @@ export const SKILL_REGISTRY: Record<
   scrape_url:           { icon: "🌐", label: "Scrape URL",         execute: scrapeUrl },
   generate_hooks:       { icon: "🎣", label: "Hook Generator",     execute: generateHooks },
   generate_broll:       { icon: "🎬", label: "B-roll Generation",  execute: generateBroll },
+  heygen_avatar:        { icon: "🧑‍🎤", label: "HeyGen Avatar",      execute: heygenAvatar },
+  heygen_video:         { icon: "🎥", label: "HeyGen Video",       execute: heygenVideo },
+  heygen_translate:     { icon: "🌍", label: "HeyGen Translate",   execute: heygenTranslate },
   recall_brand_memory:  { icon: "🧠", label: "Brand Memory",       execute: recallBrandMemory },
   update_brand_memory:  { icon: "💾", label: "Save Brand Profile", execute: updateBrandMemory },
   add_captions:         { icon: "💬", label: "Add Captions",       execute: addCaptions },
