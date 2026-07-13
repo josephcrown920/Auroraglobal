@@ -1,6 +1,5 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect, useRef } from "react";
@@ -9,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
-import { synthesizeSpeech } from "@/lib/hf.functions";
+import { generateSpeech, SPEECH_VOICE_OPTIONS } from "@/lib/speech.functions";
 import { ExampleChips } from "@/components/onboarding/ExampleChips";
 import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
 import { SPEECH_EXAMPLE_PRESETS } from "@/lib/example-presets";
@@ -28,24 +27,19 @@ import { GenerationErrorCard } from "@/components/ui/GenerationErrorCard";
 
 export const Route = createLazyFileRoute("/speech")({ component: SpeechPage });
 
-const TTS_MODELS = [
-  { key: "suno/bark", label: "Bark (expressive)" },
-  { key: "microsoft/speecht5_tts", label: "SpeechT5 (natural)" },
-];
-
 function SpeechPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 
   const [script, setScript] = useState("");
-  const [model, setModel] = useState(TTS_MODELS[0].key);
+  const [voiceId, setVoiceId] = useState<string>(SPEECH_VOICE_OPTIONS[0].id);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [activeExampleId, setActiveExampleId] = useState<string | undefined>(undefined);
   const [showTour, setShowTour] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const synFn = useServerFn(synthesizeSpeech);
+  const genFn = useServerFn(generateSpeech);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth" });
@@ -64,7 +58,7 @@ function SpeechPage() {
   }, [user]);
 
   const genMut = useMutation({
-    mutationFn: () => synFn({ data: { text: script.trim(), model } }),
+    mutationFn: () => genFn({ data: { text: script.trim(), voiceId } }),
     onSuccess: (out) => {
       markFirstGenComplete();
       setResultUrl(out.url);
@@ -161,20 +155,21 @@ function SpeechPage() {
 
           <div className="space-y-2">
             <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Voice model
+              Voice
             </label>
             <div className="flex flex-wrap gap-2">
-              {TTS_MODELS.map((m) => (
+              {SPEECH_VOICE_OPTIONS.map((v) => (
                 <button
-                  key={m.key}
-                  onClick={() => setModel(m.key)}
+                  key={v.id}
+                  onClick={() => setVoiceId(v.id)}
                   className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${
-                    model === m.key
+                    voiceId === v.id
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border bg-background/40 text-muted-foreground hover:text-foreground"
                   }`}
+                  title={v.description}
                 >
-                  {m.label}
+                  {v.label}
                 </button>
               ))}
             </div>

@@ -139,13 +139,20 @@ export const synthesizeSpeech = createServerFn({ method: "POST" })
 
       return { url: signedUrl, contentType };
     } catch (e) {
-      // Release the reservation so credits are returned on any failure
-      await rpcAdmin("release_reservation", {
+      // Release the reservation so credits are returned on any failure.
+      // Never swallow a release failure — that is a real credit leak.
+      const { error: relErr } = await rpcAdmin("release_reservation", {
         _user: context.userId,
         _amount: cost,
         _reason: "release_speech_tts",
         _ref: ref,
-      }).catch(() => {});
+      });
+      if (relErr) {
+        const original = e instanceof Error ? e.message : String(e);
+        throw new Error(
+          `${original}; additionally failed to release reservation ${ref}: ${relErr.message}`,
+        );
+      }
       throw e;
     }
   });
