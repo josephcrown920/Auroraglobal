@@ -256,105 +256,136 @@ export const getMarketplaceTemplateForCanvas = createServerFn({ method: "GET" })
 
 // ─── Authenticated: charge a marketplace template run ─────────────────────────
 // Called on first "Run pipeline" in canvas after loading a marketplace template.
-// Reserve → insert run record → commit → grant integer Aura cut to creator.
-// Integer split: creatorCut = Math.round(cost × cut_pct / 100) keeps grant_credits
-// (_amount integer) and stored ledger columns byte-exact — no floor mismatch.
+//
+// Task #214: reserve → finalize_marketplace_run (atomic) → update run count.
+// finalize_marketplace_run inserts the run record, commits the buyer's reservation,
+// and grants the creator's cut in one Postgres transaction. Any error inside that
+// function rolls back all three writes atomically — no partial state where the
+// buyer was charged but the creator wasn't paid, or the run was recorded but
+// credits stayed reserved.
 
-export const chargeMarketplaceTemplateRun = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
-  .handler(async ({ data, context }) => {
-    const { data: tmpl, error: tErr } = await (supabaseAdmin as any)
-      .from("marketplace_templates")
-      .select("id, creator_user_id, run_cost_aura, cut_pct, run_count")
-      .eq("id", data.id)
-      .eq("status", "approved")
-      .maybeSingle();
-    if (tErr) throw new Error(tErr.message);
-    if (!tmpl) throw new Error("Template not found or not approved");
+type TemplateRow = {
+  id: string;
+  creator_user_id: string;
+  run_cost_aura: number;
+  cut_pct: number;
+  run_count: number;
+};
 
-    const t = tmpl as {
-      id: string;
-      creator_user_id: string;
-      run_cost_aura: number;
-      cut_pct: number;
-      run_count: number;
-    };
+type RpcResult = { data: unknown; error: { message: string } | null };
 
-    const cost = t.run_cost_aura;
-    const ref = crypto.randomUUID();
+/** Injectable deps for chargeMarketplaceRunCore — enables unit testing without
+ *  mock.module or a live database. */
+export type MarketplaceChargeDeps = {
+  rpc: (name: string, args: Record<string, unknown>) => Promise<RpcResult>;
+  getTemplate: (id: string) => Promise<TemplateRow | null>;
+  updateRunCount: (id: string, newCount: number) => Promise<void>;
+};
 
-    const { data: reserved, error: resErr } = await (supabaseAdmin as any).rpc("reserve_credits", {
-      _user: context.userId,
+async function buildMarketplaceDeps(): Promise<MarketplaceChargeDeps> {
+  return {
+    rpc: (name, args) =>
+      (supabaseAdmin as unknown as { rpc: MarketplaceChargeDeps["rpc"] }).rpc(name, args),
+    getTemplate: async (id) => {
+      const { data, error } = await (supabaseAdmin as any)
+        .from("marketplace_templates")
+        .select("id, creator_user_id, run_cost_aura, cut_pct, run_count")
+        .eq("id", id)
+        .eq("status", "approved")
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return data as TemplateRow | null;
+    },
+    updateRunCount: async (id, newCount) => {
+      // Best-effort display counter — do not fail the committed charge on error.
+      await (supabaseAdmin as any)
+        .from("marketplace_templates")
+        .update({ run_count: newCount })
+        .eq("id", id);
+    },
+  };
+}
+
+/** Core charge logic, extracted for testability. Used by chargeMarketplaceTemplateRun. */
+export async function chargeMarketplaceRunCore(
+  templateId: string,
+  runnerUserId: string,
+  deps: MarketplaceChargeDeps,
+): Promise<{ ok: true } | { ok: false; error: string; insufficient?: boolean }> {
+  const t = await deps.getTemplate(templateId);
+  if (!t) throw new Error("Template not found or not approved");
+
+  const cost = t.run_cost_aura;
+  const ref = crypto.randomUUID();
+  let reservedAmount = 0;
+
+  try {
+    const { data: reserved, error: resErr } = await deps.rpc("reserve_credits", {
+      _user: runnerUserId,
       _amount: cost,
       _reason: `marketplace_template:${t.id}`,
       _ref: ref,
     });
     if (resErr) throw new Error(resErr.message);
-    if (!reserved) return { ok: false as const, error: "Insufficient Aura credits", insufficient: true };
+    if (!reserved) return { ok: false, error: "Insufficient Aura credits", insufficient: true };
+    reservedAmount = cost;
 
     // Integer split — consistent with grant_credits(_amount integer).
     const creatorCut = Math.round(cost * (Number(t.cut_pct) / 100));
     const platformCut = cost - creatorCut;
+    const creatorRef = crypto.randomUUID();
 
-    const { error: runErr } = await (supabaseAdmin as any)
-      .from("marketplace_template_runs")
-      .insert({
-        template_id: t.id,
-        runner_user_id: context.userId,
-        creator_user_id: t.creator_user_id,
-        aura_charged: cost,
-        creator_cut_aura: creatorCut,
-        platform_cut_aura: platformCut,
-      });
-    if (runErr) {
-      await (supabaseAdmin as any).rpc("release_reservation", {
-        _user: context.userId, _amount: cost,
-        _reason: `release_marketplace_template:${t.id}`, _ref: ref,
-      });
-      throw new Error(runErr.message);
-    }
-
-    // Commit must succeed before any downstream accounting steps.
-    // If commit fails: compensate by deleting the run record and releasing reservation.
-    const { error: commitErr } = await (supabaseAdmin as any).rpc("commit_reservation", {
-      _user: context.userId, _amount: cost,
-      _reason: `marketplace_template:${t.id}`, _ref: ref,
+    // Atomically: insert run record + commit buyer's reservation + grant creator
+    // cut — all in one Postgres transaction (finalize_marketplace_run).
+    // If this RPC returns an error, the transaction rolled back — the run was NOT
+    // recorded and the reservation was NOT committed. The catch block then releases
+    // the reservation so the user gets their credits back.
+    const { error: finalizeErr } = await deps.rpc("finalize_marketplace_run", {
+      _runner_user_id: runnerUserId,
+      _creator_user_id: t.creator_user_id,
+      _template_id: t.id,
+      _aura_charged: cost,
+      _creator_cut_aura: creatorCut,
+      _platform_cut_aura: platformCut,
+      _amount: cost,
+      _reason: `marketplace_template:${t.id}`,
+      _ref: ref,
+      _creator_ref: creatorRef,
     });
-    if (commitErr) {
-      // Best-effort compensation — delete run record then release reservation.
-      await (supabaseAdmin as any)
-        .from("marketplace_template_runs")
-        .delete()
-        .eq("template_id", t.id)
-        .eq("runner_user_id", context.userId)
-        .eq("aura_charged", cost);
-      await (supabaseAdmin as any).rpc("release_reservation", {
-        _user: context.userId, _amount: cost,
-        _reason: `release_marketplace_template:${t.id}`, _ref: ref,
-      });
-      throw new Error(`Commit failed: ${commitErr.message}`);
+    if (finalizeErr) {
+      // Postgres transaction aborted — nothing written or committed.
+      // The catch block will release the reservation.
+      throw new Error(`Marketplace run finalization failed: ${finalizeErr.message}`);
     }
-
-    // Grant creator their cut. Failure here means buyer was charged but creator
-    // was not credited — surface the error so it can be retried / resolved by admin.
-    if (creatorCut > 0 && t.creator_user_id !== context.userId) {
-      const { error: grantErr } = await (supabaseAdmin as any).rpc("grant_credits", {
-        _user: t.creator_user_id,
-        _amount: creatorCut,
-        _reason: `marketplace_creator_cut:${t.id}`,
-        _ref: crypto.randomUUID(),
-      });
-      if (grantErr) throw new Error(`Creator payout failed: ${grantErr.message}`);
-    }
+    reservedAmount = 0;
 
     // run_count is a display counter — update it but don't fail the committed charge.
-    await (supabaseAdmin as any)
-      .from("marketplace_templates")
-      .update({ run_count: t.run_count + 1 })
-      .eq("id", t.id);
+    await deps.updateRunCount(t.id, t.run_count + 1).catch(() => {});
 
-    return { ok: true as const };
+    return { ok: true };
+  } catch (e) {
+    if (reservedAmount > 0) {
+      // The reservation is still active (finalize_marketplace_run rolled back or
+      // was never called). Release so the user gets their credits back.
+      await deps.rpc("release_reservation", {
+        _user: runnerUserId,
+        _amount: reservedAmount,
+        _reason: `release_marketplace_template:${t.id}`,
+        _ref: ref,
+      });
+      // Don't surface a release failure on top of the original error — the
+      // stuck-reservation sweeper will reconcile any that slip through.
+    }
+    throw e;
+  }
+}
+
+export const chargeMarketplaceTemplateRun = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const deps = await buildMarketplaceDeps();
+    return chargeMarketplaceRunCore(data.id, context.userId, deps);
   });
 
 // ─── Admin: list templates pending review ─────────────────────────────────────
