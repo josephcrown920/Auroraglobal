@@ -40,6 +40,7 @@ import { BlurredPreview } from "@/components/ui/BlurredPreview";
 export const Route = createLazyFileRoute("/orchestrate")({ component: OrchestratePage });
 
 type Modality = "image" | "video" | "text" | "audio";
+type XaiVideoMode = "image-to-video" | "edit-video" | "reference-to-video" | "ugc-lipsync";
 
 type ModelOption = { key: string; label: string; free?: boolean };
 
@@ -52,6 +53,7 @@ const MODALITIES: { id: Modality; label: string; icon: typeof ImageIcon }[] = [
 
 const RESOLUTIONS: Resolution[] = ["480p", "720p", "1080p", "2160p"];
 const DURATIONS = [5, 8, 10, 12];
+const XAI_UGC_PROMPT = `Create a realistic UGC-style video from the reference image of the person. The person walks slowly and naturally toward the camera while speaking directly to the viewer with natural facial expressions, head movement, and realistic lip-sync. Camera: handheld selfie-style vertical 9:16 shot with natural movement. Style: authentic TikTok / Instagram Reels UGC, natural lighting, high realism, slight film grain. Script: "Hey guys, I just had to show you this. It's honestly been a game changer for me. The quality is insane, and it smells absolutely incredible. If you're thinking about getting one, just do it — you won't regret it." Make the lip movements synchronized with the spoken audio, with natural blinking, micro-expressions, realistic walking motion, and smooth high-quality motion.`;
 
 // "auto" is a UI-only sentinel: it means "don't pin a model" so the request
 // rides the orchestrator's full video fallback chain (which handles plain
@@ -115,6 +117,8 @@ function OrchestratePage() {
   const [prompt, setPrompt] = useState("");
   const [model, setModel] = useState(MODELS.image[0].key);
   const [imageUrl, setImageUrl] = useState("");
+  const [sourceVideoUrl, setSourceVideoUrl] = useState("");
+  const [xaiVideoMode, setXaiVideoMode] = useState<XaiVideoMode>("image-to-video");
   // Optional uploaded start image (image-to-video): kept as a File until
   // generation time, then uploaded to the studio bucket for a signed URL —
   // same pattern as /lipsync and /ugc uploads.
@@ -170,6 +174,9 @@ function OrchestratePage() {
 
   // Derived early so resolution/duration guards can reference it below.
   const isVideoAgent = model === VIDEO_AGENT_MODEL_KEY;
+  // "auto" is a UI-only sentinel — pricing and the server must never see it.
+  const effectiveModel = model === AUTO_MODEL ? undefined : model;
+  const isXaiVideo = modality === "video" && effectiveModel === "xai/grok-imagine-video-1.5";
 
   // Resolution applies to image/video; length only to video. Price the live
   // preview with the SAME pricing module the server charges with, so the number
@@ -178,8 +185,6 @@ function OrchestratePage() {
   // resolution/duration params and controls output length from the script.
   const usesResolution = (modality === "image" || modality === "video") && !isVideoAgent;
   const usesDuration = modality === "video" && !isVideoAgent;
-  // "auto" is a UI-only sentinel — pricing and the server must never see it.
-  const effectiveModel = model === AUTO_MODEL ? undefined : model;
   const { features } = detectFeatures({ kind: modality as Feature });
   const quote = computeCost({
     features,
@@ -344,7 +349,7 @@ function OrchestratePage() {
     try {
       const res = await enhanceFn({
         data: {
-          prompt: prompt.trim(),
+          prompt: isXaiVideo && xaiVideoMode === "ugc-lipsync" ? (prompt.trim() || XAI_UGC_PROMPT) : prompt.trim(),
           // Use a 30-second target as a sensible default when the duration
           // picker is hidden (HeyGen controls actual length from script).
           targetSeconds: 30,
@@ -363,6 +368,12 @@ function OrchestratePage() {
   const doGenerate = async () => {
     if (!user) return toast.error("Please sign in to generate");
     if (!prompt.trim()) return toast.error("Enter a prompt first");
+    if (isXaiVideo && xaiVideoMode === "ugc-lipsync" && !startImageFile && !imageUrl.trim()) {
+      return toast.error("Upload or paste a reference image of the person for UGC lip-sync");
+    }
+    if (isXaiVideo && xaiVideoMode === "edit-video" && !sourceVideoUrl.trim()) {
+      return toast.error("Paste a source video URL for xAI video editing");
+    }
     if (startImageRequired && !startImageFile && !imageUrl.trim()) {
       return toast.error(
         "Runway animates a start image — upload one, or pick Auto for text-to-video",
@@ -381,7 +392,7 @@ function OrchestratePage() {
       const res = await run({
         data: {
           kind: modality,
-          prompt: prompt.trim(),
+          prompt: isXaiVideo && xaiVideoMode === "ugc-lipsync" ? (prompt.trim() || XAI_UGC_PROMPT) : prompt.trim(),
           ...(effectiveModel ? { model: effectiveModel } : {}),
           // Preview pass: first video generation runs cheap (480p/5s) so the
           // user can confirm the scene before paying for the full render.
@@ -394,6 +405,8 @@ function OrchestratePage() {
           // Video Agent doesn't accept start images (avatar pipeline); other
           // video models treat a start image as an animate-frame hint.
           ...(modality === "video" && !isVideoAgent && startImageUrl ? { imageUrls: [startImageUrl] } : {}),
+          ...(isXaiVideo && xaiVideoMode === "edit-video" && sourceVideoUrl.trim() ? { videoUrl: sourceVideoUrl.trim() } : {}),
+          ...(isXaiVideo ? { xaiMode: xaiVideoMode } : {}),
           ...(modality === "audio" && voiceId.trim() ? { voiceId: voiceId.trim() } : {}),
           // Portrait orientation for HeyGen avatar videos (720×1280 vs default 1280×720).
           ...(isVideoAgent ? { orientation: vaPortrait ? "portrait" : "landscape" } as const : {}),
@@ -560,6 +573,49 @@ function OrchestratePage() {
                     Translation-ready: Enhance will write a self-contained script with no references to on-screen visuals — ideal for redubbing into other languages.
                   </p>
                 )}
+              </div>
+            )}
+
+            {isXaiVideo && (
+              <div className="mt-4 rounded-xl border border-fuchsia-500/20 bg-fuchsia-500/5 p-3">
+                <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-fuchsia-300">
+                  xAI Grok Imagine mode
+                </label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {[
+                    ["image-to-video", "Image → video"],
+                    ["edit-video", "Edit video"],
+                    ["reference-to-video", "Reference → video"],
+                    ["ugc-lipsync", "UGC lip-sync"],
+                  ].map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => {
+                        setXaiVideoMode(id as XaiVideoMode);
+                        if (id === "ugc-lipsync" && !prompt.trim()) setPrompt(XAI_UGC_PROMPT);
+                      }}
+                      className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
+                        xaiVideoMode === id
+                          ? "border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-200"
+                          : "border-neutral-800 text-neutral-400 hover:border-neutral-700"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {xaiVideoMode === "edit-video" && (
+                  <input
+                    value={sourceVideoUrl}
+                    onChange={(e) => setSourceVideoUrl(e.target.value)}
+                    placeholder="Source video URL to edit (HTTPS .mp4)"
+                    className="mt-3 w-full rounded-xl border border-neutral-800 bg-neutral-950 px-4 py-2.5 text-sm outline-none focus:border-fuchsia-500"
+                  />
+                )}
+                <p className="mt-2 text-[11px] leading-relaxed text-neutral-500">
+                  Edit existing videos, animate a person from a reference image, or generate UGC talking-head clips with built-in lip-sync.
+                </p>
               </div>
             )}
 
