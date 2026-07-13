@@ -14,7 +14,8 @@ set -euo pipefail
 
 APP="http://localhost:8080"
 TICK_INTERVAL=60       # seconds between job-queue ticks
-HEALTH_INTERVAL=300    # seconds between worker health checks
+HEALTH_INTERVAL=300      # seconds between worker health checks
+BALANCE_INTERVAL=21600   # seconds between API balance checks (6 hours)
 
 # ── Auth key ────────────────────────────────────────────────────────────────
 APIKEY="${SUPABASE_PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-${CRON_SECRET:-}}}"
@@ -40,6 +41,7 @@ done
 
 # ── Main loop ────────────────────────────────────────────────────────────────
 last_health=0
+last_balance=0
 
 while true; do
   now=$(date +%s)
@@ -71,6 +73,21 @@ while true; do
       echo "[$ts][health] WARN — $resp (rc=$rc)"
     fi
     last_health=$now
+  fi
+
+  # API provider balance check (every 6 hours)
+  if [ $((now - last_balance)) -ge $BALANCE_INTERVAL ]; then
+    resp=$(curl -sf "$APP/api/public/check-api-balances" \
+      -X GET \
+      -H "apikey: $APIKEY" \
+      --max-time 30 2>&1) && rc=0 || rc=$?
+    ts=$(date -u +"%H:%M:%S")
+    if [ $rc -eq 0 ]; then
+      echo "[$ts][balances] OK — $resp"
+    else
+      echo "[$ts][balances] WARN — $resp (rc=$rc)"
+    fi
+    last_balance=$now
   fi
 
   sleep $TICK_INTERVAL
