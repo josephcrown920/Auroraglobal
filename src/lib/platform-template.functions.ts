@@ -92,6 +92,30 @@ export type TemplateGenerateResult =
 
 // ── Avatar Shots — SeedDream / Gemini Omni / KlingAI ─────────────────────────
 
+// ── Smoke helper — callable from server-side smoke tests ─────────────────────
+// Mirrors the handler body of generateAvatarShot (engine="seedream") so the
+// smoke test exercises the full avatar-shot pipeline (credit reservation →
+// orchestration → URL return) without going through the HTTP/auth layer.
+// Adding imageUrls conditions on the reference face, matching what a real user
+// would provide from the Shots tab after uploading their photo.
+export async function runSmokeAvatarShotOne(
+  userId: string,
+  imageUrl: string,
+): Promise<{ url: string; provider: string }> {
+  const outcome = await reserveOrchestrateRecord({
+    userId,
+    kind: "image",
+    cost: SHOT_IMAGE_COST,
+    reason: "smoke_avatar_shot",
+    prompt: "smoke test: cinematic AI avatar portrait, soft studio lighting, neutral backdrop",
+    model: SHOT_IMAGE_MODEL_SEEDREAM,
+    imageUrls: [imageUrl],
+  });
+  if (!outcome.ok) throw new Error(outcome.error ?? "Avatar shot dispatch failed");
+  if (!outcome.url) throw new Error("Avatar shot returned no image URL");
+  return { url: outcome.url, provider: outcome.provider ?? "unknown" };
+}
+
 export const generateAvatarShot = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
