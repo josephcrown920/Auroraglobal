@@ -196,6 +196,49 @@ async function generateBroll(args: unknown, ctx: SkillContext): Promise<SkillRes
   };
 }
 
+
+// ─── director_preview ────────────────────────────────────────────────────────
+
+const DirectorPreviewSchema = z.object({
+  summary: z.string().describe("One-sentence director summary of the idea"),
+  logline: z.string().describe("Movie-style logline"),
+  hook: z.string().describe("Scroll-stopping opening hook, under 12 words"),
+  sharpQuotes: z.array(z.string()).min(3).max(5).describe("Memorable spoken quote / caption lines"),
+  propsWardrobe: z.array(z.string()).min(4).max(8).describe("Specific props, wardrobe, set dressing"),
+  visualCues: z.array(z.string()).min(5).max(8).describe("Lens, lighting, color, texture, movement cues"),
+  thumbnailFrame: z.string().describe("The strongest single-frame thumbnail composition"),
+  previewPrompts: z.array(z.string()).min(3).max(3).describe("Three render-ready hyperreal cinematic visual prompts"),
+  nextSteps: z.array(z.string()).min(2).max(4),
+});
+
+async function directorPreview(args: unknown, _ctx: SkillContext): Promise<SkillResult> {
+  const { idea, platform, mood } = z
+    .object({
+      idea: z.string().min(5).max(1200),
+      platform: z.enum(["tiktok", "instagram", "youtube", "music_video", "short_film"]).default("music_video"),
+      mood: z.string().max(160).optional(),
+    })
+    .parse(args);
+
+  const { output } = await generateWithFallback({
+    system:
+      "You are a Cannes-level music-video director and cinematic prompt architect. Convert rough ideas into a concise director preview board that lets the creator see the final video before rendering. Everything must feel hyperreal, cinematic, real-movie-like, practical, and immediately usable. Prioritize: fast comprehension, a killer hook, memorable quote/caption lines, props/wardrobe, visual cues, and preview prompts. No markdown; return JSON only.",
+    prompt: `IDEA: ${idea}
+PLATFORM: ${platform}
+MOOD: ${mood ?? "infer a premium cinematic mood"}
+
+Create a director preview board. Make it feel like a real film/music-video treatment, not generic AI art. Preview prompts must include subject/action, camera movement, framing/lens, lighting/color science, hyperreal texture, production design/props, and duration or still-frame intent.`,
+    schema: DirectorPreviewSchema,
+  });
+
+  const preview = output as z.infer<typeof DirectorPreviewSchema>;
+  return {
+    ok: true,
+    summary: `Director preview: ${preview.hook.slice(0, 48)}`,
+    data: { idea, platform, mood: mood ?? null, ...preview },
+  };
+}
+
 // ─── recall_brand_memory ──────────────────────────────────────────────────────
 
 async function recallBrandMemory(_args: unknown, ctx: SkillContext): Promise<SkillResult> {
@@ -498,6 +541,7 @@ export const SKILL_REGISTRY: Record<
   scrape_url:           { icon: "🌐", label: "Scrape URL",         execute: scrapeUrl },
   generate_hooks:       { icon: "🎣", label: "Hook Generator",     execute: generateHooks },
   generate_broll:       { icon: "🎬", label: "B-roll Generation",  execute: generateBroll },
+  director_preview:     { icon: "🎥", label: "Director Preview",   execute: directorPreview },
   recall_brand_memory:  { icon: "🧠", label: "Brand Memory",       execute: recallBrandMemory },
   update_brand_memory:  { icon: "💾", label: "Save Brand Profile", execute: updateBrandMemory },
   add_captions:         { icon: "💬", label: "Add Captions",       execute: addCaptions },

@@ -36,6 +36,10 @@ export function SiteImagesProvider({ children }: { children: ReactNode }) {
   const [images, setImages] = useState<Record<SiteImageKey, string>>(buildDefaults);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const path = window.location.pathname;
+      if (path !== "/" && path !== "/admin") return;
+    }
     fetch("/api/public/site-images")
       .then((r) => (r.ok ? r.json() : null))
       .then((rows: Array<{ key: string; url: string }> | null) => {
