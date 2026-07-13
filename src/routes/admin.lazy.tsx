@@ -5,11 +5,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { adminOverview, adminGrantCredits, adminEarnings, adminWithdrawalSummary, adminRecordWithdrawal, adminCheckWithdrawalAmount, adminEditWithdrawal, adminDeleteWithdrawal } from "@/lib/admin.functions";
+import { getSiteImages, adminUpdateSiteImage, adminResetSiteImage, type SiteImageRow } from "@/lib/site-images.functions";
 import { listWorkers, upsertWorker, deleteWorker, pingWorker, setWorkerStatus, getFreeGpuMode, setFreeGpuMode } from "@/lib/workers.functions";
 import { issuePromoCode, listPromoCodes, setPromoCodeActive, type PromoCodeRow } from "@/lib/promo.functions";
 import { PROFIT_SPLIT_PCT } from "@/lib/profit-split";
 import { ModelBadge } from "@/components/ModelBadge";
-import { Shield, Sparkles, Loader2, Users, DollarSign, ImagePlay, Coins, ArrowRight, Server, Trash2, Activity, TrendingUp, Gift, Pause, Play, Zap, Store, Wallet, Tag, Copy, BookOpen } from "lucide-react";
+import { Shield, Sparkles, Loader2, Users, DollarSign, ImagePlay, Coins, ArrowRight, Server, Trash2, Activity, TrendingUp, Gift, Pause, Play, Zap, Store, Wallet, Tag, Copy, BookOpen, Image } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Button } from "@/components/ui/button";
@@ -42,7 +43,7 @@ function AdminPage() {
   });
 
 
-  const [tab, setTab] = useState<"gens" | "users" | "payments" | "earnings" | "workers" | "promos">("gens");
+  const [tab, setTab] = useState<"gens" | "users" | "payments" | "earnings" | "workers" | "promos" | "images">("gens");
   const [grantUser, setGrantUser] = useState("");
   const [grantAmount, setGrantAmount] = useState(100);
 
@@ -172,9 +173,9 @@ function AdminPage() {
 
         {/* Tabs */}
         <div className="flex gap-2 border-b border-border">
-          {(["gens", "users", "payments", "earnings", "workers", "promos"] as const).map((t) => (
+          {(["gens", "users", "payments", "earnings", "workers", "promos", "images"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 text-sm capitalize border-b-2 -mb-px transition-colors ${tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-              {t === "gens" ? "Generations" : t === "workers" ? "GPU Workers" : t === "promos" ? "Promo Codes" : t}
+              {t === "gens" ? "Generations" : t === "workers" ? "GPU Workers" : t === "promos" ? "Promo Codes" : t === "images" ? "Site Images" : t}
             </button>
           ))}
         </div>
@@ -260,6 +261,7 @@ function AdminPage() {
         {tab === "earnings" && <EarningsPanel />}
         {tab === "workers" && <WorkersPanel />}
         {tab === "promos" && <PromosPanel />}
+        {tab === "images" && <ImagesPanel />}
       </div>
     </main>
   );
@@ -1202,6 +1204,162 @@ function WorkersPanel() {
           </table>
         </div>
       </section>
+    </div>
+  );
+}
+
+function ImagesPanel() {
+  const getSiteImagesFn = useServerFn(getSiteImages);
+  const updateFn = useServerFn(adminUpdateSiteImage);
+  const resetFn = useServerFn(adminResetSiteImage);
+  const qc = useQueryClient();
+
+  const { data: images, isLoading } = useQuery({
+    queryKey: ["admin-site-images"],
+    queryFn: () => getSiteImagesFn(),
+  });
+
+  const [editing, setEditing] = useState<Record<string, string>>({});
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
+
+  const updateMut = useMutation({
+    mutationFn: ({ key, url }: { key: string; url: string }) => updateFn({ data: { key, url } }),
+    onSuccess: (_r, { key }) => {
+      toast.success("Image updated");
+      setEditing((p) => { const n = { ...p }; delete n[key]; return n; });
+      qc.invalidateQueries({ queryKey: ["admin-site-images"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  const resetMut = useMutation({
+    mutationFn: (key: string) => resetFn({ data: { key } }),
+    onSuccess: () => { toast.success("Reset to default"); qc.invalidateQueries({ queryKey: ["admin-site-images"] }); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  async function handleUpload(key: string, file: File) {
+    const token = sessionStorage.getItem("aurora_admin_token") ?? "";
+    setUploading((p) => ({ ...p, [key]: true }));
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("key", key);
+      const res = await fetch("/api/admin/upload-site-image", {
+        method: "POST",
+        headers: { "x-aurora-admin": token },
+        body: fd,
+      });
+      const json = await res.json() as { error?: string; url?: string };
+      if (!res.ok) throw new Error(json.error ?? "Upload failed");
+      toast.success("Uploaded & saved");
+      qc.invalidateQueries({ queryKey: ["admin-site-images"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading((p) => ({ ...p, [key]: false }));
+    }
+  }
+
+  const grouped: Record<string, SiteImageRow[]> = {};
+  for (const img of images ?? []) {
+    (grouped[img.section] ??= []).push(img);
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-center gap-2">
+        <Image className="size-4 text-primary" />
+        <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Site Images</h2>
+        <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary">landing page</span>
+      </div>
+      {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+      {Object.entries(grouped).map(([section, rows]) => (
+        <section key={section} className="space-y-3">
+          <h3 className="text-sm font-semibold capitalize text-foreground">{section} images</h3>
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+            {rows.map((img) => {
+              const draft = editing[img.key];
+              const isUp = uploading[img.key];
+              const isCustom = img.url !== img.default_url;
+              return (
+                <div key={img.key} className="rounded-xl border border-border bg-card/40 overflow-hidden space-y-2 p-2">
+                  <div className="relative aspect-[3/4] rounded-lg overflow-hidden bg-background/40">
+                    <img src={img.url} alt={img.label} className="w-full h-full object-cover" />
+                    {isCustom && (
+                      <span className="absolute top-1 right-1 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-[8px] font-bold uppercase tracking-wide">custom</span>
+                    )}
+                  </div>
+                  <p className="text-[10px] font-medium text-foreground truncate">{img.label}</p>
+                  <p className="text-[9px] text-muted-foreground font-mono">{img.key}</p>
+                  {draft !== undefined ? (
+                    <div className="space-y-1">
+                      <input
+                        type="url"
+                        value={draft}
+                        onChange={(e) => setEditing((p) => ({ ...p, [img.key]: e.target.value }))}
+                        placeholder="https://…"
+                        className="w-full text-[10px] px-2 py-1 rounded-md border border-border bg-background text-foreground placeholder:text-muted-foreground outline-none focus:border-primary"
+                      />
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => updateMut.mutate({ key: img.key, url: draft.trim() })}
+                          disabled={!draft.trim() || updateMut.isPending}
+                          className="flex-1 text-[10px] py-1 rounded-md bg-primary text-primary-foreground font-medium disabled:opacity-50"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditing((p) => { const n = { ...p }; delete n[img.key]; return n; })}
+                          className="text-[10px] px-2 py-1 rounded-md border border-border text-muted-foreground"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setEditing((p) => ({ ...p, [img.key]: img.url }))}
+                        className="text-[10px] py-1 rounded-md border border-border text-muted-foreground hover:border-primary hover:text-foreground transition-colors"
+                      >
+                        Change URL
+                      </button>
+                      <label className={`text-[10px] py-1 rounded-md border border-dashed border-border text-center transition-colors ${isUp ? "opacity-50 cursor-wait" : "cursor-pointer text-muted-foreground hover:border-primary hover:text-foreground"}`}>
+                        {isUp ? "Uploading…" : "Upload file"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="sr-only"
+                          disabled={!!isUp}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) void handleUpload(img.key, f);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                      {isCustom && (
+                        <button
+                          type="button"
+                          onClick={() => resetMut.mutate(img.key)}
+                          disabled={resetMut.isPending}
+                          className="text-[9px] py-0.5 rounded text-rose-400/70 hover:text-rose-400 transition-colors"
+                        >
+                          ↺ Reset to default
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }

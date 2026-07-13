@@ -17,6 +17,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { usePageViewTracking } from "@/hooks/use-tracking";
 import { AuroraChatbot } from "@/components/AuroraChatbot";
 import { AdminHotkey } from "@/components/AdminHotkey";
+import { SiteImagesProvider } from "@/components/landing/SiteImagesProvider";
 import { MobileNav } from "@/components/MobileNav";
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { useEffect } from "react";
@@ -261,9 +262,11 @@ function RootComponent() {
   return (
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
-        <div className="relative min-h-screen w-full overflow-x-hidden bg-background">
-          <Outlet />
-        </div>
+        <SiteImagesProvider>
+          <div className="relative min-h-screen w-full overflow-x-hidden bg-background">
+            <Outlet />
+          </div>
+        </SiteImagesProvider>
         <Toaster />
         <AuroraChatbot />
         <AdminHotkey />

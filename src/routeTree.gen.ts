@@ -68,11 +68,13 @@ import { Route as AdminCostsRouteImport } from './routes/admin.costs'
 import { Route as AdminComfyRouteImport } from './routes/admin.comfy'
 import { Route as ApiPublicWatermarkVideoRouteImport } from './routes/api/public/watermark-video'
 import { Route as ApiPublicWatermarkImageRouteImport } from './routes/api/public/watermark-image'
+import { Route as ApiPublicSiteImagesRouteImport } from './routes/api/public/site-images'
 import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/public/paystack-webhook'
 import { Route as ApiPublicLifecycleEmailsRouteImport } from './routes/api/public/lifecycle-emails'
 import { Route as ApiPublicGenerateRouteImport } from './routes/api/public/generate'
 import { Route as ApiPublicFreeMonthlyGrantRouteImport } from './routes/api/public/free-monthly-grant'
 import { Route as ApiPublicCheckApiBalancesRouteImport } from './routes/api/public/check-api-balances'
+import { Route as ApiAdminUploadSiteImageRouteImport } from './routes/api/admin/upload-site-image'
 import { Route as ApiPublicWorkersRegisterRouteImport } from './routes/api/public/workers/register'
 import { Route as ApiPublicWorkersHealthRouteImport } from './routes/api/public/workers/health'
 import { Route as ApiPublicJobsTickRouteImport } from './routes/api/public/jobs/tick'
@@ -381,6 +383,11 @@ const ApiPublicWatermarkImageRoute = ApiPublicWatermarkImageRouteImport.update({
   path: '/api/public/watermark-image',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicSiteImagesRoute = ApiPublicSiteImagesRouteImport.update({
+  id: '/api/public/site-images',
+  path: '/api/public/site-images',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPaystackWebhookRoute =
   ApiPublicPaystackWebhookRouteImport.update({
     id: '/api/public/paystack-webhook',
@@ -410,6 +417,11 @@ const ApiPublicCheckApiBalancesRoute =
     path: '/api/public/check-api-balances',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiAdminUploadSiteImageRoute = ApiAdminUploadSiteImageRouteImport.update({
+  id: '/api/admin/upload-site-image',
+  path: '/api/admin/upload-site-image',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicWorkersRegisterRoute =
   ApiPublicWorkersRegisterRouteImport.update({
     id: '/api/public/workers/register',
@@ -501,11 +513,13 @@ export interface FileRoutesByFullPath {
   '/r/$token': typeof RTokenRoute
   '/cli/': typeof CliIndexRoute
   '/guides/': typeof GuidesIndexRoute
+  '/api/admin/upload-site-image': typeof ApiAdminUploadSiteImageRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
+  '/api/public/site-images': typeof ApiPublicSiteImagesRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
@@ -573,11 +587,13 @@ export interface FileRoutesByTo {
   '/r/$token': typeof RTokenRoute
   '/cli': typeof CliIndexRoute
   '/guides': typeof GuidesIndexRoute
+  '/api/admin/upload-site-image': typeof ApiAdminUploadSiteImageRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
+  '/api/public/site-images': typeof ApiPublicSiteImagesRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
@@ -646,11 +662,13 @@ export interface FileRoutesById {
   '/r/$token': typeof RTokenRoute
   '/cli/': typeof CliIndexRoute
   '/guides/': typeof GuidesIndexRoute
+  '/api/admin/upload-site-image': typeof ApiAdminUploadSiteImageRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
+  '/api/public/site-images': typeof ApiPublicSiteImagesRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
@@ -720,11 +738,13 @@ export interface FileRouteTypes {
     | '/r/$token'
     | '/cli/'
     | '/guides/'
+    | '/api/admin/upload-site-image'
     | '/api/public/check-api-balances'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
     | '/api/public/lifecycle-emails'
     | '/api/public/paystack-webhook'
+    | '/api/public/site-images'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
     | '/api/public/jobs/tick'
@@ -792,11 +812,13 @@ export interface FileRouteTypes {
     | '/r/$token'
     | '/cli'
     | '/guides'
+    | '/api/admin/upload-site-image'
     | '/api/public/check-api-balances'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
     | '/api/public/lifecycle-emails'
     | '/api/public/paystack-webhook'
+    | '/api/public/site-images'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
     | '/api/public/jobs/tick'
@@ -864,11 +886,13 @@ export interface FileRouteTypes {
     | '/r/$token'
     | '/cli/'
     | '/guides/'
+    | '/api/admin/upload-site-image'
     | '/api/public/check-api-balances'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
     | '/api/public/lifecycle-emails'
     | '/api/public/paystack-webhook'
+    | '/api/public/site-images'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
     | '/api/public/jobs/tick'
@@ -931,11 +955,13 @@ export interface RootRouteChildren {
   RTokenRoute: typeof RTokenRoute
   CliIndexRoute: typeof CliIndexRoute
   GuidesIndexRoute: typeof GuidesIndexRoute
+  ApiAdminUploadSiteImageRoute: typeof ApiAdminUploadSiteImageRoute
   ApiPublicCheckApiBalancesRoute: typeof ApiPublicCheckApiBalancesRoute
   ApiPublicFreeMonthlyGrantRoute: typeof ApiPublicFreeMonthlyGrantRoute
   ApiPublicGenerateRoute: typeof ApiPublicGenerateRoute
   ApiPublicLifecycleEmailsRoute: typeof ApiPublicLifecycleEmailsRoute
   ApiPublicPaystackWebhookRoute: typeof ApiPublicPaystackWebhookRoute
+  ApiPublicSiteImagesRoute: typeof ApiPublicSiteImagesRoute
   ApiPublicWatermarkImageRoute: typeof ApiPublicWatermarkImageRoute
   ApiPublicWatermarkVideoRoute: typeof ApiPublicWatermarkVideoRoute
   ApiPublicJobsTickRoute: typeof ApiPublicJobsTickRoute
@@ -1361,6 +1387,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWatermarkImageRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/site-images': {
+      id: '/api/public/site-images'
+      path: '/api/public/site-images'
+      fullPath: '/api/public/site-images'
+      preLoaderRoute: typeof ApiPublicSiteImagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/paystack-webhook': {
       id: '/api/public/paystack-webhook'
       path: '/api/public/paystack-webhook'
@@ -1394,6 +1427,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/check-api-balances'
       fullPath: '/api/public/check-api-balances'
       preLoaderRoute: typeof ApiPublicCheckApiBalancesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/upload-site-image': {
+      id: '/api/admin/upload-site-image'
+      path: '/api/admin/upload-site-image'
+      fullPath: '/api/admin/upload-site-image'
+      preLoaderRoute: typeof ApiAdminUploadSiteImageRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/workers/register': {
@@ -1513,11 +1553,13 @@ const rootRouteChildren: RootRouteChildren = {
   RTokenRoute: RTokenRoute,
   CliIndexRoute: CliIndexRoute,
   GuidesIndexRoute: GuidesIndexRoute,
+  ApiAdminUploadSiteImageRoute: ApiAdminUploadSiteImageRoute,
   ApiPublicCheckApiBalancesRoute: ApiPublicCheckApiBalancesRoute,
   ApiPublicFreeMonthlyGrantRoute: ApiPublicFreeMonthlyGrantRoute,
   ApiPublicGenerateRoute: ApiPublicGenerateRoute,
   ApiPublicLifecycleEmailsRoute: ApiPublicLifecycleEmailsRoute,
   ApiPublicPaystackWebhookRoute: ApiPublicPaystackWebhookRoute,
+  ApiPublicSiteImagesRoute: ApiPublicSiteImagesRoute,
   ApiPublicWatermarkImageRoute: ApiPublicWatermarkImageRoute,
   ApiPublicWatermarkVideoRoute: ApiPublicWatermarkVideoRoute,
   ApiPublicJobsTickRoute: ApiPublicJobsTickRoute,

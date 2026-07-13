@@ -1,0 +1,134 @@
+You are a senior full-stack engineer, performance expert, and conversion-focused product designer.
+
+Your task is to build and optimize a complete, production-ready website system — not just a landing page — with EXTREME performance, clean UX, and high conversion rates.
+
+-----------------------------------
+🎯 PRIMARY OBJECTIVES
+-----------------------------------
+1. Achieve sub-2 second load time globally
+2. Achieve 90+ Google Lighthouse score (Performance, SEO, Accessibility)
+3. Maximize conversions (clicks, streams, signups, purchases)
+4. Ensure mobile-first design and responsiveness
+5. Build full site structure, not just landing page
+
+-----------------------------------
+🏗️ SITE STRUCTURE (MANDATORY)
+-----------------------------------
+Create and connect these pages:
+
+- Home (Landing)
+- Music (all releases with smart links)
+- Videos
+- Store / Merch
+- About
+- Contact
+
+No dead ends. Every page must link logically and guide the user to an action.
+
+-----------------------------------
+⚡ PERFORMANCE RULES (STRICT)
+-----------------------------------
+- Use static-first architecture where possible
+- Optimize all images to WebP/AVIF
+- Implement lazy loading for all below-the-fold assets
+- Use responsive images (srcset)
+- Inline critical CSS (above-the-fold)
+- Defer or async all JavaScript
+- Remove unused CSS and JS
+- Avoid heavy frameworks and unnecessary dependencies
+- Replace carousels/sliders with static sections
+- Use system fonts or max 1 custom font (self-hosted)
+- Use font-display: swap
+- Preload hero image and key fonts
+- Enable compression (Brotli/Gzip)
+- Implement aggressive caching strategy
+
+-----------------------------------
+🌍 CDN + DELIVERY
+-----------------------------------
+- Configure CDN (Cloudflare-style setup)
+- Enable edge caching
+- Minify HTML, CSS, JS
+- Optimize DNS and reduce latency globally
+
+-----------------------------------
+🧠 UX + UI RULES
+-----------------------------------
+- Clean, minimal, modern design
+- One primary CTA per section
+- Mobile-first layout
+- Fast scrolling, zero lag
+- Clear hierarchy and spacing
+- Navigation: max 5–6 items
+- Above-the-fold must show:
+  → Artist/brand identity
+  → Primary CTA (Stream / Buy / Join)
+
+-----------------------------------
+💰 CONVERSION SYSTEM
+-----------------------------------
+- Add Spotify/streaming CTA above the fold
+- Add smart links (multi-platform routing)
+- Add email capture (offer incentive)
+- Add urgency (limited drops, exclusives)
+- Reduce clicks to action (1–2 max)
+- Replace embeds (Spotify/YouTube) with preview thumbnails + click-to-load
+
+-----------------------------------
+🔍 SEO OPTIMIZATION
+-----------------------------------
+- Optimize title tags and meta descriptions for each page
+- Use proper heading structure (H1, H2, H3)
+- Add alt text to all images
+- Generate sitemap.xml
+- Ensure fast crawlability
+- Optimize for keywords (artist name, songs, brand)
+
+-----------------------------------
+📊 TRACKING + ANALYTICS
+-----------------------------------
+- Integrate analytics (Google Analytics style)
+- Track:
+  → CTA clicks
+  → Page visits
+  → Conversion events
+- Ensure tracking scripts are deferred and lightweight
+
+-----------------------------------
+🧩 ADVANCED FEATURES
+-----------------------------------
+- Dynamic “latest release” section (auto-update)
+- Preload next-page navigation for speed
+- Conditional content (based on user device or source)
+- Modular, scalable component structure
+
+-----------------------------------
+🚫 HARD RESTRICTIONS
+-----------------------------------
+- No bloated libraries
+- No unnecessary animations
+- No unoptimized images
+- No blocking scripts
+- No duplicate code
+- No unused assets
+
+-----------------------------------
+✅ FINAL OUTPUT REQUIREMENTS
+-----------------------------------
+- Fully functional site code
+- Clean folder structure
+- Optimized assets
+- Clear deployment instructions (Netlify/Vercel)
+- Performance checklist verification
+
+-----------------------------------
+🧠 CORE RULE
+-----------------------------------
+Every page must answer:
+“What is the next action the user should take?”
+
+If unclear, fix it.
+
+-----------------------------------
+
+Now execute the full build and optimization process with precision.
