@@ -10,7 +10,7 @@ import { AUDIO_ACCEPT } from "@/lib/utils";
 // ("HeyGen") watermark, which isn't something we want on our own marketing
 // page. This points at an already-hosted, watermark-free stage performance
 // clip. See public/videos/lipsync-performance.mp4.asset.json for provenance.
-const lipsyncDemoVideo = "/__l5e/assets-v1/f99bf1e3-686c-4b7f-80b3-cd49af93e510/lipsync-performance.mp4";
+const lipsyncDemoVideo = "/videos/photo2-lipsync-sample.mp4";
 
 /**
  * Every Face Sings — drives a clear lip-sync mouth, upper/lower lips and

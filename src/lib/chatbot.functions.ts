@@ -27,7 +27,7 @@ export const auroraChat = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("Aurora concierge is offline (no API key)");
+    if (!apiKey) throw new Error("Aurora Prime is offline (no API key)");
 
     const gateway = createOpenAICompatible({
       name: "lovable",

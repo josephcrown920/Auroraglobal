@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Play, Pause, Wand2, Loader2, AlertTriangle } from "lucide-react";
 import { AutoplayVideo } from "@/components/landing/AutoplayVideo";
-// URL from public/videos/lipsync-user-demo.mp4.asset.json
-const lipsyncVideo = { url: "/__l5e/assets-v1/92a40de3-9f88-479f-8049-86e91cac06ce/lipsync-user-demo.mp4" };
+const lipsyncVideo = { url: "/videos/photo2-lipsync-sample.mp4" };
 
 const AUDIO_SRC = "/audio/the-one-hook2.mp3";
 
