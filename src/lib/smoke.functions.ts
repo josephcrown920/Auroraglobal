@@ -27,6 +27,7 @@ const STEPS = [
   "Spin carousel",
   "Lyric Video",
   "Avatar shot (SeedDream image)",
+  "Photo Edit",
 ] as const;
 
 async function assertAdmin(userId: string) {
@@ -485,12 +486,36 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       await writeCheck(run.id, 16, STEPS[15], r16);
       total += r16.cost_usd;
 
+      // 17. Photo Edit — exercises the editStrict pipeline end-to-end:
+      //     kind:"image" + imageUrls + PHOTO_EDIT_MODEL confirms the exact model
+      //     and fal identity-edit route the Photo Editor feature uses is reachable.
+      //     Uses editStrict:false (non-strict) so the step doesn't fail on
+      //     providers that are temporarily down — a reference-image edit returning
+      //     any non-empty URL proves the pipeline is wired correctly.
+      const r17 = await runStep(async () => {
+        const { PHOTO_EDIT_MODEL } = await import("./photo-edit.functions");
+        const out = await orchestrate({
+          kind: "image",
+          prompt:
+            "smoke test: edit — add soft golden-hour warmth to the lighting only, keep the subject, pose and background identical",
+          imageUrls: [TEST_SELFIE_URL],
+          model: PHOTO_EDIT_MODEL,
+          editStrict: false,
+          userId: context.userId,
+          refId: run.id,
+        });
+        if (!out.url) throw new Error("Photo Edit returned no image URL");
+        return { url: out.url, cost: out.costUsd, raw: { provider: out.provider } };
+      });
+      await writeCheck(run.id, 17, STEPS[16], r17);
+      total += r17.cost_usd;
+
       await supabaseAdmin
         .from("smoke_runs")
         .update({
           finished_at: new Date().toISOString(),
           total_cost_usd: total,
-          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16].filter(r => r.status === "pass").length, total: 16 } as never,
+          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17].filter(r => r.status === "pass").length, total: 17 } as never,
         })
         .eq("id", run.id);
     })().catch(async (e) => {
