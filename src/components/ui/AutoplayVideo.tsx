@@ -23,7 +23,10 @@ type AutoplayVideoProps = VideoHTMLAttributes<HTMLVideoElement>;
  * manually.
  */
 export const AutoplayVideo = forwardRef<HTMLVideoElement, AutoplayVideoProps>(
-  function AutoplayVideo({ autoPlay = true, muted = true, ...rest }, forwardedRef) {
+  function AutoplayVideo(
+    { autoPlay = true, muted = true, preload = "metadata", ...rest },
+    forwardedRef,
+  ) {
     const innerRef = useRef<HTMLVideoElement | null>(null);
 
     const setRef = (node: HTMLVideoElement | null) => {
@@ -47,6 +50,6 @@ export const AutoplayVideo = forwardRef<HTMLVideoElement, AutoplayVideoProps>(
       }
     }, [autoPlay, muted, rest.src]);
 
-    return <video ref={setRef} suppressHydrationWarning {...rest} />;
+    return <video ref={setRef} suppressHydrationWarning preload={preload} {...rest} />;
   },
 );

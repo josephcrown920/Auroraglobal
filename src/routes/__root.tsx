@@ -15,15 +15,24 @@ import appCss from "../styles.css?url";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import { Toaster } from "@/components/ui/sonner";
 import { usePageViewTracking } from "@/hooks/use-tracking";
-import { AuroraChatbot } from "@/components/AuroraChatbot";
-import { AdminHotkey } from "@/components/AdminHotkey";
 import { SiteImagesProvider } from "@/components/landing/SiteImagesProvider";
-import { MobileNav } from "@/components/MobileNav";
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { captureRefFromUrl } from "@/lib/referral";
-import { ReferralAttacher } from "@/components/ReferralAttacher";
 import { ThemeProvider } from "@/lib/theme-context";
+
+const AuroraChatbot = lazy(() =>
+  import("@/components/AuroraChatbot").then((m) => ({ default: m.AuroraChatbot })),
+);
+const AdminHotkey = lazy(() =>
+  import("@/components/AdminHotkey").then((m) => ({ default: m.AdminHotkey })),
+);
+const ReferralAttacher = lazy(() =>
+  import("@/components/ReferralAttacher").then((m) => ({ default: m.ReferralAttacher })),
+);
+const MobileNav = lazy(() =>
+  import("@/components/MobileNav").then((m) => ({ default: m.MobileNav })),
+);
 
 function NotFoundComponent() {
   return (
@@ -273,10 +282,12 @@ function RootComponent() {
           </div>
         </SiteImagesProvider>
         <Toaster />
-        <AuroraChatbot />
-        <AdminHotkey />
-        <ReferralAttacher />
-        <MobileNav />
+        <Suspense fallback={null}>
+          <AuroraChatbot />
+          <AdminHotkey />
+          <ReferralAttacher />
+          <MobileNav />
+        </Suspense>
         <CookieConsentBanner />
       </QueryClientProvider>
     </ThemeProvider>
