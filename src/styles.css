@@ -365,3 +365,8 @@ html[data-theme="light"] {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(300%); }
 }
+
+@keyframes photo-float {
+  from { transform: translateY(0px) scale(1); }
+  to   { transform: translateY(-5px) scale(1.01); }
+}
