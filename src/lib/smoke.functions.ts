@@ -25,6 +25,7 @@ const STEPS = [
   "Lip sync (image+audio → generate API path)",
   "Templates: lip-sync dispatch",
   "Spin carousel",
+  "Lyric Video",
 ] as const;
 
 async function assertAdmin(userId: string) {
@@ -427,12 +428,52 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       await writeCheck(run.id, 14, STEPS[13], r14);
       total += r14.cost_usd;
 
+      // 15. Lyric Video — synthesizes a new video from an uploaded song + timed
+      //     lyric lines via the GPU worker's FFmpeg pipeline. Skipped when no
+      //     lyric_video-capable worker is online (GPU-only, no hosted fallback).
+      //     Uses the test audio track and 3 evenly-spaced 10s lyric lines.
+      const r15: StepResult = await (async (): Promise<StepResult> => {
+        const { hasActiveWorkerForKind } = await import("./orchestrator.server");
+        if (!(await hasActiveWorkerForKind("lyric_video"))) {
+          return {
+            status: "skip",
+            latency_ms: 0,
+            cost_usd: 0,
+            error: "No lyric_video-capable GPU worker online — start a worker with lyric_video capability",
+          };
+        }
+        return runStep(async () => {
+          const { reserveOrchestrateRecord } = await import("./generate-core.server");
+          const cost = computeCost({ features: ["lyric_video"] }).total;
+          const segments = [
+            { start: 0,  end: 10, text: "smoke test lyric line one" },
+            { start: 10, end: 20, text: "smoke test lyric line two" },
+            { start: 20, end: 30, text: "smoke test lyric line three" },
+          ];
+          const outcome = await reserveOrchestrateRecord({
+            userId: context.userId,
+            kind: "lyric_video",
+            cost,
+            reason: "smoke_lyric_video",
+            prompt: "Smoke test: lyric video (3 lines)",
+            audioUrl: TEST_AUDIO_URL,
+            segments,
+            model: "ffmpeg-lyricvideo",
+          });
+          if (!outcome.ok) throw new Error(outcome.error ?? "Lyric video smoke dispatch failed");
+          if (!outcome.url) throw new Error("Lyric video smoke returned no output URL");
+          return { url: outcome.url, cost: outcome.costUsd ?? cost, raw: { provider: outcome.provider } };
+        });
+      })();
+      await writeCheck(run.id, 15, STEPS[14], r15);
+      total += r15.cost_usd;
+
       await supabaseAdmin
         .from("smoke_runs")
         .update({
           finished_at: new Date().toISOString(),
           total_cost_usd: total,
-          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14].filter(r => r.status === "pass").length, total: 14 } as never,
+          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15].filter(r => r.status === "pass").length, total: 15 } as never,
         })
         .eq("id", run.id);
     })().catch(async (e) => {
