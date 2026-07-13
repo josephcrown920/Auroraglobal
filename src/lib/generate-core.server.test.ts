@@ -24,38 +24,55 @@ mock.module("./result-store.server", () => ({
   },
 }));
 
+// orchestrator.server is imported at the top of generate-core.server.ts (for the
+// type import), which transitively pulls in hf.server. Stub hf.server so the
+// import chain doesn't fail in a test environment with no real HF credentials.
+mock.module("./hf.server", () => ({
+  hfTextToSpeech: async () => ({ bytes: new Uint8Array(), contentType: "audio/flac" }),
+  hfTextToImage: async () => ({ bytes: new Uint8Array(), contentType: "image/png" }),
+}));
+
 const { reserveOrchestrateRecord } = await import("./generate-core.server");
 
 // ── Test helpers ──────────────────────────────────────────────────────────────
+//
+// Task #214: generate-core now calls finalize_sync_render (one atomic Postgres
+// transaction that folds the generations INSERT + commit_reservation together)
+// instead of calling insertGeneration + commit_reservation as two separate steps.
+//
+// The new credit-flow invariants are:
+//   SUCCESS  → reserve_credits + finalize_sync_render  (atomic commit inside the RPC)
+//   FAILURE  → reserve_credits + release_reservation   (if finalize_sync_render
+//               returned an error the Postgres tx rolled back — safe to release)
+//   INSUFFICIENT → reserve_credits only, ok:false returned immediately
+//
+// There is no longer a scenario where a generation row exists but the credit
+// commit has not happened, because both writes are in one transaction.
 
 type RpcCall = { name: string; args: Record<string, unknown> };
 
 /**
- * Build a dependency-injected RenderDeps whose RPC log, inserted-generation
- * rows, and behaviour are all controllable per-test.
+ * Build injectable RenderDeps whose RPC log and behaviour are controllable per-test.
  *
  * Returns:
- *   deps       — the RenderDeps to pass to reserveOrchestrateRecord
- *   calls      — RPC calls recorded in order (reserve / commit / release / …)
- *   insertedRows — every row passed to insertGeneration, in order
+ *   deps  — the RenderDeps to pass to reserveOrchestrateRecord
+ *   calls — RPC calls recorded in order
  */
 function makeDeps(overrides: {
   reserveResult?: { data: unknown; error: { message: string } | null };
-  commitError?: { message: string } | null;
+  finalizeResult?: { data: unknown; error: { message: string } | null };
   releaseError?: { message: string } | null;
   orchestrateImpl?: RenderDeps["orchestrate"];
-  insertImpl?: RenderDeps["insertGeneration"];
 }) {
   const calls: RpcCall[] = [];
-  const insertedRows: unknown[] = [];
 
   const deps: RenderDeps = {
     rpc: async (name, args) => {
       calls.push({ name, args });
       if (name === "reserve_credits")
         return overrides.reserveResult ?? { data: true, error: null };
-      if (name === "commit_reservation")
-        return { data: null, error: overrides.commitError ?? null };
+      if (name === "finalize_sync_render")
+        return overrides.finalizeResult ?? { data: "gen_1", error: null };
       if (name === "release_reservation")
         return { data: null, error: overrides.releaseError ?? null };
       return { data: null, error: null };
@@ -69,15 +86,9 @@ function makeDeps(overrides: {
         latencyMs: 100,
         costUsd: 0.01,
       })),
-    insertGeneration:
-      overrides.insertImpl ??
-      (async (row) => {
-        insertedRows.push(row);
-        return { id: "gen_1" };
-      }),
   };
 
-  return { deps, calls, insertedRows };
+  return { deps, calls };
 }
 
 // ── Base inputs ───────────────────────────────────────────────────────────────
@@ -113,11 +124,11 @@ const baseLipsyncInput = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Existing image credit-flow tests (preserved)
+// Core credit-flow tests
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("reserveOrchestrateRecord credit flow", () => {
-  it("reserves, renders, records, and commits on the happy path (no release)", async () => {
+  it("reserves then calls finalize_sync_render atomically on the happy path — no separate commit or release", async () => {
     const { deps, calls } = makeDeps({});
     const outcome = await reserveOrchestrateRecord(baseInput, deps);
 
@@ -126,13 +137,13 @@ describe("reserveOrchestrateRecord credit flow", () => {
       expect(outcome.generationId).toBe("gen_1");
       expect(outcome.url).toBe("https://cdn.example/out.png");
     }
-    expect(calls.map((c) => c.name)).toEqual([
-      "reserve_credits",
-      "commit_reservation",
-    ]);
+    // Only two RPC calls in the success path — reserve + finalize (atomic).
+    // No separate commit_reservation and no release_reservation.
+    const rpcNames = calls.map((c) => c.name);
+    expect(rpcNames).toEqual(["reserve_credits", "finalize_sync_render"]);
   });
 
-  it("returns insufficient (402-style) without orchestrating, committing, or releasing", async () => {
+  it("returns insufficient (402-style) without orchestrating, calling finalize, or releasing", async () => {
     const { deps, calls } = makeDeps({
       reserveResult: { data: false, error: null },
     });
@@ -160,7 +171,7 @@ describe("reserveOrchestrateRecord credit flow", () => {
     expect(calls.map((c) => c.name)).toEqual(["reserve_credits"]);
   });
 
-  it("releases the reservation when orchestrate fails, then rethrows", async () => {
+  it("releases the reservation when orchestrate fails, never calling finalize_sync_render", async () => {
     const { deps, calls } = makeDeps({
       orchestrateImpl: (async () => {
         throw new Error("No provider can serve image");
@@ -169,39 +180,38 @@ describe("reserveOrchestrateRecord credit flow", () => {
     await expect(
       reserveOrchestrateRecord(baseInput, deps),
     ).rejects.toThrow("No provider can serve image");
+    // finalize_sync_render must NOT be called — orchestrate failed before we got a result.
+    expect(calls.find((c) => c.name === "finalize_sync_render")).toBeUndefined();
     expect(calls.map((c) => c.name)).toEqual([
       "reserve_credits",
       "release_reservation",
     ]);
   });
 
-  it("releases the reservation when the generations insert fails", async () => {
+  it("releases the reservation when finalize_sync_render returns an error (Postgres rolled back — safe to release)", async () => {
+    // Task #214 crash-window fix:
+    // The old pattern (insertGeneration then commit_reservation) had a crash
+    // window: if the process died between them, the generation row existed with
+    // status=succeeded but credits_reserved was never committed — stranded.
+    //
+    // With finalize_sync_render, both the INSERT and the commit happen in one
+    // Postgres transaction. An error response from the RPC means the transaction
+    // aborted — the generation row was NOT written and the reservation was NOT
+    // committed. It is therefore safe (and correct) to release the reservation
+    // in the catch block so the user gets their credits back.
     const { deps, calls } = makeDeps({
-      insertImpl: async () => {
-        throw new Error("insert failed");
-      },
+      finalizeResult: { data: null, error: { message: "connection reset by peer" } },
     });
     await expect(
       reserveOrchestrateRecord(baseInput, deps),
-    ).rejects.toThrow("insert failed");
-    expect(calls.map((c) => c.name)).toEqual([
-      "reserve_credits",
-      "release_reservation",
-    ]);
-  });
+    ).rejects.toThrow("Failed to record render result and commit credits");
 
-  it("surfaces a commit failure WITHOUT releasing (a delivered render must not be refunded)", async () => {
-    const { deps, calls } = makeDeps({
-      commitError: { message: "commit boom" },
-    });
-    await expect(
-      reserveOrchestrateRecord(baseInput, deps),
-    ).rejects.toThrow(/credit commit failed/);
-    expect(calls.map((c) => c.name)).toEqual([
-      "reserve_credits",
-      "commit_reservation",
-    ]);
-    expect(calls.some((c) => c.name === "release_reservation")).toBe(false);
+    // Release must fire — the Postgres tx rolled back, no generation was written.
+    const release = calls.find((c) => c.name === "release_reservation");
+    expect(release).toBeDefined();
+    expect(release?.args._amount).toBe(1);
+    // No separate commit_reservation — the old two-step pattern is gone.
+    expect(calls.find((c) => c.name === "commit_reservation")).toBeUndefined();
   });
 
   it("surfaces BOTH the original error and a release failure (credit leak must not be swallowed)", async () => {
@@ -217,28 +227,54 @@ describe("reserveOrchestrateRecord credit flow", () => {
       /orchestrate boom; additionally failed to release reservation .* release boom/,
     );
   });
+
+  it("never calls finalize_sync_render more than once on any path (no double-finalize)", async () => {
+    const { deps, calls } = makeDeps({
+      finalizeResult: { data: null, error: { message: "boom" } },
+    });
+    await expect(reserveOrchestrateRecord(baseInput, deps)).rejects.toThrow();
+    expect(calls.filter((c) => c.name === "finalize_sync_render")).toHaveLength(1);
+  });
+
+  it("passes session_id and agent_shot_id through to finalize_sync_render", async () => {
+    const { deps, calls } = makeDeps({});
+    await reserveOrchestrateRecord(
+      { ...baseInput, sessionId: "sess-abc", agentShotId: "shot-7" },
+      deps,
+    );
+    const finalize = calls.find((c) => c.name === "finalize_sync_render");
+    expect(finalize?.args._session_id).toBe("sess-abc");
+    expect(finalize?.args._agent_shot_id).toBe("shot-7");
+  });
+
+  it("passes null session_id and agent_shot_id when not provided", async () => {
+    const { deps, calls } = makeDeps({});
+    await reserveOrchestrateRecord(baseInput, deps);
+    const finalize = calls.find((c) => c.name === "finalize_sync_render");
+    expect(finalize?.args._session_id).toBeNull();
+    expect(finalize?.args._agent_shot_id).toBeNull();
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Premium video/lipsync — no-double-refund guarantee
+// Premium video/lipsync — atomic finalize + no-double-refund guarantee
 //
 // For expensive renders (video ~$0.05–$0.65/s, lipsync ~$0.30/clip) the
-// credit contract is strict:
-//   SUCCESS → reserve_credits + commit_reservation (NO release)
-//   FAILURE → reserve_credits + release_reservation (NO commit)
-//   COMMIT FAILS after delivered render → NO release (render already shipped,
-//     refunding would drain revenue for a result the user received)
+// credit contract with the atomic finalize_sync_render is:
+//   SUCCESS  → reserve_credits + finalize_sync_render  (commit inside the RPC)
+//   FAILURE  → reserve_credits + release_reservation   (finalize_sync_render
+//               aborted its Postgres tx — safe to release, nothing was committed)
+//   INSUFFICIENT → reserve_credits only, ok:false
 //
-// These tests prove that invariant holds for both kind:"video" and
-// kind:"lipsync" without touching a live provider or the live DB.
-// The provider HTTP call is replaced by a controlled orchestrateImpl; the
-// credit RPCs are stubbed to record every call in order.
+// There is no "render delivered, commit failed, can't release" scenario any
+// more — the commit is inside finalize_sync_render and either the whole
+// transaction succeeds or it fully rolls back.
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("premium video/lipsync renders: no-double-refund guarantee", () => {
+describe("premium video/lipsync renders: atomic finalize + no-double-refund guarantee", () => {
   // ── kind: "video" ──────────────────────────────────────────────────────────
 
-  it("video: happy path reserves then commits EXACTLY ONCE — never releases", async () => {
+  it("video: happy path reserve + finalize EXACTLY ONCE — never releases", async () => {
     const { deps, calls } = makeDeps({
       orchestrateImpl: async () => ({
         url: "https://cdn.example/seedance-out.mp4",
@@ -253,15 +289,13 @@ describe("premium video/lipsync renders: no-double-refund guarantee", () => {
 
     expect(outcome.ok).toBe(true);
     const rpcNames = calls.map((c) => c.name);
-    // Must be EXACTLY this sequence — nothing extra, nothing missing.
-    expect(rpcNames).toEqual(["reserve_credits", "commit_reservation"]);
-    // Zero release calls — a successful render must NEVER trigger a refund.
+    expect(rpcNames).toEqual(["reserve_credits", "finalize_sync_render"]);
     expect(rpcNames.filter((n) => n === "release_reservation")).toHaveLength(0);
   });
 
-  it("video: records result_video_url (not result_image_url) in the generations row", async () => {
+  it("video: routes result_video_url in finalize_sync_render args (not result_image_url)", async () => {
     const VIDEO_URL = "https://cdn.example/seedance-out.mp4";
-    const { deps, insertedRows } = makeDeps({
+    const { deps, calls } = makeDeps({
       orchestrateImpl: async () => ({
         url: VIDEO_URL,
         provider: "replicate",
@@ -273,16 +307,13 @@ describe("premium video/lipsync renders: no-double-refund guarantee", () => {
 
     await reserveOrchestrateRecord(baseVideoInput, deps);
 
-    expect(insertedRows).toHaveLength(1);
-    const row = insertedRows[0] as Record<string, unknown>;
-    // result_video_url carries the output; result_image_url MUST be null so the
-    // gallery renders the correct media type and the admin tools show the right URL.
-    expect(row.result_video_url).toBe(VIDEO_URL);
-    expect(row.result_image_url).toBeNull();
-    expect(row.kind).toBe("video");
+    const finalize = calls.find((c) => c.name === "finalize_sync_render");
+    expect(finalize?.args._result_video_url).toBe(VIDEO_URL);
+    expect(finalize?.args._result_image_url).toBeNull();
+    expect(finalize?.args._kind).toBe("video");
   });
 
-  it("video: releases EXACTLY ONCE on provider failure — no double-refund", async () => {
+  it("video: releases EXACTLY ONCE on provider failure — no double-refund, finalize never called", async () => {
     const { deps, calls } = makeDeps({
       orchestrateImpl: (async () => {
         throw new Error("Replicate: prediction failed — safety filter");
@@ -294,18 +325,14 @@ describe("premium video/lipsync renders: no-double-refund guarantee", () => {
     ).rejects.toThrow();
 
     const rpcNames = calls.map((c) => c.name);
-    // Credits must come back — exactly one release, never two.
     expect(rpcNames.filter((n) => n === "release_reservation")).toHaveLength(1);
-    // No commit on a failed render.
-    expect(rpcNames.filter((n) => n === "commit_reservation")).toHaveLength(0);
+    expect(rpcNames.filter((n) => n === "finalize_sync_render")).toHaveLength(0);
   });
 
-  it("video: commit failure after delivered render NEVER releases (no refund of delivered output)", async () => {
-    // The provider returned the video URL; the generations row was inserted.
-    // Now the commit RPC fails (e.g. transient DB error). Releasing credits
-    // at this point would refund a render the user already has — a revenue
-    // loss with no recovery path. The error must surface for manual
-    // reconciliation, but release_reservation must NEVER be called.
+  it("video: finalize_sync_render failure releases reservation (Postgres rolled back — safe to release)", async () => {
+    // Unlike the old two-step commit, when finalize_sync_render returns an error
+    // the video was NOT written to generations AND the credit was NOT committed.
+    // Releasing is correct — the user gets their credits back.
     const { deps, calls } = makeDeps({
       orchestrateImpl: async () => ({
         url: "https://cdn.example/seedance-out.mp4",
@@ -314,24 +341,20 @@ describe("premium video/lipsync renders: no-double-refund guarantee", () => {
         latencyMs: 3200,
         costUsd: 0.05,
       }),
-      commitError: { message: "pg: connection reset by peer" },
+      finalizeResult: { data: null, error: { message: "pg: connection reset by peer" } },
     });
 
     await expect(
       reserveOrchestrateRecord(baseVideoInput, deps),
-    ).rejects.toThrow(/credit commit failed/);
+    ).rejects.toThrow("Failed to record render result and commit credits");
 
     const rpcNames = calls.map((c) => c.name);
-    // Commit was attempted — not silently skipped.
-    expect(rpcNames.filter((n) => n === "commit_reservation")).toHaveLength(1);
-    // Release was NOT called — the render was delivered; no refund.
-    expect(rpcNames.filter((n) => n === "release_reservation")).toHaveLength(0);
+    expect(rpcNames.filter((n) => n === "finalize_sync_render")).toHaveLength(1);
+    // Release fires — Postgres transaction rolled back, nothing was committed.
+    expect(rpcNames.filter((n) => n === "release_reservation")).toHaveLength(1);
   });
 
-  it("video: reserve_credits receives the exact cost amount passed to the function", async () => {
-    // The amount charged must be exactly what the caller computed (via
-    // computeCost). This proves the credit ledger debit matches the
-    // displayed price — no silent rounding or substitution in the flow.
+  it("video: reserve_credits and finalize_sync_render both receive the exact cost amount", async () => {
     const { deps, calls } = makeDeps({
       orchestrateImpl: async () => ({
         url: "u",
@@ -346,13 +369,13 @@ describe("premium video/lipsync renders: no-double-refund guarantee", () => {
 
     const reserve = calls.find((c) => c.name === "reserve_credits");
     expect(reserve?.args._amount).toBe(baseVideoInput.cost);
-    const commit = calls.find((c) => c.name === "commit_reservation");
-    expect(commit?.args._amount).toBe(baseVideoInput.cost);
+    const finalize = calls.find((c) => c.name === "finalize_sync_render");
+    expect(finalize?.args._amount).toBe(baseVideoInput.cost);
   });
 
   // ── kind: "lipsync" ────────────────────────────────────────────────────────
 
-  it("lipsync: happy path reserves then commits EXACTLY ONCE — never releases", async () => {
+  it("lipsync: happy path reserve + finalize EXACTLY ONCE — never releases", async () => {
     const { deps, calls } = makeDeps({
       orchestrateImpl: async () => ({
         url: "https://cdn.example/lipsync-out.mp4",
@@ -367,13 +390,13 @@ describe("premium video/lipsync renders: no-double-refund guarantee", () => {
 
     expect(outcome.ok).toBe(true);
     const rpcNames = calls.map((c) => c.name);
-    expect(rpcNames).toEqual(["reserve_credits", "commit_reservation"]);
+    expect(rpcNames).toEqual(["reserve_credits", "finalize_sync_render"]);
     expect(rpcNames.filter((n) => n === "release_reservation")).toHaveLength(0);
   });
 
-  it("lipsync: records result_video_url (not result_image_url) in the generations row", async () => {
+  it("lipsync: routes result_video_url and audio_url correctly in finalize_sync_render", async () => {
     const LIPSYNC_URL = "https://cdn.example/lipsync-out.mp4";
-    const { deps, insertedRows } = makeDeps({
+    const { deps, calls } = makeDeps({
       orchestrateImpl: async () => ({
         url: LIPSYNC_URL,
         provider: "fal",
@@ -385,16 +408,15 @@ describe("premium video/lipsync renders: no-double-refund guarantee", () => {
 
     await reserveOrchestrateRecord(baseLipsyncInput, deps);
 
-    expect(insertedRows).toHaveLength(1);
-    const row = insertedRows[0] as Record<string, unknown>;
-    expect(row.result_video_url).toBe(LIPSYNC_URL);
-    expect(row.result_image_url).toBeNull();
-    expect(row.kind).toBe("lipsync");
-    // The driving audio URL is stored as audio_url, not as the result.
-    expect(row.audio_url).toBe(baseLipsyncInput.audioUrl);
+    const finalize = calls.find((c) => c.name === "finalize_sync_render");
+    expect(finalize?.args._result_video_url).toBe(LIPSYNC_URL);
+    expect(finalize?.args._result_image_url).toBeNull();
+    expect(finalize?.args._kind).toBe("lipsync");
+    // Driving audio is preserved as _audio_url, not collapsed into the result.
+    expect(finalize?.args._audio_url).toBe(baseLipsyncInput.audioUrl);
   });
 
-  it("lipsync: releases EXACTLY ONCE on provider failure — no double-refund", async () => {
+  it("lipsync: releases EXACTLY ONCE on provider failure — finalize never called", async () => {
     const { deps, calls } = makeDeps({
       orchestrateImpl: (async () => {
         throw new Error("fal: lipsync inference failed — out of memory");
@@ -407,12 +429,10 @@ describe("premium video/lipsync renders: no-double-refund guarantee", () => {
 
     const rpcNames = calls.map((c) => c.name);
     expect(rpcNames.filter((n) => n === "release_reservation")).toHaveLength(1);
-    expect(rpcNames.filter((n) => n === "commit_reservation")).toHaveLength(0);
+    expect(rpcNames.filter((n) => n === "finalize_sync_render")).toHaveLength(0);
   });
 
-  it("lipsync: commit failure after delivered render NEVER releases (no refund of delivered output)", async () => {
-    // Same contract as video: a delivered lip-sync must not be refunded even
-    // if the credit-commit RPC fails after the provider returns the URL.
+  it("lipsync: finalize_sync_render failure releases reservation (Postgres rolled back — safe to release)", async () => {
     const { deps, calls } = makeDeps({
       orchestrateImpl: async () => ({
         url: "https://cdn.example/lipsync-out.mp4",
@@ -421,20 +441,19 @@ describe("premium video/lipsync renders: no-double-refund guarantee", () => {
         latencyMs: 8200,
         costUsd: 0.30,
       }),
-      commitError: { message: "network: connection reset" },
+      finalizeResult: { data: null, error: { message: "network: connection reset" } },
     });
 
     await expect(
       reserveOrchestrateRecord(baseLipsyncInput, deps),
-    ).rejects.toThrow(/credit commit failed/);
+    ).rejects.toThrow("Failed to record render result and commit credits");
 
     const rpcNames = calls.map((c) => c.name);
-    expect(rpcNames.filter((n) => n === "commit_reservation")).toHaveLength(1);
-    // No release — the render was delivered; refunding would be incorrect.
-    expect(rpcNames.filter((n) => n === "release_reservation")).toHaveLength(0);
+    expect(rpcNames.filter((n) => n === "finalize_sync_render")).toHaveLength(1);
+    expect(rpcNames.filter((n) => n === "release_reservation")).toHaveLength(1);
   });
 
-  it("lipsync: reserve_credits receives the exact cost amount passed to the function", async () => {
+  it("lipsync: reserve_credits and finalize_sync_render both receive the exact cost amount", async () => {
     const { deps, calls } = makeDeps({
       orchestrateImpl: async () => ({
         url: "u",
@@ -449,15 +468,13 @@ describe("premium video/lipsync renders: no-double-refund guarantee", () => {
 
     const reserve = calls.find((c) => c.name === "reserve_credits");
     expect(reserve?.args._amount).toBe(baseLipsyncInput.cost);
-    const commit = calls.find((c) => c.name === "commit_reservation");
-    expect(commit?.args._amount).toBe(baseLipsyncInput.cost);
+    const finalize = calls.find((c) => c.name === "finalize_sync_render");
+    expect(finalize?.args._amount).toBe(baseLipsyncInput.cost);
   });
 
   // ── Cross-kind: insufficient-credits path ──────────────────────────────────
 
   it("video + lipsync: returns insufficient without orchestrating when balance is low", async () => {
-    // A user below the cost threshold must never reach the provider call —
-    // there should be zero spent provider credits and zero DB side-effects.
     for (const input of [baseVideoInput, baseLipsyncInput]) {
       let reached = false;
       const { deps, calls } = makeDeps({
@@ -473,7 +490,6 @@ describe("premium video/lipsync renders: no-double-refund guarantee", () => {
       expect(outcome.ok).toBe(false);
       if (!outcome.ok) expect(outcome.insufficient).toBe(true);
       expect(reached).toBe(false);
-      // Exactly one RPC: the balance check. Nothing else.
       expect(calls.map((c) => c.name)).toEqual(["reserve_credits"]);
     }
   });

@@ -3,23 +3,31 @@
 // credit flow so the public /api/public/generate endpoint and the Aurora Agent
 // per-shot renderer never drift apart.
 //
+// Task #214: the generation INSERT and the credit commit are now folded into a
+// single Postgres function (finalize_sync_render). Postgres runs the whole body
+// in one transaction, so any error anywhere rolls back both the generations row
+// and the ledger entries — the result record and the credit ledger can never
+// diverge due to a mid-finish crash. The prior pattern (insertGeneration then
+// commit_reservation as two separate calls) had a crash window between them.
+//
+// Failure path: if finalize_sync_render returns an error, the Postgres
+// transaction aborted — no generation was written and no reservation was
+// committed. The catch block can therefore safely release the reservation and
+// return the credits to the user.
+//
 // Supabase RPCs resolve with an `{ error }` object instead of throwing, so EVERY
-// credit call (reserve / commit / release) inspects `error` explicitly — a
-// silently-ignored commit or release would leak `credits_reserved` while
-// reporting success. The credit + render surface is injectable (`deps`) so the
-// whole flow is unit-testable without a live database or provider.
+// credit call (reserve / finalize / release) inspects `error` explicitly — a
+// silently-ignored error would leak `credits_reserved` while reporting success.
+// The credit + render surface is injectable (`deps`) so the whole flow is
+// unit-testable without a live database or provider.
 import { orchestrate, type GenerateKind } from "@/lib/orchestrator.server";
-import type { Database } from "@/integrations/supabase/types";
 import { persistResultUrl, resultMediaTypeForKind } from "./result-store.server";
-
-type GenerationInsert = Database["public"]["Tables"]["generations"]["Insert"];
 
 type RpcResult = { data: unknown; error: { message: string } | null };
 
 export type RenderDeps = {
   rpc: (name: string, args: Record<string, unknown>) => Promise<RpcResult>;
   orchestrate: typeof orchestrate;
-  insertGeneration: (row: GenerationInsert) => Promise<{ id: string }>;
   /** Injectable daily-budget guard (omit to use live Supabase; inject in tests). */
   dailyBudget?: import("./cost-guardrails.server").DailyBudgetDeps;
 };
@@ -74,15 +82,6 @@ async function buildDefaultDeps(): Promise<RenderDeps> {
   return {
     rpc: (name, args) => client.rpc(name, args),
     orchestrate,
-    insertGeneration: async (row) => {
-      const { data, error } = await supabaseAdmin
-        .from("generations")
-        .insert(row)
-        .select("id")
-        .single();
-      if (error) throw new Error(error.message);
-      return { id: data.id };
-    },
   };
 }
 
@@ -139,53 +138,52 @@ export async function reserveOrchestrateRecord(
           ).url
         : result.url;
 
-    const gen = await d.insertGeneration({
-      user_id: input.userId,
-      prompt: input.prompt ?? "",
-      kind: input.kind,
-      mode: input.mode ?? "performance",
-      status: "succeeded",
-      input_images: input.imageUrls ?? [],
-      // For the `audio` modality there is no input audio — store the generated
-      // mp3 here; for lipsync this stays the driving (input) audio.
-      audio_url: input.kind === "audio" ? persistedUrl : (input.audioUrl ?? null),
-      model: result.provider,
-      result_image_url: input.kind === "image" ? persistedUrl : null,
-      result_video_url:
+    // Atomically record the succeeded generation and commit the credit
+    // reservation in one Postgres transaction (finalize_sync_render).
+    //
+    // If this RPC returns an error, Postgres rolled back both the generations
+    // INSERT and the commit_reservation ledger entries — nothing was written.
+    // The catch block will then safely release the reservation so the user
+    // gets their credits back. This closes the crash window that existed when
+    // insertGeneration and commit_reservation were separate calls.
+    const { data: genId, error: finalizeErr } = await d.rpc("finalize_sync_render", {
+      _user_id: input.userId,
+      _prompt: input.prompt ?? "",
+      _kind: input.kind,
+      _mode: input.mode ?? "performance",
+      _input_images: input.imageUrls ?? [],
+      _audio_url: input.kind === "audio" ? (persistedUrl ?? null) : (input.audioUrl ?? null),
+      _model: result.provider,
+      _result_image_url: input.kind === "image" ? (persistedUrl ?? null) : null,
+      _result_video_url:
         input.kind === "video" ||
         input.kind === "lipsync" ||
         input.kind === "caption_burn" ||
         input.kind === "lyric_video"
-          ? persistedUrl
+          ? (persistedUrl ?? null)
           : null,
-      result_text: input.kind === "text" ? (result.text ?? null) : null,
-      credits_cost: input.cost,
-      session_id: input.sessionId ?? null,
-      agent_shot_id: input.agentShotId ?? null,
-    });
-
-    // Finalize the spend. A failed commit leaves credits_reserved stuck, so surface
-    // it explicitly (the render itself already succeeded and was recorded).
-    const { error: commitErr } = await d.rpc("commit_reservation", {
-      _user: input.userId,
+      _result_text: input.kind === "text" ? (result.text ?? null) : null,
+      _credits_cost: input.cost,
+      _session_id: input.sessionId ?? null,
+      _agent_shot_id: input.agentShotId ?? null,
       _amount: reservedAmount,
       _reason: input.reason,
       _ref: reservationRef,
     });
-    if (commitErr) {
-      // The render and the generations row already succeeded; only the reserved-counter
-      // cleanup failed. Releasing here would REFUND a delivered render, so mark there is
-      // nothing to release and surface the error for manual credits_reserved reconciliation.
-      reservedAmount = 0;
+    if (finalizeErr) {
+      // The Postgres transaction aborted — the generation row was NOT written
+      // and the reservation was NOT committed. Throw so the catch block releases
+      // the reservation and the user gets their credits back.
       throw new Error(
-        `Render succeeded but the credit commit failed (reservation ${reservationRef}): ${commitErr.message}`,
+        `Failed to record render result and commit credits (reservation ${reservationRef}): ${finalizeErr.message}`,
       );
     }
+    // Both the generation write and the credit commit succeeded atomically.
     reservedAmount = 0;
 
     return {
       ok: true,
-      generationId: gen.id,
+      generationId: genId as string,
       url: result.url,
       text: result.text,
       provider: result.provider,
