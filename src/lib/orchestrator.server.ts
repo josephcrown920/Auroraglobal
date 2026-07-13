@@ -2944,12 +2944,12 @@ export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   lyric_video: ["ffmpeg-lyricvideo"],
 };
 const FALLBACK_CAP: Record<GenerateKind, number> = {
-  // Requested model + all 6 fallback candidates (2 Replit-billed, then
-  // identity-capable models, then identity-blind pollinations/flux last):
-  // pollinations/flux must still fit as the final candidate even when the
-  // requested model isn't already one of the 6 (Free-GPU-only mode relies
-  // on reaching it).
-  image: 7,
+  // Requested model + all 7 fallback candidates (2 Replit-billed, then
+  // identity-capable models, then infsh/flux keyed tier, then identity-blind
+  // pollinations/flux last): pollinations/flux must still fit as the final
+  // candidate even when the requested model isn't already one of the 7
+  // (Free-GPU-only mode relies on reaching it as the only $0 fallback).
+  image: 8,
   video: 3,
   lipsync: 2,
   upscale: 1,
