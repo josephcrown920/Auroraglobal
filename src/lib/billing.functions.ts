@@ -106,7 +106,7 @@ export const claimOnboardingBonus = createServerFn({ method: "POST" })
   });
 
 const InitPaystackSchema = z.object({
-  plan: z.enum(["starter", "creator", "studio"]),
+  plan: z.enum(["day1", "day2", "starter", "creator", "studio"]),
   currency: z.enum(["USD", "NGN", "GHS", "ZAR", "KES", "EGP"]).optional(),
   promoCode: z.string().min(1).max(40).optional(),
 });
@@ -156,7 +156,17 @@ export const createPaystackCheckout = createServerFn({ method: "POST" })
         currency,
         reference,
         ...(callback_url ? { callback_url } : {}),
-        metadata: { user_id: userId, plan: data.plan, credits: plan.credits, currency, promo_code_id: appliedPromoCodeId },
+        metadata: {
+          user_id: userId,
+          plan: data.plan,
+          credits: plan.credits,
+          currency,
+          promo_code_id: appliedPromoCodeId,
+          // day passes: auto-set daily_spend_limit in the webhook handler
+          ...("daily_limit" in plan && typeof plan.daily_limit === "number"
+            ? { daily_limit: plan.daily_limit }
+            : {}),
+        },
       }),
     });
     if (!res.ok) {

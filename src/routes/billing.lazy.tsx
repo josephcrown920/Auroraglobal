@@ -8,7 +8,7 @@ import { markFirstPurchaseComplete } from "@/lib/first-run";
 import { redeemPromoCode } from "@/lib/promo.functions";
 import { PLANS, SUBSCRIPTION_TIERS } from "@/lib/billing.plans";
 import { toast } from "sonner";
-import { ArrowLeft, Zap, Star, CheckCircle2, XCircle, CreditCard, Loader2, Crown, Tag, Rocket, Gauge, Lock } from "lucide-react";
+import { ArrowLeft, Zap, Star, CheckCircle2, XCircle, CreditCard, Loader2, Crown, Tag, Rocket, Gauge, Lock, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
@@ -69,7 +69,7 @@ function BillingPage() {
   });
 
   const packMut = useMutation({
-    mutationFn: (plan: "starter" | "creator" | "studio") =>
+    mutationFn: (plan: "day1" | "day2" | "starter" | "creator" | "studio") =>
       checkoutFn({ data: { plan, ...(promoCode.trim() ? { promoCode: promoCode.trim() } : {}) } }),
     onSuccess: ({ authorizationUrl }) => { window.location.href = authorizationUrl; },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Checkout failed"),
@@ -318,6 +318,61 @@ function BillingPage() {
             </div>
           </section>
         )}
+
+        {/* Quick Access Day Passes */}
+        <section>
+          <div className="flex items-center gap-2 mb-1">
+            <Calendar className="size-4 text-primary" />
+            <h2 className="text-base font-medium">Quick Access Passes</h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            Short-term passes for occasional use — includes an automatic daily limit so credits
+            last across the full pass duration.
+          </p>
+
+          <div className="grid sm:grid-cols-2 gap-3">
+            {(["day1", "day2"] as const).map((key) => {
+              const p = PLANS[key];
+              return (
+                <div
+                  key={key}
+                  className="rounded-2xl border border-primary/20 bg-primary/5 p-4 flex flex-col gap-3"
+                >
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <Calendar className="size-3.5 text-primary" />
+                      <span className="font-medium text-sm text-primary">
+                        {key === "day1" ? "1-Day Pass" : "2-Day Pass"}
+                      </span>
+                    </div>
+                    <p className="text-xl font-bold">${p.usd}</p>
+                    <p className="text-[13px] text-foreground/80 mt-0.5 font-medium">
+                      {p.credits} Aura
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {key === "day1"
+                        ? "~15 images or 1 short video — auto-limits 15 Aura/day"
+                        : "Spread across 2 days — auto-limits 13 Aura/day"}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full border-primary/30 text-primary hover:bg-primary/10"
+                    onClick={() => packMut.mutate(key)}
+                    disabled={packMut.isPending}
+                  >
+                    {packMut.isPending ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <><CreditCard className="size-3 mr-1" /> Get pass</>
+                    )}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
 
         {/* Credit packs */}
         <section>

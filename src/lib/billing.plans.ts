@@ -12,7 +12,45 @@ export const CURRENCY_SYMBOLS: Record<Currency, string> = {
 
 // USD prices: Starter $10 | Creator $30 | Studio $80
 // Africa prices: ~$6.50 / $20 / $53 USD equivalent (PPP-adjusted)
+//
+// Day passes sit outside the regular credit-pack tiers — they are short-term
+// affordable entry points priced slightly above the Starter rate per Aura
+// ($0.133–$0.14 vs $0.125) to reflect the smaller commitment. When purchased
+// the webhook auto-sets the buyer's daily_spend_limit to `daily_limit` Aura
+// so they naturally spread usage across the pass duration.
 export const PLANS = {
+  /** 1-Day Pass — 15 Aura. Auto-sets 15 Aura/day daily limit on purchase. */
+  day1: {
+    credits: 15,
+    label: "1-Day Pass — 15 Aura",
+    usd: 2,
+    /** Auto-applied daily_spend_limit (Aura/day) when this pass is purchased. */
+    daily_limit: 15,
+    prices: {
+      USD: { amount_minor: 2_00,        display: "$2" },
+      NGN: { amount_minor: 2_000_00,    display: "₦2,000" },
+      GHS: { amount_minor: 20_00,       display: "₵20" },
+      KES: { amount_minor: 169_00,      display: "KES 169" },
+      ZAR: { amount_minor: 24_00,       display: "R24" },
+      EGP: { amount_minor: 64_00,       display: "EGP 64" },
+    } as Record<Currency, { amount_minor: number; display: string }>,
+  },
+  /** 2-Day Pass — 25 Aura. Auto-sets 13 Aura/day daily limit on purchase. */
+  day2: {
+    credits: 25,
+    label: "2-Day Pass — 25 Aura",
+    usd: 3.5,
+    /** Auto-applied daily_spend_limit (Aura/day) when this pass is purchased. */
+    daily_limit: 13,
+    prices: {
+      USD: { amount_minor: 3_50,        display: "$3.50" },
+      NGN: { amount_minor: 3_400_00,    display: "₦3,400" },
+      GHS: { amount_minor: 35_00,       display: "₵35" },
+      KES: { amount_minor: 295_00,      display: "KES 295" },
+      ZAR: { amount_minor: 42_00,       display: "R42" },
+      EGP: { amount_minor: 111_00,      display: "EGP 111" },
+    } as Record<Currency, { amount_minor: number; display: string }>,
+  },
   starter: {
     credits: 80,
     label: "Starter — 80 Aura",
