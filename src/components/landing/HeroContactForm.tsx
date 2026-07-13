@@ -66,7 +66,7 @@ export function HeroContactForm({ greeting }: { greeting: string }) {
             onClick={() => void track("hero_cta_click", { variant: "primary" })}
             className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-medium text-white no-underline bg-[image:var(--gradient-hero)] hover:brightness-110 shadow-[var(--shadow-glow-soft)]"
           >
-            <Play className="size-4" /> Start free — 5 Aura
+            <Play className="size-4" /> Get started — 5 Aura
           </Link>
           <Link
             to="/templates"
@@ -102,7 +102,7 @@ export function HeroContactForm({ greeting }: { greeting: string }) {
             <div className="flex flex-col items-center text-center py-8 gap-3">
               <CheckCircle2 className="size-10 text-emerald-300" />
               <div className="text-base font-medium text-white">Got it — we'll be in touch.</div>
-              <div className="text-sm text-white/60">In the meantime, claim your 5 free Aura and start exploring.</div>
+              <div className="text-sm text-white/60">In the meantime, claim your 5 Aura and start exploring.</div>
               <Link to="/studio" className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-white no-underline bg-[image:var(--gradient-hero)]">
                 Open Performance Studio <ArrowRight className="size-4" />
               </Link>

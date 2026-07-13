@@ -14,7 +14,7 @@ export function FinalCTA() {
 
         <div className="relative max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs mb-6">
-            <Sparkles className="size-3.5" /> 5 free Aura on signup
+            <Sparkles className="size-3.5" /> Starter Aura on signup
           </div>
           <h2 className="text-4xl md:text-6xl font-semibold tracking-tight leading-[1.05]">
             Drop your song.
@@ -31,7 +31,7 @@ export function FinalCTA() {
               onClick={() => void track("final_cta_click", { variant: "primary" })}
               className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full font-medium text-white no-underline bg-[image:var(--gradient-hero)] hover:brightness-110 shadow-[var(--shadow-glow-soft)]"
             >
-              <Sparkles className="size-4" /> Generate my music video free
+              <Sparkles className="size-4" /> Generate my music video
             </Link>
             <Link
               to="/contact"

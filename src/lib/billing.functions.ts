@@ -107,7 +107,7 @@ export const claimOnboardingBonus = createServerFn({ method: "POST" })
 
 const InitPaystackSchema = z.object({
   plan: z.enum(["starter", "creator", "studio"]),
-  currency: z.literal("USD").optional(),
+  currency: z.enum(["USD", "NGN", "GHS", "ZAR", "KES", "EGP"]).optional(),
   promoCode: z.string().min(1).max(40).optional(),
 });
 
@@ -120,8 +120,8 @@ export const createPaystackCheckout = createServerFn({ method: "POST" })
     if (!key) throw new Error("Paystack not configured");
     const plan = PLANS[data.plan];
 
-    const currency = "USD" as const;
-    const price = plan.prices[currency];
+    const currency = (data.currency ?? "USD") as import("./billing.plans").Currency;
+    const price = plan.prices[currency] ?? plan.prices["USD"];
 
     let amountMinor: number = price.amount_minor;
     let appliedPromoCodeId: string | null = null;

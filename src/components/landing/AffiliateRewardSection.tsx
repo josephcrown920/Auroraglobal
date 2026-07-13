@@ -14,7 +14,7 @@ export function AffiliateRewardSection() {
             Get rewarded for growing the <em className="not-italic bg-gradient-to-r from-emerald-300 to-cyan-300 bg-clip-text text-transparent">Aurora</em> community.
           </h2>
           <p className="mt-4 max-w-xl text-base leading-7 text-white/70 md:text-lg">
-            Share your custom referral link, onboard other creators, and stack free Aura to power your next viral hit.
+            Share your custom referral link, onboard other creators, and stack bonus Aura to power your next viral hit.
           </p>
 
           <ul className="mt-6 grid gap-3 text-sm text-white/80">
@@ -40,7 +40,7 @@ export function AffiliateRewardSection() {
             <Tile label="Unlock" value="Tiers" suffix="limits" />
           </div>
           <div className="rounded-xl border border-border bg-black/40 p-4 text-xs text-white/55">
-            Rewards are automatically credited to your account. No cash payouts, no subscription required. Just free tools to make your content.
+            Rewards are automatically credited to your account. No cash payouts, no subscription required. Aura to power your content, on us.
           </div>
         </div>
       </div>

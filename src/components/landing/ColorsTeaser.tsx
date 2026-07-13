@@ -102,7 +102,7 @@ export function ColorsTeaser() {
               <Star className="size-3 fill-amber-300 text-amber-300" /> Real results — same artist, 3 colors
             </p>
             <Link to="/colors" className="text-xs text-white/40 hover:text-white/70 transition no-underline">
-              Try it free →
+              Explore Colors →
             </Link>
           </div>
           <div className="grid grid-cols-3 gap-2">

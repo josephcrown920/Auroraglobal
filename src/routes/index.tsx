@@ -103,7 +103,7 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const { user } = useAuth();
-  const ctaLabel = user ? "Open Performance Studio" : "Try it free";
+  const ctaLabel = user ? "Open Performance Studio" : "Get started";
   const greeting = user?.user_metadata?.display_name
     ? `Welcome back, ${String(user.user_metadata.display_name).split(" ")[0]}`
     : "Welcome to Aurora";
@@ -334,11 +334,11 @@ function Index() {
                 onClick={() => void track("manifesto_cta_click")}
                 className="group inline-flex items-center gap-2.5 px-8 py-3.5 text-base font-bold rounded-full text-white no-underline bg-[image:var(--gradient-hero)] shadow-[var(--shadow-glow-soft)] hover:brightness-110 hover:scale-[1.02] transition-all"
               >
-                Start creating free
+                Start creating
                 <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
               <p className="text-[11px] text-white/30 tracking-wide">
-                No credit card · Free credits on signup · Cancel anytime
+                No credit card · Starter Aura included · Cancel anytime
               </p>
             </div>
           </div>
@@ -398,7 +398,7 @@ function Index() {
               onClick={() => void track("hero_start_click")}
               className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-full text-white no-underline bg-[image:var(--gradient-hero)] shadow-[var(--shadow-glow-soft)] hover:brightness-110"
             >
-              <Sparkles className="size-4" /> Start creating free
+              <Sparkles className="size-4" /> Start creating
             </Link>
             <Link
               to="/templates"

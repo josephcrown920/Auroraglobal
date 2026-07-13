@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Loader2, Sparkles, Zap, Crown } from "lucide-react";
+import { Check, Loader2, Sparkles, Zap, Crown, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { createPaystackCheckout } from "@/lib/billing.functions";
-import { PLANS, perCreditDisplay, type PlanKey } from "@/lib/billing.plans";
+import { PLANS, type PlanKey } from "@/lib/billing.plans";
+import { detectGeoRegion, type GeoRegion } from "@/lib/geo-pricing";
 import { useAuth } from "@/hooks/use-auth";
 import { track } from "@/lib/tracking";
 
@@ -30,17 +31,18 @@ export function PricingSection() {
   const navigate = useNavigate();
   const checkout = useServerFn(createPaystackCheckout);
   const [loadingPlan, setLoadingPlan] = useState<PlanKey | null>(null);
-  const currency = "USD" as const;
+  const [geo, setGeo] = useState<GeoRegion | null>(null);
+
+  useEffect(() => {
+    setGeo(detectGeoRegion());
+  }, []);
+
+  const currency = geo?.currency ?? "USD";
 
   const onChoose = async (plan: PlanKey) => {
-
     void track("pricing_cta_click", { plan, currency });
     if (!user) {
-      try {
-        localStorage.setItem("aurora_intent_plan", plan);
-      } catch {
-        // localStorage unavailable (e.g. private browsing) — non-fatal
-      }
+      try { localStorage.setItem("aurora_intent_plan", plan); } catch { /* non-fatal */ }
       toast.info("Sign in first to complete checkout.");
       navigate({ to: "/auth" });
       return;
@@ -65,17 +67,19 @@ export function PricingSection() {
         <p className="text-muted-foreground mt-3 text-sm md:text-base">
           One Aura ≈ one image. Budget video from 10 Aura, lip-sync from 3; premium models cost more. Aura never expires.
         </p>
+        {geo && geo.currency !== "USD" && (
+          <div className="mt-3 inline-flex items-center gap-1.5 text-xs text-primary/80 border border-primary/20 bg-primary/5 px-3 py-1 rounded-full">
+            <Globe className="size-3" /> Prices shown in {geo.currency} · {geo.name}
+          </div>
+        )}
       </div>
-
-      {/* USD-only billing */}
-
 
       <div className="grid md:grid-cols-3 gap-4 md:gap-6 max-w-5xl mx-auto">
         {ORDER.map((key) => {
           const p = PLANS[key];
           const meta = META[key];
           const Icon = meta.icon;
-          const price = p.prices[currency];
+          const price = p.prices[currency] ?? p.prices["USD"];
           return (
             <div
               key={key}
@@ -105,7 +109,13 @@ export function PricingSection() {
                   <span className="text-xs text-muted-foreground">one-time</span>
                 </div>
                 <p className="text-sm text-primary mt-1">{p.credits} Aura</p>
-                <p className="text-[11px] text-muted-foreground">{perCreditDisplay(key, currency)}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {(() => {
+                    const sym = currency === "NGN" ? "₦" : currency === "GHS" ? "₵" : currency === "ZAR" ? "R" : currency === "KES" ? "KES " : currency === "EGP" ? "EGP " : "$";
+                    const amount = price.amount_minor / 100;
+                    return `${sym}${(amount / p.credits).toFixed(currency === "NGN" ? 0 : 2)} / Aura`;
+                  })()}
+                </p>
               </div>
               <ul className="space-y-2 text-sm text-foreground/80">
                 {meta.features.map((f) => (
@@ -136,7 +146,7 @@ export function PricingSection() {
       </div>
 
       <p className="text-center text-xs text-muted-foreground mt-8">
-        Secure payments by Paystack · USD billing · 7-day refund on unused Aura ·{" "}
+        Secure payments by Paystack · {geo && geo.currency !== "USD" ? `${geo.currency} billing` : "USD billing"} · 7-day refund on unused Aura ·{" "}
         <Link to="/gifts" className="underline hover:text-foreground/70">Gift cards available</Link>
       </p>
     </section>
