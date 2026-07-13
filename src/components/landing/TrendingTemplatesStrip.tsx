@@ -68,7 +68,7 @@ export function TrendingTemplatesStrip() {
                 </span>
               ) : (
                 <span className="absolute right-2 top-2 inline-flex items-center rounded-full bg-emerald-500/90 px-2 py-0.5 text-[11px] font-semibold text-white backdrop-blur">
-                  Free
+                  0 Aura
                 </span>
               )}
               {t.premium && (

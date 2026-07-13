@@ -23,8 +23,8 @@ const FAQS = [
     a: "7-day refund on any unused Aura, no questions asked. Email us and we'll return your remaining balance.",
   },
   {
-    q: "Is there a free trial?",
-    a: "Yes — every new account gets 5 free Aura the moment you sign in. Enough to test image generation and decide if Aurora is for you.",
+    q: "How do I get started?",
+    a: "Create an account and you get starter Aura the moment you sign in — enough to test image generation and explore the studio before committing.",
   },
 ];
 

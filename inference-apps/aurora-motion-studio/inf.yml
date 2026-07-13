@@ -1,0 +1,39 @@
+name: aurora-motion-studio
+display_name: Aurora Motion Studio
+description: >
+  Multi-task GPU worker for Aurora's motion-synthesis pipeline.
+
+  Tasks supported (pass as `task` in params):
+
+  motion  — Identity-preserving motion transfer. Drive a reference portrait
+            (image_url / image_urls[0]) with a motion-source video (video_url).
+            Uses Champ (fudan-generative-vision/champ) for full-body skeleton
+            + depth + normal guidance; falls back to AnimateDiff + DWPose
+            ControlNet when the reference has occlusions or Champ errors.
+
+  lipsync — Audio-driven lip sync on a video or portrait image.
+            Uses LatentSync-1.5 (ByteDance). Mirrors the dedicated
+            aurora-lipsync app so this worker can carry both tasks.
+            Required: audio_url. Source: video_url or image_url.
+
+  video   — Fast text-to-video and image-to-video.
+            Uses AnimateDiff-Lightning (SDXL backbone, 4-step LCM).
+            Required: prompt (text→video) or image_url + prompt (img→video).
+
+resources:
+  gpu: A100
+  gpu_count: 1
+
+runtime:
+  python: "3.11"
+
+env:
+  HF_HOME: /workspace/.cache/huggingface
+  TORCH_HOME: /workspace/.cache/torch
+  TRANSFORMERS_CACHE: /workspace/.cache/huggingface
+  # Model IDs — override via INFERENCE_SH_APP env vars on the Aurora side
+  CHAMP_MODEL_ID: fudan-generative-vision/champ
+  LIPSYNC_MODEL_ID: ByteDance/LatentSync-1.5
+  ANIMATEDIFF_MODEL_ID: guoyww/animatediff-motion-adapter-sdxl-beta
+  SDXL_BASE_ID: stabilityai/stable-diffusion-xl-base-1.0
+  ANIMATEDIFF_LIGHTNING_ID: ByteDance/AnimateDiff-Lightning
