@@ -92,28 +92,63 @@ export type TemplateGenerateResult =
 
 // ── Avatar Shots — SeedDream / Gemini Omni / KlingAI ─────────────────────────
 
-// ── Smoke helper — callable from server-side smoke tests ─────────────────────
-// Mirrors the handler body of generateAvatarShot (engine="seedream") so the
-// smoke test exercises the full avatar-shot pipeline (credit reservation →
-// orchestration → URL return) without going through the HTTP/auth layer.
-// Adding imageUrls conditions on the reference face, matching what a real user
-// would provide from the Shots tab after uploading their photo.
-export async function runSmokeAvatarShotOne(
-  userId: string,
-  imageUrl: string,
-): Promise<{ url: string; provider: string }> {
+// Internal canonical dispatch — shared by generateAvatarShot handler AND
+// runSmokeAvatarShotOne so the two can NEVER drift on critical params.
+async function _dispatchAvatarShot({
+  userId,
+  prompt,
+  engine,
+  imageUrl,
+  reason,
+}: {
+  userId: string;
+  prompt: string;
+  engine: "seedream" | "gemini" | "kling";
+  imageUrl?: string;
+  reason: string;
+}): Promise<TemplateGenerateResult> {
+  if (engine === "kling") {
+    const outcome = await reserveOrchestrateRecord({
+      userId,
+      kind: "video",
+      cost: SHOT_KLING_COST,
+      reason,
+      prompt,
+      model: LIVE_AVATAR_MODEL,
+    });
+    if (!outcome.ok) return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
+    return { ok: true, generationId: outcome.generationId, url: outcome.url };
+  }
+  const model = engine === "gemini" ? SHOT_IMAGE_MODEL_GEMINI : SHOT_IMAGE_MODEL_SEEDREAM;
   const outcome = await reserveOrchestrateRecord({
     userId,
     kind: "image",
     cost: SHOT_IMAGE_COST,
-    reason: "smoke_avatar_shot",
-    prompt: "smoke test: cinematic AI avatar portrait, soft studio lighting, neutral backdrop",
-    model: SHOT_IMAGE_MODEL_SEEDREAM,
-    imageUrls: [imageUrl],
+    reason,
+    prompt,
+    model,
+    imageUrls: imageUrl ? [imageUrl] : undefined,
   });
-  if (!outcome.ok) throw new Error(outcome.error ?? "Avatar shot dispatch failed");
-  if (!outcome.url) throw new Error("Avatar shot returned no image URL");
-  return { url: outcome.url, provider: outcome.provider ?? "unknown" };
+  if (!outcome.ok) return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
+  return { ok: true, generationId: outcome.generationId, url: outcome.url };
+}
+
+// Smoke helper — called by smoke.functions.ts step 16. Shares the exact same
+// _dispatchAvatarShot path as the generateAvatarShot server fn: zero drift.
+export async function runSmokeAvatarShotOne(
+  userId: string,
+  imageUrl: string,
+): Promise<{ url: string; provider: string }> {
+  const result = await _dispatchAvatarShot({
+    userId,
+    prompt: "smoke test: cinematic AI avatar portrait, soft studio lighting, neutral backdrop",
+    engine: "seedream",
+    imageUrl,
+    reason: "smoke_avatar_shot",
+  });
+  if (!result.ok) throw new Error(result.error ?? "Avatar shot dispatch failed");
+  if (!result.url) throw new Error("Avatar shot returned no image URL");
+  return { url: result.url, provider: "seedream" };
 }
 
 export const generateAvatarShot = createServerFn({ method: "POST" })
@@ -123,35 +158,20 @@ export const generateAvatarShot = createServerFn({ method: "POST" })
       .object({
         prompt: z.string().min(1).max(500),
         engine: z.enum(["seedream", "gemini", "kling"]).default("seedream"),
+        /** Optional reference-photo URL — conditions SeedDream/Gemini on a real face. */
+        imageUrl: z.string().url().optional(),
       })
       .parse(d),
   )
-  .handler(async ({ context, data }): Promise<TemplateGenerateResult> => {
-    if (data.engine === "kling") {
-      const outcome = await reserveOrchestrateRecord({
-        userId: context.userId,
-        kind: "video",
-        cost: SHOT_KLING_COST,
-        reason: "avatar_shot_kling",
-        prompt: data.prompt,
-        model: LIVE_AVATAR_MODEL,
-      });
-      if (!outcome.ok) return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
-      return { ok: true, generationId: outcome.generationId, url: outcome.url };
-    }
-    const model =
-      data.engine === "gemini" ? SHOT_IMAGE_MODEL_GEMINI : SHOT_IMAGE_MODEL_SEEDREAM;
-    const outcome = await reserveOrchestrateRecord({
+  .handler(async ({ context, data }): Promise<TemplateGenerateResult> =>
+    _dispatchAvatarShot({
       userId: context.userId,
-      kind: "image",
-      cost: SHOT_IMAGE_COST,
-      reason: "avatar_shot_image",
       prompt: data.prompt,
-      model,
-    });
-    if (!outcome.ok) return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
-    return { ok: true, generationId: outcome.generationId, url: outcome.url };
-  });
+      engine: data.engine,
+      imageUrl: data.imageUrl,
+      reason: data.engine === "kling" ? "avatar_shot_kling" : "avatar_shot_image",
+    }),
+  );
 
 export const generateFromPlatformTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
