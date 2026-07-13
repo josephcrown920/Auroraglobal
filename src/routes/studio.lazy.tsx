@@ -22,7 +22,7 @@ import tutorialStudioRefs from "@/assets/tutorial-studio-refs.jpg.asset.json";
 import tutorialStudioFinal from "@/assets/tutorial-studio-final.jpg.asset.json";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Wand2, LogOut, Loader2, Download, Camera, Film, Mic2, Coins, Zap, LayoutDashboard, Shield, Server, Captions } from "lucide-react";
+import { Sparkles, Wand2, LogOut, Loader2, Download, Camera, Film, Mic2, Coins, Zap, LayoutDashboard, Shield, Server, Captions, Crown, Flame } from "lucide-react";
 import { CaptionDialog } from "@/components/gallery/CaptionDialog";
 import { toast } from "sonner";
 import { listGenerations } from "@/lib/studio.functions";
@@ -77,7 +77,7 @@ const musicVideoScene =
   `Create a hyper-realistic composite using the provided reference images. Use the close-up selfie as the primary identity source, preserving exact facial features, skin tone, complexion, beard texture, hairstyle, eye detail, and overall likeness with absolute accuracy. Dress the subject in the exact outfit from the outfit reference — accurate colors, fabric textures, proportions, and fit. Place the subject outdoors in the location reference as the main background environment, and incorporate the prop/vehicle from the prop reference behind the subject — naturally placed, correct scale and angle. Match the pose reference exactly: same body positioning, framing, perspective, and camera angle. Include a vintage hanging microphone suspended directly in front of the subject at mouth level. Apply true cinematic shallow depth of field — subject and microphone razor-sharp, background softly blurred with natural optical bokeh and realistic lens falloff. Visual style of ARRI Alexa cinema camera with high-quality prime lens: filmic color science, natural highlight roll-off, accurate dynamic range, professional golden-hour outdoor lighting. Advanced skin realism — authentic pores, micro-texture, fine lines, natural asymmetry, freckles, vellus hairs, real matte vs oily zones, no smoothing or plastic artifacts. High-fidelity eye detail with crisp iris texture, accurate subsurface light, refined eyelids and lashes. Ultra-photorealistic, seamless blending, accurate proportions, true optical depth, 4K, no text or logos.`;
 
 const PRESETS = [
-  { label: "Editorial Cover", prompt: "High-fashion editorial cover shot of the subject, studio lighting with violet rim light, seamless paper backdrop, confident pose, magazine quality, medium format camera look" },
+  { label: "Editorial Cover", prompt: "Cinematic editorial portrait of the subject — razor-sharp 85mm f/1.8 lens, warm split key light at 2700K from 45° left with a cool blue rim at 5600K creating vivid tonal separation, seamless charcoal studio backdrop with a deep violet gradient glow behind. Subject at 30° angle to camera with direct confident eye contact. Ultra-photorealistic: natural skin pores, micro-texture, individual hair strands, precise fabric weave. Perfect anatomy and natural proportions — no distortion, no warping, no artifacts. 4K hyperrealistic photography, crisp in-focus subject, soft creamy bokeh background. Preserve exact facial likeness, skin tone, hairstyle, and outfit from the reference." },
   { label: "Neon Street", prompt: "Cinematic night street performance, neon purple and pink reflections, rain-soaked pavement, motion blur background, professional cinematic still" },
   { label: "Urban Rooftop", prompt: "Cinematic editorial photograph of the subject on a downtown rooftop at golden hour, skyline of glass towers behind, low sun rim-lighting the subject from the side, warm cinematic color grade, anamorphic 50mm look, sharp focus on the subject, shallow depth of field, 4K. Preserve exact facial likeness and outfit." },
   { label: "Urban Alley", prompt: "Gritty urban alleyway portrait of the subject at night, wet pavement reflecting overhead street lamps, brick walls and graffiti softly out of focus, single hard key light from above, deep shadows, ARRI cinema look, anamorphic flares, 35mm lens, 4K. Preserve exact facial likeness and outfit." },
@@ -1092,33 +1092,105 @@ function StudioPage() {
 
 
 
-          <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <Coins className="size-4 text-primary" />
-              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Buy Aura</h3>
+          {/* ── Buy Aura — premium redesign ──────────────────────────── */}
+          <div className="relative rounded-3xl overflow-hidden border border-primary/25 bg-gradient-to-br from-violet-950/70 via-[#0d0820]/80 to-fuchsia-950/30 shadow-[0_0_60px_-20px_oklch(0.72_0.2_300)]">
+            {/* top shimmer line */}
+            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+            {/* ambient glow */}
+            <div aria-hidden className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[200px] rounded-full bg-primary/8 blur-[80px]" />
+
+            <div className="relative p-5 space-y-5">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <Coins className="size-4 text-primary" />
+                    <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Top Up Aura</span>
+                  </div>
+                  <p className="text-[11px] text-white/40">Secure checkout · never expires · rolls across all tools</p>
+                </div>
+                {checkoutMut.isPending && (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] text-white/50">
+                    <Loader2 className="size-3 animate-spin" /> Opening…
+                  </span>
+                )}
+              </div>
+
+              {/* Day passes — quick-entry row */}
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.15em] text-white/30 mb-2">Quick passes</p>
+                <div className="flex gap-2">
+                  {(["day1", "day2"] as const).map((k) => {
+                    const p = PLANS[k];
+                    return (
+                      <button
+                        key={k}
+                        type="button"
+                        disabled={checkoutMut.isPending}
+                        onClick={() => checkoutMut.mutate(k)}
+                        className="flex-1 flex flex-col gap-0.5 rounded-xl border border-white/10 bg-white/5 hover:border-primary/30 hover:bg-primary/10 transition-all p-3 text-left disabled:opacity-50"
+                      >
+                        <span className="text-[10px] uppercase tracking-wider text-white/40">{k === "day1" ? "1-Day" : "2-Day"}</span>
+                        <span className="text-base font-bold text-white">{p.credits} <span className="text-[10px] font-normal text-white/40">Aura</span></span>
+                        <span className="text-[11px] text-white/55">{p.prices[currency].display}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Credit packs — main 3 */}
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.15em] text-white/30 mb-2">Credit packs</p>
+                <div className="space-y-2">
+                  {(["starter", "creator", "studio"] as const).map((k) => {
+                    const p = PLANS[k];
+                    const isPopular = k === "creator";
+                    const isBest = k === "studio";
+                    return (
+                      <button
+                        key={k}
+                        type="button"
+                        disabled={checkoutMut.isPending}
+                        onClick={() => checkoutMut.mutate(k)}
+                        className={`w-full flex items-center justify-between rounded-xl border p-3.5 text-left transition-all disabled:opacity-50 ${
+                          isPopular
+                            ? "border-primary/50 bg-primary/10 hover:bg-primary/15 shadow-[0_0_24px_-6px_oklch(0.72_0.2_300)]"
+                            : isBest
+                            ? "border-amber-400/30 bg-amber-500/8 hover:border-amber-400/50 hover:bg-amber-500/12"
+                            : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`size-8 rounded-lg grid place-items-center ${isPopular ? "bg-primary/20 border border-primary/30" : isBest ? "bg-amber-500/15 border border-amber-400/25" : "bg-white/8 border border-white/10"}`}>
+                            {isPopular ? <Sparkles className="size-4 text-primary" /> : isBest ? <Crown className="size-4 text-amber-400" /> : <Zap className="size-4 text-white/50" />}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-white capitalize">{k}</span>
+                              {isPopular && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-primary/25 border border-primary/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary">
+                                  <Flame className="size-2.5" /> Popular
+                                </span>
+                              )}
+                              {isBest && (
+                                <span className="inline-flex items-center rounded-full bg-amber-500/15 border border-amber-400/30 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-400">
+                                  Best Value
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[11px] text-white/40">{p.credits} Aura</span>
+                          </div>
+                        </div>
+                        <span className={`text-base font-bold ${isPopular ? "text-primary" : isBest ? "text-amber-300" : "text-white/80"}`}>
+                          {p.prices[currency].display}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">1 Aura per image · video &amp; lip-sync priced by model (budget from 3–10). Secure checkout via Paystack.</p>
-            <div className="grid grid-cols-3 gap-2">
-              {(Object.keys(PLANS) as Array<"starter" | "creator" | "studio">).map((k) => {
-                const p = PLANS[k];
-                return (
-                  <button
-                    key={k}
-                    type="button"
-                    disabled={checkoutMut.isPending}
-                    onClick={() => checkoutMut.mutate(k)}
-                    className="flex flex-col items-start gap-1 rounded-xl border border-border bg-background/60 hover:border-primary/40 hover:bg-accent transition-colors p-3 text-left disabled:opacity-50"
-                  >
-                    <span className="text-xs uppercase tracking-wider text-muted-foreground">{k}</span>
-                    <span className="text-lg font-semibold">{p.credits} <span className="text-xs font-normal text-muted-foreground">Aura</span></span>
-                    <span className="text-xs text-muted-foreground">{p.prices[currency].display}</span>
-                  </button>
-                );
-              })}
-            </div>
-            {checkoutMut.isPending && (
-              <p className="text-xs text-muted-foreground flex items-center gap-2"><Loader2 className="size-3 animate-spin" /> Opening Paystack…</p>
-            )}
           </div>
         </section>
       </div>
