@@ -122,6 +122,36 @@ export function buildDirectorPrompt(brief: string, refNote: string): string {
   return `BRIEF:\n${brief}${refNote}\n\nReturn the full production plan now.`;
 }
 
+// ─── Skill System ────────────────────────────────────────────────────────────
+
+export const SKILL_NAMES = [
+  "web_search",
+  "scrape_url",
+  "generate_hooks",
+  "generate_broll",
+  "recall_brand_memory",
+  "update_brand_memory",
+  "add_captions",
+] as const;
+
+export type SkillName = (typeof SKILL_NAMES)[number];
+
+export const SkillCallSchema = z.object({
+  skill: z.enum(SKILL_NAMES),
+  args: z.record(z.unknown()),
+});
+
+export type SkillCall = z.infer<typeof SkillCallSchema>;
+
+/** Structured brand profile stored alongside the free-text memory doc. */
+export interface BrandMemory {
+  brand_voice?: string;
+  tone_keywords?: string[];
+  preferred_avatar_id?: string;
+  recurring_characters?: string[];
+  past_script_themes?: string[];
+}
+
 // ─── Conversational Video Agent (persistent chat + permanent memory) ─────────
 
 export const ChatTurnSchema = z.object({
@@ -168,6 +198,11 @@ export const ChatTurnSchema = z.object({
             .join("\n")
         : v,
     ),
+  skillCall: SkillCallSchema.nullable()
+    .optional()
+    .describe(
+      "Invoke ONE skill to enrich your reply with real data. Set to null or omit when no skill is needed. Only invoke a skill when it directly answers the user's need — never as filler.",
+    ),
 });
 
 export type AgentChatTurn = z.infer<typeof ChatTurnSchema>;
@@ -201,12 +236,31 @@ RESPONSE RULES (JSON object with fields "reply", "plan", "memoryUpdate"):
 - "plan": include ONLY when the artist explicitly asks for a shot list, storyboard, plan, or breakdown. Otherwise null. When set, it is ONE JSON object: title, logline, direction, palette (3-6 hex codes), shots (array of 4-8 shot objects — id / title / shotType / camera / action / prompt), suggestions (2-5 strings). Each shot prompt is FULL, hyperrealistic, and ready-to-render (~100-160 words) — so specific about lens / light / texture / movement / color that it needs zero editing.
 - "memoryUpdate": when this turn reveals something durable (name, genre, visual style, recurring characters, projects, strong preferences, aesthetic references), return the COMPLETE revised memory document — rewrite the whole thing merging old + new, under 2000 characters, as terse bullet lines in ONE plain-text string (never a JSON object). If nothing durable was learned, return null.
 
-ABSOLUTE RULE — HUMAN SUBJECT INTEGRITY: When a reference image of a person is provided, EVERY shot prompt must feature that human as the primary subject. NEVER replace them with an animal, creature, or any non-human entity — not even as a creative interpretation. If the user's brief involves an animal, it is a background prop or supporting element only. Generating a scene where the primary subject is a dog, cat, or any creature when a human reference exists is a critical failure. Always: person first, cinematic scene around them.`;
+ABSOLUTE RULE — HUMAN SUBJECT INTEGRITY: When a reference image of a person is provided, EVERY shot prompt must feature that human as the primary subject. NEVER replace them with an animal, creature, or any non-human entity — not even as a creative interpretation. If the user's brief involves an animal, it is a background prop or supporting element only. Generating a scene where the primary subject is a dog, cat, or any creature when a human reference exists is a critical failure. Always: person first, cinematic scene around them.
+
+AVAILABLE SKILLS — You may invoke exactly ONE skill per turn by returning it in the "skillCall" field. Only invoke when it directly serves the user's request. Omit or set to null otherwise.
+
+- web_search: { "query": string } — Real-time web search (trends, product info, brand names, competitor copy). Use when the artist asks about a specific brand, product launch, trending format, or current event. Example: { "skill": "web_search", "args": { "query": "most viral TikTok hooks for luxury brands 2026" } }
+
+- scrape_url: { "url": string } — Extract headline, features, and CTA copy from a brand or product URL. Use when the artist provides a URL they want scripted around. Example: { "skill": "scrape_url", "args": { "url": "https://example.com/product" } }
+
+- generate_hooks: { "topic": string, "platform": "tiktok" | "instagram" | "youtube_shorts" } — Generate 3 competing opening-hook variants with quality scores. Use when the artist is about to start a video and hasn't locked the opening line. Example: { "skill": "generate_hooks", "args": { "topic": "luxury skincare launch", "platform": "tiktok" } }
+
+- generate_broll: { "shot_description": string } — Generate a cinematic B-roll still for a specific scene using the image pipeline. Use when the artist asks for visual references or you are building a multi-scene plan that includes non-presenter shots. Example: { "skill": "generate_broll", "args": { "shot_description": "Golden-hour rooftop with steam rising off wet concrete, teal shadows" } }
+
+- recall_brand_memory: {} — Retrieve the artist's structured brand profile (voice, tone, characters, themes). Use when you need to recall their preferences and the memory context is unclear. Example: { "skill": "recall_brand_memory", "args": {} }
+
+- update_brand_memory: { "brand_voice"?: string, "tone_keywords"?: string[], "recurring_characters"?: string[], "past_script_themes"?: string[] } — Update the artist's brand profile with durable new information they've explicitly shared. Example: { "skill": "update_brand_memory", "args": { "brand_voice": "Luxurious and authoritative", "tone_keywords": ["premium", "bold", "aspirational"] } }
+
+- add_captions: { "style"?: "bold-white" | "subtitle" | "karaoke" } — Burn captions onto the artist's most recently generated video. Use when they ask to add subtitles or captions. Example: { "skill": "add_captions", "args": { "style": "bold-white" } }
+
+SKILL RULES: When invoking a skill, set your "reply" to a brief acknowledgment ("Searching for that now…" / "Generating the B-roll…"). The skill result will be injected back into the conversation before you write the final reply. Never invoke a skill you don't need. Never invoke more than one skill per turn.`;
 
 export function buildChatPrompt(args: {
   memory: string;
   transcript: { role: "user" | "assistant"; content: string }[];
   message: string;
+  cinematicMode?: boolean;
 }): string {
   const memoryBlock = args.memory.trim()
     ? `YOUR PERMANENT MEMORY OF THIS ARTIST:\n${args.memory.trim()}`
@@ -216,7 +270,32 @@ export function buildChatPrompt(args: {
         .map((m) => `${m.role === "user" ? "ARTIST" : "YOU"}: ${m.content}`)
         .join("\n")}`
     : "RECENT CONVERSATION: (none yet)";
-  return `${memoryBlock}\n\n${history}\n\nARTIST'S NEW MESSAGE:\n${args.message}\n\nRespond now as their co-director.`;
+  const cinematicNote = args.cinematicMode
+    ? "\n\nCINEMATIC MODE ACTIVE: For any plans or shot lists, use director-tier vocabulary (named film stocks, precise focal lengths, color science), suggest invoke generate_broll for non-presenter scenes, and frame all prompts for 1080p ultra-HD output."
+    : "";
+  return `${memoryBlock}\n\n${history}${cinematicNote}\n\nARTIST'S NEW MESSAGE:\n${args.message}\n\nRespond now as their co-director.`;
+}
+
+/**
+ * Second-pass prompt used after a skill result has been returned. Injects the
+ * skill data into the chat context so the agent can compose an enriched reply.
+ */
+export function buildChatPromptWithSkill(args: {
+  memory: string;
+  transcript: { role: "user" | "assistant"; content: string }[];
+  message: string;
+  skillName: string;
+  skillData: Record<string, unknown>;
+  cinematicMode?: boolean;
+}): string {
+  const base = buildChatPrompt({
+    memory: args.memory,
+    transcript: args.transcript,
+    message: args.message,
+    cinematicMode: args.cinematicMode,
+  });
+  const resultBlock = `\n\nSKILL RESULT (${args.skillName}):\n${JSON.stringify(args.skillData, null, 2)}\n\nYou just received this data from the skill. Incorporate it naturally into your reply — sound like a director who just got the research back, not like an AI reporting tool output. Do not call another skill in this turn (set skillCall to null).`;
+  return `${base}${resultBlock}`;
 }
 
 export function buildCritiquePrompt(brief: string, plan: AgentPlan): string {

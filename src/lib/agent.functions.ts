@@ -11,6 +11,7 @@ import {
   ChatTurnSchema,
   CHAT_DIRECTOR_SYSTEM,
   buildChatPrompt,
+  buildChatPromptWithSkill,
   type AgentPlan,
   type PlanIteration,
   type AgentChatTurn,
@@ -198,11 +199,20 @@ export const deleteAgentSession = createServerFn({ method: "POST" })
 
 // ─── Conversational Video Agent: persistent chat + permanent memory ──────────
 
+export type SkillMeta = {
+  name: string;
+  icon: string;
+  label: string;
+  summary: string;
+  durationMs: number;
+};
+
 export type AgentChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
   plan: AgentPlan | null;
+  skillMeta: SkillMeta | null;
   created_at: string;
 };
 
@@ -211,7 +221,9 @@ const CHAT_CONTEXT_CHARS = 1000;
 
 export const chatWithAuroraAgent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ message: z.string().min(1).max(4000) }).parse(d))
+  .inputValidator((d: unknown) =>
+    z.object({ message: z.string().min(1).max(4000), cinematicMode: z.boolean().optional() }).parse(d),
+  )
   .handler(async ({ data, context }) => {
     // Load permanent memory + recent transcript (RLS scopes both to the caller).
     const [{ data: memRow }, { data: recent, error: histErr }] = await Promise.all([
@@ -225,6 +237,7 @@ export const chatWithAuroraAgent = createServerFn({ method: "POST" })
     ]);
     if (histErr) throw new Error(histErr.message);
 
+    const memory = memRow?.memory ?? "";
     const transcript = (recent ?? [])
       .reverse()
       .map((m) => ({
@@ -236,12 +249,55 @@ export const chatWithAuroraAgent = createServerFn({ method: "POST" })
     try {
       const { output } = await generateWithFallback({
         system: CHAT_DIRECTOR_SYSTEM,
-        prompt: buildChatPrompt({ memory: memRow?.memory ?? "", transcript, message: data.message }),
+        prompt: buildChatPrompt({ memory, transcript, message: data.message, cinematicMode: data.cinematicMode }),
         schema: ChatTurnSchema,
       });
       turn = output;
     } catch (err) {
       throw mapLlmError(err);
+    }
+
+    // ─── Skill dispatch ───────────────────────────────────────────────────────
+    let skillMeta: SkillMeta | null = null;
+    if (turn.skillCall) {
+      const { skill, args } = turn.skillCall;
+      const t0 = Date.now();
+      try {
+        const { dispatchSkill, SKILL_REGISTRY } = await import("@/lib/agent-skills.server");
+        const skillResult = await dispatchSkill(skill, args, { userId: context.userId, supabase: context.supabase });
+        const durationMs = Date.now() - t0;
+        const skillInfo = SKILL_REGISTRY[skill];
+        skillMeta = {
+          name: skill,
+          icon: skillInfo?.icon ?? "🔧",
+          label: skillInfo?.label ?? skill,
+          summary: skillResult.summary,
+          durationMs,
+        };
+        if (skillResult.ok) {
+          // Second LLM pass: inject skill result and compose the real reply.
+          try {
+            const { output: turn2 } = await generateWithFallback({
+              system: CHAT_DIRECTOR_SYSTEM,
+              prompt: buildChatPromptWithSkill({
+                memory,
+                transcript,
+                message: data.message,
+                skillName: skill,
+                skillData: skillResult.data,
+                cinematicMode: data.cinematicMode,
+              }),
+              schema: ChatTurnSchema,
+            });
+            // Suppress further skill calls from the second pass to avoid loops.
+            turn = { ...turn2, skillCall: null };
+          } catch {
+            // Second pass failed — keep the first-pass acknowledgment reply.
+          }
+        }
+      } catch {
+        // Skill dispatch threw — continue with the original turn.
+      }
     }
 
     // Persist both turns server-side (never trust client-written assistant rows).
@@ -252,6 +308,7 @@ export const chatWithAuroraAgent = createServerFn({ method: "POST" })
         role: "assistant",
         content: turn.reply,
         plan: (turn.plan ?? null) as unknown as Json,
+        skill_meta: (skillMeta ?? null) as unknown as Json,
       },
     ]);
     if (insErr) throw new Error(insErr.message);
@@ -269,6 +326,7 @@ export const chatWithAuroraAgent = createServerFn({ method: "POST" })
       reply: turn.reply,
       plan: turn.plan ?? null,
       memoryUpdated: !!(turn.memoryUpdate && turn.memoryUpdate.trim()),
+      skillInvoked: skillMeta,
     };
   });
 
@@ -278,7 +336,8 @@ export const listAgentChat = createServerFn({ method: "GET" })
     const [{ data: msgs, error }, { data: memRow }] = await Promise.all([
       context.supabase
         .from("agent_chat_messages")
-        .select("id, role, content, plan, created_at")
+        // skill_meta is a new column added in 20260713170000 migration.
+        .select("id, role, content, plan, skill_meta, created_at")
         .eq("user_id", context.userId)
         // Newest 200, then reversed to chronological — ascending+limit would
         // pin the window to the OLDEST rows once history exceeds the cap.
@@ -300,6 +359,7 @@ export const listAgentChat = createServerFn({ method: "GET" })
           role: (m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
           content: m.content,
           plan: (m.plan as unknown as AgentPlan | null) ?? null,
+          skillMeta: ((m as { skill_meta?: unknown }).skill_meta as SkillMeta | null) ?? null,
           created_at: m.created_at,
         })) satisfies AgentChatMessage[],
       hasMemory: !!memRow?.memory?.trim(),
