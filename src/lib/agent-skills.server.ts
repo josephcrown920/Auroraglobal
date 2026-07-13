@@ -325,6 +325,45 @@ async function addCaptions(args: unknown, ctx: SkillContext): Promise<SkillResul
   };
 }
 
+// ─── heygen_avatar ───────────────────────────────────────────────────────────
+
+async function heygenAvatar(args: unknown, _ctx: SkillContext): Promise<SkillResult> {
+  const { name_or_description, target } = z
+    .object({
+      name_or_description: z.string().min(1).max(300).optional(),
+      target: z.enum(["agent", "user", "character"]).optional(),
+    })
+    .parse(args);
+
+  const inferredTarget = target ?? (name_or_description ? "character" : "agent");
+
+  return {
+    ok: true,
+    summary: `Started HeyGen avatar setup${name_or_description ? `: ${name_or_description.slice(0, 40)}` : ""}`,
+    data: {
+      skill: "heygen-avatar",
+      target: inferredTarget,
+      name_or_description: name_or_description ?? null,
+      docsIndex: "https://heygen-1fa696a7.mintlify.site/llms.txt",
+      source: "https://github.com/heygen-com/skills/tree/master/heygen-avatar",
+      workflow: [
+        "Default to creating an avatar for the agent unless the user explicitly says my/me or names a character.",
+        "Extract identity from workspace SOUL.md, IDENTITY.md, or existing AVATAR-*.md before asking questions.",
+        "Use prompt-based avatar creation by default; use photo upload only for explicit real-person digital twins.",
+        "Ask for approval of the appearance prompt before creating the avatar.",
+        "Design or browse a voice in the user's language and wait for the user's explicit voice choice.",
+        "Save the reusable identity as AVATAR-<NAME>.md with Group ID, Voice ID, voice metadata, and current looks.",
+        "Maintain AVATAR-AGENT.md or AVATAR-USER.md aliases for downstream video skills.",
+      ],
+      avatarFileTemplate: {
+        appearance: ["Age", "Gender", "Ethnicity", "Hair", "Build", "Features", "Style", "Reference"],
+        voice: ["Tone", "Accent", "Energy", "Think"],
+        heygen: ["Group ID", "Voice ID", "Voice Name", "Voice Designed", "Voice Seed", "Looks", "Last Synced"],
+      },
+    },
+  };
+}
+
 // ─── Registry & dispatch ──────────────────────────────────────────────────────
 
 export const SKILL_REGISTRY: Record<
@@ -338,6 +377,7 @@ export const SKILL_REGISTRY: Record<
   recall_brand_memory:  { icon: "🧠", label: "Brand Memory",       execute: recallBrandMemory },
   update_brand_memory:  { icon: "💾", label: "Save Brand Profile", execute: updateBrandMemory },
   add_captions:         { icon: "💬", label: "Add Captions",       execute: addCaptions },
+  heygen_avatar:        { icon: "🧑‍🎤", label: "HeyGen Avatar",      execute: heygenAvatar },
 };
 
 export async function dispatchSkill(

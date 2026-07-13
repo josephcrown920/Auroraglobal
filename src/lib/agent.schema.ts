@@ -132,6 +132,7 @@ export const SKILL_NAMES = [
   "recall_brand_memory",
   "update_brand_memory",
   "add_captions",
+  "heygen_avatar",
 ] as const;
 
 export type SkillName = (typeof SKILL_NAMES)[number];
@@ -267,6 +268,8 @@ AVAILABLE SKILLS — You may invoke exactly ONE skill per turn by returning it i
 - update_brand_memory: { "brand_voice"?: string, "tone_keywords"?: string[], "recurring_characters"?: string[], "past_script_themes"?: string[] } — Update the artist's brand profile with durable new information they've explicitly shared. Example: { "skill": "update_brand_memory", "args": { "brand_voice": "Luxurious and authoritative", "tone_keywords": ["premium", "bold", "aspirational"] } }
 
 - add_captions: { "style"?: "bold-white" | "subtitle" | "karaoke" } — Burn captions onto the artist's most recently generated video. Use when they ask to add subtitles or captions. Example: { "skill": "add_captions", "args": { "style": "bold-white" } }
+
+- heygen_avatar: { "name_or_description"?: string, "target"?: "agent" | "user" | "character" } — Start the persistent HeyGen avatar workflow: reusable face plus voice identity, prompt-based by default, photo upload only for explicit real-person digital twins. Use before HeyGen video work when no reusable avatar identity exists, or when the artist asks to create an avatar/presenter/digital twin. Example: { "skill": "heygen_avatar", "args": { "name_or_description": "Cleo, a warm documentary narrator", "target": "character" } }
 
 SKILL RULES: When invoking a skill, set your "reply" to a brief acknowledgment ("Searching for that now…" / "Generating the B-roll…"). The skill result will be injected back into the conversation before you write the final reply. Never invoke a skill you don't need. Never invoke more than one skill per turn.`;
 
