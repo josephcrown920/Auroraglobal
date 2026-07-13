@@ -24,6 +24,7 @@ import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import { useServerFn } from "@tanstack/react-start";
 import { trackAffiliateClick } from "@/lib/affiliate.functions";
 import { useAuth } from "@/hooks/use-auth";
+import { useSiteImage } from "@/components/landing/SiteImagesProvider";
 import { TutorialModal } from "@/components/TutorialModal";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Testimonials } from "@/components/landing/Testimonials";
@@ -111,6 +112,12 @@ function Index() {
   const [scrolled, setScrolled] = useState(false);
   const [demoOpen, setDemoOpen] = useState(false);
   const trackRef = useServerFn(trackAffiliateClick);
+  const hero1 = useSiteImage("hero_1");
+  const hero2 = useSiteImage("hero_2");
+  const hero3 = useSiteImage("hero_3");
+  const hero4 = useSiteImage("hero_4");
+  const hero5 = useSiteImage("hero_5");
+  const hero6 = useSiteImage("hero_6");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -332,12 +339,12 @@ function Index() {
           {/* Right: 2×3 photo grid */}
           <div className="grid grid-cols-3 gap-2 mt-8 sm:mt-0">
             {[
-              { src: "/gallery/josh-pink-mic.png",           label: "Concert Wash" },
-              { src: "/josh/josh-concert-performance.webp",  label: "Editorial" },
-              { src: "/josh/josh-orange-performance.jpg",    label: "Golden Hour" },
-              { src: "/gallery/josh-neon-tech.png",          label: "Neon Dreams" },
-              { src: "/gallery/josh-blue-portrait.png",      label: "Rembrandt" },
-              { src: "/gallery/violet-haze.webp",            label: "Violet Haze" },
+              { src: hero1, label: "Concert Wash" },
+              { src: hero2, label: "Editorial" },
+              { src: hero3, label: "Golden Hour" },
+              { src: hero4, label: "Neon Dreams" },
+              { src: hero5, label: "Rembrandt" },
+              { src: hero6, label: "Violet Haze" },
             ].map((photo, i) => (
               <div
                 key={photo.src}

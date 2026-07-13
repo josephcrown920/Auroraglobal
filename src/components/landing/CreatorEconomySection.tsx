@@ -1,15 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Lock, ShieldCheck, EyeOff, ArrowRight, Star } from "lucide-react";
 import { track } from "@/lib/tracking";
-
-const LOOKS = [
-  { src: "/gallery/glitter-bath.jpg",            label: "Boudoir Editorial" },
-  { src: "/gallery/violet-haze.webp",             label: "Velvet Fantasy" },
-  { src: "/gallery/blonde-selfie.png",            label: "Golden Seduction" },
-  { src: "/gallery/josh-pink-mic.png",            label: "Neon Temptation" },
-  { src: "/gallery/ski-selfie.jpg",               label: "Luxury Suite" },
-  { src: "/gallery/ichroma-cover.webp",           label: "Private Collection" },
-];
+import { useSiteImage } from "@/components/landing/SiteImagesProvider";
 
 const TRUST_POINTS = [
   { icon: EyeOff,      label: "Identity masking",   desc: "AI face-swap and blur on demand — stay as anonymous as you choose." },
@@ -19,6 +11,20 @@ const TRUST_POINTS = [
 ];
 
 export function CreatorEconomySection() {
+  const c1 = useSiteImage("creator_1");
+  const c2 = useSiteImage("creator_2");
+  const c3 = useSiteImage("creator_3");
+  const c4 = useSiteImage("creator_4");
+  const c5 = useSiteImage("creator_5");
+  const c6 = useSiteImage("creator_6");
+  const LOOKS = [
+    { src: c1, label: "Boudoir Editorial" },
+    { src: c2, label: "Velvet Fantasy" },
+    { src: c3, label: "Golden Seduction" },
+    { src: c4, label: "Neon Temptation" },
+    { src: c5, label: "Luxury Suite" },
+    { src: c6, label: "Private Collection" },
+  ];
   return (
     <section className="relative px-6 md:px-12 py-20 overflow-hidden">
       {/* Background glow */}
