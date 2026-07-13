@@ -23,6 +23,7 @@ import { buildDefaultComfyWorkflow } from "./comfy-default-workflows.server";
 import {
   callGradioSpace,
   extractGradioUrl,
+  extractOutputUrl,
   gradioData,
   inferenceShInput,
   resolveInferenceShApp,
@@ -230,7 +231,8 @@ type ProviderAdapter = {
     | "xai"
     | "gemini-video"
     | "sora"
-    | "ltx";
+    | "ltx"
+    | "inferencesh";
   supports: (req: GenerateRequest) => boolean;
   estimateCost: (req: GenerateRequest) => number;
   run: (req: GenerateRequest) => Promise<{ url: string; endpoint: string; text?: string }>;
@@ -1642,6 +1644,73 @@ const runware: ProviderAdapter = {
   },
 };
 
+// ─── inference.sh cloud (managed GPU apps) ───────────────────────────────────
+// Uses INFERENCE_SH_API_KEY from env to call inference.sh's cloud apps API
+// directly — no registered GPU worker row needed. Image defaults to the
+// built-in "infsh/flux" app; other tasks (video, lipsync, motion) require an
+// explicit INFERENCE_SH_APP_<TASK> env var to be mapped.
+//
+// Position in PRIORITY: after provider-specific adapters (replicate/byteplus/fal
+// model-gated), before last-resort piapi/lovable/falFallback. inference.sh is
+// keyed, so it's never a silent no-op: if the key is absent supports() → false
+// and the chain falls through cleanly.
+const INFERENCE_SH_BASE = process.env.INFERENCE_SH_BASE_URL ?? "https://api.inference.sh";
+
+// Map GenerateKind → inference-layer TaskType (the key sent to inference.sh).
+const ISH_KIND_TASK: Partial<Record<GenerateKind, TaskType>> = {
+  image: "image",
+  video: "video",
+  lipsync: "lipsync",
+  motion: "motion",
+  audio: "tts",
+};
+
+const inferenceshCloud: ProviderAdapter = {
+  name: "inferencesh",
+  supports(r) {
+    if (!process.env.INFERENCE_SH_API_KEY) return false;
+    const task = ISH_KIND_TASK[r.kind];
+    if (!task) return false;
+    // Image always has the built-in infsh/flux default app — no extra env var.
+    if (task === "image") return true;
+    // Every other task must have an explicit app mapped, or we'd throw at run time.
+    return !!resolveInferenceShApp(task, process.env);
+  },
+  estimateCost(r) {
+    if (r.kind === "video")   return 0.15;
+    if (r.kind === "lipsync") return 0.20;
+    if (r.kind === "motion")  return 0.20;
+    return 0.005; // infsh/flux image (~flux-schnell tier)
+  },
+  async run(r) {
+    const token = process.env.INFERENCE_SH_API_KEY;
+    if (!token) throw new Error("inference.sh: INFERENCE_SH_API_KEY not set");
+    const task = ISH_KIND_TASK[r.kind];
+    if (!task) throw new Error(`inference.sh: unsupported kind "${r.kind}"`);
+    const app = resolveInferenceShApp(task, process.env);
+    if (!app) {
+      throw new Error(
+        `inference.sh: no app mapped for task "${task}" — set INFERENCE_SH_APP_${task.toUpperCase()}`,
+      );
+    }
+    const job = toInferenceInput(r);
+    const { setup, ...params } = (job.params ?? {}) as Record<string, unknown>;
+    const result = await runInferenceShTask({
+      baseUrl: INFERENCE_SH_BASE,
+      token,
+      app,
+      input: inferenceShInput({ ...job, params }),
+      setup:
+        setup && typeof setup === "object" && !Array.isArray(setup)
+          ? (setup as Record<string, unknown>)
+          : undefined,
+    });
+    const url = extractOutputUrl(result.output) ?? extractOutputUrl(result);
+    if (!url) throw new Error("inference.sh: response missing an output URL");
+    return { url, endpoint: `inferencesh:${app}` };
+  },
+};
+
 // ─── Runway video (official REST, image-to-video) ────────────────────────────
 const RUNWAY_MODELS: Record<string, { model: string; cost: number }> = {
   "runway/gen4-turbo": { model: "gen4_turbo", cost: 0.5 },
@@ -2599,6 +2668,7 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
     huggingface,
     runware,
     replicate,
+    inferenceshCloud, // keyed, after model-specific adapters, before piapi/lovable/fal
     piapi,
     lovable,
     falFallback,
@@ -2615,10 +2685,11 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
     heygenTemplate,
     replicate,
     runway,
+    inferenceshCloud, // only activates when INFERENCE_SH_APP_VIDEO is set
     piapi,
     falFallback,
   ],
-  lipsync: [gpuWorker, sync, heygen, heygenPhotoVideo, heygenAvatarTemplate, replicate, falFallback],
+  lipsync: [gpuWorker, sync, heygen, heygenPhotoVideo, heygenAvatarTemplate, replicate, inferenceshCloud, falFallback],
   // GPU-first: a worker advertising "upscale" is tried before Replicate.
   upscale: [gpuWorker, replicate, falFallback],
   // Motion transfer: GPU/ComfyUI workers first (MimicMotion), then xAI image-to-video
@@ -2707,6 +2778,9 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     // Self-hosted ffmpeg lyric-video synthesis. Sentinel model so the candidate
     // loop runs; routed self-hosted-only to the GPU worker pool (no fallback).
     "ffmpeg-lyricvideo": { provider: gpuWorker.name, kind: "lyric_video", cost: 0.005 },
+    // inference.sh cloud — "infsh/flux" is the built-in default image app;
+    // no INFERENCE_SH_APP_IMAGE env var required (adapter supplies the default).
+    "infsh/flux": { provider: "inferencesh", kind: "image", cost: 0.005 },
     // xAI Grok Imagine Video — general video + motion fallback (key is set).
     "xai/grok-imagine-video-1.5": { provider: "xai", kind: "video", cost: 0.24 },
     // LTX Video (Lightricks) — direct REST API, cheaper than Sora/Kling.
@@ -2819,6 +2893,7 @@ export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
     "google/nano-banana",
     "fal-ai/seedream-4",
     "replicate/flux-schnell",
+    "infsh/flux",       // inference.sh cloud Flux — keyed, ~$0.005/image
     "pollinations/flux",
   ],
   // kling-3.0-omni sits after kling-3.0 (its pricier sibling, $0.70 vs $0.60,
