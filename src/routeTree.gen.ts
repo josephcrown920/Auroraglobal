@@ -18,6 +18,7 @@ import { Route as SplitRealityRouteImport } from './routes/split-reality'
 import { Route as SpinRouteImport } from './routes/spin'
 import { Route as SpeechRouteImport } from './routes/speech'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SceneBuilderRouteImport } from './routes/scene-builder'
 import { Route as RoadmapRouteImport } from './routes/roadmap'
 import { Route as ReshootRouteImport } from './routes/reshoot'
@@ -77,6 +78,7 @@ import { Route as ApiPublicCheckApiBalancesRouteImport } from './routes/api/publ
 import { Route as ApiAdminUploadSiteImageRouteImport } from './routes/api/admin/upload-site-image'
 import { Route as ApiPublicWorkersRegisterRouteImport } from './routes/api/public/workers/register'
 import { Route as ApiPublicWorkersHealthRouteImport } from './routes/api/public/workers/health'
+import { Route as ApiPublicTiktokCallbackRouteImport } from './routes/api/public/tiktok/callback'
 import { Route as ApiPublicPaymentsSweepStuckRouteImport } from './routes/api/public/payments/sweep-stuck'
 import { Route as ApiPublicJobsTickRouteImport } from './routes/api/public/jobs/tick'
 import { Route as ApiPublicWorkersFilesNameRouteImport } from './routes/api/public/workers/files/$name'
@@ -128,6 +130,11 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/settings.lazy').then((d) => d.Route))
 const SceneBuilderRoute = SceneBuilderRouteImport.update({
   id: '/scene-builder',
   path: '/scene-builder',
@@ -434,6 +441,11 @@ const ApiPublicWorkersHealthRoute = ApiPublicWorkersHealthRouteImport.update({
   path: '/api/public/workers/health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicTiktokCallbackRoute = ApiPublicTiktokCallbackRouteImport.update({
+  id: '/api/public/tiktok/callback',
+  path: '/api/public/tiktok/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPaymentsSweepStuckRoute =
   ApiPublicPaymentsSweepStuckRouteImport.update({
     id: '/api/public/payments/sweep-stuck',
@@ -496,6 +508,7 @@ export interface FileRoutesByFullPath {
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
   '/scene-builder': typeof SceneBuilderRoute
+  '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
@@ -531,6 +544,7 @@ export interface FileRoutesByFullPath {
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
+  '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
   '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
@@ -571,6 +585,7 @@ export interface FileRoutesByTo {
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
   '/scene-builder': typeof SceneBuilderRoute
+  '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
@@ -606,6 +621,7 @@ export interface FileRoutesByTo {
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
+  '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
   '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
@@ -647,6 +663,7 @@ export interface FileRoutesById {
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
   '/scene-builder': typeof SceneBuilderRoute
+  '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
@@ -682,6 +699,7 @@ export interface FileRoutesById {
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
+  '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
   '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
@@ -724,6 +742,7 @@ export interface FileRouteTypes {
     | '/reshoot'
     | '/roadmap'
     | '/scene-builder'
+    | '/settings'
     | '/sitemap.xml'
     | '/speech'
     | '/spin'
@@ -759,6 +778,7 @@ export interface FileRouteTypes {
     | '/api/public/watermark-video'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
+    | '/api/public/tiktok/callback'
     | '/api/public/workers/health'
     | '/api/public/workers/register'
     | '/api/public/cli/device/poll'
@@ -799,6 +819,7 @@ export interface FileRouteTypes {
     | '/reshoot'
     | '/roadmap'
     | '/scene-builder'
+    | '/settings'
     | '/sitemap.xml'
     | '/speech'
     | '/spin'
@@ -834,6 +855,7 @@ export interface FileRouteTypes {
     | '/api/public/watermark-video'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
+    | '/api/public/tiktok/callback'
     | '/api/public/workers/health'
     | '/api/public/workers/register'
     | '/api/public/cli/device/poll'
@@ -874,6 +896,7 @@ export interface FileRouteTypes {
     | '/reshoot'
     | '/roadmap'
     | '/scene-builder'
+    | '/settings'
     | '/sitemap.xml'
     | '/speech'
     | '/spin'
@@ -909,6 +932,7 @@ export interface FileRouteTypes {
     | '/api/public/watermark-video'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
+    | '/api/public/tiktok/callback'
     | '/api/public/workers/health'
     | '/api/public/workers/register'
     | '/api/public/cli/device/poll'
@@ -950,6 +974,7 @@ export interface RootRouteChildren {
   ReshootRoute: typeof ReshootRoute
   RoadmapRoute: typeof RoadmapRoute
   SceneBuilderRoute: typeof SceneBuilderRoute
+  SettingsRoute: typeof SettingsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SpeechRoute: typeof SpeechRoute
   SpinRoute: typeof SpinRoute
@@ -979,6 +1004,7 @@ export interface RootRouteChildren {
   ApiPublicWatermarkVideoRoute: typeof ApiPublicWatermarkVideoRoute
   ApiPublicJobsTickRoute: typeof ApiPublicJobsTickRoute
   ApiPublicPaymentsSweepStuckRoute: typeof ApiPublicPaymentsSweepStuckRoute
+  ApiPublicTiktokCallbackRoute: typeof ApiPublicTiktokCallbackRoute
   ApiPublicWorkersHealthRoute: typeof ApiPublicWorkersHealthRoute
   ApiPublicWorkersRegisterRoute: typeof ApiPublicWorkersRegisterRoute
   ApiPublicCliDevicePollRoute: typeof ApiPublicCliDevicePollRoute
@@ -1049,6 +1075,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/scene-builder': {
@@ -1464,6 +1497,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWorkersHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/tiktok/callback': {
+      id: '/api/public/tiktok/callback'
+      path: '/api/public/tiktok/callback'
+      fullPath: '/api/public/tiktok/callback'
+      preLoaderRoute: typeof ApiPublicTiktokCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/payments/sweep-stuck': {
       id: '/api/public/payments/sweep-stuck'
       path: '/api/public/payments/sweep-stuck'
@@ -1556,6 +1596,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReshootRoute: ReshootRoute,
   RoadmapRoute: RoadmapRoute,
   SceneBuilderRoute: SceneBuilderRoute,
+  SettingsRoute: SettingsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SpeechRoute: SpeechRoute,
   SpinRoute: SpinRoute,
@@ -1585,6 +1626,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicWatermarkVideoRoute: ApiPublicWatermarkVideoRoute,
   ApiPublicJobsTickRoute: ApiPublicJobsTickRoute,
   ApiPublicPaymentsSweepStuckRoute: ApiPublicPaymentsSweepStuckRoute,
+  ApiPublicTiktokCallbackRoute: ApiPublicTiktokCallbackRoute,
   ApiPublicWorkersHealthRoute: ApiPublicWorkersHealthRoute,
   ApiPublicWorkersRegisterRoute: ApiPublicWorkersRegisterRoute,
   ApiPublicCliDevicePollRoute: ApiPublicCliDevicePollRoute,

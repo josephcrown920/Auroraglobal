@@ -5,6 +5,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Flame, Loader2, Play, RefreshCw, Sparkles, Upload } from "lucide-react";
+import { TiktokPostButton } from "@/components/tiktok/TiktokPostButton";
+import { getMyTiktokAccount } from "@/lib/tiktok-posting.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -124,12 +126,19 @@ function TiktokRemixPage() {
   const listFn = useServerFn(listTiktokRemixes);
   const getFn = useServerFn(getTiktokRemix);
   const retryFn = useServerFn(retryTiktokRemixChild);
+  const tiktokAccountFn = useServerFn(getMyTiktokAccount);
 
   const list = useQuery({
     queryKey: ["tiktok-remixes"],
     queryFn: () => listFn(),
     enabled: !!user,
     refetchInterval: 8000,
+  });
+
+  const { data: tiktokAccount } = useQuery({
+    queryKey: ["tiktok-account"],
+    queryFn: () => tiktokAccountFn(),
+    enabled: !!user,
   });
 
   const detail = useQuery({
@@ -431,9 +440,20 @@ function TiktokRemixPage() {
                   {g.prompt.slice(0, 80)}
                 </div>
                 {g.result_video_url && (
-                  <span className="absolute top-2 right-2 grid place-items-center size-7 rounded-full bg-white/15 backdrop-blur">
-                    <Play className="size-3 fill-white text-white" />
-                  </span>
+                  <>
+                    <span className="absolute top-2 right-2 grid place-items-center size-7 rounded-full bg-white/15 backdrop-blur">
+                      <Play className="size-3 fill-white text-white" />
+                    </span>
+                    <div className="absolute bottom-10 left-2 right-2">
+                      <TiktokPostButton
+                        compact
+                        videoUrl={g.result_video_url}
+                        generationId={g.id}
+                        title={g.prompt?.slice(0, 150)}
+                        isConnected={tiktokAccount?.connected}
+                      />
+                    </div>
+                  </>
                 )}
               </div>
             ))}
