@@ -31,7 +31,7 @@ export function LowCreditBanner({ credits }: { credits: number | null | undefine
         </p>
         <Link
           to="/billing"
-          className="inline-flex items-center gap-1.5 mt-2 text-xs font-mono uppercase tracking-wider text-primary hover:text-primary/80"
+          className="inline-flex items-center gap-1.5 mt-2 text-xs uppercase tracking-wider text-primary hover:text-primary/80"
         >
           Buy Aura →
         </Link>

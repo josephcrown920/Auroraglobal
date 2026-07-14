@@ -366,7 +366,7 @@ function SceneBuilderPage() {
               onChange={(e) => setPromptOverride(e.target.value)}
               rows={10}
               maxLength={3000}
-              className="w-full bg-white/8 border border-white/15 rounded-xl px-4 py-3 text-xs text-white/80 resize-none focus:outline-none focus:border-primary/60 transition-colors font-mono leading-relaxed"
+              className="w-full bg-white/8 border border-white/15 rounded-xl px-4 py-3 text-xs text-white/80 resize-none focus:outline-none focus:border-primary/60 transition-colors leading-relaxed"
             />
             <p className="text-xs text-white/25 mt-1 text-right">
               {compositorPrompt.length}/3000

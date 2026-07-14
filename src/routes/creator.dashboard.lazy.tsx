@@ -532,7 +532,7 @@ function CreatorDashboardPage() {
                     catch { setGraphError("Invalid JSON"); }
                   }}
                   rows={6}
-                  className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs font-mono placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+                  className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
                 />
                 {graphError && <p className="text-xs text-destructive mt-1">{graphError}</p>}
                 <p className="text-[10px] text-muted-foreground mt-1">

@@ -282,7 +282,7 @@ function ConnectPage() {
           {SETUP.map((s, i) => (
             <div key={s.title} className="aurora-card rounded-2xl p-5">
               <div className="flex items-center gap-2 text-orange-200/80">
-                <span className="font-mono text-sm font-semibold">{String(i + 1).padStart(2, "0")}</span>
+                <span className="text-sm font-semibold">{String(i + 1).padStart(2, "0")}</span>
                 {s.icon}
               </div>
               <h3 className="mt-3 text-base font-semibold text-foreground">{s.title}</h3>
@@ -299,7 +299,7 @@ function ConnectPage() {
               Add this URL as a custom MCP connector in your client:
             </p>
             <div className="mt-3 flex items-center gap-2 rounded-xl border border-border bg-black/50 px-3 py-2.5">
-              <code className="flex-1 truncate font-mono text-[13px] text-foreground/90">{mcpUrl}</code>
+              <code className="flex-1 truncate text-[13px] text-foreground/90">{mcpUrl}</code>
               <button
                 onClick={copyUrl}
                 className="aurora-glass inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-white/10"

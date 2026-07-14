@@ -291,7 +291,7 @@ function AdminComfyPage() {
           <div>
             <label className="block text-sm font-medium mb-1.5">Workflow JSON (ComfyUI /prompt API graph)</label>
             <textarea
-              className={`${FIELD} font-mono text-xs`}
+              className={`${FIELD} text-xs`}
               rows={10}
               value={editor.workflowText}
               onChange={(e) => setEditor({ ...editor, workflowText: e.target.value })}
@@ -302,7 +302,7 @@ function AdminComfyPage() {
             <div>
               <label className="block text-sm font-medium mb-1.5">Declared inputs (array)</label>
               <textarea
-                className={`${FIELD} font-mono text-xs`}
+                className={`${FIELD} text-xs`}
                 rows={8}
                 value={editor.inputsText}
                 onChange={(e) => setEditor({ ...editor, inputsText: e.target.value })}
@@ -311,7 +311,7 @@ function AdminComfyPage() {
             <div>
               <label className="block text-sm font-medium mb-1.5">Default inputs (object)</label>
               <textarea
-                className={`${FIELD} font-mono text-xs`}
+                className={`${FIELD} text-xs`}
                 rows={8}
                 value={editor.defaultsText}
                 onChange={(e) => setEditor({ ...editor, defaultsText: e.target.value })}

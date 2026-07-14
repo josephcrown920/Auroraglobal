@@ -49,7 +49,7 @@ export function ConnectReplicateBanner() {
             href="https://docs.lovable.dev/integrations/connectors"
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1.5 mt-2 text-xs font-mono uppercase tracking-wider text-amber-300 hover:text-amber-200"
+            className="inline-flex items-center gap-1.5 mt-2 text-xs uppercase tracking-wider text-amber-300 hover:text-amber-200"
           >
             How to connect Replicate <ExternalLink className="size-3" />
           </a>

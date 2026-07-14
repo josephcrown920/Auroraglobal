@@ -77,7 +77,7 @@ export function ExitIntentModal() {
         </p>
         <div className="mt-4 rounded-xl border border-dashed border-primary/40 bg-primary/10 px-4 py-3 flex items-center justify-between">
           <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Promo code</span>
-          <span className="font-mono text-lg font-semibold text-primary">{CODE}</span>
+          <span className="text-lg font-semibold text-primary">{CODE}</span>
         </div>
         <Link
           to="/"

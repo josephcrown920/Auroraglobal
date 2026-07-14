@@ -87,7 +87,7 @@ export function SplitRealityPlayer({
               <img src={leftSrc} alt="ultra" className="w-full h-full object-cover" />
             )
           ) : null}
-          <span className="absolute top-1 left-1 text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/70 text-emerald-300 border border-emerald-400/30">
+          <span className="absolute top-1 left-1 text-xs uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/70 text-emerald-300 border border-emerald-400/30">
             {ultra.label}
           </span>
         </div>
@@ -99,7 +99,7 @@ export function SplitRealityPlayer({
               <img src={rightSrc} alt="cinematic" className="w-full h-full object-cover" />
             )
           ) : null}
-          <span className="absolute top-1 right-1 text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/70 text-amber-300 border border-amber-400/30">
+          <span className="absolute top-1 right-1 text-xs uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/70 text-amber-300 border border-amber-400/30">
             {cinematic.label}
           </span>
         </div>
@@ -134,7 +134,7 @@ export function SplitRealityPlayer({
         </div>
 
         <details className="rounded border border-white/10 bg-black/30 nodrag" onMouseDownCapture={(e) => e.stopPropagation()}>
-          <summary className="px-2 py-1.5 text-[10px] font-mono uppercase tracking-wider cursor-pointer flex items-center justify-between">
+          <summary className="px-2 py-1.5 text-[13px] uppercase tracking-wider cursor-pointer flex items-center justify-between">
             <span className="flex items-center gap-1.5">
               <AlertTriangle className="size-3 text-amber-400" />
               Refinement checklist
@@ -145,7 +145,7 @@ export function SplitRealityPlayer({
           </summary>
           <ul className="px-2 pb-2 pt-1 space-y-0.5">
             {checklist.map((c, i) => (
-              <li key={i} className="flex items-center gap-1.5 text-[10px]">
+              <li key={i} className="flex items-center gap-1.5 text-[13px]">
                 {c.ok ? (
                   <Check className="size-3 text-emerald-400" />
                 ) : (

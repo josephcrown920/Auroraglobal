@@ -252,11 +252,11 @@ export function TemplateDrawer({
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono uppercase tracking-[0.14em] text-primary">
+                <span className="text-[13px] uppercase tracking-[0.14em] text-primary">
                   {template.category}
                 </span>
                 {template.premium && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold text-primary">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-xs font-semibold text-primary">
                     <Crown className="size-2.5" /> Pro
                   </span>
                 )}
@@ -390,7 +390,7 @@ export function TemplateDrawer({
                 )}
               </button>
               {running && (
-                <p className="mt-2 text-center text-[11px] text-muted-foreground">
+                <p className="mt-2 text-center text-sm text-muted-foreground">
                   Keep this open — your render lands in the gallery when it's ready.
                 </p>
               )}
@@ -455,8 +455,8 @@ function FileField({
               <Upload className="size-3.5" /> {busy ? "Uploading…" : "Tap to upload"}
             </span>
           )}
-          {hint && !value && <span className="block text-[11px] text-white/35">{hint}</span>}
-          {value && <span className="block text-[11px] text-primary">Tap to replace</span>}
+          {hint && !value && <span className="block text-sm text-white/35">{hint}</span>}
+          {value && <span className="block text-sm text-primary">Tap to replace</span>}
         </span>
       </button>
       <input

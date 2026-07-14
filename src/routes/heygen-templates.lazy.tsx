@@ -128,7 +128,7 @@ function AddTemplateFields({ onAdded, onClose }: { onAdded: () => void; onClose:
             placeholder="e.g. abc123def456  or  https://app.heygen.com/templates/abc123"
             value={templateId}
             onChange={(e) => setTemplateId(e.target.value)}
-            className="bg-white/5 border-white/10 font-mono text-sm"
+            className="bg-white/5 border-white/10 text-sm"
           />
         </div>
 
@@ -141,7 +141,7 @@ function AddTemplateFields({ onAdded, onClose }: { onAdded: () => void; onClose:
             placeholder="character"
             value={characterKey}
             onChange={(e) => setCharacterKey(e.target.value)}
-            className="bg-white/5 border-white/10 font-mono"
+            className="bg-white/5 border-white/10"
           />
           <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
             The variable slot name in HeyGen where the avatar goes — usually{" "}
@@ -321,7 +321,7 @@ function GeneratePanel({ template }: { template: AuroraTemplateRow }) {
                 placeholder="e.g. Abigail_expressive_20240922"
                 value={avatarId}
                 onChange={(e) => setAvatarId(e.target.value)}
-                className="bg-white/5 border-white/10 text-sm font-mono"
+                className="bg-white/5 border-white/10 text-sm"
               />
               <p className="text-[11px] text-muted-foreground mt-1.5">
                 Find IDs in{" "}
@@ -429,7 +429,7 @@ function TemplateCard({ tpl, onDelete }: { tpl: AuroraTemplateRow; onDelete: () 
           <User className="size-7 text-[var(--teal)] opacity-70" />
         </div>
         <div className="absolute top-2 right-2">
-          <span className="text-[9px] font-mono text-white/30 bg-black/30 px-1.5 py-0.5 rounded-md backdrop-blur-sm">
+          <span className="text-[9px] text-white/30 bg-black/30 px-1.5 py-0.5 rounded-md backdrop-blur-sm">
             {tpl.heygen_template_id.slice(0, 10)}…
           </span>
         </div>
@@ -461,7 +461,7 @@ function TemplateCard({ tpl, onDelete }: { tpl: AuroraTemplateRow; onDelete: () 
               ) : (
                 <Copy className="size-3" />
               )}
-              <span className="font-mono truncate max-w-[200px]">{tpl.heygen_template_id}</span>
+              <span className="truncate max-w-[200px]">{tpl.heygen_template_id}</span>
             </button>
           </div>
           <button
@@ -476,7 +476,7 @@ function TemplateCard({ tpl, onDelete }: { tpl: AuroraTemplateRow; onDelete: () 
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
           <Key className="size-3 text-[var(--teal)] opacity-70" />
           Character slot:{" "}
-          <code className="font-mono text-white/60 text-[11px] bg-white/5 px-1 rounded">
+          <code className="text-white/60 text-[11px] bg-white/5 px-1 rounded">
             {tpl.character_variable_key}
           </code>
         </div>
@@ -654,7 +654,7 @@ function HeyGenTemplatesPage() {
             <li>Click any template you want to use</li>
             <li>
               Copy the ID from the URL — it&rsquo;s the part after{" "}
-              <code className="bg-white/10 px-1 rounded font-mono">/templates/</code>
+              <code className="bg-white/10 px-1 rounded">/templates/</code>
             </li>
             <li>Paste it in the "Add template" sheet above</li>
           </ol>

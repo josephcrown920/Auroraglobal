@@ -61,7 +61,7 @@ function GiftCardArt({
         </div>
         {note && <p className="text-xs italic opacity-90 line-clamp-2">"{note}"</p>}
         <div className="flex items-end justify-between">
-          <div className="font-mono text-xs tracking-widest opacity-90">{code ?? "AURA-••••-••••"}</div>
+          <div className="text-xs tracking-widest opacity-90">{code ?? "AURA-••••-••••"}</div>
           {amountUsd !== undefined && amountUsd > 0 && (
             <div className="text-[10px] opacity-80">${amountUsd.toFixed(2)} value</div>
           )}
@@ -174,7 +174,7 @@ function GiftsPage() {
               placeholder="AURA-XXXX-XXXX-XXXX"
               value={redeemCode}
               onChange={(e) => setRedeemCode(e.target.value.toUpperCase())}
-              className="flex-1 min-w-[260px] font-mono tracking-widest"
+              className="flex-1 min-w-[260px] tracking-widest"
             />
             <Button variant="premium" onClick={() => redeemMut.mutate()} disabled={!redeemCode || redeemMut.isPending}>
               {redeemMut.isPending ? <Loader2 className="size-4 animate-spin" /> : "Redeem"}

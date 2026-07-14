@@ -608,7 +608,7 @@ export function TrendingTemplatesMenu({ onPick }: { onPick: (g: TemplateGraph) =
               if (items.length === 0) return null;
               return (
                 <section key={cat}>
-                  <h3 className="text-[11px] font-mono uppercase tracking-[0.15em] text-muted-foreground mb-2 px-1">
+                  <h3 className="text-sm uppercase tracking-[0.15em] text-muted-foreground mb-2 px-1">
                     {cat}
                   </h3>
                   <div className="grid sm:grid-cols-2 gap-2">
@@ -637,7 +637,7 @@ export function TrendingTemplatesMenu({ onPick }: { onPick: (g: TemplateGraph) =
                             <Icon className={`size-4 ${locked ? "text-muted-foreground" : "text-primary"}`} />
                             <span className="font-medium text-sm">{t.name}</span>
                             {t.premium && (
-                              <span className="ml-auto flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">
+                              <span className="ml-auto flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">
                                 {locked ? <Lock className="size-2.5" /> : <Crown className="size-2.5" />}
                                 Pro
                               </span>
@@ -646,14 +646,14 @@ export function TrendingTemplatesMenu({ onPick }: { onPick: (g: TemplateGraph) =
                           <p className="text-xs text-muted-foreground">{t.desc}</p>
                           <div className="mt-2 flex flex-wrap gap-1">
                             {t.tags.map((tag) => (
-                              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{tag}</span>
+                              <span key={tag} className="text-[13px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{tag}</span>
                             ))}
                           </div>
                           {locked && (
                             <div className="absolute inset-0 rounded-xl flex items-center justify-center bg-background/50 backdrop-blur-[1px]">
                               <div className="flex flex-col items-center gap-1">
                                 <Lock className="size-4 text-primary" />
-                                <span className="text-[10px] font-semibold text-primary">Pro only</span>
+                                <span className="text-[13px] font-semibold text-primary">Pro only</span>
                               </div>
                             </div>
                           )}
@@ -668,7 +668,7 @@ export function TrendingTemplatesMenu({ onPick }: { onPick: (g: TemplateGraph) =
             {/* ── Marketplace templates ── */}
             {marketplaceTemplates.length > 0 && (
               <section>
-                <h3 className="text-[11px] font-mono uppercase tracking-[0.15em] text-muted-foreground mb-2 px-1 flex items-center gap-1.5">
+                <h3 className="text-sm uppercase tracking-[0.15em] text-muted-foreground mb-2 px-1 flex items-center gap-1.5">
                   <Store className="size-3" /> Creator Marketplace
                 </h3>
                 <div className="grid sm:grid-cols-2 gap-2">
@@ -682,12 +682,12 @@ export function TrendingTemplatesMenu({ onPick }: { onPick: (g: TemplateGraph) =
                       <div className="flex items-center gap-2 mb-1">
                         <Store className="size-4 text-violet-400 shrink-0" />
                         <span className="font-medium text-sm text-foreground">{t.name}</span>
-                        <span className="ml-auto text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-400 shrink-0">
+                        <span className="ml-auto text-xs font-semibold px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-400 shrink-0">
                           {t.run_cost_aura} Aura
                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground line-clamp-2">{t.description}</p>
-                      <p className="mt-1.5 text-[10px] text-violet-400/70">by {t.creator_display_name ?? "Creator"}</p>
+                      <p className="mt-1.5 text-[13px] text-violet-400/70">by {t.creator_display_name ?? "Creator"}</p>
                     </Link>
                   ))}
                 </div>
@@ -703,7 +703,7 @@ export function TrendingTemplatesMenu({ onPick }: { onPick: (g: TemplateGraph) =
 
             {marketplaceTemplates.length === 0 && (
               <section>
-                <h3 className="text-[11px] font-mono uppercase tracking-[0.15em] text-muted-foreground mb-2 px-1 flex items-center gap-1.5">
+                <h3 className="text-sm uppercase tracking-[0.15em] text-muted-foreground mb-2 px-1 flex items-center gap-1.5">
                   <Store className="size-3" /> Creator Marketplace
                 </h3>
                 <Link

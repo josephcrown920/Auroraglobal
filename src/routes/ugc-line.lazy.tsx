@@ -78,8 +78,8 @@ function TicketCard({ brief, index }: { brief: UgcBrief & { id: number }; index:
       <div className="flex">
         {/* Stub */}
         <div className="w-14 shrink-0 bg-white/[0.02] border-r border-dashed border-white/10 flex flex-col items-center py-4 gap-2">
-          <span className="font-mono text-sm text-white/40">{String(index + 1).padStart(2, "0")}</span>
-          <span className="font-mono text-[9px] text-primary/70 uppercase tracking-widest [writing-mode:vertical-rl]">ready</span>
+          <span className="text-sm text-white/40">{String(index + 1).padStart(2, "0")}</span>
+          <span className="text-[9px] text-primary/70 uppercase tracking-widest [writing-mode:vertical-rl]">ready</span>
         </div>
 
         {/* Body */}
@@ -88,11 +88,11 @@ function TicketCard({ brief, index }: { brief: UgcBrief & { id: number }; index:
           <div className="flex items-start gap-3 mb-3">
             <p className="flex-1 text-sm font-medium text-white leading-snug">{brief.hook}</p>
             <div className="flex flex-col gap-1 items-end shrink-0">
-              <span className="font-mono text-[9px] uppercase tracking-wider px-2 py-0.5 rounded border text-primary border-primary/40 bg-primary/10">
+              <span className="text-[9px] uppercase tracking-wider px-2 py-0.5 rounded border text-primary border-primary/40 bg-primary/10">
                 {brief.angle}
               </span>
               {brief.arc_position && (
-                <span className={cn("font-mono text-[9px] uppercase tracking-wider px-2 py-0.5 rounded border", arcColour(arcPos))}>
+                <span className={cn("text-[9px] uppercase tracking-wider px-2 py-0.5 rounded border", arcColour(arcPos))}>
                   {arcPos}
                 </span>
               )}
@@ -108,7 +108,7 @@ function TicketCard({ brief, index }: { brief: UgcBrief & { id: number }; index:
               { k: "caption",    v: brief.caption,           highlight: false },
             ].map(({ k, v, highlight }) => (
               <div key={k} className="grid grid-cols-[80px_1fr] gap-2 py-1.5 border-t border-white/5">
-                <span className="font-mono text-[10px] uppercase tracking-wider text-white/30 pt-0.5">{k}</span>
+                <span className="text-[10px] uppercase tracking-wider text-white/30 pt-0.5">{k}</span>
                 <span className={highlight ? "text-white/90" : "text-white/55"} style={{ lineHeight: 1.55 }}>{v}</span>
               </div>
             ))}
@@ -117,14 +117,14 @@ function TicketCard({ brief, index }: { brief: UgcBrief & { id: number }; index:
           <div className="flex gap-2 mt-3">
             <button
               onClick={() => copy("script")}
-              className="flex items-center gap-1.5 font-mono text-[11px] text-white/40 hover:text-white/70 bg-white/5 hover:bg-white/8 border border-white/10 px-2.5 py-1.5 rounded transition-colors"
+              className="flex items-center gap-1.5 text-[11px] text-white/40 hover:text-white/70 bg-white/5 hover:bg-white/8 border border-white/10 px-2.5 py-1.5 rounded transition-colors"
             >
               {copied === "script" ? <Check className="size-3" /> : <Copy className="size-3" />}
               copy script
             </button>
             <button
               onClick={() => copy("json")}
-              className="flex items-center gap-1.5 font-mono text-[11px] text-white/40 hover:text-white/70 bg-white/5 hover:bg-white/8 border border-white/10 px-2.5 py-1.5 rounded transition-colors"
+              className="flex items-center gap-1.5 text-[11px] text-white/40 hover:text-white/70 bg-white/5 hover:bg-white/8 border border-white/10 px-2.5 py-1.5 rounded transition-colors"
             >
               {copied === "json" ? <Check className="size-3" /> : <Copy className="size-3" />}
               copy JSON
@@ -301,10 +301,10 @@ function ContentLine() {
             </div>
             <div>
               <h1 className="text-lg font-semibold text-white leading-none">Content Line</h1>
-              <p className="text-[11px] font-mono text-white/35 uppercase tracking-wider mt-0.5">UGC batch generator</p>
+              <p className="text-[11px] text-white/35 uppercase tracking-wider mt-0.5">UGC batch generator</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-[11px] font-mono text-white/30 border border-white/10 px-3 py-1.5 rounded-full">
+          <div className="flex items-center gap-2 text-[11px] text-white/30 border border-white/10 px-3 py-1.5 rounded-full">
             <span className={cn("size-1.5 rounded-full", isLoading ? "bg-primary animate-pulse" : "bg-white/20")} />
             {isLoading ? "generating…" : "idle"}
           </div>
@@ -320,7 +320,7 @@ function ContentLine() {
               key={id}
               onClick={() => setActiveTab(id as typeof activeTab)}
               className={cn(
-                "flex items-center gap-2 font-mono text-[11.5px] uppercase tracking-wider px-3.5 py-2 rounded-lg border transition-colors",
+                "flex items-center gap-2 text-[11.5px] uppercase tracking-wider px-3.5 py-2 rounded-lg border transition-colors",
                 activeTab === id
                   ? "text-primary border-primary/40 bg-primary/8"
                   : "text-white/40 border-white/10 hover:text-white/60 hover:border-white/20",
@@ -337,7 +337,7 @@ function ContentLine() {
           <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-start">
             {/* Form panel */}
             <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5">
-              <p className="font-mono text-[10px] uppercase tracking-widest text-white/30 mb-4 flex items-center gap-2">
+              <p className="text-[10px] uppercase tracking-widest text-white/30 mb-4 flex items-center gap-2">
                 Brief
                 <span className="flex-1 h-px bg-white/8" />
               </p>
@@ -393,7 +393,7 @@ function ContentLine() {
                         key={angle}
                         onClick={() => toggleAngle(angle)}
                         className={cn(
-                          "font-mono text-[11px] px-2.5 py-1 rounded-full border transition-colors",
+                          "text-[11px] px-2.5 py-1 rounded-full border transition-colors",
                           selectedAngles.has(angle)
                             ? "border-primary/50 text-primary bg-primary/10"
                             : "border-white/10 text-white/40 hover:border-white/20",
@@ -413,7 +413,7 @@ function ContentLine() {
                         key={value}
                         onClick={() => setLength(value as typeof length)}
                         className={cn(
-                          "flex-1 font-mono text-[11px] py-1.5 rounded-lg border transition-colors",
+                          "flex-1 text-[11px] py-1.5 rounded-lg border transition-colors",
                           length === value
                             ? "border-primary/50 text-primary bg-primary/10"
                             : "border-white/10 text-white/40 hover:border-white/20",
@@ -444,7 +444,7 @@ function ContentLine() {
                 </Button>
 
                 {scriptMut.isPending && (
-                  <p className="text-center text-[11px] font-mono text-white/30">
+                  <p className="text-center text-[11px] text-white/30">
                     Building coordinated script arc…
                   </p>
                 )}
@@ -456,7 +456,7 @@ function ContentLine() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-base font-semibold text-white">Batch queue</h2>
-                  <p className="text-[11px] font-mono text-white/30 mt-0.5">
+                  <p className="text-[11px] text-white/30 mt-0.5">
                     {briefs.length} {briefs.length === 1 ? "brief" : "briefs"} — coordinated arc
                   </p>
                 </div>
@@ -464,14 +464,14 @@ function ContentLine() {
                   {briefs.length > 0 && (
                     <button
                       onClick={() => setBriefs([])}
-                      className="font-mono text-[11px] text-white/30 hover:text-red-400 border border-white/10 hover:border-red-500/30 px-2.5 py-1.5 rounded-lg transition-colors"
+                      className="text-[11px] text-white/30 hover:text-red-400 border border-white/10 hover:border-red-500/30 px-2.5 py-1.5 rounded-lg transition-colors"
                     >
                       Clear
                     </button>
                   )}
                   <button
                     onClick={exportBriefs}
-                    className="flex items-center gap-1.5 font-mono text-[11px] text-white/40 hover:text-white/70 border border-white/10 hover:border-white/25 px-2.5 py-1.5 rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 text-[11px] text-white/40 hover:text-white/70 border border-white/10 hover:border-white/25 px-2.5 py-1.5 rounded-lg transition-colors"
                   >
                     <Download className="size-3.5" />
                     Export JSON
@@ -481,7 +481,7 @@ function ContentLine() {
 
               {briefs.length === 0 ? (
                 <div className="border border-dashed border-white/10 rounded-xl py-16 text-center">
-                  <div className="font-mono text-xl text-white/10 mb-3">▢</div>
+                  <div className="text-xl text-white/10 mb-3">▢</div>
                   <p className="text-[13px] text-white/30">
                     Set your brief and generate a batch.<br />
                     Each brief is a distinct hook in a coordinated arc.
@@ -503,7 +503,7 @@ function ContentLine() {
           <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-start">
             {/* Form panel */}
             <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5">
-              <p className="font-mono text-[10px] uppercase tracking-widest text-white/30 mb-4 flex items-center gap-2">
+              <p className="text-[10px] uppercase tracking-widest text-white/30 mb-4 flex items-center gap-2">
                 Reference + prompts
                 <span className="flex-1 h-px bg-white/8" />
               </p>
@@ -665,7 +665,7 @@ function ContentLine() {
               </Button>
 
               {varMut.isPending && (
-                <p className="text-center text-[11px] font-mono text-white/30 mt-3">
+                <p className="text-center text-[11px] text-white/30 mt-3">
                   Generating {varCount} scenes — this can take a minute
                 </p>
               )}
@@ -676,12 +676,12 @@ function ContentLine() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-base font-semibold text-white">Variation grid</h2>
-                  <p className="text-[11px] font-mono text-white/30 mt-0.5">
+                  <p className="text-[11px] text-white/30 mt-0.5">
                     {inputType === "person" ? "From your consented reference photo" : "Lifestyle shots of your product"}
                   </p>
                 </div>
                 {varResults.length > 0 && (
-                  <p className="font-mono text-[11px] text-white/30">
+                  <p className="text-[11px] text-white/30">
                     {varResults.filter((r) => r.imageBase64).length} / {varResults.length} generated
                   </p>
                 )}
@@ -689,7 +689,7 @@ function ContentLine() {
 
               {varResults.length === 0 ? (
                 <div className="border border-dashed border-white/10 rounded-xl py-16 text-center">
-                  <div className="font-mono text-xl text-white/10 mb-3">▢</div>
+                  <div className="text-xl text-white/10 mb-3">▢</div>
                   <p className="text-[13px] text-white/30">
                     {inputType === "person"
                       ? "Upload a reference photo, confirm consent, and generate."

@@ -185,7 +185,7 @@ function CliPage() {
                 }`}
               >
                 <div className="flex min-w-0 flex-1 items-center gap-3">
-                  <code className="truncate font-mono text-sm text-cyan-200">{c.cmd}</code>
+                  <code className="truncate text-sm text-cyan-200">{c.cmd}</code>
                   <button
                     type="button"
                     onClick={() => copy(c.cmd)}
@@ -227,7 +227,7 @@ function CliPage() {
                   <span className="flex size-9 items-center justify-center rounded-xl bg-cyan-300/10 text-cyan-200">
                     <s.icon className="size-4.5" />
                   </span>
-                  <span className="font-mono text-xs text-muted-foreground">Step {i + 1}</span>
+                  <span className="text-xs text-muted-foreground">Step {i + 1}</span>
                 </div>
                 <h3 className="mt-4 font-semibold text-foreground">{s.title}</h3>
                 <p className="mt-1.5 text-sm leading-6 text-muted-foreground">{s.body}</p>

@@ -493,7 +493,7 @@ function SplitRealityPage() {
           {result && (
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>Saved to your gallery, tagged{" "}
-                <span className="font-mono text-foreground/80">[Split Reality]</span>.
+                <span className="text-foreground/80">[Split Reality]</span>.
               </span>
               <Link
                 to="/gallery"

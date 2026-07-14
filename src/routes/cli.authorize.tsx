@@ -94,7 +94,7 @@ function AuthorizePage() {
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               placeholder="XXXX-XXXX"
-              className="font-mono text-center text-lg tracking-widest mt-2"
+              className="text-center text-lg tracking-widest mt-2"
             />
           </div>
 

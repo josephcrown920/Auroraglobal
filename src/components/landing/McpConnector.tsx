@@ -169,7 +169,7 @@ export function McpConnector() {
           {STEPS.map((s) => (
             <div key={s.n} className="aurora-card p-5">
               <div className="flex items-center gap-2 text-orange-200/80">
-                <span className="font-mono text-sm font-semibold">{s.n}</span>
+                <span className="text-sm font-semibold">{s.n}</span>
                 {s.icon}
               </div>
               <h3 className="mt-3 text-base font-semibold text-foreground">{s.title}</h3>
@@ -235,7 +235,7 @@ export function McpConnector() {
                     <span className="ml-0.5 size-0 border-y-[8px] border-l-[13px] border-y-transparent border-l-black" />
                   </span>
                 </span>
-                <span className="absolute bottom-2 right-2 rounded bg-black/60 px-1.5 py-0.5 font-mono text-[10px] text-white/90">
+                <span className="absolute bottom-2 right-2 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white/90">
                   00:05
                 </span>
               </div>
