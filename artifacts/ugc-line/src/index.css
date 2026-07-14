@@ -1,35 +1,52 @@
 @import "tailwindcss";
 
 :root {
-  --bg: oklch(0.085 0.022 272);
-  --bg-card: oklch(0.12 0.022 272);
-  --bg-input: oklch(0.10 0.018 272);
-  --border: oklch(0.22 0.03 272);
+  --bg: #09090f;
+  --bg-card: #111118;
+  --bg-input: #0d0d14;
+  --border: rgba(255,255,255,0.09);
+  --border-strong: rgba(255,255,255,0.15);
   --accent: oklch(0.72 0.2 300);
-  --text: oklch(0.97 0.008 272);
-  --text-muted: oklch(0.65 0.015 272);
+  --accent-rgb: 147, 104, 245;
+  --text: #f0eefa;
+  --text-muted: #8880a0;
+  --claude: #d4a853;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { height: 100%; background: var(--bg); color: var(--text); font-family: "Inter", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
 
-html, body, #root {
-  height: 100%;
-  background: var(--bg);
-  color: var(--text);
-  font-family: "Inter", system-ui, sans-serif;
-  font-size: 15px;
-  -webkit-font-smoothing: antialiased;
-}
-
-::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
 
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background: radial-gradient(ellipse 80% 60% at 50% -10%, oklch(0.18 0.04 300 / 0.2), transparent 60%);
-  pointer-events: none;
-  z-index: 0;
+input, textarea, select { color-scheme: dark; }
+input::placeholder, textarea::placeholder { color: var(--text-muted); }
+
+@keyframes spin   { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+@keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+@keyframes pulse  { 0%,100%{opacity:0.6} 50%{opacity:1} }
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position:  200% 0; }
 }
+
+.fade-up { animation: fadeUp 0.4s ease both; }
+.fade-up-2 { animation: fadeUp 0.4s 0.08s ease both; }
+.fade-up-3 { animation: fadeUp 0.4s 0.16s ease both; }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-card) 25%, #1a1a28 50%, var(--bg-card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+.glow-btn {
+  box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0);
+  transition: box-shadow 0.2s, opacity 0.2s, transform 0.15s;
+}
+.glow-btn:not(:disabled):hover {
+  box-shadow: 0 0 24px 4px rgba(var(--accent-rgb), 0.35);
+  transform: translateY(-1px);
+}
+.glow-btn:not(:disabled):active { transform: translateY(0); }
