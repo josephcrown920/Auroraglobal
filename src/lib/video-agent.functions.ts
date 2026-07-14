@@ -95,19 +95,33 @@ export const generateHeyGenAgentVideo = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }): Promise<VideoAgentResult> => {
     const { reserveOrchestrateRecord } = await import("./generate-core.server");
-    const outcome = await reserveOrchestrateRecord({
-      userId: context.userId,
-      kind: "video",
-      cost: VIDEO_AGENT_COST,
-      reason: "heygen_video_agent",
-      prompt: data.prompt,
-      model: "heygen/video-agent",
-      pinnedModelOnly: true,
-      ...(data.orientation ? { params: { orientation: data.orientation } } : {}),
-    });
-    if (!outcome.ok) {
-      const isHeygenCredit = HEYGEN_CREDIT_RE.test(outcome.error ?? "");
-      return { ok: false, error: outcome.error, insufficient: outcome.insufficient, heygenCredit: isHeygenCredit };
+    try {
+      const outcome = await reserveOrchestrateRecord({
+        userId: context.userId,
+        kind: "video",
+        cost: VIDEO_AGENT_COST,
+        reason: "heygen_video_agent",
+        prompt: data.prompt,
+        model: "heygen/video-agent",
+        pinnedModelOnly: true,
+        ...(data.orientation ? { params: { orientation: data.orientation } } : {}),
+      });
+      if (!outcome.ok) {
+        const isHeygenCredit = HEYGEN_CREDIT_RE.test(outcome.error ?? "");
+        return {
+          ok: false,
+          error: outcome.error ?? "Generation failed",
+          insufficient: outcome.insufficient,
+          heygenCredit: isHeygenCredit,
+        };
+      }
+      return { ok: true, url: outcome.url, generationId: outcome.generationId };
+    } catch (e) {
+      // reserveOrchestrateRecord throws on provider/orchestrator failures
+      // (e.g. HeyGen "api" credit pool exhausted). Classify so the UI can
+      // show the targeted "top up at app.heygen.com" toast instead of generic.
+      const msg = e instanceof Error ? e.message : String(e);
+      const isHeygenCredit = HEYGEN_CREDIT_RE.test(msg);
+      return { ok: false, error: msg, heygenCredit: isHeygenCredit };
     }
-    return { ok: true, url: outcome.url, generationId: outcome.generationId };
   });

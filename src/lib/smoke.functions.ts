@@ -625,9 +625,11 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       total += r19.cost_usd;
 
       // ── Step 20 · Video Agent (HeyGen) ─────────────────────────────────────
-      //     Exercises the full heygenVideoAgent adapter: resolves a real HeyGen
-      //     avatar, generates a talking-head video from a plain-text prompt via
-      //     POST /v2/video/generate, then polls until the video is ready.
+      //     Calls POST /api/public/generate (the same public endpoint external
+      //     API callers use) with model "heygen/video-agent" to exercise the
+      //     full auth → credit-reservation → orchestrate → job-record chain.
+      //     The request has no confirmPreviewId, so the preview gate forces a
+      //     cheap 480p/≤5s preview pass — a URL is still returned on success.
       //     Skipped when HEYGEN_API_KEY is absent.
       //     HeyGen's separate "api" credit pool can be exhausted independently
       //     of the remaining_quota shown in the dashboard — treat that as a skip
@@ -644,20 +646,42 @@ export const runSmokeTest = createServerFn({ method: "POST" })
         }
         const t0 = Date.now();
         try {
-          const out = await orchestrate({
-            kind: "video",
-            model: "heygen/video-agent",
-            prompt: "smoke test: Hello from Aurora. This is a brief talking-head smoke check confirming the HeyGen video-agent pipeline is wired end-to-end.",
-            userId: context.userId,
-            refId: run.id,
+          // Forward the caller's Bearer token so /api/public/generate can
+          // authenticate the user without a separate credentials lookup.
+          const { getRequest } = await import("@tanstack/react-start/server");
+          const incomingReq = getRequest();
+          const authHeader = incomingReq.headers.get("authorization") ?? "";
+          const port = process.env.PORT ?? "8080";
+          const res = await fetch(`http://localhost:${port}/api/public/generate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: authHeader },
+            body: JSON.stringify({
+              kind: "video",
+              model: "heygen/video-agent",
+              prompt: "smoke test: Hello from Aurora. This is a brief talking-head smoke check confirming the HeyGen video-agent pipeline is wired end-to-end.",
+            }),
           });
-          if (!out.url) throw new Error("HeyGen video-agent returned no video URL");
+          const body = await res.json() as Record<string, unknown>;
+          if (!res.ok) {
+            const msg = String(body.error ?? `HTTP ${res.status}`);
+            if (res.status === 402 || HEYGEN_CREDIT_SMOKE_RE.test(msg)) {
+              return {
+                status: "skip",
+                latency_ms: Date.now() - t0,
+                cost_usd: 0,
+                error: `HeyGen api credits exhausted — top up at app.heygen.com: ${msg.slice(0, 200)}`,
+              };
+            }
+            return { status: "fail", latency_ms: Date.now() - t0, cost_usd: 0, error: msg.slice(0, 500) };
+          }
+          const url = String(body.url ?? "");
+          if (!url) throw new Error("HeyGen video-agent returned no video URL");
           return {
             status: "pass",
             latency_ms: Date.now() - t0,
-            cost_usd: out.costUsd ?? 0,
-            output_url: out.url,
-            raw: { provider: out.provider },
+            cost_usd: Number(body.estimatedCostUsd ?? 0),
+            output_url: url,
+            raw: { provider: body.provider, preview: body.preview ?? false },
           };
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
