@@ -1,0 +1,24 @@
+kind = "web"
+previewPath = "/aurora-adult/"
+title = "Aurora for Creators"
+version = "1.0.0"
+id = "artifacts/aurora-adult"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/aurora-adult/" ]
+localPort = 8085
+
+[services.development]
+run = "bash /home/runner/workspace/artifacts/aurora-adult/start-dev.sh"
+
+[services.production]
+build = [ "bash", "-c", "npm install && node_modules/.bin/vite build --config vite.config.ts" ]
+
+[services.env]
+BASE_PATH = "/aurora-adult/"
+PORT = "8085"
