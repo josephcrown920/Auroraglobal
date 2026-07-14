@@ -87,7 +87,7 @@ async function uploadAudioToStudio(
 }
 
 export type TemplateGenerateResult =
-  | { ok: true; generationId: string; url: string }
+  | { ok: true; generationId: string; url: string; mediaKind?: "image" | "video" }
   | { ok: false; error: string; insufficient?: boolean };
 
 // ── Avatar Shots — SeedDream / Gemini Omni / KlingAI ─────────────────────────
@@ -108,6 +108,22 @@ async function _dispatchAvatarShot({
   reason: string;
 }): Promise<TemplateGenerateResult> {
   if (engine === "kling") {
+    // If Kling credentials are not configured, skip the round-trip and fall back to a
+    // SeedDream still image immediately. Only fall back for this configuration gap — an
+    // unexpected runtime error from Kling (with keys present) is surfaced, not swallowed.
+    if (!process.env.KLING_ACCESS_KEY || !process.env.KLING_SECRET_KEY) {
+      const fallback = await reserveOrchestrateRecord({
+        userId,
+        kind: "image",
+        cost: SHOT_IMAGE_COST,
+        reason: `${reason}_seedream_fallback`,
+        prompt,
+        model: SHOT_IMAGE_MODEL_SEEDREAM,
+        imageUrls: imageUrl ? [imageUrl] : undefined,
+      });
+      if (!fallback.ok) return { ok: false, error: fallback.error, insufficient: fallback.insufficient };
+      return { ok: true, generationId: fallback.generationId, url: fallback.url, mediaKind: "image" };
+    }
     const outcome = await reserveOrchestrateRecord({
       userId,
       kind: "video",
@@ -116,21 +132,8 @@ async function _dispatchAvatarShot({
       prompt,
       model: LIVE_AVATAR_MODEL,
     });
-    if (outcome.ok) return { ok: true, generationId: outcome.generationId, url: outcome.url };
-    // Propagate credit errors immediately — fallback would charge a different amount.
-    if (outcome.insufficient) return { ok: false, error: outcome.error, insufficient: true };
-    // KlingAI unavailable (no API key configured) → fall back to SeedDream still image.
-    const fallback = await reserveOrchestrateRecord({
-      userId,
-      kind: "image",
-      cost: SHOT_IMAGE_COST,
-      reason: `${reason}_seedream_fallback`,
-      prompt,
-      model: SHOT_IMAGE_MODEL_SEEDREAM,
-      imageUrls: imageUrl ? [imageUrl] : undefined,
-    });
-    if (!fallback.ok) return { ok: false, error: fallback.error, insufficient: fallback.insufficient };
-    return { ok: true, generationId: fallback.generationId, url: fallback.url };
+    if (!outcome.ok) return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
+    return { ok: true, generationId: outcome.generationId, url: outcome.url, mediaKind: "video" };
   }
   const model = engine === "gemini" ? SHOT_IMAGE_MODEL_GEMINI : SHOT_IMAGE_MODEL_SEEDREAM;
   const outcome = await reserveOrchestrateRecord({
@@ -143,7 +146,7 @@ async function _dispatchAvatarShot({
     imageUrls: imageUrl ? [imageUrl] : undefined,
   });
   if (!outcome.ok) return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
-  return { ok: true, generationId: outcome.generationId, url: outcome.url };
+  return { ok: true, generationId: outcome.generationId, url: outcome.url, mediaKind: "image" };
 }
 
 // Smoke helper — called by smoke.functions.ts step 16. Shares the exact same
