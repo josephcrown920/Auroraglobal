@@ -1,1682 +1,1246 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
+import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import ReactMarkdown from "react-markdown";
 import {
-  refineAuroraPlan,
-  listAgentSessions,
-  getAgentSession,
-  deleteAgentSession,
-  renderAgentShot,
-  renderAgentShotVideo,
-  type AgentPlan,
-  type PlanIteration,
+  chatWithAuroraAgent,
+  listAgentChat,
+  clearAgentChat,
+  type SkillMeta,
 } from "@/lib/agent.functions";
-import {
-  listAuroraTemplates,
-  createAuroraTemplate,
-  deleteAuroraTemplate,
-  generateAuroraTemplateVideo,
-  AURORA_TEMPLATE_MODEL,
-  type AuroraTemplateRow,
-} from "@/lib/aurora-templates.functions";
-import { listGallery } from "@/lib/studio.functions";
-import { computeCost } from "@/lib/pricing";
 import { useAuth } from "@/hooks/use-auth";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { UploadSlot } from "@/components/studio/UploadSlot";
-import { generateLyricVideoFromSong } from "@/lib/captions.functions";
-import { useVideoFromImageJobFn, usePerformanceShotJobFn } from "@/lib/use-job-polling";
+import { UgcBatchStudio } from "@/components/prime/UgcBatchStudio";
+import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import {
-  MUSIC_VIDEO_STYLES,
-  MUSIC_VIDEO_MODES,
-  buildMusicVideoPrompt,
-  buildEvenLyricSegments,
-  LOCATION_SUGGESTIONS,
-  SUBJECT_SUGGESTIONS,
-  type MusicVideoMode,
-  type MusicVideoStyle,
-} from "@/lib/music-video-prompts";
-import { VIDEO_MODEL_LIST } from "@/lib/models";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { cn, AUDIO_ACCEPT } from "@/lib/utils";
-import {
-  Sparkles,
   Send,
-  Loader2,
+  Camera,
+  Aperture,
   Film,
+  Sparkle,
+  Clapperboard,
+  Video,
+  Languages,
   Wand2,
-  Image as ImageIcon,
-  Plus,
-  Trash2,
-  History,
-  ArrowLeft,
-  AlertTriangle,
-  ChevronDown,
-  Upload,
-  User,
-  Copy,
-  CheckCircle2,
-  Bot,
-  Play,
-  Music2,
-  Download,
-  Zap,
-  RefreshCw,
-  X,
-  AlignLeft,
-  Layers,
-  SlidersHorizontal,
-  Share2,
-  Monitor,
-  Smartphone,
+  Scissors,
+  ArrowUpRightSquare,
+  PackageCheck,
+  Layers as LayersIcon,
+  UserSquare2,
+  ImagePlus,
+  MousePointerClick,
   Mic,
-  LayoutGrid,
-  Check,
+  Radio,
+  FileVideo,
+  Users,
+  AudioLines,
+  Music,
+  Captions as CaptionsIcon,
+  MonitorPlay,
+  LayoutTemplate,
+  PenLine,
+  Shapes,
+  Volume2,
+  Eye,
+  Palette,
+  Move3d,
+  Focus,
+  Sun,
+  Cloud,
+  Flame,
+  Snowflake,
+  Droplets,
+  Sparkles,
+  Clock,
+  Ruler,
+  Compass,
+  Trash2,
+  Save,
+  BookOpen,
+  Drama,
+  Crown,
+  Gauge,
+  Zap,
+  FileText,
+  Rocket,
+  Repeat,
+  TrendingUp,
+  Play,
+  Pause,
+  Square,
+  RotateCcw,
+  CheckCircle2,
+  Loader2,
+  CircleDot,
+  Search,
+  Globe,
+  Magnet,
+  Brain,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  type LucideIcon,
 } from "lucide-react";
 
 export const Route = createLazyFileRoute("/agent")({ component: AgentPage });
 
-type RenderStatus = "idle" | "rendering" | "succeeded" | "failed";
-type RenderState = { status: RenderStatus; url?: string | null };
-type VideoStatus = "idle" | "rendering" | "succeeded" | "failed";
-type VideoState = { status: VideoStatus; url?: string | null; error?: string };
+// ── Design constants ──────────────────────────────────────────────────────
 
-type AgentMode = "agent" | "templates" | "recipes" | "lyric-video" | "music-video" | "media";
-
-const TEMPLATE_COST = computeCost({ features: ["video"], model: AURORA_TEMPLATE_MODEL }).total;
-
-function extractTemplateId(raw: string): string | null {
-  if (!raw) return null;
-  try {
-    const url = new URL(raw);
-    const parts = url.pathname.split("/").filter(Boolean);
-    const idx = parts.indexOf("templates");
-    if (idx !== -1 && parts[idx + 1]) return parts[idx + 1];
-  } catch {
-    // not a URL — treat as bare ID
-  }
-  const trimmed = raw.trim();
-  return trimmed.length > 4 ? trimmed : null;
-}
-
-const SAMPLES = [
-  "A man and a chimpanzee rob a bank in the Albuquerque desert. Red Ferrari Testarossa. Hard midday sun, 16mm film look.",
-  "Music video for a moody R&B track. Rainy Tokyo rooftop, neon reflections, single performer, slow dolly.",
-  "UGC ad for a cold brew brand. Sunlit kitchen, hand pours coffee, condensation on glass, golden hour.",
+const FILM_STOCKS = [
+  "Kodak Vision3 500T (5219)",
+  "Kodak Vision3 250D (5207)",
+  "Fujifilm Eterna 250D",
+  "Kodak Portra 800 (still)",
+  "Ilford HP5 400 B&W",
+  "ARRI LogC — digital",
+];
+const APERTURES = ["f/1.4", "f/2.0", "f/2.8", "f/4.0", "f/5.6", "f/8.0"];
+const ASPECTS   = ["16:9", "2.39:1", "1.85:1", "9:16", "1:1", "4:3"];
+const MODELS    = ["Seedance", "Veo 3", "Sora", "Runway Gen-3", "Kling 1.5"];
+const LIGHTING  = [
+  "Low-key noir",
+  "Golden hour warm",
+  "Neon rain",
+  "Overcast soft",
+  "Practical only",
+  "Hard butterfly",
 ];
 
-function scoreColor(score: number): string {
-  if (score >= 85) return "text-emerald-300";
-  if (score >= 60) return "text-amber-300";
-  return "text-rose-300";
-}
-function scoreBar(score: number): string {
-  if (score >= 85) return "bg-emerald-400";
-  if (score >= 60) return "bg-amber-400";
-  return "bg-rose-400";
+type Inspector = {
+  focalLength: number;
+  aperture: string;
+  filmStock: string;
+  aspect: string;
+  lighting: string;
+  targetModel: string;
+  mood: string;
+};
+
+// ── Tool definitions ──────────────────────────────────────────────────────
+
+type ToolDef = { label: string; icon: LucideIcon; prompt: string };
+
+const AVATAR_TOOLS: ToolDef[] = [
+  { label: "Quick create",  icon: Wand2,       prompt: "Quick create: draft a 30-second cinematic ad concept end-to-end — logline, script, 5-shot list, and a Seedance prompt. Pick a compelling subject." },
+  { label: "AI Studio",     icon: Video,       prompt: "AI Studio: give me a professional avatar video plan — talking-head anchor, on-screen b-roll cues, and captions timing for a 60s explainer." },
+  { label: "Avatar Shots",  icon: UserSquare2, prompt: "Avatar Shots: describe 6 hyper-realistic film-quality avatar shots (lens, wardrobe, blocking, lighting) for a fashion campaign." },
+  { label: "Avatars",       icon: Users,       prompt: "Design 4 hyper-realistic avatar personas (name, look, wardrobe, voice tone, camera-friendly presence) for a tech brand's video ads." },
+  { label: "Voices",        icon: AudioLines,  prompt: "Recommend 5 voice profiles (accent, timbre, pace, energy) for a moody neon-noir short. Include sample line delivery direction." },
+];
+
+const CINEMATIC_TOOLS: ToolDef[] = [
+  { label: "DP Notes",          icon: Camera,       prompt: "As Director of Photography, write a full cinematography breakdown for the current scene: camera body, lens set, T-stop, filtration, sensor/ISO, white balance, and why each choice serves the story." },
+  { label: "Blocking & Staging",icon: Move3d,       prompt: "Block a 2-minute dialogue scene between 3 characters in a cramped interior. Give me actor positions, sightlines, cross-moves, and where the camera lives for each beat." },
+  { label: "Camera Movement",   icon: Compass,      prompt: "Choreograph a single-take oner (~90s): describe camera movement in explicit beats (dolly, crane, gimbal drift, whip, focus rack) synced to story beats and actor blocking." },
+  { label: "Lighting Diagram",  icon: Sun,          prompt: "Give me a lighting diagram in text: key, fill, rim/back, practicals, ambience, negative fill. Specify fixture, wattage/color temp, diffusion, and lighting ratio. Match the current inspector mood." },
+  { label: "Anamorphic Set",    icon: Focus,        prompt: "Recommend an anamorphic lens package for a hyper-real neo-noir feature: primes, close-focus, flare character, breathing, T-stop, and how to lens each key scene type." },
+  { label: "Color Grade / LUT", icon: Palette,      prompt: "Design a color grade: base LUT, secondary keys (skin, sky, neons), roll-off, halation, grain plate, and target display (Rec.709 / P3 / HDR PQ). Include reference films." },
+  { label: "Aspect Reframe",    icon: Ruler,        prompt: "Reframe the current scene across 2.39:1 theatrical, 16:9 broadcast, 9:16 vertical short-form, and 1:1 square. Note what MUST stay in each safe area and what recomposes." },
+  { label: "Shot List Table",   icon: Clapperboard, prompt: "Produce a full shot list table for the current scene with columns: # / Shot / Framing / Lens / Movement / Duration / Sound / Notes. Aim for 8-14 shots, industry-realistic." },
+  { label: "Storyboard Frames", icon: BookOpen,     prompt: "Describe 6 storyboard frames for the current scene — composition, subject action, camera POV, focal length, and light direction — so a storyboard artist could draw them directly." },
+  { label: "VFX Breakdown",     icon: Sparkles,     prompt: "Break the current scene into VFX shots: what's plate, what's CG, what's comp. For each, list plate coverage, matchmove refs, cleanup, and integration notes." },
+  { label: "Production Design", icon: LayersIcon,   prompt: "Design the production/art direction for the scene: palette, textures, hero props, wardrobe, set dressing, and how each element supports the story theme." },
+  { label: "Location Scout",    icon: Compass,      prompt: "Scout 4 hyper-realistic real-world locations for the current scene. For each: geography, time of day sweet spot, sun path, permit reality, logistical risks." },
+  { label: "Trailer Beats",     icon: Zap,          prompt: "Cut a 60-second trailer for the project: cold open hook, act-out 1, act-out 2, title card placement, needle-drop cue points, and end-tag. Give me the beat sheet with timecodes." },
+  { label: "Genre: Neo-Noir",   icon: Drama,        prompt: "Emulate the neo-noir genre: rain, neon, low-key, wide anamorphic, morally grey lead. Write a 3-scene treatment with cinematography notes for each scene." },
+  { label: "Music Video",       icon: Music,        prompt: "Direct a music video: song structure to visual structure map, hero shot per section, wardrobe changes, and 3 hyper-realistic Seedance prompts for signature moments." },
+  { label: "Commercial 30s",    icon: Crown,        prompt: "Direct a 30s premium commercial: brand promise, single visual metaphor, 6-shot spine, hero product moment, VO structure, and a ready-to-paste Seedance prompt for the hero shot." },
+];
+
+const DIRECTOR_STYLES: ToolDef[] = [
+  { label: "In the style of Deakins",   icon: Sun,     prompt: "Emulate Roger Deakins: motivated natural light, restrained camera, wide compositions with negative space, patient blocking. Design a scene from scratch in this idiom." },
+  { label: "In the style of Fincher",   icon: Focus,   prompt: "Emulate David Fincher: cold controlled palette, precise geometry, minimal camera moves that mean something, 40-50mm bias, high shutter clarity. Design a scene." },
+  { label: "In the style of Villeneuve",icon: Move3d,  prompt: "Emulate Denis Villeneuve: monumental scale, foreground silhouette against vast backgrounds, slow zoom-ins, low-frequency drone score. Design a scene." },
+  { label: "In the style of Malick",    icon: Sparkles,prompt: "Emulate Terrence Malick: golden hour handheld, whispered VO, subject moving away from camera into light, wide primes. Design a scene." },
+  { label: "In the style of Kubrick",   icon: Compass, prompt: "Emulate Stanley Kubrick: one-point perspective, symmetrical compositions, slow track-ins, ultra-wide lenses, unsettling stillness. Design a scene." },
+  { label: "In the style of Wong Kar-wai",icon:Droplets,prompt: "Emulate Wong Kar-wai: step-printed motion, saturated tungsten, longing framing through doorways, expressive practical light. Design a scene." },
+];
+
+const AI_TOOLS: ToolDef[] = [
+  { label: "Script writer",      icon: PenLine,           prompt: "Script writer: draft an industry-standard script (SLUGLINE / ACTION / CHARACTER / DIALOGUE) for a 90-second cinematic short. Ask if you need a topic — otherwise pick something evocative." },
+  { label: "Motion Designer",    icon: Shapes,            prompt: "Motion Designer: animate a still image into a living shot. Give me exact motion directions (dolly, parallax, subject micro-movement, camera drift) plus a Seedance image-to-video prompt." },
+  { label: "Image Generator",    icon: ImagePlus,         prompt: "Image Generator: write 3 hyper-realistic image prompts (subject, lens, film stock, lighting, negative prompt) suitable for Midjourney or Flux, aligned to my current inspector settings." },
+  { label: "Video Generator",    icon: Video,             prompt: "Video Generator: give me a ready-to-paste Seedance prompt card (subject, action, camera, lighting, film stock, aspect, negative, duration) for a hyper-real 8s clip." },
+  { label: "Translate Videos",   icon: Languages,         prompt: "Translate Videos: adapt a 30s English VO script into Spanish, French, and Japanese, preserving cinematic tone and lip-sync friendliness." },
+  { label: "AI Clipping",        icon: Scissors,          prompt: "AI Clipping: from a 10-minute interview, suggest 5 vertical short-form clips with in/out timecodes, hook lines, and caption styles." },
+  { label: "Speech Cleanup",     icon: Mic,               prompt: "Speech Cleanup: give me a director's note pass — mark filler words, awkward pauses, and breath spots to cut in a rough VO transcript." },
+  { label: "Upscale Video",      icon: ArrowUpRightSquare,prompt: "Upscale Video: recommend a workflow to take a 720p24 handheld clip to hyper-real 4K60 without plastic-skin AI artifacts." },
+  { label: "Product Placement",  icon: PackageCheck,      prompt: "Product Placement: design a 15s ad concept that hero-shots a product organically inside a cinematic narrative moment. Give me a Seedance prompt." },
+  { label: "Batch Mode",         icon: FileVideo,         prompt: "Batch Mode: plan a 6-variant A/B test — same script, 6 different hooks/openers, each with its own Seedance prompt." },
+  { label: "PPT to Video",       icon: FileVideo,         prompt: "PPT/PDF to Video: turn a 5-slide pitch deck into a 60s cinematic explainer. Give me scene breakdowns and VO copy per slide." },
+  { label: "Video Podcast",      icon: Radio,             prompt: "Video Podcast: block a 2-host cinematic podcast set — camera angles, lens choices, lighting, wardrobe, and a cold-open script." },
+  { label: "LiveAvatar",         icon: MonitorPlay,       prompt: "LiveAvatar: design a real-time interactive avatar host persona — appearance, voice, personality, and 5 conversational fallbacks." },
+];
+
+const SCENE_TOOLS: ToolDef[] = [
+  { label: "Media",           icon: ImagePlus,      prompt: "Media: suggest 6 hyper-realistic stock-style reference images that would complete the current scene's storyboard. Describe each precisely." },
+  { label: "Elements",        icon: Shapes,         prompt: "Elements: propose graphic overlays, lower-thirds, and title cards that match a cinematic noir aesthetic — with font, weight, and motion cues." },
+  { label: "Music",           icon: Music,          prompt: "Music: suggest 4 score directions (genre, tempo, key, instrumentation, reference tracks) for a moody neon-noir short." },
+  { label: "Captions",        icon: CaptionsIcon,   prompt: "Captions: draft a caption style guide — font, weight, safe-area, animation, and burn-in timing — for TikTok, Reels, and YouTube Shorts." },
+  { label: "Sound Design",    icon: Volume2,        prompt: "Sound Design: give me a layered SFX bed (foley, ambience, transitions, sub-drops) for a 15s cinematic teaser." },
+  { label: "Templates",       icon: LayoutTemplate, prompt: "Templates: propose 4 reusable scene templates (opening hook, product reveal, testimonial, CTA outro) with camera, lighting, and pacing specs." },
+  { label: "Interactivity",   icon: MousePointerClick, prompt: "Interactivity: design a branching interactive video with 3 viewer-choice moments and clear next-scene consequences." },
+  { label: "Screen Recorder", icon: MonitorPlay,    prompt: "Screen Recorder: outline a workflow to turn a raw screen recording into a cinematic product demo with cutaways, zooms, and VO." },
+];
+
+// Aurora-specific skills that invoke the built-in skill dispatch system
+const AURORA_SKILL_TOOLS: ToolDef[] = [
+  { label: "🔍 Web Search",        icon: Search,   prompt: "Search the web for the latest trends and relevant data for my current video project." },
+  { label: "🌐 URL Scraper",       icon: Globe,    prompt: "Scrape and summarize the content from this URL for research: " },
+  { label: "🎣 Hook Generator",    icon: Magnet,   prompt: "Generate 3 competing viral hooks for my current video concept. Score each and explain which is strongest." },
+  { label: "🎬 B-roll Prompter",   icon: Film,     prompt: "Expand this shot description into a full cinematic image prompt with lens, lighting, texture, movement, and color science: " },
+  { label: "🧠 Recall Brand",      icon: Brain,    prompt: "Recall my brand memory and tell me everything you know about my ongoing projects, brand voice, and characters." },
+  { label: "💾 Save Brand Profile",icon: Save,     prompt: "Save to my brand memory: " },
+  { label: "💬 Add Captions",      icon: CaptionsIcon, prompt: "Add auto-captions to the last video we rendered — use the audio track for timing and style them for TikTok." },
+];
+
+// ── Chat message type ─────────────────────────────────────────────────────
+
+type ChatMsg = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  skillMeta?: SkillMeta | null;
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+
+function formatInspector(i: Inspector): string {
+  return `[Director Inspector · ${i.focalLength}mm · ${i.aperture} · ${i.filmStock.split(" ")[0]} · ${i.aspect} · ${i.lighting} → ${i.targetModel}]`;
 }
 
-const SIDEBAR_ITEMS = [
-  { id: "avatar",    icon: User,       label: "Avatar",    mode: "templates" as AgentMode, nav: null },
-  { id: "ai-tools",  icon: Bot,        label: "AI Tools",  mode: "agent" as AgentMode, nav: null },
-  { id: "media",     icon: ImageIcon,  label: "Media",     mode: "media" as AgentMode, nav: null },
-  { id: "elements",  icon: Sparkles,   label: "Elements",  mode: "recipes" as AgentMode, nav: null },
-  { id: "music",     icon: Music2,     label: "Music",     mode: "music-video" as AgentMode, nav: null },
-  { id: "captions",  icon: AlignLeft,  label: "Captions",  mode: "lyric-video" as AgentMode, nav: null },
-  { id: "templates", icon: Film,       label: "Templates", mode: "templates" as AgentMode, nav: null },
-  { id: "layers",    icon: Layers,     label: "Layers",    mode: "agent" as AgentMode, nav: null },
-] as const;
+function genId() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+// ── Cinematic reel images (copied to public/prime/) ───────────────────────
+
+const REEL_IMAGES = [
+  { src: "/prime/shot-neon-face.jpg",  label: "ECU · NEON" },
+  { src: "/prime/shot-highway.jpg",    label: "WIDE · DUSK" },
+  { src: "/prime/shot-chef.jpg",       label: "TOP · TUNGSTEN" },
+  { src: "/prime/shot-dancer.jpg",     label: "SILHOUETTE" },
+  { src: "/prime/shot-alley.jpg",      label: "ALLEY · RAIN" },
+  { src: "/prime/shot-eye.jpg",        label: "MACRO · IRIS" },
+  { src: "/prime/shot-desert.jpg",     label: "WIDE · DESERT" },
+];
+
+const STORYBOARD_SHOTS = [
+  { src: "/prime/shot-alley.jpg",     name: "Shot_01_ECU",    meta: "50mm · Push-in · 24fps",   tc: "00:04:12" },
+  { src: "/prime/shot-neon-face.jpg", name: "Shot_02_Med",    meta: "35mm · Static · 24fps",    tc: "00:08:05" },
+  { src: "/prime/shot-highway.jpg",   name: "Shot_03_Wide",   meta: "24mm · Handheld · 24fps",  tc: "00:12:22" },
+];
+
+// ── Autonomous agent run types ────────────────────────────────────────────
+
+type AgentStatus = "idle" | "running" | "paused" | "done" | "stopped";
+type StepStatus  = "pending" | "active" | "done";
+type AgentStep   = { key: string; label: string; detail: string; status: StepStatus; startedAt?: number; endedAt?: number };
+
+const AGENT_STEPS_TEMPLATE: Omit<AgentStep, "status">[] = [
+  { key: "brief",      label: "Brief",            detail: "Locking concept, references, avatar, props" },
+  { key: "directions", label: "Directions",        detail: "Drafting 4 story directions & aesthetics" },
+  { key: "script",     label: "Script",            detail: "Industry-format script + dialogue polish" },
+  { key: "shotlist",   label: "Shot List",         detail: "10–14 shots · lens · movement · duration" },
+  { key: "scenes",     label: "Scenes / Storyboard",detail: "Storyboard frames + blocking" },
+  { key: "voiceover",  label: "Voiceover",         detail: "VO script, cast, delivery notes" },
+  { key: "visuals",    label: "Visuals",            detail: "Seedance / Veo / Sora prompt cards" },
+  { key: "render",     label: "Render",             detail: "16:9 · 9:16 · 1:1 platform cuts" },
+  { key: "review",     label: "Review",             detail: "QC pass + next-actions checklist" },
+];
+
+const makeSteps = (): AgentStep[] =>
+  AGENT_STEPS_TEMPLATE.map((s) => ({ ...s, status: "pending" as StepStatus }));
+
+// ══════════════════════════════════════════════════════════════════════════
+// Main page component
+// ══════════════════════════════════════════════════════════════════════════
 
 function AgentPage() {
   const { user, loading } = useAuth();
-  const navigate = useNavigate();
-  const qc = useQueryClient();
+  const navigate          = useNavigate();
+  const qc                = useQueryClient();
 
-  const refineFn    = useServerFn(refineAuroraPlan);
-  const listFn      = useServerFn(listAgentSessions);
-  const getFn       = useServerFn(getAgentSession);
-  const delFn       = useServerFn(deleteAgentSession);
-  const renderFn    = useServerFn(renderAgentShot);
-  const animateFn   = useServerFn(renderAgentShotVideo);
-  const listTplFn   = useServerFn(listAuroraTemplates);
-  const createTplFn = useServerFn(createAuroraTemplate);
-  const deleteTplFn = useServerFn(deleteAuroraTemplate);
-  const generateTplFn = useServerFn(generateAuroraTemplateVideo);
-  const lyricVideoFn  = useServerFn(generateLyricVideoFromSong);
-  const galleryFn     = useServerFn(listGallery);
-  const genFn   = usePerformanceShotJobFn();
-  const videoFn = useVideoFromImageJobFn();
+  const chatFn    = useServerFn(chatWithAuroraAgent);
+  const listFn    = useServerFn(listAgentChat);
+  const clearFn   = useServerFn(clearAgentChat);
 
-  const [mode, setMode] = useState<AgentMode>("templates");
-  const [activeSidebarId, setActiveSidebarId] = useState<string>("avatar");
-
-  // ── HeyGen-style UI state ────────────────────────────────────────────────
-  const [voiceMode, setVoiceMode]   = useState<"no-voice" | "recorded">("no-voice");
-  const [layoutMode, setLayoutMode] = useState<"original" | "circle">("original");
-  const [radius, setRadius] = useState(0);
-  const [zoom, setZoom]     = useState(100);
-  const [selectedTplId, setSelectedTplId] = useState<string | null>(null);
-  const [activeShot, setActiveShot] = useState<string | null>(null);
-
-  // ── Lyric Video state ─────────────────────────────────────────────────────
-  const [lyricAudioUrl, setLyricAudioUrl]       = useState<string | null>(null);
-  const [lyricAudioDuration, setLyricAudioDuration] = useState<number | null>(null);
-  const [lyricsText, setLyricsText] = useState("");
-  const lyricLines    = lyricsText.split("\n").map((l) => l.trim()).filter(Boolean);
-  const lyricSegments = lyricAudioDuration ? buildEvenLyricSegments(lyricAudioDuration, lyricLines) : [];
-  const lyricVideoCost = computeCost({ features: ["lyric_video"] }).total;
-
+  // Auth guard
   useEffect(() => {
-    if (!lyricAudioUrl) { setLyricAudioDuration(null); return; }
-    const audio = new Audio();
-    audio.preload = "metadata";
-    const onLoaded = () => setLyricAudioDuration(audio.duration || null);
-    const onError  = () => { setLyricAudioDuration(null); toast.error("Couldn't read that audio file's duration"); };
-    audio.addEventListener("loadedmetadata", onLoaded);
-    audio.addEventListener("error", onError);
-    audio.src = lyricAudioUrl;
-    return () => { audio.removeEventListener("loadedmetadata", onLoaded); audio.removeEventListener("error", onError); };
-  }, [lyricAudioUrl]);
-
-  // ── Music Video state ─────────────────────────────────────────────────────
-  const [mvStyle,    setMvStyle]    = useState<MusicVideoStyle>("trap");
-  const [mvMode,     setMvMode]     = useState<MusicVideoMode>("text-to-video");
-  const [mvLocation, setMvLocation] = useState(LOCATION_SUGGESTIONS[0]);
-  const [mvSubject,  setMvSubject]  = useState(SUBJECT_SUGGESTIONS[0]);
-  const [mvPrompt,   setMvPrompt]   = useState(() =>
-    buildMusicVideoPrompt("text-to-video", "trap", LOCATION_SUGGESTIONS[0], SUBJECT_SUGGESTIONS[0]),
-  );
-  const [mvImage,      setMvImage]      = useState<string | null>(null);
-  const [mvVideoModel, setMvVideoModel] = useState(VIDEO_MODEL_LIST[0].value);
-  const mvCurrentMode = MUSIC_VIDEO_MODES.find((m) => m.key === mvMode)!;
-  const mvVideoCost   = computeCost({ features: ["video"], model: mvVideoModel, durationSeconds: 5, resolution: "720p" }).total;
-
-  useEffect(() => {
-    setMvPrompt(buildMusicVideoPrompt(mvMode, mvStyle, mvLocation, mvSubject));
-  }, [mvMode, mvStyle, mvLocation, mvSubject]);
-
-  // ── Story Agent state ──────────────────────────────────────────────────────
-  const [brief,      setBrief]      = useState("");
-  const [sessionId,  setSessionId]  = useState<string | null>(null);
-  const [plan,       setPlan]       = useState<AgentPlan | null>(null);
-  const [iterations, setIterations] = useState<PlanIteration[]>([]);
-  const [finalScore, setFinalScore] = useState<number | null>(null);
-  const [stopReason, setStopReason] = useState<string | null>(null);
-  const [renders,    setRenders]    = useState<Record<string, RenderState>>({});
-  const [videos,     setVideos]     = useState<Record<string, VideoState>>({});
-  const [historyOpen, setHistoryOpen] = useState(false);
-
-  // ── Template state ───────────────────────────────────────────────────────
-  const [tplFormOpen, setTplFormOpen] = useState(false);
-  const [tplName,     setTplName]     = useState("");
-  const [tplRawId,    setTplRawId]    = useState("");
-  const [tplCharKey,  setTplCharKey]  = useState("character");
-  const [genPhotoUrl, setGenPhotoUrl] = useState<Record<string, string>>({});
-  const [genAvatarId, setGenAvatarId] = useState<Record<string, string>>({});
-  const [genMode,     setGenMode]     = useState<Record<string, "photo" | "avatar">>({});
-  const [tplResult,   setTplResult]   = useState<Record<string, { status: "rendering" | "done" | "failed"; url?: string }>>({});
-  const [referenceImageUrl, setReferenceImageUrl] = useState<string | null>(null);
-
-  // ── Auth redirect ────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!loading && !user) navigate({ to: "/auth" });
+    if (!loading && !user) void navigate({ to: "/" });
   }, [user, loading, navigate]);
 
-  // ── Queries ──────────────────────────────────────────────────────────────
-  const sessionsQuery = useQuery({
-    queryKey: ["agent-sessions"],
-    queryFn: () => listFn(),
-    enabled: !!user,
+  // ── Local state ─────────────────────────────────────────────────────────
+  const MEMORY_KEY = "aurora-prime:memory:v1";
+
+  const [messages,        setMessages]        = useState<ChatMsg[]>([]);
+  const [isLoading,       setIsLoading]       = useState(false);
+  const [input,           setInput]           = useState("");
+  const [directorMemory,  setDirectorMemory]  = useState(() => {
+    if (typeof window === "undefined") return "";
+    return window.localStorage.getItem(MEMORY_KEY) ?? "";
   });
 
-  const templatesQuery = useQuery({
-    queryKey: ["aurora-templates"],
-    queryFn: () => listTplFn(),
-    enabled: !!user,
+  const [inspector, setInspector] = useState<Inspector>({
+    focalLength: 35,
+    aperture:    "f/2.8",
+    filmStock:   FILM_STOCKS[0],
+    aspect:      "2.39:1",
+    lighting:    "Low-key noir",
+    targetModel: "Seedance",
+    mood: "Hyper-realistic, atmospheric fog, subtle halation, no plastic AI skin.",
   });
 
-  const galleryQuery = useQuery({
-    queryKey: ["agent-gallery"],
-    queryFn: () => galleryFn(),
-    enabled: !!user && mode === "media",
+  const [activeTab, setActiveTab] = useState<"Workspace" | "Script" | "Dailies" | "Timeline">("Workspace");
+  const [leftOpen,  setLeftOpen]  = useState(true);
+  const [rightOpen, setRightOpen] = useState(true);
+
+  // Autonomous agent run state
+  const [agentStatus,  setAgentStatus]  = useState<AgentStatus>("idle");
+  const [agentSteps,   setAgentSteps]   = useState<AgentStep[]>(makeSteps);
+  const [agentIndex,   setAgentIndex]   = useState(0);
+  const [agentTitle,   setAgentTitle]   = useState("");
+  const agentTimer     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const agentStatusRef = useRef<AgentStatus>("idle");
+  agentStatusRef.current = agentStatus;
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef  = useRef<HTMLTextAreaElement>(null);
+
+  // Persist director memory to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(MEMORY_KEY, directorMemory);
+    }
+  }, [directorMemory]);
+
+  // ── Load chat history from Supabase ──────────────────────────────────────
+  const historyQ = useQuery({
+    queryKey: ["agent-chat-history"],
+    queryFn: () => listFn({}),
+    enabled: !!user,
     staleTime: 30_000,
   });
 
-  // Derived: selected template
-  const templates   = templatesQuery.data ?? [];
-  const selectedTpl = useMemo(
-    () => templates.find((t) => t.id === selectedTplId) ?? templates[0] ?? null,
-    [templates, selectedTplId],
-  );
-
-  // Auto-select first template when list loads
   useEffect(() => {
-    if (!selectedTplId && templates.length > 0) setSelectedTplId(templates[0].id);
-  }, [templates, selectedTplId]);
-
-  // Auto-select first shot when plan changes
-  useEffect(() => {
-    if (plan?.shots.length) setActiveShot((prev) => prev ?? plan.shots[0].id);
-  }, [plan]);
-
-  // Sync sidebar active icon when mode changes programmatically
-  useEffect(() => {
-    const item = SIDEBAR_ITEMS.find((i) => i.mode === mode);
-    if (item) setActiveSidebarId(item.id);
-  }, [mode]);
-
-  // ── Derived: current preview result ─────────────────────────────────────
-  const currentResult = useMemo((): { url: string; type: "video" | "image" } | null => {
-    if (mode === "templates" && selectedTpl) {
-      const res = tplResult[selectedTpl.id];
-      if (res?.status === "done" && res.url) return { url: res.url, type: "video" };
-    }
-    if (mode === "agent" && activeShot) {
-      const vs = videos[activeShot];
-      if (vs?.status === "succeeded" && vs.url) return { url: vs.url, type: "video" };
-      const rs = renders[activeShot];
-      if (rs?.status === "succeeded" && rs.url) return { url: rs.url, type: "image" };
-    }
-    return null;
-  }, [mode, selectedTpl, tplResult, activeShot, videos, renders]);
-
-  // ── Mutations ────────────────────────────────────────────────────────────
-  const saveTplMut = useMutation({
-    mutationFn: async () => {
-      if (!tplName.trim()) throw new Error("Give this template a name");
-      const tid = extractTemplateId(tplRawId.trim());
-      if (!tid) throw new Error("Paste a HeyGen template ID or URL");
-      if (!tplCharKey.trim()) throw new Error("Enter the character variable key");
-      return createTplFn({
-        data: {
-          name: tplName.trim(),
-          heygenTemplateId: tid,
-          fixedVariables: {
-            [tplCharKey.trim()]: {
-              name: tplCharKey.trim(),
-              type: "character",
-              properties: { url: "", talking_photo_id: "" },
-            },
-          },
-          characterVariableKey: tplCharKey.trim(),
-        },
-      });
-    },
-    onSuccess: () => {
-      setTplName(""); setTplRawId(""); setTplCharKey("character"); setTplFormOpen(false);
-      qc.invalidateQueries({ queryKey: ["aurora-templates"] });
-      toast.success("Template saved");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const deleteTplMut = useMutation({
-    mutationFn: (id: string) => deleteTplFn({ data: { id } }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["aurora-templates"] });
-      toast.success("Template deleted");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const generateTplMut = useMutation({
-    mutationFn: async ({ tpl, gMode }: { tpl: AuroraTemplateRow; gMode: "photo" | "avatar" }) => {
-      const photo  = genPhotoUrl[tpl.id]?.trim();
-      const avatar = genAvatarId[tpl.id]?.trim();
-      if (gMode === "photo"  && !photo)  throw new Error("Enter a photo URL");
-      if (gMode === "avatar" && !avatar) throw new Error("Enter an avatar ID");
-      setTplResult((r) => ({ ...r, [tpl.id]: { status: "rendering" } }));
-      return generateTplFn({
-        data: {
-          auroraTemplateId: tpl.id,
-          character: {
-            name: tpl.character_variable_key,
-            type: "character" as const,
-            properties: {
-              type: gMode === "photo" ? "talking_photo" : "avatar",
-              character_id: gMode === "photo" ? photo! : avatar!,
-            },
-          },
-        },
-      });
-    },
-    onSuccess: (r, { tpl }) => {
-      setTplResult((prev) => ({ ...prev, [tpl.id]: { status: "done", url: r.ok ? r.url : undefined } }));
-      toast.success("Video ready!");
-    },
-    onError: (e: Error, { tpl }) => {
-      setTplResult((prev) => ({ ...prev, [tpl.id]: { status: "failed" } }));
-      toast.error(e.message);
-    },
-  });
-
-  const refineMut = useMutation({
-    mutationFn: (input: { brief: string; sessionId?: string }) =>
-      refineFn({ data: { brief: input.brief, sessionId: input.sessionId } }),
-    onSuccess: (r) => {
-      setSessionId(r.sessionId);
-      setPlan(r.plan);
-      setIterations(r.iterations);
-      setFinalScore(r.finalScore);
-      setStopReason(r.stopReason);
-      setRenders({});
-      setVideos({});
-      qc.invalidateQueries({ queryKey: ["agent-sessions"] });
-      toast.success(`Plan ready — ${r.plan.shots.length} shots · scored ${r.finalScore}/100`);
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const loadMut = useMutation({
-    mutationFn: (id: string) => getFn({ data: { sessionId: id } }),
-    onSuccess: (r) => {
-      setSessionId(r.session.id);
-      setBrief(r.session.brief);
-      setPlan(r.session.plan);
-      setIterations(r.session.iterations);
-      setFinalScore(r.session.iterations.at(-1)?.critique.score ?? null);
-      setStopReason(null);
-      const rmap: Record<string, RenderState> = {};
-      for (const [sid, v] of Object.entries(r.renders)) {
-        rmap[sid] = { status: v.status === "succeeded" ? "succeeded" : "rendering", url: v.url };
+    if (historyQ.data?.messages && messages.length === 0) {
+      setMessages(
+        historyQ.data.messages.map((m) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          skillMeta: m.skillMeta,
+        })),
+      );
+      if (historyQ.data.memory) {
+        setDirectorMemory(historyQ.data.memory);
       }
-      setRenders(rmap);
-      setVideos({});
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+    }
+  }, [historyQ.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const deleteMut = useMutation({
-    mutationFn: (id: string) => delFn({ data: { sessionId: id } }),
-    onSuccess: (_r, id) => {
-      qc.invalidateQueries({ queryKey: ["agent-sessions"] });
-      if (id === sessionId) startNew();
-      toast.success("Session deleted");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  // Auto-scroll chat
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, isLoading]);
 
-  // ── Handlers ─────────────────────────────────────────────────────────────
-  const startNew = () => {
-    setSessionId(null);
-    setPlan(null);
-    setIterations([]);
-    setFinalScore(null);
-    setStopReason(null);
-    setRenders({});
-    setVideos({});
-    setBrief("");
-  };
+  // ── Send message ──────────────────────────────────────────────────────────
+  const sendMessage = async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed || isLoading) return;
 
-  const renderShot = async (shotId: string) => {
-    if (!sessionId) { toast.error("Save a plan before rendering"); return; }
-    setRenders((m) => ({ ...m, [shotId]: { status: "rendering" } }));
+    // Prepend inspector context
+    const ctx = formatInspector(inspector);
+    const fullMsg = `${ctx}\n\n${trimmed}`;
+
+    const userMsg: ChatMsg = { id: genId(), role: "user", content: trimmed };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+    setIsLoading(true);
+
     try {
-      const r = await renderFn({ data: { sessionId, shotId } });
-      setRenders((m) => ({ ...m, [shotId]: { status: "succeeded", url: r.url } }));
-      setVideos((m) => ({ ...m, [shotId]: { status: "idle" } }));
-      toast.success(`Shot ${shotId} rendered`);
-    } catch (e) {
-      setRenders((m) => ({ ...m, [shotId]: { status: "failed" } }));
-      toast.error(e instanceof Error ? e.message : "Render failed");
+      const result = await chatFn({ data: { message: fullMsg, cinematicMode: true } });
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: genId(),
+          role: "assistant",
+          content: result.reply,
+          skillMeta: result.skillInvoked,
+        },
+      ]);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Something went wrong. Try again.");
+      setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
+    } finally {
+      setIsLoading(false);
+      setTimeout(() => inputRef.current?.focus(), 50);
     }
   };
 
-  const animateShot = async (shotId: string) => {
-    if (!sessionId) { toast.error("Save a plan before animating"); return; }
-    setVideos((m) => ({ ...m, [shotId]: { status: "rendering" } }));
-    try {
-      const r = await animateFn({ data: { sessionId, shotId } });
-      setVideos((m) => ({ ...m, [shotId]: { status: "succeeded", url: r.url } }));
-      toast.success(`Shot ${shotId} animated`);
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Animate failed";
-      setVideos((m) => ({ ...m, [shotId]: { status: "failed", error: message } }));
-      toast.error(message);
-    }
+  const launch = (text: string) => { setInput(""); void sendMessage(text); };
+
+  const submit = () => { void sendMessage(input); };
+
+  // ── Clear chat ────────────────────────────────────────────────────────────
+  const clearThread = async () => {
+    if (!confirm("Clear conversation? Your brand memory is kept.")) return;
+    await clearFn({});
+    setMessages([]);
+    qc.invalidateQueries({ queryKey: ["agent-chat-history"] });
   };
 
-  const submitBrief = () => {
-    const text = brief.trim();
-    if (text.length < 4) return;
-    refineMut.mutate({ brief: text, sessionId: sessionId ?? undefined });
+  // ── Tab click ─────────────────────────────────────────────────────────────
+  const TAB_PROMPTS: Record<string, string> = {
+    Script:   "Open the Script tab: draft a full industry-standard script for the current project (SLUGLINE / ACTION / CHARACTER / DIALOGUE). If you don't have a locked concept yet, propose 3 directions and pick the strongest.",
+    Dailies:  "Open the Dailies tab: give me a 'dailies review' pass — list each hero shot, what's working, what's not, and a concrete fix (lens, blocking, light, grade) per shot.",
+    Timeline: "Open the Timeline tab: build a shot-by-shot timeline with in/out timecodes, transitions, music cue points, and caption timing for the current cut.",
   };
 
-  const handleGenerate = () => {
-    if (mode === "templates" && selectedTpl) {
-      const gm = genMode[selectedTpl.id] ?? "photo";
-      generateTplMut.mutate({ tpl: selectedTpl, gMode: gm });
-    } else if (mode === "agent") {
-      submitBrief();
-    } else if (mode === "lyric-video") {
-      if (!lyricAudioUrl) return toast.error("Upload a song first");
-      if (lyricSegments.length === 0) return toast.error("Paste at least one lyric line");
-      lyricVideoFn({ data: { audioUrl: lyricAudioUrl, lines: lyricSegments } })
-        .then(() => { toast.success("Lyric video queued"); qc.invalidateQueries({ queryKey: ["agent-gens"] }); })
-        .catch((e: unknown) => toast.error(e instanceof Error ? e.message : "Failed"));
-    } else if (mode === "music-video") {
-      if (!mvPrompt.trim()) return toast.error("Enter a prompt");
-      const doGen = async () => {
-        try {
-          if (mvCurrentMode?.needsImage && mvImage) {
-            await videoFn({ data: { imageUrl: mvImage, prompt: mvPrompt, duration: 5, resolution: "720p", modelKey: mvVideoModel, cameraMovement: "static", endFrameUrl: null } });
-          } else {
-            await genFn({ data: { prompt: mvPrompt, imageUrls: [], motionVideoUrl: null, model: "black-forest-labs/flux-1.1-pro" } });
-          }
-          toast.success("Queued — result will appear in your studio");
-          qc.invalidateQueries({ queryKey: ["agent-gens"] });
-        } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed"); }
-      };
-      void doGen();
-    }
+  const handleTabClick = (t: typeof activeTab) => {
+    setActiveTab(t);
+    if (t === "Workspace") return;
+    startAgent(`${t} pass`, TAB_PROMPTS[t] ?? "", t);
   };
 
-  const busy = refineMut.isPending;
+  // ── Autonomous agent run ──────────────────────────────────────────────────
+  const clearAgentTimer = () => {
+    if (agentTimer.current) { clearTimeout(agentTimer.current); agentTimer.current = null; }
+  };
 
-  // ── Loading ──────────────────────────────────────────────────────────────
-  if (loading || !user) {
-    return (
-      <div className="h-screen grid place-items-center bg-[#0d0d11]">
-        <Loader2 className="size-6 animate-spin text-violet-400" />
-      </div>
+  const advanceAgent = (fromIndex: number) => {
+    if (agentStatusRef.current !== "running") return;
+    setAgentIndex(fromIndex);
+    setAgentSteps((prev) =>
+      prev.map((s, i) => {
+        if (i < fromIndex) return { ...s, status: "done",   endedAt: s.endedAt ?? Date.now() };
+        if (i === fromIndex) return { ...s, status: "active", startedAt: s.startedAt ?? Date.now() };
+        return { ...s, status: "pending" };
+      }),
     );
-  }
+    if (fromIndex >= AGENT_STEPS_TEMPLATE.length) {
+      setAgentSteps((prev) => prev.map((s) => ({ ...s, status: "done", endedAt: s.endedAt ?? Date.now() })));
+      setAgentStatus("done");
+      return;
+    }
+    const delay = 2200 + Math.random() * 1600;
+    agentTimer.current = setTimeout(() => advanceAgent(fromIndex + 1), delay);
+  };
 
-  // ── Active shot data (for right panel) ───────────────────────────────────
-  const activeShotData  = plan?.shots.find((s) => s.id === activeShot) ?? null;
-  const activeShotRs    = activeShot ? (renders[activeShot] ?? { status: "idle" as RenderStatus }) : null;
-  const activeShotVs    = activeShot ? (videos[activeShot]  ?? { status: "idle" as VideoStatus  }) : null;
-  const currentGenMode  = selectedTpl ? (genMode[selectedTpl.id] ?? "photo") : "photo";
+  const startAgent = (title: string, prompt: string, tab: typeof activeTab = "Timeline") => {
+    clearAgentTimer();
+    setAgentTitle(title);
+    setAgentSteps(makeSteps());
+    setAgentIndex(0);
+    setAgentStatus("running");
+    setActiveTab(tab);
+    void sendMessage(prompt);
+    setTimeout(() => advanceAgent(0), 30);
+  };
+
+  const pauseAgent  = () => { if (agentStatus === "running") { clearAgentTimer(); setAgentStatus("paused"); } };
+  const resumeAgent = () => { if (agentStatus === "paused")  { setAgentStatus("running"); setTimeout(() => advanceAgent(agentIndex), 30); } };
+  const stopAgent   = () => {
+    clearAgentTimer();
+    setAgentStatus("stopped");
+    setAgentSteps((prev) => prev.map((s, i) => i < agentIndex ? { ...s, status: "done" } : { ...s, status: "pending" }));
+  };
+  const resetAgent  = () => {
+    clearAgentTimer();
+    setAgentStatus("idle");
+    setAgentSteps(makeSteps());
+    setAgentIndex(0);
+    setAgentTitle("");
+  };
+
+  const renderAll = () =>
+    startAgent(
+      "Full render · package deliverable",
+      "Render All: package the current project — final logline, script, shot list, storyboards, Seedance/Veo/Sora prompts for hero shots, VO, captions, music brief, and 16:9 / 9:16 / 1:1 cuts. Ship the full deliverable.",
+      "Timeline",
+    );
+
+  useEffect(() => () => clearAgentTimer(), []);
+
+  // ── Quick prompts ─────────────────────────────────────────────────────────
+  const QUICK_PROMPTS = [
+    "Draft a 60-second cinematic ad for a boutique whisky — moody neon noir.",
+    "Give me a 6-shot shot list for a rooftop chase at golden hour.",
+    "Write a Seedance prompt: hyper-realistic close-up of a violinist, one candle key light.",
+    "Turn this into a TikTok hook: 'a courier delivers a package that starts humming'.",
+  ];
+
+  if (loading) return null;
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-[#0d0d11] text-white">
+    <div className="relative flex h-screen w-full overflow-hidden text-ink" style={{ fontFamily: "inherit" }}>
+      <AmbientBackdrop />
 
-      {/* ─── Top Bar ─────────────────────────────────────────────────────── */}
-      <header className="flex h-10 shrink-0 items-center justify-between border-b border-white/10 bg-[#0d0d11] px-2 gap-2">
-        <div className="flex items-center gap-0.5">
-          <Link
-            to="/"
-            className="flex h-7 w-7 items-center justify-center rounded-md text-white/40 hover:text-white hover:bg-white/10 transition-colors"
-          >
-            <X className="size-3.5" />
-          </Link>
-          <button
-            onClick={startNew}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-white/40 hover:text-white hover:bg-white/10 transition-colors"
-          >
-            <ArrowLeft className="size-3.5" />
-          </button>
-          <button className="flex h-7 w-7 items-center justify-center rounded-md text-white/40 hover:text-white hover:bg-white/10 transition-colors">
-            <LayoutGrid className="size-3.5" />
-          </button>
-        </div>
-
-        <p className="text-[11px] font-medium text-white/35 tracking-wide">Aurora Video Studio</p>
-
-        <div className="flex items-center gap-1">
-          <button className="flex h-7 w-7 items-center justify-center rounded-md text-white/40 hover:text-white hover:bg-white/10 transition-colors">
-            <Share2 className="size-3.5" />
-          </button>
-          <button className="flex h-7 w-7 items-center justify-center rounded-md text-white/40 hover:text-white hover:bg-white/10 transition-colors">
-            <RefreshCw className="size-3.5" />
-          </button>
-          <button
-            onClick={handleGenerate}
-            disabled={busy || generateTplMut.isPending}
-            className="flex items-center gap-1.5 h-7 px-4 rounded-md text-xs font-semibold text-white transition-colors disabled:opacity-50"
-            style={{ background: "linear-gradient(135deg, #16a34a 0%, #15803d 100%)" }}
-          >
-            {(busy || generateTplMut.isPending) && <Loader2 className="size-3 animate-spin" />}
-            Generate
-          </button>
-        </div>
-      </header>
-
-      {/* ─── Sub-bar ──────────────────────────────────────────────────────── */}
-      <div className="flex h-8 shrink-0 items-center gap-2 border-b border-white/10 bg-[#0d0d11] px-3">
-        <div className="flex items-center gap-2">
-          {/* Mode selector pill */}
-          <div className="flex items-center gap-1 rounded border border-white/12 bg-white/5 px-2 h-5 text-[10px] text-white/50 cursor-pointer hover:bg-white/10 transition-colors select-none">
-            <Film className="size-2.5" />
-            <span>
-              {mode === "templates"   ? "Avatar videos"
-               : mode === "agent"    ? "Story Agent"
-               : mode === "recipes"  ? "Showcase"
-               : mode === "lyric-video" ? "Lyric Video"
-               : "Music Video"}
+      {/* ── LEFT SIDEBAR ────────────────────────────────────────────────────── */}
+      {leftOpen && (
+        <aside className="flex w-64 shrink-0 flex-col border-r border-line bg-panel/70 backdrop-blur-sm" style={{ zIndex: 10 }}>
+          {/* header */}
+          <div className="flex items-center gap-3 border-b border-line px-5 py-4">
+            <img src={auroraLogo.url} alt="Aurora" width={32} height={32} className="rounded-md" />
+            <div className="flex flex-col leading-tight">
+              <span className="font-mono text-[9px] font-bold uppercase tracking-[0.3em] text-ink-dim">Studio</span>
+              <span className="text-[13px] font-black uppercase tracking-widest text-ink">Aurora Prime</span>
+            </div>
+            <span className="ml-auto flex items-center gap-1.5 rounded-full border border-rec/40 bg-rec/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-rec">
+              <span className="size-1.5 rounded-full bg-rec rec-pulse" />Rec
             </span>
-            <ChevronDown className="size-2.5 ml-0.5 opacity-60" />
           </div>
-          {/* Project name */}
-          <span className="text-[11px] text-white/60 font-medium truncate max-w-[180px]">
-            {mode === "templates" && selectedTpl ? selectedTpl.name
-             : mode === "agent" && plan ? plan.title
-             : "New project"}
-          </span>
-          {/* Device toggles */}
-          <div className="flex items-center gap-0.5 ml-1 pl-2 border-l border-white/10">
-            {[Monitor, Smartphone].map((Icon, i) => (
-              <button key={i} className="flex h-5 w-5 items-center justify-center rounded text-white/25 hover:text-white/60 hover:bg-white/5 transition-colors">
-                <Icon className="size-3" />
+
+          {/* tool nav */}
+          <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
+            <SidebarSection title="Avatar Videos">
+              {AVATAR_TOOLS.map((t) => <SidebarItem key={t.label} icon={t.icon} label={t.label} onClick={() => launch(t.prompt)} />)}
+            </SidebarSection>
+            <SidebarSection title="Cinematic Craft">
+              {CINEMATIC_TOOLS.map((t) => <SidebarItem key={t.label} icon={t.icon} label={t.label} onClick={() => launch(t.prompt)} accent />)}
+            </SidebarSection>
+            <SidebarSection title="Director Style">
+              {DIRECTOR_STYLES.map((t) => <SidebarItem key={t.label} icon={t.icon} label={t.label} onClick={() => launch(t.prompt)} />)}
+            </SidebarSection>
+            <SidebarSection title="AI Tools">
+              {AI_TOOLS.map((t) => <SidebarItem key={t.label} icon={t.icon} label={t.label} onClick={() => launch(t.prompt)} accent />)}
+            </SidebarSection>
+            <SidebarSection title="Scene Assets">
+              {SCENE_TOOLS.map((t) => <SidebarItem key={t.label} icon={t.icon} label={t.label} onClick={() => launch(t.prompt)} />)}
+            </SidebarSection>
+            <SidebarSection title="Aurora Skills">
+              {AURORA_SKILL_TOOLS.map((t) => <SidebarItem key={t.label} icon={t.icon} label={t.label} onClick={() => launch(t.prompt)} accent />)}
+            </SidebarSection>
+          </nav>
+
+          {/* footer */}
+          <div className="border-t border-line px-4 py-3 space-y-2">
+            <div className="flex items-center justify-between font-mono text-[9px] uppercase tracking-widest text-ink-dim">
+              <span>Director · Aurora Prime</span>
+              <button onClick={clearThread} className="flex items-center gap-1 rounded-sm border border-line px-1.5 py-0.5 text-ink-dim transition-colors hover:border-rec/60 hover:text-rec text-[9px]">
+                <Trash2 className="size-2.5" /> Clear
+              </button>
+            </div>
+            <div className="rounded-sm border border-line bg-panel-2/60 px-2 py-1.5">
+              <div className="mb-1 flex items-center gap-1 font-mono text-[9px] font-bold uppercase tracking-widest text-prime">
+                <Save className="size-3" /> Director Memory
+              </div>
+              <textarea
+                value={directorMemory}
+                onChange={(e) => setDirectorMemory(e.target.value)}
+                rows={3}
+                placeholder="Brand voice, ongoing project, client rules, characters…"
+                className="w-full resize-none bg-transparent text-[10px] font-medium leading-snug text-ink placeholder:text-ink-dim/50 focus:outline-none"
+              />
+            </div>
+          </div>
+        </aside>
+      )}
+
+      {/* left toggle */}
+      <button
+        onClick={() => setLeftOpen((v) => !v)}
+        className="absolute left-0 top-1/2 z-20 -translate-y-1/2 translate-x-0 flex h-8 w-4 items-center justify-center rounded-r-sm border border-l-0 border-line bg-panel/80 text-ink-dim hover:text-ink transition-colors"
+        style={{ left: leftOpen ? "16rem" : "0" }}
+        title={leftOpen ? "Collapse sidebar" : "Expand sidebar"}
+      >
+        {leftOpen ? <ChevronLeft className="size-3" /> : <ChevronRight className="size-3" />}
+      </button>
+
+      {/* ── CENTER ──────────────────────────────────────────────────────────── */}
+      <main className="flex min-w-0 flex-1 flex-col" style={{ zIndex: 5 }}>
+        {/* tab bar */}
+        <div className="flex h-13 items-center justify-between border-b border-line bg-canvas/80 px-6 backdrop-blur-sm">
+          <div className="flex gap-6 text-[10px] font-bold uppercase tracking-[0.2em]">
+            {(["Workspace", "Script", "Dailies", "Timeline"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => handleTabClick(t)}
+                className={
+                  "py-4 transition-colors " +
+                  (activeTab === t
+                    ? "border-b border-prime text-ink"
+                    : "text-ink-dim hover:text-ink")
+                }
+              >
+                {t}
               </button>
             ))}
           </div>
-        </div>
-        <div className="flex-1" />
-        <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1 rounded border border-white/10 bg-white/5 px-2 h-5 text-[10px] text-white/40 hover:bg-white/10 transition-colors">
-            <Sparkles className="size-2.5 text-violet-400" /> Brand System
-          </button>
-          <button className="flex h-5 w-5 items-center justify-center rounded text-white/25 hover:text-white/60 hover:bg-white/5 transition-colors">
-            <Play className="size-3" />
+          <button
+            onClick={renderAll}
+            className="flex items-center gap-1.5 rounded-full bg-rec px-4 py-1.5 font-mono text-[9px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-rec-glow"
+          >
+            <Rocket className="size-3" /> Render All
           </button>
         </div>
-      </div>
 
-      {/* ─── Main 4-panel layout ──────────────────────────────────────────── */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* agent dashboard */}
+        <AgentDashboard
+          status={agentStatus}
+          title={agentTitle}
+          steps={agentSteps}
+          activeIndex={agentIndex}
+          onRun={() => startAgent("Autonomous director run", "AGENT MODE: run the full autonomous director loop end-to-end on the current project. Ship the complete production package now.", "Timeline")}
+          onPause={pauseAgent}
+          onResume={resumeAgent}
+          onStop={stopAgent}
+          onReset={resetAgent}
+        />
 
-        {/* ─── Left: Script Panel (256px) ──────────────────────────────────── */}
-        <aside className="w-64 shrink-0 flex flex-col border-r border-white/10 bg-[#0d0d11]">
-          {/* Header */}
-          <div className="flex items-center justify-between px-3 h-9 border-b border-white/10 shrink-0">
-            <span className="text-[11px] font-semibold text-white/70">Script</span>
-            <div className="flex items-center">
-              <button className="h-6 w-6 flex items-center justify-center rounded text-white/30 hover:text-white/70 hover:bg-white/10 transition-colors">
-                <Copy className="size-3.5" />
-              </button>
-              <button className="h-6 w-6 flex items-center justify-center rounded text-white/30 hover:text-white/70 hover:bg-white/10 transition-colors">
-                <SlidersHorizontal className="size-3.5" />
-              </button>
-            </div>
-          </div>
+        {/* chat scroll area */}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6">
+          <div className="mx-auto max-w-3xl">
+            {/* tab-specific header */}
+            {activeTab !== "Workspace" && <TabHeader tab={activeTab as "Script" | "Dailies" | "Timeline"} status={agentStatus} />}
 
-          {/* Scrollable content */}
-          <div className="flex-1 overflow-y-auto">
+            {/* progress timeline */}
+            {activeTab === "Timeline" && (
+              <ProgressTimeline steps={agentSteps} status={agentStatus} title={agentTitle} />
+            )}
 
-            {/* ─ Templates mode script ─ */}
-            {mode === "templates" && (
-              <div className="p-3 space-y-3">
-                {/* Scene 1 */}
-                <div className={cn(
-                  "flex items-start gap-2 rounded-lg border p-2.5 cursor-pointer",
-                  selectedTpl ? "border-violet-400/40 bg-violet-500/10" : "border-white/10 bg-white/[0.03]",
-                )}>
-                  <div className="flex items-center justify-center w-5 h-5 rounded bg-violet-500/25 text-violet-300 shrink-0 mt-0.5">
-                    <span className="text-[9px] font-bold">1</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-medium text-white/85 truncate">
-                      {selectedTpl?.name ?? "Select a template →"}
-                    </p>
-                    <p className="text-[10px] text-white/35 mt-0.5">24.3s · Avatar video</p>
-                  </div>
-                </div>
-
-                {/* Character input */}
-                <div className="space-y-1.5">
-                  <p className="text-[10px] text-white/35 uppercase tracking-wider">Character</p>
-                  {/* Photo / Avatar toggle */}
-                  <div className="flex gap-1">
-                    {(["photo", "avatar"] as const).map((k) => (
-                      <button
-                        key={k}
-                        onClick={() => selectedTpl && setGenMode((m) => ({ ...m, [selectedTpl.id]: k }))}
-                        className={cn(
-                          "flex-1 flex items-center justify-center gap-1 py-1 rounded text-[10px] border transition-colors",
-                          currentGenMode === k
-                            ? "border-violet-400/50 bg-violet-500/15 text-violet-200"
-                            : "border-white/10 bg-white/[0.03] text-white/40 hover:bg-white/5",
-                        )}
-                      >
-                        {k === "photo" ? <Upload className="size-3" /> : <User className="size-3" />}
-                        {k === "photo" ? "My Photo" : "HeyGen ID"}
-                      </button>
-                    ))}
-                  </div>
-                  {currentGenMode === "photo" ? (
-                    <Input
-                      value={selectedTpl ? (genPhotoUrl[selectedTpl.id] ?? "") : ""}
-                      onChange={(e) => selectedTpl && setGenPhotoUrl((u) => ({ ...u, [selectedTpl.id]: e.target.value }))}
-                      placeholder="Photo URL…"
-                      className="h-7 text-xs bg-white/5 border-white/12 text-white placeholder:text-white/25"
-                    />
-                  ) : (
-                    <Input
-                      value={selectedTpl ? (genAvatarId[selectedTpl.id] ?? "") : ""}
-                      onChange={(e) => selectedTpl && setGenAvatarId((a) => ({ ...a, [selectedTpl.id]: e.target.value }))}
-                      placeholder="HeyGen avatar ID…"
-                      className="h-7 text-xs bg-white/5 border-white/12 text-white font-mono placeholder:text-white/25"
-                    />
-                  )}
-                  {selectedTpl && (genPhotoUrl[selectedTpl.id] || genAvatarId[selectedTpl.id]) && (
-                    <div className="flex items-center gap-2">
-                      <div className="size-8 rounded-full border border-violet-400/50 overflow-hidden bg-white/10 flex items-center justify-center shrink-0">
-                        {genPhotoUrl[selectedTpl.id] ? (
-                          <img src={genPhotoUrl[selectedTpl.id]} alt="Avatar preview" className="size-full object-cover" />
-                        ) : (
-                          <User className="size-4 text-white/30" />
-                        )}
-                      </div>
-                      <p className="text-[10px] text-white/40 truncate">
-                        {currentGenMode === "photo" ? "Photo ready" : "Avatar ID set"}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Template ID */}
-                {selectedTpl && (
-                  <p className="text-[10px] font-mono text-white/20 truncate">
-                    {selectedTpl.heygen_template_id}
+            {/* welcome / empty state */}
+            {messages.length === 0 && (
+              <div className="space-y-6">
+                <header className="mb-8">
+                  <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-rec">Aurora Prime Director</p>
+                  <h1 className="font-black-display mt-2 text-4xl uppercase leading-tight text-ink">
+                    Direct your video,<br /><span className="text-prime">end to end.</span>
+                  </h1>
+                  <p className="mt-3 max-w-xl text-[14px] font-medium leading-relaxed text-ink-dim">
+                    Draft scripts, shot lists, storyboards, and ready-to-paste Seedance, Veo, and Sora prompts. Aurora's skills — web search, brand memory, hook generation, B-roll prompting, and captions — are available automatically.
                   </p>
-                )}
+                </header>
 
-                {/* Status in script */}
-                {selectedTpl && tplResult[selectedTpl.id]?.status === "rendering" && (
-                  <div className="flex items-center gap-2 text-xs text-white/50">
-                    <Loader2 className="size-3 animate-spin text-violet-400" /> Rendering video…
-                  </div>
-                )}
-                {selectedTpl && tplResult[selectedTpl.id]?.status === "failed" && (
-                  <div className="flex items-center gap-1.5 text-xs text-rose-300">
-                    <AlertTriangle className="size-3" /> Render failed — try again
-                  </div>
-                )}
-                {selectedTpl && tplResult[selectedTpl.id]?.status === "done" && (
-                  <div className="flex items-center gap-1.5 text-xs text-emerald-300">
-                    <Check className="size-3" /> Video ready
-                  </div>
-                )}
-              </div>
-            )}
+                <UgcBatchStudio onLaunch={launch} />
+                <ProductionBriefIntake onLaunch={launch} />
+                <StoryDirectionsSideBySide onLaunch={launch} />
+                <AgentModeBanner onLaunch={launch} />
 
-            {/* ─ Agent mode script ─ */}
-            {mode === "agent" && (
-              <div className="p-3 space-y-3">
-                {/* Shot list as scenes */}
-                {plan && (
-                  <div className="space-y-1.5">
-                    <p className="text-[10px] text-white/35 uppercase tracking-wider">
-                      Scenes · {plan.shots.length}
-                    </p>
-                    {plan.shots.map((s, i) => {
-                      const rs      = renders[s.id] ?? { status: "idle" as RenderStatus };
-                      const vs      = videos[s.id]  ?? { status: "idle" as VideoStatus  };
-                      const isActive = activeShot === s.id;
-                      return (
-                        <button
-                          key={s.id}
-                          onClick={() => setActiveShot(s.id)}
-                          className={cn(
-                            "w-full flex items-start gap-2 rounded-lg border p-2 text-left transition-colors",
-                            isActive
-                              ? "border-violet-400/40 bg-violet-500/10"
-                              : "border-white/10 bg-white/[0.02] hover:bg-white/5",
-                          )}
-                        >
-                          <div className="flex items-center justify-center w-5 h-5 rounded bg-white/10 text-white/50 shrink-0 mt-0.5">
-                            <span className="text-[9px] font-bold">{i + 1}</span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-medium text-white/85 truncate">{s.title}</p>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-[9px] font-mono text-white/25">{s.id}</span>
-                              {vs.status === "succeeded" && <span className="text-[9px] text-violet-300">● video</span>}
-                              {rs.status === "succeeded" && vs.status !== "succeeded" && <span className="text-[9px] text-teal-300">● still</span>}
-                              {(rs.status === "rendering" || vs.status === "rendering") && <Loader2 className="size-2.5 animate-spin text-white/35" />}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Sample prompts */}
-                {!plan && !busy && (
-                  <div className="space-y-1.5">
-                    <p className="text-[10px] text-white/25 uppercase tracking-wider">Try a prompt</p>
-                    {SAMPLES.map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => setBrief(s)}
-                        className="w-full text-left text-[11px] p-2.5 rounded-lg border border-white/10 bg-white/[0.02] hover:bg-white/[0.05] text-white/55 transition-all leading-relaxed"
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ─ Lyric Video mode script ─ */}
-            {mode === "lyric-video" && (
-              <div className="p-3 space-y-3">
-                <div className="space-y-1.5">
-                  <p className="text-[10px] text-white/35 uppercase tracking-wider">Song</p>
-                  <UploadSlot
-                    userId={user!.id}
-                    label="Upload audio"
-                    hint="MP3 / WAV / M4A"
-                    accept={AUDIO_ACCEPT}
-                    kind="video"
-                    value={lyricAudioUrl}
-                    onChange={setLyricAudioUrl}
-                  />
-                  {lyricAudioUrl && lyricAudioDuration == null && (
-                    <p className="text-xs text-white/40 flex items-center gap-1.5"><Loader2 className="size-3 animate-spin" /> Reading duration…</p>
-                  )}
-                  {lyricAudioDuration != null && (
-                    <p className="text-[10px] text-white/40">Duration: {Math.round(lyricAudioDuration)}s</p>
-                  )}
-                </div>
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[10px] text-white/35 uppercase tracking-wider">Lyrics</p>
-                    <span className="text-[10px] text-white/25">one line per lyric</span>
-                  </div>
-                  <Textarea
-                    rows={12}
-                    value={lyricsText}
-                    onChange={(e) => setLyricsText(e.target.value)}
-                    className="resize-none text-xs bg-white/5 border-white/12 text-white placeholder:text-white/25"
-                    placeholder={"Line one\nLine two\nLine three"}
-                  />
-                  {lyricLines.length > 0 && (
-                    <p className="text-[10px] text-white/35">
-                      {lyricLines.length} line{lyricLines.length === 1 ? "" : "s"}
-                      {lyricAudioDuration != null && lyricSegments.length > 0
-                        ? ` · ~${(lyricAudioDuration / lyricLines.length).toFixed(1)}s each`
-                        : ""}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* ─ Music Video mode script ─ */}
-            {mode === "music-video" && (
-              <div className="p-3 space-y-3">
-                {mvCurrentMode?.needsImage && (
-                  <div className="space-y-1.5">
-                    <p className="text-[10px] text-white/35 uppercase tracking-wider">Reference image</p>
-                    <UploadSlot userId={user!.id} label="Upload" hint="Cover art or frame" value={mvImage} onChange={setMvImage} />
-                  </div>
-                )}
-                <div className="space-y-1.5">
-                  <p className="text-[10px] text-white/35 uppercase tracking-wider">
-                    Direction <span className="normal-case font-normal text-white/25">auto-built · editable</span>
-                  </p>
-                  <Textarea
-                    rows={12}
-                    value={mvPrompt}
-                    onChange={(e) => setMvPrompt(e.target.value)}
-                    className="resize-none text-xs bg-white/5 border-white/12 text-white"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* ─ Recipes/Showcase mode script ─ */}
-            {mode === "recipes" && (
-              <div className="p-3 space-y-3">
-                <p className="text-[10px] text-white/35 uppercase tracking-wider">About</p>
-                <p className="text-xs text-white/50 leading-relaxed">
-                  Real HeyGen Video Agent recipes — copy-paste command sets for CI/CD pipelines, batch generation, Chrome Extensions, and more.
-                </p>
-                <div className="space-y-2">
-                  {["README-to-Video", "Viral Video Pipeline", "Site2Video Extension", "AI News Broadcast", "AI Mafia Game"].map((title, i) => (
-                    <div key={title} className="flex items-start gap-2 rounded-lg border border-white/10 bg-white/[0.02] px-2.5 py-2">
-                      <div className="flex items-center justify-center w-5 h-5 rounded bg-white/10 text-white/40 shrink-0 mt-0.5">
-                        <span className="text-[9px] font-bold">{i + 1}</span>
-                      </div>
-                      <p className="text-[11px] text-white/65 leading-tight">{title}</p>
-                    </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {QUICK_PROMPTS.map((q) => (
+                    <button
+                      key={q}
+                      onClick={() => launch(q)}
+                      className="group rounded-sm border border-line bg-panel/50 p-4 text-left text-sm font-medium text-ink transition-colors hover:border-prime/60 hover:bg-panel"
+                    >
+                      <Sparkle className="mb-2 size-4 text-prime" />
+                      {q}
+                    </button>
                   ))}
                 </div>
+
+                <ReelStrip />
+                <StoryboardGrid />
               </div>
             )}
-          </div>
 
-          {/* Footer — agent mode gets a chat-input bar; other modes keep the scene controls */}
-          {mode === "agent" ? (
-            <div className="shrink-0 border-t border-white/10 p-3 space-y-2">
-              <Textarea
-                value={brief}
-                onChange={(e) => setBrief(e.target.value)}
+            {/* messages */}
+            <div className="space-y-6">
+              {messages.map((m) => (
+                <div key={m.id} className={m.role === "user" ? "flex justify-end" : "flex gap-3"}>
+                  {m.role === "user" ? (
+                    <div className="max-w-[85%] rounded-l-2xl rounded-br-sm border-r-2 border-prime bg-panel-2/60 px-4 py-3 text-sm text-ink">
+                      <div className="mb-1 font-mono text-[9px] uppercase tracking-widest text-ink-dim">Director / You</div>
+                      <div className="whitespace-pre-wrap">{m.content}</div>
+                    </div>
+                  ) : (
+                    <>
+                      <img src={auroraLogo.url} alt="" width={26} height={26} className="mt-1 size-[26px] shrink-0 rounded" />
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-1 flex items-center gap-2 font-mono text-[9px] uppercase tracking-widest text-prime">
+                          Aurora Prime
+                          <span className="text-ink-dim">/ Director</span>
+                          {m.skillMeta && (
+                            <span className="flex items-center gap-1 rounded-full border border-prime/30 bg-prime/10 px-2 py-0.5 text-[9px] text-prime-glow">
+                              {m.skillMeta.icon} {m.skillMeta.label}
+                            </span>
+                          )}
+                        </div>
+                        <article className="prose prose-invert prose-sm max-w-none prose-headings:text-ink prose-p:text-ink prose-strong:text-ink prose-code:text-prime-glow prose-pre:border prose-pre:border-line prose-pre:bg-panel/80 prose-pre:font-mono prose-a:text-prime-glow">
+                          <ReactMarkdown>{m.content || "…"}</ReactMarkdown>
+                        </article>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+
+              {isLoading && (
+                <div className="flex gap-3">
+                  <img src={auroraLogo.url} alt="" width={26} height={26} className="mt-1 size-[26px] shrink-0 rounded" />
+                  <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-ink-dim">
+                    <span className="size-1.5 rounded-full bg-prime rec-pulse" />
+                    Aurora is composing the shot…
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* composer */}
+        <div className="border-t border-line bg-canvas/80 px-6 py-4 backdrop-blur-sm">
+          <div className="mx-auto max-w-3xl">
+            <div className="flex items-end gap-2 rounded-sm border border-line bg-panel/60 px-3 py-2 focus-within:border-prime/60">
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && brief.trim().length >= 4 && !busy) {
-                    e.preventDefault();
-                    submitBrief();
-                  }
+                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
                 }}
-                placeholder={"Characters, location, vibe, era…\ne.g. a man and a chimp rob a bank in the desert"}
-                rows={3}
-                className="resize-none text-xs bg-white/5 border-white/12 text-white placeholder:text-white/25"
+                rows={1}
+                placeholder="Direct Aurora — shot idea, script beat, or paste a Seedance prompt…"
+                className="max-h-40 min-h-6 flex-1 resize-none bg-transparent py-1.5 text-sm text-ink placeholder:text-ink-dim/60 focus:outline-none"
+                autoFocus
               />
               <button
-                onClick={submitBrief}
-                disabled={busy || brief.trim().length < 4}
-                className="w-full flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-40"
-                style={{ background: "var(--gradient-hero)" }}
+                onClick={submit}
+                disabled={isLoading || !input.trim()}
+                className="flex size-9 items-center justify-center rounded-sm bg-prime text-white transition-colors hover:bg-prime-glow disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="Send"
               >
-                {busy ? <Loader2 className="size-3 animate-spin" /> : <Send className="size-3" />}
-                {busy ? "Directing…" : plan ? "Re-direct" : "Direct story"}
-              </button>
-              {brief.trim().length >= 4 && !busy && (
-                <p className="text-[9px] text-white/20 text-center">⌘↵ to send</p>
-              )}
-            </div>
-          ) : (
-            <div className="shrink-0 border-t border-white/10 px-3 py-2 flex items-center justify-between">
-              <button className="flex items-center gap-1.5 text-[11px] text-white/35 hover:text-white/65 transition-colors">
-                <Plus className="size-3.5" /> Add scene
-              </button>
-              <button className="flex h-6 w-6 items-center justify-center rounded text-white/30 hover:text-white/65 hover:bg-white/10 transition-colors">
-                <Mic className="size-3.5" />
+                <Send className="size-4" />
               </button>
             </div>
-          )}
-        </aside>
-
-        {/* ─── Center: Preview Canvas ──────────────────────────────────────── */}
-        <main className="flex-1 flex flex-col bg-[#0f0f15] min-w-0">
-          {/* Preview area */}
-          <div className="flex-1 relative overflow-hidden">
-            <div className="absolute inset-0 flex items-center justify-center bg-[radial-gradient(ellipse_at_center,_#1a1a2e_0%,_#0f0f15_70%)]">
-              {currentResult?.type === "video" && (
-                <video
-                  key={currentResult.url}
-                  src={currentResult.url}
-                  controls
-                  playsInline
-                  className="max-w-full max-h-full rounded-xl shadow-2xl"
-                />
-              )}
-              {currentResult?.type === "image" && (
-                <img
-                  src={currentResult.url}
-                  alt="Preview"
-                  className="max-w-full max-h-full rounded-xl shadow-2xl object-contain"
-                />
-              )}
-              {!currentResult && (
-                <div className="flex flex-col items-center gap-5 text-center px-8">
-                  {mode === "templates" && selectedTpl && tplResult[selectedTpl.id]?.status === "rendering" ? (
-                    <>
-                      <div className="size-24 rounded-3xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
-                        <Loader2 className="size-10 text-violet-400 animate-spin" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white/60">Rendering video…</p>
-                        <p className="text-xs text-white/30 mt-1">This may take 30–60 seconds</p>
-                      </div>
-                    </>
-                  ) : busy ? (
-                    <>
-                      <Loader2 className="size-10 text-violet-400 animate-spin" />
-                      <div>
-                        <p className="text-sm text-white/60">Running director ↔ critic loop…</p>
-                        <p className="text-xs text-white/30 mt-1">propose · critique · refine · re-score</p>
-                      </div>
-                    </>
-                  ) : mode === "recipes" ? (
-                    /* Showcase mode: show recipes in center */
-                    <div className="w-full max-w-2xl text-left space-y-4 max-h-full overflow-y-auto">
-                      <div>
-                        <p className="text-lg font-bold text-white">Showcase</p>
-                        <p className="text-xs text-white/40 mt-0.5">HeyGen Video Agent recipes — real production patterns</p>
-                      </div>
-                      {[
-                        { title: "README-to-Video", badge: "GitHub Actions", accent: "from-emerald-400 to-teal-500", stack: "TypeScript · GitHub Actions · Claude", cost: "~$0.05–0.15/video", steps: ["GitHub Action watches README changes", "Claude writes scene-by-scene prompts", "Video Agent renders and embeds back in README"] },
-                        { title: "Viral Video Pipeline", badge: "Batch · Portrait", accent: "from-violet-400 to-purple-500", stack: "Claude Code · HeyGen Skills", cost: "~$6 for 6 videos", steps: ["Web search for trending topics", "Generate 6 TikTok/Reels-ready videos", "Batch report with performance predictions"] },
-                        { title: "Site2Video — Chrome Extension", badge: "Chrome Extension", accent: "from-blue-400 to-cyan-500", stack: "Vite + React · Next.js · Gemini", cost: "Per-render", steps: ["Extension captures full-page screenshot", "Analyzes site's visual DNA", "Generates style-aware Video Agent prompt"] },
-                        { title: "AI News Broadcast", badge: "Automated Pipeline", accent: "from-amber-400 to-orange-500", stack: "Bun · TypeScript", cost: "Per-video", steps: ["Gathers AI papers from arXiv + HN", "Builds script with an LLM", "Posts video to Telegram"] },
-                        { title: "AI Mafia — Live Avatar Game", badge: "Live Avatars", accent: "from-rose-400 to-pink-500", stack: "Next.js · HeyGen Live Avatar SDK · Claude", cost: "Live streaming", steps: ["3 AI NPCs argue, accuse, and vote", "Claude powers decision-making", "Real-time streaming — not pre-rendered"] },
-                      ].map((recipe) => (
-                        <div key={recipe.title} className="aurora-panel p-4 space-y-2 relative overflow-hidden">
-                          <div className={`absolute top-0 left-0 w-1 h-full bg-gradient-to-b ${recipe.accent} rounded-l-xl`} />
-                          <div className="pl-3">
-                            <div className="flex items-center gap-2">
-                              <h3 className="text-sm font-bold">{recipe.title}</h3>
-                              <span className={`rounded-full bg-gradient-to-r ${recipe.accent} px-2 py-0.5 text-[9px] font-bold text-white uppercase tracking-wider`}>{recipe.badge}</span>
-                            </div>
-                            <div className="flex items-center gap-4 mt-1 text-[10px] text-white/40">
-                              <span>{recipe.stack}</span>
-                              <span className="font-mono">{recipe.cost}</span>
-                            </div>
-                            <ol className="mt-2 space-y-0.5 list-decimal list-inside text-[11px] text-white/55">
-                              {recipe.steps.map((s, i) => <li key={i}>{s}</li>)}
-                            </ol>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <>
-                      <div className="size-24 rounded-3xl bg-white/[0.03] border border-white/8 flex items-center justify-center">
-                        <Film className="size-10 text-white/12" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white/45">
-                          {mode === "templates"
-                            ? (selectedTpl ? "Configure & Generate" : "Select a template →")
-                            : mode === "agent"
-                            ? "Describe your video to begin"
-                            : "Preview appears here"}
-                        </p>
-                        <p className="text-xs text-white/25 mt-1.5">
-                          {mode === "templates" && selectedTpl
-                            ? `Add a photo URL in the Script panel and click Generate · ${TEMPLATE_COST} Aura`
-                            : mode === "agent"
-                            ? "Type a brief in the Script panel, then click Generate"
-                            : ""}
-                        </p>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="absolute bottom-3 right-3 text-[10px] font-bold text-white/8 tracking-widest uppercase pointer-events-none">Aurora</div>
-          </div>
-
-          {/* Playback bar + scene thumbnails */}
-          <div className="shrink-0 border-t border-white/10 bg-[#0d0d11] px-4 pt-2 pb-3 space-y-2">
-            {/* Transport */}
-            <div className="flex items-center gap-2">
-              <button className="text-white/35 hover:text-white/70 transition-colors">
-                <Play className="size-4" />
-              </button>
-              <span className="text-[10px] font-mono text-white/40">00:00</span>
-              <span className="text-[10px] text-white/20">/</span>
-              <span className="text-[10px] font-mono text-white/25">
-                {mode === "lyric-video" && lyricAudioDuration
-                  ? `${Math.round(lyricAudioDuration)}s`
-                  : mode === "templates" ? "24.3s" : "--"}
-              </span>
-              <div className="flex-1 h-0.5 bg-white/10 rounded-full mx-1 cursor-pointer relative">
-                <div className="h-full w-0 bg-violet-400 rounded-full" />
-              </div>
-              <span className="border border-white/12 rounded px-1.5 py-0.5 text-[10px] text-white/35 cursor-pointer hover:bg-white/10 transition-colors">1×</span>
-            </div>
-
-            {/* Scene thumbnails */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
-              {mode === "templates" && templates.map((tpl) => {
-                const res      = tplResult[tpl.id];
-                const isActive = selectedTpl?.id === tpl.id;
-                return (
-                  <button
-                    key={tpl.id}
-                    onClick={() => setSelectedTplId(tpl.id)}
-                    className={cn(
-                      "shrink-0 w-16 h-9 rounded border overflow-hidden relative transition-colors",
-                      isActive ? "border-violet-400/70 ring-1 ring-violet-400/40" : "border-white/10 hover:border-white/25",
-                    )}
-                  >
-                    {res?.status === "done" && res.url ? (
-                      <video src={res.url} className="size-full object-cover" muted playsInline />
-                    ) : (
-                      <div className="size-full bg-white/5 flex items-center justify-center">
-                        {res?.status === "rendering"
-                          ? <Loader2 className="size-3 animate-spin text-violet-400" />
-                          : <Film className="size-3 text-white/20" />}
-                      </div>
-                    )}
-                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-1 py-0.5">
-                      <p className="text-[8px] text-white/55 truncate">{tpl.name}</p>
-                    </div>
-                  </button>
-                );
-              })}
-
-              {mode === "agent" && plan?.shots.map((s, i) => {
-                const rs      = renders[s.id] ?? { status: "idle" as RenderStatus };
-                const vs      = videos[s.id]  ?? { status: "idle" as VideoStatus  };
-                const isActive = activeShot === s.id;
-                return (
-                  <button
-                    key={s.id}
-                    onClick={() => setActiveShot(s.id)}
-                    className={cn(
-                      "shrink-0 w-16 h-9 rounded border overflow-hidden relative transition-colors",
-                      isActive ? "border-violet-400/70" : "border-white/10 hover:border-white/25",
-                    )}
-                  >
-                    {vs.status === "succeeded" && vs.url ? (
-                      <video src={vs.url} className="size-full object-cover" muted playsInline />
-                    ) : rs.status === "succeeded" && rs.url ? (
-                      <img src={rs.url} alt={s.title} className="size-full object-cover" />
-                    ) : (
-                      <div className="size-full bg-white/5 flex items-center justify-center">
-                        {rs.status === "rendering" || vs.status === "rendering"
-                          ? <Loader2 className="size-3 animate-spin text-violet-400" />
-                          : <span className="text-[9px] text-white/25">{i + 1}</span>}
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-
-              <button className="shrink-0 w-16 h-9 rounded border border-white/10 border-dashed flex items-center justify-center text-white/25 hover:text-white/45 hover:bg-white/5 transition-colors">
-                <Plus className="size-3.5" />
-              </button>
+            <div className="mt-1.5 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.15em] text-ink-dim">
+              <span>{inspector.focalLength}mm · {inspector.aperture} · {inspector.filmStock.split(" ")[0]} · {inspector.aspect} · → {inspector.targetModel}</span>
+              <span>Enter to send · Shift+Enter for newline</span>
             </div>
           </div>
-        </main>
+        </div>
+      </main>
 
-        {/* ─── Right: Properties Panel (224px) ─────────────────────────────── */}
-        <aside className="w-56 shrink-0 flex flex-col border-l border-white/10 bg-[#0d0d11] overflow-y-auto">
+      {/* ── RIGHT INSPECTOR ─────────────────────────────────────────────────── */}
+      {rightOpen && (
+        <aside className="flex w-72 shrink-0 flex-col overflow-y-auto border-l border-line bg-panel/70 backdrop-blur-sm" style={{ zIndex: 10 }}>
+          <div className="border-b border-line px-5 py-4">
+            <div className="font-mono text-[9px] font-bold uppercase tracking-[0.3em] text-ink-dim">Cinematic Inspector</div>
+            <div className="mt-2 h-px w-8 bg-rec" />
+          </div>
 
-          {/* ── TEMPLATES mode properties ── */}
-          {mode === "templates" && (
-            <>
-              {/* Avatar & Voice */}
-              <div className="border-b border-white/10">
-                <div className="flex items-center justify-between px-3 py-2.5">
-                  <p className="text-[11px] font-semibold text-white/75">Avatar &amp; Voice (Scene 1)</p>
-                  <button className="text-white/25 hover:text-white/60 transition-colors">
-                    <X className="size-3.5" />
-                  </button>
-                </div>
-                <div className="px-3 pb-3 space-y-2">
-                  <div className="flex gap-1">
-                    {[
-                      { key: "no-voice" as const,  label: "No voice"       },
-                      { key: "recorded" as const,   label: "Recorded voice" },
-                    ].map(({ key, label }) => (
-                      <button
-                        key={key}
-                        onClick={() => setVoiceMode(key)}
-                        className={cn(
-                          "flex-1 py-1 rounded text-[10px] font-medium border transition-colors",
-                          voiceMode === key
-                            ? "border-violet-400/50 bg-violet-500/15 text-violet-200"
-                            : "border-white/10 bg-white/[0.03] text-white/35 hover:bg-white/5",
-                        )}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Motion Engine = Template selector */}
-              <div className="border-b border-white/10 px-3 py-3 space-y-2">
-                <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Motion Engine</p>
-
-                {templatesQuery.isLoading ? (
-                  <div className="flex justify-center py-3">
-                    <Loader2 className="size-4 animate-spin text-white/25" />
-                  </div>
-                ) : templates.length === 0 ? (
-                  <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-center">
-                    <Film className="size-5 text-white/15 mx-auto mb-1.5" />
-                    <p className="text-[10px] text-white/35">No templates saved</p>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {templates.map((tpl) => (
-                      <button
-                        key={tpl.id}
-                        onClick={() => setSelectedTplId(tpl.id)}
-                        className={cn(
-                          "w-full flex items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors",
-                          selectedTpl?.id === tpl.id
-                            ? "border-violet-400/40 bg-violet-500/10"
-                            : "border-white/10 bg-white/[0.02] hover:bg-white/5",
-                        )}
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="size-6 rounded-md bg-[var(--teal-dim)] border border-[var(--teal-border)] flex items-center justify-center shrink-0">
-                            <User className="size-3 text-[var(--teal)]" />
-                          </div>
-                          <p className="text-[11px] text-white/75 truncate">{tpl.name}</p>
-                        </div>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); deleteTplMut.mutate(tpl.id); }}
-                          className="text-white/15 hover:text-rose-300 shrink-0 transition-colors"
-                          aria-label="Delete template"
-                        >
-                          <Trash2 className="size-3" />
-                        </button>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Add template */}
-                <button
-                  onClick={() => setTplFormOpen((o) => !o)}
-                  className="w-full flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-white/12 py-1.5 text-[11px] text-white/35 hover:text-white/55 hover:border-white/25 transition-colors"
-                >
-                  <Plus className="size-3" /> {tplFormOpen ? "Cancel" : "Add template"}
-                </button>
-
-                {tplFormOpen && (
-                  <div className="space-y-1.5 p-2.5 rounded-lg border border-white/10 bg-white/[0.03]">
-                    <Input value={tplName}    onChange={(e) => setTplName(e.target.value)}    placeholder="Template name" className="h-7 text-xs bg-black/30 border-white/10 text-white" />
-                    <Input value={tplRawId}   onChange={(e) => setTplRawId(e.target.value)}   placeholder="HeyGen template ID or URL" className="h-7 text-xs bg-black/30 border-white/10 text-white font-mono" />
-                    <Input value={tplCharKey} onChange={(e) => setTplCharKey(e.target.value)} placeholder="character" className="h-7 text-xs bg-black/30 border-white/10 text-white font-mono" />
-                    <Button onClick={() => saveTplMut.mutate()} disabled={saveTplMut.isPending} size="sm" className="w-full h-7 text-xs bg-violet-600 hover:bg-violet-500 text-white border-0">
-                      {saveTplMut.isPending ? <Loader2 className="size-3 mr-1 animate-spin" /> : <CheckCircle2 className="size-3 mr-1" />}
-                      Save template
-                    </Button>
-                    <div className="text-[10px] text-white/30 leading-relaxed space-y-0.5">
-                      <p>1. Go to <a href="https://app.heygen.com/templates" target="_blank" rel="noreferrer" className="text-violet-400 underline">app.heygen.com</a></p>
-                      <p>2. Open template → copy the URL or ID</p>
-                      <p>3. Note the character variable key name</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Avatar Background */}
-              <div className="border-b border-white/10 px-3 py-3 space-y-2">
-                <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Avatar Background</p>
-                <div className="flex gap-1">
-                  {["Customize", "Remove", "Color"].map((opt) => (
-                    <button
-                      key={opt}
-                      className="flex-1 py-1 rounded text-[10px] border border-white/10 bg-white/[0.03] text-white/40 hover:bg-white/8 transition-colors"
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Layout */}
-              <div className="border-b border-white/10 px-3 py-3 space-y-2">
-                <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Layout</p>
-                <div className="flex gap-1">
-                  {([["original", "Original"], ["circle", "Circle"]] as const).map(([key, label]) => (
-                    <button
-                      key={key}
-                      onClick={() => setLayoutMode(key)}
-                      className={cn(
-                        "flex-1 py-1 rounded text-[10px] border transition-colors",
-                        layoutMode === key
-                          ? "border-violet-400/50 bg-violet-500/15 text-violet-200"
-                          : "border-white/10 bg-white/[0.03] text-white/40 hover:bg-white/8",
-                      )}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Radius */}
-              <div className="border-b border-white/10 px-3 py-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Radius</p>
-                  <span className="text-[10px] font-mono text-white/35">{radius}px</span>
-                </div>
+          <div className="space-y-6 px-5 py-5">
+            <InspectorSection icon={<Camera className="size-3.5" />} title="Lens & Optics">
+              <label className="font-mono text-[9px] uppercase text-ink-dim">Focal Length</label>
+              <div className="flex items-center gap-3">
                 <input
-                  type="range" min="0" max="100" value={radius}
-                  onChange={(e) => setRadius(Number(e.target.value))}
-                  className="w-full h-1 rounded-full accent-violet-400 cursor-pointer"
-                  style={{ background: `linear-gradient(to right, #7c3aed ${radius}%, rgba(255,255,255,0.1) ${radius}%)` }}
+                  type="range" min={14} max={200}
+                  value={inspector.focalLength}
+                  onChange={(e) => setInspector((s) => ({ ...s, focalLength: Number(e.target.value) }))}
+                  className="flex-1 accent-[var(--prime)]"
                 />
+                <span className="w-12 text-right font-mono text-[10px] text-ink">{inspector.focalLength}mm</span>
               </div>
-
-              {/* Zoom */}
-              <div className="border-b border-white/10 px-3 py-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Zoom</p>
-                  <span className="text-[10px] font-mono text-white/35">{zoom}%</span>
-                </div>
-                <input
-                  type="range" min="50" max="200" value={zoom}
-                  onChange={(e) => setZoom(Number(e.target.value))}
-                  className="w-full h-1 rounded-full accent-violet-400 cursor-pointer"
-                  style={{ background: `linear-gradient(to right, #7c3aed ${(zoom - 50) / 1.5}%, rgba(255,255,255,0.1) ${(zoom - 50) / 1.5}%)` }}
-                />
-              </div>
-
-              {/* Render + download */}
-              <div className="p-3 space-y-2.5">
-                <button
-                  onClick={handleGenerate}
-                  disabled={!selectedTpl || generateTplMut.isPending}
-                  className="w-full flex items-center justify-center gap-1.5 h-9 rounded-lg text-sm font-semibold text-white transition-all disabled:opacity-50"
-                  style={{ background: generateTplMut.isPending ? "#78350f" : "linear-gradient(135deg, #d97706 0%, #b45309 100%)", boxShadow: "0 2px 12px rgba(217,119,6,0.35)" }}
-                >
-                  {generateTplMut.isPending
-                    ? <><Loader2 className="size-3.5 animate-spin" /> Rendering…</>
-                    : <><Sparkles className="size-3.5" /> Render Scene</>}
-                </button>
-
-                <p className="text-[10px] text-white/25 text-center">{TEMPLATE_COST} Aura · ~30–60s</p>
-
-                {selectedTpl && tplResult[selectedTpl.id]?.status === "done" && tplResult[selectedTpl.id]?.url && (
-                  <div className="flex gap-1.5">
-                    <a
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        const url = tplResult[selectedTpl.id].url!;
-                        fetch(url).then((r) => r.blob()).then((blob) => {
-                          const a = document.createElement("a");
-                          a.href = URL.createObjectURL(blob);
-                          a.download = `${selectedTpl.name}-heygen.mp4`;
-                          a.click();
-                        });
-                      }}
-                      className="flex-1 flex items-center justify-center gap-1 text-[11px] py-1.5 rounded-lg border border-white/12 bg-white/5 hover:bg-white/10 text-white/65 transition-colors"
-                    >
-                      <Download className="size-3" /> Download
-                    </a>
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(tplResult[selectedTpl.id].url!); toast.success("URL copied"); }}
-                      className="flex-1 flex items-center justify-center gap-1 text-[11px] py-1.5 rounded-lg border border-white/12 bg-white/5 hover:bg-white/10 text-white/65 transition-colors"
-                    >
-                      <Copy className="size-3" /> Copy URL
-                    </button>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-
-          {/* ── AGENT mode properties ── */}
-          {mode === "agent" && (
-            <div className="flex flex-col flex-1">
-              <div className="px-3 py-2.5 border-b border-white/10">
-                <p className="text-[11px] font-semibold text-white/75">AI Tools</p>
-              </div>
-              <div className="p-3 space-y-3 flex-1">
-                {/* Score */}
-                {finalScore !== null && (
-                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-center">
-                    <p className={`text-3xl font-bold ${scoreColor(finalScore)}`}>{finalScore}</p>
-                    <p className="text-[9px] uppercase tracking-wider text-white/35 mt-0.5">critic score</p>
-                    {stopReason && (
-                      <p className="text-[10px] text-white/30 mt-1">
-                        {stopReason === "threshold" ? "✓ met quality bar" : stopReason === "converged" ? "improvements plateaued" : "reached max iterations"}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Plan summary */}
-                {plan && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-white/70">{plan.title}</p>
-                    <p className="text-[11px] text-white/40 italic leading-relaxed">&ldquo;{plan.logline}&rdquo;</p>
-                    <div className="flex gap-1.5">
-                      {plan.palette.slice(0, 5).map((c) => (
-                        <div key={c} title={c} className="flex-1 aspect-square rounded-md border border-white/10" style={{ background: c }} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Active shot controls */}
-                {activeShotData && activeShotRs && activeShotVs && (
-                  <div className="border-t border-white/10 pt-3 space-y-2">
-                    <p className="text-[10px] text-white/35 uppercase tracking-wider">Active scene</p>
-                    <p className="text-[11px] text-white/70 font-medium leading-tight">{activeShotData.title}</p>
-                    <p className="text-[10px] text-white/35">{activeShotData.shotType} · {activeShotData.camera}</p>
-                    <Button
-                      onClick={() => renderShot(activeShotData.id)}
-                      disabled={activeShotRs.status === "rendering"}
-                      size="sm"
-                      className="w-full h-7 text-[11px] bg-white/8 hover:bg-white/12 text-white/75 border border-white/12"
-                    >
-                      {activeShotRs.status === "rendering" ? <Loader2 className="size-3 mr-1 animate-spin" /> : <ImageIcon className="size-3 mr-1" />}
-                      {activeShotRs.status === "succeeded" ? "Re-render" : activeShotRs.status === "rendering" ? "Rendering…" : "Render still"}
-                    </Button>
-                    <Button
-                      onClick={() => animateShot(activeShotData.id)}
-                      disabled={activeShotRs.status !== "succeeded" || activeShotVs.status === "rendering"}
-                      size="sm"
-                      className="w-full h-7 text-[11px] bg-violet-500/15 hover:bg-violet-500/25 text-violet-200 border border-violet-500/25"
-                    >
-                      {activeShotVs.status === "rendering" ? <Loader2 className="size-3 mr-1 animate-spin" /> : <Film className="size-3 mr-1" />}
-                      {activeShotVs.status === "succeeded" ? "Re-animate" : activeShotVs.status === "rendering" ? "Animating…" : "Animate shot"}
-                    </Button>
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(activeShotData.prompt); toast.success("Prompt copied"); }}
-                      className="w-full text-[10px] text-violet-300/60 hover:text-violet-300 transition-colors text-center"
-                    >
-                      <Wand2 className="size-3 inline mr-1" /> Copy scene prompt
-                    </button>
-                  </div>
-                )}
-
-                {/* Refinement history (compact) */}
-                {iterations.length > 0 && (
-                  <div className="border-t border-white/10 pt-3 space-y-1.5">
-                    <button
-                      onClick={() => setHistoryOpen((o) => !o)}
-                      className="w-full flex items-center justify-between text-[10px] text-white/35 hover:text-white/55 transition-colors"
-                    >
-                      <span className="uppercase tracking-wider flex items-center gap-1.5"><History className="size-3" /> History · {iterations.length}</span>
-                      <ChevronDown className={cn("size-3 transition-transform", historyOpen && "rotate-180")} />
-                    </button>
-                    {historyOpen && (
-                      <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                        {iterations.map((it: PlanIteration) => (
-                          <div key={it.n} className="rounded-lg border border-white/10 bg-black/20 p-2">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[9px] font-mono text-white/35">Round {it.n}</span>
-                              <span className={`text-xs font-bold ${scoreColor(it.critique.score)}`}>{it.critique.score}</span>
-                              <div className="flex-1 h-1 rounded-full bg-white/10">
-                                <div className={`h-full rounded-full ${scoreBar(it.critique.score)}`} style={{ width: `${it.critique.score}%` }} />
-                              </div>
-                            </div>
-                            <p className="text-[10px] text-white/50 mt-1 line-clamp-2">{it.critique.verdict}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Direct story button */}
-                <div className="border-t border-white/10 pt-3">
-                  <Button
-                    onClick={submitBrief}
-                    disabled={busy || brief.trim().length < 4}
-                    className="w-full h-9 text-xs font-medium text-white border-0"
-                    style={{ background: "var(--gradient-hero)" }}
-                  >
-                    {busy ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Send className="size-3.5 mr-1.5" />}
-                    {busy ? "Directing…" : plan ? "Re-direct" : "Direct story"}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Saved sessions (compact) */}
-              <div className="border-t border-white/10 shrink-0">
-                <div className="px-3 py-2 flex items-center gap-1.5 text-[10px] text-white/30 border-b border-white/5">
-                  <History className="size-3" /> Recent sessions
-                </div>
-                <div className="max-h-36 overflow-y-auto p-2 space-y-1">
-                  {sessionsQuery.isLoading ? (
-                    <div className="flex justify-center py-3"><Loader2 className="size-3.5 animate-spin text-white/25" /></div>
-                  ) : (sessionsQuery.data ?? []).length === 0 ? (
-                    <p className="text-[10px] text-white/20 text-center py-3">No sessions yet</p>
-                  ) : (sessionsQuery.data ?? []).slice(0, 6).map((s) => (
-                    <div key={s.id} className={cn(
-                      "group flex items-center justify-between rounded-md border px-2 py-1.5 cursor-pointer transition-colors",
-                      s.id === sessionId ? "border-violet-400/30 bg-violet-500/10" : "border-white/5 hover:bg-white/5",
-                    )}>
-                      <button onClick={() => loadMut.mutate(s.id)} className="flex-1 text-left min-w-0">
-                        <p className="text-[11px] text-white/65 truncate">{s.title || "Untitled"}</p>
-                      </button>
-                      <button
-                        onClick={() => deleteMut.mutate(s.id)}
-                        className="opacity-0 group-hover:opacity-100 text-white/30 hover:text-rose-300 ml-1 shrink-0 transition-all"
-                      >
-                        <Trash2 className="size-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── LYRIC VIDEO mode properties ── */}
-          {mode === "lyric-video" && (
-            <div className="p-3 space-y-3">
-              <div className="pb-3 border-b border-white/10">
-                <p className="text-[11px] font-semibold text-white/75">Lyric Video</p>
-                <p className="text-[10px] text-white/35 mt-0.5">Times each line evenly to your track</p>
-              </div>
-              <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-2">
-                <Zap className="size-3.5 text-violet-400 shrink-0" />
-                <span className="text-xs text-white/45">Cost:</span>
-                <span className="text-xs text-white font-medium">{lyricVideoCost} Aura</span>
-                <span className="text-xs text-white/25">· ~20–40s</span>
-              </div>
-              <Button
-                disabled={!lyricAudioUrl || lyricSegments.length === 0}
-                onClick={async () => {
-                  if (!lyricAudioUrl) return toast.error("Upload a song in the Script panel first");
-                  if (lyricSegments.length === 0) return toast.error("Add at least one lyric line");
-                  try {
-                    await lyricVideoFn({ data: { audioUrl: lyricAudioUrl, lines: lyricSegments } });
-                    toast.success("Lyric video queued — check your studio");
-                    qc.invalidateQueries({ queryKey: ["agent-gens"] });
-                  } catch (e: unknown) {
-                    toast.error((e instanceof Error ? e.message : null) ?? "Generation failed");
-                  }
-                }}
-                className="w-full h-9 text-xs font-medium text-white border-0"
-                style={{ background: "var(--gradient-hero)" }}
-              >
-                <Wand2 className="size-3.5 mr-1.5" /> Generate · {lyricVideoCost} Aura
-              </Button>
-              {(!lyricAudioUrl || lyricSegments.length === 0) && (
-                <p className="text-[10px] text-white/25 text-center leading-relaxed">
-                  {!lyricAudioUrl ? "Upload a song in the Script panel" : "Add lyrics in the Script panel"}
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* ── MUSIC VIDEO mode properties ── */}
-          {mode === "music-video" && (
-            <div className="p-3 space-y-3">
-              <div className="pb-3 border-b border-white/10">
-                <p className="text-[11px] font-semibold text-white/75">Music Video</p>
-                <p className="text-[10px] text-white/35 mt-0.5">Cinematic AI music videos</p>
-              </div>
-              {/* Genre */}
-              <div className="space-y-1.5">
-                <p className="text-[10px] text-white/35 uppercase tracking-wider">Genre</p>
-                <div className="grid grid-cols-2 gap-1">
-                  {(Object.entries(MUSIC_VIDEO_STYLES) as [MusicVideoStyle, (typeof MUSIC_VIDEO_STYLES)[MusicVideoStyle]][]).map(([key, meta]) => (
-                    <button
-                      key={key}
-                      onClick={() => setMvStyle(key)}
-                      className={cn(
-                        "rounded-md border px-2 py-1.5 text-[10px] text-left transition-colors",
-                        mvStyle === key ? "border-violet-400/50 bg-violet-500/15 text-white" : "border-white/10 bg-white/[0.03] text-white/45 hover:bg-white/8",
-                      )}
-                    >
-                      {meta.emoji} {meta.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {/* Mode */}
-              <div className="space-y-1.5">
-                <p className="text-[10px] text-white/35 uppercase tracking-wider">What to create</p>
-                <div className="space-y-1">
-                  {MUSIC_VIDEO_MODES.map((m) => (
-                    <button
-                      key={m.key}
-                      onClick={() => setMvMode(m.key)}
-                      className={cn(
-                        "w-full rounded-md border px-2 py-1.5 text-[10px] text-left transition-colors",
-                        mvMode === m.key ? "border-violet-400/50 bg-violet-500/15 text-white" : "border-white/10 bg-white/[0.03] text-white/45 hover:bg-white/8",
-                      )}
-                    >
-                      <div className="font-semibold">{m.label}</div>
-                      <div className="text-[9px] opacity-50 mt-0.5">{m.description}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {/* Location & Subject */}
-              {(mvMode === "text-to-video" || mvMode === "ai-performance" || mvMode === "beat-sync") && (
-                <div className="space-y-1.5">
-                  <p className="text-[10px] text-white/35 uppercase tracking-wider">Scene details</p>
-                  <Select value={mvLocation} onValueChange={setMvLocation}>
-                    <SelectTrigger className="h-7 text-xs bg-black/30 border-white/10 text-white"><SelectValue /></SelectTrigger>
-                    <SelectContent>{LOCATION_SUGGESTIONS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent>
-                  </Select>
-                  <Select value={mvSubject} onValueChange={setMvSubject}>
-                    <SelectTrigger className="h-7 text-xs bg-black/30 border-white/10 text-white"><SelectValue /></SelectTrigger>
-                    <SelectContent>{SUBJECT_SUGGESTIONS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-              )}
-              <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-2">
-                <Zap className="size-3.5 text-violet-400 shrink-0" />
-                <span className="text-xs text-white/45">Cost:</span>
-                <span className="text-xs text-white font-medium">{mvVideoCost} Aura</span>
-              </div>
-              <Button
-                disabled={!mvPrompt.trim() || (mvCurrentMode?.needsImage && !mvImage)}
-                onClick={handleGenerate}
-                className="w-full h-9 text-xs font-medium text-white border-0"
-                style={{ background: "var(--gradient-hero)" }}
-              >
-                <Music2 className="size-3.5 mr-1.5" /> Generate · {mvVideoCost} Aura
-              </Button>
-            </div>
-          )}
-
-          {/* ── MEDIA / Gallery picker ── */}
-          {mode === "media" && (
-            <div className="flex flex-col h-full">
-              <div className="px-3 py-2.5 border-b border-white/10 shrink-0">
-                <p className="text-[11px] font-semibold text-white/75">Pick a reference photo</p>
-                <p className="text-[10px] text-white/35 mt-0.5">Tap any image to use it as the character photo</p>
-              </div>
-              {referenceImageUrl && (
-                <div className="px-3 py-2 border-b border-white/10 shrink-0 flex items-center gap-2">
-                  <img src={referenceImageUrl} alt="Selected" className="size-8 rounded-md object-cover border border-violet-400/50" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] text-violet-300 font-medium">Selected</p>
-                    <p className="text-[9px] text-white/30 truncate">{referenceImageUrl.split("/").pop()}</p>
-                  </div>
-                  <button onClick={() => setReferenceImageUrl(null)} className="text-white/25 hover:text-white/55 transition-colors shrink-0">
-                    <X className="size-3.5" />
-                  </button>
-                </div>
-              )}
-              <div className="flex-1 overflow-y-auto p-2">
-                {galleryQuery.isLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="size-5 animate-spin text-white/25" />
-                  </div>
-                ) : ((galleryQuery.data?.items ?? []).filter((item: any) => item.result_image_url || item.watermark_display_url).length === 0) ? (
-                  <div className="flex flex-col items-center gap-3 py-8 px-4 text-center">
-                    <ImageIcon className="size-8 text-white/10" />
-                    <p className="text-[11px] text-white/30 leading-relaxed">
-                      No images in your gallery yet. Generate some images in the Studio first.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {(galleryQuery.data?.items ?? [])
-                      .filter((item: any) => item.result_image_url || item.watermark_display_url)
-                      .map((item: any) => {
-                        const url = item.result_image_url ?? item.watermark_display_url;
-                        const isSelected = referenceImageUrl === url;
-                        return (
-                          <button
-                            key={item.id}
-                            onClick={() => {
-                              setReferenceImageUrl(url);
-                              if (selectedTpl) {
-                                setGenPhotoUrl((prev) => ({ ...prev, [selectedTpl.id]: url }));
-                                setGenMode((prev) => ({ ...prev, [selectedTpl.id]: "photo" }));
-                              }
-                              toast.success("Reference photo selected");
-                              setMode("templates");
-                              setActiveSidebarId("avatar");
-                            }}
-                            className={cn(
-                              "relative aspect-square rounded-lg overflow-hidden border-2 transition-all",
-                              isSelected ? "border-violet-400 shadow-lg shadow-violet-500/20" : "border-transparent hover:border-white/30",
-                            )}
-                          >
-                            <img
-                              src={url}
-                              alt={item.prompt ?? "Gallery image"}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                            />
-                            {isSelected && (
-                              <div className="absolute inset-0 bg-violet-500/20 flex items-center justify-center">
-                                <CheckCircle2 className="size-5 text-violet-300" />
-                              </div>
-                            )}
-                          </button>
-                        );
-                      })}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ── RECIPES mode properties ── */}
-          {mode === "recipes" && (
-            <div className="p-3 space-y-3">
-              <div className="pb-3 border-b border-white/10">
-                <p className="text-[11px] font-semibold text-white/75">Showcase</p>
-                <p className="text-[10px] text-white/35 mt-0.5">Patterns &amp; common workflows</p>
-              </div>
-              <div className="space-y-2">
-                {[
-                  "Content → LLM → Video Agent prompt",
-                  "Batch generation with rate limiting",
-                  "Style extraction → prompt instructions",
-                  "Modular pipelines: research → script → render → deliver",
-                ].map((p) => (
-                  <div key={p} className="flex items-start gap-2 text-[11px] text-white/50">
-                    <span className="mt-1 size-1.5 rounded-full bg-violet-400 shrink-0" />
-                    {p}
-                  </div>
+              <label className="mt-3 block font-mono text-[9px] uppercase text-ink-dim">Aperture</label>
+              <div className="flex flex-wrap gap-1.5">
+                {APERTURES.map((a) => (
+                  <Chip key={a} active={inspector.aperture === a} onClick={() => setInspector((s) => ({ ...s, aperture: a }))}>{a}</Chip>
                 ))}
               </div>
-            </div>
-          )}
-        </aside>
+            </InspectorSection>
 
-        {/* ─── Far Right: Icon Sidebar (52px) ──────────────────────────────── */}
-        <nav className="w-[52px] shrink-0 flex flex-col items-center border-l border-white/10 bg-[#0d0d11] py-2 gap-0.5">
-          {SIDEBAR_ITEMS.map((item) => {
-            const isActive = item.id === activeSidebarId;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  if (item.nav) {
-                    navigate({ to: item.nav as "/" });
-                  } else if (item.mode) {
-                    setMode(item.mode);
-                    setActiveSidebarId(item.id);
-                  }
-                }}
-                className={cn(
-                  "flex flex-col items-center gap-0.5 w-10 py-2 px-1 rounded-lg transition-all text-center",
-                  isActive
-                    ? "text-violet-300 bg-violet-500/15"
-                    : "text-white/30 hover:text-white/60 hover:bg-white/5",
-                )}
-                title={item.label}
+            <InspectorSection icon={<Film className="size-3.5" />} title="Color & Stock">
+              <label className="font-mono text-[9px] uppercase text-ink-dim">Film Stock</label>
+              <select
+                value={inspector.filmStock}
+                onChange={(e) => setInspector((s) => ({ ...s, filmStock: e.target.value }))}
+                className="w-full rounded-sm border border-line bg-canvas px-2 py-1.5 text-[11px] text-ink focus:border-prime focus:outline-none"
               >
-                <item.icon className="size-4" />
-                <span className="text-[8px] leading-tight">{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
+                {FILM_STOCKS.map((f) => <option key={f}>{f}</option>)}
+              </select>
+              <label className="mt-3 block font-mono text-[9px] uppercase text-ink-dim">Aspect Ratio</label>
+              <div className="flex flex-wrap gap-1.5">
+                {ASPECTS.map((a) => (
+                  <Chip key={a} active={inspector.aspect === a} onClick={() => setInspector((s) => ({ ...s, aspect: a }))}>{a}</Chip>
+                ))}
+              </div>
+            </InspectorSection>
 
+            <InspectorSection icon={<Aperture className="size-3.5" />} title="Lighting Mood">
+              <div className="space-y-1">
+                {LIGHTING.map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => setInspector((s) => ({ ...s, lighting: l }))}
+                    className={
+                      "flex w-full items-center gap-2 rounded-sm border px-2.5 py-1.5 text-left text-[11px] transition-colors " +
+                      (inspector.lighting === l
+                        ? "border-prime/60 bg-prime/10 text-ink"
+                        : "border-transparent text-ink-dim hover:text-ink")
+                    }
+                  >
+                    <span className={"size-1.5 rounded-full " + (inspector.lighting === l ? "bg-prime" : "bg-ink-dim/50")} />
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </InspectorSection>
+
+            <InspectorSection icon={<Clapperboard className="size-3.5" />} title="Target Model">
+              <div className="flex flex-wrap gap-1.5">
+                {MODELS.map((m) => (
+                  <Chip key={m} active={inspector.targetModel === m} onClick={() => setInspector((s) => ({ ...s, targetModel: m }))}>{m}</Chip>
+                ))}
+              </div>
+              <label className="mt-3 block font-mono text-[9px] uppercase text-ink-dim">Director Mood Note</label>
+              <textarea
+                value={inspector.mood}
+                onChange={(e) => setInspector((s) => ({ ...s, mood: e.target.value }))}
+                rows={3}
+                className="w-full resize-none rounded-sm border border-line bg-canvas px-2 py-1.5 text-[11px] italic leading-relaxed text-ink-dim focus:border-prime focus:outline-none"
+              />
+            </InspectorSection>
+
+            <div className="rounded-sm border border-rec/30 bg-rec/5 p-3">
+              <div className="mb-1.5 flex items-center justify-between">
+                <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-rec">Live Telemetry</span>
+                <span className="flex items-center gap-1 font-mono text-[9px] text-rec">
+                  <span className="size-1.5 rounded-full bg-rec rec-pulse" /> REC
+                </span>
+              </div>
+              <div className="space-y-0.5 font-mono text-[9px] uppercase leading-relaxed text-rec/70">
+                <div>Backend: Aurora · Multi-LLM</div>
+                <div>Skills: 7 active (search · hooks · memory · broll · captions)</div>
+                <div>Style bias: hyper-realistic · no plastic skin</div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      )}
+
+      {/* right toggle */}
+      <button
+        onClick={() => setRightOpen((v) => !v)}
+        className="absolute right-0 top-1/2 z-20 -translate-y-1/2 flex h-8 w-4 items-center justify-center rounded-l-sm border border-r-0 border-line bg-panel/80 text-ink-dim hover:text-ink transition-colors"
+        style={{ right: rightOpen ? "18rem" : "0" }}
+        title={rightOpen ? "Collapse inspector" : "Expand inspector"}
+      >
+        {rightOpen ? <ChevronRight className="size-3" /> : <ChevronLeft className="size-3" />}
+      </button>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Sub-components
+// ══════════════════════════════════════════════════════════════════════════
+
+function AmbientBackdrop() {
+  const bokeh = [
+    { src: "/prime/shot-neon-face.jpg", top: "8%",  left: "6%",  size: 320, opacity: 0.3 },
+    { src: "/prime/shot-highway.jpg",   top: "55%", left: "68%", size: 380, opacity: 0.22 },
+    { src: "/prime/shot-alley.jpg",     top: "70%", left: "4%",  size: 280, opacity: 0.25 },
+    { src: "/prime/shot-desert.jpg",    top: "4%",  left: "70%", size: 340, opacity: 0.2 },
+  ];
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden" style={{ zIndex: 0 }}>
+      <div className="absolute inset-0 bg-canvas" />
+      {bokeh.map((b, i) => (
+        <div
+          key={i}
+          className="absolute rounded-full"
+          style={{
+            top: b.top, left: b.left,
+            width: b.size, height: b.size,
+            backgroundImage: `url(${b.src})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            filter: "blur(60px) saturate(1.2)",
+            opacity: b.opacity,
+            transform: "translate3d(0,0,0)",
+          }}
+        />
+      ))}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: "radial-gradient(circle at 20% 20%, color-mix(in oklch, var(--prime) 35%, transparent) 0%, transparent 45%), radial-gradient(circle at 80% 70%, color-mix(in oklch, var(--rec) 30%, transparent) 0%, transparent 50%)",
+          filter: "blur(40px)",
+          opacity: 0.3,
+        }}
+      />
+    </div>
+  );
+}
+
+function InspectorSection({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-2.5">
+      <div className="flex items-center gap-2 font-mono text-[9px] font-bold uppercase tracking-widest text-ink">
+        <span className="text-prime">{icon}</span>
+        {title}
+      </div>
+      <div className="space-y-2">{children}</div>
+    </section>
+  );
+}
+
+function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={
+        "rounded-sm border px-2 py-1 font-mono text-[9px] transition-colors " +
+        (active
+          ? "border-prime/60 bg-prime/10 text-ink"
+          : "border-line bg-canvas text-ink-dim hover:border-prime/40 hover:text-ink")
+      }
+    >
+      {children}
+    </button>
+  );
+}
+
+function SidebarSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-4">
+      <div className="mb-1 px-3 font-mono text-[9px] font-bold uppercase tracking-[0.25em] text-ink-dim">{title}</div>
+      <div className="space-y-0.5">{children}</div>
+    </div>
+  );
+}
+
+function SidebarItem({ icon: Icon, label, onClick, accent }: { icon: LucideIcon; label: string; onClick: () => void; accent?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      className="group flex w-full items-center gap-2 rounded-sm border border-transparent px-3 py-1.5 text-left text-[12px] font-medium text-ink transition-colors hover:border-prime/30 hover:bg-panel-2"
+    >
+      <span className={
+        "flex size-5 shrink-0 items-center justify-center rounded-sm border " +
+        (accent ? "border-prime/40 bg-prime/10 text-prime-glow" : "border-line bg-panel-2 text-ink-dim group-hover:text-ink")
+      }>
+        <Icon className="size-3" />
+      </span>
+      <span className="truncate">{label}</span>
+    </button>
+  );
+}
+
+function AgentDashboard({
+  status, title, steps, activeIndex, onRun, onPause, onResume, onStop, onReset,
+}: {
+  status: AgentStatus; title: string; steps: AgentStep[]; activeIndex: number;
+  onRun: () => void; onPause: () => void; onResume: () => void; onStop: () => void; onReset: () => void;
+}) {
+  const done = steps.filter((s) => s.status === "done").length;
+  const pct  = Math.round((done / steps.length) * 100);
+  const badge =
+    status === "running" ? { label: "Running", color: "text-rec",        dot: "bg-rec rec-pulse" } :
+    status === "paused"  ? { label: "Paused",  color: "text-amber-400",  dot: "bg-amber-400"     } :
+    status === "done"    ? { label: "Done",    color: "text-prime-glow", dot: "bg-prime-glow"    } :
+    status === "stopped" ? { label: "Stopped", color: "text-ink-dim",    dot: "bg-ink-dim"       } :
+                           { label: "Idle",    color: "text-ink-dim",    dot: "bg-ink-dim/50"    };
+  const current = steps[activeIndex];
+
+  return (
+    <div className="relative flex flex-wrap items-center gap-3 border-b border-line bg-panel/60 px-5 py-2 backdrop-blur-sm" style={{ zIndex: 8 }}>
+      <div className="flex items-center gap-2 font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-ink">
+        <span className={"size-1.5 rounded-full " + badge.dot} />
+        <span className={badge.color}>Agent · {badge.label}</span>
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-ink-dim">
+          {title || "No active run — press Run to launch"}
+          {current && status === "running" && (
+            <> · <span className="text-ink">Step {activeIndex + 1}/{steps.length} · {current.label}</span></>
+          )}
+        </div>
+        <div className="mt-1 h-0.5 w-full overflow-hidden rounded-full bg-panel-2">
+          <div className="h-full rounded-full bg-gradient-to-r from-prime via-prime-glow to-rec transition-[width] duration-500" style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+      <div className="flex items-center gap-1">
+        {status !== "running" && status !== "paused" && <DashBtn onClick={onRun}    tone="rec"   title="Run"><Play  className="size-3" /> Run</DashBtn>}
+        {status === "running"  && <DashBtn onClick={onPause}  tone="amber" title="Pause"><Pause  className="size-3" /> Pause</DashBtn>}
+        {status === "paused"   && <DashBtn onClick={onResume} tone="prime" title="Resume"><Play  className="size-3" /> Resume</DashBtn>}
+        {(status === "running" || status === "paused") && <DashBtn onClick={onStop} tone="line" title="Stop"><Square className="size-3" /> Stop</DashBtn>}
+        {(status === "done"    || status === "stopped") && <DashBtn onClick={onReset} tone="line" title="Reset"><RotateCcw className="size-3" /> Reset</DashBtn>}
+      </div>
+    </div>
+  );
+}
+
+function DashBtn({ onClick, tone, title, children }: { onClick: () => void; tone: "rec" | "prime" | "amber" | "line"; title: string; children: React.ReactNode }) {
+  const cls =
+    tone === "rec"   ? "bg-rec text-white hover:bg-rec-glow" :
+    tone === "prime" ? "bg-prime text-white hover:bg-prime-glow" :
+    tone === "amber" ? "bg-amber-400/90 text-canvas hover:bg-amber-300" :
+                       "border border-line bg-panel-2 text-ink hover:border-prime/60";
+  return (
+    <button onClick={onClick} title={title}
+      className={"inline-flex items-center gap-1 rounded-sm px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.2em] transition-colors " + cls}
+    >{children}</button>
+  );
+}
+
+function TabHeader({ tab, status }: { tab: "Script" | "Dailies" | "Timeline"; status: AgentStatus }) {
+  const meta = {
+    Script:   { title: "Script Room",     sub: "Industry-format script · dialogue polish · scene-by-scene", accent: "border-prime/50" },
+    Dailies:  { title: "Dailies Review",  sub: "Hero shots · what's working · concrete fixes",              accent: "border-rec/50"   },
+    Timeline: { title: "Live Timeline",   sub: "Streaming autonomous director steps",                        accent: "border-prime/50" },
+  }[tab];
+  return (
+    <section className={"fade-up mb-5 rounded-sm border bg-panel/60 p-4 " + meta.accent}>
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="font-mono text-[9px] font-bold uppercase tracking-[0.25em] text-ink-dim">{tab} tab</div>
+          <div className="font-black-display mt-1 text-xl uppercase text-ink">{meta.title}</div>
+          <div className="mt-0.5 text-[12px] font-medium text-ink-dim">{meta.sub}</div>
+        </div>
+        <span className={"font-mono text-[9px] uppercase tracking-widest " + (status === "running" ? "text-rec" : "text-ink-dim")}>
+          {status === "running" ? "● streaming" : "○ waiting"}
+        </span>
+      </div>
+    </section>
+  );
+}
+
+function ProgressTimeline({ steps, status, title }: { steps: AgentStep[]; status: AgentStatus; title: string }) {
+  return (
+    <section className="fade-up mb-6 overflow-hidden rounded-sm border border-line bg-panel/60">
+      <div className="flex items-center justify-between border-b border-line bg-panel-2/60 px-4 py-2">
+        <div className="font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-prime">Agent stream · {title || "no active run"}</div>
+        <span className={
+          "font-mono text-[9px] uppercase tracking-widest " +
+          (status === "running" ? "text-rec" : status === "paused" ? "text-amber-400" : status === "done" ? "text-prime-glow" : "text-ink-dim")
+        }>{status}</span>
+      </div>
+      <ol className="relative divide-y divide-line/70">
+        {steps.map((s, i) => {
+          const Icon = s.status === "done" ? CheckCircle2 : s.status === "active" ? Loader2 : CircleDot;
+          return (
+            <li key={s.key} className="flex items-start gap-3 px-4 py-3">
+              <span className={"mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border " +
+                (s.status === "done"   ? "border-prime/60 bg-prime/15 text-prime-glow" :
+                 s.status === "active" ? "border-rec/70 bg-rec/15 text-rec" :
+                                         "border-line bg-panel-2 text-ink-dim")}>
+                <Icon className={"size-3.5 " + (s.status === "active" ? "animate-spin" : "")} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[11px] font-bold uppercase tracking-[0.15em] text-ink">{i + 1}. {s.label}</span>
+                  {s.status === "active" && <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-rec">streaming</span>}
+                  {s.status === "done"   && <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-prime-glow">ok</span>}
+                </div>
+                <div className="mt-0.5 text-[11px] font-medium text-ink-dim">{s.detail}</div>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+function AgentModeBanner({ onLaunch }: { onLaunch: (t: string) => void }) {
+  const BRIEF = `AGENT MODE — go fully autonomous. From now on, act as an end-to-end video director.
+
+Ask me ONE short discovery question at a time (max 4 total), then take over and produce the full production package:
+1) Logline + 3 concept directions (pick the strongest, justify).
+2) Full script in industry format.
+3) 10–14 shot list table (# / Framing / Lens / Movement / Duration / Sound / Notes).
+4) Storyboard frame descriptions.
+5) Ready-to-paste Seedance + Veo + Sora prompts for the 3 hero shots.
+6) Voiceover script, on-screen caption plan, music brief, and platform cuts (16:9, 9:16, 1:1).
+7) A "next actions" checklist.
+
+Never say "let me know" or "would you like". Commit. Ship the package.`;
+
+  return (
+    <button
+      onClick={() => onLaunch(BRIEF)}
+      className="group relative w-full overflow-hidden rounded-sm border border-prime/50 bg-gradient-to-br from-prime/20 via-panel to-rec/20 p-5 text-left transition-colors hover:border-prime"
+    >
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-prime/70 scan-line" />
+      <div className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-prime">
+        <span className="size-1.5 rounded-full bg-prime rec-pulse" />
+        Aurora Agent · Autonomous Mode
+      </div>
+      <div className="font-black-display mt-2 text-2xl uppercase leading-tight text-ink">Direct an entire video, end to end.</div>
+      <div className="mt-2 max-w-lg text-[13px] font-medium text-ink-dim">
+        Aurora asks a few tight questions, then autonomously ships logline, script, shot list, storyboards, model prompts, and platform cuts.
+      </div>
+      <div className="mt-3 inline-flex items-center gap-2 rounded-sm bg-rec px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-white group-hover:bg-rec-glow">
+        <Zap className="size-3.5" /> Launch Agent
+      </div>
+    </button>
+  );
+}
+
+function ProductionBriefIntake({ onLaunch }: { onLaunch: (t: string) => void }) {
+  const [concept,    setConcept]    = useState("");
+  const [references, setReferences] = useState("");
+  const [avatar,     setAvatar]     = useState("");
+  const [props,      setProps]      = useState("");
+  const [format,     setFormat]     = useState("Music video · 90s");
+
+  const submit = () => {
+    const brief = [
+      "PRODUCTION BRIEF — draft multiple story directions from these inputs, then wait for me to pick one before shipping the full package.",
+      `FORMAT: ${format || "unspecified"}`,
+      `CONCEPT: ${concept.trim() || "not specified — infer something evocative"}`,
+      `REFERENCES: ${references.trim() || "none — propose your own"}`,
+      `AVATAR / TALENT: ${avatar.trim() || "not specified"}`,
+      `PROPS / SCENE: ${props.trim() || "not specified"}`,
+      "",
+      "DELIVER RIGHT NOW — do not ask for permission:",
+      "1) 4 distinct STORY DIRECTIONS. For each: name, logline, aesthetic, visual palette, wardrobe/prop treatment, 3-beat arc.",
+      "2) A comparison table of the 4 directions across: mood, palette, camera, pace, music vibe.",
+      "3) Your recommended pick with reasoning.",
+    ].join("\n");
+    onLaunch(brief);
+  };
+
+  const ready = concept.trim() || references.trim() || avatar.trim() || props.trim();
+
+  return (
+    <section className="fade-up rounded-sm border border-prime/40 bg-panel/70 p-5 shadow-[0_0_60px_-20px_color-mix(in_oklch,var(--prime)_60%,transparent)] backdrop-blur-sm">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-prime">
+          <FileText className="size-3.5" /> Production Brief · Draft Story Directions
+        </div>
+      </div>
+      <p className="mb-4 max-w-xl text-[13px] font-medium text-ink-dim">
+        Drop your concept, references, avatar, props. Aurora drafts 4 story directions — you pick, then it ships the full production package.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <BriefField label="Concept / Idea"          value={concept}    onChange={setConcept}    placeholder="e.g. moody synth track, main character wanders a dead mall at 4am…" />
+        <BriefField label="References (films, links)" value={references} onChange={setReferences} placeholder="e.g. In the Mood for Love, Weeknd 'Blinding Lights', Gregory Crewdson…" />
+        <BriefField label="Avatar / Talent / Wardrobe" value={avatar}   onChange={setAvatar}    placeholder="e.g. androgynous, oil-black hair, crimson silk suit…" />
+        <BriefField label="Props / Scene / Location"  value={props}     onChange={setProps}      placeholder="e.g. broken payphone, wet asphalt, single flickering sodium lamp…" />
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-widest text-ink-dim">
+          Format
+          <select value={format} onChange={(e) => setFormat(e.target.value)}
+            className="rounded-sm border border-line bg-canvas px-2 py-1 text-[10px] normal-case text-ink focus:border-prime focus:outline-none">
+            {["Music video · 90s","Music video · 3 min","Short film · 5 min","Ad · 30s","Ad · 60s","Trailer · 90s","Fashion film · 60s"].map((f) => <option key={f}>{f}</option>)}
+          </select>
+        </label>
+        <button onClick={submit} disabled={!ready}
+          className="ml-auto flex items-center gap-2 rounded-sm bg-prime px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-white transition-colors hover:bg-prime-glow disabled:cursor-not-allowed disabled:opacity-40">
+          <Sparkles className="size-3.5" /> Draft 4 Story Directions
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function BriefField({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-ink-dim">{label}</span>
+      <textarea
+        value={value} onChange={(e) => onChange(e.target.value)} rows={3} placeholder={placeholder}
+        className="resize-none rounded-sm border border-line bg-canvas/70 px-3 py-2 text-[12px] font-medium leading-snug text-ink placeholder:text-ink-dim/60 focus:border-prime focus:outline-none"
+      />
+    </label>
+  );
+}
+
+function StoryDirectionsSideBySide({ onLaunch }: { onLaunch: (t: string) => void }) {
+  const directions = [
+    { name: "Hyper-Real Documentary", aesthetic: "Grounded · natural light · 35mm",       palette: ["#1a1613","#c98a5a","#e7d7c5","#7a2020"], shots: ["/prime/shot-alley.jpg",  "/prime/shot-chef.jpg",      "/prime/shot-highway.jpg"], beat: "Ordinary morning → tension pulse → decision made." },
+    { name: "Cinematic Anamorphic",   aesthetic: "2.39:1 · Kodak 500T · neon spill",       palette: ["#0b0d1a","#5b2fd1","#e14a6b","#c9d1e0"], shots: ["/prime/shot-alley.jpg",  "/prime/shot-neon-face.jpg", "/prime/shot-highway.jpg"], beat: "Rain sheen intro → chase escalate → reveal on kick." },
+    { name: "Photo-Real High Fashion", aesthetic: "Editorial · anamorphic close · silk",   palette: ["#080606","#b0836a","#f5ecd6","#2a1616"], shots: ["/prime/shot-dancer.jpg", "/prime/shot-chef.jpg",      "/prime/shot-eye.jpg"],    beat: "Icon reveal → fabric motion → knowing look to lens." },
+    { name: "Grounded Sci-Fi Real",   aesthetic: "2049 tactile · monolithic · patient",    palette: ["#0a1112","#2d5f6b","#d4a24a","#efe6d4"], shots: ["/prime/shot-desert.jpg", "/prime/shot-eye.jpg",       "/prime/shot-highway.jpg"], beat: "Silhouette in vastness → object activates → threshold crossed." },
+  ];
+  return (
+    <section className="fade-up space-y-4 rounded-sm border border-prime/40 bg-panel/60 p-5">
+      <div>
+        <div className="font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-prime">Side-by-side · Directions × Storyboard</div>
+        <h2 className="font-black-display mt-1 text-2xl uppercase leading-tight text-ink">See every direction next to its shots.</h2>
+        <p className="mt-1 max-w-xl text-[12px] font-medium text-ink-dim">Pick one and Aurora ships the full script, shot list, and model prompts for that lane.</p>
+      </div>
+      <div className="grid gap-3">
+        {directions.map((d) => (
+          <div key={d.name} className="grid gap-3 rounded-sm border border-line bg-panel-2/50 p-3 md:grid-cols-[1fr_1.4fr]">
+            <div className="flex flex-col justify-between">
+              <div>
+                <div className="font-black-display text-lg uppercase leading-tight text-ink">{d.name}</div>
+                <div className="mt-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-prime-glow">{d.aesthetic}</div>
+                <div className="mt-1.5 flex items-center gap-1">
+                  {d.palette.map((c) => <span key={c} className="size-4 rounded-sm border border-line" style={{ background: c }} />)}
+                </div>
+                <p className="mt-2 text-[11px] font-medium leading-snug text-ink-dim">{d.beat}</p>
+              </div>
+              <button
+                onClick={() => onLaunch(`Lock direction: "${d.name}" (${d.aesthetic}). Ship the FULL production package now — logline, industry-format script, 10–14 shot list, storyboard frames, ready-to-paste Seedance + Veo + Sora prompts for 3 hero shots, VO script, captions, music brief, and 16:9 / 9:16 / 1:1 platform cuts. Do not ask permission.`)}
+                className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-sm bg-prime px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.25em] text-white transition-colors hover:bg-prime-glow"
+              >
+                <Rocket className="size-3" /> Ship this lane
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {d.shots.map((src, i) => (
+                <figure key={i} className="relative aspect-video overflow-hidden rounded-sm border border-line bg-panel">
+                  <img src={src} alt="" loading="lazy" className="h-full w-full object-cover opacity-90 transition-transform duration-500 hover:scale-105" />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-canvas/70 via-transparent to-transparent" />
+                  <span className="absolute left-1.5 top-1.5 rounded-sm bg-canvas/60 px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-widest text-ink backdrop-blur-sm">{`sh_0${i + 1}`}</span>
+                </figure>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ReelStrip() {
+  const loop = [...REEL_IMAGES, ...REEL_IMAGES];
+  return (
+    <div className="fade-up -mx-6 space-y-2 border-y border-line bg-panel/40 py-4">
+      <div className="flex items-center justify-between px-6">
+        <h2 className="font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-ink">Live Reel · Hyper-Realistic Demos</h2>
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-prime">Auto-scroll · 24fps</span>
+      </div>
+      <div className="group relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-canvas to-transparent" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-canvas to-transparent" />
+        <div className="reel-scroll flex w-max gap-3 px-6 group-hover:[animation-play-state:paused]">
+          {loop.map((s, i) => (
+            <figure key={i} className="relative h-36 w-56 shrink-0 overflow-hidden rounded-sm border border-line">
+              <img src={s.src} alt={s.label} loading="lazy" width={640} height={360}
+                className="h-full w-full object-cover opacity-75 [filter:saturate(1.1)] transition-[opacity] duration-500 hover:opacity-100" />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-canvas/80 via-transparent to-transparent" />
+              <figcaption className="absolute bottom-2 left-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-ink">{s.label}</figcaption>
+            </figure>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StoryboardGrid() {
+  return (
+    <div className="fade-up space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-ink">Hyper-Real Storyboard</h2>
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-rec">Hyper-real bias · ON</span>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {STORYBOARD_SHOTS.map((s) => (
+          <figure key={s.name} className="group space-y-2">
+            <div className="relative aspect-video overflow-hidden rounded-sm border border-line bg-panel">
+              <img src={s.src} alt={s.name} loading="lazy" className="h-full w-full object-cover" style={{ animation: "ken-burns 12s ease-in-out infinite alternate" }} />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-canvas/70 via-transparent to-transparent" />
+              <span className="absolute left-2 top-2 flex items-center gap-1 rounded-sm bg-rec/90 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-white">
+                <span className="size-1 rounded-full bg-white rec-pulse" /> Rec
+              </span>
+            </div>
+            <figcaption className="flex items-start justify-between">
+              <div>
+                <div className="font-mono text-[11px] font-bold uppercase tracking-[0.15em] text-ink">{s.name}</div>
+                <div className="font-mono text-[10px] font-medium text-ink-dim">{s.meta}</div>
+              </div>
+              <span className="rounded border border-line px-1.5 py-0.5 font-mono text-[9px] tracking-wider text-ink-dim">{s.tc}</span>
+            </figcaption>
+          </figure>
+        ))}
       </div>
     </div>
   );

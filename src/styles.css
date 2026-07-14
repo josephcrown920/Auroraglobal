@@ -19,6 +19,18 @@
  */
 
 @theme inline {
+  /* ── Prime Director page tokens ──────────────────────────────────────── */
+  --color-canvas: var(--canvas);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-dim: var(--ink-dim);
+  --color-prime: var(--prime);
+  --color-prime-glow: var(--prime-glow);
+  --color-rec: var(--rec);
+  --color-rec-glow: var(--rec-glow);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -122,6 +134,18 @@
   --brand-red: oklch(0.58 0.22 24);
   --brand-red-dim: oklch(0.58 0.22 24 / 15%);
   --brand-red-border: oklch(0.58 0.22 24 / 30%);
+
+  /* ── Prime Director page palette ─────────────────────────────────────── */
+  --canvas: oklch(0.085 0.022 272);
+  --panel: oklch(0.125 0.025 272);
+  --panel-2: oklch(0.17 0.035 272);
+  --line: oklch(1 0 0 / 10%);
+  --ink: oklch(0.98 0 0);
+  --ink-dim: oklch(0.62 0.02 272);
+  --prime: oklch(0.72 0.2 300);
+  --prime-glow: oklch(0.78 0.18 305);
+  --rec: oklch(0.58 0.22 24);
+  --rec-glow: oklch(0.68 0.22 24);
   --teal: oklch(0.68 0.13 185);
   --teal-dim: oklch(0.68 0.13 185 / 12%);
   --teal-border: oklch(0.68 0.13 185 / 28%);
@@ -198,6 +222,17 @@ html[data-theme="light"] {
   --sidebar-accent: oklch(0.93 0.01 272);
   --sidebar-accent-foreground: oklch(0.15 0.02 272);
   --sidebar-border: oklch(0 0 0 / 10%);
+  /* Prime Director palette — light overrides */
+  --canvas: oklch(1 0 0);
+  --panel: oklch(0.97 0.005 272);
+  --panel-2: oklch(0.94 0.008 272);
+  --line: oklch(0 0 0 / 10%);
+  --ink: oklch(0.12 0.02 272);
+  --ink-dim: oklch(0.46 0.02 272);
+  --prime: oklch(0.55 0.22 300);
+  --prime-glow: oklch(0.66 0.19 305);
+  --rec: oklch(0.56 0.24 27);
+  --rec-glow: oklch(0.66 0.22 27);
   --sidebar-ring: oklch(0.55 0.22 300);
 }
 
@@ -375,3 +410,30 @@ html[data-theme="light"] {
   from { transform: scale(1)    translate(0%, 0%); }
   to   { transform: scale(1.12) translate(-1.5%, -1.5%); }
 }
+
+/* ── Prime Director page animations ─────────────────────────────────────── */
+@keyframes prime-rec-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+@keyframes prime-scan-line {
+  0% { transform: translateX(-100%); opacity: 0; }
+  10% { opacity: 0.6; }
+  90% { opacity: 0.6; }
+  100% { transform: translateX(200%); opacity: 0; }
+}
+@keyframes prime-fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes prime-reel-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.rec-pulse { animation: prime-rec-pulse 1.6s ease-in-out infinite; }
+.scan-line { animation: prime-scan-line 4s ease-in-out infinite; position: absolute; top: 0; bottom: 0; left: 0; right: 0; height: 1px; pointer-events: none; }
+.fade-up { animation: prime-fade-up 0.45s ease-out both; }
+.reel-scroll { animation: prime-reel-scroll 44s linear infinite; }
+.font-black-display { font-weight: 900; font-family: inherit; letter-spacing: -0.02em; }
+.font-display { font-weight: 700; font-family: inherit; }
