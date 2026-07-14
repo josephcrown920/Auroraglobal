@@ -503,6 +503,235 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
     };
   });
 
+// ─── Provider credit balances ────────────────────────────────────────────────
+// Live balance / quota fetch for each paid AI provider.
+// Providers without a public balance API return hasBalanceApi:false.
+
+export type ProviderCreditRow = {
+  id: string;
+  name: string;
+  configured: boolean;
+  hasBalanceApi: boolean;
+  balance: number | null;
+  limitTotal: number | null;
+  unit: string | null;
+  status: "ok" | "low" | "empty" | "error" | "unconfigured" | "no-api";
+  error?: string;
+  dashboardUrl: string;
+};
+
+function creditStatus(
+  balance: number | null,
+  lowThreshold: number
+): "ok" | "low" | "empty" {
+  if (balance === null) return "ok";
+  if (balance <= 0) return "empty";
+  if (balance < lowThreshold) return "low";
+  return "ok";
+}
+
+function noApiProvider(
+  id: string,
+  name: string,
+  envKey: string | string[],
+  dashboardUrl: string
+): ProviderCreditRow {
+  const configured = Array.isArray(envKey)
+    ? envKey.some((k) => !!process.env[k])
+    : !!process.env[envKey];
+  return {
+    id,
+    name,
+    configured,
+    hasBalanceApi: false,
+    balance: null,
+    limitTotal: null,
+    unit: null,
+    status: configured ? "no-api" : "unconfigured",
+    dashboardUrl,
+  };
+}
+
+async function checkHeyGen(): Promise<ProviderCreditRow> {
+  const key = process.env.HEYGEN_API_KEY;
+  const base = {
+    id: "heygen",
+    name: "HeyGen",
+    configured: !!key,
+    hasBalanceApi: true,
+    unit: "API credits",
+    dashboardUrl: "https://app.heygen.com/settings?nav=Api",
+  };
+  if (!key) return { ...base, balance: null, limitTotal: null, status: "unconfigured" };
+  try {
+    const res = await fetch("https://api.heygen.com/v2/user/remaining_quota", {
+      headers: { "X-Api-Key": key },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return { ...base, balance: null, limitTotal: null, status: "error", error: `HTTP ${res.status}` };
+    const j = await res.json() as { code?: number; data?: { remaining_quota?: number } };
+    const balance = j.data?.remaining_quota ?? null;
+    return { ...base, balance, limitTotal: null, status: balance !== null ? creditStatus(balance, 10) : "error" };
+  } catch (err) {
+    return { ...base, balance: null, limitTotal: null, status: "error", error: String(err) };
+  }
+}
+
+async function checkOpenRouter(): Promise<ProviderCreditRow> {
+  const key = process.env.OPENROUTER_API_KEY;
+  const base = {
+    id: "openrouter",
+    name: "OpenRouter",
+    configured: !!key,
+    hasBalanceApi: true,
+    unit: "$USD",
+    dashboardUrl: "https://openrouter.ai/settings/credits",
+  };
+  if (!key) return { ...base, balance: null, limitTotal: null, status: "unconfigured" };
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/auth/key", {
+      headers: { Authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return { ...base, balance: null, limitTotal: null, status: "error", error: `HTTP ${res.status}` };
+    const j = await res.json() as { data?: { limit?: number | null; usage?: number } };
+    const d = j.data;
+    if (!d) return { ...base, balance: null, limitTotal: null, status: "error", error: "No data" };
+    if (d.limit == null) return { ...base, balance: null, limitTotal: null, status: "ok" };
+    const balance = d.limit - (d.usage ?? 0);
+    return { ...base, balance, limitTotal: d.limit, status: creditStatus(balance, 5) };
+  } catch (err) {
+    return { ...base, balance: null, limitTotal: null, status: "error", error: String(err) };
+  }
+}
+
+async function checkElevenLabs(): Promise<ProviderCreditRow> {
+  const key = process.env.ELEVENLABS_API_KEY;
+  const base = {
+    id: "elevenlabs",
+    name: "ElevenLabs",
+    configured: !!key,
+    hasBalanceApi: true,
+    unit: "chars",
+    dashboardUrl: "https://elevenlabs.io/subscription",
+  };
+  if (!key) return { ...base, balance: null, limitTotal: null, status: "unconfigured" };
+  try {
+    const res = await fetch("https://api.elevenlabs.io/v1/user/subscription", {
+      headers: { "xi-api-key": key },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return { ...base, balance: null, limitTotal: null, status: "error", error: `HTTP ${res.status}` };
+    const j = await res.json() as { character_count?: number; character_limit?: number };
+    const used = j.character_count ?? null;
+    const limit = j.character_limit ?? null;
+    const balance = used !== null && limit !== null ? limit - used : null;
+    return { ...base, balance, limitTotal: limit, status: creditStatus(balance, 10_000) };
+  } catch (err) {
+    return { ...base, balance: null, limitTotal: null, status: "error", error: String(err) };
+  }
+}
+
+async function checkReplicate(): Promise<ProviderCreditRow> {
+  const key =
+    process.env.LOVABLE_CONNECTOR_REPLICATE_API_KEY ?? process.env.REPLICATE_API_KEY;
+  const base = {
+    id: "replicate",
+    name: "Replicate",
+    configured: !!key,
+    hasBalanceApi: false,
+    unit: null,
+    dashboardUrl: "https://replicate.com/account/billing",
+  };
+  if (!key) return { ...base, balance: null, limitTotal: null, status: "unconfigured" };
+  try {
+    const res = await fetch("https://api.replicate.com/v1/account", {
+      headers: { Authorization: `Token ${key}` },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return { ...base, balance: null, limitTotal: null, status: "error", error: `HTTP ${res.status}` };
+    return { ...base, balance: null, limitTotal: null, status: "no-api" };
+  } catch (err) {
+    return { ...base, balance: null, limitTotal: null, status: "error", error: String(err) };
+  }
+}
+
+async function checkFal(): Promise<ProviderCreditRow> {
+  const key = process.env.FAL_KEY;
+  const base = {
+    id: "fal",
+    name: "fal.ai",
+    configured: !!key,
+    hasBalanceApi: false,
+    unit: null,
+    dashboardUrl: "https://fal.ai/dashboard/billing",
+  };
+  if (!key) return { ...base, balance: null, limitTotal: null, status: "unconfigured" };
+  try {
+    const res = await fetch("https://rest.alpha.fal.ai/auth/api-keys/current", {
+      headers: { Authorization: `Key ${key}` },
+      signal: AbortSignal.timeout(8000),
+    });
+    return {
+      ...base,
+      balance: null,
+      limitTotal: null,
+      status: res.ok ? "no-api" : "error",
+      error: res.ok ? undefined : `HTTP ${res.status}`,
+    };
+  } catch (err) {
+    return { ...base, balance: null, limitTotal: null, status: "error", error: String(err) };
+  }
+}
+
+export const providerCredits = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: roles } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId);
+    if (!roles?.some((r) => r.role === "admin")) throw new Error("Forbidden");
+
+    const results = await Promise.allSettled([
+      checkHeyGen(),
+      checkOpenRouter(),
+      checkElevenLabs(),
+      checkReplicate(),
+      checkFal(),
+    ]);
+
+    const settled = <T>(r: PromiseSettledResult<T>, fallback: T): T =>
+      r.status === "fulfilled" ? r.value : fallback;
+
+    const providers: ProviderCreditRow[] = [
+      settled(results[0], noApiProvider("heygen", "HeyGen", "HEYGEN_API_KEY", "https://app.heygen.com/settings?nav=Api")),
+      settled(results[1], noApiProvider("openrouter", "OpenRouter", "OPENROUTER_API_KEY", "https://openrouter.ai/settings/credits")),
+      settled(results[2], noApiProvider("elevenlabs", "ElevenLabs", "ELEVENLABS_API_KEY", "https://elevenlabs.io/subscription")),
+      settled(results[3], noApiProvider("replicate", "Replicate", ["REPLICATE_API_KEY", "LOVABLE_CONNECTOR_REPLICATE_API_KEY"], "https://replicate.com/account/billing")),
+      settled(results[4], noApiProvider("fal", "fal.ai", "FAL_KEY", "https://fal.ai/dashboard/billing")),
+      noApiProvider("anthropic", "Anthropic", "ANTHROPIC_API_KEY", "https://console.anthropic.com/billing"),
+      noApiProvider("xai", "xAI (Grok)", "XAI_API_KEY", "https://console.x.ai"),
+      noApiProvider("byteplus", "BytePlus", ["BYTEPLUS_API_KEY", "ARK_API_KEY"], "https://console.byteplus.com"),
+      noApiProvider("runway", "Runway", "RUNWAY_API_KEY", "https://app.runwayml.com/account"),
+      noApiProvider("gemini", "Gemini", "GEMINI_API_KEY", "https://aistudio.google.com"),
+      noApiProvider("groq", "Groq", "GROQ_API_KEY", "https://console.groq.com/settings/billing"),
+      noApiProvider("piapi", "PiAPI", "PIAPI_API_KEY", "https://piapi.ai/dashboard"),
+      noApiProvider("sync", "Sync.so", "SYNC_API_KEY", "https://app.sync.so/dashboard"),
+      noApiProvider("huggingface", "HuggingFace", "HF_TOKEN", "https://huggingface.co/settings/tokens"),
+    ];
+
+    const alerts = providers.filter(
+      (p) => p.status === "low" || p.status === "empty" || p.status === "error"
+    );
+
+    return {
+      providers,
+      checkedAt: new Date().toISOString(),
+      alertCount: alerts.length,
+    };
+  });
+
 // ─── AI Router: generate via the unified orchestrator ────────────────────────
 // Authenticated entry point used by the /orchestrate page. Reuses the shared
 // reserve → orchestrate → record → commit core so credits + provider fallback

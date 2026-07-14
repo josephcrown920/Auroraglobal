@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { orchestrationHealth } from "@/lib/orchestration.functions";
+import { orchestrationHealth, providerCredits } from "@/lib/orchestration.functions";
+import type { ProviderCreditRow } from "@/lib/orchestration.functions";
 import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import {
   Activity,
@@ -16,6 +17,10 @@ import {
   Film,
   Mic,
   Loader2,
+  RefreshCw,
+  AlertTriangle,
+  ExternalLink,
+  DollarSign,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/orchestration")({
@@ -86,6 +91,98 @@ function BillingBadge({ provider }: { provider: string }) {
   );
 }
 
+// ─── Provider Credit Cards ────────────────────────────────────────────────────
+
+const STATUS_META: Record<
+  ProviderCreditRow["status"],
+  { label: string; dot: string; text: string; bg: string; border: string }
+> = {
+  ok:           { label: "OK",           dot: "bg-emerald-400",       text: "text-emerald-400",    bg: "bg-emerald-500/5",  border: "border-emerald-500/20" },
+  low:          { label: "LOW",          dot: "bg-amber-400 animate-pulse", text: "text-amber-400", bg: "bg-amber-500/5",   border: "border-amber-500/30"  },
+  empty:        { label: "EMPTY",        dot: "bg-red-500 animate-pulse",   text: "text-red-400",   bg: "bg-red-500/5",     border: "border-red-500/30"    },
+  error:        { label: "ERROR",        dot: "bg-red-400",           text: "text-red-400",        bg: "bg-red-500/5",     border: "border-red-500/20"    },
+  unconfigured: { label: "NO KEY",       dot: "bg-muted-foreground/30", text: "text-muted-foreground", bg: "bg-muted/20", border: "border-border"        },
+  "no-api":     { label: "CONFIGURED",  dot: "bg-emerald-400",       text: "text-emerald-400",    bg: "bg-card/40",       border: "border-border"        },
+};
+
+function formatBalance(p: ProviderCreditRow): string {
+  if (p.balance === null) {
+    if (p.status === "ok" && p.hasBalanceApi) return "Unlimited";
+    if (p.status === "no-api") return "Key valid · check dashboard";
+    if (p.status === "unconfigured") return "No API key set";
+    return "—";
+  }
+  if (p.unit === "$USD") return `$${p.balance.toFixed(2)} remaining${p.limitTotal ? ` of $${p.limitTotal.toFixed(2)}` : ""}`;
+  if (p.unit === "chars") {
+    const fmt = (n: number) => n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(0)}K` : `${n}`;
+    return `${fmt(p.balance)} remaining${p.limitTotal ? ` of ${fmt(p.limitTotal)}` : ""}`;
+  }
+  return `${p.balance} ${p.unit ?? "credits"}`;
+}
+
+function CreditCard({ p }: { p: ProviderCreditRow }) {
+  const sm = STATUS_META[p.status];
+  const pct =
+    p.balance !== null && p.limitTotal !== null && p.limitTotal > 0
+      ? Math.max(0, Math.min(100, (p.balance / p.limitTotal) * 100))
+      : null;
+
+  return (
+    <div className={`rounded-lg border p-3.5 flex flex-col gap-2 ${sm.bg} ${sm.border}`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-semibold truncate">{p.name}</span>
+        <a
+          href={p.dashboardUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-muted-foreground hover:text-foreground shrink-0"
+          title="Open provider dashboard"
+        >
+          <ExternalLink className="size-3.5" />
+        </a>
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        <span className={`size-2 rounded-full shrink-0 ${sm.dot}`} />
+        <span className={`text-xs font-medium ${sm.text}`}>{sm.label}</span>
+        {p.hasBalanceApi && p.status !== "unconfigured" && (
+          <span className="text-xs px-1 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20 ml-auto shrink-0">
+            live
+          </span>
+        )}
+      </div>
+
+      <div className="text-[13px] text-muted-foreground leading-snug">
+        {p.error ? (
+          <span className="text-red-400 truncate block" title={p.error}>
+            {p.error.slice(0, 60)}
+          </span>
+        ) : (
+          formatBalance(p)
+        )}
+      </div>
+
+      {pct !== null && (
+        <div className="w-full h-1.5 rounded-full bg-muted/40 overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all ${
+              pct > 30 ? "bg-emerald-400" : pct > 10 ? "bg-amber-400" : "bg-red-400"
+            }`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function timeAgo(iso: string): string {
+  const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (secs < 60) return `${secs}s ago`;
+  if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
+  return `${Math.floor(secs / 3600)}h ago`;
+}
+
 function OrchestrationDashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -101,6 +198,20 @@ function OrchestrationDashboard() {
     queryFn: () => healthFn(),
     enabled: !!user && unlocked,
     refetchInterval: 15_000,
+  });
+
+  const creditsFn = useServerFn(providerCredits);
+  const {
+    data: credits,
+    isLoading: creditsLoading,
+    refetch: refetchCredits,
+    dataUpdatedAt: creditsUpdatedAt,
+  } = useQuery({
+    queryKey: ["provider-credits"],
+    queryFn: () => creditsFn(),
+    enabled: !!user && unlocked,
+    refetchInterval: 5 * 60_000,
+    staleTime: 4 * 60_000,
   });
 
   if (loading || !user) {
@@ -182,6 +293,67 @@ function OrchestrationDashboard() {
                   </div>
                 );
               })}
+            </div>
+
+            {/* Provider Credit Balances */}
+            <div className="rounded-xl border border-border bg-card/40 mb-8">
+              <div className="px-5 py-3 border-b border-border flex items-center justify-between gap-3">
+                <span className="text-sm font-semibold flex items-center gap-2">
+                  <DollarSign className="size-4 text-primary" /> Provider Credits
+                </span>
+                <div className="flex items-center gap-3 ml-auto">
+                  {credits && creditsUpdatedAt > 0 && (
+                    <span className="text-[13px] text-muted-foreground">
+                      {timeAgo(new Date(creditsUpdatedAt).toISOString())}
+                    </span>
+                  )}
+                  {credits?.alertCount > 0 && (
+                    <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                      <AlertTriangle className="size-3" />
+                      {credits.alertCount} alert{credits.alertCount > 1 ? "s" : ""}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => refetchCredits()}
+                    disabled={creditsLoading}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw className={`size-3.5 ${creditsLoading ? "animate-spin" : ""}`} />
+                    Refresh
+                  </button>
+                </div>
+              </div>
+
+              {creditsLoading && !credits && (
+                <div className="px-5 py-6 flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" /> Fetching balances…
+                </div>
+              )}
+
+              {credits && (
+                <>
+                  {credits.alertCount > 0 && (
+                    <div className="mx-5 mt-4 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm text-amber-300 flex items-center gap-2">
+                      <AlertTriangle className="size-4 shrink-0" />
+                      <span>
+                        {credits.providers
+                          .filter((p) => p.status === "low" || p.status === "empty" || p.status === "error")
+                          .map((p) => `${p.name}: ${p.status.toUpperCase()}`)
+                          .join(" · ")}
+                      </span>
+                    </div>
+                  )}
+                  <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                    {credits.providers.map((p) => (
+                      <CreditCard key={p.id} p={p} />
+                    ))}
+                  </div>
+                  <div className="px-5 py-2.5 border-t border-border text-[13px] text-muted-foreground">
+                    Live balances refresh every 5 min. Providers without a public balance API show key status only — click{" "}
+                    <ExternalLink className="size-3 inline" /> to check their dashboard.
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Fallback chains per kind */}
