@@ -944,10 +944,22 @@ function MotionStudio() {
                 <div>
                   <h3 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Recent</h3>
                   <div className="grid grid-cols-3 gap-2">
-                    {history.items.slice(0, 6).map((g) => (
-                      <div key={g.id} className="aspect-square rounded-lg overflow-hidden border border-border bg-card/40">
+                    {history.items.slice(0, 6).map((g: any) => (
+                      <div key={g.id} className="aspect-square rounded-lg overflow-hidden border border-border bg-card/40 relative group">
                         {g.result_video_url ? (
-                          <AutoplayVideo src={g.result_video_url} className="w-full h-full object-cover" loop playsInline />
+                          <>
+                            <AutoplayVideo src={g.result_video_url} className="w-full h-full object-cover" loop playsInline />
+                            <button
+                              type="button"
+                              onClick={() => fetch(g.result_video_url).then((r) => r.blob()).then((b) => {
+                                const a = document.createElement("a"); a.href = URL.createObjectURL(b);
+                                a.download = `performance-${Date.now()}.mp4`; a.click();
+                              })}
+                              className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 bg-black/70 rounded p-1 text-white transition-opacity"
+                            >
+                              <Download className="size-3" />
+                            </button>
+                          </>
                         ) : g.result_image_url ? (
                           <img src={g.result_image_url} alt="" className="w-full h-full object-cover" />
                         ) : (
@@ -1278,20 +1290,53 @@ function MotionStudio() {
               <p className="text-xs text-muted-foreground">First render is a short discounted preview — review it in Recent, then render the full clip. Runs on a self-hosted GPU backend.</p>
             </section>
             <aside className="space-y-4">
-              <div className="rounded-3xl overflow-hidden border border-border bg-card/60 backdrop-blur-xl aspect-[4/5] relative">
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground p-8 text-center">
-                  <Clapperboard className="size-10 text-primary/40" />
-                  <p className="text-sm">Queued jobs render on a GPU backend — watch the Recent strip below.</p>
-                </div>
-              </div>
+              {(() => {
+                const latestMotion = history?.items.find((g: any) => g.kind === "motion" && g.result_video_url);
+                return (
+                  <div className="rounded-3xl overflow-hidden border border-border bg-card/60 backdrop-blur-xl aspect-[4/5] relative">
+                    {latestMotion ? (
+                      <>
+                        <AutoplayVideo src={latestMotion.result_video_url} className="w-full h-full object-cover" controls playsInline loop />
+                        <button
+                          type="button"
+                          onClick={() => fetch(latestMotion.result_video_url).then((r) => r.blob()).then((b) => {
+                            const a = document.createElement("a"); a.href = URL.createObjectURL(b);
+                            a.download = `motion-transfer-${Date.now()}.mp4`; a.click();
+                          })}
+                          className="absolute bottom-3 right-3 flex items-center gap-1 rounded-lg border border-white/20 bg-black/60 px-2.5 py-1.5 text-xs text-white backdrop-blur-sm hover:bg-black/80 transition-colors"
+                        >
+                          <Download className="size-3" /> Download
+                        </button>
+                      </>
+                    ) : (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground p-8 text-center">
+                        <Clapperboard className="size-10 text-primary/40" />
+                        <p className="text-sm">Queued jobs render on a GPU backend — watch the Recent strip below.</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               {history && history.items.length > 0 && (
                 <div>
                   <h3 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Recent</h3>
                   <div className="grid grid-cols-3 gap-2">
-                    {history.items.slice(0, 6).map((g) => (
-                      <div key={g.id} className="aspect-square rounded-lg overflow-hidden border border-border bg-card/40">
+                    {history.items.slice(0, 6).map((g: any) => (
+                      <div key={g.id} className="aspect-square rounded-lg overflow-hidden border border-border bg-card/40 relative group">
                         {g.result_video_url ? (
-                          <AutoplayVideo src={g.result_video_url} className="w-full h-full object-cover" loop playsInline />
+                          <>
+                            <AutoplayVideo src={g.result_video_url} className="w-full h-full object-cover" loop playsInline />
+                            <button
+                              type="button"
+                              onClick={() => fetch(g.result_video_url).then((r) => r.blob()).then((b) => {
+                                const a = document.createElement("a"); a.href = URL.createObjectURL(b);
+                                a.download = `motion-${Date.now()}.mp4`; a.click();
+                              })}
+                              className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 bg-black/70 rounded p-1 text-white transition-opacity"
+                            >
+                              <Download className="size-3" />
+                            </button>
+                          </>
                         ) : g.result_image_url ? (
                           <img src={g.result_image_url} alt="" className="w-full h-full object-cover" />
                         ) : (

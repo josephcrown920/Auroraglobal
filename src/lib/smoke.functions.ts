@@ -9,6 +9,8 @@ import { lipsyncEngineCost, computeCost } from "./pricing";
 // Test fixtures (existing CDN assets)
 const TEST_SELFIE_URL = "https://aurora-sparkle-charm.lovable.app/__l5e/assets-v1/24c6484d-42b7-4d6c-8d1d-aeeb71a19d30/josh-yellow-mic.jpg";
 const TEST_AUDIO_URL  = "https://aurora-sparkle-charm.lovable.app/__l5e/assets-v1/04b233f7-4417-4708-a70a-761de327deef/the-one-hook.mp3";
+// Short public driving video for the motion-transfer smoke step (used only when a motion worker is online).
+const TEST_DRIVING_VIDEO_URL = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
 
 const STEPS = [
   "Image gen",
@@ -29,6 +31,7 @@ const STEPS = [
   "Avatar shot (SeedDream image)",
   "Photo Edit",
   "Speech TTS",
+  "Perform Anywhere — Reshoot (Motion Transfer)",
 ] as const;
 
 async function assertAdmin(userId: string) {
@@ -587,12 +590,45 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       await writeCheck(run.id, 18, STEPS[17], r18);
       total += r18.cost_usd;
 
+      // 19. Perform Anywhere — Reshoot (Motion Transfer): dispatches a motion-transfer
+      //     job via orchestrate() with kind:"motion", a reference image, and a short
+      //     driving video. Skipped when no GPU worker with the "motion" capability is
+      //     online (same guard used by the Motion Studio UI itself).
+      const r19: StepResult = await (async (): Promise<StepResult> => {
+        const { hasActiveWorkerForKind } = await import("./orchestrator.server");
+        if (!(await hasActiveWorkerForKind("motion"))) {
+          return {
+            status: "skip",
+            latency_ms: 0,
+            cost_usd: 0,
+            error: "No motion GPU worker online — skipping Perform Anywhere smoke step",
+          };
+        }
+        return runStep(async () => {
+          const { MIMIC_MOTION_MODEL } = await import("./motion-workflows.server");
+          const out = await orchestrate({
+            kind: "motion",
+            prompt: "smoke test: motion transfer — drive reference image with short clip",
+            imageUrls: [TEST_SELFIE_URL],
+            videoUrl: TEST_DRIVING_VIDEO_URL,
+            model: MIMIC_MOTION_MODEL,
+            params: { motionType: "faithful", cameraMovement: "static" },
+            userId: context.userId,
+            refId: run.id,
+          });
+          if (!out.url) throw new Error("Motion transfer returned no video URL");
+          return { url: out.url, cost: out.costUsd ?? computeCost({ features: ["motion"] }).total, raw: { provider: out.provider } };
+        });
+      })();
+      await writeCheck(run.id, 19, STEPS[18], r19);
+      total += r19.cost_usd;
+
       await supabaseAdmin
         .from("smoke_runs")
         .update({
           finished_at: new Date().toISOString(),
           total_cost_usd: total,
-          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18].filter(r => r.status === "pass").length, total: 18 } as never,
+          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18, r19].filter(r => r.status === "pass").length, total: 19 } as never,
         })
         .eq("id", run.id);
     })().catch(async (e) => {

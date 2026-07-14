@@ -116,8 +116,21 @@ async function _dispatchAvatarShot({
       prompt,
       model: LIVE_AVATAR_MODEL,
     });
-    if (!outcome.ok) return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
-    return { ok: true, generationId: outcome.generationId, url: outcome.url };
+    if (outcome.ok) return { ok: true, generationId: outcome.generationId, url: outcome.url };
+    // Propagate credit errors immediately — fallback would charge a different amount.
+    if (outcome.insufficient) return { ok: false, error: outcome.error, insufficient: true };
+    // KlingAI unavailable (no API key configured) → fall back to SeedDream still image.
+    const fallback = await reserveOrchestrateRecord({
+      userId,
+      kind: "image",
+      cost: SHOT_IMAGE_COST,
+      reason: `${reason}_seedream_fallback`,
+      prompt,
+      model: SHOT_IMAGE_MODEL_SEEDREAM,
+      imageUrls: imageUrl ? [imageUrl] : undefined,
+    });
+    if (!fallback.ok) return { ok: false, error: fallback.error, insufficient: fallback.insufficient };
+    return { ok: true, generationId: fallback.generationId, url: fallback.url };
   }
   const model = engine === "gemini" ? SHOT_IMAGE_MODEL_GEMINI : SHOT_IMAGE_MODEL_SEEDREAM;
   const outcome = await reserveOrchestrateRecord({
