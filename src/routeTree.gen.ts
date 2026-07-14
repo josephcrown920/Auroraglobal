@@ -68,6 +68,8 @@ import { Route as AdminSmokeRouteImport } from './routes/admin.smoke'
 import { Route as AdminOrchestrationRouteImport } from './routes/admin.orchestration'
 import { Route as AdminCostsRouteImport } from './routes/admin.costs'
 import { Route as AdminComfyRouteImport } from './routes/admin.comfy'
+import { Route as ApiVideoAgentGenerateRouteImport } from './routes/api/video-agent/generate'
+import { Route as ApiVideoAgentEnhanceRouteImport } from './routes/api/video-agent/enhance'
 import { Route as ApiPublicWatermarkVideoRouteImport } from './routes/api/public/watermark-video'
 import { Route as ApiPublicWatermarkImageRouteImport } from './routes/api/public/watermark-image'
 import { Route as ApiPublicSiteImagesRouteImport } from './routes/api/public/site-images'
@@ -77,6 +79,7 @@ import { Route as ApiPublicGenerateRouteImport } from './routes/api/public/gener
 import { Route as ApiPublicFreeMonthlyGrantRouteImport } from './routes/api/public/free-monthly-grant'
 import { Route as ApiPublicCheckApiBalancesRouteImport } from './routes/api/public/check-api-balances'
 import { Route as ApiAdminUploadSiteImageRouteImport } from './routes/api/admin/upload-site-image'
+import { Route as ApiVideoAgentStatusVideoIdRouteImport } from './routes/api/video-agent/status.$videoId'
 import { Route as ApiPublicWorkersRegisterRouteImport } from './routes/api/public/workers/register'
 import { Route as ApiPublicWorkersHealthRouteImport } from './routes/api/public/workers/health'
 import { Route as ApiPublicTiktokCallbackRouteImport } from './routes/api/public/tiktok/callback'
@@ -387,6 +390,16 @@ const AdminComfyRoute = AdminComfyRouteImport.update({
   path: '/comfy',
   getParentRoute: () => AdminRoute,
 } as any)
+const ApiVideoAgentGenerateRoute = ApiVideoAgentGenerateRouteImport.update({
+  id: '/api/video-agent/generate',
+  path: '/api/video-agent/generate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVideoAgentEnhanceRoute = ApiVideoAgentEnhanceRouteImport.update({
+  id: '/api/video-agent/enhance',
+  path: '/api/video-agent/enhance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicWatermarkVideoRoute = ApiPublicWatermarkVideoRouteImport.update({
   id: '/api/public/watermark-video',
   path: '/api/public/watermark-video',
@@ -436,6 +449,12 @@ const ApiAdminUploadSiteImageRoute = ApiAdminUploadSiteImageRouteImport.update({
   path: '/api/admin/upload-site-image',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiVideoAgentStatusVideoIdRoute =
+  ApiVideoAgentStatusVideoIdRouteImport.update({
+    id: '/api/video-agent/status/$videoId',
+    path: '/api/video-agent/status/$videoId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicWorkersRegisterRoute =
   ApiPublicWorkersRegisterRouteImport.update({
     id: '/api/public/workers/register',
@@ -549,11 +568,14 @@ export interface FileRoutesByFullPath {
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
+  '/api/video-agent/enhance': typeof ApiVideoAgentEnhanceRoute
+  '/api/video-agent/generate': typeof ApiVideoAgentGenerateRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
+  '/api/video-agent/status/$videoId': typeof ApiVideoAgentStatusVideoIdRoute
   '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
   '/api/public/cli/device/start': typeof ApiPublicCliDeviceStartRoute
   '/api/public/workers/files/$name': typeof ApiPublicWorkersFilesNameRoute
@@ -627,11 +649,14 @@ export interface FileRoutesByTo {
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
+  '/api/video-agent/enhance': typeof ApiVideoAgentEnhanceRoute
+  '/api/video-agent/generate': typeof ApiVideoAgentGenerateRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
+  '/api/video-agent/status/$videoId': typeof ApiVideoAgentStatusVideoIdRoute
   '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
   '/api/public/cli/device/start': typeof ApiPublicCliDeviceStartRoute
   '/api/public/workers/files/$name': typeof ApiPublicWorkersFilesNameRoute
@@ -706,11 +731,14 @@ export interface FileRoutesById {
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
+  '/api/video-agent/enhance': typeof ApiVideoAgentEnhanceRoute
+  '/api/video-agent/generate': typeof ApiVideoAgentGenerateRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
+  '/api/video-agent/status/$videoId': typeof ApiVideoAgentStatusVideoIdRoute
   '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
   '/api/public/cli/device/start': typeof ApiPublicCliDeviceStartRoute
   '/api/public/workers/files/$name': typeof ApiPublicWorkersFilesNameRoute
@@ -786,11 +814,14 @@ export interface FileRouteTypes {
     | '/api/public/site-images'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
+    | '/api/video-agent/enhance'
+    | '/api/video-agent/generate'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
     | '/api/public/tiktok/callback'
     | '/api/public/workers/health'
     | '/api/public/workers/register'
+    | '/api/video-agent/status/$videoId'
     | '/api/public/cli/device/poll'
     | '/api/public/cli/device/start'
     | '/api/public/workers/files/$name'
@@ -864,11 +895,14 @@ export interface FileRouteTypes {
     | '/api/public/site-images'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
+    | '/api/video-agent/enhance'
+    | '/api/video-agent/generate'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
     | '/api/public/tiktok/callback'
     | '/api/public/workers/health'
     | '/api/public/workers/register'
+    | '/api/video-agent/status/$videoId'
     | '/api/public/cli/device/poll'
     | '/api/public/cli/device/start'
     | '/api/public/workers/files/$name'
@@ -942,11 +976,14 @@ export interface FileRouteTypes {
     | '/api/public/site-images'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
+    | '/api/video-agent/enhance'
+    | '/api/video-agent/generate'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
     | '/api/public/tiktok/callback'
     | '/api/public/workers/health'
     | '/api/public/workers/register'
+    | '/api/video-agent/status/$videoId'
     | '/api/public/cli/device/poll'
     | '/api/public/cli/device/start'
     | '/api/public/workers/files/$name'
@@ -1015,11 +1052,14 @@ export interface RootRouteChildren {
   ApiPublicSiteImagesRoute: typeof ApiPublicSiteImagesRoute
   ApiPublicWatermarkImageRoute: typeof ApiPublicWatermarkImageRoute
   ApiPublicWatermarkVideoRoute: typeof ApiPublicWatermarkVideoRoute
+  ApiVideoAgentEnhanceRoute: typeof ApiVideoAgentEnhanceRoute
+  ApiVideoAgentGenerateRoute: typeof ApiVideoAgentGenerateRoute
   ApiPublicJobsTickRoute: typeof ApiPublicJobsTickRoute
   ApiPublicPaymentsSweepStuckRoute: typeof ApiPublicPaymentsSweepStuckRoute
   ApiPublicTiktokCallbackRoute: typeof ApiPublicTiktokCallbackRoute
   ApiPublicWorkersHealthRoute: typeof ApiPublicWorkersHealthRoute
   ApiPublicWorkersRegisterRoute: typeof ApiPublicWorkersRegisterRoute
+  ApiVideoAgentStatusVideoIdRoute: typeof ApiVideoAgentStatusVideoIdRoute
   ApiPublicCliDevicePollRoute: typeof ApiPublicCliDevicePollRoute
   ApiPublicCliDeviceStartRoute: typeof ApiPublicCliDeviceStartRoute
   ApiPublicWorkersFilesNameRoute: typeof ApiPublicWorkersFilesNameRoute
@@ -1440,6 +1480,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminComfyRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/api/video-agent/generate': {
+      id: '/api/video-agent/generate'
+      path: '/api/video-agent/generate'
+      fullPath: '/api/video-agent/generate'
+      preLoaderRoute: typeof ApiVideoAgentGenerateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/video-agent/enhance': {
+      id: '/api/video-agent/enhance'
+      path: '/api/video-agent/enhance'
+      fullPath: '/api/video-agent/enhance'
+      preLoaderRoute: typeof ApiVideoAgentEnhanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/watermark-video': {
       id: '/api/public/watermark-video'
       path: '/api/public/watermark-video'
@@ -1501,6 +1555,13 @@ declare module '@tanstack/react-router' {
       path: '/api/admin/upload-site-image'
       fullPath: '/api/admin/upload-site-image'
       preLoaderRoute: typeof ApiAdminUploadSiteImageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/video-agent/status/$videoId': {
+      id: '/api/video-agent/status/$videoId'
+      path: '/api/video-agent/status/$videoId'
+      fullPath: '/api/video-agent/status/$videoId'
+      preLoaderRoute: typeof ApiVideoAgentStatusVideoIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/workers/register': {
@@ -1645,11 +1706,14 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicSiteImagesRoute: ApiPublicSiteImagesRoute,
   ApiPublicWatermarkImageRoute: ApiPublicWatermarkImageRoute,
   ApiPublicWatermarkVideoRoute: ApiPublicWatermarkVideoRoute,
+  ApiVideoAgentEnhanceRoute: ApiVideoAgentEnhanceRoute,
+  ApiVideoAgentGenerateRoute: ApiVideoAgentGenerateRoute,
   ApiPublicJobsTickRoute: ApiPublicJobsTickRoute,
   ApiPublicPaymentsSweepStuckRoute: ApiPublicPaymentsSweepStuckRoute,
   ApiPublicTiktokCallbackRoute: ApiPublicTiktokCallbackRoute,
   ApiPublicWorkersHealthRoute: ApiPublicWorkersHealthRoute,
   ApiPublicWorkersRegisterRoute: ApiPublicWorkersRegisterRoute,
+  ApiVideoAgentStatusVideoIdRoute: ApiVideoAgentStatusVideoIdRoute,
   ApiPublicCliDevicePollRoute: ApiPublicCliDevicePollRoute,
   ApiPublicCliDeviceStartRoute: ApiPublicCliDeviceStartRoute,
   ApiPublicWorkersFilesNameRoute: ApiPublicWorkersFilesNameRoute,
