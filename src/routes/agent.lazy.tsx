@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import {
@@ -11,6 +11,13 @@ import {
   type SkillMeta,
 } from "@/lib/agent.functions";
 import { useAuth } from "@/hooks/use-auth";
+import {
+  enhanceVideoAgentPrompt,
+  generateHeyGenAgentVideo,
+  VIDEO_AGENT_COST,
+  type VideoAgentResult,
+} from "@/lib/video-agent.functions";
+import { VIDEO_AGENT_HELPER_TEXT } from "@/lib/video-agent-prompt";
 import { UgcBatchStudio } from "@/components/prime/UgcBatchStudio";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import {
@@ -254,6 +261,163 @@ const makeSteps = (): AgentStep[] =>
   AGENT_STEPS_TEMPLATE.map((s) => ({ ...s, status: "pending" as StepStatus }));
 
 // ══════════════════════════════════════════════════════════════════════════
+// HeyGen Video Agent panel — /agent tab "HeyGen"
+// Prompt → Enhance (LLM script polish) → Generate (HeyGen v2 avatar video)
+// ══════════════════════════════════════════════════════════════════════════
+
+function HeyGenPanel() {
+  const enhanceFn  = useServerFn(enhanceVideoAgentPrompt);
+  const generateFn = useServerFn(generateHeyGenAgentVideo);
+  const [prompt,      setPrompt]      = useState("");
+  const [orientation, setOrientation] = useState<"landscape" | "portrait">("landscape");
+  const [enhancing,   setEnhancing]   = useState(false);
+  const [result,      setResult]      = useState<{ url: string; generationId: string } | null>(null);
+
+  const genMut = useMutation({
+    mutationFn: async () => {
+      const p = prompt.trim();
+      if (!p) throw new Error("Write your script or describe your video idea first");
+      const res: VideoAgentResult = await generateFn({ data: { prompt: p, orientation } });
+      return res;
+    },
+    onSuccess: (res) => {
+      if (!res.ok) {
+        if ("heygenCredit" in res && res.heygenCredit) {
+          toast.error("HeyGen api credits exhausted — top up at app.heygen.com", { duration: 8000 });
+        } else if (res.insufficient) {
+          toast.error("Not enough Aura — top up credits in Billing");
+        } else {
+          toast.error(res.error ?? "Generation failed");
+        }
+      } else {
+        setResult({ url: res.url, generationId: res.generationId });
+        toast.success("Talking-head video ready!");
+      }
+    },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Generation failed"),
+  });
+
+  const doEnhance = async () => {
+    const p = prompt.trim();
+    if (!p) return;
+    setEnhancing(true);
+    try {
+      const res = await enhanceFn({ data: { prompt: p, targetSeconds: 20 } });
+      setPrompt(res.script);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Enhance failed");
+    } finally {
+      setEnhancing(false);
+    }
+  };
+
+  const downloadVideo = () => {
+    if (!result) return;
+    fetch(result.url)
+      .then((r) => r.blob())
+      .then((b) => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(b);
+        a.download = `heygen-video-${result.generationId}.mp4`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      })
+      .catch(() => window.open(result.url, "_blank"));
+  };
+
+  return (
+    <div className="flex-1 overflow-y-auto px-6 py-8">
+      <div className="mx-auto w-full max-w-xl space-y-6">
+        <header>
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-prime">
+            HeyGen · Video Agent
+          </p>
+          <h2 className="mt-1 text-3xl font-black uppercase leading-tight text-ink">
+            Talking-head video<br /><span className="text-prime">from a prompt.</span>
+          </h2>
+          <p className="mt-2 text-[13px] font-medium text-ink-dim">
+            Write what the presenter says, or describe your idea and hit Enhance. Aurora picks the avatar, voice, and layout — HeyGen renders the video.
+          </p>
+        </header>
+
+        <p className="rounded-sm border border-line/60 px-3 py-2 text-[11px] leading-relaxed text-ink-dim/80">
+          {VIDEO_AGENT_HELPER_TEXT}
+        </p>
+
+        <div className="space-y-3">
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            rows={5}
+            placeholder="Write what the presenter says — or describe your idea and hit Enhance…"
+            className="w-full resize-none rounded-sm border border-line bg-panel/60 px-4 py-3 text-sm text-ink placeholder:text-ink-dim/60 focus:border-prime focus:outline-none"
+          />
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => void doEnhance()}
+              disabled={enhancing || !prompt.trim()}
+              className="flex items-center gap-2 rounded-sm border border-line bg-panel px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-ink-dim transition-colors hover:border-prime/60 hover:text-prime disabled:opacity-40"
+            >
+              <Wand2 className="size-3.5" />
+              {enhancing ? "Enhancing…" : "Enhance"}
+            </button>
+
+            <div className="ml-auto flex items-center gap-2">
+              {(["landscape", "portrait"] as const).map((o) => (
+                <button
+                  key={o}
+                  onClick={() => setOrientation(o)}
+                  className={
+                    "rounded-sm border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors " +
+                    (orientation === o
+                      ? "border-prime/60 bg-prime/10 text-prime"
+                      : "border-line text-ink-dim hover:text-ink")
+                  }
+                >
+                  {o === "landscape" ? "16:9" : "9:16"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button
+            onClick={() => genMut.mutate()}
+            disabled={genMut.isPending || !prompt.trim()}
+            className="flex w-full items-center justify-center gap-2 rounded-sm bg-prime px-4 py-3 font-mono text-[11px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-prime-glow disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {genMut.isPending ? (
+              <><Loader2 className="size-4 animate-spin" /> Generating…</>
+            ) : (
+              <><Video className="size-4" /> Generate · {VIDEO_AGENT_COST} Aura</>
+            )}
+          </button>
+        </div>
+
+        {result && (
+          <div className="space-y-3 rounded-sm border border-prime/40 bg-prime/5 p-4">
+            <div className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-widest text-prime">
+              <CheckCircle2 className="size-4" /> Video ready
+            </div>
+            <video
+              src={result.url}
+              controls
+              className="max-h-80 w-full rounded-sm bg-black"
+            />
+            <button
+              onClick={downloadVideo}
+              className="text-xs text-prime underline hover:text-prime-glow"
+            >
+              Download video
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════
 // Main page component
 // ══════════════════════════════════════════════════════════════════════════
 
@@ -292,7 +456,7 @@ function AgentPage() {
     mood: "Hyper-realistic, atmospheric fog, subtle halation, no plastic AI skin.",
   });
 
-  const [activeTab, setActiveTab] = useState<"Workspace" | "Script" | "Dailies" | "Timeline">("Workspace");
+  const [activeTab, setActiveTab] = useState<"Workspace" | "Script" | "Dailies" | "Timeline" | "HeyGen">("Workspace");
   const [leftOpen,  setLeftOpen]  = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
 
@@ -399,7 +563,7 @@ function AgentPage() {
 
   const handleTabClick = (t: typeof activeTab) => {
     setActiveTab(t);
-    if (t === "Workspace") return;
+    if (t === "Workspace" || t === "HeyGen") return;
     startAgent(`${t} pass`, TAB_PROMPTS[t] ?? "", t);
   };
 
@@ -552,7 +716,7 @@ function AgentPage() {
         {/* tab bar */}
         <div className="flex h-13 items-center justify-between border-b border-line bg-canvas/80 px-6 backdrop-blur-sm">
           <div className="flex gap-6 text-[10px] font-bold uppercase tracking-[0.2em]">
-            {(["Workspace", "Script", "Dailies", "Timeline"] as const).map((t) => (
+            {(["Workspace", "Script", "Dailies", "Timeline", "HeyGen"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => handleTabClick(t)}
@@ -588,7 +752,11 @@ function AgentPage() {
           onReset={resetAgent}
         />
 
-        {/* chat scroll area */}
+        {/* HeyGen Video Agent panel — replaces the chat area when HeyGen tab is active */}
+        {activeTab === "HeyGen" && <HeyGenPanel />}
+
+        {/* chat scroll area — only rendered for non-HeyGen tabs */}
+        {activeTab !== "HeyGen" && (
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6">
           <div className="mx-auto max-w-3xl">
             {/* tab-specific header */}
@@ -678,6 +846,7 @@ function AgentPage() {
             </div>
           </div>
         </div>
+        )}
 
         {/* composer */}
         <div className="border-t border-line bg-canvas/80 px-6 py-4 backdrop-blur-sm">

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateWithFallback } from "./llm-fallback.server";
 import { sanitizeVideoAgentScript, videoAgentWordTarget } from "./video-agent-prompt";
+import { computeCost } from "./pricing";
 
 // ─── HeyGen Video Agent "Enhance prompt" pass (Task #274) ────────────────────
 // Turns a rough idea (or messy draft) into a clean first-person spoken script.
@@ -66,4 +67,47 @@ export const enhanceVideoAgentPrompt = createServerFn({ method: "POST" })
     const script = sanitizeVideoAgentScript(output.script);
     if (!script) throw new Error("Enhance produced an empty script — try rewording your idea");
     return { script, provider };
+  });
+
+// ─── HeyGen Video Agent — generate a full talking-head video from a prompt ───
+// Called by the /agent page's HeyGen tab. Pins to heygen/video-agent so a
+// missing API key surfaces as a clear error, not a silent provider swap.
+// HeyGen's separate "api" credit pool can be exhausted even when the dashboard
+// remaining_quota looks healthy — detect this and set heygenCredit so the UI
+// can show a targeted "top up at app.heygen.com" message rather than a generic
+// insufficient-Aura error.
+
+export const VIDEO_AGENT_COST = computeCost({ features: ["video"], model: "heygen/video-agent" }).total;
+
+const HEYGEN_CREDIT_RE = /\b(402|insufficient.?credit|credit.?exhausted|40102)\b/i;
+
+export type VideoAgentResult =
+  | { ok: true; url: string; generationId: string }
+  | { ok: false; error: string; insufficient?: boolean; heygenCredit?: boolean };
+
+export const generateHeyGenAgentVideo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      prompt: z.string().min(3).max(4000),
+      orientation: z.enum(["landscape", "portrait"]).optional(),
+    }).parse(d),
+  )
+  .handler(async ({ context, data }): Promise<VideoAgentResult> => {
+    const { reserveOrchestrateRecord } = await import("./generate-core.server");
+    const outcome = await reserveOrchestrateRecord({
+      userId: context.userId,
+      kind: "video",
+      cost: VIDEO_AGENT_COST,
+      reason: "heygen_video_agent",
+      prompt: data.prompt,
+      model: "heygen/video-agent",
+      pinnedModelOnly: true,
+      ...(data.orientation ? { params: { orientation: data.orientation } } : {}),
+    });
+    if (!outcome.ok) {
+      const isHeygenCredit = HEYGEN_CREDIT_RE.test(outcome.error ?? "");
+      return { ok: false, error: outcome.error, insufficient: outcome.insufficient, heygenCredit: isHeygenCredit };
+    }
+    return { ok: true, url: outcome.url, generationId: outcome.generationId };
   });
