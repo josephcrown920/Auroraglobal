@@ -123,7 +123,7 @@ export function AdultStudio({ session }: Props) {
       const res = await fetch(`${base_url}/api/public/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ kind: "image", prompt, imageUrls, model: "google/nano-banana" }),
+        body: JSON.stringify({ kind: "image", prompt, imageUrls, model: "google/gemini-3.1-flash-image-preview" }),
       });
       const data: unknown = await res.json();
       if (!res.ok) throw new Error((data as { error?: string })?.error ?? "Generation failed");
@@ -145,7 +145,7 @@ export function AdultStudio({ session }: Props) {
       <div style={{ position: "fixed", top: 0, right: 0, width: 500, height: 500, background: "radial-gradient(ellipse, rgba(225,29,106,0.08) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
 
       {/* Header */}
-      <header style={{ borderBottom: "1px solid var(--border)", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(7,4,10,0.85)", position: "sticky", top: 0, zIndex: 50, backdropFilter: "blur(12px)", position: "relative" as "relative" }}>
+      <header style={{ borderBottom: "1px solid var(--border)", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(7,4,10,0.85)", position: "sticky", top: 0, zIndex: 50, backdropFilter: "blur(12px)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 38, height: 38, borderRadius: 11, background: "linear-gradient(135deg, #e11d6a, #7c0a3a)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 20px rgba(225,29,106,0.4)" }}>
             <Camera size={18} color="white" />
