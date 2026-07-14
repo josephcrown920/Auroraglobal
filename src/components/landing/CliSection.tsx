@@ -32,7 +32,7 @@ export function CliSection() {
 
       <div className="relative grid gap-10 px-6 py-14 md:grid-cols-[0.92fr_1.08fr] md:px-12 md:py-20 md:items-center">
         <div>
-          <span className="inline-flex items-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-300/[0.06] px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-cyan-200">
+          <span className="inline-flex items-center gap-2 rounded-md border border-cyan-300/25 bg-cyan-300/[0.06] px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-cyan-200">
             <Terminal className="size-3.5" /> Aurora CLI · interactive
           </span>
           <h2 className="mt-5 text-3xl font-bold tracking-tight text-white md:text-5xl md:leading-[1.05]">
@@ -72,13 +72,13 @@ export function CliSection() {
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
               to="/cli"
-              className="inline-flex items-center gap-2 rounded-full bg-cyan-300 px-6 py-3 text-sm font-bold text-cyan-950 no-underline transition hover:opacity-95"
+              className="inline-flex items-center gap-2 rounded-xl bg-cyan-300 px-6 py-3 text-sm font-bold text-cyan-950 no-underline transition hover:opacity-95"
             >
               Explore the CLI <ArrowRight className="size-4" />
             </Link>
             <Link
               to="/studio"
-              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-6 py-3 text-sm font-semibold text-white no-underline transition hover:bg-white/[0.08]"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-6 py-3 text-sm font-semibold text-white no-underline transition hover:bg-white/[0.08]"
             >
               Open Performance Studio
             </Link>

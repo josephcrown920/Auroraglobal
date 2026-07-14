@@ -66,7 +66,7 @@ export function ExitIntentModal() {
         >
           <X className="size-4" />
         </button>
-        <span className="inline-flex items-center gap-1.5 text-xs text-primary border border-primary/40 bg-primary/15 px-3 py-1 rounded-full">
+        <span className="inline-flex items-center gap-1.5 text-xs text-primary border border-primary/40 bg-primary/15 px-3 py-1 rounded-md">
           <Sparkles className="size-3" /> Wait — before you go
         </span>
         <h3 className="mt-4 text-2xl md:text-3xl font-semibold leading-tight text-foreground">
@@ -91,7 +91,7 @@ export function ExitIntentModal() {
             void track("exit_intent_claim");
             setOpen(false);
           }}
-          className="mt-5 w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full font-medium text-primary-foreground bg-[image:var(--gradient-hero)] hover:opacity-95 shadow-xl shadow-primary/30 no-underline"
+          className="mt-5 w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-medium text-primary-foreground bg-[image:var(--gradient-hero)] hover:opacity-95 shadow-xl shadow-primary/30 no-underline"
         >
           Claim 50% off <ArrowRight className="size-4" />
         </Link>

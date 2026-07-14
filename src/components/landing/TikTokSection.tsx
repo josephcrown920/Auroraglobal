@@ -119,7 +119,7 @@ export function TikTokSection() {
 
           {/* Top ticker strip — live dot + scrolling marquee = unmistakably TikTok. */}
           <div className="relative flex items-center gap-3 border-b border-white/10 bg-black/50 px-4 py-2">
-            <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#FE2C55] px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-white">
+            <span className="flex shrink-0 items-center gap-1.5 rounded-md bg-[#FE2C55] px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-white">
               <span
                 className="size-1.5 rounded-full bg-white"
                 style={{ animation: "mc-pulse 1.2s ease-in-out infinite" }}
@@ -161,10 +161,10 @@ export function TikTokSection() {
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
               <div className="max-w-2xl">
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-2 rounded-full border border-pink-300/20 bg-pink-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-pink-200">
+                  <span className="inline-flex items-center gap-2 rounded-md border border-pink-300/20 bg-pink-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-pink-200">
                     <Flame className="size-3.5" /> On TikTok
                   </span>
-                  <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-white/70">
+                  <span className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-white/70">
                     <Music2 className="size-3.5" /> {HANDLE}
                   </span>
                 </div>
@@ -185,7 +185,7 @@ export function TikTokSection() {
                 href="https://www.tiktok.com/@aurora.music"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 self-start rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white no-underline hover:bg-white/10"
+                className="inline-flex items-center gap-2 self-start rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white no-underline hover:bg-white/10"
               >
                 <TikTokGlyph className="size-4" />
                 Follow {HANDLE}
@@ -238,7 +238,7 @@ export function TikTokSection() {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
 
                   <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
-                    <span className="rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white/90 backdrop-blur">
+                    <span className="rounded-md bg-black/60 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white/90 backdrop-blur">
                       For You
                     </span>
                     <span className="grid place-items-center size-8 rounded-full bg-white/15 backdrop-blur">
@@ -267,7 +267,7 @@ export function TikTokSection() {
             <div className="mt-10">
               <Link
                 to="/tiktok"
-                className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#25F4EE] to-[#FE2C55] px-6 py-3 text-sm font-bold text-white no-underline shadow-lg shadow-fuchsia-500/30 hover:opacity-95"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#25F4EE] to-[#FE2C55] px-6 py-3 text-sm font-bold text-white no-underline shadow-lg shadow-fuchsia-500/30 hover:opacity-95"
               >
                 Turn one song into a week of music videos <ArrowRight className="size-4" />
               </Link>

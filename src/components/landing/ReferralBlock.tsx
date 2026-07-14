@@ -15,7 +15,7 @@ export function ReferralBlock() {
           </p>
           <Link
             to="/gifts"
-            className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-400 text-amber-950 text-sm font-semibold hover:bg-amber-300 no-underline"
+            className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-400 text-amber-950 text-sm font-semibold hover:bg-amber-300 no-underline"
           >
             Browse gift cards <ArrowRight className="size-3.5" />
           </Link>
@@ -31,7 +31,7 @@ export function ReferralBlock() {
           </p>
           <Link
             to="/affiliate"
-            className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-400 text-emerald-950 text-sm font-semibold hover:bg-emerald-300 no-underline"
+            className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-400 text-emerald-950 text-sm font-semibold hover:bg-emerald-300 no-underline"
           >
             Become an affiliate <ArrowRight className="size-3.5" />
           </Link>
