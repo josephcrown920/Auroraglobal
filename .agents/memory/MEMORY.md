@@ -1,3 +1,4 @@
+- [Prime Director agent page](prime-director-agent-page.md) — /agent is now the Prime Video Agent UI (3-panel: sidebar/chat/inspector); Aurora skills live in sidebar "Aurora Skills" section; CSS tokens at --canvas/panel/prime/rec; useServerFn takes { data: {...} } not bare args.
 - [index.tsx desktop header nav is unreachable](landing-nav-desktop-header-dead-code.md) — real nav lives in MobileNav.tsx (single-column build); edit header nav = no visible effect.
 - [orchestrateGenerate lacks cameraMovement param](orchestrate-generate-cameramovement-gap.md) — its OrchestrateSchema has no audioUrl/videoUrl/cameraMovement field, so a quoteGenerate preview that auto-adds "motion" can't be replicated by orchestrateGenerate's actual charge for that path.
 - [xAI Grok Imagine Video integration](xai-grok-video.md) — UGC fast path: script→xAI single call (image+prompt→talking-head video with built-in lipsync), skips stages 2-5; falls back silently to full pipeline on error.
