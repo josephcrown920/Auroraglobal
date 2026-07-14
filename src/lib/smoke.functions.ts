@@ -32,6 +32,7 @@ const STEPS = [
   "Photo Edit",
   "Speech TTS",
   "Perform Anywhere — Reshoot (Motion Transfer)",
+  "Video Agent (HeyGen)",
 ] as const;
 
 async function assertAdmin(userId: string) {
@@ -623,12 +624,63 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       await writeCheck(run.id, 19, STEPS[18], r19);
       total += r19.cost_usd;
 
+      // ── Step 20 · Video Agent (HeyGen) ─────────────────────────────────────
+      //     Exercises the full heygenVideoAgent adapter: resolves a real HeyGen
+      //     avatar, generates a talking-head video from a plain-text prompt via
+      //     POST /v2/video/generate, then polls until the video is ready.
+      //     Skipped when HEYGEN_API_KEY is absent.
+      //     HeyGen's separate "api" credit pool can be exhausted independently
+      //     of the remaining_quota shown in the dashboard — treat that as a skip
+      //     (an expected config state), not a code failure.
+      const HEYGEN_CREDIT_SMOKE_RE = /\b(402|insufficient.?credit|credit.?exhausted|40102)\b/i;
+      const r20: StepResult = await (async (): Promise<StepResult> => {
+        if (!process.env.HEYGEN_API_KEY) {
+          return {
+            status: "skip",
+            latency_ms: 0,
+            cost_usd: 0,
+            error: "HEYGEN_API_KEY not configured — skipping Video Agent step",
+          };
+        }
+        const t0 = Date.now();
+        try {
+          const out = await orchestrate({
+            kind: "video",
+            model: "heygen/video-agent",
+            prompt: "smoke test: Hello from Aurora. This is a brief talking-head smoke check confirming the HeyGen video-agent pipeline is wired end-to-end.",
+            userId: context.userId,
+            refId: run.id,
+          });
+          if (!out.url) throw new Error("HeyGen video-agent returned no video URL");
+          return {
+            status: "pass",
+            latency_ms: Date.now() - t0,
+            cost_usd: out.costUsd ?? 0,
+            output_url: out.url,
+            raw: { provider: out.provider },
+          };
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          if (HEYGEN_CREDIT_SMOKE_RE.test(msg)) {
+            return {
+              status: "skip",
+              latency_ms: Date.now() - t0,
+              cost_usd: 0,
+              error: `HeyGen api credits exhausted — top up at app.heygen.com: ${msg.slice(0, 200)}`,
+            };
+          }
+          return { status: "fail", latency_ms: Date.now() - t0, cost_usd: 0, error: msg.slice(0, 500) };
+        }
+      })();
+      await writeCheck(run.id, 20, STEPS[19], r20);
+      total += r20.cost_usd;
+
       await supabaseAdmin
         .from("smoke_runs")
         .update({
           finished_at: new Date().toISOString(),
           total_cost_usd: total,
-          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18, r19].filter(r => r.status === "pass").length, total: 19 } as never,
+          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18, r19, r20].filter(r => r.status === "pass").length, total: 20 } as never,
         })
         .eq("id", run.id);
     })().catch(async (e) => {
