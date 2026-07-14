@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #07040a;
+  --bg-card: #110a14;
+  --bg-elevated: #180e1e;
+  --border: #2a1a2e;
+  --text: #f8f0fb;
+  --text-muted: #9b7aaa;
+  --accent: #e11d6a;
+  --accent-glow: rgba(225, 29, 106, 0.25);
+  --rose: #f43f5e;
+  --rose-glow: rgba(244, 63, 94, 0.2);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+@keyframes float { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-8px); } }
+
+.animate-spin { animation: spin 0.9s linear infinite; }
+.animate-fade-in { animation: fade-in 0.4s ease both; }
+.animate-float { animation: float 4s ease-in-out infinite; }
