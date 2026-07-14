@@ -22,7 +22,7 @@ export function AgeGate({ onConfirm }: Props) {
           You must be 18+<br />to enter this site
         </h1>
         <p style={{ margin: "0 0 36px", fontSize: 16, color: "var(--text-muted)", lineHeight: 1.6 }}>
-          Aurora for Creators is an adult platform for 18+ content creators.<br />
+          Adult School is an adult platform for 18+ content creators.<br />
           By continuing you confirm you are of legal age.
         </p>
 

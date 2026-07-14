@@ -36,7 +36,7 @@ export function Auth() {
           <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 60, height: 60, borderRadius: 18, background: "linear-gradient(135deg, #e11d6a, #9b1239)", marginBottom: 16, boxShadow: "0 0 40px rgba(225,29,106,0.4)" }}>
             <ShieldCheck size={28} color="white" />
           </div>
-          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", color: "var(--text)" }}>Aurora for Creators</h1>
+          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", color: "var(--text)" }}>Adult School</h1>
           <p style={{ margin: "6px 0 0", fontSize: 14, color: "var(--text-muted)" }}>Your content. Your control. Complete discretion.</p>
         </div>
 

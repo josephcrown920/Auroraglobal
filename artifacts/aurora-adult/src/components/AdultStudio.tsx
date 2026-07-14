@@ -151,7 +151,7 @@ export function AdultStudio({ session }: Props) {
             <Camera size={18} color="white" />
           </div>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 16, letterSpacing: "-0.02em", color: "var(--text)" }}>Aurora for Creators</div>
+            <div style={{ fontWeight: 800, fontSize: 16, letterSpacing: "-0.02em", color: "var(--text)" }}>Adult School</div>
             <div style={{ fontSize: 11, color: "#e11d6a", fontWeight: 600 }}>🔞 18+ · Private · Secured</div>
           </div>
         </div>
