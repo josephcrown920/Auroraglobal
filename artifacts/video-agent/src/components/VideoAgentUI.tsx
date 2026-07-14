@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import {
   Wand2,
@@ -11,16 +11,19 @@ import {
   Camera,
   Film,
   LogOut,
+  Clock,
 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
-import { enhanceScript, generateVideo } from "@/lib/api";
+import { enhanceScript, submitVideo, getVideoStatus, finalizeVideo } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 
-interface Props {
-  session: Session;
-}
+interface Props { session: Session; }
 
-type Stage = "idle" | "enhancing" | "generating" | "done" | "error";
+// Stage progression:
+//  idle → enhancing → idle (with script)
+//  idle → submitting → polling → finalizing → done
+//  any error → error (auto-resets to idle after toast)
+type Stage = "idle" | "enhancing" | "submitting" | "polling" | "finalizing" | "done" | "error";
 
 const DURATIONS = [10, 15, 20, 30, 45, 60, 90];
 const MODES = [
@@ -28,6 +31,20 @@ const MODES = [
   { id: "cinematic", label: "Cinematic narration", icon: Film, desc: "Authoritative voiceover with a sense of place and movement" },
 ] as const;
 type ModeId = (typeof MODES)[number]["id"];
+
+const POLL_INTERVAL_MS = 5000;
+const POLL_TIMEOUT_MS = 25 * 60_000; // 25 min hard cap
+
+function useElapsed(running: boolean) {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!running) { setElapsed(0); return; }
+    const start = Date.now();
+    const t = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
+    return () => clearInterval(t);
+  }, [running]);
+  return elapsed;
+}
 
 export function VideoAgentUI({ session }: Props) {
   const [idea, setIdea] = useState("");
@@ -38,9 +55,24 @@ export function VideoAgentUI({ session }: Props) {
   const [stage, setStage] = useState<Stage>("idle");
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const abortRef = useRef(false);
 
   const token = session.access_token;
   const email = session.user.email ?? "";
+  const busy = stage !== "idle" && stage !== "done" && stage !== "error";
+  const polling = stage === "polling";
+  const elapsed = useElapsed(polling || stage === "submitting" || stage === "finalizing");
+
+  function stopPoll() {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  }
+
+  function resetToIdle() {
+    stopPoll();
+    abortRef.current = false;
+    setStage("idle");
+  }
 
   async function handleEnhance() {
     if (!idea.trim()) { toast.error("Enter an idea or draft first"); return; }
@@ -55,53 +87,103 @@ export function VideoAgentUI({ session }: Props) {
       setStage("idle");
       toast.success("Script enhanced");
     } catch (e) {
-      setStage("error");
       toast.error(e instanceof Error ? e.message : "Enhancement failed");
-      setStage("idle");
+      resetToIdle();
     }
   }
+
+  const handlePoll = useCallback(
+    async (videoId: string, url: string, prompt: string, reservationRef: string, cost: number, startedAt: number) => {
+      if (abortRef.current) return;
+      if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
+        stopPoll();
+        toast.error("HeyGen is taking too long — the video may still complete. Check back in a few minutes.");
+        resetToIdle();
+        return;
+      }
+      try {
+        const st = await getVideoStatus(videoId, token);
+        if (abortRef.current) return;
+
+        if (st.status === "completed" && st.url) {
+          stopPoll();
+          setStage("finalizing");
+          try {
+            await finalizeVideo({ videoId, url: st.url, prompt, reservationRef, cost }, token);
+          } catch {
+            // Finalize errors (e.g. already committed) are non-fatal — video is still playable.
+          }
+          setResultUrl(st.url);
+          setStage("done");
+          toast.success("Video ready!");
+        } else if (st.status === "failed") {
+          stopPoll();
+          toast.error(st.error ?? "HeyGen video generation failed");
+          resetToIdle();
+        }
+        // pending / processing → keep polling
+      } catch {
+        // Network hiccup — keep polling
+      }
+    },
+    [token],
+  );
 
   async function handleGenerate() {
     const final = script.trim() || idea.trim();
     if (!final) { toast.error("Write or enhance a script first"); return; }
-    setStage("generating");
+    abortRef.current = false;
+    setStage("submitting");
     setResultUrl(null);
+
     try {
-      const res = await generateVideo({ prompt: final, orientation }, token);
-      if (!res.ok) {
-        setStage("error");
+      const res = await submitVideo({ prompt: final, orientation }, token);
+      if (!res.ok || !res.videoId) {
         if (res.heygenCredit) {
           toast.error("HeyGen API credits exhausted — top up at app.heygen.com");
         } else if (res.insufficient) {
           toast.error("Insufficient Aura credits — top up in Aurora");
         } else {
-          toast.error(res.error ?? "Generation failed");
+          toast.error(res.error ?? "Submit failed");
         }
-        setStage("idle");
+        resetToIdle();
         return;
       }
-      if (res.url) {
-        setResultUrl(res.url);
-        setStage("done");
-        toast.success("Video ready!");
-      } else {
-        setStage("error");
-        toast.error("No video URL returned");
-        setStage("idle");
-      }
+
+      const { videoId, reservationRef, cost } = res;
+      toast.success("Submitted to HeyGen — rendering…");
+      setStage("polling");
+      const startedAt = Date.now();
+
+      // Poll immediately, then every POLL_INTERVAL_MS.
+      void handlePoll(videoId, res.videoId, final, reservationRef!, cost!, startedAt);
+      pollRef.current = setInterval(
+        () => void handlePoll(videoId, res.videoId!, final, reservationRef!, cost!, startedAt),
+        POLL_INTERVAL_MS,
+      );
     } catch (e) {
-      setStage("error");
       toast.error(e instanceof Error ? e.message : "Generation failed");
-      setStage("idle");
+      resetToIdle();
     }
   }
 
   function handleReset() {
+    abortRef.current = true;
+    stopPoll();
     setIdea(""); setScript(""); setResultUrl(null); setStage("idle");
   }
 
-  const busy = stage === "enhancing" || stage === "generating";
   const activeScript = script || idea;
+
+  const stageLabel: Record<Stage, string> = {
+    idle: "",
+    enhancing: "Enhancing…",
+    submitting: "Reserving credits & submitting…",
+    polling: `Rendering on HeyGen · ${elapsed}s`,
+    finalizing: "Saving to gallery…",
+    done: "",
+    error: "",
+  };
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative", zIndex: 1 }}>
@@ -133,6 +215,12 @@ export function VideoAgentUI({ session }: Props) {
           </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {busy && stageLabel[stage] && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--accent)" }}>
+              <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />
+              {stageLabel[stage]}
+            </div>
+          )}
           <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{email}</span>
           <button
             onClick={() => supabase.auth.signOut()}
@@ -172,7 +260,7 @@ export function VideoAgentUI({ session }: Props) {
             HeyGen avatar · your script, your face, any scene
           </p>
           <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
-            Write or paste an idea → AI enhances it → video generated in ~60s
+            Write or paste an idea → AI enhances it → video generated in ~60–120s
           </p>
         </div>
       </div>
@@ -186,8 +274,7 @@ export function VideoAgentUI({ session }: Props) {
               value={script || idea}
               onChange={(e) => {
                 const val = e.target.value;
-                if (script) setScript(val);
-                else setIdea(val);
+                if (script) setScript(val); else setIdea(val);
               }}
               placeholder="Paste your raw idea, rough notes, or draft script here — the AI will shape it into polished spoken words your avatar will deliver on camera…"
               rows={7}
@@ -238,9 +325,7 @@ export function VideoAgentUI({ session }: Props) {
                   color: "var(--text-muted)", cursor: "pointer", outline: "none",
                 }}
               >
-                {DURATIONS.map((d) => (
-                  <option key={d} value={d}>{d}s</option>
-                ))}
+                {DURATIONS.map((d) => <option key={d} value={d}>{d}s</option>)}
               </select>
             </div>
 
@@ -315,21 +400,31 @@ export function VideoAgentUI({ session }: Props) {
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                 padding: "13px 24px", borderRadius: 12, fontWeight: 700, fontSize: 15,
                 background: busy || !activeScript.trim() ? "oklch(0.3 0.02 272)" : "var(--accent)",
-                border: "none",
-                color: "#fff",
+                border: "none", color: "#fff",
                 cursor: busy || !activeScript.trim() ? "not-allowed" : "pointer",
                 transition: "all 0.15s",
                 boxShadow: !busy && activeScript.trim() ? "0 0 24px oklch(0.72 0.2 300 / 0.35)" : "none",
               }}
             >
-              {stage === "generating"
-                ? <><Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> Generating your video — this takes ~60s…</>
-                : <><Video size={16} /> Generate HeyGen Video</>
+              {stage === "submitting"
+                ? <><Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> Submitting…</>
+                : stage === "polling"
+                  ? <><Clock size={16} /> Rendering on HeyGen · {elapsed}s elapsed</>
+                  : stage === "finalizing"
+                    ? <><Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> Saving…</>
+                    : <><Video size={16} /> Generate HeyGen Video</>
               }
             </button>
-            {stage === "generating" && (
-              <p style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>
-                Aurora credits will be deducted once the video is ready.
+
+            {stage === "polling" && (
+              <p style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.5 }}>
+                Polling HeyGen every 5s. Videos typically take 60–120s.{" "}
+                <button
+                  onClick={resetToIdle}
+                  style={{ background: "none", border: "none", color: "var(--accent)", cursor: "pointer", fontSize: 12, padding: 0 }}
+                >
+                  Cancel
+                </button>
               </p>
             )}
           </div>
@@ -357,18 +452,27 @@ export function VideoAgentUI({ session }: Props) {
                 />
               </div>
               <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-                <a
-                  href={resultUrl}
-                  download="aurora-video-agent.mp4"
+                <button
+                  onClick={() => {
+                    fetch(resultUrl)
+                      .then(r => r.blob())
+                      .then(blob => {
+                        const a = document.createElement("a");
+                        a.href = URL.createObjectURL(blob);
+                        a.download = "aurora-video-agent.mp4";
+                        a.click();
+                      })
+                      .catch(() => window.open(resultUrl, "_blank"));
+                  }}
                   style={{
                     display: "flex", alignItems: "center", gap: 6,
                     padding: "9px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600,
                     background: "var(--bg-input)", border: "1px solid var(--border)",
-                    color: "var(--text)", textDecoration: "none",
+                    color: "var(--text)", cursor: "pointer",
                   }}
                 >
                   <Download size={14} /> Download
-                </a>
+                </button>
                 <button
                   onClick={handleReset}
                   style={{
@@ -393,15 +497,7 @@ export function VideoAgentUI({ session }: Props) {
   );
 }
 
-function Section({
-  num,
-  label,
-  children,
-}: {
-  num: number;
-  label: string;
-  children: React.ReactNode;
-}) {
+function Section({ num, label, children }: { num: number; label: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 28 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
@@ -410,8 +506,7 @@ function Section({
           background: "oklch(0.72 0.2 300 / 0.15)",
           border: "1px solid oklch(0.72 0.2 300 / 0.3)",
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 12, fontWeight: 700, color: "var(--accent)",
-          flexShrink: 0,
+          fontSize: 12, fontWeight: 700, color: "var(--accent)", flexShrink: 0,
         }}>
           {num}
         </span>
@@ -419,12 +514,7 @@ function Section({
           {label}
         </h2>
       </div>
-      <div style={{
-        background: "var(--bg-card)",
-        border: "1px solid var(--border)",
-        borderRadius: 16,
-        padding: "20px",
-      }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: "20px" }}>
         {children}
       </div>
     </div>

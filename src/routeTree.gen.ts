@@ -68,7 +68,9 @@ import { Route as AdminSmokeRouteImport } from './routes/admin.smoke'
 import { Route as AdminOrchestrationRouteImport } from './routes/admin.orchestration'
 import { Route as AdminCostsRouteImport } from './routes/admin.costs'
 import { Route as AdminComfyRouteImport } from './routes/admin.comfy'
+import { Route as ApiVideoAgentSubmitRouteImport } from './routes/api/video-agent/submit'
 import { Route as ApiVideoAgentGenerateRouteImport } from './routes/api/video-agent/generate'
+import { Route as ApiVideoAgentFinalizeRouteImport } from './routes/api/video-agent/finalize'
 import { Route as ApiVideoAgentEnhanceRouteImport } from './routes/api/video-agent/enhance'
 import { Route as ApiUgcLineVariationsRouteImport } from './routes/api/ugc-line/variations'
 import { Route as ApiUgcLineScriptsRouteImport } from './routes/api/ugc-line/scripts'
@@ -393,9 +395,19 @@ const AdminComfyRoute = AdminComfyRouteImport.update({
   path: '/comfy',
   getParentRoute: () => AdminRoute,
 } as any)
+const ApiVideoAgentSubmitRoute = ApiVideoAgentSubmitRouteImport.update({
+  id: '/api/video-agent/submit',
+  path: '/api/video-agent/submit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiVideoAgentGenerateRoute = ApiVideoAgentGenerateRouteImport.update({
   id: '/api/video-agent/generate',
   path: '/api/video-agent/generate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVideoAgentFinalizeRoute = ApiVideoAgentFinalizeRouteImport.update({
+  id: '/api/video-agent/finalize',
+  path: '/api/video-agent/finalize',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiVideoAgentEnhanceRoute = ApiVideoAgentEnhanceRouteImport.update({
@@ -590,7 +602,9 @@ export interface FileRoutesByFullPath {
   '/api/ugc-line/scripts': typeof ApiUgcLineScriptsRoute
   '/api/ugc-line/variations': typeof ApiUgcLineVariationsRoute
   '/api/video-agent/enhance': typeof ApiVideoAgentEnhanceRoute
+  '/api/video-agent/finalize': typeof ApiVideoAgentFinalizeRoute
   '/api/video-agent/generate': typeof ApiVideoAgentGenerateRoute
+  '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
@@ -674,7 +688,9 @@ export interface FileRoutesByTo {
   '/api/ugc-line/scripts': typeof ApiUgcLineScriptsRoute
   '/api/ugc-line/variations': typeof ApiUgcLineVariationsRoute
   '/api/video-agent/enhance': typeof ApiVideoAgentEnhanceRoute
+  '/api/video-agent/finalize': typeof ApiVideoAgentFinalizeRoute
   '/api/video-agent/generate': typeof ApiVideoAgentGenerateRoute
+  '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
@@ -759,7 +775,9 @@ export interface FileRoutesById {
   '/api/ugc-line/scripts': typeof ApiUgcLineScriptsRoute
   '/api/ugc-line/variations': typeof ApiUgcLineVariationsRoute
   '/api/video-agent/enhance': typeof ApiVideoAgentEnhanceRoute
+  '/api/video-agent/finalize': typeof ApiVideoAgentFinalizeRoute
   '/api/video-agent/generate': typeof ApiVideoAgentGenerateRoute
+  '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
@@ -845,7 +863,9 @@ export interface FileRouteTypes {
     | '/api/ugc-line/scripts'
     | '/api/ugc-line/variations'
     | '/api/video-agent/enhance'
+    | '/api/video-agent/finalize'
     | '/api/video-agent/generate'
+    | '/api/video-agent/submit'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
     | '/api/public/tiktok/callback'
@@ -929,7 +949,9 @@ export interface FileRouteTypes {
     | '/api/ugc-line/scripts'
     | '/api/ugc-line/variations'
     | '/api/video-agent/enhance'
+    | '/api/video-agent/finalize'
     | '/api/video-agent/generate'
+    | '/api/video-agent/submit'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
     | '/api/public/tiktok/callback'
@@ -1013,7 +1035,9 @@ export interface FileRouteTypes {
     | '/api/ugc-line/scripts'
     | '/api/ugc-line/variations'
     | '/api/video-agent/enhance'
+    | '/api/video-agent/finalize'
     | '/api/video-agent/generate'
+    | '/api/video-agent/submit'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
     | '/api/public/tiktok/callback'
@@ -1092,7 +1116,9 @@ export interface RootRouteChildren {
   ApiUgcLineScriptsRoute: typeof ApiUgcLineScriptsRoute
   ApiUgcLineVariationsRoute: typeof ApiUgcLineVariationsRoute
   ApiVideoAgentEnhanceRoute: typeof ApiVideoAgentEnhanceRoute
+  ApiVideoAgentFinalizeRoute: typeof ApiVideoAgentFinalizeRoute
   ApiVideoAgentGenerateRoute: typeof ApiVideoAgentGenerateRoute
+  ApiVideoAgentSubmitRoute: typeof ApiVideoAgentSubmitRoute
   ApiPublicJobsTickRoute: typeof ApiPublicJobsTickRoute
   ApiPublicPaymentsSweepStuckRoute: typeof ApiPublicPaymentsSweepStuckRoute
   ApiPublicTiktokCallbackRoute: typeof ApiPublicTiktokCallbackRoute
@@ -1519,11 +1545,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminComfyRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/api/video-agent/submit': {
+      id: '/api/video-agent/submit'
+      path: '/api/video-agent/submit'
+      fullPath: '/api/video-agent/submit'
+      preLoaderRoute: typeof ApiVideoAgentSubmitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/video-agent/generate': {
       id: '/api/video-agent/generate'
       path: '/api/video-agent/generate'
       fullPath: '/api/video-agent/generate'
       preLoaderRoute: typeof ApiVideoAgentGenerateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/video-agent/finalize': {
+      id: '/api/video-agent/finalize'
+      path: '/api/video-agent/finalize'
+      fullPath: '/api/video-agent/finalize'
+      preLoaderRoute: typeof ApiVideoAgentFinalizeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/video-agent/enhance': {
@@ -1770,7 +1810,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiUgcLineScriptsRoute: ApiUgcLineScriptsRoute,
   ApiUgcLineVariationsRoute: ApiUgcLineVariationsRoute,
   ApiVideoAgentEnhanceRoute: ApiVideoAgentEnhanceRoute,
+  ApiVideoAgentFinalizeRoute: ApiVideoAgentFinalizeRoute,
   ApiVideoAgentGenerateRoute: ApiVideoAgentGenerateRoute,
+  ApiVideoAgentSubmitRoute: ApiVideoAgentSubmitRoute,
   ApiPublicJobsTickRoute: ApiPublicJobsTickRoute,
   ApiPublicPaymentsSweepStuckRoute: ApiPublicPaymentsSweepStuckRoute,
   ApiPublicTiktokCallbackRoute: ApiPublicTiktokCallbackRoute,

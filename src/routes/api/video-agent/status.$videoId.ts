@@ -1,5 +1,5 @@
 // GET /api/video-agent/status/:videoId
-// Polls HeyGen's video_status.get API and returns the result.
+// Polls HeyGen's v2 videos API and returns a normalised status payload.
 // Bearer token auth. CORS-open for the standalone Video Agent SPA.
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -7,8 +7,6 @@ const CORS = {
   "Content-Type": "application/json",
   "Access-Control-Allow-Origin": "*",
 };
-
-const HEYGEN_API = "https://api.heygen.com";
 
 async function authUserId(req: Request): Promise<string | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -39,35 +37,38 @@ export const Route = createFileRoute("/api/video-agent/status/$videoId")({
       GET: async ({ request, params }) => {
         const userId = await authUserId(request);
         if (!userId) {
-          return new Response(JSON.stringify({ error: "Unauthorized" }), {
-            status: 401,
-            headers: CORS,
-          });
+          return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: CORS });
         }
         const { videoId } = params;
         if (!videoId) {
-          return new Response(JSON.stringify({ error: "Missing videoId" }), {
-            status: 400,
-            headers: CORS,
-          });
+          return new Response(JSON.stringify({ error: "Missing videoId" }), { status: 400, headers: CORS });
+        }
+        const heygenKey = process.env.HEYGEN_API_KEY;
+        if (!heygenKey) {
+          return new Response(JSON.stringify({ error: "HEYGEN_API_KEY not configured" }), { status: 503, headers: CORS });
         }
         try {
-          const heygenKey = process.env.HEYGEN_API_KEY;
-          if (!heygenKey) {
-            return new Response(JSON.stringify({ error: "HEYGEN_API_KEY not configured" }), {
-              status: 503,
-              headers: CORS,
-            });
+          // v2 API — consistent with the video/generate v2 submit endpoint.
+          const res = await fetch(`https://api.heygen.com/v2/videos/${encodeURIComponent(videoId)}`, {
+            headers: { "X-Api-Key": heygenKey },
+          });
+          if (!res.ok) {
+            return new Response(
+              JSON.stringify({ status: "error", error: `HeyGen ${res.status}` }),
+              { status: res.status, headers: CORS },
+            );
           }
-          const res = await fetch(
-            `${HEYGEN_API}/v1/video_status.get?video_id=${encodeURIComponent(videoId)}`,
-            { headers: { "x-api-key": heygenKey } },
-          );
-          const json = await res.json();
-          return new Response(JSON.stringify(json), { headers: CORS });
+          const json: unknown = await res.json();
+          const data = (json as { data?: { status?: string; video_url?: string; error?: { message?: string } } })?.data;
+          const status = data?.status ?? "unknown";
+          const url = data?.video_url ?? null;
+          const errorMsg = data?.error?.message ?? null;
+          return new Response(JSON.stringify({ status, url, error: errorMsg }), { headers: CORS });
         } catch (e) {
-          const error = e instanceof Error ? e.message : String(e);
-          return new Response(JSON.stringify({ error }), { status: 500, headers: CORS });
+          return new Response(
+            JSON.stringify({ status: "error", error: e instanceof Error ? e.message : String(e) }),
+            { status: 500, headers: CORS },
+          );
         }
       },
     },

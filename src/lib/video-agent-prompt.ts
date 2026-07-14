@@ -35,9 +35,9 @@ const META_LABEL_RE =
 const TIMESTAMP_PREFIX_RE =
   /^\s*[[(]?\d{1,2}:\d{2}(?:\s*[-–—]\s*\d{1,2}:\d{2})?[\])]?\s*[-–—:.]?\s*/;
 
-// Bracketed stage directions anywhere in a line: "[smiles]", "[cut to product]".
-// Parentheses are left alone — they're common in legitimate speech.
-const STAGE_DIRECTION_RE = /\[[^\]\n]*\]/g;
+// Bracketed stage directions anywhere in a line: "[smiles]", "[cut to product]",
+// "{pause}", "{B-roll: skyline}". Parentheses are left alone — common in speech.
+const STAGE_DIRECTION_RE = /\[[^\]\n]*\]|\{[^}\n]*\}/g;
 
 /**
  * Deterministic post-pass over an enhanced (or hand-written) script:
