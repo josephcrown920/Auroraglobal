@@ -60,18 +60,18 @@ export function TemplateCard({
 
         {/* Cost badge — templateCost() returns 0 only for truly free templates. */}
         {cost > 0 ? (
-          <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 rounded-full bg-primary/90 px-2 py-0.5 text-[11px] font-semibold text-primary-foreground shadow-[var(--shadow-glow-soft)] backdrop-blur">
+          <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 rounded-full bg-primary/90 px-2 py-0.5 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-glow-soft)] backdrop-blur">
             <Sparkles className="size-3" /> {cost}
           </span>
         ) : (
-          <span className="absolute top-2.5 right-2.5 inline-flex items-center rounded-full bg-emerald-500/90 px-2 py-0.5 text-[11px] font-semibold text-white shadow-[var(--shadow-glow-soft)] backdrop-blur">
+          <span className="absolute top-2.5 right-2.5 inline-flex items-center rounded-full bg-emerald-500/90 px-2 py-0.5 text-sm font-semibold text-white shadow-[var(--shadow-glow-soft)] backdrop-blur">
             Free
           </span>
         )}
 
         {/* Pro badge */}
         {template.premium && (
-          <span className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-primary backdrop-blur">
+          <span className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[13px] font-semibold text-primary backdrop-blur">
             {locked ? <Lock className="size-2.5" /> : <Crown className="size-2.5" />} Pro
           </span>
         )}
@@ -80,7 +80,7 @@ export function TemplateCard({
         <div className="absolute inset-x-0 bottom-0 p-3">
           <div className="flex items-center gap-1.5">
             <FlowIcon className="size-3.5 text-primary" />
-            <span className="text-[10px] font-mono uppercase tracking-[0.14em] text-white/70">
+            <span className="text-[13px] uppercase tracking-[0.14em] text-white/70">
               {templateFlowLabel(template)}
             </span>
           </div>
@@ -92,7 +92,7 @@ export function TemplateCard({
         {locked && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-background/45 backdrop-blur-[1px]">
             <Lock className="size-5 text-primary" />
-            <span className="text-[11px] font-semibold text-primary">Pro only</span>
+            <span className="text-sm font-semibold text-primary">Pro only</span>
           </div>
         )}
       </div>

@@ -143,7 +143,7 @@ export function ColorsStudioGuide() {
                     onClick={() => setExpandedStep(isExpanded ? null : i)}
                     className="w-full flex items-center gap-3 px-4 py-3 text-left"
                   >
-                    <span className={cn("size-6 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold", isExpanded ? s.dot + " text-white" : "bg-muted text-muted-foreground")}>
+                    <span className={cn("size-6 rounded-full flex items-center justify-center shrink-0 text-[13px] font-bold", isExpanded ? s.dot + " text-white" : "bg-muted text-muted-foreground")}>
                       {s.n}
                     </span>
                     <div className="flex-1 min-w-0">
@@ -167,16 +167,16 @@ export function ColorsStudioGuide() {
                       {s.prompt && (
                         <div className="rounded-xl bg-background/60 border border-border p-3">
                           <div className="flex items-center justify-between mb-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Prompt · copy &amp; customize</p>
+                            <p className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">Prompt · copy &amp; customize</p>
                             <button
                               type="button"
                               onClick={() => copyPrompt(s.prompt!, i)}
-                              className="text-[10px] font-semibold text-primary hover:text-primary/80 flex items-center gap-1"
+                              className="text-[13px] font-semibold text-primary hover:text-primary/80 flex items-center gap-1"
                             >
                               {copiedIdx === i ? <><Check className="size-3" /> Copied</> : "Copy prompt"}
                             </button>
                           </div>
-                          <p className="text-[11px] text-muted-foreground leading-relaxed font-mono line-clamp-5">{s.prompt}</p>
+                          <p className="text-sm text-muted-foreground leading-relaxed line-clamp-5">{s.prompt}</p>
                         </div>
                       )}
 

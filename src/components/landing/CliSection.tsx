@@ -61,7 +61,7 @@ export function CliSection() {
                 </span>
                 <span className="min-w-0">
                   <span className="block text-sm font-semibold text-white">{c.label}</span>
-                  <span className="block truncate font-mono text-[11px] text-white/45">
+                  <span className="block truncate text-[11px] text-white/45">
                     {c.hint}
                   </span>
                 </span>

@@ -395,7 +395,7 @@ function ReshootPage() {
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>
                 Saved to your gallery, tagged{" "}
-                <span className="font-mono text-foreground/80">[Reshoot]</span>.
+                <span className="text-foreground/80">[Reshoot]</span>.
               </span>
               <Link to="/gallery" className="text-primary hover:underline">
                 Open gallery →

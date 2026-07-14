@@ -20,7 +20,7 @@ export function SupercomputerSection() {
         style={{ background: "radial-gradient(circle at 50% 0%, rgba(167,139,250,.25), transparent 60%)" }} />
       <div className="relative px-6 md:px-16 py-16 md:py-24">
         <div className="text-center">
-          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full aurora-glass text-[11px] uppercase tracking-widest text-white/80">
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full aurora-glass text-sm uppercase tracking-widest text-white/80">
             <Terminal className="size-3" /> Supercomputer
           </span>
           <h2 className="mt-6 text-4xl md:text-6xl font-bold tracking-tight text-white">
@@ -38,7 +38,7 @@ export function SupercomputerSection() {
         {/* Prompt box */}
         <div className="mt-10 max-w-2xl mx-auto">
           <Link to="/studio" className="block no-underline rounded-2xl border border-primary/40 bg-black/50 backdrop-blur-xl shadow-[var(--shadow-glow)] overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-2 border-b border-border text-[10px] uppercase tracking-widest text-white/40">
+            <div className="flex items-center gap-2 px-4 py-2 border-b border-border text-[13px] uppercase tracking-widest text-white/40">
               <span className="size-2 rounded-full bg-rose-400/70" />
               <span className="size-2 rounded-full bg-amber-300/70" />
               <span className="size-2 rounded-full bg-emerald-400/70" />
@@ -46,14 +46,14 @@ export function SupercomputerSection() {
             </div>
             <div className="px-5 py-5 flex items-center gap-3">
               <Wand2 className="size-4 text-primary shrink-0" />
-              <span className="text-white/90 text-sm md:text-base font-mono leading-relaxed">
+              <span className="text-white/90 text-sm md:text-base leading-relaxed">
                 make me a red-lit studio performance, hanging silver mic
                 <span className="inline-block w-[2px] h-4 align-middle bg-primary ml-0.5 animate-pulse" />
               </span>
             </div>
             <div className="px-5 pb-4 flex flex-wrap gap-1.5">
               {examples.map((e) => (
-                <span key={e} className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 border border-border text-white/55">
+                <span key={e} className="text-[13px] px-2 py-0.5 rounded-full bg-white/5 border border-border text-white/55">
                   {e}
                 </span>
               ))}
@@ -85,7 +85,7 @@ export function MarketingStudioSection() {
     <section className="relative z-10 mx-4 md:mx-12 my-16 rounded-[32px] overflow-hidden border border-white/10 animate-fade-in"
       style={{ background: "radial-gradient(circle at 50% 0%, #6b0f1f 0%, #2a0710 55%, #0a0306 100%)" }}>
       <div className="px-6 md:px-16 py-16">
-        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/20 bg-white/10 text-[11px] uppercase tracking-widest text-white/85">
+        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/20 bg-white/10 text-sm uppercase tracking-widest text-white/85">
           <span className="px-1.5 py-0.5 rounded bg-white/15">New</span> Marketing Studio
         </span>
         <h2 className="mt-6 text-4xl md:text-6xl font-bold tracking-tight text-white">
@@ -124,7 +124,7 @@ export function MarketingStudioSection() {
               </div>
               <div className="p-3 text-center">
                 <p className={`text-sm ${c.active ? "text-white font-semibold" : "text-white/70"}`}>{c.t}</p>
-                <p className="text-[11px] text-white/45 mt-0.5">{c.d}</p>
+                <p className="text-sm text-white/45 mt-0.5">{c.d}</p>
               </div>
             </div>
           ))}
@@ -250,7 +250,7 @@ export function OneClickVideoSection() {
             <div key={s.n} className="space-y-4">
               <div className="aspect-[4/3] rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-black flex items-center justify-center relative overflow-hidden">
                 <s.icon className="size-12 text-white/40" />
-                <div className="absolute bottom-3 right-3 text-[10px] text-white/40">Step {i + 1}</div>
+                <div className="absolute bottom-3 right-3 text-[13px] text-white/40">Step {i + 1}</div>
               </div>
               <div>
                 <p className="text-xl font-bold text-white tracking-wide">{s.n}</p>
@@ -285,8 +285,8 @@ export function AiCanvasSection() {
         </div>
 
         <div className="text-center border-2 border-cyan-300/60 rounded-2xl p-8 md:p-12 relative">
-          <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-pink-500 text-[10px] font-bold text-white tracking-wider">30% OFF</span>
-          <p className="text-xs uppercase tracking-[0.3em] text-white/50 font-mono">HIGGSFIELD CANVAS</p>
+          <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-pink-500 text-[13px] font-bold text-white tracking-wider">30% OFF</span>
+          <p className="text-xs uppercase tracking-[0.3em] text-white/50">HIGGSFIELD CANVAS</p>
           <h2 className="mt-4 text-3xl md:text-5xl font-bold text-white">
             GENERATE STUNNING<br />MEDIA WITH AI CANVAS
           </h2>
@@ -302,7 +302,7 @@ export function AiCanvasSection() {
           <span className="text-white font-semibold">All Canvases</span>
           <span className="text-white/40">|</span>
           <span className="text-white/60">Templates</span>
-          <span className="px-2 py-0.5 rounded bg-[#d9ff4d] text-black text-[10px] font-bold">Quick Start</span>
+          <span className="px-2 py-0.5 rounded bg-[#d9ff4d] text-black text-[13px] font-bold">Quick Start</span>
         </div>
         <Link
           to="/canvas"

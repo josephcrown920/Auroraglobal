@@ -56,7 +56,7 @@ export function ApiKeysPanel() {
           {keys.filter(k => !k.revoked_at).map((k) => (
             <li key={k.id} className="flex items-center justify-between border border-border rounded-lg p-3">
               <div className="text-xs">
-                <div className="font-mono">{k.key_prefix}…</div>
+                <div className="">{k.key_prefix}…</div>
                 <div className="text-muted-foreground">Created {new Date(k.created_at).toLocaleDateString()}{k.last_used_at && ` · last used ${new Date(k.last_used_at).toLocaleDateString()}`}</div>
               </div>
               <Button size="sm" variant="ghost" onClick={async () => { await revoke({ data: { id: k.id } }); reload(); }}>

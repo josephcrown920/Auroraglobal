@@ -101,7 +101,7 @@ export function GeneratedAssetGallery() {
     <>
       <button
         onClick={() => setOpen((o) => !o)}
-        className={`fixed top-20 z-30 flex items-center gap-1.5 px-2.5 py-2 rounded-l-xl border border-r-0 border-white/10 bg-[oklch(0.13_0.04_290/0.92)] backdrop-blur-xl text-[10px] font-mono uppercase tracking-[0.15em] text-white/70 hover:text-white transition-[right] duration-200 ${
+        className={`fixed top-20 z-30 flex items-center gap-1.5 px-2.5 py-2 rounded-l-xl border border-r-0 border-white/10 bg-[oklch(0.13_0.04_290/0.92)] backdrop-blur-xl text-[13px] uppercase tracking-[0.15em] text-white/70 hover:text-white transition-[right] duration-200 ${
           open ? "right-[min(18rem,85vw)]" : "right-0"
         }`}
         title={open ? "Collapse asset gallery" : "Show generated assets"}
@@ -112,10 +112,10 @@ export function GeneratedAssetGallery() {
       {open && (
         <aside className="fixed top-14 right-0 bottom-0 z-20 w-72 max-w-[85vw] flex flex-col border-l border-white/10 bg-[oklch(0.12_0.035_290/0.96)] backdrop-blur-xl">
           <div className="px-3 py-2.5 border-b border-white/10 flex items-center justify-between shrink-0">
-            <span className="text-[11px] font-mono uppercase tracking-[0.15em] text-white/80 flex items-center gap-1.5">
+            <span className="text-sm uppercase tracking-[0.15em] text-white/80 flex items-center gap-1.5">
               <LayoutGrid className="size-3.5 text-primary" /> Generated assets
             </span>
-            <span className="text-[10px] text-white/40">{assets.length}</span>
+            <span className="text-[13px] text-white/40">{assets.length}</span>
           </div>
           <div className="flex-1 overflow-y-auto divide-y divide-white/5">
             {assets.length === 0 ? (
@@ -139,14 +139,14 @@ export function GeneratedAssetGallery() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
-                        <span className="text-[10px] font-mono uppercase tracking-wide text-white/60 flex items-center gap-1">
+                        <span className="text-[13px] uppercase tracking-wide text-white/60 flex items-center gap-1">
                           <Icon className="size-3" /> {a.kind}
                         </span>
                         <StatusIcon status={a.status} />
                       </div>
-                      <p className="text-[10px] text-white/50 line-clamp-2 mt-0.5">{a.prompt || a.error || "—"}</p>
+                      <p className="text-[13px] text-white/50 line-clamp-2 mt-0.5">{a.prompt || a.error || "—"}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[9px] text-white/30">{new Date(a.created_at).toLocaleTimeString()}</span>
+                        <span className="text-xs text-white/30">{new Date(a.created_at).toLocaleTimeString()}</span>
                         {url && (
                           <div className="ml-auto flex items-center gap-1.5">
                             <button

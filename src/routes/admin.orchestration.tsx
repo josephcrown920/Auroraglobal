@@ -79,7 +79,7 @@ function BillingBadge({ provider }: { provider: string }) {
   const meta = BILLING_META[bucket];
   return (
     <span
-      className={`text-[9px] font-mono px-1.5 py-0.5 rounded border shrink-0 ${meta.badgeClass}`}
+      className={`text-xs px-1.5 py-0.5 rounded border shrink-0 ${meta.badgeClass}`}
     >
       {meta.label}
     </span>
@@ -134,7 +134,7 @@ function OrchestrationDashboard() {
             </p>
           </div>
           {data && (
-            <div className="flex items-center gap-2 text-xs font-mono px-3 py-1.5 rounded-full border border-emerald-500/30 text-emerald-400 bg-emerald-500/5">
+            <div className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border border-emerald-500/30 text-emerald-400 bg-emerald-500/5">
               <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
               {data.summary.configured}/{data.summary.total} providers ·{" "}
               {data.summary.activeWorkers} workers
@@ -168,13 +168,13 @@ function OrchestrationDashboard() {
                         {meta.label}
                       </span>
                       <span
-                        className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${meta.badgeClass}`}
+                        className={`text-xs px-1.5 py-0.5 rounded border ${meta.badgeClass}`}
                       >
                         24h
                       </span>
                     </div>
                     <div className="text-2xl font-semibold tabular-nums">{total}</div>
-                    <div className="text-[11px] text-muted-foreground mt-1 flex items-center gap-3">
+                    <div className="text-sm text-muted-foreground mt-1 flex items-center gap-3">
                       <span className="text-emerald-400">{b.ok} ok</span>
                       {b.err > 0 && <span className="text-destructive">{b.err} failed</span>}
                       <span className="ml-auto tabular-nums">${b.cost.toFixed(3)}</span>
@@ -197,7 +197,7 @@ function OrchestrationDashboard() {
                         <Icon className={`size-4 ${Meta.accent}`} />
                         <span className="text-sm font-semibold">{Meta.label}</span>
                       </div>
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                      <span className="text-[13px] uppercase tracking-wider text-muted-foreground">
                         fallback chain
                       </span>
                     </div>
@@ -206,13 +206,13 @@ function OrchestrationDashboard() {
                         const s = data.stats[p.id.split("-")[0]] ?? data.stats[p.id];
                         return (
                           <div key={p.id} className="flex items-center gap-3 text-xs">
-                            <span className="font-mono text-muted-foreground w-7">P{i + 1}</span>
+                            <span className="text-muted-foreground w-7">P{i + 1}</span>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-medium">{p.name}</span>
                                 <BillingBadge provider={p.id} />
                                 {p.free && (
-                                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                                     FREE
                                   </span>
                                 )}
@@ -223,26 +223,26 @@ function OrchestrationDashboard() {
                                 )}
                                 {p.configured && !p.ready && (
                                   <span
-                                    className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                                    className="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20"
                                     title={`${p.failures} recent failure(s) · cooling down ${Math.ceil(p.cooldownMs / 1000)}s`}
                                   >
                                     COOLDOWN
                                   </span>
                                 )}
                                 {p.configured && p.ready && p.failures === 0 && (
-                                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">
                                     READY
                                   </span>
                                 )}
                               </div>
                               {p.notes && (
-                                <div className="text-[10px] text-muted-foreground font-mono truncate">
+                                <div className="text-[13px] text-muted-foreground truncate">
                                   {p.notes}
                                 </div>
                               )}
                             </div>
                             {s && (
-                              <div className="text-[10px] font-mono text-muted-foreground tabular-nums text-right">
+                              <div className="text-[13px] text-muted-foreground tabular-nums text-right">
                                 <div className="text-emerald-400">{s.ok}✓</div>
                                 {s.err > 0 && <div className="text-destructive">{s.err}✕</div>}
                               </div>
@@ -251,11 +251,11 @@ function OrchestrationDashboard() {
                         );
                       })}
                       <div className="flex items-center gap-3 text-xs pt-2 border-t border-border/50 mt-2">
-                        <span className="font-mono text-muted-foreground w-7">P∞</span>
+                        <span className="text-muted-foreground w-7">P∞</span>
                         <div className="flex-1 flex items-center gap-2">
                           <Server className="size-3 text-muted-foreground" />
                           <span className="font-medium">GPU Worker Pool</span>
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-[13px] text-muted-foreground">
                             ({data.summary.activeWorkers} active)
                           </span>
                         </div>
@@ -272,7 +272,7 @@ function OrchestrationDashboard() {
                 <span className="text-sm font-semibold flex items-center gap-2">
                   <Server className="size-4 text-muted-foreground" /> Pluggable GPU backends
                 </span>
-                <span className="text-[10px] font-mono text-muted-foreground">
+                <span className="text-[13px] text-muted-foreground">
                   {data.gpuBackends.filter((b) => b.configured).length}/{data.gpuBackends.length}{" "}
                   configured
                 </span>
@@ -290,7 +290,7 @@ function OrchestrationDashboard() {
                         <XCircle className="size-3.5 text-muted-foreground shrink-0" />
                       )}
                       <span className="text-sm font-medium flex-1 truncate">{b.label}</span>
-                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-muted/40 text-muted-foreground border border-border">
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-muted/40 text-muted-foreground border border-border">
                         {b.id}
                       </span>
                     </div>
@@ -306,7 +306,7 @@ function OrchestrationDashboard() {
                                 : "Protocol could carry this, but not declared as a real capability"
                             }
                             className={
-                              "text-[9px] font-mono px-1.5 py-0.5 rounded border " +
+                              "text-xs px-1.5 py-0.5 rounded border " +
                               (supported
                                 ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
                                 : "bg-muted/20 text-muted-foreground/50 border-border/40 line-through")
@@ -318,7 +318,7 @@ function OrchestrationDashboard() {
                       })}
                     </div>
                     <div
-                      className="text-[9px] font-mono text-muted-foreground/80 truncate"
+                      className="text-xs text-muted-foreground/80 truncate"
                       title={b.capabilitiesHint}
                     >
                       {b.capabilitiesDeclared
@@ -326,10 +326,10 @@ function OrchestrationDashboard() {
                         : (b.capabilitiesHint ?? "capabilities: protocol default (undeclared)")}
                     </div>
                     {b.configured ? (
-                      <div className="text-[10px] font-mono text-emerald-400">configured</div>
+                      <div className="text-[13px] text-emerald-400">configured</div>
                     ) : (
                       <div
-                        className="text-[10px] font-mono text-amber-400 truncate"
+                        className="text-[13px] text-amber-400 truncate"
                         title={`missing: ${b.missing.join(", ")}`}
                       >
                         missing: {b.missing.join(", ") || "—"}
@@ -350,7 +350,7 @@ function OrchestrationDashboard() {
                       />
                       <span
                         className={
-                          "text-[10px] font-mono truncate " +
+                          "text-[13px] truncate " +
                           (b.health === "online"
                             ? "text-emerald-400"
                             : b.health === "offline"
@@ -373,7 +373,7 @@ function OrchestrationDashboard() {
                   </div>
                 ))}
               </div>
-              <div className="px-5 py-2.5 border-t border-border text-[10px] text-muted-foreground">
+              <div className="px-5 py-2.5 border-t border-border text-[13px] text-muted-foreground">
                 Standalone HTTP-out inference layer (Colab · RunPod · HF Spaces · Vast.ai ·
                 ComfyUI). Configure via env vars; the live <code>/generate</code> worker pool is
                 managed under the Workers tab.
@@ -384,7 +384,7 @@ function OrchestrationDashboard() {
             <div className="rounded-xl border border-border bg-card/40 overflow-hidden">
               <div className="px-5 py-3 border-b border-border flex items-center justify-between">
                 <span className="text-sm font-semibold">Recent calls (24h)</span>
-                <span className="text-[10px] font-mono text-muted-foreground">
+                <span className="text-[13px] text-muted-foreground">
                   {data.recent.length} of last 200
                 </span>
               </div>
@@ -395,7 +395,7 @@ function OrchestrationDashboard() {
                   </div>
                 )}
                 {data.recent.map((l, i) => (
-                  <div key={i} className="px-5 py-2.5 flex items-center gap-3 text-xs font-mono">
+                  <div key={i} className="px-5 py-2.5 flex items-center gap-3 text-xs">
                     {l.status === "ok" ? (
                       <CheckCircle2 className="size-3 text-emerald-400 shrink-0" />
                     ) : (

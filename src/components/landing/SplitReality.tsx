@@ -86,7 +86,7 @@ export function SplitReality() {
           className="absolute inset-0 w-full h-full object-cover"
           style={{ filter: "saturate(1.05) contrast(1.05) sepia(0.18) hue-rotate(-8deg) brightness(1.02)" }}
         />
-        <span className="absolute bottom-3 right-3 text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded bg-black/60 text-amber-300 border border-amber-400/30 z-20">
+        <span className="absolute bottom-3 right-3 text-[13px] uppercase tracking-wider px-2 py-1 rounded bg-black/60 text-amber-300 border border-amber-400/30 z-20">
           Cinematic · Golden Hour
         </span>
 
@@ -100,7 +100,7 @@ export function SplitReality() {
             className="absolute inset-0 w-full h-full object-cover"
             style={{ filter: "saturate(1.35) contrast(1.15) hue-rotate(15deg) brightness(0.95)" }}
           />
-          <span className="absolute bottom-3 left-3 text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded bg-black/60 text-emerald-300 border border-emerald-400/30">
+          <span className="absolute bottom-3 left-3 text-[13px] uppercase tracking-wider px-2 py-1 rounded bg-black/60 text-emerald-300 border border-emerald-400/30">
             Ultra-real · Concert Wash
           </span>
         </div>

@@ -391,7 +391,7 @@ function AvatarStudioPage() {
                 <span className="text-xs font-semibold text-foreground/70">Scene 1</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-muted-foreground font-mono">
+                <span className="text-[11px] text-muted-foreground">
                   00:00 / {estDuration} est.
                 </span>
                 {wordCount > 0 && (
@@ -604,7 +604,7 @@ function AvatarStudioPage() {
             <div className="w-full max-w-[300px] aurora-panel rounded-xl px-3 py-2.5">
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-xs font-medium truncate">{selectedTemplate.name}</span>
-                <span className="text-[10px] text-muted-foreground font-mono">{estDuration} est.</span>
+                <span className="text-[10px] text-muted-foreground">{estDuration} est.</span>
               </div>
               <div className="flex items-center gap-3">
                 <button className="text-muted-foreground hover:text-foreground">

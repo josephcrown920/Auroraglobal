@@ -54,7 +54,7 @@ export function StickyCreditsBar() {
           <p className="text-sm font-semibold text-white truncate">
             First Aura pack — extra 25% Aura bonus.
           </p>
-          <p className="text-[11px] text-white/80 truncate font-mono">
+          <p className="text-sm text-white/80 truncate">
             Ends in {fmt(remaining)} · code applied automatically
           </p>
         </div>

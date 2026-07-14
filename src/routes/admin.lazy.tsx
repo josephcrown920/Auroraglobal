@@ -209,7 +209,7 @@ function AdminPage() {
                       attempt {attempts}{job?.status === "queued" ? " · retrying" : job?.status === "processing" ? " · running" : ""}
                     </p>
                   )}
-                  <p className="text-[9px] font-mono text-muted-foreground/60 truncate" title={g.user_id}>{g.user_id.slice(0, 8)}…</p>
+                  <p className="text-[9px] text-muted-foreground/60 truncate" title={g.user_id}>{g.user_id.slice(0, 8)}…</p>
                 </div>
               </div>
               );
@@ -230,7 +230,7 @@ function AdminPage() {
                     <td className="p-3">{u.display_name ?? "—"}</td>
                     <td className="p-3 text-right">{u.credits}</td>
                     <td className="p-3 text-right">{u.lifetime_credits_purchased}</td>
-                    <td className="p-3"><button onClick={() => { setGrantUser(u.user_id); navigator.clipboard.writeText(u.user_id); toast.success("Copied"); }} className="text-xs font-mono text-muted-foreground hover:text-foreground">{u.user_id.slice(0, 12)}…</button></td>
+                    <td className="p-3"><button onClick={() => { setGrantUser(u.user_id); navigator.clipboard.writeText(u.user_id); toast.success("Copied"); }} className="text-xs text-muted-foreground hover:text-foreground">{u.user_id.slice(0, 12)}…</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -248,7 +248,7 @@ function AdminPage() {
                 {(data?.payments ?? []).map((p) => (
                   <tr key={p.id} className="border-t border-border">
                     <td className="p-3 text-xs">{new Date(p.created_at).toLocaleString()}</td>
-                    <td className="p-3 font-mono text-xs">{p.reference}</td>
+                    <td className="p-3 text-xs">{p.reference}</td>
                     <td className="p-3 text-right">{p.currency} {(p.amount_kobo / 100).toFixed(2)}</td>
                     <td className="p-3 text-right">{p.credits_granted}</td>
                     <td className={`p-3 text-xs ${p.status === "succeeded" ? "text-emerald-500" : "text-muted-foreground"}`}>{p.status}</td>
@@ -693,7 +693,7 @@ function SchedulerBanner({
         </span>
       </div>
       {hasError && (
-        <p className="text-xs text-amber-500 font-mono break-all">Last error: {scheduler?.last_error}</p>
+        <p className="text-xs text-amber-500 break-all">Last error: {scheduler?.last_error}</p>
       )}
       {queue && (
         <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
@@ -879,7 +879,7 @@ function PromosPanel() {
                 <td className="p-3">
                   <button
                     onClick={() => { navigator.clipboard.writeText(p.code); toast.success("Copied"); }}
-                    className="font-mono text-xs inline-flex items-center gap-1 hover:text-foreground text-muted-foreground"
+                    className="text-xs inline-flex items-center gap-1 hover:text-foreground text-muted-foreground"
                   >
                     {p.code} <Copy className="size-3" />
                   </button>
@@ -1112,7 +1112,7 @@ function WorkersPanel() {
                       {w.name}
                       {role ? <span className="ml-1 text-xs text-muted-foreground">({role})</span> : null}
                     </td>
-                    <td className="p-3 font-mono text-xs truncate max-w-[220px]">{w.endpoint_url}</td>
+                    <td className="p-3 text-xs truncate max-w-[220px]">{w.endpoint_url}</td>
                     <td className="p-3 text-xs">{(w.capabilities ?? []).join(", ")}</td>
                     <td className="p-3 text-xs">{protocol}{protocol === "runpod" && runpodSync ? " · sync" : ""}</td>
                     <td className="p-3 text-right">{w.in_flight}/{w.max_concurrency}</td>
@@ -1179,7 +1179,7 @@ function WorkersPanel() {
                 <tr key={a.id as string} className="border-t border-border">
                   <td className="p-2">{new Date(a.created_at as string).toLocaleString()}</td>
                   <td className="p-2">{(a.name as string) || "—"}</td>
-                  <td className="p-2 font-mono truncate max-w-[200px]">{(a.endpoint_url as string) || "—"}</td>
+                  <td className="p-2 truncate max-w-[200px]">{(a.endpoint_url as string) || "—"}</td>
                   <td className={`p-2 ${a.ok ? "text-emerald-500" : "text-red-500"}`}>{a.ok ? (a.outcome as string) || "ok" : "failed"}</td>
                   <td className="p-2 truncate max-w-[300px]" title={(a.error as string) || undefined}>{(a.error as string) || ""}</td>
                 </tr>
@@ -1291,7 +1291,7 @@ function ImagesPanel() {
                     )}
                   </div>
                   <p className="text-[10px] font-medium text-foreground truncate">{img.label}</p>
-                  <p className="text-[9px] text-muted-foreground font-mono">{img.key}</p>
+                  <p className="text-[9px] text-muted-foreground">{img.key}</p>
                   {draft !== undefined ? (
                     <div className="space-y-1">
                       <input

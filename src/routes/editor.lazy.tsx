@@ -183,7 +183,7 @@ function EditorPage() {
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60">
               Write small scripts against the pre-authenticated{" "}
-              <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[12px] text-cyan-200">aurora</code>{" "}
+              <code className="rounded bg-white/10 px-1.5 py-0.5 text-[12px] text-cyan-200">aurora</code>{" "}
               client — batches, pipelines, experiments. Runs are sandboxed in your browser and spend your real Aura.
             </p>
           </div>
@@ -210,7 +210,7 @@ function EditorPage() {
                 className="inline-flex items-center gap-2 rounded-full bg-cyan-300 px-5 py-2 text-sm font-bold text-cyan-950 transition hover:opacity-95"
               >
                 <Play className="size-4" /> Run
-                <kbd className="ml-1 hidden rounded bg-cyan-950/15 px-1.5 py-0.5 font-mono text-[10px] font-semibold sm:inline">
+                <kbd className="ml-1 hidden rounded bg-cyan-950/15 px-1.5 py-0.5 text-[10px] font-semibold sm:inline">
                   ⌘⏎
                 </kbd>
               </button>
@@ -280,7 +280,7 @@ function EditorPage() {
               <span className="size-2.5 rounded-full bg-rose-400/70" />
               <span className="size-2.5 rounded-full bg-amber-300/70" />
               <span className="size-2.5 rounded-full bg-emerald-300/70" />
-              <span className="ml-2 font-mono text-xs text-white/45">script.js</span>
+              <span className="ml-2 text-xs text-white/45">script.js</span>
             </div>
             <div className="min-h-0 flex-1">
               {mounted ? (
@@ -352,7 +352,7 @@ function EditorPage() {
           <div className="flex items-center gap-2.5">
             <Sparkles className="size-5 text-cyan-200" />
             <h2 className="text-xl font-bold tracking-tight md:text-2xl">
-              The <code className="font-mono text-cyan-200">aurora</code> client
+              The <code className="text-cyan-200">aurora</code> client
             </h2>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -366,7 +366,7 @@ function EditorPage() {
               { sig: "aurora.progress(i, total, label?) · aurora.show(url, label?)", desc: "Render progress bars and asset cards in the console." },
             ].map((r) => (
               <div key={r.sig} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-                <code className="block break-words font-mono text-[12.5px] text-cyan-200">{r.sig}</code>
+                <code className="block break-words text-[12.5px] text-cyan-200">{r.sig}</code>
                 <p className="mt-1.5 text-sm leading-6 text-white/60">{r.desc}</p>
               </div>
             ))}

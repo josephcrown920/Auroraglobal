@@ -63,21 +63,21 @@ export function TrendingTemplatesStrip() {
               )}
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
               {templateCost(t) > 0 ? (
-                <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-primary/90 px-2 py-0.5 text-[11px] font-semibold text-primary-foreground backdrop-blur">
+                <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-primary/90 px-2 py-0.5 text-sm font-semibold text-primary-foreground backdrop-blur">
                   <Sparkles className="size-3" /> {templateCost(t)}
                 </span>
               ) : (
-                <span className="absolute right-2 top-2 inline-flex items-center rounded-full bg-emerald-500/90 px-2 py-0.5 text-[11px] font-semibold text-white backdrop-blur">
+                <span className="absolute right-2 top-2 inline-flex items-center rounded-full bg-emerald-500/90 px-2 py-0.5 text-sm font-semibold text-white backdrop-blur">
                   0 Aura
                 </span>
               )}
               {t.premium && (
-                <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[9px] font-semibold text-primary backdrop-blur">
+                <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/60 px-1.5 py-0.5 text-xs font-semibold text-primary backdrop-blur">
                   <Crown className="size-2.5" /> Pro
                 </span>
               )}
               <div className="absolute inset-x-0 bottom-0 p-2.5">
-                <div className="text-[10px] font-mono uppercase tracking-[0.12em] text-white/60">
+                <div className="text-[13px] uppercase tracking-[0.12em] text-white/60">
                   {t.category}
                 </div>
                 <div className="text-sm font-semibold leading-tight text-white">{t.title}</div>

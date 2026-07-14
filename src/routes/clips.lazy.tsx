@@ -141,7 +141,7 @@ function ClipsPage() {
                   {clip.isImage
                     ? <img src={clip.url} alt={clip.title} className="w-full h-full object-cover" />
                     : <AutoplayVideo key={clip.id} ref={ref} src={clip.url} className="w-full h-full object-cover" controls autoPlay={false} loop playsInline preload="metadata" />}
-                  <span className="absolute bottom-2 right-2 text-xs px-2 py-1 rounded bg-black/70 text-white font-mono">{clip.duration}</span>
+                  <span className="absolute bottom-2 right-2 text-xs px-2 py-1 rounded bg-black/70 text-white">{clip.duration}</span>
                 </div>
               </div>
             ))}
@@ -194,7 +194,7 @@ function ClipsPage() {
                       {c.isImage
                         ? <img src={c.url} alt={c.title} className="w-full h-full object-cover" />
                         : <AutoplayVideo src={c.url} className="w-full h-full object-cover" controls autoPlay={false} loop playsInline preload="metadata" />}
-                      <span className="absolute bottom-2 right-2 text-xs px-2 py-1 rounded bg-black/70 text-white font-mono">{c.duration}</span>
+                      <span className="absolute bottom-2 right-2 text-xs px-2 py-1 rounded bg-black/70 text-white">{c.duration}</span>
                       {st !== "idle" && (
                         <span className={`absolute top-2 left-2 text-xs px-2 py-1 rounded font-medium ${st === "approved" ? "bg-emerald-500 text-white" : "bg-amber-500 text-black"}`}>
                           {st === "approved" ? "Approved" : "Queued"}

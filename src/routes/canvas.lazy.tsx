@@ -209,7 +209,7 @@ function HeyGenTemplateNodeControls({ id, data }: { id: string; data: NodeData }
         className="h-8 text-xs nodrag bg-black/30 border-white/10"
         onMouseDownCapture={(e) => e.stopPropagation()}
       />
-      <p className="text-[10px] text-muted-foreground">
+      <p className="text-[13px] text-muted-foreground">
         {data.auroraTemplateId
           ? "Connects upstream image as talking-head photo — or paste a URL above."
           : "Select a HeyGen template, then supply a face photo."}
@@ -250,7 +250,7 @@ function ComfyNodeControls({ id, data }: { id: string; data: NodeData }) {
           onMouseDownCapture={(e) => e.stopPropagation()}
         />
       )}
-      <p className="text-[10px] text-muted-foreground">
+      <p className="text-[13px] text-muted-foreground">
         {tpl
           ? `${tpl.kind} · binds upstream image(s) into the graph's image inputs`
           : "Runs a saved ComfyUI graph on your GPU worker."}
@@ -306,16 +306,16 @@ function BatchVideoControls({ id, data }: { id: string; data: NodeData }) {
 
       {(data.claudePrompts?.length ?? 0) > 0 && (
         <div className="rounded-lg bg-violet-500/10 border border-violet-400/20 p-2 space-y-1.5">
-          <p className="text-[9px] font-mono uppercase tracking-wider text-violet-400/70">Claude hooks (per-variant)</p>
+          <p className="text-xs uppercase tracking-wider text-violet-400/70">Claude hooks (per-variant)</p>
           {data.claudePrompts!.map((p, i) => (
-            <p key={i} className="text-[10px] text-white/70 line-clamp-2">
-              <span className="text-violet-400/60 font-mono mr-1">#{i + 1}</span>{p}
+            <p key={i} className="text-[13px] text-white/70 line-clamp-2">
+              <span className="text-violet-400/60 mr-1">#{i + 1}</span>{p}
             </p>
           ))}
           <button
             type="button"
             onClick={() => h.update(id, { claudePrompts: undefined })}
-            className="text-[10px] text-rose-400/60 hover:text-rose-400 nodrag"
+            className="text-[13px] text-rose-400/60 hover:text-rose-400 nodrag"
             onMouseDownCapture={(e) => e.stopPropagation()}
           >
             Clear Claude hooks
@@ -365,7 +365,7 @@ function BatchVideoControls({ id, data }: { id: string; data: NodeData }) {
           </SelectContent>
         </Select>
       </div>
-      <p className="text-[10px] text-muted-foreground">
+      <p className="text-[13px] text-muted-foreground">
         Fans one image into {data.variantCount ?? 3} independent video renders — each charges &amp; refunds its own credits.
         {(data.claudePrompts?.length ?? 0) > 0 && " Claude hooks active: each variant uses a unique prompt."}
       </p>
@@ -433,8 +433,8 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
           />
         )}
 
-        <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between text-[10px]">
-          <span className="font-mono uppercase tracking-[0.15em] flex items-center gap-1.5 text-foreground/80">
+        <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between text-[13px]">
+          <span className="uppercase tracking-[0.15em] flex items-center gap-1.5 text-foreground/80">
             <span className={`size-4 rounded grid place-items-center bg-gradient-to-br ${km.accent} text-white`}>
               <Icon className="size-2.5" />
             </span>
@@ -470,7 +470,7 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
                 ) : (
                   <span className="size-1.5 rounded-full border border-white/20" />
                 )}
-                <span className="absolute top-1 left-1 text-[9px] font-mono text-white/60 bg-black/50 rounded px-1">#{i + 1}</span>
+                <span className="absolute top-1 left-1 text-xs text-white/60 bg-black/50 rounded px-1">#{i + 1}</span>
               </div>
             ))}
           </div>
@@ -496,7 +496,7 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
               <img src={data.url} alt="" className="w-full aspect-square object-cover" />
               {data.kind === "input" && (
                 <label
-                  className="absolute inset-x-2 bottom-2 text-[11px] text-center py-1.5 rounded-md bg-black/70 text-white opacity-0 group-hover/img:opacity-100 transition-opacity cursor-pointer nodrag"
+                  className="absolute inset-x-2 bottom-2 text-sm text-center py-1.5 rounded-md bg-black/70 text-white opacity-0 group-hover/img:opacity-100 transition-opacity cursor-pointer nodrag"
                   onMouseDownCapture={(e) => e.stopPropagation()}
                 >
                   Swap image
@@ -522,7 +522,7 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
                 <ImageIcon className="size-5" />
               </div>
               <div className="text-xs font-semibold text-white">Drop your image here</div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">or click to upload (PNG/JPG · selfie, product, screenshot)</div>
+              <div className="text-[13px] text-muted-foreground mt-0.5">or click to upload (PNG/JPG · selfie, product, screenshot)</div>
               <input
                 type="file"
                 accept="image/*"
@@ -540,7 +540,7 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
                 <Music className="size-5" />
               </div>
               <div className="text-xs font-semibold text-white">Drop audio here</div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">mp3 or wav · the voice/song to lip-sync</div>
+              <div className="text-[13px] text-muted-foreground mt-0.5">mp3 or wav · the voice/song to lip-sync</div>
               <input
                 type="file"
                 accept={AUDIO_ACCEPT}
@@ -594,7 +594,7 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
                   </Select>
                 </div>
               )}
-              {meta && <p className="text-[10px] text-muted-foreground">{meta.tagline}</p>}
+              {meta && <p className="text-[13px] text-muted-foreground">{meta.tagline}</p>}
             </>
           )}
           {data.kind === "lipsync" && (
@@ -610,7 +610,7 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
                   <SelectItem value="latentsync" className="text-xs">LatentSync (self-hosted)</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-[13px] text-muted-foreground">
                 Connect a video (or image — auto-animated first) + an audio node.
               </p>
             </>
@@ -625,7 +625,7 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
                 className="text-xs resize-none nodrag bg-black/30 border-white/10"
                 onMouseDownCapture={(e) => e.stopPropagation()}
               />
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-[13px] text-muted-foreground">
                 Generates two stories side by side: ultra-real vs cinematic.
               </p>
             </>
@@ -669,7 +669,7 @@ function ProgressPanel({ nodes, edges, running }: { nodes: Node<NodeData>[]; edg
   return (
     <div className="absolute bottom-20 right-3 z-30 w-[260px] max-w-[calc(100%-1.5rem)] rounded-xl border border-white/10 bg-[oklch(0.13_0.04_290/0.92)] backdrop-blur-xl shadow-[0_0_30px_oklch(0.78_0.18_305/0.4)] p-3">
       <div className="flex items-center justify-between mb-2">
-        <div className="text-[11px] font-mono uppercase tracking-[0.15em] text-white/70 flex items-center gap-1.5">
+        <div className="text-sm uppercase tracking-[0.15em] text-white/70 flex items-center gap-1.5">
           <Clock className="size-3" /> Pipeline · {done}/{steps.length}
         </div>
         {running && <Loader2 className="size-3 animate-spin text-primary" />}
@@ -678,7 +678,7 @@ function ProgressPanel({ nodes, edges, running }: { nodes: Node<NodeData>[]; edg
         <div className="h-full bg-gradient-to-r from-primary to-fuchsia-500 transition-all" style={{ width: `${pct}%` }} />
       </div>
       {running && active && (
-        <div className="text-[10px] text-white/60 mb-2">
+        <div className="text-[13px] text-white/60 mb-2">
           ETA ~{Math.max(5, Math.round(etaSec))}s · running {KIND_META[active.data.kind].label}
         </div>
       )}
@@ -686,7 +686,7 @@ function ProgressPanel({ nodes, edges, running }: { nodes: Node<NodeData>[]; edg
         {steps.map((n) => {
           const s = n.data.status ?? "idle";
           return (
-            <li key={n.id} className="flex items-center gap-2 text-[11px]">
+            <li key={n.id} className="flex items-center gap-2 text-sm">
               {s === "done" ? <CheckCircle2 className="size-3 text-emerald-400" /> :
                s === "running" ? <Loader2 className="size-3 animate-spin text-primary" /> :
                s === "error" ? <XCircle className="size-3 text-rose-400" /> :
@@ -698,7 +698,7 @@ function ProgressPanel({ nodes, edges, running }: { nodes: Node<NodeData>[]; edg
         })}
       </ul>
       {errored.length > 0 && (
-        <div className="mt-2 text-[10px] text-rose-300 truncate" title={errored[0].data.error}>
+        <div className="mt-2 text-[13px] text-rose-300 truncate" title={errored[0].data.error}>
           {errored[0].data.error ?? "Step failed"}
         </div>
       )}
@@ -741,7 +741,7 @@ function ExportShareDock({ nodes, edges }: { nodes: Node<NodeData>[]; edges: Edg
   };
   return (
     <div className="absolute bottom-20 left-3 z-30 flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-xl border border-emerald-400/30 bg-[oklch(0.13_0.04_290/0.92)] backdrop-blur-xl shadow-[0_0_30px_oklch(0.62_0.22_165/0.3)] p-2">
-      <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-emerald-300 px-1">Final · {KIND_META[final.data.kind].label}</span>
+      <span className="text-[13px] uppercase tracking-[0.15em] text-emerald-300 px-1">Final · {KIND_META[final.data.kind].label}</span>
       <Button size="sm" variant="outline" onClick={download} className="border-white/10 bg-white/5">
         <Download className="size-3.5 mr-1" /> Download
       </Button>
@@ -1289,7 +1289,7 @@ function CanvasPage() {
           <span className="size-8 rounded-xl flex items-center justify-center shadow-[0_0_24px_oklch(0.78_0.18_305/0.65)]" style={{ background: "var(--gradient-hero)" }}>
             <Sparkles className="size-4 text-primary-foreground" />
           </span>
-          <span className="font-mono uppercase tracking-[0.2em] text-xs text-foreground/90">Canvas</span>
+          <span className="uppercase tracking-[0.2em] text-xs text-foreground/90">Canvas</span>
         </Link>
         <div className="flex items-center gap-1.5 shrink-0">
           <Button size="sm" variant="premium" onClick={() => setAgentOpen(true)} className="h-8">
@@ -1427,7 +1427,7 @@ function CanvasPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-semibold text-white truncate">{coachTplName} loaded</div>
-                <ol className="mt-1 text-[11px] text-white/80 space-y-0.5 list-decimal list-inside">
+                <ol className="mt-1 text-sm text-white/80 space-y-0.5 list-decimal list-inside">
                   <li>Drop your image/audio into the dashed input nodes on the left.</li>
                   <li>(Optional) Edit any prompt to taste — prefilled ones are tested.</li>
                   <li>Hit <span className="text-primary font-medium">Run pipeline</span> top-right.</li>

@@ -674,7 +674,7 @@ function NewTemplateForm({
           Workflow JSON <span className="text-muted-foreground font-normal">(the ComfyUI /prompt graph, API format)</span>
         </label>
         <textarea
-          className={`${FIELD_CLASS} font-mono text-xs`}
+          className={`${FIELD_CLASS} text-xs`}
           rows={8}
           value={workflowText}
           onChange={(e) => setWorkflowText(e.target.value)}
@@ -689,7 +689,7 @@ function NewTemplateForm({
           </span>
         </label>
         <textarea
-          className={`${FIELD_CLASS} font-mono text-xs`}
+          className={`${FIELD_CLASS} text-xs`}
           rows={6}
           value={inputsText}
           onChange={(e) => setInputsText(e.target.value)}

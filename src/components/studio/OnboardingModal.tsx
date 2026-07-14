@@ -185,7 +185,7 @@ export function OnboardingModal({ userId, open, onOpenChange, onApply, onBonusGr
                     <Check className="size-3" />
                   </div>
                 )}
-                <div className="absolute left-2 top-2 rounded-full bg-background/70 px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
+                <div className="absolute left-2 top-2 rounded-full bg-background/70 px-2 py-0.5 text-[13px] uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
                   Example
                 </div>
                 <div className="absolute inset-x-0 bottom-0 p-3">

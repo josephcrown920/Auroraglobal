@@ -107,10 +107,10 @@ export function PerformAnywhereGuide() {
 
       {open && (
         <div className="px-5 pb-5 space-y-3 border-t border-border">
-          <div className="pt-4 grid grid-cols-4 gap-1.5 text-center text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+          <div className="pt-4 grid grid-cols-4 gap-1.5 text-center text-[13px] text-muted-foreground font-medium uppercase tracking-wider">
             {STEPS.map((s, i) => (
               <div key={i} className="flex flex-col items-center gap-1">
-                <div className={cn("size-7 rounded-full border flex items-center justify-center text-[10px] font-bold transition-colors", expandedStep === i ? s.bg + " " + s.color : "border-border bg-card/40")}>
+                <div className={cn("size-7 rounded-full border flex items-center justify-center text-[13px] font-bold transition-colors", expandedStep === i ? s.bg + " " + s.color : "border-border bg-card/40")}>
                   {s.n}
                 </div>
                 <span className="leading-tight hidden sm:block">{s.title.split(" ").slice(0, 2).join(" ")}</span>
@@ -134,7 +134,7 @@ export function PerformAnywhereGuide() {
                     </span>
                     <div className="flex-1 min-w-0">
                       <p className={cn("text-sm font-semibold", isExpanded ? "text-foreground" : "text-muted-foreground")}>{s.title}</p>
-                      <p className="text-[11px] text-muted-foreground">{s.where}</p>
+                      <p className="text-sm text-muted-foreground">{s.where}</p>
                     </div>
                     <span className="shrink-0">{isExpanded ? <ChevronUp className="size-3.5 text-muted-foreground" /> : <ChevronDown className="size-3.5 text-muted-foreground" />}</span>
                   </button>
@@ -153,16 +153,16 @@ export function PerformAnywhereGuide() {
                       {s.prompt && (
                         <div className="rounded-xl bg-background/60 border border-border p-3">
                           <div className="flex items-center justify-between mb-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Example prompt</p>
+                            <p className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">Example prompt</p>
                             <button
                               type="button"
                               onClick={() => copyPrompt(s.prompt!, i)}
-                              className="text-[10px] font-semibold text-primary hover:text-primary/80 flex items-center gap-1"
+                              className="text-[13px] font-semibold text-primary hover:text-primary/80 flex items-center gap-1"
                             >
                               {copiedIdx === i ? <><Check className="size-3" /> Copied</> : "Copy"}
                             </button>
                           </div>
-                          <p className="text-xs text-muted-foreground leading-relaxed font-mono">{s.prompt}</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">{s.prompt}</p>
                         </div>
                       )}
 

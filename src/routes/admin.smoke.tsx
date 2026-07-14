@@ -105,7 +105,7 @@ function SmokePage() {
           <div className="rounded-lg border border-border bg-card p-4 mb-8">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-semibold">Current run</h2>
-              <span className="text-xs text-muted-foreground font-mono">{activeRunId.slice(0, 8)}</span>
+              <span className="text-xs text-muted-foreground">{activeRunId.slice(0, 8)}</span>
             </div>
             <div className="space-y-2">
               {checks.length === 0 && <p className="text-sm text-muted-foreground">Starting…</p>}
@@ -127,7 +127,7 @@ function SmokePage() {
             {finished && (
               <div className="mt-4 border-t border-border pt-3 text-sm flex items-center justify-between">
                 <span className="text-muted-foreground">Total cost</span>
-                <span className="font-mono">${Number(run?.total_cost_usd ?? 0).toFixed(3)}</span>
+                <span className="">${Number(run?.total_cost_usd ?? 0).toFixed(3)}</span>
               </div>
             )}
           </div>
@@ -145,10 +145,10 @@ function SmokePage() {
                 onClick={() => setActiveRunId(r.id)}
                 className="w-full flex items-center justify-between rounded-md border border-border/50 bg-card/40 px-3 py-2 text-sm hover:bg-card"
               >
-                <span className="font-mono text-xs">{r.id.slice(0, 8)}</span>
+                <span className="text-xs">{r.id.slice(0, 8)}</span>
                 <span className="text-muted-foreground">{new Date(r.started_at).toLocaleString()}</span>
                 <span>{r.finished_at ? `${passed}/${total} passed` : "running…"}</span>
-                <span className="font-mono text-xs">${Number(r.total_cost_usd ?? 0).toFixed(3)}</span>
+                <span className="text-xs">${Number(r.total_cost_usd ?? 0).toFixed(3)}</span>
               </button>
             );
           })}
