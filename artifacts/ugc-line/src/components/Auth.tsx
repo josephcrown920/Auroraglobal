@@ -49,9 +49,18 @@ export function Auth() {
             </p>
           </div>
 
-          {/* Demo preview strip */}
-          <div style={{ borderRadius: 16, overflow: "hidden", marginBottom: 28, border: "1px solid var(--border)" }}>
-            <img src="/ugc-line/demo-reference.jpg" alt="Demo" style={{ width: "100%", display: "block", maxHeight: 200, objectFit: "cover", objectPosition: "top" }} />
+          {/* Demo preview — split: UGC campaign left, Seedance grid right */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 24 }}>
+            {[
+              { src: "/ugc-line/demo-ugc.jpg", label: "Claude MCP → Scripts", pos: "top" },
+              { src: "/ugc-line/demo-seedance.jpg", label: "Seedance → 50 Variations", pos: "center" },
+            ].map(({ src, label, pos }) => (
+              <div key={label} style={{ borderRadius: 14, overflow: "hidden", border: "1px solid var(--border)", position: "relative" }}>
+                <img src={src} alt={label} style={{ width: "100%", display: "block", height: 130, objectFit: "cover", objectPosition: pos }} />
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(9,9,15,0.8) 0%, transparent 55%)" }} />
+                <p style={{ position: "absolute", bottom: 8, left: 10, fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.85)", letterSpacing: "0.02em" }}>{label}</p>
+              </div>
+            ))}
           </div>
 
           {/* Auth card */}
