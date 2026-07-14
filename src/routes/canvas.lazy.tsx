@@ -978,6 +978,27 @@ function CanvasPage() {
 
   const handlers = useMemo<Handlers>(() => ({ update, remove, onFile, animateSplit }), [update, remove, onFile, animateSplit]);
 
+  // Pre-flight graph validation: compute blocking issues before the user hits Run.
+  // Returns a list of human-readable problems; an empty array means the graph is
+  // ready to execute. Currently checks lipsync nodes for missing audio and for
+  // missing image/video input.
+  const graphWarnings = useMemo<string[]>(() => {
+    const inc = new Map<string, string[]>();
+    edges.forEach((e) => inc.set(e.target, [...(inc.get(e.target) ?? []), e.source]));
+    const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+    const issues: string[] = [];
+    for (const n of nodes) {
+      if (n.data.kind === "lipsync") {
+        const ups = (inc.get(n.id) ?? []).map((u) => nodeMap.get(u)).filter(Boolean);
+        const hasAudio = ups.some((u) => u!.data.kind === "audio");
+        const hasMedia = ups.some((u) => u && ["input", "image", "video", "lipsync", "split", "comfy", "batchVideo"].includes(u.data.kind));
+        if (!hasAudio) issues.push("Lip sync node needs an audio node connected");
+        if (!hasMedia) issues.push("Lip sync node needs an image or video node connected");
+      }
+    }
+    return issues;
+  }, [nodes, edges]);
+
   const runMut = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("Sign in");
@@ -1046,11 +1067,14 @@ function CanvasPage() {
             resolved.set(id, { url: res.resultUrl, kind: "image" });
             update(id, { status: "done", url: res.resultUrl });
           } else if (n.data.kind === "video") {
-  if (images.length === 0) throw new Error("Video node needs an image upstream");
-  // If we have multiple images (e.g., from split), use second as end frame for motion control
+  if (images.length === 0 && videos.length === 0) throw new Error("Video node needs an image or video upstream");
+  // Prefer an upstream image as the start frame; fall back to an upstream video
+  // (e.g., video→video re-animate, or comfy video output feeding a video node).
+  const startFrame = images[0] ?? videos[0];
+  // If we have multiple images (e.g., from split), use the second as the end frame for motion control
   const endFrame = images.length > 1 ? images[1] : null;
   const res = await vidFn({ data: {
-    imageUrl: images[0],
+    imageUrl: startFrame,
     prompt: n.data.prompt ?? "natural movement",
     duration: 5,
     resolution: "720p",
@@ -1271,7 +1295,17 @@ function CanvasPage() {
           <Button size="sm" variant="premium" onClick={() => setAgentOpen(true)} className="h-8">
             <Sparkles className="size-3.5 mr-1" /> Agent
           </Button>
-          <Button size="sm" onClick={() => runMut.mutate()} disabled={runMut.isPending} style={{ background: "var(--gradient-hero)" }} className="h-8 text-primary-foreground shadow-[0_0_24px_oklch(0.78_0.18_305/0.55)]">
+          <Button
+            size="sm"
+            onClick={() => {
+              if (graphWarnings.length) { toast.error(graphWarnings[0]); return; }
+              runMut.mutate();
+            }}
+            disabled={runMut.isPending}
+            title={graphWarnings.length ? graphWarnings[0] : undefined}
+            style={{ background: "var(--gradient-hero)" }}
+            className="h-8 text-primary-foreground shadow-[0_0_24px_oklch(0.78_0.18_305/0.55)]"
+          >
             {runMut.isPending ? <><Loader2 className="size-3.5 mr-1 animate-spin" /> Running</> : <><Play className="size-3.5 mr-1" /> Run</>}
           </Button>
           <DropdownMenu>
@@ -1424,7 +1458,16 @@ function CanvasPage() {
           <button onClick={() => addNode("comfy")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="ComfyUI"><Boxes className="size-4" /></button>
           <button onClick={() => addNode("batchVideo")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Batch video"><Layers className="size-4" /></button>
           <button onClick={() => addNode("heygenTemplate")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="HeyGen Template"><Sparkles className="size-4" /></button>
-          <button onClick={() => runMut.mutate()} disabled={runMut.isPending} className="ml-1 h-9 px-4 shrink-0 rounded-full text-primary-foreground text-sm font-medium inline-flex items-center gap-1.5 shadow-[0_0_24px_oklch(0.78_0.18_305/0.8)] disabled:opacity-60" style={{ background: "var(--gradient-hero)" }}>
+          <button
+            onClick={() => {
+              if (graphWarnings.length) { toast.error(graphWarnings[0]); return; }
+              runMut.mutate();
+            }}
+            disabled={runMut.isPending}
+            title={graphWarnings.length ? graphWarnings[0] : undefined}
+            className="ml-1 h-9 px-4 shrink-0 rounded-full text-primary-foreground text-sm font-medium inline-flex items-center gap-1.5 shadow-[0_0_24px_oklch(0.78_0.18_305/0.8)] disabled:opacity-60"
+            style={{ background: "var(--gradient-hero)" }}
+          >
             {runMut.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />} Run
           </button>
         </div>
