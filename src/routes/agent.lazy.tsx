@@ -14,10 +14,12 @@ import { useAuth } from "@/hooks/use-auth";
 import {
   enhanceVideoAgentPrompt,
   generateHeyGenAgentVideo,
+  analyzeCinematicBrief,
   VIDEO_AGENT_COST,
   type VideoAgentResult,
 } from "@/lib/video-agent.functions";
 import { VIDEO_AGENT_HELPER_TEXT } from "@/lib/video-agent-prompt";
+import { HEYGEN_STYLES, type VideoPlan, type VideoShot } from "@/lib/video-agent-skills";
 import { UgcBatchStudio } from "@/components/prime/UgcBatchStudio";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import {
@@ -86,6 +88,7 @@ import {
   Brain,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -265,13 +268,87 @@ const makeSteps = (): AgentStep[] =>
 // Prompt → Enhance (LLM script polish) → Generate (HeyGen v2 avatar video)
 // ══════════════════════════════════════════════════════════════════════════
 
+// ── Cinematic Plan shot card ──────────────────────────────────────────────
+function ShotCard({ shot, index }: { shot: VideoShot; index: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const purposeColor: Record<string, string> = {
+    establishing: "text-sky-400",
+    context: "text-blue-400",
+    character: "text-violet-400",
+    reaction: "text-fuchsia-400",
+    detail: "text-amber-400",
+    insert: "text-orange-400",
+    payoff: "text-emerald-400",
+  };
+  return (
+    <div className="rounded-sm border border-line bg-panel/40">
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full items-start gap-3 px-4 py-3 text-left"
+      >
+        <span className="mt-0.5 shrink-0 font-mono text-[10px] font-bold text-ink-dim">
+          {shot.id ?? `S${index + 1}`}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className={`font-mono text-[9px] font-bold uppercase tracking-widest ${purposeColor[shot.purpose] ?? "text-ink-dim"}`}>
+              {shot.purpose}
+            </span>
+            <span className="font-mono text-[9px] text-ink-dim/60">{shot.shot_type}</span>
+            {shot.duration_s && (
+              <span className="ml-auto font-mono text-[9px] text-ink-dim/40">{shot.duration_s}s</span>
+            )}
+          </div>
+          <p className="mt-1 line-clamp-2 text-[12px] font-medium leading-snug text-ink">
+            {shot.action}
+          </p>
+        </div>
+        <ChevronDown
+          className={`mt-1 size-3.5 shrink-0 text-ink-dim transition-transform ${expanded ? "rotate-180" : ""}`}
+        />
+      </button>
+      {expanded && (
+        <div className="border-t border-line/50 px-4 pb-4 pt-3 space-y-3">
+          {shot.lighting && (
+            <div>
+              <p className="font-mono text-[9px] uppercase tracking-widest text-ink-dim/60 mb-1">Lighting</p>
+              <p className="text-[11px] text-ink-dim leading-relaxed">{shot.lighting}</p>
+            </div>
+          )}
+          {shot.camera && (
+            <div>
+              <p className="font-mono text-[9px] uppercase tracking-widest text-ink-dim/60 mb-1">Camera</p>
+              <p className="text-[11px] text-ink-dim leading-relaxed">{shot.camera}{shot.lens_mm ? ` · ${shot.lens_mm}mm` : ""}</p>
+            </div>
+          )}
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-widest text-ink-dim/60 mb-1">Model Prompt</p>
+            <p className="text-[11px] text-ink leading-relaxed rounded-sm bg-panel-2/60 px-3 py-2">
+              {shot.prompt}
+            </p>
+          </div>
+          {shot.chain_from && (
+            <p className="font-mono text-[9px] text-ink-dim/40">chain from → {shot.chain_from}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function HeyGenPanel() {
-  const enhanceFn  = useServerFn(enhanceVideoAgentPrompt);
-  const generateFn = useServerFn(generateHeyGenAgentVideo);
+  const enhanceFn   = useServerFn(enhanceVideoAgentPrompt);
+  const generateFn  = useServerFn(generateHeyGenAgentVideo);
+  const analyzeFn   = useServerFn(analyzeCinematicBrief);
+
+  const [mode,        setMode]        = useState<"script" | "cinematic">("script");
   const [prompt,      setPrompt]      = useState("");
   const [orientation, setOrientation] = useState<"landscape" | "portrait">("landscape");
   const [enhancing,   setEnhancing]   = useState(false);
   const [result,      setResult]      = useState<{ url: string; generationId: string } | null>(null);
+  const [styleId,     setStyleId]     = useState<string>("");
+  const [plan,        setPlan]        = useState<VideoPlan | null>(null);
+  const [analyzing,   setAnalyzing]   = useState(false);
 
   const genMut = useMutation({
     mutationFn: async () => {
@@ -302,12 +379,29 @@ function HeyGenPanel() {
     if (!p) return;
     setEnhancing(true);
     try {
-      const res = await enhanceFn({ data: { prompt: p, targetSeconds: 20 } });
+      const res = await enhanceFn({ data: { prompt: p, targetSeconds: 20, styleId: styleId || undefined } });
       setPrompt(res.script);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Enhance failed");
     } finally {
       setEnhancing(false);
+    }
+  };
+
+  const doAnalyze = async () => {
+    const idea = prompt.trim();
+    if (!idea) return;
+    setAnalyzing(true);
+    setPlan(null);
+    try {
+      const result = await analyzeFn({
+        data: { userIdea: idea, format: orientation === "portrait" ? "9:16" : "16:9" },
+      });
+      setPlan(result);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Analysis failed");
+    } finally {
+      setAnalyzing(false);
     }
   };
 
@@ -325,6 +419,8 @@ function HeyGenPanel() {
       .catch(() => window.open(result.url, "_blank"));
   };
 
+  const selectedStyle = HEYGEN_STYLES.find((s) => s.id === styleId);
+
   return (
     <div className="flex-1 overflow-y-auto px-6 py-8">
       <div className="mx-auto w-full max-w-xl space-y-6">
@@ -340,77 +436,266 @@ function HeyGenPanel() {
           </p>
         </header>
 
-        <p className="rounded-sm border border-line/60 px-3 py-2 text-[11px] leading-relaxed text-ink-dim/80">
-          {VIDEO_AGENT_HELPER_TEXT}
-        </p>
-
-        <div className="space-y-3">
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            rows={5}
-            placeholder="Write what the presenter says — or describe your idea and hit Enhance…"
-            className="w-full resize-none rounded-sm border border-line bg-panel/60 px-4 py-3 text-sm text-ink placeholder:text-ink-dim/60 focus:border-prime focus:outline-none"
-          />
-
-          <div className="flex items-center gap-3">
+        {/* Mode tabs */}
+        <div className="flex gap-0 rounded-sm border border-line overflow-hidden">
+          {(["script", "cinematic"] as const).map((m) => (
             <button
-              onClick={() => void doEnhance()}
-              disabled={enhancing || !prompt.trim()}
-              className="flex items-center gap-2 rounded-sm border border-line bg-panel px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-ink-dim transition-colors hover:border-prime/60 hover:text-prime disabled:opacity-40"
+              key={m}
+              onClick={() => { setMode(m); setPlan(null); }}
+              className={
+                "flex-1 flex items-center justify-center gap-2 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-widest transition-colors " +
+                (mode === m
+                  ? "bg-prime text-white"
+                  : "bg-panel text-ink-dim hover:text-ink")
+              }
             >
-              <Wand2 className="size-3.5" />
-              {enhancing ? "Enhancing…" : "Enhance"}
+              {m === "script"
+                ? <><Video className="size-3" /> Script</>
+                : <><Clapperboard className="size-3" /> Cinematic Plan</>
+              }
             </button>
-
-            <div className="ml-auto flex items-center gap-2">
-              {(["landscape", "portrait"] as const).map((o) => (
-                <button
-                  key={o}
-                  onClick={() => setOrientation(o)}
-                  className={
-                    "rounded-sm border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors " +
-                    (orientation === o
-                      ? "border-prime/60 bg-prime/10 text-prime"
-                      : "border-line text-ink-dim hover:text-ink")
-                  }
-                >
-                  {o === "landscape" ? "16:9" : "9:16"}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <button
-            onClick={() => genMut.mutate()}
-            disabled={genMut.isPending || !prompt.trim()}
-            className="flex w-full items-center justify-center gap-2 rounded-sm bg-prime px-4 py-3 font-mono text-[11px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-prime-glow disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {genMut.isPending ? (
-              <><Loader2 className="size-4 animate-spin" /> Generating…</>
-            ) : (
-              <><Video className="size-4" /> Generate · {VIDEO_AGENT_COST} Aura</>
-            )}
-          </button>
+          ))}
         </div>
 
-        {result && (
-          <div className="space-y-3 rounded-sm border border-prime/40 bg-prime/5 p-4">
-            <div className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-widest text-prime">
-              <CheckCircle2 className="size-4" /> Video ready
+        {mode === "script" && (
+          <>
+            <p className="rounded-sm border border-line/60 px-3 py-2 text-[11px] leading-relaxed text-ink-dim/80">
+              {VIDEO_AGENT_HELPER_TEXT}
+            </p>
+
+            <div className="space-y-3">
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                rows={5}
+                placeholder="Write what the presenter says — or describe your idea and hit Enhance…"
+                className="w-full resize-none rounded-sm border border-line bg-panel/60 px-4 py-3 text-sm text-ink placeholder:text-ink-dim/60 focus:border-prime focus:outline-none"
+              />
+
+              {/* Style selector */}
+              <div className="space-y-1.5">
+                <p className="font-mono text-[9px] uppercase tracking-widest text-ink-dim/60">Visual Style</p>
+                <div className="relative">
+                  <select
+                    value={styleId}
+                    onChange={(e) => setStyleId(e.target.value)}
+                    className="w-full appearance-none rounded-sm border border-line bg-panel px-3 py-2 pr-8 text-[12px] text-ink focus:border-prime focus:outline-none"
+                  >
+                    <option value="">— No style (Video Agent decides) —</option>
+                    {HEYGEN_STYLES.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.artist}) — {s.mood}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-dim" />
+                </div>
+                {selectedStyle && (
+                  <p className="text-[10px] text-ink-dim/60 italic">{selectedStyle.bestFor}</p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => void doEnhance()}
+                  disabled={enhancing || !prompt.trim()}
+                  className="flex items-center gap-2 rounded-sm border border-line bg-panel px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-ink-dim transition-colors hover:border-prime/60 hover:text-prime disabled:opacity-40"
+                >
+                  <Wand2 className="size-3.5" />
+                  {enhancing ? "Enhancing…" : "Enhance"}
+                </button>
+
+                <div className="ml-auto flex items-center gap-2">
+                  {(["landscape", "portrait"] as const).map((o) => (
+                    <button
+                      key={o}
+                      onClick={() => setOrientation(o)}
+                      className={
+                        "rounded-sm border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors " +
+                        (orientation === o
+                          ? "border-prime/60 bg-prime/10 text-prime"
+                          : "border-line text-ink-dim hover:text-ink")
+                      }
+                    >
+                      {o === "landscape" ? "16:9" : "9:16"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                onClick={() => genMut.mutate()}
+                disabled={genMut.isPending || !prompt.trim()}
+                className="flex w-full items-center justify-center gap-2 rounded-sm bg-prime px-4 py-3 font-mono text-[11px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-prime-glow disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {genMut.isPending ? (
+                  <><Loader2 className="size-4 animate-spin" /> Generating…</>
+                ) : (
+                  <><Video className="size-4" /> Generate · {VIDEO_AGENT_COST} Aura</>
+                )}
+              </button>
             </div>
-            <video
-              src={result.url}
-              controls
-              className="max-h-80 w-full rounded-sm bg-black"
-            />
-            <button
-              onClick={downloadVideo}
-              className="text-xs text-prime underline hover:text-prime-glow"
-            >
-              Download video
-            </button>
-          </div>
+
+            {result && (
+              <div className="space-y-3 rounded-sm border border-prime/40 bg-prime/5 p-4">
+                <div className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-widest text-prime">
+                  <CheckCircle2 className="size-4" /> Video ready
+                </div>
+                <video
+                  src={result.url}
+                  controls
+                  className="max-h-80 w-full rounded-sm bg-black"
+                />
+                <button
+                  onClick={downloadVideo}
+                  className="text-xs text-prime underline hover:text-prime-glow"
+                >
+                  Download video
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {mode === "cinematic" && (
+          <>
+            <div className="rounded-sm border border-line/60 px-3 py-2 text-[11px] leading-relaxed text-ink-dim/80">
+              Describe your video idea in plain language. Aurora applies the cinematic director skill — brief → direction → shot list — and builds a full production plan with engineered model prompts for each shot.
+            </div>
+
+            <div className="space-y-3">
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                rows={4}
+                placeholder="e.g. A lone chef plating a dish in a dark Michelin restaurant at 2am…"
+                className="w-full resize-none rounded-sm border border-line bg-panel/60 px-4 py-3 text-sm text-ink placeholder:text-ink-dim/60 focus:border-prime focus:outline-none"
+              />
+
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  {(["landscape", "portrait"] as const).map((o) => (
+                    <button
+                      key={o}
+                      onClick={() => setOrientation(o)}
+                      className={
+                        "rounded-sm border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors " +
+                        (orientation === o
+                          ? "border-prime/60 bg-prime/10 text-prime"
+                          : "border-line text-ink-dim hover:text-ink")
+                      }
+                    >
+                      {o === "landscape" ? "16:9" : "9:16"}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => void doAnalyze()}
+                  disabled={analyzing || !prompt.trim()}
+                  className="ml-auto flex items-center gap-2 rounded-sm bg-prime px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-prime-glow disabled:opacity-40"
+                >
+                  {analyzing
+                    ? <><Loader2 className="size-3.5 animate-spin" /> Analyzing…</>
+                    : <><Clapperboard className="size-3.5" /> Analyze</>
+                  }
+                </button>
+              </div>
+            </div>
+
+            {plan && plan.brief && (
+              <div className="space-y-4">
+                {/* Brief card */}
+                <div className="rounded-sm border border-prime/30 bg-prime/5 p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-mono text-[9px] uppercase tracking-widest text-prime/70 mb-1">
+                        {plan.brief.motion_language} · {plan.brief.format}
+                      </p>
+                      <h3 className="text-lg font-black uppercase text-ink">{plan.brief.title}</h3>
+                      <p className="mt-1 text-[12px] font-medium italic text-ink-dim">{plan.brief.logline}</p>
+                    </div>
+                    <div className="flex shrink-0 gap-1">
+                      {plan.brief.palette.slice(0, 5).map((p) => (
+                        <span
+                          key={p.hex}
+                          title={p.role}
+                          className="size-5 rounded-full border border-white/10"
+                          style={{ backgroundColor: p.hex }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {plan.brief.references.map((r) => (
+                      <span key={r} className="rounded-sm border border-line px-2 py-0.5 font-mono text-[9px] text-ink-dim">
+                        {r}
+                      </span>
+                    ))}
+                  </div>
+                  {plan.brief.assumptions && plan.brief.assumptions.length > 0 && (
+                    <div>
+                      <p className="font-mono text-[9px] uppercase tracking-widest text-ink-dim/50 mb-1">Assumptions</p>
+                      <ul className="space-y-0.5">
+                        {plan.brief.assumptions.map((a, i) => (
+                          <li key={i} className="text-[10px] text-ink-dim/70 italic">· {a}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {/* Direction */}
+                {plan.direction && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { label: "Lens", value: plan.direction.lens },
+                      { label: "Film Stock", value: plan.direction.film_stock },
+                      { label: "Camera", value: plan.direction.camera_movement },
+                      { label: "Pacing", value: plan.direction.pacing },
+                      { label: "Lighting", value: plan.direction.lighting },
+                      { label: "Sound", value: plan.direction.sound_register },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="rounded-sm border border-line/50 bg-panel/30 px-3 py-2">
+                        <p className="font-mono text-[8px] uppercase tracking-widest text-ink-dim/50 mb-0.5">{label}</p>
+                        <p className="text-[11px] font-medium text-ink leading-snug">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Shots */}
+                {plan.shots && plan.shots.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="font-mono text-[9px] uppercase tracking-widest text-ink-dim/60">
+                      {plan.shots.length} Shots
+                    </p>
+                    {plan.shots.map((shot, i) => (
+                      <ShotCard key={shot.id ?? i} shot={shot} index={i} />
+                    ))}
+                  </div>
+                )}
+
+                {/* Suggestions */}
+                {plan.suggestions && plan.suggestions.length > 0 && (
+                  <div className="rounded-sm border border-line/40 px-4 py-3 space-y-1.5">
+                    <p className="font-mono text-[9px] uppercase tracking-widest text-ink-dim/50 mb-2">Director's Notes</p>
+                    {plan.suggestions.map((s, i) => (
+                      <p key={i} className="text-[11px] text-ink-dim leading-relaxed">→ {s}</p>
+                    ))}
+                  </div>
+                )}
+
+                {/* Render plan */}
+                {plan.render_plan && (
+                  <div className="flex items-center gap-2 text-[10px] text-ink-dim/50 font-mono">
+                    <Film className="size-3" />
+                    <span>Suggested: {plan.render_plan.model} · {plan.render_plan.resolution} · {plan.render_plan.fps}fps</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

@@ -4,6 +4,13 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateWithFallback } from "./llm-fallback.server";
 import { sanitizeVideoAgentScript, videoAgentWordTarget } from "./video-agent-prompt";
 import { computeCost } from "./pricing";
+import {
+  CINEMATIC_SYSTEM_PROMPT,
+  CINEMATIC_ANALYSIS_PROMPT,
+  VideoPlanSchema,
+  getHeyGenStyle,
+  type VideoPlan,
+} from "./video-agent-skills";
 
 // ─── HeyGen Video Agent "Enhance prompt" pass (Task #274) ────────────────────
 // Turns a rough idea (or messy draft) into a clean first-person spoken script.
@@ -19,6 +26,9 @@ const EnhanceSchema = z.object({
   /** Direct-to-camera mode: personal FaceTime-style delivery with no references
    *  to on-screen visuals, so the video survives translation/redubbing intact. */
   directToCamera: z.boolean().optional(),
+  /** Optional HeyGen visual style id — appended as a STYLE block at the end of
+   *  the video prompt so Video Agent applies a consistent look. */
+  styleId: z.string().optional(),
 });
 
 const ScriptOutputSchema = z.object({
@@ -54,6 +64,10 @@ export const enhanceVideoAgentPrompt = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     assertEnhanceRateLimit(context.userId);
     const words = videoAgentWordTarget(data.targetSeconds ?? 20);
+    const style = data.styleId ? getHeyGenStyle(data.styleId) : undefined;
+    const styleInstruction = style
+      ? `\n\nAfter the spoken script, append this style block exactly as written (it is a technical directive to the Video Agent renderer, not speech):\n\n${style.styleBlock}`
+      : "";
     const { provider, output } = await generateWithFallback({
       system:
         "You are an elite scriptwriter for AI avatar presenter videos, with deep expertise in cinematic storytelling, brand narrative, and spoken-word performance. The presenter reads your output aloud word-for-word — so return ONLY the exact words to be spoken: natural, rhythmic, first-person voice. Apply these craft principles: open with a visceral hook that grabs attention in the first 3 words; build tension or curiosity in the body; land a clear, memorable closing line. Use the natural cadence of spoken English — short declarative sentences land harder than long ones. Vary sentence length for rhythm. Avoid academic or corporate language; speak like a confident human. Never include timestamps, stage directions, camera notes, bracketed cues, production labels like 'Tone:' or 'Background:', bullet points, emojis, hashtags, quotation marks, or negative instructions — all of those would be read aloud on camera. Frame everything positively. Respond in JSON.",
@@ -61,12 +75,60 @@ export const enhanceVideoAgentPrompt = createServerFn({ method: "POST" })
         data.directToCamera
           ? " DIRECT-TO-CAMERA MODE: The presenter is on screen the entire time speaking straight to the viewer, FaceTime-style — intimate, personal, and direct. Never refer to anything shown on screen, charts, graphics, or visuals. The speech must stand completely alone so it survives translation and redubbing in any language."
           : " CINEMATIC NARRATION MODE: Write as a confident voiceover narrator — authoritative, evocative, with a sense of place and movement. Use present tense for immediacy. Paint pictures with words."
-      }\n\nRaw idea or draft:\n${data.prompt}\n\nReturn JSON: {"script": "..."}`,
+      }${styleInstruction}\n\nRaw idea or draft:\n${data.prompt}\n\nReturn JSON: {"script": "..."}`,
       schema: ScriptOutputSchema,
     });
     const script = sanitizeVideoAgentScript(output.script);
     if (!script) throw new Error("Enhance produced an empty script — try rewording your idea");
     return { script, provider };
+  });
+
+// ─── Cinematic Brief Analyzer ─────────────────────────────────────────────────
+// Runs the cinematic-video-agent skill pipeline: user idea → brief + direction +
+// shot list. Uses the CINEMATIC_SYSTEM_PROMPT and CINEMATIC_ANALYSIS_PROMPT from
+// the uploaded skill packs. Rate-shares the same enhance bucket (same LLM cost
+// profile). Returns a structured VideoPlan the UI renders as shot cards.
+
+const cinematicHits = new Map<string, number[]>();
+
+function assertCinematicRateLimit(userId: string): void {
+  const now = Date.now();
+  const hits = (cinematicHits.get(userId) ?? []).filter((t) => now - t < ENHANCE_WINDOW_MS);
+  if (hits.length >= ENHANCE_MAX_PER_WINDOW) {
+    throw new Error("Cinematic Analyze is rate-limited — wait a moment and try again");
+  }
+  hits.push(now);
+  cinematicHits.set(userId, hits);
+  if (cinematicHits.size > 5000) {
+    for (const [k, v] of cinematicHits) {
+      if (v.every((t) => now - t >= ENHANCE_WINDOW_MS)) cinematicHits.delete(k);
+    }
+  }
+}
+
+export const analyzeCinematicBrief = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      userIdea: z.string().min(4).max(3000),
+      format: z.enum(["16:9", "9:16", "1:1", "2.39:1"]).optional(),
+    }).parse(d),
+  )
+  .handler(async ({ context, data }): Promise<VideoPlan> => {
+    assertCinematicRateLimit(context.userId);
+    const formatHint = data.format ? ` Preferred format: ${data.format}.` : "";
+    const { output } = await generateWithFallback({
+      system: CINEMATIC_SYSTEM_PROMPT + "\n\n" + CINEMATIC_ANALYSIS_PROMPT,
+      prompt: `User request: ${data.userIdea}${formatHint}\n\nAnalyze this into a complete video plan with brief, direction, and 4–6 shots. Return only valid JSON matching the VideoPlan schema.`,
+      schema: VideoPlanSchema,
+    });
+    if (output.needs_clarification) {
+      throw new Error(output.question ?? "Idea is too vague — add a subject or clear intent");
+    }
+    if (!output.brief || !output.shots?.length) {
+      throw new Error("Plan incomplete — try a more specific idea");
+    }
+    return output as VideoPlan;
   });
 
 // ─── HeyGen Video Agent — generate a full talking-head video from a prompt ───
