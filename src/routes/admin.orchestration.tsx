@@ -307,7 +307,7 @@ function OrchestrationDashboard() {
                       {timeAgo(new Date(creditsUpdatedAt).toISOString())}
                     </span>
                   )}
-                  {credits?.alertCount > 0 && (
+                  {credits && credits.alertCount > 0 && (
                     <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">
                       <AlertTriangle className="size-3" />
                       {credits.alertCount} alert{credits.alertCount > 1 ? "s" : ""}
