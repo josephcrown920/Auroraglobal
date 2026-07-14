@@ -248,60 +248,132 @@ export function UgcLineUI({ session }:{ session:Session }) {
         </div>
       </header>
 
-      {/* ── Demo hero ───────────────────────────────────────────────────────── */}
-      <section style={{ position:"relative", zIndex:1, borderBottom:"1px solid var(--border)", padding:"32px 24px 28px", background:"linear-gradient(180deg, rgba(147,104,245,0.05) 0%, transparent 100%)" }}>
-        <div style={{ maxWidth:880, margin:"0 auto" }}>
-          <div style={{ textAlign:"center", marginBottom:24 }} className="fade-up">
-            <h1 style={{ fontSize:28, fontWeight:900, letterSpacing:"-0.04em", lineHeight:1.15, marginBottom:8 }}>
-              Claude MCP <span style={{ color:"var(--accent)" }}>× UGC</span> × Variations
+      {/* ── Hero ────────────────────────────────────────────────────────────── */}
+      <section style={{ position:"relative", zIndex:1, borderBottom:"1px solid var(--border)", background:"linear-gradient(180deg, rgba(147,104,245,0.06) 0%, transparent 100%)" }}>
+        <div style={{ maxWidth:920, margin:"0 auto", padding:"36px 24px 0" }}>
+          {/* Title */}
+          <div className="fade-up" style={{ textAlign:"center", marginBottom:28 }}>
+            <div style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"5px 14px", borderRadius:20, background:"oklch(0.72 0.2 300 / 0.1)", border:"1px solid oklch(0.72 0.2 300 / 0.25)", marginBottom:14 }}>
+              <ClaudeLogo size={18}/><span style={{ fontSize:12, color:"var(--text-muted)" }}>+</span><AuroraLogo size={18}/>
+              <span style={{ fontSize:12, fontWeight:700, color:"var(--accent)", letterSpacing:"0.03em" }}>MCP+ · Seedance · Gemini</span>
+            </div>
+            <h1 style={{ fontSize:32, fontWeight:900, letterSpacing:"-0.04em", lineHeight:1.1, marginBottom:10 }}>
+              Claude MCP <span style={{ color:"var(--accent)" }}>× UGC</span><br/>× Seedance Variations
             </h1>
-            <p style={{ fontSize:14, color:"var(--text-muted)", maxWidth:480, margin:"0 auto" }}>
-              Generate a full arc of UGC scripts, manage avatar references, and render 50 photo or video variations.
+            <p style={{ fontSize:14, color:"var(--text-muted)", maxWidth:500, margin:"0 auto" }}>
+              Paste a brief → Claude writes a full content arc → upload creator avatars → render 50 photo or Seedance video variations.
             </p>
           </div>
-          {/* Pipeline */}
-          <div className="fade-up-2" style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, marginBottom:24, flexWrap:"wrap" }}>
-            {[
-              { icon:<ClaudeLogo size={26}/>, label:"Claude MCP", sub:"Script Arc" },
-              { icon:<Icon.User/>, label:"Avatars", sub:"Reference photos" },
-              { icon:<AuroraLogo size={26}/>, label:"Gemini Vision", sub:"Visual gen" },
-              { icon:<Icon.Video/>, label:"50 Variations", sub:"Photos or videos" },
-            ].map((s,i,arr)=>(
-              <span key={i} style={{ display:"contents" }}>
-                <PipeStep {...s} />
-                {i<arr.length-1 && <Arrow />}
-              </span>
-            ))}
+
+          {/* ── Two-panel image showcase ── */}
+          <div className="fade-up-2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:28 }}>
+            {/* Left: UGC campaign */}
+            <div style={{ position:"relative", borderRadius:16, overflow:"hidden", border:"1px solid var(--border)", background:"#0d0d14" }}>
+              <img src="/ugc-line/demo-ugc.jpg" alt="Claude + makeugc campaign output" style={{ width:"100%", display:"block", objectFit:"cover", maxHeight:280 }} />
+              <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(9,9,15,0.85) 0%, transparent 50%)" }} />
+              <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"14px 16px" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:5 }}>
+                  <ClaudeLogo size={20}/>
+                  <span style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.5)", textTransform:"uppercase", letterSpacing:"0.06em" }}>Claude MCP</span>
+                </div>
+                <p style={{ fontSize:14, fontWeight:800, color:"#fff", letterSpacing:"-0.02em", marginBottom:3 }}>Scripts + Ad Creatives</p>
+                <p style={{ fontSize:11, color:"rgba(255,255,255,0.55)", lineHeight:1.5 }}>Full arc: pain-point → discovery → transformation → CTA. Real creator briefs with scene direction.</p>
+              </div>
+            </div>
+            {/* Right: Seedance variations */}
+            <div style={{ position:"relative", borderRadius:16, overflow:"hidden", border:"1px solid var(--border)", background:"#0d0d14" }}>
+              <img src="/ugc-line/demo-seedance.jpg" alt="Seedance video variation grid" style={{ width:"100%", display:"block", objectFit:"cover", maxHeight:280 }} />
+              <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(9,9,15,0.85) 0%, transparent 50%)" }} />
+              <div style={{ position:"absolute", top:12, right:12 }}>
+                <span style={{ fontSize:10, fontWeight:800, padding:"4px 10px", borderRadius:20, background:"rgba(147,104,245,0.9)", color:"#fff", letterSpacing:"0.04em" }}>SEEDANCE</span>
+              </div>
+              <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"14px 16px" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:5 }}>
+                  <AuroraLogo size={20}/>
+                  <span style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.5)", textTransform:"uppercase", letterSpacing:"0.06em" }}>Seedance Engine</span>
+                </div>
+                <p style={{ fontSize:14, fontWeight:800, color:"#fff", letterSpacing:"-0.02em", marginBottom:3 }}>50 Video Variations</p>
+                <p style={{ fontSize:11, color:"rgba(255,255,255,0.55)", lineHeight:1.5 }}>Sports, fashion, music, beauty — identity-consistent creator videos across every niche.</p>
+              </div>
+            </div>
           </div>
-          {/* Demo cards */}
-          <div className="fade-up-3">
-            <p style={{ fontSize:10, fontWeight:700, letterSpacing:"0.08em", color:"var(--text-muted)", textTransform:"uppercase", marginBottom:8 }}>Sample output — ad creatives</p>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:7, marginBottom:10 }}>
-              {DEMO_CREATIVES.map((c,i)=>(
-                <div key={i} style={{ borderRadius:10, border:"1px solid var(--border)", background:c.bg, padding:"12px 11px", display:"flex", flexDirection:"column", justifyContent:"space-between", minHeight:82, position:"relative", overflow:"hidden" }}>
-                  <div style={{ position:"absolute", inset:0, background:"radial-gradient(circle at 70% 20%, rgba(255,255,255,0.04), transparent)" }} />
-                  <div>
-                    <p style={{ fontSize:10, fontWeight:900, color:"#fff", lineHeight:1.3, marginBottom:4 }}>{c.headline}</p>
-                    {c.sub.split(" · ").map(s=><p key={s} style={{ fontSize:8, color:"rgba(255,255,255,0.55)", display:"flex", alignItems:"center", gap:3 }}><span>✓</span>{s}</p>)}
+
+          {/* ── Visual 3-step onboarding strip ── */}
+          <div className="fade-up-3" style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:0, marginBottom:0, borderTop:"1px solid var(--border)" }}>
+            {[
+              {
+                step: "01",
+                title: "Upload avatars",
+                desc: "Add creator or product reference photos. They persist across sessions and can be swapped in one click.",
+                visual: (
+                  <div style={{ position:"relative", height:110, overflow:"hidden", borderRadius:10 }}>
+                    <img src="/ugc-line/demo-ugc.jpg" alt="" style={{ width:"100%", objectFit:"cover", objectPosition:"0% 65%", height:"100%", transform:"scale(1.1)" }} />
+                    <div style={{ position:"absolute", inset:0, background:"linear-gradient(180deg, transparent 30%, rgba(9,9,15,0.7) 100%)" }} />
+                    <div style={{ position:"absolute", bottom:6, left:8, display:"flex", gap:4 }}>
+                      {["testimonial","before/after","pov"].map(a=>(
+                        <span key={a} style={{ fontSize:8, fontWeight:700, padding:"2px 6px", borderRadius:10, background:"oklch(0.72 0.2 300 / 0.85)", color:"#fff" }}>{a}</span>
+                      ))}
+                    </div>
                   </div>
-                  <span style={{ fontSize:8, fontWeight:800, color:"#fff", background:c.accent, padding:"3px 7px", borderRadius:3, alignSelf:"flex-start", letterSpacing:"0.04em", marginTop:6 }}>{c.cta}</span>
+                ),
+                action: () => setTab("avatars"),
+                cta: "Open Avatars →",
+                color: "#a78bfa",
+              },
+              {
+                step: "02",
+                title: "Generate scripts",
+                desc: "Claude writes 6–15 UGC briefs across the full conversion arc — pain-point, discovery, CTA and more.",
+                visual: (
+                  <div style={{ height:110, borderRadius:10, background:"var(--bg-input)", border:"1px solid var(--border)", padding:"10px 12px", overflow:"hidden" }}>
+                    <p style={{ fontSize:9, fontWeight:700, color:"var(--accent)", marginBottom:5 }}>"I never slept through the night until…"</p>
+                    {[["Arc","pain-point"],["Angle","testimonial"],["Script","25–35 words"]].map(([k,v])=>(
+                      <div key={k} style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
+                        <span style={{ fontSize:8, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.05em" }}>{k}</span>
+                        <span style={{ fontSize:8, fontWeight:600, color:"var(--text)" }}>{v}</span>
+                      </div>
+                    ))}
+                    <div style={{ marginTop:6, height:1, background:"var(--border)" }} />
+                    <p style={{ fontSize:8, color:"var(--text-muted)", marginTop:5, lineHeight:1.5 }}>Scene direction · On-screen text · CTA · Caption</p>
+                  </div>
+                ),
+                action: () => setTab("scripts"),
+                cta: "Open Scripts →",
+                color: "#34d399",
+              },
+              {
+                step: "03",
+                title: "Render 50 variations",
+                desc: "Choose Photos (Gemini) or Videos (Seedance). Up to 50 variations with different settings, framings, and styles.",
+                visual: (
+                  <div style={{ position:"relative", height:110, overflow:"hidden", borderRadius:10 }}>
+                    <img src="/ugc-line/demo-seedance.jpg" alt="" style={{ width:"100%", objectFit:"cover", objectPosition:"center top", height:"100%", transform:"scale(1.05)" }} />
+                    <div style={{ position:"absolute", inset:0, background:"linear-gradient(180deg, transparent 20%, rgba(9,9,15,0.65) 100%)" }} />
+                    <div style={{ position:"absolute", top:6, right:6 }}>
+                      <span style={{ fontSize:8, fontWeight:800, padding:"2px 7px", borderRadius:10, background:"rgba(147,104,245,0.9)", color:"#fff", letterSpacing:"0.05em" }}>SEEDANCE</span>
+                    </div>
+                    <div style={{ position:"absolute", bottom:6, left:8 }}>
+                      <span style={{ fontSize:9, fontWeight:600, color:"rgba(255,255,255,0.8)" }}>50 unique outputs →</span>
+                    </div>
+                  </div>
+                ),
+                action: () => setTab("variations"),
+                cta: "Open Variations →",
+                color: "var(--accent)",
+              },
+            ].map((s, i) => (
+              <div key={i} style={{ padding:"20px 20px 22px", borderRight: i < 2 ? "1px solid var(--border)" : "none" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
+                  <span style={{ fontSize:11, fontWeight:900, color:s.color, fontVariantNumeric:"tabular-nums", letterSpacing:"0.04em" }}>{s.step}</span>
+                  <span style={{ fontSize:14, fontWeight:800, letterSpacing:"-0.02em", color:"var(--text)" }}>{s.title}</span>
                 </div>
-              ))}
-            </div>
-            <p style={{ fontSize:10, fontWeight:700, letterSpacing:"0.08em", color:"var(--text-muted)", textTransform:"uppercase", marginBottom:8 }}>Sample output — UGC creator variations</p>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:7 }}>
-              {DEMO_UGC.map((u,i)=>(
-                <div key={i} style={{ borderRadius:10, border:"1px solid var(--border)", background:`linear-gradient(180deg,#${["1a2a1a","1e2818","182218","1c2a18"][i]} 0%, #0d150d 100%)`, overflow:"hidden", aspectRatio:"9/14", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"flex-end", padding:8, position:"relative" }}>
-                  <div style={{ position:"absolute", top:"14%", left:"50%", transform:"translateX(-50%)", opacity:0.14 }}>
-                    <svg width="44" height="66" viewBox="0 0 52 80" fill="white"><circle cx="26" cy="18" r="14"/><path d="M6 80c0-22 8-36 20-36s20 14 20 36H6Z"/></svg>
-                  </div>
-                  <div style={{ position:"relative", width:"100%", textAlign:"center" }}>
-                    <span style={{ fontSize:8, fontWeight:700, padding:"2px 7px", borderRadius:20, background:"oklch(0.72 0.2 300 / 0.18)", border:"1px solid oklch(0.72 0.2 300 / 0.3)", color:"var(--accent)", display:"inline-block", marginBottom:4 }}>{u.angle}</span>
-                    <p style={{ fontSize:8, color:"rgba(255,255,255,0.4)" }}>{u.text}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+                {s.visual}
+                <p style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginTop:10, marginBottom:12 }}>{s.desc}</p>
+                <button onClick={s.action} style={{ fontSize:12, fontWeight:700, color:s.color, background:"transparent", border:"none", cursor:"pointer", padding:0, display:"flex", alignItems:"center", gap:4 }}>
+                  {s.cta}
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       </section>
