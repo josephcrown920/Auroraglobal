@@ -229,13 +229,15 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       });
       await writeCheck(run.id, 6, STEPS[5], r6);
 
-      // 7. Colors — single-color cyclorama preset (image gen w/ colors-specific prompt)
+      // 7. Colors — single-color cyclorama preset (image gen w/ colors-specific prompt).
+      // Uses the same model slug the Colors Studio UI sends (gemini-3.1-flash-image-preview),
+      // not the older gemini-2.5-flash-image Lovable slug which may 404.
       const r7 = await runStep(async () => {
         const out = await orchestrate({
           kind: "image",
           prompt: "smoke test: subject in front of a single-color saturated electric-blue cyclorama backdrop, studio lighting",
           imageUrls: [TEST_SELFIE_URL],
-          model: "google/gemini-2.5-flash-image",
+          model: "google/gemini-3.1-flash-image-preview",
           userId: context.userId,
           refId: run.id,
         });

@@ -26,7 +26,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { getColorStudio } from "@/lib/colors.studios";
 import { computeCost } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Loader2, Palette, Wand2, ArrowLeft, Check, ImagePlus, X, ChevronDown, Music2, Mic2 } from "lucide-react";
+import { Sparkles, Loader2, Palette, Wand2, ArrowLeft, Check, ImagePlus, X, ChevronDown, Music2, Mic2, Download } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -229,7 +229,7 @@ function ColorsStudio() {
   });
   const allItems = gens?.items ?? [];
   const recent = allItems
-    .filter((g) => g.result_image_url || g.result_video_url)
+    .filter((g) => ["image", "video"].includes(g.kind ?? "") && (g.result_image_url || g.result_video_url))
     .slice(0, 8);
   // Shots still rendering server-side (they keep going even if the tab closes).
   // Same kinds the Recent grid can display (image stills + animate loops) —
@@ -419,6 +419,27 @@ function ColorsStudio() {
       toast.error(msg);
     },
   });
+
+  /** Cross-origin fetch → Blob → objectURL anchor download (plain <a download>
+   *  silently fails for cross-origin studio-bucket URLs). */
+  const downloadShot = async (url: string) => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const ext = blob.type.includes("video") ? "mp4" : "jpg";
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = `colors-shot.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Download failed");
+    }
+  };
 
   // Every shot is queued upfront (no client-side batching) — the server jobs
   // worker throttles concurrency itself, and nothing is lost if the tab closes.
@@ -957,6 +978,15 @@ function ColorsStudio() {
                     <img src={g.result_image_url!} alt="" className="w-full h-full object-cover" />
                   )}
                 </a>
+                {/* Download button — fetch→Blob so cross-origin studio URLs actually save */}
+                <button
+                  type="button"
+                  onClick={() => downloadShot((g.result_video_url ?? g.result_image_url)!)}
+                  title="Download"
+                  className="absolute top-1.5 right-1.5 size-7 rounded-lg bg-background/80 backdrop-blur flex items-center justify-center border border-border opacity-0 group-hover/shot:opacity-100 focus-visible:opacity-100 transition-opacity hover:border-primary/50"
+                >
+                  <Download className="size-3.5 text-foreground/80" />
+                </button>
                 {!g.result_video_url && g.result_image_url && (
                   <button
                     type="button"
