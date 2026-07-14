@@ -286,17 +286,17 @@ function ShotCard({ shot, index }: { shot: VideoShot; index: number }) {
         onClick={() => setExpanded((v) => !v)}
         className="flex w-full items-start gap-3 px-4 py-3 text-left"
       >
-        <span className="mt-0.5 shrink-0 font-mono text-[10px] font-bold text-ink-dim">
+        <span className="mt-0.5 shrink-0 text-[10px] font-bold text-ink-dim">
           {shot.id ?? `S${index + 1}`}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className={`font-mono text-[9px] font-bold uppercase tracking-widest ${purposeColor[shot.purpose] ?? "text-ink-dim"}`}>
+            <span className={`text-[9px] font-bold uppercase tracking-widest ${purposeColor[shot.purpose] ?? "text-ink-dim"}`}>
               {shot.purpose}
             </span>
-            <span className="font-mono text-[9px] text-ink-dim/60">{shot.shot_type}</span>
+            <span className="text-[9px] text-ink-dim/60">{shot.shot_type}</span>
             {shot.duration_s && (
-              <span className="ml-auto font-mono text-[9px] text-ink-dim/40">{shot.duration_s}s</span>
+              <span className="ml-auto text-[9px] text-ink-dim/40">{shot.duration_s}s</span>
             )}
           </div>
           <p className="mt-1 line-clamp-2 text-[12px] font-medium leading-snug text-ink">
@@ -311,24 +311,24 @@ function ShotCard({ shot, index }: { shot: VideoShot; index: number }) {
         <div className="border-t border-line/50 px-4 pb-4 pt-3 space-y-3">
           {shot.lighting && (
             <div>
-              <p className="font-mono text-[9px] uppercase tracking-widest text-ink-dim/60 mb-1">Lighting</p>
+              <p className="text-[9px] uppercase tracking-widest text-ink-dim/60 mb-1">Lighting</p>
               <p className="text-[11px] text-ink-dim leading-relaxed">{shot.lighting}</p>
             </div>
           )}
           {shot.camera && (
             <div>
-              <p className="font-mono text-[9px] uppercase tracking-widest text-ink-dim/60 mb-1">Camera</p>
+              <p className="text-[9px] uppercase tracking-widest text-ink-dim/60 mb-1">Camera</p>
               <p className="text-[11px] text-ink-dim leading-relaxed">{shot.camera}{shot.lens_mm ? ` · ${shot.lens_mm}mm` : ""}</p>
             </div>
           )}
           <div>
-            <p className="font-mono text-[9px] uppercase tracking-widest text-ink-dim/60 mb-1">Model Prompt</p>
+            <p className="text-[9px] uppercase tracking-widest text-ink-dim/60 mb-1">Model Prompt</p>
             <p className="text-[11px] text-ink leading-relaxed rounded-sm bg-panel-2/60 px-3 py-2">
               {shot.prompt}
             </p>
           </div>
           {shot.chain_from && (
-            <p className="font-mono text-[9px] text-ink-dim/40">chain from → {shot.chain_from}</p>
+            <p className="text-[9px] text-ink-dim/40">chain from → {shot.chain_from}</p>
           )}
         </div>
       )}
@@ -425,7 +425,7 @@ function HeyGenPanel() {
     <div className="flex-1 overflow-y-auto px-6 py-8">
       <div className="mx-auto w-full max-w-xl space-y-6">
         <header>
-          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-prime">
+          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-prime">
             HeyGen · Video Agent
           </p>
           <h2 className="mt-1 text-3xl font-black uppercase leading-tight text-ink">
@@ -443,7 +443,7 @@ function HeyGenPanel() {
               key={m}
               onClick={() => { setMode(m); setPlan(null); }}
               className={
-                "flex-1 flex items-center justify-center gap-2 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-widest transition-colors " +
+                "flex-1 flex items-center justify-center gap-2 px-3 py-2 text-[10px] font-bold uppercase tracking-widest transition-colors " +
                 (mode === m
                   ? "bg-prime text-white"
                   : "bg-panel text-ink-dim hover:text-ink")
@@ -474,7 +474,7 @@ function HeyGenPanel() {
 
               {/* Style selector */}
               <div className="space-y-1.5">
-                <p className="font-mono text-[9px] uppercase tracking-widest text-ink-dim/60">Visual Style</p>
+                <p className="text-[9px] uppercase tracking-widest text-ink-dim/60">Visual Style</p>
                 <div className="relative">
                   <select
                     value={styleId}
@@ -526,7 +526,7 @@ function HeyGenPanel() {
               <button
                 onClick={() => genMut.mutate()}
                 disabled={genMut.isPending || !prompt.trim()}
-                className="flex w-full items-center justify-center gap-2 rounded-sm bg-prime px-4 py-3 font-mono text-[11px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-prime-glow disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex w-full items-center justify-center gap-2 rounded-sm bg-prime px-4 py-3 text-[11px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-prime-glow disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {genMut.isPending ? (
                   <><Loader2 className="size-4 animate-spin" /> Generating…</>
@@ -538,7 +538,7 @@ function HeyGenPanel() {
 
             {result && (
               <div className="space-y-3 rounded-sm border border-prime/40 bg-prime/5 p-4">
-                <div className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-widest text-prime">
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-prime">
                   <CheckCircle2 className="size-4" /> Video ready
                 </div>
                 <video
@@ -593,7 +593,7 @@ function HeyGenPanel() {
                 <button
                   onClick={() => void doAnalyze()}
                   disabled={analyzing || !prompt.trim()}
-                  className="ml-auto flex items-center gap-2 rounded-sm bg-prime px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-prime-glow disabled:opacity-40"
+                  className="ml-auto flex items-center gap-2 rounded-sm bg-prime px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-prime-glow disabled:opacity-40"
                 >
                   {analyzing
                     ? <><Loader2 className="size-3.5 animate-spin" /> Analyzing…</>
@@ -609,7 +609,7 @@ function HeyGenPanel() {
                 <div className="rounded-sm border border-prime/30 bg-prime/5 p-4 space-y-3">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="font-mono text-[9px] uppercase tracking-widest text-prime/70 mb-1">
+                      <p className="text-[9px] uppercase tracking-widest text-prime/70 mb-1">
                         {plan.brief.motion_language} · {plan.brief.format}
                       </p>
                       <h3 className="text-lg font-black uppercase text-ink">{plan.brief.title}</h3>
@@ -628,14 +628,14 @@ function HeyGenPanel() {
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {plan.brief.references.map((r) => (
-                      <span key={r} className="rounded-sm border border-line px-2 py-0.5 font-mono text-[9px] text-ink-dim">
+                      <span key={r} className="rounded-sm border border-line px-2 py-0.5 text-[9px] text-ink-dim">
                         {r}
                       </span>
                     ))}
                   </div>
                   {plan.brief.assumptions && plan.brief.assumptions.length > 0 && (
                     <div>
-                      <p className="font-mono text-[9px] uppercase tracking-widest text-ink-dim/50 mb-1">Assumptions</p>
+                      <p className="text-[9px] uppercase tracking-widest text-ink-dim/50 mb-1">Assumptions</p>
                       <ul className="space-y-0.5">
                         {plan.brief.assumptions.map((a, i) => (
                           <li key={i} className="text-[10px] text-ink-dim/70 italic">· {a}</li>
@@ -657,7 +657,7 @@ function HeyGenPanel() {
                       { label: "Sound", value: plan.direction.sound_register },
                     ].map(({ label, value }) => (
                       <div key={label} className="rounded-sm border border-line/50 bg-panel/30 px-3 py-2">
-                        <p className="font-mono text-[8px] uppercase tracking-widest text-ink-dim/50 mb-0.5">{label}</p>
+                        <p className="text-[8px] uppercase tracking-widest text-ink-dim/50 mb-0.5">{label}</p>
                         <p className="text-[11px] font-medium text-ink leading-snug">{value}</p>
                       </div>
                     ))}
@@ -667,7 +667,7 @@ function HeyGenPanel() {
                 {/* Shots */}
                 {plan.shots && plan.shots.length > 0 && (
                   <div className="space-y-2">
-                    <p className="font-mono text-[9px] uppercase tracking-widest text-ink-dim/60">
+                    <p className="text-[9px] uppercase tracking-widest text-ink-dim/60">
                       {plan.shots.length} Shots
                     </p>
                     {plan.shots.map((shot, i) => (
@@ -679,7 +679,7 @@ function HeyGenPanel() {
                 {/* Suggestions */}
                 {plan.suggestions && plan.suggestions.length > 0 && (
                   <div className="rounded-sm border border-line/40 px-4 py-3 space-y-1.5">
-                    <p className="font-mono text-[9px] uppercase tracking-widest text-ink-dim/50 mb-2">Director's Notes</p>
+                    <p className="text-[9px] uppercase tracking-widest text-ink-dim/50 mb-2">Director's Notes</p>
                     {plan.suggestions.map((s, i) => (
                       <p key={i} className="text-[11px] text-ink-dim leading-relaxed">→ {s}</p>
                     ))}
@@ -688,7 +688,7 @@ function HeyGenPanel() {
 
                 {/* Render plan */}
                 {plan.render_plan && (
-                  <div className="flex items-center gap-2 text-[10px] text-ink-dim/50 font-mono">
+                  <div className="flex items-center gap-2 text-[10px] text-ink-dim/50">
                     <Film className="size-3" />
                     <span>Suggested: {plan.render_plan.model} · {plan.render_plan.resolution} · {plan.render_plan.fps}fps</span>
                   </div>
@@ -932,10 +932,10 @@ function AgentPage() {
           <div className="flex items-center gap-3 border-b border-line px-5 py-4">
             <img src={auroraLogo.url} alt="Aurora" width={32} height={32} className="rounded-md" />
             <div className="flex flex-col leading-tight">
-              <span className="font-mono text-[9px] font-bold uppercase tracking-[0.3em] text-ink-dim">Studio</span>
+              <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-ink-dim">Studio</span>
               <span className="text-[13px] font-black uppercase tracking-widest text-ink">Aurora Prime</span>
             </div>
-            <span className="ml-auto flex items-center gap-1.5 rounded-full border border-rec/40 bg-rec/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-rec">
+            <span className="ml-auto flex items-center gap-1.5 rounded-full border border-rec/40 bg-rec/10 px-2 py-0.5 text-[9px] uppercase tracking-widest text-rec">
               <span className="size-1.5 rounded-full bg-rec rec-pulse" />Rec
             </span>
           </div>
@@ -964,14 +964,14 @@ function AgentPage() {
 
           {/* footer */}
           <div className="border-t border-line px-4 py-3 space-y-2">
-            <div className="flex items-center justify-between font-mono text-[9px] uppercase tracking-widest text-ink-dim">
+            <div className="flex items-center justify-between text-[9px] uppercase tracking-widest text-ink-dim">
               <span>Director · Aurora Prime</span>
               <button onClick={clearThread} className="flex items-center gap-1 rounded-sm border border-line px-1.5 py-0.5 text-ink-dim transition-colors hover:border-rec/60 hover:text-rec text-[9px]">
                 <Trash2 className="size-2.5" /> Clear
               </button>
             </div>
             <div className="rounded-sm border border-line bg-panel-2/60 px-2 py-1.5">
-              <div className="mb-1 flex items-center gap-1 font-mono text-[9px] font-bold uppercase tracking-widest text-prime">
+              <div className="mb-1 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-prime">
                 <Save className="size-3" /> Director Memory
               </div>
               <textarea
@@ -1018,7 +1018,7 @@ function AgentPage() {
           </div>
           <button
             onClick={renderAll}
-            className="flex items-center gap-1.5 rounded-full bg-rec px-4 py-1.5 font-mono text-[9px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-rec-glow"
+            className="flex items-center gap-1.5 rounded-full bg-rec px-4 py-1.5 text-[9px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-rec-glow"
           >
             <Rocket className="size-3" /> Render All
           </button>
@@ -1056,7 +1056,7 @@ function AgentPage() {
             {messages.length === 0 && (
               <div className="space-y-6">
                 <header className="mb-8">
-                  <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-rec">Aurora Prime Director</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-rec">Aurora Prime Director</p>
                   <h1 className="font-black-display mt-2 text-4xl uppercase leading-tight text-ink">
                     Direct your video,<br /><span className="text-prime">end to end.</span>
                   </h1>
@@ -1094,14 +1094,14 @@ function AgentPage() {
                 <div key={m.id} className={m.role === "user" ? "flex justify-end" : "flex gap-3"}>
                   {m.role === "user" ? (
                     <div className="max-w-[85%] rounded-l-2xl rounded-br-sm border-r-2 border-prime bg-panel-2/60 px-4 py-3 text-sm text-ink">
-                      <div className="mb-1 font-mono text-[9px] uppercase tracking-widest text-ink-dim">Director / You</div>
+                      <div className="mb-1 text-[9px] uppercase tracking-widest text-ink-dim">Director / You</div>
                       <div className="whitespace-pre-wrap">{m.content}</div>
                     </div>
                   ) : (
                     <>
                       <img src={auroraLogo.url} alt="" width={26} height={26} className="mt-1 size-[26px] shrink-0 rounded" />
                       <div className="min-w-0 flex-1">
-                        <div className="mb-1 flex items-center gap-2 font-mono text-[9px] uppercase tracking-widest text-prime">
+                        <div className="mb-1 flex items-center gap-2 text-[9px] uppercase tracking-widest text-prime">
                           Aurora Prime
                           <span className="text-ink-dim">/ Director</span>
                           {m.skillMeta && (
@@ -1110,7 +1110,7 @@ function AgentPage() {
                             </span>
                           )}
                         </div>
-                        <article className="prose prose-invert prose-sm max-w-none prose-headings:text-ink prose-p:text-ink prose-strong:text-ink prose-code:text-prime-glow prose-pre:border prose-pre:border-line prose-pre:bg-panel/80 prose-pre:font-mono prose-a:text-prime-glow">
+                        <article className="prose prose-invert prose-sm max-w-none prose-headings:text-ink prose-p:text-ink prose-strong:text-ink prose-code:text-prime-glow prose-pre:border prose-pre:border-line prose-pre:bg-panel/80 prose-pre:prose-a:text-prime-glow">
                           <ReactMarkdown>{m.content || "…"}</ReactMarkdown>
                         </article>
                       </div>
@@ -1122,7 +1122,7 @@ function AgentPage() {
               {isLoading && (
                 <div className="flex gap-3">
                   <img src={auroraLogo.url} alt="" width={26} height={26} className="mt-1 size-[26px] shrink-0 rounded" />
-                  <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-ink-dim">
+                  <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-ink-dim">
                     <span className="size-1.5 rounded-full bg-prime rec-pulse" />
                     Aurora is composing the shot…
                   </div>
@@ -1158,7 +1158,7 @@ function AgentPage() {
                 <Send className="size-4" />
               </button>
             </div>
-            <div className="mt-1.5 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.15em] text-ink-dim">
+            <div className="mt-1.5 flex items-center justify-between text-[9px] font-bold uppercase tracking-[0.15em] text-ink-dim">
               <span>{inspector.focalLength}mm · {inspector.aperture} · {inspector.filmStock.split(" ")[0]} · {inspector.aspect} · → {inspector.targetModel}</span>
               <span>Enter to send · Shift+Enter for newline</span>
             </div>
@@ -1170,13 +1170,13 @@ function AgentPage() {
       {rightOpen && (
         <aside className="flex w-72 shrink-0 flex-col overflow-y-auto border-l border-line bg-panel/70 backdrop-blur-sm" style={{ zIndex: 10 }}>
           <div className="border-b border-line px-5 py-4">
-            <div className="font-mono text-[9px] font-bold uppercase tracking-[0.3em] text-ink-dim">Cinematic Inspector</div>
+            <div className="text-[9px] font-bold uppercase tracking-[0.3em] text-ink-dim">Cinematic Inspector</div>
             <div className="mt-2 h-px w-8 bg-rec" />
           </div>
 
           <div className="space-y-6 px-5 py-5">
             <InspectorSection icon={<Camera className="size-3.5" />} title="Lens & Optics">
-              <label className="font-mono text-[9px] uppercase text-ink-dim">Focal Length</label>
+              <label className="text-[9px] uppercase text-ink-dim">Focal Length</label>
               <div className="flex items-center gap-3">
                 <input
                   type="range" min={14} max={200}
@@ -1184,9 +1184,9 @@ function AgentPage() {
                   onChange={(e) => setInspector((s) => ({ ...s, focalLength: Number(e.target.value) }))}
                   className="flex-1 accent-[var(--prime)]"
                 />
-                <span className="w-12 text-right font-mono text-[10px] text-ink">{inspector.focalLength}mm</span>
+                <span className="w-12 text-right text-[10px] text-ink">{inspector.focalLength}mm</span>
               </div>
-              <label className="mt-3 block font-mono text-[9px] uppercase text-ink-dim">Aperture</label>
+              <label className="mt-3 block text-[9px] uppercase text-ink-dim">Aperture</label>
               <div className="flex flex-wrap gap-1.5">
                 {APERTURES.map((a) => (
                   <Chip key={a} active={inspector.aperture === a} onClick={() => setInspector((s) => ({ ...s, aperture: a }))}>{a}</Chip>
@@ -1195,7 +1195,7 @@ function AgentPage() {
             </InspectorSection>
 
             <InspectorSection icon={<Film className="size-3.5" />} title="Color & Stock">
-              <label className="font-mono text-[9px] uppercase text-ink-dim">Film Stock</label>
+              <label className="text-[9px] uppercase text-ink-dim">Film Stock</label>
               <select
                 value={inspector.filmStock}
                 onChange={(e) => setInspector((s) => ({ ...s, filmStock: e.target.value }))}
@@ -1203,7 +1203,7 @@ function AgentPage() {
               >
                 {FILM_STOCKS.map((f) => <option key={f}>{f}</option>)}
               </select>
-              <label className="mt-3 block font-mono text-[9px] uppercase text-ink-dim">Aspect Ratio</label>
+              <label className="mt-3 block text-[9px] uppercase text-ink-dim">Aspect Ratio</label>
               <div className="flex flex-wrap gap-1.5">
                 {ASPECTS.map((a) => (
                   <Chip key={a} active={inspector.aspect === a} onClick={() => setInspector((s) => ({ ...s, aspect: a }))}>{a}</Chip>
@@ -1237,7 +1237,7 @@ function AgentPage() {
                   <Chip key={m} active={inspector.targetModel === m} onClick={() => setInspector((s) => ({ ...s, targetModel: m }))}>{m}</Chip>
                 ))}
               </div>
-              <label className="mt-3 block font-mono text-[9px] uppercase text-ink-dim">Director Mood Note</label>
+              <label className="mt-3 block text-[9px] uppercase text-ink-dim">Director Mood Note</label>
               <textarea
                 value={inspector.mood}
                 onChange={(e) => setInspector((s) => ({ ...s, mood: e.target.value }))}
@@ -1248,12 +1248,12 @@ function AgentPage() {
 
             <div className="rounded-sm border border-rec/30 bg-rec/5 p-3">
               <div className="mb-1.5 flex items-center justify-between">
-                <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-rec">Live Telemetry</span>
-                <span className="flex items-center gap-1 font-mono text-[9px] text-rec">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-rec">Live Telemetry</span>
+                <span className="flex items-center gap-1 text-[9px] text-rec">
                   <span className="size-1.5 rounded-full bg-rec rec-pulse" /> REC
                 </span>
               </div>
-              <div className="space-y-0.5 font-mono text-[9px] uppercase leading-relaxed text-rec/70">
+              <div className="space-y-0.5 text-[9px] uppercase leading-relaxed text-rec/70">
                 <div>Backend: Aurora · Multi-LLM</div>
                 <div>Skills: 7 active (search · hooks · memory · broll · captions)</div>
                 <div>Style bias: hyper-realistic · no plastic skin</div>
@@ -1321,7 +1321,7 @@ function AmbientBackdrop() {
 function InspectorSection({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-2.5">
-      <div className="flex items-center gap-2 font-mono text-[9px] font-bold uppercase tracking-widest text-ink">
+      <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-ink">
         <span className="text-prime">{icon}</span>
         {title}
       </div>
@@ -1335,7 +1335,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
     <button
       onClick={onClick}
       className={
-        "rounded-sm border px-2 py-1 font-mono text-[9px] transition-colors " +
+        "rounded-sm border px-2 py-1 text-[9px] transition-colors " +
         (active
           ? "border-prime/60 bg-prime/10 text-ink"
           : "border-line bg-canvas text-ink-dim hover:border-prime/40 hover:text-ink")
@@ -1349,7 +1349,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
 function SidebarSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mb-4">
-      <div className="mb-1 px-3 font-mono text-[9px] font-bold uppercase tracking-[0.25em] text-ink-dim">{title}</div>
+      <div className="mb-1 px-3 text-[9px] font-bold uppercase tracking-[0.25em] text-ink-dim">{title}</div>
       <div className="space-y-0.5">{children}</div>
     </div>
   );
@@ -1390,12 +1390,12 @@ function AgentDashboard({
 
   return (
     <div className="relative flex flex-wrap items-center gap-3 border-b border-line bg-panel/60 px-5 py-2 backdrop-blur-sm" style={{ zIndex: 8 }}>
-      <div className="flex items-center gap-2 font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-ink">
+      <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.2em] text-ink">
         <span className={"size-1.5 rounded-full " + badge.dot} />
         <span className={badge.color}>Agent · {badge.label}</span>
       </div>
       <div className="min-w-0 flex-1">
-        <div className="truncate font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-ink-dim">
+        <div className="truncate text-[10px] font-bold uppercase tracking-[0.15em] text-ink-dim">
           {title || "No active run — press Run to launch"}
           {current && status === "running" && (
             <> · <span className="text-ink">Step {activeIndex + 1}/{steps.length} · {current.label}</span></>
@@ -1424,7 +1424,7 @@ function DashBtn({ onClick, tone, title, children }: { onClick: () => void; tone
                        "border border-line bg-panel-2 text-ink hover:border-prime/60";
   return (
     <button onClick={onClick} title={title}
-      className={"inline-flex items-center gap-1 rounded-sm px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.2em] transition-colors " + cls}
+      className={"inline-flex items-center gap-1 rounded-sm px-2 py-1 text-[9px] font-bold uppercase tracking-[0.2em] transition-colors " + cls}
     >{children}</button>
   );
 }
@@ -1439,11 +1439,11 @@ function TabHeader({ tab, status }: { tab: "Script" | "Dailies" | "Timeline"; st
     <section className={"fade-up mb-5 rounded-sm border bg-panel/60 p-4 " + meta.accent}>
       <div className="flex items-center justify-between">
         <div>
-          <div className="font-mono text-[9px] font-bold uppercase tracking-[0.25em] text-ink-dim">{tab} tab</div>
+          <div className="text-[9px] font-bold uppercase tracking-[0.25em] text-ink-dim">{tab} tab</div>
           <div className="font-black-display mt-1 text-xl uppercase text-ink">{meta.title}</div>
           <div className="mt-0.5 text-[12px] font-medium text-ink-dim">{meta.sub}</div>
         </div>
-        <span className={"font-mono text-[9px] uppercase tracking-widest " + (status === "running" ? "text-rec" : "text-ink-dim")}>
+        <span className={"text-[9px] uppercase tracking-widest " + (status === "running" ? "text-rec" : "text-ink-dim")}>
           {status === "running" ? "● streaming" : "○ waiting"}
         </span>
       </div>
@@ -1455,9 +1455,9 @@ function ProgressTimeline({ steps, status, title }: { steps: AgentStep[]; status
   return (
     <section className="fade-up mb-6 overflow-hidden rounded-sm border border-line bg-panel/60">
       <div className="flex items-center justify-between border-b border-line bg-panel-2/60 px-4 py-2">
-        <div className="font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-prime">Agent stream · {title || "no active run"}</div>
+        <div className="text-[10px] font-bold uppercase tracking-[0.25em] text-prime">Agent stream · {title || "no active run"}</div>
         <span className={
-          "font-mono text-[9px] uppercase tracking-widest " +
+          "text-[9px] uppercase tracking-widest " +
           (status === "running" ? "text-rec" : status === "paused" ? "text-amber-400" : status === "done" ? "text-prime-glow" : "text-ink-dim")
         }>{status}</span>
       </div>
@@ -1474,9 +1474,9 @@ function ProgressTimeline({ steps, status, title }: { steps: AgentStep[]; status
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-[11px] font-bold uppercase tracking-[0.15em] text-ink">{i + 1}. {s.label}</span>
-                  {s.status === "active" && <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-rec">streaming</span>}
-                  {s.status === "done"   && <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-prime-glow">ok</span>}
+                  <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-ink">{i + 1}. {s.label}</span>
+                  {s.status === "active" && <span className="text-[9px] font-bold uppercase tracking-widest text-rec">streaming</span>}
+                  {s.status === "done"   && <span className="text-[9px] font-bold uppercase tracking-widest text-prime-glow">ok</span>}
                 </div>
                 <div className="mt-0.5 text-[11px] font-medium text-ink-dim">{s.detail}</div>
               </div>
@@ -1508,7 +1508,7 @@ Never say "let me know" or "would you like". Commit. Ship the package.`;
       className="group relative w-full overflow-hidden rounded-sm border border-prime/50 bg-gradient-to-br from-prime/20 via-panel to-rec/20 p-5 text-left transition-colors hover:border-prime"
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-prime/70 scan-line" />
-      <div className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-prime">
+      <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.25em] text-prime">
         <span className="size-1.5 rounded-full bg-prime rec-pulse" />
         Aurora Agent · Autonomous Mode
       </div>
@@ -1516,7 +1516,7 @@ Never say "let me know" or "would you like". Commit. Ship the package.`;
       <div className="mt-2 max-w-lg text-[13px] font-medium text-ink-dim">
         Aurora asks a few tight questions, then autonomously ships logline, script, shot list, storyboards, model prompts, and platform cuts.
       </div>
-      <div className="mt-3 inline-flex items-center gap-2 rounded-sm bg-rec px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-white group-hover:bg-rec-glow">
+      <div className="mt-3 inline-flex items-center gap-2 rounded-sm bg-rec px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-white group-hover:bg-rec-glow">
         <Zap className="size-3.5" /> Launch Agent
       </div>
     </button>
@@ -1552,7 +1552,7 @@ function ProductionBriefIntake({ onLaunch }: { onLaunch: (t: string) => void }) 
   return (
     <section className="fade-up rounded-sm border border-prime/40 bg-panel/70 p-5 shadow-[0_0_60px_-20px_color-mix(in_oklch,var(--prime)_60%,transparent)] backdrop-blur-sm">
       <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-prime">
+        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.25em] text-prime">
           <FileText className="size-3.5" /> Production Brief · Draft Story Directions
         </div>
       </div>
@@ -1566,7 +1566,7 @@ function ProductionBriefIntake({ onLaunch }: { onLaunch: (t: string) => void }) 
         <BriefField label="Props / Scene / Location"  value={props}     onChange={setProps}      placeholder="e.g. broken payphone, wet asphalt, single flickering sodium lamp…" />
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-widest text-ink-dim">
+        <label className="flex items-center gap-2 text-[9px] uppercase tracking-widest text-ink-dim">
           Format
           <select value={format} onChange={(e) => setFormat(e.target.value)}
             className="rounded-sm border border-line bg-canvas px-2 py-1 text-[10px] normal-case text-ink focus:border-prime focus:outline-none">
@@ -1574,7 +1574,7 @@ function ProductionBriefIntake({ onLaunch }: { onLaunch: (t: string) => void }) 
           </select>
         </label>
         <button onClick={submit} disabled={!ready}
-          className="ml-auto flex items-center gap-2 rounded-sm bg-prime px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-white transition-colors hover:bg-prime-glow disabled:cursor-not-allowed disabled:opacity-40">
+          className="ml-auto flex items-center gap-2 rounded-sm bg-prime px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white transition-colors hover:bg-prime-glow disabled:cursor-not-allowed disabled:opacity-40">
           <Sparkles className="size-3.5" /> Draft 4 Story Directions
         </button>
       </div>
@@ -1585,7 +1585,7 @@ function ProductionBriefIntake({ onLaunch }: { onLaunch: (t: string) => void }) 
 function BriefField({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-ink-dim">{label}</span>
+      <span className="text-[9px] font-bold uppercase tracking-widest text-ink-dim">{label}</span>
       <textarea
         value={value} onChange={(e) => onChange(e.target.value)} rows={3} placeholder={placeholder}
         className="resize-none rounded-sm border border-line bg-canvas/70 px-3 py-2 text-[12px] font-medium leading-snug text-ink placeholder:text-ink-dim/60 focus:border-prime focus:outline-none"
@@ -1604,7 +1604,7 @@ function StoryDirectionsSideBySide({ onLaunch }: { onLaunch: (t: string) => void
   return (
     <section className="fade-up space-y-4 rounded-sm border border-prime/40 bg-panel/60 p-5">
       <div>
-        <div className="font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-prime">Side-by-side · Directions × Storyboard</div>
+        <div className="text-[10px] font-bold uppercase tracking-[0.25em] text-prime">Side-by-side · Directions × Storyboard</div>
         <h2 className="font-black-display mt-1 text-2xl uppercase leading-tight text-ink">See every direction next to its shots.</h2>
         <p className="mt-1 max-w-xl text-[12px] font-medium text-ink-dim">Pick one and Aurora ships the full script, shot list, and model prompts for that lane.</p>
       </div>
@@ -1614,7 +1614,7 @@ function StoryDirectionsSideBySide({ onLaunch }: { onLaunch: (t: string) => void
             <div className="flex flex-col justify-between">
               <div>
                 <div className="font-black-display text-lg uppercase leading-tight text-ink">{d.name}</div>
-                <div className="mt-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-prime-glow">{d.aesthetic}</div>
+                <div className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-prime-glow">{d.aesthetic}</div>
                 <div className="mt-1.5 flex items-center gap-1">
                   {d.palette.map((c) => <span key={c} className="size-4 rounded-sm border border-line" style={{ background: c }} />)}
                 </div>
@@ -1622,7 +1622,7 @@ function StoryDirectionsSideBySide({ onLaunch }: { onLaunch: (t: string) => void
               </div>
               <button
                 onClick={() => onLaunch(`Lock direction: "${d.name}" (${d.aesthetic}). Ship the FULL production package now — logline, industry-format script, 10–14 shot list, storyboard frames, ready-to-paste Seedance + Veo + Sora prompts for 3 hero shots, VO script, captions, music brief, and 16:9 / 9:16 / 1:1 platform cuts. Do not ask permission.`)}
-                className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-sm bg-prime px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.25em] text-white transition-colors hover:bg-prime-glow"
+                className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-sm bg-prime px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.25em] text-white transition-colors hover:bg-prime-glow"
               >
                 <Rocket className="size-3" /> Ship this lane
               </button>
@@ -1632,7 +1632,7 @@ function StoryDirectionsSideBySide({ onLaunch }: { onLaunch: (t: string) => void
                 <figure key={i} className="relative aspect-video overflow-hidden rounded-sm border border-line bg-panel">
                   <img src={src} alt="" loading="lazy" className="h-full w-full object-cover opacity-90 transition-transform duration-500 hover:scale-105" />
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-canvas/70 via-transparent to-transparent" />
-                  <span className="absolute left-1.5 top-1.5 rounded-sm bg-canvas/60 px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-widest text-ink backdrop-blur-sm">{`sh_0${i + 1}`}</span>
+                  <span className="absolute left-1.5 top-1.5 rounded-sm bg-canvas/60 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-widest text-ink backdrop-blur-sm">{`sh_0${i + 1}`}</span>
                 </figure>
               ))}
             </div>
@@ -1648,8 +1648,8 @@ function ReelStrip() {
   return (
     <div className="fade-up -mx-6 space-y-2 border-y border-line bg-panel/40 py-4">
       <div className="flex items-center justify-between px-6">
-        <h2 className="font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-ink">Live Reel · Hyper-Realistic Demos</h2>
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-prime">Auto-scroll · 24fps</span>
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-ink">Live Reel · Hyper-Realistic Demos</h2>
+        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-prime">Auto-scroll · 24fps</span>
       </div>
       <div className="group relative overflow-hidden">
         <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-canvas to-transparent" />
@@ -1660,7 +1660,7 @@ function ReelStrip() {
               <img src={s.src} alt={s.label} loading="lazy" width={640} height={360}
                 className="h-full w-full object-cover opacity-75 [filter:saturate(1.1)] transition-[opacity] duration-500 hover:opacity-100" />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-canvas/80 via-transparent to-transparent" />
-              <figcaption className="absolute bottom-2 left-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-ink">{s.label}</figcaption>
+              <figcaption className="absolute bottom-2 left-2 text-[10px] font-bold uppercase tracking-[0.18em] text-ink">{s.label}</figcaption>
             </figure>
           ))}
         </div>
@@ -1673,8 +1673,8 @@ function StoryboardGrid() {
   return (
     <div className="fade-up space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-ink">Hyper-Real Storyboard</h2>
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-rec">Hyper-real bias · ON</span>
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-ink">Hyper-Real Storyboard</h2>
+        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-rec">Hyper-real bias · ON</span>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {STORYBOARD_SHOTS.map((s) => (
@@ -1682,16 +1682,16 @@ function StoryboardGrid() {
             <div className="relative aspect-video overflow-hidden rounded-sm border border-line bg-panel">
               <img src={s.src} alt={s.name} loading="lazy" className="h-full w-full object-cover" style={{ animation: "ken-burns 12s ease-in-out infinite alternate" }} />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-canvas/70 via-transparent to-transparent" />
-              <span className="absolute left-2 top-2 flex items-center gap-1 rounded-sm bg-rec/90 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-white">
+              <span className="absolute left-2 top-2 flex items-center gap-1 rounded-sm bg-rec/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.18em] text-white">
                 <span className="size-1 rounded-full bg-white rec-pulse" /> Rec
               </span>
             </div>
             <figcaption className="flex items-start justify-between">
               <div>
-                <div className="font-mono text-[11px] font-bold uppercase tracking-[0.15em] text-ink">{s.name}</div>
-                <div className="font-mono text-[10px] font-medium text-ink-dim">{s.meta}</div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.15em] text-ink">{s.name}</div>
+                <div className="text-[10px] font-medium text-ink-dim">{s.meta}</div>
               </div>
-              <span className="rounded border border-line px-1.5 py-0.5 font-mono text-[9px] tracking-wider text-ink-dim">{s.tc}</span>
+              <span className="rounded border border-line px-1.5 py-0.5 text-[9px] tracking-wider text-ink-dim">{s.tc}</span>
             </figcaption>
           </figure>
         ))}
