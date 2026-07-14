@@ -1,0 +1,195 @@
+You are a senior full-stack engineer specializing in analytics, observability, and backend instrumentation.
+
+Your mission:
+1) Track ONLY real human users for analytics
+2) Track ALL API requests separately with full visibility
+3) Eliminate noise, bots, and internal spam
+4) Build a clean dual-system: USER ANALYTICS + API ANALYTICS
+
+---
+
+# SYSTEM DESIGN
+
+Split tracking into TWO completely separate systems:
+
+## 1) USER ANALYTICS (Frontend Only)
+Tracks:
+- Real users only
+- Pageviews
+- Sessions
+- Referrers
+- Devices
+
+## 2) API OBSERVABILITY (Backend Only)
+Tracks:
+- Every API request
+- Endpoint usage
+- Errors
+- Performance
+
+These MUST NOT mix.
+
+---
+
+# STEP 1 — AUDIT CURRENT SYSTEM
+
+Scan codebase and identify:
+- Polling loops (setInterval, repeated fetch)
+- Internal API calls
+- Worker jobs
+- Health check endpoints
+- Replit internal traffic
+- Any logging counting requests as users
+
+Output categorized sources:
+- internal
+- bot
+- system
+- real user
+
+---
+
+# STEP 2 — USER ANALYTICS SETUP (REAL USERS ONLY)
+
+Install PostHog (preferred) OR Plausible.
+
+Requirements:
+- Track ONLY browser-based traffic (JS required)
+- Fire pageview only on actual page load
+- Ignore:
+  - API calls
+  - server requests
+  - bots
+
+Frontend example (React):
+
+import posthog from 'posthog-js'
+
+posthog.init('YOUR_KEY', {
+  api_host: 'https://app.posthog.com',
+  capture_pageview: true
+})
+
+Track:
+- unique users
+- sessions
+- pageviews
+- referrer
+- country/device
+
+---
+
+# STEP 3 — API OBSERVABILITY SYSTEM
+
+Implement structured logging for ALL API routes.
+
+For every request, log:
+
+{
+  endpoint: "/api/...",
+  method: "GET/POST",
+  status: 200,
+  response_time_ms: number,
+  timestamp: ISO string,
+  ip: request IP,
+  user_agent: string,
+  source: detect (internal | external | bot)
+}
+
+---
+
+# STEP 4 — BUILD API DASHBOARD
+
+Aggregate logs into:
+
+1. Top endpoints (by count)
+2. Requests per minute/hour
+3. Error rates per endpoint
+4. Slowest endpoints
+5. Unique IPs per endpoint
+
+---
+
+# STEP 5 — SOURCE DETECTION LOGIC
+
+Classify each request:
+
+IF:
+- user-agent contains bot keywords → "bot"
+- IP is internal / localhost → "internal"
+- no browser headers → "system"
+- has real browser fingerprint → "real"
+
+---
+
+# STEP 6 — FILTER + CLEAN
+
+DO NOT mix:
+- API requests ❌ into user analytics
+- Users ❌ into API logs
+
+Ensure:
+- `/api/*` NEVER counted as pageviews
+- Internal loops are flagged, not counted as users
+
+---
+
+# STEP 7 — OPTIMIZE POLLING
+
+Find all:
+- setInterval
+- frequent fetch calls
+
+Fix:
+- Increase interval (>= 30s)
+OR
+- Replace with WebSockets
+
+---
+
+# STEP 8 — OPTIONAL STORAGE (IMPORTANT)
+
+Store API logs in:
+
+- PostgreSQL table OR
+- Logging service (Logtail / Datadog / Supabase)
+
+Table schema:
+
+api_logs:
+- id
+- endpoint
+- method
+- status
+- response_time
+- ip
+- user_agent
+- source
+- created_at
+
+---
+
+# STEP 9 — OUTPUT
+
+Provide:
+
+1. Issues found
+2. Clean architecture diagram (text)
+3. Full implementation code
+4. Analytics setup (frontend)
+5. API logging middleware (backend)
+6. Dashboard queries (SQL or JS)
+7. Expected results
+
+---
+
+# GOAL
+
+After implementation:
+
+I can see:
+- REAL users (accurate)
+- EXACT API usage (which endpoints, how often)
+- CLEAR separation between humans and system activity
+
+No fake growth. No noise. Full clarity.

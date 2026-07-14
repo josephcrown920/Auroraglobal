@@ -61,6 +61,7 @@ const CREATOR_TOOLS_FEATURES: Feature[] = [
 const VIRAL_FEATURES: Feature[] = [
   { to: "/templates",   label: "Templates",        icon: Layers },
   { to: "/lipsync",     label: "Lip Sync",        icon: Mic },
+  { to: "/ugc-line",    label: "Content Line",    icon: Layers },
   { to: "/ugc",         label: "UGC Ads",         icon: Megaphone },
   { to: "/spin",        label: "TikTok30",        icon: Flame },
   { to: "/motion",      label: "Perform Anywhere",icon: Wand2 },
