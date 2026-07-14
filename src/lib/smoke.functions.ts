@@ -14,7 +14,7 @@ const STEPS = [
   "Image gen",
   "Video gen",
   "Lip sync",
-  "Canvas (workflow)",
+  "Canvas pipeline (image→video)",
   "UGC Ad (image→video)",
   "CLI (npm package)",
   "Colors studio",
@@ -148,17 +148,37 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       await writeCheck(run.id, 3, STEPS[2], r3);
       total += r3.cost_usd;
 
-      // 4. Canvas — orchestrate a minimal image node (same code path Canvas uses)
+      // 4. Canvas pipeline (image→video) — mirrors runGraph executing a two-node
+      //    DAG where an image node feeds its result URL directly into a video node.
+      //    Node 1 generates an identity-locked portrait (same orchestrate call the
+      //    canvas image node makes). Node 2 animates it (same call the canvas video
+      //    node makes). The final video URL must be non-empty to pass.
       const r4 = await runStep(async () => {
-        const out = await orchestrate({
+        const imgOut = await orchestrate({
           kind: "image",
-          prompt: "smoke test: canvas node — moody portrait",
+          prompt: "smoke test: canvas image node — moody cinematic portrait",
           imageUrls: [TEST_SELFIE_URL],
           model: "google/gemini-2.5-flash-image",
           userId: context.userId,
           refId: run.id,
         });
-        return { url: out.url, cost: out.costUsd, raw: { provider: out.provider } };
+        if (!imgOut.url) throw new Error("Canvas image node returned no URL");
+        const vidOut = await orchestrate({
+          kind: "video",
+          prompt: "smoke test: canvas video node — subtle head turn, cinematic",
+          imageUrls: [imgOut.url],
+          duration: 5,
+          resolution: "480p",
+          model: "seedance-2.0-fast",
+          userId: context.userId,
+          refId: run.id,
+        });
+        if (!vidOut.url) throw new Error("Canvas video node returned no URL");
+        return {
+          url: vidOut.url,
+          cost: imgOut.costUsd + vidOut.costUsd,
+          raw: { provider_image: imgOut.provider, provider_video: vidOut.provider },
+        };
       });
       await writeCheck(run.id, 4, STEPS[3], r4);
       total += r4.cost_usd;
