@@ -70,6 +70,9 @@ import { Route as AdminCostsRouteImport } from './routes/admin.costs'
 import { Route as AdminComfyRouteImport } from './routes/admin.comfy'
 import { Route as ApiVideoAgentGenerateRouteImport } from './routes/api/video-agent/generate'
 import { Route as ApiVideoAgentEnhanceRouteImport } from './routes/api/video-agent/enhance'
+import { Route as ApiUgcLineVariationsRouteImport } from './routes/api/ugc-line/variations'
+import { Route as ApiUgcLineScriptsRouteImport } from './routes/api/ugc-line/scripts'
+import { Route as ApiUgcLineImagesRouteImport } from './routes/api/ugc-line/images'
 import { Route as ApiPublicWatermarkVideoRouteImport } from './routes/api/public/watermark-video'
 import { Route as ApiPublicWatermarkImageRouteImport } from './routes/api/public/watermark-image'
 import { Route as ApiPublicSiteImagesRouteImport } from './routes/api/public/site-images'
@@ -400,6 +403,21 @@ const ApiVideoAgentEnhanceRoute = ApiVideoAgentEnhanceRouteImport.update({
   path: '/api/video-agent/enhance',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiUgcLineVariationsRoute = ApiUgcLineVariationsRouteImport.update({
+  id: '/api/ugc-line/variations',
+  path: '/api/ugc-line/variations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiUgcLineScriptsRoute = ApiUgcLineScriptsRouteImport.update({
+  id: '/api/ugc-line/scripts',
+  path: '/api/ugc-line/scripts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiUgcLineImagesRoute = ApiUgcLineImagesRouteImport.update({
+  id: '/api/ugc-line/images',
+  path: '/api/ugc-line/images',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicWatermarkVideoRoute = ApiPublicWatermarkVideoRouteImport.update({
   id: '/api/public/watermark-video',
   path: '/api/public/watermark-video',
@@ -568,6 +586,9 @@ export interface FileRoutesByFullPath {
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
+  '/api/ugc-line/images': typeof ApiUgcLineImagesRoute
+  '/api/ugc-line/scripts': typeof ApiUgcLineScriptsRoute
+  '/api/ugc-line/variations': typeof ApiUgcLineVariationsRoute
   '/api/video-agent/enhance': typeof ApiVideoAgentEnhanceRoute
   '/api/video-agent/generate': typeof ApiVideoAgentGenerateRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
@@ -649,6 +670,9 @@ export interface FileRoutesByTo {
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
+  '/api/ugc-line/images': typeof ApiUgcLineImagesRoute
+  '/api/ugc-line/scripts': typeof ApiUgcLineScriptsRoute
+  '/api/ugc-line/variations': typeof ApiUgcLineVariationsRoute
   '/api/video-agent/enhance': typeof ApiVideoAgentEnhanceRoute
   '/api/video-agent/generate': typeof ApiVideoAgentGenerateRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
@@ -731,6 +755,9 @@ export interface FileRoutesById {
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
+  '/api/ugc-line/images': typeof ApiUgcLineImagesRoute
+  '/api/ugc-line/scripts': typeof ApiUgcLineScriptsRoute
+  '/api/ugc-line/variations': typeof ApiUgcLineVariationsRoute
   '/api/video-agent/enhance': typeof ApiVideoAgentEnhanceRoute
   '/api/video-agent/generate': typeof ApiVideoAgentGenerateRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
@@ -814,6 +841,9 @@ export interface FileRouteTypes {
     | '/api/public/site-images'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
+    | '/api/ugc-line/images'
+    | '/api/ugc-line/scripts'
+    | '/api/ugc-line/variations'
     | '/api/video-agent/enhance'
     | '/api/video-agent/generate'
     | '/api/public/jobs/tick'
@@ -895,6 +925,9 @@ export interface FileRouteTypes {
     | '/api/public/site-images'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
+    | '/api/ugc-line/images'
+    | '/api/ugc-line/scripts'
+    | '/api/ugc-line/variations'
     | '/api/video-agent/enhance'
     | '/api/video-agent/generate'
     | '/api/public/jobs/tick'
@@ -976,6 +1009,9 @@ export interface FileRouteTypes {
     | '/api/public/site-images'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
+    | '/api/ugc-line/images'
+    | '/api/ugc-line/scripts'
+    | '/api/ugc-line/variations'
     | '/api/video-agent/enhance'
     | '/api/video-agent/generate'
     | '/api/public/jobs/tick'
@@ -1052,6 +1088,9 @@ export interface RootRouteChildren {
   ApiPublicSiteImagesRoute: typeof ApiPublicSiteImagesRoute
   ApiPublicWatermarkImageRoute: typeof ApiPublicWatermarkImageRoute
   ApiPublicWatermarkVideoRoute: typeof ApiPublicWatermarkVideoRoute
+  ApiUgcLineImagesRoute: typeof ApiUgcLineImagesRoute
+  ApiUgcLineScriptsRoute: typeof ApiUgcLineScriptsRoute
+  ApiUgcLineVariationsRoute: typeof ApiUgcLineVariationsRoute
   ApiVideoAgentEnhanceRoute: typeof ApiVideoAgentEnhanceRoute
   ApiVideoAgentGenerateRoute: typeof ApiVideoAgentGenerateRoute
   ApiPublicJobsTickRoute: typeof ApiPublicJobsTickRoute
@@ -1494,6 +1533,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiVideoAgentEnhanceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/ugc-line/variations': {
+      id: '/api/ugc-line/variations'
+      path: '/api/ugc-line/variations'
+      fullPath: '/api/ugc-line/variations'
+      preLoaderRoute: typeof ApiUgcLineVariationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ugc-line/scripts': {
+      id: '/api/ugc-line/scripts'
+      path: '/api/ugc-line/scripts'
+      fullPath: '/api/ugc-line/scripts'
+      preLoaderRoute: typeof ApiUgcLineScriptsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ugc-line/images': {
+      id: '/api/ugc-line/images'
+      path: '/api/ugc-line/images'
+      fullPath: '/api/ugc-line/images'
+      preLoaderRoute: typeof ApiUgcLineImagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/watermark-video': {
       id: '/api/public/watermark-video'
       path: '/api/public/watermark-video'
@@ -1706,6 +1766,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicSiteImagesRoute: ApiPublicSiteImagesRoute,
   ApiPublicWatermarkImageRoute: ApiPublicWatermarkImageRoute,
   ApiPublicWatermarkVideoRoute: ApiPublicWatermarkVideoRoute,
+  ApiUgcLineImagesRoute: ApiUgcLineImagesRoute,
+  ApiUgcLineScriptsRoute: ApiUgcLineScriptsRoute,
+  ApiUgcLineVariationsRoute: ApiUgcLineVariationsRoute,
   ApiVideoAgentEnhanceRoute: ApiVideoAgentEnhanceRoute,
   ApiVideoAgentGenerateRoute: ApiVideoAgentGenerateRoute,
   ApiPublicJobsTickRoute: ApiPublicJobsTickRoute,
