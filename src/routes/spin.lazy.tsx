@@ -353,7 +353,7 @@ function SpinPage() {
         </Link>
 
         <div className="mt-6 flex items-center gap-2">
-          <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
+          <span className="inline-flex items-center gap-2 rounded-md border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
             <Flame className="size-3.5" /> TikTok30
           </span>
         </div>
@@ -411,12 +411,12 @@ function SpinPage() {
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-primary">
                 <Video className="size-3.5" /> Video Mode
               </div>
-              <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1">
+              <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-1">
                 <button
                   type="button"
                   onClick={() => setMode("photo")}
                   disabled={active}
-                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${mode === "photo" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                  className={`rounded-md px-3 py-1 text-xs font-medium transition ${mode === "photo" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   Photos
                 </button>
@@ -424,7 +424,7 @@ function SpinPage() {
                   type="button"
                   onClick={() => setMode("video")}
                   disabled={active}
-                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${mode === "video" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                  className={`rounded-md px-3 py-1 text-xs font-medium transition ${mode === "video" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   Videos
                 </button>
@@ -527,7 +527,7 @@ function SpinPage() {
                 type="button"
                 onClick={() => setFaceUrl(null)}
                 disabled={active}
-                className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+                className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
               >
                 <X className="size-3" /> Remove
               </button>
@@ -537,7 +537,7 @@ function SpinPage() {
               type="button"
               onClick={() => faceInputRef.current?.click()}
               disabled={active || faceUploading}
-              className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-2 text-xs font-semibold text-primary transition hover:bg-primary/15 disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-4 py-2 text-xs font-semibold text-primary transition hover:bg-primary/15 disabled:opacity-60"
             >
               {faceUploading ? <Loader2 className="size-3.5 animate-spin" /> : <ImageIcon className="size-3.5" />}
               {faceUploading ? "Uploading…" : "Upload reference photo"}
@@ -552,7 +552,7 @@ function SpinPage() {
                   type="button"
                   onClick={() => setAvatarId(undefined)}
                   disabled={active}
-                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                  className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
                     avatarId === undefined ? "border-primary bg-primary/15 text-primary" : "border-white/10 bg-white/5 text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -564,7 +564,7 @@ function SpinPage() {
                     type="button"
                     onClick={() => setAvatarId(a.id)}
                     disabled={active}
-                    className={`inline-flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-xs font-medium transition ${
+                    className={`inline-flex items-center gap-2 rounded-lg border py-1 pl-1 pr-3 text-xs font-medium transition ${
                       avatarId === a.id ? "border-primary bg-primary/15 text-primary" : "border-white/10 bg-white/5 text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -613,7 +613,7 @@ function SpinPage() {
             <span className="flex items-center gap-2">
               <Film className="size-4 text-pink-400" />
               Generate one HeyGen template video
-              <span className="rounded-full bg-pink-500/20 px-2 py-0.5 text-[10px] font-semibold text-pink-300">
+              <span className="rounded-md bg-pink-500/20 px-2 py-0.5 text-[10px] font-semibold text-pink-300">
                 {HEYGEN_COST} Aura
               </span>
             </span>
@@ -646,7 +646,7 @@ function SpinPage() {
                       key={t.id}
                       type="button"
                       onClick={() => setSelectedHeygenTplId(t.id)}
-                      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
                         selectedHeygenTplId === t.id
                           ? "border-pink-400 bg-pink-500/20 text-pink-200"
                           : "border-white/10 bg-white/5 text-muted-foreground hover:text-foreground"

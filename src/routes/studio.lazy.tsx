@@ -507,7 +507,7 @@ function StudioPage() {
           Aurora Studio
         </Link>
         <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-card/60 text-sm">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card/60 text-sm">
             <Coins className="size-3.5 text-primary" />
             <span className="font-medium">{profile?.credits ?? "—"}</span>
             <span className="text-muted-foreground text-xs">Aura</span>
@@ -520,7 +520,7 @@ function StudioPage() {
           </Link>
           <Link to="/gallery" className="text-sm text-muted-foreground hover:text-foreground hidden md:inline-flex items-center gap-1.5">Gallery</Link>
           {profile?.isAdmin && (
-            <Link to="/admin" className="text-sm hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 transition-colors">
+            <Link to="/admin" className="text-sm hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 transition-colors">
               <Shield className="size-3.5 text-amber-500" /> Admin
             </Link>
           )}
@@ -600,7 +600,7 @@ function StudioPage() {
                   key={p.label}
                   type="button"
                   onClick={() => setPrompt(p.prompt)}
-                  className="text-xs px-3 py-1.5 rounded-full border border-border bg-card/60 hover:bg-accent hover:border-primary/40 transition-colors"
+                  className="text-xs px-3 py-1.5 rounded-lg border border-border bg-card/60 hover:bg-accent hover:border-primary/40 transition-colors"
                 >
                   {p.label}
                 </button>
@@ -765,7 +765,7 @@ function StudioPage() {
                   <button
                     type="button"
                     onClick={() => latest?.result_image_url && saveAssetToDisk(latest.result_image_url, `aurora-${latest.id.slice(0,8)}.png`)}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-background/90 backdrop-blur text-sm font-medium hover:bg-background"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-background/90 backdrop-blur text-sm font-medium hover:bg-background"
                   >
                     <Download className="size-4" /> Save
                   </button>
@@ -892,7 +892,7 @@ function StudioPage() {
                     type="button"
                     disabled={reangleMut.isPending}
                     onClick={() => reangleMut.mutate(a.prompt)}
-                    className="text-xs px-3 py-1.5 rounded-full border border-border bg-background/60 hover:bg-accent hover:border-primary/40 transition-colors disabled:opacity-50"
+                    className="text-xs px-3 py-1.5 rounded-lg border border-border bg-background/60 hover:bg-accent hover:border-primary/40 transition-colors disabled:opacity-50"
                   >
                     {a.label}
                   </button>
@@ -1047,7 +1047,7 @@ function StudioPage() {
                     <button
                       type="button"
                       onClick={() => latestVideo?.result_video_url && saveAssetToDisk(latestVideo.result_video_url, `aurora-${latestVideo.id.slice(0,8)}.mp4`)}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-background/90 backdrop-blur text-sm font-medium hover:bg-background"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-background/90 backdrop-blur text-sm font-medium hover:bg-background"
                     >
                       <Download className="size-4" /> Save
                     </button>
@@ -1233,12 +1233,12 @@ function StudioPage() {
                           </div>
                           <span className={`text-[15px] font-black capitalize tracking-tight ${isPopular ? "text-white" : isBest ? "text-amber-100" : "text-white/80"}`}>{k}</span>
                           {isPopular && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-primary/25 border border-primary/45 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-primary">
+                            <span className="inline-flex items-center gap-1 rounded-md bg-primary/25 border border-primary/45 px-2 py-1 text-xs font-bold text-primary">
                               <Flame className="size-2.5" />Most Popular
                             </span>
                           )}
                           {isBest && (
-                            <span className="inline-flex items-center rounded-full bg-amber-500/20 border border-amber-400/35 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-amber-400">
+                            <span className="inline-flex items-center rounded-md bg-amber-500/20 border border-amber-400/35 px-2 py-1 text-xs font-bold text-amber-400">
                               Best Value
                             </span>
                           )}

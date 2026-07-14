@@ -272,7 +272,7 @@ function UGCStudio() {
                     <p className="text-white/70 text-[10px] mt-0.5 leading-tight">{a.vibe}</p>
                   </div>
                   {active && (
-                    <span className="absolute top-2 right-2 size-6 rounded-full bg-primary text-primary-foreground grid place-items-center">
+                    <span className="absolute top-2 right-2 size-6 rounded-md bg-primary text-primary-foreground grid place-items-center">
                       <Check className="size-3.5" />
                     </span>
                   )}
@@ -315,7 +315,7 @@ function UGCStudio() {
 
                 {/* Selected badge */}
                 {p.id === presetId && (
-                  <div className="absolute top-2.5 right-2.5 size-6 rounded-full bg-primary flex items-center justify-center z-10">
+                  <div className="absolute top-2.5 right-2.5 size-6 rounded-md bg-primary flex items-center justify-center z-10">
                     <svg className="size-3 text-white" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   </div>
                 )}
@@ -350,7 +350,7 @@ function UGCStudio() {
                 "sipping from a branded protein shake, post-workout glow",
                 "unboxing fresh white sneakers, hands in frame",
               ].map((s) => (
-                <button key={s} type="button" onClick={() => setProductPrompt(s)} className="px-2 py-1 rounded-full border border-border hover:border-primary text-muted-foreground hover:text-foreground">{s}</button>
+                <button key={s} type="button" onClick={() => setProductPrompt(s)} className="px-2 py-1 rounded-lg border border-border hover:border-primary text-muted-foreground hover:text-foreground">{s}</button>
               ))}
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
@@ -372,7 +372,7 @@ function UGCStudio() {
             </div>
             {user && (
               <div className="flex flex-wrap items-center gap-2">
-                <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border hover:border-primary text-xs text-muted-foreground hover:text-foreground cursor-pointer transition">
+                <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border hover:border-primary text-xs text-muted-foreground hover:text-foreground cursor-pointer transition">
                   <Music2 className="size-3.5 text-primary" />
                   {voiceFile ? voiceFile.name : "Add your voice track (optional)"}
                   <input
@@ -457,7 +457,7 @@ function UGCStudio() {
                       key={d.id}
                       type="button"
                       onClick={() => setDemoDuration(d.id)}
-                      className={`px-3 py-1.5 rounded-full border text-xs transition ${demoDuration === d.id ? "border-primary text-primary bg-primary/10" : "border-border text-muted-foreground hover:border-primary/50"}`}
+                      className={`px-3 py-1.5 rounded-lg border text-xs transition ${demoDuration === d.id ? "border-primary text-primary bg-primary/10" : "border-border text-muted-foreground hover:border-primary/50"}`}
                     >
                       {d.label}
                     </button>
@@ -495,7 +495,7 @@ function UGCStudio() {
                         placeholder="What does it do? (optional, helps the script)"
                         className="min-h-[60px] text-sm"
                       />
-                      <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border hover:border-primary text-xs text-muted-foreground hover:text-foreground cursor-pointer transition">
+                      <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border hover:border-primary text-xs text-muted-foreground hover:text-foreground cursor-pointer transition">
                         {f.uploading ? <Loader2 className="size-3.5 animate-spin" /> : <ImagePlus className="size-3.5 text-primary" />}
                         {f.uploading ? "Uploading…" : f.screenshotUrl ? "Screenshot attached" : "Attach screenshot (optional)"}
                         <input

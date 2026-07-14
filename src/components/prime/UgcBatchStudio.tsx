@@ -89,7 +89,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
     <button
       onClick={onClick}
       className={
-        "rounded-sm border px-2 py-1 font-mono text-[10px] transition-colors " +
+        "rounded-sm border px-2 py-1 text-[13px] transition-colors " +
         (active
           ? "border-prime/60 bg-prime/10 text-ink"
           : "border-line bg-canvas text-ink-dim hover:border-prime/40 hover:text-ink")
@@ -269,7 +269,7 @@ export function UgcBatchStudio({ onLaunch }: { onLaunch: (t: string) => void }) 
       {/* header */}
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-rec">
+          <div className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.25em] text-rec">
             <span className="size-1.5 rounded-full bg-rec rec-pulse" />
             UGC Batch Studio
           </div>
@@ -281,7 +281,7 @@ export function UgcBatchStudio({ onLaunch }: { onLaunch: (t: string) => void }) 
             — HeyGen for real renders, free preview for instant keyframes.
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1 font-mono text-[10px] uppercase tracking-widest text-rec/80">
+        <div className="flex flex-col items-end gap-1 text-[13px] uppercase tracking-widest text-rec/80">
           <span className="flex items-center gap-1"><TrendingUp className="size-3" /> {jobs.length} cards</span>
           <span className="flex items-center gap-1"><Repeat className="size-3" /> {backend}</span>
         </div>
@@ -294,14 +294,14 @@ export function UgcBatchStudio({ onLaunch }: { onLaunch: (t: string) => void }) 
             key={b.id}
             onClick={() => setBackend(b.id)}
             className={
-              "flex flex-col rounded-sm border px-3 py-2 text-left text-[11px] transition-colors " +
+              "flex flex-col rounded-sm border px-3 py-2 text-left text-sm transition-colors " +
               (backend === b.id
                 ? "border-rec/60 bg-rec/10 text-ink"
                 : "border-line text-ink-dim hover:border-prime/40 hover:text-ink")
             }
           >
-            <span className="font-mono font-bold uppercase tracking-widest">{b.label}</span>
-            <span className="mt-0.5 text-[10px] text-ink-dim">{b.desc}</span>
+            <span className="font-bold uppercase tracking-widest">{b.label}</span>
+            <span className="mt-0.5 text-[13px] text-ink-dim">{b.desc}</span>
           </button>
         ))}
       </div>
@@ -311,7 +311,7 @@ export function UgcBatchStudio({ onLaunch }: { onLaunch: (t: string) => void }) 
         <div className="mb-4 rounded-sm border border-line bg-panel/70 p-3">
           <button
             onClick={() => setShowCreds((v) => !v)}
-            className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-ink-dim hover:text-ink"
+            className="flex items-center gap-1.5 text-[13px] font-bold uppercase tracking-widest text-ink-dim hover:text-ink"
           >
             <Settings2 className="size-3" />
             Provider Settings
@@ -337,11 +337,11 @@ export function UgcBatchStudio({ onLaunch }: { onLaunch: (t: string) => void }) 
                     value={creds[p.id] ?? ""}
                     onChange={(e) => setCreds((c) => ({ ...c, [p.id]: e.target.value }))}
                     placeholder={p.hint}
-                    className="flex-1 rounded-sm border border-line bg-canvas px-2 py-1.5 font-mono text-[11px] text-ink placeholder:text-ink-dim/60 focus:border-prime focus:outline-none"
+                    className="flex-1 rounded-sm border border-line bg-canvas px-2 py-1.5 text-sm text-ink placeholder:text-ink-dim/60 focus:border-prime focus:outline-none"
                   />
                   <button
                     onClick={() => setCreds((c) => ({ ...c, [p.id]: (document.querySelector(`input[placeholder="${p.hint}"]`) as HTMLInputElement)?.value ?? "" }))}
-                    className="flex items-center gap-1 rounded-sm border border-line bg-panel-2 px-2 py-1.5 font-mono text-[10px] uppercase tracking-widest text-ink-dim hover:border-prime/60 hover:text-ink"
+                    className="flex items-center gap-1 rounded-sm border border-line bg-panel-2 px-2 py-1.5 text-[13px] uppercase tracking-widest text-ink-dim hover:border-prime/60 hover:text-ink"
                   >
                     <Save className="size-3" /> Save
                   </button>
@@ -361,7 +361,7 @@ export function UgcBatchStudio({ onLaunch }: { onLaunch: (t: string) => void }) 
           >
             {/* status badge */}
             <div className="mb-2 flex items-center justify-between">
-              <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-ink-dim">
+              <div className="flex items-center gap-1.5 text-[13px] uppercase tracking-widest text-ink-dim">
                 {statusIcon(job.status)}
                 {job.status}
               </div>
@@ -393,7 +393,7 @@ export function UgcBatchStudio({ onLaunch }: { onLaunch: (t: string) => void }) 
                 <a
                   href={job.videoUrl}
                   download
-                  className="mt-1 flex items-center gap-1 font-mono text-[9px] uppercase tracking-widest text-prime-glow hover:underline"
+                  className="mt-1 flex items-center gap-1 text-xs uppercase tracking-widest text-prime-glow hover:underline"
                 >
                   <Download className="size-3" /> Download
                 </a>
@@ -401,47 +401,47 @@ export function UgcBatchStudio({ onLaunch }: { onLaunch: (t: string) => void }) 
             ) : null}
 
             {editId === job.id && editDraft ? (
-              <div className="space-y-2 text-[11px]">
+              <div className="space-y-2 text-sm">
                 {(["persona", "hook", "caption", "beats"] as const).map((field) => (
                   <label key={field} className="block">
-                    <span className="font-mono text-[10px] uppercase tracking-widest text-ink-dim">{field}</span>
+                    <span className="text-[13px] uppercase tracking-widest text-ink-dim">{field}</span>
                     <input
                       value={editDraft[field]}
                       onChange={(e) => setEditDraft((d) => d ? { ...d, [field]: e.target.value } : d)}
-                      className="mt-0.5 w-full rounded-sm border border-line bg-canvas px-2 py-1 text-[11px] text-ink focus:border-prime focus:outline-none"
+                      className="mt-0.5 w-full rounded-sm border border-line bg-canvas px-2 py-1 text-sm text-ink focus:border-prime focus:outline-none"
                     />
                   </label>
                 ))}
                 <label className="block">
-                  <span className="font-mono text-[10px] uppercase tracking-widest text-ink-dim">Prompt</span>
+                  <span className="text-[13px] uppercase tracking-widest text-ink-dim">Prompt</span>
                   <textarea
                     value={editDraft.prompt}
                     onChange={(e) => setEditDraft((d) => d ? { ...d, prompt: e.target.value } : d)}
                     rows={3}
-                    className="mt-0.5 w-full resize-none rounded-sm border border-line bg-canvas px-2 py-1 text-[11px] text-ink focus:border-prime focus:outline-none"
+                    className="mt-0.5 w-full resize-none rounded-sm border border-line bg-canvas px-2 py-1 text-sm text-ink focus:border-prime focus:outline-none"
                   />
                 </label>
                 <div className="flex gap-2">
-                  <button onClick={saveEdit} className="flex items-center gap-1 rounded-sm bg-prime px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-white hover:bg-prime-glow">
+                  <button onClick={saveEdit} className="flex items-center gap-1 rounded-sm bg-prime px-2 py-1 text-[13px] uppercase tracking-widest text-white hover:bg-prime-glow">
                     <Save className="size-3" /> Save
                   </button>
-                  <button onClick={() => { setEditId(null); setEditDraft(null); }} className="flex items-center gap-1 rounded-sm border border-line px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-ink-dim hover:text-ink">
+                  <button onClick={() => { setEditId(null); setEditDraft(null); }} className="flex items-center gap-1 rounded-sm border border-line px-2 py-1 text-[13px] uppercase tracking-widest text-ink-dim hover:text-ink">
                     <X className="size-3" /> Cancel
                   </button>
                 </div>
               </div>
             ) : (
               <>
-                <div className="font-mono text-[10px] font-bold uppercase tracking-widest text-prime">{job.persona}</div>
+                <div className="text-[13px] font-bold uppercase tracking-widest text-prime">{job.persona}</div>
                 <div className="mt-1 text-[12px] font-bold text-ink">{job.hook}</div>
-                <div className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-rec">{job.caption}</div>
+                <div className="mt-0.5 text-[13px] uppercase tracking-widest text-rec">{job.caption}</div>
                 {job.error && (
-                  <div className="mt-1 text-[11px] font-medium text-rec">{job.error}</div>
+                  <div className="mt-1 text-sm font-medium text-rec">{job.error}</div>
                 )}
                 {(job.status === "draft" || job.status === "failed") && (
                   <button
                     onClick={() => runJob(job)}
-                    className="mt-2 flex items-center gap-1 rounded-sm bg-rec px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-white hover:bg-rec-glow"
+                    className="mt-2 flex items-center gap-1 rounded-sm bg-rec px-2 py-1 text-[13px] uppercase tracking-widest text-white hover:bg-rec-glow"
                   >
                     <Rocket className="size-3" /> Run
                   </button>
@@ -456,7 +456,7 @@ export function UgcBatchStudio({ onLaunch }: { onLaunch: (t: string) => void }) 
           onClick={addCard}
           className="flex min-h-[120px] items-center justify-center rounded-sm border border-dashed border-line text-ink-dim transition-colors hover:border-prime/60 hover:text-ink"
         >
-          <span className="flex flex-col items-center gap-1 text-[11px] font-medium">
+          <span className="flex flex-col items-center gap-1 text-sm font-medium">
             <Wand2 className="size-4" />
             Add card
           </span>
@@ -467,14 +467,14 @@ export function UgcBatchStudio({ onLaunch }: { onLaunch: (t: string) => void }) 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button
           onClick={getAIBrief}
-          className="flex items-center gap-1.5 rounded-sm border border-prime/40 px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-prime hover:border-prime hover:bg-prime/10"
+          className="flex items-center gap-1.5 rounded-sm border border-prime/40 px-3 py-2 text-[13px] uppercase tracking-widest text-prime hover:border-prime hover:bg-prime/10"
         >
           <Wand2 className="size-3" /> AI Brief {jobs.length + 3} UGC Cards
         </button>
         <button
           onClick={runAll}
           disabled={running}
-          className="flex items-center gap-1.5 rounded-sm bg-rec px-5 py-2 font-display text-[11px] font-bold uppercase tracking-[0.2em] text-white transition-colors hover:bg-rec-glow disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex items-center gap-1.5 rounded-sm bg-rec px-5 py-2 font-display text-sm font-bold uppercase tracking-[0.2em] text-white transition-colors hover:bg-rec-glow disabled:cursor-not-allowed disabled:opacity-50"
         >
           {running ? <Loader2 className="size-3.5 animate-spin" /> : <Rocket className="size-3.5" />}
           Run All

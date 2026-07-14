@@ -41,7 +41,7 @@ export function FeatureRequest() {
       />
       <div className="relative grid gap-10 px-6 py-14 md:grid-cols-[0.9fr_1.1fr] md:items-center md:px-12 md:py-20">
         <div>
-          <span className="inline-flex items-center gap-2 rounded-full aurora-glass px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-amber-200">
+          <span className="inline-flex items-center gap-2 rounded-md aurora-glass px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-amber-200">
             <Lightbulb className="size-3.5" /> Request a feature
           </span>
           <h2 className="mt-5 text-3xl font-bold tracking-tight text-white md:text-5xl">
@@ -88,7 +88,7 @@ export function FeatureRequest() {
           <button
             type="submit"
             disabled={submitting}
-            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-300 to-fuchsia-400 px-6 py-3 text-sm font-bold text-black shadow-lg shadow-fuchsia-500/30 hover:opacity-95 disabled:opacity-60"
+            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-300 to-fuchsia-400 px-6 py-3 text-sm font-bold text-black shadow-lg shadow-fuchsia-500/30 hover:opacity-95 disabled:opacity-60"
           >
             <Send className="size-4" /> {submitting ? "Sending…" : "Send request"}
           </button>

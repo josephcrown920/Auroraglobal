@@ -125,13 +125,13 @@ export function ViralEngine() {
 
         {/* ── Platform badges ─────────────────────────────────────── */}
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-2 rounded-full border border-pink-300/20 bg-pink-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-pink-200">
+          <span className="inline-flex items-center gap-2 rounded-md border border-pink-300/20 bg-pink-300/10 px-3 py-1.5 text-xs font-semibold text-pink-200">
             <Flame className="size-3.5" /> TikTok30
           </span>
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-white/70">
+          <span className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70">
             <TrendingUp className="size-3.5" /> TikTok · Reels · Shorts · X
           </span>
-          <span className="inline-flex items-center gap-2 rounded-full border border-violet-400/20 bg-violet-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-violet-300">
+          <span className="inline-flex items-center gap-2 rounded-md border border-violet-400/20 bg-violet-400/10 px-3 py-1.5 text-xs font-semibold text-violet-300">
             <Sparkles className="size-3.5" /> Claude + Seedance 2.0
           </span>
         </div>
@@ -153,7 +153,7 @@ export function ViralEngine() {
 
         {/* ── Interactive hook demo ────────────────────────────────── */}
         <div className="mt-6 rounded-2xl border border-white/10 bg-black/40 backdrop-blur p-4 md:p-5">
-          <label className="text-[11px] uppercase tracking-[0.2em] text-pink-200/80">
+          <label className="text-sm font-semibold text-pink-200/90">
             Try it — type your hook
           </label>
 
@@ -164,7 +164,7 @@ export function ViralEngine() {
                 key={s}
                 type="button"
                 onClick={() => setHook(s)}
-                className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-colors ${
+                className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
                   hook === s
                     ? "border-fuchsia-400/60 bg-fuchsia-500/20 text-fuchsia-200"
                     : "border-white/10 bg-white/5 text-white/55 hover:border-white/20 hover:text-white/80"
@@ -198,10 +198,10 @@ export function ViralEngine() {
         {/* Every fmt badge is derived from SPIN_CONTENT_TYPES or CATEGORY_ORDER */}
         <div className="mt-5 rounded-2xl border border-white/10 bg-black/30 p-3 md:p-4">
           <div className="mb-3 flex items-center justify-between">
-            <span className="text-[11px] uppercase tracking-[0.2em] text-pink-200/80">
+            <span className="text-sm font-semibold text-pink-200/90">
               Every format Aurora ships
             </span>
-            <span className="text-[11px] text-white/35">{COUNT} posts · 1 prompt</span>
+            <span className="text-xs text-white/50">{COUNT} posts · 1 prompt</span>
           </div>
 
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 md:gap-2.5">
@@ -289,13 +289,13 @@ export function ViralEngine() {
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <Link
             to="/studio"
-            className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-pink-400 to-fuchsia-500 px-6 py-3 text-sm font-bold text-white no-underline shadow-lg shadow-fuchsia-500/30 hover:opacity-95 transition-opacity"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-400 to-fuchsia-500 px-6 py-3 text-sm font-bold text-white no-underline shadow-lg shadow-fuchsia-500/30 hover:opacity-95 transition-opacity"
           >
             Open Spin Studio · 1 → {COUNT} <ArrowRight className="size-4" />
           </Link>
           <Link
             to="/ugc"
-            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm font-bold text-white no-underline hover:bg-white/10 transition-colors"
+            className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-bold text-white no-underline hover:bg-white/10 transition-colors"
           >
             <Film className="size-4" /> UGC Factory
           </Link>

@@ -115,7 +115,7 @@ export function McpConnector() {
       <div className="relative px-6 py-14 md:px-12 md:py-20">
         {/* Heading */}
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-2 rounded-full border border-orange-300/25 bg-orange-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-orange-200">
+          <span className="inline-flex items-center gap-2 rounded-md border border-orange-300/25 bg-orange-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-orange-200">
             <Sparkles className="size-3.5" /> MCP Connector · Growth & Creator
           </span>
         </div>
@@ -272,13 +272,13 @@ export function McpConnector() {
           <Link
             to={connectTo}
             onClick={() => void track("mcp_connect_click")}
-            className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-bold text-primary-foreground no-underline shadow-lg shadow-primary/10 hover:opacity-90"
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground no-underline shadow-lg shadow-primary/10 hover:opacity-90"
           >
             Connect Claude <ArrowRight className="size-4" />
           </Link>
           <a
             href="#mcp-how"
-            className="inline-flex items-center gap-2 rounded-full border border-border bg-white/5 px-6 py-3 text-sm font-semibold text-foreground no-underline hover:bg-white/10"
+            className="inline-flex items-center gap-2 rounded-xl border border-border bg-white/5 px-6 py-3 text-sm font-semibold text-foreground no-underline hover:bg-white/10"
           >
             See how it works
           </a>
