@@ -699,14 +699,16 @@ function StudioPage() {
               <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3">What Aurora creates</p>
               <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none snap-x snap-mandatory">
                 {[
-                  { src: "/landing-photo-1.jpeg", label: "Commercial" },
-                  { src: "/landing-photo-2.jpeg", label: "Editorial" },
-                  { src: "/landing-photo-3.jpeg", label: "Lifestyle" },
-                  { src: "/landing-photo-4.jpeg", label: "Fashion" },
-                  { src: "/landing-photo-5.jpeg", label: "Product" },
-                  { src: "/landing-photo-6.png",  label: "Artist" },
-                  { src: "/landing-photo-7.png",  label: "Performance" },
-                  { src: "/landing-photo-8.png",  label: "Music Video" },
+                  { src: "/landing-photo-nba-josh.png",     label: "Artist" },
+                  { src: "/landing-photo-studios-grid.png", label: "Colors Studio" },
+                  { src: "/landing-photo-1.jpeg",           label: "Commercial" },
+                  { src: "/landing-photo-2.jpeg",           label: "Editorial" },
+                  { src: "/landing-photo-3.jpeg",           label: "Lifestyle" },
+                  { src: "/landing-photo-4.jpeg",           label: "Fashion" },
+                  { src: "/landing-photo-5.jpeg",           label: "Product" },
+                  { src: "/landing-photo-6.png",            label: "Performance" },
+                  { src: "/landing-photo-7.png",            label: "Music Video" },
+                  { src: "/landing-photo-8.png",            label: "Production" },
                 ].map(({ src, label }) => (
                   <div
                     key={src}

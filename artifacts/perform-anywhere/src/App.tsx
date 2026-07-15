@@ -60,7 +60,13 @@ export default function App() {
 
       {/* ── Hero ── */}
       <section style={{ paddingTop: 120, paddingBottom: 60, paddingInline: 24, textAlign: "center", position: "relative", overflow: "hidden" }}>
+        {/* NBA Josh cover photo — full bleed behind hero text */}
         <div aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+          <img
+            src={`${BASE}cover-artist.png`}
+            alt=""
+            style={{ position: "absolute", right: -40, top: 0, height: "100%", width: "auto", objectFit: "cover", opacity: 0.18, filter: "saturate(1.4)" }}
+          />
           <div style={{ position: "absolute", top: -100, left: "50%", transform: "translateX(-50%)", width: 700, height: 400, borderRadius: "50%", background: "var(--accent-glow)", filter: "blur(100px)" }} />
         </div>
 
