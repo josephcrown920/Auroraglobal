@@ -15,6 +15,13 @@ import {
   History,
   Play,
   X,
+  Clapperboard,
+  CheckCircle2,
+  Circle,
+  ChevronRight,
+  Shirt,
+  User,
+  Star,
 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import { enhanceScript, submitVideo, getVideoStatus, finalizeVideo } from "@/lib/api";
@@ -33,7 +40,7 @@ interface VideoGen {
 }
 
 type Stage = "idle" | "enhancing" | "submitting" | "polling" | "finalizing" | "done" | "error";
-type View = "studio" | "history";
+type View = "project" | "studio" | "history";
 
 const DURATIONS = [10, 15, 20, 30, 45, 60, 90];
 const MODES = [
@@ -44,6 +51,41 @@ type ModeId = (typeof MODES)[number]["id"];
 
 const POLL_INTERVAL_MS = 5000;
 const POLL_TIMEOUT_MS = 25 * 60_000;
+
+// ── NBA Josh project data ─────────────────────────────────────────────────────
+
+type OutfitStatus = "ready" | "generating" | "done" | "pending";
+
+interface Outfit {
+  id: string;
+  label: string;
+  setting: string;
+  key: string;
+  status: OutfitStatus;
+  note?: string;
+}
+
+const OUTFITS: Outfit[] = [
+  { id: "A", label: "Burgundy Sport Jersey", setting: "Dark night", key: "Dark burgundy sleeveless sport jersey · snake-frame sunglasses", status: "pending" },
+  { id: "B", label: "White Mushroom Tee", setting: "Golden hour", key: "White psychedelic mushroom-eye tee · black leather pants · red Jordan 4s · red crystal belt", status: "ready", note: "IMG_3735 benchmark — closest to correct" },
+  { id: "C", label: "NEVER JXST Racing Jersey", setting: "Dark night / golden hour", key: "Red/black long-sleeve racing jersey · white side panels · black distressed jeans · purple crystal belt · white Nike Shox", status: "pending" },
+  { id: "D", label: "Crazy Visions Cyber-Punk", setting: "Golden hour / dusk", key: "Orange Crazy Visions beanie · dark mushroom-eye tee · red distressed jeans · fur boots · purple crystal belt", status: "pending" },
+  { id: "E", label: "Red Puffer + Camo", setting: "Urban street", key: "Glossy red puffer jacket · wide-leg camo cargo pants · blue paisley basketball sneakers · wavy textured sunglasses", status: "pending" },
+  { id: "F", label: "Crazy Visions Clean", setting: "Any", key: "Red/black Crazy Visions beanie · white crewneck oversized tee · dopamine custom Nike AF1s · red crystal belt", status: "pending" },
+  { id: "G", label: "Shearling + Racing Edge", setting: "Dusk", key: "Distressed shearling fur bomber · NEVER JXST racing jersey underneath · red leather pants · painted Nike AF1 Mid", status: "pending" },
+  { id: "H", label: "Minecraft Creeper Street", setting: "Urban", key: "Lime green Minecraft creeper tee · wide-leg camo cargo pants · blue paisley basketball sneakers", status: "pending" },
+  { id: "🚗", label: "Red AMG Benz Scene", setting: "Dusk/night urban", key: "Borrow red AMG Mercedes GT 4-door · white streetwear jacket · embroidered cargo shorts · purple VaporMax — REPLACE FACE with Josh", status: "pending" },
+];
+
+const CORRECTIONS = [
+  { issue: "Extra face/neck tattoos", fix: "Add to negative: 'no face tattoos, no neck tattoos, clean face'" },
+  { issue: "Too muscular/thick", fix: "'slender lean tall basketball player proportions, long limbs, NOT bodybuilder'" },
+  { issue: "Likeness drift", fix: "Upload blue-lit portrait as reference every time. Shorter prompts drift less." },
+  { issue: "Extra letter on outfit", fix: "Explicitly describe outfit without labels — no 'A' or branding letters" },
+  { issue: "Wrong glasses", fix: "Red snake-frame (A–D) · wavy sculptural (E, G, Benz) · black visor (alt)" },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function useElapsed(running: boolean) {
   const [elapsed, setElapsed] = useState(0);
@@ -72,8 +114,26 @@ function StatusDot({ status }: { status: JobStatus }) {
   );
 }
 
+function OutfitStatusIcon({ status }: { status: OutfitStatus }) {
+  if (status === "done") return <CheckCircle2 size={15} color="#22c55e" />;
+  if (status === "generating") return <Loader2 size={15} color="oklch(0.72 0.2 300)" style={{ animation: "spin 1s linear infinite" }} />;
+  if (status === "ready") return <Star size={15} color="#f59e0b" />;
+  return <Circle size={15} color="var(--text-muted)" style={{ opacity: 0.4 }} />;
+}
+
+function OutfitStatusLabel({ status }: { status: OutfitStatus }) {
+  const map: Record<OutfitStatus, { label: string; color: string }> = {
+    done: { label: "Done", color: "#22c55e" },
+    generating: { label: "Generating…", color: "oklch(0.72 0.2 300)" },
+    ready: { label: "Next up", color: "#f59e0b" },
+    pending: { label: "Pending", color: "var(--text-muted)" },
+  };
+  const { label, color } = map[status];
+  return <span style={{ fontSize: 11, fontWeight: 700, color, letterSpacing: "0.04em", textTransform: "uppercase" }}>{label}</span>;
+}
+
 export function VideoAgentUI({ session }: Props) {
-  const [view, setView] = useState<View>("studio");
+  const [view, setView] = useState<View>("project");
   const [idea, setIdea] = useState("");
   const [script, setScript] = useState("");
   const [mode, setMode] = useState<ModeId>("direct");
@@ -83,6 +143,7 @@ export function VideoAgentUI({ session }: Props) {
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [history, setHistory] = useState<VideoGen[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [expandedSpec, setExpandedSpec] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef = useRef(false);
@@ -237,134 +298,285 @@ export function VideoAgentUI({ session }: Props) {
   };
 
   const activeRenderCount = history.filter(g => g.status === "pending" || g.status === "processing").length;
+  const doneCount = OUTFITS.filter(o => o.status === "done").length;
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative", zIndex: 1 }}>
       {/* Header */}
       <header style={{
         borderBottom: "1px solid var(--border)",
-        padding: "0 24px",
-        height: 60,
+        padding: "0 20px",
+        height: 56,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        background: "oklch(0.085 0.022 272 / 0.9)",
+        background: "oklch(0.085 0.022 272 / 0.95)",
         backdropFilter: "blur(12px)",
         position: "sticky",
         top: 0,
         zIndex: 10,
+        gap: 12,
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           <div style={{
-            width: 32, height: 32, borderRadius: 10,
+            width: 30, height: 30, borderRadius: 9,
             background: "oklch(0.72 0.2 300 / 0.15)",
             border: "1px solid oklch(0.72 0.2 300 / 0.3)",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>
-            <Video size={16} color="oklch(0.72 0.2 300)" />
+            <Clapperboard size={15} color="oklch(0.72 0.2 300)" />
           </div>
-          <span style={{ fontWeight: 700, fontSize: 16, color: "var(--text)", letterSpacing: "-0.02em" }}>
-            Aurora <span style={{ color: "var(--accent)" }}>Video Agent</span>
+          <span style={{ fontWeight: 700, fontSize: 15, color: "var(--text)", letterSpacing: "-0.02em" }}>
+            NBA Josh <span style={{ color: "var(--accent)" }}>· Video Pipeline</span>
           </span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
           {busy && stageLabel[stage] && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--accent)" }}>
-              <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--accent)", flexShrink: 0 }}>
+              <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
               {stageLabel[stage]}
             </div>
           )}
-          {/* Tab buttons */}
-          {(["studio", "history"] as const).map(v => (
+          {(["project", "studio", "history"] as const).map(v => (
             <button
               key={v}
               onClick={() => setView(v)}
               style={{
                 display: "flex", alignItems: "center", gap: 5,
-                padding: "6px 13px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+                padding: "5px 11px", borderRadius: 7, fontSize: 12, fontWeight: 600,
                 border: `1px solid ${view === v ? "var(--accent)" : "var(--border)"}`,
                 background: view === v ? "oklch(0.72 0.2 300 / 0.12)" : "transparent",
                 color: view === v ? "var(--accent)" : "var(--text-muted)",
-                cursor: "pointer", textTransform: "capitalize",
+                cursor: "pointer", flexShrink: 0,
               }}
             >
-              {v === "history"
-                ? <><History size={13} /> History{activeRenderCount > 0 ? ` · ${activeRenderCount}` : ""}</>
-                : <><Video size={13} /> Studio</>
+              {v === "project"
+                ? <><Clapperboard size={12} /> Project</>
+                : v === "history"
+                  ? <><History size={12} /> History{activeRenderCount > 0 ? ` · ${activeRenderCount}` : ""}</>
+                  : <><Video size={12} /> HeyGen Studio</>
               }
             </button>
           ))}
-          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{email}</span>
+          <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>{email}</span>
           <button
             onClick={() => supabase.auth.signOut()}
             style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "6px 12px", borderRadius: 8,
+              display: "flex", alignItems: "center", gap: 5,
+              padding: "5px 10px", borderRadius: 7,
               background: "transparent", border: "1px solid var(--border)",
-              color: "var(--text-muted)", cursor: "pointer", fontSize: 12,
+              color: "var(--text-muted)", cursor: "pointer", fontSize: 11, flexShrink: 0,
             }}
           >
-            <LogOut size={13} /> Sign out
+            <LogOut size={12} /> Sign out
           </button>
         </div>
       </header>
 
-      {view === "studio" ? (
+      {/* ── PROJECT VIEW ── */}
+      {view === "project" && (
+        <div style={{ flex: 1, maxWidth: 900, margin: "0 auto", width: "100%", padding: "28px 20px" }}>
+
+          {/* Hero banner */}
+          <div style={{
+            borderRadius: 16,
+            background: "linear-gradient(135deg, oklch(0.12 0.03 272) 0%, oklch(0.1 0.04 300) 100%)",
+            border: "1px solid oklch(0.72 0.2 300 / 0.2)",
+            padding: "20px 24px",
+            marginBottom: 24,
+            position: "relative",
+            overflow: "hidden",
+          }}>
+            <div style={{
+              position: "absolute", inset: 0, opacity: 0.04,
+              backgroundImage: "repeating-linear-gradient(45deg, oklch(0.72 0.2 300) 0, oklch(0.72 0.2 300) 1px, transparent 0, transparent 50%)",
+              backgroundSize: "12px 12px",
+            }} />
+            <div style={{ position: "relative" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 18 }}>🎬</span>
+                <span style={{ fontWeight: 800, fontSize: 18, color: "var(--text)", letterSpacing: "-0.02em" }}>
+                  Looping Officers
+                </span>
+                <span style={{
+                  fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
+                  background: "oklch(0.72 0.2 300 / 0.15)", color: "var(--accent)",
+                  border: "1px solid oklch(0.72 0.2 300 / 0.3)", borderRadius: 5, padding: "2px 7px",
+                }}>
+                  In Production
+                </span>
+              </div>
+              <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 12px", maxWidth: 600 }}>
+                Each outfit = a separate standalone post synced to the same 24-second hook. Josh stands unbothered while officers charge hard behind him — frozen on an invisible treadmill. He turns, smirks, walks away.
+              </p>
+              <div style={{ display: "flex", gap: 16 }}>
+                <Stat label="Outfit clips" value={`${doneCount} / ${OUTFITS.length}`} />
+                <Stat label="Audio" value="24-sec hook" />
+                <Stat label="Provider" value="Kling v3 (fal.ai)" />
+                <Stat label="Format" value="10s · 16:9" />
+              </div>
+            </div>
+          </div>
+
+          {/* Character spec card */}
+          <div style={{
+            borderRadius: 14, border: "1px solid var(--border)",
+            background: "var(--bg-card)", marginBottom: 20, overflow: "hidden",
+          }}>
+            <button
+              onClick={() => setExpandedSpec(s => !s)}
+              style={{
+                width: "100%", padding: "14px 18px",
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                background: "transparent", border: "none", cursor: "pointer",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <User size={15} color="var(--accent)" />
+                <span style={{ fontWeight: 700, fontSize: 14, color: "var(--text)" }}>Character Spec — read before every generation</span>
+              </div>
+              <ChevronRight size={15} color="var(--text-muted)" style={{ transform: expandedSpec ? "rotate(90deg)" : "none", transition: "transform 0.2s" }} />
+            </button>
+            {expandedSpec && (
+              <div style={{ padding: "0 18px 18px", borderTop: "1px solid var(--border)" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 14 }}>
+                  <SpecBlock title="Body">
+                    6'3" TALL LEAN. Long-limbed. Slender. NOT muscular, NOT thick, NOT bloated. Basketball-player proportions.
+                  </SpecBlock>
+                  <SpecBlock title="Hair">
+                    Long fully red dreadlocks past shoulders.
+                  </SpecBlock>
+                  <SpecBlock title="Tattoos — EXACT (arm-only)" accent>
+                    <b>Right shoulder:</b> "NBA" with stars + "JOSH" gothic<br />
+                    <b>Left shoulder:</b> portrait of young Black male face (low-cut Afro)<br />
+                    <b>Both forearms:</b> full sleeves — clouds, roses, stars<br />
+                    <b style={{ color: "#ef4444" }}>ZERO tattoos on face, neck, chest, or legs</b>
+                  </SpecBlock>
+                  <SpecBlock title="Jewellery (every outfit)">
+                    Diamond "NBA JOSH 444" pendant on heavy Cuban link chain + iced-out AP diamond watch (left wrist)
+                  </SpecBlock>
+                  <SpecBlock title="Prop (every scene)">
+                    Vintage silver retro hanging microphone — dangles from above, always visible.
+                  </SpecBlock>
+                  <SpecBlock title="Officers">
+                    4–6 in full uniform. Maximum aggression. Frozen on invisible treadmill — running hard, going nowhere. Collapse at end.
+                  </SpecBlock>
+                </div>
+
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>
+                    Known AI drift — corrections to add every time
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {CORRECTIONS.map((c, i) => (
+                      <div key={i} style={{
+                        display: "grid", gridTemplateColumns: "160px 1fr", gap: 10, alignItems: "start",
+                        padding: "9px 12px", borderRadius: 9, background: "var(--bg)",
+                        border: "1px solid var(--border)", fontSize: 12,
+                      }}>
+                        <span style={{ fontWeight: 600, color: "#f59e0b" }}>{c.issue}</span>
+                        <span style={{ color: "var(--text-muted)", lineHeight: 1.5 }}>{c.fix}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Outfit tracker */}
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+              <Shirt size={15} color="var(--accent)" />
+              <span style={{ fontWeight: 700, fontSize: 14, color: "var(--text)" }}>Outfit Tracker</span>
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>— each = separate standalone post</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {OUTFITS.map(o => (
+                <div
+                  key={o.id}
+                  style={{
+                    display: "flex", alignItems: "flex-start", gap: 12,
+                    padding: "13px 16px", borderRadius: 12,
+                    border: `1px solid ${o.status === "ready" ? "oklch(0.72 0.2 300 / 0.3)" : "var(--border)"}`,
+                    background: o.status === "ready" ? "oklch(0.72 0.2 300 / 0.05)" : "var(--bg-card)",
+                  }}
+                >
+                  <div style={{
+                    width: 34, height: 34, borderRadius: 9, flexShrink: 0,
+                    background: "var(--bg)", border: "1px solid var(--border)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 13, fontWeight: 800, color: "var(--text)",
+                  }}>
+                    {o.id}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: "var(--text)" }}>{o.label}</span>
+                      <span style={{ fontSize: 11, color: "var(--text-muted)", opacity: 0.7 }}>· {o.setting}</span>
+                    </div>
+                    <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>{o.key}</p>
+                    {o.note && (
+                      <p style={{ fontSize: 11, color: "#f59e0b", margin: "4px 0 0", fontWeight: 600 }}>★ {o.note}</p>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                    <OutfitStatusIcon status={o.status} />
+                    <OutfitStatusLabel status={o.status} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Post-processing guide */}
+          <div style={{
+            marginTop: 20, borderRadius: 14, border: "1px solid var(--border)",
+            background: "var(--bg-card)", padding: "16px 18px",
+          }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: "var(--text)", marginBottom: 10 }}>
+              Post-processing each clip (CapCut)
+            </div>
+            <ol style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 6 }}>
+              {[
+                "Lay 24-second hook audio underneath — align Josh's movement to the beat drop",
+                "Colour grade: golden hour = warm orange lift + teal shadows · night = deep blue/teal, crushed blacks",
+                "Motion blur on officers (Video Effects → Motion Blur medium) — sells the treadmill illusion",
+                "Vignette 25–35% — darkens edges, focuses eye on Josh",
+                "Export: 1080×1920 vertical (TikTok/Reels) or 1920×1080 horizontal (YouTube)",
+                "Caption: \"[Outfit vibe] 🔥 They ran full speed. Didn't move an inch. #NBAJosh #LoopingOfficers #OutTheMud\"",
+              ].map((step, i) => (
+                <li key={i} style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6 }}>{step}</li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      )}
+
+      {/* ── STUDIO VIEW (HeyGen) ── */}
+      {view === "studio" && (
         <>
-          {/* Onboarding photo strip — real example inputs + result */}
           <div style={{
             borderBottom: "1px solid var(--border)",
-            padding: "14px 24px",
+            padding: "12px 20px",
             display: "flex",
             alignItems: "center",
-            gap: 14,
+            gap: 12,
             background: "oklch(0.085 0.022 272 / 0.5)",
             overflowX: "auto",
           }}>
-            {/* Example: what users provide */}
-            <div style={{ position: "relative", flexShrink: 0 }}>
-              <img
-                src="/video-agent/examples/perform-inputs.jpg"
-                alt="Example inputs — identity photo, outfit reference, scene reference"
-                style={{ height: 64, width: 108, objectFit: "cover", objectPosition: "top", borderRadius: 10, border: "1px solid var(--border)" }}
-              />
-              <span style={{ position: "absolute", bottom: 4, left: 4, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", background: "oklch(0 0 0 / 0.8)", color: "white", borderRadius: 4, padding: "2px 5px" }}>
-                Inputs
-              </span>
-            </div>
-
-            {/* Arrow */}
-            <span style={{ color: "var(--accent)", fontSize: 18, flexShrink: 0 }}>→</span>
-
-            {/* Example: cinematic result */}
-            <div style={{ position: "relative", flexShrink: 0 }}>
-              <img
-                src="/video-agent/examples/scene-result.jpg"
-                alt="Rendered result — artist composited into cinematic AI scene"
-                style={{ height: 64, width: 108, objectFit: "cover", objectPosition: "top center", borderRadius: 10, border: "1px solid oklch(0.72 0.2 300 / 0.4)", boxShadow: "0 0 16px -6px oklch(0.72 0.2 300 / 0.5)" }}
-              />
-              <span style={{ position: "absolute", bottom: 4, left: 4, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", background: "oklch(0.72 0.2 300 / 0.85)", color: "white", borderRadius: 4, padding: "2px 5px" }}>
-                ✅ Rendered
-              </span>
-            </div>
-
-            {/* Description */}
             <div style={{ marginLeft: 4 }}>
               <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 3 }}>
                 HeyGen avatar · your script, your face, any scene
               </p>
-              <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 2 }}>
+              <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 0 }}>
                 Identity photo + outfit + scene reference → AI script → video in ~60–120s
-              </p>
-              <p style={{ fontSize: 11, color: "var(--text-muted)", opacity: 0.7 }}>
-                See <strong style={{ color: "var(--accent)", fontWeight: 600 }}>Perform Anywhere</strong> in the main app to add motion control to your shoot
               </p>
             </div>
           </div>
 
-          {/* Main content */}
-          <main style={{ flex: 1, padding: "32px 24px", maxWidth: 760, margin: "0 auto", width: "100%" }}>
-            {/* Step 1 — Idea / Script */}
+          <main style={{ flex: 1, padding: "28px 20px", maxWidth: 760, margin: "0 auto", width: "100%" }}>
             <Section num={1} label="Write your script">
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <textarea
@@ -373,7 +585,7 @@ export function VideoAgentUI({ session }: Props) {
                     const val = e.target.value;
                     if (script) setScript(val); else setIdea(val);
                   }}
-                  placeholder="Paste your raw idea, rough notes, or draft script here — the AI will shape it into polished spoken words your avatar will deliver on camera…"
+                  placeholder="Paste your raw idea, rough notes, or draft script here…"
                   rows={7}
                   disabled={busy}
                   style={{
@@ -387,7 +599,6 @@ export function VideoAgentUI({ session }: Props) {
                   onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
                 />
 
-                {/* Mode + Duration row */}
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                   {MODES.map((m) => {
                     const Icon = m.icon;
@@ -447,10 +658,8 @@ export function VideoAgentUI({ session }: Props) {
               </div>
             </Section>
 
-            {/* Step 2 — Generate */}
             <Section num={2} label="Generate video">
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {/* Orientation picker */}
                 <div style={{ display: "flex", gap: 10 }}>
                   {(["landscape", "portrait"] as const).map((o) => {
                     const Icon = o === "landscape" ? Monitor : Smartphone;
@@ -475,7 +684,6 @@ export function VideoAgentUI({ session }: Props) {
                   })}
                 </div>
 
-                {/* Script preview */}
                 {activeScript && (
                   <div style={{
                     background: "var(--bg-input)", border: "1px solid var(--border)",
@@ -527,7 +735,6 @@ export function VideoAgentUI({ session }: Props) {
               </div>
             </Section>
 
-            {/* Result */}
             {resultUrl && (
               <Section num={3} label="Your video">
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -598,9 +805,11 @@ export function VideoAgentUI({ session }: Props) {
             )}
           </main>
         </>
-      ) : (
-        /* History view */
-        <div style={{ flex: 1, maxWidth: 1000, margin: "0 auto", width: "100%", padding: "28px 24px" }}>
+      )}
+
+      {/* ── HISTORY VIEW ── */}
+      {view === "history" && (
+        <div style={{ flex: 1, maxWidth: 1000, margin: "0 auto", width: "100%", padding: "28px 20px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: "var(--text)" }}>
               Video history
@@ -626,7 +835,7 @@ export function VideoAgentUI({ session }: Props) {
               <Video size={48} style={{ opacity: 0.3 }} />
               <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text)" }}>No videos yet</div>
               <p style={{ fontSize: 14, color: "var(--text-muted)", textAlign: "center", margin: 0 }}>
-                Generate your first HeyGen video in Studio
+                Generate your first video
               </p>
               <button
                 onClick={() => setView("studio")}
@@ -699,7 +908,7 @@ export function VideoAgentUI({ session }: Props) {
                         <>
                           <Loader2 size={28} style={{ color: "var(--accent)", animation: "spin 1s linear infinite" }} />
                           <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                            {g.status === "pending" ? "Queued…" : "Rendering on HeyGen…"}
+                            {g.status === "pending" ? "Queued…" : "Rendering…"}
                           </div>
                         </>
                       )}
@@ -744,17 +953,35 @@ function Section({ num, label, children }: { num: number; label: string; childre
           background: "oklch(0.72 0.2 300 / 0.15)",
           border: "1px solid oklch(0.72 0.2 300 / 0.3)",
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 12, fontWeight: 700, color: "var(--accent)", flexShrink: 0,
+          fontSize: 12, fontWeight: 800, color: "var(--accent)",
         }}>
           {num}
         </span>
-        <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--text)", letterSpacing: "-0.01em" }}>
-          {label}
-        </h2>
+        <span style={{ fontWeight: 700, fontSize: 15, color: "var(--text)" }}>{label}</span>
       </div>
-      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: "20px" }}>
-        {children}
-      </div>
+      {children}
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 3 }}>{label}</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>{value}</div>
+    </div>
+  );
+}
+
+function SpecBlock({ title, children, accent }: { title: string; children: React.ReactNode; accent?: boolean }) {
+  return (
+    <div style={{
+      padding: "12px 14px", borderRadius: 10,
+      background: "var(--bg)",
+      border: `1px solid ${accent ? "oklch(0.72 0.2 300 / 0.2)" : "var(--border)"}`,
+    }}>
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: accent ? "var(--accent)" : "var(--text-muted)", marginBottom: 6 }}>{title}</div>
+      <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6 }}>{children}</div>
     </div>
   );
 }
