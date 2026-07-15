@@ -147,10 +147,23 @@ export function OnboardingModal({ userId, open, onOpenChange, onApply, onBonusGr
     <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(true) : skip())}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-2xl">
-            <Sparkles className="size-5 text-primary" />
-            Your first render in under 60s
-          </DialogTitle>
+          <div className="flex items-center justify-between mb-1">
+            <DialogTitle className="flex items-center gap-2 text-2xl">
+              <Sparkles className="size-5 text-primary" />
+              Your first render in under 60s
+            </DialogTitle>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {([1, 2] as const).map((s) => (
+                <div
+                  key={s}
+                  className={cn(
+                    "h-1.5 rounded-full transition-all",
+                    s === step ? "w-6 bg-primary" : "w-3 bg-muted",
+                  )}
+                />
+              ))}
+            </div>
+          </div>
           <DialogDescription>
             {step === 1
               ? "Pick a vibe — each card is a real example render, not a mockup. We'll pre-load the prompt so you skip the blank page."
@@ -236,9 +249,15 @@ export function OnboardingModal({ userId, open, onOpenChange, onApply, onBonusGr
         )}
 
         <div className="flex items-center justify-between gap-2 pt-2">
-          <Button variant="ghost" onClick={skip} className="text-muted-foreground">
-            Skip for now
-          </Button>
+          {step === 2 ? (
+            <Button variant="ghost" onClick={() => setStep(1)} className="text-muted-foreground gap-1.5">
+              ← Back
+            </Button>
+          ) : (
+            <Button variant="ghost" onClick={skip} className="text-muted-foreground text-xs">
+              Skip for now
+            </Button>
+          )}
           {step === 1 ? (
             <Button
               onClick={() => {
@@ -247,14 +266,16 @@ export function OnboardingModal({ userId, open, onOpenChange, onApply, onBonusGr
               }}
               className="gap-2"
             >
-              Continue <Wand2 className="size-4" />
+              Next — Add selfie <Wand2 className="size-4" />
             </Button>
           ) : (
             <Button onClick={finish} disabled={!selfieUrl || finishing} className="gap-2">
               {finishing ? (
                 <>Loading… <Loader2 className="size-4 animate-spin" /></>
+              ) : selfieUrl ? (
+                <>Generate now · +{ONBOARDING_BONUS_AURA} Aura <Sparkles className="size-4" /></>
               ) : (
-                <>Load into Studio · +{ONBOARDING_BONUS_AURA} Aura <Sparkles className="size-4" /></>
+                <>Upload a selfie to continue <Camera className="size-4" /></>
               )}
             </Button>
           )}

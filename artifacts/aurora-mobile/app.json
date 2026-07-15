@@ -7,6 +7,8 @@
     "icon": "./assets/images/icon.png",
     "scheme": "aurora-studio",
     "userInterfaceStyle": "dark",
+    "privacyPolicyUrl": "https://auroraperformancestudio.com/privacy",
+    "supportUrl": "mailto:support@auroraperformancestudio.com",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/splash.png",
@@ -28,7 +30,18 @@
     },
     "ios": {
       "bundleIdentifier": "com.aurorastudio.app",
-      "supportsTablet": false
+      "buildNumber": "1",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Aurora uses your camera to capture photos for AI generation.",
+        "NSPhotoLibraryUsageDescription": "Aurora accesses your photo library to use images as reference for AI generation.",
+        "NSPhotoLibraryAddUsageDescription": "Aurora saves your AI-generated images to your photo library.",
+        "NSMicrophoneUsageDescription": "Aurora may use the microphone for voice-assisted features.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": []
+      }
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -37,7 +50,7 @@
       [
         "expo-router",
         {
-          "origin": "https://replit.com/"
+          "origin": "https://auroraperformancestudio.com/"
         }
       ],
       "expo-font",
