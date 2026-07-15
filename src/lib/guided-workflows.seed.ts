@@ -1554,4 +1554,83 @@ export const DEFAULT_GUIDED_WORKFLOWS: GuidedWorkflowContent[] = [
       },
     ],
   },
+
+  // ── NBA Josh — Looping Officers Composite ────────────────────────────────
+  {
+    slug: "nba-josh-looping-officers",
+    title: "Looping Officers — Surreal Urban Composite",
+    tagline: "Layer A + B split-screen: Josh performs while officers loop behind him",
+    description:
+      "A cinematic 15-second urban night scene in two layers. NBA Josh stands in the foreground performing his hook — fearless, untouchable. Behind him, two police officers run aggressively but are stuck in a loop, going nowhere. A vintage hanging microphone drops from above. Layer B (officers) is already done on Kling. This guide covers generating Layer A (Josh) and compositing in CapCut.",
+    category: "music-video",
+    icon: "🎬",
+    sourceCredit: "NBA Josh · Out The Mud Records",
+    isPublished: true,
+    sortOrder: 5,
+    steps: [
+      {
+        id: "gather-references",
+        title: "Gather Layer A reference images",
+        kind: "instruction",
+        description:
+          "You need three reference images for Layer A:\n\n1. **Face reference** — The blue-lit close-up portrait. Best for Kling likeness: shows the snake glasses, chain, and face clearly.\n2. **Outfit reference** — Black leather jacket + leather pants + boots (full-body shot).\n3. **Prop reference** — The vintage silver hanging microphone (scene element).\n\nLayer B (officers looping on the night street) is already done on Kling v3. You only need to generate Layer A.",
+        promptTemplate: "",
+        placeholders: [],
+        referenceSlots: [
+          { key: "face", label: "Blue-lit close-up (face + glasses + chain)", description: "The strongest likeness reference for Kling. Shows snake glasses, Cuban link, and face clearly.", required: true },
+          { key: "outfit", label: "Full leather outfit reference", description: "Black leather jacket + pants + boots. Full body.", required: true },
+          { key: "mic", label: "Vintage hanging mic — prop reference", description: "Include in the scene. Hanging mic drops into frame.", required: false },
+        ],
+        usesPreviousResult: false,
+        tips: [
+          "The blue-lit close-up is the strongest identity reference for Kling — use it as the primary upload.",
+          "Layer B (officers) is already done — you only generate Layer A here.",
+        ],
+        variants: [],
+      },
+      {
+        id: "generate-layer-a",
+        title: "Generate Layer A — NBA Josh foreground",
+        kind: "video",
+        description:
+          "Image-to-video in Kling v3. Upload the blue-lit close-up as the reference image. Use the prompt below exactly as-is — the technical photography language is what makes it cinematic. Generate 3 variations and pick the best.\n\nSettings: Kling v3 standard · 10 seconds · 16:9 · Image to Video mode.",
+        promptTemplate:
+          "Cinematic music video scene. A tall lean athletic Black male rapper with long fully red dreadlocks past his shoulders, wearing sculptural red snake-frame sunglasses, heavy diamond Cuban link chain with \"NEVER JUST\" iced-out pendant, \"NBA JOSH\" tattoo on right shoulder, full forearm tattoos on both arms. Wearing a [OUTFIT] — [OUTFIT DETAIL]. Stands in the bottom right of frame, waist up, facing slightly left toward camera. A vintage silver hanging microphone dangles from above near his face. Dark wet urban street at night. He performs his hook with calm fearless energy, subtle hand gestures, completely unbothered. Static locked-off camera. No camera movement. Dramatic overhead streetlight, high contrast, deep shadows, moody atmosphere. Near the end he slowly glances over his left shoulder with a calm smirk, then turns and walks out of frame. Realistic, cinematic, music video aesthetic, shallow depth of field.",
+        placeholders: [
+          { key: "OUTFIT", label: "Outfit A or B", example: "black leather jacket, black leather pants, black boots" },
+          { key: "OUTFIT DETAIL", label: "Outfit detail", example: "full black leather head to toe" },
+        ],
+        referenceSlots: [],
+        usesPreviousResult: false,
+        tips: [
+          "Generate 3 variations — pick the one where his face and energy are strongest.",
+          "Static camera, no movement — the officers looping behind him creates all the tension.",
+          "Outfit A = black leather jacket + leather pants + boots. Outfit B = dark maroon/black sport jersey.",
+        ],
+        variants: [
+          { label: "Outfit A — Full leather", prompt: "Cinematic music video scene. A tall lean athletic Black male rapper with long fully red dreadlocks past his shoulders, wearing sculptural red snake-frame sunglasses, heavy diamond Cuban link chain with \"NEVER JUST\" iced-out pendant, \"NBA JOSH\" tattoo on right shoulder, full forearm tattoos on both arms. Wearing a black leather jacket, black leather pants, black boots. Stands in the bottom right of frame, waist up, facing slightly left toward camera. A vintage silver hanging microphone dangles from above near his face. Dark wet urban street at night. He performs his hook with calm fearless energy, subtle hand gestures, completely unbothered. Static locked-off camera. No camera movement. Dramatic overhead streetlight, high contrast, deep shadows, moody atmosphere. Near the end he slowly glances over his left shoulder with a calm smirk, then turns and walks out of frame. Realistic, cinematic, music video aesthetic, shallow depth of field." },
+          { label: "Outfit B — Sport jersey", prompt: "Cinematic music video scene. A tall lean athletic Black male rapper with long fully red dreadlocks past his shoulders, wearing sculptural red snake-frame sunglasses, heavy diamond Cuban link chain with \"NEVER JUST\" iced-out pendant, \"NBA JOSH\" tattoo on right shoulder, full forearm tattoos on both arms. Wearing a dark maroon and black sport jersey. Stands in the bottom right of frame, waist up, facing slightly left toward camera. A vintage silver hanging microphone dangles from above near his face. Dark wet urban street at night. He performs his hook with calm fearless energy, subtle hand gestures, completely unbothered. Static locked-off camera. No camera movement. Dramatic overhead streetlight, high contrast, deep shadows, moody atmosphere. Near the end he slowly glances over his left shoulder with a calm smirk, then turns and walks out of frame. Realistic, cinematic, music video aesthetic, shallow depth of field." },
+        ],
+        toolLink: { label: "Open Scene Builder", to: "/orchestrate" },
+      },
+      {
+        id: "capcut-composite",
+        title: "Composite Layers A + B in CapCut",
+        kind: "instruction",
+        description:
+          "Once Layer A (Josh) is generated, composite with Layer B (officers) in CapCut:\n\n1. **Import officers clip** as base track (Layer B — already done)\n2. **Loop officers to 15 seconds** — tap clip → Copy → paste until 15s total\n3. **Add Josh clip as overlay** — tap + → Overlay → import Layer A. Position bottom-right of frame\n4. **Blur the officers layer** — soft gaussian blur to push them into background\n5. **Add motion blur to officers** — Video Effects → Motion Blur (medium intensity)\n6. **Colour grade** — Brightness -10, Contrast +20, Saturation -15 + cinematic teal/orange LUT\n7. **Add vignette** — Effects → Vignette at 30–40%\n8. **Export** — 1080p at 60fps",
+        promptTemplate: "",
+        placeholders: [],
+        referenceSlots: [],
+        usesPreviousResult: true,
+        tips: [
+          "Officers go top-left, Josh bottom-right — diagonal tension pulls the eye across the whole frame.",
+          "The vintage mic in the centre-top ties the street scene to the studio world.",
+          "The loop effect is the magic: 2–3 seconds of officers repeated × 5 = 15 seconds. Simple, surreal.",
+          "Officers are blurred + motion-blurred → they feel like they're running hard, going nowhere.",
+        ],
+        variants: [],
+      },
+    ],
+  },
 ];

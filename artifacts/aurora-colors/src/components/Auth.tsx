@@ -29,9 +29,26 @@ export function Auth() {
     }
   }
 
+  const BASE = import.meta.env.BASE_URL;
+
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: "24px" }}>
-      <div style={{ width: "100%", maxWidth: 400 }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: "24px", position: "relative", overflow: "hidden" }}>
+      {/* Cover images — decorative background */}
+      <img
+        src={`${BASE}cover-studios.png`}
+        alt=""
+        aria-hidden
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.08, pointerEvents: "none", userSelect: "none" }}
+      />
+      <img
+        src={`${BASE}cover-artist.png`}
+        alt=""
+        aria-hidden
+        style={{ position: "absolute", right: 0, top: 0, height: "100%", width: "auto", objectFit: "cover", opacity: 0.12, pointerEvents: "none", userSelect: "none" }}
+      />
+      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at center, var(--bg) 30%, transparent 100%)", pointerEvents: "none" }} />
+
+      <div style={{ width: "100%", maxWidth: 400, position: "relative" }}>
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 40 }}>
           <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 56, height: 56, borderRadius: 16, background: "linear-gradient(135deg, var(--accent), oklch(0.6 0.22 280))", marginBottom: 16, boxShadow: "0 0 32px var(--accent-glow)" }}>

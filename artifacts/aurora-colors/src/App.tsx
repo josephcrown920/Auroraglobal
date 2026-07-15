@@ -34,8 +34,30 @@ export default function App() {
 
   if (!session) return <Auth />;
 
+  const BASE = import.meta.env.BASE_URL;
+
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Inter', sans-serif" }}>
+
+      {/* ── Cover hero ── */}
+      <div style={{ position: "relative", width: "100%", height: 220, overflow: "hidden" }}>
+        <img
+          src={`${BASE}cover-artist.png`}
+          alt="NBA Josh in the Aurora pink studio"
+          style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 20%" }}
+        />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 40%, var(--bg) 100%)" }} />
+        {/* Studios grid strip */}
+        <div style={{ position: "absolute", bottom: 12, right: 12, width: 120, height: 80, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,0.15)", boxShadow: "0 4px 20px rgba(0,0,0,0.6)" }}>
+          <img src={`${BASE}cover-studios.png`} alt="12 color studios" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        </div>
+        {/* Brand overlay */}
+        <div style={{ position: "absolute", bottom: 16, left: 16 }}>
+          <p style={{ margin: 0, fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)" }}>Aurora Colors</p>
+          <p style={{ margin: "2px 0 0", fontSize: 18, fontWeight: 900, color: "white", letterSpacing: "-0.02em" }}>12 colors. Every mood.</p>
+        </div>
+      </div>
+
       {/* Top tab bar */}
       <div style={{
         borderBottom: "1px solid var(--border)",
