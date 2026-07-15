@@ -4,7 +4,7 @@ import { X, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 
-const STORAGE_KEY = "aurora.snip.dismissed.v2";
+const STORAGE_KEY = "aurora.snip.dismissed.v3";
 
 type Step = {
   emoji: string;
@@ -16,41 +16,45 @@ type Step = {
 
 const STEPS: Step[] = [
   {
-    emoji: "👋",
+    emoji: "🎬",
     title: "Welcome to Aurora",
-    body: "Turn any selfie into cinematic shots, music videos, and lip-synced performances in seconds. Let's walk you through it.",
-    cta: "Show me how →",
-  },
-  {
-    emoji: "📸",
-    title: "Upload your photo",
-    body: "In the Studio, tap the photo panel on the left to upload your selfie. This becomes your identity for every shot.",
-    cta: "Got it",
-  },
-  {
-    emoji: "✍️",
-    title: "Describe your vibe",
-    body: "Type a creative direction — or tap one of the example chips to auto-fill a proven cinematic prompt. No prompting skills needed.",
-    cta: "Makes sense",
-  },
-  {
-    emoji: "⚡",
-    title: "Hit Generate",
-    body: "One tap sends your photo to the AI. Your result appears in 10–30 seconds. Try different models for different looks.",
-    cta: "Easy enough",
+    body: "Turn a selfie + your phone recording into a full music video. Colors-style sets, luxury car scenes, viral lip sync — all generated with AI.",
+    cta: "Show me →",
   },
   {
     emoji: "🎤",
-    title: "Add lip-sync",
-    body: "Drop your audio file into the Lip Sync tool and Aurora animates your photo to match every word. Perfect for music artists.",
-    cta: "Sounds good",
+    title: "Colors-Style Performance",
+    body: "Pick a bold color. Upload your photo + a Colors reference. Aurora places you on a seamless cyclorama with a hanging vintage mic — wide angle and close-up.",
+    cta: "Try this guide",
+    to: "/guides/colors-style-performance",
   },
   {
-    emoji: "🚀",
-    title: "Go viral with TikTok30",
-    body: "TikTok30 batches 30 content posts in one session — the fastest path to growing your page. Ready to try it?",
-    cta: "Open TikTok30",
-    to: "/spin",
+    emoji: "🎬",
+    title: "Music Video from 5 Photos",
+    body: "Upload 5 references — your face, outfit, location, pose, and a car. Aurora composites you into a cinematic scene, then you shoot every angle from one prompt.",
+    cta: "Try this guide",
+    to: "/guides/one-scene-every-angle",
+  },
+  {
+    emoji: "📱",
+    title: "Phone Lip Sync Trick",
+    body: "AI puts a phone with a green screen in front of your face at any location. Animate it, then drop your real performance onto the phone screen in CapCut. Looks like viral candid footage.",
+    cta: "Try this guide",
+    to: "/guides/phone-lipsync-performance",
+  },
+  {
+    emoji: "⚡",
+    title: "Custom Studio Shot",
+    body: "Not following a guide? Just go to Studio, upload your photo, describe any vibe, and generate. Models include Nano Banana Pro, Seedance 2.0, Kling 3.0, and more.",
+    cta: "Open Studio",
+    to: "/studio",
+  },
+  {
+    emoji: "✦",
+    title: "See all playbooks",
+    body: "Browse all guided workflows — Colors, car videos, AI artist creation, the Realism Formula, motion effects, and more. Step-by-step, no prompting skills needed.",
+    cta: "Open Guides",
+    to: "/guides",
   },
 ];
 
@@ -112,16 +116,13 @@ export function SnipTutorialCards({ show = true, forceShow = false, onDismiss }:
       aria-label="Aurora tutorial"
     >
       <div className="relative rounded-2xl border border-white/15 bg-[#0d0a1e]/95 backdrop-blur-xl shadow-2xl shadow-black/60 overflow-hidden">
-        {/* Red top accent strip */}
         <div className="h-0.5 bg-gradient-to-r from-red-500 via-pink-500 to-primary" />
 
         <div className="p-4 flex items-start gap-3">
-          {/* Avatar */}
           <div className="shrink-0 size-10 rounded-xl overflow-hidden border border-white/20 bg-black flex items-center justify-center">
             <img src={auroraLogo.url} alt="Aurora" className="size-8 object-contain" />
           </div>
 
-          {/* Content */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2 mb-0.5">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/80">
@@ -138,7 +139,6 @@ export function SnipTutorialCards({ show = true, forceShow = false, onDismiss }:
             <p className="text-sm font-semibold text-white leading-snug">{current.title}</p>
             <p className="text-xs text-white/60 mt-0.5 leading-relaxed">{current.body}</p>
 
-            {/* Progress dots */}
             <div className="flex items-center gap-1 mt-2.5">
               {STEPS.map((_, i) => (
                 <button
@@ -155,7 +155,6 @@ export function SnipTutorialCards({ show = true, forceShow = false, onDismiss }:
           </div>
         </div>
 
-        {/* Footer actions */}
         <div className="flex items-center gap-2 px-4 pb-4 pt-1">
           <button
             onClick={prev}
@@ -174,11 +173,11 @@ export function SnipTutorialCards({ show = true, forceShow = false, onDismiss }:
             <ChevronRight className="size-4 text-white/70" />
           </button>
           <div className="flex-1" />
-          {isLast && current.to ? (
+          {current.to ? (
             <Link
               to={current.to}
-              onClick={dismiss}
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold bg-red-500 hover:bg-red-400 text-white no-underline transition-colors"
+              onClick={isLast ? dismiss : undefined}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold bg-primary hover:brightness-110 text-primary-foreground no-underline transition-colors"
             >
               {current.cta} <ArrowRight className="size-3.5" />
             </Link>
@@ -187,7 +186,7 @@ export function SnipTutorialCards({ show = true, forceShow = false, onDismiss }:
               onClick={isLast ? dismiss : next}
               className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold bg-primary hover:brightness-110 text-primary-foreground transition-colors"
             >
-              {isLast ? "Finish tour" : current.cta}
+              {isLast ? "Finish" : current.cta}
               {!isLast && <ArrowRight className="size-3.5" />}
             </button>
           )}
