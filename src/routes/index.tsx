@@ -83,7 +83,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Which models are included?",
-    a: "All of them. Seedance 2.0, Kling 3.0, Nano Banana Pro, Seedream 4.5, Sync 1.9 lip-sync, and every new model we ship.",
+    a: "All of them. Seedance 5.9, Kling, Gemini Omni, Grok Imagine, Sync lip-sync, and every new model we ship.",
   },
 ];
 
@@ -332,8 +332,8 @@ function Index() {
 
             {/* sub */}
             <p className="mt-5 text-white/60 text-base md:text-lg leading-relaxed max-w-lg">
-              One studio. Every model that matters — Seedance 2.0, Kling 3.0, Nano Banana Pro,
-              Seedream 4.5, Sync lip-sync. Drop a photo, pick a vibe, get magazine-grade shots
+              One studio. Every model that matters — Seedance 5.9, Kling, Gemini Omni, Grok Imagine,
+              Sync lip-sync. Drop a photo, pick a vibe, get magazine-grade shots
               and motion in seconds.
             </p>
 
