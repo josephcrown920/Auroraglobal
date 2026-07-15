@@ -299,3 +299,9 @@ id = "6ilGJVT0RlulRet2I3B0p"
 uri = "file://lipsync-samples/photo2-lipsync-sample.mp4"
 type = "video"
 title = "HeyGen Photo lip-sync sample (real test)"
+
+[[outputs]]
+id = "CqovO3c7A6VG4umoiARtE"
+uri = "file://public/nba-josh-looping-officers-plan.pdf"
+type = "pdf"
+title = "NBA Josh — Looping Officers Production Plan"
