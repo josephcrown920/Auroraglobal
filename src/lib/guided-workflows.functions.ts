@@ -85,6 +85,15 @@ async function assertAdmin(userId: string) {
 
 // ─── Public (gallery + runner) ───────────────────────────────────────────────
 
+/** Seed all published defaults into the DB (ON CONFLICT slug → skip). */
+async function autoSeedDefaults() {
+  for (const wf of DEFAULT_GUIDED_WORKFLOWS) {
+    if (!wf.isPublished) continue;
+    const content = guidedWorkflowContentSchema.parse(wf);
+    await table().upsert(contentToDb(content), { onConflict: "slug", ignoreDuplicates: true });
+  }
+}
+
 export const listPublishedGuidedWorkflows = createServerFn({ method: "GET" }).handler(
   async () => {
     const { data, error } = await table()
@@ -93,7 +102,19 @@ export const listPublishedGuidedWorkflows = createServerFn({ method: "GET" }).ha
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
-    return { workflows: ((data ?? []) as DbRow[]).map(rowToWorkflow) };
+
+    const rows = (data ?? []) as DbRow[];
+    if (rows.length === 0) {
+      await autoSeedDefaults();
+      const { data: seeded } = await table()
+        .select("*")
+        .eq("is_published", true)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true });
+      return { workflows: ((seeded ?? []) as DbRow[]).map(rowToWorkflow) };
+    }
+
+    return { workflows: rows.map(rowToWorkflow) };
   },
 );
 
@@ -108,7 +129,27 @@ export const getGuidedWorkflow = createServerFn({ method: "GET" })
       .eq("is_published", true)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (!row) throw new Error("Workflow not found");
+
+    if (!row) {
+      const def = DEFAULT_GUIDED_WORKFLOWS.find(
+        (w) => w.slug === data.slug && w.isPublished,
+      );
+      if (!def) throw new Error("Workflow not found");
+      const content = guidedWorkflowContentSchema.parse(def);
+      await table()
+        .upsert(contentToDb(content), { onConflict: "slug", ignoreDuplicates: true })
+        .then(() => null)
+        .catch(() => null);
+      return {
+        workflow: {
+          ...content,
+          id: def.slug,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } satisfies GuidedWorkflowRow,
+      };
+    }
+
     return { workflow: rowToWorkflow(row as DbRow) };
   });
 
