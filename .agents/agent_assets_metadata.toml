@@ -305,3 +305,9 @@ id = "CqovO3c7A6VG4umoiARtE"
 uri = "file://public/nba-josh-looping-officers-plan.pdf"
 type = "pdf"
 title = "NBA Josh — Looping Officers Production Plan"
+
+[[outputs]]
+id = "ajBxEsOHS5dVvUUJNgzV0"
+uri = "file://public/nba-josh-character-sheet.pdf"
+type = "pdf"
+title = "NBA Josh — Character & Outfit Sheet (with images)"
