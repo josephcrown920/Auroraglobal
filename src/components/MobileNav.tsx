@@ -45,6 +45,7 @@ type Feature = {
 const MAKE_FEATURES: Feature[] = [
   { to: "/studio",      label: "Image Generation", icon: Sparkles },
   { to: "/colors",      label: "Colors Studio",    icon: Palette },
+  { to: "/live-studio", label: "Live Studios",      icon: Music2 },
   { to: "/canvas",      label: "Canvas",           icon: Workflow },
   { to: "/orchestrate", label: "Video",            icon: Film },
   { to: "/photo-edit",  label: "Photo Editor",     icon: Brush },

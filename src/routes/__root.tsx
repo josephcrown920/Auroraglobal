@@ -24,6 +24,8 @@ import { useEffect } from "react";
 import { captureRefFromUrl } from "@/lib/referral";
 import { ReferralAttacher } from "@/components/ReferralAttacher";
 import { ThemeProvider } from "@/lib/theme-context";
+import { initCrashReporting } from "@/lib/crash-reporting";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 function NotFoundComponent() {
   return (
@@ -242,7 +244,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   usePageViewTracking();
-  useEffect(() => { captureRefFromUrl(); }, []);
+  useEffect(() => { captureRefFromUrl(); initCrashReporting(); }, []);
   useEffect(() => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
@@ -271,20 +273,22 @@ function RootComponent() {
   // The app fills the full screen on any device — phone, tablet, or desktop —
   // adapting fluidly to the viewport width with no horizontal scroll.
   return (
-    <ThemeProvider>
-      <QueryClientProvider client={queryClient}>
-        <SiteImagesProvider>
-          <div className="relative min-h-screen w-full overflow-x-hidden bg-background">
-            <Outlet />
-          </div>
-        </SiteImagesProvider>
-        <Toaster />
-        <AuroraChatbot />
-        <AdminHotkey />
-        <ReferralAttacher />
-        <MobileNav />
-        <CookieConsentBanner />
-      </QueryClientProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <SiteImagesProvider>
+            <div className="relative min-h-screen w-full overflow-x-hidden bg-background">
+              <Outlet />
+            </div>
+          </SiteImagesProvider>
+          <Toaster />
+          <AuroraChatbot />
+          <AdminHotkey />
+          <ReferralAttacher />
+          <MobileNav />
+          <CookieConsentBanner />
+        </QueryClientProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }

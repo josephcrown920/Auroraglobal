@@ -29,6 +29,7 @@ import { Route as NexusarbRouteImport } from './routes/nexusarb'
 import { Route as MusicVideoRouteImport } from './routes/music-video'
 import { Route as MotionRouteImport } from './routes/motion'
 import { Route as MarketplaceRouteImport } from './routes/marketplace'
+import { Route as LiveStudioRouteImport } from './routes/live-studio'
 import { Route as LipsyncRouteImport } from './routes/lipsync'
 import { Route as KidsRouteImport } from './routes/kids'
 import { Route as HeygenTemplatesRouteImport } from './routes/heygen-templates'
@@ -194,6 +195,11 @@ const MarketplaceRoute = MarketplaceRouteImport.update({
   path: '/marketplace',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/marketplace.lazy').then((d) => d.Route))
+const LiveStudioRoute = LiveStudioRouteImport.update({
+  id: '/live-studio',
+  path: '/live-studio',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/live-studio.lazy').then((d) => d.Route))
 const LipsyncRoute = LipsyncRouteImport.update({
   id: '/lipsync',
   path: '/lipsync',
@@ -554,6 +560,7 @@ export interface FileRoutesByFullPath {
   '/heygen-templates': typeof HeygenTemplatesRoute
   '/kids': typeof KidsRoute
   '/lipsync': typeof LipsyncRoute
+  '/live-studio': typeof LiveStudioRoute
   '/marketplace': typeof MarketplaceRoute
   '/motion': typeof MotionRoute
   '/music-video': typeof MusicVideoRoute
@@ -640,6 +647,7 @@ export interface FileRoutesByTo {
   '/heygen-templates': typeof HeygenTemplatesRoute
   '/kids': typeof KidsRoute
   '/lipsync': typeof LipsyncRoute
+  '/live-studio': typeof LiveStudioRoute
   '/marketplace': typeof MarketplaceRoute
   '/motion': typeof MotionRoute
   '/music-video': typeof MusicVideoRoute
@@ -727,6 +735,7 @@ export interface FileRoutesById {
   '/heygen-templates': typeof HeygenTemplatesRoute
   '/kids': typeof KidsRoute
   '/lipsync': typeof LipsyncRoute
+  '/live-studio': typeof LiveStudioRoute
   '/marketplace': typeof MarketplaceRoute
   '/motion': typeof MotionRoute
   '/music-video': typeof MusicVideoRoute
@@ -815,6 +824,7 @@ export interface FileRouteTypes {
     | '/heygen-templates'
     | '/kids'
     | '/lipsync'
+    | '/live-studio'
     | '/marketplace'
     | '/motion'
     | '/music-video'
@@ -901,6 +911,7 @@ export interface FileRouteTypes {
     | '/heygen-templates'
     | '/kids'
     | '/lipsync'
+    | '/live-studio'
     | '/marketplace'
     | '/motion'
     | '/music-video'
@@ -987,6 +998,7 @@ export interface FileRouteTypes {
     | '/heygen-templates'
     | '/kids'
     | '/lipsync'
+    | '/live-studio'
     | '/marketplace'
     | '/motion'
     | '/music-video'
@@ -1074,6 +1086,7 @@ export interface RootRouteChildren {
   HeygenTemplatesRoute: typeof HeygenTemplatesRoute
   KidsRoute: typeof KidsRoute
   LipsyncRoute: typeof LipsyncRoute
+  LiveStudioRoute: typeof LiveStudioRoute
   MarketplaceRoute: typeof MarketplaceRoute
   MotionRoute: typeof MotionRoute
   MusicVideoRoute: typeof MusicVideoRoute
@@ -1270,6 +1283,13 @@ declare module '@tanstack/react-router' {
       path: '/marketplace'
       fullPath: '/marketplace'
       preLoaderRoute: typeof MarketplaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/live-studio': {
+      id: '/live-studio'
+      path: '/live-studio'
+      fullPath: '/live-studio'
+      preLoaderRoute: typeof LiveStudioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lipsync': {
@@ -1768,6 +1788,7 @@ const rootRouteChildren: RootRouteChildren = {
   HeygenTemplatesRoute: HeygenTemplatesRoute,
   KidsRoute: KidsRoute,
   LipsyncRoute: LipsyncRoute,
+  LiveStudioRoute: LiveStudioRoute,
   MarketplaceRoute: MarketplaceRoute,
   MotionRoute: MotionRoute,
   MusicVideoRoute: MusicVideoRoute,
