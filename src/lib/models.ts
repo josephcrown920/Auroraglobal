@@ -262,6 +262,19 @@ export const VIDEO_MODEL_LIST: ModelMeta[] = [
     status: "live",
     category: "video",
   },
+  {
+    value: "fal/ovi",
+    endpoint: "fal-ai/ovi/image-to-video",
+    label: "Ovi",
+    short: "Ovi",
+    group: "Replicate",
+    icon: Zap,
+    color: "text-emerald-400",
+    bg: "bg-emerald-500/15 border-emerald-500/30",
+    tagline: "Image + prompt → video with audio · $0.20 flat",
+    status: "live",
+    category: "video",
+  },
 ];
 
 export const LIPSYNC_MODEL: ModelMeta = {
