@@ -311,3 +311,9 @@ id = "ajBxEsOHS5dVvUUJNgzV0"
 uri = "file://public/nba-josh-character-sheet.pdf"
 type = "pdf"
 title = "NBA Josh — Character & Outfit Sheet (with images)"
+
+[[outputs]]
+id = "_PXLquqd8DxQKdZYHKLYn"
+uri = "file://public/josh-outfit-e-generated.png"
+type = "image"
+title = "NBA Josh — Outfit E: Red Puffer + Camo (Generated)"
