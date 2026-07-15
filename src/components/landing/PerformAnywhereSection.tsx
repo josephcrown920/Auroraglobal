@@ -1,5 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { Sparkles, ArrowRight, Phone, Palette, Film, Zap, Crown } from "lucide-react";
+import { Sparkles, ArrowRight, Phone, Palette, Film, Zap, Crown, Upload } from "lucide-react";
+
+const MODELS = ["Seedance 5.9", "Kling", "Gemini Omni", "Grok Imagine"];
 
 const STEPS = [
   {
@@ -76,6 +78,17 @@ export function PerformAnywhereSection() {
             <p className="text-muted-foreground mt-4 text-base max-w-2xl mx-auto leading-relaxed">
               Aurora's <strong className="text-white">Motion Control</strong> reads your real movement from a 30-second phone clip and transfers it into your AI-generated scene — style, motion, energy. No studio, no crew, no budget.
             </p>
+
+            {/* Model power strip */}
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+              <span className="text-[10px] uppercase tracking-[0.2em] text-white/30 mr-1">Powered by</span>
+              {MODELS.map((m) => (
+                <span key={m} className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-primary shadow-[0_0_12px_-4px_oklch(0.72_0.2_300)]">
+                  <span className="size-1 rounded-full bg-primary animate-pulse" />
+                  {m}
+                </span>
+              ))}
+            </div>
           </div>
 
           {/* Before → After visual */}
@@ -102,12 +115,17 @@ export function PerformAnywhereSection() {
               <p className="text-[10px] uppercase tracking-widest text-white/30 text-center">Motion<br />Control</p>
             </div>
 
-            <div className="relative rounded-2xl overflow-hidden aspect-[3/4] border border-primary/40 shadow-[0_0_50px_-10px_var(--color-primary)]">
+            <Link to="/motion" className="no-underline block relative rounded-2xl overflow-hidden aspect-[3/4] border border-primary/60 shadow-[0_0_60px_-10px_var(--color-primary)] group cursor-pointer">
               <div className="w-full h-full bg-gradient-to-br from-violet-900/80 via-fuchsia-900/60 to-black flex items-center justify-center">
                 <div className="text-center px-4">
-                  <Sparkles className="size-8 text-primary mx-auto mb-3 opacity-70" />
-                  <p className="text-sm font-semibold text-white/80">Your moves.</p>
-                  <p className="text-sm font-semibold aurora-gradient-text">AI-generated world.</p>
+                  <div className="size-14 rounded-full bg-primary/20 border border-primary/40 grid place-items-center mx-auto mb-3 group-hover:scale-110 transition-transform shadow-[0_0_30px_-6px_oklch(0.72_0.2_300)]">
+                    <Upload className="size-6 text-primary" />
+                  </div>
+                  <p className="text-sm font-bold text-white">Upload your clip here.</p>
+                  <p className="text-xs text-white/50 mt-1">30 sec · any phone · any room</p>
+                  <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary/20 border border-primary/30 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">
+                    <Sparkles className="size-3" /> Perform Anywhere →
+                  </div>
                 </div>
               </div>
               <div className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/20 backdrop-blur border border-primary/30 text-[10px] font-bold uppercase tracking-widest text-primary">
@@ -116,7 +134,7 @@ export function PerformAnywhereSection() {
               <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
                 <p className="text-xs text-white/50">Cinematic result · your identity locked</p>
               </div>
-            </div>
+            </Link>
           </div>
 
           {/* 3-step cards */}
@@ -158,28 +176,31 @@ export function PerformAnywhereSection() {
           </div>
 
           {/* bottom CTA strip */}
-          <div className="rounded-2xl border border-primary/20 bg-black/30 backdrop-blur px-6 md:px-10 py-6 flex flex-col md:flex-row items-center justify-between gap-5">
+          <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-black/40 to-fuchsia-900/20 backdrop-blur px-6 md:px-10 py-7 flex flex-col md:flex-row items-center justify-between gap-6 shadow-[0_0_60px_-20px_oklch(0.72_0.2_300)]">
             <div>
-              <div className="inline-flex items-center gap-1.5 mb-1.5">
+              <div className="inline-flex items-center gap-1.5 mb-2">
                 <Crown className="size-3.5 text-amber-400" />
-                <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-amber-400/80">Pro · Premium</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-amber-400/80">State-of-the-Art AI · Seedance 5.9 · Kling · Gemini Omni · Grok Imagine</span>
               </div>
-              <p className="font-semibold text-base">Ready to make your first performance video?</p>
-              <p className="text-sm text-muted-foreground mt-0.5">Start in Colors Studio — generate your AI scene in under 60 seconds.</p>
+              <p className="font-bold text-lg text-white">Upload your performance video — Aurora builds the world.</p>
+              <p className="text-sm text-white/50 mt-1">
+                <Upload className="size-3.5 inline mr-1.5 text-primary" />
+                Film yourself performing (30 sec, any phone) → drop it into Perform Anywhere → cinematic scene, your identity locked.
+              </p>
             </div>
             <div className="flex items-center gap-3 shrink-0">
               <Link
                 to="/colors"
                 className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-5 py-2.5 text-sm font-semibold text-foreground no-underline hover:border-primary/40 transition-colors"
               >
-                <Palette className="size-4 text-violet-400" /> Colors Studio
+                <Palette className="size-4 text-violet-400" /> Build Your Scene
               </Link>
               <Link
                 to="/motion"
-                className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold text-primary-foreground no-underline hover:opacity-90 transition-opacity shadow-[0_0_24px_-6px_var(--color-primary)]"
+                className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold text-primary-foreground no-underline hover:opacity-90 transition-opacity shadow-[0_0_24px_-6px_var(--color-primary)] animate-pulse"
                 style={{ background: "var(--gradient-hero)" }}
               >
-                <Sparkles className="size-4" /> Perform Anywhere
+                <Upload className="size-4" /> Upload Your Clip →
               </Link>
             </div>
           </div>

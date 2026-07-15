@@ -224,16 +224,25 @@ function SceneBuilderPage() {
         <div className="px-4 pt-4 pb-4 flex items-center gap-2">
           <Layers className="w-4 h-4 text-primary shrink-0" />
           <span className="text-xs font-semibold tracking-widest uppercase text-primary">
-            Scene Builder
+            Perform Anywhere
           </span>
         </div>
 
         <div className="px-4 space-y-8">
           <div>
-            <h1 className="text-2xl font-bold text-white mb-1">Build Your Scene</h1>
+            <h1 className="text-2xl font-bold text-white mb-1">Direct Your Shoot.</h1>
             <p className="text-sm text-white/60 leading-relaxed">
-              Upload up to 5 labeled references, fill in the outfit, location, and prop fields — Aurora composites everything into a cinematic still.
+              Drop your references — Aurora stages the studio. Upload your selfie, outfit, location and prop, then hit Generate. Powered by <span className="text-white/80 font-medium">Seedance 5.9 · Kling · Gemini Omni · Grok Imagine</span>.
             </p>
+            {/* Model badges */}
+            <div className="flex flex-wrap gap-1.5 mt-3">
+              {["Seedance 5.9", "Kling", "Gemini Omni", "Grok Imagine"].map((m) => (
+                <span key={m} className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary/80">
+                  <span className="size-1 rounded-full bg-primary animate-pulse" />
+                  {m}
+                </span>
+              ))}
+            </div>
           </div>
 
           {/* ── 5 Labeled upload slots ── */}
