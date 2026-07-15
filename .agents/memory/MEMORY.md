@@ -86,3 +86,4 @@
 - [Gemini proxy image generation](gemini-proxy-image-generation.md) — Replit Gemini proxy image recipe (no /v1beta, role:user, inline_data refs, responseModalities TEXT+IMAGE) works when fal/Replicate/BytePlus/own-key all fail.
 - [Batch Lip Sync concurrent fan-out](batch-lipsync-concurrent-fanout.md) — N-photo batches reuse the single-job path via Promise.allSettled in one request, not an async jobs-queue; group via a nullable batch_id column.
 - [Talking Avatar (photo-video) feature](talking-avatar-feature.md) — user_photo_avatars table; storage_path stored (not URL), signed at gen time; HF TTS → heygen/photo-video adapter.
+- [NBA Josh — Looping Officers music video](nba-josh-looping-officers.md) — full production spec: character (6'3" lean, red dreads, arm-only tattoos), outfit library A–H + Benz scene, Kling v3 fal.ai generation, Video Agent artifact pipeline.
