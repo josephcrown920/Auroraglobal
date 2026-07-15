@@ -25,7 +25,7 @@ async function report(name: string, payload: Record<string, unknown>) {
       path: typeof window !== "undefined" ? window.location.pathname : "/",
       user_id: session?.user?.id ?? null,
       session_id: null,
-      properties: payload,
+      payload: payload as import("@/integrations/supabase/types").Json,
     });
   } catch {
     // Never let crash reporting itself crash the app.

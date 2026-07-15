@@ -31,11 +31,11 @@ export class ErrorBoundary extends Component<Props, State> {
       path: typeof window !== "undefined" ? window.location.pathname : "/",
       user_id: null,
       session_id: null,
-      properties: {
+      payload: {
         message: message.slice(0, 500),
         stack: stack.slice(0, 1000),
         componentStack: (info.componentStack ?? "").slice(0, 1000),
-      },
+      } as import("@/integrations/supabase/types").Json,
     });
   }
 
