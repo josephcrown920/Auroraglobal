@@ -43,6 +43,7 @@ import { MODEL_LIST, VIDEO_MODEL_LIST, getModelMeta } from "@/lib/models";
 import { ModelBadge } from "@/components/ModelBadge";
 import { OnboardingModal, shouldShowOnboarding } from "@/components/studio/OnboardingModal";
 import { LowCreditBanner } from "@/components/studio/LowCreditBanner";
+import { useAutoReloadPrompt } from "@/hooks/use-auto-reload";
 import {
   Select,
   SelectContent,
@@ -229,6 +230,8 @@ function StudioPage() {
     enabled: !!user,
     refetchInterval: 15_000,
   });
+
+  useAutoReloadPrompt(profile?.credits);
 
   const { data: history } = useQuery({
     queryKey: ["gens", user?.id],

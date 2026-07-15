@@ -8,10 +8,11 @@ import { markFirstPurchaseComplete } from "@/lib/first-run";
 import { redeemPromoCode } from "@/lib/promo.functions";
 import { PLANS, SUBSCRIPTION_TIERS } from "@/lib/billing.plans";
 import { toast } from "sonner";
-import { ArrowLeft, Zap, Star, CheckCircle2, XCircle, CreditCard, Loader2, Crown, Tag, Rocket, Gauge, Lock, Calendar } from "lucide-react";
+import { ArrowLeft, Zap, Star, CheckCircle2, XCircle, CreditCard, Loader2, Crown, Tag, Rocket, Gauge, Lock, Calendar, RefreshCw, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
+import { getAutoReloadSettings, saveAutoReloadSettings } from "@/hooks/use-auto-reload";
 
 export const Route = createLazyFileRoute("/billing")({ component: BillingPage });
 
@@ -29,6 +30,7 @@ function BillingPage() {
   const [promoCode, setPromoCode] = useState("");
   const [redeemCode, setRedeemCode] = useState("");
   const [dailyLimitInput, setDailyLimitInput] = useState("");
+  const [autoReload, setAutoReload] = useState(() => getAutoReloadSettings());
 
   const search = Route.useSearch() as Record<string, string>;
 
@@ -452,6 +454,72 @@ function BillingPage() {
               {redeemMut.isPending ? <Loader2 className="size-3.5 animate-spin" /> : "Redeem"}
             </Button>
           </form>
+        </section>
+
+        {/* Auto Top-up */}
+        <section>
+          <h2 className="text-base font-medium mb-1 flex items-center gap-2">
+            <RefreshCw className="size-4 text-primary" />
+            Auto Top-up
+          </h2>
+          <p className="text-sm text-muted-foreground mb-3">
+            Get a toast alert the moment your Aura drops to or below your chosen threshold.
+            One tap takes you straight to checkout — no hidden charges.
+          </p>
+          <div className="rounded-xl border border-border bg-card/60 p-4 max-w-md flex flex-col gap-4">
+            {/* Enable toggle */}
+            <label className="flex items-center justify-between gap-3 cursor-pointer">
+              <span className="text-sm font-medium flex items-center gap-2">
+                <Bell className="size-4 text-primary" />
+                {autoReload.enabled ? "Auto-top-up alerts ON" : "Enable auto-top-up alerts"}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  const next = { ...autoReload, enabled: !autoReload.enabled };
+                  setAutoReload(next);
+                  saveAutoReloadSettings(next);
+                  toast.success(next.enabled ? "Auto-top-up alerts enabled" : "Auto-top-up alerts disabled");
+                }}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${autoReload.enabled ? "bg-primary" : "bg-muted"}`}
+              >
+                <span className={`inline-block size-4 rounded-full bg-white shadow transition-transform ${autoReload.enabled ? "translate-x-4" : "translate-x-0.5"}`} />
+              </button>
+            </label>
+
+            {autoReload.enabled && (
+              <div className="flex flex-col gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1.5 block">
+                    Alert when balance drops below
+                  </label>
+                  <div className="flex gap-2 flex-wrap">
+                    {[5, 10, 20, 50].map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => {
+                          const next = { ...autoReload, threshold: v };
+                          setAutoReload(next);
+                          saveAutoReloadSettings(next);
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
+                          autoReload.threshold === v
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border text-muted-foreground hover:border-primary/50"
+                        }`}
+                      >
+                        {v} Aura
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  You'll see a notification banner when your balance hits {autoReload.threshold} Aura or below. No automatic charges — you confirm every top-up.
+                </p>
+              </div>
+            )}
+          </div>
         </section>
 
         {/* Daily Aura spend limit */}

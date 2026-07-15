@@ -29,6 +29,14 @@
         "serviceAccountKeyPath": "./google-play-service-account.json",
         "track": "internal",
         "releaseStatus": "draft"
+      },
+      "ios": {
+        "appleId": "contact@auroraperformancestudio.com",
+        "ascAppId": "",
+        "appleTeamId": "",
+        "language": "en-US",
+        "sku": "com.aurorastudio.app",
+        "companyName": "Aurora Performance Studio"
       }
     }
   }
