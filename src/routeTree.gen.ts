@@ -303,7 +303,7 @@ const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/auth.lazy').then((d) => d.Route))
 const AgentRoute = AgentRouteImport.update({
   id: '/agent',
   path: '/agent',
@@ -328,27 +328,27 @@ const GuidesIndexRoute = GuidesIndexRouteImport.update({
   id: '/guides/',
   path: '/guides/',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/guides.index.lazy').then((d) => d.Route))
 const CliIndexRoute = CliIndexRouteImport.update({
   id: '/cli/',
   path: '/cli/',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/cli.index.lazy').then((d) => d.Route))
 const RTokenRoute = RTokenRouteImport.update({
   id: '/r/$token',
   path: '/r/$token',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/r.$token.lazy').then((d) => d.Route))
 const LegalSlugRoute = LegalSlugRouteImport.update({
   id: '/legal/$slug',
   path: '/legal/$slug',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/legal.$slug.lazy').then((d) => d.Route))
 const GuidesSlugRoute = GuidesSlugRouteImport.update({
   id: '/guides/$slug',
   path: '/guides/$slug',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/guides.$slug.lazy').then((d) => d.Route))
 const CreatorDashboardRoute = CreatorDashboardRouteImport.update({
   id: '/creator/dashboard',
   path: '/creator/dashboard',
@@ -360,7 +360,7 @@ const CliAuthorizeRoute = CliAuthorizeRouteImport.update({
   id: '/cli/authorize',
   path: '/cli/authorize',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/cli.authorize.lazy').then((d) => d.Route))
 const ApiMcpRoute = ApiMcpRouteImport.update({
   id: '/api/mcp',
   path: '/api/mcp',
@@ -375,32 +375,38 @@ const AdminWorkflowsRoute = AdminWorkflowsRouteImport.update({
   id: '/workflows',
   path: '/workflows',
   getParentRoute: () => AdminRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/admin.workflows.lazy').then((d) => d.Route),
+)
 const AdminTemplatesRoute = AdminTemplatesRouteImport.update({
   id: '/templates',
   path: '/templates',
   getParentRoute: () => AdminRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/admin.templates.lazy').then((d) => d.Route),
+)
 const AdminSmokeRoute = AdminSmokeRouteImport.update({
   id: '/smoke',
   path: '/smoke',
   getParentRoute: () => AdminRoute,
-} as any)
+} as any).lazy(() => import('./routes/admin.smoke.lazy').then((d) => d.Route))
 const AdminOrchestrationRoute = AdminOrchestrationRouteImport.update({
   id: '/orchestration',
   path: '/orchestration',
   getParentRoute: () => AdminRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/admin.orchestration.lazy').then((d) => d.Route),
+)
 const AdminCostsRoute = AdminCostsRouteImport.update({
   id: '/costs',
   path: '/costs',
   getParentRoute: () => AdminRoute,
-} as any)
+} as any).lazy(() => import('./routes/admin.costs.lazy').then((d) => d.Route))
 const AdminComfyRoute = AdminComfyRouteImport.update({
   id: '/comfy',
   path: '/comfy',
   getParentRoute: () => AdminRoute,
-} as any)
+} as any).lazy(() => import('./routes/admin.comfy.lazy').then((d) => d.Route))
 const ApiVideoAgentSubmitRoute = ApiVideoAgentSubmitRouteImport.update({
   id: '/api/video-agent/submit',
   path: '/api/video-agent/submit',
