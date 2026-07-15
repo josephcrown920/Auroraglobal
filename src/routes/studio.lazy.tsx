@@ -61,6 +61,7 @@ import { JoshSlideshow } from "@/components/studio/JoshSlideshow";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import { ExampleChips } from "@/components/onboarding/ExampleChips";
 import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
+import { SnipTutorialCards } from "@/components/onboarding/SnipTutorialCards";
 import { STUDIO_EXAMPLE_PRESETS } from "@/lib/example-presets";
 import { hasDismissedTour, markFirstGenComplete, hasCompletedFirstGen, isFirstPageVisit, markPageVisited, markFirstPurchaseComplete } from "@/lib/first-run";
 
@@ -503,6 +504,7 @@ function StudioPage() {
         />
       )}
       <WelcomeTour show={showTour} onDismiss={() => setShowTour(false)} />
+      <SnipTutorialCards show={showTour} />
 
       <header className="relative z-10 flex items-center justify-between pl-24 pr-6 md:pl-24 md:pr-10 py-5 border-b border-border/60 backdrop-blur-xl bg-background/40">
         <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
