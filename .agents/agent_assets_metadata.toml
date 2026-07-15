@@ -317,3 +317,9 @@ id = "_PXLquqd8DxQKdZYHKLYn"
 uri = "file://public/josh-outfit-e-generated.png"
 type = "image"
 title = "NBA Josh — Outfit E: Red Puffer + Camo (Generated)"
+
+[[outputs]]
+id = "kho8e8cIQQRE04yoMblDK"
+uri = "file://public/nba-josh-all-docs.zip"
+type = "unspecified"
+title = "NBA Josh — All Docs (Character Sheet + Production Plan)"
