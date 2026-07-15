@@ -1,11 +1,12 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useAuth } from "@/hooks/use-auth";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getMyProfile } from "@/lib/billing.functions";
 import { listGenerations } from "@/lib/studio.functions";
-import { Loader2, CheckCircle2, XCircle, Clock, Image as ImageIcon, Film, Mic, Crown } from "lucide-react";
+import { cancelMyJob } from "@/lib/jobs.functions";
+import { Loader2, CheckCircle2, XCircle, Clock, Image as ImageIcon, Film, Mic, Crown, X } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
 // Gen type mirrors the masked shape returned by listGenerations server fn.
@@ -30,7 +31,32 @@ const KIND_ICON: Record<string, typeof ImageIcon> = {
   audio: Mic,
   lipsync: Film,
   split: Film,
+  motion: Film,
 };
+
+// Human-readable kind labels — shown when there's no provider model name yet.
+const KIND_LABEL: Record<string, string> = {
+  image: "Image",
+  video: "Video",
+  audio: "Audio",
+  lipsync: "Lip Sync",
+  split: "Split Reality",
+  motion: "Motion",
+  upscale: "Upscale",
+  ugc_ad: "UGC Ad",
+  performance_reskin: "Reskin",
+  kids_story: "Kids Story",
+  autocut: "AutoCut",
+  product_demo: "Demo",
+};
+
+function friendlyLabel(model: string | null, kind: string): string {
+  if (model) {
+    // Strip long provider prefixes for readability
+    return model.replace(/^(fal-ai\/|replicate\/|replit\/|google\/|openai\/|xai\/)/, "");
+  }
+  return KIND_LABEL[kind] ?? kind;
+}
 
 function StatusBadge({ status }: { status: string }) {
   if (status === "pending" || status === "queued")
@@ -46,14 +72,36 @@ function StatusBadge({ status }: { status: string }) {
 
 const QUEUE_WAIT_THRESHOLD_MS = 30_000;
 const RECENT_WINDOW_MS = 30 * 60 * 1_000; // show completed/failed for 30 min
+// Queued/pending jobs older than this are considered stale and hidden from the
+// "active" filter — they're either stuck in retry backoff or orphaned legacy rows.
+// They still show if created within RECENT_WINDOW_MS so you can see a failed job.
+const STALE_QUEUED_MS = 30 * 60 * 1_000; // 30 min
 const POLL_INTERVAL_MS = 3_000;
+const DISMISSED_KEY = "aurora.live-jobs.dismissed";
+
+function getDismissed(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? "[]") as string[]); }
+  catch { return new Set(); }
+}
+function addDismissed(id: string) {
+  try {
+    const s = getDismissed();
+    s.add(id);
+    // Keep only the last 200 ids to avoid unbounded growth
+    const arr = Array.from(s).slice(-200);
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify(arr));
+  } catch { /* ignore */ }
+}
 
 export function LiveJobsPanel() {
   const { user } = useAuth();
+  const qc = useQueryClient();
   const [open, setOpen] = useState(true);
   const [now, setNow] = useState(() => Date.now());
+  const [dismissed, setDismissed] = useState<Set<string>>(getDismissed);
   const profileFn = useServerFn(getMyProfile);
   const listFn = useServerFn(listGenerations);
+  const cancelFn = useServerFn(cancelMyJob);
 
   // Tick every 5 s to recompute queue-wait time without heavy re-renders.
   useEffect(() => {
@@ -78,27 +126,45 @@ export function LiveJobsPanel() {
     staleTime: 0,
   });
 
+  const cancelMut = useMutation({
+    mutationFn: (id: string) => cancelFn({ data: { id } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["live-jobs"] }),
+  });
+
+  const dismiss = useCallback((id: string) => {
+    addDismissed(id);
+    setDismissed(new Set(getDismissed()));
+  }, []);
+
   const isPro = profile?.plan === "pro" || profile?.isAdmin === true;
 
-  // Filter to active jobs + recently completed/failed jobs (last 30 min), capped at 8.
+  // Show jobs that are:
+  //   - actively running/processing (any age)
+  //   - queued/pending ONLY if created within the stale threshold (not old orphans)
+  //   - completed/failed if created within the 30-min recency window
+  // Also exclude user-dismissed entries.
   const jobs = useMemo<Gen[]>(() => {
     if (!genData?.items) return [];
     const cutoff = now - RECENT_WINDOW_MS;
+    const staleQueuedCutoff = now - STALE_QUEUED_MS;
     return (genData.items as Gen[])
-      .filter(
-        (j) =>
-          j.status === "pending" ||
-          j.status === "running" ||
-          j.status === "queued" ||
-          j.status === "processing" ||
-          new Date(j.created_at).getTime() > cutoff,
-      )
+      .filter((j) => {
+        if (dismissed.has(j.id)) return false;
+        const createdMs = new Date(j.created_at).getTime();
+        if (j.status === "running" || j.status === "processing") return true;
+        if (j.status === "pending" || j.status === "queued") {
+          // Only show queued jobs that are reasonably recent; hide stale orphans.
+          return createdMs > staleQueuedCutoff;
+        }
+        // Completed / failed: show if created within 30-min window.
+        return createdMs > cutoff;
+      })
       .slice(0, 8);
-  }, [genData, now]);
+  }, [genData, now, dismissed]);
 
   if (!user) return null;
 
-  const active = jobs.filter((j) => j.status === "pending" || j.status === "running" || j.status === "queued").length;
+  const active = jobs.filter((j) => j.status === "pending" || j.status === "running" || j.status === "queued" || j.status === "processing").length;
 
   // Show upgrade nudge when a Free user has a queued/pending job waiting > 30 s.
   const longQueuedJob = !isPro && jobs.find(
@@ -146,12 +212,12 @@ export function LiveJobsPanel() {
             <ul className="divide-y divide-white/5">
               {jobs.map((j) => {
                 const Icon = KIND_ICON[j.kind] ?? ImageIcon;
-                // result_image_url is already masked server-side (proxy for watermarked,
-                // raw for Pro). result_video_url is null for watermarked items.
                 const thumb = j.result_image_url;
                 const videoThumb = j.result_video_url;
+                const isQueued = j.status === "queued" || j.status === "pending";
+                const isTerminal = j.status === "done" || j.status === "completed" || j.status === "succeeded" || j.status === "complete" || j.status === "error" || j.status === "failed";
                 return (
-                  <li key={j.id} className="flex gap-2 p-2.5 items-start hover:bg-white/[0.03]">
+                  <li key={j.id} className="flex gap-2 p-2.5 items-start hover:bg-white/[0.03] group">
                     <div className="size-10 shrink-0 rounded-md bg-white/5 overflow-hidden flex items-center justify-center">
                       {thumb ? (
                         <img src={thumb} alt="" className="size-full object-cover" />
@@ -163,8 +229,29 @@ export function LiveJobsPanel() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-[11px] text-white/80 truncate">{j.model || j.kind}</span>
-                        <StatusBadge status={j.status} />
+                        <span className="text-[11px] text-white/80 truncate">{friendlyLabel(j.model, j.kind)}</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <StatusBadge status={j.status} />
+                          {/* Cancel button for queued jobs; dismiss for terminal/stale ones */}
+                          {isQueued ? (
+                            <button
+                              onClick={() => cancelMut.mutate(j.id)}
+                              disabled={cancelMut.isPending}
+                              className="opacity-0 group-hover:opacity-100 ml-1 p-0.5 rounded text-white/40 hover:text-rose-400 transition-opacity"
+                              title="Cancel job"
+                            >
+                              <X className="size-3" />
+                            </button>
+                          ) : isTerminal ? (
+                            <button
+                              onClick={() => dismiss(j.id)}
+                              className="opacity-0 group-hover:opacity-100 ml-1 p-0.5 rounded text-white/40 hover:text-white/70 transition-opacity"
+                              title="Dismiss"
+                            >
+                              <X className="size-3" />
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
                       <p className="text-[10px] text-white/50 line-clamp-2 mt-0.5">{j.prompt || j.error || "—"}</p>
                     </div>
