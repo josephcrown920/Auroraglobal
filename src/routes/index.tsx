@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import {
   Sparkles,
   ArrowRight,
@@ -36,16 +36,35 @@ import { ServicesGrid } from "@/components/landing/ServicesGrid";
 import { WhyUs } from "@/components/landing/WhyUs";
 import { FinalCTA } from "@/components/landing/FinalCTA";
 import { CliSection } from "@/components/landing/CliSection";
-import { ViralEngine } from "@/components/landing/ViralEngine";
-import { AffiliateRewardSection } from "@/components/landing/AffiliateRewardSection";
-import { CanvasWorkflowShowcase } from "@/components/landing/CanvasWorkflowShowcase";
-import { GetReadyWithMe } from "@/components/landing/GetReadyWithMe";
-import { TrendingTemplatesStrip } from "@/components/landing/TrendingTemplatesStrip";
 import { PhotoStrip } from "@/components/landing/PhotoStrip";
-import { ColorsTeaser } from "@/components/landing/ColorsTeaser";
-import { CreatorEconomySection } from "@/components/landing/CreatorEconomySection";
 
-import { SupercomputerSection } from "@/components/landing/ScreenshotSections";
+// Below-the-fold sections — lazy-loaded so the landing page JS payload stays
+// small. Each becomes its own async chunk; the router never pre-fetches them
+// for visitors who never scroll that far.
+const ViralEngine = lazy(() =>
+  import("@/components/landing/ViralEngine").then((m) => ({ default: m.ViralEngine }))
+);
+const ColorsTeaser = lazy(() =>
+  import("@/components/landing/ColorsTeaser").then((m) => ({ default: m.ColorsTeaser }))
+);
+const CanvasWorkflowShowcase = lazy(() =>
+  import("@/components/landing/CanvasWorkflowShowcase").then((m) => ({ default: m.CanvasWorkflowShowcase }))
+);
+const TrendingTemplatesStrip = lazy(() =>
+  import("@/components/landing/TrendingTemplatesStrip").then((m) => ({ default: m.TrendingTemplatesStrip }))
+);
+const AffiliateRewardSection = lazy(() =>
+  import("@/components/landing/AffiliateRewardSection").then((m) => ({ default: m.AffiliateRewardSection }))
+);
+const SupercomputerSection = lazy(() =>
+  import("@/components/landing/ScreenshotSections").then((m) => ({ default: m.SupercomputerSection }))
+);
+const CreatorEconomySection = lazy(() =>
+  import("@/components/landing/CreatorEconomySection").then((m) => ({ default: m.CreatorEconomySection }))
+);
+const GetReadyWithMe = lazy(() =>
+  import("@/components/landing/GetReadyWithMe").then((m) => ({ default: m.GetReadyWithMe }))
+);
 import { FeatureRequest } from "@/components/landing/FeatureRequest";
 import { track } from "@/lib/tracking";
 import { LandingDemoModal } from "@/components/landing/LandingDemoModal";
@@ -378,25 +397,25 @@ function Index() {
       <PhotoStrip />
 
       {/* 2. TikTok30 viral engine — 30 posts hook */}
-      <ViralEngine />
+      <Suspense fallback={null}><ViralEngine /></Suspense>
 
       {/* 3. Perform / Record Anywhere */}
       <PerformAnywhereSection />
 
       {/* 4. Colors Studio */}
-      <ColorsTeaser />
+      <Suspense fallback={null}><ColorsTeaser /></Suspense>
 
       {/* 5. Multi-angle photoshoot */}
       <ServicesGrid />
 
       {/* 6. Canvas + UGC */}
-      <CanvasWorkflowShowcase />
+      <Suspense fallback={null}><CanvasWorkflowShowcase /></Suspense>
 
       {/* 7. Adult / creator economy */}
-      <CreatorEconomySection />
+      <Suspense fallback={null}><CreatorEconomySection /></Suspense>
 
       {/* 8. Templates strip */}
-      <TrendingTemplatesStrip />
+      <Suspense fallback={null}><TrendingTemplatesStrip /></Suspense>
 
       {/* 9. Trust bar */}
       <TrustBar />
@@ -405,10 +424,10 @@ function Index() {
       <HeroContactForm greeting={greeting} />
 
       {/* 11. Get Ready With Me */}
-      <GetReadyWithMe />
+      <Suspense fallback={null}><GetReadyWithMe /></Suspense>
 
       {/* 12. Supercomputer / product hero */}
-      <SupercomputerSection />
+      <Suspense fallback={null}><SupercomputerSection /></Suspense>
 
       {/* 13. Why us */}
       <WhyUs />
@@ -417,7 +436,7 @@ function Index() {
       <Testimonials />
 
       {/* 15. Affiliate rewards */}
-      <AffiliateRewardSection />
+      <Suspense fallback={null}><AffiliateRewardSection /></Suspense>
 
       {/* 16. Final CTA */}
       <FinalCTA />
