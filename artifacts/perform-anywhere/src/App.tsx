@@ -1,39 +1,27 @@
-import { Upload, Phone, Film, Sparkles, Zap, Crown, ArrowRight, Check, Play } from "lucide-react";
+import { Upload, Sparkles, Zap, Crown, Check, Play, ArrowRight } from "lucide-react";
 
 const AURORA_URL = "https://auroraperformancestudio.com";
-
 const MODELS = ["Seedance 5.9", "Kling", "Gemini Omni", "Grok Imagine"];
+const BASE = import.meta.env.BASE_URL;
 
 const STEPS = [
   {
     n: "01",
-    icon: Phone,
+    emoji: "📱",
     title: "Record yourself performing",
-    desc: "30 seconds on your phone. Any room. Any angle. Sing, dance, rap — your real movement is the source material.",
-    accent: "from-cyan-500/25 to-blue-500/5",
-    border: "border-cyan-500/25",
-    color: "text-cyan-300",
-    badgeBg: "bg-cyan-500/15 border-cyan-500/25",
+    desc: "30 seconds on your phone. Any room. Sing, dance, rap — your real movement is the source material.",
   },
   {
     n: "02",
-    icon: Sparkles,
+    emoji: "✨",
     title: "Build your AI scene",
-    desc: "Open Colors Studio or Scene Builder. Upload your selfie — Aurora generates a cinematic world: neon stages, luxury sets, any vibe.",
-    accent: "from-violet-500/25 to-fuchsia-500/5",
-    border: "border-violet-500/25",
-    color: "text-violet-300",
-    badgeBg: "bg-violet-500/15 border-violet-500/25",
+    desc: "Upload a selfie in Colors Studio or Scene Builder. Aurora generates the world: neon stages, luxury sets, any vibe.",
   },
   {
     n: "03",
-    icon: Film,
+    emoji: "🎬",
     title: "Aurora transfers your motion",
-    desc: "Drop your phone clip + your AI image into Perform Anywhere. Motion Control reads your real energy and places you in the scene.",
-    accent: "from-primary/25 to-violet-500/5",
-    border: "border-primary/25",
-    color: "text-primary",
-    badgeBg: "bg-primary/15 border-primary/30",
+    desc: "Drop your phone clip + your AI image into Perform Anywhere. Motion Control places you inside the scene.",
   },
 ];
 
@@ -49,7 +37,7 @@ const FEATURES = [
 export default function App() {
   const motionUrl = `${AURORA_URL}/motion`;
   const colorsUrl = `${AURORA_URL}/colors`;
-  const sceneUrl = `${AURORA_URL}/scene-builder`;
+  const sceneUrl  = `${AURORA_URL}/scene-builder`;
 
   return (
     <div style={{ background: "var(--bg)", minHeight: "100dvh", color: "var(--text)" }}>
@@ -71,20 +59,14 @@ export default function App() {
       </nav>
 
       {/* ── Hero ── */}
-      <section style={{ paddingTop: 120, paddingBottom: 80, paddingInline: 24, textAlign: "center", position: "relative", overflow: "hidden" }}>
-        {/* ambient glows */}
+      <section style={{ paddingTop: 120, paddingBottom: 60, paddingInline: 24, textAlign: "center", position: "relative", overflow: "hidden" }}>
         <div aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
           <div style={{ position: "absolute", top: -100, left: "50%", transform: "translateX(-50%)", width: 700, height: 400, borderRadius: "50%", background: "var(--accent-glow)", filter: "blur(100px)" }} />
-          <div style={{ position: "absolute", bottom: 0, right: "10%", width: 300, height: 300, borderRadius: "50%", background: "oklch(0.55 0.18 320 / 0.12)", filter: "blur(80px)" }} />
         </div>
 
         <div style={{ position: "relative", maxWidth: 720, margin: "0 auto" }}>
-          {/* Premium badge */}
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
-            <div className="amber-badge badge">
-              <Crown size={10} />
-              Premium Feature · Motion Control AI
-            </div>
+            <div className="amber-badge badge"><Crown size={10} /> Premium Feature · Motion Control AI</div>
           </div>
 
           <p className="kicker" style={{ marginBottom: 16, justifyContent: "center" }}>
@@ -101,7 +83,6 @@ export default function App() {
             Aurora's <strong style={{ color: "var(--text)" }}>Motion Control</strong> reads your real movement from a 30-second phone clip and transfers it into your AI-generated cinematic scene — style, energy, identity. No studio. No crew. No budget.
           </p>
 
-          {/* Model badges */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", marginBottom: 36 }}>
             <span style={{ fontSize: 11, color: "var(--text-muted)", letterSpacing: "0.15em", textTransform: "uppercase", alignSelf: "center", marginRight: 4 }}>Powered by</span>
             {MODELS.map((m) => (
@@ -112,7 +93,6 @@ export default function App() {
             ))}
           </div>
 
-          {/* CTAs */}
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
             <a href={motionUrl} className="btn-primary" style={{ fontSize: 16, padding: "16px 32px" }}>
               <Upload size={18} /> Upload Your Performance Clip
@@ -121,111 +101,127 @@ export default function App() {
               <Sparkles size={16} /> Build Your Scene First
             </a>
           </div>
-
-          <p style={{ marginTop: 14, fontSize: 12, color: "var(--text-muted)" }}>
-            30 sec phone recording · any room · 5 Aura to start
-          </p>
+          <p style={{ marginTop: 14, fontSize: 12, color: "var(--text-muted)" }}>30 sec phone recording · any room · 5 Aura to start</p>
         </div>
       </section>
 
-      {/* ── Before → After Visual ── */}
-      <section style={{ padding: "0 24px 80px", maxWidth: 780, margin: "0 auto" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 16, alignItems: "center" }}>
-          {/* Before */}
-          <div style={{ position: "relative", borderRadius: 20, overflow: "hidden", aspectRatio: "3/4", border: "1px solid var(--border)" }}>
-            <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, oklch(0.14 0.025 240), oklch(0.10 0.02 260))", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: 20 }}>
-              <div style={{ width: 56, height: 56, borderRadius: "50%", border: "1px solid var(--border)", background: "var(--bg-elevated)", display: "grid", placeItems: "center" }}>
-                <Phone size={24} color="var(--text-muted)" />
-              </div>
-              <div style={{ textAlign: "center" }}>
-                <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>Your phone clip</p>
-                <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-muted)" }}>30 sec · any room</p>
-              </div>
-              <div style={{ width: "100%", borderTop: "1px solid var(--border)", paddingTop: 12, marginTop: 4 }}>
-                {["Real movement", "Your energy", "Any angle"].map((t) => (
-                  <div key={t} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                    <Check size={12} color="var(--accent)" />
-                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{t}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+      {/* ── REAL EXAMPLE — Before → After ── */}
+      <section style={{ padding: "0 24px 72px", maxWidth: 900, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 28 }}>
+          <p className="kicker" style={{ marginBottom: 10, justifyContent: "center" }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", display: "inline-block" }} />
+            See the inputs → see the result
+          </p>
+          <h2 style={{ fontSize: "clamp(1.4rem, 3.5vw, 2rem)", fontWeight: 800, letterSpacing: "-0.01em", margin: 0 }}>
+            Real references. Real render.
+          </h2>
+          <p style={{ color: "var(--text-muted)", fontSize: 14, marginTop: 8 }}>
+            This is what your shoot can look like. Identity photo · outfit · scene · motion clip → cinematic output.
+          </p>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 20, alignItems: "center" }}>
+          {/* LEFT — What you provide (real screenshot of the tool) */}
+          <div style={{ position: "relative", borderRadius: 20, overflow: "hidden", border: "1px solid var(--border)" }}>
+            <img
+              src={`${BASE}examples/inputs.jpg`}
+              alt="Perform Anywhere input panel — identity photo, outfit reference, scene reference"
+              style={{ width: "100%", display: "block", borderRadius: 20 }}
+            />
             <div style={{ position: "absolute", top: 10, left: 10 }}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", background: "oklch(0 0 0 / 0.7)", border: "1px solid var(--border)", borderRadius: 100, padding: "4px 10px", color: "var(--text-muted)" }}>
-                <Phone size={9} style={{ color: "#67e8f9" }} /> Input
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", background: "oklch(0 0 0 / 0.75)", border: "1px solid var(--border)", borderRadius: 100, padding: "4px 10px", color: "white", backdropFilter: "blur(8px)" }}>
+                📱 What you provide
               </span>
             </div>
           </div>
 
           {/* Arrow */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 44, height: 44, borderRadius: "50%", background: "oklch(0.72 0.2 300 / 0.15)", border: "1px solid var(--accent)", display: "grid", placeItems: "center", boxShadow: "0 0 24px -6px var(--accent)" }}>
-              <Zap size={20} style={{ color: "var(--accent)" }} />
+            <div style={{ width: 48, height: 48, borderRadius: "50%", background: "oklch(0.72 0.2 300 / 0.15)", border: "1px solid var(--accent)", display: "grid", placeItems: "center", boxShadow: "0 0 30px -8px var(--accent)" }}>
+              <Zap size={22} style={{ color: "var(--accent)" }} />
             </div>
-            <p style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.2em", color: "var(--text-muted)", textAlign: "center", margin: 0 }}>Motion<br/>Control</p>
+            <p style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.2em", color: "var(--text-muted)", textAlign: "center", margin: 0, lineHeight: 1.5 }}>Motion<br/>Control</p>
           </div>
 
-          {/* After — CTA */}
-          <a href={motionUrl} style={{ textDecoration: "none", display: "block", position: "relative", borderRadius: 20, overflow: "hidden", aspectRatio: "3/4", border: "1px solid oklch(0.72 0.2 300 / 0.5)", boxShadow: "0 0 60px -15px var(--accent)", cursor: "pointer" }}>
-            <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, oklch(0.18 0.05 300), oklch(0.12 0.04 320))", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: 20 }}>
-              <div className="animate-float" style={{ width: 60, height: 60, borderRadius: "50%", background: "oklch(0.72 0.2 300 / 0.2)", border: "1px solid oklch(0.72 0.2 300 / 0.4)", display: "grid", placeItems: "center", boxShadow: "0 0 30px -6px var(--accent)" }}>
-                <Upload size={26} style={{ color: "var(--accent)" }} />
-              </div>
-              <div style={{ textAlign: "center" }}>
-                <p style={{ margin: 0, fontWeight: 700, fontSize: 15, color: "white" }}>Upload your clip here.</p>
-                <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-muted)" }}>Tap to open Motion Control</p>
-              </div>
-              <span className="badge" style={{ marginTop: 4 }}>
-                <Sparkles size={10} /> Perform Anywhere →
+          {/* RIGHT — The result (real screenshot of rendered output) */}
+          <a href={motionUrl} style={{ display: "block", position: "relative", borderRadius: 20, overflow: "hidden", border: "1px solid oklch(0.72 0.2 300 / 0.5)", boxShadow: "0 0 60px -15px var(--accent)", textDecoration: "none" }}>
+            <img
+              src={`${BASE}examples/result.jpg`}
+              alt="Scene Builder rendered result — artist composited into cinematic AI scene"
+              style={{ width: "100%", display: "block", borderRadius: 20 }}
+            />
+            <div style={{ position: "absolute", top: 10, left: 10 }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", background: "oklch(0.72 0.2 300 / 0.85)", border: "1px solid oklch(0.72 0.2 300 / 0.4)", borderRadius: 100, padding: "4px 10px", color: "white", backdropFilter: "blur(8px)" }}>
+                ✅ Rendered output
               </span>
             </div>
-            <div style={{ position: "absolute", top: 10, left: 10 }}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", background: "oklch(0.72 0.2 300 / 0.2)", border: "1px solid oklch(0.72 0.2 300 / 0.35)", borderRadius: 100, padding: "4px 10px", color: "var(--accent)" }}>
-                <Film size={9} /> AI Scene Output
+            {/* Hover CTA overlay */}
+            <div style={{ position: "absolute", inset: 0, background: "oklch(0 0 0 / 0)", display: "flex", alignItems: "flex-end", padding: 16, transition: "background 0.2s" }}>
+              <span className="badge" style={{ opacity: 0.92 }}>
+                <Upload size={10} /> Tap to try it →
               </span>
             </div>
           </a>
         </div>
+
+        {/* Caption row */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 20, marginTop: 12 }}>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
+            <strong style={{ color: "var(--text)" }}>INPUTS</strong> Identity photo · Outfit (hoodie + chain) · Scene (LA street, golden hour) · Motion clip
+          </p>
+          <div />
+          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
+            <strong style={{ color: "var(--text)" }}>FINAL</strong> Hyper-real composite · identity preserved · golden-hour grade
+          </p>
+        </div>
+      </section>
+
+      {/* ── Hero design preview ── */}
+      <section style={{ padding: "0 24px 72px", maxWidth: 700, margin: "0 auto" }}>
+        <div style={{ borderRadius: 24, overflow: "hidden", border: "1px solid oklch(0.72 0.2 300 / 0.3)", boxShadow: "0 0 60px -20px var(--accent-glow)" }}>
+          <img
+            src={`${BASE}examples/hero.jpg`}
+            alt="Film yourself anywhere — Aurora builds the world. Motion Control feature overview."
+            style={{ width: "100%", display: "block" }}
+          />
+        </div>
       </section>
 
       {/* ── 3-Step Cards ── */}
-      <section style={{ padding: "0 24px 80px", maxWidth: 960, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <p className="kicker" style={{ marginBottom: 12, justifyContent: "center" }}>
+      <section style={{ padding: "0 24px 72px", maxWidth: 960, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 36 }}>
+          <p className="kicker" style={{ marginBottom: 10, justifyContent: "center" }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", display: "inline-block" }} />
             How it works
           </p>
-          <h2 style={{ fontSize: "clamp(1.6rem, 4vw, 2.4rem)", fontWeight: 800, letterSpacing: "-0.01em", margin: 0 }}>
+          <h2 style={{ fontSize: "clamp(1.6rem, 4vw, 2.2rem)", fontWeight: 800, letterSpacing: "-0.01em", margin: 0 }}>
             Three steps. Full cinematic output.
           </h2>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
-          {STEPS.map((s, i) => {
-            const Icon = s.icon;
-            return (
-              <div key={i} className="card card-hover animate-fade-in" style={{ padding: 24, position: "relative", overflow: "hidden", animationDelay: `${i * 80}ms` }}>
-                <div style={{ position: "absolute", inset: -40, background: `linear-gradient(135deg, ${s.accent.replace("from-", "").replace(" to-", ", ")})`, filter: "blur(40px)", opacity: 0.3, pointerEvents: "none" }} />
-                <div style={{ position: "relative" }}>
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
-                    <span className={`badge ${s.badgeBg}`} style={{ border: `1px solid ${s.border.replace("border-", "")}`, color: s.color.replace("text-", "") }}>
-                      <Icon size={10} /> Step {s.n}
-                    </span>
-                    <span style={{ fontSize: 36, fontWeight: 900, color: "var(--border)", lineHeight: 1 }}>{s.n}</span>
-                  </div>
-                  <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 8px" }}>{s.title}</h3>
-                  <p style={{ fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6, margin: 0 }}>{s.desc}</p>
-                </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
+          {STEPS.map((s, i) => (
+            <div key={i} className="card card-hover" style={{ padding: 22, position: "relative", animationDelay: `${i * 80}ms` }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
+                <span style={{ fontSize: 26 }}>{s.emoji}</span>
+                <span style={{ fontSize: 36, fontWeight: 900, color: "var(--border)", lineHeight: 1 }}>{s.n}</span>
               </div>
-            );
-          })}
+              <h3 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 8px" }}>{s.title}</h3>
+              <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6, margin: 0 }}>{s.desc}</p>
+              {i < STEPS.length - 1 && (
+                <div style={{ position: "absolute", right: -18, top: "50%", transform: "translateY(-50%)", display: "none" }}>
+                  <ArrowRight size={14} color="var(--border)" />
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* ── Features ── */}
-      <section style={{ padding: "0 24px 80px", maxWidth: 780, margin: "0 auto" }}>
-        <div className="card" style={{ padding: "36px 40px", border: "1px solid oklch(0.72 0.2 300 / 0.3)", background: "linear-gradient(135deg, oklch(0.12 0.035 300 / 0.6), oklch(0.085 0.022 272 / 0.8))", boxShadow: "0 0 80px -30px var(--accent-glow)" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+      {/* ── Feature checklist ── */}
+      <section style={{ padding: "0 24px 72px", maxWidth: 780, margin: "0 auto" }}>
+        <div className="card" style={{ padding: "32px 36px", border: "1px solid oklch(0.72 0.2 300 / 0.3)", background: "linear-gradient(135deg, oklch(0.12 0.035 300 / 0.6), oklch(0.085 0.022 272 / 0.8))", boxShadow: "0 0 80px -30px var(--accent-glow)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 10 }}>
             {FEATURES.map((f) => (
               <div key={f} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{ width: 20, height: 20, borderRadius: "50%", background: "oklch(0.72 0.2 300 / 0.15)", border: "1px solid oklch(0.72 0.2 300 / 0.3)", display: "grid", placeItems: "center", flexShrink: 0 }}>
@@ -244,9 +240,7 @@ export default function App() {
           <div aria-hidden style={{ position: "absolute", inset: -60, background: "var(--accent-glow)", filter: "blur(80px)", pointerEvents: "none" }} />
           <div style={{ position: "relative" }}>
             <div style={{ marginBottom: 16, display: "flex", justifyContent: "center" }}>
-              <div className="amber-badge badge">
-                <Crown size={10} /> Seedance 5.9 · Kling · Gemini Omni · Grok Imagine
-              </div>
+              <div className="amber-badge badge"><Crown size={10} /> Seedance 5.9 · Kling · Gemini Omni · Grok Imagine</div>
             </div>
             <h2 style={{ fontSize: "clamp(1.8rem, 5vw, 3rem)", fontWeight: 900, letterSpacing: "-0.02em", margin: "0 0 16px" }}>
               Ready to perform anywhere?
@@ -280,7 +274,6 @@ export default function App() {
           ))}
         </div>
       </footer>
-
     </div>
   );
 }

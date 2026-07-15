@@ -311,31 +311,53 @@ export function VideoAgentUI({ session }: Props) {
 
       {view === "studio" ? (
         <>
-          {/* Photo strip */}
+          {/* Onboarding photo strip — real example inputs + result */}
           <div style={{
             borderBottom: "1px solid var(--border)",
-            padding: "12px 24px",
+            padding: "14px 24px",
             display: "flex",
             alignItems: "center",
             gap: 14,
             background: "oklch(0.085 0.022 272 / 0.5)",
+            overflowX: "auto",
           }}>
-            <img
-              src="/video-agent/demo-cinematic.webp"
-              alt=""
-              style={{ height: 52, width: 92, objectFit: "cover", borderRadius: 8, border: "1px solid var(--border)", flexShrink: 0 }}
-            />
-            <img
-              src="/video-agent/demo-variations.jpg"
-              alt=""
-              style={{ height: 52, width: 148, objectFit: "cover", borderRadius: 8, border: "1px solid var(--border)", flexShrink: 0 }}
-            />
-            <div>
-              <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>
+            {/* Example: what users provide */}
+            <div style={{ position: "relative", flexShrink: 0 }}>
+              <img
+                src="/video-agent/examples/perform-inputs.jpg"
+                alt="Example inputs — identity photo, outfit reference, scene reference"
+                style={{ height: 64, width: 108, objectFit: "cover", objectPosition: "top", borderRadius: 10, border: "1px solid var(--border)" }}
+              />
+              <span style={{ position: "absolute", bottom: 4, left: 4, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", background: "oklch(0 0 0 / 0.8)", color: "white", borderRadius: 4, padding: "2px 5px" }}>
+                Inputs
+              </span>
+            </div>
+
+            {/* Arrow */}
+            <span style={{ color: "var(--accent)", fontSize: 18, flexShrink: 0 }}>→</span>
+
+            {/* Example: cinematic result */}
+            <div style={{ position: "relative", flexShrink: 0 }}>
+              <img
+                src="/video-agent/examples/scene-result.jpg"
+                alt="Rendered result — artist composited into cinematic AI scene"
+                style={{ height: 64, width: 108, objectFit: "cover", objectPosition: "top center", borderRadius: 10, border: "1px solid oklch(0.72 0.2 300 / 0.4)", boxShadow: "0 0 16px -6px oklch(0.72 0.2 300 / 0.5)" }}
+              />
+              <span style={{ position: "absolute", bottom: 4, left: 4, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", background: "oklch(0.72 0.2 300 / 0.85)", color: "white", borderRadius: 4, padding: "2px 5px" }}>
+                ✅ Rendered
+              </span>
+            </div>
+
+            {/* Description */}
+            <div style={{ marginLeft: 4 }}>
+              <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 3 }}>
                 HeyGen avatar · your script, your face, any scene
               </p>
-              <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                Write or paste an idea → AI enhances it → video generated in ~60–120s
+              <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 2 }}>
+                Identity photo + outfit + scene reference → AI script → video in ~60–120s
+              </p>
+              <p style={{ fontSize: 11, color: "var(--text-muted)", opacity: 0.7 }}>
+                See <strong style={{ color: "var(--accent)", fontWeight: 600 }}>Perform Anywhere</strong> in the main app to add motion control to your shoot
               </p>
             </div>
           </div>

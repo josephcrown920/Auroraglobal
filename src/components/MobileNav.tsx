@@ -37,6 +37,7 @@ type Feature = {
   label: string;
   icon: LucideIcon;
   badge?: string;
+  previewImg?: string;
 };
 
 // ── Active features, ordered by demand for artists & creators ─────────────────
@@ -49,13 +50,13 @@ const MAKE_FEATURES: Feature[] = [
   { to: "/canvas",      label: "Canvas",           icon: Workflow },
   { to: "/orchestrate", label: "Video",            icon: Film },
   { to: "/photo-edit",  label: "Photo Editor",     icon: Brush },
-  { to: "/agent",       label: "Video Agent",      icon: Bot },
+  { to: "/agent",       label: "Video Agent",      icon: Bot, previewImg: "/nav-previews/video-agent.jpg" },
 ];
 
 /** Guided creator workflows — music video & scene compositing. */
 const CREATOR_TOOLS_FEATURES: Feature[] = [
   { to: "/colors-show",   label: "Colors Show Creator", icon: Film },
-  { to: "/scene-builder", label: "Scene Builder",       icon: Layers },
+  { to: "/scene-builder", label: "Scene Builder",       icon: Layers, previewImg: "/nav-previews/scene-builder.jpg" },
 ];
 
 /** Creator & viral templates — ordered by demand. */
@@ -65,7 +66,7 @@ const VIRAL_FEATURES: Feature[] = [
   { to: "/ugc-line",    label: "Content Line",    icon: Layers },
   { to: "/ugc",         label: "UGC Ads",         icon: Megaphone },
   { to: "/spin",        label: "TikTok30",        icon: Flame },
-  { to: "/motion",      label: "Perform Anywhere",icon: Wand2 },
+  { to: "/motion",      label: "Perform Anywhere",icon: Wand2, previewImg: "/nav-previews/perform-anywhere.jpg" },
   { to: "/music-video", label: "Lyric Video",     icon: Clapperboard },
   { to: "/avatar",      label: "Talking Avatars", icon: UserCircle2 },
 ];
@@ -107,9 +108,9 @@ export const ARCHIVED_FEATURES: Feature[] = [
 ];
 
 const TAB_ITEMS: Feature[] = [
-  { to: "/studio",      label: "Studio", icon: Sparkles },
-  { to: "/orchestrate", label: "Video", icon: Film },
-  { to: "/canvas",      label: "Canvas", icon: Workflow },
+  { to: "/studio",      label: "Studio",  icon: Sparkles },
+  { to: "/orchestrate", label: "Video",   icon: Film },
+  { to: "/canvas",      label: "Canvas",  icon: Workflow },
   { to: "/gallery",     label: "Gallery", icon: Images },
 ];
 
@@ -135,7 +136,7 @@ function LiveNavItem({ f, active, onClick }: { f: Feature; active: boolean; onCl
       onClick={onClick}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm no-underline transition-all duration-150",
+        "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm no-underline transition-all duration-150",
         active
           ? "bg-[image:var(--gradient-hero)] text-white shadow-[var(--shadow-glow-soft)]"
           : "text-muted-foreground hover:bg-accent/40 hover:text-foreground",
@@ -144,14 +145,27 @@ function LiveNavItem({ f, active, onClick }: { f: Feature; active: boolean; onCl
       <span
         className={cn(
           "flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors",
-          active
-            ? "bg-white/20"
-            : "aurora-glass group-hover:bg-accent/50",
+          active ? "bg-white/20" : "aurora-glass group-hover:bg-accent/50",
         )}
       >
         <f.icon className="size-3.5" />
       </span>
-      <span className="font-medium">{f.label}</span>
+      <span className="font-medium flex-1 min-w-0">{f.label}</span>
+
+      {/* Preview thumbnail — only for features with a previewImg */}
+      {f.previewImg && (
+        <span
+          className="shrink-0 overflow-hidden rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+          style={{ width: 38, height: 27, border: "1px solid oklch(0.72 0.2 300 / 0.25)" }}
+        >
+          <img
+            src={f.previewImg}
+            alt=""
+            aria-hidden
+            style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center", display: "block" }}
+          />
+        </span>
+      )}
     </Link>
   );
 }
@@ -186,6 +200,23 @@ export function MobileNav() {
 
   return (
     <>
+      <style>{`
+        @keyframes tab-breathe {
+          0%, 100% { opacity: 0.55; transform: scaleX(0.7); }
+          50%       { opacity: 1;    transform: scaleX(1);   }
+        }
+        @keyframes tab-glow-breathe {
+          0%, 100% { box-shadow: 0 0 10px -4px oklch(0.72 0.2 300 / 0.4); }
+          50%       { box-shadow: 0 0 22px -4px oklch(0.72 0.2 300 / 0.75); }
+        }
+        .tab-breathe-bar {
+          animation: tab-breathe 3s ease-in-out infinite;
+        }
+        .tab-active-glow {
+          animation: tab-glow-breathe 3s ease-in-out infinite;
+        }
+      `}</style>
+
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -206,13 +237,23 @@ export function MobileNav() {
           <div aria-hidden style={{ height: "calc(4rem + env(safe-area-inset-bottom))" }} />
           <nav
             aria-label="Primary"
-            className="phone-fixed-x fixed bottom-0 z-50 border-t border-border bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70"
-            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+            className="phone-fixed-x fixed bottom-0 z-50 border-t border-border"
+            style={{
+              paddingBottom: "env(safe-area-inset-bottom)",
+              background: "oklch(0.085 0.022 272 / 0.6)",
+              backdropFilter: "blur(24px) saturate(1.6)",
+              WebkitBackdropFilter: "blur(24px) saturate(1.6)",
+              borderTop: "1px solid oklch(0.72 0.2 300 / 0.15)",
+              boxShadow: "0 -1px 40px -12px oklch(0.72 0.2 300 / 0.2), 0 -1px 0 oklch(1 0 0 / 0.06) inset",
+            }}
           >
+            {/* Top accent line */}
             <span
               aria-hidden
-              className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent"
+              className="pointer-events-none absolute inset-x-0 top-0 h-px"
+              style={{ background: "linear-gradient(90deg, transparent 0%, oklch(0.72 0.2 300 / 0.5) 50%, transparent 100%)" }}
             />
+
             <ul className="grid grid-cols-4">
               {TAB_ITEMS.map((t) => {
                 const active = isActive(pathname, t.to);
@@ -222,18 +263,33 @@ export function MobileNav() {
                       to={t.to}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "relative flex h-16 flex-col items-center justify-center gap-1 text-[10px] font-medium no-underline transition-colors",
-                        active ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                        "relative flex h-16 flex-col items-center justify-center gap-1 text-[10px] font-semibold no-underline transition-colors duration-200",
+                        active ? "text-primary" : "text-muted-foreground/70 hover:text-foreground",
                       )}
+                      style={active ? { textShadow: "0 0 12px oklch(0.72 0.2 300 / 0.6)" } : undefined}
                     >
+                      {/* Breathing indicator bar */}
                       {active && (
                         <span
                           aria-hidden
-                          className="absolute top-0 h-0.5 w-9 rounded-full bg-[image:var(--gradient-hero)] shadow-[var(--shadow-glow-soft)]"
+                          className="tab-breathe-bar absolute top-0 h-[2px] w-10 rounded-full"
+                          style={{ background: "linear-gradient(90deg, oklch(0.72 0.2 300), oklch(0.65 0.18 320))" }}
                         />
                       )}
-                      <t.icon className="size-5" />
-                      <span>{t.label}</span>
+
+                      {/* Icon wrapper — glass pill when active */}
+                      <span
+                        className={cn(
+                          "relative flex items-center justify-center rounded-xl transition-all duration-300",
+                          active
+                            ? "tab-active-glow size-9 bg-[oklch(0.72_0.2_300/0.15)] ring-1 ring-[oklch(0.72_0.2_300/0.25)]"
+                            : "size-8",
+                        )}
+                      >
+                        <t.icon className={cn("transition-all duration-200", active ? "size-[18px]" : "size-5")} />
+                      </span>
+
+                      <span className="tracking-wide">{t.label}</span>
                     </Link>
                   </li>
                 );
@@ -255,7 +311,6 @@ export function MobileNav() {
 
           {/* ── Header ──────────────────────────────────────────────────── */}
           <SheetHeader className="relative shrink-0 border-b border-border p-4 text-left">
-            {/* subtle gradient bar across top */}
             <span
               aria-hidden
               className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[image:var(--gradient-hero)] opacity-60"
@@ -268,17 +323,13 @@ export function MobileNav() {
                     alt=""
                     className="size-10 rounded-2xl object-contain shadow-[var(--shadow-glow-soft)]"
                   />
-                  <span
-                    aria-hidden
-                    className="absolute inset-0 rounded-2xl ring-1 ring-white/10"
-                  />
+                  <span aria-hidden className="absolute inset-0 rounded-2xl ring-1 ring-white/10" />
                 </div>
                 <span className="flex flex-col leading-tight">
                   <span className="text-base font-bold tracking-tight text-foreground">Aurora</span>
                   <span className="text-[11px] text-muted-foreground font-normal">AI Creative Studio</span>
                 </span>
               </div>
-              {/* What's New bell — keeps its own sheet so clicking it closes this one first */}
               <WhatsNew />
             </SheetTitle>
           </SheetHeader>
@@ -286,64 +337,38 @@ export function MobileNav() {
           {/* ── Nav body ────────────────────────────────────────────────── */}
           <nav aria-label="All features" className="relative flex flex-1 flex-col gap-3 overflow-y-auto p-3 pb-4">
 
-            {/* Make — core creation tools, highest demand first */}
             <NavSection label="Make">
               {MAKE_FEATURES.map((f) => (
-                <LiveNavItem
-                  key={f.to}
-                  f={f}
-                  active={isActive(pathname, f.to)}
-                  onClick={() => setOpen(false)}
-                />
+                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
             </NavSection>
 
-            {/* Creator Tools — guided music video & scene workflows */}
             <NavSection label="Creator Tools">
               {CREATOR_TOOLS_FEATURES.map((f) => (
-                <LiveNavItem
-                  key={f.to}
-                  f={f}
-                  active={isActive(pathname, f.to)}
-                  onClick={() => setOpen(false)}
-                />
+                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
             </NavSection>
 
-            {/* Go Viral — creator & artist templates */}
             <NavSection label="Go Viral">
               {VIRAL_FEATURES.map((f) => (
-                <LiveNavItem
-                  key={f.to}
-                  f={f}
-                  active={isActive(pathname, f.to)}
-                  onClick={() => setOpen(false)}
-                />
+                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
             </NavSection>
 
-            {/* Account — utility + monetization */}
             <NavSection label="Account">
               {ACCOUNT_FEATURES.map((f) => (
-                <LiveNavItem
-                  key={f.to}
-                  f={f}
-                  active={isActive(pathname, f.to)}
-                  onClick={() => setOpen(false)}
-                />
+                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
             </NavSection>
           </nav>
 
           {/* ── Footer ──────────────────────────────────────────────────── */}
           <div className="relative shrink-0 border-t border-border p-3 flex flex-col gap-1">
-            {/* gradient line across top of footer */}
             <span
               aria-hidden
               className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent"
             />
 
-            {/* Theme toggle */}
             <button
               type="button"
               onClick={toggle}
@@ -351,11 +376,7 @@ export function MobileNav() {
               className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
             >
               <span className="flex items-center gap-3">
-                {theme === "dark" ? (
-                  <Moon className="size-4 shrink-0" />
-                ) : (
-                  <Sun className="size-4 shrink-0" />
-                )}
+                {theme === "dark" ? <Moon className="size-4 shrink-0" /> : <Sun className="size-4 shrink-0" />}
                 <span className="font-medium">{theme === "dark" ? "Dark mode" : "Light mode"}</span>
               </span>
               <span
