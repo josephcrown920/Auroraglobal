@@ -2479,7 +2479,7 @@ const xaiDirect: ProviderAdapter = {
     };
     if (r.imageUrls?.[0]) body.image = { url: r.imageUrls[0] };
 
-    const create = await fetch(`${XAI_VIDEO_BASE}/videos/generations`, {
+    const create = await fetch(`${XAI_VIDEO_BASE}/video/generations`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       body: JSON.stringify(body),
@@ -2493,7 +2493,7 @@ const xaiDirect: ProviderAdapter = {
     const deadline = Date.now() + 15 * 60_000; // 15-min ceiling
     while (Date.now() < deadline) {
       await new Promise((s) => setTimeout(s, 5_000));
-      const poll = await fetch(`${XAI_VIDEO_BASE}/videos/${requestId}`, {
+      const poll = await fetch(`${XAI_VIDEO_BASE}/video/generations/${requestId}`, {
         headers: { Authorization: `Bearer ${key}` },
       });
       if (!poll.ok) {
@@ -2502,7 +2502,8 @@ const xaiDirect: ProviderAdapter = {
       }
       const pj = await poll.json();
       if (pj?.error) throw new Error(`xAI error: ${pj.error.message ?? JSON.stringify(pj.error)}`);
-      const videoUrl: string | undefined = pj?.video?.url;
+      const videoUrl: string | undefined =
+        pj?.video?.url ?? pj?.videos?.[0]?.url ?? pj?.result?.url;
       if (videoUrl) return { url: videoUrl, endpoint: "xai:grok-imagine-video-1.5" };
     }
     throw new Error("xAI video poll timeout (15 min)");
@@ -2640,6 +2641,40 @@ const ltxAdapter: ProviderAdapter = {
   },
 };
 
+// ─── Ovi (fal-ai/ovi/image-to-video) ─────────────────────────────────────────
+// Image + text → video WITH built-in audio, flat $0.20/video via FAL_KEY.
+// Ideal for talking-head UGC: generates motion + audio in a single call.
+// Placed after xAI in the video chain: activates when model="fal/ovi" OR
+// as a cheaper fallback when byteplus/kling/xai are all unavailable.
+const oviDirect: ProviderAdapter = {
+  name: "fal",
+  supports: (r) =>
+    r.kind === "video" &&
+    !!process.env.FAL_KEY &&
+    (r.model === "fal/ovi" || r.model === "fal-ai/ovi/image-to-video"),
+  estimateCost: () => 0.2, // $0.20/video flat
+  async run(r) {
+    const key = process.env.FAL_KEY!;
+    const input: Record<string, unknown> = {};
+    if (r.prompt) input.prompt = r.prompt;
+    if (r.imageUrls?.[0]) input.image_url = r.imageUrls[0];
+    if (r.audioUrl) input.audio_url = r.audioUrl;
+    if (r.duration) input.duration = r.duration;
+    if (r.resolution) input.resolution = r.resolution;
+
+    const res = await fetch("https://fal.run/fal-ai/ovi/image-to-video", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Key ${key}` },
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) throw new Error(`Ovi ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const j = await res.json();
+    const url = j?.video?.url ?? j?.url ?? j?.output ?? j?.videos?.[0]?.url;
+    if (!url || typeof url !== "string") throw new Error("Ovi: no output url");
+    return { url, endpoint: "fal:fal-ai/ovi/image-to-video" };
+  },
+};
+
 // ─── Priority chain per kind ─────────────────────────────────────────────────
 // GPU-FIRST for every modality: the self-hosted gpuWorker pool is always
 // tried first, full stop. When no eligible worker is up (offline, stale
@@ -2678,6 +2713,7 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
     byteplus,        // model-specific first (BYTEPLUS_MAP-gated), so seedance/seedream
     klingDirect,     // model-specific (kling-gated) before generic catch-alls
     xaiDirect,
+    oviDirect,       // fal-ai/ovi — image+text → video with audio, $0.20/video flat
     soraAdapter,
     ltxAdapter,
     geminiVideo,
@@ -2783,6 +2819,8 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     "infsh/flux": { provider: "inferencesh", kind: "image", cost: 0.005 },
     // xAI Grok Imagine Video — general video + motion fallback (key is set).
     "xai/grok-imagine-video-1.5": { provider: "xai", kind: "video", cost: 0.24 },
+    // Ovi (fal-ai/ovi/image-to-video) — image+text → video with built-in audio.
+    "fal/ovi": { provider: "fal", kind: "video", cost: 0.2 },
     // LTX Video (Lightricks) — direct REST API, cheaper than Sora/Kling.
     "ltx/ltx-video": { provider: "ltx", kind: "video", cost: 0.15 },
     // Sora (OpenAI direct) — sora-2 and sora-2-pro via /v1/video/generations.
@@ -2902,6 +2940,7 @@ export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   // previously it only worked when explicitly requested by value.
   video: [
     "xai/grok-imagine-video-1.5",
+    "fal/ovi",
     "ltx/ltx-video",
     "veo-2",
     "seedance-2.0-fast",
