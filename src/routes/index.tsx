@@ -26,6 +26,8 @@ import { trackAffiliateClick } from "@/lib/affiliate.functions";
 import { useAuth } from "@/hooks/use-auth";
 import { useSiteImage } from "@/components/landing/SiteImagesProvider";
 import { TutorialModal } from "@/components/TutorialModal";
+import { SnipTutorialCards } from "@/components/onboarding/SnipTutorialCards";
+import { PricingSection } from "@/components/landing/PricingSection";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Testimonials } from "@/components/landing/Testimonials";
 import { TrustBar } from "@/components/landing/TrustBar";
@@ -159,8 +161,14 @@ function Index() {
     <main className="min-h-screen relative overflow-hidden bg-[#070612] text-white pb-28 md:pb-24">
       <TutorialModal trigger={tutorialTick} />
       <LandingDemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
+      <SnipTutorialCards show={!user} />
       <ScrollProgress />
       <StickyCreditsBar />
+
+      {/* ── By Artists for Artists & Creators — red top bar ── */}
+      <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-red-700 via-red-600 to-red-700 text-white text-center text-[11px] md:text-xs py-2 font-semibold tracking-[0.12em] uppercase select-none">
+        By Artists for Artists &amp; Creators &nbsp;·&nbsp; Made for the culture ♥
+      </div>
 
       {/* Ambient violet glows */}
       <div
@@ -180,9 +188,9 @@ function Index() {
         }}
       />
 
-      {/* Sticky header */}
+      {/* Sticky header — sits below the red top bar (top-8) */}
       <header
-        className={`phone-fixed-x fixed top-0 z-40 transition-all duration-300 ${
+        className={`phone-fixed-x fixed top-8 z-40 transition-all duration-300 ${
           scrolled ? "bg-[#070612]/85 backdrop-blur-xl border-b border-border" : "bg-transparent"
         }`}
       >
@@ -301,8 +309,8 @@ function Index() {
         </div>
       </header>
 
-      {/* Spacer for fixed header */}
-      <div className="h-20" />
+      {/* Spacer for red bar + fixed header */}
+      <div className="h-28" />
 
       {/* ── Hero — TikTok viral hook ────────────────────────────────────── */}
       <section className="relative px-6 md:px-12 pt-4 pb-10">
@@ -310,9 +318,10 @@ function Index() {
 
           {/* Left: copy */}
           <div>
-            {/* kicker */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-[11px] font-semibold tracking-wide mb-6">
-              <Sparkles className="size-3" /> Welcome to Aurora · Creativity lives here
+            {/* kicker — red "By Artists" badge */}
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-red-500/50 bg-red-500/15 text-red-400 text-[11px] font-semibold tracking-wide mb-6">
+              <span className="size-2 rounded-full bg-red-500 animate-pulse" />
+              By Artists for Artists &amp; Creators
             </div>
 
             {/* headline — white + solid violet, no pink drift */}
@@ -392,6 +401,49 @@ function Index() {
           </div>
         </div>
       </section>
+
+      {/* ── Strong sign-up CTA — shown to visitors only ── */}
+      {!user && (
+        <section className="relative z-10 px-6 md:px-12 pt-4 pb-8">
+          <div className="relative max-w-4xl mx-auto overflow-hidden rounded-3xl border border-red-500/30 bg-gradient-to-br from-red-900/30 via-[#0d0521] to-primary/10 p-8 md:p-12 text-center">
+            {/* Glow */}
+            <div className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 size-[400px] rounded-full blur-3xl opacity-40"
+              style={{ background: "radial-gradient(circle, hsl(0 80% 50% / 0.5), transparent 65%)" }} />
+            <div className="relative">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-red-500/40 bg-red-500/10 text-red-300 text-[11px] font-semibold tracking-wide mb-5">
+                <Sparkles className="size-3" /> Free Aura on every new account
+              </div>
+              <h2 className="text-3xl md:text-5xl font-black tracking-tight leading-[1.05] text-white">
+                Your first cinematic shot{" "}
+                <span className="text-red-400">is free.</span>
+              </h2>
+              <p className="mt-4 text-white/65 max-w-xl mx-auto text-base leading-relaxed">
+                Sign up, pick a subscription, and start creating in under 60 seconds. No experience needed — the AI does the heavy lifting.
+              </p>
+              <div className="mt-7 flex flex-wrap gap-3 justify-center">
+                <Link
+                  to="/auth"
+                  onClick={() => void track("signup_cta_click", { location: "hero_banner" })}
+                  className="inline-flex items-center gap-2 px-7 py-4 rounded-full font-bold text-white no-underline bg-red-600 hover:bg-red-500 shadow-xl shadow-red-900/40 transition-all hover:scale-[1.03] text-base"
+                >
+                  <ArrowRight className="size-5" /> Create my free account
+                </Link>
+                <a
+                  href="#pricing"
+                  onClick={() => void track("signup_cta_click", { location: "see_plans" })}
+                  className="inline-flex items-center gap-2 px-7 py-4 rounded-full font-medium text-white/80 no-underline aurora-glass-strong hover:brightness-110 transition-all text-base"
+                >
+                  See plans below ↓
+                </a>
+              </div>
+              <p className="text-[11px] text-white/30 mt-4 tracking-wide">No card required to sign up · Cancel any time · 7-day refund</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Pricing — moved to top so visitors see it immediately ── */}
+      <PricingSection />
 
       {/* 1. Auto-scroll photo strip */}
       <PhotoStrip />
