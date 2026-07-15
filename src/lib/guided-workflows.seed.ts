@@ -1558,10 +1558,10 @@ export const DEFAULT_GUIDED_WORKFLOWS: GuidedWorkflowContent[] = [
   // ── NBA Josh — Looping Officers Composite ────────────────────────────────
   {
     slug: "nba-josh-looping-officers",
-    title: "Looping Officers — Surreal Urban Composite",
-    tagline: "Layer A + B split-screen: Josh performs while officers loop behind him",
+    title: "Looping Officers — Surreal Urban Music Video",
+    tagline: "Josh stands unbothered. Officers run hard. Nobody moves.",
     description:
-      "A cinematic 15-second urban night scene in two layers. NBA Josh stands in the foreground performing his hook — fearless, untouchable. Behind him, two police officers run aggressively but are stuck in a loop, going nowhere. A vintage hanging microphone drops from above. Layer B (officers) is already done on Kling. This guide covers generating Layer A (Josh) and compositing in CapCut.",
+      "Each video = a separate standalone post synced to the same 24-second hook. NBA Josh stands on a wet urban street while officers charge at full aggression behind him but are stuck on an invisible treadmill (superpower energy). At the end he turns, smirks calmly, walks away. Officers left exhausted and empty-handed. Each outfit variation = its own content piece. NOT composited into one timeline.\n\n⚠️ CHARACTER SPEC — MUST MATCH:\n• 6'3\" TALL LEAN athletic build. Long-limbed. NOT muscular, NOT thick, NOT bloated.\n• Long fully red dreadlocks past shoulders.\n• TATTOOS: Right shoulder = \"NBA\" with stars + \"JOSH\" gothic lettering. Left shoulder = portrait tattoo (low-cut Afro punk version of Josh's own face). Both forearms = full sleeves (clouds, roses, stars). ZERO tattoos on face or neck. No extra markings anywhere else.\n• Jewellery on every outfit: custom diamond \"NBA JOSH 444\" pendant on heavy diamond Cuban link chain + iced-out AP diamond watch.\n• Vintage silver hanging microphone dangling from above — always in frame.",
     category: "music-video",
     icon: "🎬",
     sourceCredit: "NBA Josh · Out The Mud Records",
@@ -1569,65 +1569,106 @@ export const DEFAULT_GUIDED_WORKFLOWS: GuidedWorkflowContent[] = [
     sortOrder: 5,
     steps: [
       {
-        id: "gather-references",
-        title: "Gather Layer A reference images",
+        id: "character-spec",
+        title: "Character Spec — READ BEFORE GENERATING",
         kind: "instruction",
         description:
-          "You need three reference images for Layer A:\n\n1. **Face reference** — The blue-lit close-up portrait. Best for Kling likeness: shows the snake glasses, chain, and face clearly.\n2. **Outfit reference** — Black leather jacket + leather pants + boots (full-body shot).\n3. **Prop reference** — The vintage silver hanging microphone (scene element).\n\nLayer B (officers looping on the night street) is already done on Kling v3. You only need to generate Layer A.",
+          "Before any generation, lock down the character spec. Every prompt MUST include all of these:\n\n**FACE & BODY:**\n6'3\" tall, lean long-limbed athletic Black male. Slender, NOT muscular or thick. Long fully red dreadlocks past shoulders. Clean face — NO tattoos or markings on face or neck.\n\n**REAL TATTOOS (arms only):**\n• Right shoulder: \"NBA\" with stars + \"JOSH\" in gothic lettering\n• Left shoulder: portrait tattoo of a young Black male face (low-cut Afro, punk energy)\n• Both forearms: full sleeve tattoos — clouds, roses, stars, geometric patterns\n• Nothing on face, neck, chest, or legs\n\n**JEWELLERY (every outfit):**\n• Custom diamond \"NBA JOSH 444\" pendant — large chunky iced-out silver/diamond letters on heavy diamond Cuban link chain\n• Iced-out AP (Audemars Piguet) diamond watch on left wrist\n\n**PROP (every scene):**\n• Vintage silver retro hanging microphone — dangles from above, always visible\n\n**ENERGY:**\nCompletely unbothered. Calm. Superpower aura. Does NOT look scared or tense.\n\n**OFFICERS:**\n4–6 officers in full police uniform running at absolute maximum aggression — but frozen on invisible treadmill (stuck in place, all running energy but zero forward movement). At end of clip Josh slowly turns, gives a calm smirk, walks away. Officers collapse exhausted.",
         promptTemplate: "",
         placeholders: [],
         referenceSlots: [
-          { key: "face", label: "Blue-lit close-up (face + glasses + chain)", description: "The strongest likeness reference for Kling. Shows snake glasses, Cuban link, and face clearly.", required: true },
-          { key: "outfit", label: "Full leather outfit reference", description: "Black leather jacket + pants + boots. Full body.", required: true },
-          { key: "mic", label: "Vintage hanging mic — prop reference", description: "Include in the scene. Hanging mic drops into frame.", required: false },
+          { key: "face", label: "Josh blue-lit portrait (primary identity ref)", description: "Upload this to Kling/fal as the face reference. Best likeness lock.", required: true },
+          { key: "mic", label: "Vintage hanging silver microphone", description: "Always present in scene — hanging from above.", required: false },
         ],
         usesPreviousResult: false,
         tips: [
-          "The blue-lit close-up is the strongest identity reference for Kling — use it as the primary upload.",
-          "Layer B (officers) is already done — you only generate Layer A here.",
+          "The single biggest cause of drift: including tattoo or muscle descriptions that contradict Josh's actual build. Copy the spec exactly.",
+          "If the model adds face/neck tattoos — they are hallucinated. Add 'NO tattoos on face, neck, or chest' as a negative prompt.",
+          "If the character looks too muscular — add 'slender long-limbed lean build, basketball player proportions, NOT bodybuilder'.",
         ],
         variants: [],
       },
       {
-        id: "generate-layer-a",
-        title: "Generate Layer A — NBA Josh foreground",
-        kind: "video",
+        id: "outfit-library",
+        title: "Outfit Library — All Variants",
+        kind: "instruction",
         description:
-          "Image-to-video in Kling v3. Upload the blue-lit close-up as the reference image. Use the prompt below exactly as-is — the technical photography language is what makes it cinematic. Generate 3 variations and pick the best.\n\nSettings: Kling v3 standard · 10 seconds · 16:9 · Image to Video mode.",
-        promptTemplate:
-          "Cinematic music video scene. A tall lean athletic Black male rapper with long fully red dreadlocks past his shoulders, wearing sculptural red snake-frame sunglasses, heavy diamond Cuban link chain with \"NEVER JUST\" iced-out pendant, \"NBA JOSH\" tattoo on right shoulder, full forearm tattoos on both arms. Wearing a [OUTFIT] — [OUTFIT DETAIL]. Stands in the bottom right of frame, waist up, facing slightly left toward camera. A vintage silver hanging microphone dangles from above near his face. Dark wet urban street at night. He performs his hook with calm fearless energy, subtle hand gestures, completely unbothered. Static locked-off camera. No camera movement. Dramatic overhead streetlight, high contrast, deep shadows, moody atmosphere. Near the end he slowly glances over his left shoulder with a calm smirk, then turns and walks out of frame. Realistic, cinematic, music video aesthetic, shallow depth of field.",
-        placeholders: [
-          { key: "OUTFIT", label: "Outfit A or B", example: "black leather jacket, black leather pants, black boots" },
-          { key: "OUTFIT DETAIL", label: "Outfit detail", example: "full black leather head to toe" },
-        ],
+          "Each outfit = its own standalone video post. Reference sheets now confirmed:\n\n**OUTFIT A — Dark Night (burgundy sport jersey)**\nDark burgundy sport jersey (sleeveless, printed pattern) + snake-frame sculptural sunglasses (red or iridescent) + diamond Cuban link + NBA JOSH pendant + AP watch. Dark wet urban street, night. ⚠️ Known issue: AI generates letter 'A' on arm — DO NOT include a letter on the outfit.\n\n**OUTFIT B — White Mushroom Tee (golden hour)**\nWhite graphic tee with colourful psychedelic mushroom-eye print + black leather pants + red Jordan 4s or red Air Force 1s + red crystal-studded belt + snake-frame sunglasses. Golden hour suburban street, palm trees, wet road, police lights behind. This is the closest-to-correct generated still (IMG_3735).\n\n**OUTFIT C — NEVER JXST Racing Jersey (dark + golden hour)**\nNEVER JXST red/black long-sleeve racing jersey with white side panels + black distressed jeans + purple crystal-studded belt + white Nike Shox or white Air Force 1s + red snake-frame sunglasses. Works both dark night and golden hour.\n\n**OUTFIT D — Crazy Visions Cyber-Punk (Mix Option 1)**\nCrazy Visions orange/black beanie + dark vintage wash black graphic tee (psychedelic mushroom eye print) + red distressed torn jeans + fur/shearling boots + purple iridescent crystal-studded belt + NBA JOSH pendant + iced AP watch. Golden hour or moody dusk.\n\n**OUTFIT E — Red Puffer (new)**\nGlossy red puffer jacket + camo cargo pants (wide leg) + blue paisley basketball sneakers + textured sculptural sunglasses (wavy white frame, colourful lenses) + diamond NBA JOSH 444 pendant + AP watch. Urban street or rooftop.\n\n**OUTFIT F — Crazy Visions Clean (new)**\nCrazy Visions red/black beanie + white crewneck oversized tee + camo cargo pants OR black pants + custom dopamine-theme Nike AF1s (white, teal laces, painted) + red iridescent crystal-studded belt + NBA JOSH pendant + AP watch.\n\n**OUTFIT G — Shearling Racing Edge (Mix Option 2, new)**\nDistressed shearling fur bomber jacket (brown/tan) + NEVER JXST red/black racing jersey underneath + red leather pants + custom painted Nike AF1 Mid (white/teal painted) + sculptural red iridescent sunglasses + NBA JOSH pendant + AP watch. Bold daytime or dusk.\n\n**OUTFIT H — Minecraft Creeper Street (new)**\nMinecraft creeper lime green graphic tee + wide-leg camo cargo pants + blue paisley basketball sneakers. Casual, unexpected, playful contrast with the officers. Keep pendant + watch.\n\n**RED BENZ SCENE (special)**\nBorrow the red AMG Mercedes-Benz GT 4-door from the reference image (deep metallic red, AMG grille, open door, interior purple/pink ambient light). Character wears: white streetwear jacket over graphic tee + embroidered white cargo shorts + purple Nike VaporMax + wavy sculptural sunglasses. Josh leans against the Benz. Officers run toward him in background. Dusk or night urban setting. REPLACE THE CHARACTER FACE with Josh's likeness — same slim 6'3\" build, red dreads, same jewellery.",
+        promptTemplate: "",
+        placeholders: [],
         referenceSlots: [],
         usesPreviousResult: false,
         tips: [
-          "Generate 3 variations — pick the one where his face and energy are strongest.",
-          "Static camera, no movement — the officers looping behind him creates all the tension.",
-          "Outfit A = black leather jacket + leather pants + boots. Outfit B = dark maroon/black sport jersey.",
+          "Outfit B (white tee) is the most successful so far — IMG_3735 is nearly perfect. Use it as the benchmark.",
+          "Outfit C (NEVER JXST) shows good jersey accuracy in generated stills — build on those.",
+          "For the Benz scene: the car and outfit from the reference are borrowable. The face MUST be Josh's.",
+          "Always include the AP watch and NBA JOSH pendant — they are signature identity markers.",
+        ],
+        variants: [],
+      },
+      {
+        id: "generate-standalone-clips",
+        title: "Generate Standalone Clips — One Per Outfit",
+        kind: "video",
+        description:
+          "Each clip is a separate standalone post. Use Kling v3 via fal.ai · image-to-video · 10 seconds · 16:9.\n\nUpload Josh's blue-lit portrait as the reference image for every generation.\n\nUse the base prompt below, then swap in the [OUTFIT BLOCK] from the outfit library above.",
+        promptTemplate:
+          "Cinematic music video. Tall lean Black male rapper, 6'3\" slender long-limbed build (NOT muscular), long fully red dreadlocks past shoulders, sculptural [GLASSES] sunglasses, large diamond Cuban link chain with custom 'NBA JOSH 444' diamond pendant, iced-out AP diamond watch. Tattoo on right shoulder: 'NBA' with stars + 'JOSH' gothic lettering. Tattoo on left shoulder: portrait of young Black male face. Full forearm sleeve tattoos both arms — clouds roses stars. NO tattoos on face neck or chest. Wearing: [OUTFIT BLOCK]. Stands full-body on a [SETTING] wet urban street, officers in full uniform charging at maximum aggression behind him but completely frozen in place (invisible treadmill) — running legs, going nowhere. Vintage silver retro hanging microphone dangles from above. Josh is completely unbothered, calm superpower energy. Static locked-off camera. No camera movement. Near the end he slowly turns, gives a calm smirk toward camera, then walks away. Officers collapse exhausted. Realistic cinematic music video aesthetic. 16:9. High contrast dramatic lighting. Shallow depth of field.",
+        placeholders: [
+          { key: "GLASSES", label: "Glasses style", example: "red snake-frame" },
+          { key: "OUTFIT BLOCK", label: "Outfit description from outfit library", example: "white graphic tee with psychedelic mushroom-eye print + black leather pants + red Jordan 4s + red crystal belt" },
+          { key: "SETTING", label: "Scene setting", example: "golden hour suburban, palm trees" },
+        ],
+        referenceSlots: [
+          { key: "face", label: "Josh blue-lit close-up portrait", description: "Primary identity lock for Kling. Use for every generation.", required: true },
+        ],
+        usesPreviousResult: false,
+        tips: [
+          "If face drifts: re-upload the reference image and reduce the prompt word count — shorter prompts drift less.",
+          "If extra tattoos appear on face/neck: add to negative prompt 'no face tattoos, no neck tattoos, clean face'.",
+          "If too muscular: add 'slender lean tall basketball player proportions, long limbs, narrow chest'.",
+          "Generate 3 variations per outfit — pick the best likeness, not the best composition.",
+          "IMG_3735 is the benchmark still for Outfit B. If generation is worse than that, regenerate.",
         ],
         variants: [
-          { label: "Outfit A — Full leather", prompt: "Cinematic music video scene. A tall lean athletic Black male rapper with long fully red dreadlocks past his shoulders, wearing sculptural red snake-frame sunglasses, heavy diamond Cuban link chain with \"NEVER JUST\" iced-out pendant, \"NBA JOSH\" tattoo on right shoulder, full forearm tattoos on both arms. Wearing a black leather jacket, black leather pants, black boots. Stands in the bottom right of frame, waist up, facing slightly left toward camera. A vintage silver hanging microphone dangles from above near his face. Dark wet urban street at night. He performs his hook with calm fearless energy, subtle hand gestures, completely unbothered. Static locked-off camera. No camera movement. Dramatic overhead streetlight, high contrast, deep shadows, moody atmosphere. Near the end he slowly glances over his left shoulder with a calm smirk, then turns and walks out of frame. Realistic, cinematic, music video aesthetic, shallow depth of field." },
-          { label: "Outfit B — Sport jersey", prompt: "Cinematic music video scene. A tall lean athletic Black male rapper with long fully red dreadlocks past his shoulders, wearing sculptural red snake-frame sunglasses, heavy diamond Cuban link chain with \"NEVER JUST\" iced-out pendant, \"NBA JOSH\" tattoo on right shoulder, full forearm tattoos on both arms. Wearing a dark maroon and black sport jersey. Stands in the bottom right of frame, waist up, facing slightly left toward camera. A vintage silver hanging microphone dangles from above near his face. Dark wet urban street at night. He performs his hook with calm fearless energy, subtle hand gestures, completely unbothered. Static locked-off camera. No camera movement. Dramatic overhead streetlight, high contrast, deep shadows, moody atmosphere. Near the end he slowly glances over his left shoulder with a calm smirk, then turns and walks out of frame. Realistic, cinematic, music video aesthetic, shallow depth of field." },
+          {
+            label: "Outfit B — White Mushroom Tee (golden hour, base)",
+            prompt: "Cinematic music video. Tall lean Black male rapper, 6'3\" slender long-limbed build, long fully red dreadlocks past shoulders, red snake-frame sculptural sunglasses, large diamond Cuban link chain with 'NBA JOSH 444' diamond pendant, iced-out AP diamond watch. Tattoo right shoulder: NBA stars JOSH gothic. Tattoo left shoulder: portrait of young Black male face. Full forearm sleeves both arms. NO tattoos face neck chest. Wearing white graphic tee with colourful psychedelic mushroom-eye print, black leather pants, red Jordan 4s, red crystal-studded belt. Stands full-body on wet golden-hour suburban street, palm trees, police cruisers with flashing blue/red lights behind. 4 officers in full uniform charging maximum aggression but frozen in place — running hard, going nowhere. Vintage silver hanging microphone from above. Completely unbothered calm energy. Static locked-off camera. Near end he slowly turns, calm smirk, walks away. Officers collapse. Cinematic music video. 16:9. Warm golden sunset light, dramatic shadows.",
+          },
+          {
+            label: "Outfit C — NEVER JXST Racing Jersey (dark night)",
+            prompt: "Cinematic music video. Tall lean Black male rapper, 6'3\" slender long-limbed build, long fully red dreadlocks past shoulders, red snake-frame sculptural sunglasses, large diamond Cuban link chain with 'NBA JOSH 444' diamond pendant, iced-out AP diamond watch. Tattoo right shoulder: NBA stars JOSH gothic. Full forearm sleeves. NO tattoos face neck. Wearing NEVER JXST long-sleeve racing jersey — red and black with white side panels — black distressed jeans, purple crystal-studded belt, white Nike Shox sneakers. Stands full-body on dark wet urban street night, police cruisers with flashing lights behind. 4 officers charging maximum aggression but frozen on invisible treadmill. Vintage silver hanging microphone from above. Completely unbothered. Static locked-off camera. Near end slow turn, calm smirk, walks away. Officers exhausted. Cinematic. 16:9. Dark moody overhead streetlight, deep shadows.",
+          },
+          {
+            label: "Outfit G — Shearling + Racing (dusk)",
+            prompt: "Cinematic music video. Tall lean Black male rapper, 6'3\" slender long-limbed build, long fully red dreadlocks past shoulders, sculptural red iridescent sunglasses, large diamond Cuban link chain with 'NBA JOSH 444' diamond pendant, iced-out AP diamond watch. Tattoo right shoulder: NBA stars JOSH gothic. Full forearm sleeves. NO tattoos face neck. Wearing distressed brown shearling fur bomber jacket over NEVER JXST red/black racing jersey, red leather pants, white custom painted Nike AF1 mid. Stands full-body on wet urban street at dusk, officers charging hard but frozen in place. Vintage silver hanging microphone from above. Unbothered calm. Static camera. Near end turns, smirks, walks away. Cinematic dusk warm + cool tones. 16:9.",
+          },
+          {
+            label: "Red Benz Scene — Borrow car + outfit",
+            prompt: "Cinematic music video still. Tall lean Black male rapper, 6'3\" slender long-limbed build, long fully red dreadlocks past shoulders, wavy sculptural sunglasses colourful lenses, large diamond Cuban link chain with 'NBA JOSH 444' diamond pendant, iced-out AP diamond watch. Tattoo right shoulder: NBA stars JOSH gothic. Full forearm sleeves. NO tattoos face neck. Wearing white streetwear jacket over graphic tee, embroidered white cargo shorts, purple Nike VaporMax. Leans against a deep metallic red AMG Mercedes-Benz GT 4-door, door open, interior purple/pink ambient light, AMG grille. Officers in uniform charging in the background, frozen in place. Dusk urban setting. Cinematic. 16:9.",
+          },
+          {
+            label: "Outfit E — Red Puffer + Camo (urban)",
+            prompt: "Cinematic music video. Tall lean Black male rapper, 6'3\" slender long-limbed build, long fully red dreadlocks past shoulders, sculptural wavy sunglasses textured white frames with colourful lenses, large diamond Cuban link chain with 'NBA JOSH 444' diamond pendant, iced-out AP diamond watch. Tattoo right shoulder: NBA stars JOSH gothic. Full forearm sleeves. NO tattoos face neck. Wearing glossy red puffer jacket, wide-leg camo cargo pants, blue paisley basketball sneakers. Stands on wet urban street, officers frozen in charging position behind. Vintage silver hanging microphone from above. Calm unbothered. Static camera. Cinematic. 16:9.",
+          },
         ],
         toolLink: { label: "Open Scene Builder", to: "/orchestrate" },
       },
       {
-        id: "capcut-composite",
-        title: "Composite Layers A + B in CapCut",
+        id: "post-processing",
+        title: "Post-Processing Each Clip",
         kind: "instruction",
         description:
-          "Once Layer A (Josh) is generated, composite with Layer B (officers) in CapCut:\n\n1. **Import officers clip** as base track (Layer B — already done)\n2. **Loop officers to 15 seconds** — tap clip → Copy → paste until 15s total\n3. **Add Josh clip as overlay** — tap + → Overlay → import Layer A. Position bottom-right of frame\n4. **Blur the officers layer** — soft gaussian blur to push them into background\n5. **Add motion blur to officers** — Video Effects → Motion Blur (medium intensity)\n6. **Colour grade** — Brightness -10, Contrast +20, Saturation -15 + cinematic teal/orange LUT\n7. **Add vignette** — Effects → Vignette at 30–40%\n8. **Export** — 1080p at 60fps",
+          "After generating each clip, apply these fixes in CapCut before posting:\n\n**Per-clip edits (each standalone post):**\n1. **Sync audio** — lay the 24-second hook underneath, align so Josh's movement hits the beat drop\n2. **Colour grade** — golden-hour clips: warm orange lift, teal shadows. Night clips: deep blue/teal grade, crushed blacks\n3. **Motion blur on officers** — Video Effects → Motion Blur (medium) to sell the treadmill illusion\n4. **Vignette** — 25–35%, darkens edges, pulls eye to Josh\n5. **Subtitle overlay** (optional) — song title + @NBAJosh handle bottom-left\n6. **Export** — 1080×1920 (vertical for TikTok/Reels) or 1920×1080 (horizontal for YouTube)\n\n**Caption formula (per post):**\n\"[Outfit vibe] 🔥 They were running full speed. Didn't move an inch. #NBaJosh #LoopingOfficers #OutTheMud\"",
         promptTemplate: "",
         placeholders: [],
         referenceSlots: [],
         usesPreviousResult: true,
         tips: [
-          "Officers go top-left, Josh bottom-right — diagonal tension pulls the eye across the whole frame.",
-          "The vintage mic in the centre-top ties the street scene to the studio world.",
-          "The loop effect is the magic: 2–3 seconds of officers repeated × 5 = 15 seconds. Simple, surreal.",
-          "Officers are blurred + motion-blurred → they feel like they're running hard, going nowhere.",
+          "Each clip is its own post — different outfit = different day's content. Don't merge them.",
+          "The 24-second hook is the same audio under every clip — the outfit change is what keeps it fresh.",
+          "Officers' frozen running is the comedy/tension — the motion blur sells it as real effort going nowhere.",
+          "The calm smirk + walk-away at the end is the money shot. Make sure it's in every clip.",
         ],
         variants: [],
       },
