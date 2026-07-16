@@ -263,7 +263,7 @@ describe("orchestrate fallback", () => {
 
   it("falls across FALLBACK_MODELS to the first available provider and respects FALLBACK_CAP", async () => {
     // After removing unregistered openai/sora-2, video FALLBACK_MODELS start:
-    //   ["xai/grok-imagine-video-1.5", "ltx/ltx-video", "veo-2", ...]
+    //   ["xai/grok-imagine-video-1.5", "fal/ovi", "ltx/ltx-video", "veo-2", ...]
     // FALLBACK_CAP.video = 3 → candidates (no explicit model) = [xai, ltx, veo-2].
     // ltx and veo-2 have no keys in this test → adapters filtered out.
     // xAI has a key and fetch is mocked → succeeds as the first working candidate.
