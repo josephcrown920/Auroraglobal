@@ -1,10 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-/**
- * Lovable Emails integration — transactional email service.
- * Helpers are plain async functions (not server fns) so they can be called
- * from any server-only module without RPC overhead.
- */
+const SITE = "https://auroraperformancestudio.com";
+const STUDIO_URL = `${SITE}/studio`;
 
 export type EmailTemplate =
   | "welcome-5-credits"
@@ -12,7 +9,9 @@ export type EmailTemplate =
   | "low-credit-nudge"
   | "weekly-digest"
   | "payment-receipt"
-  | "gift-redeemed";
+  | "gift-redeemed"
+  | "first_generation_complete"
+  | "daily_tip";
 
 export type LifecycleTemplate =
   | "signup_welcome"
@@ -29,9 +28,6 @@ type EmailPayload = {
   userId?: string;
 };
 
-/**
- * Send a transactional email. Logs to email_log table.
- */
 export async function sendEmail(payload: EmailPayload) {
   const { to, template, userId } = payload;
 
@@ -48,15 +44,16 @@ export async function sendEmail(payload: EmailPayload) {
 
   if (insertErr) throw new Error(`Failed to log email: ${insertErr.message}`);
 
-  // Send via Resend.
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.AURORA_FROM_EMAIL || "Aurora Studio <onboarding@resend.dev>";
+  const from = process.env.AURORA_FROM_EMAIL || "Aurora Studio <noreply@auroraperformancestudio.com>";
   if (!apiKey) {
     await supabaseAdmin.from("email_log").update({ status: "skipped" }).eq("id", record.id);
     return { success: true as const, emailId: record.id, skipped: true };
   }
+
   const subject = subjectFor(template, payload.data);
   const html = renderTemplate(template, payload.data);
+
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -78,118 +75,324 @@ export async function sendEmail(payload: EmailPayload) {
   return { success: true as const, emailId: record.id };
 }
 
+// ─── Subject lines ─────────────────────────────────────────────────────────────
+
 function subjectFor(template: string, data: Record<string, unknown>): string {
+  const day = new Date().getDay();
+  const dailySubjects = [
+    "Your Aurora creative drop this week",
+    "Monday: 3 things to create on Aurora today",
+    "New Aurora content ideas — try one now",
+    "Mid-week: keep your content stack moving",
+    "Thursday creator mode — prompts inside",
+    "Friday drop: release something today",
+    "Weekend creator fuel from Aurora",
+  ];
   switch (template) {
     case "welcome-5-credits":
     case "signup_welcome":
-      return "Welcome to Aurora — 5 free Aura inside";
+      return "Welcome to Aurora — 5 free Aura are waiting for you";
+    case "first_generation_complete":
+      return "Your first Aurora creation is ready";
+    case "daily_tip":
+      return dailySubjects[day] ?? "Today's Aurora creative prompt";
     case "onboarding_done":
-      return "You're all set on Aurora";
+      return "You're set up on Aurora — start creating";
     case "render-complete":
-      return `Your ${(data.kind as string) || "render"} is ready`;
+      return `Your ${(data.kind as string) || "render"} just finished`;
     case "low-credit-nudge":
-      return "Your Aura is running low";
+      return "Your Aura is running low — top up to keep going";
     case "weekly-digest":
       return "Your week on Aurora";
     case "payment-receipt":
-      return `Receipt — ${data.creditsGranted ?? ""} Aura`;
+      return `Receipt — ${data.creditsGranted ?? ""} Aura added`;
     case "gift-redeemed":
       return "You received Aura";
     case "password_reset_acknowledged":
       return "Your Aurora password was reset";
     case "re_engagement":
-      return "We miss you at Aurora — your Aura is waiting";
+      return "Come back — your Aura is still here";
     case "first_purchase_nudge":
-      return "A little something to try Aura for the first time";
+      return "Your free Aura is almost gone — keep creating";
     case "onboarding_resume":
-      return "You left before your first render — bonus Aura inside";
+      return "Finish your first creation — bonus Aura inside";
     default:
       return "Aurora Studio";
   }
 }
 
+// ─── HTML shell ────────────────────────────────────────────────────────────────
+
+function shell(name: string, body: string, ctaLabel: string, ctaUrl: string): string {
+  const safeName = escapeHtml(name);
+  return `<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Aurora Studio</title></head>
+<body style="margin:0;padding:0;background:#080a12;font-family:system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#080a12">
+<tr><td align="center" style="padding:48px 16px">
+<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width:520px;width:100%">
+
+  <tr><td style="padding-bottom:28px;text-align:center">
+    <a href="${SITE}" style="text-decoration:none">
+      <span style="font-size:24px;font-weight:800;letter-spacing:-0.5px;color:#a78bfa">Aurora</span><span style="font-size:24px;font-weight:300;color:#6b7280"> Studio</span>
+    </a>
+  </td></tr>
+
+  <tr><td style="background:#0f1123;border:1px solid rgba(167,139,250,0.18);border-radius:16px;padding:40px 36px">
+    <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#d1d5db">Hi ${safeName},</p>
+    ${body}
+    <div style="text-align:center;margin-top:36px">
+      <a href="${ctaUrl}" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#7c3aed 0%,#a855f7 100%);color:#ffffff;border-radius:10px;text-decoration:none;font-size:15px;font-weight:600;letter-spacing:0.2px">${ctaLabel}</a>
+    </div>
+  </td></tr>
+
+  <tr><td style="padding-top:20px;text-align:center">
+    <p style="margin:0;font-size:12px;color:#374151">
+      Aurora Performance Studio &nbsp;&middot;&nbsp;
+      <a href="${SITE}" style="color:#4b5563;text-decoration:none">auroraperformancestudio.com</a>
+    </p>
+    <p style="margin:6px 0 0;font-size:11px;color:#1f2937">You're receiving this as a registered Aurora creator.</p>
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+
+function hl(text: string): string {
+  return `<strong style="color:#a78bfa">${escapeHtml(text)}</strong>`;
+}
+
+function p(text: string): string {
+  return `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#d1d5db">${text}</p>`;
+}
+
+// ─── Templates ────────────────────────────────────────────────────────────────
+
+const DAILY_TIPS = [
+  {
+    headline: "Performance shot, clean and cinematic",
+    prompt: "Prompt: <em style=\"color:#c4b5fd\">\"Full-body performance shot, [your look], [location], golden hour, ARRI ALEXA, 85mm, shallow depth of field, film grain, editorial\"</em>",
+    tip: "Pair with Motion Control to bring it to life.",
+  },
+  {
+    headline: "The album cover you deserve",
+    prompt: "Prompt: <em style=\"color:#c4b5fd\">\"Artist album cover, dramatic studio lighting, [your vibe], vinyl record era grain, bold typography space at top, dark moody palette\"</em>",
+    tip: "Go to Studio → Image and paste the prompt directly.",
+  },
+  {
+    headline: "UGC ad in 60 seconds",
+    prompt: "Try the UGC Ads flow: pick your avatar, describe the scene, generate the still, then animate with Seedance.",
+    tip: "Works without a camera. Results that look shot on set.",
+  },
+  {
+    headline: "Lock your identity across every post",
+    prompt: "Upload your real selfie in the Studio and use it as the identity reference for every generation — your face stays consistent across the whole catalog.",
+    tip: "Save your face as an avatar to reuse it instantly.",
+  },
+  {
+    headline: "Turn one clip into a week of content",
+    prompt: "Use the Canvas to chain: Image node → Video node → Lipsync node. One run, three pieces of content from a single prompt.",
+    tip: "Canvas is at /canvas — try the pipeline today.",
+  },
+  {
+    headline: "The Colors Studio look",
+    prompt: "Go to Colors Studio, pick a brand color palette, and generate a portrait. The backdrop becomes part of your visual identity.",
+    tip: "Perfect for consistent branding across your socials.",
+  },
+  {
+    headline: "Animate something you already made",
+    prompt: "Go to your Gallery, pick any portrait still, and hit Animate. Seedance converts it to a 5-second moving clip ready for TikTok.",
+    tip: "No extra prompting needed — just one click.",
+  },
+];
+
 function renderTemplate(template: string, data: Record<string, unknown>): string {
   const name = (data.displayName as string) || (data.name as string) || "there";
-  const intro = `<p>Hi ${escapeHtml(name)},</p>`;
-  const cta = `<p><a href="https://aurorastudiostar.lovable.app/studio" style="display:inline-block;padding:12px 18px;background:#5b6cff;color:#fff;border-radius:8px;text-decoration:none">Open Studio</a></p>`;
-  let body = "";
+  const day = new Date().getDay();
+
   switch (template) {
     case "welcome-5-credits":
     case "signup_welcome":
-      body = `<p>Welcome to Aurora Studio. You've got <strong>5 free Aura</strong> to play with — enough to render your first performance shot.</p>`;
-      break;
+      return shell(
+        name,
+        p(`You're in. ${hl("5 free Aura credits")} just landed in your balance — enough for 2 portrait shots, 1 lip-sync video, or a full UGC ad.`) +
+        p(`Head to your Studio and make your first creation. The first one always hits different.`),
+        "Open My Studio",
+        STUDIO_URL,
+      );
+
+    case "first_generation_complete":
+      return shell(
+        name,
+        p(`Your first Aurora creation just finished. That one matters — it's the beginning of your whole catalog.`) +
+        p(`Every artist who blows up started with a first piece. Keep creating and build your library.`) +
+        ((data.resultUrl as string)
+          ? `<div style="text-align:center;margin:24px 0"><img src="${escapeHtml(data.resultUrl as string)}" alt="Your creation" style="max-width:100%;border-radius:10px;border:1px solid rgba(167,139,250,0.2)"></div>`
+          : ""),
+        "Make Another",
+        STUDIO_URL,
+      );
+
+    case "daily_tip": {
+      const tip = DAILY_TIPS[day % DAILY_TIPS.length]!;
+      return shell(
+        name,
+        `<p style="margin:0 0 8px;font-size:18px;font-weight:700;color:#e9d5ff">${escapeHtml(tip.headline)}</p>` +
+        p(tip.prompt) +
+        `<div style="background:rgba(167,139,250,0.08);border-left:3px solid #7c3aed;border-radius:0 8px 8px 0;padding:14px 16px;margin:0 0 16px">` +
+        `<p style="margin:0;font-size:13px;color:#a78bfa">${escapeHtml(tip.tip)}</p></div>`,
+        "Create on Aurora",
+        STUDIO_URL,
+      );
+    }
+
     case "render-complete":
-      body = `<p>Your <strong>${escapeHtml(String(data.kind ?? "render"))}</strong> just finished cooking. Hop back in to grab it.</p>`;
-      break;
+      return shell(
+        name,
+        p(`Your ${hl(String(data.kind ?? "render"))} just finished. Head back to grab it, share it, or use it as the base for the next one.`),
+        "View My Result",
+        `${SITE}/gallery`,
+      );
+
     case "low-credit-nudge":
-      body = `<p>You've only got <strong>${Number(data.creditsRemaining ?? 0)}</strong> Aura left. Top up to keep the streak going.</p>`;
-      break;
-    case "weekly-digest":
-      body = `<p>This week: <strong>${Number(data.images ?? 0)}</strong> images, <strong>${Number(data.videos ?? 0)}</strong> videos, <strong>${Number(data.lipsyncs ?? 0)}</strong> lip-syncs. Keep going.</p>`;
-      break;
+      return shell(
+        name,
+        p(`You've got ${hl(String(Number(data.creditsRemaining ?? 0)))} Aura left. That's enough for another generation or two — but top up now to keep your streak going.`) +
+        p(`The cheapest pack is 50 Aura for a few dollars. Don't let a low balance break your momentum.`),
+        "Top Up Aura",
+        `${SITE}/billing`,
+      );
+
+    case "weekly-digest": {
+      const imgs = Number(data.images ?? 0);
+      const vids = Number(data.videos ?? 0);
+      const lips = Number(data.lipsyncs ?? 0);
+      const total = imgs + vids + lips;
+      return shell(
+        name,
+        p(`This week you created ${hl(String(total))} ${total === 1 ? "piece" : "pieces"} of content on Aurora.`) +
+        `<table cellpadding="0" cellspacing="0" role="presentation" style="width:100%;margin:16px 0 24px">` +
+        `<tr>` +
+        `<td style="text-align:center;padding:16px;background:rgba(167,139,250,0.08);border-radius:10px;border:1px solid rgba(167,139,250,0.12)"><div style="font-size:28px;font-weight:800;color:#a78bfa">${imgs}</div><div style="font-size:12px;color:#6b7280;margin-top:4px">Images</div></td>` +
+        `<td style="width:12px"></td>` +
+        `<td style="text-align:center;padding:16px;background:rgba(167,139,250,0.08);border-radius:10px;border:1px solid rgba(167,139,250,0.12)"><div style="font-size:28px;font-weight:800;color:#a78bfa">${vids}</div><div style="font-size:12px;color:#6b7280;margin-top:4px">Videos</div></td>` +
+        `<td style="width:12px"></td>` +
+        `<td style="text-align:center;padding:16px;background:rgba(167,139,250,0.08);border-radius:10px;border:1px solid rgba(167,139,250,0.12)"><div style="font-size:28px;font-weight:800;color:#a78bfa">${lips}</div><div style="font-size:12px;color:#6b7280;margin-top:4px">Lip-syncs</div></td>` +
+        `</tr></table>` +
+        p(total > 0 ? "Keep the momentum going — every piece you make builds the catalog." : "You didn't create anything this week — open Aurora and change that."),
+        total > 0 ? "Keep Creating" : "Start This Week",
+        STUDIO_URL,
+      );
+    }
+
     case "payment-receipt":
-      body = `<p>Thanks for the top-up. <strong>${Number(data.creditsGranted ?? 0)}</strong> Aura added (${escapeHtml(String(data.currency ?? ""))} ${escapeHtml(String(data.amount ?? ""))}). Ref: ${escapeHtml(String(data.reference ?? ""))}.</p>`;
-      break;
+      return shell(
+        name,
+        p(`${hl(String(Number(data.creditsGranted ?? 0)))} Aura have been added to your balance.`) +
+        `<div style="background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.15);border-radius:10px;padding:16px;margin:0 0 16px;font-size:13px;color:#9ca3af">` +
+        `<div>Amount: ${escapeHtml(String(data.currency ?? ""))} ${escapeHtml(String(data.amount ?? ""))}</div>` +
+        `<div style="margin-top:6px">Ref: ${escapeHtml(String(data.reference ?? ""))}</div>` +
+        `</div>`,
+        "Start Creating",
+        STUDIO_URL,
+      );
+
     case "gift-redeemed":
-      body = `<p>${escapeHtml(String(data.fromUser ?? "A friend"))} just sent you <strong>${Number(data.creditsRedeemed ?? 0)}</strong> Aura. Enjoy.</p>`;
-      break;
+      return shell(
+        name,
+        p(`${hl(escapeHtml(String(data.fromUser ?? "A creator")))} just sent you ${hl(String(Number(data.creditsRedeemed ?? 0)))} Aura. They're already in your balance.`),
+        "Use My Aura",
+        STUDIO_URL,
+      );
+
     case "password_reset_acknowledged":
-      body = `<p>Your password was reset. If this wasn't you, contact support immediately.</p>`;
-      break;
+      return shell(
+        name,
+        p(`Your password was successfully reset. If this wasn't you, contact support immediately at ${SITE}.`),
+        "Go to Aurora",
+        SITE,
+      );
+
     case "onboarding_done":
-      body = `<p>Nice — your studio is set up. Start with a performance shot or a UGC ad.</p>`;
-      break;
+      return shell(
+        name,
+        p(`Your studio is set up and ready. Start with a performance shot, a UGC ad, or drop into the Canvas to build something from scratch.`),
+        "Open Studio",
+        STUDIO_URL,
+      );
+
     case "re_engagement":
-      body = `<p>It's been a while — your Aura balance is still here, and so is your last project. Come back and pick up where you left off.</p>`;
-      break;
+      return shell(
+        name,
+        p(`It's been a while. Your Aura balance is still sitting here and so is everything you started.`) +
+        p(`Come back and pick up where you left off. The studio is exactly as you left it.`),
+        "Come Back",
+        STUDIO_URL,
+      );
+
     case "first_purchase_nudge":
-      body = `<p>Still deciding? Your free Aura goes fast once you get going — grab a top-up pack and keep creating without waiting for the monthly refresh.</p>`;
-      break;
+      return shell(
+        name,
+        p(`You've been creating on Aurora with your free Aura — now you're close to the limit.`) +
+        p(`Grab a top-up pack to keep going without waiting for the monthly refresh. The cheapest pack covers 10+ more generations.`),
+        "Top Up Now",
+        `${SITE}/billing`,
+      );
+
     case "onboarding_resume":
-      body = `<p>You started setting up your studio but didn't finish your first render. Come back and finish — we'll add <strong>bonus Aura</strong> to your balance the moment you do.</p>`;
-      break;
+      return shell(
+        name,
+        p(`You set up your account but didn't finish your first creation.`) +
+        p(`Come back and finish it — ${hl("we'll add bonus Aura")} to your balance the moment your first render completes.`),
+        "Finish My First Creation",
+        STUDIO_URL,
+      );
+
     default:
-      body = `<p>Update from Aurora Studio.</p>`;
+      return shell(name, p("Update from Aurora Studio."), "Open Aurora", SITE);
   }
-  return `<!doctype html><html><body style="font-family:system-ui,-apple-system,sans-serif;color:#0b0b14;background:#f6f6fb;padding:24px"><div style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;border:1px solid #ececf5">${intro}${body}${cta}<p style="color:#7a7a8c;font-size:12px;margin-top:24px">— Aurora Studio · <a href="https://aurorastudiostar.lovable.app" style="color:#7a7a8c">aurorastudiostar.lovable.app</a></p></div></body></html>`;
 }
 
-function escapeHtml(s: string) {
-  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
-}
+// ─── Public helpers ────────────────────────────────────────────────────────────
 
-/**
- * Lifecycle email entrypoint used by emails.functions.ts.
- */
 export async function sendLifecycleEmail(args: {
   userId: string;
   to: string;
   template: LifecycleTemplate;
   vars?: Record<string, unknown>;
 }) {
-  return sendEmail({
-    to: args.to,
-    template: args.template,
-    data: args.vars ?? {},
-    userId: args.userId,
-  });
+  return sendEmail({ to: args.to, template: args.template, data: args.vars ?? {}, userId: args.userId });
 }
 
 export async function sendWelcomeEmail(userId: string, _displayName: string, email: string) {
-  return sendEmail({
-    to: email,
-    template: "welcome-5-credits",
-    data: { displayName: _displayName },
-    userId,
-  });
+  return sendEmail({ to: email, template: "welcome-5-credits", data: { displayName: _displayName }, userId });
 }
 
-export async function sendRenderCompleteEmail(
-  userId: string,
-  generationId: string,
-  kind: string,
-  duration?: number,
-) {
+export async function sendFirstGenerationEmail(userId: string) {
+  const { data: user } = await supabaseAdmin
+    .from("profiles")
+    .select("email, display_name")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!user?.email) return;
+  return sendEmail({ to: user.email, template: "first_generation_complete", data: { displayName: user.display_name || "Creator" }, userId });
+}
+
+export async function sendDailyTipEmail(userId: string) {
+  const { data: user } = await supabaseAdmin
+    .from("profiles")
+    .select("email, display_name")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!user?.email) return;
+  return sendEmail({ to: user.email, template: "daily_tip", data: { displayName: user.display_name || "Creator" }, userId });
+}
+
+export async function sendRenderCompleteEmail(userId: string, _generationId: string, kind: string) {
   const { data: user } = await supabaseAdmin
     .from("profiles")
     .select("email, display_name")
@@ -199,12 +402,7 @@ export async function sendRenderCompleteEmail(
   return sendEmail({
     to: user.email,
     template: "render-complete",
-    data: {
-      displayName: user.display_name || "Creator",
-      kind: kind === "video" ? "Video" : "Image",
-      duration,
-      generationId,
-    },
+    data: { displayName: user.display_name || "Creator", kind: kind === "video" ? "Video" : "Image" },
     userId,
   });
 }
@@ -219,10 +417,7 @@ export async function sendLowCreditNudge(userId: string) {
   return sendEmail({
     to: user.email,
     template: "low-credit-nudge",
-    data: {
-      displayName: user.display_name || "Creator",
-      creditsRemaining: user.credits,
-    },
+    data: { displayName: user.display_name || "Creator", creditsRemaining: user.credits },
     userId,
   });
 }
@@ -280,11 +475,6 @@ export async function sendPaymentReceipt(
   });
 }
 
-/**
- * Win-back email for signed-up users who have gone quiet. Called from the
- * lifecycle-emails cron (api/public/lifecycle-emails.ts) which does the
- * inactivity + dedupe query; this helper just sends + logs.
- */
 export async function sendReEngagementEmail(userId: string) {
   const { data: user } = await supabaseAdmin
     .from("profiles")
@@ -292,20 +482,9 @@ export async function sendReEngagementEmail(userId: string) {
     .eq("user_id", userId)
     .maybeSingle();
   if (!user?.email) return;
-  return sendEmail({
-    to: user.email,
-    template: "re_engagement",
-    data: { displayName: user.display_name || "Creator" },
-    userId,
-  });
+  return sendEmail({ to: user.email, template: "re_engagement", data: { displayName: user.display_name || "Creator" }, userId });
 }
 
-/**
- * Nudge for Free-tier users who signed up but never made their first
- * purchase. Called from the lifecycle-emails cron; the cron builds the
- * candidate list (lifetime_credits_purchased = 0, account old enough,
- * not emailed already) and this helper sends + logs the send.
- */
 export async function sendFirstPurchaseNudgeEmail(userId: string) {
   const { data: user } = await supabaseAdmin
     .from("profiles")
@@ -313,20 +492,9 @@ export async function sendFirstPurchaseNudgeEmail(userId: string) {
     .eq("user_id", userId)
     .maybeSingle();
   if (!user?.email) return;
-  return sendEmail({
-    to: user.email,
-    template: "first_purchase_nudge",
-    data: { displayName: user.display_name || "Creator" },
-    userId,
-  });
+  return sendEmail({ to: user.email, template: "first_purchase_nudge", data: { displayName: user.display_name || "Creator" }, userId });
 }
 
-/**
- * Recovery email for users who opened the onboarding modal (or explicitly
- * skipped it) but never finished it — i.e. never claimed the onboarding
- * bonus. Called from the lifecycle-emails cron; the cron builds the
- * candidate list from the `events` table + dedupes via email_log.
- */
 export async function sendOnboardingResumeEmail(userId: string) {
   const { data: user } = await supabaseAdmin
     .from("profiles")
@@ -334,19 +502,10 @@ export async function sendOnboardingResumeEmail(userId: string) {
     .eq("user_id", userId)
     .maybeSingle();
   if (!user?.email) return;
-  return sendEmail({
-    to: user.email,
-    template: "onboarding_resume",
-    data: { displayName: user.display_name || "Creator" },
-    userId,
-  });
+  return sendEmail({ to: user.email, template: "onboarding_resume", data: { displayName: user.display_name || "Creator" }, userId });
 }
 
-export async function sendGiftRedeemedEmail(
-  userId: string,
-  fromUser: string,
-  creditsRedeemed: number,
-) {
+export async function sendGiftRedeemedEmail(userId: string, fromUser: string, creditsRedeemed: number) {
   const { data: user } = await supabaseAdmin
     .from("profiles")
     .select("email, display_name")
@@ -356,11 +515,11 @@ export async function sendGiftRedeemedEmail(
   return sendEmail({
     to: user.email,
     template: "gift-redeemed",
-    data: {
-      displayName: user.display_name || "Creator",
-      fromUser,
-      creditsRedeemed,
-    },
+    data: { displayName: user.display_name || "Creator", fromUser, creditsRedeemed },
     userId,
   });
+}
+
+function escapeHtml(s: string) {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
 }

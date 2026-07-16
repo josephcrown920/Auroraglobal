@@ -46,6 +46,7 @@ import {
   type ProductDemoDurationId,
 } from "./heygen.server";
 import { classifyComfyOutput } from "./comfy-core";
+import { sendFirstGenerationEmail } from "./emails.server";
 
 // ─── comfy_runs mirror ──────────────────────────────────────────────────────
 // Canvas/Comfy runs enqueue through the shared jobs queue but the /comfy and
@@ -1326,6 +1327,23 @@ export async function processOneJob(
         output_url: mirrorUrl,
         output_kind: classifyComfyOutput(mirrorUrl),
       });
+      // Best-effort: fire first-generation-complete email if this is the
+      // user's first ever succeeded generation. We check AFTER finalize_job
+      // committed, so count=1 means this was the first.
+      void (async () => {
+        try {
+          const { count } = await supabaseAdmin
+            .from("generations")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", job.user_id)
+            .eq("status", "succeeded");
+          if (count === 1) {
+            await sendFirstGenerationEmail(job.user_id);
+          }
+        } catch (e) {
+          console.error("[jobs] first-gen email best-effort failed", e);
+        }
+      })();
     }
     return {
       processed: true,
