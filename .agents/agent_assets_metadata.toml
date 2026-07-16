@@ -365,3 +365,9 @@ id = "EVxCCTXoFhKCA6MbqpJLI"
 uri = "file://attached_assets/Therealwavman-viral-collage-video-guide_1784194992190.pdf"
 type = "pdf"
 title = "Viral Collage Video Guide"
+
+[[outputs]]
+id = "zS7CZcfPJcR0GWAOz9TZW"
+uri = "file://attached_assets/aurora-guides.zip"
+type = "unspecified"
+title = "All 7 Guides (PDFs)"
