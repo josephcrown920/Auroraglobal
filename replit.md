@@ -47,3 +47,33 @@ Must be provided by the user:
 - User is non-technical. Explain in plain language; avoid jargon.
 - Goal was: pick the best of 3 repos, merge missing features, and run it fully in Replit.
 - Always give selectable options (choice/boolean queries) when asking questions — never a blank text box.
+
+## Development principles (Karpathy Guidelines)
+
+Apply these four principles on every code task:
+
+### 1. Think Before Coding
+- State assumptions explicitly before writing a line. If uncertain, ask.
+- Present multiple interpretations when ambiguity exists — never pick silently.
+- Push back when a simpler approach exists.
+- Stop and name what is confusing rather than guessing forward.
+
+### 2. Simplicity First
+- Write the minimum code that solves the problem. Nothing speculative.
+- No features beyond what was asked. No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- If 200 lines could be 50, rewrite it.
+- Ask: "Would a senior engineer call this overcomplicated?" If yes, simplify.
+
+### 3. Surgical Changes
+- Touch only what the task requires. Don't "improve" adjacent code.
+- Don't refactor things that aren't broken. Match existing style.
+- If unrelated dead code is noticed, mention it — don't delete it.
+- Remove imports/variables/functions that YOUR changes made unused.
+- Every changed line must trace directly to the user's request.
+
+### 4. Goal-Driven Execution
+- Transform tasks into verifiable goals before starting.
+- For multi-step tasks, state a brief plan with explicit verify steps.
+- Loop until the stated success criteria are met — don't stop at "looks right".
+- Prefer writing a test that reproduces a bug before fixing it.
