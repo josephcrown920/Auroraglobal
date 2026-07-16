@@ -323,3 +323,45 @@ id = "kho8e8cIQQRE04yoMblDK"
 uri = "file://public/nba-josh-all-docs.zip"
 type = "unspecified"
 title = "NBA Josh — All Docs (Character Sheet + Production Plan)"
+
+[[outputs]]
+id = "Z9fRraSb_7M7cd7byu7_Q"
+uri = "file://attached_assets/Therealwavman-sniply-prompt-guide_1784194992190.pdf"
+type = "pdf"
+title = "Sniply Prompt Guide v1"
+
+[[outputs]]
+id = "J4xmic-j5c86jIhQugp3o"
+uri = "file://attached_assets/Therealwavman-sniply-prompt-guide_2_1784194992190.pdf"
+type = "pdf"
+title = "Sniply Prompt Guide v2"
+
+[[outputs]]
+id = "JmCvVl5TnMbY6-ipUux1U"
+uri = "file://attached_assets/Therealwavman-Colors-Prompt-Guide_1784107335939.pdf"
+type = "pdf"
+title = "Colors Prompt Guide v1"
+
+[[outputs]]
+id = "8eWfmbz7HU_Qss9vU69cT"
+uri = "file://attached_assets/Therealwavman-Colors-Prompt-Guide_2_1784194992190.pdf"
+type = "pdf"
+title = "Colors Prompt Guide v2"
+
+[[outputs]]
+id = "BVsdzxm5XV9dzpT7hYVnQ"
+uri = "file://attached_assets/Therealwavman-Colors-Prompt-Guide_3_1784194992190.pdf"
+type = "pdf"
+title = "Colors Prompt Guide v3"
+
+[[outputs]]
+id = "JY2ESn4qBwzMtoxZpVmUT"
+uri = "file://attached_assets/Therealwavman-luxury-car-guide__1784194992190.pdf"
+type = "pdf"
+title = "Luxury Car Guide"
+
+[[outputs]]
+id = "EVxCCTXoFhKCA6MbqpJLI"
+uri = "file://attached_assets/Therealwavman-viral-collage-video-guide_1784194992190.pdf"
+type = "pdf"
+title = "Viral Collage Video Guide"
