@@ -2,7 +2,7 @@ import type { GuidedWorkflowContent } from "./guided-workflows.schema";
 
 /**
  * Default Guided Workflow content — distilled from the creator prompt guides
- * the owner supplied (Sniply Studio / @therealwavman prompt packs, InVideo
+ * the owner supplied (@therealwavman / Aurora Studio prompt packs, InVideo
  * Agent One tutorials, Freepik guides, Realism Formula, Character Sheet
  * prompt shares). Prompt language is kept faithful to the source guides —
  * the technical photography phrasing (ARRI, bokeh, film grain…) is what makes
@@ -118,7 +118,7 @@ export const DEFAULT_GUIDED_WORKFLOWS: GuidedWorkflowContent[] = [
       "Create a professional Colors-inspired performance video with just your phone: generate a wide and a close-up angle of yourself on a seamless single-color cyclorama with the iconic hanging mic, record your real performance from the same two angles, then bring the images to life with Motion Control.",
     category: "performance",
     icon: "🎤",
-    sourceCredit: "Sniply Studio",
+    sourceCredit: "Aurora Studio",
     isPublished: true,
     sortOrder: 20,
     steps: [
@@ -433,7 +433,7 @@ export const DEFAULT_GUIDED_WORKFLOWS: GuidedWorkflowContent[] = [
       "Generate a library of consistent AI images from just a headshot and an outfit reference — full body, vehicle scenes, close-ups, multiple angles, even a featured model. Animate a few (lip sync, dolly zoom, dance), then assemble rounded-corner panels in CapCut into a cinematic collage video.",
     category: "music-video",
     icon: "🧩",
-    sourceCredit: "Sniply Studio",
+    sourceCredit: "Aurora Studio",
     isPublished: true,
     sortOrder: 50,
     steps: [
@@ -596,7 +596,7 @@ export const DEFAULT_GUIDED_WORKFLOWS: GuidedWorkflowContent[] = [
       "Build a complete AI artist from scratch in 4 steps: generate the foundational look, remove the 'AI look' with realistic skin texture, build 10-15 concept shots across locations and angles, then animate the best ones. Great for a whole roster of artists across music styles.",
     category: "character",
     icon: "🧑‍🎤",
-    sourceCredit: "Sniply Studio",
+    sourceCredit: "Aurora Studio",
     isPublished: true,
     sortOrder: 60,
     steps: [
@@ -1122,7 +1122,7 @@ export const DEFAULT_GUIDED_WORKFLOWS: GuidedWorkflowContent[] = [
       "Turn any outfit or product into a full e-commerce shoot without a camera: a standing model shot, a runway-turn video, a clean mannequin product shot with a 360° spin, plus two editorial poses. Swap the [OUTFIT] and [MODEL DESCRIPTION] placeholders and rerun the whole set for every drop.",
     category: "realism",
     icon: "🛍️",
-    sourceCredit: "Sniply Studio",
+    sourceCredit: "Aurora Studio",
     isPublished: true,
     sortOrder: 65,
     steps: [

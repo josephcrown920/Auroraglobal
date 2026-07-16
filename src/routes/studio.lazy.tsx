@@ -61,7 +61,7 @@ import { JoshSlideshow } from "@/components/studio/JoshSlideshow";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import { ExampleChips } from "@/components/onboarding/ExampleChips";
 import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
-import { SnipTutorialCards } from "@/components/onboarding/SnipTutorialCards";
+import { TutorialOnboarding as SnipTutorialCards } from "@/components/onboarding/TutorialOnboarding";
 import { STUDIO_EXAMPLE_PRESETS } from "@/lib/example-presets";
 import { hasDismissedTour, markFirstGenComplete, hasCompletedFirstGen, isFirstPageVisit, markPageVisited, markFirstPurchaseComplete } from "@/lib/first-run";
 

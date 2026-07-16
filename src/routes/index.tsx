@@ -26,7 +26,7 @@ import { trackAffiliateClick } from "@/lib/affiliate.functions";
 import { useAuth } from "@/hooks/use-auth";
 import { useSiteImage } from "@/components/landing/SiteImagesProvider";
 import { TutorialModal } from "@/components/TutorialModal";
-import { SnipTutorialCards } from "@/components/onboarding/SnipTutorialCards";
+import { TutorialOnboarding } from "@/components/onboarding/TutorialOnboarding";
 import { PricingSection } from "@/components/landing/PricingSection";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Testimonials } from "@/components/landing/Testimonials";
@@ -67,6 +67,9 @@ const CreatorEconomySection = lazy(() =>
 const GetReadyWithMe = lazy(() =>
   import("@/components/landing/GetReadyWithMe").then((m) => ({ default: m.GetReadyWithMe }))
 );
+const GuidesTeaser = lazy(() =>
+  import("@/components/landing/GuidesTeaser").then((m) => ({ default: m.GuidesTeaser }))
+);
 import { FeatureRequest } from "@/components/landing/FeatureRequest";
 import { track } from "@/lib/tracking";
 import { LandingDemoModal } from "@/components/landing/LandingDemoModal";
@@ -103,9 +106,9 @@ export const Route = createFileRoute("/")({
         content:
           "AI music videos for artists: lip-sync, beat-sync visuals, cover art and lyric hooks. Go viral on TikTok in 30 seconds.",
       },
-      { property: "og:url", content: "https://aurorastudiostar.lovable.app/" },
+      { property: "og:url", content: "https://auroraperformancestudio.com/" },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/" }],
+    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/" }],
     scripts: [
       {
         type: "application/ld+json",
@@ -161,7 +164,7 @@ function Index() {
     <main className="min-h-screen relative overflow-hidden bg-[#070612] text-white pb-28 md:pb-24">
       <TutorialModal trigger={tutorialTick} />
       <LandingDemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
-      <SnipTutorialCards show={!user} />
+      <TutorialOnboarding show={!user} />
       <ScrollProgress />
       <StickyCreditsBar />
 
@@ -460,7 +463,10 @@ function Index() {
       {/* 5. Multi-angle photoshoot */}
       <ServicesGrid />
 
-      {/* 6. Canvas + UGC */}
+      {/* 6. Step-by-step viral guides — the 6 PDF playbooks, Aurora-branded */}
+      <Suspense fallback={null}><GuidesTeaser /></Suspense>
+
+      {/* 7. Canvas + UGC */}
       <Suspense fallback={null}><CanvasWorkflowShowcase /></Suspense>
 
       {/* 7. Adult / creator economy */}
