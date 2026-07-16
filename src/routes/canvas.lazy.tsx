@@ -399,7 +399,7 @@ const KIND_META: Record<NodeKind, { label: string; Icon: typeof ImageIcon; accen
   heygenTemplate: { label: "heygen template", Icon: Sparkles, accent: "from-pink-400 to-rose-500" },
 };
 
-const VARIANT_COUNTS = [1, 2, 3, 4, 5, 6] as const;
+const VARIANT_COUNTS = [1, 2, 3, 5, 10, 15, 20, 25, 30] as const;
 const RESOLUTION_OPTIONS = ["480p", "720p", "1080p", "2160p"] as const;
 const DURATION_OPTIONS = [5, 8, 10, 15] as const;
 
@@ -412,44 +412,50 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
   const Icon = km.Icon;
 
   return (
-    <div className="group relative rounded-2xl w-[300px] overflow-hidden">
-      {/* neon border gradient */}
-      <div
-        className={`absolute -inset-[1px] rounded-2xl bg-gradient-to-br ${km.accent} opacity-60 group-hover:opacity-100 blur-[2px] transition-opacity`}
-      />
-      <div className="relative rounded-2xl border border-white/10 bg-[oklch(0.13_0.04_290/0.85)] backdrop-blur-xl shadow-[0_0_40px_-10px_oklch(0.78_0.18_305/0.5)] overflow-hidden">
+    <div
+      className="group relative w-[300px] aurora-canvas-node"
+      data-running={data.status === "running" ? "1" : "0"}
+      data-done={data.status === "done" ? "1" : "0"}
+      data-error={data.status === "error" ? "1" : "0"}
+    >
+      <div className="rounded-[13px] overflow-hidden">
         {showTarget && (
           <Handle
             type="target"
             position={Position.Left}
-            className="!w-3 !h-3 !bg-primary !border-2 !border-background !shadow-[0_0_8px_oklch(0.78_0.18_305/0.9)]"
+            className="aurora-canvas-handle !w-3.5 !h-3.5 !bg-white !border-[2.5px] !border-[#07070e] nodrag"
           />
         )}
         {showSource && (
           <Handle
             type="source"
             position={Position.Right}
-            className="!w-3 !h-3 !bg-primary !border-2 !border-background !shadow-[0_0_8px_oklch(0.78_0.18_305/0.9)]"
+            className="aurora-canvas-handle !w-3.5 !h-3.5 !bg-white !border-[2.5px] !border-[#07070e] nodrag"
           />
         )}
 
-        <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between text-[13px]">
-          <span className="uppercase tracking-[0.15em] flex items-center gap-1.5 text-foreground/80">
-            <span className={`size-4 rounded grid place-items-center bg-gradient-to-br ${km.accent} text-white`}>
-              <Icon className="size-2.5" />
+        <div className="px-3 py-2 border-b border-white/[0.08] flex items-center justify-between text-[13px] bg-white/[0.03]">
+          <span className="uppercase tracking-[0.15em] flex items-center gap-1.5 text-white/75">
+            <span className={`size-5 rounded-md grid place-items-center bg-gradient-to-br ${km.accent} text-white shadow-[0_0_8px_currentColor]`}>
+              <Icon className="size-3" />
             </span>
             {km.label}
-            {data.label && <span className="text-primary/90 normal-case tracking-normal font-semibold">· {data.label}</span>}
-            <span className="text-foreground/40">#{id.slice(0, 4)}</span>
+            {data.label && <span className="text-[oklch(0.72_0.28_325)] normal-case tracking-normal font-semibold">· {data.label}</span>}
           </span>
           <div className="flex items-center gap-2">
-            {data.status === "running" && <Loader2 className="size-3 animate-spin text-primary" />}
-            {data.status === "done" && <span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />}
+            {data.status === "running" && (
+              <span className="inline-flex items-center gap-1 text-[10px] text-violet-300">
+                <Loader2 className="size-2.5 animate-spin" /> running
+              </span>
+            )}
+            {data.status === "done" && (
+              <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_8px_2px_#34d399]" />
+            )}
             {data.status === "error" && (
-              <span title={data.error} className="size-1.5 rounded-full bg-rose-500 shadow-[0_0_6px_#f43f5e]" />
+              <span title={data.error} className="size-2 rounded-full bg-rose-500 shadow-[0_0_8px_2px_#f43f5e]" />
             )}
             {!["in", "img", "vid", "aud", "ls"].includes(id) && (
-              <button onClick={() => h.remove(id)} className="text-muted-foreground hover:text-rose-400">
+              <button onClick={() => h.remove(id)} className="text-white/20 hover:text-rose-400 transition-colors">
                 <Trash2 className="size-3" />
               </button>
             )}
@@ -1164,7 +1170,7 @@ function CanvasPage() {
             update(id, { status: "done", url: res.url });
           } else if (n.data.kind === "batchVideo") {
             if (images.length === 0) throw new Error("Batch video needs an image upstream");
-            const count = Math.min(6, Math.max(1, n.data.variantCount ?? 3));
+            const count = Math.min(30, Math.max(1, n.data.variantCount ?? 3));
             update(id, { variants: Array.from({ length: count }, () => ({ status: "running" }) as BatchVariant) });
             const settled = await Promise.allSettled(
               Array.from({ length: count }, (_, i) =>
@@ -1276,12 +1282,11 @@ function CanvasPage() {
   if (loading || !user) return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="size-6 animate-spin text-primary" /></div>;
 
   return (
-    <main className="h-screen flex flex-col bg-background relative overflow-hidden">
-      {/* futuristic ambient backdrop */}
+    <main className="h-screen flex flex-col bg-[#06060c] relative overflow-hidden">
+      {/* ambient fuchsia halo at top, matching xyflow dark aesthetic */}
       <div className="pointer-events-none absolute inset-0 -z-0">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,oklch(0.78_0.18_305/0.18),transparent_60%),radial-gradient(ellipse_at_bottom_right,oklch(0.62_0.22_260/0.15),transparent_55%)]" />
-        <div className="absolute inset-0 opacity-[0.06] [background-image:linear-gradient(oklch(0.78_0.18_305)_1px,transparent_1px),linear-gradient(90deg,oklch(0.78_0.18_305)_1px,transparent_1px)] [background-size:32px_32px]" />
-        <div className="absolute inset-x-0 top-14 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_90%_40%_at_50%_0%,oklch(0.70_0.32_325/0.10),transparent)]" />
+        <div className="absolute inset-x-0 top-14 h-px bg-gradient-to-r from-transparent via-[oklch(0.70_0.32_325/0.4)] to-transparent" />
       </div>
 
       <header className="relative z-10 flex items-center justify-between gap-2 px-3 py-2 border-b border-white/10 bg-background/70 backdrop-blur-xl">
@@ -1380,11 +1385,19 @@ function CanvasPage() {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             nodeTypes={nodeTypes}
-            defaultEdgeOptions={{ animated: true, style: { stroke: "oklch(0.78 0.18 305)", strokeWidth: 1.5, filter: "drop-shadow(0 0 4px oklch(0.78 0.18 305 / 0.6))" } }}
+            defaultEdgeOptions={{
+              animated: true,
+              style: {
+                stroke: "rgba(255,255,255,0.55)",
+                strokeWidth: 1.5,
+                strokeDasharray: "6 4",
+                filter: "drop-shadow(0 0 2px rgba(255,255,255,0.3))",
+              },
+            }}
             fitView
             proOptions={{ hideAttribution: true }}
           >
-            <Background variant={BackgroundVariant.Dots} gap={28} size={1} color="oklch(0.78 0.18 305 / 0.18)" />
+            <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color="oklch(0.70 0.32 325 / 0.28)" />
             <Controls position="bottom-right" className="!bottom-16 !bg-[oklch(0.13_0.04_290/0.8)] !border-white/10 [&>button]:!bg-transparent [&>button]:!border-white/10 [&>button]:!text-foreground" />
           </ReactFlow>
         </HandlersCtx.Provider>
