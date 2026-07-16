@@ -371,3 +371,9 @@ id = "zS7CZcfPJcR0GWAOz9TZW"
 uri = "file://attached_assets/aurora-guides.zip"
 type = "unspecified"
 title = "All 7 Guides (PDFs)"
+
+[[outputs]]
+id = "Mr9N8Keu_2o2lxP76WkdJ"
+uri = "file://attached_assets/Aurora-Studio-Guides.zip"
+type = "unspecified"
+title = "Aurora Studio Guides (4 PDFs — fully rebranded)"
