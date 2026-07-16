@@ -377,3 +377,9 @@ id = "Mr9N8Keu_2o2lxP76WkdJ"
 uri = "file://attached_assets/Aurora-Studio-Guides.zip"
 type = "unspecified"
 title = "Aurora Studio Guides (4 PDFs — fully rebranded)"
+
+[[outputs]]
+id = "82ZIzQU-Ptp0ekqPKUCjY"
+uri = "file://attached_assets/Aurora-Store-Icons.zip"
+type = "unspecified"
+title = "Aurora Store Icons (Play Store + App Store)"
