@@ -8,20 +8,20 @@ export const Route = createFileRoute("/")({
 });
 
 const SERVICES = [
-  { label: "Image Generation", desc: "Studio-grade portraits, covers, and promo shots from a selfie and a prompt.", to: "/studio",       icon: Sparkles,    price: "1 Aura",    glowFrom: "from-violet-500/20" },
-  { label: "Colors Studio",    desc: "Direct your color palette across cyclorama, indoor, and rooftop sets.",    to: "/colors",       icon: Palette,     price: "1 Aura",    glowFrom: "from-pink-500/20" },
-  { label: "Video",            desc: "Cinematic music-video clips and motion backgrounds. Model-tiered pricing.", to: "/orchestrate",  icon: Film,        price: "From 10 Aura", glowFrom: "from-blue-500/20" },
-  { label: "Motion Control",   desc: "Transfer your real 30-second performance into an AI-generated scene.",    to: "/motion",       icon: Wand2,       price: "From 30 Aura", glowFrom: "from-amber-500/20" },
-  { label: "Lip Sync",         desc: "Frame-accurate sync in 8+ languages using Sync 1.9.",                      to: "/lipsync",      icon: Mic,         price: "3 Aura",    glowFrom: "from-emerald-500/20" },
-  { label: "Lyric Video",      desc: "Full lyric-video renders synced to your audio track.",                     to: "/music-video",  icon: Clapperboard,price: "5 Aura",    glowFrom: "from-rose-500/20" },
-  { label: "Photo Editor",     desc: "AI-powered edits: relight, restyle, inpaint, and upscale.",                to: "/photo-edit",   icon: Brush,       price: "1 Aura",    glowFrom: "from-cyan-500/20" },
-  { label: "UGC Ads",          desc: "Talent + product → looping social ad in minutes.",                         to: "/ugc",          icon: Megaphone,   price: "From 1 Aura", glowFrom: "from-orange-500/20" },
-  { label: "Talking Avatars",  desc: "Upload a photo, write a script, get a studio-quality talking-head video.", to: "/avatar",       icon: UserCircle2, price: "From 3 Aura", glowFrom: "from-teal-500/20" },
-  { label: "Live Studios",     desc: "Real-time creative sessions with dynamic scene generation.",                to: "/live-studio",  icon: Music2,      price: "From 1 Aura", glowFrom: "from-indigo-500/20" },
-  { label: "Content Line",     desc: "Full UGC ad script arcs, creator avatars, and visual variations.",        to: "/ugc-line",     icon: Layers,      price: "From 1 Aura", glowFrom: "from-fuchsia-500/20" },
-  { label: "TikTok30",         desc: "30-second viral TikTok packs — spin, animate, caption, ship.",             to: "/spin",         icon: Flame,       price: "From 1 Aura", glowFrom: "from-red-500/20" },
-  { label: "Scene Builder",    desc: "Composite AI scenes from layers: backdrop, talent, product, VFX.",         to: "/scene-builder",icon: Workflow,    price: "From 1 Aura", glowFrom: "from-lime-500/20" },
-  { label: "Video Agent",      desc: "AI-directed talking-head videos with script enhancement and HeyGen rendering.", to: "/agent",   icon: Bot,         price: "From 3 Aura", glowFrom: "from-sky-500/20" },
+  { label: "Image Generation", desc: "Studio portraits, covers & promo shots from a selfie and a prompt.",         to: "/studio",       icon: Sparkles,    price: "1 Aura",       img: "/nav-previews/studio.jpg" },
+  { label: "Colors Studio",    desc: "Direct your color palette across cyclorama, indoor & rooftop sets.",         to: "/colors",       icon: Palette,     price: "1 Aura",       img: "/nav-previews/colors.jpg" },
+  { label: "Canvas",           desc: "Visual director workspace — compose scenes, layers & live previews.",        to: "/canvas",       icon: Layers,      price: "From 1 Aura",  img: "/nav-previews/canvas.jpg" },
+  { label: "Motion Control",   desc: "Transfer your 30-second real performance into an AI-generated scene.",       to: "/motion",       icon: Wand2,       price: "From 30 Aura", img: "/nav-previews/motion.jpg" },
+  { label: "Lip Sync",         desc: "Frame-accurate sync in 8+ languages using Sync 1.9.",                       to: "/lipsync",      icon: Mic,         price: "3 Aura",       img: "/nav-previews/lipsync.jpg" },
+  { label: "Lyric Video",      desc: "Full lyric-video renders timed to your audio track.",                       to: "/music-video",  icon: Clapperboard,price: "5 Aura",       img: "/nav-previews/music-video.jpg" },
+  { label: "Photo Editor",     desc: "AI-powered edits: relight, restyle, inpaint & upscale.",                    to: "/photo-edit",   icon: Brush,       price: "1 Aura",       img: "/nav-previews/photo-edit.jpg" },
+  { label: "UGC Ads",          desc: "Talent + product → looping social ad in minutes.",                          to: "/ugc",          icon: Megaphone,   price: "From 1 Aura",  img: "/nav-previews/ugc.jpg" },
+  { label: "Talking Avatars",  desc: "Upload a photo, write a script, get a studio-quality talking-head video.",  to: "/avatar",       icon: UserCircle2, price: "From 3 Aura",  img: "/nav-previews/avatar.jpg" },
+  { label: "Live Studios",     desc: "Real-time creative sessions with dynamic scene generation.",                 to: "/live-studio",  icon: Music2,      price: "From 1 Aura",  img: "/nav-previews/live-studio.jpg" },
+  { label: "Content Line",     desc: "Full UGC ad script arcs, creator avatars & visual variations.",             to: "/ugc-line",     icon: Film,        price: "From 1 Aura",  img: "/nav-previews/ugc-line.jpg" },
+  { label: "TikTok 30",        desc: "30-second viral TikTok packs — spin, animate, caption, ship.",              to: "/spin",         icon: Flame,       price: "From 1 Aura",  img: "/nav-previews/spin.jpg" },
+  { label: "Scene Builder",    desc: "Composite AI scenes from layers: backdrop, talent, product, VFX.",          to: "/scene-builder",icon: Workflow,    price: "From 1 Aura",  img: "/nav-previews/scene-builder.jpg" },
+  { label: "Video Agent",      desc: "AI-directed talking-head videos with script enhancement & HeyGen rendering.",to: "/agent",        icon: Bot,         price: "From 3 Aura",  img: "/nav-previews/video-agent.jpg" },
 ];
 
 const TICKER_ITEMS = [
@@ -400,27 +400,30 @@ function ServiceCard({ s }: { s: typeof SERVICES[number] }) {
   return (
     <Link
       to={s.to}
-      className="group relative flex flex-col gap-3 overflow-hidden rounded-2xl bg-zinc-900 p-4 ring-1 ring-white/5 transition-all hover:-translate-y-0.5 hover:ring-white/10 no-underline"
+      className="group relative flex flex-col justify-end overflow-hidden rounded-2xl ring-1 ring-white/8 transition-all duration-300 hover:-translate-y-0.5 hover:ring-white/20 no-underline aspect-[3/4]"
     >
-      <span
-        aria-hidden
-        className={`pointer-events-none absolute -inset-12 bg-gradient-to-br ${s.glowFrom} to-transparent opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100`}
+      <img
+        src={s.img}
+        alt={s.label}
+        loading="lazy"
+        className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
       />
-      <div className="relative flex items-center justify-between">
-        <span className="flex size-8 items-center justify-center rounded-lg bg-white/5 ring-1 ring-white/10">
-          <Icon className="size-4 text-zinc-200" />
-        </span>
-        <span className="text-[11px] font-bold text-brand tabular-nums">
-          {s.price}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
+      <div className="relative z-10 flex flex-col gap-1.5 p-3">
+        <div className="flex items-center justify-between gap-1 mb-0.5">
+          <span className="flex size-6 items-center justify-center rounded-md bg-white/10 backdrop-blur-sm ring-1 ring-white/15">
+            <Icon className="size-3.5 text-white" />
+          </span>
+          <span className="rounded-full bg-brand/80 px-2 py-0.5 text-[9px] font-bold text-white backdrop-blur-sm tabular-nums">
+            {s.price}
+          </span>
+        </div>
+        <p className="text-[13px] font-semibold text-white leading-tight">{s.label}</p>
+        <p className="text-[10px] leading-snug text-white/60 line-clamp-2">{s.desc}</p>
+        <span className="mt-1 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.2em] text-white/40 transition-colors duration-200 group-hover:text-brand">
+          Open <ArrowUpRight className="size-2.5" />
         </span>
       </div>
-      <div className="relative">
-        <p className="text-sm font-semibold text-zinc-100 leading-tight">{s.label}</p>
-        <p className="mt-1 text-[11px] leading-snug text-zinc-500">{s.desc}</p>
-      </div>
-      <span className="relative mt-auto inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 transition-colors group-hover:text-brand">
-        Open <ArrowUpRight className="size-3" />
-      </span>
     </Link>
   );
 }
