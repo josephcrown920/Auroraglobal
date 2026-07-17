@@ -102,7 +102,8 @@ support@auroraperformancestudio.com
 **Content Rating:** 17+ (for apps with infrequent mild adult themes via Adult School)
 **Price:** Free (in-app purchases)
 **Privacy Policy URL:** https://auroraperformancestudio.com/privacy
-**Support URL:** mailto:support@auroraperformancestudio.com
+**Support URL:** https://auroraperformancestudio.com
+**Contact Email:** support@auroraperformancestudio.com
 
 ---
 
@@ -175,6 +176,25 @@ Suggested screenshot sequence:
 3. Lip-sync video result
 4. Credits / billing page
 5. Color Studio picker
+
+---
+
+## Submission Readiness Status (updated 2026-07-17)
+
+| Item | Status |
+|---|---|
+| App icon 1024×1024 (`assets/images/icon.png`) | ✅ Done |
+| Splash 1284×2778 (`assets/images/splash.png`) | ✅ Regenerated at full resolution |
+| Play feature graphic 1024×500 (`assets/images/feature-graphic.png`) | ✅ Done |
+| Privacy policy URL (https://auroraperformancestudio.com/privacy) | ✅ Fixed — now 301-redirects to /legal/privacy (deploy web app to take effect in production) |
+| Terms URL (https://auroraperformancestudio.com/terms) | ✅ Fixed — 301 → /legal/terms |
+| Store copy (Play + App Store) | ✅ Done (this file) |
+| Screenshots | ⬜ Capture on a real device (see resolutions below). Web-preview drafts in `store/screenshots/` are placeholders only — stores require device-resolution captures. |
+| EAS project ID in `app.json` | ⬜ Requires `npx eas init` with an Expo account (EXPO_TOKEN) |
+| Apple `ascAppId` + `appleTeamId` in `eas.json` | ⬜ Requires Apple Developer account ($99/yr) + app record in App Store Connect |
+| `google-play-service-account.json` | ⬜ Requires Google Play Console account ($25 one-time) + service account key |
+| Production builds (`eas build`) | ⬜ Blocked on EXPO_TOKEN |
+| Store submission (`eas submit`) | ⬜ Blocked on the credentials above |
 
 ---
 

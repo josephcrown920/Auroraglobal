@@ -8,7 +8,7 @@
     "scheme": "aurora-studio",
     "userInterfaceStyle": "dark",
     "privacyPolicyUrl": "https://auroraperformancestudio.com/privacy",
-    "supportUrl": "mailto:support@auroraperformancestudio.com",
+    "supportUrl": "https://auroraperformancestudio.com",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/splash.png",
