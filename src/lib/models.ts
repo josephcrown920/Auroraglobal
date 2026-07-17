@@ -5,7 +5,7 @@ export type ModelMeta = {
   value: string;
   label: string;
   short: string;
-  group: "Lovable AI" | "Replicate" | "Hugging Face" | "Sync" | "Self-hosted" | "Replit";
+  group: "Lovable AI" | "Replicate" | "Sync" | "Self-hosted" | "Replit";
   icon: LucideIcon;
   color: string;
   bg: string;
@@ -100,19 +100,6 @@ export const MODEL_LIST: ModelMeta[] = [
     status: "live",
     category: "image",
   },
-  {
-    value: "hf/sdxl",
-    endpoint: "stabilityai/stable-diffusion-xl-base-1.0",
-    label: "SDXL Base",
-    short: "SDXL",
-    group: "Hugging Face",
-    icon: Cpu,
-    color: "text-indigo-400",
-    bg: "bg-indigo-500/15 border-indigo-500/30",
-    tagline: "Stable Diffusion XL · classic open model",
-    status: "live",
-    category: "image",
-  },
 ];
 
 // VIDEO MODELS (selectable for image-to-video)
@@ -198,19 +185,6 @@ export const VIDEO_MODEL_LIST: ModelMeta[] = [
     category: "video",
   },
   {
-    value: "wan-2.5",
-    endpoint: "wan-video/wan-2.5-i2v",
-    label: "WAN 2.5",
-    short: "WAN",
-    group: "Replicate",
-    icon: Sparkles,
-    color: "text-fuchsia-400",
-    bg: "bg-fuchsia-500/15 border-fuchsia-500/30",
-    tagline: "Alibaba WAN · crisp image-to-video motion",
-    status: "live",
-    category: "video",
-  },
-  {
     value: "veo-3-fast",
     endpoint: "google/veo-3-fast",
     label: "Veo 3 Fast",
@@ -246,19 +220,6 @@ export const VIDEO_MODEL_LIST: ModelMeta[] = [
     color: "text-orange-400",
     bg: "bg-orange-500/15 border-orange-500/30",
     tagline: "OpenAI Sora 2 · physical realism & audio",
-    status: "live",
-    category: "video",
-  },
-  {
-    value: "fal/ovi",
-    endpoint: "fal-ai/ovi/image-to-video",
-    label: "Ovi",
-    short: "Ovi",
-    group: "Replicate",
-    icon: Zap,
-    color: "text-emerald-400",
-    bg: "bg-emerald-500/15 border-emerald-500/30",
-    tagline: "Image + prompt → video with audio · $0.20 flat",
     status: "live",
     category: "video",
   },
@@ -416,7 +377,7 @@ export function resolveAutoModel(
     if (category === "lipsync") return "fal-ai/sync-lipsync/v2";             // Sync 1.9 premium
   }
   if (value === AUTO_CHEAPEST) {
-    if (category === "image")   return "hf/sdxl";                             // SDXL — cheapest image tier
+    if (category === "image")   return "fal-ai/seedream-4";                   // Seedream 4 — cheapest approved tier
     if (category === "video")   return "seedance-2.0-fast";                  // Seedance Fast — cheapest
     if (category === "lipsync") return "fal-ai/wav2lip";                     // Wav2Lip — fast & cheap
   }
@@ -441,13 +402,12 @@ export function getModelMeta(value?: string | null): ModelMeta {
 
 export function resolveImageEndpoint(value: string): {
   endpoint: string;
-  provider: "lovable" | "replicate" | "huggingface" | "replit";
+  provider: "lovable" | "replicate" | "replit";
 } {
   const m = ALL[value];
   if (m && m.category === "image") {
     const provider =
       m.group === "Lovable AI" ? "lovable" :
-      m.group === "Hugging Face" ? "huggingface" :
       m.group === "Replit" ? "replit" : "replicate";
     return { endpoint: m.endpoint, provider };
   }
@@ -473,5 +433,5 @@ export const SHOWCASE_MODELS: {
   { name: "Sync 1.9", tag: "Lip-sync", glow: "from-emerald-500/40 to-teal-500/20", kind: "lipsync", status: "LIVE" },
   { name: "Veo 3", tag: "Video · Cinematic", glow: "from-blue-500/40 to-indigo-500/20", kind: "video", status: "LIVE" },
   { name: "Sora 2", tag: "Video · Premium", glow: "from-orange-500/40 to-amber-500/20", kind: "video", status: "LIVE" },
-  { name: "WAN 2.5", tag: "Video · Motion", glow: "from-fuchsia-500/40 to-purple-500/20", kind: "video", status: "LIVE" },
+  { name: "Grok Imagine", tag: "Video · xAI", glow: "from-fuchsia-500/40 to-purple-500/20", kind: "video", status: "LIVE" },
 ];

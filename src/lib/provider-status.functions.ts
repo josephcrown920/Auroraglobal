@@ -17,10 +17,8 @@ export const providerStatus = createServerFn({ method: "GET" }).handler(async ()
     openai: has("OPENAI_API_KEY"),
     fal: has("FAL_KEY"),
     byteplus: has("BYTEPLUS_API_KEY") || has("ARK_API_KEY"),
-    huggingface: has("HF_TOKEN"),
     sync: has("SYNC_API_KEY"),
     kling: has("KLING_ACCESS_KEY") && has("KLING_SECRET_KEY"),
     heygen: has("HEYGEN_API_KEY"),
-    piapi: has("PIAPI_API_KEY"),
   };
 });

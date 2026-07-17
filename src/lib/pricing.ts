@@ -129,12 +129,10 @@ export const LIPSYNC_TIER_AURA: Record<ModelTier, number> = {
 export const VIDEO_MODEL_TIERS: Record<string, ModelTier> = {
   "seedance-2.0-fast": "budget", // $0.05
   "kling-v1": "standard", // $0.30
-  "piapi/kling-video": "standard", // $0.30 (Kling via PiAPI aggregator)
   "veo-3-fast": "premium", // $0.40
   "runway/gen3a-turbo": "premium", // $0.40
   "runway/gen4-turbo": "premium", // $0.50
   "fal-fallback/kling-video": "premium", // $0.40
-  "wan-2.5": "premium", // $0.45
   "sora-2": "premium", // $0.50
   "openai/sora-2": "premium", // $0.50 — direct OpenAI endpoint
   "openai/sora-2-pro": "ultra", // $1.00 — higher-quality Sora
@@ -146,7 +144,6 @@ export const VIDEO_MODEL_TIERS: Record<string, ModelTier> = {
   "veo-3": "ultra", // $0.75
   "seedance-3.0": "ultra", // $0.75 (seedance-1-5-pro, ByteDance-direct only)
   "xai/grok-imagine-video-1.5": "standard", // ~$0.24 (8s @ $0.03/s)
-  "fal/ovi": "standard", // $0.20 flat — standard pool ($0.94) covers with buffer
   "heygen/video-agent": "ultra", // $1.50 — needs the ultra pool ($2.26) to clear the retry buffer
   "heygen/template": "ultra", // $1.50 — Aurora Template render, same HeyGen credit burn as video-agent
 };

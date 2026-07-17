@@ -746,6 +746,7 @@ const KIND_META: Record<NodeKind, { label: string; Icon: typeof ImageIcon; accen
   image: { label: "image gen", Icon: Wand2, accent: "from-fuchsia-400 to-purple-500" },
   video: { label: "video gen", Icon: Film, accent: "from-purple-400 to-indigo-500" },
   lipsync: { label: "lip sync", Icon: Mic, accent: "from-rose-400 to-pink-500" },
+  split: { label: "split", Icon: Layers, accent: "from-amber-400 to-orange-500" },
   comfy: { label: "comfyui", Icon: Boxes, accent: "from-sky-400 to-cyan-500" },
   batchVideo: { label: "batch video", Icon: Layers, accent: "from-violet-400 to-fuchsia-500" },
   heygenTemplate: { label: "heygen template", Icon: Sparkles, accent: "from-pink-400 to-rose-500" },
