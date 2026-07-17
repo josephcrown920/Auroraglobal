@@ -9,7 +9,7 @@ import { PRICING } from "@/lib/pricing";
 // google/nano-banana ON PURPOSE: its "anchor to the input image, apply light
 // changes" behaviour — which made it wrong for batch scene generation — is
 // exactly right for editing. `editStrict` keeps every fallback edit-capable
-// (never flux/pollinations, never the GPU pool), so a failed edit fails
+// (never pollinations, never the GPU pool), so a failed edit fails
 // explicitly instead of silently returning an unrelated generated image.
 
 export const PHOTO_EDIT_MODEL = "google/nano-banana";

@@ -3,8 +3,8 @@
 //   - replit-*    → Replit AI Integrations proxy (billed to the owner's Replit
 //                   credits, no API keys needed) — FIRST choice for image/text/audio.
 //   - lovable     → Lovable AI Gateway (Gemini image/text)
-//   - replicate   → Replicate direct API (Seedream, Seedance, Kling, Flux, Wav2Lip)
-//   - huggingface → HF Inference (flux-schnell, sdxl)
+//   - replicate   → Replicate direct API (Seedream, Seedance, Kling, Wav2Lip)
+//   - huggingface → HF Inference (sdxl)
 //   - sync        → Sync.so direct API (lipsync)
 //   - gpuWorker   → admin-registered HTTP workers (RunPod / vast / salad / self-hosted)
 
@@ -594,7 +594,6 @@ const heygenTemplate: ProviderAdapter = {
 
 // ─── Fal (LAST fallback — user prefers other providers) ──────────────────────
 const FAL_MAP: Record<string, { path: string; kind: GenerateKind; cost: number }> = {
-  "fal-fallback/flux-schnell": { path: "fal-ai/flux/schnell", kind: "image", cost: 0.005 },
   "fal-fallback/kling-video": {
     path: "fal-ai/kling-video/v1/standard/image-to-video",
     kind: "video",
@@ -604,10 +603,10 @@ const FAL_MAP: Record<string, { path: string; kind: GenerateKind; cost: number }
 };
 // Identity-locked Gemini-image family → fal's *-edit endpoints, which take
 // image_urls[] (plural) and preserve the reference face. Without these entries
-// an unmapped google/* image model would silently degrade to flux/schnell
-// (text-to-image) and DROP the face reference — identity loss across a whole
+// an unmapped google/* image model would silently degrade to a text-to-image
+// model and DROP the face reference — identity loss across a whole
 // Spin/bulk batch. Only used when the request actually carries a reference
-// image; faceless requests keep the generic flux fallback. Exported for tests.
+// image. Exported for tests.
 export const FAL_IDENTITY_EDITS: Record<string, string> = {
   "google/nano-banana": "fal-ai/nano-banana/edit",
   "google/gemini-2.5-flash-image": "fal-ai/nano-banana/edit",
@@ -619,7 +618,7 @@ const falFallback: ProviderAdapter = {
   // Only activates when explicitly addressed OR when nothing else handles the kind
   supports: (r) => !!process.env.FAL_KEY,
   estimateCost: (r) => {
-    // Identity-edit routes cost fal's Gemini-image prices, not flux/schnell's.
+    // Identity-edit routes cost fal's Gemini-image prices.
     if (r.kind === "image" && r.model && r.imageUrls?.length && FAL_IDENTITY_EDITS[r.model]) {
       return FAL_IDENTITY_EDITS[r.model].includes("pro") ? 0.24 : 0.039;
     }
@@ -647,7 +646,7 @@ const falFallback: ProviderAdapter = {
     }
     const fallback =
       r.kind === "image"
-        ? "fal-ai/flux/schnell"
+        ? null
         : r.kind === "video"
           ? "fal-ai/kling-video/v1/standard/image-to-video"
           : r.kind === "lipsync"
@@ -929,12 +928,6 @@ const REPLICATE_MAP: Record<string, ReplicateEntry> = {
       prompt: r.prompt ?? "",
       ...(r.imageUrls?.length ? { image_input: r.imageUrls } : {}),
     }),
-  },
-  "replicate/flux-schnell": {
-    slug: "black-forest-labs/flux-schnell",
-    kind: "image",
-    cost: 0.003,
-    build: (r) => ({ prompt: r.prompt ?? "" }),
   },
   // ── video (image-to-video) ──
   "seedance-2.0": {
@@ -1311,7 +1304,6 @@ const piapi: ProviderAdapter = {
 
 // ─── Hugging Face ────────────────────────────────────────────────────────────
 const HF_ENDPOINTS: Record<string, { endpoint: string; kind: GenerateKind; cost: number }> = {
-  "hf/flux-schnell": { endpoint: "black-forest-labs/FLUX.1-schnell", kind: "image", cost: 0.003 },
   "hf/sdxl": { endpoint: "stabilityai/stable-diffusion-xl-base-1.0", kind: "image", cost: 0.004 },
 };
 const huggingface: ProviderAdapter = {
@@ -1544,8 +1536,7 @@ const geminiText: ProviderAdapter = {
 // every other provider's results do.
 type FreeImageEntry = { adapter: "pollinations" | "runware"; model: string; cost: number };
 const FREE_IMAGE_MODELS: Record<string, FreeImageEntry> = {
-  "pollinations/flux": { adapter: "pollinations", model: "flux", cost: 0 },
-  "runware/flux-schnell": { adapter: "runware", model: "runware:100@1", cost: 0.0006 },
+  "pollinations/turbo": { adapter: "pollinations", model: "turbo", cost: 0 },
 };
 
 async function uploadBytesToStudio(
@@ -1588,7 +1579,7 @@ const pollinations: ProviderAdapter = {
       return { url: "", endpoint: `pollinations:${model}`, text };
     }
     const m = r.model ? FREE_IMAGE_MODELS[r.model] : null;
-    const model = m?.model ?? "flux";
+    const model = m?.model ?? "turbo";
     const u = new URL(`https://image.pollinations.ai/prompt/${encodeURIComponent(r.prompt ?? "")}`);
     u.searchParams.set("width", "1024");
     u.searchParams.set("height", "1024");
@@ -2814,9 +2805,6 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     // Self-hosted ffmpeg lyric-video synthesis. Sentinel model so the candidate
     // loop runs; routed self-hosted-only to the GPU worker pool (no fallback).
     "ffmpeg-lyricvideo": { provider: gpuWorker.name, kind: "lyric_video", cost: 0.005 },
-    // inference.sh cloud — "infsh/flux" is the built-in default image app;
-    // no INFERENCE_SH_APP_IMAGE env var required (adapter supplies the default).
-    "infsh/flux": { provider: "inferencesh", kind: "image", cost: 0.005 },
     // xAI Grok Imagine Video — general video + motion fallback (key is set).
     "xai/grok-imagine-video-1.5": { provider: "xai", kind: "video", cost: 0.24 },
     // Ovi (fal-ai/ovi/image-to-video) — image+text → video with built-in audio.
@@ -2919,20 +2907,15 @@ async function log(opts: {
 // MODEL_REGISTRY — a model listed here but missing from the registry would
 // silently evade the margin-guard tests below (they only walk the registry).
 export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
-  // Replit-billed models first (cheap flash image, then gpt-image-1) to save
-  // cost. After that, identity-capable models come BEFORE identity-blind
-  // pollinations/flux: a Spin/reshoot batch that exhausts its requested model
-  // must fall to another model that honours imageUrls, not to a text-only
-  // model (every face would change). Pollinations stays LAST as the free,
-  // faceless last resort.
+  // Identity-capable models come BEFORE identity-blind pollinations/turbo:
+  // a Spin/reshoot batch that exhausts its requested model must fall to a model
+  // that honours imageUrls. Pollinations stays LAST as the free last resort.
   image: [
     "replit/gemini-2.5-flash-image",
     "replit/gpt-image-1",
     "google/nano-banana",
     "fal-ai/seedream-4",
-    "replicate/flux-schnell",
-    "infsh/flux",       // inference.sh cloud Flux — keyed, ~$0.005/image
-    "pollinations/flux",
+    "pollinations/turbo",
   ],
   // kling-3.0-omni sits after kling-3.0 (its pricier sibling, $0.70 vs $0.60,
   // both dispatched via the same Replicate provider) so it now participates
@@ -2985,7 +2968,7 @@ export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
 const FALLBACK_CAP: Record<GenerateKind, number> = {
   // Requested model + all 7 fallback candidates (2 Replit-billed, then
   // identity-capable models, then infsh/flux keyed tier, then identity-blind
-  // pollinations/flux last): pollinations/flux must still fit as the final
+  // pollinations/turbo last): it must still fit as the final
   // candidate even when the requested model isn't already one of the 7
   // (Free-GPU-only mode relies on reaching it as the only $0 fallback).
   image: 8,
@@ -3006,7 +2989,7 @@ const FALLBACK_CAP: Record<GenerateKind, number> = {
 
 // Models that honour imageUrls as an EDIT SOURCE: Replicate nano-banana(-pro)
 // via image_input, the fal *-edit endpoints (FAL_IDENTITY_EDITS), and the direct
-// Gemini API (GEMINI_DIRECT_SLUGS). flux/schnell, seedream and pollinations are
+// Gemini API (GEMINI_DIRECT_SLUGS). seedream and pollinations are
 // NOT here — they are text-to-image and would ignore the source photo entirely.
 // Derived from the routing maps so a newly mapped model is edit-capable
 // automatically. Exported for tests and future edit surfaces.

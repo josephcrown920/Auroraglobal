@@ -17,7 +17,6 @@ const VIDEO_COSTS: Record<VideoModel, number> = {
 };
 
 const IMAGE_COSTS: Record<ImageModel, number> = {
-  "flux-1.1-pro": 10,
   "kling-kolors": 8,
   "huggingface-sdxl": 5,
   "ideogram-v3": 12,
@@ -53,7 +52,7 @@ export function selectVideoModel(prompt: string, preferred?: string): ModelSelec
 export function selectImageModel(prompt: string): ModelSelection {
   const l = prompt.toLowerCase();
   if (["realistic", "photo", "portrait", "skin", "natural"].some((k) => l.includes(k))) {
-    return { model: "flux-1.1-pro", reason: "Photorealistic output", estimatedCredits: 10 };
+    return { model: "ideogram-v3", reason: "Photorealistic output", estimatedCredits: 12 };
   }
   if (["fast", "quick", "cheap", "draft", "budget"].some((k) => l.includes(k))) {
     return { model: "huggingface-sdxl", reason: "Budget / speed option", estimatedCredits: 5 };
@@ -64,7 +63,7 @@ export function selectImageModel(prompt: string): ModelSelection {
   if (["vibrant", "colour", "color", "saturated"].some((k) => l.includes(k))) {
     return { model: "kling-kolors", reason: "Vivid colour palette", estimatedCredits: 8 };
   }
-  return { model: "flux-1.1-pro", reason: "Default high-quality image model", estimatedCredits: 10 };
+  return { model: "ideogram-v3", reason: "Default high-quality image model", estimatedCredits: 12 };
 }
 
 export function inferAspectRatio(prompt: string): AspectRatio {

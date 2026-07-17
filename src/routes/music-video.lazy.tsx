@@ -157,7 +157,7 @@ function MusicVideoPage() {
           },
         });
       }
-      return genFn({ data: { prompt, imageUrls: [], motionVideoUrl: null, model: "black-forest-labs/flux-1.1-pro" } });
+      return genFn({ data: { prompt, imageUrls: [], motionVideoUrl: null, model: "replit/gemini-2.5-flash-image" } });
     },
     onSuccess: () => {
       markFirstGenComplete();

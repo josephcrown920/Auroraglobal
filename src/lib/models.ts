@@ -101,19 +101,6 @@ export const MODEL_LIST: ModelMeta[] = [
     category: "image",
   },
   {
-    value: "hf/flux-schnell",
-    endpoint: "black-forest-labs/FLUX.1-schnell",
-    label: "FLUX.1 Schnell",
-    short: "FLUX",
-    group: "Hugging Face",
-    icon: Cpu,
-    color: "text-sky-400",
-    bg: "bg-sky-500/15 border-sky-500/30",
-    tagline: "Open-source, fast, free tier via HF",
-    status: "live",
-    category: "image",
-  },
-  {
     value: "hf/sdxl",
     endpoint: "stabilityai/stable-diffusion-xl-base-1.0",
     label: "SDXL Base",
@@ -205,7 +192,7 @@ export const VIDEO_MODEL_LIST: ModelMeta[] = [
     // models API, and it's now fully wired into fallback/priority routing —
     // but a live end-to-end render could NOT be verified because the
     // Replicate account currently has zero credit (confirmed account-wide:
-    // even black-forest-labs/flux-schnell 402s with "Insufficient credit").
+    // even some models 402 with "Insufficient credit".
     // Promote to "live" once a real render completes after credit is added.
     status: "preview",
     category: "video",
@@ -429,7 +416,7 @@ export function resolveAutoModel(
     if (category === "lipsync") return "fal-ai/sync-lipsync/v2";             // Sync 1.9 premium
   }
   if (value === AUTO_CHEAPEST) {
-    if (category === "image")   return "hf/flux-schnell";                    // FLUX Schnell — free tier
+    if (category === "image")   return "hf/sdxl";                             // SDXL — cheapest image tier
     if (category === "video")   return "seedance-2.0-fast";                  // Seedance Fast — cheapest
     if (category === "lipsync") return "fal-ai/wav2lip";                     // Wav2Lip — fast & cheap
   }

@@ -80,7 +80,7 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
         envKey: "",
         configured: true,
         free: true,
-        notes: "flux (no key — first in image chain)",
+        notes: "turbo (no key — free image tier)",
       },
       {
         id: "gemini",
@@ -98,7 +98,7 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
         envKey: "HF_TOKEN",
         configured: has("HF_TOKEN"),
         free: true,
-        notes: "flux-schnell · sdxl",
+        notes: "sdxl",
       },
       {
         id: "runware",
@@ -107,7 +107,7 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
         envKey: "RUNWARE_API_KEY",
         configured: has("RUNWARE_API_KEY"),
         free: false,
-        notes: "flux-schnell (cheap hosted)",
+        notes: "image gen (cheap hosted)",
       },
       {
         id: "byteplus-image",
@@ -125,7 +125,7 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
         envKey: "LOVABLE_CONNECTOR_REPLICATE_API_KEY",
         configured: hasReplicate,
         free: false,
-        notes: "seedream-4 · flux-schnell",
+        notes: "seedream-4",
       },
       {
         id: "piapi-image",
