@@ -40,7 +40,6 @@ const KIND_LABEL: Record<string, string> = {
   video: "Video",
   audio: "Audio",
   lipsync: "Lip Sync",
-  split: "Split Reality",
   motion: "Motion",
   upscale: "Upscale",
   ugc_ad: "UGC Ad",

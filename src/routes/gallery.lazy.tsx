@@ -12,7 +12,7 @@ import { Loader2, ArrowLeft, Star, Download, Film, Image as ImageIcon, Layers, T
 import { PageSpinner } from "@/components/PageSpinner";
 import { CaptionDialog } from "@/components/gallery/CaptionDialog";
 import { toast } from "sonner";
-import { saveAssetToDisk, isSplitRealityPrompt, splitRealityVariant } from "@/lib/save";
+import { saveAssetToDisk } from "@/lib/save";
 import { ShareMenu } from "@/components/share/ShareMenu";
 import { publishGeneration } from "@/lib/share.functions";
 import { bulkDeleteGenerations } from "@/lib/gallery.functions";
@@ -309,11 +309,6 @@ function GalleryPage() {
                     <div className="size-7 rounded-full bg-amber-500/40 border border-amber-400 backdrop-blur-md flex items-center justify-center">
                       <Star className="size-3.5 fill-current text-amber-100" />
                     </div>
-                  )}
-                  {isSplitRealityPrompt(g.prompt) && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/85 text-primary-foreground text-[9px] font-semibold uppercase tracking-widest shadow">
-                      <Layers className="size-2.5" /> Split{splitRealityVariant(g.prompt) ? ` · ${splitRealityVariant(g.prompt)}` : ""}
-                    </span>
                   )}
                 </div>
                 <div className="p-2 space-y-1">

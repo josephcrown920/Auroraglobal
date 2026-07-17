@@ -15,7 +15,6 @@ import { Route as UgcRouteImport } from './routes/ugc'
 import { Route as TiktokRouteImport } from './routes/tiktok'
 import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as StudioRouteImport } from './routes/studio'
-import { Route as SplitRealityRouteImport } from './routes/split-reality'
 import { Route as SpinRouteImport } from './routes/spin'
 import { Route as SpeechRouteImport } from './routes/speech'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
@@ -127,11 +126,6 @@ const StudioRoute = StudioRouteImport.update({
   path: '/studio',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/studio.lazy').then((d) => d.Route))
-const SplitRealityRoute = SplitRealityRouteImport.update({
-  id: '/split-reality',
-  path: '/split-reality',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/split-reality.lazy').then((d) => d.Route))
 const SpinRoute = SpinRouteImport.update({
   id: '/spin',
   path: '/spin',
@@ -592,7 +586,6 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
-  '/split-reality': typeof SplitRealityRoute
   '/studio': typeof StudioRoute
   '/templates': typeof TemplatesRoute
   '/tiktok': typeof TiktokRoute
@@ -681,7 +674,6 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
-  '/split-reality': typeof SplitRealityRoute
   '/studio': typeof StudioRoute
   '/templates': typeof TemplatesRoute
   '/tiktok': typeof TiktokRoute
@@ -771,7 +763,6 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
-  '/split-reality': typeof SplitRealityRoute
   '/studio': typeof StudioRoute
   '/templates': typeof TemplatesRoute
   '/tiktok': typeof TiktokRoute
@@ -862,7 +853,6 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/speech'
     | '/spin'
-    | '/split-reality'
     | '/studio'
     | '/templates'
     | '/tiktok'
@@ -951,7 +941,6 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/speech'
     | '/spin'
-    | '/split-reality'
     | '/studio'
     | '/templates'
     | '/tiktok'
@@ -1040,7 +1029,6 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/speech'
     | '/spin'
-    | '/split-reality'
     | '/studio'
     | '/templates'
     | '/tiktok'
@@ -1130,7 +1118,6 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SpeechRoute: typeof SpeechRoute
   SpinRoute: typeof SpinRoute
-  SplitRealityRoute: typeof SplitRealityRoute
   StudioRoute: typeof StudioRoute
   TemplatesRoute: typeof TemplatesRoute
   TiktokRoute: typeof TiktokRoute
@@ -1217,13 +1204,6 @@ declare module '@tanstack/react-router' {
       path: '/studio'
       fullPath: '/studio'
       preLoaderRoute: typeof StudioRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/split-reality': {
-      id: '/split-reality'
-      path: '/split-reality'
-      fullPath: '/split-reality'
-      preLoaderRoute: typeof SplitRealityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/spin': {
@@ -1848,7 +1828,6 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SpeechRoute: SpeechRoute,
   SpinRoute: SpinRoute,
-  SplitRealityRoute: SplitRealityRoute,
   StudioRoute: StudioRoute,
   TemplatesRoute: TemplatesRoute,
   TiktokRoute: TiktokRoute,

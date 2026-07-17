@@ -669,12 +669,6 @@ function StudioPage() {
             )}
           </Button>
 
-          <Link
-            to="/split-reality"
-            className="w-full inline-flex items-center justify-center gap-2 h-11 rounded-md border border-primary/40 bg-primary/5 hover:bg-primary/10 text-sm font-medium text-foreground no-underline"
-          >
-            <Sparkles className="size-4 text-primary" /> Split Reality — dedicated studio →
-          </Link>
 
           <Button
             disabled={demoMut.isPending || !demoUrl}

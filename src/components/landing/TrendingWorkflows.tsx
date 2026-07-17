@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Sparkles, ArrowRight, Flame, Mic2, Camera, Film, Image as ImageIcon, Wand2, SplitSquareHorizontal, Palette } from "lucide-react";
+import { Sparkles, ArrowRight, Flame, Mic2, Camera, Film, Image as ImageIcon, Wand2, Palette } from "lucide-react";
 
 type Workflow = {
   name: string;
@@ -18,7 +18,6 @@ const WORKFLOWS: Workflow[] = [
   { name: "Colors · Blue Performance", uses: "9.7k", icon: Palette, glow: "from-blue-500/40 to-indigo-500/10", nodes: ["Selfie", "Royal-blue cyc", "Editorial portrait"], template: "colors-preset", badge: "PRESET" },
   { name: "Colors · Blank canvas", uses: "4.4k", icon: Palette, glow: "from-fuchsia-500/40 to-pink-500/10", nodes: ["Selfie", "Palette", "Scene"], template: "colors-blank", badge: "BLANK" },
   { name: "Editorial Cover Shoot", uses: "8.9k", icon: Camera, glow: "from-amber-500/40 to-rose-500/10", nodes: ["Selfie", "Outfit", "Rembrandt", "Cover crop"], template: "editorial-cover" },
-  { name: "Split Reality", uses: "6.2k", icon: SplitSquareHorizontal, glow: "from-violet-500/40 to-fuchsia-500/10", nodes: ["Selfie", "Two grades", "Side-by-side"], template: "split-reality" },
   { name: "UGC Ad Loop", uses: "4.1k", icon: Film, glow: "from-cyan-500/40 to-blue-500/10", nodes: ["Product", "Talent", "Kling 3.0", "Caption"], template: "ugc-loop" },
   { name: "Music Video Mini", uses: "3.2k", icon: Wand2, glow: "from-pink-500/40 to-rose-500/10", nodes: ["Selfie", "Audio", "Video", "Lip-sync"], template: "music-video-mini" },
 ];
@@ -86,7 +85,6 @@ const FEATURES = [
   { name: "Aurora Canvas", desc: "Node-graph orchestrator for image + video + lip-sync.", to: "/canvas", icon: Sparkles, glow: "from-fuchsia-500/30 to-pink-500/10" },
   { name: "Colors Studio", desc: "Direct your color palette across studio, indoor, rooftop scenes.", to: "/colors", icon: Palette, glow: "from-pink-500/30 to-rose-500/10" },
   { name: "Lip-sync", desc: "Frame-accurate Sync 1.9 in 8+ languages.", to: "/studio", icon: Mic2, glow: "from-emerald-500/30 to-teal-500/10" },
-  { name: "Split Reality", desc: "Two cinematic grades, one render, side-by-side.", to: "/canvas", icon: SplitSquareHorizontal, glow: "from-cyan-500/30 to-blue-500/10" },
   { name: "UGC Ads", desc: "Talent + product → looping social ads.", to: "/ugc", icon: Film, glow: "from-amber-500/30 to-orange-500/10" },
   { name: "Gallery", desc: "Browse the community's best Aurora shots.", to: "/gallery", icon: ImageIcon, glow: "from-indigo-500/30 to-violet-500/10" },
   { name: "Gifts", desc: "Send Aura to a friend.", to: "/gifts", icon: Wand2, glow: "from-rose-500/30 to-pink-500/10" },

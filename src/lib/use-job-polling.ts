@@ -15,7 +15,6 @@ import {
   generatePerformanceShot,
   generateVideoFromImage,
   lipSyncVideo,
-  generateSplitReality,
 } from "./studio.functions";
 
 export type JobPollResult = {
@@ -58,30 +57,6 @@ export async function pollJobUntilDone(
 
 type EnqueueResult = { jobId: string; generationId: string } & Record<string, unknown>;
 
-type SplitSide = { jobId: string; generationId: string; variant: string } & Record<string, unknown>;
-type SplitEnqueueResult = { mode: "characters" | "mirror"; left: SplitSide; right: SplitSide };
-
-/** Split Reality enqueues TWO jobs (left/right halves); poll both to completion
- *  and reconstruct the old { mode, left: {id,url,variant}, right } shape. */
-export function useSplitJobPollingFn<TInput>(
-  enqueueFn: (opts: { data: TInput }) => Promise<SplitEnqueueResult>,
-) {
-  const enqueue = useServerFn(enqueueFn);
-  const statusFn = useServerFn(getJobStatus);
-  return async (opts: { data: TInput }) => {
-    const res = await enqueue(opts);
-    const [l, r] = await Promise.all([
-      pollJobUntilDone(statusFn, res.left.jobId),
-      pollJobUntilDone(statusFn, res.right.jobId),
-    ]);
-    if (!l.resultImageUrl || !r.resultImageUrl) throw new Error("Split Reality render finished without an image");
-    return {
-      mode: res.mode,
-      left: { id: res.left.generationId, url: l.resultImageUrl, variant: res.left.variant },
-      right: { id: res.right.generationId, url: r.resultImageUrl, variant: res.right.variant },
-    };
-  };
-}
 
 /** Wrap a single-job enqueue-only server fn so callers can keep using it as
  *  if it blocked until the render finished. `mapResult` shapes the final
@@ -127,10 +102,6 @@ export function useLipSyncJobFn() {
   });
 }
 
-/** Old shape: { mode, left: {id,url,variant}, right: {id,url,variant} } */
-export function useSplitRealityJobFn() {
-  return useSplitJobPollingFn(generateSplitReality);
-}
 
 // ── ComfyUI runs ───────────────────────────────────────────────────────────
 // Comfy runs poll their own `comfy_runs` row (the worker mirrors the job's
