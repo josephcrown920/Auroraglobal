@@ -25,9 +25,13 @@ import {
   Images,
   Copy,
   Check,
+  Send,
+  MessageSquare,
+  Trash2,
 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
-import { enhanceScript, submitVideo, getVideoStatus, finalizeVideo } from "@/lib/api";
+import { enhanceScript, submitVideo, getVideoStatus, finalizeVideo, getMessages, clearMessages } from "@/lib/api";
+import type { ChatMessage } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 
 interface Props { session: Session; }
@@ -147,7 +151,9 @@ function OutfitStatusLabel({ status }: { status: OutfitStatus }) {
 
 export function VideoAgentUI({ session }: Props) {
   const [view, setView] = useState<View>("project");
-  const [idea, setIdea] = useState("");
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [loadingChat, setLoadingChat] = useState(false);
   const [script, setScript] = useState("");
   const [mode, setMode] = useState<ModeId>("direct");
   const [orientation, setOrientation] = useState<"landscape" | "portrait">("landscape");
@@ -164,6 +170,7 @@ export function VideoAgentUI({ session }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef = useRef(false);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
   const token = session.access_token;
   const email = session.user.email ?? "";
@@ -216,6 +223,21 @@ export function VideoAgentUI({ session }: Props) {
     }
   }, [history, view, fetchHistory]);
 
+  // Load persistent conversation history on mount
+  useEffect(() => {
+    setLoadingChat(true);
+    getMessages(token)
+      .then(msgs => setChatMessages(msgs))
+      .catch(() => {})
+      .finally(() => setLoadingChat(false));
+  }, [token]);
+
+  // Auto-scroll chat to bottom whenever messages change or enhancing starts
+  useEffect(() => {
+    const el = chatScrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [chatMessages, stage]);
+
   function stopPoll() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }
@@ -227,20 +249,46 @@ export function VideoAgentUI({ session }: Props) {
   }
 
   async function handleEnhance() {
-    if (!idea.trim()) { toast.error("Enter an idea or draft first"); return; }
+    if (!chatInput.trim()) { toast.error("Describe your idea first"); return; }
+    const userMsg: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: chatInput.trim(),
+      created_at: new Date().toISOString(),
+    };
+    setChatMessages(prev => [...prev, userMsg]);
+    setChatInput("");
     setStage("enhancing");
     setScript("");
     try {
       const res = await enhanceScript(
-        { prompt: idea, targetSeconds, directToCamera: mode === "direct" },
+        { prompt: userMsg.content, targetSeconds, directToCamera: mode === "direct" },
         token,
       );
+      const assistantMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: res.script,
+        created_at: new Date().toISOString(),
+      };
+      setChatMessages(prev => [...prev, assistantMsg]);
       setScript(res.script);
       setStage("idle");
-      toast.success("Script enhanced");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Enhancement failed");
       resetToIdle();
+    }
+  }
+
+  async function handleClearChat() {
+    try {
+      await clearMessages(token);
+      setChatMessages([]);
+      setScript("");
+      setChatInput("");
+      toast.success("Conversation cleared");
+    } catch {
+      toast.error("Failed to clear conversation");
     }
   }
 
@@ -320,10 +368,10 @@ export function VideoAgentUI({ session }: Props) {
   function handleReset() {
     abortRef.current = true;
     stopPoll();
-    setIdea(""); setScript(""); setResultUrl(null); setStage("idle");
+    setChatInput(""); setScript(""); setResultUrl(null); setStage("idle");
   }
 
-  const activeScript = script || idea;
+  const activeScript = script;
 
   const stageLabel: Record<Stage, string> = {
     idle: "",
@@ -617,29 +665,99 @@ export function VideoAgentUI({ session }: Props) {
           </div>
 
           <main style={{ flex: 1, padding: "28px 20px", maxWidth: 760, margin: "0 auto", width: "100%" }}>
-            <Section num={1} label="Write your script">
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <textarea
-                  value={script || idea}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (script) setScript(val); else setIdea(val);
-                  }}
-                  placeholder="Paste your raw idea, rough notes, or draft script here…"
-                  rows={7}
-                  disabled={busy}
-                  style={{
-                    width: "100%", background: "var(--bg-input)",
-                    border: "1px solid var(--border)", borderRadius: 12,
-                    padding: "14px 16px", color: "var(--text)", fontSize: 14,
-                    resize: "vertical", outline: "none", lineHeight: 1.6,
-                    transition: "border-color 0.15s",
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
-                  onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-                />
+            <Section num={1} label="Conversation">
+              {/* ── Chat thread ── */}
+              <div
+                ref={chatScrollRef}
+                style={{
+                  minHeight: 200, maxHeight: 400, overflowY: "auto",
+                  display: "flex", flexDirection: "column", gap: 10,
+                  padding: "4px 0 12px", marginBottom: 12,
+                  scrollbarWidth: "thin",
+                }}
+              >
+                {loadingChat ? (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 120, color: "var(--text-muted)", gap: 8 }}>
+                    <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+                    <span style={{ fontSize: 13 }}>Loading your conversation…</span>
+                  </div>
+                ) : chatMessages.length === 0 ? (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 160, gap: 10, color: "var(--text-muted)" }}>
+                    <MessageSquare size={32} style={{ opacity: 0.18 }} />
+                    <div style={{ textAlign: "center", maxWidth: 300 }}>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", margin: "0 0 4px" }}>Start a conversation</p>
+                      <p style={{ fontSize: 12, margin: 0, lineHeight: 1.6 }}>
+                        Describe your idea below. I remember everything across sessions — ask for revisions, change the tone, or build on past scripts.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  chatMessages.map(m => (
+                    <div key={m.id} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+                      <div style={{
+                        maxWidth: "88%",
+                        background: m.role === "user"
+                          ? "oklch(0.72 0.2 300 / 0.14)"
+                          : "var(--bg-input)",
+                        border: `1px solid ${m.role === "user" ? "oklch(0.72 0.2 300 / 0.28)" : "var(--border)"}`,
+                        borderRadius: m.role === "user"
+                          ? "14px 14px 4px 14px"
+                          : "14px 14px 14px 4px",
+                        padding: "10px 14px",
+                      }}>
+                        {m.role === "user" ? (
+                          <p style={{ fontSize: 13, color: "var(--text)", margin: 0, lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
+                            {m.content}
+                          </p>
+                        ) : (
+                          <>
+                            <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--accent)", margin: "0 0 6px" }}>
+                              Script
+                            </p>
+                            <p style={{ fontSize: 13, color: "var(--text)", margin: 0, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+                              {m.content}
+                            </p>
+                            <button
+                              onClick={() => { setScript(m.content); toast.success("Script selected — hit Generate below"); }}
+                              style={{
+                                marginTop: 10, display: "inline-flex", alignItems: "center", gap: 5,
+                                padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 700,
+                                background: "oklch(0.72 0.2 300 / 0.12)",
+                                border: "1px solid oklch(0.72 0.2 300 / 0.3)",
+                                color: "var(--accent)", cursor: "pointer",
+                              }}
+                            >
+                              <Video size={11} /> Use this script
+                            </button>
+                          </>
+                        )}
+                        <div style={{ fontSize: 10, color: "var(--text-muted)", opacity: 0.45, marginTop: 5, textAlign: m.role === "user" ? "right" : "left" }}>
+                          {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
 
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                {/* Typing indicator while enhancing */}
+                {stage === "enhancing" && (
+                  <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                    <div style={{
+                      background: "var(--bg-input)", border: "1px solid var(--border)",
+                      borderRadius: "14px 14px 14px 4px", padding: "10px 16px",
+                      display: "flex", alignItems: "center", gap: 8,
+                    }}>
+                      <Loader2 size={13} style={{ animation: "spin 1s linear infinite", color: "var(--accent)" }} />
+                      <span style={{ fontSize: 13, color: "var(--text-muted)" }}>Writing your script…</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Controls + input bar ── */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {/* Mode / duration / clear row */}
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                   {MODES.map((m) => {
                     const Icon = m.icon;
                     const active = mode === m.id;
@@ -650,15 +768,15 @@ export function VideoAgentUI({ session }: Props) {
                         disabled={busy}
                         title={m.desc}
                         style={{
-                          display: "flex", alignItems: "center", gap: 6,
-                          padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500,
+                          display: "flex", alignItems: "center", gap: 5,
+                          padding: "5px 10px", borderRadius: 7, fontSize: 12, fontWeight: 500,
                           border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
                           background: active ? "oklch(0.72 0.2 300 / 0.12)" : "transparent",
                           color: active ? "var(--accent)" : "var(--text-muted)",
-                          cursor: "pointer", transition: "all 0.15s",
+                          cursor: "pointer",
                         }}
                       >
-                        <Icon size={14} /> {m.label}
+                        <Icon size={12} /> {m.label}
                       </button>
                     );
                   })}
@@ -667,34 +785,76 @@ export function VideoAgentUI({ session }: Props) {
                     onChange={(e) => setTargetSeconds(Number(e.target.value))}
                     disabled={busy}
                     style={{
-                      marginLeft: "auto",
-                      padding: "7px 12px", borderRadius: 8, fontSize: 13,
+                      padding: "5px 10px", borderRadius: 7, fontSize: 12,
                       background: "var(--bg-input)", border: "1px solid var(--border)",
                       color: "var(--text-muted)", cursor: "pointer", outline: "none",
                     }}
                   >
                     {DURATIONS.map((d) => <option key={d} value={d}>{d}s</option>)}
                   </select>
+                  {chatMessages.length > 0 && (
+                    <button
+                      onClick={() => void handleClearChat()}
+                      disabled={busy}
+                      title="Clear conversation history"
+                      style={{
+                        marginLeft: "auto", display: "flex", alignItems: "center", gap: 5,
+                        padding: "5px 10px", borderRadius: 7, fontSize: 12,
+                        background: "transparent", border: "1px solid var(--border)",
+                        color: "var(--text-muted)", cursor: "pointer",
+                      }}
+                    >
+                      <Trash2 size={12} /> Clear
+                    </button>
+                  )}
                 </div>
 
-                <button
-                  onClick={handleEnhance}
-                  disabled={busy || !idea.trim()}
-                  style={{
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                    padding: "11px 20px", borderRadius: 12, fontWeight: 600, fontSize: 14,
-                    background: "oklch(0.72 0.2 300 / 0.15)",
-                    border: "1px solid oklch(0.72 0.2 300 / 0.35)",
-                    color: "var(--accent)", cursor: busy || !idea.trim() ? "not-allowed" : "pointer",
-                    opacity: busy || !idea.trim() ? 0.5 : 1,
-                    transition: "all 0.15s",
-                  }}
-                >
-                  {stage === "enhancing"
-                    ? <><Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> Enhancing…</>
-                    : <><Wand2 size={15} /> Enhance with AI</>
-                  }
-                </button>
+                {/* Text input + send button */}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <textarea
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey && !busy && chatInput.trim()) {
+                        e.preventDefault();
+                        void handleEnhance();
+                      }
+                    }}
+                    placeholder="Describe your idea, ask for a revision, change the tone… (Enter to send, Shift+Enter for new line)"
+                    rows={3}
+                    disabled={busy}
+                    style={{
+                      flex: 1, background: "var(--bg-input)",
+                      border: "1px solid var(--border)", borderRadius: 10,
+                      padding: "10px 14px", color: "var(--text)", fontSize: 13,
+                      resize: "none", outline: "none", lineHeight: 1.6,
+                      transition: "border-color 0.15s",
+                    }}
+                    onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
+                    onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+                  />
+                  <button
+                    onClick={() => void handleEnhance()}
+                    disabled={busy || !chatInput.trim()}
+                    style={{
+                      width: 52, flexShrink: 0, borderRadius: 10,
+                      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4,
+                      fontSize: 10, fontWeight: 700, letterSpacing: "0.04em",
+                      background: busy || !chatInput.trim()
+                        ? "oklch(0.18 0.01 272)"
+                        : "oklch(0.72 0.2 300 / 0.15)",
+                      border: `1px solid ${busy || !chatInput.trim() ? "var(--border)" : "oklch(0.72 0.2 300 / 0.35)"}`,
+                      color: busy || !chatInput.trim() ? "var(--text-muted)" : "var(--accent)",
+                      cursor: busy || !chatInput.trim() ? "not-allowed" : "pointer",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    {stage === "enhancing"
+                      ? <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} />
+                      : <><Send size={15} /><span>Send</span></>
+                    }
+                  </button>
+                </div>
               </div>
             </Section>
 
