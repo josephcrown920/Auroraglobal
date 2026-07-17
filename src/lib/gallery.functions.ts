@@ -3,6 +3,26 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
+const HideInput = z.object({ id: z.string().uuid(), hidden: z.boolean() });
+
+/**
+ * Set or clear the is_hidden flag on a generation owned by the caller.
+ * Hidden generations are suppressed from the default gallery view but
+ * remain in the database and can be restored via the "Hidden" tab.
+ */
+export const hideGeneration = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => HideInput.parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { error } = await supabase
+      .from("generations")
+      .update({ is_hidden: data.hidden } as any)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
 const DeleteInput = z.object({ id: z.string().uuid() });
 const BulkDeleteInput = z.object({ ids: z.array(z.string().uuid()).min(1).max(200) });
 

@@ -378,17 +378,23 @@ export const toggleFavorite = createServerFn({ method: "POST" })
 // Gallery — favorited + recent completed generations
 export const listGallery = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input: unknown) =>
+    z.object({ showHidden: z.boolean().optional().default(false) }).parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { data, error } = await supabase
+    const showHidden = data.showHidden ?? false;
+    const query = supabase
       .from("generations")
       .select("id, prompt, kind, model, result_image_url, result_video_url, is_favorite, tags, created_at, is_watermarked")
       // Sync fns finish as "complete"; async queue jobs (motion, performance_reskin,
       // tiktok_remix_child) finish as "succeeded" — include both so all gens land here.
       .in("status", ["complete", "succeeded"])
-      .order("is_favorite", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(200);
+      .eq("is_hidden" as any, showHidden);
+    const { data: rows, error } = await (!showHidden
+      ? query.order("is_favorite", { ascending: false }).order("created_at", { ascending: false })
+      : query.order("created_at", { ascending: false })
+    ).limit(200);
     if (error) throw new Error(error.message);
 
     // Mask raw provider URLs for free-tier items; replace with signed proxy URLs.
@@ -398,7 +404,7 @@ export const listGallery = createServerFn({ method: "GET" })
     const { signWatermarkToken } = await import("@/lib/watermark-token.server");
     // Cast to any[] — is_watermarked is in the DB but not in the generated types.ts;
     // accessing it via the SelectQueryError type would require a full types regen.
-    const items = ((data ?? []) as any[]).map((row: any) => {
+    const items = ((rows ?? []) as any[]).map((row: any) => {
       const wm = row.is_watermarked as boolean | undefined;
       if (wm) {
         let watermark_display_url: string | null = null;
