@@ -30,7 +30,29 @@ async function get<T>(path: string, token: string): Promise<T> {
   return json as T;
 }
 
-// ── Enhance ──────────────────────────────────────────────────────────────────
+// ── Chat message (persistent memory) ─────────────────────────────────────────
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+}
+
+export async function getMessages(token: string): Promise<ChatMessage[]> {
+  const res = await get<{ messages: ChatMessage[] }>("/api/video-agent/messages", token);
+  return res.messages;
+}
+
+export async function clearMessages(token: string): Promise<void> {
+  await fetch(`${BASE}/api/video-agent/messages`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+// ── Enhance ───────────────────────────────────────────────────────────────────
 
 export interface EnhanceParams {
   prompt: string;
