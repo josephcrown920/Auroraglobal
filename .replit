@@ -34,10 +34,6 @@ args = "test"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "github-sync"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
 args = "cron"
 
 [[workflows.workflow]]
@@ -95,17 +91,6 @@ args = "npm test"
 
 [workflows.workflow.metadata]
 isValidation = true
-
-[[workflows.workflow]]
-name = "github-sync"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "bash scripts/github-sync-daemon.sh"
-
-[workflows.workflow.metadata]
-outputType = "console"
 
 [[workflows.workflow]]
 name = "cron"
