@@ -2,6 +2,17 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
+const PREVIEW_PHOTOS = [
+  "/video-agent/sample/p1.png",
+  "/video-agent/sample/p4.jpeg",
+  "/video-agent/sample/p2.png",
+  "/video-agent/sample/p5.jpeg",
+  "/video-agent/sample/p3.jpeg",
+  "/video-agent/sample/p6.png",
+  "/video-agent/sample/p7.png",
+  "/video-agent/sample/p8.png",
+];
+
 export function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -169,47 +180,58 @@ export function Auth() {
         </div>
       </div>
 
-      {/* Right — photo showcase */}
+      {/* Right — photo mosaic showcase */}
       <div style={{
         flex: 1,
         position: "relative",
         overflow: "hidden",
-        display: "flex",
-        alignItems: "flex-end",
+        background: "oklch(0.06 0.02 272)",
       }}>
-        {/* Cinematic hero */}
-        <img
-          src="/video-agent/demo-cinematic.webp"
-          alt=""
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            objectPosition: "center 20%",
-          }}
-        />
-        {/* Dark gradient overlay */}
+        {/* 2×4 photo grid */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gridTemplateRows: "repeat(4, 1fr)",
+          height: "100%",
+          gap: 3,
+        }}>
+          {PREVIEW_PHOTOS.map((src, i) => (
+            <div key={i} style={{ overflow: "hidden", position: "relative" }}>
+              <img
+                src={src}
+                alt=""
+                aria-hidden
+                loading="eager"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  objectPosition: "center top",
+                  display: "block",
+                  transition: "transform 8s ease-in-out",
+                }}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Dark gradient overlay at bottom */}
         <div style={{
           position: "absolute",
           inset: 0,
-          background: "linear-gradient(to top, oklch(0.06 0.02 272) 0%, transparent 60%)",
+          background: "linear-gradient(to top, oklch(0.06 0.02 272 / 0.8) 0%, transparent 40%)",
+          pointerEvents: "none",
         }} />
-        {/* Variation strip */}
-        <div style={{ position: "relative", zIndex: 1, padding: "24px 28px", width: "100%" }}>
-          <img
-            src="/video-agent/demo-variations.jpg"
-            alt="Video variations"
-            style={{
-              width: "100%",
-              borderRadius: 12,
-              border: "1px solid rgba(255,255,255,0.12)",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-              display: "block",
-            }}
-          />
-          <p style={{ marginTop: 12, fontSize: 12, color: "rgba(255,255,255,0.5)", textAlign: "center" }}>
+
+        {/* Caption */}
+        <div style={{
+          position: "absolute",
+          bottom: 20,
+          left: 0,
+          right: 0,
+          textAlign: "center",
+        }}>
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", margin: 0 }}>
             AI-generated video variations · powered by HeyGen &amp; Aurora
           </p>
         </div>

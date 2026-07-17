@@ -44,32 +44,32 @@ type Feature = {
 
 /** Core creation tools — highest-traffic first. */
 const MAKE_FEATURES: Feature[] = [
-  { to: "/studio",      label: "Image Generation", icon: Sparkles },
-  { to: "/colors",      label: "Colors Studio",    icon: Palette },
-  { to: "/motion",      label: "Motion Control",   icon: Wand2, previewImg: "/nav-previews/perform-anywhere.jpg" },
-  { to: "/live-studio", label: "Live Studios",      icon: Music2 },
-  { to: "/canvas",      label: "Canvas",           icon: Workflow },
-  { to: "/orchestrate", label: "Video",            icon: Film },
-  { to: "/photo-edit",  label: "Photo Editor",     icon: Brush },
-  { to: "/agent",       label: "Video Agent",      icon: Bot, previewImg: "/nav-previews/video-agent.jpg" },
+  { to: "/studio",      label: "Image Generation", icon: Sparkles,  previewImg: "/nav-previews/studio.jpg" },
+  { to: "/colors",      label: "Colors Studio",    icon: Palette,   previewImg: "/nav-previews/colors.jpg" },
+  { to: "/motion",      label: "Motion Control",   icon: Wand2,     previewImg: "/nav-previews/perform-anywhere.jpg" },
+  { to: "/live-studio", label: "Live Studios",      icon: Music2,    previewImg: "/nav-previews/live-studio.jpg" },
+  { to: "/canvas",      label: "Canvas",           icon: Workflow,  previewImg: "/nav-previews/canvas.jpg" },
+  { to: "/orchestrate", label: "Video",            icon: Film,      previewImg: "/nav-previews/music-video.jpg" },
+  { to: "/photo-edit",  label: "Photo Editor",     icon: Brush,     previewImg: "/nav-previews/photo-edit.jpg" },
+  { to: "/agent",       label: "Video Agent",      icon: Bot,       previewImg: "/nav-previews/video-agent.jpg" },
 ];
 
 /** Guided creator workflows — music video & scene compositing. */
 const CREATOR_TOOLS_FEATURES: Feature[] = [
-  { to: "/colors-show",   label: "Colors Show Creator", icon: Film },
+  { to: "/colors-show",   label: "Colors Show Creator", icon: Film,   previewImg: "/nav-previews/live-studio.jpg" },
   { to: "/scene-builder", label: "Scene Builder",       icon: Layers, previewImg: "/nav-previews/scene-builder.jpg" },
 ];
 
 /** Creator & viral templates — ordered by demand. */
 const VIRAL_FEATURES: Feature[] = [
-  { to: "/templates",   label: "Templates",        icon: Layers },
-  { to: "/lipsync",     label: "Lip Sync",        icon: Mic },
-  { to: "/ugc-line",    label: "Content Line",    icon: Layers },
-  { to: "/ugc",         label: "UGC Ads",         icon: Megaphone },
-  { to: "/spin",        label: "TikTok30",        icon: Flame },
-  { to: "/motion",      label: "Motion Control",  icon: Wand2, previewImg: "/nav-previews/perform-anywhere.jpg" },
-  { to: "/music-video", label: "Lyric Video",     icon: Clapperboard },
-  { to: "/avatar",      label: "Talking Avatars", icon: UserCircle2 },
+  { to: "/templates",   label: "Templates",        icon: Layers,       previewImg: "/nav-previews/templates.jpg" },
+  { to: "/lipsync",     label: "Lip Sync",        icon: Mic,          previewImg: "/nav-previews/lipsync.jpg" },
+  { to: "/ugc-line",    label: "Content Line",    icon: Layers,       previewImg: "/nav-previews/ugc-line.jpg" },
+  { to: "/ugc",         label: "UGC Ads",         icon: Megaphone,    previewImg: "/nav-previews/ugc.jpg" },
+  { to: "/spin",        label: "TikTok30",        icon: Flame,        previewImg: "/nav-previews/spin.jpg" },
+  { to: "/motion",      label: "Motion Control",  icon: Wand2,        previewImg: "/nav-previews/perform-anywhere.jpg" },
+  { to: "/music-video", label: "Lyric Video",     icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
+  { to: "/avatar",      label: "Talking Avatars", icon: UserCircle2,  previewImg: "/nav-previews/avatar.jpg" },
 ];
 
 /** Account & monetization — affiliate promoted to live. */

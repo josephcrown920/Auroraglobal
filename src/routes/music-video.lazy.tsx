@@ -583,6 +583,32 @@ function MusicVideoPage() {
           </p>
         )}
 
+        {/* Sample outputs — shown when no user results yet */}
+        {recentResults.length === 0 && (
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Sample outputs
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                "/sample-photos/staircase-mic.jpeg",
+                "/sample-photos/miami-car.jpeg",
+                "/sample-photos/fire-street.png",
+                "/sample-photos/balloon-josh.png",
+                "/sample-photos/supermarket.jpeg",
+                "/sample-photos/fire-warehouse.png",
+              ].map((src) => (
+                <div key={src} className="relative aspect-video rounded-xl overflow-hidden bg-card/60 border border-border">
+                  <img src={src} alt="Sample output" className="w-full h-full object-cover object-top" />
+                </div>
+              ))}
+            </div>
+            <p className="text-center text-xs text-muted-foreground">
+              Generate your first video to see your results here
+            </p>
+          </section>
+        )}
+
         {/* Recent results */}
         {recentResults.length > 0 && (
           <section className="space-y-3">
