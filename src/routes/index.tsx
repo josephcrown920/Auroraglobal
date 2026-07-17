@@ -1,510 +1,493 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { lazy, Suspense, useEffect, useState } from "react";
-import {
-  Sparkles,
-  ArrowRight,
-  BookOpen,
-  Wand2,
-  Palette,
-  Megaphone,
-  Plug,
-  TrendingUp,
-  Terminal,
-  Camera,
-  Play,
-  ChevronDown,
-} from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import auroraLogo from "@/assets/aurora-logo.png.asset.json";
-import { useServerFn } from "@tanstack/react-start";
-import { trackAffiliateClick } from "@/lib/affiliate.functions";
+import { Plus, Play, ArrowUpRight, ChevronDown } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { useSiteImage } from "@/components/landing/SiteImagesProvider";
-import { TutorialModal } from "@/components/TutorialModal";
-import { TutorialOnboarding } from "@/components/onboarding/TutorialOnboarding";
-import { PricingSection } from "@/components/landing/PricingSection";
-import { SiteFooter } from "@/components/SiteFooter";
-import { Testimonials } from "@/components/landing/Testimonials";
-import { TrustBar } from "@/components/landing/TrustBar";
-import { StickyCreditsBar } from "@/components/landing/StickyCreditsBar";
-import { ScrollProgress } from "@/components/landing/ScrollProgress";
-import { HeroContactForm } from "@/components/landing/HeroContactForm";
-import { ServicesGrid } from "@/components/landing/ServicesGrid";
-import { WhyUs } from "@/components/landing/WhyUs";
-import { FinalCTA } from "@/components/landing/FinalCTA";
-import { CliSection } from "@/components/landing/CliSection";
-import { PhotoStrip } from "@/components/landing/PhotoStrip";
+import { useState } from "react";
 
-// Below-the-fold sections — lazy-loaded so the landing page JS payload stays
-// small. Each becomes its own async chunk; the router never pre-fetches them
-// for visitors who never scroll that far.
-const ViralEngine = lazy(() =>
-  import("@/components/landing/ViralEngine").then((m) => ({ default: m.ViralEngine }))
-);
-const ColorsTeaser = lazy(() =>
-  import("@/components/landing/ColorsTeaser").then((m) => ({ default: m.ColorsTeaser }))
-);
-const CanvasWorkflowShowcase = lazy(() =>
-  import("@/components/landing/CanvasWorkflowShowcase").then((m) => ({ default: m.CanvasWorkflowShowcase }))
-);
-const TrendingTemplatesStrip = lazy(() =>
-  import("@/components/landing/TrendingTemplatesStrip").then((m) => ({ default: m.TrendingTemplatesStrip }))
-);
-const AffiliateRewardSection = lazy(() =>
-  import("@/components/landing/AffiliateRewardSection").then((m) => ({ default: m.AffiliateRewardSection }))
-);
-const SupercomputerSection = lazy(() =>
-  import("@/components/landing/ScreenshotSections").then((m) => ({ default: m.SupercomputerSection }))
-);
-const CreatorEconomySection = lazy(() =>
-  import("@/components/landing/CreatorEconomySection").then((m) => ({ default: m.CreatorEconomySection }))
-);
-const GetReadyWithMe = lazy(() =>
-  import("@/components/landing/GetReadyWithMe").then((m) => ({ default: m.GetReadyWithMe }))
-);
-const GuidesTeaser = lazy(() =>
-  import("@/components/landing/GuidesTeaser").then((m) => ({ default: m.GuidesTeaser }))
-);
-import { FeatureRequest } from "@/components/landing/FeatureRequest";
-import { track } from "@/lib/tracking";
-import { LandingDemoModal } from "@/components/landing/LandingDemoModal";
-import { PerformAnywhereSection } from "@/components/landing/PerformAnywhereSection";
+export const Route = createFileRoute("/")({
+  component: LandingPage,
+});
 
-const FAQ_ITEMS = [
+const TICKER_ITEMS = [
+  "Album covers",
+  "Music video stills",
+  "Tour posters",
+  "Press photos",
+  "Spotify Canvas",
+  "Social assets",
+  "Concert reels",
+];
+
+const FAQS = [
   {
-    q: "How does Aura work?",
-    a: "1 Aura ≈ 1 image. Budget video starts at 10 Aura and lip-sync at 3; premium models cost more, priced to match each model. Length and resolution scale the price. Aura never expires and rolls across all models.",
+    q: "Who owns the rights to what I generate?",
+    a: "You do. Every generation on Aurora is 100% owned by the artist who created it. Full commercial rights are included from your very first click.",
   },
   {
-    q: "Can I use the results commercially?",
-    a: "Yes. Every paid plan includes a full commercial license for the outputs you generate — ads, music videos, UGC, client deliverables. You own the renders.",
+    q: "Is Aurora training on my uploads?",
+    a: "No. Aurora runs a closed-loop model. Your references and prompts are never used for training unless you explicitly opt in to a private model for your project.",
   },
   {
-    q: "Which models are included?",
-    a: "All of them. Seedance 5.9, Kling, Gemini Omni, Grok Imagine, Sync lip-sync, and every new model we ship.",
+    q: "Can I export 4K stills and video?",
+    a: "Yes. Pro and Studio tiers include 4K stills and 4K/60fps motion exports for music-video backgrounds, tour visuals, and DSP canvas loops.",
+  },
+  {
+    q: "Do I need any design or prompting experience?",
+    a: "No. Aurora is a director-first interface — describe the shoot in plain language and drop references. It handles the technical craft.",
   },
 ];
 
-export const Route = createFileRoute("/")({
-  component: Index,
-  head: () => ({
-    meta: [
-      { title: "Aurora Studio — Go viral on TikTok in 30 seconds | Music Video AI" },
-      {
-        name: "description",
-        content:
-          "Drop your song and Aurora builds the music video — lip-sync, beat-synced visuals, cover-art reveals and lyric hooks. Built for TikTok music creators and Afrobeats, Trap & Drill artists.",
-      },
-      { property: "og:title", content: "Aurora — Drop your song, get your music video" },
-      {
-        property: "og:description",
-        content:
-          "AI music videos for artists: lip-sync, beat-sync visuals, cover art and lyric hooks. Go viral on TikTok in 30 seconds.",
-      },
-      { property: "og:url", content: "https://auroraperformancestudio.com/" },
-    ],
-    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/" }],
-    scripts: [
-      {
-        type: "application/ld+json",
-        children: JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "FAQPage",
-          mainEntity: FAQ_ITEMS.map((f) => ({
-            "@type": "Question",
-            name: f.q,
-            acceptedAnswer: { "@type": "Answer", text: f.a },
-          })),
-        }),
-      },
-    ],
-  }),
-});
-
-function Index() {
+function LandingPage() {
   const { user } = useAuth();
-  const ctaLabel = user ? "Open Performance Studio" : "Get started";
-  const greeting = user?.user_metadata?.display_name
-    ? `Welcome back, ${String(user.user_metadata.display_name).split(" ")[0]}`
-    : "Welcome to Aurora";
-  const [tutorialTick, setTutorialTick] = useState(0);
-  const [scrolled, setScrolled] = useState(false);
-  const [demoOpen, setDemoOpen] = useState(false);
-  const trackRef = useServerFn(trackAffiliateClick);
-  const hero1 = useSiteImage("hero_1");
-  const hero2 = useSiteImage("hero_2");
-  const hero3 = useSiteImage("hero_3");
-  const hero4 = useSiteImage("hero_4");
-  const hero5 = useSiteImage("hero_5");
-  const hero6 = useSiteImage("hero_6");
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const ref = new URLSearchParams(window.location.search).get("ref");
-    if (ref) {
-      try {
-        localStorage.setItem("aurora_ref", ref);
-      } catch {
-        // localStorage unavailable (e.g. private browsing) — non-fatal
-      }
-      trackRef({ data: { code: ref } }).catch(() => {});
-    }
-    const onScroll = () => setScrolled(window.scrollY > 24);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [trackRef]);
+  const ctaTo = user ? "/studio" : "/auth";
+  const ctaLabel = user ? "Open Studio" : "Start creating free";
 
   return (
-    <main className="min-h-screen relative overflow-hidden bg-[#070612] text-white pb-28 md:pb-24">
-      <TutorialModal trigger={tutorialTick} />
-      <LandingDemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
-      <TutorialOnboarding show={!user} />
-      <ScrollProgress />
-      <StickyCreditsBar />
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-display antialiased selection:bg-brand selection:text-white">
 
-      {/* ── By Artists for Artists & Creators — red top bar ── */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-red-700 via-red-600 to-red-700 text-white text-center text-[11px] md:text-xs py-2 font-semibold tracking-[0.12em] uppercase select-none">
-        By Artists for Artists &amp; Creators &nbsp;·&nbsp; Made for the culture ♥
-      </div>
-
-      {/* Ambient violet glows */}
-      <div
-        className="pointer-events-none absolute -top-40 -right-40 size-[640px] rounded-full blur-3xl opacity-50"
-        style={{ background: "radial-gradient(circle, hsl(270 90% 60% / 0.55), transparent 60%)" }}
-      />
-      <div
-        className="pointer-events-none absolute top-1/3 -left-40 size-[520px] rounded-full blur-3xl opacity-40"
-        style={{ background: "radial-gradient(circle, hsl(290 80% 55% / 0.5), transparent 60%)" }}
-      />
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.04]"
-        style={{
-          backgroundImage:
-            "linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)",
-          backgroundSize: "44px 44px",
-        }}
-      />
-
-      {/* Sticky header — sits below the red top bar (top-8) */}
-      <header
-        className={`phone-fixed-x fixed top-8 z-40 transition-all duration-300 ${
-          scrolled ? "bg-[#070612]/85 backdrop-blur-xl border-b border-border" : "bg-transparent"
-        }`}
-      >
-        <div className="flex items-center justify-between pl-24 pr-6 md:px-12 py-4">
-          <Link
-            to="/"
-            className="flex items-center gap-2 font-semibold tracking-tight no-underline"
-            onClick={(e) => {
-              // Owner entrance: triple-click the logo within 800ms to open /admin.
-              // Server still enforces has_role(), so non-admins get bounced.
-              const w = window as unknown as { __logoClicks?: number[] };
-              const now = Date.now();
-              w.__logoClicks = [...(w.__logoClicks ?? []).filter((t) => now - t < 800), now];
-              if (w.__logoClicks.length >= 3) {
-                e.preventDefault();
-                w.__logoClicks = [];
-                window.location.href = "/admin";
-              }
-            }}
-          >
-            <img
-              src={auroraLogo.url}
-              alt="Aurora"
-              decoding="async"
-              className="size-8 rounded-xl object-contain shadow-[var(--shadow-glow-soft)]"
-            />
-            <span className="text-white">Aurora</span>
-          </Link>
-          <nav className="flex items-center gap-2 md:gap-3">
-            <a
-              href="#services"
-              onClick={() => void track("nav_click", { target: "services" })}
-              className="hidden sm:inline-flex items-center px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
-            >
-              Services
-            </a>
-            <button
-              onClick={() => setTutorialTick((t) => t + 1)}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5"
-            >
-              <BookOpen className="size-3.5" /> Tutorials
-            </button>
-            <Link
-              to="/canvas"
-              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
-            >
-              <Sparkles className="size-3.5" /> Canvas
-            </Link>
-            <Link
-              to="/lipsync"
-              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
-            >
-              <Wand2 className="size-3.5" /> Lip Sync
-            </Link>
-            <Link
-              to="/spin"
-              search={{ prompt: undefined, jobId: undefined }}
-              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5 no-underline"
-            >
-              <Play className="size-3.5" /> TikTok30
-            </Link>
-            {/* Lower-traffic tools consolidated behind one "More" menu instead of
-                4 separate top-level links — cuts header nav clutter. */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="hidden lg:inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-full text-white/80 hover:text-white hover:bg-white/5">
-                  More <ChevronDown className="size-3.5" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem asChild>
-                  <Link to="/ugc" className="no-underline flex items-center">
-                    <Megaphone className="size-3.5 mr-2" /> UGC Ads
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/motion" className="no-underline flex items-center">
-                    <Wand2 className="size-3.5 mr-2" /> Motion
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/colors" className="no-underline flex items-center">
-                    <Palette className="size-3.5 mr-2" /> Colors
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/reshoot" className="no-underline flex items-center">
-                    <Camera className="size-3.5 mr-2" /> Reshoot
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+      {/* ── Nav ─────────────────────────────────────────────────────────── */}
+      <nav className="sticky top-0 z-50 w-full border-b border-white/5 bg-zinc-950/80 backdrop-blur-md">
+        <div className="flex h-14 items-center justify-between px-5">
+          <div className="flex items-center gap-2">
+            <span className="inline-block size-2 rounded-full bg-brand" />
+            <span className="text-lg font-semibold tracking-tighter uppercase italic">Aurora</span>
+          </div>
+          <div className="flex items-center gap-3">
             {user ? (
               <Link
-                to="/dashboard"
-                className="px-3 py-1.5 text-sm rounded-full aurora-glass-strong text-foreground hover:brightness-110 no-underline"
+                to="/studio"
+                className="inline-flex items-center rounded-full bg-zinc-100 py-2 pl-2 pr-3 text-sm font-semibold text-zinc-950 transition-transform hover:scale-[1.02] active:scale-95"
               >
-                Dashboard
+                <Plus className="size-4 mr-1.5 shrink-0" strokeWidth={2.5} />
+                Open Studio
               </Link>
             ) : (
-              <Link
-                to="/auth"
-                className="px-3 py-1.5 text-sm rounded-full aurora-glass-strong text-foreground hover:brightness-110 no-underline"
-              >
-                Sign in
-              </Link>
+              <>
+                <Link
+                  to="/auth"
+                  className="text-sm font-medium text-zinc-400 hover:text-zinc-100 transition-colors"
+                >
+                  Sign in
+                </Link>
+                <Link
+                  to="/auth"
+                  className="inline-flex items-center rounded-full bg-zinc-100 py-2 pl-2 pr-3 text-sm font-semibold text-zinc-950 transition-transform hover:scale-[1.02] active:scale-95"
+                >
+                  <Plus className="size-4 mr-1.5 shrink-0" strokeWidth={2.5} />
+                  Start free
+                </Link>
+              </>
             )}
+          </div>
+        </div>
+      </nav>
+
+      {/* ── Hero ────────────────────────────────────────────────────────── */}
+      <header className="relative flex min-h-[88dvh] flex-col justify-end overflow-hidden pb-16 px-5">
+        <div className="absolute inset-0 z-0">
+          <img
+            src="/landing/hero-artist.jpg"
+            alt="Cinematic AI-generated artist portrait"
+            width={1920}
+            height={1200}
+            className="h-full w-full object-cover"
+            fetchPriority="high"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-zinc-950/60" />
+          <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/80 via-zinc-950/20 to-transparent" />
+        </div>
+
+        <div className="relative z-10">
+          <div className="mb-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">
+            <span className="inline-block size-1.5 rounded-full bg-brand animate-pulse" />
+            Aurora Studio · Now in open beta
+          </div>
+          <h1 className="text-[3.25rem] font-semibold leading-[0.92] tracking-tight">
+            Direct your
+            <br />
+            <span className="font-serif italic text-zinc-100">visual identity.</span>
+          </h1>
+          <p className="mt-5 max-w-[36ch] text-base leading-relaxed text-zinc-300">
+            The AI performance studio built by artists, for artists. Drop your references,
+            write your direction, and generate studio-grade covers, promo shots, and cinematic
+            reels — in seconds, not weeks.
+          </p>
+          <div className="mt-8 flex flex-col gap-3">
             <Link
-              to="/studio"
-              onClick={() => void track("header_cta_click")}
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 text-sm rounded-full font-medium text-white no-underline bg-[image:var(--gradient-hero)] hover:brightness-110 shadow-[var(--shadow-glow-soft)]"
+              to={ctaTo}
+              className="inline-flex w-fit items-center rounded-full bg-brand py-3.5 pl-5 pr-6 text-base font-semibold text-white ring-1 ring-brand/70 shadow-[0_10px_40px_-10px] shadow-brand/60 transition-transform hover:scale-[1.02] active:scale-95"
             >
-              {ctaLabel} <ArrowRight className="size-3.5" />
+              <Plus className="size-4 mr-2 shrink-0" strokeWidth={2.5} />
+              {ctaLabel}
             </Link>
-          </nav>
+            <span className="text-xs font-medium tracking-widest uppercase text-zinc-500">
+              No credit card · 5 free credits on signup
+            </span>
+          </div>
         </div>
       </header>
 
-      {/* Spacer for red bar + fixed header */}
-      <div className="h-28" />
+      {/* ── Ticker ──────────────────────────────────────────────────────── */}
+      <div className="overflow-hidden border-y border-white/5 bg-zinc-900/40 py-4">
+        <div className="flex w-max animate-ticker gap-12 whitespace-nowrap px-6 text-xs font-bold tracking-[0.3em] text-zinc-500 uppercase">
+          {[...TICKER_ITEMS, ...TICKER_ITEMS, ...TICKER_ITEMS].map((label, i) => (
+            <span key={i} className="flex items-center gap-12">
+              <span>{label}</span>
+              <span className="text-brand">✦</span>
+            </span>
+          ))}
+        </div>
+      </div>
 
-      {/* ── Hero — TikTok viral hook ────────────────────────────────────── */}
-      <section className="relative px-6 md:px-12 pt-4 pb-10">
-        <div className="max-w-6xl mx-auto grid gap-10 items-center" style={{ gridTemplateColumns: "1fr" }}>
+      {/* ── Process ─────────────────────────────────────────────────────── */}
+      <section id="process" className="py-20 px-5">
+        <div className="mb-12">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-brand">
+            The studio flow
+          </span>
+          <h2 className="mt-3 text-4xl font-semibold leading-tight">
+            Reference. Direction.{" "}
+            <span className="font-serif italic">Delivered.</span>
+          </h2>
+          <p className="mt-3 text-zinc-400 text-sm leading-relaxed">
+            Three steps between the sound in your head and the visual on your feed.
+          </p>
+        </div>
 
-          {/* Left: copy */}
-          <div>
-            {/* kicker — red "By Artists" badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-red-500/50 bg-red-500/15 text-red-400 text-[11px] font-semibold tracking-wide mb-6">
-              <span className="size-2 rounded-full bg-red-500 animate-pulse" />
-              By Artists for Artists &amp; Creators
-            </div>
+        <div className="flex flex-col gap-12">
+          <ProcessCard
+            step="01"
+            label="Reference"
+            title="Drop inspiration"
+            body="A film scan, a moodboard, or a rough sketch. Aurora reads lighting, texture, and intent — not just objects."
+            image="/landing/step-reference.jpg"
+            alt="Polaroid moodboard reference"
+          />
+          <ProcessCard
+            step="02"
+            label="Direction"
+            title="Direct the shoot"
+            body="Write like a director. Wardrobe, camera angle, mood, grain. Iterate in plain language until it feels like you."
+            custom={<PromptMock />}
+          />
+          <ProcessCard
+            step="03"
+            label="Generate"
+            title="Ship visuals"
+            body="Studio-grade output ready for Spotify, Apple Music, DSP tiles, tour billboards, and everything in between."
+            image="/landing/step-final.jpg"
+            alt="Final rendered artist portrait"
+          />
+        </div>
+      </section>
 
-            {/* headline — white + solid violet, no pink drift */}
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[1.05]">
-              <span className="text-white">Turn a selfie into a</span>{" "}
-              <span className="text-primary">cinematic performance.</span>
-            </h1>
-
-            {/* sub */}
-            <p className="mt-5 text-white/60 text-base md:text-lg leading-relaxed max-w-lg">
-              One studio. Every model that matters — Seedance 5.9, Kling, Gemini Omni, Grok Imagine,
-              Sync lip-sync. Drop a photo, pick a vibe, get magazine-grade shots
-              and motion in seconds.
+      {/* ── Gallery ─────────────────────────────────────────────────────── */}
+      <section id="gallery" className="bg-zinc-900/30 py-20 border-y border-white/5">
+        <div className="px-5">
+          <div className="mb-10">
+            <span className="text-xs font-bold uppercase tracking-[0.3em] text-brand">
+              Output gallery
+            </span>
+            <h2 className="mt-3 text-4xl font-semibold leading-tight">
+              Real artists. Real outputs.{" "}
+              <span className="font-serif italic">Zero stock.</span>
+            </h2>
+            <p className="mt-3 text-sm text-zinc-400">
+              A curated feed of recent generations across covers, promo, and motion.
             </p>
-
-            {/* CTAs */}
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                to="/studio"
-                onClick={() => void track("hero_cta_click", { variant: "primary" })}
-                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full font-bold text-white no-underline bg-[image:var(--gradient-hero)] hover:brightness-110 shadow-[var(--shadow-glow-soft)] transition-all hover:scale-[1.02]"
-              >
-                <Play className="size-4 fill-current" /> Start creating — 5 Aura
-              </Link>
-              <a
-                href="#pricing"
-                onClick={() => void track("hero_cta_click", { variant: "pricing" })}
-                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full font-medium text-white/80 no-underline aurora-glass-strong hover:brightness-110 transition-all"
-              >
-                See pricing
-              </a>
-            </div>
-
-            {/* micro trust */}
-            <div className="mt-6 flex flex-wrap gap-4 text-[11px] text-white/40 font-medium">
-              <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-primary inline-block" /> 5 image models</span>
-              <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-primary inline-block" /> 4 video models</span>
-              <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-primary inline-block" /> Lip-sync built-in</span>
-              <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-primary inline-block" /> 12,000+ creators</span>
-            </div>
           </div>
-
-          {/* Right: 2×3 photo grid */}
-          <div className="grid grid-cols-3 gap-2 mt-8 sm:mt-0">
-            {[
-              { src: hero1, label: "Concert Wash" },
-              { src: hero2, label: "Editorial" },
-              { src: hero3, label: "Golden Hour" },
-              { src: hero4, label: "Neon Dreams" },
-              { src: hero5, label: "Rembrandt" },
-              { src: hero6, label: "Violet Haze" },
-            ].map((photo, i) => (
-              <div
-                key={photo.src}
-                className="relative aspect-[3/4] rounded-2xl overflow-hidden border border-white/10 bg-white/5 group"
-                style={{
-                  animation: `photo-float ${2.4 + i * 0.28}s ease-in-out infinite alternate`,
-                  animationDelay: `${i * 0.15}s`,
-                }}
-              >
-                <img
-                  src={photo.src}
-                  alt={photo.label}
-                  className="absolute inset-0 w-full h-full object-cover"
-                  style={{
-                    animation: `ken-burns ${18 + i * 3}s ease-in-out infinite alternate`,
-                    animationDelay: `${i * -4}s`,
-                  }}
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-                <span className="absolute bottom-2 left-2 text-[9px] font-semibold uppercase tracking-widest text-white/70">
-                  {photo.label}
-                </span>
-              </div>
-            ))}
+          <div className="columns-2 gap-3 space-y-3">
+            <GalleryImg src="/landing/gallery-1.jpg" alt="Neon portrait" ratio="aspect-[2/3]" tag="Portrait" />
+            <GalleryImg src="/landing/gallery-2.jpg" alt="Minimal album cover" ratio="aspect-square" tag="Cover art" />
+            <GalleryImg src="/landing/gallery-3.jpg" alt="Cinematic stage" ratio="aspect-video" tag="Music video" />
+            <GalleryImg src="/landing/gallery-4.jpg" alt="Streetwear promo" ratio="aspect-[4/5]" tag="Press photo" />
+            <GalleryImg src="/landing/gallery-5.jpg" alt="Live mic close-up" ratio="aspect-[2/3]" tag="Editorial" />
           </div>
         </div>
       </section>
 
-      {/* ── Strong sign-up CTA — shown to visitors only ── */}
-      {!user && (
-        <section className="relative z-10 px-6 md:px-12 pt-4 pb-8">
-          <div className="relative max-w-4xl mx-auto overflow-hidden rounded-3xl border border-red-500/30 bg-gradient-to-br from-red-900/30 via-[#0d0521] to-primary/10 p-8 md:p-12 text-center">
-            {/* Glow */}
-            <div className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 size-[400px] rounded-full blur-3xl opacity-40"
-              style={{ background: "radial-gradient(circle, hsl(0 80% 50% / 0.5), transparent 65%)" }} />
-            <div className="relative">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-red-500/40 bg-red-500/10 text-red-300 text-[11px] font-semibold tracking-wide mb-5">
-                <Sparkles className="size-3" /> Free Aura on every new account
-              </div>
-              <h2 className="text-3xl md:text-5xl font-black tracking-tight leading-[1.05] text-white">
-                Your first cinematic shot{" "}
-                <span className="text-red-400">is free.</span>
-              </h2>
-              <p className="mt-4 text-white/65 max-w-xl mx-auto text-base leading-relaxed">
-                Sign up, pick a subscription, and start creating in under 60 seconds. No experience needed — the AI does the heavy lifting.
-              </p>
-              <div className="mt-7 flex flex-wrap gap-3 justify-center">
-                <Link
-                  to="/auth"
-                  onClick={() => void track("signup_cta_click", { location: "hero_banner" })}
-                  className="inline-flex items-center gap-2 px-7 py-4 rounded-full font-bold text-white no-underline bg-red-600 hover:bg-red-500 shadow-xl shadow-red-900/40 transition-all hover:scale-[1.03] text-base"
-                >
-                  <ArrowRight className="size-5" /> Create my free account
-                </Link>
-                <a
-                  href="#pricing"
-                  onClick={() => void track("signup_cta_click", { location: "see_plans" })}
-                  className="inline-flex items-center gap-2 px-7 py-4 rounded-full font-medium text-white/80 no-underline aurora-glass-strong hover:brightness-110 transition-all text-base"
-                >
-                  See plans below ↓
-                </a>
-              </div>
-              <p className="text-[11px] text-white/30 mt-4 tracking-wide">No card required to sign up · Cancel any time · 7-day refund</p>
+      {/* ── Video Reel ──────────────────────────────────────────────────── */}
+      <section className="py-20 px-5">
+        <div className="mb-8 flex items-end justify-between gap-4">
+          <div>
+            <span className="text-xs font-bold uppercase tracking-[0.3em] text-brand">
+              Motion generation
+            </span>
+            <h2 className="mt-3 text-3xl font-semibold leading-tight">
+              From still to <span className="font-serif italic">cinema</span>.
+            </h2>
+          </div>
+          <Link
+            to="/video"
+            className="inline-flex items-center gap-1 text-sm font-medium text-zinc-400 hover:text-zinc-100 shrink-0 transition-colors"
+          >
+            See more <ArrowUpRight className="size-4" />
+          </Link>
+        </div>
+        <div className="relative overflow-hidden rounded-2xl bg-zinc-900 ring-1 ring-white/5">
+          <img
+            src="/landing/reel-poster.jpg"
+            alt="Cinematic music video still — artist walking through neon rain"
+            width={1920}
+            height={1080}
+            loading="lazy"
+            className="aspect-video w-full object-cover"
+          />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+            <Link
+              to={ctaTo}
+              aria-label="Start creating videos"
+              className="flex size-20 items-center justify-center rounded-full bg-white/10 backdrop-blur-md ring-1 ring-white/30 transition-transform hover:scale-105"
+            >
+              <Play className="size-7 text-white translate-x-0.5" fill="currentColor" />
+            </Link>
+          </div>
+          <div className="absolute bottom-4 left-4 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/80">
+            Reel 001 · Motion v1
+          </div>
+        </div>
+      </section>
+
+      {/* ── Testimonial ─────────────────────────────────────────────────── */}
+      <section className="py-20 px-5 border-y border-white/5">
+        <div className="text-center">
+          <p className="font-serif text-2xl italic leading-snug text-zinc-200">
+            &ldquo;Aurora shifted how we handle visual rollouts. We went from three weeks of
+            production to a single afternoon — without losing an ounce of soul.&rdquo;
+          </p>
+          <div className="mt-8 flex flex-col items-center">
+            <div className="size-11 rounded-full bg-gradient-to-br from-brand to-zinc-800 ring-1 ring-white/10" />
+            <span className="mt-3 text-sm font-semibold uppercase tracking-widest">
+              Marcus Vane
+            </span>
+            <span className="text-xs text-zinc-500">Creative Director · Nocturne Records</span>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Pricing CTA ─────────────────────────────────────────────────── */}
+      <section id="pricing" className="py-20 px-5">
+        <div className="rounded-3xl bg-zinc-100 px-6 py-14 text-zinc-950 text-center">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-brand">
+            Free forever tier
+          </span>
+          <h2 className="mt-3 text-4xl font-semibold tracking-tight">
+            Direct your <span className="font-serif italic">next release.</span>
+          </h2>
+          <p className="mt-3 text-base text-zinc-600">
+            Join 4,000+ independent artists and creative teams building their world with Aurora.
+          </p>
+          <div className="mt-8 flex flex-col items-center gap-5">
+            <Link
+              to={ctaTo}
+              className="inline-flex items-center rounded-full bg-brand py-4 pl-5 pr-7 text-lg font-semibold text-white ring-1 ring-brand transition-transform hover:scale-[1.02] active:scale-95"
+            >
+              <Plus className="size-5 mr-2 shrink-0" strokeWidth={2.5} />
+              {ctaLabel}
+            </Link>
+            <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
+              <span>Free · 5 credits</span>
+              <span>·</span>
+              <span>Pro · Unlimited</span>
+              <span>·</span>
+              <span>Studio · API</span>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
+
+      {/* ── FAQ ─────────────────────────────────────────────────────────── */}
+      <section id="faq" className="py-20 px-5">
+        <div className="mb-10 text-center">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-brand">
+            Questions
+          </span>
+          <h2 className="mt-3 text-4xl font-semibold tracking-tight">
+            Answered <span className="font-serif italic">honestly.</span>
+          </h2>
+        </div>
+        <div className="divide-y divide-white/5 border-y border-white/5">
+          {FAQS.map((f) => (
+            <FaqItem key={f.q} q={f.q} a={f.a} />
+          ))}
+        </div>
+      </section>
+
+      {/* ── Footer ──────────────────────────────────────────────────────── */}
+      <footer className="border-t border-white/5 pt-14 pb-8 px-5">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="inline-block size-2 rounded-full bg-brand" />
+          <span className="text-lg font-semibold tracking-tighter uppercase italic">Aurora</span>
+        </div>
+        <p className="text-sm text-zinc-500 mb-10">
+          The performance studio for the algorithmic age. Build your world with intent.
+        </p>
+        <div className="grid grid-cols-3 gap-6 mb-10">
+          <FooterCol
+            title="Product"
+            links={[
+              { label: "Studio", to: "/studio" },
+              { label: "Canvas", to: "/canvas" },
+              { label: "Video", to: "/video" },
+              { label: "Pricing", to: "/billing" },
+            ]}
+          />
+          <FooterCol
+            title="Create"
+            links={[
+              { label: "Motion", to: "/motion" },
+              { label: "Colors", to: "/colors" },
+              { label: "Gallery", to: "/gallery" },
+            ]}
+          />
+          <FooterCol
+            title="Legal"
+            links={[
+              { label: "Privacy", to: "/privacy" },
+              { label: "Terms", to: "/terms" },
+            ]}
+          />
+        </div>
+        <div className="border-t border-white/5 pt-6 text-xs text-zinc-600">
+          © {new Date().getFullYear()} Aurora Performance Studio. Built for the artist.
+        </div>
+      </footer>
+
+      <div className="h-24" aria-hidden />
+    </div>
+  );
+}
+
+function ProcessCard({
+  step,
+  label,
+  title,
+  body,
+  image,
+  alt,
+  custom,
+}: {
+  step: string;
+  label: string;
+  title: string;
+  body: string;
+  image?: string;
+  alt?: string;
+  custom?: React.ReactNode;
+}) {
+  return (
+    <div className="group">
+      <div className="mb-5 flex aspect-[4/3] items-center justify-center overflow-hidden rounded-2xl bg-zinc-900 ring-1 ring-white/5">
+        {image ? (
+          <img
+            src={image}
+            alt={alt ?? ""}
+            width={800}
+            height={600}
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+          />
+        ) : (
+          custom
+        )}
+      </div>
+      <div className="flex items-baseline gap-3">
+        <span className="text-xs font-bold text-brand uppercase tracking-[0.25em]">{step}</span>
+        <span className="text-xs font-medium text-zinc-500 uppercase tracking-widest">{label}</span>
+      </div>
+      <h3 className="mt-2 text-xl font-semibold">{title}</h3>
+      <p className="mt-1.5 text-sm leading-relaxed text-zinc-400">{body}</p>
+    </div>
+  );
+}
+
+function PromptMock() {
+  return (
+    <div className="flex w-full max-w-xs flex-col gap-3 p-6">
+      <div className="rounded-lg bg-zinc-800/80 px-3 py-2 text-[11px] text-zinc-300 ring-1 ring-white/10">
+        Vivid crimson studio lighting, 35mm grain…
+      </div>
+      <div className="rounded-lg bg-zinc-800/80 px-3 py-2 text-[11px] text-zinc-300 ring-1 ring-white/10 w-4/5">
+        Editorial fashion styling, deep shadow
+      </div>
+      <div className="rounded-lg bg-brand/15 px-3 py-2 text-[11px] text-brand ring-1 ring-brand/50 w-3/5 flex items-center gap-2">
+        <span className="inline-block size-1.5 rounded-full bg-brand animate-pulse" />
+        Directing shoot…
+      </div>
+      <div className="mt-2 rounded-lg bg-zinc-900 px-3 py-2 text-[10px] text-zinc-500 ring-1 ring-white/5">
+        Aurora · v1.2 · 4K
+      </div>
+    </div>
+  );
+}
+
+function GalleryImg({
+  src,
+  alt,
+  ratio,
+  tag,
+}: {
+  src: string;
+  alt: string;
+  ratio: string;
+  tag: string;
+}) {
+  return (
+    <div className="group relative mb-3 break-inside-avoid overflow-hidden rounded-xl ring-1 ring-white/5">
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        className={`w-full ${ratio} object-cover transition-transform duration-700 group-hover:scale-[1.03]`}
+      />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+        <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-white">{tag}</span>
+        <span className="text-[9px] uppercase tracking-widest text-white/60">Aurora</span>
+      </div>
+    </div>
+  );
+}
+
+function FaqItem({ q, a }: { q: string; a: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="py-5">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full cursor-pointer items-center justify-between gap-4 text-left text-sm font-semibold uppercase tracking-widest text-zinc-100"
+      >
+        <span>{q}</span>
+        <ChevronDown
+          className={`size-4 shrink-0 text-zinc-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          strokeWidth={2}
+        />
+      </button>
+      {open && (
+        <p className="mt-3 text-sm leading-relaxed text-zinc-400">{a}</p>
       )}
+    </div>
+  );
+}
 
-      {/* ── Pricing — moved to top so visitors see it immediately ── */}
-      <PricingSection />
-
-      {/* 1. Auto-scroll photo strip */}
-      <PhotoStrip />
-
-      {/* 2. TikTok30 viral engine — 30 posts hook */}
-      <Suspense fallback={null}><ViralEngine /></Suspense>
-
-      {/* 3. Perform / Record Anywhere */}
-      <PerformAnywhereSection />
-
-      {/* 4. Colors Studio */}
-      <Suspense fallback={null}><ColorsTeaser /></Suspense>
-
-      {/* 5. Multi-angle photoshoot */}
-      <ServicesGrid />
-
-      {/* 6. Step-by-step viral guides — the 6 PDF playbooks, Aurora-branded */}
-      <Suspense fallback={null}><GuidesTeaser /></Suspense>
-
-      {/* 7. Canvas + UGC */}
-      <Suspense fallback={null}><CanvasWorkflowShowcase /></Suspense>
-
-      {/* 7. Adult / creator economy */}
-      <Suspense fallback={null}><CreatorEconomySection /></Suspense>
-
-      {/* 8. Templates strip */}
-      <Suspense fallback={null}><TrendingTemplatesStrip /></Suspense>
-
-      {/* 9. Trust bar */}
-      <TrustBar />
-
-      {/* 10. Contact form */}
-      <HeroContactForm greeting={greeting} />
-
-      {/* 11. Get Ready With Me */}
-      <Suspense fallback={null}><GetReadyWithMe /></Suspense>
-
-      {/* 12. Supercomputer / product hero */}
-      <Suspense fallback={null}><SupercomputerSection /></Suspense>
-
-      {/* 13. Why us */}
-      <WhyUs />
-
-      {/* 14. Reviews */}
-      <Testimonials />
-
-      {/* 15. Affiliate rewards */}
-      <Suspense fallback={null}><AffiliateRewardSection /></Suspense>
-
-      {/* 16. Final CTA */}
-      <FinalCTA />
-
-      {/* CLI section — developer-focused, re-enable when CLI is consumer-ready */}
-      {/* <CliSection /> */}
-      {/* Feature request — re-enable post-launch */}
-      {/* <FeatureRequest /> */}
-
-      <SiteFooter />
-    </main>
+function FooterCol({
+  title,
+  links,
+}: {
+  title: string;
+  links: { label: string; to: string }[];
+}) {
+  return (
+    <div className="flex flex-col gap-2.5">
+      <span className="text-xs font-bold uppercase tracking-widest text-zinc-100">{title}</span>
+      {links.map((l) => (
+        <Link
+          key={l.label}
+          to={l.to}
+          className="text-sm text-zinc-500 hover:text-brand transition-colors"
+        >
+          {l.label}
+        </Link>
+      ))}
+    </div>
   );
 }
