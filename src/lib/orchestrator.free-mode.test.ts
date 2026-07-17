@@ -201,7 +201,6 @@ function setAllPaidKeys() {
   process.env.HEYGEN_API_KEY = "heygen-present";
   process.env.ELEVENLABS_API_KEY = "el-present";
   process.env.RUNWAY_API_KEY = "rw-present";
-  process.env.PIAPI_API_KEY = "piapi-present";
 }
 
 beforeEach(() => {
@@ -224,7 +223,6 @@ beforeEach(() => {
     "runway",
     "elevenlabs",
     "kling",
-    "piapi",
   ]) {
     markSuccess(p);
   }
@@ -236,27 +234,18 @@ afterEach(() => {
 const FREE_ON = { data: { value: true }, error: null } as const;
 
 describe("orchestrate() — Free GPU only mode ON", () => {
-  it("serves a still on the free Pollinations provider (no paid call) even with every paid key set", async () => {
+  it("rejects image request when no GPU worker is online (no free hosted fallback)", async () => {
     freeModeQueryResult = { data: { value: true }, error: null };
     workersQueryResult = { data: [], error: null }; // no GPU worker online
-    const { calls } = installFetch(({ url }) => {
+    installFetch(({ url }) => {
       if (PAID_HOSTS.some((h) => url.includes(h)))
         throw new Error(`paid provider must not be called: ${url}`);
-      if (url.includes("image.pollinations.ai"))
-        return fakeResponse({ bytes: new ArrayBuffer(16), contentType: "image/jpeg" });
       throw new Error(`unexpected fetch ${url}`);
     });
 
-    const res = await orchestrate({
-      kind: "image",
-      prompt: "a red fox",
-      model: "google/gemini-2.5-flash-image",
-    });
-
-    expect(res.provider).toBe("pollinations");
-    expect(res.costUsd).toBe(0);
-    expect(calls.some((c) => PAID_HOSTS.some((h) => c.url.includes(h)))).toBe(false);
-    expect(replicateCallCount).toBe(0);
+    await expect(
+      orchestrate({ kind: "image", prompt: "a red fox", model: "google/gemini-2.5-flash-image" }),
+    ).rejects.toThrow();
   });
 
   it("routes a still to the self-hosted worker first when one is online, skipping paid", async () => {
@@ -377,10 +366,10 @@ describe("assertFreeModeServable()", () => {
     await expect(assertFreeModeServable("video")).resolves.toBeUndefined();
   });
 
-  it("allows IMAGE in free mode regardless of the pool (free Pollinations exists)", async () => {
+  it("blocks IMAGE in free mode when no worker is online (no free hosted image fallback)", async () => {
     freeModeQueryResult = { ...FREE_ON };
     workersQueryResult = { data: [], error: null };
-    await expect(assertFreeModeServable("image")).resolves.toBeUndefined();
+    await expect(assertFreeModeServable("image")).rejects.toThrow(FREE_MODE_NO_WORKER_MSG);
   });
 
   it("blocks VIDEO in free mode when no worker is online", async () => {

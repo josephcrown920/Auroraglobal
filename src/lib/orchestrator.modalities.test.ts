@@ -147,7 +147,6 @@ const ENV_KEYS = [
   "RUNWAY_API_KEY",
   "FAL_KEY",
   "REPLICATE_API_KEY",
-  "PIAPI_API_KEY",
   // inference.sh cloud adapter — must be cleared so it doesn't bleed through
   // from the Replit secret into tests that expect specific provider counts.
   "INFERENCE_SH_API_KEY",
@@ -168,10 +167,8 @@ const PROVIDER_NAMES = [
   "replicate",
   "fal",
   "kling",
-  "huggingface",
   "lovable",
   "gemini",
-  "piapi",
   "inferencesh",
 ];
 const savedEnv: Record<string, string | undefined> = {};
@@ -185,7 +182,7 @@ describe("getCandidateModels", () => {
     expect(getCandidateModels({ kind: "video", prompt: "x", model: "kling-3.0" })).toEqual([
       "kling-3.0",
       "xai/grok-imagine-video-1.5",
-      "fal/ovi",
+      "ltx/ltx-video",
     ]);
   });
 
@@ -324,23 +321,6 @@ describe("orchestrate modality routing", () => {
     expect(calls[0].url).toContain("api.elevenlabs.io");
   });
 
-  it("serves free-image generation via Runware when keyed", async () => {
-    process.env.RUNWARE_API_KEY = "rk";
-    installFetch(({ url }) => {
-      if (url.includes("api.runware.ai"))
-        return fakeResponse({ json: { data: [{ imageURL: "https://runware.out/a.png" }] } });
-      throw new Error(`unexpected fetch ${url}`);
-    });
-
-    const res = await orchestrate({
-      kind: "image",
-      prompt: "a cat",
-      model: "runware/flux-schnell",
-    });
-    expect(res.provider).toBe("runware");
-    expect(res.url).toBe("https://runware.out/a.png");
-  });
-
   it("serves image-to-video via Runway, polling until SUCCEEDED", async () => {
     installFakeClock();
     process.env.RUNWAY_API_KEY = "rwk";
@@ -366,76 +346,6 @@ describe("orchestrate modality routing", () => {
     expect(calls.some((c) => c.url.includes("/tasks/"))).toBe(true);
   });
 
-  it("serves image generation via PiAPI (create task → poll → image_urls)", async () => {
-    installFakeClock();
-    process.env.PIAPI_API_KEY = "pk";
-    const { calls } = installFetch(({ url, init }) => {
-      if (url.endsWith("/api/v1/task") && init?.method === "POST")
-        return fakeResponse({ json: { code: 200, data: { task_id: "pi-1" } } });
-      if (url.includes("/api/v1/task/pi-1"))
-        return fakeResponse({
-          json: {
-            code: 200,
-            data: { status: "completed", output: { image_urls: ["https://piapi.out/mj.png"] } },
-          },
-        });
-      throw new Error(`unexpected fetch ${url}`);
-    });
-
-    const res = await orchestrate({
-      kind: "image",
-      prompt: "a castle",
-      model: "piapi/midjourney-imagine",
-    });
-    expect(res.provider).toBe("piapi");
-    expect(res.url).toBe("https://piapi.out/mj.png");
-    const create = calls.find((c) => c.url.endsWith("/api/v1/task"));
-    expect(create).toBeDefined();
-    const headers = create!.init?.headers as Record<string, string>;
-    expect(headers["x-api-key"]).toBe("pk");
-    const body = JSON.parse(String(create!.init?.body));
-    expect(body.model).toBe("midjourney");
-    expect(body.task_type).toBe("imagine");
-  });
-
-  it("serves video via PiAPI Kling and surfaces provider failure messages", async () => {
-    installFakeClock();
-    process.env.PIAPI_API_KEY = "pk";
-    installFetch(({ url, init }) => {
-      if (url.endsWith("/api/v1/task") && init?.method === "POST")
-        return fakeResponse({ json: { code: 200, data: { task_id: "pi-2" } } });
-      if (url.includes("/api/v1/task/pi-2"))
-        return fakeResponse({
-          json: {
-            code: 200,
-            data: {
-              status: "completed",
-              output: {
-                works: [{ video: { resource_without_watermark: "https://piapi.out/v.mp4" } }],
-              },
-            },
-          },
-        });
-      throw new Error(`unexpected fetch ${url}`);
-    });
-
-    const res = await orchestrate({
-      kind: "video",
-      prompt: "waves",
-      model: "piapi/kling-video",
-      imageUrls: ["https://img/start.png"],
-    });
-    expect(res.provider).toBe("piapi");
-    expect(res.url).toBe("https://piapi.out/v.mp4");
-  });
-
-  it("resolves PiAPI models in the registry", () => {
-    expect(resolveModel("piapi/midjourney-imagine")).toMatchObject({
-      provider: "piapi",
-      kind: "image",
-    });
-    expect(resolveModel("piapi/kling-video")).toMatchObject({ provider: "piapi", kind: "video" });
-  });
 });
 
 afterAll(() => {
