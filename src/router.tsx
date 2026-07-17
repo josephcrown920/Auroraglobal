@@ -1,6 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
+import { PageSpinner } from "@/components/PageSpinner";
 
 function DefaultErrorComponent({ error }: { error: Error; reset: () => void }) {
   console.error(error);
@@ -33,6 +34,8 @@ export const getRouter = () => {
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
     defaultErrorComponent: DefaultErrorComponent,
+    defaultPendingComponent: PageSpinner,
+    defaultPendingMs: 200,
   });
 
   return router;

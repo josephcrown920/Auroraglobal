@@ -18,6 +18,7 @@ import { UploadSlot } from "@/components/studio/UploadSlot";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, ArrowLeft, Loader2, Film, Wand2, Camera, Clapperboard, Users, WifiOff, Music2, Download, Zap } from "lucide-react";
+import { PageSpinner } from "@/components/PageSpinner";
 import { toast } from "sonner";
 import {
   generateMimicMotion,
@@ -557,13 +558,7 @@ function MotionStudio() {
     },
   });
 
-  if (loading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="size-6 animate-spin text-primary" />
-      </div>
-    );
-  }
+  if (loading || !user) return <PageSpinner />;
 
   const stepBadge = (label: string, state: "idle" | "running" | "ok" | "error", error?: string | null) => (
     <div className={`rounded-xl border px-3 py-2 text-xs flex items-start gap-2 ${
