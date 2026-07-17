@@ -1168,7 +1168,7 @@ function StudioPage() {
 
 
           {/* ── Buy Aura — full value-proposition redesign ──────────── */}
-          <div className="relative rounded-3xl overflow-hidden border border-primary/30 bg-gradient-to-br from-[#110826] via-[#0d0820] to-[#130b24] shadow-[0_0_80px_-20px_oklch(0.72_0.2_300/0.6)]">
+          <div className="relative rounded-3xl overflow-hidden border border-brand/25 bg-gradient-to-br from-zinc-900 via-zinc-950 to-zinc-900 shadow-[0_0_80px_-20px_oklch(0.58_0.22_25/0.6)]">
             {/* shimmer top line */}
             <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
             {/* ambient glow orb */}
@@ -1259,7 +1259,7 @@ function StudioPage() {
                       onClick={() => checkoutMut.mutate(k)}
                       className={`w-full rounded-2xl border p-4 text-left transition-all active:scale-[0.98] disabled:opacity-50 ${
                         isPopular
-                          ? "border-primary/55 bg-gradient-to-br from-primary/15 to-primary/5 shadow-[0_0_32px_-8px_oklch(0.72_0.2_300/0.5)] hover:shadow-[0_0_40px_-6px_oklch(0.72_0.2_300/0.7)]"
+                          ? "border-brand/55 bg-gradient-to-br from-brand/15 to-brand/5 shadow-[0_0_32px_-8px_oklch(0.58_0.22_25/0.5)] hover:shadow-[0_0_40px_-6px_oklch(0.58_0.22_25/0.7)]"
                           : isBest
                           ? "border-amber-400/35 bg-gradient-to-br from-amber-500/10 to-amber-900/10 hover:border-amber-400/55"
                           : "border-white/10 bg-white/5 hover:border-white/22 hover:bg-white/8"

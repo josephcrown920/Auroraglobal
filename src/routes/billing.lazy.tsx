@@ -22,7 +22,7 @@ import { getAutoReloadSettings, saveAutoReloadSettings } from "@/hooks/use-auto-
 export const Route = createLazyFileRoute("/billing")({ component: BillingPage });
 
 const AURA_EXAMPLES = [
-  { icon: Image,  label: "1 AI image",       aura: "~1 Aura",  color: "text-violet-400" },
+  { icon: Image,  label: "1 AI image",       aura: "~1 Aura",  color: "text-brand" },
   { icon: Mic2,   label: "1 lip-sync video",  aura: "~3 Aura",  color: "text-emerald-400" },
   { icon: Film,   label: "1 performance clip", aura: "~10 Aura", color: "text-cyan-400" },
   { icon: TrendingUp, label: "30-post Spin pack", aura: "~30 Aura", color: "text-amber-400" },
@@ -144,7 +144,7 @@ function BillingPage() {
 
         {/* ── Aura Balance Hero ── */}
         <section>
-          <div className="relative rounded-[28px] overflow-hidden border border-primary/40 bg-gradient-to-br from-violet-950/60 via-[#0d0820]/80 to-fuchsia-950/30 shadow-[0_0_80px_-30px_oklch(0.72_0.2_300)]">
+          <div className="relative rounded-[28px] overflow-hidden border border-brand/25 bg-gradient-to-br from-zinc-900 via-zinc-950/90 to-zinc-900 shadow-[0_0_80px_-30px_oklch(0.58_0.22_25)]">
             {/* top accent */}
             <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
             {/* ambient */}
@@ -226,7 +226,7 @@ function BillingPage() {
         {/* ── Upgrade to Pro ── */}
         {!isPro && !profileLoading && (
           <section>
-            <div className="relative rounded-[24px] overflow-hidden border border-primary/40 bg-gradient-to-br from-primary/15 via-violet-950/50 to-fuchsia-950/20 shadow-[0_0_50px_-20px_oklch(0.72_0.2_300)]">
+            <div className="relative rounded-[24px] overflow-hidden border border-brand/30 bg-gradient-to-br from-brand/12 via-zinc-950/80 to-zinc-900 shadow-[0_0_50px_-20px_oklch(0.58_0.22_25)]">
               <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
               <div className="px-7 py-8">
                 <div className="flex items-start justify-between gap-4 mb-5">
@@ -252,7 +252,7 @@ function BillingPage() {
                   onClick={() => proMut.mutate()}
                   disabled={proMut.isPending}
                   variant="premium"
-                  className="w-full text-base py-6 rounded-xl shadow-[0_0_30px_-8px_oklch(0.72_0.2_300)]"
+                  className="w-full text-base py-6 rounded-xl shadow-[0_0_30px_-8px_oklch(0.58_0.22_25)]"
                 >
                   {proMut.isPending ? (
                     <Loader2 className="size-4 animate-spin mr-2" />
@@ -303,13 +303,13 @@ function BillingPage() {
                   key={key}
                   className={`relative rounded-2xl border p-5 flex flex-col gap-4 transition-all ${
                     isCreator
-                      ? "border-primary/50 bg-primary/8 shadow-[0_0_30px_-12px_oklch(0.72_0.2_300)]"
+                      ? "border-brand/50 bg-brand/8 shadow-[0_0_30px_-12px_oklch(0.58_0.22_25)]"
                       : "aurora-glass border-border"
                   }`}
                 >
                   {isCreator && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-primary border border-primary/50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-[0_0_12px_-3px_oklch(0.72_0.2_300)]">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-brand border border-brand/50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-[0_0_12px_-3px_oklch(0.58_0.22_25)]">
                         <Star className="size-2.5" /> Best Value
                       </span>
                     </div>

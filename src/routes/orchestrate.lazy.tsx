@@ -466,7 +466,7 @@ function OrchestratePage() {
       <div className="mx-auto max-w-5xl px-4 py-10">
         <header className="mb-8 flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-2 text-sm text-fuchsia-400">
+            <div className="flex items-center gap-2 text-sm text-brand">
               <Sparkles className="h-4 w-4" />
               AI Router
             </div>
@@ -492,7 +492,7 @@ function OrchestratePage() {
                 onClick={() => switchModality(m.id)}
                 className={`flex flex-col items-center gap-1 rounded-xl border px-3 py-4 text-sm transition ${
                   active
-                    ? "border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-300"
+                    ? "border-brand/60 bg-brand/10 text-brand"
                     : "border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700"
                 }`}
               >
@@ -522,7 +522,7 @@ function OrchestratePage() {
                       ? "Write what the presenter says — or describe your idea and hit Enhance…"
                       : "Describe what to generate…"
               }
-              className="w-full resize-none rounded-xl border border-neutral-800 bg-neutral-950 px-4 py-3 text-sm outline-none focus:border-fuchsia-500"
+              className="w-full resize-none rounded-xl border border-neutral-800 bg-neutral-950 px-4 py-3 text-sm outline-none focus:border-brand"
             />
 
             {/* HeyGen Video Agent helpers: inline guide, Enhance button, orientation + mode toggles */}
@@ -535,7 +535,7 @@ function OrchestratePage() {
                   type="button"
                   onClick={() => void doEnhance()}
                   disabled={vaEnhancing || !prompt.trim()}
-                  className="flex items-center gap-1.5 rounded-lg border border-fuchsia-500/40 bg-fuchsia-500/10 px-3 py-1.5 text-xs font-medium text-fuchsia-300 transition hover:border-fuchsia-500/70 hover:bg-fuchsia-500/20 disabled:opacity-50"
+                  className="flex items-center gap-1.5 rounded-lg border border-brand/40 bg-brand/10 px-3 py-1.5 text-xs font-medium text-brand transition hover:border-brand/70 hover:bg-brand/20 disabled:opacity-50"
                 >
                   {vaEnhancing ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -550,7 +550,7 @@ function OrchestratePage() {
                     onClick={() => setVaPortrait((v) => !v)}
                     className={`rounded-lg border px-3 py-1.5 text-xs transition ${
                       vaPortrait
-                        ? "border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-300"
+                        ? "border-brand/60 bg-brand/10 text-brand"
                         : "border-neutral-700 text-neutral-400 hover:border-neutral-600"
                     }`}
                   >
@@ -561,7 +561,7 @@ function OrchestratePage() {
                     onClick={() => setVaDirectToCamera((v) => !v)}
                     className={`rounded-lg border px-3 py-1.5 text-xs transition ${
                       vaDirectToCamera
-                        ? "border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-300"
+                        ? "border-brand/60 bg-brand/10 text-brand"
                         : "border-neutral-700 text-neutral-400 hover:border-neutral-600"
                     }`}
                   >
@@ -606,7 +606,7 @@ function OrchestratePage() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-neutral-700 bg-neutral-950 px-4 py-4 text-sm text-neutral-400 transition hover:border-fuchsia-500/60 hover:text-neutral-200">
+                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-neutral-700 bg-neutral-950 px-4 py-4 text-sm text-neutral-400 transition hover:border-brand/60 hover:text-neutral-200">
                       <ImageIcon className="h-4 w-4" />
                       Upload a start image
                       <input
@@ -620,7 +620,7 @@ function OrchestratePage() {
                       value={imageUrl}
                       onChange={(e) => setImageUrl(e.target.value)}
                       placeholder="…or paste an image URL"
-                      className="w-full rounded-xl border border-neutral-800 bg-neutral-950 px-4 py-2.5 text-sm outline-none focus:border-fuchsia-500"
+                      className="w-full rounded-xl border border-neutral-800 bg-neutral-950 px-4 py-2.5 text-sm outline-none focus:border-brand"
                     />
                   </div>
                 )}
@@ -645,7 +645,7 @@ function OrchestratePage() {
                       onClick={() => setVoiceId(v.id)}
                       className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
                         voiceId === v.id
-                          ? "border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-300"
+                          ? "border-brand/60 bg-brand/10 text-brand"
                           : "border-neutral-800 text-neutral-400 hover:border-neutral-700"
                       }`}
                     >
@@ -683,7 +683,7 @@ function OrchestratePage() {
                           onClick={() => setDuration(s)}
                           className={`flex-1 rounded-lg border px-2 py-2 text-xs transition ${
                             duration === s
-                              ? "border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-300"
+                              ? "border-brand/60 bg-brand/10 text-brand"
                               : "border-neutral-800 text-neutral-400 hover:border-neutral-700"
                           }`}
                         >
@@ -721,7 +721,7 @@ function OrchestratePage() {
               </ul>
               <div className="mt-2 flex items-center justify-between border-t border-neutral-800 pt-2 text-sm font-semibold">
                 <span>Total</span>
-                <span className="tabular-nums text-fuchsia-300">{quote.total} Aura</span>
+                <span className="tabular-nums text-brand">{quote.total} Aura</span>
               </div>
               {awaitingFullRender && (
                 <div className="mt-2 flex items-center justify-between border-t border-neutral-800 pt-2 text-[11px] text-neutral-500">
@@ -750,7 +750,7 @@ function OrchestratePage() {
             <button
               onClick={onGenerate}
               disabled={busy || !!(awaitingFullRender && serverEstimate?.blocked)}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-fuchsia-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-fuchsia-500 disabled:opacity-60"
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand/90 disabled:opacity-60"
             >
               {busy ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -853,7 +853,7 @@ function OrchestratePage() {
                     type="button"
                     onClick={() => void downloadResult(result.url, result.kind)}
                     disabled={downloading}
-                    className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-fuchsia-400 transition hover:text-fuchsia-300 disabled:opacity-60"
+                    className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand transition hover:text-brand/80 disabled:opacity-60"
                   >
                     {downloading ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
@@ -879,7 +879,7 @@ function OrchestratePage() {
                   onClick={() => setModel(opt.key)}
                   className={`flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-left text-sm transition ${
                     model === opt.key
-                      ? "border-fuchsia-500 bg-fuchsia-500/10"
+                      ? "border-brand/60 bg-brand/10"
                       : "border-neutral-800 hover:border-neutral-700"
                   }`}
                 >
