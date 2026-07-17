@@ -1,0 +1,58 @@
+{
+  "name": "Aurora — AI Creative Studio",
+  "short_name": "Aurora",
+  "description": "Turn one photo into magazine-grade performance shots, music-video stills, lip-sync videos and UGC ads — in seconds.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#0b0814",
+  "background_color": "#0b0814",
+  "lang": "en",
+  "categories": ["entertainment", "photo", "music"],
+  "icons": [
+    {
+      "src": "/__l5e/assets-v1/d0d72e6b-2edd-4740-af3e-48e27934cef8/aurora-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/__l5e/assets-v1/d0d72e6b-2edd-4740-af3e-48e27934cef8/aurora-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/landing-photo-nba-josh.png",
+      "sizes": "800x600",
+      "type": "image/png",
+      "label": "Aurora AI Creative Studio"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Create Studio",
+      "short_name": "Studio",
+      "description": "Generate AI performance shots",
+      "url": "/studio",
+      "icons": [{ "src": "/__l5e/assets-v1/d0d72e6b-2edd-4740-af3e-48e27934cef8/aurora-logo.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Motion Control",
+      "short_name": "Motion",
+      "description": "Transfer your movement onto an AI scene",
+      "url": "/motion",
+      "icons": [{ "src": "/__l5e/assets-v1/d0d72e6b-2edd-4740-af3e-48e27934cef8/aurora-logo.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Colors Studio",
+      "short_name": "Colors",
+      "description": "Cinematic Colors-style performance shots",
+      "url": "/colors",
+      "icons": [{ "src": "/__l5e/assets-v1/d0d72e6b-2edd-4740-af3e-48e27934cef8/aurora-logo.png", "sizes": "192x192" }]
+    }
+  ]
+}
