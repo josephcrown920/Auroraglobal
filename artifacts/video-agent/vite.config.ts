@@ -27,7 +27,18 @@ export default defineConfig({
   },
   preview: { port, host: "0.0.0.0", allowedHosts: true },
   define: {
-    // Bake the Aurora URL into the production bundle
+    // Bake runtime env into the production bundle.
+    // VITE_SUPABASE_PUBLISHABLE_KEY is the shared-env name; ANON_KEY is the
+    // legacy alias used by this artifact's supabase.ts.
     "import.meta.env.VITE_AURORA_URL": JSON.stringify(process.env.VITE_AURORA_URL ?? ""),
+    "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(
+      process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL ?? ""
+    ),
+    "import.meta.env.VITE_SUPABASE_ANON_KEY": JSON.stringify(
+      process.env.VITE_SUPABASE_ANON_KEY ??
+      process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
+      process.env.SUPABASE_PUBLISHABLE_KEY ??
+      ""
+    ),
   },
 });
