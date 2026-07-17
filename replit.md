@@ -48,6 +48,27 @@ Must be provided by the user:
 - Goal was: pick the best of 3 repos, merge missing features, and run it fully in Replit.
 - Always give selectable options (choice/boolean queries) when asking questions — never a blank text box.
 
+## Cross-artifact sync rule
+
+Every task must be propagated across all artifacts before it is considered done. The full list of artifacts + root:
+
+1. `root src/` — shared app (TanStack Start, main Aurora Studio)
+2. `artifacts/web` — Aurora (flat-root alias, same process as root src/)
+3. `artifacts/aurora-adult` — Adult School
+4. `artifacts/aurora-colors` — Aurora Colors Studio
+5. `artifacts/ugc-line` — Aurora Content Line
+6. `artifacts/video-agent` — Aurora Video Agent
+7. `artifacts/perform-anywhere` — Perform Anywhere
+8. `artifacts/aurora-mobile` — Aurora Studio (Expo mobile)
+
+**Checklist before finishing any task:**
+
+1. **Identify scope** — determine whether the change is shared (touches Supabase schema, auth, shared UI tokens, pricing, API contracts) or artifact-specific (touches only one app's UI or pipeline).
+2. **Apply shared changes at root** — schema migrations, shared lib functions, CSS tokens, and API server functions live in root `src/`; change them once there, not in individual artifacts.
+3. **Propagate artifact-specific fixes to siblings** — if a bug or feature exists in one artifact's standalone code (e.g. a Supabase query, a component pattern, a nav item), check every other artifact for the same issue and fix it there too.
+4. **Never leave one artifact behind** — do not close a task if any artifact still shows the old behaviour, a broken import, or a missing feature that the others already have.
+5. **Confirm TypeScript compiles across all** — after changes, run `tsc --noEmit` (or equivalent) in every affected artifact directory and in the root; zero new errors before marking complete.
+
 ## Development principles (Karpathy Guidelines)
 
 Apply these four principles on every code task:
