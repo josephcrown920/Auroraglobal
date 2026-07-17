@@ -273,7 +273,7 @@ describe("computeCost — model tiers", () => {
   it("premium/ultra video models cost proportionally more than budget", () => {
     const budget = computeCost({ features: ["video"], model: "seedance-2.0-fast" }).total;
     const standard = computeCost({ features: ["video"], model: "kling-v1" }).total;
-    const premium = computeCost({ features: ["video"], model: "wan-2.5" }).total;
+    const premium = computeCost({ features: ["video"], model: "veo-3-fast" }).total;
     const ultra = computeCost({ features: ["video"], model: "seedance-2.0" }).total;
     expect(budget).toBeLessThan(standard);
     expect(standard).toBeLessThan(premium);

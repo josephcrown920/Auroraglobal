@@ -158,7 +158,6 @@ const ENV_KEYS = [
   "SYNC_API_KEY",
   "REPLICATE_API_KEY",
   "LOVABLE_CONNECTOR_REPLICATE_API_KEY",
-  "PIAPI_API_KEY",
   "XAI_API_KEY",
   "OPENAI_API_KEY",
   // Task #206: Replit AI Integrations is now tried FIRST for image/text/audio.
@@ -176,11 +175,9 @@ const PROVIDER_NAMES = [
   "lovable",
   "gemini",
   "replicate",
-  "huggingface",
   "sync",
   "runpod",
   "kling",
-  "piapi",
   "heygen",
   "fal",
   "xai",
@@ -251,7 +248,15 @@ describe("orchestrate fallback", () => {
       throw new Error(`unexpected fetch ${url}`);
     });
 
-    const req: GenerateRequest = { kind: "image", prompt: "hi" };
+    // Pinning a model + providing imageUrls keeps the candidate list to a single
+    // entry and lets fal serve via the FAL_IDENTITY_EDITS edit path (no default
+    // image path exists in FAL_MAP for t2i requests without a specific model).
+    const req: GenerateRequest = {
+      kind: "image",
+      prompt: "hi",
+      model: "google/gemini-2.5-flash-image",
+      imageUrls: ["https://ref.example/face.jpg"],
+    };
     const res = await orchestrate(req);
 
     // lovable failed, the GPU pool reported no workers, Fal (last resort) won.
@@ -348,7 +353,14 @@ describe("orchestrate fallback", () => {
       throw new Error(`unexpected fetch ${url}`);
     });
 
-    await orchestrate({ kind: "image", prompt: "hi" });
+    // Pin model + imageUrls so fal can serve via FAL_IDENTITY_EDITS path and
+    // lovable is only tried once (single candidate → failures stays at 0 on 400).
+    await orchestrate({
+      kind: "image",
+      prompt: "hi",
+      model: "google/gemini-2.5-flash-image",
+      imageUrls: ["https://ref.example/face.jpg"],
+    });
     // A 400 input error is provider-agnostic noise, not a provider outage.
     expect(isHealthy("lovable")).toBe(true);
     expect(getProviderHealthSnapshot()["lovable"]?.failures ?? 0).toBe(0);
@@ -366,7 +378,13 @@ describe("orchestrate fallback", () => {
       throw new Error(`unexpected fetch ${url}`);
     });
 
-    const res = await orchestrate({ kind: "image", prompt: "hi" });
+    // Pin model + imageUrls: single candidate → lovable fails exactly once with 503.
+    const res = await orchestrate({
+      kind: "image",
+      prompt: "hi",
+      model: "google/gemini-2.5-flash-image",
+      imageUrls: ["https://ref.example/face.jpg"],
+    });
     expect(res.provider).toBe("fal"); // still served by falling through
     // A 503 is a genuine outage signal → lovable is circuit-broken.
     expect(isHealthy("lovable")).toBe(false);
@@ -536,7 +554,7 @@ describe("editStrict (photo editor)", () => {
       kind: "image",
       model: "google/nano-banana",
     } as GenerateRequest);
-    expect(c).toContain("pollinations/flux");
+    expect(c).toContain("fal-ai/seedream-4");
   });
 
   it("pinnedModelOnly returns exactly the requested model — no video fallback (xAI UGC engine)", () => {
