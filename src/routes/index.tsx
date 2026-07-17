@@ -217,7 +217,7 @@ function LandingPage() {
             </h2>
           </div>
           <Link
-            to="/video"
+            to="/music-video"
             className="inline-flex items-center gap-1 text-sm font-medium text-zinc-400 hover:text-zinc-100 shrink-0 transition-colors"
           >
             See more <ArrowUpRight className="size-4" />
@@ -327,7 +327,7 @@ function LandingPage() {
             links={[
               { label: "Studio", to: "/studio" },
               { label: "Canvas", to: "/canvas" },
-              { label: "Video", to: "/video" },
+              { label: "Video", to: "/music-video" },
               { label: "Pricing", to: "/billing" },
             ]}
           />
@@ -342,8 +342,8 @@ function LandingPage() {
           <FooterCol
             title="Legal"
             links={[
-              { label: "Privacy", to: "/privacy" },
-              { label: "Terms", to: "/terms" },
+              { label: "Privacy", to: "/" },
+              { label: "Terms", to: "/" },
             ]}
           />
         </div>
