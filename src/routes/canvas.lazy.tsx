@@ -2,7 +2,7 @@ import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { PageSpinner } from "@/components/PageSpinner";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { AUDIO_ACCEPT } from "@/lib/utils";
-import { generateProductVideoHooks } from "@/lib/claude-hooks.functions";
+import { generateProductVideoHooks, generateStyleBlueprint, type StyleBlueprint } from "@/lib/claude-hooks.functions";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
@@ -68,12 +68,21 @@ import {
   Layers,
   MoreVertical,
   Bot,
+  Eye,
+  Lock,
+  Globe,
+  CheckCheck,
+  AlertCircle,
+  Monitor,
+  Smartphone,
+  Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -95,30 +104,37 @@ import { GeneratedAssetGallery } from "@/components/canvas/GeneratedAssetGallery
 export const Route = createLazyFileRoute("/canvas")({ component: CanvasPage });
 
 type NodeKind = "input" | "audio" | "image" | "video" | "lipsync" | "split" | "comfy" | "batchVideo" | "heygenTemplate";
-type BatchVariant = { status: "idle" | "running" | "done" | "error"; url?: string; error?: string };
+type BatchVariant = { status: "idle" | "running" | "done" | "error"; url?: string; error?: string; approved?: boolean };
 type NodeData = {
   kind: NodeKind;
-  label?: string; // optional human label (e.g. the camera angle for reshoot recipes)
+  label?: string;
   comfyWorkflowId?: string;
   outputKind?: "image" | "video";
   url?: string;
-  altUrl?: string; // secondary output (e.g. split-reality cinematic still)
-  videoUrl?: string; // animated version of `url` for split-reality playback
-  altVideoUrl?: string; // animated version of `altUrl`
+  altUrl?: string;
+  videoUrl?: string;
+  altVideoUrl?: string;
   prompt?: string;
   model?: string;
   cameraMovement?: string;
   status?: "idle" | "running" | "done" | "error";
   error?: string;
   animating?: boolean;
-  // batchVideo-only: fan out one prompt/image into N independent video renders.
+  // batchVideo — fan out one image into N independent video renders
   variantCount?: number;
   resolution?: "480p" | "720p" | "1080p" | "2160p";
   duration?: number;
   variants?: BatchVariant[];
-  // Claude-generated per-variant prompts (overrides shared prompt when set)
   claudePrompts?: string[];
   productDescription?: string;
+  // batchVideo extended settings
+  platform?: "tiktok" | "instagram" | "youtube_shorts" | "facebook" | "x" | "linkedin";
+  variationStrategy?: "hooks" | "ctas" | "openings" | "story" | "captions" | "mixed";
+  outputDuration?: "auto" | "15" | "30" | "45" | "60";
+  styleLock?: boolean;
+  brandLock?: boolean;
+  speakerLock?: boolean;
+  styleBlueprint?: StyleBlueprint;
   // heygenTemplate-only
   auroraTemplateId?: string;
   talkingPhotoUrl?: string;
@@ -170,6 +186,7 @@ type Handlers = {
   remove: (id: string) => void;
   onFile: (id: string, file: File) => void;
   animateSplit: (id: string) => void;
+  openBatchViewer: (id: string) => void;
 };
 const HandlersCtx = createContext<Handlers | null>(null);
 
@@ -263,19 +280,26 @@ function ComfyNodeControls({ id, data }: { id: string; data: NodeData }) {
 function BatchVideoControls({ id, data }: { id: string; data: NodeData }) {
   const h = useContext(HandlersCtx)!;
   const claudeFn = useServerFn(generateProductVideoHooks);
+  const blueprintFn = useServerFn(generateStyleBlueprint);
   const [claudeLoading, setClaudeLoading] = useState(false);
+  const [blueprintLoading, setBlueprintLoading] = useState(false);
+
+  const count = data.variantCount ?? 5;
+  const strategy = data.variationStrategy ?? "mixed";
+  const platform = data.platform ?? "tiktok";
 
   const expandWithClaude = async () => {
     if (!data.productDescription?.trim()) {
-      toast.error("Describe your product first (use the field above)");
+      toast.error("Describe your content first");
       return;
     }
     setClaudeLoading(true);
     try {
-      const count = Math.min(6, Math.max(1, data.variantCount ?? 5));
-      const { prompts } = await claudeFn({ data: { productDescription: data.productDescription, count } });
-      h.update(id, { claudePrompts: prompts, variantCount: prompts.length });
-      toast.success(`Claude generated ${prompts.length} unique video hooks`);
+      const { prompts } = await claudeFn({
+        data: { productDescription: data.productDescription, count, strategy, platform },
+      });
+      h.update(id, { claudePrompts: prompts });
+      toast.success(`Claude generated ${prompts.length} unique ${strategy} prompts`);
     } catch (e) {
       handleGenerationError(e);
     } finally {
@@ -283,94 +307,425 @@ function BatchVideoControls({ id, data }: { id: string; data: NodeData }) {
     }
   };
 
+  const buildBlueprint = async () => {
+    if (!data.productDescription?.trim()) {
+      toast.error("Describe your content first");
+      return;
+    }
+    setBlueprintLoading(true);
+    try {
+      const { blueprint } = await blueprintFn({ data: { description: data.productDescription } });
+      h.update(id, { styleBlueprint: blueprint });
+      toast.success("Style blueprint generated");
+    } catch (e) {
+      handleGenerationError(e);
+    } finally {
+      setBlueprintLoading(false);
+    }
+  };
+
   return (
-    <>
+    <div className="space-y-2.5">
+      {/* ── Content description ─────────────── */}
       <div className="space-y-1.5">
-        <Input
+        <p className="text-[10px] uppercase tracking-[0.15em] text-white/40">Content / Subject</p>
+        <Textarea
+          rows={2}
           value={data.productDescription ?? ""}
           onChange={(e) => h.update(id, { productDescription: e.target.value })}
-          placeholder="Describe your product (e.g. energy drink, sneakers)"
-          className="h-8 text-xs nodrag bg-black/30 border-white/10"
+          placeholder="Describe your content (e.g. new sneaker drop, fitness coaching, beauty tutorial)"
+          className="text-xs resize-none nodrag bg-black/30 border-white/10"
           onMouseDownCapture={(e) => e.stopPropagation()}
         />
+      </div>
+
+      {/* ── Style Blueprint ─────────────────── */}
+      <div className="space-y-1.5">
         <button
           type="button"
-          onClick={expandWithClaude}
-          disabled={claudeLoading || !data.productDescription?.trim()}
-          className="w-full h-7 flex items-center justify-center gap-1.5 rounded-md bg-violet-500/20 hover:bg-violet-500/30 border border-violet-400/30 text-xs text-violet-300 disabled:opacity-50 nodrag transition-colors"
+          onClick={buildBlueprint}
+          disabled={blueprintLoading || !data.productDescription?.trim()}
+          className="w-full h-7 flex items-center justify-center gap-1.5 rounded-md bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/30 text-xs text-amber-300 disabled:opacity-50 nodrag transition-colors"
           onMouseDownCapture={(e) => e.stopPropagation()}
         >
-          {claudeLoading ? <Loader2 className="size-3 animate-spin" /> : <Bot className="size-3" />}
-          {claudeLoading ? "Claude thinking…" : "Expand with Claude · generate unique hooks"}
+          {blueprintLoading ? <Loader2 className="size-3 animate-spin" /> : <Target className="size-3" />}
+          {blueprintLoading ? "Analysing style…" : "Generate Style Blueprint"}
         </button>
+        {data.styleBlueprint && (
+          <div className="rounded-lg bg-amber-500/8 border border-amber-400/20 p-2 space-y-1">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] uppercase tracking-wider text-amber-400/70 flex items-center gap-1"><Target className="size-2.5" /> Style Blueprint</p>
+              <button type="button" onClick={() => h.update(id, { styleBlueprint: undefined })} className="text-[10px] text-white/30 hover:text-rose-400 nodrag" onMouseDownCapture={(e) => e.stopPropagation()}>clear</button>
+            </div>
+            {Object.entries(data.styleBlueprint).map(([k, v]) => (
+              k !== "brandKeywords" ? (
+                <div key={k} className="flex items-start gap-1.5 text-[11px]">
+                  <span className="text-white/30 shrink-0 capitalize">{k.replace(/([A-Z])/g, " $1").trim()}:</span>
+                  <span className="text-amber-200/70">{v as string}</span>
+                </div>
+              ) : (
+                <div key={k} className="flex flex-wrap gap-1 mt-0.5">
+                  {(v as string[]).map((kw) => (
+                    <span key={kw} className="text-[10px] bg-amber-500/15 text-amber-300 rounded px-1.5 py-0.5">{kw}</span>
+                  ))}
+                </div>
+              )
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* ── Platform ────────────────────────── */}
+      <div className="space-y-1">
+        <p className="text-[10px] uppercase tracking-[0.15em] text-white/40">Platform</p>
+        <div className="grid grid-cols-3 gap-1">
+          {PLATFORMS.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => h.update(id, { platform: value as NodeData["platform"] })}
+              onMouseDownCapture={(e) => e.stopPropagation()}
+              className={`h-7 rounded-md text-[11px] font-medium nodrag transition-colors truncate px-1 ${
+                platform === value
+                  ? "bg-primary/20 border border-primary/40 text-primary"
+                  : "bg-white/5 border border-white/10 text-white/50 hover:text-white/80"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Variation Strategy ──────────────── */}
+      <div className="space-y-1">
+        <p className="text-[10px] uppercase tracking-[0.15em] text-white/40">Variation Strategy</p>
+        <Select value={strategy} onValueChange={(v) => h.update(id, { variationStrategy: v as NodeData["variationStrategy"] })}>
+          <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {STRATEGIES.map((s) => (
+              <SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* ── Claude expand ───────────────────── */}
+      <button
+        type="button"
+        onClick={expandWithClaude}
+        disabled={claudeLoading || !data.productDescription?.trim()}
+        className="w-full h-7 flex items-center justify-center gap-1.5 rounded-md bg-violet-500/20 hover:bg-violet-500/30 border border-violet-400/30 text-xs text-violet-300 disabled:opacity-50 nodrag transition-colors"
+        onMouseDownCapture={(e) => e.stopPropagation()}
+      >
+        {claudeLoading ? <Loader2 className="size-3 animate-spin" /> : <Bot className="size-3" />}
+        {claudeLoading ? "Claude generating…" : `Generate ${count} unique prompts with Claude`}
+      </button>
 
       {(data.claudePrompts?.length ?? 0) > 0 && (
         <div className="rounded-lg bg-violet-500/10 border border-violet-400/20 p-2 space-y-1.5">
-          <p className="text-xs uppercase tracking-wider text-violet-400/70">Claude hooks (per-variant)</p>
-          {data.claudePrompts!.map((p, i) => (
-            <p key={i} className="text-[13px] text-white/70 line-clamp-2">
-              <span className="text-violet-400/60 mr-1">#{i + 1}</span>{p}
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] uppercase tracking-wider text-violet-400/70">{data.claudePrompts!.length} Claude prompts ready</p>
+            <button type="button" onClick={() => h.update(id, { claudePrompts: undefined })} className="text-[10px] text-rose-400/60 hover:text-rose-400 nodrag" onMouseDownCapture={(e) => e.stopPropagation()}>clear</button>
+          </div>
+          {data.claudePrompts!.slice(0, 3).map((p, i) => (
+            <p key={i} className="text-[11px] text-white/60 line-clamp-1">
+              <span className="text-violet-400/50 mr-1">#{i + 1}</span>{p}
             </p>
           ))}
-          <button
-            type="button"
-            onClick={() => h.update(id, { claudePrompts: undefined })}
-            className="text-[13px] text-rose-400/60 hover:text-rose-400 nodrag"
-            onMouseDownCapture={(e) => e.stopPropagation()}
-          >
-            Clear Claude hooks
-          </button>
+          {data.claudePrompts!.length > 3 && (
+            <p className="text-[10px] text-white/30">+{data.claudePrompts!.length - 3} more…</p>
+          )}
         </div>
       )}
 
+      {/* ── Shared fallback prompt ──────────── */}
       <Textarea
         rows={2}
         value={data.prompt ?? ""}
         onChange={(e) => h.update(id, { prompt: e.target.value })}
-        placeholder={(data.claudePrompts?.length ?? 0) > 0 ? "Shared fallback (Claude hooks override per-variant)" : "describe the shared motion for every variant"}
+        placeholder={(data.claudePrompts?.length ?? 0) > 0 ? "Shared fallback (Claude overrides per-variant)" : "Shared motion description for all variants"}
         className="text-xs resize-none nodrag bg-black/30 border-white/10"
         onMouseDownCapture={(e) => e.stopPropagation()}
       />
+
+      {/* ── Output duration ─────────────────── */}
+      <div className="space-y-1">
+        <p className="text-[10px] uppercase tracking-[0.15em] text-white/40">Target Output Duration</p>
+        <div className="grid grid-cols-5 gap-1">
+          {OUTPUT_DURATIONS.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => h.update(id, { outputDuration: value as NodeData["outputDuration"] })}
+              onMouseDownCapture={(e) => e.stopPropagation()}
+              className={`h-7 rounded-md text-[11px] font-medium nodrag transition-colors ${
+                (data.outputDuration ?? "auto") === value
+                  ? "bg-primary/20 border border-primary/40 text-primary"
+                  : "bg-white/5 border border-white/10 text-white/50 hover:text-white/80"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Count · Resolution · Clip Duration ─ */}
+      <div className="grid grid-cols-3 gap-1.5">
+        <div className="space-y-0.5">
+          <p className="text-[9px] uppercase tracking-wider text-white/30">Count</p>
+          <Select value={String(count)} onValueChange={(v) => h.update(id, { variantCount: Number(v) })}>
+            <SelectTrigger className="h-7 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {VARIANT_COUNTS.map((c) => (
+                <SelectItem key={c} value={String(c)} className="text-xs">{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-0.5">
+          <p className="text-[9px] uppercase tracking-wider text-white/30">Resolution</p>
+          <Select value={data.resolution ?? "720p"} onValueChange={(v) => h.update(id, { resolution: v as NodeData["resolution"] })}>
+            <SelectTrigger className="h-7 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {RESOLUTION_OPTIONS.map((r) => (
+                <SelectItem key={r} value={r} className="text-xs">{r}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-0.5">
+          <p className="text-[9px] uppercase tracking-wider text-white/30">Clip dur.</p>
+          <Select value={String(data.duration ?? 5)} onValueChange={(v) => h.update(id, { duration: Number(v) })}>
+            <SelectTrigger className="h-7 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {DURATION_OPTIONS.map((d) => (
+                <SelectItem key={d} value={String(d)} className="text-xs">{d}s</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* ── Model ───────────────────────────── */}
       <Select value={data.model} onValueChange={(v) => h.update(id, { model: v })}>
-        <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue placeholder="Model" /></SelectTrigger>
+        <SelectTrigger className="h-7 text-xs nodrag bg-black/30 border-white/10"><SelectValue placeholder="Video model" /></SelectTrigger>
         <SelectContent>
           {VIDEO_MODEL_LIST.map((m) => (
             <SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>
           ))}
         </SelectContent>
       </Select>
-      <div className="grid grid-cols-3 gap-2">
-        <Select value={String(data.variantCount ?? 3)} onValueChange={(v) => h.update(id, { variantCount: Number(v) })}>
-          <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {VARIANT_COUNTS.map((c) => (
-              <SelectItem key={c} value={String(c)} className="text-xs">{c} variant{c > 1 ? "s" : ""}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={data.resolution ?? "720p"} onValueChange={(v) => h.update(id, { resolution: v as NodeData["resolution"] })}>
-          <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {RESOLUTION_OPTIONS.map((r) => (
-              <SelectItem key={r} value={r} className="text-xs">{r}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={String(data.duration ?? 5)} onValueChange={(v) => h.update(id, { duration: Number(v) })}>
-          <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {DURATION_OPTIONS.map((d) => (
-              <SelectItem key={d} value={String(d)} className="text-xs">{d}s</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+
+      {/* ── Lock toggles ────────────────────── */}
+      <div className="rounded-lg bg-white/3 border border-white/8 p-2 space-y-1.5">
+        <p className="text-[10px] uppercase tracking-[0.15em] text-white/30 flex items-center gap-1"><Lock className="size-2.5" /> Preservation</p>
+        {(["styleLock", "brandLock", "speakerLock"] as const).map((key) => {
+          const labels = { styleLock: "Style", brandLock: "Brand", speakerLock: "Speaker" };
+          const on = data[key] !== false;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => h.update(id, { [key]: !on })}
+              onMouseDownCapture={(e) => e.stopPropagation()}
+              className={`w-full h-6 flex items-center justify-between rounded px-2 text-xs nodrag transition-colors ${
+                on ? "bg-emerald-500/15 text-emerald-300" : "bg-white/5 text-white/30"
+              }`}
+            >
+              <span>{labels[key]} Lock</span>
+              <span className={`size-2 rounded-full ${on ? "bg-emerald-400" : "bg-white/20"}`} />
+            </button>
+          );
+        })}
       </div>
-      <p className="text-[13px] text-muted-foreground">
-        Fans one image into {data.variantCount ?? 3} independent video renders — each charges &amp; refunds its own credits.
-        {(data.claudePrompts?.length ?? 0) > 0 && " Claude hooks active: each variant uses a unique prompt."}
+
+      <p className="text-[11px] text-muted-foreground">
+        {count} outputs · {platform} · {STRATEGIES.find((s) => s.value === strategy)?.label}
+        {(data.claudePrompts?.length ?? 0) > 0 && " · Claude prompts active"}
       </p>
-    </>
+    </div>
+  );
+}
+
+function BatchOutputViewer({ nodeId, nodes, onClose, onUpdate }: {
+  nodeId: string | null;
+  nodes: Node<NodeData>[];
+  onClose: () => void;
+  onUpdate: (id: string, patch: Partial<NodeData>) => void;
+}) {
+  const node = nodes.find((n) => n.id === nodeId);
+  if (!node || node.data.kind !== "batchVideo") return null;
+
+  const variants = node.data.variants ?? [];
+  const done = variants.filter((v) => v.status === "done").length;
+  const failed = variants.filter((v) => v.status === "error").length;
+  const running = variants.filter((v) => v.status === "running").length;
+  const approved = variants.filter((v) => v.approved).length;
+
+  const toggleApprove = (i: number) => {
+    const updated = variants.map((v, idx) => idx === i ? { ...v, approved: !v.approved } : v);
+    onUpdate(node.id, { variants: updated });
+  };
+
+  const downloadVariant = async (url: string, i: number) => {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `batch-${node.id}-v${i + 1}.mp4`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    } catch {
+      toast.error("Download failed");
+    }
+  };
+
+  const deleteVariant = (i: number) => {
+    const updated = variants.map((v, idx) =>
+      idx === i ? { status: "idle" as const, url: undefined, error: undefined, approved: false } : v
+    );
+    onUpdate(node.id, { variants: updated });
+  };
+
+  return (
+    <Sheet open={!!nodeId} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto bg-zinc-950 border-white/10 p-0">
+        <SheetHeader className="px-6 py-4 border-b border-white/10 sticky top-0 z-10 bg-zinc-950/95 backdrop-blur-md">
+          <SheetTitle className="text-sm font-semibold tracking-tight flex items-center gap-2">
+            <Layers className="size-4 text-primary" />
+            Batch Output Viewer
+            <span className="ml-1 text-xs text-white/40 font-normal">
+              {node.data.variantCount ?? variants.length} requested
+            </span>
+          </SheetTitle>
+          <div className="flex items-center gap-3 mt-2">
+            <StatPill label="Done" count={done} color="emerald" />
+            <StatPill label="Running" count={running} color="blue" />
+            <StatPill label="Failed" count={failed} color="rose" />
+            <StatPill label="Approved" count={approved} color="amber" />
+          </div>
+          {variants.length > 0 && (
+            <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mt-2">
+              <div
+                className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all"
+                style={{ width: `${Math.round((done / variants.length) * 100)}%` }}
+              />
+            </div>
+          )}
+        </SheetHeader>
+
+        {variants.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-white/30">
+            <Layers className="size-10 mb-3 opacity-30" />
+            <p className="text-sm">Run the pipeline to generate outputs</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 p-4">
+            {variants.map((v, i) => (
+              <div
+                key={i}
+                className={`relative rounded-xl overflow-hidden border transition-all ${
+                  v.approved
+                    ? "border-emerald-400/50 ring-1 ring-emerald-400/30"
+                    : "border-white/10"
+                } bg-black/40`}
+              >
+                {/* video / state */}
+                <div className="relative aspect-[9/16] bg-white/5 flex items-center justify-center">
+                  {v.status === "done" && v.url ? (
+                    <AutoplayVideo
+                      src={v.url}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      autoPlay={false}
+                      playsInline
+                      controls
+                    />
+                  ) : v.status === "running" ? (
+                    <div className="flex flex-col items-center gap-2 text-white/40">
+                      <Loader2 className="size-6 animate-spin text-primary" />
+                      <span className="text-xs">Generating…</span>
+                    </div>
+                  ) : v.status === "error" ? (
+                    <div className="flex flex-col items-center gap-2 text-rose-400 px-3 text-center">
+                      <AlertCircle className="size-6" />
+                      <span className="text-xs line-clamp-3">{v.error ?? "Failed"}</span>
+                    </div>
+                  ) : (
+                    <span className="size-3 rounded-full border border-white/20" />
+                  )}
+                  {/* variant number badge */}
+                  <span className="absolute top-2 left-2 text-[10px] font-bold bg-black/60 text-white/60 rounded px-1.5 py-0.5">
+                    #{i + 1}
+                  </span>
+                  {/* approved badge */}
+                  {v.approved && (
+                    <span className="absolute top-2 right-2 size-5 rounded-full bg-emerald-400 flex items-center justify-center">
+                      <CheckCheck className="size-3 text-black" />
+                    </span>
+                  )}
+                </div>
+                {/* claude prompt snippet */}
+                {node.data.claudePrompts?.[i] && (
+                  <div className="px-2 py-1.5 border-t border-white/5">
+                    <p className="text-[10px] text-white/40 line-clamp-2">{node.data.claudePrompts[i]}</p>
+                  </div>
+                )}
+                {/* actions */}
+                <div className="flex items-center gap-1 p-1.5 border-t border-white/5">
+                  <button
+                    type="button"
+                    onClick={() => toggleApprove(i)}
+                    className={`flex-1 h-7 rounded-md text-[11px] font-medium transition-colors flex items-center justify-center gap-1 ${
+                      v.approved
+                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/30"
+                        : "bg-white/5 text-white/50 hover:text-white border border-white/10"
+                    }`}
+                  >
+                    <CheckCheck className="size-3" />
+                    {v.approved ? "Approved" : "Approve"}
+                  </button>
+                  {v.url && (
+                    <button
+                      type="button"
+                      onClick={() => void downloadVariant(v.url!, i)}
+                      title="Download"
+                      className="size-7 rounded-md bg-white/5 border border-white/10 text-white/50 hover:text-white flex items-center justify-center"
+                    >
+                      <Download className="size-3" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => deleteVariant(i)}
+                    title="Clear"
+                    className="size-7 rounded-md bg-white/5 border border-white/10 text-white/30 hover:text-rose-400 flex items-center justify-center"
+                  >
+                    <Trash2 className="size-3" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function StatPill({ label, count, color }: { label: string; count: number; color: "emerald" | "rose" | "blue" | "amber" }) {
+  const colors = {
+    emerald: "bg-emerald-500/15 text-emerald-300",
+    rose: "bg-rose-500/15 text-rose-300",
+    blue: "bg-blue-500/15 text-blue-300",
+    amber: "bg-amber-500/15 text-amber-300",
+  };
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 ${colors[color]}`}>
+      {count} {label}
+    </span>
   );
 }
 
@@ -400,9 +755,32 @@ const KIND_META: Record<NodeKind, { label: string; Icon: typeof ImageIcon; accen
   heygenTemplate: { label: "heygen template", Icon: Sparkles, accent: "from-pink-400 to-rose-500" },
 };
 
-const VARIANT_COUNTS = [1, 2, 3, 5, 10, 15, 20, 25, 30] as const;
+const VARIANT_COUNTS = [3, 5, 10, 15, 20, 30] as const;
 const RESOLUTION_OPTIONS = ["480p", "720p", "1080p", "2160p"] as const;
 const DURATION_OPTIONS = [5, 8, 10, 15] as const;
+const PLATFORMS = [
+  { value: "tiktok", label: "TikTok", Icon: Smartphone },
+  { value: "instagram", label: "Instagram", Icon: Smartphone },
+  { value: "youtube_shorts", label: "YouTube Shorts", Icon: Monitor },
+  { value: "facebook", label: "Facebook", Icon: Globe },
+  { value: "x", label: "X / Twitter", Icon: Globe },
+  { value: "linkedin", label: "LinkedIn", Icon: Monitor },
+] as const;
+const STRATEGIES = [
+  { value: "hooks", label: "Different Hooks" },
+  { value: "ctas", label: "Different CTAs" },
+  { value: "openings", label: "Different Openings" },
+  { value: "story", label: "Different Story Structure" },
+  { value: "captions", label: "Caption-Driven" },
+  { value: "mixed", label: "Mixed (recommended)" },
+] as const;
+const OUTPUT_DURATIONS = [
+  { value: "auto", label: "Auto" },
+  { value: "15", label: "15 sec" },
+  { value: "30", label: "30 sec" },
+  { value: "45", label: "45 sec" },
+  { value: "60", label: "60 sec" },
+] as const;
 
 function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
   const h = useContext(HandlersCtx)!;
@@ -465,21 +843,58 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
 
         {/* preview */}
         {data.kind === "batchVideo" && (data.variants?.length ?? 0) > 0 ? (
-          <div className="grid grid-cols-2 gap-1.5 p-2 bg-black/30">
-            {data.variants!.map((v, i) => (
-              <div key={i} className="relative aspect-square rounded-md overflow-hidden bg-white/5 grid place-items-center">
-                {v.status === "done" && v.url ? (
-                  <AutoplayVideo src={v.url} className="w-full h-full object-cover" autoPlay={false} playsInline controls />
-                ) : v.status === "running" ? (
-                  <Loader2 className="size-4 animate-spin text-primary" />
-                ) : v.status === "error" ? (
-                  <span title={v.error} className="text-rose-400"><XCircle className="size-4" /></span>
-                ) : (
-                  <span className="size-1.5 rounded-full border border-white/20" />
-                )}
-                <span className="absolute top-1 left-1 text-xs text-white/60 bg-black/50 rounded px-1">#{i + 1}</span>
-              </div>
-            ))}
+          <div className="bg-black/30">
+            {/* stats bar */}
+            <div className="px-2 py-1.5 flex items-center gap-2 border-b border-white/5">
+              {(() => {
+                const vs = data.variants!;
+                const total = vs.length;
+                const doneC = vs.filter((v) => v.status === "done").length;
+                const failC = vs.filter((v) => v.status === "error").length;
+                const runC = vs.filter((v) => v.status === "running").length;
+                const pct = total > 0 ? Math.round((doneC / total) * 100) : 0;
+                return (
+                  <>
+                    <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-[10px] text-white/50 shrink-0 tabular-nums">{doneC}/{total}</span>
+                    {failC > 0 && <span className="text-[10px] text-rose-400 shrink-0">{failC}✗</span>}
+                    {runC > 0 && <Loader2 className="size-2.5 animate-spin text-primary shrink-0" />}
+                  </>
+                );
+              })()}
+            </div>
+            {/* preview grid — first 4 */}
+            <div className="grid grid-cols-2 gap-1 p-1.5">
+              {data.variants!.slice(0, 4).map((v, i) => (
+                <div key={i} className="relative aspect-square rounded-md overflow-hidden bg-white/5 grid place-items-center">
+                  {v.status === "done" && v.url ? (
+                    <AutoplayVideo src={v.url} className="w-full h-full object-cover" autoPlay={false} playsInline controls />
+                  ) : v.status === "running" ? (
+                    <Loader2 className="size-4 animate-spin text-primary" />
+                  ) : v.status === "error" ? (
+                    <span title={v.error} className="text-rose-400"><XCircle className="size-4" /></span>
+                  ) : (
+                    <span className="size-1.5 rounded-full border border-white/20" />
+                  )}
+                  <span className="absolute top-1 left-1 text-[9px] text-white/50 bg-black/50 rounded px-1">#{i + 1}</span>
+                  {v.approved && <span className="absolute top-1 right-1 size-3.5 rounded-full bg-emerald-400 grid place-items-center"><CheckCheck className="size-2 text-black" /></span>}
+                </div>
+              ))}
+            </div>
+            {/* view outputs button */}
+            <div className="px-2 pb-2">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); h.openBatchViewer(id); }}
+                onMouseDownCapture={(e) => e.stopPropagation()}
+                className="w-full h-7 rounded-md bg-white/8 hover:bg-white/15 border border-white/10 text-xs text-white/60 hover:text-white flex items-center justify-center gap-1.5 nodrag transition-colors"
+              >
+                <Eye className="size-3" /> View all {data.variants!.length} outputs
+                {data.variants!.length > 4 && <span className="text-white/30">+{data.variants!.length - 4} more</span>}
+              </button>
+            </div>
           </div>
         ) : data.kind === "split" && (data.url || data.altUrl) ? (
           <SplitRealityPlayer
@@ -983,7 +1398,9 @@ function CanvasPage() {
     }
   }, [nodes, update]);
 
-  const handlers = useMemo<Handlers>(() => ({ update, remove, onFile, animateSplit }), [update, remove, onFile, animateSplit]);
+  const [batchViewerNodeId, setBatchViewerNodeId] = useState<string | null>(null);
+  const openBatchViewer = useCallback((id: string) => setBatchViewerNodeId(id), []);
+  const handlers = useMemo<Handlers>(() => ({ update, remove, onFile, animateSplit, openBatchViewer }), [update, remove, onFile, animateSplit, openBatchViewer]);
 
   // Pre-flight graph validation: compute blocking issues before the user hits Run.
   // Returns a list of human-readable problems; an empty array means the graph is
@@ -1237,10 +1654,16 @@ function CanvasPage() {
           : kind === "batchVideo" ? VIDEO_MODEL_LIST[0].value
           : undefined,
         cameraMovement: kind === "video" ? "static" : undefined,
-        variantCount: kind === "batchVideo" ? 3 : undefined,
+        variantCount: kind === "batchVideo" ? 5 : undefined,
         resolution: kind === "batchVideo" ? "720p" : undefined,
         duration: kind === "batchVideo" ? 5 : undefined,
         variants: kind === "batchVideo" ? [] : undefined,
+        platform: kind === "batchVideo" ? "tiktok" : undefined,
+        variationStrategy: kind === "batchVideo" ? "mixed" : undefined,
+        outputDuration: kind === "batchVideo" ? "auto" : undefined,
+        styleLock: kind === "batchVideo" ? true : undefined,
+        brandLock: kind === "batchVideo" ? true : undefined,
+        speakerLock: kind === "batchVideo" ? false : undefined,
         status: "idle",
       } as NodeData,
     }]);
@@ -1404,6 +1827,12 @@ function CanvasPage() {
         </HandlersCtx.Provider>
         </ComfyCtx.Provider>
         </HeyGenTplCtx.Provider>
+        <BatchOutputViewer
+          nodeId={batchViewerNodeId}
+          nodes={nodes}
+          onClose={() => setBatchViewerNodeId(null)}
+          onUpdate={update}
+        />
         {/* Floating glass toolbar — templates + finished-work gallery live over the canvas */}
         <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 rounded-full border border-white/10 bg-[oklch(0.13_0.04_290/0.85)] backdrop-blur-xl shadow-lg p-1.5">
           <TrendingTemplatesMenu
