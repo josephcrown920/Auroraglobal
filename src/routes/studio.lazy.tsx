@@ -914,6 +914,23 @@ function StudioPage() {
           )}
 
           {latest?.result_image_url && (
+            <Link
+              to="/motion"
+              search={{ image: latest.result_image_url }}
+              className="no-underline block rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-4 hover:border-primary/70 hover:bg-primary/15 transition-all group"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Wand2 className="size-4 text-primary" />
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">Motion Control</h3>
+                </div>
+                <span className="text-xs text-primary group-hover:translate-x-0.5 transition-transform">Open →</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1.5">Transfer your real-world movement onto this shot — upload a performance clip and Aurora maps your motion onto the generated scene.</p>
+            </Link>
+          )}
+
+          {latest?.result_image_url && (
             <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <Film className="size-4 text-primary" />
