@@ -785,6 +785,7 @@ export type Database = {
           input_images: Json
           input_videos: Json
           is_favorite: boolean
+          is_hidden: boolean
           is_public: boolean
           is_watermarked: boolean
           kind: string
@@ -812,6 +813,7 @@ export type Database = {
           input_images?: Json
           input_videos?: Json
           is_favorite?: boolean
+          is_hidden?: boolean
           is_public?: boolean
           is_watermarked?: boolean
           kind?: string
@@ -839,6 +841,7 @@ export type Database = {
           input_images?: Json
           input_videos?: Json
           is_favorite?: boolean
+          is_hidden?: boolean
           is_public?: boolean
           is_watermarked?: boolean
           kind?: string

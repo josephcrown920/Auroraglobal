@@ -5,10 +5,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { listGallery, toggleFavorite } from "@/lib/studio.functions";
-import { deleteGeneration } from "@/lib/gallery.functions";
+import { deleteGeneration, hideGeneration } from "@/lib/gallery.functions";
 import { ModelBadge } from "@/components/ModelBadge";
 import { VisualEditDialog } from "@/components/gallery/VisualEditDialog";
-import { Loader2, ArrowLeft, Star, Download, Film, Image as ImageIcon, Layers, Trash2, Wand2, Captions, Lock, CheckCheck, Check } from "lucide-react";
+import { Loader2, ArrowLeft, Star, Download, Film, Image as ImageIcon, Layers, Trash2, Wand2, Captions, Lock, CheckCheck, Check, EyeOff, Eye } from "lucide-react";
 import { CaptionDialog } from "@/components/gallery/CaptionDialog";
 import { toast } from "sonner";
 import { saveAssetToDisk, isSplitRealityPrompt, splitRealityVariant } from "@/lib/save";
@@ -25,8 +25,9 @@ function GalleryPage() {
   const qc = useQueryClient();
   const listFn = useServerFn(listGallery);
   const favFn = useServerFn(toggleFavorite);
+  const hideFn = useServerFn(hideGeneration);
   const publishFn = useServerFn(publishGeneration);
-  const [filter, setFilter] = useState<"all" | "favorites" | "images" | "videos">("all");
+  const [filter, setFilter] = useState<"all" | "favorites" | "images" | "videos" | "hidden">("all");
   const [editing, setEditing] = useState<{ id: string; url: string } | null>(null);
   const [captioning, setCaptioning] = useState<{ id: string; url: string } | null>(null);
 
@@ -34,15 +35,25 @@ function GalleryPage() {
     if (!loading && !user) navigate({ to: "/auth" });
   }, [user, loading, navigate]);
 
+  const showHidden = filter === "hidden";
   const { data, isLoading } = useQuery({
-    queryKey: ["gallery"],
-    queryFn: () => listFn(),
+    queryKey: ["gallery", showHidden],
+    queryFn: () => listFn({ data: { showHidden } }),
     enabled: !!user,
   });
 
   const favMut = useMutation({
     mutationFn: async (v: { id: string; favorite: boolean }) => favFn({ data: v }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["gallery"] }),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  const hideMut = useMutation({
+    mutationFn: async (v: { id: string; hidden: boolean }) => hideFn({ data: v }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["gallery", false] });
+      qc.invalidateQueries({ queryKey: ["gallery", true] });
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
@@ -139,6 +150,7 @@ function GalleryPage() {
             { v: "favorites", l: "★ Favourites" },
             { v: "images", l: "Photos" },
             { v: "videos", l: "Videos" },
+            { v: "hidden", l: "Hidden" },
           ] as const).map((t) => (
             <button
               key={t.v}
@@ -276,6 +288,15 @@ function GalleryPage() {
                       }}
                     />
                   )}
+                  <button
+                    type="button"
+                    onClick={() => hideMut.mutate({ id: g.id, hidden: !showHidden })}
+                    disabled={hideMut.isPending}
+                    className="size-7 rounded-full bg-background/70 backdrop-blur-md border border-border hover:bg-background flex items-center justify-center disabled:opacity-50"
+                    title={showHidden ? "Unhide" : "Hide from gallery"}
+                  >
+                    {showHidden ? <Eye className="size-3" /> : <EyeOff className="size-3" />}
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
