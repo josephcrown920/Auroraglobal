@@ -101,11 +101,12 @@ function AuthPage() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 bg-[var(--gradient-soft)] relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "var(--gradient-stage)" }} />
-      <div className="relative w-full max-w-md rounded-3xl bg-card/80 backdrop-blur-xl border border-border p-8 shadow-[var(--shadow-glow)]">
-        <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
-          <Sparkles className="size-4" /> Aurora Studio
+    <main className="min-h-screen flex items-center justify-center px-4 bg-zinc-950 relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 65% 25%, oklch(0.58 0.22 25 / 0.10), transparent 55%), radial-gradient(ellipse at 20% 80%, oklch(0.085 0.022 272 / 0.6), transparent 50%)" }} />
+      <div className="relative w-full max-w-md rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-8">
+        <Link to="/" className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-100 transition-colors mb-6">
+          <span className="inline-block size-1.5 rounded-full bg-brand" />
+          <span className="text-xs font-semibold uppercase tracking-widest">Aurora Studio</span>
         </Link>
         <h1 className="text-3xl font-semibold tracking-tight mb-1">
           {mode === "signup" ? "Create account" : "Welcome back"}
@@ -142,7 +143,7 @@ function AuthPage() {
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
-          <Button type="submit" disabled={busy} className="w-full h-11 text-base font-medium" style={{ background: "var(--gradient-hero)" }}>
+          <Button type="submit" disabled={busy} className="w-full h-11 rounded-xl text-base font-semibold bg-brand text-white hover:bg-brand/90 border-0">
             {busy ? "Working…" : mode === "signup" ? "Create account" : "Sign in"}
           </Button>
         </form>

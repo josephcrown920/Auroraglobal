@@ -13,7 +13,7 @@ export const Route = createLazyFileRoute("/admin/costs")({
 });
 
 const KIND_COLORS: Record<string, string> = {
-  image: "text-fuchsia-400 bg-fuchsia-500/10",
+  image: "text-brand bg-brand/10",
   video: "text-pink-400 bg-pink-500/10",
   lipsync: "text-cyan-400 bg-cyan-500/10",
   motion: "text-purple-400 bg-purple-500/10",

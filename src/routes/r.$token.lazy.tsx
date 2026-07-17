@@ -33,7 +33,7 @@ function SharePage() {
         </Link>
         <Link
           to="/studio"
-          className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-bold no-underline text-white"
+          className="inline-flex items-center gap-2 rounded-full bg-brand px-4 py-2 text-sm font-bold no-underline text-white ring-1 ring-brand/70 hover:scale-[1.02] transition-transform"
         >
           <Sparkles className="size-4" /> Make your own
         </Link>
