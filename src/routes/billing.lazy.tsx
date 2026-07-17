@@ -13,6 +13,7 @@ import {
   Crown, Tag, Rocket, Gauge, Lock, Calendar, RefreshCw, Bell,
   Sparkles, Image, Film, Mic2, TrendingUp, ChevronRight,
 } from "lucide-react";
+import { PageSpinner } from "@/components/PageSpinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
@@ -119,13 +120,7 @@ function BillingPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't update your limit"),
   });
 
-  if (loading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="size-6 animate-spin text-primary" />
-      </div>
-    );
-  }
+  if (loading || !user) return <PageSpinner />;
 
   return (
     <main className="aurora-page-shell text-foreground">

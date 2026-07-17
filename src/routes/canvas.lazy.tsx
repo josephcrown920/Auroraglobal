@@ -1,4 +1,5 @@
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { PageSpinner } from "@/components/PageSpinner";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { AUDIO_ACCEPT } from "@/lib/utils";
 import { generateProductVideoHooks } from "@/lib/claude-hooks.functions";
@@ -1279,7 +1280,7 @@ function CanvasPage() {
     } catch (e) { toast.error(e instanceof Error ? e.message : "Load failed"); }
   };
 
-  if (loading || !user) return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="size-6 animate-spin text-primary" /></div>;
+  if (loading || !user) return <PageSpinner />;
 
   return (
     <main className="h-screen flex flex-col bg-[#06060c] relative overflow-hidden">
