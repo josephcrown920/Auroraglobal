@@ -11,8 +11,8 @@
 // Install: pre-warm the cache with landing images & nav icons so the first
 // meaningful paint is fast even on slow connections.
 
-const STATIC_CACHE  = 'aurora-static-v3';
-const PAGE_CACHE    = 'aurora-pages-v3';
+const STATIC_CACHE  = 'aurora-static-v4';
+const PAGE_CACHE    = 'aurora-pages-v4';
 
 // Public files to pre-cache at install time (non-hashed, stable paths).
 // /offline.html is always first — it's the fallback for uncached navigation.
@@ -26,6 +26,10 @@ const PRECACHE_ASSETS = [
   '/fonts/unbounded-600-latin-ext.woff2',
   '/fonts/unbounded-800-latin.woff2',
   '/fonts/unbounded-800-latin-ext.woff2',
+  // PWA icons (stable paths for install prompt)
+  '/icons/aurora-icon-192.png',
+  '/icons/aurora-icon-512.png',
+  // Landing gallery photos
   '/landing-photo-1.jpeg',
   '/landing-photo-2.jpeg',
   '/landing-photo-3.jpeg',
@@ -36,10 +40,21 @@ const PRECACHE_ASSETS = [
   '/landing-photo-8.png',
   '/landing-photo-nba-josh.png',
   '/landing-photo-studios-grid.png',
-  '/nav-previews/perform-anywhere.jpg',
+  // Service card preview images (all 14 services)
+  '/nav-previews/studio.jpg',
+  '/nav-previews/colors.jpg',
+  '/nav-previews/canvas.jpg',
+  '/nav-previews/motion.jpg',
+  '/nav-previews/lipsync.jpg',
+  '/nav-previews/music-video.jpg',
+  '/nav-previews/photo-edit.jpg',
+  '/nav-previews/ugc.jpg',
+  '/nav-previews/avatar.jpg',
+  '/nav-previews/live-studio.jpg',
+  '/nav-previews/ugc-line.jpg',
+  '/nav-previews/spin.jpg',
   '/nav-previews/scene-builder.jpg',
   '/nav-previews/video-agent.jpg',
-  '/nav-previews/motion.jpg',
 ];
 
 // On install: pre-cache landing assets, then activate immediately.
