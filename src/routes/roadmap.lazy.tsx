@@ -148,13 +148,6 @@ const ITEMS: RoadmapItem[] = [
     status: "planned",
   },
   {
-    label: "Split Reality",
-    description: "Dual-screen compositing — real world meets AI-generated environment.",
-    icon: SplitSquareHorizontal,
-    to: "/split-reality",
-    status: "planned",
-  },
-  {
     label: "TikTok Studio",
     description: "Trending audio detection + auto-matched visual styles for TikTok.",
     icon: Music2,

@@ -153,7 +153,6 @@ function AdminPage() {
               { to: "/roadmap",          label: "Roadmap" },
               { to: "/workflows",        label: "Workflows" },
               { to: "/content-machine",  label: "Content Machine" },
-              { to: "/split-reality",    label: "Split Reality" },
               { to: "/tiktok",           label: "TikTok Studio" },
               { to: "/clips",            label: "Clips" },
               { to: "/edit",             label: "AutoCut" },

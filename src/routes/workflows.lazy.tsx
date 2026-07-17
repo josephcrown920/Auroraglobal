@@ -20,7 +20,6 @@ const FEATURED_TEMPLATES: Array<{
   { slug: "competitor-scan", name: "Competitor Scan", description: "Pull 8 references from a brand URL → style breakdown.", icon: Eye, accent: "from-sky-500 to-cyan-500", graph: { nodes: [{ type: "scrape" }, { type: "analyze" }], edges: [] } },
   { slug: "vocal-sync-music-video", name: "Vocal Sync Music Video", description: "Performance clip + vocal stem → frame-perfect lip-sync render.", icon: Mic2, accent: "from-pink-500 to-rose-500", graph: { nodes: [{ type: "lipsync", engine: "sync-v2" }], edges: [] } },
   { slug: "one-click-trailer", name: "One-Click Trailer", description: "Single prompt → 8s teaser with motion + score.", icon: Wand2, accent: "from-emerald-500 to-teal-500", graph: { nodes: [{ type: "video", duration: 8 }], edges: [] } },
-  { slug: "split-reality", name: "Split Reality", description: "Day/night split of the same scene for before/after reveals.", icon: Layers, accent: "from-indigo-500 to-purple-500", graph: { nodes: [{ type: "split", variants: 2 }], edges: [] } },
 ];
 
 export const Route = createLazyFileRoute("/workflows")({ component: WorkflowsPage });

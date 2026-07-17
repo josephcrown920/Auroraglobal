@@ -27,7 +27,6 @@ import {
   usePerformanceShotJobFn,
   useVideoFromImageJobFn,
   useLipSyncJobFn,
-  useSplitRealityJobFn,
   pollComfyRunUntilDone,
 } from "@/lib/use-job-polling";
 import { listWorkflows, saveWorkflow, getWorkflow } from "@/lib/workflows.functions";
@@ -92,7 +91,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { SplitRealityPlayer } from "@/components/canvas/SplitRealityPlayer";
 import { ShareMenu } from "@/components/share/ShareMenu";
 
 import { TrendingTemplatesMenu, type TemplateGraph, getTemplateById } from "@/components/canvas/TrendingTemplatesMenu";
@@ -185,7 +183,6 @@ type Handlers = {
   update: (id: string, patch: Partial<NodeData>) => void;
   remove: (id: string) => void;
   onFile: (id: string, file: File) => void;
-  animateSplit: (id: string) => void;
   openBatchViewer: (id: string) => void;
 };
 const HandlersCtx = createContext<Handlers | null>(null);
@@ -749,7 +746,6 @@ const KIND_META: Record<NodeKind, { label: string; Icon: typeof ImageIcon; accen
   image: { label: "image gen", Icon: Wand2, accent: "from-fuchsia-400 to-purple-500" },
   video: { label: "video gen", Icon: Film, accent: "from-purple-400 to-indigo-500" },
   lipsync: { label: "lip sync", Icon: Mic, accent: "from-rose-400 to-pink-500" },
-  split: { label: "split reality", Icon: SplitSquareHorizontal, accent: "from-amber-400 to-orange-500" },
   comfy: { label: "comfyui", Icon: Boxes, accent: "from-sky-400 to-cyan-500" },
   batchVideo: { label: "batch video", Icon: Layers, accent: "from-violet-400 to-fuchsia-500" },
   heygenTemplate: { label: "heygen template", Icon: Sparkles, accent: "from-pink-400 to-rose-500" },
@@ -896,14 +892,6 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
               </button>
             </div>
           </div>
-        ) : data.kind === "split" && (data.url || data.altUrl) ? (
-          <SplitRealityPlayer
-            ultra={{ url: data.url, videoUrl: data.videoUrl, label: "ULTRA" }}
-            cinematic={{ url: data.altUrl, videoUrl: data.altVideoUrl, label: "CINEMATIC" }}
-            prompt={data.prompt}
-            animating={data.animating}
-            onAnimateBoth={() => h.animateSplit(id)}
-          />
         ) : data.kind === "heygenTemplate" && data.url ? (
           <AutoplayVideo src={data.url} className="w-full aspect-video object-cover" autoPlay={false} playsInline controls />
         ) : data.url ? (
@@ -1037,21 +1025,6 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
               </p>
             </>
           )}
-          {data.kind === "split" && (
-            <>
-              <Textarea
-                rows={2}
-                value={data.prompt ?? ""}
-                onChange={(e) => h.update(id, { prompt: e.target.value })}
-                placeholder="Optional base description"
-                className="text-xs resize-none nodrag bg-black/30 border-white/10"
-                onMouseDownCapture={(e) => e.stopPropagation()}
-              />
-              <p className="text-[13px] text-muted-foreground">
-                Generates two stories side by side: ultra-real vs cinematic.
-              </p>
-            </>
-          )}
           {data.kind === "comfy" && <ComfyNodeControls id={id} data={data} />}
           {data.kind === "heygenTemplate" && !data.url && <HeyGenTemplateNodeControls id={id} data={data} />}
           {data.kind === "batchVideo" && (
@@ -1071,14 +1044,13 @@ function estimateSeconds(kind: NodeKind): number {
     case "image": return 25;
     case "video": return 75;
     case "lipsync": return 90;
-    case "split": return 50;
     case "comfy": return 60;
     case "heygenTemplate": return 120;
     default: return 5;
   }
 }
 function ProgressPanel({ nodes, edges, running }: { nodes: Node<NodeData>[]; edges: Edge[]; running: boolean }) {
-  const steps = nodes.filter((n) => ["image", "video", "lipsync", "split", "comfy", "heygenTemplate"].includes(n.data.kind));
+  const steps = nodes.filter((n) => ["image", "video", "lipsync", "comfy", "heygenTemplate"].includes(n.data.kind));
   if (steps.length === 0) return null;
   const done = steps.filter((n) => n.data.status === "done").length;
   const active = steps.find((n) => n.data.status === "running");
@@ -1136,7 +1108,7 @@ function ExportShareDock({ nodes, edges }: { nodes: Node<NodeData>[]; edges: Edg
     (n) => !outgoing.has(n.id)
       && n.data.status === "done"
       && (n.data.url || n.data.altUrl)
-      && ["image", "video", "lipsync", "split", "comfy", "heygenTemplate"].includes(n.data.kind),
+      && ["image", "video", "lipsync", "comfy", "heygenTemplate"].includes(n.data.kind),
   );
   if (terminals.length === 0) return null;
   const final = terminals[terminals.length - 1];
@@ -1329,7 +1301,6 @@ function CanvasPage() {
   const genFn = usePerformanceShotJobFn();
   const vidFn = useVideoFromImageJobFn();
   const lipFn = useLipSyncJobFn();
-  const splitFn = useSplitRealityJobFn();
   const comfyRunFn = useServerFn(startComfyRun);
   const comfyGetRunFn = useServerFn(getComfyRun);
   const comfyListFn = useServerFn(listComfyTemplates);
@@ -1377,30 +1348,10 @@ function CanvasPage() {
     update(id, { url: signed.signedUrl });
   }, [user, update]);
 
-  const animateSplit = useCallback(async (id: string) => {
-    const node = nodes.find((n) => n.id === id);
-    if (!node || node.data.kind !== "split") return;
-    const { url, altUrl, prompt } = node.data;
-    if (!url || !altUrl) { toast.error("Run the split first to get both stills"); return; }
-    update(id, { animating: true });
-    try {
-      const motion = (label: string) =>
-        `${label} cinematic motion, subtle parallax, breathing camera, natural micro-expressions${prompt ? `. ${prompt}` : ""}`;
-      const [a, b] = await Promise.all([
-        vidFn({ data: { imageUrl: url, prompt: motion("Ultra-realism"), duration: 5, resolution: "720p", modelKey: VIDEO_MODEL_LIST[0].value, cameraMovement: "push_in", endFrameUrl: null } }),
-        vidFn({ data: { imageUrl: altUrl, prompt: motion("Cinematic vision"), duration: 5, resolution: "720p", modelKey: VIDEO_MODEL_LIST[0].value, cameraMovement: "orbit_cw", endFrameUrl: null } }),
-      ]);
-      update(id, { videoUrl: a.videoUrl, altVideoUrl: b.videoUrl, animating: false });
-      toast.success("Both stories animated");
-    } catch (e) {
-      update(id, { animating: false });
-      handleGenerationError(e);
-    }
-  }, [nodes, update]);
 
   const [batchViewerNodeId, setBatchViewerNodeId] = useState<string | null>(null);
   const openBatchViewer = useCallback((id: string) => setBatchViewerNodeId(id), []);
-  const handlers = useMemo<Handlers>(() => ({ update, remove, onFile, animateSplit, openBatchViewer }), [update, remove, onFile, animateSplit, openBatchViewer]);
+  const handlers = useMemo<Handlers>(() => ({ update, remove, onFile, openBatchViewer }), [update, remove, onFile, openBatchViewer]);
 
   // Pre-flight graph validation: compute blocking issues before the user hits Run.
   // Returns a list of human-readable problems; an empty array means the graph is
@@ -1474,7 +1425,7 @@ function CanvasPage() {
         const n = byId.get(id);
         if (!n) continue;
         const upstream = ups.map((u) => resolved.get(u)!).filter(Boolean);
-        const images = upstream.filter((u) => u.kind === "input" || u.kind === "image" || u.kind === "split").map((u) => u.url);
+        const images = upstream.filter((u) => u.kind === "input" || u.kind === "image").map((u) => u.url);
         const videos = upstream.filter((u) => u.kind === "video" || u.kind === "lipsync").map((u) => u.url);
         const audios = upstream.filter((u) => u.kind === "audio").map((u) => u.url);
 
@@ -1508,11 +1459,6 @@ function CanvasPage() {
   } });
             resolved.set(id, { url: res.videoUrl, kind: "video" });
             update(id, { status: "done", url: res.videoUrl });
-          } else if (n.data.kind === "split") {
-            if (images.length === 0) throw new Error("Split node needs an image upstream");
-            const res = await splitFn({ data: { imageUrls: images.slice(0, 3), basePrompt: n.data.prompt ?? "" } });
-            resolved.set(id, { url: res.left.url, kind: "split" });
-            update(id, { status: "done", url: res.left.url, altUrl: res.right.url });
           } else if (n.data.kind === "lipsync") {
             if (audios.length === 0) throw new Error("Lip sync needs an audio node");
             let videoUrl = videos[0];
@@ -1646,7 +1592,7 @@ function CanvasPage() {
         prompt:
           kind === "video" ? "natural movement, expressive performance"
           : kind === "image" ? "describe the shot"
-          : kind === "split" ? "" : undefined,
+          : undefined,
         model:
           kind === "image" ? MODEL_LIST[0].value
           : kind === "video" ? VIDEO_MODEL_LIST[0].value
@@ -1897,7 +1843,6 @@ function CanvasPage() {
           <button onClick={() => addNode("image")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Image gen"><Wand2 className="size-4" /></button>
           <button onClick={() => addNode("video")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Video"><Film className="size-4" /></button>
           <button onClick={() => addNode("lipsync")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Lip sync"><Mic className="size-4" /></button>
-          <button onClick={() => addNode("split")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Split"><SplitSquareHorizontal className="size-4" /></button>
           <button onClick={() => addNode("comfy")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="ComfyUI"><Boxes className="size-4" /></button>
           <button onClick={() => addNode("batchVideo")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Batch video"><Layers className="size-4" /></button>
           <button onClick={() => addNode("heygenTemplate")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="HeyGen Template"><Sparkles className="size-4" /></button>

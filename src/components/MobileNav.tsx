@@ -93,7 +93,6 @@ export const ARCHIVED_FEATURES: Feature[] = [
   { to: "/roadmap",          label: "Roadmap",          icon: Sparkles },
   { to: "/workflows",        label: "Workflows",        icon: Sparkles },
   { to: "/content-machine",  label: "Content Machine",  icon: Sparkles },
-  { to: "/split-reality",    label: "Split Reality",    icon: Sparkles },
   { to: "/tiktok",           label: "TikTok Studio",    icon: Music2 },
   { to: "/clips",            label: "Clips",            icon: Sparkles },
   { to: "/edit",             label: "AutoCut",          icon: Sparkles },

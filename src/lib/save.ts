@@ -26,14 +26,3 @@ export async function saveAssetToDisk(url: string, filename?: string): Promise<v
     window.open(url, "_blank", "noopener");
   }
 }
-
-/** True if a generation prompt was produced by the Split Reality flow. */
-export function isSplitRealityPrompt(prompt: string | null | undefined): boolean {
-  return !!prompt && /^\[Split Reality/i.test(prompt);
-}
-
-/** Parse the variant tag (`ultra` / `cinematic`) from a Split Reality prompt. */
-export function splitRealityVariant(prompt: string | null | undefined): string | null {
-  const m = (prompt ?? "").match(/^\[Split Reality\s*\/\s*([^\]]+)\]/i);
-  return m ? m[1].trim() : null;
-}

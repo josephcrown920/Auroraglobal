@@ -25,7 +25,6 @@ const ENTRIES: SitemapEntry[] = [
   { path: "/speech", changefreq: "weekly", priority: "0.7" },
   { path: "/edit", changefreq: "weekly", priority: "0.7" },
   { path: "/reshoot", changefreq: "weekly", priority: "0.7" },
-  { path: "/split-reality", changefreq: "weekly", priority: "0.7" },
   { path: "/content-machine", changefreq: "weekly", priority: "0.7" },
   { path: "/kids", changefreq: "weekly", priority: "0.7" },
   { path: "/workflows", changefreq: "weekly", priority: "0.7" },

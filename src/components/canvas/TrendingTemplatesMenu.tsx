@@ -259,19 +259,6 @@ const TEMPLATES: TemplateDef[] = [
     }),
   },
   {
-    id: "split-reality",
-    name: "Split Reality",
-    desc: "One render, two cinematic grades side-by-side",
-    icon: SplitSquareHorizontal,
-    tags: ["Selfie", "Split"],
-    category: "Cinema",
-    build: () => ({
-      name: "Split Reality",
-      nodes: [mk("in", "input", 40, 60), mk("split", "split", 420, 80, { prompt: "Concert wash vs golden hour" })],
-      edges: [ed("in", "split")],
-    }),
-  },
-  {
     id: "my-life-fire",
     name: "My Life · Fire Background",
     desc: "Viral cinematic: drop your selfie → stand composed in front of a dramatic fire/chaos background. The 'My Life / Me' aesthetic — calm artist, burning world.",
