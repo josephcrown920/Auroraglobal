@@ -404,10 +404,10 @@ function LandingPage() {
           </p>
           <div className="flex flex-col gap-3">
             {([
-              { label: "Starter",  aura: 80,  usd: "$10",  per: "$0.13 / Aura" },
+              { label: "Starter",  aura: 80,  usd: "$10",  per: "$0.13 / Aura", popular: false },
               { label: "Creator",  aura: 240, usd: "$30",  per: "$0.13 / Aura", popular: true },
-              { label: "Studio",   aura: 640, usd: "$80",  per: "$0.13 / Aura" },
-            ] as const).map((p) => (
+              { label: "Studio",   aura: 640, usd: "$80",  per: "$0.13 / Aura", popular: false },
+            ]).map((p) => (
               <Link
                 key={p.label}
                 to={user ? "/billing" : ctaTo}
