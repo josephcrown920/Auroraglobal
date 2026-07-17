@@ -1,56 +1,136 @@
-// Aurora Service Worker — cache-first for all static assets so repeat visits
-// load instantly from the local cache instead of hitting the network.
-// Strategy: cache-first for /assets/* (hashed JS/CSS bundles), Google Fonts
-// CSS and font files. Everything else (API calls, SSR pages) is network-only
-// so content stays fresh.
+// Aurora Service Worker — multi-strategy caching for near-instant repeat visits
+// and offline resilience.
+//
+// Strategies:
+//   /assets/*            → Cache-first (Vite hashes guarantee freshness)
+//   Fonts (Google/gstatic) → Cache-first (immutable after first download)
+//   Images (.png/.jpeg/.webp/.jpg/.svg/.ico) → Cache-first
+//   Navigation (HTML pages) → Stale-while-revalidate (show fast, refresh bg)
+//   API / everything else → Network-only (never stale)
+//
+// Install: pre-warm the cache with landing images & nav icons so the first
+// meaningful paint is fast even on slow connections.
 
-const CACHE = 'aurora-static-v1';
+const STATIC_CACHE  = 'aurora-static-v3';
+const PAGE_CACHE    = 'aurora-pages-v3';
 
-// On install, activate immediately rather than waiting for old tabs to close.
-self.addEventListener('install', () => self.skipWaiting());
+// Public images that are worth pre-caching at install time (non-hashed, stable).
+const PRECACHE_ASSETS = [
+  '/landing-photo-1.jpeg',
+  '/landing-photo-2.jpeg',
+  '/landing-photo-3.jpeg',
+  '/landing-photo-4.jpeg',
+  '/landing-photo-5.jpeg',
+  '/landing-photo-6.png',
+  '/landing-photo-7.png',
+  '/landing-photo-8.png',
+  '/landing-photo-nba-josh.png',
+  '/landing-photo-studios-grid.png',
+  '/nav-previews/perform-anywhere.jpg',
+  '/nav-previews/scene-builder.jpg',
+  '/nav-previews/video-agent.jpg',
+  '/nav-previews/motion.jpg',
+];
 
-// On activate, delete every stale cache version except the current one,
-// then take over all open clients without a reload.
+// On install: pre-cache landing assets, then activate immediately.
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(STATIC_CACHE)
+      .then((cache) =>
+        cache.addAll(
+          PRECACHE_ASSETS.map((url) =>
+            new Request(url, { cache: 'reload' })
+          )
+        ).catch(() => {})
+      )
+      .then(() => self.skipWaiting())
+  );
+});
+
+// On activate: prune every stale cache, then claim all open clients.
 self.addEventListener('activate', (event) => {
+  const KEEP = new Set([STATIC_CACHE, PAGE_CACHE]);
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(
+        keys.filter((k) => !KEEP.has(k)).map((k) => caches.delete(k))
+      ))
       .then(() => self.clients.claim())
   );
 });
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function isStaticAsset(url) {
+  return (
+    url.pathname.startsWith('/assets/') ||
+    url.pathname.match(/\.(woff2?|ttf|otf|eot)$/) ||
+    url.pathname.match(/\.(png|ico|svg|webp|jpeg|jpg|gif|mp4|webm)$/) ||
+    (url.hostname === 'fonts.googleapis.com' && url.pathname.startsWith('/css')) ||
+    url.hostname === 'fonts.gstatic.com'
+  );
+}
+
+function isNavigation(request) {
+  return request.mode === 'navigate';
+}
+
+function isApiCall(url) {
+  return url.pathname.startsWith('/api/') ||
+         url.pathname.startsWith('/_server/');
+}
+
+// Cache-first: return cache hit immediately; fetch + update cache on miss.
+function cacheFirst(request, cacheName) {
+  return caches.match(request).then((cached) => {
+    if (cached) return cached;
+    return fetch(request).then((response) => {
+      if (response.ok || response.type === 'opaque') {
+        caches.open(cacheName).then((c) => c.put(request, response.clone()));
+      }
+      return response;
+    }).catch(() => cached ?? new Response('', { status: 503, statusText: 'Offline' }));
+  });
+}
+
+// Stale-while-revalidate: return cache immediately (fast), then refresh in bg.
+function staleWhileRevalidate(request, cacheName) {
+  const fetchAndCache = fetch(request).then((response) => {
+    if (response.ok) {
+      caches.open(cacheName).then((c) => c.put(request, response.clone()));
+    }
+    return response;
+  }).catch(() => null);
+
+  return caches.match(request).then((cached) => {
+    // Kick off the network fetch regardless (background update).
+    const networkPromise = fetchAndCache;
+    // If we have a cached copy, return it straight away.
+    if (cached) return cached;
+    // Otherwise wait for the network.
+    return networkPromise.then((r) => r ?? new Response('', { status: 503 }));
+  });
+}
+
+// ── Fetch handler ─────────────────────────────────────────────────────────────
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
 
-  // Decide what to cache.
-  // 1. Vite-built assets: hashed filenames in /assets/ — safe to cache forever.
-  // 2. Google Fonts CSS (tiny, tells the browser which font files to load).
-  // 3. Google Fonts actual font binaries from fonts.gstatic.com.
-  // 4. The app's own favicon / logo images.
-  const isCacheable =
-    url.pathname.startsWith('/assets/') ||
-    url.pathname.match(/\.(woff2?|ttf|otf|eot)$/) ||
-    url.pathname.match(/\.(png|ico|svg|webp)$/) ||
-    (url.hostname === 'fonts.googleapis.com' && url.pathname.startsWith('/css')) ||
-    url.hostname === 'fonts.gstatic.com';
+  // Never intercept API calls — always go to the network.
+  if (isApiCall(url)) return;
 
-  if (!isCacheable) return;
+  if (isStaticAsset(url)) {
+    event.respondWith(cacheFirst(event.request, STATIC_CACHE));
+    return;
+  }
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
+  if (isNavigation(event.request)) {
+    event.respondWith(staleWhileRevalidate(event.request, PAGE_CACHE));
+    return;
+  }
 
-      return fetch(event.request)
-        .then((response) => {
-          // Only cache successful or opaque (cross-origin) responses.
-          if (response.ok || response.type === 'opaque') {
-            caches.open(CACHE).then((cache) => cache.put(event.request, response.clone()));
-          }
-          return response;
-        })
-        .catch(() => cached ?? new Response('', { status: 503, statusText: 'Offline' }));
-    })
-  );
+  // Everything else: network-only.
 });
