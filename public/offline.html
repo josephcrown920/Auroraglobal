@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aurora — You're offline</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0b0814;
+      --card: #110d1f;
+      --border: rgba(139, 92, 246, 0.2);
+      --primary: oklch(0.72 0.2 300);
+      --fg: #f8f8ff;
+      --muted: rgba(248,248,255,0.45);
+      --glow: oklch(0.72 0.2 300 / 0.35);
+    }
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100dvh;
+      padding: 1.5rem;
+    }
+    .card {
+      max-width: 360px;
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 1.5rem;
+      padding: 2.5rem 2rem;
+      text-align: center;
+      box-shadow: 0 0 80px -20px var(--glow);
+    }
+    .icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 1.5rem;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 0 32px -8px var(--glow);
+    }
+    .icon img { width: 100%; height: 100%; object-fit: cover; }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+    }
+    p {
+      font-size: 0.875rem;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 1.75rem;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.625rem 1.5rem;
+      border-radius: 0.75rem;
+      border: none;
+      background: var(--primary);
+      color: #fff;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      margin-top: 0.75rem;
+    }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 1.5rem;
+      padding: 0.375rem 0.875rem;
+      border-radius: 9999px;
+      border: 1px solid var(--border);
+    }
+    .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #f97316;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">
+      <img src="/__l5e/assets-v1/d0d72e6b-2edd-4740-af3e-48e27934cef8/aurora-logo.png" alt="Aurora" />
+    </div>
+    <h1>You're offline</h1>
+    <p>Aurora needs an internet connection for AI generation. Your cached pages and previously generated content are still available.</p>
+    <button class="btn" onclick="window.location.reload()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+      Try again
+    </button>
+    <br />
+    <a class="btn btn-ghost" href="/">Go to home</a>
+    <div class="status">
+      <span class="dot"></span>
+      Waiting for connection…
+    </div>
+  </div>
+  <script>
+    // Auto-reload when the user comes back online.
+    window.addEventListener('online', () => window.location.reload());
+  </script>
+</body>
+</html>

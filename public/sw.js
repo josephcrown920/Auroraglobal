@@ -14,8 +14,11 @@
 const STATIC_CACHE  = 'aurora-static-v3';
 const PAGE_CACHE    = 'aurora-pages-v3';
 
-// Public images that are worth pre-caching at install time (non-hashed, stable).
+// Public files to pre-cache at install time (non-hashed, stable paths).
+// /offline.html is always first — it's the fallback for uncached navigation.
 const PRECACHE_ASSETS = [
+  '/offline.html',
+  '/manifest.json',
   '/landing-photo-1.jpeg',
   '/landing-photo-2.jpeg',
   '/landing-photo-3.jpeg',
@@ -94,6 +97,7 @@ function cacheFirst(request, cacheName) {
 }
 
 // Stale-while-revalidate: return cache immediately (fast), then refresh in bg.
+// Falls back to /offline.html when the page is not cached and network is down.
 function staleWhileRevalidate(request, cacheName) {
   const fetchAndCache = fetch(request).then((response) => {
     if (response.ok) {
@@ -107,8 +111,13 @@ function staleWhileRevalidate(request, cacheName) {
     const networkPromise = fetchAndCache;
     // If we have a cached copy, return it straight away.
     if (cached) return cached;
-    // Otherwise wait for the network.
-    return networkPromise.then((r) => r ?? new Response('', { status: 503 }));
+    // No cache — wait for the network; serve offline page if it fails.
+    return networkPromise.then((r) => {
+      if (r) return r;
+      return caches.match('/offline.html').then(
+        (offline) => offline ?? new Response('You are offline', { status: 503, headers: { 'Content-Type': 'text/plain' } })
+      );
+    });
   });
 }
 
