@@ -46,6 +46,7 @@ type Feature = {
 const MAKE_FEATURES: Feature[] = [
   { to: "/studio",      label: "Image Generation", icon: Sparkles },
   { to: "/colors",      label: "Colors Studio",    icon: Palette },
+  { to: "/motion",      label: "Motion Control",   icon: Wand2, previewImg: "/nav-previews/perform-anywhere.jpg" },
   { to: "/live-studio", label: "Live Studios",      icon: Music2 },
   { to: "/canvas",      label: "Canvas",           icon: Workflow },
   { to: "/orchestrate", label: "Video",            icon: Film },
@@ -66,7 +67,7 @@ const VIRAL_FEATURES: Feature[] = [
   { to: "/ugc-line",    label: "Content Line",    icon: Layers },
   { to: "/ugc",         label: "UGC Ads",         icon: Megaphone },
   { to: "/spin",        label: "TikTok30",        icon: Flame },
-  { to: "/motion",      label: "Perform Anywhere",icon: Wand2, previewImg: "/nav-previews/perform-anywhere.jpg" },
+  { to: "/motion",      label: "Motion Control",  icon: Wand2, previewImg: "/nav-previews/perform-anywhere.jpg" },
   { to: "/music-video", label: "Lyric Video",     icon: Clapperboard },
   { to: "/avatar",      label: "Talking Avatars", icon: UserCircle2 },
 ];
