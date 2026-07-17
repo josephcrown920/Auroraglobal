@@ -78,9 +78,10 @@ const VOICE_OPTIONS: { id: string; label: string; description: string }[] = [
 
 const MODELS: Record<Modality, ModelOption[]> = {
   image: [
-    { key: "pollinations/turbo", label: "Pollinations · Turbo", free: true },
+    { key: "fal-ai/seedream-4", label: "Seedream 4" },
+    { key: "fal-ai/seedream-5", label: "Seedream 5" },
     { key: "google/nano-banana", label: "Nano Banana" },
-    { key: "piapi/midjourney-imagine", label: "PiAPI · Midjourney" },
+    { key: "google/gemini-3-pro-image-preview", label: "Nano Banana Pro" },
   ],
   video: [
     { key: "auto", label: "Auto · best available" },
@@ -88,7 +89,6 @@ const MODELS: Record<Modality, ModelOption[]> = {
     { key: "xai/grok-imagine-video-1.5", label: "xAI · Grok Imagine" },
     { key: "seedance-2.0-fast", label: "Replicate · Seedance Lite" },
     { key: "kling-3.0", label: "Replicate · Kling v2.1" },
-    { key: "piapi/kling-video", label: "PiAPI · Kling" },
     { key: "runway/gen4-turbo", label: "Runway · Gen-4 Turbo" },
     { key: "runway/gen3a-turbo", label: "Runway · Gen-3 Alpha Turbo" },
   ],

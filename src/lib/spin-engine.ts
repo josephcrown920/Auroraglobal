@@ -39,7 +39,7 @@ export const SPIN_VIDEO_DURATION_SECONDS = 15;
 // Forced models (not left to orchestrator default) so the price we quote is
 // the price we actually pay the provider for — both sit in the "premium" tier
 // (see VIDEO_MODEL_TIERS / LIPSYNC_MODEL_TIERS in pricing.ts).
-export const SPIN_VIDEO_MODEL = "wan-2.5";
+export const SPIN_VIDEO_MODEL = "kling-3.0";
 export const SPIN_VIDEO_LIPSYNC_MODEL = "fal-ai/sync-lipsync/v2";
 
 // Mirrors computeCost()'s formula (image base-only + video/lipsync scaled by

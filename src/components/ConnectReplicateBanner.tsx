@@ -29,7 +29,6 @@ export function ConnectReplicateBanner() {
     data.gemini && "Gemini",
     data.openrouter && "OpenRouter",
     data.fal && "fal.ai",
-    data.huggingface && "HuggingFace",
     data.sync && "Sync.so",
     data.lovable && "Lovable AI",
   ].filter(Boolean) as string[];

@@ -92,24 +92,6 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
         notes: "gemini-2.5-flash-image-preview (free tier)",
       },
       {
-        id: "hf",
-        name: "HuggingFace Inference",
-        kind: "image",
-        envKey: "HF_TOKEN",
-        configured: has("HF_TOKEN"),
-        free: true,
-        notes: "sdxl",
-      },
-      {
-        id: "runware",
-        name: "Runware",
-        kind: "image",
-        envKey: "RUNWARE_API_KEY",
-        configured: has("RUNWARE_API_KEY"),
-        free: false,
-        notes: "image gen (cheap hosted)",
-      },
-      {
         id: "byteplus-image",
         name: "ByteDance direct",
         kind: "image",
@@ -126,15 +108,6 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
         configured: hasReplicate,
         free: false,
         notes: "seedream-4",
-      },
-      {
-        id: "piapi-image",
-        name: "PiAPI",
-        kind: "image",
-        envKey: "PIAPI_API_KEY",
-        configured: has("PIAPI_API_KEY"),
-        free: false,
-        notes: "Midjourney imagine — explicit piapi/* requests only",
       },
       {
         id: "lovable",
@@ -226,15 +199,6 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
         configured: has("RUNWAY_API_KEY"),
         free: false,
         notes: "gen4-turbo · gen3a-turbo (image-to-video)",
-      },
-      {
-        id: "piapi-video",
-        name: "PiAPI",
-        kind: "video",
-        envKey: "PIAPI_API_KEY",
-        configured: has("PIAPI_API_KEY"),
-        free: false,
-        notes: "Kling video — explicit piapi/* requests only",
       },
       {
         id: "fal-video",
@@ -430,9 +394,7 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
           ? "gemini"
           : p.id === "lovable"
             ? "lovable"
-            : p.id === "hf"
-              ? "huggingface"
-              : p.id === "sync"
+            : p.id === "sync"
                 ? "sync"
                 : p.id === "kling-direct"
                   ? "kling"
@@ -716,7 +678,6 @@ export const providerCredits = createServerFn({ method: "POST" })
       noApiProvider("runway", "Runway", "RUNWAY_API_KEY", "https://app.runwayml.com/account"),
       noApiProvider("gemini", "Gemini", "GEMINI_API_KEY", "https://aistudio.google.com"),
       noApiProvider("groq", "Groq", "GROQ_API_KEY", "https://console.groq.com/settings/billing"),
-      noApiProvider("piapi", "PiAPI", "PIAPI_API_KEY", "https://piapi.ai/dashboard"),
       noApiProvider("sync", "Sync.so", "SYNC_API_KEY", "https://app.sync.so/dashboard"),
       noApiProvider("huggingface", "HuggingFace", "HF_TOKEN", "https://huggingface.co/settings/tokens"),
     ];
