@@ -141,6 +141,8 @@ function AdminPage() {
           <p className="text-xs text-muted-foreground">These features are live but hidden from the main sidebar. Click any to open it, or add it back to the nav in the codebase.</p>
           <div className="grid grid-cols-3 gap-2">
             {([
+              { to: "/templates",        label: "Templates" },
+              { to: "/colors-show",      label: "Colors Show Creator" },
               { to: "/editor",           label: "Playground" },
               { to: "/agent",            label: "Video Agent" },
               { to: "/heygen-templates", label: "HeyGen Templates" },

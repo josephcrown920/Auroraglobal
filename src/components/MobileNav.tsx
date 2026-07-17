@@ -44,25 +44,18 @@ type Feature = {
 
 /** Core creation tools — highest-traffic first. */
 const MAKE_FEATURES: Feature[] = [
-  { to: "/studio",      label: "Image Generation", icon: Sparkles,  previewImg: "/nav-previews/studio.jpg" },
-  { to: "/colors",      label: "Colors Studio",    icon: Palette,   previewImg: "/nav-previews/colors.jpg" },
-  { to: "/motion",      label: "Motion Control",   icon: Wand2,     previewImg: "/nav-previews/perform-anywhere.jpg" },
-  { to: "/live-studio", label: "Live Studios",      icon: Music2,    previewImg: "/nav-previews/live-studio.jpg" },
-  { to: "/canvas",      label: "Canvas",           icon: Workflow,  previewImg: "/nav-previews/canvas.jpg" },
-  { to: "/orchestrate", label: "Video",            icon: Film,      previewImg: "/nav-previews/music-video.jpg" },
-  { to: "/photo-edit",  label: "Photo Editor",     icon: Brush,     previewImg: "/nav-previews/photo-edit.jpg" },
-  { to: "/agent",       label: "Video Agent",      icon: Bot,       previewImg: "/nav-previews/video-agent.jpg" },
+  { to: "/studio",        label: "Image Generation", icon: Sparkles,  previewImg: "/nav-previews/studio.jpg" },
+  { to: "/colors",        label: "Colors Studio",    icon: Palette,   previewImg: "/nav-previews/colors.jpg" },
+  { to: "/canvas",        label: "Canvas",           icon: Workflow,  previewImg: "/nav-previews/canvas.jpg" },
+  { to: "/orchestrate",   label: "Video",            icon: Film,      previewImg: "/nav-previews/music-video.jpg" },
+  { to: "/photo-edit",    label: "Photo Editor",     icon: Brush,     previewImg: "/nav-previews/photo-edit.jpg" },
+  { to: "/live-studio",   label: "Live Studios",     icon: Music2,    previewImg: "/nav-previews/live-studio.jpg" },
+  { to: "/scene-builder", label: "Scene Builder",    icon: Layers,    previewImg: "/nav-previews/scene-builder.jpg" },
+  { to: "/agent",         label: "Video Agent",      icon: Bot,       previewImg: "/nav-previews/video-agent.jpg" },
 ];
 
-/** Guided creator workflows — music video & scene compositing. */
-const CREATOR_TOOLS_FEATURES: Feature[] = [
-  { to: "/colors-show",   label: "Colors Show Creator", icon: Film,   previewImg: "/nav-previews/live-studio.jpg" },
-  { to: "/scene-builder", label: "Scene Builder",       icon: Layers, previewImg: "/nav-previews/scene-builder.jpg" },
-];
-
-/** Creator & viral templates — ordered by demand. */
+/** Creator & viral tools — ordered by demand. */
 const VIRAL_FEATURES: Feature[] = [
-  { to: "/templates",   label: "Templates",        icon: Layers,       previewImg: "/nav-previews/templates.jpg" },
   { to: "/lipsync",     label: "Lip Sync",        icon: Mic,          previewImg: "/nav-previews/lipsync.jpg" },
   { to: "/ugc-line",    label: "Content Line",    icon: Layers,       previewImg: "/nav-previews/ugc-line.jpg" },
   { to: "/ugc",         label: "UGC Ads",         icon: Megaphone,    previewImg: "/nav-previews/ugc.jpg" },
@@ -83,13 +76,14 @@ const ACCOUNT_FEATURES: Feature[] = [
 
 const LIVE_FEATURES: Feature[] = [
   ...MAKE_FEATURES,
-  ...CREATOR_TOOLS_FEATURES,
   ...VIRAL_FEATURES,
   ...ACCOUNT_FEATURES,
 ];
 
 /** Archived — hidden from the main nav; still reachable from /admin. */
 export const ARCHIVED_FEATURES: Feature[] = [
+  { to: "/templates",        label: "Templates",        icon: Layers },
+  { to: "/colors-show",      label: "Colors Show Creator", icon: Film },
   { to: "/editor",           label: "Playground",       icon: Sparkles },
   { to: "/heygen-templates", label: "HeyGen Templates", icon: Film },
   { to: "/growth",           label: "Growth Tools",     icon: Sparkles },
@@ -340,12 +334,6 @@ export function MobileNav() {
 
             <NavSection label="Make">
               {MAKE_FEATURES.map((f) => (
-                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
-              ))}
-            </NavSection>
-
-            <NavSection label="Creator Tools">
-              {CREATOR_TOOLS_FEATURES.map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
             </NavSection>
