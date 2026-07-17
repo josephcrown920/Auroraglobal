@@ -22,6 +22,9 @@ import {
   Shirt,
   User,
   Star,
+  Images,
+  Copy,
+  Check,
 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import { enhanceScript, submitVideo, getVideoStatus, finalizeVideo } from "@/lib/api";
@@ -40,7 +43,15 @@ interface VideoGen {
 }
 
 type Stage = "idle" | "enhancing" | "submitting" | "polling" | "finalizing" | "done" | "error";
-type View = "project" | "studio" | "history";
+type View = "project" | "studio" | "history" | "photos";
+
+interface StudioPhoto {
+  id: string;
+  prompt: string;
+  result_image_url: string;
+  created_at: string;
+  kind: string;
+}
 
 const DURATIONS = [10, 15, 20, 30, 45, 60, 90];
 const MODES = [
@@ -144,6 +155,10 @@ export function VideoAgentUI({ session }: Props) {
   const [history, setHistory] = useState<VideoGen[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [expandedSpec, setExpandedSpec] = useState(false);
+  const [photos, setPhotos] = useState<StudioPhoto[]>([]);
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [refPhoto, setRefPhoto] = useState<StudioPhoto | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef = useRef(false);
@@ -166,9 +181,26 @@ export function VideoAgentUI({ session }: Props) {
     setLoadingHistory(false);
   }, []);
 
+  const fetchPhotos = useCallback(async () => {
+    setLoadingPhotos(true);
+    const { data, error } = await supabase
+      .from("generations")
+      .select("id,prompt,result_image_url,created_at,kind")
+      .in("status", ["complete", "succeeded"])
+      .not("result_image_url", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(80);
+    if (!error && data) setPhotos((data as StudioPhoto[]).filter(p => p.result_image_url));
+    setLoadingPhotos(false);
+  }, []);
+
   useEffect(() => {
     if (view === "history") void fetchHistory();
   }, [view, fetchHistory]);
+
+  useEffect(() => {
+    if (view === "photos") void fetchPhotos();
+  }, [view, fetchPhotos]);
 
   useEffect(() => {
     const hasActive = history.some(g => g.status === "pending" || g.status === "processing");
@@ -338,7 +370,7 @@ export function VideoAgentUI({ session }: Props) {
               {stageLabel[stage]}
             </div>
           )}
-          {(["project", "studio", "history"] as const).map(v => (
+          {(["project", "studio", "photos", "history"] as const).map(v => (
             <button
               key={v}
               onClick={() => setView(v)}
@@ -353,9 +385,11 @@ export function VideoAgentUI({ session }: Props) {
             >
               {v === "project"
                 ? <><Clapperboard size={12} /> Project</>
-                : v === "history"
-                  ? <><History size={12} /> History{activeRenderCount > 0 ? ` · ${activeRenderCount}` : ""}</>
-                  : <><Video size={12} /> HeyGen Studio</>
+                : v === "photos"
+                  ? <><Images size={12} /> Studio Photos{photos.length > 0 ? ` · ${photos.length}` : ""}</>
+                  : v === "history"
+                    ? <><History size={12} /> History{activeRenderCount > 0 ? ` · ${activeRenderCount}` : ""}</>
+                    : <><Video size={12} /> HeyGen Studio</>
               }
             </button>
           ))}
@@ -932,6 +966,225 @@ export function VideoAgentUI({ session }: Props) {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── PHOTOS VIEW ── */}
+      {view === "photos" && (
+        <div style={{ flex: 1, maxWidth: 1100, margin: "0 auto", width: "100%", padding: "28px 20px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: "var(--text)", marginBottom: 4 }}>
+                Studio Photos
+              </div>
+              <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>
+                Your Aurora-generated images — click any to use as video reference
+              </p>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {refPhoto && (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "7px 12px", borderRadius: 9,
+                  background: "oklch(0.72 0.2 300 / 0.1)",
+                  border: "1px solid oklch(0.72 0.2 300 / 0.3)",
+                }}>
+                  <img src={refPhoto.result_image_url} alt="" style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover" }} />
+                  <span style={{ fontSize: 12, color: "var(--accent)", fontWeight: 600 }}>Pinned as reference</span>
+                  <button
+                    onClick={() => setRefPhoto(null)}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: 0, display: "flex" }}
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              )}
+              <button
+                onClick={() => { setLoadingPhotos(true); void fetchPhotos(); }}
+                style={{
+                  padding: "7px 14px", background: "transparent", border: "1px solid var(--border)",
+                  borderRadius: 8, color: "var(--text-muted)", cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 6, fontSize: 13,
+                }}
+              >
+                <RotateCcw size={13} /> Refresh
+              </button>
+            </div>
+          </div>
+
+          {refPhoto && (
+            <div style={{
+              marginBottom: 20, padding: "14px 16px", borderRadius: 12,
+              background: "oklch(0.72 0.2 300 / 0.06)", border: "1px solid oklch(0.72 0.2 300 / 0.2)",
+              display: "flex", alignItems: "center", gap: 14,
+            }}>
+              <img
+                src={refPhoto.result_image_url}
+                alt="Reference"
+                style={{ width: 72, height: 72, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1px solid oklch(0.72 0.2 300 / 0.3)" }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--accent)", marginBottom: 4 }}>
+                  Active Reference Photo
+                </div>
+                <p style={{ fontSize: 12, color: "var(--text)", margin: "0 0 8px", lineHeight: 1.5 }}>
+                  {refPhoto.prompt.slice(0, 120)}{refPhoto.prompt.length > 120 ? "…" : ""}
+                </p>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(refPhoto.result_image_url).then(() => {
+                        setCopiedId(refPhoto.id);
+                        setTimeout(() => setCopiedId(null), 2000);
+                      });
+                    }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 5,
+                      padding: "5px 11px", borderRadius: 7, fontSize: 12, fontWeight: 600,
+                      background: "transparent", border: "1px solid var(--border)",
+                      color: "var(--text-muted)", cursor: "pointer",
+                    }}
+                  >
+                    {copiedId === refPhoto.id ? <><Check size={11} /> Copied!</> : <><Copy size={11} /> Copy URL</>}
+                  </button>
+                  <button
+                    onClick={() => { setRefPhoto(null); setView("studio"); }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 5,
+                      padding: "5px 11px", borderRadius: 7, fontSize: 12, fontWeight: 600,
+                      background: "oklch(0.72 0.2 300 / 0.12)", border: "1px solid oklch(0.72 0.2 300 / 0.3)",
+                      color: "var(--accent)", cursor: "pointer",
+                    }}
+                  >
+                    <Video size={11} /> Use in Studio →
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {loadingPhotos ? (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "var(--text-muted)", gap: 8 }}>
+              <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} /> Loading your Aurora photos…
+            </div>
+          ) : photos.length === 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 320, gap: 14, color: "var(--text-muted)" }}>
+              <Images size={52} style={{ opacity: 0.2 }} />
+              <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text)" }}>No photos yet</div>
+              <p style={{ fontSize: 13, color: "var(--text-muted)", textAlign: "center", margin: 0, maxWidth: 340, lineHeight: 1.6 }}>
+                Generate images in the main Aurora Studio and they'll appear here automatically — same account, same library.
+              </p>
+              <a
+                href="/"
+                style={{
+                  padding: "10px 22px", background: "var(--accent)", border: "none",
+                  borderRadius: 10, color: "white", fontWeight: 700, fontSize: 14, cursor: "pointer",
+                  textDecoration: "none", display: "inline-block",
+                }}
+              >
+                Open Aurora Studio →
+              </a>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
+              {photos.map(p => {
+                const isRef = refPhoto?.id === p.id;
+                const isCopied = copiedId === p.id;
+                return (
+                  <div
+                    key={p.id}
+                    style={{
+                      borderRadius: 12, overflow: "hidden",
+                      border: `1px solid ${isRef ? "oklch(0.72 0.2 300 / 0.6)" : "var(--border)"}`,
+                      background: "var(--bg-card)",
+                      boxShadow: isRef ? "0 0 0 2px oklch(0.72 0.2 300 / 0.25)" : "none",
+                      transition: "box-shadow 0.15s",
+                      cursor: "pointer",
+                      position: "relative",
+                    }}
+                    onClick={() => setRefPhoto(isRef ? null : p)}
+                  >
+                    <div style={{ position: "relative", aspectRatio: "1", background: "var(--bg)" }}>
+                      <img
+                        src={p.result_image_url}
+                        alt={p.prompt}
+                        loading="lazy"
+                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                      />
+                      {isRef && (
+                        <div style={{
+                          position: "absolute", top: 8, right: 8,
+                          width: 22, height: 22, borderRadius: "50%",
+                          background: "oklch(0.72 0.2 300)",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}>
+                          <Check size={12} color="#fff" />
+                        </div>
+                      )}
+                      <div style={{
+                        position: "absolute", inset: 0,
+                        background: "linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 50%)",
+                        opacity: 0,
+                        transition: "opacity 0.2s",
+                        display: "flex", alignItems: "flex-end", padding: 8, gap: 6,
+                      }}
+                        onMouseEnter={e => ((e.currentTarget as HTMLElement).style.opacity = "1")}
+                        onMouseLeave={e => ((e.currentTarget as HTMLElement).style.opacity = "0")}
+                      >
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            navigator.clipboard.writeText(p.result_image_url).then(() => {
+                              setCopiedId(p.id);
+                              toast.success("URL copied");
+                              setTimeout(() => setCopiedId(null), 2000);
+                            });
+                          }}
+                          style={{
+                            display: "flex", alignItems: "center", gap: 4,
+                            padding: "5px 9px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                            background: "rgba(0,0,0,0.7)", border: "1px solid rgba(255,255,255,0.2)",
+                            color: "white", cursor: "pointer", backdropFilter: "blur(4px)",
+                          }}
+                        >
+                          {isCopied ? <><Check size={10} /> Copied</> : <><Copy size={10} /> URL</>}
+                        </button>
+                        <button
+                          onClick={e => { e.stopPropagation(); setRefPhoto(p); }}
+                          style={{
+                            display: "flex", alignItems: "center", gap: 4,
+                            padding: "5px 9px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                            background: isRef ? "oklch(0.72 0.2 300)" : "rgba(0,0,0,0.7)",
+                            border: "1px solid rgba(255,255,255,0.2)",
+                            color: "white", cursor: "pointer", backdropFilter: "blur(4px)",
+                          }}
+                        >
+                          {isRef ? "✓ Ref" : "Pin ref"}
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ padding: "8px 10px" }}>
+                      <p style={{
+                        fontSize: 11, color: "var(--text-muted)", margin: 0, lineHeight: 1.4,
+                        overflow: "hidden", display: "-webkit-box",
+                        WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                      }}>
+                        {p.prompt}
+                      </p>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
+                        <span style={{ fontSize: 10, color: "var(--text-muted)", opacity: 0.6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                          {p.kind}
+                        </span>
+                        <span style={{ fontSize: 10, color: "var(--text-muted)", opacity: 0.6 }}>
+                          {new Date(p.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
