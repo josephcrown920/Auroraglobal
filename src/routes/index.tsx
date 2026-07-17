@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Plus, Play, ArrowUpRight, ChevronDown, Sparkles, Palette, Film, Wand2, Mic, Music2, Brush, Megaphone, UserCircle2, Workflow, Layers, Flame, Bot, Clapperboard, Check, Zap, Crown } from "lucide-react";
+import { Plus, Play, ArrowUpRight, ChevronDown, Sparkles, Palette, Film, Wand2, Mic, Music2, Brush, Megaphone, UserCircle2, Workflow, Layers, Flame, Bot, Clapperboard, Check, Zap, Crown, Download } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export const Route = createFileRoute("/")({
   component: LandingPage,
@@ -53,10 +53,35 @@ const FAQS = [
   },
 ];
 
+function usePwaInstall() {
+  const promptRef = useRef<Event & { prompt: () => Promise<void> } | null>(null);
+  const [canInstall, setCanInstall] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      promptRef.current = e as Event & { prompt: () => Promise<void> };
+      setCanInstall(true);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const install = async () => {
+    if (!promptRef.current) return;
+    await promptRef.current.prompt();
+    promptRef.current = null;
+    setCanInstall(false);
+  };
+
+  return { canInstall, install };
+}
+
 function LandingPage() {
   const { user } = useAuth();
   const ctaTo = user ? "/studio" : "/auth";
   const ctaLabel = user ? "Open Studio" : "Start creating free";
+  const { canInstall, install } = usePwaInstall();
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-display antialiased selection:bg-brand selection:text-white">
@@ -69,6 +94,16 @@ function LandingPage() {
             <span className="text-lg font-semibold tracking-tighter uppercase italic">Aurora</span>
           </div>
           <div className="flex items-center gap-3">
+            {canInstall && (
+              <button
+                type="button"
+                onClick={install}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-zinc-300 backdrop-blur-sm transition-colors hover:bg-white/10"
+              >
+                <Download className="size-3 shrink-0" />
+                Install
+              </button>
+            )}
             {user ? (
               <Link
                 to="/studio"

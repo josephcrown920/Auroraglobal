@@ -12,13 +12,13 @@
   "categories": ["entertainment", "photo", "music"],
   "icons": [
     {
-      "src": "/__l5e/assets-v1/d0d72e6b-2edd-4740-af3e-48e27934cef8/aurora-logo.png",
+      "src": "/icons/aurora-icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/__l5e/assets-v1/d0d72e6b-2edd-4740-af3e-48e27934cef8/aurora-logo.png",
+      "src": "/icons/aurora-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
@@ -30,6 +30,12 @@
       "sizes": "800x600",
       "type": "image/png",
       "label": "Aurora AI Creative Studio"
+    },
+    {
+      "src": "/landing-photo-1.jpeg",
+      "sizes": "800x600",
+      "type": "image/jpeg",
+      "label": "Aurora Studio Portrait"
     }
   ],
   "shortcuts": [
@@ -38,21 +44,28 @@
       "short_name": "Studio",
       "description": "Generate AI performance shots",
       "url": "/studio",
-      "icons": [{ "src": "/__l5e/assets-v1/d0d72e6b-2edd-4740-af3e-48e27934cef8/aurora-logo.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icons/aurora-icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Motion Control",
       "short_name": "Motion",
       "description": "Transfer your movement onto an AI scene",
       "url": "/motion",
-      "icons": [{ "src": "/__l5e/assets-v1/d0d72e6b-2edd-4740-af3e-48e27934cef8/aurora-logo.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icons/aurora-icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Colors Studio",
       "short_name": "Colors",
       "description": "Cinematic Colors-style performance shots",
       "url": "/colors",
-      "icons": [{ "src": "/__l5e/assets-v1/d0d72e6b-2edd-4740-af3e-48e27934cef8/aurora-logo.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icons/aurora-icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Gallery",
+      "short_name": "Gallery",
+      "description": "View your saved generations",
+      "url": "/gallery",
+      "icons": [{ "src": "/icons/aurora-icon-192.png", "sizes": "192x192" }]
     }
   ]
 }
