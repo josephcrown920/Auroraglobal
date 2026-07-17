@@ -11,7 +11,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Sparkles,
   ImageIcon,
@@ -22,10 +22,12 @@ import {
   Download,
   ArrowRight,
   Wand2,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { orchestrateGenerate, listOrchestrations } from "@/lib/orchestration.functions";
+import { deleteGeneration } from "@/lib/gallery.functions";
 import { getMyProfile } from "@/lib/billing.functions";
 import { handleGenerationError, friendlyGenerationMessage } from "@/lib/error-toasts";
 import { detectFeatures, computeCost, type Feature, type Resolution } from "@/lib/pricing";
@@ -106,10 +108,21 @@ const MODELS: Record<Modality, ModelOption[]> = {
 
 function OrchestratePage() {
   const { user } = useAuth();
+  const qc = useQueryClient();
   const run = useServerFn(orchestrateGenerate);
   const list = useServerFn(listOrchestrations);
   const profileFn = useServerFn(getMyProfile);
   const enhanceFn = useServerFn(enhanceVideoAgentPrompt);
+  const orcDelFn = useServerFn(deleteGeneration);
+  const orcDelMut = useMutation({
+    mutationFn: async (id: string) => orcDelFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Deleted");
+      qc.invalidateQueries({ queryKey: ["orchestrations"] });
+      qc.invalidateQueries({ queryKey: ["gallery"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Delete failed"),
+  });
 
   const [modality, setModality] = useState<Modality>("image");
   const [prompt, setPrompt] = useState("");
@@ -895,7 +908,7 @@ function OrchestratePage() {
             {(recent.data?.items ?? []).map((g) => (
               <div
                 key={g.id}
-                className="overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900"
+                className="overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 relative group"
               >
                 {g.result_image_url ? (
                   <img
@@ -917,6 +930,15 @@ function OrchestratePage() {
                 <div className="px-2 py-1.5 text-[10px] text-neutral-500">
                   {g.kind} · {g.model ?? "—"}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => { if (confirm("Delete this generation permanently?")) orcDelMut.mutate(g.id); }}
+                  disabled={orcDelMut.isPending}
+                  className="absolute top-1.5 right-1.5 size-6 rounded-full bg-black/60 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600/80 disabled:opacity-50"
+                  title="Delete"
+                >
+                  <Trash2 className="size-3" />
+                </button>
               </div>
             ))}
             {!recent.data?.items?.length && (

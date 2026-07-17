@@ -13,11 +13,13 @@ import {
   Zap,
   Download,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { listGenerations } from "@/lib/studio.functions";
+import { deleteGeneration } from "@/lib/gallery.functions";
 import { usePerformanceShotJobFn, useVideoFromImageJobFn } from "@/lib/use-job-polling";
 import { generateLyricVideoFromSong } from "@/lib/captions.functions";
 import { handleGenerationError } from "@/lib/error-toasts";
@@ -179,6 +181,17 @@ function MusicVideoPage() {
       qc.invalidateQueries({ queryKey: ["mv-gens"] });
     },
     onError: (e) => handleGenerationError(e),
+  });
+
+  const delFn = useServerFn(deleteGeneration);
+  const delMut = useMutation({
+    mutationFn: async (id: string) => delFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Deleted");
+      qc.invalidateQueries({ queryKey: ["mv-gens"] });
+      qc.invalidateQueries({ queryKey: ["gallery"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Delete failed"),
   });
 
   if (loading || !user) {
@@ -636,16 +649,27 @@ function MusicVideoPage() {
                     ) : (
                       <img src={url} alt="Generated result" className="w-full h-full object-cover" />
                     )}
-                    <a
-                      href={url}
-                      download
-                      target="_blank"
-                      rel="noreferrer"
-                      className="absolute top-2 right-2 size-7 rounded-full bg-black/60 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
-                      title="Download"
-                    >
-                      <Download className="size-3.5" />
-                    </a>
+                    <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <a
+                        href={url}
+                        download
+                        target="_blank"
+                        rel="noreferrer"
+                        className="size-7 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80"
+                        title="Download"
+                      >
+                        <Download className="size-3.5" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => { if (confirm("Delete this generation permanently?")) delMut.mutate(r.id); }}
+                        disabled={delMut.isPending}
+                        className="size-7 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-red-600/80 disabled:opacity-50"
+                        title="Delete"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
                   </div>
                 );
               })}

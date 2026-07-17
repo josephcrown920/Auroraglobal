@@ -22,10 +22,11 @@ import tutorialStudioRefs from "@/assets/tutorial-studio-refs.jpg.asset.json";
 import tutorialStudioFinal from "@/assets/tutorial-studio-final.jpg.asset.json";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Wand2, LogOut, Loader2, Download, Camera, Film, Mic2, Coins, Zap, LayoutDashboard, Shield, Server, Captions, Crown, Flame } from "lucide-react";
+import { Sparkles, Wand2, LogOut, Loader2, Download, Camera, Film, Mic2, Coins, Zap, LayoutDashboard, Shield, Server, Captions, Crown, Flame, Trash2 } from "lucide-react";
 import { CaptionDialog } from "@/components/gallery/CaptionDialog";
 import { toast } from "sonner";
 import { listGenerations } from "@/lib/studio.functions";
+import { deleteGeneration } from "@/lib/gallery.functions";
 import { usePerformanceShotJobFn, useVideoFromImageJobFn, useLipSyncJobFn } from "@/lib/use-job-polling";
 import { handleGenerationError, friendlyGenerationMessage } from "@/lib/error-toasts";
 import { useGenerationProgress } from "@/hooks/use-generation-progress";
@@ -431,6 +432,17 @@ function StudioPage() {
       window.location.href = res.authorizationUrl;
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Checkout failed"),
+  });
+
+  const studioDelFn = useServerFn(deleteGeneration);
+  const studioDelMut = useMutation({
+    mutationFn: async (id: string) => studioDelFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Deleted");
+      qc.invalidateQueries({ queryKey: ["gens"] });
+      qc.invalidateQueries({ queryKey: ["gallery"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Delete failed"),
   });
 
   const imageProgress = useGenerationProgress({
@@ -876,6 +888,15 @@ function StudioPage() {
                         {g.status === "failed" ? "Failed" : g.status}
                       </div>
                     )}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); if (confirm("Delete this generation permanently?")) studioDelMut.mutate(g.id); }}
+                      disabled={studioDelMut.isPending}
+                      className="absolute top-1 right-1 size-6 rounded-full bg-black/60 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600/80 disabled:opacity-50"
+                      title="Delete"
+                    >
+                      <Trash2 className="size-3" />
+                    </button>
                   </div>
                 ))}
               </div>
