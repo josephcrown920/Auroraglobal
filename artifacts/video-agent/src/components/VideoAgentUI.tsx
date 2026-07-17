@@ -61,7 +61,9 @@ const MODES = [
 type ModeId = (typeof MODES)[number]["id"];
 
 const POLL_INTERVAL_MS = 5000;
-const POLL_TIMEOUT_MS = 25 * 60_000;
+const POLL_TIMEOUT_MS = 10 * 60_000;
+const POLL_WARN_MS   =  4 * 60_000;
+const STALE_JOB_MS  = 20 * 60_000;
 
 // ── NBA Josh project data ─────────────────────────────────────────────────────
 
@@ -203,7 +205,11 @@ export function VideoAgentUI({ session }: Props) {
   }, [view, fetchPhotos]);
 
   useEffect(() => {
-    const hasActive = history.some(g => g.status === "pending" || g.status === "processing");
+    const now = Date.now();
+    const hasActive = history.some(g =>
+      (g.status === "pending" || g.status === "processing") &&
+      now - new Date(g.created_at).getTime() < STALE_JOB_MS,
+    );
     if (hasActive && view === "history") {
       const t = setInterval(() => void fetchHistory(), 5000);
       return () => clearInterval(t);
@@ -756,15 +762,37 @@ export function VideoAgentUI({ session }: Props) {
                 </button>
 
                 {stage === "polling" && (
-                  <p style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.5 }}>
-                    Polling HeyGen every 5s. Videos typically take 60–120s.{" "}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <p style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.5, margin: 0 }}>
+                      Polling HeyGen every 5s · typically 60–120s
+                    </p>
+                    {elapsed >= POLL_WARN_MS / 1000 && (
+                      <div style={{
+                        borderRadius: 10, border: "1px solid #f59e0b55",
+                        background: "rgba(245,158,11,0.08)",
+                        padding: "10px 14px", textAlign: "center",
+                      }}>
+                        <p style={{ fontSize: 12, color: "#f59e0b", margin: 0, fontWeight: 600 }}>
+                          Taking longer than usual — HeyGen may be under load.
+                        </p>
+                        <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "4px 0 0" }}>
+                          Will auto-cancel at 10 min. Your credits are reserved and safe.
+                        </p>
+                      </div>
+                    )}
                     <button
                       onClick={resetToIdle}
-                      style={{ background: "none", border: "none", color: "var(--accent)", cursor: "pointer", fontSize: 12, padding: 0 }}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                        padding: "11px 20px", borderRadius: 12, fontWeight: 600, fontSize: 13,
+                        background: "rgba(239,68,68,0.10)",
+                        border: "1px solid rgba(239,68,68,0.35)",
+                        color: "#ef4444", cursor: "pointer", transition: "all 0.15s",
+                      }}
                     >
-                      Cancel
+                      <X size={14} /> Cancel — stop waiting
                     </button>
-                  </p>
+                  </div>
                 )}
               </div>
             </Section>
@@ -936,6 +964,16 @@ export function VideoAgentUI({ session }: Props) {
                           <X size={28} style={{ color: "#ef4444" }} />
                           <div style={{ fontSize: 13, color: "#ef4444", textAlign: "center", padding: "0 16px" }}>
                             {g.error ?? "Render failed"}
+                          </div>
+                        </>
+                      ) : Date.now() - new Date(g.created_at).getTime() > STALE_JOB_MS ? (
+                        <>
+                          <Clock size={28} style={{ color: "#f59e0b" }} />
+                          <div style={{ fontSize: 13, color: "#f59e0b", textAlign: "center", padding: "0 16px", fontWeight: 600 }}>
+                            Timed out — HeyGen didn't respond
+                          </div>
+                          <div style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "center", padding: "0 20px" }}>
+                            Credits were not charged. Try again from Studio.
                           </div>
                         </>
                       ) : (
