@@ -13,6 +13,7 @@ import { Route as WorkflowsRouteImport } from './routes/workflows'
 import { Route as UgcLineRouteImport } from './routes/ugc-line'
 import { Route as UgcRouteImport } from './routes/ugc'
 import { Route as TiktokRouteImport } from './routes/tiktok'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as StudioRouteImport } from './routes/studio'
 import { Route as SpinRouteImport } from './routes/spin'
@@ -22,6 +23,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SceneBuilderRouteImport } from './routes/scene-builder'
 import { Route as RoadmapRouteImport } from './routes/roadmap'
 import { Route as ReshootRouteImport } from './routes/reshoot'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PhotoEditRouteImport } from './routes/photo-edit'
 import { Route as OrchestrateRouteImport } from './routes/orchestrate'
 import { Route as NexusarbRouteImport } from './routes/nexusarb'
@@ -116,6 +118,11 @@ const TiktokRoute = TiktokRouteImport.update({
   path: '/tiktok',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/tiktok.lazy').then((d) => d.Route))
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TemplatesRoute = TemplatesRouteImport.update({
   id: '/templates',
   path: '/templates',
@@ -161,6 +168,11 @@ const ReshootRoute = ReshootRouteImport.update({
   path: '/reshoot',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/reshoot.lazy').then((d) => d.Route))
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PhotoEditRoute = PhotoEditRouteImport.update({
   id: '/photo-edit',
   path: '/photo-edit',
@@ -579,6 +591,7 @@ export interface FileRoutesByFullPath {
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
   '/photo-edit': typeof PhotoEditRoute
+  '/privacy': typeof PrivacyRoute
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
   '/scene-builder': typeof SceneBuilderRoute
@@ -588,6 +601,7 @@ export interface FileRoutesByFullPath {
   '/spin': typeof SpinRoute
   '/studio': typeof StudioRoute
   '/templates': typeof TemplatesRoute
+  '/terms': typeof TermsRoute
   '/tiktok': typeof TiktokRoute
   '/ugc': typeof UgcRoute
   '/ugc-line': typeof UgcLineRoute
@@ -667,6 +681,7 @@ export interface FileRoutesByTo {
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
   '/photo-edit': typeof PhotoEditRoute
+  '/privacy': typeof PrivacyRoute
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
   '/scene-builder': typeof SceneBuilderRoute
@@ -676,6 +691,7 @@ export interface FileRoutesByTo {
   '/spin': typeof SpinRoute
   '/studio': typeof StudioRoute
   '/templates': typeof TemplatesRoute
+  '/terms': typeof TermsRoute
   '/tiktok': typeof TiktokRoute
   '/ugc': typeof UgcRoute
   '/ugc-line': typeof UgcLineRoute
@@ -756,6 +772,7 @@ export interface FileRoutesById {
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
   '/photo-edit': typeof PhotoEditRoute
+  '/privacy': typeof PrivacyRoute
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
   '/scene-builder': typeof SceneBuilderRoute
@@ -765,6 +782,7 @@ export interface FileRoutesById {
   '/spin': typeof SpinRoute
   '/studio': typeof StudioRoute
   '/templates': typeof TemplatesRoute
+  '/terms': typeof TermsRoute
   '/tiktok': typeof TiktokRoute
   '/ugc': typeof UgcRoute
   '/ugc-line': typeof UgcLineRoute
@@ -846,6 +864,7 @@ export interface FileRouteTypes {
     | '/nexusarb'
     | '/orchestrate'
     | '/photo-edit'
+    | '/privacy'
     | '/reshoot'
     | '/roadmap'
     | '/scene-builder'
@@ -855,6 +874,7 @@ export interface FileRouteTypes {
     | '/spin'
     | '/studio'
     | '/templates'
+    | '/terms'
     | '/tiktok'
     | '/ugc'
     | '/ugc-line'
@@ -934,6 +954,7 @@ export interface FileRouteTypes {
     | '/nexusarb'
     | '/orchestrate'
     | '/photo-edit'
+    | '/privacy'
     | '/reshoot'
     | '/roadmap'
     | '/scene-builder'
@@ -943,6 +964,7 @@ export interface FileRouteTypes {
     | '/spin'
     | '/studio'
     | '/templates'
+    | '/terms'
     | '/tiktok'
     | '/ugc'
     | '/ugc-line'
@@ -1022,6 +1044,7 @@ export interface FileRouteTypes {
     | '/nexusarb'
     | '/orchestrate'
     | '/photo-edit'
+    | '/privacy'
     | '/reshoot'
     | '/roadmap'
     | '/scene-builder'
@@ -1031,6 +1054,7 @@ export interface FileRouteTypes {
     | '/spin'
     | '/studio'
     | '/templates'
+    | '/terms'
     | '/tiktok'
     | '/ugc'
     | '/ugc-line'
@@ -1111,6 +1135,7 @@ export interface RootRouteChildren {
   NexusarbRoute: typeof NexusarbRoute
   OrchestrateRoute: typeof OrchestrateRoute
   PhotoEditRoute: typeof PhotoEditRoute
+  PrivacyRoute: typeof PrivacyRoute
   ReshootRoute: typeof ReshootRoute
   RoadmapRoute: typeof RoadmapRoute
   SceneBuilderRoute: typeof SceneBuilderRoute
@@ -1120,6 +1145,7 @@ export interface RootRouteChildren {
   SpinRoute: typeof SpinRoute
   StudioRoute: typeof StudioRoute
   TemplatesRoute: typeof TemplatesRoute
+  TermsRoute: typeof TermsRoute
   TiktokRoute: typeof TiktokRoute
   UgcRoute: typeof UgcRoute
   UgcLineRoute: typeof UgcLineRoute
@@ -1192,6 +1218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TiktokRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/templates': {
       id: '/templates'
       path: '/templates'
@@ -1253,6 +1286,13 @@ declare module '@tanstack/react-router' {
       path: '/reshoot'
       fullPath: '/reshoot'
       preLoaderRoute: typeof ReshootRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/photo-edit': {
@@ -1821,6 +1861,7 @@ const rootRouteChildren: RootRouteChildren = {
   NexusarbRoute: NexusarbRoute,
   OrchestrateRoute: OrchestrateRoute,
   PhotoEditRoute: PhotoEditRoute,
+  PrivacyRoute: PrivacyRoute,
   ReshootRoute: ReshootRoute,
   RoadmapRoute: RoadmapRoute,
   SceneBuilderRoute: SceneBuilderRoute,
@@ -1830,6 +1871,7 @@ const rootRouteChildren: RootRouteChildren = {
   SpinRoute: SpinRoute,
   StudioRoute: StudioRoute,
   TemplatesRoute: TemplatesRoute,
+  TermsRoute: TermsRoute,
   TiktokRoute: TiktokRoute,
   UgcRoute: UgcRoute,
   UgcLineRoute: UgcLineRoute,
