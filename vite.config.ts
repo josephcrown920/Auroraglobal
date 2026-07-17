@@ -131,6 +131,25 @@ export default defineConfig({
   // Replit preview is served through a proxied iframe on a different host,
   // so allow all hosts in dev. Bind explicitly to IPv4 (sandbox has no IPv6).
   vite: {
+    // Pre-bundle heavy client-side dependencies so Vite doesn't have to
+    // transform them lazily on first request — shaves several seconds off
+    // the first meaningful paint on cold start.
+    optimizeDeps: {
+      include: [
+        "react",
+        "react-dom",
+        "react-dom/client",
+        "@tanstack/react-query",
+        "@tanstack/react-router",
+        "@tanstack/react-start",
+        "sonner",
+        "lucide-react",
+        "clsx",
+        "tailwind-merge",
+        "class-variance-authority",
+        "zod",
+      ],
+    },
     server: {
       host: "0.0.0.0",
       allowedHosts: true,
@@ -139,6 +158,32 @@ export default defineConfig({
       // exhausts file descriptors (EMFILE), which can crash startup. Exclude it.
       watch: {
         ignored: ["**/.cache/**"],
+      },
+      // Pre-transform the hottest files during server startup instead of
+      // waiting for the first request to trigger lazy compilation.
+      // Client files become JS bundles; SSR files compile the server fns.
+      // Order matters — root first, then highest-traffic routes, then the
+      // heaviest server modules (orchestrator owns ~40% of cold-start time).
+      warmup: {
+        clientFiles: [
+          "./src/routes/__root.tsx",
+          "./src/routes/index.tsx",
+          "./src/routes/studio.lazy.tsx",
+          "./src/routes/motion.lazy.tsx",
+          "./src/routes/orchestrate.lazy.tsx",
+          "./src/components/MobileNav.tsx",
+        ],
+        ssrFiles: [
+          "./src/routes/__root.tsx",
+          "./src/routes/index.tsx",
+          "./src/lib/orchestrator.server.ts",
+          "./src/lib/jobs.server.ts",
+          "./src/lib/studio.functions.ts",
+          "./src/lib/orchestration.functions.ts",
+          "./src/lib/billing.functions.ts",
+          "./src/lib/generate-core.server.ts",
+          "./src/lib/result-store.server.ts",
+        ],
       },
     },
     // Split heavy, route-specific dependencies (charts, code editor, flow
