@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Plus, Play, ArrowUpRight, ChevronDown, Sparkles, Palette, Film, Wand2, Mic, Music2, Brush, Megaphone, UserCircle2, Workflow, Layers, Flame, Bot, Clapperboard } from "lucide-react";
+import { Plus, Play, ArrowUpRight, ChevronDown, Sparkles, Palette, Film, Wand2, Mic, Music2, Brush, Megaphone, UserCircle2, Workflow, Layers, Flame, Bot, Clapperboard, Check, Zap, Crown } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
 
@@ -234,11 +234,16 @@ function LandingPage() {
             </p>
           </div>
           <div className="columns-2 gap-3 space-y-3">
-            <GalleryImg src="/landing/gallery-1.jpg" alt="Neon portrait" ratio="aspect-[2/3]" tag="Portrait" />
-            <GalleryImg src="/landing/gallery-2.jpg" alt="Minimal album cover" ratio="aspect-square" tag="Cover art" />
-            <GalleryImg src="/landing/gallery-3.jpg" alt="Cinematic stage" ratio="aspect-video" tag="Music video" />
-            <GalleryImg src="/landing/gallery-4.jpg" alt="Streetwear promo" ratio="aspect-[4/5]" tag="Press photo" />
-            <GalleryImg src="/landing/gallery-5.jpg" alt="Live mic close-up" ratio="aspect-[2/3]" tag="Editorial" />
+            <GalleryImg src="/landing-photo-1.jpeg"        alt="Studio portrait"     ratio="aspect-[2/3]"  tag="Portrait" />
+            <GalleryImg src="/landing-photo-2.jpeg"        alt="Artist promo"        ratio="aspect-[3/4]"  tag="Promo shot" />
+            <GalleryImg src="/landing-photo-3.jpeg"        alt="Album artwork"       ratio="aspect-square" tag="Cover art" />
+            <GalleryImg src="/landing-photo-nba-josh.png"  alt="NBA Josh character"  ratio="aspect-[2/3]"  tag="Character" />
+            <GalleryImg src="/landing-photo-4.jpeg"        alt="Editorial look"      ratio="aspect-[4/5]"  tag="Editorial" />
+            <GalleryImg src="/landing-photo-5.jpeg"        alt="Cinematic scene"     ratio="aspect-[3/4]"  tag="Cinema" />
+            <GalleryImg src="/landing-photo-6.png"         alt="Color grade"         ratio="aspect-square" tag="Color grade" />
+            <GalleryImg src="/landing-photo-7.png"         alt="Motion scene"        ratio="aspect-[2/3]"  tag="Motion" />
+            <GalleryImg src="/landing-photo-8.png"         alt="Campaign shot"       ratio="aspect-[3/4]"  tag="Campaign" />
+            <GalleryImg src="/landing-photo-studios-grid.png" alt="Aurora Studios"   ratio="aspect-square" tag="Studios" />
           </div>
         </div>
       </section>
@@ -302,35 +307,140 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* ── Pricing CTA ─────────────────────────────────────────────────── */}
-      <section id="pricing" className="py-20 px-5">
-        <div className="rounded-3xl bg-zinc-100 px-6 py-14 text-zinc-950 text-center">
+      {/* ── Pricing ──────────────────────────────────────────────────────── */}
+      <section id="pricing" className="py-20 px-5 border-t border-white/5">
+        <div className="mb-10">
           <span className="text-xs font-bold uppercase tracking-[0.3em] text-brand">
-            Free forever tier
+            Pricing
           </span>
-          <h2 className="mt-3 text-4xl font-semibold tracking-tight">
-            Direct your <span className="font-serif italic">next release.</span>
+          <h2 className="mt-3 text-4xl font-semibold leading-tight">
+            Simple pricing.<br />
+            <span className="font-serif italic">Pay for what you make.</span>
           </h2>
-          <p className="mt-3 text-base text-zinc-600">
-            Join 4,000+ independent artists and creative teams building their world with Aurora.
+          <p className="mt-3 text-sm text-zinc-400 max-w-[40ch] leading-relaxed">
+            Start free. Upgrade when you're ready. All features available on every plan.
           </p>
-          <div className="mt-8 flex flex-col items-center gap-5">
+        </div>
+
+        {/* Subscription tiers */}
+        <div className="flex flex-col gap-4 mb-8">
+          {/* Free */}
+          <div className="rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-6">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500 mb-1">Starter</p>
+                <p className="text-3xl font-semibold text-zinc-100">Free</p>
+                <p className="text-sm text-zinc-500 mt-1">5 Aura on signup · 20 Aura / month</p>
+              </div>
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/5 ring-1 ring-white/10">
+                <Zap className="size-5 text-zinc-400" />
+              </span>
+            </div>
+            <ul className="flex flex-col gap-2 mb-6">
+              {["All 14 generation tools", "Permanent gallery", "Canvas pipeline editor", "Aurora watermark on exports", "Standard queue priority"].map((f) => (
+                <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-400">
+                  <Check className="size-4 shrink-0 mt-0.5 text-zinc-600" />
+                  {f}
+                </li>
+              ))}
+            </ul>
             <Link
               to={ctaTo}
-              className="inline-flex items-center rounded-full bg-brand py-4 pl-5 pr-7 text-lg font-semibold text-white ring-1 ring-brand transition-transform hover:scale-[1.02] active:scale-95"
+              className="block w-full rounded-xl bg-white/8 py-3 text-center text-sm font-semibold text-zinc-200 ring-1 ring-white/10 transition-colors hover:bg-white/12"
             >
-              <Plus className="size-5 mr-2 shrink-0" strokeWidth={2.5} />
-              {ctaLabel}
+              {user ? "You're on Free" : "Start free — no card needed"}
             </Link>
-            <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
-              <span>Free · 5 credits</span>
-              <span>·</span>
-              <span>Pro · Unlimited</span>
-              <span>·</span>
-              <span>Studio · API</span>
+          </div>
+
+          {/* Pro */}
+          <div className="relative rounded-2xl bg-zinc-900 ring-2 ring-brand/60 p-6 shadow-[0_0_40px_-10px] shadow-brand/30">
+            <div className="absolute -top-3 left-5">
+              <span className="rounded-full bg-brand px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white">
+                Most popular
+              </span>
             </div>
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.25em] text-brand mb-1">Pro</p>
+                <div className="flex items-baseline gap-1.5">
+                  <p className="text-3xl font-semibold text-zinc-100">$15</p>
+                  <p className="text-sm text-zinc-500">/ month</p>
+                </div>
+                <p className="text-sm text-zinc-500 mt-1">200 Aura included monthly</p>
+              </div>
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand/15 ring-1 ring-brand/30">
+                <Crown className="size-5 text-brand" />
+              </span>
+            </div>
+            <ul className="flex flex-col gap-2 mb-6">
+              {[
+                "200 Aura / month included",
+                "No watermark on exports",
+                "Priority queue — faster renders",
+                "All premium templates unlocked",
+                "Growth Tools — daily posts, rollout plans & social packs",
+                "All 14 generation tools",
+                "Permanent gallery + Canvas",
+              ].map((f) => (
+                <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-300">
+                  <Check className="size-4 shrink-0 mt-0.5 text-brand" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+            <Link
+              to={user ? "/billing" : ctaTo}
+              className="block w-full rounded-xl bg-brand py-3 text-center text-sm font-semibold text-white shadow-[0_6px_20px_-4px] shadow-brand/50 transition-transform hover:scale-[1.01] active:scale-[0.99]"
+            >
+              {user ? "Upgrade to Pro" : "Get Pro — $15 / month"}
+            </Link>
           </div>
         </div>
+
+        {/* Credit packs */}
+        <div className="mb-4">
+          <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500 mb-4">
+            Top-up credit packs · Buy any time
+          </p>
+          <div className="flex flex-col gap-3">
+            {([
+              { label: "Starter",  aura: 80,  usd: "$10",  per: "$0.13 / Aura" },
+              { label: "Creator",  aura: 240, usd: "$30",  per: "$0.13 / Aura", popular: true },
+              { label: "Studio",   aura: 640, usd: "$80",  per: "$0.13 / Aura" },
+            ] as const).map((p) => (
+              <Link
+                key={p.label}
+                to={user ? "/billing" : ctaTo}
+                className={`group flex items-center justify-between rounded-xl px-5 py-4 ring-1 transition-all no-underline ${p.popular ? "bg-zinc-800 ring-white/15 hover:ring-brand/40" : "bg-zinc-900 ring-white/8 hover:ring-white/15"}`}
+              >
+                <div className="flex items-center gap-3">
+                  {p.popular && (
+                    <span className="rounded-full bg-brand/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-brand">
+                      Best value
+                    </span>
+                  )}
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-100">{p.label} Pack</p>
+                    <p className="text-[11px] text-zinc-500">{p.aura} Aura · {p.per}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-base font-bold text-zinc-100">{p.usd}</span>
+                  <ArrowUpRight className="size-4 text-zinc-600 transition-colors group-hover:text-brand" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* Day passes note */}
+        <p className="text-center text-[11px] text-zinc-600 leading-relaxed">
+          Just trying it out?{" "}
+          <Link to={user ? "/billing" : ctaTo} className="text-zinc-400 hover:text-brand underline underline-offset-2 transition-colors">
+            Day passes from $2
+          </Link>
+          {" "}· 15 Aura · no commitment.
+        </p>
       </section>
 
       {/* ── FAQ ─────────────────────────────────────────────────────────── */}
