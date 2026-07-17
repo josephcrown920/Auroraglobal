@@ -19,6 +19,13 @@ const PAGE_CACHE    = 'aurora-pages-v3';
 const PRECACHE_ASSETS = [
   '/offline.html',
   '/manifest.json',
+  '/fonts/fonts.css',
+  '/fonts/bebasneue-latin.woff2',
+  '/fonts/bebasneue-latin-ext.woff2',
+  '/fonts/unbounded-600-latin.woff2',
+  '/fonts/unbounded-600-latin-ext.woff2',
+  '/fonts/unbounded-800-latin.woff2',
+  '/fonts/unbounded-800-latin-ext.woff2',
   '/landing-photo-1.jpeg',
   '/landing-photo-2.jpeg',
   '/landing-photo-3.jpeg',
