@@ -1733,7 +1733,7 @@ function MotionStudio() {
                       if (mvCurrentMode?.needsImage && mvImage) {
                         await videoFn({ data: { imageUrl: mvImage, prompt: mvPrompt, duration: 5, resolution: "720p", modelKey: mvVideoModel, cameraMovement: "static", endFrameUrl: null } });
                       } else {
-                        await genFn({ data: { prompt: mvPrompt, imageUrls: [], motionVideoUrl: null, model: "black-forest-labs/flux-1.1-pro" } });
+                        await genFn({ data: { prompt: mvPrompt, imageUrls: [], motionVideoUrl: null, model: "replit/gemini-2.5-flash-image" } });
                       }
                       markFirstGenComplete();
                       toast.success("Queued — result will appear in Recent below");

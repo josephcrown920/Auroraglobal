@@ -78,10 +78,8 @@ const VOICE_OPTIONS: { id: string; label: string; description: string }[] = [
 
 const MODELS: Record<Modality, ModelOption[]> = {
   image: [
-    { key: "pollinations/flux", label: "Pollinations · FLUX", free: true },
-    { key: "runware/flux-schnell", label: "Runware · FLUX schnell" },
-    { key: "google/nano-banana", label: "Replicate · Nano Banana" },
-    { key: "replicate/flux-schnell", label: "Replicate · FLUX schnell" },
+    { key: "pollinations/turbo", label: "Pollinations · Turbo", free: true },
+    { key: "google/nano-banana", label: "Nano Banana" },
     { key: "piapi/midjourney-imagine", label: "PiAPI · Midjourney" },
   ],
   video: [

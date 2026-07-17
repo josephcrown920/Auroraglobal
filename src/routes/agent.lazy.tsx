@@ -171,7 +171,7 @@ const DIRECTOR_STYLES: ToolDef[] = [
 const AI_TOOLS: ToolDef[] = [
   { label: "Script writer",      icon: PenLine,           prompt: "Script writer: draft an industry-standard script (SLUGLINE / ACTION / CHARACTER / DIALOGUE) for a 90-second cinematic short. Ask if you need a topic — otherwise pick something evocative." },
   { label: "Motion Designer",    icon: Shapes,            prompt: "Motion Designer: animate a still image into a living shot. Give me exact motion directions (dolly, parallax, subject micro-movement, camera drift) plus a Seedance image-to-video prompt." },
-  { label: "Image Generator",    icon: ImagePlus,         prompt: "Image Generator: write 3 hyper-realistic image prompts (subject, lens, film stock, lighting, negative prompt) suitable for Midjourney or Flux, aligned to my current inspector settings." },
+  { label: "Image Generator",    icon: ImagePlus,         prompt: "Image Generator: write 3 hyper-realistic image prompts (subject, lens, film stock, lighting, negative prompt) suitable for Midjourney or Seedream, aligned to my current inspector settings." },
   { label: "Video Generator",    icon: Video,             prompt: "Video Generator: give me a ready-to-paste Seedance prompt card (subject, action, camera, lighting, film stock, aspect, negative, duration) for a hyper-real 8s clip." },
   { label: "Translate Videos",   icon: Languages,         prompt: "Translate Videos: adapt a 30s English VO script into Spanish, French, and Japanese, preserving cinematic tone and lip-sync friendliness." },
   { label: "AI Clipping",        icon: Scissors,          prompt: "AI Clipping: from a 10-minute interview, suggest 5 vertical short-form clips with in/out timecodes, hook lines, and caption styles." },

@@ -14,7 +14,6 @@ export type VideoModel =
   | "sora-turbo";
 
 export type ImageModel =
-  | "flux-1.1-pro"
   | "kling-kolors"
   | "huggingface-sdxl"
   | "ideogram-v3";
