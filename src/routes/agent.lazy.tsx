@@ -8,6 +8,7 @@ import {
   chatWithAuroraAgent,
   listAgentChat,
   clearAgentChat,
+  saveAgentMemory,
   type SkillMeta,
 } from "@/lib/agent.functions";
 import { useAuth } from "@/hooks/use-auth";
@@ -714,6 +715,7 @@ function AgentPage() {
   const chatFn    = useServerFn(chatWithAuroraAgent);
   const listFn    = useServerFn(listAgentChat);
   const clearFn   = useServerFn(clearAgentChat);
+  const saveFn    = useServerFn(saveAgentMemory);
 
   // Auth guard
   useEffect(() => {
@@ -730,6 +732,8 @@ function AgentPage() {
     if (typeof window === "undefined") return "";
     return window.localStorage.getItem(MEMORY_KEY) ?? "";
   });
+  const [memorySaveState, setMemorySaveState] = useState<"saved" | "unsaved" | "saving">("saved");
+  const memorySaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [inspector, setInspector] = useState<Inspector>({
     focalLength: 35,
@@ -757,7 +761,18 @@ function AgentPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLTextAreaElement>(null);
 
-  // Persist director memory to localStorage
+  // Persist director memory: localStorage immediately + debounced server save
+  const saveMemoryToServer = (text: string) => {
+    if (memorySaveTimer.current) clearTimeout(memorySaveTimer.current);
+    setMemorySaveState("unsaved");
+    memorySaveTimer.current = setTimeout(() => {
+      setMemorySaveState("saving");
+      saveFn({ data: { memory: text } })
+        .then(() => setMemorySaveState("saved"))
+        .catch(() => setMemorySaveState("unsaved"));
+    }, 1200);
+  };
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(MEMORY_KEY, directorMemory);
@@ -971,12 +986,23 @@ function AgentPage() {
               </button>
             </div>
             <div className="rounded-sm border border-line bg-panel-2/60 px-2 py-1.5">
-              <div className="mb-1 flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-prime">
-                <Save className="size-3" /> Director Memory
+              <div className="mb-1 flex items-center justify-between gap-1 text-xs font-bold uppercase tracking-widest text-prime">
+                <span className="flex items-center gap-1"><Save className="size-3" /> Director Memory</span>
+                <span className={
+                  "text-[10px] font-medium normal-case tracking-normal " +
+                  (memorySaveState === "saved" ? "text-ink-dim/50" :
+                   memorySaveState === "saving" ? "text-prime/70 animate-pulse" :
+                   "text-amber-400/80")
+                }>
+                  {memorySaveState === "saved" ? "saved" : memorySaveState === "saving" ? "saving…" : "unsaved"}
+                </span>
               </div>
               <textarea
                 value={directorMemory}
-                onChange={(e) => setDirectorMemory(e.target.value)}
+                onChange={(e) => {
+                  setDirectorMemory(e.target.value);
+                  saveMemoryToServer(e.target.value);
+                }}
                 rows={3}
                 placeholder="Brand voice, ongoing project, client rules, characters…"
                 className="w-full resize-none bg-transparent text-[13px] font-medium leading-snug text-ink placeholder:text-ink-dim/50 focus:outline-none"

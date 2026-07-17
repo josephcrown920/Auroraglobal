@@ -227,7 +227,11 @@ export const chatWithAuroraAgent = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     // Load permanent memory + recent transcript (RLS scopes both to the caller).
     const [{ data: memRow }, { data: recent, error: histErr }] = await Promise.all([
-      context.supabase.from("agent_user_memory").select("memory").eq("user_id", context.userId).maybeSingle(),
+      context.supabase
+        .from("agent_user_memory")
+        .select("memory, structured_memory")
+        .eq("user_id", context.userId)
+        .maybeSingle(),
       context.supabase
         .from("agent_chat_messages")
         .select("role, content")
@@ -237,7 +241,13 @@ export const chatWithAuroraAgent = createServerFn({ method: "POST" })
     ]);
     if (histErr) throw new Error(histErr.message);
 
-    const memory = memRow?.memory ?? "";
+    const freeText = memRow?.memory ?? "";
+    const structured = (memRow?.structured_memory as Record<string, unknown> | null) ?? null;
+    const structuredBlock =
+      structured && Object.keys(structured).length > 0
+        ? `\n\nSTRUCTURED BRAND PROFILE (auto-recalled):\n${JSON.stringify(structured, null, 2)}`
+        : "";
+    const memory = (freeText + structuredBlock).trim();
     const transcript = (recent ?? [])
       .reverse()
       .map((m) => ({
@@ -375,6 +385,20 @@ export const clearAgentChat = createServerFn({ method: "POST" })
       .from("agent_chat_messages")
       .delete()
       .eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+/** Directly saves the free-text memory document (used by the Director Memory sidebar textarea). */
+export const saveAgentMemory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ memory: z.string().max(2000) }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.from("agent_user_memory").upsert({
+      user_id: context.userId,
+      memory: data.memory.trim().slice(0, 2000),
+      updated_at: new Date().toISOString(),
+    });
     if (error) throw new Error(error.message);
     return { ok: true as const };
   });
