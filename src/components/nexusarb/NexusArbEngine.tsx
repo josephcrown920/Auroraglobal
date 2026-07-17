@@ -2154,7 +2154,7 @@ export default function NexusArb() {
         </div>
       </div>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap');
+        /* IBM Plex Mono loaded from system fonts — no CDN dependency */
         *{box-sizing:border-box;margin:0;padding:0;}
         ::-webkit-scrollbar{width:4px;}
         ::-webkit-scrollbar-track{background:transparent;}
