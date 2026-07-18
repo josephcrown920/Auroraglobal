@@ -570,8 +570,59 @@ function StudioPage() {
             <p className="mt-1 text-xs text-muted-foreground">Drop references → write direction → generate. That's it.</p>
           </div>
 
-          {/* Image generation slideshow — moved back up under the heading */}
-          <JoshSlideshow />
+          {/* Image generation slideshow — full-width, entrance animation */}
+          <div className="reveal-card" data-revealed="true">
+            <JoshSlideshow />
+          </div>
+
+          {/* ── Inspiration — recipe → result (moved before the form for visibility) ── */}
+          <div className="space-y-5">
+            <TriedTestedShowcase
+              title="See the recipe → see the result"
+              subtitle="Real references. Real render. This is what your shoot can look like."
+              refsImage={tutorialStudioRefs.url}
+              refsCaption="Selfie · Outfit (all black) · Scene (train tracks) · Prop (vintage mic)"
+              finalImage={tutorialStudioFinal.url}
+              finalCaption="Hyper-real composite · identity preserved · golden-hour grade"
+              prompt="Create a hyper-realistic composite using the provided reference images. Use the close-up selfie as the primary identity source, preserving exact facial features, skin tone, dreadlocks. Place the subject in the scene (desert train tracks at golden hour) wearing the outfit (black fuzzy crewneck sweater, black sweatpants). Pose: powerful, hands on hips, slight low angle, leaning into a vintage hanging silver microphone. Cinematic anamorphic 35mm, warm sunset grade, sharp focus on subject, shallow depth of field, 4K editorial."
+            />
+
+            {/* ── What Aurora creates — horizontal photo strip ──────── */}
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3">What Aurora creates</p>
+              <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none snap-x snap-mandatory">
+                {[
+                  { src: "/landing-photo-nba-josh.png",     label: "Artist" },
+                  { src: "/landing-photo-studios-grid.png", label: "Colors Studio" },
+                  { src: "/landing-photo-1.jpeg",           label: "Commercial" },
+                  { src: "/landing-photo-2.jpeg",           label: "Editorial" },
+                  { src: "/landing-photo-3.jpeg",           label: "Lifestyle" },
+                  { src: "/landing-photo-4.jpeg",           label: "Fashion" },
+                  { src: "/landing-photo-5.jpeg",           label: "Product" },
+                  { src: "/landing-photo-6.png",            label: "Performance" },
+                  { src: "/landing-photo-7.png",            label: "Music Video" },
+                  { src: "/landing-photo-8.png",            label: "Production" },
+                ].map(({ src, label }) => (
+                  <div
+                    key={src}
+                    className="relative shrink-0 w-28 snap-start overflow-hidden rounded-xl border border-white/10"
+                    style={{ aspectRatio: "3/4" }}
+                  >
+                    <img
+                      src={src}
+                      alt={label}
+                      className="absolute inset-0 w-full h-full object-cover eg-img"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    <span className="absolute bottom-1.5 left-2 text-[9px] font-bold uppercase tracking-widest text-white/50">
+                      {label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
 
           {/* Compact 5-slot reference row */}
           <div className="grid grid-cols-5 gap-2">
@@ -682,56 +733,6 @@ function StudioPage() {
               <><Zap className="size-4 mr-2" /> Try a demo shoot (no upload needed)</>
             )}
           </Button>
-
-          <div className="pt-6 space-y-5 border-t border-border/50">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Inspiration</p>
-            <TriedTestedShowcase
-              title="See the recipe → see the result"
-              subtitle="Real references. Real render. This is what your shoot can look like."
-              refsImage={tutorialStudioRefs.url}
-              refsCaption="Selfie · Outfit (all black) · Scene (train tracks) · Prop (vintage mic)"
-              finalImage={tutorialStudioFinal.url}
-              finalCaption="Hyper-real composite · identity preserved · golden-hour grade"
-              prompt="Create a hyper-realistic composite using the provided reference images. Use the close-up selfie as the primary identity source, preserving exact facial features, skin tone, dreadlocks. Place the subject in the scene (desert train tracks at golden hour) wearing the outfit (black fuzzy crewneck sweater, black sweatpants). Pose: powerful, hands on hips, slight low angle, leaning into a vintage hanging silver microphone. Cinematic anamorphic 35mm, warm sunset grade, sharp focus on subject, shallow depth of field, 4K editorial."
-            />
-
-            {/* ── What Aurora creates — horizontal photo strip ──────── */}
-            <div>
-              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3">What Aurora creates</p>
-              <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none snap-x snap-mandatory">
-                {[
-                  { src: "/landing-photo-nba-josh.png",     label: "Artist" },
-                  { src: "/landing-photo-studios-grid.png", label: "Colors Studio" },
-                  { src: "/landing-photo-1.jpeg",           label: "Commercial" },
-                  { src: "/landing-photo-2.jpeg",           label: "Editorial" },
-                  { src: "/landing-photo-3.jpeg",           label: "Lifestyle" },
-                  { src: "/landing-photo-4.jpeg",           label: "Fashion" },
-                  { src: "/landing-photo-5.jpeg",           label: "Product" },
-                  { src: "/landing-photo-6.png",            label: "Performance" },
-                  { src: "/landing-photo-7.png",            label: "Music Video" },
-                  { src: "/landing-photo-8.png",            label: "Production" },
-                ].map(({ src, label }) => (
-                  <div
-                    key={src}
-                    className="relative shrink-0 w-28 snap-start overflow-hidden rounded-xl border border-white/10"
-                    style={{ aspectRatio: "3/4" }}
-                  >
-                    <img
-                      src={src}
-                      alt={label}
-                      className="absolute inset-0 w-full h-full object-cover"
-                      style={{ animation: "ken-burns 20s ease-in-out infinite alternate" }}
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                    <span className="absolute bottom-1.5 left-2 text-[9px] font-bold uppercase tracking-widest text-white/50">
-                      {label}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
 
         </section>
 

@@ -562,6 +562,9 @@ function ColorsStudio() {
             <MiniUpload userId={user.id} label="Audio · lipsync" value={audioUrl} onChange={setAudioUrl} accept="audio/*,video/mp4" icon={Music2} />
           </div>
 
+          {/* Real shoots gallery — at the top for immediate inspiration */}
+          <ColorsShotsGallery />
+
           <TriedTestedShowcase
             accent="cyan"
             title="Blue performance studio — tried & tested"
@@ -572,9 +575,6 @@ function ColorsStudio() {
             finalCaption="Royal-blue cyclorama · hanging vintage mic · red jersey + black puffer vest · ARRI rim light"
             prompt="Editorial music-video performance shot of the subject on a seamless deep royal-blue cyclorama studio — background and floor are one continuous royal-blue surface, no visible seams. Full-body side profile, leaning into an exact suspended vintage silver microphone hanging from a thin cable at chest level. Outfit: bright red performance jersey with graphic print under a black hooded puffer vest, distressed black stacked jeans, white chunky sneakers. ARRI softbox key from camera-left + softbox fill from camera-right, professional dual softbox stands visible at far frame edges, gentle floor shadow, clean cinematic rim light separating the subject from the cyclorama. Preserve exact facial likeness, red dreadlocks, sunglasses, skin tone, body proportions. ARRI Alexa look, 50mm, 8K ultra-HD photoreal, no text or logos."
           />
-
-          {/* Real shoots gallery — apply these looks to your selfie */}
-          <ColorsShotsGallery />
 
 
           {/* Scene source — preset setups vs the Scene Builder */}
