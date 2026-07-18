@@ -4,6 +4,11 @@ import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
 
 export const Route = createFileRoute("/")({
+  head: () => ({
+    links: [
+      { rel: "preload", as: "image", href: "/landing/hero-artist.jpg", fetchPriority: "high" },
+    ],
+  }),
   component: LandingPage,
 });
 
@@ -108,6 +113,7 @@ function LandingPage() {
             height={1200}
             className="h-full w-full object-cover"
             fetchPriority="high"
+            decoding="async"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-zinc-950/60" />
           <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/80 via-zinc-950/20 to-transparent" />

@@ -54,6 +54,14 @@ interface StudioPhoto {
 }
 
 const DURATIONS = [10, 15, 20, 30, 45, 60, 90];
+const DIRECTORS = [
+  { id: "auto", label: "Auto fastest", desc: "Use the first configured low-latency brain." },
+  { id: "anthropic", label: "Claude", desc: "Prefer Anthropic Claude when ANTHROPIC_API_KEY is configured." },
+  { id: "xai", label: "Grok xAI", desc: "Prefer Grok when XAI_API_KEY is configured." },
+  { id: "openrouter", label: "Fable / OpenRouter", desc: "Prefer the OpenRouter lane for custom Fable-style routing." },
+] as const;
+type DirectorProvider = (typeof DIRECTORS)[number]["id"];
+
 const MODES = [
   { id: "direct", label: "Direct-to-camera", icon: Camera, desc: "Intimate, personal delivery — speaks straight to the viewer" },
   { id: "cinematic", label: "Cinematic narration", icon: Film, desc: "Authoritative voiceover with a sense of place and movement" },
@@ -151,6 +159,7 @@ export function VideoAgentUI({ session }: Props) {
   const [script, setScript] = useState("");
   const [mode, setMode] = useState<ModeId>("direct");
   const [orientation, setOrientation] = useState<"landscape" | "portrait">("landscape");
+  const [directorProvider, setDirectorProvider] = useState<DirectorProvider>("auto");
   const [targetSeconds, setTargetSeconds] = useState(30);
   const [stage, setStage] = useState<Stage>("idle");
   const [resultUrl, setResultUrl] = useState<string | null>(null);
@@ -232,7 +241,7 @@ export function VideoAgentUI({ session }: Props) {
     setScript("");
     try {
       const res = await enhanceScript(
-        { prompt: idea, targetSeconds, directToCamera: mode === "direct" },
+        { prompt: idea, targetSeconds, directToCamera: mode === "direct", directorProvider },
         token,
       );
       setScript(res.script);
@@ -638,6 +647,29 @@ export function VideoAgentUI({ session }: Props) {
                   onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
                   onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
                 />
+
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {DIRECTORS.map((d) => {
+                    const active = directorProvider === d.id;
+                    return (
+                      <button
+                        key={d.id}
+                        onClick={() => setDirectorProvider(d.id)}
+                        disabled={busy}
+                        title={d.desc}
+                        style={{
+                          padding: "7px 11px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+                          border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
+                          background: active ? "oklch(0.72 0.2 300 / 0.12)" : "transparent",
+                          color: active ? "var(--accent)" : "var(--text-muted)",
+                          cursor: busy ? "not-allowed" : "pointer", transition: "all 0.15s",
+                        }}
+                      >
+                        {d.label}
+                      </button>
+                    );
+                  })}
+                </div>
 
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                   {MODES.map((m) => {
