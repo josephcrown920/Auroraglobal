@@ -38,10 +38,6 @@ args = "cron"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "eas-build"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
 args = "prod-build"
 
 [[workflows.workflow]]
@@ -110,17 +106,6 @@ args = "bash scripts/aurora-cron-daemon.sh"
 
 [workflows.workflow.metadata]
 outputType = "console"
-
-[[workflows.workflow]]
-name = "eas-build"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd artifacts/aurora-mobile && EAS_NO_VCS=1 EAS_BUILD_NO_EXPO_GO_WARNING=true bunx eas-cli build --platform android --profile production --non-interactive --no-wait"
-
-[workflows.workflow.metadata]
-isValidation = true
 
 [[workflows.workflow]]
 name = "prod-build"
