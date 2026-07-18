@@ -33,9 +33,9 @@ import stillCourtBall from "@/assets/josh/generated/still-13-court-ball.jpg";
 import stillFitcheckMirror from "@/assets/josh/generated/still-15-fitcheck-mirror.jpg";
 import stillBoardwalk from "@/assets/josh/generated/still-18-boardwalk.jpg";
 import clipNeon from "@/assets/josh/generated/clip-01-neon-closeup.mp4";
-import clipStreetGolden from "@/assets/josh/generated/clip-02-street-golden.mp4";
+import clipCarOrbit from "@/assets/josh/generated/clip-14-car-orbit.mp4";
 import clipStage from "@/assets/josh/generated/clip-03-stage-mic.mp4";
-import clipStudioGel from "@/assets/josh/generated/clip-05-studio-gel.mp4";
+import clipAlleyNeon from "@/assets/josh/generated/clip-15-alley-neon.mp4";
 import clipRooftopSunset from "@/assets/josh/generated/clip-06-rooftop-sunset.mp4";
 import clipCourtBall from "@/assets/josh/generated/clip-13-court-ball.mp4";
 import kidsMeadow from "@/assets/kids/showcase-meadow.jpg";
@@ -215,7 +215,7 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
     category: "Motion",
     blurb: "A slow cinematic orbit around you in warm golden light.",
     thumbnail: stillCarGolden,
-    thumbnailVideo: clipStreetGolden,
+    thumbnailVideo: clipCarOrbit,
     kinds: ["image", "video"],
     dispatch: "studio",
     inputs: [IMG("Your photo")],
@@ -232,7 +232,7 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
     category: "Motion",
     blurb: "A moody street-mural clip drenched in neon.",
     thumbnail: stillAlley,
-    thumbnailVideo: clipStudioGel,
+    thumbnailVideo: clipAlleyNeon,
     kinds: ["image", "video"],
     dispatch: "studio",
     inputs: [IMG("Your photo")],
