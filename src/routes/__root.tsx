@@ -248,8 +248,24 @@ function RootComponent() {
   usePageViewTracking();
   useEffect(() => { captureRefFromUrl(); initCrashReporting(); }, []);
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
+    if (!('serviceWorker' in navigator)) return;
+    if (import.meta.env.PROD) {
       navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    } else {
+      // Dev: a service worker must NEVER intercept the vite dev server —
+      // cached dev HTML references stale module URLs, which breaks hydration
+      // (nav appears dead) and slows loads. Unregister anything left over and
+      // purge Aurora caches so previously-affected browsers recover.
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((regs) => Promise.all(regs.map((r) => r.unregister())))
+        .catch(() => {});
+      if ('caches' in window) {
+        caches
+          .keys()
+          .then((keys) => Promise.all(keys.filter((k) => k.startsWith('aurora-')).map((k) => caches.delete(k))))
+          .catch(() => {});
+      }
     }
   }, []);
 

@@ -175,6 +175,9 @@ export function MobileNav() {
   const activeFeature = allFeatures.find((f) => isActive(pathname, f.to));
 
   const isCanvas = isActive(pathname, "/canvas");
+  // The landing page renders its own sticky top nav (logo + Sign in / Start
+  // free) — the floating Menu pill would sit right on top of its wordmark.
+  const isLanding = pathname === "/";
   const moreActive = !!activeFeature && !TAB_ITEMS.some((t) => t.to === activeFeature.to);
 
   const onTouchStart = (e: React.TouchEvent) => {
@@ -211,20 +214,22 @@ export function MobileNav() {
         }
       `}</style>
 
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label="Open navigation menu"
-        className={cn(
-          "phone-edge-left fixed top-3 z-[60] flex items-center gap-1.5 rounded-full aurora-glass-strong px-3.5 py-2 text-xs font-medium shadow-[var(--shadow-soft)] transition-[filter,color] hover:brightness-110",
-          moreActive ? "text-primary" : "text-foreground",
-        )}
-      >
-        <Menu className="size-4" />
-        Menu
-      </button>
+      {!isLanding && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-label="Open navigation menu"
+          className={cn(
+            "phone-edge-left fixed top-3 z-[60] flex items-center gap-1.5 rounded-full aurora-glass-strong px-3.5 py-2 text-xs font-medium shadow-[var(--shadow-soft)] transition-[filter,color] hover:brightness-110",
+            moreActive ? "text-primary" : "text-foreground",
+          )}
+        >
+          <Menu className="size-4" />
+          Menu
+        </button>
+      )}
 
       {!isCanvas && (
         <>
@@ -234,7 +239,7 @@ export function MobileNav() {
             className="phone-fixed-x fixed bottom-0 z-50 border-t border-border"
             style={{
               paddingBottom: "env(safe-area-inset-bottom)",
-              background: "oklch(0.085 0.022 272 / 0.6)",
+              background: "oklch(0.085 0.022 272 / 0.92)",
               backdropFilter: "blur(24px) saturate(1.6)",
               WebkitBackdropFilter: "blur(24px) saturate(1.6)",
               borderTop: "1px solid oklch(0.58 0.22 25 / 0.15)",
