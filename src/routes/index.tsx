@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Plus, Play, ArrowUpRight, ChevronDown, Sparkles, Palette, Film, Wand2, Mic, Music2, Brush, Megaphone, UserCircle2, Workflow, Layers, Flame, Bot, Clapperboard, Check, Zap, Crown, Download } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useState, useEffect, useRef } from "react";
+import { ViralEngine } from "@/components/landing/ViralEngine";
 
 export const Route = createFileRoute("/")({
   component: LandingPage,
@@ -252,6 +253,9 @@ function LandingPage() {
           ))}
         </div>
       </section>
+
+      {/* ── Viral Engine ─────────────────────────────────────────────── */}
+      <ViralEngine />
 
       {/* ── Gallery ─────────────────────────────────────────────────────── */}
       <section id="gallery" className="bg-zinc-900/30 py-20 border-y border-white/5">
