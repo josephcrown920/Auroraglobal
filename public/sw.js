@@ -1,18 +1,22 @@
-// Aurora Service Worker — multi-strategy caching for near-instant repeat visits
-// and offline resilience.
+// Aurora Service Worker — multi-strategy caching for repeat visits and
+// offline resilience.
 //
 // Strategies:
 //   /assets/*            → Cache-first (Vite hashes guarantee freshness)
 //   Fonts (Google/gstatic) → Cache-first (immutable after first download)
 //   Images (.png/.jpeg/.webp/.jpg/.svg/.ico) → Cache-first
-//   Navigation (HTML pages) → Stale-while-revalidate (show fast, refresh bg)
+//   Navigation (HTML pages) → Network-first (fresh pages always; cache is
+//                             only an offline fallback). NEVER serve a stale
+//                             page while online — stale HTML references old
+//                             JS chunks, which breaks hydration and makes
+//                             navigation appear dead after a deploy.
 //   API / everything else → Network-only (never stale)
 //
 // Install: pre-warm the cache with landing images & nav icons so the first
 // meaningful paint is fast even on slow connections.
 
-const STATIC_CACHE  = 'aurora-static-v4';
-const PAGE_CACHE    = 'aurora-pages-v4';
+const STATIC_CACHE  = 'aurora-static-v5';
+const PAGE_CACHE    = 'aurora-pages-v5';
 
 // Public files to pre-cache at install time (non-hashed, stable paths).
 // /offline.html is always first — it's the fallback for uncached navigation.
@@ -118,29 +122,22 @@ function cacheFirst(request, cacheName) {
   });
 }
 
-// Stale-while-revalidate: return cache immediately (fast), then refresh in bg.
-// Falls back to /offline.html when the page is not cached and network is down.
-function staleWhileRevalidate(request, cacheName) {
-  const fetchAndCache = fetch(request).then((response) => {
+// Network-first: always serve the fresh page while online; the cache is only
+// used as an offline fallback. This guarantees deploys reach users instantly.
+function networkFirst(request, cacheName) {
+  return fetch(request).then((response) => {
     if (response.ok) {
       caches.open(cacheName).then((c) => c.put(request, response.clone()));
     }
     return response;
-  }).catch(() => null);
-
-  return caches.match(request).then((cached) => {
-    // Kick off the network fetch regardless (background update).
-    const networkPromise = fetchAndCache;
-    // If we have a cached copy, return it straight away.
-    if (cached) return cached;
-    // No cache — wait for the network; serve offline page if it fails.
-    return networkPromise.then((r) => {
-      if (r) return r;
+  }).catch(() =>
+    caches.match(request).then((cached) => {
+      if (cached) return cached;
       return caches.match('/offline.html').then(
         (offline) => offline ?? new Response('You are offline', { status: 503, headers: { 'Content-Type': 'text/plain' } })
       );
-    });
-  });
+    })
+  );
 }
 
 // ── Fetch handler ─────────────────────────────────────────────────────────────
@@ -159,7 +156,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (isNavigation(event.request)) {
-    event.respondWith(staleWhileRevalidate(event.request, PAGE_CACHE));
+    event.respondWith(networkFirst(event.request, PAGE_CACHE));
     return;
   }
 
