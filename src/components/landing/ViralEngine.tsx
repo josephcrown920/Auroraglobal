@@ -148,8 +148,13 @@ export function ViralEngine() {
             type="text"
             value={customText}
             onChange={(e) => {
-              setCustomText(e.target.value);
-              if (e.target.value.trim()) setActiveChip("");
+              const val = e.target.value;
+              setCustomText(val);
+              if (val.trim()) {
+                setActiveChip("");
+              } else {
+                setActiveChip(HOOK_CHIPS[0].topic);
+              }
             }}
             placeholder="Or type your own hook topic…"
             maxLength={120}
@@ -186,7 +191,7 @@ export function ViralEngine() {
 
         <Link
           to="/spin"
-          search={{ prompt: navigateTopic }}
+          search={{ prompt: navigateTopic, jobId: undefined }}
           className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-brand to-violet-400 py-4 text-sm font-bold text-white shadow-[0_8px_30px_-8px] shadow-brand/60 transition-transform hover:scale-[1.01] active:scale-[0.99] no-underline"
         >
           Generate all 30 posts
