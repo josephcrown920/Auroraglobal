@@ -15,17 +15,33 @@ import appCss from "../styles.css?url";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import { Toaster } from "@/components/ui/sonner";
 import { usePageViewTracking } from "@/hooks/use-tracking";
-import { AuroraChatbot } from "@/components/AuroraChatbot";
-import { AdminHotkey } from "@/components/AdminHotkey";
-import { SiteImagesProvider } from "@/components/landing/SiteImagesProvider";
-import { MobileNav } from "@/components/MobileNav";
-import { CookieConsentBanner } from "@/components/CookieConsentBanner";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { captureRefFromUrl } from "@/lib/referral";
-import { ReferralAttacher } from "@/components/ReferralAttacher";
 import { ThemeProvider } from "@/lib/theme-context";
 import { initCrashReporting } from "@/lib/crash-reporting";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+
+
+const AuroraChatbot = lazy(() => import("@/components/AuroraChatbot").then((m) => ({ default: m.AuroraChatbot })));
+const AdminHotkey = lazy(() => import("@/components/AdminHotkey").then((m) => ({ default: m.AdminHotkey })));
+const MobileNav = lazy(() => import("@/components/MobileNav").then((m) => ({ default: m.MobileNav })));
+const CookieConsentBanner = lazy(() => import("@/components/CookieConsentBanner").then((m) => ({ default: m.CookieConsentBanner })));
+const ReferralAttacher = lazy(() => import("@/components/ReferralAttacher").then((m) => ({ default: m.ReferralAttacher })));
+const SiteImagesProvider = lazy(() => import("@/components/landing/SiteImagesProvider").then((m) => ({ default: m.SiteImagesProvider })));
+
+function useDeferChrome() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
+    if (w.requestIdleCallback) {
+      const id = w.requestIdleCallback(() => setReady(true), { timeout: 2500 });
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const id = window.setTimeout(() => setReady(true), 1200);
+    return () => window.clearTimeout(id);
+  }, []);
+  return ready;
+}
 
 function NotFoundComponent() {
   return (
@@ -258,6 +274,7 @@ function RootComponent() {
   // self-contained. Its route renders its own slim back-to-Aurora bar.
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isIsolated = pathname === "/nexusarb" || pathname.startsWith("/nexusarb/");
+  const chromeReady = useDeferChrome();
 
   if (isIsolated) {
     // NexusARB stays a self-contained, full-bleed page: no phone frame, no
@@ -267,7 +284,7 @@ function RootComponent() {
       <QueryClientProvider client={queryClient}>
         <Outlet />
         <Toaster />
-        <CookieConsentBanner />
+        {chromeReady ? <Suspense fallback={null}><CookieConsentBanner /></Suspense> : null}
       </QueryClientProvider>
     );
   }
@@ -278,17 +295,29 @@ function RootComponent() {
     <ErrorBoundary>
       <ThemeProvider>
         <QueryClientProvider client={queryClient}>
-          <SiteImagesProvider>
+          {chromeReady ? (
+            <Suspense fallback={<div className="relative min-h-screen w-full overflow-x-hidden bg-background"><Outlet /></div>}>
+              <SiteImagesProvider>
+                <div className="relative min-h-screen w-full overflow-x-hidden bg-background">
+                  <Outlet />
+                </div>
+              </SiteImagesProvider>
+            </Suspense>
+          ) : (
             <div className="relative min-h-screen w-full overflow-x-hidden bg-background">
               <Outlet />
             </div>
-          </SiteImagesProvider>
+          )}
           <Toaster />
-          <AuroraChatbot />
-          <AdminHotkey />
-          <ReferralAttacher />
-          <MobileNav />
-          <CookieConsentBanner />
+          {chromeReady ? (
+            <Suspense fallback={null}>
+              <AuroraChatbot />
+              <AdminHotkey />
+              <ReferralAttacher />
+              <MobileNav />
+              <CookieConsentBanner />
+            </Suspense>
+          ) : null}
         </QueryClientProvider>
       </ThemeProvider>
     </ErrorBoundary>

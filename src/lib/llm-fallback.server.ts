@@ -9,6 +9,8 @@ type Provider = {
   model: string;
 };
 
+export type LlmProviderPreference = "auto" | "anthropic" | "xai" | "openrouter";
+
 function providers(): Provider[] {
   return [
     {
@@ -61,6 +63,17 @@ function providers(): Provider[] {
         }),
     },
     {
+      name: "xai",
+      enabled: !!process.env.XAI_API_KEY,
+      model: "grok-4",
+      make: () =>
+        createOpenAICompatible({
+          name: "xai",
+          baseURL: "https://api.x.ai/v1",
+          headers: { Authorization: `Bearer ${process.env.XAI_API_KEY}` },
+        }),
+    },
+    {
       name: "openrouter",
       enabled: !!process.env.OPENROUTER_API_KEY,
       model: "google/gemini-2.5-flash",
@@ -95,8 +108,15 @@ export async function generateWithFallback<T>(args: {
   // Input type is deliberately loose so schemas with .transform() infer T from
   // their OUTPUT type rather than their raw wire shape.
   schema: z.ZodType<T, z.ZodTypeDef, unknown>;
+  preferredProvider?: LlmProviderPreference;
 }): Promise<FallbackResult<T>> {
-  const chain = providers().filter((p) => p.enabled);
+  const enabledProviders = providers().filter((p) => p.enabled);
+  const preferred = args.preferredProvider && args.preferredProvider !== "auto"
+    ? enabledProviders.filter((p) => p.name === args.preferredProvider)
+    : [];
+  const chain = preferred.length > 0
+    ? [...preferred, ...enabledProviders.filter((p) => p.name !== args.preferredProvider)]
+    : enabledProviders;
   if (chain.length === 0) throw new Error("No LLM provider keys configured");
 
   let lastErr: unknown;

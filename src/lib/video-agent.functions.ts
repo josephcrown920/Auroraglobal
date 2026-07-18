@@ -29,6 +29,7 @@ const EnhanceSchema = z.object({
   /** Optional HeyGen visual style id — appended as a STYLE block at the end of
    *  the video prompt so Video Agent applies a consistent look. */
   styleId: z.string().optional(),
+  directorProvider: z.enum(["auto", "anthropic", "xai", "openrouter"]).optional(),
 });
 
 const ScriptOutputSchema = z.object({
@@ -77,6 +78,7 @@ export const enhanceVideoAgentPrompt = createServerFn({ method: "POST" })
           : " CINEMATIC NARRATION MODE: Write as a confident voiceover narrator — authoritative, evocative, with a sense of place and movement. Use present tense for immediacy. Paint pictures with words."
       }${styleInstruction}\n\nRaw idea or draft:\n${data.prompt}\n\nReturn JSON: {"script": "..."}`,
       schema: ScriptOutputSchema,
+      preferredProvider: data.directorProvider,
     });
     const script = sanitizeVideoAgentScript(output.script);
     if (!script) throw new Error("Enhance produced an empty script — try rewording your idea");

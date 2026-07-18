@@ -37,6 +37,7 @@ export interface EnhanceParams {
   targetSeconds?: number;
   directToCamera?: boolean;
   styleId?: string;
+  directorProvider?: "auto" | "anthropic" | "xai" | "openrouter";
 }
 
 export async function enhanceScript(
