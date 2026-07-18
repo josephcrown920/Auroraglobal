@@ -23,6 +23,7 @@
 - [Aurora single-column layout](aurora-single-column-layout.md) — breakpoints disabled (9990px+) so sm/md/lg never apply; full-screen chrome via .phone-* helpers; landing has a benign hydration warning.
 - [Aurora stacked pricing](pricing-stacked-model.md) — src/lib/pricing.ts is the only cost source (all charge points + UI route through it); flat product rates & MCP tools must derive from computeCost or they drift; `features[]` override must be ADDITIVE.
 - [Flat-app publishing blocked](flat-app-publishing-blocked.md) — flat-root app in PNPM_WORKSPACE mode: agent can't set a deploy run cmd; user sets it in Publish UI or migrate to artifacts/<slug>/.
+- [Publish build heap cap](deploy-build-heap-cap.md) — deploy builder is 4GB (cr-2-4); NODE_OPTIONS heap cap in artifacts/web artifact.toml must track app growth (2048→3072 after July 2026 OOMs).
 - [Worker endpoint normalization](worker-endpoint-normalization.md) — every path appending to a worker endpoint_url (dispatch + health) must normalizeWorkerBase() in lockstep, else `.../generate/generate`.
 - [Credit reservation flow](credit-reservation-flow.md) — all spend goes through reserveOrchestrateRecord; Supabase RPCs resolve {error} (don't throw); commit-fail must NOT release (would refund a delivered render).
 - [Job finalization fence](job-finalization-fence.md) — worker finalize + stale-sweeper must CAS on locked_by+status='processing'; gate ALL finalize writes (incl. success gen-write) on winning, or swept+reclaimed jobs double-finalize.
