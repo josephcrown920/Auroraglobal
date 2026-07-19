@@ -112,7 +112,7 @@ function AuthPage() {
           {mode === "signup" ? "Create account" : "Welcome back"}
         </h1>
         <p className="text-sm text-muted-foreground mb-6">
-          {mode === "signup" ? "Start directing your own studio shoots." : "Sign in to enter the studio."}
+          {mode === "signup" ? "The studio built by pro artists, for artists ready to scale. Start directing your own shoots." : "Sign in to enter the studio."}
         </p>
         <form onSubmit={submit} className="space-y-4">
           {mode === "signup" && (

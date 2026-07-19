@@ -84,9 +84,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Aurora — AI Creative Studio for Artists & Performers" },
       { property: "og:title", content: "Aurora — AI Creative Studio for Artists & Performers" },
       { name: "twitter:title", content: "Aurora — AI Creative Studio for Artists & Performers" },
-      { name: "description", content: "Turn one photo into magazine-grade performance shots, music-video stills, lip-sync videos and UGC ads — in seconds. The AI creative studio built for artists." },
-      { property: "og:description", content: "Turn one photo into magazine-grade performance shots, music-video stills, lip-sync videos and UGC ads — in seconds. The AI creative studio built for artists." },
-      { name: "twitter:description", content: "Turn one photo into magazine-grade performance shots, music-video stills, lip-sync videos and UGC ads — in seconds. The AI creative studio built for artists." },
+      { name: "description", content: "Turn one photo into magazine-grade performance shots, music-video stills, lip-sync videos and UGC ads — in seconds. Built by pro artists, for artists who need to scale massively." },
+      { property: "og:description", content: "Turn one photo into magazine-grade performance shots, music-video stills, lip-sync videos and UGC ads — in seconds. Built by pro artists, for artists who need to scale massively." },
+      { name: "twitter:description", content: "Turn one photo into magazine-grade performance shots, music-video stills, lip-sync videos and UGC ads — in seconds. Built by pro artists, for artists who need to scale massively." },
       { property: "og:image", content: "https://auroraperformancestudio.com/landing-photo-nba-josh.png" },
       { name: "twitter:image", content: "https://auroraperformancestudio.com/landing-photo-nba-josh.png" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -115,7 +115,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           name: "Aurora",
           url: "https://auroraperformancestudio.com",
           description:
-            "AI performance shots, music-video stills, lip-sync clips and UGC ads from a single selfie.",
+            "AI performance shots, music-video stills, lip-sync clips and UGC ads from a single selfie. Built by pro artists, for artists who need to scale massively.",
         }),
       },
       {

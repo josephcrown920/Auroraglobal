@@ -326,7 +326,7 @@ export function MobileNav() {
                 </div>
                 <span className="flex flex-col leading-tight">
                   <span className="text-base font-bold tracking-tight text-foreground">Aurora</span>
-                  <span className="text-[11px] text-muted-foreground font-normal">AI Creative Studio</span>
+                  <span className="text-[11px] text-muted-foreground font-normal">By pro artists, for artists who scale</span>
                 </span>
               </div>
               <WhatsNew />
