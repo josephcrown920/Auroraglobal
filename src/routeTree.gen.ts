@@ -25,6 +25,7 @@ import { Route as RoadmapRouteImport } from './routes/roadmap'
 import { Route as ReshootRouteImport } from './routes/reshoot'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PhotoEditRouteImport } from './routes/photo-edit'
+import { Route as PartnersRouteImport } from './routes/partners'
 import { Route as OrchestrateRouteImport } from './routes/orchestrate'
 import { Route as NexusarbRouteImport } from './routes/nexusarb'
 import { Route as MusicVideoRouteImport } from './routes/music-video'
@@ -178,6 +179,11 @@ const PhotoEditRoute = PhotoEditRouteImport.update({
   path: '/photo-edit',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/photo-edit.lazy').then((d) => d.Route))
+const PartnersRoute = PartnersRouteImport.update({
+  id: '/partners',
+  path: '/partners',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/partners.lazy').then((d) => d.Route))
 const OrchestrateRoute = OrchestrateRouteImport.update({
   id: '/orchestrate',
   path: '/orchestrate',
@@ -321,7 +327,7 @@ const AffiliateRoute = AffiliateRouteImport.update({
   id: '/affiliate',
   path: '/affiliate',
   getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/affiliate.lazy').then((d) => d.Route))
+} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -590,6 +596,7 @@ export interface FileRoutesByFullPath {
   '/music-video': typeof MusicVideoRoute
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
+  '/partners': typeof PartnersRoute
   '/photo-edit': typeof PhotoEditRoute
   '/privacy': typeof PrivacyRoute
   '/reshoot': typeof ReshootRoute
@@ -680,6 +687,7 @@ export interface FileRoutesByTo {
   '/music-video': typeof MusicVideoRoute
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
+  '/partners': typeof PartnersRoute
   '/photo-edit': typeof PhotoEditRoute
   '/privacy': typeof PrivacyRoute
   '/reshoot': typeof ReshootRoute
@@ -771,6 +779,7 @@ export interface FileRoutesById {
   '/music-video': typeof MusicVideoRoute
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
+  '/partners': typeof PartnersRoute
   '/photo-edit': typeof PhotoEditRoute
   '/privacy': typeof PrivacyRoute
   '/reshoot': typeof ReshootRoute
@@ -863,6 +872,7 @@ export interface FileRouteTypes {
     | '/music-video'
     | '/nexusarb'
     | '/orchestrate'
+    | '/partners'
     | '/photo-edit'
     | '/privacy'
     | '/reshoot'
@@ -953,6 +963,7 @@ export interface FileRouteTypes {
     | '/music-video'
     | '/nexusarb'
     | '/orchestrate'
+    | '/partners'
     | '/photo-edit'
     | '/privacy'
     | '/reshoot'
@@ -1043,6 +1054,7 @@ export interface FileRouteTypes {
     | '/music-video'
     | '/nexusarb'
     | '/orchestrate'
+    | '/partners'
     | '/photo-edit'
     | '/privacy'
     | '/reshoot'
@@ -1134,6 +1146,7 @@ export interface RootRouteChildren {
   MusicVideoRoute: typeof MusicVideoRoute
   NexusarbRoute: typeof NexusarbRoute
   OrchestrateRoute: typeof OrchestrateRoute
+  PartnersRoute: typeof PartnersRoute
   PhotoEditRoute: typeof PhotoEditRoute
   PrivacyRoute: typeof PrivacyRoute
   ReshootRoute: typeof ReshootRoute
@@ -1300,6 +1313,13 @@ declare module '@tanstack/react-router' {
       path: '/photo-edit'
       fullPath: '/photo-edit'
       preLoaderRoute: typeof PhotoEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/partners': {
+      id: '/partners'
+      path: '/partners'
+      fullPath: '/partners'
+      preLoaderRoute: typeof PartnersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/orchestrate': {
@@ -1860,6 +1880,7 @@ const rootRouteChildren: RootRouteChildren = {
   MusicVideoRoute: MusicVideoRoute,
   NexusarbRoute: NexusarbRoute,
   OrchestrateRoute: OrchestrateRoute,
+  PartnersRoute: PartnersRoute,
   PhotoEditRoute: PhotoEditRoute,
   PrivacyRoute: PrivacyRoute,
   ReshootRoute: ReshootRoute,

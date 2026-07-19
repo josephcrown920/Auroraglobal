@@ -37,7 +37,7 @@ export function SiteFooter({ tone = "dark" }: { tone?: "dark" | "light" }) {
           <Link to="/reshoot" className={`no-underline ${muted}`}>Multi-Angle Reshoot</Link>
           <Link to="/gallery" className={`no-underline ${muted}`}>Gallery</Link>
           <Link to="/gifts" className={`no-underline ${muted}`}>Gift cards</Link>
-          <Link to="/affiliate" className={`no-underline ${muted}`}>Affiliate</Link>
+          <Link to="/partners" className={`no-underline ${muted}`}>Partners</Link>
           <Link to="/contact" className={`no-underline ${muted}`}>Contact</Link>
           <Link to="/legal/$slug" params={{ slug: "terms" }} className={`no-underline ${muted}`}>Terms</Link>
           <Link to="/legal/$slug" params={{ slug: "privacy" }} className={`no-underline ${muted}`}>Privacy</Link>
