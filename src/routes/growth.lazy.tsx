@@ -85,7 +85,7 @@ function ProGate({ cost, children }: { cost: number; children: React.ReactNode }
           <span className="text-sm font-medium text-primary">Pro Feature</span>
         </div>
         <p className="text-sm text-muted-foreground text-center max-w-xs px-4">
-          Upgrade to Pro to unlock all Artist Growth Tools and 200 Aura/month.
+          Upgrade to Pro to unlock all Artist Growth Tools and 2,000 Aura/month.
         </p>
         <Link to="/billing">
           <Button variant="default" size="sm" className="gap-2">

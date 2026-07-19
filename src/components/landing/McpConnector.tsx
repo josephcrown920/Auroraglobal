@@ -159,7 +159,7 @@ export function McpConnector() {
               ))}
             </div>
             <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              8 images · 60 Aura · ~38s
+              8 images · 600 Aura · ~38s
             </p>
           </div>
         </div>
@@ -240,7 +240,7 @@ export function McpConnector() {
                 </span>
               </div>
               <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-emerald-400/80">
-                ✓ 50 Aura
+                ✓ 500 Aura
               </p>
             </div>
           </div>

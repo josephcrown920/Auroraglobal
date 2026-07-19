@@ -18,7 +18,7 @@ export function AffiliateRewardSection() {
           </p>
 
           <ul className="mt-6 grid gap-3 text-sm text-white/80">
-            <Reward icon={<Coins className="size-4" />} title="+5 Aura" body="instantly, for every new creator who signs up with your link." />
+            <Reward icon={<Coins className="size-4" />} title="+50 Aura" body="instantly, for every new creator who signs up with your link." />
             <Reward icon={<Gift className="size-4" />} title="+20 bonus Aura" body="when your referral makes their first paid purchase." />
             <Reward icon={<Users className="size-4" />} title="Referral Tiers" body="Unlock higher daily rendering limits as your referral network grows." />
           </ul>

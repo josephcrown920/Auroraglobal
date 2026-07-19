@@ -363,7 +363,7 @@ function UGCStudio() {
               ) : (
                 <>
                   <Button onClick={() => imageMut.mutate()} disabled={busy} variant="premium" className="w-full sm:w-auto">
-                    {imageMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting…</> : <><Wand2 className="size-4 mr-2" /> Generate UGC shot · 1 Aura</>}
+                    {imageMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting…</> : <><Wand2 className="size-4 mr-2" /> Generate UGC shot · 10 Aura</>}
                   </Button>
                   <Button onClick={() => videoMut.mutate()} disabled={busy || !resultImage} variant="outline" className="w-full sm:w-auto">
                     {videoMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Animating…</> : <><Film className="size-4 mr-2" /> Animate · {computeCost({ features: ["video"], model: "seedance-2.0-fast", resolution: "720p", durationSeconds: 5 }).total} Aura</>}

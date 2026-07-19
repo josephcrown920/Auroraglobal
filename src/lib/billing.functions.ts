@@ -91,7 +91,7 @@ export const setDailySpendLimit = createServerFn({ method: "POST" })
 /** One-time reward for finishing the onboarding vibe+selfie flow — enforced
  * server-side via claim_onboarding_bonus (CAS on profiles.onboarding_bonus_granted)
  * so a retried client call can never double-grant. */
-export const ONBOARDING_BONUS_AURA = 3;
+export const ONBOARDING_BONUS_AURA = 30;
 
 export const claimOnboardingBonus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -233,7 +233,7 @@ async function getOrCreateProPlan(key: string): Promise<string> {
       interval: "monthly",
       amount: tier.price_amount_minor,
       currency: "USD",
-      description: "Aurora Pro — no watermark, priority queue, 200 Aura/month",
+      description: "Aurora Pro — no watermark, priority queue, 2,000 Aura/month",
     }),
   });
   const json = await res.json() as { status: boolean; data: { plan_code: string } };

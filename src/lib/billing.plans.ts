@@ -15,17 +15,18 @@ export const CURRENCY_SYMBOLS: Record<Currency, string> = {
 //
 // Day passes sit outside the regular credit-pack tiers — they are short-term
 // affordable entry points priced slightly above the Starter rate per Aura
-// ($0.133–$0.14 vs $0.125) to reflect the smaller commitment. When purchased
+// ($0.0133–$0.014 vs $0.0125 after the 2026-07-19 ×10 rebase) to reflect the
+// smaller commitment. When purchased
 // the webhook auto-sets the buyer's daily_spend_limit to `daily_limit` Aura
 // so they naturally spread usage across the pass duration.
 export const PLANS = {
-  /** 1-Day Pass — 15 Aura. Auto-sets 15 Aura/day daily limit on purchase. */
+  /** 1-Day Pass — 150 Aura. Auto-sets 150 Aura/day daily limit on purchase. */
   day1: {
-    credits: 15,
-    label: "1-Day Pass — 15 Aura",
+    credits: 150,
+    label: "1-Day Pass — 150 Aura",
     usd: 2,
     /** Auto-applied daily_spend_limit (Aura/day) when this pass is purchased. */
-    daily_limit: 15,
+    daily_limit: 150,
     prices: {
       USD: { amount_minor: 2_00,        display: "$2" },
       NGN: { amount_minor: 2_000_00,    display: "₦2,000" },
@@ -35,13 +36,13 @@ export const PLANS = {
       EGP: { amount_minor: 64_00,       display: "EGP 64" },
     } as Record<Currency, { amount_minor: number; display: string }>,
   },
-  /** 2-Day Pass — 25 Aura. Auto-sets 13 Aura/day daily limit on purchase. */
+  /** 2-Day Pass — 250 Aura. Auto-sets 130 Aura/day daily limit on purchase. */
   day2: {
-    credits: 25,
-    label: "2-Day Pass — 25 Aura",
+    credits: 250,
+    label: "2-Day Pass — 250 Aura",
     usd: 3.5,
     /** Auto-applied daily_spend_limit (Aura/day) when this pass is purchased. */
-    daily_limit: 13,
+    daily_limit: 130,
     prices: {
       USD: { amount_minor: 3_50,        display: "$3.50" },
       NGN: { amount_minor: 3_400_00,    display: "₦3,400" },
@@ -52,8 +53,8 @@ export const PLANS = {
     } as Record<Currency, { amount_minor: number; display: string }>,
   },
   starter: {
-    credits: 80,
-    label: "Starter — 80 Aura",
+    credits: 800,
+    label: "Starter — 800 Aura",
     usd: 10,
     prices: {
       USD: { amount_minor: 10_00,       display: "$10" },
@@ -65,8 +66,8 @@ export const PLANS = {
     } as Record<Currency, { amount_minor: number; display: string }>,
   },
   creator: {
-    credits: 240,
-    label: "Creator — 240 Aura",
+    credits: 2400,
+    label: "Creator — 2,400 Aura",
     usd: 30,
     prices: {
       USD: { amount_minor: 30_00,       display: "$30" },
@@ -78,8 +79,8 @@ export const PLANS = {
     } as Record<Currency, { amount_minor: number; display: string }>,
   },
   studio: {
-    credits: 640,
-    label: "Studio — 640 Aura",
+    credits: 6400,
+    label: "Studio — 6,400 Aura",
     usd: 80,
     prices: {
       USD: { amount_minor: 80_00,       display: "$80" },
@@ -97,10 +98,11 @@ export type PlanKey = keyof typeof PLANS;
 export function perCreditDisplay(plan: PlanKey, currency: Currency = "USD"): string {
   const p = PLANS[plan];
   const price = p.prices[currency];
-  if (!price) return `$${(p.usd / p.credits).toFixed(3)} / Aura`;
+  if (!price) return `$${(p.usd / p.credits).toFixed(4)} / Aura`;
   const sym = CURRENCY_SYMBOLS[currency];
   const amount = price.amount_minor / 100;
-  return `${sym}${(amount / p.credits).toFixed(currency === "NGN" ? 0 : 2)} / Aura`;
+  // Post-rebase, per-Aura rates are sub-cent — show enough decimals to be honest.
+  return `${sym}${(amount / p.credits).toFixed(currency === "NGN" ? 2 : 3)} / Aura`;
 }
 
 // ── Subscription tiers ────────────────────────────────────────────────────────
@@ -123,7 +125,7 @@ export const PRO_GEO_PRICES: Record<Currency, { amount_minor: number; display: s
 export const SUBSCRIPTION_TIERS = {
   free: {
     label: "Starter",
-    monthly_aura: 20,
+    monthly_aura: 200,
     price_usd: 0,
     price_display: "Starter",
     price_amount_minor: 0,
@@ -131,7 +133,7 @@ export const SUBSCRIPTION_TIERS = {
     queue_priority: 0,
     premium_templates: false,
     features: [
-      "20 Aura / month",
+      "200 Aura / month",
       "All generation types",
       "Permanent gallery",
       "Canvas pipeline editor",
@@ -145,7 +147,7 @@ export const SUBSCRIPTION_TIERS = {
   },
   pro: {
     label: "Pro",
-    monthly_aura: 200,
+    monthly_aura: 2000,
     price_usd: 15,
     price_display: "$15 / month",
     price_amount_minor: 15_00,
@@ -153,7 +155,7 @@ export const SUBSCRIPTION_TIERS = {
     queue_priority: 10,
     premium_templates: true,
     features: [
-      "200 Aura / month",
+      "2,000 Aura / month",
       "No watermark on exports",
       "Priority queue — faster generations",
       "All premium templates unlocked",

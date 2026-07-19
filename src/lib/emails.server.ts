@@ -91,7 +91,7 @@ function subjectFor(template: string, data: Record<string, unknown>): string {
   switch (template) {
     case "welcome-5-credits":
     case "signup_welcome":
-      return "Welcome to Aurora — 5 free Aura are waiting for you";
+      return "Welcome to Aurora — 50 free Aura are waiting for you";
     case "first_generation_complete":
       return "Your first Aurora creation is ready";
     case "daily_tip":
@@ -219,7 +219,7 @@ function renderTemplate(template: string, data: Record<string, unknown>): string
     case "signup_welcome":
       return shell(
         name,
-        p(`You're in. ${hl("5 free Aura credits")} just landed in your balance — enough for 2 portrait shots, 1 lip-sync video, or a full UGC ad.`) +
+        p(`You're in. ${hl("50 free Aura credits")} just landed in your balance — enough for a few portrait shots or your first lip-sync video.`) +
         p(`Head to your Studio and make your first creation. The first one always hits different.`),
         "Open My Studio",
         STUDIO_URL,
@@ -262,7 +262,7 @@ function renderTemplate(template: string, data: Record<string, unknown>): string
       return shell(
         name,
         p(`You've got ${hl(String(Number(data.creditsRemaining ?? 0)))} Aura left. That's enough for another generation or two — but top up now to keep your streak going.`) +
-        p(`The cheapest pack is 50 Aura for a few dollars. Don't let a low balance break your momentum.`),
+        p(`The cheapest top-up starts at 150 Aura for a couple of dollars. Don't let a low balance break your momentum.`),
         "Top Up Aura",
         `${SITE}/billing`,
       );
@@ -413,7 +413,7 @@ export async function sendLowCreditNudge(userId: string) {
     .select("email, display_name, credits")
     .eq("user_id", userId)
     .maybeSingle();
-  if (!user?.email || !user.credits || user.credits > 5) return;
+  if (!user?.email || !user.credits || user.credits > 50) return;
   return sendEmail({
     to: user.email,
     template: "low-credit-nudge",

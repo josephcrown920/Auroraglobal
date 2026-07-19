@@ -9,20 +9,20 @@ export const Route = createFileRoute("/")({
 });
 
 const SERVICES = [
-  { label: "Image Generation", desc: "Studio portraits, covers & promo shots from a selfie and a prompt.",         to: "/studio",       icon: Sparkles,    price: "1 Aura",       img: "/nav-previews/studio.jpg" },
-  { label: "Colors Studio",    desc: "Direct your color palette across cyclorama, indoor & rooftop sets.",         to: "/colors",       icon: Palette,     price: "1 Aura",       img: "/nav-previews/colors.jpg" },
-  { label: "Canvas",           desc: "Visual director workspace — compose scenes, layers & live previews.",        to: "/canvas",       icon: Layers,      price: "From 1 Aura",  img: "/nav-previews/canvas.jpg" },
-  { label: "Motion Control",   desc: "Transfer your 30-second real performance into an AI-generated scene.",       to: "/motion",       icon: Wand2,       price: "From 30 Aura", img: "/nav-previews/motion.jpg" },
-  { label: "Lip Sync",         desc: "Frame-accurate sync in 8+ languages using Sync 1.9.",                       to: "/lipsync",      icon: Mic,         price: "3 Aura",       img: "/nav-previews/lipsync.jpg" },
-  { label: "Lyric Video",      desc: "Full lyric-video renders timed to your audio track.",                       to: "/music-video",  icon: Clapperboard,price: "5 Aura",       img: "/nav-previews/music-video.jpg" },
-  { label: "Photo Editor",     desc: "AI-powered edits: relight, restyle, inpaint & upscale.",                    to: "/photo-edit",   icon: Brush,       price: "1 Aura",       img: "/nav-previews/photo-edit.jpg" },
-  { label: "UGC Ads",          desc: "Talent + product → looping social ad in minutes.",                          to: "/ugc",          icon: Megaphone,   price: "From 1 Aura",  img: "/nav-previews/ugc.jpg" },
-  { label: "Talking Avatars",  desc: "Upload a photo, write a script, get a studio-quality talking-head video.",  to: "/avatar",       icon: UserCircle2, price: "From 3 Aura",  img: "/nav-previews/avatar.jpg" },
-  { label: "Live Studios",     desc: "Real-time creative sessions with dynamic scene generation.",                 to: "/live-studio",  icon: Music2,      price: "From 1 Aura",  img: "/nav-previews/live-studio.jpg" },
-  { label: "Content Line",     desc: "Full UGC ad script arcs, creator avatars & visual variations.",             to: "/ugc-line",     icon: Film,        price: "From 1 Aura",  img: "/nav-previews/ugc-line.jpg" },
-  { label: "TikTok 30",        desc: "30-second viral TikTok packs — spin, animate, caption, ship.",              to: "/spin",         icon: Flame,       price: "From 1 Aura",  img: "/nav-previews/spin.jpg" },
-  { label: "Scene Builder",    desc: "Composite AI scenes from layers: backdrop, talent, product, VFX.",          to: "/scene-builder",icon: Workflow,    price: "From 1 Aura",  img: "/nav-previews/scene-builder.jpg" },
-  { label: "Video Agent",      desc: "AI-directed talking-head videos with script enhancement & HeyGen rendering.",to: "/agent",        icon: Bot,         price: "From 3 Aura",  img: "/nav-previews/video-agent.jpg" },
+  { label: "Image Generation", desc: "Studio portraits, covers & promo shots from a selfie and a prompt.",         to: "/studio",       icon: Sparkles,    price: "10 Aura",       img: "/nav-previews/studio.jpg" },
+  { label: "Colors Studio",    desc: "Direct your color palette across cyclorama, indoor & rooftop sets.",         to: "/colors",       icon: Palette,     price: "10 Aura",       img: "/nav-previews/colors.jpg" },
+  { label: "Canvas",           desc: "Visual director workspace — compose scenes, layers & live previews.",        to: "/canvas",       icon: Layers,      price: "From 10 Aura",  img: "/nav-previews/canvas.jpg" },
+  { label: "Motion Control",   desc: "Transfer your 30-second real performance into an AI-generated scene.",       to: "/motion",       icon: Wand2,       price: "From 300 Aura", img: "/nav-previews/motion.jpg" },
+  { label: "Lip Sync",         desc: "Frame-accurate sync in 8+ languages using Sync 1.9.",                       to: "/lipsync",      icon: Mic,         price: "30 Aura",       img: "/nav-previews/lipsync.jpg" },
+  { label: "Lyric Video",      desc: "Full lyric-video renders timed to your audio track.",                       to: "/music-video",  icon: Clapperboard,price: "50 Aura",       img: "/nav-previews/music-video.jpg" },
+  { label: "Photo Editor",     desc: "AI-powered edits: relight, restyle, inpaint & upscale.",                    to: "/photo-edit",   icon: Brush,       price: "10 Aura",       img: "/nav-previews/photo-edit.jpg" },
+  { label: "UGC Ads",          desc: "Talent + product → looping social ad in minutes.",                          to: "/ugc",          icon: Megaphone,   price: "From 10 Aura",  img: "/nav-previews/ugc.jpg" },
+  { label: "Talking Avatars",  desc: "Upload a photo, write a script, get a studio-quality talking-head video.",  to: "/avatar",       icon: UserCircle2, price: "From 30 Aura",  img: "/nav-previews/avatar.jpg" },
+  { label: "Live Studios",     desc: "Real-time creative sessions with dynamic scene generation.",                 to: "/live-studio",  icon: Music2,      price: "From 10 Aura",  img: "/nav-previews/live-studio.jpg" },
+  { label: "Content Line",     desc: "Full UGC ad script arcs, creator avatars & visual variations.",             to: "/ugc-line",     icon: Film,        price: "From 10 Aura",  img: "/nav-previews/ugc-line.jpg" },
+  { label: "TikTok 30",        desc: "30-second viral TikTok packs — spin, animate, caption, ship.",              to: "/spin",         icon: Flame,       price: "From 10 Aura",  img: "/nav-previews/spin.jpg" },
+  { label: "Scene Builder",    desc: "Composite AI scenes from layers: backdrop, talent, product, VFX.",          to: "/scene-builder",icon: Workflow,    price: "From 10 Aura",  img: "/nav-previews/scene-builder.jpg" },
+  { label: "Video Agent",      desc: "AI-directed talking-head videos with script enhancement & HeyGen rendering.",to: "/agent",        icon: Bot,         price: "From 30 Aura",  img: "/nav-previews/video-agent.jpg" },
 ];
 
 const TICKER_ITEMS = [
@@ -244,7 +244,7 @@ function LandingPage() {
             <span className="font-serif italic">Pay only for what you make.</span>
           </h2>
           <p className="mt-3 text-sm text-zinc-400 max-w-[40ch] leading-relaxed">
-            Every feature is credit-based. No subscriptions required to start — 5 free Aura on signup.
+            Every feature is credit-based. No subscriptions required to start — 50 free Aura on signup.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -369,7 +369,7 @@ function LandingPage() {
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500 mb-1">Starter</p>
                 <p className="text-3xl font-semibold text-zinc-100">Free</p>
-                <p className="text-sm text-zinc-500 mt-1">5 Aura on signup · 20 Aura / month</p>
+                <p className="text-sm text-zinc-500 mt-1">50 Aura on signup · 200 Aura / month</p>
               </div>
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/5 ring-1 ring-white/10">
                 <Zap className="size-5 text-zinc-400" />
@@ -405,7 +405,7 @@ function LandingPage() {
                   <p className="text-3xl font-semibold text-zinc-100">$15</p>
                   <p className="text-sm text-zinc-500">/ month</p>
                 </div>
-                <p className="text-sm text-zinc-500 mt-1">200 Aura included monthly</p>
+                <p className="text-sm text-zinc-500 mt-1">2,000 Aura included monthly</p>
               </div>
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand/15 ring-1 ring-brand/30">
                 <Crown className="size-5 text-brand" />
@@ -413,7 +413,7 @@ function LandingPage() {
             </div>
             <ul className="flex flex-col gap-2 mb-6">
               {[
-                "200 Aura / month included",
+                "2,000 Aura / month included",
                 "No watermark on exports",
                 "Priority queue — faster renders",
                 "All premium templates unlocked",
@@ -443,9 +443,9 @@ function LandingPage() {
           </p>
           <div className="flex flex-col gap-3">
             {([
-              { label: "Starter",  aura: 80,  usd: "$10",  per: "$0.13 / Aura", popular: false },
-              { label: "Creator",  aura: 240, usd: "$30",  per: "$0.13 / Aura", popular: true },
-              { label: "Studio",   aura: 640, usd: "$80",  per: "$0.13 / Aura", popular: false },
+              { label: "Starter",  aura: 800,  usd: "$10",  per: "$0.013 / Aura", popular: false },
+              { label: "Creator",  aura: 2400, usd: "$30",  per: "$0.013 / Aura", popular: true },
+              { label: "Studio",   aura: 6400, usd: "$80",  per: "$0.013 / Aura", popular: false },
             ]).map((p) => (
               <Link
                 key={p.label}
@@ -478,7 +478,7 @@ function LandingPage() {
           <Link to={user ? "/billing" : ctaTo} className="text-zinc-400 hover:text-brand underline underline-offset-2 transition-colors">
             Day passes from $2
           </Link>
-          {" "}· 15 Aura · no commitment.
+          {" "}· 150 Aura · no commitment.
         </p>
       </section>
 

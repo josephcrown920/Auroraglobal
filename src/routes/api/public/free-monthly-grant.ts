@@ -1,5 +1,5 @@
 /**
- * Cron endpoint: grant 20 Aura to every Free-tier user for the current month.
+ * Cron endpoint: grant 200 Aura to every Free-tier user for the current month.
  * Authenticated by a timing-safe comparison against SUPABASE_SERVICE_ROLE_KEY
  * (private; NOT the public anon key).  Month is never caller-controlled —
  * the RPC always uses the current month from the database clock.

@@ -31,10 +31,10 @@ import {
   type SpinMode,
 } from "./spin-engine";
 
-// 1 Aura per spin piece — shared client-safe constant (also drives the cost
+// 10 Aura per spin piece — shared client-safe constant (also drives the cost
 // labels on /spin and the template cards). Charged upfront for all SPIN_COUNT
 // pieces before the job is created; each successful render reuses that upfront
-// charge (no second reservation), and each FAILED render refunds its 1 Aura,
+// charge (no second reservation), and each FAILED render refunds its 10 Aura,
 // so the batch never over-charges.
 const COST_SPIN_PIECE = SPIN_PIECE_COST;
 
@@ -623,7 +623,7 @@ async function renderSpinPiece(
 // Picks up to `batch` queued variants, renders each as a real identity-locked
 // image (varied scene) via the orchestrator, persists it to the studio bucket
 // (provider URLs expire), and records a generations row for cost accounting.
-// One bad render only errors THAT variant (and refunds its 1 Aura) — never the
+// One bad render only errors THAT variant (and refunds its 10 Aura) — never the
 // whole batch. The client calls this on an interval until the job is done.
 export const tickSpinJob = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

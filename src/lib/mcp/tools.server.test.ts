@@ -237,16 +237,16 @@ describe("animateFromDrivingVideoTool (motion, priced via computeCost)", () => {
     driving_video_url: `${TRUSTED_HOST}drive.mp4`,
   };
 
-  it("reserves _kind=motion at the Transfer Motion price (30) when a motion worker is online", async () => {
+  it("reserves _kind=motion at the Transfer Motion price (300) when a motion worker is online", async () => {
     const { deps, rpcCalls } = makeDeps({ hasActiveWorkerForKind: async () => true });
     const res = await animateFromDrivingVideoTool(ARGS, CTX, deps);
     // Must equal the in-app Transfer Motion price at the 5s/720p reference.
     expect(parse(res).credits).toBe(computeCost({ features: ["motion"] }).total);
-    expect(parse(res).credits).toBe(30);
+    expect(parse(res).credits).toBe(300);
     const reserves = reserveCalls(rpcCalls);
     expect(reserves).toHaveLength(1);
     expect(reserves[0].args._kind).toBe("motion");
-    expect(reserves[0].args._amount).toBe(30);
+    expect(reserves[0].args._amount).toBe(300);
   });
 
   it("fails BEFORE reserving when no motion-capable worker is connected", async () => {
@@ -274,16 +274,16 @@ describe("performanceReskinTool (performance_reskin, priced via computeCost)", (
     avatar_image_url: `${TRUSTED_HOST}avatar.png`,
   };
 
-  it("reserves _kind=performance_reskin at the Performance Shot price (40) when a motion worker is online", async () => {
+  it("reserves _kind=performance_reskin at the Performance Shot price (400) when a motion worker is online", async () => {
     const { deps, rpcCalls } = makeDeps({ hasActiveWorkerForKind: async () => true });
     const res = await performanceReskinTool(ARGS, CTX, deps);
     // Must equal the in-app Performance Shot price (video + motion, 5s/720p).
     expect(parse(res).credits).toBe(computeCost({ features: ["video", "motion"] }).total);
-    expect(parse(res).credits).toBe(40);
+    expect(parse(res).credits).toBe(400);
     const reserves = reserveCalls(rpcCalls);
     expect(reserves).toHaveLength(1);
     expect(reserves[0].args._kind).toBe("performance_reskin");
-    expect(reserves[0].args._amount).toBe(40);
+    expect(reserves[0].args._amount).toBe(400);
   });
 
   it("fails BEFORE reserving when no motion-capable worker is connected", async () => {

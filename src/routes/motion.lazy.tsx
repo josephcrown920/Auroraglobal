@@ -1106,7 +1106,7 @@ function MotionStudio() {
                   variant="premium"
                   className="flex-1 h-12"
                 >
-                  {stageMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Staging…</> : <><Wand2 className="size-4 mr-2" /> {imageError ? "Retry pose" : stagedImage ? "Re-stage" : "Stage pose · 1 Aura"}</>}
+                  {stageMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Staging…</> : <><Wand2 className="size-4 mr-2" /> {imageError ? "Retry pose" : stagedImage ? "Re-stage" : "Stage pose · 10 Aura"}</>}
                 </Button>
                 <Button
                   disabled={animateMut.isPending || (!stagedImage && !startFrame)}

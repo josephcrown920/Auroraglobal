@@ -129,7 +129,7 @@ const RETRY_BACKOFF_MAX_DOUBLINGS = 6; // base * 2^6 = 32m → clamped by the ca
 // against the (rare) chance of a duplicate provider call.
 export const STALE_PROCESSING_SECONDS = 15 * 60; // 15m
 
-// Motion Transfer (30 Aura) and Performance Shot (48 Aura) reserve a much
+// Motion Transfer (300 Aura) and Performance Shot (480 Aura) reserve a much
 // bigger charge than most job kinds. Waiting out the full 15-minute global
 // stale-processing window before releasing that reservation is a real cost to
 // a user whose job never reached a worker (queue full / worker dropped it
