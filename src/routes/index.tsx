@@ -81,7 +81,7 @@ function usePwaInstall() {
 function LandingPage() {
   const { user } = useAuth();
   const ctaTo = user ? "/studio" : "/auth";
-  const ctaLabel = user ? "Open Studio" : "Start creating free";
+  const ctaLabel = user ? "Open Studio" : "Start Creating";
   const { canInstall, install } = usePwaInstall();
 
   return (
@@ -126,7 +126,7 @@ function LandingPage() {
                   className="inline-flex items-center rounded-full bg-zinc-100 py-2 pl-2 pr-3 text-sm font-semibold text-zinc-950 transition-transform hover:scale-[1.02] active:scale-95"
                 >
                   <Plus className="size-4 mr-1.5 shrink-0" strokeWidth={2.5} />
-                  Start free
+                  Start Creating
                 </Link>
               </>
             )}
@@ -173,7 +173,7 @@ function LandingPage() {
               {ctaLabel}
             </Link>
             <span className="text-xs font-medium tracking-widest uppercase text-zinc-500">
-              No credit card · 5 free credits on signup
+              Includes complimentary credits · No credit card required
             </span>
           </div>
         </div>
