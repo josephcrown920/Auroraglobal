@@ -160,9 +160,9 @@ function LandingPage() {
             <span className="font-serif italic text-zinc-100">visual identity.</span>
           </h1>
           <p className="mt-5 max-w-[36ch] text-base leading-relaxed text-zinc-300">
-            The AI performance studio built by artists, for artists. Drop your references,
-            write your direction, and generate studio-grade covers, promo shots, and cinematic
-            reels — in seconds, not weeks.
+            The AI performance studio built by pro artists, for artists who need to scale
+            massively. Drop your references, write your direction, and generate studio-grade
+            covers, promo shots, and cinematic reels — in seconds, not weeks.
           </p>
           <div className="mt-8 flex flex-col gap-3">
             <Link
@@ -506,7 +506,8 @@ function LandingPage() {
           <span className="text-lg font-semibold tracking-tighter uppercase italic">Aurora</span>
         </div>
         <p className="text-sm text-zinc-500 mb-10">
-          The performance studio for the algorithmic age. Build your world with intent.
+          Built by pro artists, for artists scaling massively. The performance studio for
+          the algorithmic age.
         </p>
         <div className="grid grid-cols-3 gap-6 mb-10">
           <FooterCol
@@ -535,7 +536,7 @@ function LandingPage() {
           />
         </div>
         <div className="border-t border-white/5 pt-6 text-xs text-zinc-600">
-          © {new Date().getFullYear()} Aurora Performance Studio. Built for the artist.
+          © {new Date().getFullYear()} Aurora Performance Studio. Built by pro artists, for artists who scale.
         </div>
       </footer>
 
