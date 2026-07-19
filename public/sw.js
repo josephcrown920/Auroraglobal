@@ -66,11 +66,11 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(STATIC_CACHE)
       .then((cache) =>
-        cache.addAll(
+        Promise.all(
           PRECACHE_ASSETS.map((url) =>
-            new Request(url, { cache: 'reload' })
+            cache.add(new Request(url, { cache: 'reload' })).catch(() => {})
           )
-        ).catch(() => {})
+        )
       )
       .then(() => self.skipWaiting())
   );
@@ -115,7 +115,8 @@ function cacheFirst(request, cacheName) {
     if (cached) return cached;
     return fetch(request).then((response) => {
       if (response.ok || response.type === 'opaque') {
-        caches.open(cacheName).then((c) => c.put(request, response.clone()));
+        const copy = response.clone();
+        caches.open(cacheName).then((c) => c.put(request, copy)).catch(() => {});
       }
       return response;
     }).catch(() => cached ?? new Response('', { status: 503, statusText: 'Offline' }));
@@ -127,7 +128,8 @@ function cacheFirst(request, cacheName) {
 function networkFirst(request, cacheName) {
   return fetch(request).then((response) => {
     if (response.ok) {
-      caches.open(cacheName).then((c) => c.put(request, response.clone()));
+      const copy = response.clone();
+      caches.open(cacheName).then((c) => c.put(request, copy)).catch(() => {});
     }
     return response;
   }).catch(() =>
