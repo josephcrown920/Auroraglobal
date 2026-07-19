@@ -70,7 +70,7 @@ const ACCOUNT_FEATURES: Feature[] = [
   { to: "/gallery",           label: "Gallery",        icon: Images },
   { to: "/creator/dashboard", label: "Creator Hub",    icon: TrendingUp },
   { to: "/billing",           label: "Plan & Billing", icon: CreditCard },
-  { to: "/affiliate",         label: "Affiliate",      icon: Users },
+  { to: "/partners",          label: "Earn Free Aura", icon: Users },
   { to: "/admin",             label: "Admin",          icon: Shield },
 ];
 

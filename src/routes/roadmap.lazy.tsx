@@ -1,3 +1,4 @@
+import { PARTNER_COMMISSION_PCT } from "@/lib/partners";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import {
   Sparkles, Film, Palette, Wand2, Mic, Workflow, Clapperboard, Bot,
@@ -183,11 +184,11 @@ const ITEMS: RoadmapItem[] = [
     status: "planned",
   },
   {
-    label: "Affiliate Program",
-    description: "Earn Aura credits for every creator you refer.",
+    label: "Aurora Partners",
+    description: `Earn ${PARTNER_COMMISSION_PCT}% recurring commission plus free Aura for every creator you refer.`,
     icon: Users,
-    to: "/affiliate",
-    status: "planned",
+    to: "/partners",
+    status: "live",
   },
   {
     label: "Gifts",

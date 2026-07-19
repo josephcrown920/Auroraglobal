@@ -1,5 +1,6 @@
 import { Gift, Share2, ArrowRight } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { PARTNER_COMMISSION_PCT, REFERRAL_AURA_EACH } from "@/lib/partners";
 
 export function ReferralBlock() {
   return (
@@ -23,17 +24,17 @@ export function ReferralBlock() {
 
         <div className="rounded-3xl border border-emerald-400/30 bg-gradient-to-br from-emerald-500/15 via-teal-500/10 to-transparent p-6 md:p-8">
           <span className="inline-flex items-center gap-1.5 text-xs text-emerald-200 border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 rounded-full">
-            <Share2 className="size-3" /> Affiliate
+            <Share2 className="size-3" /> Aurora Partners
           </span>
-          <h3 className="text-2xl font-semibold mt-3 leading-tight">Share Aurora. Earn 20% for life.</h3>
+          <h3 className="text-2xl font-semibold mt-3 leading-tight">Share Aurora. Earn {PARTNER_COMMISSION_PCT}% for life.</h3>
           <p className="text-white/65 text-sm mt-2">
-            Get your link in 30 seconds. Every Aura pack your audience buys pays you 20% — recurring, no cap, paid monthly.
+            Every Aura pack your audience buys pays you {PARTNER_COMMISSION_PCT}% — recurring, no cap, paid monthly. Plus you both get +{REFERRAL_AURA_EACH} Aura on every signup.
           </p>
           <Link
-            to="/affiliate"
+            to="/partners"
             className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-400 text-emerald-950 text-sm font-semibold hover:bg-emerald-300 no-underline"
           >
-            Become an affiliate <ArrowRight className="size-3.5" />
+            Become a Partner <ArrowRight className="size-3.5" />
           </Link>
         </div>
       </div>

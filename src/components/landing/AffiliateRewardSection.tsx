@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import { Gift, Coins, Users } from "lucide-react";
+import { Gift, Coins, Star } from "lucide-react";
+import { PARTNER_COMMISSION_PCT, REFERRAL_AURA_EACH } from "@/lib/partners";
 
 export function AffiliateRewardSection() {
   return (
@@ -8,24 +9,24 @@ export function AffiliateRewardSection() {
       <div className="relative grid gap-10 px-6 py-14 md:grid-cols-[1.1fr_0.9fr] md:px-12 md:py-20 md:items-center">
         <div>
           <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-emerald-200">
-            <Gift className="size-3.5" /> Affiliate rewards
+            <Gift className="size-3.5" /> Aurora Partners
           </span>
           <h2 className="mt-5 text-3xl font-bold tracking-tight text-white md:text-5xl">
             Get rewarded for growing the <em className="not-italic bg-gradient-to-r from-emerald-300 to-cyan-300 bg-clip-text text-transparent">Aurora</em> community.
           </h2>
           <p className="mt-4 max-w-xl text-base leading-7 text-white/70 md:text-lg">
-            Share your custom referral link, onboard other creators, and stack bonus Aura to power your next viral hit.
+            Share your personal link, onboard other creators, and stack free Aura to power your next viral hit.
           </p>
 
           <ul className="mt-6 grid gap-3 text-sm text-white/80">
-            <Reward icon={<Coins className="size-4" />} title="+50 Aura" body="instantly, for every new creator who signs up with your link." />
-            <Reward icon={<Gift className="size-4" />} title="+20 bonus Aura" body="when your referral makes their first paid purchase." />
-            <Reward icon={<Users className="size-4" />} title="Referral Tiers" body="Unlock higher daily rendering limits as your referral network grows." />
+            <Reward icon={<Coins className="size-4" />} title={`+${REFERRAL_AURA_EACH} Aura for you both`} body="instantly, every time a friend signs up with your link." />
+            <Reward icon={<Gift className="size-4" />} title={`${PARTNER_COMMISSION_PCT}% recurring commission`} body="on every Aura purchase your referrals make — no cap, paid monthly." />
+            <Reward icon={<Star className="size-4" />} title="Partner perks" body="early access to new features and your best videos featured on Aurora." />
           </ul>
 
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link to="/affiliate" className="inline-flex items-center gap-2 rounded-full bg-emerald-300 px-6 py-3 text-sm font-bold text-emerald-950 no-underline hover:opacity-95">
-              Get my referral link
+            <Link to="/partners" className="inline-flex items-center gap-2 rounded-full bg-emerald-300 px-6 py-3 text-sm font-bold text-emerald-950 no-underline hover:opacity-95">
+              Become a Partner
             </Link>
             <Link to="/dashboard" className="inline-flex items-center gap-2 rounded-full aurora-glass-strong px-6 py-3 text-sm font-semibold text-white no-underline hover:brightness-110">
               See my stats
@@ -34,13 +35,13 @@ export function AffiliateRewardSection() {
         </div>
 
         <div className="grid gap-3">
-          <Tile big label="Per signup" value="+5" suffix="Aura" />
+          <Tile big label="Per signup" value={`+${REFERRAL_AURA_EACH}`} suffix="Aura each" />
           <div className="grid grid-cols-2 gap-3">
-            <Tile label="First payment" value="+20" suffix="Aura" />
-            <Tile label="Unlock" value="Tiers" suffix="limits" />
+            <Tile label="Commission" value={`${PARTNER_COMMISSION_PCT}%`} suffix="recurring" />
+            <Tile label="Perks" value="Early" suffix="access" />
           </div>
           <div className="rounded-xl border border-border bg-black/40 p-4 text-xs text-white/55">
-            Rewards are automatically credited to your account. No cash payouts, no subscription required. Aura to power your content, on us.
+            Aura rewards are automatically credited to your account. Commission paid out monthly once you reach $50.
           </div>
         </div>
       </div>

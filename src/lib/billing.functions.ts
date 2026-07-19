@@ -8,7 +8,7 @@ import { PLANS, SUBSCRIPTION_TIERS } from "./billing.plans";
 import { applyPromoAtCheckout } from "./promo.functions";
 
 /** Stable MD5-based UUID that matches the SQL expression in grant_free_monthly_aura_all(). */
-function deterministicUuid(input: string): string {
+export function deterministicUuid(input: string): string {
   const hash = createHash("md5").update(input).digest("hex");
   return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
 }
