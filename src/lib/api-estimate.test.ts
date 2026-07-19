@@ -9,7 +9,7 @@ import { estimateFromParams, checkGuardrails } from "@/routes/api/estimate";
 describe("estimateFromParams", () => {
   it("quotes a plain image request using the historical flat price", () => {
     const result = estimateFromParams({ kind: "image" });
-    expect(result.credits).toBe(1);
+    expect(result.credits).toBe(10);
     expect(result.breakdown).toHaveLength(1);
     expect(result.breakdown[0].feature).toBe("image");
     expect(result.primaryKind).toBe("image");
@@ -22,15 +22,15 @@ describe("estimateFromParams", () => {
       duration: "10",
       model: "kling-3.0",
     });
-    // kling-3.0 is "ultra" tier (48 Aura @ 5s/720p) × 2 (1080p) × 2 (10s/5s ref).
-    expect(result.credits).toBe(192);
+    // kling-3.0 is "ultra" tier (480 Aura @ 5s/720p) × 2 (1080p) × 2 (10s/5s ref).
+    expect(result.credits).toBe(1920);
     expect(result.resolution).toBe("1080p");
     expect(result.durationSeconds).toBe(10);
   });
 
   it("falls back to the default (budget) video tier when no model is given", () => {
     const result = estimateFromParams({ kind: "video" });
-    expect(result.credits).toBe(10);
+    expect(result.credits).toBe(100);
   });
 
   it("never returns a different total than computeCost would for the same inputs", async () => {

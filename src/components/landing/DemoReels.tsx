@@ -61,7 +61,7 @@ export function DemoReels() {
               </div>
               <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black via-black/70 to-transparent">
                 <h3 className="text-lg font-bold text-white">Avatar Studio · lip sync</h3>
-                <p className="text-xs text-white/70 mt-0.5">Drop a vocal. Sync 1.9 + Wav2Lip · 3 Aura per render.</p>
+                <p className="text-xs text-white/70 mt-0.5">Drop a vocal. Sync 1.9 + Wav2Lip · 30 Aura per render.</p>
                 <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-white">
                   Open Lip Sync <ArrowRight className="size-3.5 group-hover:translate-x-0.5 transition-transform" />
                 </div>

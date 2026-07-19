@@ -72,7 +72,7 @@ export const transcribeVideoForCaptions = createServerFn({ method: "POST" })
   });
 
 /**
- * Synthesize speech (Bark / SpeechT5). Reserves 2 Aura credits, runs HF
+ * Synthesize speech (Bark / SpeechT5). Reserves 20 Aura credits, runs HF
  * TTS, uploads the audio to the studio bucket as a signed URL (studio bucket
  * is private — getPublicUrl returns a 403), commits credits, and returns the
  * signed URL so the client can play and download the result.

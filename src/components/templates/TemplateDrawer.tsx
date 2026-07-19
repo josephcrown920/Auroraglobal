@@ -337,12 +337,12 @@ export function TemplateDrawer({
               {/* Cost — templateCost() is the single source of truth shared with the
                   charging backend; the number shown here is exactly what is reserved.
                   Spin dispatch is Free here: it navigates to /spin where the user
-                  explicitly pays 30 Aura when they click "Spin 30 posts". */}
+                  explicitly pays 300 Aura when they click "Spin 30 posts". */}
               <div className="mt-5 rounded-xl border border-border bg-white/[0.03] px-4 py-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">
                     {template.dispatch === "spin"
-                      ? `${SPIN_PIECE_COUNT} posts · 30 Aura charged on /spin`
+                      ? `${SPIN_PIECE_COUNT} posts · 300 Aura charged on /spin`
                       : "This render uses"}
                   </span>
                   {cost === 0 ? (

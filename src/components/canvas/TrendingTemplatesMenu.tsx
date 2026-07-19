@@ -54,7 +54,7 @@ type TemplateDef = {
 // "Multi-angle photo reshoot" — one reference portrait fans out into the same six
 // fixed camera angles as the standalone /reshoot tool. Each angle is its own image
 // node pre-loaded with the exact reshoot prompt + model, so running the recipe goes
-// through the identical per-image charged generation path (1 Aura each, 6 total).
+// through the identical per-image charged generation path (10 Aura each, 60 total).
 const RESHOOT_NODE_POSITIONS: Array<[number, number]> = [
   [420, 20],
   [420, 260],
@@ -68,7 +68,7 @@ const TEMPLATES: TemplateDef[] = [
   {
     id: "multi-angle-reshoot",
     name: "Multi-angle photo reshoot",
-    desc: "Drop ONE portrait → fan it out into six identity-locked 9:16 angles: fish-eye, bird's-eye, low angle, Dutch angle, macro close-up, worm's-eye. 1 Aura per shot.",
+    desc: "Drop ONE portrait → fan it out into six identity-locked 9:16 angles: fish-eye, bird's-eye, low angle, Dutch angle, macro close-up, worm's-eye. 10 Aura per shot.",
     icon: Aperture,
     tags: ["Selfie", "Image", "Preset"],
     category: "Portrait & Colors",
@@ -717,7 +717,7 @@ export function TrendingTemplatesMenu({ onPick }: { onPick: (g: TemplateGraph) =
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            This template is available on the <span className="text-foreground font-medium">Aurora Pro</span> plan. Upgrade to unlock it and get no watermarks, priority queue, and 200 Aura every month.
+            This template is available on the <span className="text-foreground font-medium">Aurora Pro</span> plan. Upgrade to unlock it and get no watermarks, priority queue, and 2,000 Aura every month.
           </p>
           <div className="flex gap-3 mt-2">
             <Link

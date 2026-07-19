@@ -199,7 +199,7 @@ export function ViralEngine() {
         </Link>
 
         <p className="mt-3 text-center text-[11px] text-zinc-600">
-          Sign in to render · 5 free Aura on signup
+          Sign in to render · 50 free Aura on signup
         </p>
       </div>
 

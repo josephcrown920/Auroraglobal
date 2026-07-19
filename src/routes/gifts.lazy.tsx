@@ -100,7 +100,7 @@ function GiftsPage() {
 
   // Admin: issue
   const [issueDesign, setIssueDesign] = useState<Design>("aurora");
-  const [issueCredits, setIssueCredits] = useState(80);
+  const [issueCredits, setIssueCredits] = useState(800);
   const [issueUsd, setIssueUsd] = useState(10);
   const [issueNote, setIssueNote] = useState("");
 

@@ -12,7 +12,7 @@ import {
 // ─── Multi-angle photo reshoot ───────────────────────────────────────────────
 // One reference portrait in → six fixed-angle 9:16 portrait variations out. The
 // subject's identity, outfit, environment and lighting are held constant; ONLY
-// the camera angle changes. Each image is charged independently (1 Aura), so a
+// the camera angle changes. Each image is charged independently (10 Aura), so a
 // failed angle auto-refunds its own reservation and partial success is fine.
 //
 // The angle set, per-image price, model and prompt builder live in

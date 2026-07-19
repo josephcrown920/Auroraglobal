@@ -1,7 +1,7 @@
 // ─── Multi-angle photo reshoot — shared recipe (pure, no server imports) ──────
 // One reference portrait in → six fixed-angle 9:16 portrait variations out. The
 // subject's identity, outfit, environment and lighting are held constant; ONLY
-// the camera angle changes. Each image is charged independently (1 Aura).
+// the camera angle changes. Each image is charged independently (10 Aura).
 //
 // This module is the single source of truth for the angle set, per-image price,
 // model and prompt builder. Both the standalone `/reshoot` tool

@@ -77,7 +77,7 @@ describe("template-studio manifest", () => {
         expect(templateCost(t)).toBe(COST_UGC_AD);
       } else if (t.dispatch === "spin") {
         // Spin templates navigate to /spin; no credits are reserved in the drawer.
-        // The 30 Aura (SPIN_COUNT × SPIN_PIECE_COST) is charged on /spin when the
+        // The 300 Aura (SPIN_COUNT × SPIN_PIECE_COST) is charged on /spin when the
         // user explicitly clicks "Spin 30 posts" — templateCost returns 0 (Free).
         expect(templateCost(t)).toBe(0);
       } else if (t.dispatch === "autocut") {
@@ -92,11 +92,11 @@ describe("template-studio manifest", () => {
     // backend that actually charges that amount (studio chain, UGC job, AutoCut
     // job) — no phantom charges and no undisclosed ones.
     // Spin dispatch is the ONE intentional exception: templateCost returns 0
-    // because the drawer is a free launcher; the 30 Aura charge is disclosed and
+    // because the drawer is a free launcher; the 300 Aura charge is disclosed and
     // collected on /spin itself when the user clicks "Spin 30 posts".
     for (const t of STUDIO_TEMPLATES) {
       if (t.dispatch === "spin") {
-        expect(templateCost(t)).toBe(0); // Free in drawer, 30 Aura charged on /spin
+        expect(templateCost(t)).toBe(0); // Free in drawer, 300 Aura charged on /spin
       } else {
         expect(templateCost(t)).toBeGreaterThan(0);
       }

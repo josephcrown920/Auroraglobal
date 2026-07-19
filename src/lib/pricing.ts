@@ -51,19 +51,24 @@ export const FEATURES: readonly Feature[] = [
 // The owner can tweak these numbers without touching any pricing logic.
 export const PRICING = {
   /** Per-feature base cost (summed when features are stacked). */
+  // 2026-07-19 ×10 rebase (owner request): every Aura amount in the economy —
+  // prices, packs, bonuses, and all stored balances — was multiplied by 10 so
+  // per-generation prices read at a CapCut-style credit scale ("10 Aura", not
+  // "1 Aura"). USD prices did NOT change: 1 new Aura = 1/10 old Aura, and the
+  // funding pool is now ≈ $0.0047 per Aura sold (see pricing.test.ts).
   base: {
-    image: 1,
-    upscale: 1,
-    text: 1,
-    audio: 2,
-    lipsync: 3,
-    motion: 30,
-    video: 10,
-    caption_burn: 2,
+    image: 10,
+    upscale: 10,
+    text: 10,
+    audio: 20,
+    lipsync: 30,
+    motion: 300,
+    video: 100,
+    caption_burn: 20,
     // Flat rate — deliberately NOT length-scaled (see LENGTH_FEATURES below): a
     // multi-minute song must not multiply this into a huge charge. Self-hosted
     // GPU-worker-only synthesis, so this stays cheap even at flat rate.
-    lyric_video: 5,
+    lyric_video: 50,
   } as Record<Feature, number>,
   /** Multiplier applied to the resolution-bearing visual output. */
   resolutionMultiplier: {
@@ -102,17 +107,17 @@ export const PRICING = {
 export type ModelTier = "budget" | "standard" | "premium" | "ultra";
 
 export const VIDEO_TIER_AURA: Record<ModelTier, number> = {
-  budget: 10,
-  standard: 20,
-  premium: 32,
-  ultra: 48,
+  budget: 100,
+  standard: 200,
+  premium: 320,
+  ultra: 480,
 };
 
 export const LIPSYNC_TIER_AURA: Record<ModelTier, number> = {
-  budget: 3,
-  standard: 6,
-  premium: 9,
-  ultra: 10,
+  budget: 30,
+  standard: 60,
+  premium: 90,
+  ultra: 100,
 };
 
 // Model → tier. Derived from the server MODEL_REGISTRY per-model `cost` (USD per
@@ -170,7 +175,7 @@ export const LIPSYNC_MODEL_TIERS: Record<string, ModelTier> = {
 // When a request omits the model, fall back to the tier of the model the
 // orchestrator ACTUALLY runs first for that kind (FALLBACK_MODELS[kind][0]):
 //   • video   → seedance-2.0-fast (budget) — the cheapest tier, used for
-//     legacy/unspecified requests (10 Aura since the 2026-07-08 repricing).
+//     legacy/unspecified requests (100 Aura since the 2026-07-19 ×10 rebase).
 //   • lipsync → fal-ai/sync-lipsync/v2 (premium) — the real default lip-sync
 //     model costs $0.30, so the default tier MUST cover it or every unspecified
 //     lip-sync would lose money.
@@ -218,7 +223,7 @@ export type CostQuote = {
  * - `video` / `motion`: always (they are the resolution-bearing output).
  * - `image`: only when it IS the final visual output — i.e. there is no temporal
  *   output (video/motion) in the stack. A source image under a video is base-only.
- *   This is what keeps the canonical stacked example at exactly 39 Aura.
+ *   This is what keeps the canonical stacked example at exactly 390 Aura.
  * - everything else (text/audio/lipsync/upscale): never.
  */
 function resolutionApplies(feature: Feature, hasTemporalOutput: boolean): boolean {
@@ -341,31 +346,31 @@ export type DetectInput = {
 // of the displayed price and the reserved amount ever drifting apart.
 
 /** AutoCut: multi-clip assembly job. */
-export const COST_AUTOCUT = 8;
+export const COST_AUTOCUT = 80;
 
 /** Talking UGC ad: xAI fast path (image→video + mandatory relip to voice track).
- *  Doubled 14 → 28 in the 2026-07-08 video repricing, tracking the underlying
- *  xAI video (standard, 20) + relip (premium lip-sync, 9) stack. */
-export const COST_UGC_AD = 28;
+ *  Tracks the underlying xAI video (standard, 200) + relip (premium lip-sync,
+ *  90) stack — kept slightly below the raw sum as a bundle. */
+export const COST_UGC_AD = 280;
 
 /** TikTok Remix Factory: flat reservation per generated cut (a budget-tier
- *  video render). Doubled 5 → 10 in the 2026-07-08 video repricing, in lockstep
- *  with VIDEO_TIER_AURA.budget so a remix cut can't undercut a plain video. */
-export const COST_TIKTOK_REMIX_CUT = 10;
+ *  video render). Kept in lockstep with VIDEO_TIER_AURA.budget so a remix cut
+ *  can't undercut a plain video. */
+export const COST_TIKTOK_REMIX_CUT = 100;
 
 /** HeyGen Product Demo: feature-list + screenshots → narrated avatar walkthrough
  *  (Task #276). Priced above a plain talking UGC ad since it's a longer,
  *  multi-feature narrated video, but flat regardless of feature count or
  *  duration preset so the up-front estimate always matches what's reserved. */
-export const COST_PRODUCT_DEMO = 32;
+export const COST_PRODUCT_DEMO = 320;
 
 // ─── Growth Tools flat costs (Pro only, LLM-based) ───────────────────────────
 /** Daily Post Generator: 7 days of captions + image prompt pairs. */
-export const COST_DAILY_POSTS = 10;
+export const COST_DAILY_POSTS = 100;
 /** AI Rollout Plan: week-by-week release promotion calendar. */
-export const COST_ROLLOUT_PLAN = 5;
+export const COST_ROLLOUT_PLAN = 50;
 /** Social Media Pack: square/portrait captions + 5 caption variants + hashtag sets. */
-export const COST_SOCIAL_PACK = 8;
+export const COST_SOCIAL_PACK = 80;
 
 export function detectFeatures(input: DetectInput): {
   features: Feature[];

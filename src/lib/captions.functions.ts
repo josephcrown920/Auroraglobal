@@ -17,7 +17,7 @@ const SegmentSchema = z.object({
 });
 
 /**
- * Reserve 2 Aura, dispatch a `caption_burn` job to the GPU worker pool, and
+ * Reserve 20 Aura, dispatch a `caption_burn` job to the GPU worker pool, and
  * record the resulting video as a new generation row. The GPU worker uses
  * FFmpeg `drawtext` to render each timed segment onto the video stream.
  *
@@ -59,7 +59,7 @@ export const burnCaptions = createServerFn({ method: "POST" })
  * One-call lyric video: transcribe the video's audio (Whisper) and burn the
  * resulting captions in immediately, without the caller round-tripping
  * through `transcribeVideoForCaptions` + a separate `burnCaptions` confirm
- * step. Still reserves the same 2 Aura via `reserveOrchestrateRecord` — this
+ * step. Still reserves the same 20 Aura via `reserveOrchestrateRecord` — this
  * is a convenience wrapper, not a new billing path.
  *
  * Returns the transcript segments alongside the result so callers that want

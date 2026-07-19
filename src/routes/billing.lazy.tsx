@@ -22,10 +22,10 @@ import { getAutoReloadSettings, saveAutoReloadSettings } from "@/hooks/use-auto-
 export const Route = createLazyFileRoute("/billing")({ component: BillingPage });
 
 const AURA_EXAMPLES = [
-  { icon: Image,  label: "1 AI image",       aura: "~1 Aura",  color: "text-brand" },
-  { icon: Mic2,   label: "1 lip-sync video",  aura: "~3 Aura",  color: "text-emerald-400" },
-  { icon: Film,   label: "1 performance clip", aura: "~10 Aura", color: "text-cyan-400" },
-  { icon: TrendingUp, label: "30-post Spin pack", aura: "~30 Aura", color: "text-amber-400" },
+  { icon: Image,  label: "1 AI image",       aura: "~10 Aura",  color: "text-brand" },
+  { icon: Mic2,   label: "1 lip-sync video",  aura: "~30 Aura",  color: "text-emerald-400" },
+  { icon: Film,   label: "1 performance clip", aura: "~100 Aura", color: "text-cyan-400" },
+  { icon: TrendingUp, label: "30-post Spin pack", aura: "~300 Aura", color: "text-amber-400" },
 ];
 
 function BillingPage() {
@@ -182,7 +182,7 @@ function BillingPage() {
 
               {/* What does Aura buy? */}
               <div className="w-full mt-4 pt-5 border-t border-white/10">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 mb-3">What does 1 Aura buy?</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 mb-3">What does your Aura buy?</p>
                 <div className="grid grid-cols-2 gap-2">
                   {AURA_EXAMPLES.map(({ icon: Icon, label, aura, color }) => (
                     <div key={label} className="flex items-center gap-2.5 rounded-xl bg-white/5 border border-white/8 px-3 py-2">
@@ -236,7 +236,7 @@ function BillingPage() {
                       <span className="text-xl font-bold">Aurora Pro</span>
                       <span className="text-xs px-2.5 py-0.5 rounded-full bg-primary/20 text-primary font-bold border border-primary/30">$15 / month</span>
                     </div>
-                    <p className="text-sm text-muted-foreground">200 Aura every month + no watermarks + priority queue + Growth Tools.</p>
+                    <p className="text-sm text-muted-foreground">2,000 Aura every month + no watermarks + priority queue + Growth Tools.</p>
                   </div>
                 </div>
 
@@ -321,7 +321,7 @@ function BillingPage() {
                     </div>
                     <div className="text-2xl font-black">${p.usd}</div>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      ${(p.usd / p.credits).toFixed(3)} / Aura · {i === 0 ? "~80 images" : i === 1 ? "~240 images or 24 videos" : "~640 images or 64 videos"}
+                      ${(p.usd / p.credits).toFixed(4)} / Aura · {i === 0 ? "~80 images" : i === 1 ? "~240 images or 24 videos" : "~640 images or 64 videos"}
                     </p>
                   </div>
                   <Button
@@ -366,8 +366,8 @@ function BillingPage() {
                     <p className="text-[13px] font-semibold text-foreground/80 mt-0.5">{p.credits} Aura</p>
                     <p className="text-xs text-muted-foreground mt-1">
                       {key === "day1"
-                        ? "~15 images or 1 short video — auto-limits 15 Aura/day"
-                        : "Spread across 2 days — auto-limits 13 Aura/day"}
+                        ? "~15 images or 1 short video — auto-limits 150 Aura/day"
+                        : "Spread across 2 days — auto-limits 130 Aura/day"}
                     </p>
                   </div>
                   <Button

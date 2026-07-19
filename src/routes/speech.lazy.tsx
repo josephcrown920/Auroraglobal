@@ -182,7 +182,7 @@ function SpeechPage() {
           >
             {genMut.isPending
               ? <><Loader2 className="size-4 mr-2 animate-spin" /> Generating…</>
-              : <><Mic className="size-4 mr-2" /> Generate voiceover · 2 Aura</>}
+              : <><Mic className="size-4 mr-2" /> Generate voiceover · 20 Aura</>}
           </Button>
 
           <GenerationProgress

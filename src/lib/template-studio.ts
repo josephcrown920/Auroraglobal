@@ -378,12 +378,12 @@ export function getStudioTemplate(id: string): StudioTemplate | undefined {
  *    what generatePerformanceShot / generateVideoFromImage / lipSyncVideo charge.
  *  - ugc:  the flat COST_UGC_AD reserved by generateUGCAd.
  *  - spin: SPIN_PIECE_COUNT × SPIN_PIECE_COST — spinThirty charges the whole
- *    batch upfront (1 Aura per piece; failed pieces auto-refund their Aura).
+ *    batch upfront (10 Aura per piece; failed pieces auto-refund their Aura).
  * Preview can therefore never disagree with the real charge.
  */
 export function templateCost(t: StudioTemplate): number {
   if (t.dispatch === "ugc") return COST_UGC_AD;
-  // Spin templates navigate to /spin where the user explicitly pays 30 Aura.
+  // Spin templates navigate to /spin where the user explicitly pays 300 Aura.
   // No credits are charged in the template drawer itself → cost = 0 (Free).
   if (t.dispatch === "spin") return 0;
   if (t.dispatch === "autocut") return COST_AUTOCUT;

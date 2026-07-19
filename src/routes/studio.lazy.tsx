@@ -700,7 +700,7 @@ function StudioPage() {
           <div className="flex items-center justify-between text-xs text-muted-foreground rounded-xl border border-border bg-card/40 px-3 py-2">
             <span className="inline-flex items-center gap-1.5">
               <Zap className="size-3.5 text-primary" />
-              Cost: <span className="text-foreground font-medium">1 Aura</span>
+              Cost: <span className="text-foreground font-medium">10 Aura</span>
               <span className="opacity-50">·</span>
               ETA: <span className="text-foreground font-medium">~10–20s</span>
             </span>
@@ -716,7 +716,7 @@ function StudioPage() {
             {mut.isPending ? (
               <><Loader2 className="size-5 mr-2 animate-spin" /> Staging the shoot…</>
             ) : (
-              <><Wand2 className="size-5 mr-2" /> Generate performance shot · 1 Aura</>
+              <><Wand2 className="size-5 mr-2" /> Generate performance shot · 10 Aura</>
             )}
           </Button>
 
@@ -1153,7 +1153,7 @@ function StudioPage() {
               </div>
               <p className="text-xs text-muted-foreground">Transcribe your video's audio with Whisper, review and edit the caption segments, then burn them permanently into the video.</p>
               <Button variant="secondary" className="w-full" onClick={() => setCaptionOpen(true)}>
-                <Captions className="size-4 mr-2" /> Add Captions · 2 Aura
+                <Captions className="size-4 mr-2" /> Add Captions · 20 Aura
               </Button>
             </div>
           )}
@@ -1191,12 +1191,12 @@ function StudioPage() {
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/35">What you can make</p>
                 <div className="grid grid-cols-2 gap-y-3 gap-x-4">
                   {([
-                    { icon: Camera,   label: "Hyperrealistic photo",    cost: "1 Aura" },
-                    { icon: Film,     label: "Music video frame",       cost: "3–10 Aura" },
-                    { icon: Mic2,     label: "Lip-sync video",          cost: "from 8 Aura" },
+                    { icon: Camera,   label: "Hyperrealistic photo",    cost: "10 Aura" },
+                    { icon: Film,     label: "Music video frame",       cost: "30–100 Aura" },
+                    { icon: Mic2,     label: "Lip-sync video",          cost: "from 80 Aura" },
                     { icon: Sparkles, label: "AI Director session",     cost: "included" },
-                    { icon: Wand2,    label: "Style transfer & edit",   cost: "from 3 Aura" },
-                    { icon: Zap,      label: "4K export upgrade",       cost: "+30 Aura" },
+                    { icon: Wand2,    label: "Style transfer & edit",   cost: "from 30 Aura" },
+                    { icon: Zap,      label: "4K export upgrade",       cost: "+300 Aura" },
                   ] as const).map(({ icon: Icon, label, cost }) => (
                     <div key={label} className="flex items-start gap-2">
                       <div className="mt-0.5 size-5 rounded-md bg-primary/15 grid place-items-center shrink-0">
@@ -1243,9 +1243,9 @@ function StudioPage() {
                   const isPopular = k === "creator";
                   const isBest = k === "studio";
                   const usageHint =
-                    k === "starter" ? `${p.credits} photos · ${Math.floor(p.credits / 10)} lip-syncs` :
-                    k === "creator" ? `${p.credits} photos · ${Math.floor(p.credits / 10)} lip-syncs · ${Math.floor(p.credits / 5)} edits` :
-                    `${p.credits} photos · ${Math.floor(p.credits / 3)} video frames · full month`;
+                    k === "starter" ? `${Math.floor(p.credits / 10)} photos · ${Math.floor(p.credits / 100)} lip-syncs` :
+                    k === "creator" ? `${Math.floor(p.credits / 10)} photos · ${Math.floor(p.credits / 100)} lip-syncs · ${Math.floor(p.credits / 50)} edits` :
+                    `${Math.floor(p.credits / 10)} photos · ${Math.floor(p.credits / 30)} video frames · full month`;
                   return (
                     <button
                       key={k}

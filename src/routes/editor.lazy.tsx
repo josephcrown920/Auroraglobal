@@ -357,7 +357,7 @@ function EditorPage() {
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              { sig: "aurora.image(prompt, opts?)", desc: "Generate a still image. 1 Aura at 720p." },
+              { sig: "aurora.image(prompt, opts?)", desc: "Generate a still image. 10 Aura at 720p." },
               { sig: "aurora.video({ prompt, imageUrl?, model? })", desc: "Image-to-video or text-to-video. Runs as a cheap 480p preview first." },
               { sig: "aurora.lipsync({ audioUrl, imageUrl })", desc: "Drive audio onto a face. Model-tiered pricing." },
               { sig: "aurora.text(prompt)", desc: "LLM helper for prompt-writing and planning." },

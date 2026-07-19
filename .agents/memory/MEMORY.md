@@ -89,3 +89,4 @@
 - [Talking Avatar (photo-video) feature](talking-avatar-feature.md) — user_photo_avatars table; storage_path stored (not URL), signed at gen time; HF TTS → heygen/photo-video adapter.
 - [NBA Josh — Looping Officers music video](nba-josh-looping-officers.md) — full production spec: character (6'3" lean, red dreads, arm-only tattoos), outfit library A–H + Benz scene, Kling v3 fal.ai generation, Video Agent artifact pipeline.
 - [PuLID banned](pulid-banned.md) — never use fal-ai/pulid; owner explicitly banned it after poor quality results.
+- [Aura ×10 rebase](aura-x10-rebase.md) — DB+code are new-scale (guarded by rebase_events key); profiles.credits is bigint, plpgsql locals reading it must be bigint; SQL grant functions duplicate TS constants.
