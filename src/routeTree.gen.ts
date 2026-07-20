@@ -188,7 +188,7 @@ const OrchestrateRoute = OrchestrateRouteImport.update({
   id: '/orchestrate',
   path: '/orchestrate',
   getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/orchestrate.lazy').then((d) => d.Route))
+} as any)
 const NexusarbRoute = NexusarbRouteImport.update({
   id: '/nexusarb',
   path: '/nexusarb',

@@ -29,38 +29,6 @@ export type PlatformTemplate = {
 };
 
 export const PLATFORM_TEMPLATES: PlatformTemplate[] = [
-  // ── FEATURED / Best picks ──────────────────────────────────────────────────
-  {
-    id: "heygen-loop",
-    kind: "video",
-    name: "HeyGen Loop",
-    description: "Surreal street loop — exported from HeyGen",
-    storagePath: "platform-templates/heygen-loop.mp4",
-    thumbnailPath: "/videos/thumbs/heygen-loop.jpg",
-    featured: true,
-    featuredLabel: "🔥 Top Pick",
-  },
-  {
-    id: "man-on-floor",
-    kind: "video",
-    name: "Man on Floor",
-    description: "Floor-level performance clip",
-    storagePath: "platform-templates/man-on-floor.mp4",
-    thumbnailPath: "/videos/thumbs/man-on-floor.jpg",
-    featured: true,
-    featuredLabel: "⭐ Best",
-  },
-  {
-    id: "golden-hour",
-    kind: "video",
-    name: "Golden Hour",
-    description: "Rapper in yellow — golden hour chase",
-    storagePath: "platform-templates/golden-hour.mp4",
-    thumbnailPath: "/videos/thumbs/golden-hour.jpg",
-    featured: true,
-    featuredLabel: "⭐ Best",
-  },
-
   // ── HeyGen hosted avatars ──────────────────────────────────────────────────
   {
     id: "heygen-avatar-1",
@@ -89,50 +57,6 @@ export const PLATFORM_TEMPLATES: PlatformTemplate[] = [
     description: "Cinematic street-level still",
     storagePath: "platform-templates/street-floor.png",
     thumbnailPath: "/videos/thumbs/street-floor.jpg",
-  },
-
-  // ── Additional video clips ─────────────────────────────────────────────────
-  {
-    id: "surreal-street",
-    kind: "video",
-    name: "Surreal Street",
-    description: "Surreal street performance",
-    storagePath: "platform-templates/surreal-street.mp4",
-    thumbnailPath: "/videos/thumbs/surreal-street.jpg",
-  },
-  {
-    id: "avatar-casual",
-    kind: "video",
-    name: "Casual Avatar",
-    description: "Natural, relaxed delivery",
-    storagePath: "platform-templates/avatar-casual.mp4",
-    thumbnailPath: "/videos/thumbs/avatar-casual.jpg",
-  },
-  {
-    id: "avatar-iv",
-    kind: "video",
-    name: "Avatar IV",
-    description: "Professional presenter style",
-    storagePath: "platform-templates/avatar-iv.mp4",
-    thumbnailPath: "/videos/thumbs/avatar-iv.jpg",
-  },
-  {
-    id: "avatar-main",
-    kind: "video",
-    name: "Main Avatar",
-    description: "Full-length signature avatar",
-    storagePath: "platform-templates/avatar-main.mp4",
-    thumbnailPath: "/videos/thumbs/avatar-main.jpg",
-  },
-
-  // ── Avatar V ────────────────────────────────────────────────────────────────
-  {
-    id: "avatar-v",
-    kind: "video",
-    name: "Avatar V",
-    description: "High-energy performance — V series",
-    storagePath: "platform-templates/avatar-v.mp4",
-    thumbnailPath: "/videos/thumbs/avatar-v.jpg",
   },
 
   // ── Live Avatar (KlingAI) ────────────────────────────────────────────────────

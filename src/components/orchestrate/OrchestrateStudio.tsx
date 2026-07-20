@@ -1,4 +1,4 @@
-import { createLazyFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   AlertDialog,
@@ -39,7 +39,6 @@ import { GenerationProgress } from "@/components/ui/GenerationProgress";
 import { GenerationErrorCard } from "@/components/ui/GenerationErrorCard";
 import { BlurredPreview } from "@/components/ui/BlurredPreview";
 
-export const Route = createLazyFileRoute("/orchestrate")({ component: OrchestratePage });
 
 type Modality = "image" | "video" | "text" | "audio";
 
@@ -104,7 +103,7 @@ const MODELS: Record<Modality, ModelOption[]> = {
   audio: [{ key: "elevenlabs/tts", label: "ElevenLabs · Multilingual v2" }],
 };
 
-function OrchestratePage() {
+export function OrchestrateStudio() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const run = useServerFn(orchestrateGenerate);
