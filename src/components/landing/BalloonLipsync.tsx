@@ -3,14 +3,11 @@ import { Play, Pause, Volume2, Sparkles, ArrowRight, Wand2, Upload, Loader2, Mic
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import audioAsset from "@/assets/the-one-hook.mp3.asset.json";
+import balloonVideoAsset from "@/assets/balloon-talking-v2.mp4.asset.json";
 import { transcribeAudio } from "@/lib/hf.functions";
 import { AUDIO_ACCEPT } from "@/lib/utils";
-// Swapped from the old raw upload (public/videos/balloon-lipsync-demo.mp4) —
-// that clip was a "stepped on with a mic" scene carrying a third-party
-// ("HeyGen") watermark, which isn't something we want on our own marketing
-// page. This points at an already-hosted, watermark-free stage performance
-// clip. See public/videos/lipsync-performance.mp4.asset.json for provenance.
-const lipsyncDemoVideo = "/videos/photo2-lipsync-sample.mp4";
+
+const lipsyncDemoVideo = balloonVideoAsset.url;
 
 /**
  * Every Face Sings — drives a clear lip-sync mouth, upper/lower lips and

@@ -3,6 +3,7 @@ import { Plus, Play, ArrowUpRight, ChevronDown, Sparkles, Palette, Film, Wand2, 
 import { useAuth } from "@/hooks/use-auth";
 import { useState, useEffect, useRef } from "react";
 import { ViralEngine } from "@/components/landing/ViralEngine";
+import { BalloonLipsync } from "@/components/landing/BalloonLipsync";
 
 export const Route = createFileRoute("/")({
   component: LandingPage,
@@ -256,6 +257,9 @@ function LandingPage() {
 
       {/* ── Viral Engine ─────────────────────────────────────────────── */}
       <ViralEngine />
+
+      {/* ── Every Face Sings (lip-sync demo) ─────────────────────────── */}
+      <BalloonLipsync />
 
       {/* ── Gallery ─────────────────────────────────────────────────────── */}
       <section id="gallery" className="bg-zinc-900/30 py-20 border-y border-white/5">
