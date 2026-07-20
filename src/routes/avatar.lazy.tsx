@@ -95,7 +95,7 @@ function AvatarStudioPage() {
   // ── studio state ────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<StudioTab>("script");
   const [script, setScript] = useState("");
-  const [selectedId, setSelectedId] = useState("heygen-loop");
+  const [selectedId, setSelectedId] = useState("heygen-avatar-1");
   const [selectedVoice, setSelectedVoice] = useState<VoiceId>("m3Fp8hA8nS1Gc1Ne9FIf");
   const [cardStates, setCardStates] = useState<Record<string, CardState>>(
     Object.fromEntries(PLATFORM_TEMPLATES.map((t) => [t.id, { status: "idle" }])),
@@ -731,31 +731,32 @@ function AvatarStudioPage() {
             </div>
 
             {/* ── FEATURED templates ── */}
-            <div className="px-4 py-3">
-              <p className="text-[10px] uppercase tracking-wider mb-2 font-semibold flex items-center gap-1.5">
-                <span className="text-amber-400">★</span>
-                <span className="text-amber-400/90">Best Picks</span>
-                <span className="text-muted-foreground/50 font-normal">— our top 3</span>
-              </p>
-              <div className="grid grid-cols-3 gap-2 mb-1">
-                {FEATURED_TEMPLATES.map((tpl) => (
-                  <TemplateCard
-                    key={tpl.id}
-                    tpl={tpl}
-                    state={cardStates[tpl.id] ?? { status: "idle" }}
-                    isSelected={tpl.id === selectedId}
-                    featured
-                    onSelect={() => { setSelectedId(tpl.id); setActiveTab("preview"); }}
-                    onGenerate={(e) => {
-                      e.stopPropagation();
-                      const trimmed = script.trim();
-                      if (!trimmed) { toast.error("Write your script first"); setActiveTab("script"); return; }
-                      generateOne(tpl.id, trimmed);
-                    }}
-                  />
-                ))}
+            {FEATURED_TEMPLATES.length > 0 && (
+              <div className="px-4 py-3">
+                <p className="text-[10px] uppercase tracking-wider mb-2 font-semibold flex items-center gap-1.5">
+                  <span className="text-amber-400">★</span>
+                  <span className="text-amber-400/90">Best Picks</span>
+                </p>
+                <div className="grid grid-cols-3 gap-2 mb-1">
+                  {FEATURED_TEMPLATES.map((tpl) => (
+                    <TemplateCard
+                      key={tpl.id}
+                      tpl={tpl}
+                      state={cardStates[tpl.id] ?? { status: "idle" }}
+                      isSelected={tpl.id === selectedId}
+                      featured
+                      onSelect={() => { setSelectedId(tpl.id); setActiveTab("preview"); }}
+                      onGenerate={(e) => {
+                        e.stopPropagation();
+                        const trimmed = script.trim();
+                        if (!trimmed) { toast.error("Write your script first"); setActiveTab("script"); return; }
+                        generateOne(tpl.id, trimmed);
+                      }}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* ── All other templates ── */}
             <div className="px-4 pb-3">
