@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { z } from "zod";
-import { deterministicUuid } from "./billing.functions";
+import { deterministicUuid } from "./deterministic-uuid.server";
 import { REFERRAL_AURA_EACH, REFERRAL_REWARD_DAILY_CAP } from "./partners";
 
 function makeCode(seed: string) {

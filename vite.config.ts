@@ -135,6 +135,14 @@ export default defineConfig({
     // transform them lazily on first request — shaves several seconds off
     // the first meaningful paint on cold start.
     optimizeDeps: {
+      // Commit the first optimization run as soon as the deps are bundled
+      // instead of holding it until the static-import crawl ends. In this app
+      // the crawl never settles (TanStack Start's server-fn transform keeps
+      // requests pending), so with the default `true` the optimizer piles up
+      // deps_temp_* dirs forever, never renames one to deps/, and every
+      // request for an optimized dep (react, zod, ...) hangs indefinitely —
+      // the browser spins forever on first load.
+      holdUntilCrawlEnd: false,
       include: [
         "react",
         "react-dom",

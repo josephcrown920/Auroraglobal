@@ -2,16 +2,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getRequest } from "@tanstack/react-start/server";
-import { createHash } from "crypto";
 import { z } from "zod";
 import { PLANS, SUBSCRIPTION_TIERS } from "./billing.plans";
 import { applyPromoAtCheckout } from "./promo.functions";
-
-/** Stable MD5-based UUID that matches the SQL expression in grant_free_monthly_aura_all(). */
-export function deterministicUuid(input: string): string {
-  const hash = createHash("md5").update(input).digest("hex");
-  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
-}
+// Stable MD5-based UUID matching the SQL expression in grant_free_monthly_aura_all().
+// Lives in a .server module: exporting it from here would keep the node "crypto"
+// import in the client bundle and break the production build.
+import { deterministicUuid } from "./deterministic-uuid.server";
 
 export const getMyProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -68,16 +65,18 @@ export const getMyProfile = createServerFn({ method: "GET" })
     };
   });
 
-const SetDailySpendLimitSchema = z.object({
-  limit: z.number().int().positive().max(1_000_000).nullable(),
-});
-
 /** Set or clear the caller's personal daily Aura cap. Enforced for real inside
  * the reserve_credits() RPC; this just persists the setting. `null` clears it
  * (no limit). */
+// NOTE: schemas are inlined inside inputValidator() here — a harmless leftover
+// from bisecting a dev-server hang that turned out to be Vite's dep optimizer
+// never committing (see optimizeDeps.holdUntilCrawlEnd in vite.config.ts).
+// Module-level schema consts are perfectly fine; either style works.
 export const setDailySpendLimit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => SetDailySpendLimitSchema.parse(input))
+  .inputValidator((input: unknown) =>
+    z.object({ limit: z.number().int().positive().max(1_000_000).nullable() }).parse(input),
+  )
   .handler(async ({ context, data }) => {
     const { userId } = context;
     const { error } = await supabaseAdmin
@@ -105,15 +104,15 @@ export const claimOnboardingBonus = createServerFn({ method: "POST" })
     return { granted: Boolean(granted), amount: ONBOARDING_BONUS_AURA };
   });
 
-const InitPaystackSchema = z.object({
-  plan: z.enum(["day1", "day2", "starter", "creator", "studio"]),
-  currency: z.enum(["USD", "NGN", "GHS", "ZAR", "KES", "EGP"]).optional(),
-  promoCode: z.string().min(1).max(40).optional(),
-});
-
 export const createPaystackCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => InitPaystackSchema.parse(input))
+  .inputValidator((input: unknown) =>
+    z.object({
+      plan: z.enum(["day1", "day2", "starter", "creator", "studio"]),
+      currency: z.enum(["USD", "NGN", "GHS", "ZAR", "KES", "EGP"]).optional(),
+      promoCode: z.string().min(1).max(40).optional(),
+    }).parse(input),
+  )
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const key = process.env.PAYSTACK_SECRET_KEY;
