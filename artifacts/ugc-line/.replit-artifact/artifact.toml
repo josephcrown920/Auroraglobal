@@ -1,0 +1,21 @@
+kind = "web"
+previewPath = "/ugc-line/"
+title = "Aurora Content Line"
+version = "1.0.0"
+id = "artifacts/ugc-line"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/ugc-line/" ]
+localPort = 8083
+
+[services.development]
+run = "bash /home/runner/workspace/artifacts/ugc-line/start-dev.sh"
+
+[services.env]
+BASE_PATH = "/ugc-line/"
+PORT = "8083"

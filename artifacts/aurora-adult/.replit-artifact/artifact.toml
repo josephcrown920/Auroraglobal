@@ -1,0 +1,21 @@
+kind = "web"
+previewPath = "/aurora-adult/"
+title = "Adult School"
+version = "1.0.0"
+id = "artifacts/aurora-adult"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/aurora-adult/" ]
+localPort = 8085
+
+[services.development]
+run = "bash /home/runner/workspace/artifacts/aurora-adult/start-dev.sh"
+
+[services.env]
+BASE_PATH = "/aurora-adult/"
+PORT = "8085"
