@@ -50,7 +50,7 @@ const MAKE_FEATURES: Feature[] = [
   { to: "/agent",         label: "Video Studio",     icon: Film,      previewImg: "/nav-previews/music-video.jpg" },
   { to: "/photo-edit",    label: "Photo Editor",     icon: Brush,     previewImg: "/nav-previews/photo-edit.jpg" },
   { to: "/live-studio",   label: "Live Studios",     icon: Music2,    previewImg: "/nav-previews/live-studio.jpg" },
-  { to: "/scene-builder", label: "Scene Builder",    icon: Layers,    previewImg: "/nav-previews/scene-builder.jpg" },
+  { to: "/scene-builder", label: "Directors ROOM",   icon: Layers,    previewImg: "/nav-previews/scene-builder.jpg" },
 ];
 
 /** Creator & viral tools — ordered by demand. */

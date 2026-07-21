@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Plus, Play, ArrowUpRight, ChevronDown, Sparkles, Palette, Film, Wand2, Mic, Music2, Brush, Megaphone, UserCircle2, Workflow, Layers, Flame, Bot, Clapperboard, Check, Zap, Crown, Download } from "lucide-react";
+import { Plus, Play, ArrowUpRight, ChevronDown, Sparkles, Palette, Film, Wand2, Mic, Music2, Brush, Megaphone, UserCircle2, Workflow, Layers, Flame, Bot, Clapperboard, Check, Zap, Crown, Download, Video } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useState, useEffect, useRef } from "react";
 import { ViralEngine } from "@/components/landing/ViralEngine";
@@ -22,8 +22,11 @@ const SERVICES = [
   { label: "Live Studios",     desc: "Real-time creative sessions with dynamic scene generation.",                 to: "/live-studio",  icon: Music2,      price: "From 10 Aura",  img: "/nav-previews/live-studio.jpg" },
   { label: "Content Line",     desc: "Full UGC ad script arcs, creator avatars & visual variations.",             to: "/ugc-line",     icon: Film,        price: "From 10 Aura",  img: "/nav-previews/ugc-line.jpg" },
   { label: "TikTok 30",        desc: "30-second viral TikTok packs — spin, animate, caption, ship.",              to: "/spin",         icon: Flame,       price: "From 10 Aura",  img: "/nav-previews/spin.jpg" },
-  { label: "Scene Builder",    desc: "Composite AI scenes from layers: backdrop, talent, product, VFX.",          to: "/scene-builder",icon: Workflow,    price: "From 10 Aura",  img: "/nav-previews/scene-builder.jpg" },
+  { label: "Directors ROOM",   desc: "Build your scene from references. Drop selfie, outfit, location — generate & animate.",to: "/scene-builder",icon: Workflow,    price: "From 10 Aura",  img: "/nav-previews/scene-builder.jpg" },
   { label: "Video Agent",      desc: "AI-directed talking-head videos with script enhancement & HeyGen rendering.",to: "/agent",        icon: Bot,         price: "From 30 Aura",  img: "/nav-previews/video-agent.jpg" },
+  { label: "Image → Image",    desc: "Restyle, relight, inpaint and transform any photo. AI-powered editing.",        to: "/photo-edit",   icon: Brush,       price: "10 Aura",       img: "/nav-previews/photo-edit.jpg" },
+  { label: "Image → Video",    desc: "Animate any still into a living scene — motion transfer & camera movement.",    to: "/motion",       icon: Video,       price: "From 300 Aura", img: "/nav-previews/motion.jpg" },
+  { label: "Video → Video",    desc: "Reskin a video: swap identity, outfit or environment using a driving video.",   to: "/motion",       icon: Film,        price: "From 300 Aura", img: "/nav-previews/motion.jpg" },
 ];
 
 const TICKER_ITEMS = [

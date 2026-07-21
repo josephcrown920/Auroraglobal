@@ -467,10 +467,10 @@ export function OrchestrateStudio() {
               <Sparkles className="h-4 w-4" />
               AI Router
             </div>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight">Orchestrate</h1>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight">Create</h1>
             <p className="mt-1 text-sm text-neutral-400">
-              One prompt, every modality — routed to the cheapest healthy provider with automatic
-              fallback.
+              One prompt, every modality — image, video, audio — routed to the best available
+              provider with automatic fallback.
             </p>
           </div>
           <Link to="/dashboard" className="text-sm text-neutral-400 hover:text-neutral-100">

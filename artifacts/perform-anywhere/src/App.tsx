@@ -275,7 +275,7 @@ export default function App() {
           <Sparkles size={13} style={{ color: "var(--accent)" }} /> Aurora Performance Studio
         </a>
         <div style={{ display: "flex", gap: 20 }}>
-          {[["Motion Control", motionUrl], ["Colors Studio", colorsUrl], ["Scene Builder", sceneUrl]].map(([label, href]) => (
+          {[["Motion Control", motionUrl], ["Colors Studio", colorsUrl], ["Directors ROOM", sceneUrl]].map(([label, href]) => (
             <a key={label} href={href} style={{ fontSize: 12, color: "var(--text-muted)", textDecoration: "none" }}>{label}</a>
           ))}
         </div>
