@@ -77,3 +77,7 @@ notebooks/*.zip
 # (happened with kids_*.mp4 duplicating src/assets/kids/*.mp4).
 attached_assets/generated_videos/
 attached_assets/generated_images/
+
+# bun lockfiles hijack remote builds (deployer/EAS) — npm package-lock.json is authoritative
+bun.lock
+bun.lockb
