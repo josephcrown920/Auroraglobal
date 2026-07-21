@@ -47,11 +47,10 @@ const MAKE_FEATURES: Feature[] = [
   { to: "/studio",        label: "Image Generation", icon: Sparkles,  previewImg: "/nav-previews/studio.jpg" },
   { to: "/colors",        label: "Colors Studio",    icon: Palette,   previewImg: "/nav-previews/colors.jpg" },
   { to: "/canvas",        label: "Canvas",           icon: Workflow,  previewImg: "/nav-previews/canvas.jpg" },
-  { to: "/orchestrate",   label: "Video",            icon: Film,      previewImg: "/nav-previews/music-video.jpg" },
+  { to: "/agent",         label: "Video Studio",     icon: Film,      previewImg: "/nav-previews/music-video.jpg" },
   { to: "/photo-edit",    label: "Photo Editor",     icon: Brush,     previewImg: "/nav-previews/photo-edit.jpg" },
   { to: "/live-studio",   label: "Live Studios",     icon: Music2,    previewImg: "/nav-previews/live-studio.jpg" },
   { to: "/scene-builder", label: "Scene Builder",    icon: Layers,    previewImg: "/nav-previews/scene-builder.jpg" },
-  { to: "/agent",         label: "Video Agent",      icon: Bot,       previewImg: "/nav-previews/video-agent.jpg" },
 ];
 
 /** Creator & viral tools — ordered by demand. */
@@ -102,9 +101,9 @@ export const ARCHIVED_FEATURES: Feature[] = [
 ];
 
 const TAB_ITEMS: Feature[] = [
-  { to: "/studio",      label: "Studio",  icon: Sparkles },
-  { to: "/orchestrate", label: "Video",   icon: Film },
-  { to: "/canvas",      label: "Canvas",  icon: Workflow },
+  { to: "/studio",  label: "Studio",  icon: Sparkles },
+  { to: "/agent",   label: "Video",   icon: Film },
+  { to: "/canvas",  label: "Canvas",  icon: Workflow },
   { to: "/gallery",     label: "Gallery", icon: Images },
 ];
 

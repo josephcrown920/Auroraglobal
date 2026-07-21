@@ -907,7 +907,7 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
               <img src={data.url} alt="" className="w-full aspect-square object-cover" />
               {data.kind === "input" && (
                 <label
-                  className="absolute inset-x-2 bottom-2 text-sm text-center py-1.5 rounded-md bg-black/70 text-white opacity-0 group-hover/img:opacity-100 transition-opacity cursor-pointer nodrag"
+                  className="absolute inset-x-2 bottom-2 text-sm text-center py-1.5 rounded-md bg-black/70 text-white opacity-70 hover:opacity-100 transition-opacity cursor-pointer nodrag"
                   onMouseDownCapture={(e) => e.stopPropagation()}
                 >
                   Swap image
@@ -1793,6 +1793,7 @@ function CanvasPage() {
             }}
           />
           <FinishedWorkflowsGallery
+            directLoad
             onLoad={(id) => {
               const g = getTemplateById(id) ?? defaultGraphFor(id);
               if (g) {

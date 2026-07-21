@@ -31,10 +31,10 @@ const ITEMS: RoadmapItem[] = [
     status: "live",
   },
   {
-    label: "Video Generation",
-    description: "Text-to-video and image-to-video with multi-model fallback.",
+    label: "Video Studio",
+    description: "Generate video, images, audio and run the AI director agent — all in one page.",
     icon: Film,
-    to: "/orchestrate",
+    to: "/agent",
     status: "live",
   },
   {

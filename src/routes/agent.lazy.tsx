@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
+import { createLazyFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
+import { OrchestrateStudio } from "@/components/orchestrate/OrchestrateStudio";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -745,7 +746,10 @@ function AgentPage() {
     mood: "Hyper-realistic, atmospheric fog, subtle halation, no plastic AI skin.",
   });
 
-  const [activeTab, setActiveTab] = useState<"Workspace" | "Script" | "Dailies" | "Timeline" | "HeyGen">("Workspace");
+  const { tab: tabParam } = useSearch({ from: "/agent" });
+  const [activeTab, setActiveTab] = useState<"Generate" | "Workspace" | "Script" | "Dailies" | "Timeline" | "HeyGen">(
+    tabParam === "generate" ? "Generate" : "Workspace",
+  );
   const [leftOpen,  setLeftOpen]  = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
 
@@ -863,7 +867,7 @@ function AgentPage() {
 
   const handleTabClick = (t: typeof activeTab) => {
     setActiveTab(t);
-    if (t === "Workspace" || t === "HeyGen") return;
+    if (t === "Workspace" || t === "HeyGen" || t === "Generate") return;
     startAgent(`${t} pass`, TAB_PROMPTS[t] ?? "", t);
   };
 
@@ -1027,7 +1031,7 @@ function AgentPage() {
         {/* tab bar */}
         <div className="flex h-13 items-center justify-between border-b border-line bg-canvas/80 px-6 backdrop-blur-sm">
           <div className="flex gap-6 text-[13px] font-bold uppercase tracking-[0.2em]">
-            {(["Workspace", "Script", "Dailies", "Timeline", "HeyGen"] as const).map((t) => (
+            {(["Generate", "Workspace", "Script", "Dailies", "Timeline", "HeyGen"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => handleTabClick(t)}
@@ -1042,12 +1046,14 @@ function AgentPage() {
               </button>
             ))}
           </div>
-          <button
-            onClick={renderAll}
-            className="flex items-center gap-1.5 rounded-md bg-rec px-4 py-1.5 text-xs font-bold uppercase text-white transition-colors hover:bg-rec-glow"
-          >
-            <Rocket className="size-3" /> Render All
-          </button>
+          {activeTab !== "Generate" && (
+            <button
+              onClick={renderAll}
+              className="flex items-center gap-1.5 rounded-md bg-rec px-4 py-1.5 text-xs font-bold uppercase text-white transition-colors hover:bg-rec-glow"
+            >
+              <Rocket className="size-3" /> Render All
+            </button>
+          )}
         </div>
 
         {/* agent dashboard */}
@@ -1063,11 +1069,14 @@ function AgentPage() {
           onReset={resetAgent}
         />
 
+        {/* Generate studio — multi-modal quick generation, replaces chat area */}
+        {activeTab === "Generate" && <OrchestrateStudio />}
+
         {/* HeyGen Video Agent panel — replaces the chat area when HeyGen tab is active */}
         {activeTab === "HeyGen" && <HeyGenPanel />}
 
-        {/* chat scroll area — only rendered for non-HeyGen tabs */}
-        {activeTab !== "HeyGen" && (
+        {/* chat scroll area — only rendered for agent tabs */}
+        {activeTab !== "HeyGen" && activeTab !== "Generate" && (
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6">
           <div className="mx-auto max-w-3xl">
             {/* tab-specific header */}
