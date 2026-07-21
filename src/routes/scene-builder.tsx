@@ -3,17 +3,17 @@ import { createFileRoute } from "@tanstack/react-router";
 export const Route = createFileRoute("/scene-builder")({
   head: () => ({
     meta: [
-      { title: "Scene Builder — Aurora" },
+      { title: "Directors ROOM — Aurora" },
       {
         name: "description",
         content:
-          "Upload up to 5 reference images, write your scene description, pick your camera angles, and generate a fully composited cinematic scene — then animate it with Motion Control.",
+          "Build your scene from references — selfie, outfit, location, prop. Generate a fully composited cinematic still, then animate it with Phone Performance motion control.",
       },
-      { property: "og:title", content: "Scene Builder — Aurora" },
+      { property: "og:title", content: "Directors ROOM — Aurora" },
       {
         property: "og:description",
         content:
-          "5-reference-image compositor: wide, low angle, side profile, close-up, over shoulder, Dutch angle. Your references, your scene, every angle.",
+          "Drop your references, build your scene, add angles. Your shoot. Your direction. Every frame.",
       },
       { property: "og:url", content: "https://aurorastudiostar.lovable.app/scene-builder" },
     ],

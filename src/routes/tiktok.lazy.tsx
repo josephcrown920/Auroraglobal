@@ -461,6 +461,25 @@ function TiktokRemixPage() {
         </section>
       )}
 
+      {/* ── Optional Motion Control card ── */}
+      {childGens.some((g) => g.result_video_url) && (
+        <section className="mt-8 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-primary/70">Motion Control</span>
+            <span className="text-[10px] rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-primary/50">Optional</span>
+          </div>
+          <p className="text-xs text-white/50 leading-relaxed mb-3">
+            Want to go further? Take any of your generated clips into Motion Control — upload a phone performance recording to transfer your real movement into an AI scene.
+          </p>
+          <Link
+            to="/motion"
+            className="inline-flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/15 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary/25 transition-colors"
+          >
+            Open Motion Control →
+          </Link>
+        </section>
+      )}
+
       {/* Worker hint */}
       <ClientWorkerTicker enabled={!!activeRemixId} />
     </div>
