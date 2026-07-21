@@ -2,6 +2,7 @@ import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { PageSpinner } from "@/components/PageSpinner";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { AUDIO_ACCEPT } from "@/lib/utils";
+import { CollectionRunner, formatEtr } from "@/lib/collection-runtime";
 import { generateProductVideoHooks, generateStyleBlueprint, type StyleBlueprint } from "@/lib/claude-hooks.functions";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -76,6 +77,7 @@ import {
   Smartphone,
   Target,
   ShoppingBag,
+  Pause,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -103,7 +105,7 @@ import { GeneratedAssetGallery } from "@/components/canvas/GeneratedAssetGallery
 export const Route = createLazyFileRoute("/canvas")({ component: CanvasPage });
 
 type NodeKind = "input" | "audio" | "image" | "video" | "lipsync" | "split" | "comfy" | "batchVideo" | "heygenTemplate";
-type BatchVariant = { status: "idle" | "running" | "done" | "error"; url?: string; error?: string; approved?: boolean };
+type BatchVariant = { status: "queued" | "running" | "done" | "error"; url?: string; error?: string; approved?: boolean };
 type NodeData = {
   kind: NodeKind;
   label?: string;
@@ -134,6 +136,9 @@ type NodeData = {
   brandLock?: boolean;
   speakerLock?: boolean;
   styleBlueprint?: StyleBlueprint;
+  // batchVideo collection tracking (live-updated during run)
+  collectionStartedAt?: number;
+  collectionEstimatedMs?: number;
   // heygenTemplate-only
   auroraTemplateId?: string;
   talkingPhotoUrl?: string;
@@ -286,6 +291,8 @@ function BatchVideoControls({ id, data }: { id: string; data: NodeData }) {
   const blueprintFn = useServerFn(generateStyleBlueprint);
   const [claudeLoading, setClaudeLoading] = useState(false);
   const [blueprintLoading, setBlueprintLoading] = useState(false);
+  const [customCountMode, setCustomCountMode] = useState(() => !(VARIANT_COUNTS as readonly number[]).includes(data.variantCount ?? 5));
+  const [customCountStr, setCustomCountStr] = useState(() => String(data.variantCount ?? 5));
 
   const count = data.variantCount ?? 5;
   const strategy = data.variationStrategy ?? "mixed";
@@ -478,14 +485,43 @@ function BatchVideoControls({ id, data }: { id: string; data: NodeData }) {
       <div className="grid grid-cols-3 gap-1.5">
         <div className="space-y-0.5">
           <p className="text-[9px] uppercase tracking-wider text-white/30">Count</p>
-          <Select value={String(count)} onValueChange={(v) => h.update(id, { variantCount: Number(v) })}>
-            <SelectTrigger className="h-7 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {VARIANT_COUNTS.map((c) => (
-                <SelectItem key={c} value={String(c)} className="text-xs">{c}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {customCountMode ? (
+            <div className="flex gap-1 items-center">
+              <Input
+                type="number" min={1} max={100}
+                value={customCountStr}
+                onChange={(e) => {
+                  setCustomCountStr(e.target.value);
+                  const n = Number(e.target.value);
+                  if (n >= 1 && n <= 100) h.update(id, { variantCount: n });
+                }}
+                className="h-7 text-xs nodrag bg-black/30 border-white/10 flex-1"
+                onMouseDownCapture={(e) => e.stopPropagation()}
+              />
+              <button
+                type="button"
+                className="text-[10px] text-white/30 hover:text-white/60 nodrag px-1"
+                onMouseDownCapture={(e) => e.stopPropagation()}
+                onClick={() => setCustomCountMode(false)}
+              >✕</button>
+            </div>
+          ) : (
+            <Select
+              value={String(count)}
+              onValueChange={(v) => {
+                if (v === "custom") { setCustomCountMode(true); setCustomCountStr(String(count)); }
+                else h.update(id, { variantCount: Number(v) });
+              }}
+            >
+              <SelectTrigger className="h-7 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {VARIANT_COUNTS.map((c) => (
+                  <SelectItem key={c} value={String(c)} className="text-xs">{c}</SelectItem>
+                ))}
+                <SelectItem value="custom" className="text-xs text-violet-300">Custom…</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         </div>
         <div className="space-y-0.5">
           <p className="text-[9px] uppercase tracking-wider text-white/30">Resolution</p>
@@ -552,11 +588,15 @@ function BatchVideoControls({ id, data }: { id: string; data: NodeData }) {
   );
 }
 
-function BatchOutputViewer({ nodeId, nodes, onClose, onUpdate }: {
+function BatchOutputViewer({ nodeId, nodes, onClose, onUpdate, onCancel, onPause, onResume, isPaused }: {
   nodeId: string | null;
   nodes: Node<NodeData>[];
   onClose: () => void;
   onUpdate: (id: string, patch: Partial<NodeData>) => void;
+  onCancel?: () => void;
+  onPause?: () => void;
+  onResume?: () => void;
+  isPaused?: boolean;
 }) {
   const node = nodes.find((n) => n.id === nodeId);
   if (!node || node.data.kind !== "batchVideo") return null;
@@ -565,6 +605,7 @@ function BatchOutputViewer({ nodeId, nodes, onClose, onUpdate }: {
   const done = variants.filter((v) => v.status === "done").length;
   const failed = variants.filter((v) => v.status === "error").length;
   const running = variants.filter((v) => v.status === "running").length;
+  const queued = variants.filter((v) => v.status === "queued").length;
   const approved = variants.filter((v) => v.approved).length;
 
   const toggleApprove = (i: number) => {
@@ -588,7 +629,7 @@ function BatchOutputViewer({ nodeId, nodes, onClose, onUpdate }: {
 
   const deleteVariant = (i: number) => {
     const updated = variants.map((v, idx) =>
-      idx === i ? { status: "idle" as const, url: undefined, error: undefined, approved: false } : v
+      idx === i ? { status: "queued" as const, url: undefined, error: undefined, approved: false } : v
     );
     onUpdate(node.id, { variants: updated });
   };
@@ -601,14 +642,47 @@ function BatchOutputViewer({ nodeId, nodes, onClose, onUpdate }: {
             <Layers className="size-4 text-primary" />
             Batch Output Viewer
             <span className="ml-1 text-xs text-white/40 font-normal">
-              {node.data.variantCount ?? variants.length} requested
+              {node.data.variantCount ?? variants.length} videos
             </span>
+            {node.data.collectionEstimatedMs && running > 0 && (
+              <span className="ml-auto text-[11px] text-white/30 font-normal">
+                {formatEtr(node.data.collectionEstimatedMs)} left
+              </span>
+            )}
           </SheetTitle>
-          <div className="flex items-center gap-3 mt-2">
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
             <StatPill label="Done" count={done} color="emerald" />
             <StatPill label="Running" count={running} color="blue" />
+            <StatPill label="Queued" count={queued} color="amber" />
             <StatPill label="Failed" count={failed} color="rose" />
-            <StatPill label="Approved" count={approved} color="amber" />
+            {(running > 0 || isPaused) && (
+              <div className="ml-auto flex items-center gap-1 shrink-0">
+                {isPaused ? (
+                  <button
+                    type="button"
+                    onClick={onResume}
+                    className="flex items-center gap-1 h-6 px-2 rounded bg-emerald-500/20 border border-emerald-400/30 text-[11px] text-emerald-300 hover:bg-emerald-500/30 transition-colors"
+                  >
+                    <Play className="size-3" /> Resume
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onPause}
+                    className="flex items-center gap-1 h-6 px-2 rounded bg-white/8 border border-white/10 text-[11px] text-white/60 hover:text-white transition-colors"
+                  >
+                    <Pause className="size-3" /> Pause
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="flex items-center gap-1 h-6 px-2 rounded bg-rose-500/15 border border-rose-400/20 text-[11px] text-rose-400 hover:bg-rose-500/25 transition-colors"
+                >
+                  <XCircle className="size-3" /> Cancel
+                </button>
+              </div>
+            )}
           </div>
           {variants.length > 0 && (
             <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mt-2">
@@ -855,15 +929,19 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
                 const doneC = vs.filter((v) => v.status === "done").length;
                 const failC = vs.filter((v) => v.status === "error").length;
                 const runC = vs.filter((v) => v.status === "running").length;
+                const queuedC = vs.filter((v) => v.status === "queued").length;
                 const pct = total > 0 ? Math.round((doneC / total) * 100) : 0;
+                const etr = data.collectionEstimatedMs ? formatEtr(data.collectionEstimatedMs) : "";
                 return (
                   <>
                     <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
                       <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all" style={{ width: `${pct}%` }} />
                     </div>
                     <span className="text-[10px] text-white/50 shrink-0 tabular-nums">{doneC}/{total}</span>
+                    {queuedC > 0 && <span className="text-[10px] text-sky-400/70 shrink-0">{queuedC}q</span>}
                     {failC > 0 && <span className="text-[10px] text-rose-400 shrink-0">{failC}✗</span>}
                     {runC > 0 && <Loader2 className="size-2.5 animate-spin text-primary shrink-0" />}
+                    {etr && <span className="text-[9px] text-white/30 shrink-0">{etr}</span>}
                   </>
                 );
               })()}
@@ -1398,6 +1476,8 @@ function CanvasPage() {
   const [batchViewerNodeId, setBatchViewerNodeId] = useState<string | null>(null);
   const openBatchViewer = useCallback((id: string) => setBatchViewerNodeId(id), []);
   const handlers = useMemo<Handlers>(() => ({ update, remove, onFile, onOutfitFile, openBatchViewer }), [update, remove, onFile, onOutfitFile, openBatchViewer]);
+  const collectionRunnerRef = useRef<CollectionRunner<number, { id: string; videoUrl: string; preview: boolean }> | null>(null);
+  const [batchPaused, setBatchPaused] = useState(false);
 
   // Pre-flight graph validation: compute blocking issues before the user hits Run.
   // Returns a list of human-readable problems; an empty array means the graph is
@@ -1581,37 +1661,62 @@ function CanvasPage() {
             update(id, { status: "done", url: res.url });
           } else if (n.data.kind === "batchVideo") {
             if (images.length === 0) throw new Error("Batch video needs an image upstream");
-            const count = Math.min(30, Math.max(1, n.data.variantCount ?? 3));
-            update(id, { variants: Array.from({ length: count }, () => ({ status: "running" }) as BatchVariant) });
-            const settled = await Promise.allSettled(
-              Array.from({ length: count }, (_, i) =>
-                vidFn({ data: {
-                  imageUrl: images[0],
-                  prompt: n.data.claudePrompts?.[i] ?? n.data.prompt ?? "natural movement, expressive performance",
-                  duration: n.data.duration ?? 5,
-                  resolution: n.data.resolution ?? "720p",
-                  modelKey: resolveAutoModel(n.data.model ?? VIDEO_MODEL_LIST[0].value, "video"),
+            const count = Math.min(100, Math.max(1, n.data.variantCount ?? 3));
+            update(id, {
+              variants: Array.from({ length: count }, () => ({ status: "queued" }) as BatchVariant),
+              collectionStartedAt: Date.now(),
+              collectionEstimatedMs: undefined,
+            });
+            const runner = new CollectionRunner<number, { id: string; videoUrl: string; preview: boolean }>(
+              `batch-${id}-${Date.now()}`, "batchVideo", Array.from({ length: count }, (_, i) => i),
+            );
+            collectionRunnerRef.current = runner;
+            setBatchPaused(false);
+            // Snapshot node data before async execution (avoids stale closure over React state)
+            const batchImageUrl = images[0];
+            const batchPrompts = n.data.claudePrompts;
+            const batchPrompt = n.data.prompt;
+            const batchDuration = n.data.duration ?? 5;
+            const batchResolution = n.data.resolution ?? "720p";
+            const batchModelKey = resolveAutoModel(n.data.model ?? VIDEO_MODEL_LIST[0].value, "video");
+            let firstSuccessUrl: string | undefined;
+            await runner.run({
+              concurrency: 5,
+              execute: async (item) => {
+                return vidFn({ data: {
+                  imageUrl: batchImageUrl,
+                  prompt: batchPrompts?.[item] ?? batchPrompt ?? "natural movement, expressive performance",
+                  duration: batchDuration,
+                  resolution: batchResolution,
+                  modelKey: batchModelKey,
                   cameraMovement: "static",
                   endFrameUrl: null,
-                } }).then((res) => {
-                  updateVariant(id, i, { status: "done", url: res.videoUrl });
-                  return res;
-                }).catch((e: unknown) => {
-                  const msg = e instanceof Error ? e.message : "Failed";
-                  updateVariant(id, i, { status: "error", error: msg });
-                  handleGenerationError(e);
-                  throw e;
-                }),
-              ),
-            );
-            const succeeded = settled.filter(
-              (r): r is PromiseFulfilledResult<{ id: string; videoUrl: string; preview: boolean }> => r.status === "fulfilled",
-            );
-            if (succeeded.length === 0) throw new Error("All batch video variants failed");
-            resolved.set(id, { url: succeeded[0].value.videoUrl, kind: "video" });
-            update(id, { status: "done", url: succeeded[0].value.videoUrl });
-            if (succeeded.length < count) {
-              toast.error(`${count - succeeded.length} of ${count} batch variants failed — the rest completed and were charged individually`);
+                } });
+              },
+              onItemStart: (i) => updateVariant(id, i, { status: "running" }),
+              onItemDone: (i, res) => {
+                updateVariant(id, i, { status: "done", url: res.videoUrl });
+                if (!firstSuccessUrl) firstSuccessUrl = res.videoUrl;
+              },
+              onItemError: (i, err) => {
+                updateVariant(id, i, { status: "error", error: err.message });
+                handleGenerationError(err);
+              },
+              onProgress: (snap) => {
+                update(id, { collectionEstimatedMs: snap.estimatedMs });
+              },
+            });
+            const finalSnap = runner.snapshot();
+            if (runner.isCancelled) {
+              update(id, { status: "idle", collectionEstimatedMs: undefined });
+              toast.info("Batch generation cancelled");
+              return;
+            }
+            if (!firstSuccessUrl) throw new Error("All batch video variants failed");
+            resolved.set(id, { url: firstSuccessUrl, kind: "video" });
+            update(id, { status: "done", url: firstSuccessUrl, collectionEstimatedMs: undefined });
+            if (finalSnap.failed > 0) {
+              toast.error(`${finalSnap.failed} of ${count} batch variants failed — the rest completed and were charged individually`);
             }
           } else {
             // passthrough
@@ -1825,6 +1930,10 @@ function CanvasPage() {
           nodes={nodes}
           onClose={() => setBatchViewerNodeId(null)}
           onUpdate={update}
+          onCancel={() => collectionRunnerRef.current?.cancel()}
+          onPause={() => { collectionRunnerRef.current?.pause(); setBatchPaused(true); }}
+          onResume={() => { collectionRunnerRef.current?.resume(); setBatchPaused(false); }}
+          isPaused={batchPaused}
         />
         {/* Floating glass toolbar — templates + finished-work gallery live over the canvas */}
         <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 rounded-full border border-white/10 bg-[oklch(0.13_0.04_290/0.85)] backdrop-blur-xl shadow-lg p-1.5">
