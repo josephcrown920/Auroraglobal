@@ -263,6 +263,113 @@ export const lipSyncVideo = createServerFn({ method: "POST" })
     return out;
   });
 
+// ── Smoke helper ─────────────────────────────────────────────────────────────
+// Exercises the same three-stage queue path the concert-lipsync TemplateDrawer
+// dispatch runs: generatePerformanceShot → generateVideoFromImage → lipSyncVideo.
+// Unlike calling orchestrate() directly, each stage goes through
+// reserveGenerationJob (create_generation_and_reserve RPC) so schema drift in
+// the job payload or generation row is caught before a user sees it.
+// Called by smoke step 14 in smoke.functions.ts.
+
+const SMOKE_POLL_INTERVAL_MS = 3_000;
+const SMOKE_MAX_POLL_ATTEMPTS = 100; // ~5 minutes at 3s intervals
+
+async function awaitSmokeJob(
+  jobId: string,
+): Promise<{ resultImageUrl: string | null; resultVideoUrl: string | null }> {
+  for (let i = 0; i < SMOKE_MAX_POLL_ATTEMPTS; i++) {
+    const { data: job } = await supabaseAdmin
+      .from("jobs")
+      .select("id, status, error, generation_id")
+      .eq("id", jobId)
+      .maybeSingle();
+    if (!job) throw new Error(`Smoke: job ${jobId} not found`);
+
+    let gen: { status: string | null; result_image_url: string | null; result_video_url: string | null; error: string | null } | null = null;
+    if (job.generation_id) {
+      const { data } = await supabaseAdmin
+        .from("generations")
+        .select("status, result_image_url, result_video_url, error")
+        .eq("id", job.generation_id)
+        .maybeSingle();
+      gen = data ?? null;
+    }
+
+    const status = gen?.status ?? job.status;
+    if (status === "succeeded" || status === "complete") {
+      return { resultImageUrl: gen?.result_image_url ?? null, resultVideoUrl: gen?.result_video_url ?? null };
+    }
+    if (status === "failed" || status === "cancelled" || job.status === "failed" || job.status === "cancelled") {
+      throw new Error(gen?.error ?? job.error ?? "Generation failed");
+    }
+    await new Promise<void>((r) => setTimeout(r, SMOKE_POLL_INTERVAL_MS));
+  }
+  throw new Error("Studio chain smoke: job timed out after ~5 minutes");
+}
+
+/** Smoke-test the full three-stage studio chain through the queue path.
+ *  Creates real jobs/generations rows, polls for completion, and chains
+ *  each stage's result URL into the next — exactly as the TemplateDrawer does. */
+export async function runSmokeStudioChain(
+  userId: string,
+  referenceImageUrl: string,
+  audioUrl: string,
+): Promise<{ url: string; cost: number }> {
+  const { getStudioTemplate, TEMPLATE_DEFAULTS } = await import("./template-studio");
+  const tpl = getStudioTemplate("concert-lipsync");
+  if (!tpl) throw new Error("concert-lipsync not found in template manifest");
+
+  const imageModel = tpl.imageModel ?? TEMPLATE_DEFAULTS.imageModel;
+  const videoModel = tpl.videoModel ?? TEMPLATE_DEFAULTS.videoModel;
+  const lipsyncModel = tpl.lipsyncModel ?? TEMPLATE_DEFAULTS.lipsyncModel;
+  // Use preview resolution to stay within free-tier HD entitlement caps
+  const resolution = "480p" as const;
+  const durationSeconds = TEMPLATE_DEFAULTS.durationSeconds;
+
+  // Stage 1: generate the performance still (mirrors generatePerformanceShot handler)
+  const imgPrompt = tpl.imagePrompt ?? "smoke test: studio performance portrait";
+  const img = await reserveGenerationJob(userId, "image", imgPrompt, COST_IMAGE, {
+    kind: "image",
+    prompt: imgPrompt,
+    imageUrls: [referenceImageUrl],
+    model: imageModel,
+    motionVideoUrl: null,
+  });
+  const imgResult = await awaitSmokeJob(img.jobId);
+  if (!imgResult.resultImageUrl) throw new Error("Studio chain stage 1 (image) returned no URL");
+
+  // Stage 2: animate the still into a clip (mirrors generateVideoFromImage handler, preview pass)
+  const cameraHint = tpl.cameraMovement ? CAMERA_HINTS[tpl.cameraMovement] : null;
+  const videoPromptBase = tpl.videoPrompt ?? "smoke test: subtle performance motion";
+  const fullVideoPrompt = cameraHint ? `${videoPromptBase}. Camera: ${cameraHint}.` : videoPromptBase;
+  const videoCost = computeCost({ features: ["video"], model: videoModel, durationSeconds, resolution }).total;
+  const vid = await reserveGenerationJob(userId, "video", fullVideoPrompt, videoCost, {
+    kind: "video",
+    model: videoModel,
+    prompt: fullVideoPrompt,
+    imageUrls: [imgResult.resultImageUrl],
+    duration: durationSeconds,
+    resolution,
+    cameraMovement: tpl.cameraMovement ?? null,
+    cameraMovementKey: tpl.cameraMovement ?? null,
+  });
+  const vidResult = await awaitSmokeJob(vid.jobId);
+  if (!vidResult.resultVideoUrl) throw new Error("Studio chain stage 2 (video) returned no URL");
+
+  // Stage 3: lip-sync the clip to the test audio (mirrors lipSyncVideo handler)
+  const lipsyncCost = computeCost({ features: ["lipsync"], model: lipsyncModel }).total;
+  const lip = await reserveGenerationJob(userId, "video", "lip sync (sync 1.9)", lipsyncCost, {
+    kind: "lipsync",
+    model: lipsyncModel,
+    videoUrl: vidResult.resultVideoUrl,
+    audioUrl,
+  });
+  const lipResult = await awaitSmokeJob(lip.jobId);
+  if (!lipResult.resultVideoUrl) throw new Error("Studio chain stage 3 (lipsync) returned no URL");
+
+  return { url: lipResult.resultVideoUrl, cost: COST_IMAGE + videoCost + lipsyncCost };
+}
+
 // Toggle favorite flag — used by gallery to "save permanently"
 export const toggleFavorite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

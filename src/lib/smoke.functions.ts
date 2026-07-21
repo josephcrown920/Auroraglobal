@@ -444,12 +444,13 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       total += r13.cost_usd;
 
       // 14. Templates: full studio chain (image→video→lipsync) — exercises the
-      //     exact three-stage pipeline the concert-lipsync TemplateDrawer dispatch
+      //     exact three-stage queue path the concert-lipsync TemplateDrawer dispatch
       //     runs: generatePerformanceShot → generateVideoFromImage → lipSyncVideo.
-      //     Each stage result URL is asserted non-empty before passing to the next.
-      //     Uses model slugs from TEMPLATE_DEFAULTS (single source of truth for
-      //     the template manifest). Skipped in free-GPU-only mode — both video
-      //     and lipsync stages have no $0 hosted fallback so they would always fail.
+      //     Each stage creates a real job/generation row via reserveGenerationJob
+      //     (create_generation_and_reserve RPC), polls until the job completes, then
+      //     chains the result URL into the next stage — catching queue payload/schema
+      //     drift and mid-pipeline URL format mismatches before a user hits Generate.
+      //     Skipped in free-GPU-only mode — video and lipsync have no $0 fallback.
       const r14: StepResult = await (async (): Promise<StepResult> => {
         const { isFreeGpuOnlyMode } = await import("./app-settings.server");
         if (await isFreeGpuOnlyMode()) {
@@ -461,57 +462,13 @@ export const runSmokeTest = createServerFn({ method: "POST" })
           };
         }
         return runStep(async () => {
-          const { getStudioTemplate, TEMPLATE_DEFAULTS } = await import("./template-studio");
-          const tpl = getStudioTemplate("concert-lipsync");
-          if (!tpl) throw new Error("concert-lipsync not found in template manifest");
-          const imageModel = tpl.imageModel ?? TEMPLATE_DEFAULTS.imageModel;
-          const videoModel = tpl.videoModel ?? TEMPLATE_DEFAULTS.videoModel;
-          const lipsyncModel = tpl.lipsyncModel ?? TEMPLATE_DEFAULTS.lipsyncModel;
-
-          // Stage 1: generate the performance still
-          const imgOut = await orchestrate({
-            kind: "image",
-            prompt: tpl.imagePrompt ?? "smoke test: studio performance portrait",
-            imageUrls: [TEST_SELFIE_URL],
-            model: imageModel,
-            userId: context.userId,
-            refId: run.id,
-          });
-          if (!imgOut.url) throw new Error("Studio chain stage 1 (image) returned no URL");
-
-          // Stage 2: animate the still into a clip
-          const vidOut = await orchestrate({
-            kind: "video",
-            prompt: tpl.videoPrompt ?? "smoke test: subtle performance motion",
-            imageUrls: [imgOut.url],
-            duration: TEMPLATE_DEFAULTS.durationSeconds,
-            resolution: TEMPLATE_DEFAULTS.resolution,
-            model: videoModel,
-            userId: context.userId,
-            refId: run.id,
-          });
-          if (!vidOut.url) throw new Error("Studio chain stage 2 (video) returned no URL");
-
-          // Stage 3: lip-sync the clip to the test audio
-          const lipOut = await orchestrate({
-            kind: "lipsync",
-            videoUrl: vidOut.url,
-            audioUrl: TEST_AUDIO_URL,
-            model: lipsyncModel,
-            userId: context.userId,
-            refId: run.id,
-          });
-          if (!lipOut.url) throw new Error("Studio chain stage 3 (lipsync) returned no URL");
-
-          return {
-            url: lipOut.url,
-            cost: imgOut.costUsd + vidOut.costUsd + lipOut.costUsd,
-            raw: {
-              provider_image: imgOut.provider,
-              provider_video: vidOut.provider,
-              provider_lipsync: lipOut.provider,
-            },
-          };
+          const { runSmokeStudioChain } = await import("./studio.functions");
+          const { url, cost } = await runSmokeStudioChain(
+            context.userId,
+            TEST_SELFIE_URL,
+            TEST_AUDIO_URL,
+          );
+          return { url, cost, raw: { mode: "queue-backed-studio-chain" } };
         });
       })();
       await writeCheck(run.id, 14, STEPS[13], r14);
