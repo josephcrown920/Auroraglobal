@@ -265,7 +265,7 @@ export function BalloonLipsync() {
             loop
             muted
             playsInline
-            preload="auto"
+            preload="none"
             className="absolute inset-0 size-full object-cover"
           />
           <div
@@ -434,7 +434,7 @@ export function BalloonLipsync() {
           <audio
             ref={audioRef}
             src={audioSrc}
-            preload="auto"
+            preload="none"
             crossOrigin="anonymous"
             onEnded={() => {
               setPlaying(false);
