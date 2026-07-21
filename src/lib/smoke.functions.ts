@@ -26,6 +26,7 @@ const STEPS = [
   "Lip sync (photo+audio)",
   "Lip sync (image+audio → generate API path)",
   "Templates: lip-sync dispatch",
+  "Templates: studio chain (image→video→lipsync)",
   "Spin carousel",
   "Lyric Video",
   "Avatar shot (SeedDream image)",
@@ -442,26 +443,100 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       await writeCheck(run.id, 13, STEPS[12], r13);
       total += r13.cost_usd;
 
-      // 14. Spin carousel — exercises the EXACT production Spin path:
+      // 14. Templates: full studio chain (image→video→lipsync) — exercises the
+      //     exact three-stage pipeline the concert-lipsync TemplateDrawer dispatch
+      //     runs: generatePerformanceShot → generateVideoFromImage → lipSyncVideo.
+      //     Each stage result URL is asserted non-empty before passing to the next.
+      //     Uses model slugs from TEMPLATE_DEFAULTS (single source of truth for
+      //     the template manifest). Skipped in free-GPU-only mode — both video
+      //     and lipsync stages have no $0 hosted fallback so they would always fail.
+      const r14: StepResult = await (async (): Promise<StepResult> => {
+        const { isFreeGpuOnlyMode } = await import("./app-settings.server");
+        if (await isFreeGpuOnlyMode()) {
+          return {
+            status: "skip",
+            latency_ms: 0,
+            cost_usd: 0,
+            error: "Free-GPU-only mode is active — video and lipsync have no $0 hosted fallback",
+          };
+        }
+        return runStep(async () => {
+          const { getStudioTemplate, TEMPLATE_DEFAULTS } = await import("./template-studio");
+          const tpl = getStudioTemplate("concert-lipsync");
+          if (!tpl) throw new Error("concert-lipsync not found in template manifest");
+          const imageModel = tpl.imageModel ?? TEMPLATE_DEFAULTS.imageModel;
+          const videoModel = tpl.videoModel ?? TEMPLATE_DEFAULTS.videoModel;
+          const lipsyncModel = tpl.lipsyncModel ?? TEMPLATE_DEFAULTS.lipsyncModel;
+
+          // Stage 1: generate the performance still
+          const imgOut = await orchestrate({
+            kind: "image",
+            prompt: tpl.imagePrompt ?? "smoke test: studio performance portrait",
+            imageUrls: [TEST_SELFIE_URL],
+            model: imageModel,
+            userId: context.userId,
+            refId: run.id,
+          });
+          if (!imgOut.url) throw new Error("Studio chain stage 1 (image) returned no URL");
+
+          // Stage 2: animate the still into a clip
+          const vidOut = await orchestrate({
+            kind: "video",
+            prompt: tpl.videoPrompt ?? "smoke test: subtle performance motion",
+            imageUrls: [imgOut.url],
+            duration: TEMPLATE_DEFAULTS.durationSeconds,
+            resolution: TEMPLATE_DEFAULTS.resolution,
+            model: videoModel,
+            userId: context.userId,
+            refId: run.id,
+          });
+          if (!vidOut.url) throw new Error("Studio chain stage 2 (video) returned no URL");
+
+          // Stage 3: lip-sync the clip to the test audio
+          const lipOut = await orchestrate({
+            kind: "lipsync",
+            videoUrl: vidOut.url,
+            audioUrl: TEST_AUDIO_URL,
+            model: lipsyncModel,
+            userId: context.userId,
+            refId: run.id,
+          });
+          if (!lipOut.url) throw new Error("Studio chain stage 3 (lipsync) returned no URL");
+
+          return {
+            url: lipOut.url,
+            cost: imgOut.costUsd + vidOut.costUsd + lipOut.costUsd,
+            raw: {
+              provider_image: imgOut.provider,
+              provider_video: vidOut.provider,
+              provider_lipsync: lipOut.provider,
+            },
+          };
+        });
+      })();
+      await writeCheck(run.id, 14, STEPS[13], r14);
+      total += r14.cost_usd;
+
+      // 15. Spin carousel — exercises the EXACT production Spin path:
       //     creates a 1-variant spin_jobs row (admin bypasses credit deduction),
       //     claims the variant (CAS fence), calls renderSpinPiece (same Gemini
       //     identity-locked image orchestration + studio upload used by every Spin
       //     piece in production), then marks the row done. This is the same code
       //     path tickSpinJob and advanceSpinQueueAdmin call per-piece.
-      const r14 = await runStep(async () => {
+      const r15 = await runStep(async () => {
         const { runSmokeSpinOne } = await import("./spin.functions");
         const { url, provider } = await runSmokeSpinOne(context.userId, TEST_SELFIE_URL);
         if (!url) throw new Error("Spin carousel piece returned no URL");
         return { url, cost: 0, raw: { provider, mode: "spin-one-piece" } };
       });
-      await writeCheck(run.id, 14, STEPS[13], r14);
-      total += r14.cost_usd;
+      await writeCheck(run.id, 15, STEPS[14], r15);
+      total += r15.cost_usd;
 
-      // 15. Lyric Video — synthesizes a new video from an uploaded song + timed
+      // 16. Lyric Video — synthesizes a new video from an uploaded song + timed
       //     lyric lines via the GPU worker's FFmpeg pipeline. Skipped when no
       //     lyric_video-capable worker is online (GPU-only, no hosted fallback).
       //     Uses the test audio track and 3 evenly-spaced 10s lyric lines.
-      const r15: StepResult = await (async (): Promise<StepResult> => {
+      const r16: StepResult = await (async (): Promise<StepResult> => {
         const { hasActiveWorkerForKind } = await import("./orchestrator.server");
         if (!(await hasActiveWorkerForKind("lyric_video"))) {
           return {
@@ -494,32 +569,32 @@ export const runSmokeTest = createServerFn({ method: "POST" })
           return { url: outcome.url, cost: outcome.costUsd ?? cost, raw: { provider: outcome.provider } };
         });
       })();
-      await writeCheck(run.id, 15, STEPS[14], r15);
-      total += r15.cost_usd;
+      await writeCheck(run.id, 16, STEPS[15], r16);
+      total += r16.cost_usd;
 
-      // 16. Avatar shot (SeedDream image) — exercises the full /avatar Shots-tab
+      // 17. Avatar shot (SeedDream image) — exercises the full /avatar Shots-tab
       //     pipeline via runSmokeAvatarShotOne (same pattern as runSmokeSpinOne
       //     in step 14). That helper mirrors generateAvatarShot's handler body
       //     (engine="seedream"): credit reservation → SeedDream orchestration →
       //     URL return. Passes TEST_SELFIE_URL as the reference face image so the
       //     smoke confirms the identity-conditioned portrait path end-to-end.
-      const r16 = await runStep(async () => {
+      const r17 = await runStep(async () => {
         const { runSmokeAvatarShotOne, SHOT_IMAGE_COST: shotCost } =
           await import("./platform-template.functions");
         const { url, provider } = await runSmokeAvatarShotOne(context.userId, TEST_SELFIE_URL);
         if (!url) throw new Error("Avatar shot returned no image URL");
         return { url, cost: shotCost, raw: { provider } };
       });
-      await writeCheck(run.id, 16, STEPS[15], r16);
-      total += r16.cost_usd;
+      await writeCheck(run.id, 17, STEPS[16], r17);
+      total += r17.cost_usd;
 
-      // 17. Photo Edit — exercises the editStrict pipeline end-to-end:
+      // 18. Photo Edit — exercises the editStrict pipeline end-to-end:
       //     kind:"image" + imageUrls + PHOTO_EDIT_MODEL confirms the exact model
       //     and fal identity-edit route the Photo Editor feature uses is reachable.
       //     Uses editStrict:false (non-strict) so the step doesn't fail on
       //     providers that are temporarily down — a reference-image edit returning
       //     any non-empty URL proves the pipeline is wired correctly.
-      const r17 = await runStep(async () => {
+      const r18 = await runStep(async () => {
         const { PHOTO_EDIT_MODEL } = await import("./photo-edit.functions");
         const out = await orchestrate({
           kind: "image",
@@ -534,15 +609,15 @@ export const runSmokeTest = createServerFn({ method: "POST" })
         if (!out.url) throw new Error("Photo Edit returned no image URL");
         return { url: out.url, cost: out.costUsd, raw: { provider: out.provider } };
       });
-      await writeCheck(run.id, 17, STEPS[16], r17);
-      total += r17.cost_usd;
+      await writeCheck(run.id, 18, STEPS[17], r18);
+      total += r18.cost_usd;
 
-      // 18. Speech TTS — calls the real /api/public/generate HTTP route with
+      // 19. Speech TTS — calls the real /api/public/generate HTTP route with
       //     kind:"audio" + model:"elevenlabs/tts" and asserts a non-empty MP3
       //     URL, exercising the full endpoint path (schema validation, auth,
       //     credit accounting, and ElevenLabs adapter).
       //     Skipped when ELEVENLABS_API_KEY is not configured.
-      const r18: StepResult = await (async (): Promise<StepResult> => {
+      const r19: StepResult = await (async (): Promise<StepResult> => {
         if (!process.env.ELEVENLABS_API_KEY) {
           return {
             status: "skip",
@@ -559,7 +634,7 @@ export const runSmokeTest = createServerFn({ method: "POST" })
           const req = getRequest();
           const authHeader = req.headers.get("authorization") ?? req.headers.get("Authorization") ?? "";
           if (!authHeader.startsWith("Bearer ")) {
-            throw new Error("Smoke step 18: could not extract Bearer token from request context");
+            throw new Error("Smoke step 19: could not extract Bearer token from request context");
           }
           const port = process.env.PORT ?? "8080";
           const endpoint = `http://localhost:${port}/api/public/generate`;
@@ -588,14 +663,14 @@ export const runSmokeTest = createServerFn({ method: "POST" })
           return { url, cost: json.estimatedCostUsd ?? 0, raw: { provider: json.provider } };
         });
       })();
-      await writeCheck(run.id, 18, STEPS[17], r18);
-      total += r18.cost_usd;
+      await writeCheck(run.id, 19, STEPS[18], r19);
+      total += r19.cost_usd;
 
-      // 19. Perform Anywhere — Reshoot (Motion Transfer): dispatches a motion-transfer
+      // 20. Perform Anywhere — Reshoot (Motion Transfer): dispatches a motion-transfer
       //     job via orchestrate() with kind:"motion", a reference image, and a short
       //     driving video. Skipped when no GPU worker with the "motion" capability is
       //     online (same guard used by the Motion Studio UI itself).
-      const r19: StepResult = await (async (): Promise<StepResult> => {
+      const r20: StepResult = await (async (): Promise<StepResult> => {
         const { hasActiveWorkerForKind } = await import("./orchestrator.server");
         if (!(await hasActiveWorkerForKind("motion"))) {
           return {
@@ -621,10 +696,10 @@ export const runSmokeTest = createServerFn({ method: "POST" })
           return { url: out.url, cost: out.costUsd ?? computeCost({ features: ["motion"] }).total, raw: { provider: out.provider } };
         });
       })();
-      await writeCheck(run.id, 19, STEPS[18], r19);
-      total += r19.cost_usd;
+      await writeCheck(run.id, 20, STEPS[19], r20);
+      total += r20.cost_usd;
 
-      // ── Step 20 · Video Agent (HeyGen) ─────────────────────────────────────
+      // ── Step 21 · Video Agent (HeyGen) ─────────────────────────────────────
       //     Calls POST /api/public/generate (the same public endpoint external
       //     API callers use) with model "heygen/video-agent" to exercise the
       //     full auth → credit-reservation → orchestrate → job-record chain.
@@ -635,7 +710,7 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       //     of the remaining_quota shown in the dashboard — treat that as a skip
       //     (an expected config state), not a code failure.
       const HEYGEN_CREDIT_SMOKE_RE = /\b(402|insufficient.?credit|credit.?exhausted|40102)\b/i;
-      const r20: StepResult = await (async (): Promise<StepResult> => {
+      const r21: StepResult = await (async (): Promise<StepResult> => {
         if (!process.env.HEYGEN_API_KEY) {
           return {
             status: "skip",
@@ -696,15 +771,15 @@ export const runSmokeTest = createServerFn({ method: "POST" })
           return { status: "fail", latency_ms: Date.now() - t0, cost_usd: 0, error: msg.slice(0, 500) };
         }
       })();
-      await writeCheck(run.id, 20, STEPS[19], r20);
-      total += r20.cost_usd;
+      await writeCheck(run.id, 21, STEPS[20], r21);
+      total += r21.cost_usd;
 
       await supabaseAdmin
         .from("smoke_runs")
         .update({
           finished_at: new Date().toISOString(),
           total_cost_usd: total,
-          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18, r19, r20].filter(r => r.status === "pass").length, total: 20 } as never,
+          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18, r19, r20, r21].filter(r => r.status === "pass").length, total: 21 } as never,
         })
         .eq("id", run.id);
     })().catch(async (e) => {
