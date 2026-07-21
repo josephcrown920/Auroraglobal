@@ -75,6 +75,7 @@ import {
   Monitor,
   Smartphone,
   Target,
+  ShoppingBag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -136,6 +137,8 @@ type NodeData = {
   // heygenTemplate-only
   auroraTemplateId?: string;
   talkingPhotoUrl?: string;
+  // outfit / product swap — secondary reference image for try-on / product nodes
+  outfitUrl?: string;
 };
 
 const initialNodes: Node<NodeData>[] = [
@@ -183,8 +186,11 @@ type Handlers = {
   update: (id: string, patch: Partial<NodeData>) => void;
   remove: (id: string) => void;
   onFile: (id: string, file: File) => void;
+  onOutfitFile: (id: string, file: File) => void;
   openBatchViewer: (id: string) => void;
 };
+
+const OUTFIT_LABELS = /product|try.?on|outfit|top\b|bottom\b|garment|apparel|clothing|fashion/i;
 const HandlersCtx = createContext<Handlers | null>(null);
 
 type ComfyTemplate = {
@@ -1006,6 +1012,35 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
                 </div>
               )}
               {meta && <p className="text-[13px] text-muted-foreground">{meta.tagline}</p>}
+              {OUTFIT_LABELS.test(data.label ?? "") && (
+                <div className="border border-white/10 rounded-lg p-2 space-y-1.5">
+                  <div className="text-[11px] uppercase tracking-[0.15em] text-white/40 flex items-center gap-1.5">
+                    <ShoppingBag className="size-3" /> Outfit / Product
+                  </div>
+                  {data.outfitUrl ? (
+                    <div className="relative">
+                      <img src={data.outfitUrl} alt="outfit" className="w-full h-16 rounded-md object-cover" />
+                      <label
+                        className="absolute inset-x-1 bottom-1 text-[11px] text-center py-0.5 rounded bg-black/70 text-white/70 hover:text-white cursor-pointer nodrag transition-colors"
+                        onMouseDownCapture={(e) => e.stopPropagation()}
+                      >
+                        Change
+                        <input type="file" accept="image/*" className="hidden"
+                          onChange={(e) => e.target.files?.[0] && h.onOutfitFile(id, e.target.files[0])} />
+                      </label>
+                    </div>
+                  ) : (
+                    <label
+                      className="relative block cursor-pointer nodrag rounded-lg border border-dashed border-fuchsia-400/30 bg-fuchsia-500/5 hover:border-fuchsia-400/60 hover:bg-fuchsia-500/10 transition-colors p-2.5 text-center"
+                      onMouseDownCapture={(e) => e.stopPropagation()}
+                    >
+                      <div className="text-[12px] text-white/50">Upload outfit / product photo</div>
+                      <input type="file" accept="image/*" className="hidden"
+                        onChange={(e) => e.target.files?.[0] && h.onOutfitFile(id, e.target.files[0])} />
+                    </label>
+                  )}
+                </div>
+              )}
             </>
           )}
           {data.kind === "lipsync" && (
@@ -1349,10 +1384,20 @@ function CanvasPage() {
     update(id, { url: signed.signedUrl });
   }, [user, update]);
 
+  const onOutfitFile = useCallback(async (id: string, file: File) => {
+    if (!user) return;
+    const path = `${user.id}/canvas/outfit-${Date.now()}-${file.name}`;
+    const { error } = await supabase.storage.from("studio").upload(path, file, { upsert: true, contentType: file.type });
+    if (error) { toast.error(error.message); return; }
+    const { data: signed, error: signErr } = await supabase.storage
+      .from("studio").createSignedUrl(path, 60 * 60);
+    if (signErr || !signed?.signedUrl) { toast.error(signErr?.message ?? "Could not sign outfit URL"); return; }
+    update(id, { outfitUrl: signed.signedUrl });
+  }, [user, update]);
 
   const [batchViewerNodeId, setBatchViewerNodeId] = useState<string | null>(null);
   const openBatchViewer = useCallback((id: string) => setBatchViewerNodeId(id), []);
-  const handlers = useMemo<Handlers>(() => ({ update, remove, onFile, openBatchViewer }), [update, remove, onFile, openBatchViewer]);
+  const handlers = useMemo<Handlers>(() => ({ update, remove, onFile, onOutfitFile, openBatchViewer }), [update, remove, onFile, onOutfitFile, openBatchViewer]);
 
   // Pre-flight graph validation: compute blocking issues before the user hits Run.
   // Returns a list of human-readable problems; an empty array means the graph is
@@ -1434,9 +1479,10 @@ function CanvasPage() {
           update(id, { status: "running", error: undefined });
           if (n.data.kind === "image") {
             if (images.length === 0) throw new Error("Image node needs an image upstream");
+            const imageUrls = n.data.outfitUrl ? [...images, n.data.outfitUrl] : images;
             const res = await genFn({ data: {
               prompt: n.data.prompt ?? "cinematic portrait",
-              imageUrls: images,
+              imageUrls,
               motionVideoUrl: null,
               model: resolveAutoModel(n.data.model ?? MODEL_LIST[0].value, "image"),
             } });
