@@ -607,18 +607,46 @@
     </div>
     <div class="section-body">
 
-      <p style="font-size:12px;color:var(--muted);margin-bottom:14px;letter-spacing:0.5px;">Use <strong style="color:var(--text)">Kling v3 Standard — Image to Video</strong> on fal.ai for both layers. Upload character reference photo first, then paste prompt.</p>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:14px;letter-spacing:0.5px;">Use <strong style="color:var(--text)">Aurora Studio → Templates → Looping Officers</strong> (Kling v3 · image-to-video · 10s · 16:9). Josh's reference photo is pre-filled. Tap Generate.</p>
 
-      <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--red);text-transform:uppercase;margin-bottom:8px;">Layer A Prompt — NBA Josh</div>
-      <div class="prompt-block">
-        <div class="prompt-label">COPY → KLING</div>
-        Cinematic music video scene. A <span class="hi">tall athletic Black male rapper with long red-tipped dreadlocks</span>, diamond "NBA JOSH" chain, arm tattoos, studded leather belt, black leather pants and gold watch, stands in the <span class="key">bottom right of frame</span>, shot from waist up, facing slightly left toward camera. <span class="hi">Dark wet urban street at night</span>. Performs his hook with calm fearless energy, subtle hand gestures, relaxed confidence. <span class="key">Static locked-off camera. Zero camera movement.</span> Dramatic overhead streetlight, high contrast, moody atmosphere. Near the end he glances over his left shoulder with a smirk, then turns and slowly walks out of frame. Realistic, cinematic, music video aesthetic, shallow depth of field.
+      <!-- Reference Assets -->
+      <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;">Reference Assets</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
+        <div style="background:var(--panel);border:1px solid var(--border);overflow:hidden;">
+          <img src="/josh-ref-1.png" alt="Josh ref 1" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;" />
+          <div style="padding:6px 8px;font-family:'Space Mono',monospace;font-size:8px;color:var(--muted);letter-spacing:1px;">REF A — PORTRAIT</div>
+        </div>
+        <div style="background:var(--panel);border:1px solid var(--border);overflow:hidden;">
+          <img src="/josh-ref-3.jpeg" alt="Josh ref 3" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;" />
+          <div style="padding:6px 8px;font-family:'Space Mono',monospace;font-size:8px;color:var(--muted);letter-spacing:1px;">REF B — DEFAULT INPUT</div>
+        </div>
+        <div style="background:var(--panel);border:1px solid var(--border);overflow:hidden;">
+          <img src="/josh-officers-bg.webp" alt="Officers bg" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;" />
+          <div style="padding:6px 8px;font-family:'Space Mono',monospace;font-size:8px;color:#5a9fd4;letter-spacing:1px;">LAYER B — OFFICERS BG</div>
+        </div>
       </div>
 
-      <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:3px;color:#5a9fd4;text-transform:uppercase;margin-bottom:8px;">Layer B Prompt — Officers</div>
+      <!-- Character card -->
+      <div class="concept-box" style="margin-bottom:16px;">
+        <strong>Josh visual identity (locked):</strong> 6ft 3in, lean athletic build, long bright red-tipped dreadlocks, <strong>alien-frame red sunglasses with circular green reptile-eye lenses</strong>, large diamond <strong>"NEVER JXST"</strong> chain, arm-only tattoos with "NBA JOSH" lettering on right forearm, maroon and black Z-brand athletic jersey.
+      </div>
+
+      <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--red);text-transform:uppercase;margin-bottom:8px;">Layer A Prompt — NBA Josh (Aurora imagePrompt)</div>
+      <div class="prompt-block">
+        <div class="prompt-label">AURORA / KLING</div>
+        Cinematic 16:9 music video still. A <span class="hi">tall athletic Black male rapper, 6ft 3in, lean build, with long bright red-tipped dreadlocks, alien-frame red sunglasses with circular green reptile-eye lenses</span>, a large diamond <span class="hi">"NEVER JXST"</span> chain, <span class="hi">arm tattoos with "NBA JOSH" lettering on the right forearm</span>, wearing a <span class="hi">maroon and black Z-brand athletic jersey</span>. He stands in the <span class="key">BOTTOM RIGHT of the frame</span>, shot from waist up, facing slightly left toward camera. <span class="hi">Dark wet urban street at night.</span> Dramatic overhead streetlight, high contrast cinematic atmosphere, shallow depth of field. Two police officers in full navy uniform run aggressively in the <span class="key">TOP LEFT of frame</span>, full body visible, arms pumping intensely, leaning forward, urgent expressions — motion blur on their bodies. The rapper looks calm, fearless, completely unbothered. Photorealistic, 4K music video aesthetic. Preserve the exact facial likeness, skin tone, hair and identity from the reference photo.
+      </div>
+
+      <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--red);text-transform:uppercase;margin-bottom:8px;">Layer A Motion Prompt — Aurora videoPrompt</div>
+      <div class="prompt-block">
+        <div class="prompt-label">AURORA / KLING</div>
+        The rapper performs his hook in the <span class="key">bottom right</span> with calm fearless energy and subtle hand gestures. The officers in the <span class="key">top left</span> keep running in place — <span class="hi">stuck in a looping glitch, never advancing.</span> Static locked-off camera, zero movement. Near the end the rapper glances over his left shoulder with a cool smirk, then casually turns and <span class="hi">walks out of frame</span> while the officers are still running.
+      </div>
+
+      <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:3px;color:#5a9fd4;text-transform:uppercase;margin-bottom:8px;">Layer B — Officers (pre-generated · loop in CapCut)</div>
       <div class="prompt-block" style="border-left-color:#1e4a70;">
-        <div class="prompt-label" style="background:#1e4a70;color:#5a9fd4;">COPY → KLING</div>
-        Two <span class="hi">white male police officers in full navy uniforms</span> with silver badges and black tactical belts run aggressively in the <span class="key">upper left of frame</span>, full body visible, running hard toward the right side of screen. Dark wet urban street at night. Arms pumping intensely, leaning forward, determined urgent expressions. <span class="hi">Dramatic high contrast night lighting. Motion blur on their bodies.</span> Static locked-off camera. Cinematic, realistic, 2–3 seconds of strong running motion.
+        <div class="prompt-label" style="background:#1e4a70;color:#5a9fd4;">PRE-GENERATED</div>
+        Layer B officer clip is already captured in the reference asset above (<span class="hi">josh-officers-bg.webp</span>). In CapCut: import it as the base track, loop it to 15 seconds, then overlay the Aurora-generated Josh clip as foreground. See Section 07 for the full composite workflow.
       </div>
 
     </div>

@@ -101,6 +101,20 @@ export type StudioTemplate = {
   resolution?: Resolution;
   lipsyncModel?: string;
 
+  /**
+   * Pre-fill the image input with this URL so users can generate immediately.
+   * Must be an absolute URL or a public-dir path starting with "/".
+   * The drawer converts "/" paths to an absolute URL using window.location.origin.
+   */
+  defaultImageUrl?: string;
+
+  /**
+   * Additional background / scene reference image passed alongside the user's
+   * photo in the image generation step (appended to imageUrls[]).
+   * Lets the model see the intended background composition as a visual guide.
+   */
+  backgroundImageUrl?: string;
+
   // ── ugc params (dispatch === "ugc") ──
   ugcAspect?: "9:16" | "16:9" | "1:1" | "4:5";
 
@@ -364,10 +378,12 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
     thumbnail: JOSH_LOOPING_OFFICERS_THUMB,
     kinds: ["image", "video"],
     dispatch: "studio",
+    defaultImageUrl: "/josh-ref-3.jpeg",
+    backgroundImageUrl: "/josh-officers-bg.webp",
     inputs: [
       IMG(
         "Josh reference photo",
-        "Upload a clear photo of Josh — or use the default",
+        "Pre-filled — upload a replacement if needed",
       ),
     ],
     imagePrompt: `Cinematic 16:9 music video still. A tall athletic Black male rapper, 6ft 3in, lean build, with long bright red-tipped dreadlocks, alien-frame red sunglasses with circular green reptile-eye lenses, a large diamond "NEVER JXST" chain, arm tattoos with "NBA JOSH" lettering on the right forearm, wearing a maroon and black Z-brand athletic jersey. He stands in the BOTTOM RIGHT of the frame, shot from waist up, facing slightly left toward camera. Dark wet urban street at night. Dramatic overhead streetlight, high contrast cinematic atmosphere, shallow depth of field. Two police officers in full navy uniform run aggressively in the TOP LEFT of frame, full body visible, arms pumping intensely, leaning forward, urgent expressions — motion blur on their bodies. The rapper looks calm, fearless, completely unbothered. Photorealistic, 4K music video aesthetic. ${IDENTITY}`,
