@@ -265,33 +265,46 @@ function LandingPage() {
       <BalloonLipsync />
 
       {/* ── Gallery ─────────────────────────────────────────────────────── */}
-      <section id="gallery" className="bg-zinc-900/30 py-20 border-y border-white/5">
-        <div className="px-5">
-          <div className="mb-10">
-            <span className="text-xs font-bold uppercase tracking-[0.3em] text-brand">
-              Output gallery
-            </span>
-            <h2 className="mt-3 text-4xl font-semibold leading-tight">
-              Real artists. Real outputs.{" "}
-              <span className="font-serif italic">Zero stock.</span>
-            </h2>
-            <p className="mt-3 text-sm text-zinc-400">
-              A curated feed of recent generations across covers, promo, and motion.
-            </p>
-          </div>
-          <div className="columns-2 gap-3 space-y-3">
-            <GalleryImg src="/landing-photo-1.jpeg"        alt="Studio portrait"     ratio="aspect-[2/3]"  tag="Portrait" />
-            <GalleryImg src="/landing-photo-2.jpeg"        alt="Artist promo"        ratio="aspect-[3/4]"  tag="Promo shot" />
-            <GalleryImg src="/landing-photo-3.jpeg"        alt="Album artwork"       ratio="aspect-square" tag="Cover art" />
-            <GalleryImg src="/landing-photo-nba-josh.png"  alt="NBA Josh character"  ratio="aspect-[2/3]"  tag="Character" />
-            <GalleryImg src="/landing-photo-4.jpeg"        alt="Editorial look"      ratio="aspect-[4/5]"  tag="Editorial" />
-            <GalleryImg src="/landing-photo-5.jpeg"        alt="Cinematic scene"     ratio="aspect-[3/4]"  tag="Cinema" />
-            <GalleryImg src="/landing-photo-6.png"         alt="Color grade"         ratio="aspect-square" tag="Color grade" />
-            <GalleryImg src="/landing-photo-7.png"         alt="Motion scene"        ratio="aspect-[2/3]"  tag="Motion" />
-            <GalleryImg src="/landing-photo-8.png"         alt="Campaign shot"       ratio="aspect-[3/4]"  tag="Campaign" />
-            <GalleryImg src="/landing-photo-studios-grid.png" alt="Aurora Studios"   ratio="aspect-square" tag="Studios" />
-          </div>
+      <section id="gallery" className="bg-zinc-900/30 py-20 border-y border-white/5 overflow-hidden">
+        <div className="px-5 mb-10">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-brand">
+            Output gallery
+          </span>
+          <h2 className="mt-3 text-4xl font-semibold leading-tight">
+            Real artists. Real outputs.{" "}
+            <span className="font-serif italic">Zero stock.</span>
+          </h2>
+          <p className="mt-3 text-sm text-zinc-400">
+            A curated feed of recent generations across covers, promo, and motion.
+          </p>
         </div>
+        {/* Row 1 — scrolls left */}
+        <GalleryRow
+          items={[
+            { src: "/landing-photo-1.jpeg",      alt: "Studio portrait",    tag: "Portrait"   },
+            { src: "/landing-photo-2.jpeg",       alt: "Artist promo",       tag: "Promo shot" },
+            { src: "/landing-photo-3.jpeg",       alt: "Album artwork",      tag: "Cover art"  },
+            { src: "/landing-photo-nba-josh.png", alt: "NBA Josh character", tag: "Character"  },
+            { src: "/landing-photo-4.jpeg",       alt: "Editorial look",     tag: "Editorial"  },
+            { src: "/landing-photo-5.jpeg",       alt: "Cinematic scene",    tag: "Cinema"     },
+          ]}
+          direction="left"
+          duration={38}
+          className="mb-3"
+        />
+        {/* Row 2 — scrolls right */}
+        <GalleryRow
+          items={[
+            { src: "/landing-photo-6.png",            alt: "Color grade",   tag: "Color grade" },
+            { src: "/landing-photo-7.png",            alt: "Motion scene",  tag: "Motion"      },
+            { src: "/landing-photo-8.png",            alt: "Campaign shot", tag: "Campaign"    },
+            { src: "/landing-photo-studios-grid.png", alt: "Aurora Studios",tag: "Studios"     },
+            { src: "/landing-photo-1.jpeg",           alt: "Studio portrait",tag: "Portrait"   },
+            { src: "/landing-photo-3.jpeg",           alt: "Album artwork", tag: "Cover art"   },
+          ]}
+          direction="right"
+          duration={30}
+        />
       </section>
 
       {/* ── Video Reel ──────────────────────────────────────────────────── */}
@@ -648,28 +661,55 @@ function PromptMock() {
   );
 }
 
-function GalleryImg({
-  src,
-  alt,
-  ratio,
-  tag,
-}: {
-  src: string;
-  alt: string;
-  ratio: string;
-  tag: string;
-}) {
+type GalleryItem = { src: string; alt: string; tag: string };
+
+function MarqueePhoto({ src, alt, tag }: GalleryItem) {
   return (
-    <div className="group relative mb-3 break-inside-avoid overflow-hidden rounded-xl ring-1 ring-white/5">
+    <div className="group relative h-52 shrink-0 overflow-hidden rounded-xl ring-1 ring-white/5">
       <img
         src={src}
         alt={alt}
         loading="lazy"
-        className={`w-full ${ratio} object-cover transition-transform duration-700 group-hover:scale-[1.03]`}
+        className="h-full w-auto max-w-none object-cover transition-transform duration-700 group-hover:scale-[1.04]"
       />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/75 to-transparent px-3 py-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
         <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-white">{tag}</span>
-        <span className="text-[9px] uppercase tracking-widest text-white/60">Aurora</span>
+        <span className="text-[9px] uppercase tracking-widest text-white/50">Aurora</span>
+      </div>
+    </div>
+  );
+}
+
+function GalleryRow({
+  items,
+  direction,
+  duration,
+  className = "",
+}: {
+  items: GalleryItem[];
+  direction: "left" | "right";
+  duration: number;
+  className?: string;
+}) {
+  const animName = direction === "left" ? "gallery-scroll-left" : "gallery-scroll-right";
+  const doubled = [...items, ...items];
+  return (
+    <div
+      className={`relative overflow-hidden ${className}`}
+      style={{
+        maskImage: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
+        WebkitMaskImage: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
+      }}
+    >
+      <div
+        className="flex gap-3"
+        style={{ width: "max-content", animation: `${animName} ${duration}s linear infinite` }}
+        onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.animationPlayState = "paused")}
+        onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.animationPlayState = "running")}
+      >
+        {doubled.map((item, i) => (
+          <MarqueePhoto key={`${direction}-${i}`} src={item.src} alt={item.alt} tag={item.tag} />
+        ))}
       </div>
     </div>
   );
