@@ -14,6 +14,7 @@ import { computeCost } from "@/lib/pricing";
 import { hfTextToSpeech } from "@/lib/hf.server";
 import { UGC_TTS_MODEL } from "@/lib/ugc.server";
 import { PLATFORM_TEMPLATES } from "@/lib/platform-templates";
+import { assertTrustedUrl } from "@/lib/url-guard";
 
 export const PLATFORM_VIDEO_MODEL = "sync/lipsync-2";
 export const PLATFORM_PHOTO_MODEL = "heygen/photo-video";
@@ -317,6 +318,9 @@ export const saveAvatarShot = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
+    // SSRF guard: reject private networks, loopback, and any host outside the
+    // known provider CDN allowlist (fal.ai, replicate, googleapis, etc.)
+    assertTrustedUrl(data.sourceUrl);
     const resp = await fetch(data.sourceUrl);
     if (!resp.ok) throw new Error(`download failed: ${resp.status}`);
     const contentType =
