@@ -12,6 +12,7 @@ import {
   ArrowRight,
   Check,
   Layers,
+  Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
@@ -25,6 +26,7 @@ import {
   SPIN_PIECE_COUNT,
   type StudioTemplate,
 } from "@/lib/template-studio";
+import { expandTemplatePrompt } from "@/lib/prompt-optimizer.functions";
 
 type UploadState = { url: string; name: string; preview?: string };
 
@@ -44,6 +46,8 @@ export function TemplateDrawer({
   const lipFn = useLipSyncJobFn();
   const ugcFn = useServerFn(generateUGCAd);
   const statusFn = useServerFn(getGenerationStatus);
+  const optimizeFn = useServerFn(expandTemplatePrompt);
+  const [optimizing, setOptimizing] = useState(false);
 
   const imageInputs = template.inputs.filter((i) => i.kind === "image");
   const imageInput = imageInputs[0];
@@ -355,10 +359,36 @@ export function TemplateDrawer({
                 )}
                 {textInput && (
                   <div>
-                    <label className="text-sm font-medium">
-                      {textInput.label}
-                      {textInput.required && <span className="text-primary"> *</span>}
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium">
+                        {textInput.label}
+                        {textInput.required && <span className="text-primary"> *</span>}
+                      </label>
+                      {text.trim().length > 2 && (
+                        <button
+                          type="button"
+                          disabled={optimizing}
+                          onClick={async () => {
+                            setOptimizing(true);
+                            try {
+                              const result = await optimizeFn({
+                                data: { userText: text, templateTitle: template.title },
+                              });
+                              setText(result.expanded);
+                            } catch {
+                              toast.error("Prompt optimizer unavailable");
+                            } finally {
+                              setOptimizing(false);
+                            }
+                          }}
+                          className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
+                        >
+                          {optimizing
+                            ? <><Loader2 className="size-3 animate-spin" /> Enhancing…</>
+                            : <><Wand2 className="size-3" /> Enhance</>}
+                        </button>
+                      )}
+                    </div>
                     <textarea
                       value={text}
                       onChange={(e) => setText(e.target.value)}

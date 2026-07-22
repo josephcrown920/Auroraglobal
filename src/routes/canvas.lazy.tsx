@@ -1,5 +1,6 @@
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { PageSpinner } from "@/components/PageSpinner";
+import { AuthRedirect } from "@/components/AuthRedirect";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { AUDIO_ACCEPT } from "@/lib/utils";
 import { CollectionRunner, formatEtr } from "@/lib/collection-runtime";
@@ -1796,7 +1797,8 @@ function CanvasPage() {
     } catch (e) { toast.error(e instanceof Error ? e.message : "Load failed"); }
   };
 
-  if (loading || !user) return <PageSpinner />;
+  if (loading) return <PageSpinner />;
+  if (!user) return <AuthRedirect />;
 
   return (
     <main className="h-screen flex flex-col bg-[#06060c] relative overflow-hidden">

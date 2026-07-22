@@ -10,6 +10,7 @@ import { ModelBadge } from "@/components/ModelBadge";
 import { VisualEditDialog } from "@/components/gallery/VisualEditDialog";
 import { Loader2, ArrowLeft, Star, Download, Film, Image as ImageIcon, Layers, Trash2, Wand2, Captions, Lock, CheckCheck, Check, EyeOff, Eye } from "lucide-react";
 import { PageSpinner } from "@/components/PageSpinner";
+import { AuthRedirect } from "@/components/AuthRedirect";
 import { CaptionDialog } from "@/components/gallery/CaptionDialog";
 import { toast } from "sonner";
 import { saveAssetToDisk } from "@/lib/save";
@@ -95,7 +96,8 @@ function GalleryPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Bulk delete failed"),
   });
 
-  if (loading || !user) return <PageSpinner />;
+  if (loading) return <PageSpinner />;
+  if (!user) return <AuthRedirect />;
 
   const items = (data?.items ?? []).filter((g) => {
     if (filter === "favorites") return g.is_favorite;

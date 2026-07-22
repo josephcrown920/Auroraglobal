@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, ArrowLeft, Loader2, Film, Wand2, Camera, Clapperboard, Users, WifiOff, Music2, Download, Zap } from "lucide-react";
 import { PageSpinner } from "@/components/PageSpinner";
+import { AuthRedirect } from "@/components/AuthRedirect";
 import { toast } from "sonner";
 import {
   generateMimicMotion,
@@ -593,7 +594,8 @@ function MotionStudio() {
     },
   });
 
-  if (loading || !user) return <PageSpinner />;
+  if (loading) return <PageSpinner />;
+  if (!user) return <AuthRedirect />;
 
   const stepBadge = (label: string, state: "idle" | "running" | "ok" | "error", error?: string | null) => (
     <div className={`rounded-xl border px-3 py-2 text-xs flex items-start gap-2 ${
