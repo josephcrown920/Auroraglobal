@@ -45,7 +45,9 @@ export function TemplateDrawer({
   const ugcFn = useServerFn(generateUGCAd);
   const statusFn = useServerFn(getGenerationStatus);
 
-  const imageInput = template.inputs.find((i) => i.kind === "image");
+  const imageInputs = template.inputs.filter((i) => i.kind === "image");
+  const imageInput = imageInputs[0];
+  const image2Input = imageInputs[1]; // only present on templates with 2 image slots
   const audioInput = template.inputs.find((i) => i.kind === "audio");
   const textInput = template.inputs.find((i) => i.kind === "text");
 
@@ -59,9 +61,10 @@ export function TemplateDrawer({
     return { url: abs, name: "Default reference", preview: u } satisfies UploadState;
   })();
   const [image, setImage] = useState<UploadState | null>(defaultImage);
+  const [image2, setImage2] = useState<UploadState | null>(null);
   const [audio, setAudio] = useState<UploadState | null>(null);
   const [text, setText] = useState("");
-  const [uploading, setUploading] = useState<"image" | "audio" | null>(null);
+  const [uploading, setUploading] = useState<"image" | "image2" | "audio" | null>(null);
   const [running, setRunning] = useState(false);
   const [stage, setStage] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +77,7 @@ export function TemplateDrawer({
 
   const cost = templateCost(template);
 
-  async function uploadFile(kind: "image" | "audio", file: File) {
+  async function uploadFile(kind: "image" | "image2" | "audio", file: File) {
     if (!user) {
       navigate({ to: "/auth" });
       return;
@@ -100,9 +103,10 @@ export function TemplateDrawer({
       const state: UploadState = {
         url: signed.signedUrl,
         name: file.name,
-        preview: kind === "image" ? URL.createObjectURL(file) : undefined,
+        preview: (kind === "image" || kind === "image2") ? URL.createObjectURL(file) : undefined,
       };
       if (kind === "image") setImage(state);
+      else if (kind === "image2") setImage2(state);
       else setAudio(state);
     } finally {
       setUploading(null);
@@ -111,6 +115,7 @@ export function TemplateDrawer({
 
   const missingRequired =
     (!!imageInput?.required && !image) ||
+    (!!image2Input?.required && !image2) ||
     (!!audioInput?.required && !audio) ||
     (!!textInput?.required && !text.trim());
 
@@ -184,13 +189,17 @@ export function TemplateDrawer({
 
       // Studio pipeline — image → (video) → (lipsync), gated by the manifest kinds.
       setStage("Creating your image…");
-      // Build image reference list: user photo first, optional background reference second.
+      // Build image reference list: primary photo, optional second uploaded image, optional bg ref.
       const bgRef = template.backgroundImageUrl
         ? template.backgroundImageUrl.startsWith("/") && typeof window !== "undefined"
           ? `${window.location.origin}${template.backgroundImageUrl}`
           : template.backgroundImageUrl
         : null;
-      const imageUrls = bgRef ? [image.url, bgRef] : [image.url];
+      const imageUrls = [
+        image.url,
+        ...(image2 ? [image2.url] : []),
+        ...(bgRef ? [bgRef] : []),
+      ];
       const img = await genFn({
         data: {
           prompt: buildImagePrompt(),
@@ -318,6 +327,18 @@ export function TemplateDrawer({
                     busy={uploading === "image"}
                     value={image}
                     onPick={(f) => uploadFile("image", f)}
+                  />
+                )}
+                {image2Input && (
+                  <FileField
+                    icon={<ImageIcon className="size-4" />}
+                    label={image2Input.label}
+                    hint={image2Input.hint}
+                    required={image2Input.required}
+                    accept={image2Input.accept}
+                    busy={uploading === "image2"}
+                    value={image2}
+                    onPick={(f) => uploadFile("image2", f)}
                   />
                 )}
                 {audioInput && (

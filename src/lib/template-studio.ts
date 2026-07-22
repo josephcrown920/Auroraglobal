@@ -47,6 +47,8 @@ import kidsBedtimeClip from "@/assets/kids/showcase-bedtime.mp4";
 // .asset.json imports expose { url }
 import productLipstick from "@/assets/ugc/product-lipstick-car.jpg.asset.json";
 import productLifestyleCafe from "@/assets/generated_thumbs/product-lifestyle-cafe-table.png";
+import ugcCarProductHold from "@/assets/ugc/ugc-car-product-hold.webp.asset.json";
+import ugcHomeSelfie from "@/assets/ugc/ugc-home-selfie.webp.asset.json";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export type TemplateInputKind = "image" | "audio" | "text";
@@ -306,6 +308,70 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
     imagePrompt:
       "Photorealistic hero shot of a person's hand holding a brand-new iPhone 15 Pro in titanium black. The phone screen displays the EXACT uploaded app UI screenshot, pixel-perfect, no distortion. Soft natural window light from camera-left, clean white seamless backdrop with a subtle gradient, professional product photography, 50mm f/2.8, ultra-sharp screen, gentle hand shadow. Preserve the screen content exactly. No text overlays, no logos.",
     imageModel: TEMPLATE_DEFAULTS.imageModel,
+  },
+
+  // ── Grok Imagine-style templates (product promo, UGC walk, fashion try-on) ──
+  {
+    id: "product-promo-video",
+    title: "Product Promo · Cinematic",
+    category: "UGC/Ad",
+    blurb: "Drop your product photo, write one line — Aurora turns it into a cinematic commercial.",
+    thumbnail: ugcCarProductHold.url,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [
+      IMG("Product photo", "Any clear shot of your product — bottle, device, package, etc."),
+      TXT("What makes it special?", true, "e.g. ultra-hydrating serum with visible results in 3 days"),
+    ],
+    imagePrompt:
+      "Cinematic luxury editorial product photograph. The EXACT product from the reference image — preserve its label, shape, colours and proportions exactly. Placed in a beautifully lit aspirational setting: rich textures, soft bokeh background, warm directional light, 9:16 vertical format. Photorealistic, shallow depth of field, high-end commercial aesthetic. No people in frame.",
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "Slow cinematic push-in on the product, subtle light shimmer and dust particles drifting through the beam, premium brand commercial feel.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "push_in",
+    durationSeconds: 6,
+  },
+  {
+    id: "ugc-creator-walk",
+    title: "Creator UGC · Walk & Talk",
+    category: "UGC/Ad",
+    blurb: "Your selfie + your words → authentic walking-toward-camera UGC, ready to post.",
+    thumbnail: ugcHomeSelfie.url,
+    kinds: ["ugc_ad"],
+    dispatch: "ugc",
+    ugcAspect: "9:16",
+    durationSeconds: 10,
+    inputs: [
+      IMG("Your photo / selfie", "A clear front-facing photo — the more natural the better"),
+      TXT(
+        "What do you want to say?",
+        true,
+        "e.g. I just tried this serum and it's honestly a game changer — the texture alone is insane",
+      ),
+    ],
+  },
+  {
+    id: "fashion-tryon",
+    title: "Virtual Try-On",
+    category: "Motion",
+    blurb: "Your portrait + any outfit photo → see yourself wearing it in a styled animation.",
+    thumbnail: stillFitcheckMirror,
+    thumbnailVideo: clipCarOrbit,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [
+      IMG("Your portrait", "A clear front-facing or 3/4 photo of yourself"),
+      IMG("Outfit / look", "A photo of the clothing or style you want to wear"),
+    ],
+    imagePrompt:
+      `Editorial fashion photograph. Show the EXACT person from the first reference image wearing the EXACT outfit from the second reference image. Preserve the person's facial features, skin tone, body proportions, and hair faithfully. Render the outfit with accurate fabric texture, colour, and cut. Professional fashion editorial lighting, 3:4 portrait format, shallow depth of field, high-end styling. ${IDENTITY}`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "Slow graceful fashion editorial movement — the person shifts their pose naturally, fabric catches the light, confident energy, camera holds still.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "static",
+    durationSeconds: 5,
   },
 
   // ───────────── Spin ─────────────
