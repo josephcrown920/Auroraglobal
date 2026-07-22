@@ -319,6 +319,14 @@ html[data-theme="light"] {
   0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
+@keyframes gallery-scroll-left {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes gallery-scroll-right {
+  0%   { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
 
 /* ── Full-screen chrome helpers ──────────────────────────────────────────
  * The app fills the whole viewport on any device. These helpers anchor
