@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, Wand2, LogOut, Loader2, Download, Camera, Film, Mic2, Coins, Zap, LayoutDashboard, Shield, Server, Captions, Crown, Flame, Trash2 } from "lucide-react";
 import { PageSpinner } from "@/components/PageSpinner";
+import { AuthRedirect } from "@/components/AuthRedirect";
 import { CaptionDialog } from "@/components/gallery/CaptionDialog";
 import { toast } from "sonner";
 import { listGenerations } from "@/lib/studio.functions";
@@ -488,7 +489,8 @@ function StudioPage() {
     },
   });
 
-  if (loading || !user) return <PageSpinner />;
+  if (loading) return <PageSpinner />;
+  if (!user) return <AuthRedirect />;
 
   return (
     <main className="min-h-screen relative" style={{ background: "var(--gradient-soft)" }}>

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { LogIn } from "lucide-react";
+import { LogIn, MailCheck } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { trackSignUp } from "@/lib/gtm";
@@ -22,6 +22,7 @@ function AuthPage() {
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
+  const [confirmSent, setConfirmSent] = useState(false);
 
   const OAUTH_SIGNUP_INTENT_KEY = "aurora.oauth_signup_intent";
   useEffect(() => {
@@ -57,7 +58,7 @@ function AuthPage() {
           toast.success(`Welcome, ${name}!`);
           navigate({ to: "/studio" });
         } else {
-          toast.success("Check your email to confirm your account");
+          setConfirmSent(true);
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -94,19 +95,73 @@ function AuthPage() {
     }
   };
 
+  if (confirmSent) {
+    return (
+      <main className="min-h-screen flex items-center justify-center px-4 bg-zinc-950 relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 65% 25%, oklch(0.58 0.22 25 / 0.10), transparent 55%), radial-gradient(ellipse at 20% 80%, oklch(0.085 0.022 272 / 0.6), transparent 50%)" }} />
+        <div className="relative w-full max-w-md rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-8 text-center">
+          <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/25">
+            <MailCheck className="size-7 text-primary" />
+          </div>
+          <h2 className="text-2xl font-semibold tracking-tight">Check your inbox</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            We sent a confirmation link to{" "}
+            <strong className="text-foreground">{email}</strong>.{" "}
+            Click it to activate your account — you'll land straight in the studio.
+          </p>
+          <p className="mt-4 text-xs text-muted-foreground">
+            Didn't get it? Check your spam folder or wait a minute, then try again.
+          </p>
+          <button
+            type="button"
+            onClick={() => { setConfirmSent(false); setMode("signin"); }}
+            className="mt-6 text-sm text-primary hover:text-primary/80 transition-colors"
+          >
+            ← Back to sign in
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen flex items-center justify-center px-4 bg-zinc-950 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 65% 25%, oklch(0.58 0.22 25 / 0.10), transparent 55%), radial-gradient(ellipse at 20% 80%, oklch(0.085 0.022 272 / 0.6), transparent 50%)" }} />
       <div className="relative w-full max-w-md rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-8">
-        <Link to="/" className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-100 transition-colors mb-6">
+        <Link to="/" className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-100 transition-colors mb-5">
           <span className="inline-block size-1.5 rounded-full bg-brand" />
           <span className="text-xs font-semibold uppercase tracking-widest">Aurora Studio</span>
         </Link>
-        <h1 className="text-3xl font-semibold tracking-tight mb-1">
-          {mode === "signup" ? "Create account" : "Welcome back"}
+        {/* Mode tab switcher */}
+        <div className="flex rounded-xl bg-zinc-800/70 p-1 mb-6">
+          <button
+            type="button"
+            onClick={() => setMode("signin")}
+            className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
+              mode === "signin"
+                ? "bg-zinc-700 text-foreground shadow"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Sign in
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("signup")}
+            className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
+              mode === "signup"
+                ? "bg-zinc-700 text-foreground shadow"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Create account
+          </button>
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight mb-1">
+          {mode === "signup" ? "Join the studio" : "Welcome back"}
         </h1>
         <p className="text-sm text-muted-foreground mb-6">
-          {mode === "signup" ? "The studio built by pro artists, for artists ready to scale. Start directing your own shoots." : "Sign in to enter the studio."}
+          {mode === "signup" ? "Built by pro artists, for creators ready to scale." : "Sign in to continue."}
         </p>
         <form onSubmit={submit} className="space-y-4">
           {mode === "signup" && (
@@ -156,13 +211,7 @@ function AuthPage() {
           {googleBusy ? "Signing in..." : <><LogIn className="mr-2 size-4" /> Continue with Google</>}
         </Button>
         <div className="mt-6 flex items-center justify-between text-sm text-muted-foreground">
-          <button
-            type="button"
-            onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
-            className="hover:text-foreground"
-          >
-            {mode === "signup" ? "Already have an account? Sign in" : "New here? Create an account"}
-          </button>
+          <span />
           {mode === "signin" && (
             <button
               type="button"

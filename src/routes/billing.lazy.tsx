@@ -14,6 +14,7 @@ import {
   Sparkles, Image, Film, Mic2, TrendingUp, ChevronRight,
 } from "lucide-react";
 import { PageSpinner } from "@/components/PageSpinner";
+import { AuthRedirect } from "@/components/AuthRedirect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
@@ -120,7 +121,8 @@ function BillingPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't update your limit"),
   });
 
-  if (loading || !user) return <PageSpinner />;
+  if (loading) return <PageSpinner />;
+  if (!user) return <AuthRedirect />;
 
   return (
     <main className="aurora-page-shell text-foreground">

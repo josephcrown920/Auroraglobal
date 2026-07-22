@@ -94,10 +94,10 @@ function LandingPage() {
       {/* ── Nav ─────────────────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-50 w-full border-b border-white/5 bg-zinc-950/80 backdrop-blur-md">
         <div className="flex h-14 items-center justify-between px-5">
-          <div className="flex items-center gap-2">
+          <Link to={ctaTo} className="flex items-center gap-2 no-underline text-inherit hover:opacity-80 transition-opacity">
             <span className="inline-block size-2 rounded-full bg-brand" />
             <span className="text-lg font-semibold tracking-tighter uppercase italic">Aurora</span>
-          </div>
+          </Link>
           <div className="flex items-center gap-3">
             {canInstall && (
               <button
