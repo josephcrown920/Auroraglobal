@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { CANONICAL_ORIGIN } from "@/lib/seo";
 
 export const Route = createFileRoute("/scene-builder")({
   head: () => ({
@@ -15,8 +16,8 @@ export const Route = createFileRoute("/scene-builder")({
         content:
           "Drop your references, build your scene, add angles. Your shoot. Your direction. Every frame.",
       },
-      { property: "og:url", content: "https://auroraperformancestudio.com/scene-builder" },
+      { property: "og:url", content: `${CANONICAL_ORIGIN}/scene-builder` },
     ],
-    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/scene-builder" }],
+    links: [{ rel: "canonical", href: `${CANONICAL_ORIGIN}/scene-builder` }],
   }),
 });

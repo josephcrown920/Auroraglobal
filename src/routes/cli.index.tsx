@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { CANONICAL_ORIGIN } from "@/lib/seo";
 
 export const Route = createFileRoute("/cli/")({
   head: () => ({
@@ -15,8 +16,8 @@ export const Route = createFileRoute("/cli/")({
         content:
           "Render images, video and lip-sync from your terminal. Script it, pipe it, automate it.",
       },
-      { property: "og:url", content: "https://auroraperformancestudio.com/cli" },
+      { property: "og:url", content: `${CANONICAL_ORIGIN}/cli` },
     ],
-    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/cli" }],
+    links: [{ rel: "canonical", href: `${CANONICAL_ORIGIN}/cli` }],
   }),
 });
