@@ -19,6 +19,7 @@ import {
   pollTiktokPostStatus,
   getTiktokPostForGeneration,
 } from "@/lib/tiktok-posting.functions";
+import { backoffMs } from "@/lib/poll-backoff";
 
 type PostStatus =
   | "idle"
@@ -78,49 +79,51 @@ export function TiktokPostButton({
       .catch(() => {});
   }, [generationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Stable ref to hold the polling interval so it can be cleared on unmount.
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Ref for the pending setTimeout (backoff-based, replaces flat setInterval).
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track mount state to avoid state updates after unmount.
+  const mountedRef = useRef(true);
 
-  // Clear on unmount to avoid state updates on an unmounted component.
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
-      if (intervalRef.current !== null) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
+      mountedRef.current = false;
+      if (timeoutRef.current !== null) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
     };
   }, []);
 
-  // Poll status while in a processing state.
+  // Poll status with exponential backoff while in a processing state.
+  // Base: 3 s, ×1.5 per attempt, cap: 15 s. ~40 attempts ≈ 2 min max.
   const poll = useCallback(
     (id: string) => {
       if (!id) return;
-      if (intervalRef.current !== null) clearInterval(intervalRef.current);
-      let rounds = 0;
-      intervalRef.current = setInterval(async () => {
-        rounds++;
-        if (rounds > 120) {
-          // ~10 min max
-          if (intervalRef.current !== null) { clearInterval(intervalRef.current); intervalRef.current = null; }
-          return;
-        }
+      if (timeoutRef.current !== null) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+      let attempt = 0;
+      async function tick() {
+        if (!mountedRef.current) return;
+        if (attempt >= 40) return; // ~2 min max
         try {
           const res = await pollFn({ data: { postId: id } });
+          if (!mountedRef.current) return;
           const s = res.status as PostStatus;
           setStatus(s);
           setErrorMsg(res.errorMsg ?? null);
           if (TERMINAL.includes(s)) {
-            if (intervalRef.current !== null) { clearInterval(intervalRef.current); intervalRef.current = null; }
-            if (s === "publish_complete") {
-              toast.success("Posted to TikTok ✓");
-            } else {
-              toast.error(`TikTok post failed: ${res.errorMsg ?? "unknown error"}`);
-            }
+            if (s === "publish_complete") toast.success("Posted to TikTok ✓");
+            else toast.error(`TikTok post failed: ${res.errorMsg ?? "unknown error"}`);
+            return;
           }
         } catch {
-          if (intervalRef.current !== null) { clearInterval(intervalRef.current); intervalRef.current = null; }
+          return;
         }
-      }, 5000);
+        if (!mountedRef.current) return;
+        timeoutRef.current = setTimeout(tick, backoffMs(attempt, 3_000, 1.5, 15_000));
+        attempt++;
+      }
+      tick();
     },
     [pollFn],
   );
@@ -253,17 +256,25 @@ export function useTiktokPostPoller(postId: string | null, onComplete?: (status:
   useEffect(() => {
     if (!postId) return;
     let cancelled = false;
-    const t = setInterval(async () => {
+    let attempt = 0;
+    async function tick() {
       if (cancelled) return;
       try {
         const res = await pollFn({ data: { postId } });
         const s = res.status as PostStatus;
         if (TERMINAL.includes(s)) {
-          clearInterval(t);
           onComplete?.(s);
+          return;
         }
-      } catch { clearInterval(t); }
-    }, 5000);
-    return () => { cancelled = true; clearInterval(t); };
+      } catch {
+        return;
+      }
+      if (!cancelled) {
+        setTimeout(tick, backoffMs(attempt, 3_000, 1.5, 15_000));
+        attempt++;
+      }
+    }
+    tick();
+    return () => { cancelled = true; };
   }, [postId]); // eslint-disable-line react-hooks/exhaustive-deps
 }
