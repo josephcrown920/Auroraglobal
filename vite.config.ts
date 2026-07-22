@@ -156,7 +156,14 @@ export default defineConfig({
         "tailwind-merge",
         "class-variance-authority",
         "zod",
+        "@simplewebauthn/browser",
       ],
+      // These are server-only packages that leak into the dep-optimizer crawl
+      // through SSR server-fn transforms. Excluding them stops Vite from adding
+      // them to the CLIENT optimized bundle on every restart, which would
+      // invalidate bundle hashes and cause blank-screen flashes in browsers
+      // that cached the previous hash set (notably mobile Safari).
+      exclude: ["openai", "@google/genai", "@anthropic-ai/sdk", "@simplewebauthn/server"],
     },
     server: {
       host: "0.0.0.0",
@@ -192,7 +199,7 @@ export default defineConfig({
           "./src/routes/billing.lazy.tsx",
           "./src/routes/avatar.lazy.tsx",
           "./src/routes/dashboard.lazy.tsx",
-          "./src/routes/orchestrate.lazy.tsx",
+          "./src/routes/orchestrate.tsx",
           "./src/routes/agent.lazy.tsx",
           "./src/routes/spin.lazy.tsx",
         ],
