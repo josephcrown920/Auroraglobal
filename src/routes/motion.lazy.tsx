@@ -212,6 +212,13 @@ function MotionStudio() {
   const reskinSubmittedAtRef = useRef<number | null>(null);
   const [transferGenId, setTransferGenId] = useState<string | null>(null);
   const [reskinGenId, setReskinGenId] = useState<string | null>(null);
+
+  // Refs for aside DOM elements (scroll-into-view on completion)
+  const transferAsideRef = useRef<HTMLElement>(null);
+  const reskinAsideRef = useRef<HTMLElement>(null);
+  // Track previous status so we detect the exact frame it flips to "complete"
+  const prevTransferStatusRef = useRef<BackendJobStatus>(null);
+  const prevReskinStatusRef = useRef<BackendJobStatus>(null);
   // Preview-confirm tickets: first submit renders a discounted capped preview;
   // its generationId unlocks the full render on the next submit.
   const [transferPreviewId, setTransferPreviewId] = useState<string | null>(null);
@@ -526,6 +533,33 @@ function MotionStudio() {
     if (s === "failed") return "failed";
     return "queued";
   }, [history, reskinMut.isError, reskinGenId]);
+
+  // Fire a toast + scroll the result panel into view the moment a job completes.
+  useEffect(() => {
+    const prev = prevTransferStatusRef.current;
+    prevTransferStatusRef.current = transferJobStatus;
+    if (prev !== null && prev !== "complete" && transferJobStatus === "complete") {
+      toast.success("Motion transfer complete!", {
+        action: {
+          label: "View result",
+          onClick: () => transferAsideRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }),
+        },
+      });
+    }
+  }, [transferJobStatus]);
+
+  useEffect(() => {
+    const prev = prevReskinStatusRef.current;
+    prevReskinStatusRef.current = reskinJobStatus;
+    if (prev !== null && prev !== "complete" && reskinJobStatus === "complete") {
+      toast.success("Performance Shot complete!", {
+        action: {
+          label: "View result",
+          onClick: () => reskinAsideRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }),
+        },
+      });
+    }
+  }, [reskinJobStatus]);
 
   const transferProgress = useGenerationProgress({
     isPending: transferMut.isPending,
@@ -921,23 +955,46 @@ function MotionStudio() {
             </section>
 
             {/* aside — preview + recent */}
-            <aside className="space-y-4">
-              <div className="rounded-3xl overflow-hidden border border-border bg-card/60 backdrop-blur-xl aspect-[4/5] relative">
-                {reskinProgress.isActive ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-muted-foreground">
-                    <div className="size-14 rounded-full flex items-center justify-center" style={{ background: "var(--gradient-hero)" }}>
-                      <Loader2 className="size-6 animate-spin text-primary-foreground" />
-                    </div>
-                    <GenerationProgress visible progress={reskinProgress.progress} label={reskinProgress.label} />
+            <aside ref={reskinAsideRef} className="space-y-4">
+              {(() => {
+                const latestReskin = history?.items.find((g: any) => g.kind === "performance_reskin" && g.result_video_url);
+                return (
+                  <div className={cn(
+                    "rounded-3xl overflow-hidden border bg-card/60 backdrop-blur-xl aspect-[4/5] relative transition-colors duration-500",
+                    reskinProgress.isActive ? "border-primary/50" : "border-border",
+                  )}>
+                    {reskinProgress.isActive ? (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-muted-foreground">
+                        <div className="size-14 rounded-full flex items-center justify-center" style={{ background: "var(--gradient-hero)" }}>
+                          <Loader2 className="size-6 animate-spin text-primary-foreground" />
+                        </div>
+                        <GenerationProgress visible progress={reskinProgress.progress} label={reskinProgress.label} />
+                      </div>
+                    ) : latestReskin ? (
+                      <>
+                        <AutoplayVideo src={latestReskin.result_video_url} className="w-full h-full object-cover" controls playsInline loop />
+                        <button
+                          type="button"
+                          onClick={() => fetch(latestReskin.result_video_url).then((r) => r.blob()).then((b) => {
+                            const a = document.createElement("a"); a.href = URL.createObjectURL(b);
+                            a.download = `performance-shot-${Date.now()}.mp4`; a.click();
+                          })}
+                          className="absolute bottom-3 right-3 flex items-center gap-1 rounded-lg border border-white/20 bg-black/60 px-2.5 py-1.5 text-xs text-white backdrop-blur-sm hover:bg-black/80 transition-colors"
+                        >
+                          <Download className="size-3" /> Download
+                        </button>
+                      </>
+                    ) : (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground p-8 text-center">
+                        <Film className="size-10 text-primary/40" />
+                        <p className="text-sm">Your performance video will appear here when ready.</p>
+                        <p className="text-xs">Jobs render on GPU backend — watch the Recent strip below.</p>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground p-8 text-center">
-                    <Film className="size-10 text-primary/40" />
-                    <p className="text-sm">Your performance video will appear here when ready.</p>
-                    <p className="text-xs">Jobs render on GPU backend — watch the Recent strip below.</p>
-                  </div>
-                )}
-              </div>
+                );
+              })()}
+
 
               {history && history.items.length > 0 && (
                 <div>
@@ -1288,11 +1345,14 @@ function MotionStudio() {
               <GenerationErrorCard visible={transferMut.isError} error={mtError} onRetry={() => transferMut.mutate()} />
               <p className="text-xs text-muted-foreground">First render is a short discounted preview — review it in Recent, then render the full clip. Runs on a self-hosted GPU backend.</p>
             </section>
-            <aside className="space-y-4">
+            <aside ref={transferAsideRef} className="space-y-4">
               {(() => {
                 const latestMotion = history?.items.find((g: any) => g.kind === "motion" && g.result_video_url);
                 return (
-                  <div className="rounded-3xl overflow-hidden border border-border bg-card/60 backdrop-blur-xl aspect-[4/5] relative">
+                  <div className={cn(
+                    "rounded-3xl overflow-hidden border bg-card/60 backdrop-blur-xl aspect-[4/5] relative transition-colors duration-500",
+                    transferProgress.isActive ? "border-primary/50" : "border-border",
+                  )}>
                     {latestMotion ? (
                       <>
                         <AutoplayVideo src={latestMotion.result_video_url} className="w-full h-full object-cover" controls playsInline loop />
