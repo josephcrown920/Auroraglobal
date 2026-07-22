@@ -1,22 +1,28 @@
 /**
- * Cron endpoint: detect payments stuck in "pending" after Paystack's 72-hour
- * retry window has closed.
+ * Cron endpoint: detect and auto-recover payments stuck in "pending" after
+ * Paystack's 72-hour retry window has closed.
  *
  * Paystack retries non-2xx webhook responses for up to 72 hours (live mode).
  * After that, the event is permanently abandoned.  Any `payments` row still
  * in `status = 'pending'` more than 73 hours after creation means either:
  *   a) Paystack exhausted all retries without our webhook returning 200, or
- *   b) the row was created by our recovery path but credit grant failed.
+ *   b) the row was created by our recovery path but the credit grant failed.
  *
- * Neither case fixes itself automatically — an operator must investigate and,
- * if appropriate, manually trigger processPaymentSuccess for that reference via
- * the Paystack dashboard "resend" feature or by crediting the user directly.
+ * Recovery strategy (runs for each stuck row):
+ *   - If user_id + credits_granted are present: call processPaymentSuccess with
+ *     a synthetic event (the function is fully idempotent — it no-ops on already-
+ *     succeeded rows) and log AUTO_RECOVERED on success.
+ *   - If recovery data is missing, or processPaymentSuccess throws: log
+ *     STUCK_PAYMENT so an operator can intervene manually.
  *
- * Auth: standard cron credential (CRON_SECRET or SUPABASE_PUBLISHABLE_KEY
- *       via the `apikey` header — same as /api/public/jobs/tick).
+ * retryDelaysMs:[] skips the row-polling backoff because the payments row is
+ * already guaranteed to exist before this endpoint runs.
  *
- * Schedule: add to cron daemon (runs every 6 hours so stuck payments are
- * detected within ~6 hours of Paystack's 72-hour window closing).
+ * Auth: standard cron credential (SUPABASE_PUBLISHABLE_KEY via `apikey` header
+ *       — same as /api/public/jobs/tick).
+ *
+ * Schedule: every 6 hours so stuck payments are caught within ~6 hours of
+ * Paystack's 72-hour window closing.
  *
  * curl -X POST https://<domain>/api/public/payments/sweep-stuck \
  *      -H "apikey: <SUPABASE_PUBLISHABLE_KEY>"
@@ -24,6 +30,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { authorizeCron } from "@/lib/cron-auth";
+import { processPaymentSuccess } from "@/lib/paystack-webhook.server";
 
 const STUCK_THRESHOLD_HOURS = 73;
 
@@ -41,7 +48,7 @@ export const Route = createFileRoute("/api/public/payments/sweep-stuck")({
 
         const { data: stuck, error } = await supabaseAdmin
           .from("payments")
-          .select("id, reference, user_id, created_at, amount_kobo")
+          .select("id, reference, user_id, created_at, amount_kobo, credits_granted")
           .eq("status", "pending")
           .lt("created_at", cutoff);
 
@@ -56,26 +63,86 @@ export const Route = createFileRoute("/api/public/payments/sweep-stuck")({
         const rows = (stuck ?? []) as Array<{
           id: string;
           reference: string;
-          user_id: string;
+          user_id: string | null;
           created_at: string;
           amount_kobo: number;
+          credits_granted: number | null;
         }>;
 
+        let recovered_count = 0;
+        let stuck_count = 0;
+
         for (const row of rows) {
-          // Structured log — grep for STUCK_PAYMENT in deployment logs to find
-          // payments that need manual operator intervention.
-          console.error(
-            `[payments-sweep] STUCK_PAYMENT id=${row.id} ref=${row.reference} ` +
-              `user=${row.user_id} created=${row.created_at} ` +
-              `amount_kobo=${row.amount_kobo} — Paystack retries likely exhausted; ` +
-              `check Paystack dashboard and credit manually if needed.`,
-          );
+          const canRecover =
+            !!row.user_id &&
+            row.credits_granted != null &&
+            row.credits_granted > 0;
+
+          if (canRecover) {
+            try {
+              // Build a minimal synthetic event so processPaymentSuccess can
+              // locate the existing payments row by reference. retryDelaysMs:[]
+              // skips the backoff loop since the row is already present. The
+              // function is fully idempotent: already-succeeded rows return
+              // {status:"already_processed"} without re-granting credits.
+              const syntheticEvent = {
+                event: "charge.success",
+                data: {
+                  reference: row.reference,
+                  status: "success",
+                  amount: row.amount_kobo,
+                  metadata: {
+                    user_id: row.user_id!,
+                    credits: row.credits_granted!,
+                  },
+                },
+              };
+              const result = await processPaymentSuccess(syntheticEvent, {
+                retryDelaysMs: [],
+              });
+              recovered_count++;
+              console.log(
+                `[payments-sweep] AUTO_RECOVERED id=${row.id} ref=${row.reference} ` +
+                  `user=${row.user_id} credits=${row.credits_granted} ` +
+                  `result=${result.status}`,
+              );
+            } catch (err) {
+              stuck_count++;
+              const msg = err instanceof Error ? err.message : String(err);
+              console.error(
+                `[payments-sweep] STUCK_PAYMENT id=${row.id} ref=${row.reference} ` +
+                  `user=${row.user_id} created=${row.created_at} ` +
+                  `amount_kobo=${row.amount_kobo} — auto-recovery failed: ${msg}`,
+              );
+            }
+          } else {
+            // Missing user_id or credits_granted — cannot replay processPaymentSuccess
+            // safely. Flag for manual intervention.
+            stuck_count++;
+            console.error(
+              `[payments-sweep] STUCK_PAYMENT id=${row.id} ref=${row.reference} ` +
+                `user=${row.user_id ?? "(none)"} created=${row.created_at} ` +
+                `amount_kobo=${row.amount_kobo} — missing recovery data ` +
+                `(user_id or credits_granted absent); check Paystack dashboard ` +
+                `and credit manually if needed.`,
+            );
+          }
         }
 
-        const summary = { swept_at: new Date().toISOString(), stuck_count: rows.length };
-        if (rows.length > 0) {
+        const summary = {
+          swept_at: new Date().toISOString(),
+          recovered_count,
+          stuck_count,
+        };
+
+        if (recovered_count > 0) {
           console.warn(
-            `[payments-sweep] ${rows.length} payment(s) stuck in pending >73h — operator action required`,
+            `[payments-sweep] ${recovered_count} payment(s) auto-recovered`,
+          );
+        }
+        if (stuck_count > 0) {
+          console.warn(
+            `[payments-sweep] ${stuck_count} payment(s) unrecoverable — operator action required`,
           );
         }
 
