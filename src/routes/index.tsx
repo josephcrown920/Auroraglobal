@@ -281,12 +281,12 @@ function LandingPage() {
         {/* Row 1 — scrolls left */}
         <GalleryRow
           items={[
-            { src: "/landing-client-1.png", alt: "Live performance",  tag: "Live"      },
-            { src: "/landing-client-2.png", alt: "Editorial shoot",   tag: "Editorial" },
-            { src: "/landing-client-3.png", alt: "Artist lifestyle",  tag: "Lifestyle" },
-            { src: "/landing-client-4.png", alt: "Backstage promo",   tag: "Promo"     },
-            { src: "/landing-photo-2.jpeg", alt: "Artist promo",      tag: "Promo shot"},
-            { src: "/landing-photo-3.jpeg", alt: "Album artwork",     tag: "Cover art" },
+            { src: "/josh-ref-1.png",         alt: "NBA Josh — artist promo",   tag: "Promo"     },
+            { src: "/landing-client-2.png",   alt: "Editorial shoot",           tag: "Editorial" },
+            { src: "/josh-ref-2.jpeg",        alt: "NBA Josh — studio session", tag: "Artist"    },
+            { src: "/landing-client-4.png",   alt: "Backstage promo",           tag: "Promo"     },
+            { src: "/josh-ref-3.jpeg",        alt: "NBA Josh — lifestyle",      tag: "Lifestyle" },
+            { src: "/landing-photo-3.jpeg",   alt: "Album artwork",             tag: "Cover art" },
           ]}
           direction="left"
           duration={38}
@@ -295,12 +295,12 @@ function LandingPage() {
         {/* Row 2 — scrolls right */}
         <GalleryRow
           items={[
-            { src: "/landing-client-5.png", alt: "Concert energy",   tag: "Concert"   },
-            { src: "/landing-client-6.png", alt: "Artist duo",       tag: "Duo"       },
-            { src: "/landing-client-7.png", alt: "Editorial glam",   tag: "Glam"      },
-            { src: "/landing-photo-4.jpeg", alt: "Editorial look",   tag: "Editorial" },
-            { src: "/landing-photo-5.jpeg", alt: "Cinematic scene",  tag: "Cinema"    },
-            { src: "/landing-photo-6.png",  alt: "Color grade",      tag: "Color"     },
+            { src: "/landing-client-5.png",   alt: "Concert energy",              tag: "Concert"   },
+            { src: "/josh-scene-still.jpeg",  alt: "NBA Josh — scene still",      tag: "Cinema"    },
+            { src: "/landing-client-7.png",   alt: "Editorial glam",              tag: "Glam"      },
+            { src: "/josh-officers-bg.webp",  alt: "Looping Officers — scene",    tag: "Video"     },
+            { src: "/landing-photo-5.jpeg",   alt: "Cinematic scene",             tag: "Cinema"    },
+            { src: "/landing-photo-6.png",    alt: "Color grade",                 tag: "Color"     },
           ]}
           direction="right"
           duration={30}

@@ -24,6 +24,9 @@ import { computeCost, COST_UGC_AD, COST_AUTOCUT, type Resolution } from "./prici
 import { AUDIO_ACCEPT } from "./utils";
 
 // ── Thumbnails (direct file imports resolve to a URL string) ────────────────
+// Josh reference photos live in /public — referenced by URL string directly.
+const JOSH_LOOPING_OFFICERS_THUMB = "/josh-officers-bg.webp";
+
 import stillNeon from "@/assets/josh/generated/still-01-neon-closeup.jpg";
 import stillStage from "@/assets/josh/generated/still-03-stage-mic.jpg";
 import stillRooftopSunset from "@/assets/josh/generated/still-06-rooftop-sunset.jpg";
@@ -349,6 +352,32 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
       "Very gentle drifting motion, stars softly twinkling, a calm slow push-in, dreamy bedtime mood.",
     videoModel: TEMPLATE_DEFAULTS.videoModel,
     cameraMovement: "push_in",
+  },
+
+  // ───────────── Motion (NBA Josh) ─────────────
+  {
+    id: "looping-officers",
+    title: "Looping Officers",
+    category: "Motion",
+    blurb:
+      "NBA Josh stands calm in the foreground. Officers loop endlessly behind him — running hard, going nowhere. Cinematic 16:9 night scene.",
+    thumbnail: JOSH_LOOPING_OFFICERS_THUMB,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [
+      IMG(
+        "Josh reference photo",
+        "Upload a clear photo of Josh — or use the default",
+      ),
+    ],
+    imagePrompt: `Cinematic 16:9 music video still. A tall athletic Black male rapper, 6ft 3in, lean build, with long bright red-tipped dreadlocks, alien-frame red sunglasses with circular green reptile-eye lenses, a large diamond "NEVER JXST" chain, arm tattoos with "NBA JOSH" lettering on the right forearm, wearing a maroon and black Z-brand athletic jersey. He stands in the BOTTOM RIGHT of the frame, shot from waist up, facing slightly left toward camera. Dark wet urban street at night. Dramatic overhead streetlight, high contrast cinematic atmosphere, shallow depth of field. Two police officers in full navy uniform run aggressively in the TOP LEFT of frame, full body visible, arms pumping intensely, leaning forward, urgent expressions — motion blur on their bodies. The rapper looks calm, fearless, completely unbothered. Photorealistic, 4K music video aesthetic. ${IDENTITY}`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "The rapper performs his hook in the bottom right with calm fearless energy and subtle hand gestures. The officers in the top left keep running in place — stuck in a looping glitch, never advancing. Static locked-off camera, zero movement. Near the end the rapper glances over his left shoulder with a cool smirk, then casually turns and walks out of frame while the officers are still running.",
+    videoModel: "kling-3.0",
+    cameraMovement: "static",
+    durationSeconds: 10,
+    resolution: "720p",
   },
 
   // ───────────── Editing ─────────────
