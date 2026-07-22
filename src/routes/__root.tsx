@@ -13,6 +13,7 @@ import {
 
 import appCss from "../styles.css?url";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
+import { CANONICAL_ORIGIN } from "@/lib/seo";
 import { Toaster } from "@/components/ui/sonner";
 import { usePageViewTracking } from "@/hooks/use-tracking";
 import { AuroraChatbot } from "@/components/AuroraChatbot";
@@ -80,7 +81,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "author", content: "Aurora" },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "Aurora" },
-      { property: "og:url", content: "https://auroraperformancestudio.com" },
+      { property: "og:url", content: CANONICAL_ORIGIN },
       { title: "Aurora — AI Creative Studio for Artists & Performers" },
       { property: "og:title", content: "Aurora — AI Creative Studio for Artists & Performers" },
       { name: "twitter:title", content: "Aurora — AI Creative Studio for Artists & Performers" },
@@ -113,8 +114,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "@context": "https://schema.org",
           "@type": "Organization",
           name: "Aurora",
-          url: "https://auroraperformancestudio.com",
-          logo: "https://auroraperformancestudio.com/og-aurora.png",
+          url: CANONICAL_ORIGIN,
+          logo: `${CANONICAL_ORIGIN}/icons/aurora-icon-512.png`,
           description:
             "AI performance shots, music-video stills, lip-sync clips and UGC ads from a single selfie. Built by pro artists, for artists who need to scale massively.",
           contactPoint: {
@@ -134,7 +135,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "@context": "https://schema.org",
           "@type": "WebSite",
           name: "Aurora",
-          url: "https://auroraperformancestudio.com",
+          url: CANONICAL_ORIGIN,
         }),
       },
     ],
