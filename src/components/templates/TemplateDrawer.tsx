@@ -49,7 +49,16 @@ export function TemplateDrawer({
   const audioInput = template.inputs.find((i) => i.kind === "audio");
   const textInput = template.inputs.find((i) => i.kind === "text");
 
-  const [image, setImage] = useState<UploadState | null>(null);
+  // Pre-populate from template.defaultImageUrl (public-dir path → absolute URL).
+  const defaultImage = (() => {
+    const u = template.defaultImageUrl;
+    if (!u) return null;
+    const abs = u.startsWith("/") && typeof window !== "undefined"
+      ? `${window.location.origin}${u}`
+      : u;
+    return { url: abs, name: "Default reference", preview: u } satisfies UploadState;
+  })();
+  const [image, setImage] = useState<UploadState | null>(defaultImage);
   const [audio, setAudio] = useState<UploadState | null>(null);
   const [text, setText] = useState("");
   const [uploading, setUploading] = useState<"image" | "audio" | null>(null);
@@ -175,10 +184,17 @@ export function TemplateDrawer({
 
       // Studio pipeline — image → (video) → (lipsync), gated by the manifest kinds.
       setStage("Creating your image…");
+      // Build image reference list: user photo first, optional background reference second.
+      const bgRef = template.backgroundImageUrl
+        ? template.backgroundImageUrl.startsWith("/") && typeof window !== "undefined"
+          ? `${window.location.origin}${template.backgroundImageUrl}`
+          : template.backgroundImageUrl
+        : null;
+      const imageUrls = bgRef ? [image.url, bgRef] : [image.url];
       const img = await genFn({
         data: {
           prompt: buildImagePrompt(),
-          imageUrls: [image.url],
+          imageUrls,
           motionVideoUrl: null,
           model: template.imageModel ?? TEMPLATE_DEFAULTS.imageModel,
         },
