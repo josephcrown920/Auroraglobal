@@ -4,5 +4,8 @@ Disallow: /admin
 Disallow: /dashboard
 Disallow: /auth
 Disallow: /api/
+Disallow: /settings
+Disallow: /billing
+Disallow: /gallery
 
-Sitemap: https://aurorastudiostar.lovable.app/sitemap.xml
+Sitemap: https://auroraperformancestudio.com/sitemap.xml

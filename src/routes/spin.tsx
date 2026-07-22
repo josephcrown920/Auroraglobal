@@ -12,8 +12,11 @@ export const Route = createFileRoute("/spin")({
   notFoundComponent: () => <div className="p-8 text-white">Not found.</div>,
   head: () => ({
     meta: [
-      { title: `TikTok30 · Aurora` },
-      { name: "description", content: `Turn one prompt into ${SPIN_COUNT} scroll-stopping, high-variation posts — same face, endless looks.` },
+      { title: "TikTok 30 — Viral Post Generator · Aurora" },
+      { name: "description", content: `Turn one prompt into ${SPIN_COUNT} scroll-stopping, high-variation posts — same face, endless looks. Ship a month of content in minutes.` },
+      { property: "og:title", content: "TikTok 30 — Viral Post Generator · Aurora" },
+      { property: "og:description", content: `${SPIN_COUNT} unique posts from one prompt. Same face, every outfit, every mood. Ship a month of content today.` },
+      { property: "og:url", content: "https://auroraperformancestudio.com/spin" },
     ],
     links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/spin" }],
   }),

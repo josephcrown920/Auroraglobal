@@ -14,6 +14,7 @@ export const Route = createFileRoute("/music-video")({
         property: "og:description",
         content: "Six AI video tools built for artists and directors.",
       },
+      { property: "og:url", content: "https://auroraperformancestudio.com/music-video" },
     ],
     links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/music-video" }],
   }),

@@ -6,6 +6,59 @@ import { ViralEngine } from "@/components/landing/ViralEngine";
 import { BalloonLipsync } from "@/components/landing/BalloonLipsync";
 
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "Aurora — AI Creative Studio for Artists & Performers" },
+      { name: "description", content: "Turn one photo into magazine-grade performance shots, music-video stills, lip-sync videos and UGC ads — in seconds. Built by pro artists, for artists who need to scale massively." },
+      { property: "og:title", content: "Aurora — AI Creative Studio for Artists & Performers" },
+      { property: "og:description", content: "Turn one photo into magazine-grade performance shots, music-video stills, lip-sync videos and UGC ads — in seconds. Built by pro artists, for artists who need to scale massively." },
+      { property: "og:url", content: "https://auroraperformancestudio.com" },
+    ],
+    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: [
+            {
+              "@type": "Question",
+              name: "Who owns the rights to what I generate?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "You do. Every generation on Aurora is 100% owned by the artist who created it. Full commercial rights are included from your very first click.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "Is Aurora training on my uploads?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "No. Aurora runs a closed-loop model. Your references and prompts are never used for training unless you explicitly opt in to a private model for your project.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "Can I export 4K stills and video?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Yes. Pro and Studio tiers include 4K stills and 4K/60fps motion exports for music-video backgrounds, tour visuals, and DSP canvas loops.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "Do I need any design or prompting experience?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "No. Aurora is a director-first interface — describe the shoot in plain language and drop references. It handles the technical craft.",
+              },
+            },
+          ],
+        }),
+      },
+    ],
+  }),
   component: LandingPage,
 });
 
