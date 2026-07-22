@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { CANONICAL_ORIGIN } from "@/lib/seo";
 import { Plus, Play, ArrowUpRight, ChevronDown, Sparkles, Palette, Film, Wand2, Mic, Music2, Brush, Megaphone, UserCircle2, Workflow, Layers, Flame, Bot, Clapperboard, Check, Zap, Crown, Download, Video } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useState, useEffect, useRef } from "react";
@@ -12,9 +13,9 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "Turn one photo into magazine-grade performance shots, music-video stills, lip-sync videos and UGC ads — in seconds. Built by pro artists, for artists who need to scale massively." },
       { property: "og:title", content: "Aurora — AI Creative Studio for Artists & Performers" },
       { property: "og:description", content: "Turn one photo into magazine-grade performance shots, music-video stills, lip-sync videos and UGC ads — in seconds. Built by pro artists, for artists who need to scale massively." },
-      { property: "og:url", content: "https://auroraperformancestudio.com" },
+      { property: "og:url", content: CANONICAL_ORIGIN },
     ],
-    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com" }],
+    links: [{ rel: "canonical", href: CANONICAL_ORIGIN }],
     scripts: [
       {
         type: "application/ld+json",
