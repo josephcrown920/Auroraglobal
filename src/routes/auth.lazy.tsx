@@ -78,19 +78,28 @@ function AuthPage() {
       if (mode === "signup" && typeof window !== "undefined") {
         sessionStorage.setItem(OAUTH_SIGNUP_INTENT_KEY, "1");
       }
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/studio`,
+          // skipBrowserRedirect lets us open the URL ourselves so OAuth
+          // works even when the app is embedded in an iframe (e.g. Replit
+          // preview pane).  We open in a new tab which has no frame
+          // restrictions.
+          skipBrowserRedirect: true,
         },
       });
       if (error) {
         if (typeof window !== "undefined") sessionStorage.removeItem(OAUTH_SIGNUP_INTENT_KEY);
         throw error;
       }
-      // Supabase will redirect the page to Google — keep button busy
+      if (data?.url) {
+        window.open(data.url, "_blank", "noopener,noreferrer");
+        toast.info("Complete sign-in in the new tab, then refresh this page.");
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Google sign-in failed");
+    } finally {
       setGoogleBusy(false);
     }
   };
