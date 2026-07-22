@@ -8,6 +8,7 @@ import { Flame, Loader2, Play, RefreshCw, Sparkles, Upload } from "lucide-react"
 import { TiktokPostButton } from "@/components/tiktok/TiktokPostButton";
 import { getMyTiktokAccount } from "@/lib/tiktok-posting.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { backoffMs } from "@/lib/poll-backoff";
 import { useAuth } from "@/hooks/use-auth";
 import {
   startTiktokRemix,
@@ -511,7 +512,8 @@ function ClientWorkerTicker({ enabled }: { enabled: boolean }) {
       }
       if (!cancelled) {
         // Doubling backoff: 6 s → 12 s → 20 s cap, so stale tabs don't hammer the API.
-        const delay = Math.min(6_000 * Math.pow(2, attempt), 20_000);
+        // Uses backoffMs with factor=2 and a 6 s base rather than the polling helper's default.
+        const delay = backoffMs(attempt, 6_000, 2, 20_000);
         attempt++;
         setTimeout(pulse, delay);
       }
