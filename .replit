@@ -136,7 +136,7 @@ VITE_SUPABASE_URL = "https://tpzmvbczwahxajujvnrq.supabase.co"
 SUPABASE_URL = "https://tpzmvbczwahxajujvnrq.supabase.co"
 VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_SGO6FEm9zbgYEOsFqlSX8Q_dFVMJf4x"
 SUPABASE_PUBLISHABLE_KEY = "sb_publishable_SGO6FEm9zbgYEOsFqlSX8Q_dFVMJf4x"
-VITE_GTM_CONTAINER_ID = ""
+VITE_GTM_CONTAINER_ID = "GTM-MW3PPLW9"
 
 [objectStorage]
 defaultBucketID = "replit-objstore-92420312-7368-4c29-8394-f3bd7ba1e2dd"
