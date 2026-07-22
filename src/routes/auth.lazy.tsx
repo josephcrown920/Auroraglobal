@@ -78,24 +78,26 @@ function AuthPage() {
       if (mode === "signup" && typeof window !== "undefined") {
         sessionStorage.setItem(OAUTH_SIGNUP_INTENT_KEY, "1");
       }
+      // When running inside an iframe (e.g. Replit preview pane) we can't do
+      // a top-level redirect because of frame-ancestor restrictions, so we
+      // skip the automatic redirect and open the OAuth URL in a new tab.
+      // On the real production domain (no iframe) we just let Supabase redirect
+      // normally — simpler UX, no "refresh this page" confusion.
+      const isInFrame = typeof window !== "undefined" && window.self !== window.top;
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/studio`,
-          // skipBrowserRedirect lets us open the URL ourselves so OAuth
-          // works even when the app is embedded in an iframe (e.g. Replit
-          // preview pane).  We open in a new tab which has no frame
-          // restrictions.
-          skipBrowserRedirect: true,
+          skipBrowserRedirect: isInFrame,
         },
       });
       if (error) {
         if (typeof window !== "undefined") sessionStorage.removeItem(OAUTH_SIGNUP_INTENT_KEY);
         throw error;
       }
-      if (data?.url) {
+      if (isInFrame && data?.url) {
         window.open(data.url, "_blank", "noopener,noreferrer");
-        toast.info("Complete sign-in in the new tab, then refresh this page.");
+        toast.info("Complete sign-in in the new tab, then come back here.");
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Google sign-in failed");
