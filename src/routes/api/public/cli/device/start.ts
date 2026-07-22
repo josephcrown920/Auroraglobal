@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { newDeviceCode, newUserCode } from "@/lib/cli-device.server";
 
-const BASE = "https://aurora-sparkle-charm.lovable.app";
+const BASE = process.env.SITE_URL?.trim() || "https://auroraperformancestudio.com";
 
 export const Route = createFileRoute("/api/public/cli/device/start")({
   server: {

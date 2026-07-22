@@ -18,9 +18,9 @@ export const Route = createFileRoute("/edit")({
         property: "og:description",
         content: "Upload clips · pick a style · get a finished 9:16 short.",
       },
-      { property: "og:url", content: "https://aurorastudiostar.lovable.app/edit" },
+      { property: "og:url", content: "https://auroraperformancestudio.com/edit" },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/edit" }],
+    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/edit" }],
   }),
 });
 

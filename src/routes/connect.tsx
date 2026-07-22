@@ -7,9 +7,9 @@ export const Route = createFileRoute("/connect")({
       { name: "description", content: "Connect Aurora to Claude in 5 minutes. Generate avatar images, talking UGC ads, videos and full campaigns from a chat — 13 MCP tools, one connection." },
       { property: "og:title", content: "Connect Claude — Aurora" },
       { property: "og:description", content: "Turn Claude into your creative engine. 13 tools, one connection — avatars, UGC ads, video and campaigns from chat." },
-      { property: "og:url", content: "https://aurorastudiostar.lovable.app/connect" },
+      { property: "og:url", content: "https://auroraperformancestudio.com/connect" },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/connect" }],
+    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/connect" }],
   }),
 });
 

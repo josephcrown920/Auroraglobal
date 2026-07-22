@@ -37,7 +37,7 @@ export async function generateOGImage(input: OGImageInput): Promise<string> {
   }
 
   // Build a descriptive OG image URL
-  // e.g., https://aurorastudiostar.lovable.app/api/og?title=...&description=...&route=...
+  // e.g., https://auroraperformancestudio.com/api/og?title=...&description=...&route=...
   const params = new URLSearchParams({
     title,
     ...(description && { description }),
@@ -45,7 +45,8 @@ export async function generateOGImage(input: OGImageInput): Promise<string> {
     type,
   });
 
-  return `https://aurorastudiostar.lovable.app/api/og?${params.toString()}`;
+  const siteUrl = process.env.SITE_URL?.trim() || "https://auroraperformancestudio.com";
+  return `${siteUrl}/api/og?${params.toString()}`;
 }
 
 /**

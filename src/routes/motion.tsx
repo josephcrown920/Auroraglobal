@@ -26,7 +26,7 @@ export const Route = createFileRoute("/motion")({
       { property: "og:title", content: "Perform Anywhere — Aurora" },
       { property: "og:description", content: "Generate your AI scene in Colors Studio, film yourself performing, animate with motion transfer." },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/motion" }],
+    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/motion" }],
   }),
 });
 

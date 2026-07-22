@@ -6,6 +6,6 @@ export const Route = createFileRoute("/guides/$slug")({
       { title: "Viral Guide — Aurora" },
       { name: "description", content: "Run a viral video playbook step by step inside Aurora." },
     ],
-    links: [{ rel: "canonical", href: `https://aurorastudiostar.lovable.app/guides/${params.slug}` }],
+    links: [{ rel: "canonical", href: `https://auroraperformancestudio.com/guides/${params.slug}` }],
   }),
 });

@@ -15,9 +15,9 @@ export const Route = createFileRoute("/reshoot")({
         content:
           "One reference photo, six fixed camera angles. Same subject, same outfit, same scene — six brand-new vertical portraits in one click.",
       },
-      { property: "og:url", content: "https://aurorastudiostar.lovable.app/reshoot" },
+      { property: "og:url", content: "https://auroraperformancestudio.com/reshoot" },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/reshoot" }],
+    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/reshoot" }],
   }),
 });
 
