@@ -14,6 +14,7 @@ export const Route = createFileRoute("/photo-edit")({
         property: "og:description",
         content: "Describe the change, keep the photo. One edit, one Aura.",
       },
+      { property: "og:url", content: "https://auroraperformancestudio.com/photo-edit" },
     ],
     links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/photo-edit" }],
   }),

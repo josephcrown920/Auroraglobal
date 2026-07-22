@@ -114,8 +114,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "@type": "Organization",
           name: "Aurora",
           url: "https://auroraperformancestudio.com",
+          logo: "https://auroraperformancestudio.com/og-aurora.png",
           description:
             "AI performance shots, music-video stills, lip-sync clips and UGC ads from a single selfie. Built by pro artists, for artists who need to scale massively.",
+          contactPoint: {
+            "@type": "ContactPoint",
+            email: "support@auroraperformancestudio.com",
+            contactType: "customer support",
+          },
+          sameAs: [
+            "https://twitter.com/aurorastudio",
+            "https://www.tiktok.com/@aurorastudio",
+          ],
         }),
       },
       {
