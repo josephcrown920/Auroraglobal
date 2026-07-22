@@ -164,6 +164,11 @@ function RootShell({ children }: { children: React.ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        {/* Hide the Replit "Built on Replit" deployment badge — Aurora is a
+            paid product and the badge undercuts trust with real users. The
+            badge is injected by Replit's serving infrastructure as
+            <div id="replit-badge"> so a single CSS rule is enough. */}
+        <style dangerouslySetInnerHTML={{ __html: "#replit-badge{display:none!important}" }} />
         {/* FOUC prevention: set data-theme before first paint so the correct
             theme variables are in effect immediately, with no flash. */}
         <script

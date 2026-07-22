@@ -15,8 +15,8 @@ export const Route = createFileRoute("/scene-builder")({
         content:
           "Drop your references, build your scene, add angles. Your shoot. Your direction. Every frame.",
       },
-      { property: "og:url", content: "https://aurorastudiostar.lovable.app/scene-builder" },
+      { property: "og:url", content: "https://auroraperformancestudio.com/scene-builder" },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/scene-builder" }],
+    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/scene-builder" }],
   }),
 });

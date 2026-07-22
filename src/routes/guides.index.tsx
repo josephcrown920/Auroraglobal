@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/guides/")({
   head: () => ({
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/guides" }],
+    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/guides" }],
     meta: [
       { title: "Viral Guides — Aurora" },
       {

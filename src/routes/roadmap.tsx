@@ -6,7 +6,7 @@ export const Route = createFileRoute("/roadmap")({
       { title: "Roadmap — Aurora" },
       { name: "description", content: "See what's live, what's being built, and what's planned for Aurora AI Creative Studio." },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/roadmap" }],
+    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/roadmap" }],
   }),
 });
 

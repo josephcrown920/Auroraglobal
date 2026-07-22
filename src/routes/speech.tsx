@@ -6,7 +6,7 @@ export const Route = createFileRoute("/speech")({
       { title: "Speech Studio · Aurora" },
       { name: "description", content: "Generate AI voiceovers and narration from text in seconds." },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/speech" }],
+    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/speech" }],
   }),
 });
 

@@ -16,7 +16,7 @@ export const Route = createFileRoute("/lipsync")({
       { property: "og:title", content: "Lip Sync Studio — Aurora" },
       { property: "og:description", content: "Frame-perfect AI lip-sync. Bring a clip, a vocal, get a music video." },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/lipsync" }],
+    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/lipsync" }],
   }),
 });
 

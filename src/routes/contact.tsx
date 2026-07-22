@@ -8,9 +8,9 @@ export const Route = createFileRoute("/contact")({
       { name: "description", content: "Get in touch with the Aurora team — support, billing, abuse and press inquiries." },
       { property: "og:title", content: "Contact Aurora Studio" },
       { property: "og:description", content: "Reach Aurora for support, billing, press and abuse." },
-      { property: "og:url", content: "https://aurorastudiostar.lovable.app/contact" },
+      { property: "og:url", content: "https://auroraperformancestudio.com/contact" },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/contact" }],
+    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/contact" }],
   }),
 });
 

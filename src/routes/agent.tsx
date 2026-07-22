@@ -11,7 +11,7 @@ export const Route = createFileRoute("/agent")({
       { property: "og:title", content: "Video Studio & AI Agent — Aurora" },
       { property: "og:description", content: "One video hub: quick multi-model generation plus a planning agent that iterates on and renders creative shots." },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/agent" }],
+    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/agent" }],
   }),
 });
 

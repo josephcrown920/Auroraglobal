@@ -15,7 +15,7 @@ export const Route = createFileRoute("/photo-edit")({
         content: "Describe the change, keep the photo. One edit, one Aura.",
       },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/photo-edit" }],
+    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/photo-edit" }],
   }),
 });
 

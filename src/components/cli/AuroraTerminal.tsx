@@ -29,7 +29,7 @@ function runCommand(raw: string): Line[] {
   if (sub === "login") {
     out.push({
       kind: "out",
-      text: "→ Visit https://aurora-sparkle-charm.lovable.app/cli/authorize",
+      text: "→ Visit https://auroraperformancestudio.com/cli/authorize",
     });
     out.push({ kind: "out", text: "→ Enter device code: A7K9-QM3R" });
     out.push({ kind: "ok", text: "✓ Signed in as you@studio" });

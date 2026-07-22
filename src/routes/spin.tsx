@@ -15,7 +15,7 @@ export const Route = createFileRoute("/spin")({
       { title: `TikTok30 · Aurora` },
       { name: "description", content: `Turn one prompt into ${SPIN_COUNT} scroll-stopping, high-variation posts — same face, endless looks.` },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/spin" }],
+    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/spin" }],
   }),
 });
 

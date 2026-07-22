@@ -15,8 +15,8 @@ export const Route = createFileRoute("/cli/")({
         content:
           "Render images, video and lip-sync from your terminal. Script it, pipe it, automate it.",
       },
-      { property: "og:url", content: "https://aurorastudiostar.lovable.app/cli" },
+      { property: "og:url", content: "https://auroraperformancestudio.com/cli" },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/cli" }],
+    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/cli" }],
   }),
 });

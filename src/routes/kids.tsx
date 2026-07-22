@@ -15,9 +15,9 @@ export const Route = createFileRoute("/kids")({
         content:
           "A guided studio that writes, illustrates, animates and narrates a short kids story, then stitches it into a single ready-to-share video.",
       },
-      { property: "og:url", content: "https://aurorastudiostar.lovable.app/kids" },
+      { property: "og:url", content: "https://auroraperformancestudio.com/kids" },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/kids" }],
+    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/kids" }],
   }),
 });
 
