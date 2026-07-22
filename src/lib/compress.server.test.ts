@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import {
   compressImageBytes,
   compressVideoBytes,
@@ -49,8 +49,10 @@ describe("compressImageBytes", () => {
   }, 20000);
 
   test("falls back to original bytes on invalid input", async () => {
+    const spy = spyOn(console, "error").mockImplementation(() => {});
     const garbage = Buffer.from("definitely not an image");
     const out = await compressImageBytes(garbage, "image/png");
+    spy.mockRestore();
     expect(out.compressed).toBe(false);
     expect(out.bytes).toBe(garbage);
     expect(out.mime).toBe("image/png");
@@ -60,8 +62,10 @@ describe("compressImageBytes", () => {
 
 describe("compressVideoBytes", () => {
   test("falls back to original bytes on invalid input", async () => {
+    const spy = spyOn(console, "error").mockImplementation(() => {});
     const garbage = Buffer.from("definitely not a video");
     const out = await compressVideoBytes(garbage, "video/mp4");
+    spy.mockRestore();
     expect(out.compressed).toBe(false);
     expect(out.bytes).toBe(garbage);
     expect(out.ext).toBe("mp4");

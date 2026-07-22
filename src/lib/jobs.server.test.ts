@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 
 // The jobs worker loop (processOneJob/processBatch) backs the batch queue used by
 // TikTok remixes, UGC campaigns, performance reskins and plain media jobs. It
@@ -213,7 +213,9 @@ function job(over: Record<string, unknown> = {}) {
   };
 }
 
+let consoleErrorSpy: ReturnType<typeof spyOn> | null = null;
 beforeEach(() => {
+  consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
   claimQueue = [];
   jobsCasWins = true;
   finalizeShouldThrow = false;
@@ -235,6 +237,10 @@ beforeEach(() => {
     latencyMs: 1,
     costUsd: 0,
   });
+});
+afterEach(() => {
+  consoleErrorSpy?.mockRestore();
+  consoleErrorSpy = null;
 });
 
 describe("processOneJob", () => {
