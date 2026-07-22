@@ -278,8 +278,9 @@ export function useTiktokPostPoller(postId: string | null, onComplete?: (status:
       }
       if (!cancelled && Date.now() < deadline) {
         const remaining = deadline - Date.now();
-        setTimeout(tick, Math.min(backoffMs(attempt, 3_000, 1.5, 15_000), remaining));
+        const t = setTimeout(tick, Math.min(backoffMs(attempt, 3_000, 1.5, 15_000), remaining));
         attempt++;
+        return t; // returned for clarity; outer cancelled flag is the real gate
       }
     }
     tick();
