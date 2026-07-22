@@ -4,14 +4,36 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { LogIn, MailCheck } from "lucide-react";
-import { useState, useEffect } from "react";
+import { LogIn, MailCheck, Fingerprint, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { trackSignUp } from "@/lib/gtm";
+import {
+  beginPasskeyRegistration,
+  completePasskeyRegistration,
+  beginPasskeyAuthentication,
+  completePasskeyAuthentication,
+} from "@/lib/webauthn.server";
 
 export const Route = createLazyFileRoute("/auth")({
   component: AuthPage,
 });
+
+// Detect browser WebAuthn platform-authenticator support
+function useBiometricSupport() {
+  const [supported, setSupported] = useState(false);
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      !window.PublicKeyCredential ||
+      typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable !== "function"
+    ) return;
+    window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+      .then(setSupported)
+      .catch(() => setSupported(false));
+  }, []);
+  return supported;
+}
 
 function AuthPage() {
   const navigate = useNavigate();
@@ -22,7 +44,10 @@ function AuthPage() {
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
+  const [bioBusy, setBioBusy] = useState(false);
   const [confirmSent, setConfirmSent] = useState(false);
+  const biometricSupported = useBiometricSupport();
+  const abortRef = useRef<AbortController | null>(null);
 
   const OAUTH_SIGNUP_INTENT_KEY = "aurora.oauth_signup_intent";
   useEffect(() => {
@@ -56,6 +81,10 @@ function AuthPage() {
         trackSignUp("email");
         if (data.session) {
           toast.success(`Welcome, ${name}!`);
+          // After signup, offer to register a passkey
+          if (biometricSupported) {
+            void offerPasskeyRegistration();
+          }
           navigate({ to: "/studio" });
         } else {
           setConfirmSent(true);
@@ -78,11 +107,6 @@ function AuthPage() {
       if (mode === "signup" && typeof window !== "undefined") {
         sessionStorage.setItem(OAUTH_SIGNUP_INTENT_KEY, "1");
       }
-      // When running inside an iframe (e.g. Replit preview pane) we can't do
-      // a top-level redirect because of frame-ancestor restrictions, so we
-      // skip the automatic redirect and open the OAuth URL in a new tab.
-      // On the real production domain (no iframe) we just let Supabase redirect
-      // normally — simpler UX, no "refresh this page" confusion.
       const isInFrame = typeof window !== "undefined" && window.self !== window.top;
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -103,6 +127,64 @@ function AuthPage() {
       toast.error(err instanceof Error ? err.message : "Google sign-in failed");
     } finally {
       setGoogleBusy(false);
+    }
+  };
+
+  // Register a passkey for the currently signed-in user
+  async function offerPasskeyRegistration() {
+    try {
+      const { startRegistration } = await import("@simplewebauthn/browser");
+      const { options, challengeId } = await beginPasskeyRegistration();
+      const credential = await startRegistration(options);
+      await completePasskeyRegistration({
+        data: {
+          challengeId,
+          credential,
+          origin: window.location.origin,
+          deviceName: navigator.userAgent.includes("iPhone")
+            ? "iPhone"
+            : navigator.userAgent.includes("Mac")
+              ? "Mac"
+              : "This device",
+        },
+      });
+      toast.success("Face ID / fingerprint saved — use it next time you sign in.");
+    } catch {
+      // Non-blocking — user can always add it later from settings
+    }
+  }
+
+  // Sign in using a passkey (Face ID / fingerprint)
+  const handleBiometricSignIn = async () => {
+    setBioBusy(true);
+    abortRef.current = new AbortController();
+    try {
+      const { startAuthentication } = await import("@simplewebauthn/browser");
+      const rpID = window.location.hostname;
+
+      const { options, challengeId } = await beginPasskeyAuthentication({ data: { rpID } });
+      const credential = await startAuthentication(options, false);
+
+      const { token_hash } = await completePasskeyAuthentication({
+        data: { challengeId, credential, origin: window.location.origin },
+      });
+
+      const { error } = await supabase.auth.verifyOtp({
+        token_hash,
+        type: "magiclink",
+      });
+      if (error) throw error;
+
+      toast.success("Signed in with biometrics!");
+      navigate({ to: "/studio" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("cancelled") || msg.includes("abort") || msg.includes("NotAllowed")) {
+        return; // User dismissed — silent
+      }
+      toast.error(msg || "Biometric sign-in failed");
+    } finally {
+      setBioBusy(false);
     }
   };
 
@@ -143,6 +225,7 @@ function AuthPage() {
           <span className="inline-block size-1.5 rounded-full bg-brand" />
           <span className="text-xs font-semibold uppercase tracking-widest">Aurora Studio</span>
         </Link>
+
         {/* Mode tab switcher */}
         <div className="flex rounded-xl bg-zinc-800/70 p-1 mb-6">
           <button
@@ -168,12 +251,31 @@ function AuthPage() {
             Create account
           </button>
         </div>
+
         <h1 className="text-2xl font-semibold tracking-tight mb-1">
           {mode === "signup" ? "Join the studio" : "Welcome back"}
         </h1>
         <p className="text-sm text-muted-foreground mb-6">
           {mode === "signup" ? "Built by pro artists, for creators ready to scale." : "Sign in to continue."}
         </p>
+
+        {/* Biometric sign-in button — visible when browser supports it */}
+        {biometricSupported && mode === "signin" && (
+          <Button
+            type="button"
+            onClick={handleBiometricSignIn}
+            disabled={bioBusy}
+            className="w-full h-12 mb-4 rounded-xl text-base font-semibold bg-primary text-white hover:bg-primary/90 border-0 flex items-center justify-center gap-2"
+          >
+            {bioBusy ? (
+              <Loader2 className="size-5 animate-spin" />
+            ) : (
+              <Fingerprint className="size-5" />
+            )}
+            {bioBusy ? "Checking…" : "Sign in with Face ID / Fingerprint"}
+          </Button>
+        )}
+
         <form onSubmit={submit} className="space-y-4">
           {mode === "signup" && (
             <div className="space-y-2">
@@ -207,6 +309,14 @@ function AuthPage() {
             {busy ? "Working…" : mode === "signup" ? "Create account" : "Sign in"}
           </Button>
         </form>
+
+        {/* After signup: prompt to add biometrics */}
+        {biometricSupported && mode === "signup" && (
+          <p className="mt-3 text-[11px] text-center text-muted-foreground">
+            After you create your account, we'll ask if you want to enable Face ID / fingerprint sign-in.
+          </p>
+        )}
+
         <div className="mt-5 flex items-center gap-3">
           <span className="h-px flex-1 bg-border" />
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">or</span>
@@ -221,6 +331,7 @@ function AuthPage() {
         >
           {googleBusy ? "Signing in..." : <><LogIn className="mr-2 size-4" /> Continue with Google</>}
         </Button>
+
         <div className="mt-6 flex items-center justify-between text-sm text-muted-foreground">
           <span />
           {mode === "signin" && (
