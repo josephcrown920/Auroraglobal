@@ -96,15 +96,18 @@ export function TiktokPostButton({
   }, []);
 
   // Poll status with exponential backoff while in a processing state.
-  // Base: 3 s, ×1.5 per attempt, cap: 15 s. ~40 attempts ≈ 2 min max.
+  // Base: 3 s, ×1.5 per attempt, cap: 15 s. 2-minute outer timeout enforced
+  // via a wall-clock deadline (10 attempts = 114 s ≤ 2 min; deadline is
+  // authoritative so SLA holds even if the interval strategy changes).
+  const TIKTOK_POLL_BUDGET_MS = 2 * 60_000;
   const poll = useCallback(
     (id: string) => {
       if (!id) return;
       if (timeoutRef.current !== null) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
       let attempt = 0;
+      const deadline = Date.now() + TIKTOK_POLL_BUDGET_MS;
       async function tick() {
-        if (!mountedRef.current) return;
-        if (attempt >= 40) return; // ~2 min max
+        if (!mountedRef.current || Date.now() >= deadline) return;
         try {
           const res = await pollFn({ data: { postId: id } });
           if (!mountedRef.current) return;
@@ -119,13 +122,14 @@ export function TiktokPostButton({
         } catch {
           return;
         }
-        if (!mountedRef.current) return;
-        timeoutRef.current = setTimeout(tick, backoffMs(attempt, 3_000, 1.5, 15_000));
+        if (!mountedRef.current || Date.now() >= deadline) return;
+        const remaining = deadline - Date.now();
+        timeoutRef.current = setTimeout(tick, Math.min(backoffMs(attempt, 3_000, 1.5, 15_000), remaining));
         attempt++;
       }
       tick();
     },
-    [pollFn],
+    [pollFn], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   async function handlePost() {
@@ -250,6 +254,8 @@ export function TiktokPostButton({
   );
 }
 
+const TIKTOK_POLLER_BUDGET_MS = 2 * 60_000;
+
 /** Convenience variant that also starts polling for an existing postId. */
 export function useTiktokPostPoller(postId: string | null, onComplete?: (status: PostStatus) => void) {
   const pollFn = useServerFn(pollTiktokPostStatus);
@@ -257,8 +263,9 @@ export function useTiktokPostPoller(postId: string | null, onComplete?: (status:
     if (!postId) return;
     let cancelled = false;
     let attempt = 0;
+    const deadline = Date.now() + TIKTOK_POLLER_BUDGET_MS;
     async function tick() {
-      if (cancelled) return;
+      if (cancelled || Date.now() >= deadline) return;
       try {
         const res = await pollFn({ data: { postId } });
         const s = res.status as PostStatus;
@@ -269,8 +276,9 @@ export function useTiktokPostPoller(postId: string | null, onComplete?: (status:
       } catch {
         return;
       }
-      if (!cancelled) {
-        setTimeout(tick, backoffMs(attempt, 3_000, 1.5, 15_000));
+      if (!cancelled && Date.now() < deadline) {
+        const remaining = deadline - Date.now();
+        setTimeout(tick, Math.min(backoffMs(attempt, 3_000, 1.5, 15_000), remaining));
         attempt++;
       }
     }

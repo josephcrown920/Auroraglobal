@@ -26,7 +26,12 @@ export type JobPollResult = {
   error: string | null;
 };
 
-const MAX_POLL_ATTEMPTS = 150; // ~5 minutes (backoff means actual wall time is longer)
+// 5-minute outer timeout preserved as a wall-clock deadline.
+// With 2s/×1.5/15s backoff: ~23 attempts exhaust the 5-min budget; the
+// deadline is the authoritative gate so this never exceeds the SLA even if
+// the interval strategy changes.
+const POLL_BUDGET_MS = 5 * 60_000;
+const MAX_POLL_ATTEMPTS = 25; // safety cap (belt-and-suspenders above deadline)
 
 const TERMINAL_OK = new Set(["succeeded", "complete"]);
 const TERMINAL_FAIL = new Set(["failed", "cancelled"]);
@@ -56,7 +61,8 @@ export async function pollJobUntilDone(
 
   function pollLoop(): Promise<JobPollResult> {
     return (async () => {
-      for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+      const deadline = Date.now() + POLL_BUDGET_MS;
+      for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS && Date.now() < deadline; attempt++) {
         if (abort.cancelled) throw new Error("cancelled");
         const { job, generation } = await statusFn({ data: { jobId } });
         const status = generation?.status ?? job.status;
@@ -71,7 +77,9 @@ export async function pollJobUntilDone(
         if (TERMINAL_FAIL.has(status ?? "") || TERMINAL_FAIL.has(job.status ?? "")) {
           throw new Error(generation?.error || job.error || "Generation failed");
         }
-        await new Promise<void>((r) => setTimeout(r, backoffMs(attempt)));
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) break;
+        await new Promise<void>((r) => setTimeout(r, Math.min(backoffMs(attempt), remaining)));
       }
       throw new Error(
         "This is taking longer than expected — it's still running in the background and will appear in your Gallery once it finishes.",
@@ -193,11 +201,14 @@ export async function pollComfyRunUntilDone(
   getRunFn: (opts: { data: { id: string } }) => Promise<{ run: ComfyRunRow }>,
   runId: string,
 ): Promise<ComfyRunRow> {
-  for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+  const deadline = Date.now() + POLL_BUDGET_MS;
+  for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS && Date.now() < deadline; attempt++) {
     const { run } = await getRunFn({ data: { id: runId } });
     if (run.status === "succeeded") return run;
     if (run.status === "failed") throw new Error(run.error || "ComfyUI run failed");
-    await new Promise<void>((r) => setTimeout(r, backoffMs(attempt)));
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) break;
+    await new Promise<void>((r) => setTimeout(r, Math.min(backoffMs(attempt), remaining)));
   }
   throw new Error(
     "This is taking longer than expected — the run is still going in the background; check Recent runs in a bit.",

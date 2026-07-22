@@ -41,4 +41,34 @@ describe("backoffMs", () => {
       expect(backoffMs(i)).toBeGreaterThanOrEqual(2_000);
     }
   });
+
+  // Budget-proof tests — confirm that attempt caps and deadline arithmetic
+  // keep total scheduled delay within stated SLAs.
+
+  test("job-polling: 23 attempts stay within the 5-minute budget", () => {
+    // With 2s/×1.5/15s, 23 attempts = ~296 s < 300 s (5 min).
+    // The 24th would push over; deadline gates it in pollJobUntilDone.
+    let total = 0;
+    for (let i = 0; i < 23; i++) total += backoffMs(i);
+    expect(total).toBeLessThanOrEqual(5 * 60_000);
+  });
+
+  test("job-polling: 24+ attempts would exceed the 5-minute budget without a deadline", () => {
+    let total = 0;
+    for (let i = 0; i < 24; i++) total += backoffMs(i);
+    expect(total).toBeGreaterThan(5 * 60_000);
+  });
+
+  test("tiktok-posting: 10 attempts stay within the 2-minute budget (3s/×1.5/15s)", () => {
+    // With 3s/×1.5/15s, 10 attempts = ~114 s < 120 s (2 min).
+    let total = 0;
+    for (let i = 0; i < 10; i++) total += backoffMs(i, 3_000, 1.5, 15_000);
+    expect(total).toBeLessThanOrEqual(2 * 60_000);
+  });
+
+  test("tiktok-posting: 11+ attempts would exceed the 2-minute budget without a deadline", () => {
+    let total = 0;
+    for (let i = 0; i < 11; i++) total += backoffMs(i, 3_000, 1.5, 15_000);
+    expect(total).toBeGreaterThan(2 * 60_000);
+  });
 });
