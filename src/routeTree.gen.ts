@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as WorkflowsRouteImport } from './routes/workflows'
 import { Route as UgcLineRouteImport } from './routes/ugc-line'
 import { Route as UgcRouteImport } from './routes/ugc'
+import { Route as TutorialRouteImport } from './routes/tutorial'
 import { Route as TiktokRouteImport } from './routes/tiktok'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TemplatesRouteImport } from './routes/templates'
@@ -114,6 +115,11 @@ const UgcRoute = UgcRouteImport.update({
   path: '/ugc',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/ugc.lazy').then((d) => d.Route))
+const TutorialRoute = TutorialRouteImport.update({
+  id: '/tutorial',
+  path: '/tutorial',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/tutorial.lazy').then((d) => d.Route))
 const TiktokRoute = TiktokRouteImport.update({
   id: '/tiktok',
   path: '/tiktok',
@@ -610,6 +616,7 @@ export interface FileRoutesByFullPath {
   '/templates': typeof TemplatesRoute
   '/terms': typeof TermsRoute
   '/tiktok': typeof TiktokRoute
+  '/tutorial': typeof TutorialRoute
   '/ugc': typeof UgcRoute
   '/ugc-line': typeof UgcLineRoute
   '/workflows': typeof WorkflowsRoute
@@ -701,6 +708,7 @@ export interface FileRoutesByTo {
   '/templates': typeof TemplatesRoute
   '/terms': typeof TermsRoute
   '/tiktok': typeof TiktokRoute
+  '/tutorial': typeof TutorialRoute
   '/ugc': typeof UgcRoute
   '/ugc-line': typeof UgcLineRoute
   '/workflows': typeof WorkflowsRoute
@@ -793,6 +801,7 @@ export interface FileRoutesById {
   '/templates': typeof TemplatesRoute
   '/terms': typeof TermsRoute
   '/tiktok': typeof TiktokRoute
+  '/tutorial': typeof TutorialRoute
   '/ugc': typeof UgcRoute
   '/ugc-line': typeof UgcLineRoute
   '/workflows': typeof WorkflowsRoute
@@ -886,6 +895,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/terms'
     | '/tiktok'
+    | '/tutorial'
     | '/ugc'
     | '/ugc-line'
     | '/workflows'
@@ -977,6 +987,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/terms'
     | '/tiktok'
+    | '/tutorial'
     | '/ugc'
     | '/ugc-line'
     | '/workflows'
@@ -1068,6 +1079,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/terms'
     | '/tiktok'
+    | '/tutorial'
     | '/ugc'
     | '/ugc-line'
     | '/workflows'
@@ -1160,6 +1172,7 @@ export interface RootRouteChildren {
   TemplatesRoute: typeof TemplatesRoute
   TermsRoute: typeof TermsRoute
   TiktokRoute: typeof TiktokRoute
+  TutorialRoute: typeof TutorialRoute
   UgcRoute: typeof UgcRoute
   UgcLineRoute: typeof UgcLineRoute
   WorkflowsRoute: typeof WorkflowsRoute
@@ -1222,6 +1235,13 @@ declare module '@tanstack/react-router' {
       path: '/ugc'
       fullPath: '/ugc'
       preLoaderRoute: typeof UgcRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tutorial': {
+      id: '/tutorial'
+      path: '/tutorial'
+      fullPath: '/tutorial'
+      preLoaderRoute: typeof TutorialRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tiktok': {
@@ -1894,6 +1914,7 @@ const rootRouteChildren: RootRouteChildren = {
   TemplatesRoute: TemplatesRoute,
   TermsRoute: TermsRoute,
   TiktokRoute: TiktokRoute,
+  TutorialRoute: TutorialRoute,
   UgcRoute: UgcRoute,
   UgcLineRoute: UgcLineRoute,
   WorkflowsRoute: WorkflowsRoute,
