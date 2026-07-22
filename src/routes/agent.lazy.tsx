@@ -941,7 +941,7 @@ function AgentPage() {
   if (loading) return null;
 
   return (
-    <div className="relative flex h-screen w-full overflow-hidden text-ink" style={{ fontFamily: "inherit" }}>
+    <div data-page="prime-gold" className="relative flex h-screen w-full overflow-hidden text-ink" style={{ fontFamily: "inherit", background: "var(--canvas)", color: "var(--ink)" }}>
       <AmbientBackdrop />
 
       {/* ── LEFT SIDEBAR ────────────────────────────────────────────────────── */}

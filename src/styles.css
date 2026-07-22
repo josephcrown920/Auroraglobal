@@ -259,6 +259,33 @@ html[data-theme="light"] {
   --sidebar-ring: oklch(0.52 0.22 25);
 }
 
+/* ── Prime Director: Black & Gold theme ───────────────────────────────────
+ * Applied to [data-page="prime-gold"] (the /agent page wrapper).
+ * Overrides only the Prime Director palette tokens; the rest of the app
+ * is unaffected. Pure cinema-black backgrounds + rich gold accent.
+ */
+[data-page="prime-gold"] {
+  /* Backgrounds: pure cinematic black */
+  --canvas:    oklch(0.04 0 0);
+  --panel:     oklch(0.09 0.012 85);
+  --panel-2:   oklch(0.14 0.018 85);
+
+  /* Borders: gold at low opacity */
+  --line: oklch(0.74 0.16 85 / 22%);
+
+  /* Text: warm parchment white + muted gold */
+  --ink:     oklch(0.97 0.015 85);
+  --ink-dim: oklch(0.60 0.08 85);
+
+  /* Prime accent: deep cinema gold */
+  --prime:      oklch(0.72 0.18 85);
+  --prime-glow: oklch(0.82 0.16 88);
+
+  /* Rec accent: warm amber (keeps the "REC" pulse readable on black) */
+  --rec:      oklch(0.66 0.18 55);
+  --rec-glow: oklch(0.74 0.16 55);
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
