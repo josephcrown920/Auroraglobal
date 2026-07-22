@@ -281,12 +281,12 @@ function LandingPage() {
         {/* Row 1 — scrolls left */}
         <GalleryRow
           items={[
-            { src: "/landing-photo-1.jpeg",      alt: "Studio portrait",    tag: "Portrait"   },
-            { src: "/landing-photo-2.jpeg",       alt: "Artist promo",       tag: "Promo shot" },
-            { src: "/landing-photo-3.jpeg",       alt: "Album artwork",      tag: "Cover art"  },
-            { src: "/landing-photo-nba-josh.png", alt: "NBA Josh character", tag: "Character"  },
-            { src: "/landing-photo-4.jpeg",       alt: "Editorial look",     tag: "Editorial"  },
-            { src: "/landing-photo-5.jpeg",       alt: "Cinematic scene",    tag: "Cinema"     },
+            { src: "/landing-client-1.png", alt: "Live performance",  tag: "Live"      },
+            { src: "/landing-client-2.png", alt: "Editorial shoot",   tag: "Editorial" },
+            { src: "/landing-client-3.png", alt: "Artist lifestyle",  tag: "Lifestyle" },
+            { src: "/landing-client-4.png", alt: "Backstage promo",   tag: "Promo"     },
+            { src: "/landing-photo-2.jpeg", alt: "Artist promo",      tag: "Promo shot"},
+            { src: "/landing-photo-3.jpeg", alt: "Album artwork",     tag: "Cover art" },
           ]}
           direction="left"
           duration={38}
@@ -295,12 +295,12 @@ function LandingPage() {
         {/* Row 2 — scrolls right */}
         <GalleryRow
           items={[
-            { src: "/landing-photo-6.png",            alt: "Color grade",   tag: "Color grade" },
-            { src: "/landing-photo-7.png",            alt: "Motion scene",  tag: "Motion"      },
-            { src: "/landing-photo-8.png",            alt: "Campaign shot", tag: "Campaign"    },
-            { src: "/landing-photo-studios-grid.png", alt: "Aurora Studios",tag: "Studios"     },
-            { src: "/landing-photo-1.jpeg",           alt: "Studio portrait",tag: "Portrait"   },
-            { src: "/landing-photo-3.jpeg",           alt: "Album artwork", tag: "Cover art"   },
+            { src: "/landing-client-5.png", alt: "Concert energy",   tag: "Concert"   },
+            { src: "/landing-client-6.png", alt: "Artist duo",       tag: "Duo"       },
+            { src: "/landing-client-7.png", alt: "Editorial glam",   tag: "Glam"      },
+            { src: "/landing-photo-4.jpeg", alt: "Editorial look",   tag: "Editorial" },
+            { src: "/landing-photo-5.jpeg", alt: "Cinematic scene",  tag: "Cinema"    },
+            { src: "/landing-photo-6.png",  alt: "Color grade",      tag: "Color"     },
           ]}
           direction="right"
           duration={30}
