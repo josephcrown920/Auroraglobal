@@ -1120,7 +1120,7 @@ export const DEFAULT_GUIDED_WORKFLOWS: GuidedWorkflowContent[] = [
     tagline: "Studio-quality fashion & product shots — model, mannequin, and editorial angles",
     description:
       "Turn any outfit or product into a full e-commerce shoot without a camera: a standing model shot, a runway-turn video, a clean mannequin product shot with a 360° spin, plus two editorial poses. Swap the [OUTFIT] and [MODEL DESCRIPTION] placeholders and rerun the whole set for every drop.",
-    category: "realism",
+    category: "product",
     icon: "🛍️",
     sourceCredit: "Aurora Studio",
     isPublished: true,

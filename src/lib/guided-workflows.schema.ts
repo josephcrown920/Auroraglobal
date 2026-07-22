@@ -89,6 +89,7 @@ export const WORKFLOW_CATEGORIES = [
   "character",
   "realism",
   "effects",
+  "product",
 ] as const;
 export type GuidedWorkflowCategory = (typeof WORKFLOW_CATEGORIES)[number];
 
@@ -98,6 +99,7 @@ export const CATEGORY_LABELS: Record<GuidedWorkflowCategory, string> = {
   character: "AI Artist",
   realism: "Realism",
   effects: "Effects",
+  product: "Product & E-commerce",
 };
 
 export const guidedWorkflowContentSchema = z.object({
