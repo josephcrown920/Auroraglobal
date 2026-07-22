@@ -16,6 +16,8 @@ import {
   generateVideoFromImage,
   lipSyncVideo,
 } from "./studio.functions";
+import { backoffMs } from "./poll-backoff";
+import { supabase } from "@/integrations/supabase/client";
 
 export type JobPollResult = {
   status: string;
@@ -24,35 +26,102 @@ export type JobPollResult = {
   error: string | null;
 };
 
-const POLL_INTERVAL_MS = 2000;
-const MAX_POLL_ATTEMPTS = 150; // ~5 minutes
+const MAX_POLL_ATTEMPTS = 150; // ~5 minutes (backoff means actual wall time is longer)
 
 const TERMINAL_OK = new Set(["succeeded", "complete"]);
 const TERMINAL_FAIL = new Set(["failed", "cancelled"]);
 
+/**
+ * Poll a job until it reaches a terminal status.
+ *
+ * Two concurrent paths race to detect completion:
+ *  1. **Realtime** (fast-path): subscribes to `postgres_changes` on the
+ *     `generations` row; resolves the moment a terminal UPDATE arrives.
+ *     Requires `generationId` to be passed.
+ *  2. **Poll loop** (fallback): exponential backoff starting at 2 s, ×1.5 per
+ *     attempt, capped at 15 s — ~80 % fewer requests than the old flat 2 s
+ *     interval. Always runs concurrently with Realtime as a safety net.
+ *
+ * Whichever path settles first wins (Promise.race). The loser is cleaned up
+ * via a shared abort signal; the Realtime channel is always unsubscribed on
+ * settle.
+ */
 export async function pollJobUntilDone(
   statusFn: (opts: { data: { jobId: string } }) => Promise<Awaited<ReturnType<typeof getJobStatus>>>,
   jobId: string,
+  generationId?: string,
 ): Promise<JobPollResult> {
-  for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
-    const { job, generation } = await statusFn({ data: { jobId } });
-    const status = generation?.status ?? job.status;
-    if (TERMINAL_OK.has(status ?? "")) {
-      return {
-        status: status!,
-        resultImageUrl: generation?.result_image_url ?? null,
-        resultVideoUrl: generation?.result_video_url ?? null,
-        error: null,
-      };
-    }
-    if (TERMINAL_FAIL.has(status ?? "") || TERMINAL_FAIL.has(job.status ?? "")) {
-      throw new Error(generation?.error || job.error || "Generation failed");
-    }
-    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+  const abort = { cancelled: false };
+  let rtChannel: ReturnType<typeof supabase.channel> | null = null;
+
+  function pollLoop(): Promise<JobPollResult> {
+    return (async () => {
+      for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+        if (abort.cancelled) throw new Error("cancelled");
+        const { job, generation } = await statusFn({ data: { jobId } });
+        const status = generation?.status ?? job.status;
+        if (TERMINAL_OK.has(status ?? "")) {
+          return {
+            status: status!,
+            resultImageUrl: generation?.result_image_url ?? null,
+            resultVideoUrl: generation?.result_video_url ?? null,
+            error: null,
+          };
+        }
+        if (TERMINAL_FAIL.has(status ?? "") || TERMINAL_FAIL.has(job.status ?? "")) {
+          throw new Error(generation?.error || job.error || "Generation failed");
+        }
+        await new Promise<void>((r) => setTimeout(r, backoffMs(attempt)));
+      }
+      throw new Error(
+        "This is taking longer than expected — it's still running in the background and will appear in your Gallery once it finishes.",
+      );
+    })();
   }
-  throw new Error(
-    "This is taking longer than expected — it's still running in the background and will appear in your Gallery once it finishes.",
-  );
+
+  function realtimePath(): Promise<JobPollResult> {
+    return new Promise<JobPollResult>((resolve, reject) => {
+      rtChannel = supabase
+        .channel(`aurora:gen:${generationId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "generations",
+            filter: `id=eq.${generationId}`,
+          },
+          (payload) => {
+            if (abort.cancelled) return;
+            const row = payload.new as Record<string, unknown>;
+            const s = String(row.status ?? "");
+            if (TERMINAL_OK.has(s)) {
+              resolve({
+                status: s,
+                resultImageUrl: (row.result_image_url as string | null) ?? null,
+                resultVideoUrl: (row.result_video_url as string | null) ?? null,
+                error: null,
+              });
+            } else if (TERMINAL_FAIL.has(s)) {
+              reject(new Error((row.error as string | null) || "Generation failed"));
+            }
+          },
+        )
+        .subscribe();
+    });
+  }
+
+  try {
+    if (generationId) {
+      return await Promise.race([pollLoop(), realtimePath()]);
+    }
+    return await pollLoop();
+  } finally {
+    abort.cancelled = true;
+    if (rtChannel) {
+      supabase.removeChannel(rtChannel).catch(() => {});
+    }
+  }
 }
 
 type EnqueueResult = { jobId: string; generationId: string } & Record<string, unknown>;
@@ -69,7 +138,11 @@ export function useJobPollingFn<TInput, TResult>(
   const statusFn = useServerFn(getJobStatus);
   return async (opts: { data: TInput }): Promise<TResult> => {
     const enqueued = await enqueue(opts);
-    const polled = await pollJobUntilDone(statusFn, enqueued.jobId);
+    const polled = await pollJobUntilDone(
+      statusFn,
+      enqueued.jobId,
+      enqueued.generationId,
+    );
     return mapResult(enqueued, polled);
   };
 }
@@ -124,7 +197,7 @@ export async function pollComfyRunUntilDone(
     const { run } = await getRunFn({ data: { id: runId } });
     if (run.status === "succeeded") return run;
     if (run.status === "failed") throw new Error(run.error || "ComfyUI run failed");
-    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+    await new Promise<void>((r) => setTimeout(r, backoffMs(attempt)));
   }
   throw new Error(
     "This is taking longer than expected — the run is still going in the background; check Recent runs in a bit.",

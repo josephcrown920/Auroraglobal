@@ -495,9 +495,10 @@ function ClientWorkerTicker({ enabled }: { enabled: boolean }) {
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
+    let attempt = 0;
     async function pulse() {
+      if (cancelled) return;
       try {
-        const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
         const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
         if (!key) return;
         await fetch(`/api/public/jobs/tick`, {
@@ -505,14 +506,18 @@ function ClientWorkerTicker({ enabled }: { enabled: boolean }) {
           headers: { "Content-Type": "application/json", apikey: key },
           body: "{}",
         });
-        void url;
       } catch {
         /* ignore */
       }
+      if (!cancelled) {
+        // Doubling backoff: 6 s → 12 s → 20 s cap, so stale tabs don't hammer the API.
+        const delay = Math.min(6_000 * Math.pow(2, attempt), 20_000);
+        attempt++;
+        setTimeout(pulse, delay);
+      }
     }
     pulse();
-    const t = setInterval(() => { if (!cancelled) pulse(); }, 6000);
-    return () => { cancelled = true; clearInterval(t); };
+    return () => { cancelled = true; };
   }, [enabled]);
   return null;
 }
