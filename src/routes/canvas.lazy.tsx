@@ -43,6 +43,7 @@ import {
   type AuroraTemplateRow,
 } from "@/lib/aurora-templates.functions";
 import { MODEL_LIST, VIDEO_MODEL_LIST, getModelMeta, AUTO_MODEL_OPTIONS, resolveAutoModel } from "@/lib/models";
+import { classifyUpstream, resolveVideoStartFrame, resolveVideoEndFrame } from "@/lib/canvas-pipeline";
 import {
   Sparkles,
   Play,
@@ -1551,9 +1552,7 @@ function CanvasPage() {
         const n = byId.get(id);
         if (!n) continue;
         const upstream = ups.map((u) => resolved.get(u)!).filter(Boolean);
-        const images = upstream.filter((u) => u.kind === "input" || u.kind === "image").map((u) => u.url);
-        const videos = upstream.filter((u) => u.kind === "video" || u.kind === "lipsync").map((u) => u.url);
-        const audios = upstream.filter((u) => u.kind === "audio").map((u) => u.url);
+        const { images, videos, audios } = classifyUpstream(upstream);
 
         try {
           update(id, { status: "running", error: undefined });
@@ -1569,12 +1568,8 @@ function CanvasPage() {
             resolved.set(id, { url: res.resultUrl, kind: "image" });
             update(id, { status: "done", url: res.resultUrl });
           } else if (n.data.kind === "video") {
-  if (images.length === 0 && videos.length === 0) throw new Error("Video node needs an image or video upstream");
-  // Prefer an upstream image as the start frame; fall back to an upstream video
-  // (e.g., video→video re-animate, or comfy video output feeding a video node).
-  const startFrame = images[0] ?? videos[0];
-  // If we have multiple images (e.g., from split), use the second as the end frame for motion control
-  const endFrame = images.length > 1 ? images[1] : null;
+  const startFrame = resolveVideoStartFrame(images, videos);
+  const endFrame = resolveVideoEndFrame(images);
   const res = await vidFn({ data: {
     imageUrl: startFrame,
     prompt: n.data.prompt ?? "natural movement",
