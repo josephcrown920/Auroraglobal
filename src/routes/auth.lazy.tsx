@@ -4,10 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Sparkles, LogIn } from "lucide-react";
+import { LogIn } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { trackSignUp } from "@/lib/gtm";
 
 export const Route = createLazyFileRoute("/auth")({
@@ -78,24 +77,19 @@ function AuthPage() {
       if (mode === "signup" && typeof window !== "undefined") {
         sessionStorage.setItem(OAUTH_SIGNUP_INTENT_KEY, "1");
       }
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/studio`,
+        },
       });
-
-      if (result.error) {
-        throw result.error;
+      if (error) {
+        if (typeof window !== "undefined") sessionStorage.removeItem(OAUTH_SIGNUP_INTENT_KEY);
+        throw error;
       }
-
-      if (result.redirected) {
-        return;
-      }
-
-      toast.success("Signed in with Google!");
-      navigate({ to: "/studio" });
+      // Supabase will redirect the page to Google — keep button busy
     } catch (err) {
-      if (typeof window !== "undefined") sessionStorage.removeItem(OAUTH_SIGNUP_INTENT_KEY);
       toast.error(err instanceof Error ? err.message : "Google sign-in failed");
-    } finally {
       setGoogleBusy(false);
     }
   };
@@ -161,12 +155,31 @@ function AuthPage() {
         >
           {googleBusy ? "Signing in..." : <><LogIn className="mr-2 size-4" /> Continue with Google</>}
         </Button>
-        <button
-          onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
-          className="mt-6 text-sm text-muted-foreground hover:text-foreground w-full text-center"
-        >
-          {mode === "signup" ? "Already have an account? Sign in" : "New here? Create an account"}
-        </button>
+        <div className="mt-6 flex items-center justify-between text-sm text-muted-foreground">
+          <button
+            type="button"
+            onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
+            className="hover:text-foreground"
+          >
+            {mode === "signup" ? "Already have an account? Sign in" : "New here? Create an account"}
+          </button>
+          {mode === "signin" && (
+            <button
+              type="button"
+              className="hover:text-foreground"
+              onClick={async () => {
+                if (!email) { toast.error("Enter your email above first"); return; }
+                const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                  redirectTo: `${window.location.origin}/auth`,
+                });
+                if (error) toast.error(error.message);
+                else toast.success("Password reset email sent — check your inbox");
+              }}
+            >
+              Forgot password?
+            </button>
+          )}
+        </div>
         <p className="mt-6 text-[11px] text-center text-muted-foreground">
           By continuing you agree to our{" "}
           <Link to="/legal/$slug" params={{ slug: "terms" }} className="underline">
