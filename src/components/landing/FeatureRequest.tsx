@@ -18,7 +18,7 @@ export function FeatureRequest() {
     const body = encodeURIComponent(
       `Idea:\n${idea}\n\n${email ? `From: ${email}\n` : ""}`,
     );
-    window.location.href = `mailto:hello@aurorastudiostar.com?subject=${subject}&body=${body}`;
+    window.location.href = `mailto:hello@auroraperformancestudio.com?subject=${subject}&body=${body}`;
     setTimeout(() => {
       setSubmitting(false);
       toast.success("Thanks — your email client should open with your request.");
