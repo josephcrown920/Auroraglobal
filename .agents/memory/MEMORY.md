@@ -97,3 +97,4 @@
 - [Smoke steps must share production dispatch](smoke-shared-dispatch.md) — reviewers reject "mirror" reconstructions; extract _enqueue*/_dispatch* helpers called by BOTH the handler and the smoke runner.
 - [Vite dep optimizer crawl deadlock](vite-dep-optimizer-crawl-deadlock.md) — deps_temp_* piling up with no deps/ = optimizer never commits; dev hangs on optimized-dep imports; fix holdUntilCrawlEnd:false.
 - [Tutorial guide PDF is a manual snapshot](tutorial-pdf-regeneration.md) — /tutorial-guide.pdf is a static Playwright print of /tutorial; regenerate + copy to all three public locations after any tutorial content edit.
+- [Gemini Veo discrete durations](gemini-veo-discrete-durations.md) — veo-3.1-fast-generate-preview accepts only 4 or 8 for durationSeconds (not 5-7); snap with `d <= 5 ? 4 : 8`; 5 returns 400 despite misleading "4-8" error.
