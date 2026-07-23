@@ -466,7 +466,7 @@ export async function runSmokeStudioChain(
       prompt: tpl.videoPrompt ?? "The subject performs on stage, expressive movement.",
       duration: TEMPLATE_DEFAULTS.durationSeconds,
       resolution: TEMPLATE_DEFAULTS.resolution,
-      modelKey: "seedance-2.0-fast",
+      modelKey: videoModel,
       cameraMovement: null,
       endFrameUrl: null,
       confirmPreviewId: null,

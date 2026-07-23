@@ -2434,6 +2434,48 @@ const ltxAdapter: ProviderAdapter = {
   },
 };
 
+// ─── HuggingFace Serverless Inference (text-to-video) ────────────────────────
+// Free-tier / PRO HF Inference API video fallback.
+// Model: damo-vilab/text-to-video-ms-1.7b (T2V, no image conditioning).
+// Returns binary MP4 which is uploaded to the studio bucket for a stable URL.
+// Activated only when r.model === "hf/text-to-video" so it never hijacks
+// other model-keyed requests; add "hf/text-to-video" to FALLBACK_MODELS.video
+// or request it directly to engage this adapter.
+const hfVideo: ProviderAdapter = {
+  name: "hf-video",
+  // Catch-all for any video request when HF_TOKEN is set — positioned just
+  // before falFallback so it only fires after all other adapters have failed.
+  supports: (r) => r.kind === "video" && !!process.env.HF_TOKEN,
+  estimateCost: (_r) => 0, // HF free tier
+  async run(r) {
+    const hfToken = process.env.HF_TOKEN;
+    if (!hfToken) throw new Error("HF_TOKEN not configured");
+    const MODEL = "damo-vilab/text-to-video-ms-1.7b";
+    const res = await fetch(`https://api-inference.huggingface.co/models/${MODEL}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${hfToken}`,
+        "Content-Type": "application/json",
+        Accept: "video/mp4",
+        "X-Wait-For-Model": "true",
+      },
+      body: JSON.stringify({
+        inputs: r.prompt ?? "a performer on a concert stage, expressive movement",
+      }),
+      signal: AbortSignal.timeout(180_000), // 3 min — HF cold-start can be slow
+    });
+    if (!res.ok) throw new Error(`HF ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    const storagePath = `hf-video/${Date.now()}.mp4`;
+    const { error } = await supabaseAdmin.storage
+      .from("studio")
+      .upload(storagePath, buf, { contentType: "video/mp4", upsert: true });
+    if (error) throw new Error(`HF video upload: ${error.message}`);
+    const { data } = supabaseAdmin.storage.from("studio").getPublicUrl(storagePath);
+    return { url: data.publicUrl, endpoint: `hf:${MODEL}` };
+  },
+};
+
 // ─── Priority chain per kind ─────────────────────────────────────────────────
 // GPU-FIRST for every modality: the self-hosted gpuWorker pool is always
 // tried first, full stop. When no eligible worker is up (offline, stale
@@ -2476,6 +2518,7 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
     replicate,
     runway,
     inferenceshCloud,
+    hfVideo,
     falFallback,
   ],
   lipsync: [gpuWorker, sync, heygen, heygenPhotoVideo, heygenAvatarTemplate, replicate, inferenceshCloud, falFallback],
@@ -2673,6 +2716,7 @@ export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   ],
   video: [
     "heygen/video-agent",
+    "hf/text-to-video",
     "xai/grok-imagine-video-1.5",
     "ltx/ltx-video",
     "veo-2",
