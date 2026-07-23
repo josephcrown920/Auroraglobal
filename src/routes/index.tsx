@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useState, useEffect, useRef } from "react";
 import { ViralEngine } from "@/components/landing/ViralEngine";
 import { BalloonLipsync } from "@/components/landing/BalloonLipsync";
+import { AdminLandingEditor } from "@/components/AdminLandingEditor";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -614,6 +615,7 @@ function LandingPage() {
         </div>
       </footer>
 
+      <AdminLandingEditor />
       <div className="h-24" aria-hidden />
     </div>
   );

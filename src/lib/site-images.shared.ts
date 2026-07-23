@@ -1,10 +1,13 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+// Server-safe defaults shared by the client provider and the admin
+// server functions. No React imports so it can be imported from either side.
 
 export type SiteImageKey =
   | "hero_1" | "hero_2" | "hero_3" | "hero_4" | "hero_5" | "hero_6"
   | "creator_1" | "creator_2" | "creator_3" | "creator_4" | "creator_5" | "creator_6";
 
-export const SITE_IMAGE_DEFAULTS: Record<SiteImageKey, { url: string; label: string; section: string }> = {
+export type SiteImageDefault = { url: string; label: string; section: string };
+
+export const SITE_IMAGE_DEFAULTS: Record<SiteImageKey, SiteImageDefault> = {
   hero_1:    { url: "/gallery/josh-pink-mic.png",          label: "Concert Wash",       section: "hero" },
   hero_2:    { url: "/josh/josh-concert-performance.webp", label: "Editorial",           section: "hero" },
   hero_3:    { url: "/josh/josh-orange-performance.jpg",   label: "Golden Hour",         section: "hero" },
@@ -19,39 +22,4 @@ export const SITE_IMAGE_DEFAULTS: Record<SiteImageKey, { url: string; label: str
   creator_6: { url: "/gallery/ichroma-cover.webp",         label: "Private Collection",  section: "creator" },
 };
 
-function buildDefaults(): Record<SiteImageKey, string> {
-  return Object.fromEntries(
-    Object.entries(SITE_IMAGE_DEFAULTS).map(([k, v]) => [k, v.url]),
-  ) as Record<SiteImageKey, string>;
-}
-
-const SiteImagesContext = createContext<Record<SiteImageKey, string>>(buildDefaults());
-
-export function useSiteImage(key: SiteImageKey): string {
-  const ctx = useContext(SiteImagesContext);
-  return ctx[key] ?? SITE_IMAGE_DEFAULTS[key].url;
-}
-
-export const SITE_IMAGES_REFRESH_EVENT = "site-images:refresh";
-
-export function SiteImagesProvider({ children }: { children: ReactNode }) {
-  const [images, setImages] = useState<Record<SiteImageKey, string>>(buildDefaults);
-
-  useEffect(() => {
-    fetch("/api/public/site-images")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((rows: Array<{ key: string; url: string }> | null) => {
-        if (!rows?.length) return;
-        setImages((prev) => {
-          const next = { ...prev };
-          for (const row of rows) {
-            if (row.key in next) (next as Record<string, string>)[row.key] = row.url;
-          }
-          return next;
-        });
-      })
-      .catch(() => {});
-  }, []);
-
-  return <SiteImagesContext.Provider value={images}>{children}</SiteImagesContext.Provider>;
-}
+export const SITE_IMAGE_KEYS = Object.keys(SITE_IMAGE_DEFAULTS) as SiteImageKey[];

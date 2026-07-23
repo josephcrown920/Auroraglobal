@@ -16,6 +16,7 @@ import {
   generateVideoFromImage,
   lipSyncVideo,
 } from "./studio.functions";
+import { splitRealityGenerate } from "./split-reality.functions";
 import { backoffMs } from "./poll-backoff";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -196,6 +197,18 @@ type ComfyRunRow = {
   output_kind: string | null;
   error: string | null;
 } & Record<string, unknown>;
+
+// ── Split Reality ───────────────────────────────────────────────────────────
+// splitRealityGenerate is a BLOCKING server fn (both sides run inline in
+// parallel via Promise.all). No job polling needed — just wrap with
+// useServerFn and return the result directly.
+
+export type SideResult = { id: string; url: string; variant: string };
+export type SplitRealityOutput = { left: SideResult; right: SideResult };
+
+export function useSplitRealityJobFn() {
+  return useServerFn(splitRealityGenerate);
+}
 
 export async function pollComfyRunUntilDone(
   getRunFn: (opts: { data: { id: string } }) => Promise<{ run: ComfyRunRow }>,
