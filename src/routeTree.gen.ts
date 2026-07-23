@@ -17,6 +17,8 @@ import { Route as TiktokRouteImport } from './routes/tiktok'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as StudioRouteImport } from './routes/studio'
+import { Route as StoryboardRouteImport } from './routes/storyboard'
+import { Route as SplitRealityRouteImport } from './routes/split-reality'
 import { Route as SpinRouteImport } from './routes/spin'
 import { Route as SpeechRouteImport } from './routes/speech'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
@@ -24,6 +26,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SceneBuilderRouteImport } from './routes/scene-builder'
 import { Route as RoadmapRouteImport } from './routes/roadmap'
 import { Route as ReshootRouteImport } from './routes/reshoot'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PhotoEditRouteImport } from './routes/photo-edit'
 import { Route as PartnersRouteImport } from './routes/partners'
@@ -73,6 +76,7 @@ import { Route as AdminSmokeRouteImport } from './routes/admin.smoke'
 import { Route as AdminOrchestrationRouteImport } from './routes/admin.orchestration'
 import { Route as AdminCostsRouteImport } from './routes/admin.costs'
 import { Route as AdminComfyRouteImport } from './routes/admin.comfy'
+import { Route as AdminAssetsRouteImport } from './routes/admin.assets'
 import { Route as ApiVideoAgentSubmitRouteImport } from './routes/api/video-agent/submit'
 import { Route as ApiVideoAgentMessagesRouteImport } from './routes/api/video-agent/messages'
 import { Route as ApiVideoAgentGenerateRouteImport } from './routes/api/video-agent/generate'
@@ -141,6 +145,16 @@ const StudioRoute = StudioRouteImport.update({
   path: '/studio',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/studio.lazy').then((d) => d.Route))
+const StoryboardRoute = StoryboardRouteImport.update({
+  id: '/storyboard',
+  path: '/storyboard',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/storyboard.lazy').then((d) => d.Route))
+const SplitRealityRoute = SplitRealityRouteImport.update({
+  id: '/split-reality',
+  path: '/split-reality',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/split-reality.lazy').then((d) => d.Route))
 const SpinRoute = SpinRouteImport.update({
   id: '/spin',
   path: '/spin',
@@ -176,6 +190,13 @@ const ReshootRoute = ReshootRouteImport.update({
   path: '/reshoot',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/reshoot.lazy').then((d) => d.Route))
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/reset-password.lazy').then((d) => d.Route),
+)
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
@@ -433,6 +454,11 @@ const AdminComfyRoute = AdminComfyRouteImport.update({
   path: '/comfy',
   getParentRoute: () => AdminRoute,
 } as any).lazy(() => import('./routes/admin.comfy.lazy').then((d) => d.Route))
+const AdminAssetsRoute = AdminAssetsRouteImport.update({
+  id: '/assets',
+  path: '/assets',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin.assets.lazy').then((d) => d.Route))
 const ApiVideoAgentSubmitRoute = ApiVideoAgentSubmitRouteImport.update({
   id: '/api/video-agent/submit',
   path: '/api/video-agent/submit',
@@ -611,6 +637,7 @@ export interface FileRoutesByFullPath {
   '/partners': typeof PartnersRoute
   '/photo-edit': typeof PhotoEditRoute
   '/privacy': typeof PrivacyRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
   '/scene-builder': typeof SceneBuilderRoute
@@ -618,6 +645,8 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
+  '/split-reality': typeof SplitRealityRoute
+  '/storyboard': typeof StoryboardRoute
   '/studio': typeof StudioRoute
   '/templates': typeof TemplatesRoute
   '/terms': typeof TermsRoute
@@ -626,6 +655,7 @@ export interface FileRoutesByFullPath {
   '/ugc': typeof UgcRoute
   '/ugc-line': typeof UgcLineRoute
   '/workflows': typeof WorkflowsRoute
+  '/admin/assets': typeof AdminAssetsRoute
   '/admin/comfy': typeof AdminComfyRoute
   '/admin/costs': typeof AdminCostsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
@@ -704,6 +734,7 @@ export interface FileRoutesByTo {
   '/partners': typeof PartnersRoute
   '/photo-edit': typeof PhotoEditRoute
   '/privacy': typeof PrivacyRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
   '/scene-builder': typeof SceneBuilderRoute
@@ -711,6 +742,8 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
+  '/split-reality': typeof SplitRealityRoute
+  '/storyboard': typeof StoryboardRoute
   '/studio': typeof StudioRoute
   '/templates': typeof TemplatesRoute
   '/terms': typeof TermsRoute
@@ -719,6 +752,7 @@ export interface FileRoutesByTo {
   '/ugc': typeof UgcRoute
   '/ugc-line': typeof UgcLineRoute
   '/workflows': typeof WorkflowsRoute
+  '/admin/assets': typeof AdminAssetsRoute
   '/admin/comfy': typeof AdminComfyRoute
   '/admin/costs': typeof AdminCostsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
@@ -798,6 +832,7 @@ export interface FileRoutesById {
   '/partners': typeof PartnersRoute
   '/photo-edit': typeof PhotoEditRoute
   '/privacy': typeof PrivacyRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
   '/scene-builder': typeof SceneBuilderRoute
@@ -805,6 +840,8 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
+  '/split-reality': typeof SplitRealityRoute
+  '/storyboard': typeof StoryboardRoute
   '/studio': typeof StudioRoute
   '/templates': typeof TemplatesRoute
   '/terms': typeof TermsRoute
@@ -813,6 +850,7 @@ export interface FileRoutesById {
   '/ugc': typeof UgcRoute
   '/ugc-line': typeof UgcLineRoute
   '/workflows': typeof WorkflowsRoute
+  '/admin/assets': typeof AdminAssetsRoute
   '/admin/comfy': typeof AdminComfyRoute
   '/admin/costs': typeof AdminCostsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
@@ -893,6 +931,7 @@ export interface FileRouteTypes {
     | '/partners'
     | '/photo-edit'
     | '/privacy'
+    | '/reset-password'
     | '/reshoot'
     | '/roadmap'
     | '/scene-builder'
@@ -900,6 +939,8 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/speech'
     | '/spin'
+    | '/split-reality'
+    | '/storyboard'
     | '/studio'
     | '/templates'
     | '/terms'
@@ -908,6 +949,7 @@ export interface FileRouteTypes {
     | '/ugc'
     | '/ugc-line'
     | '/workflows'
+    | '/admin/assets'
     | '/admin/comfy'
     | '/admin/costs'
     | '/admin/orchestration'
@@ -986,6 +1028,7 @@ export interface FileRouteTypes {
     | '/partners'
     | '/photo-edit'
     | '/privacy'
+    | '/reset-password'
     | '/reshoot'
     | '/roadmap'
     | '/scene-builder'
@@ -993,6 +1036,8 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/speech'
     | '/spin'
+    | '/split-reality'
+    | '/storyboard'
     | '/studio'
     | '/templates'
     | '/terms'
@@ -1001,6 +1046,7 @@ export interface FileRouteTypes {
     | '/ugc'
     | '/ugc-line'
     | '/workflows'
+    | '/admin/assets'
     | '/admin/comfy'
     | '/admin/costs'
     | '/admin/orchestration'
@@ -1079,6 +1125,7 @@ export interface FileRouteTypes {
     | '/partners'
     | '/photo-edit'
     | '/privacy'
+    | '/reset-password'
     | '/reshoot'
     | '/roadmap'
     | '/scene-builder'
@@ -1086,6 +1133,8 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/speech'
     | '/spin'
+    | '/split-reality'
+    | '/storyboard'
     | '/studio'
     | '/templates'
     | '/terms'
@@ -1094,6 +1143,7 @@ export interface FileRouteTypes {
     | '/ugc'
     | '/ugc-line'
     | '/workflows'
+    | '/admin/assets'
     | '/admin/comfy'
     | '/admin/costs'
     | '/admin/orchestration'
@@ -1173,6 +1223,7 @@ export interface RootRouteChildren {
   PartnersRoute: typeof PartnersRoute
   PhotoEditRoute: typeof PhotoEditRoute
   PrivacyRoute: typeof PrivacyRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   ReshootRoute: typeof ReshootRoute
   RoadmapRoute: typeof RoadmapRoute
   SceneBuilderRoute: typeof SceneBuilderRoute
@@ -1180,6 +1231,8 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SpeechRoute: typeof SpeechRoute
   SpinRoute: typeof SpinRoute
+  SplitRealityRoute: typeof SplitRealityRoute
+  StoryboardRoute: typeof StoryboardRoute
   StudioRoute: typeof StudioRoute
   TemplatesRoute: typeof TemplatesRoute
   TermsRoute: typeof TermsRoute
@@ -1285,6 +1338,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/storyboard': {
+      id: '/storyboard'
+      path: '/storyboard'
+      fullPath: '/storyboard'
+      preLoaderRoute: typeof StoryboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/split-reality': {
+      id: '/split-reality'
+      path: '/split-reality'
+      fullPath: '/split-reality'
+      preLoaderRoute: typeof SplitRealityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/spin': {
       id: '/spin'
       path: '/spin'
@@ -1332,6 +1399,13 @@ declare module '@tanstack/react-router' {
       path: '/reshoot'
       fullPath: '/reshoot'
       preLoaderRoute: typeof ReshootRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -1677,6 +1751,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminComfyRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/assets': {
+      id: '/admin/assets'
+      path: '/assets'
+      fullPath: '/admin/assets'
+      preLoaderRoute: typeof AdminAssetsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/api/video-agent/submit': {
       id: '/api/video-agent/submit'
       path: '/api/video-agent/submit'
@@ -1870,6 +1951,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminAssetsRoute: typeof AdminAssetsRoute
   AdminComfyRoute: typeof AdminComfyRoute
   AdminCostsRoute: typeof AdminCostsRoute
   AdminOrchestrationRoute: typeof AdminOrchestrationRoute
@@ -1879,6 +1961,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAssetsRoute: AdminAssetsRoute,
   AdminComfyRoute: AdminComfyRoute,
   AdminCostsRoute: AdminCostsRoute,
   AdminOrchestrationRoute: AdminOrchestrationRoute,
@@ -1923,6 +2006,7 @@ const rootRouteChildren: RootRouteChildren = {
   PartnersRoute: PartnersRoute,
   PhotoEditRoute: PhotoEditRoute,
   PrivacyRoute: PrivacyRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   ReshootRoute: ReshootRoute,
   RoadmapRoute: RoadmapRoute,
   SceneBuilderRoute: SceneBuilderRoute,
@@ -1930,6 +2014,8 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SpeechRoute: SpeechRoute,
   SpinRoute: SpinRoute,
+  SplitRealityRoute: SplitRealityRoute,
+  StoryboardRoute: StoryboardRoute,
   StudioRoute: StudioRoute,
   TemplatesRoute: TemplatesRoute,
   TermsRoute: TermsRoute,

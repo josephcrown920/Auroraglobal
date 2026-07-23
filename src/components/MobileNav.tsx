@@ -44,13 +44,15 @@ type Feature = {
 
 /** Core creation tools — highest-traffic first. */
 const MAKE_FEATURES: Feature[] = [
-  { to: "/studio",        label: "Image Generation", icon: Sparkles,  previewImg: "/nav-previews/studio.jpg" },
-  { to: "/colors",        label: "Colors Studio",    icon: Palette,   previewImg: "/nav-previews/colors.jpg" },
-  { to: "/canvas",        label: "Canvas",           icon: Workflow,  previewImg: "/nav-previews/canvas.jpg" },
-  { to: "/agent",         label: "Video Studio",     icon: Film,      previewImg: "/nav-previews/music-video.jpg" },
-  { to: "/photo-edit",    label: "Photo Editor",     icon: Brush,     previewImg: "/nav-previews/photo-edit.jpg" },
-  { to: "/live-studio",   label: "Live Studios",     icon: Music2,    previewImg: "/nav-previews/live-studio.jpg" },
-  { to: "/scene-builder", label: "Directors ROOM",   icon: Layers,    previewImg: "/nav-previews/scene-builder.jpg" },
+  { to: "/studio",         label: "Image Generation", icon: Sparkles,  previewImg: "/nav-previews/studio.jpg" },
+  { to: "/colors",         label: "Colors Studio",    icon: Palette,   previewImg: "/nav-previews/colors.jpg" },
+  { to: "/canvas",         label: "Canvas",           icon: Workflow,  previewImg: "/nav-previews/canvas.jpg" },
+  { to: "/agent",          label: "Video Studio",     icon: Film,      previewImg: "/nav-previews/music-video.jpg" },
+  { to: "/photo-edit",     label: "Photo Editor",     icon: Brush,     previewImg: "/nav-previews/photo-edit.jpg" },
+  { to: "/split-reality",  label: "Split Reality",    icon: Wand2,     previewImg: "/nav-previews/studio.jpg" },
+  { to: "/live-studio",    label: "Live Studios",     icon: Music2,    previewImg: "/nav-previews/live-studio.jpg" },
+  { to: "/scene-builder",  label: "Directors ROOM",   icon: Layers,    previewImg: "/nav-previews/scene-builder.jpg" },
+  { to: "/storyboard",     label: "Storyboard",       icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
 ];
 
 /** Creator & viral tools — ordered by demand. */
