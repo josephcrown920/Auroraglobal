@@ -248,7 +248,7 @@ function SplitRealityPage() {
       return splitFn({ data: { mode: "mirror", imageUrls, basePrompt: prompt } });
     },
     onSuccess: (r) => {
-      setResult(r);
+      setResult({ ...r, mode });
       toast.success(mode === "characters" ? "Both lives are in." : "Both realities are in.");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
