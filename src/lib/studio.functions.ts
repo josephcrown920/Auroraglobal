@@ -295,7 +295,7 @@ export const lipSyncVideo = createServerFn({ method: "POST" })
 // Called by smoke step 14 in smoke.functions.ts.
 
 const SMOKE_POLL_INTERVAL_MS = 3_000;
-const SMOKE_MAX_POLL_ATTEMPTS = 100; // ~5 minutes at 3s intervals
+const SMOKE_MAX_POLL_ATTEMPTS = 300; // ~15 minutes at 3s intervals (HeyGen avatar videos can take 5-12 min)
 
 async function awaitSmokeJob(
   jobId: string,

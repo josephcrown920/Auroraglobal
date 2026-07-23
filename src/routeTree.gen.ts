@@ -90,6 +90,7 @@ import { Route as ApiPublicGenerateRouteImport } from './routes/api/public/gener
 import { Route as ApiPublicFreeMonthlyGrantRouteImport } from './routes/api/public/free-monthly-grant'
 import { Route as ApiPublicCheckApiBalancesRouteImport } from './routes/api/public/check-api-balances'
 import { Route as ApiAdminUploadSiteImageRouteImport } from './routes/api/admin/upload-site-image'
+import { Route as ApiAdminRunSmokeStep14RouteImport } from './routes/api/admin/run-smoke-step14'
 import { Route as ApiVideoAgentStatusVideoIdRouteImport } from './routes/api/video-agent/status.$videoId'
 import { Route as ApiPublicWorkersRegisterRouteImport } from './routes/api/public/workers/register'
 import { Route as ApiPublicWorkersHealthRouteImport } from './routes/api/public/workers/health'
@@ -521,6 +522,11 @@ const ApiAdminUploadSiteImageRoute = ApiAdminUploadSiteImageRouteImport.update({
   path: '/api/admin/upload-site-image',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminRunSmokeStep14Route = ApiAdminRunSmokeStep14RouteImport.update({
+  id: '/api/admin/run-smoke-step14',
+  path: '/api/admin/run-smoke-step14',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiVideoAgentStatusVideoIdRoute =
   ApiVideoAgentStatusVideoIdRouteImport.update({
     id: '/api/video-agent/status/$videoId',
@@ -636,6 +642,7 @@ export interface FileRoutesByFullPath {
   '/r/$token': typeof RTokenRoute
   '/cli/': typeof CliIndexRoute
   '/guides/': typeof GuidesIndexRoute
+  '/api/admin/run-smoke-step14': typeof ApiAdminRunSmokeStep14Route
   '/api/admin/upload-site-image': typeof ApiAdminUploadSiteImageRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
@@ -728,6 +735,7 @@ export interface FileRoutesByTo {
   '/r/$token': typeof RTokenRoute
   '/cli': typeof CliIndexRoute
   '/guides': typeof GuidesIndexRoute
+  '/api/admin/run-smoke-step14': typeof ApiAdminRunSmokeStep14Route
   '/api/admin/upload-site-image': typeof ApiAdminUploadSiteImageRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
@@ -821,6 +829,7 @@ export interface FileRoutesById {
   '/r/$token': typeof RTokenRoute
   '/cli/': typeof CliIndexRoute
   '/guides/': typeof GuidesIndexRoute
+  '/api/admin/run-smoke-step14': typeof ApiAdminRunSmokeStep14Route
   '/api/admin/upload-site-image': typeof ApiAdminUploadSiteImageRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
@@ -915,6 +924,7 @@ export interface FileRouteTypes {
     | '/r/$token'
     | '/cli/'
     | '/guides/'
+    | '/api/admin/run-smoke-step14'
     | '/api/admin/upload-site-image'
     | '/api/public/check-api-balances'
     | '/api/public/free-monthly-grant'
@@ -1007,6 +1017,7 @@ export interface FileRouteTypes {
     | '/r/$token'
     | '/cli'
     | '/guides'
+    | '/api/admin/run-smoke-step14'
     | '/api/admin/upload-site-image'
     | '/api/public/check-api-balances'
     | '/api/public/free-monthly-grant'
@@ -1099,6 +1110,7 @@ export interface FileRouteTypes {
     | '/r/$token'
     | '/cli/'
     | '/guides/'
+    | '/api/admin/run-smoke-step14'
     | '/api/admin/upload-site-image'
     | '/api/public/check-api-balances'
     | '/api/public/free-monthly-grant'
@@ -1186,6 +1198,7 @@ export interface RootRouteChildren {
   RTokenRoute: typeof RTokenRoute
   CliIndexRoute: typeof CliIndexRoute
   GuidesIndexRoute: typeof GuidesIndexRoute
+  ApiAdminRunSmokeStep14Route: typeof ApiAdminRunSmokeStep14Route
   ApiAdminUploadSiteImageRoute: typeof ApiAdminUploadSiteImageRoute
   ApiPublicCheckApiBalancesRoute: typeof ApiPublicCheckApiBalancesRoute
   ApiPublicFreeMonthlyGrantRoute: typeof ApiPublicFreeMonthlyGrantRoute
@@ -1783,6 +1796,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminUploadSiteImageRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/run-smoke-step14': {
+      id: '/api/admin/run-smoke-step14'
+      path: '/api/admin/run-smoke-step14'
+      fullPath: '/api/admin/run-smoke-step14'
+      preLoaderRoute: typeof ApiAdminRunSmokeStep14RouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/video-agent/status/$videoId': {
       id: '/api/video-agent/status/$videoId'
       path: '/api/video-agent/status/$videoId'
@@ -1928,6 +1948,7 @@ const rootRouteChildren: RootRouteChildren = {
   RTokenRoute: RTokenRoute,
   CliIndexRoute: CliIndexRoute,
   GuidesIndexRoute: GuidesIndexRoute,
+  ApiAdminRunSmokeStep14Route: ApiAdminRunSmokeStep14Route,
   ApiAdminUploadSiteImageRoute: ApiAdminUploadSiteImageRoute,
   ApiPublicCheckApiBalancesRoute: ApiPublicCheckApiBalancesRoute,
   ApiPublicFreeMonthlyGrantRoute: ApiPublicFreeMonthlyGrantRoute,
