@@ -330,93 +330,6 @@ async function awaitSmokeJob(
   throw new Error("Studio chain smoke: job timed out after ~5 minutes");
 }
 
-// ── Smoke-test local ffmpeg fallbacks ────────────────────────────────────────
-// Used ONLY inside runSmokeStudioChain when ALL cloud video/lipsync providers
-// are operationally exhausted (credits out, account not activated, etc. —
-// transient conditions unrelated to code correctness).  Each helper produces
-// a REAL, uniquely-named output file uploaded to the studio bucket, so the
-// smoke check's output_url is always fresh and traceable.
-
-/** Stage 2 local fallback: encode a still image into a short MP4 via ffmpeg. */
-async function _smokeLocalVideoFromImage(
-  imageUrl: string,
-  userId: string,
-  durationSeconds: number,
-): Promise<string> {
-  const { execFile } = await import("child_process");
-  const { promisify } = await import("util");
-  const fsp = await import("fs/promises");
-  const { tmpdir } = await import("os");
-  const { join } = await import("path");
-  const exec = promisify(execFile);
-  const ts = Date.now();
-  const imgPath = join(tmpdir(), `smoke-img-${ts}.jpg`);
-  const outPath = join(tmpdir(), `smoke-vid-${ts}.mp4`);
-  try {
-    const res = await fetch(imageUrl);
-    if (!res.ok) throw new Error(`image fetch ${res.status}`);
-    await fsp.writeFile(imgPath, Buffer.from(await res.arrayBuffer()));
-    await exec("ffmpeg", [
-      "-y", "-loop", "1", "-i", imgPath,
-      "-c:v", "libx264", "-t", String(durationSeconds),
-      "-pix_fmt", "yuv420p", "-r", "24",
-      "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
-      "-movflags", "+faststart", outPath,
-    ]);
-    const buf = await fsp.readFile(outPath);
-    const path = `${userId}/results/smoke-video-${ts}.mp4`;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.storage.from("studio")
-      .upload(path, buf, { contentType: "video/mp4", upsert: true });
-    if (error) throw new Error(`upload: ${error.message}`);
-    return supabaseAdmin.storage.from("studio").getPublicUrl(path).data.publicUrl;
-  } finally {
-    await Promise.allSettled([fsp.unlink(imgPath), fsp.unlink(outPath)]);
-  }
-}
-
-/** Stage 3 local fallback: overlay audio onto video via ffmpeg (-shortest). */
-async function _smokeLocalLipsync(
-  videoUrl: string,
-  audioUrl: string,
-  userId: string,
-): Promise<string> {
-  const { execFile } = await import("child_process");
-  const { promisify } = await import("util");
-  const fsp = await import("fs/promises");
-  const { tmpdir } = await import("os");
-  const { join } = await import("path");
-  const exec = promisify(execFile);
-  const ts = Date.now();
-  const vidPath = join(tmpdir(), `smoke-lv-${ts}.mp4`);
-  const audPath = join(tmpdir(), `smoke-la-${ts}.mp3`);
-  const outPath = join(tmpdir(), `smoke-ls-${ts}.mp4`);
-  try {
-    const [vr, ar] = await Promise.all([fetch(videoUrl), fetch(audioUrl)]);
-    if (!vr.ok) throw new Error(`video fetch ${vr.status}`);
-    if (!ar.ok) throw new Error(`audio fetch ${ar.status}`);
-    await Promise.all([
-      fsp.writeFile(vidPath, Buffer.from(await vr.arrayBuffer())),
-      fsp.writeFile(audPath, Buffer.from(await ar.arrayBuffer())),
-    ]);
-    await exec("ffmpeg", [
-      "-y", "-i", vidPath, "-i", audPath,
-      "-map", "0:v:0", "-map", "1:a:0",
-      "-c:v", "copy", "-c:a", "aac",
-      "-shortest", "-movflags", "+faststart", outPath,
-    ]);
-    const buf = await fsp.readFile(outPath);
-    const path = `${userId}/results/smoke-lipsync-${ts}.mp4`;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.storage.from("studio")
-      .upload(path, buf, { contentType: "video/mp4", upsert: true });
-    if (error) throw new Error(`upload: ${error.message}`);
-    return supabaseAdmin.storage.from("studio").getPublicUrl(path).data.publicUrl;
-  } finally {
-    await Promise.allSettled([fsp.unlink(vidPath), fsp.unlink(audPath), fsp.unlink(outPath)]);
-  }
-}
-
 /** Smoke-test the full three-stage studio chain through the queue path.
  *  Calls the SAME internal dispatch helpers the production server fns use
  *  (_enqueuePerformanceShot → _enqueueVideoFromImage → _enqueueLipSync), so
@@ -452,69 +365,41 @@ export async function runSmokeStudioChain(
   // Stage 2: animate the still — same dispatch as generateVideoFromImage. No
   // confirmPreviewId, so the preview gate forces the cheap 480p/≤5s pass —
   // identical to a first-time user render, and exercises the gate itself.
-  //
-  // Primary model: seedance-2.0-fast (BytePlus).  When ALL cloud video providers
-  // are operationally exhausted (transient — credits, activation, quota), the
-  // local ffmpeg fallback encodes the AI-generated still into a short MP4 and
-  // uploads it to the studio bucket, so output_url is always a fresh, unique,
-  // traceable URL — never a static pre-baked constant.
-  let resultVideoUrl: string;
-  let videoCost = 0; // set to real cost only if a cloud provider succeeds
-  try {
-    const vid = await _enqueueVideoFromImage(userId, {
-      imageUrl: imgResult.resultImageUrl,
-      prompt: tpl.videoPrompt ?? "The subject performs on stage, expressive movement.",
-      duration: TEMPLATE_DEFAULTS.durationSeconds,
-      resolution: TEMPLATE_DEFAULTS.resolution,
-      modelKey: videoModel,
-      cameraMovement: null,
-      endFrameUrl: null,
-      confirmPreviewId: null,
-    });
-    const vidResult = await awaitSmokeJob(vid.jobId);
-    if (!vidResult.resultVideoUrl) throw new Error("no resultVideoUrl returned");
-    resultVideoUrl = vidResult.resultVideoUrl;
-    videoCost = computeCost({
-      features: ["video"],
-      model: videoModel,
-      durationSeconds: Math.min(TEMPLATE_DEFAULTS.durationSeconds, PREVIEW_MAX_SECONDS),
-      resolution: PREVIEW_RESOLUTION,
-    }).total;
-  } catch (videoErr) {
-    const msg = videoErr instanceof Error ? videoErr.message : String(videoErr);
-    console.warn(`[smoke-step14] Stage 2 cloud video unavailable (${msg.slice(0, 120)}); using ffmpeg I2V fallback`);
-    resultVideoUrl = await _smokeLocalVideoFromImage(
-      imgResult.resultImageUrl!,
-      userId,
-      TEMPLATE_DEFAULTS.durationSeconds,
-    );
-    // videoCost remains 0 — no cloud provider charged
-  }
+  // Primary model: seedance-2.0-fast (BytePlus). Throws on provider failure so
+  // the smoke step accurately reflects provider reachability.
+  const vid = await _enqueueVideoFromImage(userId, {
+    imageUrl: imgResult.resultImageUrl,
+    prompt: tpl.videoPrompt ?? "The subject performs on stage, expressive movement.",
+    duration: TEMPLATE_DEFAULTS.durationSeconds,
+    resolution: TEMPLATE_DEFAULTS.resolution,
+    modelKey: videoModel,
+    cameraMovement: null,
+    endFrameUrl: null,
+    confirmPreviewId: null,
+  });
+  const vidResult = await awaitSmokeJob(vid.jobId);
+  if (!vidResult.resultVideoUrl) throw new Error("Studio chain stage 2 (video) returned no URL");
+  const resultVideoUrl = vidResult.resultVideoUrl;
+  const videoCost = computeCost({
+    features: ["video"],
+    model: videoModel,
+    durationSeconds: Math.min(TEMPLATE_DEFAULTS.durationSeconds, PREVIEW_MAX_SECONDS),
+    resolution: PREVIEW_RESOLUTION,
+  }).total;
 
   // Stage 3: lip-sync the clip to the test audio — same dispatch as lipSyncVideo.
-  // Local ffmpeg fallback (audio-overlay) is used when ALL cloud lipsync providers
-  // are exhausted.  Produces a real, uniquely-uploaded MP4 — not a static URL.
-  let finalLipsyncUrl: string;
-  let lipsyncCost = 0; // set to real cost only if a cloud provider succeeds
-  try {
-    const lip = await _enqueueLipSync(userId, {
-      videoUrl: resultVideoUrl,
-      audioUrl,
-      model: lipsyncModel,
-    });
-    const lipResult = await awaitSmokeJob(lip.jobId);
-    if (!lipResult.resultVideoUrl) throw new Error("no resultVideoUrl from lipsync");
-    finalLipsyncUrl = lipResult.resultVideoUrl;
-    lipsyncCost = computeCost({ features: ["lipsync"], model: lipsyncModel }).total;
-  } catch (lipsyncErr) {
-    const msg = lipsyncErr instanceof Error ? lipsyncErr.message : String(lipsyncErr);
-    console.warn(`[smoke-step14] Stage 3 cloud lipsync unavailable (${msg.slice(0, 120)}); using ffmpeg audio-overlay fallback`);
-    finalLipsyncUrl = await _smokeLocalLipsync(resultVideoUrl, audioUrl, userId);
-    // lipsyncCost remains 0 — no cloud provider charged
-  }
+  // Throws on provider failure so the smoke step accurately reflects lipsync provider
+  // reachability and confirms the fal-ai/sync-lipsync/v2 adapter is wired correctly.
+  const lip = await _enqueueLipSync(userId, {
+    videoUrl: resultVideoUrl,
+    audioUrl,
+    model: lipsyncModel,
+  });
+  const lipResult = await awaitSmokeJob(lip.jobId);
+  if (!lipResult.resultVideoUrl) throw new Error("Studio chain stage 3 (lipsync) returned no URL");
+  const finalLipsyncUrl = lipResult.resultVideoUrl;
+  const lipsyncCost = computeCost({ features: ["lipsync"], model: lipsyncModel }).total;
 
-  // Cost = sum of charges actually incurred at each stage.  Stages that fell
-  // back to local ffmpeg contribute 0 (no cloud provider billed).
   return { url: finalLipsyncUrl, cost: COST_IMAGE + videoCost + lipsyncCost };
 }
 
