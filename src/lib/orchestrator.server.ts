@@ -132,6 +132,14 @@ export type GenerateRequest = {
    * cue: the GPU worker renders them over the video via FFmpeg `drawtext`.
    */
   segments?: Array<{ start: number; end: number; text: string }>;
+  /**
+   * Set to `true` ONLY for requests from verified paying subscribers.
+   * Expensive providers (Kling) check this flag and refuse to run without it,
+   * so smoke tests, internal tooling, and free-tier users can never trigger
+   * Kling billing. Must be set explicitly at the API / UI layer after
+   * confirming an active paid subscription — never assumed to be true.
+   */
+  forSubscriber?: boolean;
 };
 
 export type GenerateResult = {
@@ -227,7 +235,8 @@ type ProviderAdapter = {
     | "gemini-video"
     | "sora"
     | "ltx"
-    | "inferencesh";
+    | "inferencesh"
+    | "hf-video";
   supports: (req: GenerateRequest) => boolean;
   estimateCost: (req: GenerateRequest) => number;
   run: (req: GenerateRequest) => Promise<{ url: string; endpoint: string; text?: string }>;
@@ -253,8 +262,14 @@ const klingDirect: ProviderAdapter = {
   // "kling-v1" API model, so letting it swallow an Omni request would silently
   // downgrade quality/pricing instead of hitting the verified
   // kwaivgi/kling-v2.1-master slug via the Replicate adapter (Task #244).
+  // ⚠️  SUBSCRIPTION-ONLY: Kling is a paid provider ($0.30/clip).
+  // r.forSubscriber MUST be true — set only after verifying an active paid
+  // subscription at the API/UI layer. Smoke tests, internal tooling, and
+  // free-tier users must never trigger Kling charges. If forSubscriber is
+  // missing/false, this adapter silently skips, no matter which model is asked.
   supports: (r) =>
     r.kind === "video" &&
+    r.forSubscriber === true &&
     (r.model?.startsWith("kling") ?? false) &&
     r.model !== "kling-3.0-omni" &&
     !!process.env.KLING_ACCESS_KEY &&
@@ -2586,6 +2601,9 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     // HeyGen Template render (Aurora Template) — pinned-only, NOT in
     // FALLBACK_MODELS: always requested explicitly with a templateId param.
     "heygen/template": { provider: "heygen", kind: "video", cost: 1.5 },
+    // HuggingFace Serverless Inference — text-to-video (free tier, rate-limited).
+    // Serves as a zero-cost fallback when all paid video providers are exhausted.
+    "hf/text-to-video": { provider: "hf-video", kind: "video", cost: 0 },
     // Sync.so direct lipsync
     "sync/lipsync-2": { provider: "sync", kind: "lipsync", cost: 0.25 },
     // Self-hosted LatentSync — runs on the registered GPU worker pool only.
@@ -2722,8 +2740,10 @@ export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
     "veo-2",
     "seedance-2.0-fast",
     "seedance-2.0",
-    "kling-3.0",
-    "kling-3.0-omni",
+    // "kling-3.0" and "kling-3.0-omni" intentionally REMOVED from fallback
+    // chain — Kling is subscription-only and must never auto-fire as a
+    // fallback during smoke tests or free-tier requests. Kling is still
+    // reachable when explicitly requested with forSubscriber:true.
     "veo-3-fast",
     "sora-2",
     "openai/sora-2-pro",
@@ -2841,6 +2861,12 @@ export const FREE_MODE_NO_WORKER_MSG =
 function isFreeAdapter(a: ProviderAdapter, r: GenerateRequest): boolean {
   // The self-hosted pool runs on the owner's own hardware — always free of
   // external billing — and a $0 estimate marks a genuinely free hosted provider.
+  // hf-video is an external API (HuggingFace) — not the owner's own hardware.
+  // Even though its cost estimate is $0 (free tier), it should NOT be allowed
+  // in free-GPU-only mode: that mode is for the owner's self-hosted pool and
+  // genuinely open providers (e.g. Pollinations). Keep hf-video blocked so
+  // free mode always fails fast to the "start your GPU" message for video.
+  if (a.name === "hf-video") return false;
   return a === gpuWorker || a.estimateCost(r) === 0;
 }
 
@@ -2856,7 +2882,11 @@ export async function assertFreeModeServable(kind: GenerateKind): Promise<void> 
   // A zero-cost hosted provider (e.g. Pollinations for image/text) can always
   // serve this kind for free, so the request is servable regardless of the pool.
   const probe = { kind } as GenerateRequest;
-  const hasFreeHosted = PRIORITY[kind].some((a) => a !== gpuWorker && a.estimateCost(probe) === 0);
+  // Exclude hf-video: it's an external API and must not count as a "free" path
+  // in free-GPU-only mode — video should fail fast to the GPU prompt when offline.
+  const hasFreeHosted = PRIORITY[kind].some(
+    (a) => a !== gpuWorker && a.name !== "hf-video" && a.estimateCost(probe) === 0,
+  );
   if (hasFreeHosted) return;
   // Otherwise the only free path is the self-hosted GPU pool — require one online.
   if (await hasActiveWorkerForKind(kind)) return;
