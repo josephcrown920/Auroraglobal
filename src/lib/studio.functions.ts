@@ -299,7 +299,7 @@ const SMOKE_MAX_POLL_ATTEMPTS = 300; // ~15 minutes at 3s intervals (HeyGen avat
 
 async function awaitSmokeJob(
   jobId: string,
-): Promise<{ resultImageUrl: string | null; resultVideoUrl: string | null }> {
+): Promise<{ resultImageUrl: string | null; resultVideoUrl: string | null; modelUsed: string | null }> {
   for (let i = 0; i < SMOKE_MAX_POLL_ATTEMPTS; i++) {
     const { data: job } = await supabaseAdmin
       .from("jobs")
@@ -308,11 +308,11 @@ async function awaitSmokeJob(
       .maybeSingle();
     if (!job) throw new Error(`Smoke: job ${jobId} not found`);
 
-    let gen: { status: string | null; result_image_url: string | null; result_video_url: string | null; error: string | null } | null = null;
+    let gen: { status: string | null; result_image_url: string | null; result_video_url: string | null; error: string | null; model: string | null } | null = null;
     if (job.generation_id) {
       const { data } = await supabaseAdmin
         .from("generations")
-        .select("status, result_image_url, result_video_url, error")
+        .select("status, result_image_url, result_video_url, error, model")
         .eq("id", job.generation_id)
         .maybeSingle();
       gen = data ?? null;
@@ -320,7 +320,11 @@ async function awaitSmokeJob(
 
     const status = gen?.status ?? job.status;
     if (status === "succeeded" || status === "complete") {
-      return { resultImageUrl: gen?.result_image_url ?? null, resultVideoUrl: gen?.result_video_url ?? null };
+      return {
+        resultImageUrl: gen?.result_image_url ?? null,
+        resultVideoUrl: gen?.result_video_url ?? null,
+        modelUsed: gen?.model ?? null,
+      };
     }
     if (status === "failed" || status === "cancelled" || job.status === "failed" || job.status === "cancelled") {
       throw new Error(gen?.error ?? job.error ?? "Generation failed");
@@ -340,7 +344,7 @@ export async function runSmokeStudioChain(
   userId: string,
   referenceImageUrl: string,
   audioUrl: string,
-): Promise<{ url: string; cost: number; videoModel: string; lipsyncModel: string }> {
+): Promise<{ url: string; cost: number; videoModelUsed: string | null; lipsyncModelUsed: string | null }> {
   const { getStudioTemplate, TEMPLATE_DEFAULTS } = await import("./template-studio");
   const tpl = getStudioTemplate("concert-lipsync");
   if (!tpl) throw new Error("concert-lipsync not found in template manifest");
@@ -380,6 +384,9 @@ export async function runSmokeStudioChain(
   const vidResult = await awaitSmokeJob(vid.jobId);
   if (!vidResult.resultVideoUrl) throw new Error("Studio chain stage 2 (video) returned no URL");
   const resultVideoUrl = vidResult.resultVideoUrl;
+  // modelUsed is the actual model key written to the generation row by the
+  // orchestrator on success — may differ from videoModel if fallback triggered.
+  const videoModelUsed = vidResult.modelUsed;
   const videoCost = computeCost({
     features: ["video"],
     model: videoModel,
@@ -398,11 +405,12 @@ export async function runSmokeStudioChain(
   const lipResult = await awaitSmokeJob(lip.jobId);
   if (!lipResult.resultVideoUrl) throw new Error("Studio chain stage 3 (lipsync) returned no URL");
   const finalLipsyncUrl = lipResult.resultVideoUrl;
+  // modelUsed is the actual model key written to the generation row by the
+  // orchestrator on success — may differ from lipsyncModel if fallback triggered.
+  const lipsyncModelUsed = lipResult.modelUsed;
   const lipsyncCost = computeCost({ features: ["lipsync"], model: lipsyncModel }).total;
 
-  // Return the model keys that actually served stages 2 and 3.  If either stage
-  // threw, we never reach here — so these are the models that produced output.
-  return { url: finalLipsyncUrl, cost: COST_IMAGE + videoCost + lipsyncCost, videoModel, lipsyncModel };
+  return { url: finalLipsyncUrl, cost: COST_IMAGE + videoCost + lipsyncCost, videoModelUsed, lipsyncModelUsed };
 }
 
 // Toggle favorite flag — used by gallery to "save permanently"
