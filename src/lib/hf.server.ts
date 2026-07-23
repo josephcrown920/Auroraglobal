@@ -133,6 +133,17 @@ export async function hfSpeechToText(
   return { text: json.text ?? "", chunks, language: json.language };
 }
 
+// ─── Text-to-video ───────────────────────────────────────────────────────────
+/** Returns raw MP4 bytes from a HF Serverless text-to-video model. */
+export async function hfTextToVideo(
+  modelOrUrl: string,
+  prompt: string,
+  parameters: Record<string, unknown> = {}
+): Promise<{ bytes: ArrayBuffer; contentType: string }> {
+  const buf = await postBinary(modelOrUrl, { inputs: prompt, parameters }, "video/mp4");
+  return { bytes: buf, contentType: "video/mp4" };
+}
+
 // ─── Text-to-speech ──────────────────────────────────────────────────────────
 export async function hfTextToSpeech(
   modelOrUrl: string,
