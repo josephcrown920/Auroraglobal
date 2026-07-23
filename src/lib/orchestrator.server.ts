@@ -849,7 +849,10 @@ const geminiVideo: ProviderAdapter = {
           parameters: {
             aspectRatio: "16:9",
             sampleCount: 1,
-            durationSeconds: Math.min(8, Math.max(5, r.duration ?? 8)),
+            // veo-3.1-fast-generate-preview only accepts discrete durations: 4 or 8.
+            // Snap ≤5s requests to 4 and everything longer to 8 so i2v calls
+            // (which commonly come in at 5s) are never rejected with a 400.
+            durationSeconds: (r.duration ?? 8) <= 5 ? 4 : 8,
           },
         }),
       },
