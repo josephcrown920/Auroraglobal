@@ -30,33 +30,40 @@ export const Route = createFileRoute("/api/admin/run-smoke-step14")({
         const startedAt = Date.now();
 
         (async () => {
+          // Create the smoke_run row upfront so both pass and fail paths write
+          // to the same run — operators can look up a single runId for the outcome.
+          const { data: smokeRun, error: runErr } = await supabaseAdmin
+            .from("smoke_runs")
+            .insert({ triggered_by: ADMIN_USER_ID })
+            .select()
+            .single();
+          if (runErr || !smokeRun) {
+            console.error(
+              `[smoke-step14] smoke_run insert failed: ${runErr?.message}`,
+            );
+            return;
+          }
+
           try {
-            console.log(`[smoke-step14] run ${runId} started`);
+            console.log(
+              `[smoke-step14] run ${runId} (smoke_run ${smokeRun.id}) started`,
+            );
 
-            // Create a smoke_run row (required FK for smoke_checks).
-            const { data: smokeRun, error: runErr } = await supabaseAdmin
-              .from("smoke_runs")
-              .insert({ triggered_by: ADMIN_USER_ID })
-              .select()
-              .single();
-            if (runErr || !smokeRun)
-              throw new Error(`smoke_run insert: ${runErr?.message}`);
-
-            // ── Canonical step-14 chain ──────────────────────────────────────
             // Calls the SAME runSmokeStudioChain function used by runSmokeTest.
-            // Exercises: image→video→lipsync via reserveGenerationJob + awaitSmokeJob,
-            // with the real orchestrator fallback chain (heygen/video-agent for video,
-            // heygen lipsync for sync.so-exhausted fallback).
+            // Exercises: image→video→lipsync via reserveGenerationJob + awaitSmokeJob.
+            // Returns the actual model keys written to each generation row by the
+            // orchestrator (observed winner, not just the requested template model).
             const { runSmokeStudioChain } = await import(
               "@/lib/studio.functions"
             );
-            const { url: lipsyncUrl, cost } = await runSmokeStudioChain(
-              ADMIN_USER_ID,
-              TEST_SELFIE_URL,
-              TEST_AUDIO_URL,
-            );
+            const { url: lipsyncUrl, cost, videoModelUsed, lipsyncModelUsed } =
+              await runSmokeStudioChain(
+                ADMIN_USER_ID,
+                TEST_SELFIE_URL,
+                TEST_AUDIO_URL,
+              );
             console.log(
-              `[smoke-step14] run ${runId} chain OK cost=${cost} url=${lipsyncUrl.slice(0, 80)}`,
+              `[smoke-step14] run ${runId} chain OK cost=${cost} videoModel=${videoModelUsed} lipsyncModel=${lipsyncModelUsed} url=${lipsyncUrl.slice(0, 80)}`,
             );
 
             const { error: checkErr } = await supabaseAdmin
@@ -70,7 +77,12 @@ export const Route = createFileRoute("/api/admin/run-smoke-step14")({
                 cost_usd: cost,
                 output_url: lipsyncUrl,
                 error: null,
-                raw: { mode: "canonical-studio-chain", adminRunId: runId },
+                raw: {
+                  mode: "canonical-studio-chain",
+                  adminRunId: runId,
+                  videoModelUsed,
+                  lipsyncModelUsed,
+                },
               });
             if (checkErr)
               throw new Error(`smoke_check insert: ${checkErr.message}`);
@@ -83,25 +95,19 @@ export const Route = createFileRoute("/api/admin/run-smoke-step14")({
               err instanceof Error ? err.message : String(err);
             console.error(`[smoke-step14] run ${runId} FAILED: ${msg}`);
 
+            // Write fail status to the SAME smoke_run row created above.
             try {
-              const { data: failRun } = await supabaseAdmin
-                .from("smoke_runs")
-                .insert({ triggered_by: ADMIN_USER_ID })
-                .select()
-                .single();
-              if (failRun) {
-                await supabaseAdmin.from("smoke_checks").insert({
-                  run_id: failRun.id,
-                  step: 14,
-                  name: "Templates: studio chain image→video→lipsync",
-                  status: "fail",
-                  latency_ms: Date.now() - startedAt,
-                  cost_usd: 0,
-                  output_url: null,
-                  error: msg,
-                  raw: null,
-                });
-              }
+              await supabaseAdmin.from("smoke_checks").insert({
+                run_id: smokeRun.id,
+                step: 14,
+                name: "Templates: studio chain image→video→lipsync",
+                status: "fail",
+                latency_ms: Date.now() - startedAt,
+                cost_usd: 0,
+                output_url: null,
+                error: msg,
+                raw: null,
+              });
             } catch (_) { /* silent */ }
           }
         })();
