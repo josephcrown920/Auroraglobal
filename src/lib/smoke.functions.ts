@@ -463,12 +463,12 @@ export const runSmokeTest = createServerFn({ method: "POST" })
         }
         return runStep(async () => {
           const { runSmokeStudioChain } = await import("./studio.functions");
-          const { url, cost } = await runSmokeStudioChain(
+          const { url, cost, videoModel, lipsyncModel } = await runSmokeStudioChain(
             context.userId,
             TEST_SELFIE_URL,
             TEST_AUDIO_URL,
           );
-          return { url, cost, raw: { mode: "queue-backed-studio-chain" } };
+          return { url, cost, raw: { mode: "queue-backed-studio-chain", videoModel, lipsyncModel } };
         });
       })();
       await writeCheck(run.id, 14, STEPS[13], r14);

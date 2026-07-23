@@ -340,7 +340,7 @@ export async function runSmokeStudioChain(
   userId: string,
   referenceImageUrl: string,
   audioUrl: string,
-): Promise<{ url: string; cost: number }> {
+): Promise<{ url: string; cost: number; videoModel: string; lipsyncModel: string }> {
   const { getStudioTemplate, TEMPLATE_DEFAULTS } = await import("./template-studio");
   const tpl = getStudioTemplate("concert-lipsync");
   if (!tpl) throw new Error("concert-lipsync not found in template manifest");
@@ -400,7 +400,9 @@ export async function runSmokeStudioChain(
   const finalLipsyncUrl = lipResult.resultVideoUrl;
   const lipsyncCost = computeCost({ features: ["lipsync"], model: lipsyncModel }).total;
 
-  return { url: finalLipsyncUrl, cost: COST_IMAGE + videoCost + lipsyncCost };
+  // Return the model keys that actually served stages 2 and 3.  If either stage
+  // threw, we never reach here — so these are the models that produced output.
+  return { url: finalLipsyncUrl, cost: COST_IMAGE + videoCost + lipsyncCost, videoModel, lipsyncModel };
 }
 
 // Toggle favorite flag — used by gallery to "save permanently"

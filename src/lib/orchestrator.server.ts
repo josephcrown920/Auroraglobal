@@ -869,10 +869,10 @@ const geminiVideo: ProviderAdapter = {
           parameters: {
             aspectRatio: "16:9",
             sampleCount: 1,
-            // veo-3.1-fast-generate-preview accepts 5 or 8 (not 4, despite the
-            // API docs claiming 4-8 inclusive — 4 reliably returns INVALID_ARGUMENT).
-            // Snap ≤7s requests to 5 and everything longer to 8.
-            durationSeconds: (r.duration ?? 8) <= 7 ? 5 : 8,
+            // veo-3.1-fast-generate-preview accepts only 4 or 8 (not 5-7 — 5 returns
+            // INVALID_ARGUMENT despite the docs claiming 4-8 inclusive).
+            // Snap ≤5s requests to 4 and everything longer to 8.
+            durationSeconds: (r.duration ?? 8) <= 5 ? 4 : 8,
           },
         }),
       },
@@ -2458,9 +2458,9 @@ const ltxAdapter: ProviderAdapter = {
 // or request it directly to engage this adapter.
 const hfVideo: ProviderAdapter = {
   name: "hf-video",
-  // Catch-all for any video request when HF_TOKEN is set — positioned just
-  // before falFallback so it only fires after all other adapters have failed.
-  supports: (r) => r.kind === "video" && !!process.env.HF_TOKEN,
+  // Only activates when the explicit "hf/text-to-video" model key is requested —
+  // never hijacks requests intended for other model keys (seedance, fal, etc.).
+  supports: (r) => r.kind === "video" && r.model === "hf/text-to-video" && !!process.env.HF_TOKEN,
   estimateCost: (_r) => 0, // HF free tier
   async run(r) {
     const hfToken = process.env.HF_TOKEN;
