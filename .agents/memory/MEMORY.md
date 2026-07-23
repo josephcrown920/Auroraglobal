@@ -96,3 +96,4 @@
 - [Aurora Partners referral loop](aurora-partners-referral.md) — partners.ts constants are the only copy source; grants dedup via partial ledger index + 23505=no-op; validate code BEFORE the CAS attach.
 - [Smoke steps must share production dispatch](smoke-shared-dispatch.md) — reviewers reject "mirror" reconstructions; extract _enqueue*/_dispatch* helpers called by BOTH the handler and the smoke runner.
 - [Vite dep optimizer crawl deadlock](vite-dep-optimizer-crawl-deadlock.md) — deps_temp_* piling up with no deps/ = optimizer never commits; dev hangs on optimized-dep imports; fix holdUntilCrawlEnd:false.
+- [Tutorial guide PDF is a manual snapshot](tutorial-pdf-regeneration.md) — /tutorial-guide.pdf is a static Playwright print of /tutorial; regenerate + copy to all three public locations after any tutorial content edit.
