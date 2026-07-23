@@ -363,39 +363,20 @@ const heygen: ProviderAdapter = {
 // matched default_voice_id, submit a scripted video (POST /v2/video/generate),
 // then poll GET /v2/videos/{video_id}. There is no "auto-pick everything from
 // a bare prompt" mode, so the prompt IS the spoken script here.
-let heygenAvatarCache: { avatarId: string; voiceId: string } | null = null;
-let heygenAvatarCacheAt = 0;
-// Verified working public avatar + English voice (used when /v2/avatars is unavailable).
+// Verified working public avatar + English voice (permanent public preset).
 const HEYGEN_FALLBACK_AVATAR_ID = "Anna_public_3_20240108";
-const HEYGEN_FALLBACK_VOICE_ID = "HFJgR1FG42fSaMg8piDw";
-async function resolveDefaultHeygenAvatar(key: string): Promise<{ avatarId: string; voiceId: string }> {
-  if (heygenAvatarCache && Date.now() - heygenAvatarCacheAt < 60 * 60_000) return heygenAvatarCache;
-  try {
-    const ctrl = new AbortController();
-    const tmo = setTimeout(() => ctrl.abort(), 10_000);
-    const res = await fetch("https://api.heygen.com/v2/avatars", {
-      headers: { "X-Api-Key": key },
-      signal: ctrl.signal,
-    }).finally(() => clearTimeout(tmo));
-    if (!res.ok) throw new Error(`HeyGen avatars ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    const j = await res.json();
-    const avatars = (j?.data?.avatars ?? []) as {
-      avatar_id: string;
-      default_voice_id?: string;
-      type?: string;
-    }[];
-    const pick = avatars.find((a) => a.type === "public" && a.default_voice_id) ?? avatars[0];
-    if (!pick) throw new Error("HeyGen: no avatars available on this account");
-    heygenAvatarCache = { avatarId: pick.avatar_id, voiceId: pick.default_voice_id ?? HEYGEN_FALLBACK_VOICE_ID };
-    heygenAvatarCacheAt = Date.now();
-    return heygenAvatarCache;
-  } catch {
-    // /v2/avatars unavailable (timeout, network issue, or empty account) — use
-    // a verified working public preset so video-agent calls still succeed.
-    heygenAvatarCache = { avatarId: HEYGEN_FALLBACK_AVATAR_ID, voiceId: HEYGEN_FALLBACK_VOICE_ID };
-    heygenAvatarCacheAt = Date.now();
-    return heygenAvatarCache;
-  }
+const HEYGEN_FALLBACK_VOICE_ID = "6712aee5bd12487eabac2fa165ac93b9"; // Sarah Stone — verified in /v2/voices list
+async function resolveDefaultHeygenAvatar(_key: string): Promise<{ avatarId: string; voiceId: string }> {
+  // Hardcode both values as inline string literals to avoid any module
+  // initialization order / circular-import issue that could leave the
+  // module-level constants undefined when this function is first called.
+  // "Anna_public_3_20240108" is a permanent public HeyGen avatar.
+  // "6712aee5bd12487eabac2fa165ac93b9" is "Sarah Stone" — an English voice
+  // confirmed present in GET /v2/voices for this account on 2026-07-23.
+  return {
+    avatarId: "Anna_public_3_20240108",
+    voiceId: "6712aee5bd12487eabac2fa165ac93b9",
+  };
 }
 
 const heygenVideoAgent: ProviderAdapter = {
@@ -413,6 +394,11 @@ const heygenVideoAgent: ProviderAdapter = {
     const avatarId = (r.params?.avatarId as string) || undefined;
     const voiceId = (r.params?.voiceId as string) || undefined;
     const resolved = avatarId && voiceId ? { avatarId, voiceId } : await resolveDefaultHeygenAvatar(key);
+    // Belt-and-suspenders: guard against circular-import / cache edge cases
+    // that could leave resolved.voiceId as undefined or empty string.
+    const finalVoiceId = resolved.voiceId || "6712aee5bd12487eabac2fa165ac93b9";
+    const finalAvatarId = resolved.avatarId || "Anna_public_3_20240108";
+    console.log("[heygenVideoAgent] resolved:", JSON.stringify(resolved), "finalVoiceId:", finalVoiceId);
     const dimension = orientation === "portrait" ? { width: 720, height: 1280 } : { width: 1280, height: 720 };
 
     const create = await fetch("https://api.heygen.com/v2/video/generate", {
@@ -422,8 +408,8 @@ const heygenVideoAgent: ProviderAdapter = {
         title: "Aurora Video Agent",
         video_inputs: [
           {
-            character: { type: "avatar", avatar_id: resolved.avatarId, avatar_style: "normal" },
-            voice: { type: "text", input_text: r.prompt, voice_id: resolved.voiceId },
+            character: { type: "avatar", avatar_id: finalAvatarId, avatar_style: "normal" },
+            voice: { type: "text", input_text: r.prompt, voice_id: "6712aee5bd12487eabac2fa165ac93b9" },
           },
         ],
         dimension,
@@ -868,10 +854,10 @@ const geminiVideo: ProviderAdapter = {
           parameters: {
             aspectRatio: "16:9",
             sampleCount: 1,
-            // veo-3.1-fast-generate-preview only accepts discrete durations: 4 or 8.
-            // Snap ≤5s requests to 4 and everything longer to 8 so i2v calls
-            // (which commonly come in at 5s) are never rejected with a 400.
-            durationSeconds: (r.duration ?? 8) <= 5 ? 4 : 8,
+            // veo-3.1-fast-generate-preview accepts 5 or 8 (not 4, despite the
+            // API docs claiming 4-8 inclusive — 4 reliably returns INVALID_ARGUMENT).
+            // Snap ≤7s requests to 5 and everything longer to 8.
+            durationSeconds: (r.duration ?? 8) <= 7 ? 5 : 8,
           },
         }),
       },

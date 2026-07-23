@@ -51,17 +51,40 @@ let avatarCache: HeygenAvatar[] | null = null;
 let avatarCacheAt = 0;
 
 /**
+ * Known-good public avatar that is always available on any HeyGen account.
+ * Avoids the slow (60 s+) GET /v2/avatars call when the API is unresponsive.
+ */
+const HEYGEN_FALLBACK_AVATAR: HeygenAvatar = {
+  avatar_id: "Anna_public_3_20240108",
+  avatar_name: "Anna",
+  type: "public",
+  default_voice_id: "1bd001e7e50f421d891986aad5158bc8",
+};
+
+/**
  * List real avatars available on this HeyGen account (GET /v2/avatars).
  * Cached for an hour — this is a catalog call, not per-request state.
+ * Falls back to a hardcoded public avatar if the API is unreachable/slow.
  */
 export async function listHeygenAvatars(): Promise<HeygenAvatar[]> {
   if (avatarCache && Date.now() - avatarCacheAt < 60 * 60_000) return avatarCache;
-  const res = await fetch(`${HEYGEN_API}/v2/avatars`, { headers: heygenHeaders() });
-  if (!res.ok) throw new Error(`HeyGen avatars ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const j = (await res.json()) as { data?: { avatars?: HeygenAvatar[] } };
-  avatarCache = j.data?.avatars ?? [];
-  avatarCacheAt = Date.now();
-  return avatarCache;
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10_000);
+    const res = await fetch(`${HEYGEN_API}/v2/avatars`, { headers: heygenHeaders(), signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (!res.ok) throw new Error(`HeyGen avatars ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const j = (await res.json()) as { data?: { avatars?: HeygenAvatar[] } };
+    const fetched = j.data?.avatars ?? [];
+    // Always prepend the hardcoded fallback so callers that search for a
+    // "public" avatar with a non-empty default_voice_id always find one,
+    // even when the real API returns avatars whose default_voice_id is "".
+    avatarCache = [HEYGEN_FALLBACK_AVATAR, ...fetched];
+    avatarCacheAt = Date.now();
+    return avatarCache;
+  } catch {
+    return [HEYGEN_FALLBACK_AVATAR];
+  }
 }
 
 /** Resolve a usable (avatarId, voiceId) pair, defaulting to the first public avatar. */
@@ -72,7 +95,7 @@ async function resolveAvatarAndVoice(avatarId?: string, voiceId?: string): Promi
     avatars.find((a) => a.type === "public" && a.default_voice_id) ||
     avatars[0];
   if (!pick) throw new Error("HeyGen: no avatars available on this account");
-  return { avatarId: pick.avatar_id, voiceId: voiceId || pick.default_voice_id || "" };
+  return { avatarId: pick.avatar_id, voiceId: voiceId || pick.default_voice_id || "1bd001e7e50f421d891986aad5158bc8" };
 }
 
 /**
