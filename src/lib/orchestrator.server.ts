@@ -365,27 +365,46 @@ const heygen: ProviderAdapter = {
 // a bare prompt" mode, so the prompt IS the spoken script here.
 let heygenAvatarCache: { avatarId: string; voiceId: string } | null = null;
 let heygenAvatarCacheAt = 0;
+// Verified working public avatar + English voice (used when /v2/avatars is unavailable).
+const HEYGEN_FALLBACK_AVATAR_ID = "Anna_public_3_20240108";
+const HEYGEN_FALLBACK_VOICE_ID = "HFJgR1FG42fSaMg8piDw";
 async function resolveDefaultHeygenAvatar(key: string): Promise<{ avatarId: string; voiceId: string }> {
   if (heygenAvatarCache && Date.now() - heygenAvatarCacheAt < 60 * 60_000) return heygenAvatarCache;
-  const res = await fetch("https://api.heygen.com/v2/avatars", { headers: { "X-Api-Key": key } });
-  if (!res.ok) throw new Error(`HeyGen avatars ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const j = await res.json();
-  const avatars = (j?.data?.avatars ?? []) as {
-    avatar_id: string;
-    default_voice_id?: string;
-    type?: string;
-  }[];
-  const pick = avatars.find((a) => a.type === "public" && a.default_voice_id) ?? avatars[0];
-  if (!pick) throw new Error("HeyGen: no avatars available on this account");
-  heygenAvatarCache = { avatarId: pick.avatar_id, voiceId: pick.default_voice_id ?? "" };
-  heygenAvatarCacheAt = Date.now();
-  return heygenAvatarCache;
+  try {
+    const ctrl = new AbortController();
+    const tmo = setTimeout(() => ctrl.abort(), 10_000);
+    const res = await fetch("https://api.heygen.com/v2/avatars", {
+      headers: { "X-Api-Key": key },
+      signal: ctrl.signal,
+    }).finally(() => clearTimeout(tmo));
+    if (!res.ok) throw new Error(`HeyGen avatars ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const j = await res.json();
+    const avatars = (j?.data?.avatars ?? []) as {
+      avatar_id: string;
+      default_voice_id?: string;
+      type?: string;
+    }[];
+    const pick = avatars.find((a) => a.type === "public" && a.default_voice_id) ?? avatars[0];
+    if (!pick) throw new Error("HeyGen: no avatars available on this account");
+    heygenAvatarCache = { avatarId: pick.avatar_id, voiceId: pick.default_voice_id ?? HEYGEN_FALLBACK_VOICE_ID };
+    heygenAvatarCacheAt = Date.now();
+    return heygenAvatarCache;
+  } catch {
+    // /v2/avatars unavailable (timeout, network issue, or empty account) — use
+    // a verified working public preset so video-agent calls still succeed.
+    heygenAvatarCache = { avatarId: HEYGEN_FALLBACK_AVATAR_ID, voiceId: HEYGEN_FALLBACK_VOICE_ID };
+    heygenAvatarCacheAt = Date.now();
+    return heygenAvatarCache;
+  }
 }
 
 const heygenVideoAgent: ProviderAdapter = {
   name: "heygen",
   supports: (r) =>
-    r.kind === "video" && r.model === "heygen/video-agent" && !!r.prompt && !!process.env.HEYGEN_API_KEY,
+    r.kind === "video" &&
+    r.model === "heygen/video-agent" &&
+    !!r.prompt &&
+    !!process.env.HEYGEN_API_KEY,
   estimateCost: () => 1.5,
   async run(r) {
     if (!r.prompt) throw new Error("heygen video-agent: prompt required");
@@ -2667,6 +2686,7 @@ export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
     "fal-ai/seedream-4",
   ],
   video: [
+    "heygen/video-agent",
     "xai/grok-imagine-video-1.5",
     "ltx/ltx-video",
     "veo-2",
@@ -2712,7 +2732,7 @@ const FALLBACK_CAP: Record<GenerateKind, number> = {
   // Requested model + 4 fallback candidates (2 Replit-billed, nano-banana,
   // seedream-4). Cap = 5 so the cheapest fallback is always reachable.
   image: 5,
-  video: 3,
+  video: 4,
   lipsync: 2,
   upscale: 1,
   motion: 1,
