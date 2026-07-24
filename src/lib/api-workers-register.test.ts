@@ -182,7 +182,7 @@ describe("POST /api/public/workers/register", () => {
 
   // ── Fresh registration ───────────────────────────────────────────────────
 
-  it("inserts a brand-new worker with status=active and a fresh heartbeat", async () => {
+  it("inserts a brand-new worker with status=pending_approval and a fresh heartbeat", async () => {
     const before = Date.now();
     const res = await post(
       { name: "colab-1", endpoint_url: "https://colab.example.com", capabilities: ["lipsync"] },
@@ -191,12 +191,39 @@ describe("POST /api/public/workers/register", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.created).toBe(true);
+    // New community workers must wait for admin approval before receiving jobs.
+    expect(body.registration_status).toBe("pending_approval");
 
     expect(gpuWorkers).toHaveLength(1);
     const row = gpuWorkers[0];
-    expect(row.status).toBe("active");
+    expect(row.status).toBe("pending_approval");
     expect(typeof row.last_heartbeat).toBe("string");
     expect(new Date(row.last_heartbeat as string).getTime()).toBeGreaterThanOrEqual(before);
+  });
+
+  it("a pending_approval worker that re-registers stays pending_approval (reconnect cannot self-approve)", async () => {
+    // First registration → pending_approval.
+    await post({ name: "colab-1", endpoint_url: "https://colab.example.com" }, AUTH);
+    expect(gpuWorkers[0].status).toBe("pending_approval");
+
+    // Worker reboots and re-announces itself — status must remain pending.
+    const res = await post({ name: "colab-1", endpoint_url: "https://colab.example.com" }, AUTH);
+    const body = await res.json();
+    expect(body.updated).toBe(true);
+    expect(body.registration_status).toBe("pending_approval");
+    expect(gpuWorkers[0].status).toBe("pending_approval");
+  });
+
+  it("an already-approved (active) worker stays active on reconnect", async () => {
+    // Simulate a worker that an admin has previously approved.
+    await post({ name: "colab-1", endpoint_url: "https://colab.example.com" }, AUTH);
+    gpuWorkers[0].status = "active"; // admin approved it
+
+    const res = await post({ name: "colab-1", endpoint_url: "https://colab.example.com" }, AUTH);
+    const body = await res.json();
+    expect(body.updated).toBe(true);
+    expect(body.registration_status).toBe("active");
+    expect(gpuWorkers[0].status).toBe("active");
   });
 
   // ── Dedup on restart ─────────────────────────────────────────────────────
@@ -294,7 +321,9 @@ describe("POST /api/public/workers/register", () => {
 
   it("a reconnecting worker that an admin paused stays paused, but refreshes its heartbeat", async () => {
     await post({ name: "colab-1", endpoint_url: "https://colab.example.com" }, AUTH);
-    expect(gpuWorkers[0].status).toBe("active");
+    expect(gpuWorkers[0].status).toBe("pending_approval");
+    // Simulate admin approval, then a subsequent admin pause.
+    gpuWorkers[0].status = "active";
 
     // Admin pauses it directly in gpu_workers (simulating setWorkerStatus).
     gpuWorkers[0].status = "paused";
@@ -317,6 +346,8 @@ describe("POST /api/public/workers/register", () => {
 
   it("a reconnecting worker that an admin set to draining stays draining", async () => {
     await post({ name: "colab-1", endpoint_url: "https://colab.example.com" }, AUTH);
+    // Simulate admin approval then drain (reconnect must not reset either).
+    gpuWorkers[0].status = "active";
     gpuWorkers[0].status = "draining";
 
     await post({ name: "colab-1", endpoint_url: "https://colab.example.com" }, AUTH);
@@ -324,14 +355,15 @@ describe("POST /api/public/workers/register", () => {
     expect(gpuWorkers[0].status).toBe("draining");
   });
 
-  it("a fresh (never-before-seen) worker still comes up active even though other rows are paused", async () => {
+  it("a fresh (never-before-seen) worker starts pending_approval even though other rows are paused", async () => {
     await post({ name: "colab-1", endpoint_url: "https://colab-1.example.com" }, AUTH);
     gpuWorkers[0].status = "paused";
 
     await post({ name: "colab-2", endpoint_url: "https://colab-2.example.com" }, AUTH);
 
     const fresh = gpuWorkers.find((w) => w.endpoint_url === "https://colab-2.example.com");
-    expect(fresh?.status).toBe("active");
+    // All new workers land in pending_approval regardless of other workers' statuses.
+    expect(fresh?.status).toBe("pending_approval");
   });
 });
 

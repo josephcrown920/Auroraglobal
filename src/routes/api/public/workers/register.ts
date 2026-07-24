@@ -152,62 +152,57 @@ export const Route = createFileRoute("/api/public/workers/register")({
         }
         const match = (existing ?? []).find((w) => normalizeWorkerBase(w.endpoint_url) === base);
 
-        // A freshly-booted worker announcing itself is, by definition, up: set it
-        // active and stamp the heartbeat so dispatch routes to it immediately.
-        //
-        // EXCEPT when this call is actually re-registering an EXISTING worker that
-        // an admin deliberately parked in Admin -> Workers ("paused" or "draining").
-        // Colab/Kaggle sessions reboot on their own schedule and always announce
-        // themselves as up — if we blindly stamped status:"active" here, every
-        // session reconnect would silently undo the admin's pause/drain and the
-        // worker would start receiving jobs again behind their back. The admin's
-        // intent has to win, so a reconnecting worker that's paused/draining stays
-        // paused/draining; we still refresh last_heartbeat/endpoint_url/capabilities
-        // so the dashboard shows it as "reachable" while parked. Treating draining
-        // the same as paused here because both mean "an admin decided this worker
-        // should stop taking new work" — auto-registration is not a channel for
-        // overriding that.
-        const keepParkedStatus =
-          match?.status === "paused" || match?.status === "draining" ? match.status : null;
-
-        const patch: WorkerInsert = {
+        // Build the base patch — fields refreshed on every registration call
+        // regardless of whether the worker is new or reconnecting. Status is
+        // intentionally absent; see the update / insert branches below.
+        const basePatch: WorkerInsert = {
           name: data.name,
           endpoint_url: data.endpoint_url,
           protocol: data.protocol,
           capabilities: data.capabilities,
-          status: keepParkedStatus ?? "active",
           last_heartbeat: new Date().toISOString(),
         };
-        if (data.auth_token != null) patch.auth_token = data.auth_token;
-        if (data.max_concurrency != null) patch.max_concurrency = data.max_concurrency;
-        if (data.region != null) patch.region = data.region;
+        if (data.auth_token != null) basePatch.auth_token = data.auth_token;
+        if (data.max_concurrency != null) basePatch.max_concurrency = data.max_concurrency;
+        if (data.region != null) basePatch.region = data.region;
         // `lanes` postdates the generated Database types (migration 20260702120000).
-        if (data.lanes) (patch as WorkerInsert & { lanes?: string[] }).lanes = [...data.lanes];
+        if (data.lanes) (basePatch as WorkerInsert & { lanes?: string[] }).lanes = [...data.lanes];
 
         if (match) {
+          // UPDATE — deliberately omit status from the patch so the DB value is
+          // always preserved. All admin-set states win over a reconnect:
+          //   • active        → stays active (was already serving; keep it that way)
+          //   • paused        → stays paused (admin halted; reconnect can't undo it)
+          //   • draining      → stays draining (same)
+          //   • pending_approval → stays pending until the owner explicitly approves
           const { error } = await supabaseAdmin
             .from("gpu_workers")
-            .update(patch)
+            .update(basePatch)
             .eq("id", match.id);
           if (error) {
             await logAttempt(supabaseAdmin, { name: data.name, endpoint_url: data.endpoint_url, protocol: data.protocol, ok: false, error: error.message });
             return json({ error: error.message }, 500);
           }
           await logAttempt(supabaseAdmin, { name: data.name, endpoint_url: data.endpoint_url, protocol: data.protocol, ok: true, outcome: "updated" });
-          return json({ ok: true, id: match.id, updated: true });
+          return json({ ok: true, id: match.id, updated: true, registration_status: match.status });
         }
 
+        // INSERT — brand-new worker. Starts in 'pending_approval' so it cannot
+        // receive any job payload until the owner approves it from Admin → Workers.
+        // The dispatcher filters status = 'active', so pending_approval workers are
+        // automatically excluded from routing with no extra query change needed.
+        const insertPatch: WorkerInsert = { ...basePatch, status: "pending_approval" };
         const { data: row, error } = await supabaseAdmin
           .from("gpu_workers")
-          .insert(patch)
+          .insert(insertPatch)
           .select("id")
           .single();
         if (error) {
           await logAttempt(supabaseAdmin, { name: data.name, endpoint_url: data.endpoint_url, protocol: data.protocol, ok: false, error: error.message });
           return json({ error: error.message }, 500);
         }
-        await logAttempt(supabaseAdmin, { name: data.name, endpoint_url: data.endpoint_url, protocol: data.protocol, ok: true, outcome: "created" });
-        return json({ ok: true, id: row?.id, created: true });
+        await logAttempt(supabaseAdmin, { name: data.name, endpoint_url: data.endpoint_url, protocol: data.protocol, ok: true, outcome: "pending_approval" });
+        return json({ ok: true, id: row?.id, created: true, registration_status: "pending_approval" });
       },
     },
   },
