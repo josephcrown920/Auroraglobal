@@ -1,13 +1,17 @@
 ---
-name: Kling subscription gate
-description: Why Kling video is subscriber-gated and how free-mode exclusion has two separate code paths.
+name: Kling and Seedance subscription gate
+description: Why Kling and Seedance video are subscriber-gated and the three-layer enforcement pattern.
 ---
 
-**Rule:** Kling video generation must only be reachable for subscriber requests (`forSubscriber: true` on the generate request) and must never appear in the general fallback chain.
+**Rule:** Kling and Seedance video generation must only be reachable for subscriber requests (`forSubscriber: true` on the generate request) and must never appear in the general fallback chain.
 
-**Why:** Kling was once reachable as an ordinary fallback model and burned ~$7.56 of real provider spend on test/free traffic before anyone noticed. It is a paid, per-second-billed provider with no free tier.
+**Why:** Kling was once reachable as an ordinary fallback model and burned ~$7.56 of real provider spend on test/free traffic. Seedance was later added to `FALLBACK_MODELS.video` without a subscriber gate, exposing the same billing hole via both BytePlus (direct) and Replicate (fallback). Both providers are paid, per-second-billed with no free tier.
 
-**How to apply:** When touching video routing or fallback lists:
-- Keep Kling out of `FALLBACK_MODELS` for video — it is selected only when a request explicitly carries the subscriber flag.
-- Free mode has TWO separate exclusion paths that both must reject paid adapters: the `isFreeAdapter` filter AND the inline `assertFreeModeServable` check. Excluding a paid provider from only one of them still lets it serve (and bill) in the other path.
-- Any new paid-only provider should follow the same pattern: explicit opt-in flag, absent from fallback chains, excluded in both free-mode checks.
+**Three-layer enforcement (both providers must follow all three):**
+1. **Absent from `FALLBACK_MODELS.video`** — free-tier video requests that exhaust earlier models must never land on a paid provider.
+2. **`forSubscriber: true` in the adapter's `supports()`** — gates explicit model requests at the adapter level. BytePlus gates on `r.kind === "video"` (Seedream image is unaffected). Replicate gates on `r.model.startsWith("seedance")`.
+3. **`forSubscriber: true` on all explicit `orch()` calls** that use these models in jobs/pipelines (TikTok remix, UGC Spin, kids story, etc.) — if the job is subscriber-only downstream, the orchestrate call must carry the flag or it silently falls through a non-gated path.
+
+**Free mode has TWO additional exclusion paths** that both must reject paid adapters: the `isFreeAdapter` filter AND the inline `assertFreeModeServable` check. Excluding a paid provider from only one still lets it serve in the other.
+
+**Adding a new paid-only video provider:** Remove from `FALLBACK_MODELS.video`, add `forSubscriber !== true` guard to adapter `supports()`, add `forSubscriber: true` to all explicit `orch()` calls.

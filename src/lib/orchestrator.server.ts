@@ -1060,6 +1060,9 @@ const replicate: ProviderAdapter = {
   supports: (r) => {
     if (!getReplicateKey()) return false;
     if (!r.model) return false;
+    // ⚠️  SUBSCRIPTION-ONLY: Seedance on Replicate is a paid provider.
+    // Must not serve free-tier requests even as a BytePlus fallback.
+    if (r.model.startsWith("seedance") && r.forSubscriber !== true) return false;
     const m = REPLICATE_MAP[r.model];
     return !!m && m.kind === r.kind;
   },
@@ -1137,6 +1140,10 @@ const byteplus: ProviderAdapter = {
   supports: (r) => {
     if (!getBytePlusKey()) return false;
     if (r.kind !== "image" && r.kind !== "video") return false;
+    // ⚠️  SUBSCRIPTION-ONLY: Seedance video is a paid ByteDance provider.
+    // forSubscriber MUST be true for video requests — free-tier users must
+    // never trigger Seedance charges. Image (Seedream) is unaffected.
+    if (r.kind === "video" && r.forSubscriber !== true) return false;
     if (!r.model) return false;
     const m = BYTEPLUS_MAP[r.model];
     return !!m && m.kind === r.kind;
@@ -2738,8 +2745,10 @@ export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
     "xai/grok-imagine-video-1.5",
     "ltx/ltx-video",
     "veo-2",
-    "seedance-2.0-fast",
-    "seedance-2.0",
+    // "seedance-2.0-fast" and "seedance-2.0" intentionally REMOVED from fallback
+    // chain — Seedance is subscription-only (paid ByteDance/Replicate provider)
+    // and must never auto-fire for free-tier requests. Reachable only when
+    // explicitly requested with forSubscriber:true.
     // "kling-3.0" and "kling-3.0-omni" intentionally REMOVED from fallback
     // chain — Kling is subscription-only and must never auto-fire as a
     // fallback during smoke tests or free-tier requests. Kling is still
