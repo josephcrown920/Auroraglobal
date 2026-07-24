@@ -335,6 +335,7 @@ async function runTiktokRemixChild(job: JobRow, orch: Orchestrate) {
     videoUrl: p.sourceVideoUrl,
     duration: p.duration ?? 5,
     model: "seedance-2.0-fast",
+    forSubscriber: true,
     userId: job.user_id,
     refId: job.id,
   });
@@ -652,6 +653,7 @@ async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
     }),
     imageUrls: [still.url],
     duration,
+    forSubscriber: true,
     userId: job.user_id,
     refId: job.id,
   });
@@ -796,6 +798,7 @@ async function runCampaignItem(job: JobRow, orch: Orchestrate): Promise<JobOutpu
     prompt: p.motionPrompt || `subtle natural motion, ${p.imagePrompt}`,
     imageUrls: [still.url],
     duration,
+    forSubscriber: true,
     userId: job.user_id,
     refId: job.id,
   });
@@ -973,6 +976,7 @@ async function runKidsStory(job: JobRow, orch: Orchestrate, workerId: string): P
         }),
         imageUrls: [still.url],
         duration: secondsPerScene,
+        forSubscriber: true,
         userId: job.user_id,
         refId: job.id,
       }),
