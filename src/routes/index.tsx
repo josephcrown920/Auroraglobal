@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CANONICAL_ORIGIN } from "@/lib/seo";
-import { Plus, Play, ArrowUpRight, ChevronDown, Sparkles, Palette, Film, Wand2, Mic, Music2, Brush, Megaphone, UserCircle2, Workflow, Layers, Flame, Bot, Clapperboard, Check, Zap, Crown, Download, Video } from "lucide-react";
+import { Plus, Play, ArrowUpRight, ChevronDown, Sparkles, Palette, Film, Wand2, Mic, Music2, Brush, Megaphone, UserCircle2, Workflow, Layers, Flame, Bot, Clapperboard, Check, Zap, Crown, Download } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useState, useEffect, useRef } from "react";
 import { ViralEngine } from "@/components/landing/ViralEngine";
@@ -120,25 +120,6 @@ const FEATURED_TOOLS = [
   },
 ];
 
-const SERVICES = [
-  { label: "Image Generation", desc: "Studio portraits, covers & promo shots from a selfie and a prompt.",         to: "/studio",       icon: Sparkles,    price: "10 Aura",       img: "/nav-previews/studio.jpg" },
-  { label: "Colors Studio",    desc: "Direct your color palette across cyclorama, indoor & rooftop sets.",         to: "/colors",       icon: Palette,     price: "10 Aura",       img: "/nav-previews/colors.jpg" },
-  { label: "Canvas",           desc: "Visual director workspace — compose scenes, layers & live previews.",        to: "/canvas",       icon: Layers,      price: "From 10 Aura",  img: "/nav-previews/canvas.jpg" },
-  { label: "Motion Control",   desc: "Transfer your 30-second real performance into an AI-generated scene.",       to: "/motion",       icon: Wand2,       price: "From 300 Aura", img: "/nav-previews/motion.jpg" },
-  { label: "Lip Sync",         desc: "Frame-accurate sync in 8+ languages using Sync 1.9.",                       to: "/lipsync",      icon: Mic,         price: "30 Aura",       img: "/nav-previews/lipsync.jpg" },
-  { label: "Lyric Video",      desc: "Full lyric-video renders timed to your audio track.",                       to: "/music-video",  icon: Clapperboard,price: "50 Aura",       img: "/nav-previews/music-video.jpg" },
-  { label: "Photo Editor",     desc: "AI-powered edits: relight, restyle, inpaint & upscale.",                    to: "/photo-edit",   icon: Brush,       price: "10 Aura",       img: "/nav-previews/photo-edit.jpg" },
-  { label: "UGC Ads",          desc: "Talent + product → looping social ad in minutes.",                          to: "/ugc",          icon: Megaphone,   price: "From 10 Aura",  img: "/nav-previews/ugc.jpg" },
-  { label: "Talking Avatars",  desc: "Upload a photo, write a script, get a studio-quality talking-head video.",  to: "/avatar",       icon: UserCircle2, price: "From 30 Aura",  img: "/nav-previews/avatar.jpg" },
-  { label: "Live Studios",     desc: "Real-time creative sessions with dynamic scene generation.",                 to: "/live-studio",  icon: Music2,      price: "From 10 Aura",  img: "/nav-previews/live-studio.jpg" },
-  { label: "Content Line",     desc: "Full UGC ad script arcs, creator avatars & visual variations.",             to: "/ugc-line",     icon: Film,        price: "From 10 Aura",  img: "/nav-previews/ugc-line.jpg" },
-  { label: "TikTok 30",        desc: "30-second viral TikTok packs — spin, animate, caption, ship.",              to: "/spin",         icon: Flame,       price: "From 10 Aura",  img: "/nav-previews/spin.jpg" },
-  { label: "Directors ROOM",   desc: "Build your scene from references. Drop selfie, outfit, location — generate & animate.",to: "/scene-builder",icon: Workflow,    price: "From 10 Aura",  img: "/nav-previews/scene-builder.jpg" },
-  { label: "Video Agent",      desc: "AI-directed talking-head videos with script enhancement & HeyGen rendering.",to: "/agent",        icon: Bot,         price: "From 30 Aura",  img: "/nav-previews/video-agent.jpg" },
-  { label: "Image → Image",    desc: "Restyle, relight, inpaint and transform any photo. AI-powered editing.",        to: "/photo-edit",   icon: Brush,       price: "10 Aura",       img: "/nav-previews/photo-edit.jpg" },
-  { label: "Image → Video",    desc: "Animate any still into a living scene — motion transfer & camera movement.",    to: "/motion",       icon: Video,       price: "From 300 Aura", img: "/nav-previews/motion.jpg" },
-  { label: "Video → Video",    desc: "Reskin a video: swap identity, outfit or environment using a driving video.",   to: "/motion",       icon: Film,        price: "From 300 Aura", img: "/nav-previews/motion.jpg" },
-];
 
 const TICKER_ITEMS = [
   "Album covers",
@@ -208,12 +189,8 @@ function LandingPage() {
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-display antialiased selection:bg-[#e5383b] selection:text-white">
 
       {/* ── Nav ─────────────────────────────────────────────────────────── */}
-      <nav className="sticky top-0 z-50 w-full bg-transparent">
-        <div className="flex h-14 items-center justify-between px-5">
-          <Link to={ctaTo} className="flex items-center gap-2 no-underline text-inherit hover:opacity-80 transition-opacity">
-            <span className="inline-block size-2 rounded-full bg-[#e5383b]" />
-            <span className="text-sm font-bold tracking-[0.15em] uppercase text-zinc-100">Aurora</span>
-          </Link>
+      <nav className="absolute top-0 left-0 right-0 z-40 w-full">
+        <div className="flex h-14 items-center justify-end px-5">
           <div className="flex items-center gap-3">
             {canInstall && (
               <button
@@ -767,38 +744,6 @@ function FeaturedToolCard({ tool }: { tool: typeof FEATURED_TOOLS[number] }) {
   );
 }
 
-function ServiceCard({ s }: { s: typeof SERVICES[number] }) {
-  const Icon = s.icon;
-  return (
-    <Link
-      to={s.to}
-      className="group relative flex flex-col justify-end overflow-hidden rounded-2xl ring-1 ring-white/8 transition-all duration-300 hover:-translate-y-0.5 hover:ring-white/20 no-underline aspect-[3/4]"
-    >
-      <img
-        src={s.img}
-        alt={s.label}
-        loading="lazy"
-        className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
-      />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
-      <div className="relative z-10 flex flex-col gap-1.5 p-3">
-        <div className="flex items-center justify-between gap-1 mb-0.5">
-          <span className="flex size-6 items-center justify-center rounded-md bg-white/10 backdrop-blur-sm ring-1 ring-white/15">
-            <Icon className="size-3.5 text-white" />
-          </span>
-          <span className="rounded-full bg-[#e5383b]/80 px-2 py-0.5 text-[9px] font-bold text-white backdrop-blur-sm tabular-nums">
-            {s.price}
-          </span>
-        </div>
-        <p className="text-[13px] font-semibold text-white leading-tight">{s.label}</p>
-        <p className="text-[10px] leading-snug text-white/60 line-clamp-2">{s.desc}</p>
-        <span className="mt-1 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.2em] text-white/40 transition-colors duration-200 group-hover:text-[#e5383b]">
-          Open <ArrowUpRight className="size-2.5" />
-        </span>
-      </div>
-    </Link>
-  );
-}
 
 function ProcessCard({
   step,

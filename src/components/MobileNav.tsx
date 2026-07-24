@@ -103,10 +103,9 @@ export const ARCHIVED_FEATURES: Feature[] = [
 ];
 
 const TAB_ITEMS: Feature[] = [
-  { to: "/studio",  label: "Studio",  icon: Sparkles },
-  { to: "/agent",   label: "Video",   icon: Film },
-  { to: "/canvas",  label: "Canvas",  icon: Workflow },
-  { to: "/gallery",     label: "Gallery", icon: Images },
+  { to: "/canvas",  label: "Infinity Canvas",  icon: Workflow,  badge: "PREMIUM" },
+  { to: "/agent",   label: "Video Agent",      icon: Film,      badge: "PREMIUM" },
+  { to: "/spin",    label: "TikTok30",         icon: Flame,     badge: "PREMIUM" },
 ];
 
 function isActive(pathname: string, to: string) {
@@ -215,22 +214,20 @@ export function MobileNav() {
         }
       `}</style>
 
-      {!isLanding && (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          aria-label="Open navigation menu"
-          className={cn(
-            "phone-edge-left fixed top-3 z-[60] flex items-center gap-1.5 rounded-full aurora-glass-strong px-3.5 py-2 text-xs font-medium shadow-[var(--shadow-soft)] transition-[filter,color] hover:brightness-110",
-            moreActive ? "text-primary" : "text-foreground",
-          )}
-        >
-          <Menu className="size-4" />
-          Menu
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label="Open navigation menu"
+        className={cn(
+          "phone-edge-left fixed top-3 z-[60] flex items-center gap-1.5 rounded-full aurora-glass-strong px-3.5 py-2 text-xs font-medium shadow-[var(--shadow-soft)] transition-[filter,color] hover:brightness-110",
+          moreActive ? "text-primary" : "text-foreground",
+        )}
+      >
+        <Menu className="size-4" />
+        Menu
+      </button>
 
       {!isCanvas && (
         <>
@@ -254,7 +251,7 @@ export function MobileNav() {
               style={{ background: "linear-gradient(90deg, transparent 0%, oklch(0.58 0.22 25 / 0.5) 50%, transparent 100%)" }}
             />
 
-            <ul className="grid grid-cols-4">
+            <ul className="grid grid-cols-3">
               {TAB_ITEMS.map((t) => {
                 const active = isActive(pathname, t.to);
                 return (
@@ -277,6 +274,16 @@ export function MobileNav() {
                         />
                       )}
 
+                      {/* PREMIUM badge */}
+                      {t.badge && (
+                        <span
+                          aria-hidden
+                          className="absolute top-1.5 left-1/2 -translate-x-1/2 rounded-full bg-amber-400 px-1.5 py-px text-[7px] font-bold uppercase tracking-wide text-black leading-none"
+                        >
+                          {t.badge}
+                        </span>
+                      )}
+
                       {/* Icon wrapper — glass pill when active */}
                       <span
                         className={cn(
@@ -289,7 +296,7 @@ export function MobileNav() {
                         <t.icon className={cn("transition-all duration-200", active ? "size-[18px]" : "size-5")} />
                       </span>
 
-                      <span className="tracking-wide">{t.label}</span>
+                      <span className="tracking-wide truncate max-w-[72px] text-center">{t.label}</span>
                     </Link>
                   </li>
                 );
@@ -327,7 +334,7 @@ export function MobileNav() {
                 </div>
                 <span className="flex flex-col leading-tight">
                   <span className="text-base font-bold tracking-tight text-foreground">Aurora</span>
-                  <span className="text-[11px] text-muted-foreground font-normal">By pro artists, for artists who scale</span>
+                  <span className="text-[11px] text-muted-foreground font-normal">AI Creative Studio</span>
                 </span>
               </div>
               <WhatsNew />
@@ -337,20 +344,43 @@ export function MobileNav() {
           {/* ── Nav body ────────────────────────────────────────────────── */}
           <nav aria-label="All features" className="relative flex flex-1 flex-col gap-3 overflow-y-auto p-3 pb-4">
 
-            <NavSection label="Make">
-              {MAKE_FEATURES.map((f) => (
+            <NavSection label="Studio">
+              {([
+                { to: "/canvas",      label: "Infinity Canvas",           icon: Workflow,     previewImg: "/nav-previews/canvas.jpg" },
+                { to: "/perform",     label: "Perform Anywhere",          icon: Film,         previewImg: "/nav-previews/perform-anywhere.jpg" },
+                { to: "/colors",      label: "Colors Performance Sessions", icon: Palette,    previewImg: "/nav-previews/colors.jpg" },
+                { to: "/motion",      label: "Motion Control",            icon: Wand2,        previewImg: "/nav-previews/motion.jpg" },
+                { to: "/music-video", label: "Music Video",               icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
+                { to: "/storyboard",  label: "Storyboard",                icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
+                { to: "/live-studio", label: "Live Studios",              icon: Music2,       previewImg: "/nav-previews/live-studio.jpg" },
+                { to: "/lipsync",     label: "Lip Sync",                  icon: Mic,          previewImg: "/nav-previews/lipsync.jpg" },
+                { to: "/scene-builder", label: "Scene Builder",           icon: Layers,       previewImg: "/nav-previews/scene-builder.jpg" },
+              ] as Feature[]).map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
             </NavSection>
 
-            <NavSection label="Go Viral">
-              {VIRAL_FEATURES.map((f) => (
+            <NavSection label="Creators">
+              {([
+                { to: "/spin",        label: "TikTok30",        icon: Flame,        previewImg: "/nav-previews/spin.jpg" },
+                { to: "/ugc",         label: "UGC Ads",         icon: Megaphone,    previewImg: "/nav-previews/ugc.jpg" },
+                { to: "/ugc-line",    label: "Content Line",    icon: Layers,       previewImg: "/nav-previews/ugc-line.jpg" },
+                { to: "/studio",      label: "Image Generation", icon: Sparkles,    previewImg: "/nav-previews/studio.jpg" },
+                { to: "/photo-edit",  label: "Photo Editor",    icon: Brush,        previewImg: "/nav-previews/photo-edit.jpg" },
+                { to: "/avatar",      label: "Talking Avatars", icon: UserCircle2,  previewImg: "/nav-previews/avatar.jpg" },
+              ] as Feature[]).map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
             </NavSection>
 
             <NavSection label="Account">
-              {ACCOUNT_FEATURES.map((f) => (
+              {([
+                { to: "/gallery",           label: "Gallery",        icon: Images },
+                { to: "/creator/dashboard", label: "Creator Hub",    icon: TrendingUp },
+                { to: "/billing",           label: "Plan & Billing", icon: CreditCard },
+                { to: "/partners",          label: "Earn Free Aura", icon: Users },
+                { to: "/admin",             label: "Admin",          icon: Shield },
+              ] as Feature[]).map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
             </NavSection>
