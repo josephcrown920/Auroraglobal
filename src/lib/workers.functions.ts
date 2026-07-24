@@ -171,13 +171,19 @@ export const approveWorker = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { count, error } = await supabaseAdmin
+    // select("id") after .eq("status","pending_approval") returns null when the
+    // worker doesn't exist OR is already out of pending state — both are safe
+    // sentinel values. We avoid { count:"exact" } because it triggers an extra
+    // COUNT(*) round-trip; selecting the id is enough for the existence check.
+    const { data: row, error } = await supabaseAdmin
       .from("gpu_workers")
       .update({ status: "active", paused_reason: null })
       .eq("id", data.id)
-      .eq("status", "pending_approval"); // safety: only approve pending workers
+      .eq("status", "pending_approval") // safety: only approve pending workers
+      .select("id")
+      .maybeSingle();
     if (error) throw new Error(error.message);
-    if (!count) throw new Error(`Worker ${data.id} not found or already approved`);
+    if (!row) throw new Error(`Worker ${data.id} not found or not in pending_approval state`);
     return { ok: true, id: data.id, status: "active" };
   });
 
@@ -186,13 +192,15 @@ export const rejectWorker = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { count, error } = await supabaseAdmin
+    const { data: row, error } = await supabaseAdmin
       .from("gpu_workers")
       .update({ status: "paused", paused_reason: "admin" })
       .eq("id", data.id)
-      .eq("status", "pending_approval"); // safety: only reject pending workers
+      .eq("status", "pending_approval") // safety: only reject pending workers
+      .select("id")
+      .maybeSingle();
     if (error) throw new Error(error.message);
-    if (!count) throw new Error(`Worker ${data.id} not found or already reviewed`);
+    if (!row) throw new Error(`Worker ${data.id} not found or not in pending_approval state`);
     return { ok: true, id: data.id, status: "paused" };
   });
 
