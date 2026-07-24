@@ -64,6 +64,62 @@ export const Route = createFileRoute("/")({
   component: LandingPage,
 });
 
+const HERO_SLIDES = [
+  "/landing/hero-artist.jpg",
+  "/landing-photo-1.jpeg",
+  "/landing-photo-2.jpeg",
+  "/landing-photo-3.jpeg",
+  "/landing-photo-4.jpeg",
+  "/landing-photo-5.jpeg",
+  "/landing/gallery-1.jpg",
+  "/landing/gallery-2.jpg",
+];
+
+const FEATURED_TOOLS = [
+  {
+    label: "Motion Control",
+    desc: "Transfer your real 30-second performance into any AI scene.",
+    to: "/motion",
+    icon: Wand2,
+    price: "From 30 Aura",
+  },
+  {
+    label: "Perform Anywhere",
+    desc: "Selfie + outfit + scene → cinematic performance video, anywhere.",
+    to: "/perform",
+    icon: Film,
+    price: "From 20 Aura",
+  },
+  {
+    label: "Colors Performance Sessions",
+    desc: "Direct your palette across cyc, indoor and rooftop performance sets.",
+    to: "/colors",
+    icon: Palette,
+    price: "From 10 Aura",
+  },
+  {
+    label: "Video Agent",
+    desc: "AI creative director, chat a shot, get a rendered video back.",
+    to: "/agent",
+    icon: Bot,
+    price: "From 8 Aura",
+  },
+  {
+    label: "Get Ready With Me",
+    desc: "Outfit swap talking GRWM reels straight from a single selfie.",
+    to: "/studio",
+    icon: UserCircle2,
+    price: "From 5 Aura",
+  },
+  {
+    label: "TikTok30 UGC Factory",
+    desc: "Create 30 campaign posts, animate any result, or send it to Motion Control.",
+    to: "/spin",
+    icon: Flame,
+    price: "85 Aura",
+  },
+];
+
 const SERVICES = [
   { label: "Image Generation", desc: "Studio portraits, covers & promo shots from a selfie and a prompt.",         to: "/studio",       icon: Sparkles,    price: "10 Aura",       img: "/nav-previews/studio.jpg" },
   { label: "Colors Studio",    desc: "Direct your color palette across cyclorama, indoor & rooftop sets.",         to: "/colors",       icon: Palette,     price: "10 Aura",       img: "/nav-previews/colors.jpg" },
@@ -140,18 +196,23 @@ function usePwaInstall() {
 function LandingPage() {
   const { user } = useAuth();
   const ctaTo = user ? "/studio" : "/auth";
-  const ctaLabel = user ? "Open Studio" : "Start Creating";
   const { canInstall, install } = usePwaInstall();
 
+  const [slideIdx, setSlideIdx] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setSlideIdx((i) => (i + 1) % HERO_SLIDES.length), 4500);
+    return () => clearInterval(t);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-display antialiased selection:bg-brand selection:text-white">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-display antialiased selection:bg-[#e5383b] selection:text-white">
 
       {/* ── Nav ─────────────────────────────────────────────────────────── */}
-      <nav className="sticky top-0 z-50 w-full border-b border-white/5 bg-zinc-950/80 backdrop-blur-md">
+      <nav className="sticky top-0 z-50 w-full bg-transparent">
         <div className="flex h-14 items-center justify-between px-5">
           <Link to={ctaTo} className="flex items-center gap-2 no-underline text-inherit hover:opacity-80 transition-opacity">
-            <span className="inline-block size-2 rounded-full bg-brand" />
-            <span className="text-lg font-semibold tracking-tighter uppercase italic">Aurora</span>
+            <span className="inline-block size-2 rounded-full bg-[#e5383b]" />
+            <span className="text-sm font-bold tracking-[0.15em] uppercase text-zinc-100">Aurora</span>
           </Link>
           <div className="flex items-center gap-3">
             {canInstall && (
@@ -167,7 +228,7 @@ function LandingPage() {
             {user ? (
               <Link
                 to="/studio"
-                className="inline-flex items-center rounded-full bg-zinc-100 py-2 pl-2 pr-3 text-sm font-semibold text-zinc-950 transition-transform hover:scale-[1.02] active:scale-95"
+                className="inline-flex items-center rounded-full bg-[#e5383b] py-2 pl-3 pr-4 text-sm font-semibold text-white transition-transform hover:scale-[1.02] active:scale-95"
               >
                 <Plus className="size-4 mr-1.5 shrink-0" strokeWidth={2.5} />
                 Open Studio
@@ -176,16 +237,16 @@ function LandingPage() {
               <>
                 <Link
                   to="/auth"
-                  className="text-sm font-medium text-zinc-400 hover:text-zinc-100 transition-colors"
+                  className="text-sm font-medium text-zinc-300 hover:text-zinc-100 transition-colors"
                 >
                   Sign in
                 </Link>
                 <Link
                   to="/auth"
-                  className="inline-flex items-center rounded-full bg-zinc-100 py-2 pl-2 pr-3 text-sm font-semibold text-zinc-950 transition-transform hover:scale-[1.02] active:scale-95"
+                  className="inline-flex items-center rounded-full bg-[#e5383b] py-2 pl-3 pr-4 text-sm font-semibold text-white transition-transform hover:scale-[1.02] active:scale-95"
                 >
                   <Plus className="size-4 mr-1.5 shrink-0" strokeWidth={2.5} />
-                  Start Creating
+                  Start creating
                 </Link>
               </>
             )}
@@ -194,57 +255,103 @@ function LandingPage() {
       </nav>
 
       {/* ── Hero ────────────────────────────────────────────────────────── */}
-      <header className="relative flex min-h-[88dvh] flex-col justify-end overflow-hidden pb-16 px-5">
+      <header className="relative -mt-14 flex min-h-screen flex-col justify-end overflow-hidden pb-20 px-5">
+        {/* Slideshow */}
         <div className="absolute inset-0 z-0">
-          <img
-            src="/landing/hero-artist.jpg"
-            alt="Cinematic AI-generated artist portrait"
-            width={1920}
-            height={1200}
-            className="h-full w-full object-cover"
-            fetchPriority="high"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-zinc-950/60" />
-          <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/80 via-zinc-950/20 to-transparent" />
+          {HERO_SLIDES.map((src, i) => (
+            <img
+              key={src}
+              src={src}
+              alt=""
+              aria-hidden="true"
+              width={1200}
+              height={1600}
+              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-1000 ${
+                i === slideIdx ? "opacity-100" : "opacity-0"
+              }`}
+              fetchPriority={i === 0 ? "high" : "low"}
+            />
+          ))}
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/25" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/25 to-transparent" />
         </div>
 
-        <div className="relative z-10">
-          <div className="mb-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">
-            <span className="inline-block size-1.5 rounded-full bg-brand animate-pulse" />
-            Aurora Studio · Now in open beta
-          </div>
-          <h1 className="text-[3.25rem] font-semibold leading-[0.92] tracking-tight">
+        {/* Text content */}
+        <div className="relative z-10 max-w-sm">
+          <p className="mb-3 flex items-center gap-2 font-serif italic text-amber-400 text-sm">
+            <span className="inline-block size-1.5 rounded-full bg-[#e5383b]" />
+            By Artists, for Artists
+          </p>
+          <h1 className="text-[3.2rem] font-semibold leading-[0.92] tracking-tight text-white">
             Direct your
             <br />
-            <span className="font-serif italic text-zinc-100">visual identity.</span>
+            <span className="font-serif italic">visual identity.</span>
           </h1>
-          <p className="mt-5 max-w-[36ch] text-base leading-relaxed text-zinc-300">
-            The AI performance studio built by pro artists, for artists who need to scale
-            massively. Drop your references, write your direction, and generate studio-grade
-            covers, promo shots, and cinematic reels — in seconds, not weeks.
+          <p className="mt-5 text-base leading-relaxed text-zinc-200">
+            The AI performance studio built by artists, for artists. Drop your references, direct the shoot in plain language, and ship studio grade covers, promo, and cinematic performance reels in seconds, not weeks.
           </p>
           <div className="mt-8 flex flex-col gap-3">
             <Link
               to={ctaTo}
-              className="inline-flex w-fit items-center rounded-full bg-brand py-3.5 pl-5 pr-6 text-base font-semibold text-white ring-1 ring-brand/70 shadow-[0_10px_40px_-10px] shadow-brand/60 transition-transform hover:scale-[1.02] active:scale-95"
+              className="inline-flex w-fit items-center rounded-full bg-[#e5383b] py-3.5 pl-5 pr-6 text-base font-semibold text-white shadow-[0_10px_40px_-10px_rgba(229,56,59,0.7)] transition-transform hover:scale-[1.02] active:scale-95"
             >
               <Plus className="size-4 mr-2 shrink-0" strokeWidth={2.5} />
-              {ctaLabel}
+              {user ? "Open Studio" : "Start creating"}
             </Link>
-            <span className="text-xs font-medium tracking-widest uppercase text-zinc-500">
-              Includes complimentary credits · No credit card required
+            <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-zinc-500">
+              Credit card accepted · 5 free credits on signup
             </span>
           </div>
         </div>
+
+        {/* Carousel dot indicators */}
+        <div className="absolute bottom-8 right-5 z-10 flex items-center gap-1.5">
+          {HERO_SLIDES.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              aria-label={`Go to slide ${i + 1}`}
+              onClick={() => setSlideIdx(i)}
+              className={`rounded-full transition-all duration-300 ${
+                i === slideIdx
+                  ? "w-7 h-2 bg-white"
+                  : "size-2 bg-white/35 hover:bg-white/60"
+              }`}
+            />
+          ))}
+        </div>
       </header>
 
+      {/* ── Category Strip ──────────────────────────────────────────────── */}
+      <div className="border-y border-white/8 bg-zinc-950">
+        <div className="flex items-center justify-center gap-4 py-4 px-5 overflow-x-auto">
+          {[
+            { label: "MUSIC VIDEO STILLS", to: "/music-video" },
+            { label: "TOUR POSTERS", to: "/studio" },
+            { label: "PRESS PHOTOS", to: "/studio" },
+          ].map((item, i, arr) => (
+            <div key={item.label} className="flex items-center gap-4 shrink-0">
+              <Link
+                to={item.to}
+                className="text-[10px] font-bold tracking-[0.22em] text-zinc-500 hover:text-zinc-200 transition-colors uppercase no-underline"
+              >
+                {item.label}
+              </Link>
+              {i < arr.length - 1 && (
+                <span className="text-[#e5383b] text-sm font-bold">+</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* ── Ticker ──────────────────────────────────────────────────────── */}
-      <div className="overflow-hidden border-y border-white/5 bg-zinc-900/40 py-4">
+      <div className="overflow-hidden border-b border-white/5 bg-zinc-900/40 py-4">
         <div className="flex w-max animate-ticker gap-12 whitespace-nowrap px-6 text-xs font-bold tracking-[0.3em] text-zinc-500 uppercase">
           {[...TICKER_ITEMS, ...TICKER_ITEMS, ...TICKER_ITEMS].map((label, i) => (
             <span key={i} className="flex items-center gap-12">
               <span>{label}</span>
-              <span className="text-brand">✦</span>
+              <span className="text-[#e5383b]">✦</span>
             </span>
           ))}
         </div>
@@ -253,7 +360,7 @@ function LandingPage() {
       {/* ── Process ─────────────────────────────────────────────────────── */}
       <section id="process" className="py-20 px-5">
         <div className="mb-12">
-          <span className="text-xs font-bold uppercase tracking-[0.3em] text-brand">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
             The studio flow
           </span>
           <h2 className="mt-3 text-4xl font-semibold leading-tight">
@@ -292,24 +399,33 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* ── Services ────────────────────────────────────────────────────── */}
+      {/* ── Featured Tools ───────────────────────────────────────────────── */}
       <section id="services" className="py-20 px-5 border-t border-white/5">
         <div className="mb-10">
-          <span className="text-xs font-bold uppercase tracking-[0.3em] text-brand">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
             Every tool
           </span>
           <h2 className="mt-3 text-4xl font-semibold leading-tight">
-            The full studio.<br />
+            The full studio.
+            <br />
             <span className="font-serif italic">Pay only for what you make.</span>
           </h2>
           <p className="mt-3 text-sm text-zinc-400 max-w-[40ch] leading-relaxed">
-            Every feature is credit-based. No subscriptions required to start — 50 free Aura on signup.
+            Every feature is credit based. No subscriptions required to start. 5 free Aura on signup.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          {SERVICES.map((s) => (
-            <ServiceCard key={s.label} s={s} />
+          {FEATURED_TOOLS.map((tool) => (
+            <FeaturedToolCard key={tool.label} tool={tool} />
           ))}
+        </div>
+        <div className="mt-6 text-center">
+          <Link
+            to="/studio"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-500 hover:text-zinc-200 transition-colors no-underline"
+          >
+            See all tools <ArrowUpRight className="size-4" />
+          </Link>
         </div>
       </section>
 
@@ -322,7 +438,7 @@ function LandingPage() {
       {/* ── Gallery ─────────────────────────────────────────────────────── */}
       <section id="gallery" className="bg-zinc-900/30 py-20 border-y border-white/5 overflow-hidden">
         <div className="px-5 mb-10">
-          <span className="text-xs font-bold uppercase tracking-[0.3em] text-brand">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
             Output gallery
           </span>
           <h2 className="mt-3 text-4xl font-semibold leading-tight">
@@ -366,7 +482,7 @@ function LandingPage() {
       <section className="py-20 px-5">
         <div className="mb-8 flex items-end justify-between gap-4">
           <div>
-            <span className="text-xs font-bold uppercase tracking-[0.3em] text-brand">
+            <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
               Motion generation
             </span>
             <h2 className="mt-3 text-3xl font-semibold leading-tight">
@@ -412,7 +528,7 @@ function LandingPage() {
             production to a single afternoon — without losing an ounce of soul.&rdquo;
           </p>
           <div className="mt-8 flex flex-col items-center">
-            <div className="size-11 rounded-full bg-gradient-to-br from-brand to-zinc-800 ring-1 ring-white/10" />
+            <div className="size-11 rounded-full bg-gradient-to-br from-[#e5383b] to-zinc-800 ring-1 ring-white/10" />
             <span className="mt-3 text-sm font-semibold uppercase tracking-widest">
               Marcus Vane
             </span>
@@ -424,7 +540,7 @@ function LandingPage() {
       {/* ── Pricing ──────────────────────────────────────────────────────── */}
       <section id="pricing" className="py-20 px-5 border-t border-white/5">
         <div className="mb-10">
-          <span className="text-xs font-bold uppercase tracking-[0.3em] text-brand">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
             Pricing
           </span>
           <h2 className="mt-3 text-4xl font-semibold leading-tight">
@@ -467,23 +583,23 @@ function LandingPage() {
           </div>
 
           {/* Pro */}
-          <div className="relative rounded-2xl bg-zinc-900 ring-2 ring-brand/60 p-6 shadow-[0_0_40px_-10px] shadow-brand/30">
+          <div className="relative rounded-2xl bg-zinc-900 ring-2 ring-[#e5383b]/60 p-6 shadow-[0_0_40px_-10px] shadow-red-600/30">
             <div className="absolute -top-3 left-5">
-              <span className="rounded-full bg-brand px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white">
+              <span className="rounded-full bg-[#e5383b] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white">
                 Most popular
               </span>
             </div>
             <div className="flex items-start justify-between gap-4 mb-5">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.25em] text-brand mb-1">Pro</p>
+                <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#e5383b] mb-1">Pro</p>
                 <div className="flex items-baseline gap-1.5">
                   <p className="text-3xl font-semibold text-zinc-100">$15</p>
                   <p className="text-sm text-zinc-500">/ month</p>
                 </div>
                 <p className="text-sm text-zinc-500 mt-1">2,000 Aura included monthly</p>
               </div>
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand/15 ring-1 ring-brand/30">
-                <Crown className="size-5 text-brand" />
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#e5383b]/15 ring-1 ring-[#e5383b]/30">
+                <Crown className="size-5 text-[#e5383b]" />
               </span>
             </div>
             <ul className="flex flex-col gap-2 mb-6">
@@ -497,14 +613,14 @@ function LandingPage() {
                 "Permanent gallery + Canvas",
               ].map((f) => (
                 <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-300">
-                  <Check className="size-4 shrink-0 mt-0.5 text-brand" />
+                  <Check className="size-4 shrink-0 mt-0.5 text-[#e5383b]" />
                   {f}
                 </li>
               ))}
             </ul>
             <Link
               to={user ? "/billing" : ctaTo}
-              className="block w-full rounded-xl bg-brand py-3 text-center text-sm font-semibold text-white shadow-[0_6px_20px_-4px] shadow-brand/50 transition-transform hover:scale-[1.01] active:scale-[0.99]"
+              className="block w-full rounded-xl bg-[#e5383b] py-3 text-center text-sm font-semibold text-white shadow-[0_6px_20px_-4px_rgba(229,56,59,0.5)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
             >
               {user ? "Upgrade to Pro" : "Get Pro — $15 / month"}
             </Link>
@@ -525,11 +641,11 @@ function LandingPage() {
               <Link
                 key={p.label}
                 to={user ? "/billing" : ctaTo}
-                className={`group flex items-center justify-between rounded-xl px-5 py-4 ring-1 transition-all no-underline ${p.popular ? "bg-zinc-800 ring-white/15 hover:ring-brand/40" : "bg-zinc-900 ring-white/8 hover:ring-white/15"}`}
+                className={`group flex items-center justify-between rounded-xl px-5 py-4 ring-1 transition-all no-underline ${p.popular ? "bg-zinc-800 ring-white/15 hover:ring-[#e5383b]/40" : "bg-zinc-900 ring-white/8 hover:ring-white/15"}`}
               >
                 <div className="flex items-center gap-3">
                   {p.popular && (
-                    <span className="rounded-full bg-brand/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-brand">
+                    <span className="rounded-full bg-[#e5383b]/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-[#e5383b]">
                       Best value
                     </span>
                   )}
@@ -540,7 +656,7 @@ function LandingPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-base font-bold text-zinc-100">{p.usd}</span>
-                  <ArrowUpRight className="size-4 text-zinc-600 transition-colors group-hover:text-brand" />
+                  <ArrowUpRight className="size-4 text-zinc-600 transition-colors group-hover:text-[#e5383b]" />
                 </div>
               </Link>
             ))}
@@ -550,7 +666,7 @@ function LandingPage() {
         {/* Day passes note */}
         <p className="text-center text-[11px] text-zinc-600 leading-relaxed">
           Just trying it out?{" "}
-          <Link to={user ? "/billing" : ctaTo} className="text-zinc-400 hover:text-brand underline underline-offset-2 transition-colors">
+          <Link to={user ? "/billing" : ctaTo} className="text-zinc-400 hover:text-[#e5383b] underline underline-offset-2 transition-colors">
             Day passes from $2
           </Link>
           {" "}· 150 Aura · no commitment.
@@ -560,7 +676,7 @@ function LandingPage() {
       {/* ── FAQ ─────────────────────────────────────────────────────────── */}
       <section id="faq" className="py-20 px-5">
         <div className="mb-10 text-center">
-          <span className="text-xs font-bold uppercase tracking-[0.3em] text-brand">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
             Questions
           </span>
           <h2 className="mt-3 text-4xl font-semibold tracking-tight">
@@ -577,8 +693,8 @@ function LandingPage() {
       {/* ── Footer ──────────────────────────────────────────────────────── */}
       <footer className="border-t border-white/5 pt-14 pb-8 px-5">
         <div className="flex items-center gap-2 mb-4">
-          <span className="inline-block size-2 rounded-full bg-brand" />
-          <span className="text-lg font-semibold tracking-tighter uppercase italic">Aurora</span>
+          <span className="inline-block size-2 rounded-full bg-[#e5383b]" />
+          <span className="text-sm font-bold tracking-[0.15em] uppercase text-zinc-100">Aurora</span>
         </div>
         <p className="text-sm text-zinc-500 mb-10">
           Built by pro artists, for artists scaling massively. The performance studio for
@@ -621,6 +737,36 @@ function LandingPage() {
   );
 }
 
+function FeaturedToolCard({ tool }: { tool: typeof FEATURED_TOOLS[number] }) {
+  const Icon = tool.icon;
+  return (
+    <Link
+      to={tool.to}
+      className="group flex flex-col justify-between rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-4 transition-all hover:ring-white/20 no-underline min-h-[180px]"
+    >
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/6 ring-1 ring-white/10">
+          <Icon className="size-4 text-zinc-300" />
+        </span>
+        <span className="text-[11px] font-bold text-[#e5383b] tabular-nums">
+          {tool.price}
+        </span>
+      </div>
+      <div className="flex-1">
+        <p className="text-[13px] font-semibold text-zinc-100 leading-tight mb-1.5">
+          {tool.label}
+        </p>
+        <p className="text-[11px] leading-snug text-zinc-500 line-clamp-2">
+          {tool.desc}
+        </p>
+      </div>
+      <span className="mt-3 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 transition-colors group-hover:text-zinc-300">
+        Open <ArrowUpRight className="size-3" />
+      </span>
+    </Link>
+  );
+}
+
 function ServiceCard({ s }: { s: typeof SERVICES[number] }) {
   const Icon = s.icon;
   return (
@@ -640,13 +786,13 @@ function ServiceCard({ s }: { s: typeof SERVICES[number] }) {
           <span className="flex size-6 items-center justify-center rounded-md bg-white/10 backdrop-blur-sm ring-1 ring-white/15">
             <Icon className="size-3.5 text-white" />
           </span>
-          <span className="rounded-full bg-brand/80 px-2 py-0.5 text-[9px] font-bold text-white backdrop-blur-sm tabular-nums">
+          <span className="rounded-full bg-[#e5383b]/80 px-2 py-0.5 text-[9px] font-bold text-white backdrop-blur-sm tabular-nums">
             {s.price}
           </span>
         </div>
         <p className="text-[13px] font-semibold text-white leading-tight">{s.label}</p>
         <p className="text-[10px] leading-snug text-white/60 line-clamp-2">{s.desc}</p>
-        <span className="mt-1 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.2em] text-white/40 transition-colors duration-200 group-hover:text-brand">
+        <span className="mt-1 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.2em] text-white/40 transition-colors duration-200 group-hover:text-[#e5383b]">
           Open <ArrowUpRight className="size-2.5" />
         </span>
       </div>
@@ -688,7 +834,7 @@ function ProcessCard({
         )}
       </div>
       <div className="flex items-baseline gap-3">
-        <span className="text-xs font-bold text-brand uppercase tracking-[0.25em]">{step}</span>
+        <span className="text-xs font-bold text-[#e5383b] uppercase tracking-[0.25em]">{step}</span>
         <span className="text-xs font-medium text-zinc-500 uppercase tracking-widest">{label}</span>
       </div>
       <h3 className="mt-2 text-xl font-semibold">{title}</h3>
@@ -706,8 +852,8 @@ function PromptMock() {
       <div className="rounded-lg bg-zinc-800/80 px-3 py-2 text-[11px] text-zinc-300 ring-1 ring-white/10 w-4/5">
         Editorial fashion styling, deep shadow
       </div>
-      <div className="rounded-lg bg-brand/15 px-3 py-2 text-[11px] text-brand ring-1 ring-brand/50 w-3/5 flex items-center gap-2">
-        <span className="inline-block size-1.5 rounded-full bg-brand animate-pulse" />
+      <div className="rounded-lg bg-[#e5383b]/15 px-3 py-2 text-[11px] text-[#e5383b] ring-1 ring-[#e5383b]/50 w-3/5 flex items-center gap-2">
+        <span className="inline-block size-1.5 rounded-full bg-[#e5383b] animate-pulse" />
         Directing shoot…
       </div>
       <div className="mt-2 rounded-lg bg-zinc-900 px-3 py-2 text-[10px] text-zinc-500 ring-1 ring-white/5">
@@ -807,7 +953,7 @@ function FooterCol({
         <Link
           key={l.label}
           to={l.to}
-          className="text-sm text-zinc-500 hover:text-brand transition-colors"
+          className="text-sm text-zinc-500 hover:text-[#e5383b] transition-colors"
         >
           {l.label}
         </Link>
