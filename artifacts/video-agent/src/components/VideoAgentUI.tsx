@@ -461,7 +461,7 @@ export function VideoAgentUI({ session }: Props) {
             {/* Result card */}
             {stage === "done" && resultUrl && (
               <div className="flex justify-start">
-                <div className="w-full max-w-[540px] overflow-hidden rounded-2xl border" style={{ borderColor: "oklch(0.22 0.2 145 / 0.5)", boxShadow: "0 0 32px oklch(0.52 0.18 145 / 0.12)" }}>
+                <div className="w-full max-w-[540px] overflow-hidden rounded-2xl border bg-[var(--bg-card)]" style={{ borderColor: "oklch(0.22 0.2 145 / 0.5)", boxShadow: "0 0 32px oklch(0.52 0.18 145 / 0.12)" }}>
                   <div className="flex items-center gap-1.5 border-b border-[var(--border)] px-3.5 py-2.5">
                     <span className="inline-block size-1.5 rounded-full bg-[#22c55e]" style={{ boxShadow: "0 0 7px #22c55e" }} />
                     <span className="text-[10px] font-black uppercase tracking-widest text-[#22c55e]">Video Ready</span>
