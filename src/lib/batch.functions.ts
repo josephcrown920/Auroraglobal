@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Batch generation server functions — run N image generations in parallel.
 // Each item in the batch gets the same base prompt with an optional style
 // blueprint suffix. All generations reserve credits individually.
@@ -83,7 +82,7 @@ export const getBatchStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => BatchStatusSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/admin-client");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const ids = data.generationIds ?? [];
     if (ids.length === 0) return { items: [] };
     const { data: rows } = await supabaseAdmin

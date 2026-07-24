@@ -1,0 +1,88 @@
+428 - Integrate July 23rd Export — End to End
+
+What & Why
+
+A new Lovable export (aurora-export_July_23rd_2nd) contains new routes, components, server functions, lib files, and DB schema that need to be merged into the current workspace. The export is at /tmp/aurora-export-july23-2nd (already unzipped). The current codebase is newer in most areas (July 2026 migrations, many more lib files), so only net-new files are copied wholesale; existing files are only patched where the export adds things the workspace is missing.
+
+Done looks like
+
+/split-reality renders — users can upload refs and generate a side-by-side mirror-universe / two-characters dual image
+/storyboard renders the 10-shot music video shot deck gallery
+/reset-password renders an auth password-reset page
+/admin/assets renders the admin Asset Library panel (outfit/scene packs)
+/billing (or equivalent) exposes the new SubscriptionPlans component
+Batch variations flow compiles — BatchDrawer, BatchCollectionNode, style-blueprints, batch.functions all wired together
+Asset Library Picker compiles and the admin_asset_packs + user_assets tables exist in migration history
+user_roles table + has_role() function exist (required by admin_asset_packs RLS)
+payments, agent_sessions, owner_withdrawals, scheduler_heartbeats tables exist in migration history
+agent_chat_messages table exists in migration history
+revenuecat.ts and subscription-plans.ts compile without errors
+AdminLandingEditor mounts on the landing page for admin users
+@revenuecat/purchases-capacitor added to package.json
+routeTree.gen.ts regenerated to include all new routes (TanStack auto-does this on bun dev)
+TypeScript compiles with zero new errors introduced by the integration
+Out of scope
+
+Replacing any existing orchestrator, email, or legal logic (export versions are older than workspace)
+Upgrading/downgrading any package versions (export has older deps; keep current workspace versions)
+Applying migrations to production DB (separate task #219 handles that)
+Building the Split Reality server function from scratch — it needs to be authored as a real createServerFn in src/lib/split-reality.functions.ts that calls orchestrate() twice in parallel using the photo_edit kind and saves both generation rows, mirroring the pattern in src/lib/photo-edit.functions.ts
+Implementing the batch generation backend dispatch (batch.functions.ts references an RPC + job queue; wire the client side, stub the missing dispatch if the RPC doesn't exist yet)
+Steps
+
+Copy all net-new source files verbatim from the export — routes: split-reality.tsx, split-reality.lazy.tsx, storyboard.tsx, storyboard.lazy.tsx, reset-password.tsx, reset-password.lazy.tsx, admin.assets.tsx, admin.assets.lazy.tsx, affiliate.lazy.tsx, orchestrate.lazy.tsx; components: AdminLandingEditor.tsx, AssetLibraryPicker.tsx, batch/BatchCollectionNode.tsx, batch/BatchDrawer.tsx, canvas/SplitRealityPlayer.tsx, dashboard/DashboardAgentHero.tsx, landing/SplitReality.tsx, pricing/SubscriptionPlans.tsx, prime/HeyGenStyleTiles.tsx, social/ShareButtons.tsx, storyboard/shots.ts, storyboard/StoryboardGallery.tsx; lib: affiliate-complete.functions.ts, batch/collection.ts, batch.functions.ts, batch/style-blueprints.ts, revenuecat.ts, site-images.shared.ts, subscription-plans.ts. Also copy the 10 storyboard asset JSON files from src/assets/storyboard/.
+Add @revenuecat/purchases-capacitor to package.json — add it to dependencies (version ^13.2.3 as in export); run pnpm install to update the lockfile.
+Write the Split Reality server function — create src/lib/split-reality.functions.ts with a createServerFn that takes { mode, imageUrls, basePrompt } (mirror mode) or { mode, imageUrlsA, imageUrlsB, action, lifeA, lifeB, basePrompt } (characters mode). It calls orchestrate() twice in parallel (one for each side) with distinct prompt variants, saves both generation rows, and returns { left: { id, url, variant }, right: { id, url, variant } }. Mirror left prompt = documentary ultra-real selfie style; right = anamorphic cinematic close-up. Characters mode uses each character's refs + life context. Cost = 2 Aura (1 per side).
+Export useSplitRealityJobFn from src/lib/use-job-polling.ts — split-reality.lazy.tsx calls useSplitRealityJobFn(). Add a thin useServerFn-wrapped export that calls the new Split Reality server function, following the same pattern as other polling hooks in that file.
+Write new migrations for all net-new tables — create timestamped migration files (after 20260722140000):
+20260723000000_user_roles.sql — app_role enum, user_roles table, has_role() SECURITY DEFINER function (copy verbatim from export migration 20260723112652)
+20260723100000_payments_infra.sql — payments, agent_sessions, owner_withdrawals, scheduler_heartbeats tables (copy from export migration 20260723105226)
+20260723200000_agent_chat_messages.sql — agent_chat_messages table + profiles_user_id_key unique constraint (copy from export migration 20260723112925)
+20260723300000_asset_libraries.sql — asset_category enum, user_assets, admin_asset_packs tables with RLS (from docs/ASSET_LIBRARIES.md in the export)
+Wire AdminLandingEditor into the landing page — in src/routes/index.tsx (or wherever the landing page root component lives), import and render <AdminLandingEditor /> near the bottom of the page (it self-hides for non-admins). Also confirm SiteImagesProvider (referenced by AdminLandingEditor) exists; if not, copy it from the export.
+Add the Storyboard and Split Reality links to the nav — in MobileNav.tsx, add "Storyboard" and "Split Reality" to the appropriate nav group (Artists / Studio tools). Check what groups already exist and insert alphabetically or logically.
+Fix any TypeScript errors introduced — run bun run typecheck (or the existing typecheck workflow). Common issues: batch.functions.ts has @ts-nocheck so it's safe; split-reality.lazy.tsx imports useSplitRealityJobFn which will now exist from step 4; revenuecat.ts imports @revenuecat/purchases-capacitor which will exist from step 2. Fix any remaining residual import errors.
+Relevant files
+
+src/lib/photo-edit.functions.ts
+src/lib/use-job-polling.ts
+src/lib/pricing.ts
+src/lib/orchestrator.server.ts
+src/routes/index.tsx
+src/components/MobileNav.tsx
+src/components/landing/SiteImagesProvider.tsx
+supabase/migrations/20260722140000_user_passkeys.sql
+/tmp/aurora-export-july23-2nd/src/routes/split-reality.lazy.tsx
+/tmp/aurora-export-july23-2nd/src/routes/split-reality.tsx
+/tmp/aurora-export-july23-2nd/src/routes/storyboard.lazy.tsx
+/tmp/aurora-export-july23-2nd/src/routes/storyboard.tsx
+/tmp/aurora-export-july23-2nd/src/routes/reset-password.tsx
+/tmp/aurora-export-july23-2nd/src/routes/reset-password.lazy.tsx
+/tmp/aurora-export-july23-2nd/src/routes/admin.assets.tsx
+/tmp/aurora-export-july23-2nd/src/routes/admin.assets.lazy.tsx
+/tmp/aurora-export-july23-2nd/src/routes/affiliate.lazy.tsx
+/tmp/aurora-export-july23-2nd/src/routes/orchestrate.lazy.tsx
+/tmp/aurora-export-july23-2nd/src/components/AdminLandingEditor.tsx
+/tmp/aurora-export-july23-2nd/src/components/AssetLibraryPicker.tsx
+/tmp/aurora-export-july23-2nd/src/components/batch/BatchCollectionNode.tsx
+/tmp/aurora-export-july23-2nd/src/components/batch/BatchDrawer.tsx
+/tmp/aurora-export-july23-2nd/src/components/canvas/SplitRealityPlayer.tsx
+/tmp/aurora-export-july23-2nd/src/components/dashboard/DashboardAgentHero.tsx
+/tmp/aurora-export-july23-2nd/src/components/landing/SplitReality.tsx
+/tmp/aurora-export-july23-2nd/src/components/pricing/SubscriptionPlans.tsx
+/tmp/aurora-export-july23-2nd/src/components/prime/HeyGenStyleTiles.tsx
+/tmp/aurora-export-july23-2nd/src/components/social/ShareButtons.tsx
+/tmp/aurora-export-july23-2nd/src/components/storyboard/shots.ts
+/tmp/aurora-export-july23-2nd/src/components/storyboard/StoryboardGallery.tsx
+/tmp/aurora-export-july23-2nd/src/lib/affiliate-complete.functions.ts
+/tmp/aurora-export-july23-2nd/src/lib/batch/collection.ts
+/tmp/aurora-export-july23-2nd/src/lib/batch.functions.ts
+/tmp/aurora-export-july23-2nd/src/lib/batch/style-blueprints.ts
+/tmp/aurora-export-july23-2nd/src/lib/revenuecat.ts
+/tmp/aurora-export-july23-2nd/src/lib/site-images.shared.ts
+/tmp/aurora-export-july23-2nd/src/lib/subscription-plans.ts
+/tmp/aurora-export-july23-2nd/src/assets/storyboard/
+/tmp/aurora-export-july23-2nd/supabase/migrations/20260723105226_15ad9a56-c395-46aa-897e-309988bec74a.sql
+/tmp/aurora-export-july23-2nd/supabase/migrations/20260723112652_187c16f9-fa70-4477-9ddc-967e1d8eea38.sql
+/tmp/aurora-export-july23-2nd/supabase/migrations/20260723112925_baa221c1-f1f7-46c4-a2cc-daeb62c1cc5b.sql
+/tmp/aurora-export-july23-2nd/docs/ASSET_LIBRARIES.md
