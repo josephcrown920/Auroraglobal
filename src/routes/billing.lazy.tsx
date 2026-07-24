@@ -7,6 +7,7 @@ import { getMyProfile, createPaystackCheckout, createProSubscriptionCheckout, ca
 import { markFirstPurchaseComplete } from "@/lib/first-run";
 import { redeemPromoCode } from "@/lib/promo.functions";
 import { PLANS, SUBSCRIPTION_TIERS } from "@/lib/billing.plans";
+import { SubscriptionPlans } from "@/components/pricing/SubscriptionPlans";
 import { toast } from "sonner";
 import {
   ArrowLeft, Zap, Star, CheckCircle2, XCircle, CreditCard, Loader2,
@@ -268,6 +269,13 @@ function BillingPage() {
             </div>
           </section>
         )}
+
+        {/* ── All plans comparison ── */}
+        <SubscriptionPlans
+          currentPlanId={isPro ? "pro" : "free"}
+          onUpgrade={() => proMut.mutate()}
+          onUpgradePending={proMut.isPending}
+        />
 
         {/* ── Top up Aura ── */}
         <section>
