@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^2.0.48",
-    "@cloudflare/vite-plugin": "^1.45.1",
+    "@cloudflare/vite-plugin": "^1.47.0",
     "@fontsource/cormorant-garamond": "^5.2.11",
     "@fontsource/instrument-sans": "^5.2.8",
     "@fontsource/inter": "^5.2.8",
