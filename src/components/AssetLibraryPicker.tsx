@@ -39,7 +39,9 @@ export function AssetLibraryPicker({ category, selectedId, onSelect, className }
     let cancelled = false;
     setLoading(true);
     const fetch = async () => {
-      let req = supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sb = supabase as any;
+      let req = sb
         .from("admin_asset_packs")
         .select("id, category, title, image_url, tags, notes, is_published")
         .eq("is_published", true)
@@ -48,7 +50,7 @@ export function AssetLibraryPicker({ category, selectedId, onSelect, className }
       const { data, error } = await req;
       if (cancelled) return;
       if (error) { toast.error("Couldn't load asset library"); setLoading(false); return; }
-      setPacks((data as AssetPack[]) ?? []);
+      setPacks((data as unknown as AssetPack[]) ?? []);
       setLoading(false);
     };
     fetch();
