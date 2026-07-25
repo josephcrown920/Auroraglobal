@@ -800,6 +800,26 @@ export const orchestrateGenerate = createServerFn({ method: "POST" })
     await assertHdEntitlement(context.userId, data.resolution, previewOnly);
 
     const { features } = detectFeatures({ kind: kind as Feature, features: data.features });
+
+    // ── Quote-to-charge guard: camera motion ─────────────────────────────────
+    // `cameraMovement` is NOT a first-class field on OrchestrateSchema — the
+    // camera preset is always baked into the prompt string by the time this
+    // handler is reached. Motion billing can therefore ONLY reach the charge
+    // path via an explicit `features: ['motion']` flag. Callers who displayed a
+    // motion-priced quote (from quoteGenerate with cameraMovement set) MUST
+    // propagate the quoted features array here; omitting it causes the charge to
+    // be lower than what the user was shown.
+    //
+    // Defensive assertion: if motion was in `data.features` but the additive
+    // detectFeatures rule somehow lost it, reject rather than silently
+    // undercharging. (Impossible with the current rule, but catches regressions.)
+    if ((data.features ?? []).includes("motion") && !features.includes("motion" as Feature)) {
+      throw new Error(
+        "Camera motion was included in the quoted feature set but was lost during charge resolution. " +
+        "This is a pricing-parity bug — please report it.",
+      );
+    }
+
     const quote = computeCost({
       features,
       resolution: effResolution,
