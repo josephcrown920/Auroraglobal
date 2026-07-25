@@ -39,6 +39,38 @@ function mapLlmError(err: unknown): Error {
 // ─── Single-shot planner (public, unchanged behaviour) ───────────────────────
 const COST_VIDEO = computeCost({ features: ["video"] }).total;
 
+type RunAgentDeps = {
+  assertOwned: (url: string, userId: string) => Promise<void>;
+  generate: typeof generateWithFallback;
+};
+
+// Deps-injected core (same pattern as gifts.functions.ts): the createServerFn
+// handler can't run without a Start request context, so unit tests exercise
+// this core directly — proving the ownership guard fires BEFORE any reference
+// image is sent to the LLM provider, and that owned references pass through.
+export async function runAuroraAgentCore(
+  userId: string,
+  data: { brief: string; referenceImages?: string[] },
+  deps: RunAgentDeps = { assertOwned: assertOwnedReferenceImage, generate: generateWithFallback },
+): Promise<AgentPlan> {
+  // Ownership guard: reference images (sent to the LLM as creative context) must
+  // belong to the caller — a crafted request could otherwise expose another user's
+  // private studio asset to the LLM provider.
+  for (const url of data.referenceImages ?? []) {
+    await deps.assertOwned(url, userId);
+  }
+  try {
+    const { output } = await deps.generate({
+      system: DIRECTOR_SYSTEM,
+      prompt: buildDirectorPrompt(data.brief, buildRefNote(data.referenceImages)),
+      schema: PlanSchema,
+    });
+    return output as AgentPlan;
+  } catch (err) {
+    throw mapLlmError(err);
+  }
+}
+
 export const runAuroraAgent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
@@ -49,24 +81,7 @@ export const runAuroraAgent = createServerFn({ method: "POST" })
       })
       .parse(d),
   )
-  .handler(async ({ data, context }) => {
-    // Ownership guard: reference images (sent to the LLM as creative context) must
-    // belong to the caller — a crafted request could otherwise expose another user's
-    // private studio asset to the LLM provider.
-    for (const url of data.referenceImages ?? []) {
-      await assertOwnedReferenceImage(url, context.userId);
-    }
-    try {
-      const { output } = await generateWithFallback({
-        system: DIRECTOR_SYSTEM,
-        prompt: buildDirectorPrompt(data.brief, buildRefNote(data.referenceImages)),
-        schema: PlanSchema,
-      });
-      return output as AgentPlan;
-    } catch (err) {
-      throw mapLlmError(err);
-    }
-  });
+  .handler(async ({ data, context }) => runAuroraAgentCore(context.userId, data));
 
 // ─── Director → Critic refinement + session persistence (authed) ─────────────
 export const refineAuroraPlan = createServerFn({ method: "POST" })

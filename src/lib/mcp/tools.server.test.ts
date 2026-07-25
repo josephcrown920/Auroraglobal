@@ -15,6 +15,7 @@ import {
   submitJobTool,
   listJobsTool,
   cancelJobTool,
+  batchLipsyncTool,
   type ToolCtx,
   type ToolDeps,
 } from "./tools.server";
@@ -105,6 +106,7 @@ function makeDeps(over: Partial<ToolDeps> = {}) {
   const generateCalls: Record<string, unknown>[] = [];
   const enqueueCalls: Array<{ userId: string; input: unknown }> = [];
   const cancelCalls: Array<{ userId: string; jobId: string }> = [];
+  const batchLipsyncCalls: Array<{ userId: string; sourceUrls: string[]; audioUrl: string; engine: string }> = [];
   const deps: ToolDeps = {
     rpc: async (name, args) => {
       rpcCalls.push({ name, args });
@@ -132,9 +134,13 @@ function makeDeps(over: Partial<ToolDeps> = {}) {
     // Default: no-op so existing tests continue to pass with their synthetic URLs.
     // Ownership rejection tests inject a fake that throws.
     assertOwnedRef: async () => {},
+    runBatchLipsync: async (input) => {
+      batchLipsyncCalls.push(input);
+      return { total: input.sourceUrls.length, results: [] };
+    },
     ...over,
   };
-  return { deps, rpcCalls, generateCalls, enqueueCalls, cancelCalls };
+  return { deps, rpcCalls, generateCalls, enqueueCalls, cancelCalls, batchLipsyncCalls };
 }
 
 function parse(r: ToolResult) {
@@ -610,5 +616,82 @@ describe("submitJobTool — ownership guard", () => {
     expect(res.isError).toBeFalsy();
     expect(assertCalled).toHaveLength(0);
     expect(enqueueCalls).toHaveLength(1);
+  });
+});
+
+describe("createAvatarTool — ownership guard", () => {
+  it("rejects a foreign training photo BEFORE creating the persona", async () => {
+    let created = 0;
+    const { deps } = makeDeps({
+      assertOwnedRef: forbiddenRef(),
+      createAvatar: async () => {
+        created++;
+        return makeAvatar();
+      },
+    });
+    const res = await createAvatarTool(
+      { name: "Nova", image_urls: [`${TRUSTED_HOST}other-user/face.jpg`] },
+      CTX,
+      deps,
+    );
+    expect(res.isError).toBe(true);
+    expect(parse(res).error).toMatch(/You can only use character images you own/);
+    expect(created).toBe(0);
+  });
+
+  it("accepts owned training photos and creates the persona", async () => {
+    const seen: string[] = [];
+    const { deps } = makeDeps({
+      assertOwnedRef: async (url) => {
+        seen.push(url);
+      },
+    });
+    const res = await createAvatarTool(
+      { name: "Nova", image_urls: [`${TRUSTED_HOST}me/face.jpg`] },
+      CTX,
+      deps,
+    );
+    expect(res.isError).toBeFalsy();
+    expect(seen).toEqual([`${TRUSTED_HOST}me/face.jpg`]);
+  });
+});
+
+describe("batchLipsyncTool — ownership guard", () => {
+  it("rejects a foreign photo BEFORE dispatching any lip-sync job", async () => {
+    const { deps, batchLipsyncCalls } = makeDeps({ assertOwnedRef: forbiddenRef() });
+    const res = await batchLipsyncTool(
+      {
+        image_urls: [`${TRUSTED_HOST}other-user/1.jpg`, `${TRUSTED_HOST}other-user/2.jpg`],
+        audio_url: `${TRUSTED_HOST}track.mp3`,
+      },
+      CTX,
+      deps,
+    );
+    expect(res.isError).toBe(true);
+    expect(parse(res).error).toMatch(/You can only use character images you own/);
+    expect(batchLipsyncCalls).toHaveLength(0);
+  });
+
+  it("checks EVERY photo, then dispatches once with the shared audio track", async () => {
+    const seen: string[] = [];
+    const { deps, batchLipsyncCalls } = makeDeps({
+      assertOwnedRef: async (url) => {
+        seen.push(url);
+      },
+    });
+    const urls = [`${TRUSTED_HOST}me/1.jpg`, `${TRUSTED_HOST}me/2.jpg`, `${TRUSTED_HOST}me/3.jpg`];
+    const res = await batchLipsyncTool(
+      { image_urls: urls, audio_url: `${TRUSTED_HOST}track.mp3` },
+      CTX,
+      deps,
+    );
+    expect(res.isError).toBeFalsy();
+    expect(seen).toEqual(urls);
+    expect(batchLipsyncCalls).toHaveLength(1);
+    expect(batchLipsyncCalls[0]).toMatchObject({
+      userId: CTX.userId,
+      sourceUrls: urls,
+      engine: "heygen-photo",
+    });
   });
 });

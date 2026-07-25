@@ -192,7 +192,7 @@ export async function callTool(name: string, args: unknown, ctx: ToolCtx, deps: 
     case "aurora_cancel_job":
       return cancelJobTool(cancelJobSchema.parse(args), ctx, deps);
     case "aurora_batch_lipsync":
-      return batchLipsyncTool(batchLipsyncSchema.parse(args), ctx);
+      return batchLipsyncTool(batchLipsyncSchema.parse(args), ctx, deps);
     default:
       return { content: [{ type: "text", text: JSON.stringify({ error: `Unknown tool: ${name}` }) }], isError: true };
   }
