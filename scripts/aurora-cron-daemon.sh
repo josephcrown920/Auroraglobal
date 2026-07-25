@@ -31,6 +31,19 @@ fi
 echo "[cron] starting — tick every ${TICK_INTERVAL}s, health every ${HEALTH_INTERVAL}s"
 echo "[cron] app: $APP"
 
+# ── GitHub auto-sync daemon (child process) ────────────────────────────────
+# The workspace hit Replit's 10-workflow limit, so the github-sync daemon
+# rides along inside this cron workflow instead of having its own. It polls
+# Main's SHA every 30s and pushes to GitHub via scripts/github-autopush.sh
+# whenever a new commit lands (see scripts/github-sync-daemon.sh).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/github-sync-daemon.sh" ]; then
+  bash "$SCRIPT_DIR/github-sync-daemon.sh" 2>&1 | sed 's/^/[github-sync] /' &
+  echo "[cron] github-sync daemon launched (pid $!)"
+else
+  echo "[cron] WARN: github-sync-daemon.sh not found; GitHub auto-sync disabled"
+fi
+
 # ── Wait for app to be ready ────────────────────────────────────────────────
 for i in $(seq 1 60); do
   if curl -sf "$APP/api/public/workers/health" -o /dev/null \
