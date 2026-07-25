@@ -78,7 +78,7 @@ export function checkGuardrails(
  * tier (resolved from the caller's auth token by the route handler) makes the
  * quote fully match what orchestrateGenerate/the public API would allow.
  */
-export async function estimateFromParams(
+export function estimateFromParams(
   params: Record<string, string | string[] | undefined>,
   tier?: SubscriptionTier,
 ) {
@@ -113,19 +113,6 @@ export async function estimateFromParams(
   });
   const isTemporalKind = data.kind === "video" || data.kind === "motion";
   const blocked = tier ? checkGuardrails(tier, data.duration, data.resolution, isTemporalKind) : null;
-
-  // Sign the quoted features into an opaque token that the caller MUST pass to
-  // orchestrateGenerate as quoteToken. The server validates the token at execution
-  // and uses the quoted features as the authoritative billing set — enforcing that
-  // motion-priced quotes are charged at the motion price (never silently downgraded).
-  const { signQuoteToken } = await import("@/lib/quote-token.server");
-  const quoteToken = await signQuoteToken({
-    k: data.kind,
-    f: features,
-    r: data.resolution,
-    d: data.duration,
-  });
-
   return {
     credits: quote.total,
     breakdown: quote.breakdown,
@@ -134,7 +121,8 @@ export async function estimateFromParams(
     features,
     primaryKind,
     blocked,
-    quoteToken,
+    // quoteToken is added by the route handler (async HMAC signing cannot run here).
+    quoteToken: undefined as string | undefined,
   };
 }
 
@@ -189,7 +177,19 @@ export const Route = createFileRoute("/api/estimate")({
             params[key] = url.searchParams.get(key) ?? undefined;
           }
           const tier = await resolveTier(request);
-          const result = estimateFromParams(params, tier);
+          const base = estimateFromParams(params, tier);
+          // Sign the quoted feature set into an opaque token the client passes
+          // back with orchestrateGenerate. The server verifies it at execution
+          // and uses it as the authoritative billing set — ensuring the charge
+          // always matches the price shown (especially for motion-priced requests).
+          const { signQuoteToken } = await import("@/lib/quote-token.server");
+          const quoteToken = await signQuoteToken({
+            k: (params.kind ?? "image") as string,
+            f: base.features,
+            r: base.resolution,
+            d: base.durationSeconds,
+          });
+          const result = { ...base, quoteToken };
           return new Response(JSON.stringify(result), { status: 200, headers: cors });
         } catch (e) {
           const message = e instanceof z.ZodError ? e.errors[0]?.message ?? "Invalid params" : e instanceof Error ? e.message : "Invalid params";

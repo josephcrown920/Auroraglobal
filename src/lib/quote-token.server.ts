@@ -36,8 +36,18 @@ function b64urlDecode(s: string): Uint8Array {
 }
 
 async function getKey(usage: "sign" | "verify"): Promise<CryptoKey> {
-  const raw = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "aurora-dev-quote-secret";
-  const secret = `quote:${raw.slice(0, 40)}`;
+  const raw = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!raw) {
+    // Fail-closed in production: missing secret means tokens cannot be signed
+    // or verified, which would allow quote features to be tampered with.
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for quote token signing in production");
+    }
+    // In non-production environments (local dev, CI) use a fixed key so that
+    // unit tests and local runs work without secrets configured. Tokens signed
+    // with this key are only valid in the same non-production environment.
+  }
+  const secret = `quote:${(raw ?? "aurora-dev-quote-secret-local-only").slice(0, 40)}`;
   return crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),
