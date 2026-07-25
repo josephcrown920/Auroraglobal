@@ -149,7 +149,15 @@ export default defineConfig({
         "react-dom/client",
         "@tanstack/react-query",
         "@tanstack/react-router",
-        "@tanstack/react-start",
+        // "@tanstack/react-start" must NEVER be listed here: force-including it
+        // overrides the Start plugin's own optimizeDeps.exclude, so Vite
+        // pre-bundles the raw package for the browser WITHOUT the plugin's
+        // server-code-stripping transform. The bundle then executes
+        // start-storage-context's top-level `new AsyncLocalStorage()` (a
+        // node:async_hooks import) in the client, which throws under Vite's
+        // browser-external stub and kills hydration app-wide — every button,
+        // form submit, and nav handler silently dies (forms fall back to
+        // native GET submits). Broke sign-in + sidebar in July 2026.
         "sonner",
         "lucide-react",
         "clsx",

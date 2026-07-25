@@ -1,5 +1,30 @@
-import { describe, expect, it } from "bun:test";
-import { assertOwnStudioUpload, assertOwnedReferenceImage } from "./url-guard";
+import { describe, expect, it, mock } from "bun:test";
+
+// Other suites in the full `bun test src/` run register process-global
+// mock.module stubs for "@/integrations/supabase/client.server" (Bun's
+// mock.module leaks across files — see orchestrator.* and paystack tests).
+// Whichever stub registered last would otherwise be live when THIS file's
+// tests execute, and most of them don't implement the
+// `.from("avatars").select().eq().eq().maybeSingle()` chain that
+// assertOwnedReferenceImage needs — failing these tests with
+// "select is not a function" in full-suite runs only. Register our own
+// functional stub (no rows → every DB-backed ownership lookup misses, which
+// is exactly what the rejection tests below assert) so this file is
+// order-independent.
+function makeEmptyQuery() {
+  const q = {
+    select: () => q,
+    eq: () => q,
+    maybeSingle: async () => ({ data: null, error: null }),
+  };
+  return q;
+}
+
+mock.module("@/integrations/supabase/client.server", () => ({
+  supabaseAdmin: { from: () => makeEmptyQuery() },
+}));
+
+const { assertOwnStudioUpload, assertOwnedReferenceImage } = await import("./url-guard");
 
 describe("assertOwnStudioUpload (photo editor input guard)", () => {
   const uid = "11111111-2222-3333-4444-555555555555";
