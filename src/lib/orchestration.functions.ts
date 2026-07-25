@@ -717,6 +717,19 @@ const OrchestrateSchema = z.object({
   features: z
     .array(z.enum(["image", "upscale", "text", "audio", "lipsync", "motion", "video"]))
     .optional(),
+  // ── Quote-to-charge parity token ─────────────────────────────────────────
+  // Signed by quoteGenerate / /api/estimate and returned to the caller.
+  // When present, the server validates the signature, extracts the quoted
+  // feature set, and uses it as the authoritative billing features — ensuring
+  // the charge equals the price the user was shown. If motion was in the
+  // quoted features but is absent from the resolved charge, the request is
+  // rejected rather than silently downgraded.
+  //
+  // Callers that cannot produce a valid token (e.g. third-party API clients)
+  // fall back to the plain features field; OrchestrateStudio always provides
+  // this token because it fetches a server-side estimate before the full-quality
+  // render step.
+  quoteToken: z.string().optional(),
 });
 
 // ─── AI Router: price quote (compute-only, no credits reserved) ───────────────
@@ -756,7 +769,17 @@ export const quoteGenerate = createServerFn({ method: "POST" })
       durationSeconds: data.duration,
       model: data.model,
     });
-    return { ...quote, features, primaryKind };
+    // Sign the quoted feature set into an opaque token. The caller MUST pass this
+    // token (as quoteToken) to orchestrateGenerate so the server can enforce that
+    // the charge matches the quote, especially for motion-priced requests.
+    const { signQuoteToken } = await import("@/lib/quote-token.server");
+    const quoteToken = await signQuoteToken({
+      k: data.kind,
+      f: features,
+      r: data.resolution,
+      d: data.duration,
+    });
+    return { ...quote, features, primaryKind, quoteToken };
   });
 
 export const orchestrateGenerate = createServerFn({ method: "POST" })
@@ -799,24 +822,40 @@ export const orchestrateGenerate = createServerFn({ method: "POST" })
     // HD/4K entitlement: 1080p and 2160p require Pro on full (non-preview) renders.
     await assertHdEntitlement(context.userId, data.resolution, previewOnly);
 
-    const { features } = detectFeatures({ kind: kind as Feature, features: data.features });
-
-    // ── Quote-to-charge guard: camera motion ─────────────────────────────────
-    // `cameraMovement` is NOT a first-class field on OrchestrateSchema — the
-    // camera preset is always baked into the prompt string by the time this
-    // handler is reached. Motion billing can therefore ONLY reach the charge
-    // path via an explicit `features: ['motion']` flag. Callers who displayed a
-    // motion-priced quote (from quoteGenerate with cameraMovement set) MUST
-    // propagate the quoted features array here; omitting it causes the charge to
-    // be lower than what the user was shown.
+    // ── Quote-to-charge parity enforcement ───────────────────────────────────
+    // OrchestrateStudio (and any well-behaved caller) fetches a server-side
+    // estimate before the full-quality render step and receives a signed
+    // quoteToken encoding the quoted feature set. That token is passed here so
+    // the server can verify the charge matches the quote at the execution boundary.
     //
-    // Defensive assertion: if motion was in `data.features` but the additive
-    // detectFeatures rule somehow lost it, reject rather than silently
-    // undercharging. (Impossible with the current rule, but catches regressions.)
-    if ((data.features ?? []).includes("motion") && !features.includes("motion" as Feature)) {
+    // Enforcement logic:
+    //   1. If quoteToken is present → verify signature, extract quoted features.
+    //      Use the quoted features as the AUTHORITATIVE billing set (so the charge
+    //      always equals what the user was shown, even if data.features is absent).
+    //   2. Guard: if the quoted features include 'motion' but the resolved charge
+    //      does not, reject — never silently downgrade.
+    //   3. If quoteToken is absent → fall back to data.features as before (backward
+    //      compat for third-party API callers that don't go through a quote step).
+    let resolvedFeatures: Feature[] | undefined = data.features as Feature[] | undefined;
+    if (data.quoteToken) {
+      const { verifyQuoteToken } = await import("@/lib/quote-token.server");
+      const quoted = await verifyQuoteToken(data.quoteToken);
+      // Use the signed quoted features as the authoritative billing set.
+      // If the caller also sent data.features, the quoted set wins — the token
+      // is the tamper-proof record of what the user was shown.
+      resolvedFeatures = quoted.f as Feature[];
+    }
+
+    const { features } = detectFeatures({ kind: kind as Feature, features: resolvedFeatures });
+
+    // Defensive guard regardless of token path: if 'motion' was in the
+    // authoritative feature set (token or data.features) but detectFeatures lost
+    // it, reject rather than silently undercharge. With the current additive rule
+    // this is unreachable, but it catches any future regression.
+    if ((resolvedFeatures ?? []).includes("motion" as Feature) && !features.includes("motion" as Feature)) {
       throw new Error(
-        "Camera motion was included in the quoted feature set but was lost during charge resolution. " +
-        "This is a pricing-parity bug — please report it.",
+        "Camera motion was in the quoted feature set but was lost during charge resolution — " +
+        "request rejected to prevent undercharging. This is a pricing-parity bug; please report it.",
       );
     }
 
