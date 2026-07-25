@@ -112,6 +112,11 @@ export const generatePerformanceShot = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => GenerateSchema.parse(input))
   .handler(async ({ data, context }) => {
+    // Ownership guard: each reference image must belong to the caller.
+    // Purely text-to-image calls (empty imageUrls) pass through without a check.
+    for (const url of data.imageUrls) {
+      await assertOwnedReferenceImage(url, context.userId);
+    }
     return _enqueuePerformanceShot(context.userId, data);
   });
 

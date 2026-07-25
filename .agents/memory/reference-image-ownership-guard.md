@@ -13,4 +13,17 @@ It rejects everything else (foreign studio objects, arbitrary URLs), running the
 
 **Why:** a crafted request could otherwise point a render's character reference at someone else's private studio asset — defense-in-depth, not a proven exploit.
 
-**How to apply:** call it (async) right after zod validation, before any credit reservation, for every new endpoint that takes a "character image" URL (Kids Story, motion transfer imageUrl, performance reskin avatarImageUrl already do this). It does NOT cover driving/performance video URLs or generic multi-image inputs (UGC avatarImageUrl, TikTok remix sourceImageUrl, agent.functions referenceImages, MCP tool image params) — those are still open gaps, tracked as a follow-up.
+**How to apply:** call it (async) right after zod validation, before any credit reservation, for every new endpoint that takes a "character image" URL.
+
+## Coverage status (as of Task #408)
+
+Now covered:
+- Kids Story, motion transfer imageUrl, performance reskin avatarImageUrl — existing (pre-Task #408)
+- **UGC** (`generateSceneImagesFromRef` — `referenceUrl` field; note: base64 image data is transient-only, never stored as a URL so not guarded) — `src/lib/ugc-line.functions.ts`
+- **Performance Shot** (`generatePerformanceShot` — loops all `imageUrls`) — `src/lib/studio.functions.ts`
+- **Agent** (`runAuroraAgent` — `referenceImages[]`; `refineAuroraPlan` — `referenceImages[]`; also now requires auth) — `src/lib/agent.functions.ts`
+- **MCP tools** (`imageToVideoTool`, `animateFromDrivingVideoTool`, `performanceReskinTool`, `submitJobTool`) via injected `ToolDeps.assertOwnedRef` — `src/lib/mcp/tools.server.ts`
+
+Still open gaps:
+- UGC `remixImageUrl` / TikTok-remix `sourceImageUrl` (driving-video-like inputs, not character references — intentional exclusion, but worth a future review)
+- Any new endpoint added that takes a "characterImageUrl" or similar field — the guard must be added at that time

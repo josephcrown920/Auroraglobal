@@ -129,6 +129,9 @@ function makeDeps(over: Partial<ToolDeps> = {}) {
       cancelCalls.push({ userId, jobId });
       return { ok: true as const };
     },
+    // Default: no-op so existing tests continue to pass with their synthetic URLs.
+    // Ownership rejection tests inject a fake that throws.
+    assertOwnedRef: async () => {},
     ...over,
   };
   return { deps, rpcCalls, generateCalls, enqueueCalls, cancelCalls };
@@ -511,5 +514,101 @@ describe("cancelJobTool", () => {
       expect(res.isError).toBe(true);
       expect(parse(res).error).toBe(msg);
     }
+  });
+});
+
+// ─── Ownership rejection tests (Task #408) ────────────────────────────────────
+// Each path that accepts a user-supplied reference image URL must reject another
+// user's URL before reserving any credits or dispatching a generation.
+// The assertOwnedRef dep is injected to simulate "foreign URL" without a real DB.
+
+const FOREIGN_OWNERSHIP_ERR = "You can only use character images you own.";
+function forbiddenRef(): ToolDeps["assertOwnedRef"] {
+  return async () => {
+    throw new Error(FOREIGN_OWNERSHIP_ERR);
+  };
+}
+
+describe("imageToVideoTool — ownership guard", () => {
+  it("rejects another user's reference image BEFORE dispatching the generate call", async () => {
+    const { deps, generateCalls } = makeDeps({ assertOwnedRef: forbiddenRef() });
+    const res = await imageToVideoTool(
+      { image_url: `${TRUSTED_HOST}other-user/photo.jpg`, prompt: "slow zoom" },
+      CTX,
+      deps,
+    );
+    expect(res.isError).toBe(true);
+    expect(parse(res).error).toMatch(/You can only use character images you own/);
+    expect(generateCalls).toHaveLength(0);
+  });
+});
+
+describe("animateFromDrivingVideoTool — ownership guard", () => {
+  it("rejects another user's reference image BEFORE reserving any credits", async () => {
+    const { deps, rpcCalls } = makeDeps({
+      assertOwnedRef: forbiddenRef(),
+      hasActiveWorkerForKind: async () => true,
+    });
+    const res = await animateFromDrivingVideoTool(
+      {
+        image_url: `${TRUSTED_HOST}other-user/ref.png`,
+        driving_video_url: `${TRUSTED_HOST}drive.mp4`,
+      },
+      CTX,
+      deps,
+    );
+    expect(res.isError).toBe(true);
+    expect(parse(res).error).toMatch(/You can only use character images you own/);
+    expect(reserveCalls(rpcCalls)).toHaveLength(0);
+  });
+});
+
+describe("performanceReskinTool — ownership guard", () => {
+  it("rejects another user's avatar image BEFORE reserving any credits", async () => {
+    const { deps, rpcCalls } = makeDeps({
+      assertOwnedRef: forbiddenRef(),
+      hasActiveWorkerForKind: async () => true,
+    });
+    const res = await performanceReskinTool(
+      {
+        performance_video_url: `${TRUSTED_HOST}perf.mp4`,
+        avatar_image_url: `${TRUSTED_HOST}other-user/avatar.png`,
+      },
+      CTX,
+      deps,
+    );
+    expect(res.isError).toBe(true);
+    expect(parse(res).error).toMatch(/You can only use character images you own/);
+    expect(reserveCalls(rpcCalls)).toHaveLength(0);
+  });
+});
+
+describe("submitJobTool — ownership guard", () => {
+  it("rejects a foreign image_url BEFORE enqueuing the job", async () => {
+    const { deps, enqueueCalls } = makeDeps({ assertOwnedRef: forbiddenRef() });
+    const res = await submitJobTool(
+      {
+        kind: "image",
+        image_urls: [`${TRUSTED_HOST}other-user/photo.jpg`],
+      },
+      CTX,
+      deps,
+    );
+    expect(res.isError).toBe(true);
+    expect(parse(res).error).toMatch(/You can only use character images you own/);
+    expect(enqueueCalls).toHaveLength(0);
+  });
+
+  it("accepts a job with no image_urls without calling assertOwnedRef", async () => {
+    const assertCalled: string[] = [];
+    const { deps, enqueueCalls } = makeDeps({
+      assertOwnedRef: async (url) => {
+        assertCalled.push(url);
+      },
+    });
+    const res = await submitJobTool({ kind: "image", prompt: "a sunset" }, CTX, deps);
+    expect(res.isError).toBeFalsy();
+    expect(assertCalled).toHaveLength(0);
+    expect(enqueueCalls).toHaveLength(1);
   });
 });

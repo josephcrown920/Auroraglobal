@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateWithFallback } from "@/lib/llm-fallback.server";
 import { computeCost } from "@/lib/pricing";
+import { assertOwnedReferenceImage } from "@/lib/url-guard";
 import {
   PlanSchema,
   DIRECTOR_SYSTEM,
@@ -39,6 +40,7 @@ function mapLlmError(err: unknown): Error {
 const COST_VIDEO = computeCost({ features: ["video"] }).total;
 
 export const runAuroraAgent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
     z
       .object({
@@ -47,7 +49,13 @@ export const runAuroraAgent = createServerFn({ method: "POST" })
       })
       .parse(d),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    // Ownership guard: reference images (sent to the LLM as creative context) must
+    // belong to the caller — a crafted request could otherwise expose another user's
+    // private studio asset to the LLM provider.
+    for (const url of data.referenceImages ?? []) {
+      await assertOwnedReferenceImage(url, context.userId);
+    }
     try {
       const { output } = await generateWithFallback({
         system: DIRECTOR_SYSTEM,
@@ -76,6 +84,12 @@ export const refineAuroraPlan = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
+    // Ownership guard: reference images used for LLM planning context must belong
+    // to the authenticated caller — prevent exposure of private studio assets to
+    // the LLM provider via a crafted referenceImages array.
+    for (const url of data.referenceImages ?? []) {
+      await assertOwnedReferenceImage(url, context.userId);
+    }
     let result;
     try {
       result = await refinePlan({
