@@ -209,6 +209,7 @@ export function OrchestrateStudio() {
   const [serverEstimate, setServerEstimate] = useState<{
     credits: number;
     blocked: { message: string } | null;
+    quoteToken?: string;
   } | null>(null);
   const [estimateLoading, setEstimateLoading] = useState(false);
   useEffect(() => {
@@ -236,7 +237,7 @@ export function OrchestrateStudio() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
     })()
-      .then((data: { credits: number; blocked: { message: string } | null }) => {
+      .then((data: { credits: number; blocked: { message: string } | null; quoteToken?: string }) => {
         if (!cancelled) setServerEstimate(data);
       })
       .catch(() => {
@@ -392,6 +393,21 @@ export function OrchestrateStudio() {
         data: {
           kind: modality,
           prompt: prompt.trim(),
+          // ── Quote-to-charge parity enforcement ───────────────────────────
+          // Pass the signed quoteToken from the server estimate so that
+          // orchestrateGenerate can verify the charge equals the quote at the
+          // execution boundary — especially for motion-priced requests.
+          // The token was signed by /api/estimate using the server's secret;
+          // the server extracts and uses the quoted features as the authoritative
+          // billing set. If motion was in the quote but cannot be reproduced at
+          // charge time, the server rejects rather than silently undercharging.
+          //
+          // Also pass features directly: if the token is absent (e.g. estimate
+          // network failure), the server uses data.features as a fallback so
+          // the charge still matches the client-computed price. detectFeatures
+          // (line 193) uses the same pricing module as the server.
+          ...(serverEstimate?.quoteToken ? { quoteToken: serverEstimate.quoteToken } : {}),
+          features: features as Array<"image" | "upscale" | "text" | "audio" | "lipsync" | "motion" | "video">,
           ...(effectiveModel ? { model: effectiveModel } : {}),
           // Preview pass: first video generation runs cheap (480p/5s) so the
           // user can confirm the scene before paying for the full render.

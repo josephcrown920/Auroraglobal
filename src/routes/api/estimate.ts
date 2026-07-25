@@ -78,7 +78,7 @@ export function checkGuardrails(
  * tier (resolved from the caller's auth token by the route handler) makes the
  * quote fully match what orchestrateGenerate/the public API would allow.
  */
-export function estimateFromParams(
+export async function estimateFromParams(
   params: Record<string, string | string[] | undefined>,
   tier?: SubscriptionTier,
 ) {
@@ -113,6 +113,19 @@ export function estimateFromParams(
   });
   const isTemporalKind = data.kind === "video" || data.kind === "motion";
   const blocked = tier ? checkGuardrails(tier, data.duration, data.resolution, isTemporalKind) : null;
+
+  // Sign the quoted features into an opaque token that the caller MUST pass to
+  // orchestrateGenerate as quoteToken. The server validates the token at execution
+  // and uses the quoted features as the authoritative billing set — enforcing that
+  // motion-priced quotes are charged at the motion price (never silently downgraded).
+  const { signQuoteToken } = await import("@/lib/quote-token.server");
+  const quoteToken = await signQuoteToken({
+    k: data.kind,
+    f: features,
+    r: data.resolution,
+    d: data.duration,
+  });
+
   return {
     credits: quote.total,
     breakdown: quote.breakdown,
@@ -121,6 +134,7 @@ export function estimateFromParams(
     features,
     primaryKind,
     blocked,
+    quoteToken,
   };
 }
 
