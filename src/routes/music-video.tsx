@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { CANONICAL_ORIGIN } from "@/lib/seo";
 
 export const Route = createFileRoute("/music-video")({
   head: () => ({
@@ -14,8 +15,9 @@ export const Route = createFileRoute("/music-video")({
         property: "og:description",
         content: "Six AI video tools built for artists and directors.",
       },
+      { property: "og:url", content: `${CANONICAL_ORIGIN}/music-video` },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/music-video" }],
+    links: [{ rel: "canonical", href: `${CANONICAL_ORIGIN}/music-video` }],
   }),
 });
 

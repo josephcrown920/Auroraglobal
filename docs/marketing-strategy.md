@@ -58,3 +58,27 @@ Differentiation vs. generic AI image/video tools: purpose-built creator workflow
 - 30-day retention / re-activation rate from the re-engagement email.
 - % of new paid users attributed to referral/affiliate codes (`referred_by_code` on `profiles`).
 - Promo code redemption rate and net revenue impact (discount cost vs. incremental conversions).
+
+---
+
+## Founder positioning notes (July 2026)
+
+**Sell transformations, not features.** Every section should answer "What can I create?" not "What feature do we have?":
+- Create Your Album Rollout → cover art, promo photos, lyric videos, social posts
+- Perform Anywhere → any stage, any city, any world
+- Launch 30 Days of Content → TikTok30
+- Direct Every Detail → AI Director (Scene Builder)
+- Build Your Signature Look → Character DNA + Style DNA
+- Film With Hollywood Camera Moves → Cinematic Camera
+
+**Be the AI studio for musicians first.** Musicians already spend on: cover art, promo photos, music videos, lyric videos, performance visuals, rollouts, social, EPKs, merch mockups, ads. Homepage journey:
+1. Build your artist (Character DNA, Style DNA)
+2. Create your visuals (Image Studio, Photoshoot Pro, Studio Sets)
+3. Produce your performance (Perform Anywhere, AI Director, Cinematic Camera)
+4. Grow your audience (TikTok30, UGC Studio, Lyric Studio)
+
+Tagline candidate: "Everything an artist needs to launch a release. One studio."
+
+**Brand voice:** consistent cinematic language throughout the product — Direct, Studio, Performance, Scene, Take, Cast, Lighting, Roll Camera, Wrap, Production.
+
+**Naming:** Lip Sync → "Performance Studio"; GRWM feature → "GRWM Studio". Positioning line: "Aurora is the AI operating system for creators."

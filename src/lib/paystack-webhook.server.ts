@@ -144,7 +144,7 @@ export async function processPaymentSuccess(
   });
 
   // Day passes: auto-set the daily spend limit so usage is naturally spread
-  // across the pass duration (e.g. 1-Day Pass → 15 Aura/day, 2-Day → 13/day).
+  // across the pass duration (e.g. 1-Day Pass → 150 Aura/day, 2-Day → 130/day).
   // Carried on metadata.daily_limit by createPaystackCheckout.
   const dailyLimit = event.data.metadata?.daily_limit;
   if (typeof dailyLimit === "number" && dailyLimit > 0) {

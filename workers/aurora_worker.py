@@ -747,7 +747,20 @@ def register_with_aurora() -> bool:
         print(f"[register] error (worker still serving): {e}", flush=True)
         return False
     if r.ok:
-        print(f"[register] OK — {endpoint_url} registered with Aurora.", flush=True)
+        body: dict = {}
+        try:
+            body = r.json()
+        except Exception:
+            pass
+        reg_status = body.get("registration_status", "unknown")
+        if reg_status == "pending_approval":
+            print(
+                f"[register] PENDING APPROVAL — {endpoint_url} registered but is awaiting "
+                "admin approval at Admin → Workers → Pending before it can receive jobs.",
+                flush=True,
+            )
+        else:
+            print(f"[register] OK — {endpoint_url} registered with Aurora (status: {reg_status}).", flush=True)
         return True
     print(f"[register] failed {r.status_code}: {r.text.strip()[:300]}", flush=True)
     return False

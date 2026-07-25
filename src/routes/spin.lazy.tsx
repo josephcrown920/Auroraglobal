@@ -797,6 +797,30 @@ function SpinPage() {
             </div>
           </section>
         )}
+
+        {/* ── Optional Motion Control card ── */}
+        {variants.some((v) => v.status === "done" && v.url && v.kind === "image") && (
+          <section className="mt-8 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-primary/70">Motion Control</span>
+              <span className="text-[10px] rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-primary/50">Optional</span>
+            </div>
+            <p className="text-xs text-white/50 leading-relaxed mb-3">
+              Animate any of your generated images using a phone performance recording. Drop your clip into Motion Control to transfer real movement into your AI scene.
+            </p>
+            <Link
+              to="/motion"
+              search={
+                variants.find((v) => v.status === "done" && v.url && v.kind === "image")?.url
+                  ? { image: variants.find((v) => v.status === "done" && v.url && v.kind === "image")!.url! }
+                  : {}
+              }
+              className="inline-flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/15 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary/25 transition-colors"
+            >
+              Open Motion Control →
+            </Link>
+          </section>
+        )}
       </div>
     </main>
   );

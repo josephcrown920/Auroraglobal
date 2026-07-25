@@ -4,7 +4,7 @@ export const LEGAL_VERSION = "2026-06-10";
 export const COMPANY = {
   name: "Aurora Studio",
   product: "Aurora",
-  email: "support@aurora.studio",
+  email: "support@auroraperformancestudio.com",
   jurisdiction: "United States",
 };
 

@@ -19,6 +19,7 @@ import {
   pollTiktokPostStatus,
   getTiktokPostForGeneration,
 } from "@/lib/tiktok-posting.functions";
+import { backoffMs } from "@/lib/poll-backoff";
 
 type PostStatus =
   | "idle"
@@ -78,51 +79,57 @@ export function TiktokPostButton({
       .catch(() => {});
   }, [generationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Stable ref to hold the polling interval so it can be cleared on unmount.
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Ref for the pending setTimeout (backoff-based, replaces flat setInterval).
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track mount state to avoid state updates after unmount.
+  const mountedRef = useRef(true);
 
-  // Clear on unmount to avoid state updates on an unmounted component.
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
-      if (intervalRef.current !== null) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
+      mountedRef.current = false;
+      if (timeoutRef.current !== null) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
     };
   }, []);
 
-  // Poll status while in a processing state.
+  // Poll status with exponential backoff while in a processing state.
+  // Base: 3 s, ×1.5 per attempt, cap: 15 s. 2-minute outer timeout enforced
+  // via a wall-clock deadline (10 attempts = 114 s ≤ 2 min; deadline is
+  // authoritative so SLA holds even if the interval strategy changes).
+  const TIKTOK_POLL_BUDGET_MS = 2 * 60_000;
   const poll = useCallback(
     (id: string) => {
       if (!id) return;
-      if (intervalRef.current !== null) clearInterval(intervalRef.current);
-      let rounds = 0;
-      intervalRef.current = setInterval(async () => {
-        rounds++;
-        if (rounds > 120) {
-          // ~10 min max
-          if (intervalRef.current !== null) { clearInterval(intervalRef.current); intervalRef.current = null; }
-          return;
-        }
+      if (timeoutRef.current !== null) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+      let attempt = 0;
+      const deadline = Date.now() + TIKTOK_POLL_BUDGET_MS;
+      async function tick() {
+        if (!mountedRef.current || Date.now() >= deadline) return;
         try {
           const res = await pollFn({ data: { postId: id } });
+          if (!mountedRef.current) return;
           const s = res.status as PostStatus;
           setStatus(s);
           setErrorMsg(res.errorMsg ?? null);
           if (TERMINAL.includes(s)) {
-            if (intervalRef.current !== null) { clearInterval(intervalRef.current); intervalRef.current = null; }
-            if (s === "publish_complete") {
-              toast.success("Posted to TikTok ✓");
-            } else {
-              toast.error(`TikTok post failed: ${res.errorMsg ?? "unknown error"}`);
-            }
+            if (s === "publish_complete") toast.success("Posted to TikTok ✓");
+            else toast.error(`TikTok post failed: ${res.errorMsg ?? "unknown error"}`);
+            return;
           }
         } catch {
-          if (intervalRef.current !== null) { clearInterval(intervalRef.current); intervalRef.current = null; }
+          return;
         }
-      }, 5000);
+        if (!mountedRef.current || Date.now() >= deadline) return;
+        const remaining = deadline - Date.now();
+        timeoutRef.current = setTimeout(tick, Math.min(backoffMs(attempt, 3_000, 1.5, 15_000), remaining));
+        attempt++;
+      }
+      tick();
     },
-    [pollFn],
+    [pollFn], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   async function handlePost() {
@@ -247,23 +254,36 @@ export function TiktokPostButton({
   );
 }
 
+const TIKTOK_POLLER_BUDGET_MS = 2 * 60_000;
+
 /** Convenience variant that also starts polling for an existing postId. */
 export function useTiktokPostPoller(postId: string | null, onComplete?: (status: PostStatus) => void) {
   const pollFn = useServerFn(pollTiktokPostStatus);
   useEffect(() => {
     if (!postId) return;
     let cancelled = false;
-    const t = setInterval(async () => {
-      if (cancelled) return;
+    let attempt = 0;
+    const deadline = Date.now() + TIKTOK_POLLER_BUDGET_MS;
+    async function tick() {
+      if (cancelled || Date.now() >= deadline) return;
       try {
         const res = await pollFn({ data: { postId } });
         const s = res.status as PostStatus;
         if (TERMINAL.includes(s)) {
-          clearInterval(t);
           onComplete?.(s);
+          return;
         }
-      } catch { clearInterval(t); }
-    }, 5000);
-    return () => { cancelled = true; clearInterval(t); };
+      } catch {
+        return;
+      }
+      if (!cancelled && Date.now() < deadline) {
+        const remaining = deadline - Date.now();
+        const t = setTimeout(tick, Math.min(backoffMs(attempt, 3_000, 1.5, 15_000), remaining));
+        attempt++;
+        return t; // returned for clarity; outer cancelled flag is the real gate
+      }
+    }
+    tick();
+    return () => { cancelled = true; };
   }, [postId]); // eslint-disable-line react-hooks/exhaustive-deps
 }

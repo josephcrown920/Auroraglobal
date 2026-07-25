@@ -2,7 +2,7 @@ import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Layers, Upload, Sparkles, Video, RefreshCw, Plus, X } from "lucide-react";
+import { Clapperboard, Upload, Sparkles, Video, RefreshCw, Plus, X, Smartphone, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
@@ -35,9 +35,10 @@ function toAbsoluteUrl(url: string): string {
   return url;
 }
 
-async function uploadToStudio(userId: string, file: File): Promise<string> {
-  if (file.size > 20 * 1024 * 1024) throw new Error("Image must be under 20 MB");
-  const ext = file.name.split(".").pop() || "jpg";
+async function uploadToStudio(userId: string, file: File, kind: "image" | "video" = "image"): Promise<string> {
+  const maxMb = kind === "video" ? 200 : 20;
+  if (file.size > maxMb * 1024 * 1024) throw new Error(`${kind === "video" ? "Video" : "Image"} must be under ${maxMb} MB`);
+  const ext = file.name.split(".").pop() || (kind === "video" ? "mp4" : "jpg");
   const path = `${userId}/uploads/${crypto.randomUUID()}.${ext}`;
   const { error } = await supabase.storage.from("studio").upload(path, file, {
     contentType: file.type,
@@ -59,6 +60,11 @@ function SceneBuilderPage() {
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingSlotIdx, setPendingSlotIdx] = useState<number>(0);
+
+  // Phone Performance — optional phone video for motion control
+  const [phoneVideoUrl, setPhoneVideoUrl] = useState<string | null>(null);
+  const [phoneVideoUploading, setPhoneVideoUploading] = useState(false);
+  const phoneVideoRef = useRef<HTMLInputElement>(null);
 
   // Swap fields for {outfit}, {location}, {prop} tokens
   const [outfit, setOutfit] = useState("");
@@ -203,12 +209,27 @@ function SceneBuilderPage() {
     if (!user) { toast.error("Please sign in first"); return; }
     setUploadingIdx(slotIdx);
     try {
-      const url = await uploadToStudio(user.id, file);
+      const url = await uploadToStudio(user.id, file, "image");
       setSlots((prev) => { const next = [...prev]; next[slotIdx] = url; return next; });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setUploadingIdx(null);
+    }
+  };
+
+  const handlePhoneVideoUpload = async (file: File) => {
+    if (!file.type.startsWith("video/")) { toast.error("Please upload a video file (MP4, MOV, WebM)"); return; }
+    if (!user) { toast.error("Please sign in first"); return; }
+    setPhoneVideoUploading(true);
+    try {
+      const url = await uploadToStudio(user.id, file, "video");
+      setPhoneVideoUrl(url);
+      toast.success("Phone video ready — tap Animate to go to Motion Control");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Video upload failed");
+    } finally {
+      setPhoneVideoUploading(false);
     }
   };
 
@@ -222,17 +243,17 @@ function SceneBuilderPage() {
       <div className="relative z-10 min-h-[100dvh] pb-24">
         {/* Header */}
         <div className="px-4 pt-4 pb-4 flex items-center gap-2">
-          <Layers className="w-4 h-4 text-primary shrink-0" />
+          <Clapperboard className="w-4 h-4 text-primary shrink-0" />
           <span className="text-xs font-semibold tracking-widest uppercase text-primary">
-            Perform Anywhere
+            Directors ROOM
           </span>
         </div>
 
         <div className="px-4 space-y-8">
           <div>
-            <h1 className="text-2xl font-bold text-white mb-1">Direct Your Shoot.</h1>
+            <h1 className="text-2xl font-bold text-white mb-1">Build Your Scene.</h1>
             <p className="text-sm text-white/60 leading-relaxed">
-              Drop your references — Aurora stages the studio. Upload your selfie, outfit, location and prop, then hit Generate. Powered by <span className="text-white/80 font-medium">Seedance 5.9 · Kling · Gemini Omni · Grok Imagine</span>.
+              Drop your references — Aurora stages the cinematic world. Upload your selfie, outfit, location and prop, then generate. Optionally animate with your phone performance using Motion Control. Powered by <span className="text-white/80 font-medium">Seedance 5.9 · Kling · Gemini Omni · Grok Imagine</span>.
             </p>
             {/* Model badges */}
             <div className="flex flex-wrap gap-1.5 mt-3">
@@ -432,6 +453,106 @@ function SceneBuilderPage() {
 
             {filledSlots === 0 && (
               <p className="text-xs text-center text-white/30">Upload at least one reference to generate</p>
+            )}
+          </section>
+
+          {/* ── Phone Performance — optional motion control ── */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Smartphone className="w-3.5 h-3.5 text-primary/70" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-white/50">
+                  Phone Performance
+                </span>
+                <span className="text-[10px] rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-white/35">Optional</span>
+              </div>
+              {phoneVideoUrl && (
+                <button
+                  type="button"
+                  onClick={() => setPhoneVideoUrl(null)}
+                  className="text-[10px] text-white/30 hover:text-white/60 transition-colors"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-white/35 leading-relaxed mb-3">
+              Drop a 30-second phone recording of yourself performing. Once you have a scene generated above, tap <span className="text-primary/70">Animate with Motion Control</span> to transfer your real movement into the AI scene.
+            </p>
+
+            {/* Video upload / preview */}
+            <button
+              type="button"
+              onClick={() => phoneVideoRef.current?.click()}
+              disabled={phoneVideoUploading}
+              className={cn(
+                "w-full rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all overflow-hidden relative",
+                phoneVideoUrl
+                  ? "border-primary/40 bg-primary/5 p-0"
+                  : "border-white/20 bg-white/5 hover:border-white/35 py-8",
+              )}
+            >
+              {phoneVideoUploading ? (
+                <><RefreshCw className="w-6 h-6 text-primary animate-spin" /><span className="text-xs text-white/50">Uploading…</span></>
+              ) : phoneVideoUrl ? (
+                <video
+                  src={phoneVideoUrl}
+                  className="w-full rounded-xl"
+                  style={{ maxHeight: 200, objectFit: "cover" }}
+                  muted
+                  playsInline
+                  controls
+                />
+              ) : (
+                <>
+                  <Smartphone className="w-8 h-8 text-white/25" />
+                  <span className="text-sm font-medium text-white/40">Tap to upload phone video</span>
+                  <span className="text-[11px] text-white/25">30 s · MP4, MOV, WebM · up to 200 MB</span>
+                </>
+              )}
+            </button>
+            <input
+              ref={phoneVideoRef}
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void handlePhoneVideoUpload(f);
+                e.target.value = "";
+              }}
+            />
+
+            {/* Animate button — enabled when base scene is ready */}
+            {baseResult && (
+              <Link
+                to="/motion"
+                search={{ image: toAbsoluteUrl(baseResult.url) }}
+                className={cn(
+                  "mt-3 flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-semibold transition-all",
+                  "bg-primary/20 border border-primary/50 text-primary hover:bg-primary/30",
+                )}
+              >
+                <Play className="w-4 h-4" />
+                Animate with Motion Control →
+              </Link>
+            )}
+            {!baseResult && (
+              <p className="mt-2 text-[11px] text-center text-white/25">
+                Generate your base scene first, then animate it here
+              </p>
+            )}
+
+            {/* Output video placeholder */}
+            {baseResult && (
+              <div className="mt-3 rounded-xl border border-white/10 bg-white/3 p-4 flex flex-col items-center gap-2">
+                <Video className="w-6 h-6 text-white/20" />
+                <p className="text-xs text-white/30 text-center leading-relaxed">
+                  Your animated output video will appear in Motion Control after generation.
+                  <br />
+                  <Link to="/motion" className="text-primary/60 underline underline-offset-2">Open Motion Control →</Link>
+                </p>
+              </div>
             )}
           </section>
 

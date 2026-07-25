@@ -32,6 +32,8 @@ export function useSiteImage(key: SiteImageKey): string {
   return ctx[key] ?? SITE_IMAGE_DEFAULTS[key].url;
 }
 
+export const SITE_IMAGES_REFRESH_EVENT = "site-images:refresh";
+
 export function SiteImagesProvider({ children }: { children: ReactNode }) {
   const [images, setImages] = useState<Record<SiteImageKey, string>>(buildDefaults);
 

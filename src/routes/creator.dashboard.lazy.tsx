@@ -57,7 +57,7 @@ const EMPTY_FORM: FormState = {
   thumbnail_url: "",
   category: "Other",
   tags: "",
-  run_cost_aura: 5,
+  run_cost_aura: 50,
   graph_json: '{"name":"My Template","nodes":[],"edges":[]}',
 };
 

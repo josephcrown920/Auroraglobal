@@ -1,33 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import {
-  Wand2,
-  Video,
-  Download,
-  Loader2,
-  RotateCcw,
-  Monitor,
-  Smartphone,
-  Camera,
-  Film,
-  LogOut,
-  Clock,
-  History,
-  Play,
-  X,
-  Clapperboard,
-  CheckCircle2,
-  Circle,
-  ChevronRight,
-  Shirt,
-  User,
-  Star,
-  Images,
-  Copy,
-  Check,
+  Film, Video, Download, Loader2, RotateCcw, LogOut,
+  History, X, Clock, ArrowRight, Play,
 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
-import { enhanceScript, submitVideo, getVideoStatus, finalizeVideo } from "@/lib/api";
+import {
+  enhanceScript, submitVideo, getVideoStatus,
+  finalizeVideo, getMessages, clearMessages,
+} from "@/lib/api";
+import type { ChatMessage } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 
 interface Props { session: Session; }
@@ -43,15 +25,6 @@ interface VideoGen {
 }
 
 type Stage = "idle" | "enhancing" | "submitting" | "polling" | "finalizing" | "done" | "error";
-type View = "project" | "studio" | "history" | "photos";
-
-interface StudioPhoto {
-  id: string;
-  prompt: string;
-  result_image_url: string;
-  created_at: string;
-  kind: string;
-}
 
 const DURATIONS = [10, 15, 20, 30, 45, 60, 90];
 const DIRECTORS = [
@@ -70,43 +43,14 @@ type ModeId = (typeof MODES)[number]["id"];
 
 const POLL_INTERVAL_MS = 5000;
 const POLL_TIMEOUT_MS = 10 * 60_000;
-const POLL_WARN_MS   =  4 * 60_000;
-const STALE_JOB_MS  = 20 * 60_000;
+const STALE_JOB_MS = 20 * 60_000;
 
-// ── NBA Josh project data ─────────────────────────────────────────────────────
-
-type OutfitStatus = "ready" | "generating" | "done" | "pending";
-
-interface Outfit {
-  id: string;
-  label: string;
-  setting: string;
-  key: string;
-  status: OutfitStatus;
-  note?: string;
-}
-
-const OUTFITS: Outfit[] = [
-  { id: "A", label: "Burgundy Sport Jersey", setting: "Dark night", key: "Dark burgundy sleeveless sport jersey · snake-frame sunglasses", status: "pending" },
-  { id: "B", label: "White Mushroom Tee", setting: "Golden hour", key: "White psychedelic mushroom-eye tee · black leather pants · red Jordan 4s · red crystal belt", status: "ready", note: "IMG_3735 benchmark — closest to correct" },
-  { id: "C", label: "NEVER JXST Racing Jersey", setting: "Dark night / golden hour", key: "Red/black long-sleeve racing jersey · white side panels · black distressed jeans · purple crystal belt · white Nike Shox", status: "pending" },
-  { id: "D", label: "Crazy Visions Cyber-Punk", setting: "Golden hour / dusk", key: "Orange Crazy Visions beanie · dark mushroom-eye tee · red distressed jeans · fur boots · purple crystal belt", status: "pending" },
-  { id: "E", label: "Red Puffer + Camo", setting: "Urban street", key: "Glossy red puffer jacket · wide-leg camo cargo pants · blue paisley basketball sneakers · wavy textured sunglasses", status: "pending" },
-  { id: "F", label: "Crazy Visions Clean", setting: "Any", key: "Red/black Crazy Visions beanie · white crewneck oversized tee · dopamine custom Nike AF1s · red crystal belt", status: "pending" },
-  { id: "G", label: "Shearling + Racing Edge", setting: "Dusk", key: "Distressed shearling fur bomber · NEVER JXST racing jersey underneath · red leather pants · painted Nike AF1 Mid", status: "pending" },
-  { id: "H", label: "Minecraft Creeper Street", setting: "Urban", key: "Lime green Minecraft creeper tee · wide-leg camo cargo pants · blue paisley basketball sneakers", status: "pending" },
-  { id: "🚗", label: "Red AMG Benz Scene", setting: "Dusk/night urban", key: "Borrow red AMG Mercedes GT 4-door · white streetwear jacket · embroidered cargo shorts · purple VaporMax — REPLACE FACE with Josh", status: "pending" },
+const STARTER_PROMPTS = [
+  "A 30-second bold brand intro — urban cinematic, no voice, just vibe",
+  "A 15-second direct-to-camera hook about resilience and coming up",
+  "Announce a new drop — short, punchy, like a Netflix opener",
+  "Open a music video teaser. Dark, moody. 20 seconds.",
 ];
-
-const CORRECTIONS = [
-  { issue: "Extra face/neck tattoos", fix: "Add to negative: 'no face tattoos, no neck tattoos, clean face'" },
-  { issue: "Too muscular/thick", fix: "'slender lean tall basketball player proportions, long limbs, NOT bodybuilder'" },
-  { issue: "Likeness drift", fix: "Upload blue-lit portrait as reference every time. Shorter prompts drift less." },
-  { issue: "Extra letter on outfit", fix: "Explicitly describe outfit without labels — no 'A' or branding letters" },
-  { issue: "Wrong glasses", fix: "Red snake-frame (A–D) · wavy sculptural (E, G, Benz) · black visor (alt)" },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 function useElapsed(running: boolean) {
   const [elapsed, setElapsed] = useState(0);
@@ -121,36 +65,70 @@ function useElapsed(running: boolean) {
 
 function StatusDot({ status }: { status: JobStatus }) {
   const map: Record<JobStatus, { color: string; label: string }> = {
-    pending: { color: "#f59e0b", label: "Queued" },
+    pending:    { color: "#f59e0b", label: "Queued" },
     processing: { color: "oklch(0.72 0.2 300)", label: "Rendering" },
-    completed: { color: "#22c55e", label: "Done" },
-    failed: { color: "#ef4444", label: "Failed" },
+    completed:  { color: "#22c55e", label: "Done" },
+    failed:     { color: "#ef4444", label: "Failed" },
   };
   const { color, label } = map[status];
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color }}>
-      <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, display: "inline-block" }} />
+    <span className="inline-flex items-center gap-1" style={{ fontSize: 10, fontWeight: 700, color, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+      <span className="inline-block shrink-0 rounded-full" style={{ width: 5, height: 5, background: color }} />
       {label}
     </span>
   );
 }
 
-function OutfitStatusIcon({ status }: { status: OutfitStatus }) {
-  if (status === "done") return <CheckCircle2 size={15} color="#22c55e" />;
-  if (status === "generating") return <Loader2 size={15} color="oklch(0.72 0.2 300)" style={{ animation: "spin 1s linear infinite" }} />;
-  if (status === "ready") return <Star size={15} color="#f59e0b" />;
-  return <Circle size={15} color="var(--text-muted)" style={{ opacity: 0.4 }} />;
+function downloadVideo(url: string, filename: string) {
+  fetch(url)
+    .then(r => r.blob())
+    .then(blob => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+    })
+    .catch(() => window.open(url, "_blank"));
 }
 
-function OutfitStatusLabel({ status }: { status: OutfitStatus }) {
-  const map: Record<OutfitStatus, { label: string; color: string }> = {
-    done: { label: "Done", color: "#22c55e" },
-    generating: { label: "Generating…", color: "oklch(0.72 0.2 300)" },
-    ready: { label: "Next up", color: "#f59e0b" },
-    pending: { label: "Pending", color: "var(--text-muted)" },
-  };
-  const { label, color } = map[status];
-  return <span style={{ fontSize: 11, fontWeight: 700, color, letterSpacing: "0.04em", textTransform: "uppercase" }}>{label}</span>;
+function HistoryItem({ g }: { g: VideoGen }) {
+  const stale = Date.now() - new Date(g.created_at).getTime() > STALE_JOB_MS;
+  return (
+    <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)]">
+      {g.result_video_url ? (
+        <div className="relative">
+          <video src={g.result_video_url} controls playsInline className="block w-full bg-black" style={{ maxHeight: 160 }} />
+          <button
+            onClick={() => downloadVideo(g.result_video_url!, `aurora-video-${g.id}.mp4`)}
+            className="absolute bottom-1.5 right-1.5 flex items-center gap-1 rounded-md border border-white/10 px-2 py-1 text-[11px] font-semibold text-white backdrop-blur-sm"
+            style={{ background: "rgba(0,0,0,0.75)" }}
+          >
+            <Download size={10} /> Save
+          </button>
+        </div>
+      ) : (
+        <div className="flex h-20 flex-col items-center justify-center gap-1.5" style={{ background: "oklch(0.09 0.018 272)" }}>
+          {g.status === "failed" ? (
+            <><X size={16} className="text-red-500" /><span className="text-[11px] text-red-500">Failed</span></>
+          ) : stale ? (
+            <><Clock size={16} className="text-amber-400" /><span className="text-[11px] font-semibold text-amber-400">Timed out</span></>
+          ) : (
+            <><Loader2 size={16} className="animate-spin text-[var(--accent)]" />
+            <span className="text-[11px] text-[var(--text-muted)]">{g.status === "pending" ? "Queued…" : "Rendering…"}</span></>
+          )}
+        </div>
+      )}
+      <div className="px-3 py-2.5">
+        <p className="mb-1.5 line-clamp-2 text-[11px] leading-relaxed text-[var(--text-muted)]">{g.prompt}</p>
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-[var(--text-muted)] opacity-50">
+            {new Date(g.created_at).toLocaleDateString()}
+          </span>
+          <StatusDot status={g.status} />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function VideoAgentUI({ session }: Props) {
@@ -161,24 +139,34 @@ export function VideoAgentUI({ session }: Props) {
   const [orientation, setOrientation] = useState<"landscape" | "portrait">("landscape");
   const [directorProvider, setDirectorProvider] = useState<DirectorProvider>("auto");
   const [targetSeconds, setTargetSeconds] = useState(30);
-  const [stage, setStage] = useState<Stage>("idle");
-  const [resultUrl, setResultUrl] = useState<string | null>(null);
-  const [history, setHistory] = useState<VideoGen[]>([]);
+  const [stage, setStage]               = useState<Stage>("idle");
+  const [resultUrl, setResultUrl]       = useState<string | null>(null);
+  const [history, setHistory]           = useState<VideoGen[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  const [expandedSpec, setExpandedSpec] = useState(false);
-  const [photos, setPhotos] = useState<StudioPhoto[]>([]);
-  const [loadingPhotos, setLoadingPhotos] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [refPhoto, setRefPhoto] = useState<StudioPhoto | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const abortRef = useRef(false);
+  const [showHistory, setShowHistory]   = useState(false);
+
+  const videoRef      = useRef<HTMLVideoElement>(null);
+  const pollRef       = useRef<ReturnType<typeof setInterval> | null>(null);
+  const abortRef      = useRef(false);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const inputRef      = useRef<HTMLTextAreaElement>(null);
 
   const token = session.access_token;
   const email = session.user.email ?? "";
-  const busy = stage !== "idle" && stage !== "done" && stage !== "error";
+  const busy    = stage !== "idle" && stage !== "done" && stage !== "error";
   const polling = stage === "polling";
   const elapsed = useElapsed(polling || stage === "submitting" || stage === "finalizing");
+
+  const activeRenderCount = history.filter(
+    g => g.status === "pending" || g.status === "processing",
+  ).length;
+
+  const stageLabel: Record<Stage, string> = {
+    idle: "", enhancing: "Crafting your script…",
+    submitting: "Submitting to HeyGen…",
+    polling: `Rendering · ${elapsed}s`,
+    finalizing: "Saving…", done: "", error: "",
+  };
 
   const fetchHistory = useCallback(async () => {
     setLoadingHistory(true);
@@ -192,51 +180,45 @@ export function VideoAgentUI({ session }: Props) {
     setLoadingHistory(false);
   }, []);
 
-  const fetchPhotos = useCallback(async () => {
-    setLoadingPhotos(true);
-    const { data, error } = await supabase
-      .from("generations")
-      .select("id,prompt,result_image_url,created_at,kind")
-      .in("status", ["complete", "succeeded"])
-      .not("result_image_url", "is", null)
-      .order("created_at", { ascending: false })
-      .limit(80);
-    if (!error && data) setPhotos((data as StudioPhoto[]).filter(p => p.result_image_url));
-    setLoadingPhotos(false);
-  }, []);
+  useEffect(() => {
+    setLoadingChat(true);
+    getMessages(token)
+      .then(msgs => setChatMessages(msgs))
+      .catch(() => {})
+      .finally(() => setLoadingChat(false));
+  }, [token]);
 
   useEffect(() => {
-    if (view === "history") void fetchHistory();
-  }, [view, fetchHistory]);
+    chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight });
+  }, [chatMessages, stage]);
 
   useEffect(() => {
-    if (view === "photos") void fetchPhotos();
-  }, [view, fetchPhotos]);
+    if (!showHistory) return;
+    void fetchHistory();
+  }, [showHistory, fetchHistory]);
 
   useEffect(() => {
-    const now = Date.now();
-    const hasActive = history.some(g =>
-      (g.status === "pending" || g.status === "processing") &&
-      now - new Date(g.created_at).getTime() < STALE_JOB_MS,
+    if (!showHistory) return;
+    const hasActive = history.some(
+      g => (g.status === "pending" || g.status === "processing") &&
+        Date.now() - new Date(g.created_at).getTime() < STALE_JOB_MS,
     );
-    if (hasActive && view === "history") {
-      const t = setInterval(() => void fetchHistory(), 5000);
-      return () => clearInterval(t);
-    }
-  }, [history, view, fetchHistory]);
+    if (!hasActive) return;
+    const t = setInterval(() => void fetchHistory(), 5000);
+    return () => clearInterval(t);
+  }, [history, showHistory, fetchHistory]);
 
   function stopPoll() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }
+  function resetToIdle() { stopPoll(); abortRef.current = false; setStage("idle"); }
 
-  function resetToIdle() {
-    stopPoll();
-    abortRef.current = false;
-    setStage("idle");
-  }
-
-  async function handleEnhance() {
-    if (!idea.trim()) { toast.error("Enter an idea or draft first"); return; }
+  async function handleEnhance(text?: string) {
+    const idea = (text ?? chatInput).trim();
+    if (!idea) { toast.error("Describe your idea first"); return; }
+    const userMsg: ChatMessage = { id: crypto.randomUUID(), role: "user", content: idea, created_at: new Date().toISOString() };
+    setChatMessages(prev => [...prev, userMsg]);
+    setChatInput("");
     setStage("enhancing");
     setScript("");
     try {
@@ -246,75 +228,59 @@ export function VideoAgentUI({ session }: Props) {
       );
       setScript(res.script);
       setStage("idle");
-      toast.success("Script enhanced");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Enhancement failed");
       resetToIdle();
     }
   }
 
-  const handlePoll = useCallback(
-    async (videoId: string, url: string, prompt: string, reservationRef: string, cost: number, startedAt: number) => {
+  async function handleClearChat() {
+    try {
+      await clearMessages(token);
+      setChatMessages([]); setScript(""); setChatInput("");
+      toast.success("Conversation cleared");
+    } catch { toast.error("Failed to clear conversation"); }
+  }
+
+  const handlePoll = useCallback(async (
+    videoId: string, resultVideoId: string, prompt: string,
+    reservationRef: string, cost: number, startedAt: number,
+  ) => {
+    if (abortRef.current) return;
+    if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
+      stopPoll(); toast.error("Still rendering — check back in History."); resetToIdle(); return;
+    }
+    try {
+      const st = await getVideoStatus(videoId, token);
       if (abortRef.current) return;
-      if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
-        stopPoll();
-        toast.error("HeyGen is taking too long — the video may still complete. Check back in History.");
-        resetToIdle();
-        return;
+      if (st.status === "completed" && st.url) {
+        stopPoll(); setStage("finalizing");
+        try { await finalizeVideo({ videoId, url: st.url, prompt, reservationRef, cost }, token); } catch { /* non-fatal */ }
+        setResultUrl(st.url); setStage("done"); toast.success("Video ready!");
+      } else if (st.status === "failed") {
+        stopPoll(); toast.error(st.error ?? "HeyGen render failed"); resetToIdle();
       }
-      try {
-        const st = await getVideoStatus(videoId, token);
-        if (abortRef.current) return;
+    } catch { /* network hiccup — keep polling */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
-        if (st.status === "completed" && st.url) {
-          stopPoll();
-          setStage("finalizing");
-          try {
-            await finalizeVideo({ videoId, url: st.url, prompt, reservationRef, cost }, token);
-          } catch {
-            // Non-fatal — video still playable
-          }
-          setResultUrl(st.url);
-          setStage("done");
-          toast.success("Video ready!");
-        } else if (st.status === "failed") {
-          stopPoll();
-          toast.error(st.error ?? "HeyGen video generation failed");
-          resetToIdle();
-        }
-      } catch {
-        // Network hiccup — keep polling
-      }
-    },
-    [token],
-  );
-
-  async function handleGenerate() {
-    const final = script.trim() || idea.trim();
+  async function handleGenerate(useScript?: string) {
+    const final = (useScript ?? script).trim();
     if (!final) { toast.error("Write or enhance a script first"); return; }
     abortRef.current = false;
-    setStage("submitting");
-    setResultUrl(null);
-
+    setStage("submitting"); setResultUrl(null);
     try {
       const res = await submitVideo({ prompt: final, orientation }, token);
       if (!res.ok || !res.videoId) {
-        if (res.heygenCredit) {
-          toast.error("HeyGen API credits exhausted — top up at app.heygen.com");
-        } else if (res.insufficient) {
-          toast.error("Insufficient Aura credits — top up in Aurora");
-        } else {
-          toast.error(res.error ?? "Submit failed");
-        }
-        resetToIdle();
-        return;
+        if (res.heygenCredit) toast.error("HeyGen API credits exhausted — top up at app.heygen.com");
+        else if (res.insufficient) toast.error("Insufficient Aura credits — top up in Aurora");
+        else toast.error(res.error ?? "Submit failed");
+        resetToIdle(); return;
       }
-
       const { videoId, reservationRef, cost } = res;
-      toast.success("Submitted to HeyGen — rendering…");
+      toast.success("Submitted — HeyGen is rendering…");
       setStage("polling");
       const startedAt = Date.now();
-
       void handlePoll(videoId, res.videoId, final, reservationRef!, cost!, startedAt);
       pollRef.current = setInterval(
         () => void handlePoll(videoId, res.videoId!, final, reservationRef!, cost!, startedAt),
@@ -327,229 +293,117 @@ export function VideoAgentUI({ session }: Props) {
   }
 
   function handleReset() {
-    abortRef.current = true;
-    stopPoll();
-    setIdea(""); setScript(""); setResultUrl(null); setStage("idle");
+    abortRef.current = true; stopPoll();
+    setChatInput(""); setScript(""); setResultUrl(null); setStage("idle");
   }
 
-  const activeScript = script || idea;
-
-  const stageLabel: Record<Stage, string> = {
-    idle: "",
-    enhancing: "Enhancing…",
-    submitting: "Reserving credits & submitting…",
-    polling: `Rendering on HeyGen · ${elapsed}s`,
-    finalizing: "Saving to gallery…",
-    done: "",
-    error: "",
-  };
-
-  const activeRenderCount = history.filter(g => g.status === "pending" || g.status === "processing").length;
-  const doneCount = OUTFITS.filter(o => o.status === "done").length;
-
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative", zIndex: 1 }}>
-      {/* Header */}
-      <header style={{
-        borderBottom: "1px solid var(--border)",
-        padding: "0 20px",
-        height: 56,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        background: "oklch(0.085 0.022 272 / 0.95)",
-        backdropFilter: "blur(12px)",
-        position: "sticky",
-        top: 0,
-        zIndex: 10,
-        gap: 12,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-          <div style={{
-            width: 30, height: 30, borderRadius: 9,
-            background: "oklch(0.72 0.2 300 / 0.15)",
-            border: "1px solid oklch(0.72 0.2 300 / 0.3)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <Clapperboard size={15} color="oklch(0.72 0.2 300)" />
-          </div>
-          <span style={{ fontWeight: 700, fontSize: 15, color: "var(--text)", letterSpacing: "-0.02em" }}>
-            NBA Josh <span style={{ color: "var(--accent)" }}>· Video Pipeline</span>
-          </span>
-        </div>
+    <div className="flex h-screen flex-col overflow-hidden">
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
+      {/* Header */}
+      <header className="relative z-20 flex h-13 shrink-0 items-center justify-between gap-3 border-b border-[var(--border)] px-4 backdrop-blur-md" style={{ background: "oklch(0.085 0.022 272 / 0.96)" }}>
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-lg border" style={{ background: "oklch(0.72 0.2 300 / 0.12)", borderColor: "oklch(0.72 0.2 300 / 0.25)" }}>
+            <Film size={13} color="oklch(0.72 0.2 300)" />
+          </div>
+          <span className="shrink-0 text-sm font-bold tracking-tight text-[var(--text)]">Video Director</span>
           {busy && stageLabel[stage] && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--accent)", flexShrink: 0 }}>
-              <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
-              {stageLabel[stage]}
+            <div className="flex min-w-0 items-center gap-1.5 text-xs text-[var(--accent)]">
+              <Loader2 size={11} className="shrink-0 animate-spin" />
+              <span className="truncate">{stageLabel[stage]}</span>
             </div>
           )}
-          {(["project", "studio", "photos", "history"] as const).map(v => (
-            <button
-              key={v}
-              onClick={() => setView(v)}
-              style={{
-                display: "flex", alignItems: "center", gap: 5,
-                padding: "5px 11px", borderRadius: 7, fontSize: 12, fontWeight: 600,
-                border: `1px solid ${view === v ? "var(--accent)" : "var(--border)"}`,
-                background: view === v ? "oklch(0.72 0.2 300 / 0.12)" : "transparent",
-                color: view === v ? "var(--accent)" : "var(--text-muted)",
-                cursor: "pointer", flexShrink: 0,
-              }}
-            >
-              {v === "project"
-                ? <><Clapperboard size={12} /> Project</>
-                : v === "photos"
-                  ? <><Images size={12} /> Studio Photos{photos.length > 0 ? ` · ${photos.length}` : ""}</>
-                  : v === "history"
-                    ? <><History size={12} /> History{activeRenderCount > 0 ? ` · ${activeRenderCount}` : ""}</>
-                    : <><Video size={12} /> HeyGen Studio</>
-              }
-            </button>
-          ))}
-          <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>{email}</span>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1.5">
           <button
-            onClick={() => supabase.auth.signOut()}
+            onClick={() => setShowHistory(h => !h)}
+            className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors"
             style={{
-              display: "flex", alignItems: "center", gap: 5,
-              padding: "5px 10px", borderRadius: 7,
-              background: "transparent", border: "1px solid var(--border)",
-              color: "var(--text-muted)", cursor: "pointer", fontSize: 11, flexShrink: 0,
+              borderColor: showHistory ? "var(--accent)" : "var(--border)",
+              background: showHistory ? "oklch(0.72 0.2 300 / 0.1)" : "transparent",
+              color: showHistory ? "var(--accent)" : "var(--text-muted)",
             }}
           >
-            <LogOut size={12} /> Sign out
+            <History size={12} />
+            History
+            {activeRenderCount > 0 && (
+              <span className="rounded px-1 py-px text-[9px] font-black text-white" style={{ background: "var(--accent)" }}>{activeRenderCount}</span>
+            )}
+          </button>
+          {chatMessages.length > 0 && (
+            <button
+              onClick={() => void handleClearChat()}
+              disabled={busy}
+              title="Clear conversation"
+              className="flex items-center gap-1 rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-[var(--text-muted)] disabled:cursor-not-allowed"
+            >
+              <X size={12} />
+            </button>
+          )}
+          <span className="max-w-[120px] truncate text-[11px] text-[var(--text-muted)] opacity-55">{email}</span>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            className="flex items-center gap-1 rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-[11px] text-[var(--text-muted)]"
+          >
+            <LogOut size={11} /> Out
           </button>
         </div>
       </header>
 
-      {/* ── PROJECT VIEW ── */}
-      {view === "project" && (
-        <div style={{ flex: 1, maxWidth: 900, margin: "0 auto", width: "100%", padding: "28px 20px" }}>
+      {/* Body */}
+      <div className="flex flex-1 overflow-hidden">
 
-          {/* Hero banner */}
-          <div style={{
-            borderRadius: 16,
-            background: "linear-gradient(135deg, oklch(0.12 0.03 272) 0%, oklch(0.1 0.04 300) 100%)",
-            border: "1px solid oklch(0.72 0.2 300 / 0.2)",
-            padding: "20px 24px",
-            marginBottom: 24,
-            position: "relative",
-            overflow: "hidden",
-          }}>
-            <div style={{
-              position: "absolute", inset: 0, opacity: 0.04,
-              backgroundImage: "repeating-linear-gradient(45deg, oklch(0.72 0.2 300) 0, oklch(0.72 0.2 300) 1px, transparent 0, transparent 50%)",
-              backgroundSize: "12px 12px",
-            }} />
-            <div style={{ position: "relative" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: 18 }}>🎬</span>
-                <span style={{ fontWeight: 800, fontSize: 18, color: "var(--text)", letterSpacing: "-0.02em" }}>
-                  Looping Officers
-                </span>
-                <span style={{
-                  fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
-                  background: "oklch(0.72 0.2 300 / 0.15)", color: "var(--accent)",
-                  border: "1px solid oklch(0.72 0.2 300 / 0.3)", borderRadius: 5, padding: "2px 7px",
-                }}>
-                  In Production
-                </span>
-              </div>
-              <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 12px", maxWidth: 600 }}>
-                Each outfit = a separate standalone post synced to the same 24-second hook. Josh stands unbothered while officers charge hard behind him — frozen on an invisible treadmill. He turns, smirks, walks away.
-              </p>
-              <div style={{ display: "flex", gap: 16 }}>
-                <Stat label="Outfit clips" value={`${doneCount} / ${OUTFITS.length}`} />
-                <Stat label="Audio" value="24-sec hook" />
-                <Stat label="Provider" value="Kling v3 (fal.ai)" />
-                <Stat label="Format" value="10s · 16:9" />
-              </div>
-            </div>
-          </div>
+        {/* Chat column */}
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
 
-          {/* Character spec card */}
-          <div style={{
-            borderRadius: 14, border: "1px solid var(--border)",
-            background: "var(--bg-card)", marginBottom: 20, overflow: "hidden",
-          }}>
-            <button
-              onClick={() => setExpandedSpec(s => !s)}
-              style={{
-                width: "100%", padding: "14px 18px",
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                background: "transparent", border: "none", cursor: "pointer",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <User size={15} color="var(--accent)" />
-                <span style={{ fontWeight: 700, fontSize: 14, color: "var(--text)" }}>Character Spec — read before every generation</span>
-              </div>
-              <ChevronRight size={15} color="var(--text-muted)" style={{ transform: expandedSpec ? "rotate(90deg)" : "none", transition: "transform 0.2s" }} />
-            </button>
-            {expandedSpec && (
-              <div style={{ padding: "0 18px 18px", borderTop: "1px solid var(--border)" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 14 }}>
-                  <SpecBlock title="Body">
-                    6'3" TALL LEAN. Long-limbed. Slender. NOT muscular, NOT thick, NOT bloated. Basketball-player proportions.
-                  </SpecBlock>
-                  <SpecBlock title="Hair">
-                    Long fully red dreadlocks past shoulders.
-                  </SpecBlock>
-                  <SpecBlock title="Tattoos — EXACT (arm-only)" accent>
-                    <b>Right shoulder:</b> "NBA" with stars + "JOSH" gothic<br />
-                    <b>Left shoulder:</b> portrait of young Black male face (low-cut Afro)<br />
-                    <b>Both forearms:</b> full sleeves — clouds, roses, stars<br />
-                    <b style={{ color: "#ef4444" }}>ZERO tattoos on face, neck, chest, or legs</b>
-                  </SpecBlock>
-                  <SpecBlock title="Jewellery (every outfit)">
-                    Diamond "NBA JOSH 444" pendant on heavy Cuban link chain + iced-out AP diamond watch (left wrist)
-                  </SpecBlock>
-                  <SpecBlock title="Prop (every scene)">
-                    Vintage silver retro hanging microphone — dangles from above, always visible.
-                  </SpecBlock>
-                  <SpecBlock title="Officers">
-                    4–6 in full uniform. Maximum aggression. Frozen on invisible treadmill — running hard, going nowhere. Collapse at end.
-                  </SpecBlock>
-                </div>
+          {/* Messages scroll area */}
+          <div ref={chatScrollRef} className="flex flex-1 flex-col gap-3.5 overflow-y-auto px-5 pb-2 pt-6" style={{ scrollbarWidth: "thin" }}>
 
-                <div style={{ marginTop: 16 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>
-                    Known AI drift — corrections to add every time
+            {/* Empty state */}
+            {!loadingChat && chatMessages.length === 0 && stage === "idle" && (
+              <div className="flex flex-1 flex-col items-center justify-center pb-16" style={{ minHeight: 320 }}>
+                <div className="w-full max-w-md text-center">
+                  <div className="mx-auto mb-5 flex size-13 items-center justify-center rounded-[14px] border" style={{ background: "oklch(0.72 0.2 300 / 0.08)", borderColor: "oklch(0.72 0.2 300 / 0.18)" }}>
+                    <Film size={22} color="oklch(0.72 0.2 300)" />
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {CORRECTIONS.map((c, i) => (
-                      <div key={i} style={{
-                        display: "grid", gridTemplateColumns: "160px 1fr", gap: 10, alignItems: "start",
-                        padding: "9px 12px", borderRadius: 9, background: "var(--bg)",
-                        border: "1px solid var(--border)", fontSize: 12,
-                      }}>
-                        <span style={{ fontWeight: 600, color: "#f59e0b" }}>{c.issue}</span>
-                        <span style={{ color: "var(--text-muted)", lineHeight: 1.5 }}>{c.fix}</span>
-                      </div>
+                  <p className="mb-2.5 text-[22px] font-black tracking-tight text-[var(--text)]">What are we shooting?</p>
+                  <p className="mb-7 text-sm leading-relaxed text-[var(--text-muted)]">
+                    Tell me the idea, the mood, the vibe. One line or ten.<br />
+                    I'll shape it into a script and produce the video.
+                  </p>
+                  <div className="flex flex-col gap-2 text-left">
+                    {STARTER_PROMPTS.map((p, i) => (
+                      <button
+                        key={i}
+                        onClick={() => { setChatInput(p); inputRef.current?.focus(); }}
+                        className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 text-left text-sm leading-relaxed text-[var(--text-muted)] transition-colors hover:border-[oklch(0.72_0.2_300_/_0.4)] hover:text-[var(--text)]"
+                      >
+                        {p}
+                      </button>
                     ))}
                   </div>
                 </div>
               </div>
             )}
-          </div>
 
-          {/* Outfit tracker */}
-          <div style={{ marginBottom: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-              <Shirt size={15} color="var(--accent)" />
-              <span style={{ fontWeight: 700, fontSize: 14, color: "var(--text)" }}>Outfit Tracker</span>
-              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>— each = separate standalone post</span>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {OUTFITS.map(o => (
+            {loadingChat && (
+              <div className="flex items-center justify-center gap-2 pt-16 text-[var(--text-muted)]">
+                <Loader2 size={14} className="animate-spin" />
+                <span className="text-sm">Loading conversation…</span>
+              </div>
+            )}
+
+            {/* Messages */}
+            {chatMessages.map((m, idx) => (
+              <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div
-                  key={o.id}
+                  className="max-w-[80%] rounded-2xl px-4 py-3"
                   style={{
-                    display: "flex", alignItems: "flex-start", gap: 12,
-                    padding: "13px 16px", borderRadius: 12,
-                    border: `1px solid ${o.status === "ready" ? "oklch(0.72 0.2 300 / 0.3)" : "var(--border)"}`,
-                    background: o.status === "ready" ? "oklch(0.72 0.2 300 / 0.05)" : "var(--bg-card)",
+                    maxWidth: m.role === "user" ? "68%" : "80%",
+                    background: m.role === "user" ? "oklch(0.72 0.2 300 / 0.11)" : "var(--bg-card)",
+                    border: `1px solid ${m.role === "user" ? "oklch(0.72 0.2 300 / 0.22)" : "var(--border)"}`,
+                    borderRadius: m.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
                   }}
                 >
                   <div style={{
@@ -677,634 +531,215 @@ export function VideoAgentUI({ session }: Props) {
                     const active = mode === m.id;
                     return (
                       <button
-                        key={m.id}
-                        onClick={() => setMode(m.id)}
+                        onClick={() => { setScript(m.content); void handleGenerate(m.content); }}
                         disabled={busy}
-                        title={m.desc}
+                        className="flex items-center gap-1.5 rounded-[9px] px-4 py-2 text-sm font-bold text-white transition-all disabled:cursor-not-allowed"
                         style={{
-                          display: "flex", alignItems: "center", gap: 6,
-                          padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500,
-                          border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
-                          background: active ? "oklch(0.72 0.2 300 / 0.12)" : "transparent",
-                          color: active ? "var(--accent)" : "var(--text-muted)",
-                          cursor: "pointer", transition: "all 0.15s",
+                          background: busy ? "oklch(0.18 0.01 272)" : "oklch(0.72 0.2 300)",
+                          color: busy ? "var(--text-muted)" : "white",
+                          boxShadow: busy ? "none" : "0 0 18px oklch(0.72 0.2 300 / 0.38)",
                         }}
                       >
-                        <Icon size={14} /> {m.label}
+                        {busy && idx === chatMessages.length - 1 ? (
+                          <><Loader2 size={12} className="animate-spin" /> {stageLabel[stage]}</>
+                        ) : (
+                          <><Play size={12} /> Produce Video</>
+                        )}
                       </button>
-                    );
-                  })}
-                  <select
-                    value={targetSeconds}
-                    onChange={(e) => setTargetSeconds(Number(e.target.value))}
-                    disabled={busy}
-                    style={{
-                      marginLeft: "auto",
-                      padding: "7px 12px", borderRadius: 8, fontSize: 13,
-                      background: "var(--bg-input)", border: "1px solid var(--border)",
-                      color: "var(--text-muted)", cursor: "pointer", outline: "none",
-                    }}
-                  >
-                    {DURATIONS.map((d) => <option key={d} value={d}>{d}s</option>)}
-                  </select>
-                </div>
-
-                <button
-                  onClick={handleEnhance}
-                  disabled={busy || !idea.trim()}
-                  style={{
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                    padding: "11px 20px", borderRadius: 12, fontWeight: 600, fontSize: 14,
-                    background: "oklch(0.72 0.2 300 / 0.15)",
-                    border: "1px solid oklch(0.72 0.2 300 / 0.35)",
-                    color: "var(--accent)", cursor: busy || !idea.trim() ? "not-allowed" : "pointer",
-                    opacity: busy || !idea.trim() ? 0.5 : 1,
-                    transition: "all 0.15s",
-                  }}
-                >
-                  {stage === "enhancing"
-                    ? <><Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> Enhancing…</>
-                    : <><Wand2 size={15} /> Enhance with AI</>
-                  }
-                </button>
-              </div>
-            </Section>
-
-            <Section num={2} label="Generate video">
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <div style={{ display: "flex", gap: 10 }}>
-                  {(["landscape", "portrait"] as const).map((o) => {
-                    const Icon = o === "landscape" ? Monitor : Smartphone;
-                    const active = orientation === o;
-                    return (
                       <button
-                        key={o}
-                        onClick={() => setOrientation(o)}
-                        disabled={busy}
-                        style={{
-                          display: "flex", alignItems: "center", gap: 6,
-                          padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500,
-                          border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
-                          background: active ? "oklch(0.72 0.2 300 / 0.12)" : "transparent",
-                          color: active ? "var(--accent)" : "var(--text-muted)",
-                          cursor: "pointer", textTransform: "capitalize",
-                        }}
+                        onClick={() => { setScript(m.content); toast.success("Script loaded — revise and re-send, or hit Produce Video"); }}
+                        className="flex items-center gap-1 rounded-[9px] border border-[var(--border)] px-3.5 py-2 text-xs font-semibold text-[var(--text-muted)]"
                       >
-                        <Icon size={14} /> {o}
+                        Revise
                       </button>
-                    );
-                  })}
+                    </div>
+                  )}
+                  <div className={`mt-1.5 text-[10px] text-[var(--text-muted)] opacity-40 ${m.role === "user" ? "text-right" : "text-left"}`}>
+                    {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </div>
                 </div>
-
-                {activeScript && (
-                  <div style={{
-                    background: "var(--bg-input)", border: "1px solid var(--border)",
-                    borderRadius: 10, padding: "12px 14px",
-                  }}>
-                    <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 6, fontWeight: 500 }}>
-                      Script preview
-                    </p>
-                    <p style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
-                      {activeScript.slice(0, 300)}{activeScript.length > 300 ? "…" : ""}
-                    </p>
-                  </div>
-                )}
-
-                <button
-                  onClick={handleGenerate}
-                  disabled={busy || !activeScript.trim()}
-                  style={{
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                    padding: "13px 24px", borderRadius: 12, fontWeight: 700, fontSize: 15,
-                    background: busy || !activeScript.trim() ? "oklch(0.3 0.02 272)" : "var(--accent)",
-                    border: "none", color: "#fff",
-                    cursor: busy || !activeScript.trim() ? "not-allowed" : "pointer",
-                    transition: "all 0.15s",
-                    boxShadow: !busy && activeScript.trim() ? "0 0 24px oklch(0.72 0.2 300 / 0.35)" : "none",
-                  }}
-                >
-                  {stage === "submitting"
-                    ? <><Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> Submitting…</>
-                    : stage === "polling"
-                      ? <><Clock size={16} /> Rendering on HeyGen · {elapsed}s elapsed</>
-                      : stage === "finalizing"
-                        ? <><Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> Saving…</>
-                        : <><Video size={16} /> Generate HeyGen Video</>
-                  }
-                </button>
-
-                {stage === "polling" && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    <p style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.5, margin: 0 }}>
-                      Polling HeyGen every 5s · typically 60–120s
-                    </p>
-                    {elapsed >= POLL_WARN_MS / 1000 && (
-                      <div style={{
-                        borderRadius: 10, border: "1px solid #f59e0b55",
-                        background: "rgba(245,158,11,0.08)",
-                        padding: "10px 14px", textAlign: "center",
-                      }}>
-                        <p style={{ fontSize: 12, color: "#f59e0b", margin: 0, fontWeight: 600 }}>
-                          Taking longer than usual — HeyGen may be under load.
-                        </p>
-                        <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "4px 0 0" }}>
-                          Will auto-cancel at 10 min. Your credits are reserved and safe.
-                        </p>
-                      </div>
-                    )}
-                    <button
-                      onClick={resetToIdle}
-                      style={{
-                        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                        padding: "11px 20px", borderRadius: 12, fontWeight: 600, fontSize: 13,
-                        background: "rgba(239,68,68,0.10)",
-                        border: "1px solid rgba(239,68,68,0.35)",
-                        color: "#ef4444", cursor: "pointer", transition: "all 0.15s",
-                      }}
-                    >
-                      <X size={14} /> Cancel — stop waiting
-                    </button>
-                  </div>
-                )}
               </div>
-            </Section>
+            ))}
 
-            {resultUrl && (
-              <Section num={3} label="Your video">
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  <div style={{
-                    borderRadius: 14, overflow: "hidden",
-                    border: "1px solid var(--border)",
-                    background: "#000",
-                    aspectRatio: orientation === "landscape" ? "16/9" : "9/16",
-                    maxWidth: orientation === "portrait" ? 300 : "100%",
-                    margin: "0 auto",
-                  }}>
-                    <video
-                      ref={videoRef}
-                      src={resultUrl}
-                      controls
-                      autoPlay
-                      playsInline
-                      style={{ width: "100%", height: "100%", display: "block" }}
-                    />
+            {/* Typing indicator */}
+            {stage === "enhancing" && (
+              <div className="flex justify-start">
+                <div className="flex items-center gap-2.5 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3" style={{ borderRadius: "16px 16px 16px 4px" }}>
+                  <div className="flex items-center gap-1">
+                    {[0, 1, 2].map(i => (
+                      <span key={i} className="block size-1.5 rounded-full bg-[var(--accent)]" style={{ animation: `dotPulse 1.3s ${i * 0.2}s ease-in-out infinite` }} />
+                    ))}
                   </div>
-                  <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+                  <span className="text-sm text-[var(--text-muted)]">Writing your script…</span>
+                </div>
+              </div>
+            )}
+
+            {/* Generation in-progress bubble */}
+            {(stage === "submitting" || stage === "polling" || stage === "finalizing") && (
+              <div className="flex justify-start">
+                <div className="flex items-center gap-2.5 rounded-2xl border px-4 py-3" style={{ borderRadius: "16px 16px 16px 4px", background: "var(--bg-card)", borderColor: "oklch(0.72 0.2 300 / 0.18)" }}>
+                  <Loader2 size={14} className="shrink-0 animate-spin text-[var(--accent)]" />
+                  <div className="min-w-0">
+                    <div className="mb-0.5 text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">Director</div>
+                    <span className="text-sm text-[var(--text)]">{stageLabel[stage]}</span>
+                  </div>
+                  <button onClick={handleReset} className="ml-1 flex items-center gap-1 rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)]">
+                    <X size={10} /> Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Result card */}
+            {stage === "done" && resultUrl && (
+              <div className="flex justify-start">
+                <div className="w-full max-w-[540px] overflow-hidden rounded-2xl border bg-[var(--bg-card)]" style={{ borderColor: "oklch(0.22 0.2 145 / 0.5)", boxShadow: "0 0 32px oklch(0.52 0.18 145 / 0.12)" }}>
+                  <div className="flex items-center gap-1.5 border-b border-[var(--border)] px-3.5 py-2.5">
+                    <span className="inline-block size-1.5 rounded-full bg-[#22c55e]" style={{ boxShadow: "0 0 7px #22c55e" }} />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[#22c55e]">Video Ready</span>
+                  </div>
+                  <video ref={videoRef} src={resultUrl} controls playsInline autoPlay className="block w-full bg-black" />
+                  <div className="flex gap-2 p-3">
                     <button
-                      onClick={() => {
-                        fetch(resultUrl)
-                          .then(r => r.blob())
-                          .then(blob => {
-                            const a = document.createElement("a");
-                            a.href = URL.createObjectURL(blob);
-                            a.download = "aurora-video-agent.mp4";
-                            a.click();
-                          })
-                          .catch(() => window.open(resultUrl, "_blank"));
-                      }}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 6,
-                        padding: "9px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600,
-                        background: "var(--bg-input)", border: "1px solid var(--border)",
-                        color: "var(--text)", cursor: "pointer",
-                      }}
+                      onClick={() => downloadVideo(resultUrl, `aurora-video-${Date.now()}.mp4`)}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-[9px] py-2.5 text-sm font-bold text-white"
+                      style={{ background: "oklch(0.72 0.2 300)", boxShadow: "0 0 16px oklch(0.72 0.2 300 / 0.35)" }}
                     >
-                      <Download size={14} /> Download
-                    </button>
-                    <button
-                      onClick={() => { handleReset(); setView("history"); void fetchHistory(); }}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 6,
-                        padding: "9px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600,
-                        background: "transparent", border: "1px solid var(--border)",
-                        color: "var(--text-muted)", cursor: "pointer",
-                      }}
-                    >
-                      <History size={14} /> View in History
+                      <Download size={13} /> Download
                     </button>
                     <button
                       onClick={handleReset}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 6,
-                        padding: "9px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600,
-                        background: "transparent", border: "1px solid var(--border)",
-                        color: "var(--text-muted)", cursor: "pointer",
-                      }}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-[9px] border border-[var(--border)] py-2.5 text-sm font-semibold text-[var(--text-muted)]"
                     >
-                      <RotateCcw size={14} /> Make another
+                      <RotateCcw size={13} /> Make another
                     </button>
                   </div>
                 </div>
-              </Section>
+              </div>
             )}
-          </main>
-        </>
-      )}
-
-      {/* ── HISTORY VIEW ── */}
-      {view === "history" && (
-        <div style={{ flex: 1, maxWidth: 1000, margin: "0 auto", width: "100%", padding: "28px 20px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-            <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: "var(--text)" }}>
-              Video history
-            </div>
-            <button
-              onClick={() => { setLoadingHistory(true); void fetchHistory(); }}
-              style={{
-                padding: "7px 14px", background: "transparent", border: "1px solid var(--border)",
-                borderRadius: 8, color: "var(--text-muted)", cursor: "pointer",
-                display: "flex", alignItems: "center", gap: 6, fontSize: 13,
-              }}
-            >
-              <RotateCcw size={13} /> Refresh
-            </button>
           </div>
 
-          {loadingHistory ? (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "var(--text-muted)", gap: 8 }}>
-              <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} /> Loading…
-            </div>
-          ) : history.length === 0 ? (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 300, gap: 12, color: "var(--text-muted)" }}>
-              <Video size={48} style={{ opacity: 0.3 }} />
-              <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text)" }}>No videos yet</div>
-              <p style={{ fontSize: 14, color: "var(--text-muted)", textAlign: "center", margin: 0 }}>
-                Generate your first video
-              </p>
-              <button
-                onClick={() => setView("studio")}
-                style={{
-                  padding: "10px 22px", background: "var(--accent)", border: "none",
-                  borderRadius: 10, color: "white", fontWeight: 700, fontSize: 15, cursor: "pointer",
-                  boxShadow: "0 0 20px oklch(0.72 0.2 300 / 0.35)",
-                }}
-              >
-                Go to Studio
-              </button>
-            </div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
-              {history.map(g => (
-                <div
-                  key={g.id}
+          {/* Input bar */}
+          <div className="shrink-0 border-t border-[var(--border)] px-4 pb-3.5 pt-2.5 backdrop-blur-md" style={{ background: "oklch(0.085 0.022 272 / 0.97)" }}>
+            {/* Controls row */}
+            <div className="mb-2 flex flex-wrap items-center gap-1.5">
+              {(["direct", "cinematic"] as const).map(m => (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  disabled={busy}
+                  className="rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed"
                   style={{
-                    borderRadius: 16, overflow: "hidden",
-                    border: "1px solid var(--border)",
-                    background: "var(--bg-card)",
+                    borderColor: mode === m ? "var(--accent)" : "var(--border)",
+                    background: mode === m ? "oklch(0.72 0.2 300 / 0.1)" : "transparent",
+                    color: mode === m ? "var(--accent)" : "var(--text-muted)",
                   }}
                 >
-                  {g.result_video_url ? (
-                    <div style={{ position: "relative", aspectRatio: "16/9", background: "#000" }}>
-                      <video
-                        src={g.result_video_url}
-                        controls
-                        playsInline
-                        style={{ width: "100%", height: "100%", display: "block" }}
-                      />
-                      <button
-                        onClick={() => {
-                          fetch(g.result_video_url!)
-                            .then(r => r.blob())
-                            .then(blob => {
-                              const a = document.createElement("a");
-                              a.href = URL.createObjectURL(blob);
-                              a.download = `aurora-video-${g.id}.mp4`;
-                              a.click();
-                            })
-                            .catch(() => window.open(g.result_video_url!, "_blank"));
-                        }}
-                        style={{
-                          position: "absolute", bottom: 10, right: 10,
-                          padding: "6px 10px",
-                          background: "rgba(0,0,0,0.7)", border: "1px solid rgba(255,255,255,0.15)",
-                          borderRadius: 8, color: "white", cursor: "pointer",
-                          display: "flex", alignItems: "center", gap: 5,
-                          fontSize: 12, fontWeight: 600, backdropFilter: "blur(4px)",
-                        }}
-                      >
-                        <Download size={11} /> Save
-                      </button>
-                    </div>
-                  ) : (
-                    <div style={{
-                      aspectRatio: "16/9", display: "flex", flexDirection: "column",
-                      alignItems: "center", justifyContent: "center", gap: 10,
-                      background: "var(--bg)",
-                    }}>
-                      {g.status === "failed" ? (
-                        <>
-                          <X size={28} style={{ color: "#ef4444" }} />
-                          <div style={{ fontSize: 13, color: "#ef4444", textAlign: "center", padding: "0 16px" }}>
-                            {g.error ?? "Render failed"}
-                          </div>
-                        </>
-                      ) : Date.now() - new Date(g.created_at).getTime() > STALE_JOB_MS ? (
-                        <>
-                          <Clock size={28} style={{ color: "#f59e0b" }} />
-                          <div style={{ fontSize: 13, color: "#f59e0b", textAlign: "center", padding: "0 16px", fontWeight: 600 }}>
-                            Timed out — HeyGen didn't respond
-                          </div>
-                          <div style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "center", padding: "0 20px" }}>
-                            Credits were not charged. Try again from Studio.
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <Loader2 size={28} style={{ color: "var(--accent)", animation: "spin 1s linear infinite" }} />
-                          <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                            {g.status === "pending" ? "Queued…" : "Rendering…"}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                  <div style={{ padding: "12px 14px" }}>
-                    <p style={{
-                      fontSize: 13, color: "var(--text)", lineHeight: 1.5,
-                      margin: "0 0 8px",
-                      overflow: "hidden", display: "-webkit-box",
-                      WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-                    }}>
-                      {g.prompt}
-                    </p>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                        {new Date(g.created_at).toLocaleDateString()}
-                      </span>
-                      <StatusDot status={g.status} />
-                    </div>
-                  </div>
-                </div>
+                  {m === "direct" ? "Direct-to-cam" : "Cinematic"}
+                </button>
               ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── PHOTOS VIEW ── */}
-      {view === "photos" && (
-        <div style={{ flex: 1, maxWidth: 1100, margin: "0 auto", width: "100%", padding: "28px 20px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, gap: 12, flexWrap: "wrap" }}>
-            <div>
-              <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: "var(--text)", marginBottom: 4 }}>
-                Studio Photos
-              </div>
-              <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>
-                Your Aurora-generated images — click any to use as video reference
-              </p>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              {refPhoto && (
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 8,
-                  padding: "7px 12px", borderRadius: 9,
-                  background: "oklch(0.72 0.2 300 / 0.1)",
-                  border: "1px solid oklch(0.72 0.2 300 / 0.3)",
-                }}>
-                  <img src={refPhoto.result_image_url} alt="" style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover" }} />
-                  <span style={{ fontSize: 12, color: "var(--accent)", fontWeight: 600 }}>Pinned as reference</span>
-                  <button
-                    onClick={() => setRefPhoto(null)}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: 0, display: "flex" }}
-                  >
-                    <X size={13} />
-                  </button>
-                </div>
-              )}
+              <select
+                value={targetSeconds}
+                onChange={e => setTargetSeconds(Number(e.target.value))}
+                disabled={busy}
+                className="rounded-md border border-[var(--border)] bg-[var(--bg-input)] px-2 py-1 text-xs text-[var(--text-muted)] outline-none disabled:cursor-not-allowed"
+              >
+                {DURATIONS.map(d => <option key={d} value={d}>{d}s</option>)}
+              </select>
               <button
-                onClick={() => { setLoadingPhotos(true); void fetchPhotos(); }}
+                onClick={() => setOrientation(o => o === "landscape" ? "portrait" : "landscape")}
+                disabled={busy}
+                className="rounded-md border border-[var(--border)] px-2.5 py-1 text-xs font-semibold text-[var(--text-muted)] disabled:cursor-not-allowed"
+              >
+                {orientation === "landscape" ? "16:9" : "9:16"}
+              </button>
+            </div>
+
+            {/* Textarea + send */}
+            <div className="flex items-end gap-2">
+              <textarea
+                ref={inputRef}
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && !e.shiftKey && !busy && chatInput.trim()) {
+                    e.preventDefault();
+                    void handleEnhance();
+                  }
+                }}
+                placeholder="Describe the scene, the vibe, the direction… (Enter to send)"
+                rows={2}
+                disabled={busy}
+                className="min-h-[44px] flex-1 resize-none rounded-xl border border-[var(--border)] bg-[var(--bg-input)] px-3.5 py-3 text-sm leading-snug text-[var(--text)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[oklch(0.72_0.2_300_/_0.55)] disabled:cursor-not-allowed"
+              />
+              <button
+                onClick={() => void handleEnhance()}
+                disabled={busy || !chatInput.trim()}
+                className="flex size-11 shrink-0 items-center justify-center rounded-xl border transition-all disabled:cursor-not-allowed"
                 style={{
-                  padding: "7px 14px", background: "transparent", border: "1px solid var(--border)",
-                  borderRadius: 8, color: "var(--text-muted)", cursor: "pointer",
-                  display: "flex", alignItems: "center", gap: 6, fontSize: 13,
+                  background: busy || !chatInput.trim() ? "oklch(0.13 0.015 272)" : "oklch(0.72 0.2 300)",
+                  borderColor: busy || !chatInput.trim() ? "var(--border)" : "oklch(0.72 0.2 300)",
+                  boxShadow: busy || !chatInput.trim() ? "none" : "0 0 16px oklch(0.72 0.2 300 / 0.4)",
                 }}
               >
-                <RotateCcw size={13} /> Refresh
+                {busy
+                  ? <Loader2 size={16} className="animate-spin" style={{ color: "oklch(0.72 0.2 300 / 0.5)" }} />
+                  : <ArrowRight size={16} color={chatInput.trim() ? "white" : "oklch(0.3 0.02 272)"} />
+                }
               </button>
             </div>
           </div>
+        </div>
 
-          {refPhoto && (
-            <div style={{
-              marginBottom: 20, padding: "14px 16px", borderRadius: 12,
-              background: "oklch(0.72 0.2 300 / 0.06)", border: "1px solid oklch(0.72 0.2 300 / 0.2)",
-              display: "flex", alignItems: "center", gap: 14,
-            }}>
-              <img
-                src={refPhoto.result_image_url}
-                alt="Reference"
-                style={{ width: 72, height: 72, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1px solid oklch(0.72 0.2 300 / 0.3)" }}
-              />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--accent)", marginBottom: 4 }}>
-                  Active Reference Photo
-                </div>
-                <p style={{ fontSize: 12, color: "var(--text)", margin: "0 0 8px", lineHeight: 1.5 }}>
-                  {refPhoto.prompt.slice(0, 120)}{refPhoto.prompt.length > 120 ? "…" : ""}
-                </p>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(refPhoto.result_image_url).then(() => {
-                        setCopiedId(refPhoto.id);
-                        setTimeout(() => setCopiedId(null), 2000);
-                      });
-                    }}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 5,
-                      padding: "5px 11px", borderRadius: 7, fontSize: 12, fontWeight: 600,
-                      background: "transparent", border: "1px solid var(--border)",
-                      color: "var(--text-muted)", cursor: "pointer",
-                    }}
-                  >
-                    {copiedId === refPhoto.id ? <><Check size={11} /> Copied!</> : <><Copy size={11} /> Copy URL</>}
-                  </button>
-                  <button
-                    onClick={() => { setRefPhoto(null); setView("studio"); }}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 5,
-                      padding: "5px 11px", borderRadius: 7, fontSize: 12, fontWeight: 600,
-                      background: "oklch(0.72 0.2 300 / 0.12)", border: "1px solid oklch(0.72 0.2 300 / 0.3)",
-                      color: "var(--accent)", cursor: "pointer",
-                    }}
-                  >
-                    <Video size={11} /> Use in Studio →
-                  </button>
-                </div>
+        {/* History side panel */}
+        {showHistory && (
+          <div className="flex w-80 shrink-0 flex-col overflow-hidden border-l border-[var(--border)] bg-[var(--bg-card)]">
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--border)] px-3.5 py-3">
+              <span className="text-sm font-bold text-[var(--text)]">Video History</span>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => void fetchHistory()}
+                  className="flex items-center gap-1 rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)]"
+                >
+                  <RotateCcw size={10} />
+                </button>
+                <button
+                  onClick={() => setShowHistory(false)}
+                  className="flex size-6 items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-muted)]"
+                >
+                  <X size={12} />
+                </button>
               </div>
             </div>
-          )}
-
-          {loadingPhotos ? (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "var(--text-muted)", gap: 8 }}>
-              <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} /> Loading your Aurora photos…
+            <div className="flex-1 overflow-y-auto p-2.5">
+              {loadingHistory ? (
+                <div className="flex h-28 items-center justify-center gap-2 text-[var(--text-muted)]">
+                  <Loader2 size={14} className="animate-spin" /><span className="text-sm">Loading…</span>
+                </div>
+              ) : history.length === 0 ? (
+                <div className="px-4 py-10 text-center">
+                  <Video size={30} className="mx-auto mb-3 block text-[var(--text-muted)] opacity-15" />
+                  <div className="mb-1 text-sm font-semibold text-[var(--text)]">No videos yet</div>
+                  <p className="m-0 text-xs leading-relaxed text-[var(--text-muted)]">Generate your first video to see it here.</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2.5">
+                  {history.map(g => <HistoryItem key={g.id} g={g} />)}
+                </div>
+              )}
             </div>
-          ) : photos.length === 0 ? (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 320, gap: 14, color: "var(--text-muted)" }}>
-              <Images size={52} style={{ opacity: 0.2 }} />
-              <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text)" }}>No photos yet</div>
-              <p style={{ fontSize: 13, color: "var(--text-muted)", textAlign: "center", margin: 0, maxWidth: 340, lineHeight: 1.6 }}>
-                Generate images in the main Aurora Studio and they'll appear here automatically — same account, same library.
-              </p>
-              <a
-                href="/"
-                style={{
-                  padding: "10px 22px", background: "var(--accent)", border: "none",
-                  borderRadius: 10, color: "white", fontWeight: 700, fontSize: 14, cursor: "pointer",
-                  textDecoration: "none", display: "inline-block",
-                }}
-              >
-                Open Aurora Studio →
-              </a>
-            </div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
-              {photos.map(p => {
-                const isRef = refPhoto?.id === p.id;
-                const isCopied = copiedId === p.id;
-                return (
-                  <div
-                    key={p.id}
-                    style={{
-                      borderRadius: 12, overflow: "hidden",
-                      border: `1px solid ${isRef ? "oklch(0.72 0.2 300 / 0.6)" : "var(--border)"}`,
-                      background: "var(--bg-card)",
-                      boxShadow: isRef ? "0 0 0 2px oklch(0.72 0.2 300 / 0.25)" : "none",
-                      transition: "box-shadow 0.15s",
-                      cursor: "pointer",
-                      position: "relative",
-                    }}
-                    onClick={() => setRefPhoto(isRef ? null : p)}
-                  >
-                    <div style={{ position: "relative", aspectRatio: "1", background: "var(--bg)" }}>
-                      <img
-                        src={p.result_image_url}
-                        alt={p.prompt}
-                        loading="lazy"
-                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                      />
-                      {isRef && (
-                        <div style={{
-                          position: "absolute", top: 8, right: 8,
-                          width: 22, height: 22, borderRadius: "50%",
-                          background: "oklch(0.72 0.2 300)",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                        }}>
-                          <Check size={12} color="#fff" />
-                        </div>
-                      )}
-                      <div style={{
-                        position: "absolute", inset: 0,
-                        background: "linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 50%)",
-                        opacity: 0,
-                        transition: "opacity 0.2s",
-                        display: "flex", alignItems: "flex-end", padding: 8, gap: 6,
-                      }}
-                        onMouseEnter={e => ((e.currentTarget as HTMLElement).style.opacity = "1")}
-                        onMouseLeave={e => ((e.currentTarget as HTMLElement).style.opacity = "0")}
-                      >
-                        <button
-                          onClick={e => {
-                            e.stopPropagation();
-                            navigator.clipboard.writeText(p.result_image_url).then(() => {
-                              setCopiedId(p.id);
-                              toast.success("URL copied");
-                              setTimeout(() => setCopiedId(null), 2000);
-                            });
-                          }}
-                          style={{
-                            display: "flex", alignItems: "center", gap: 4,
-                            padding: "5px 9px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                            background: "rgba(0,0,0,0.7)", border: "1px solid rgba(255,255,255,0.2)",
-                            color: "white", cursor: "pointer", backdropFilter: "blur(4px)",
-                          }}
-                        >
-                          {isCopied ? <><Check size={10} /> Copied</> : <><Copy size={10} /> URL</>}
-                        </button>
-                        <button
-                          onClick={e => { e.stopPropagation(); setRefPhoto(p); }}
-                          style={{
-                            display: "flex", alignItems: "center", gap: 4,
-                            padding: "5px 9px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                            background: isRef ? "oklch(0.72 0.2 300)" : "rgba(0,0,0,0.7)",
-                            border: "1px solid rgba(255,255,255,0.2)",
-                            color: "white", cursor: "pointer", backdropFilter: "blur(4px)",
-                          }}
-                        >
-                          {isRef ? "✓ Ref" : "Pin ref"}
-                        </button>
-                      </div>
-                    </div>
-                    <div style={{ padding: "8px 10px" }}>
-                      <p style={{
-                        fontSize: 11, color: "var(--text-muted)", margin: 0, lineHeight: 1.4,
-                        overflow: "hidden", display: "-webkit-box",
-                        WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-                      }}>
-                        {p.prompt}
-                      </p>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
-                        <span style={{ fontSize: 10, color: "var(--text-muted)", opacity: 0.6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                          {p.kind}
-                        </span>
-                        <span style={{ fontSize: 10, color: "var(--text-muted)", opacity: 0.6 }}>
-                          {new Date(p.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
       <style>{`
         @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
+        @keyframes dotPulse {
+          0%, 80%, 100% { transform: scale(0.55); opacity: 0.35; }
+          40% { transform: scale(1); opacity: 1; }
+        }
       `}</style>
-    </div>
-  );
-}
-
-function Section({ num, label, children }: { num: number; label: string; children: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: 28 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-        <span style={{
-          width: 26, height: 26, borderRadius: "50%",
-          background: "oklch(0.72 0.2 300 / 0.15)",
-          border: "1px solid oklch(0.72 0.2 300 / 0.3)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 12, fontWeight: 800, color: "var(--accent)",
-        }}>
-          {num}
-        </span>
-        <span style={{ fontWeight: 700, fontSize: 15, color: "var(--text)" }}>{label}</span>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 3 }}>{label}</div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>{value}</div>
-    </div>
-  );
-}
-
-function SpecBlock({ title, children, accent }: { title: string; children: React.ReactNode; accent?: boolean }) {
-  return (
-    <div style={{
-      padding: "12px 14px", borderRadius: 10,
-      background: "var(--bg)",
-      border: `1px solid ${accent ? "oklch(0.72 0.2 300 / 0.2)" : "var(--border)"}`,
-    }}>
-      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: accent ? "var(--accent)" : "var(--text-muted)", marginBottom: 6 }}>{title}</div>
-      <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6 }}>{children}</div>
     </div>
   );
 }

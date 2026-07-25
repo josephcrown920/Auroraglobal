@@ -15,6 +15,7 @@ import {
   submitJobTool,
   listJobsTool,
   cancelJobTool,
+  batchLipsyncTool,
   type ToolCtx,
   type ToolDeps,
 } from "./tools.server";
@@ -105,6 +106,7 @@ function makeDeps(over: Partial<ToolDeps> = {}) {
   const generateCalls: Record<string, unknown>[] = [];
   const enqueueCalls: Array<{ userId: string; input: unknown }> = [];
   const cancelCalls: Array<{ userId: string; jobId: string }> = [];
+  const batchLipsyncCalls: Array<{ userId: string; sourceUrls: string[]; audioUrl: string; engine: string }> = [];
   const deps: ToolDeps = {
     rpc: async (name, args) => {
       rpcCalls.push({ name, args });
@@ -129,9 +131,16 @@ function makeDeps(over: Partial<ToolDeps> = {}) {
       cancelCalls.push({ userId, jobId });
       return { ok: true as const };
     },
+    // Default: no-op so existing tests continue to pass with their synthetic URLs.
+    // Ownership rejection tests inject a fake that throws.
+    assertOwnedRef: async () => {},
+    runBatchLipsync: async (input) => {
+      batchLipsyncCalls.push(input);
+      return { total: input.sourceUrls.length, results: [] };
+    },
     ...over,
   };
-  return { deps, rpcCalls, generateCalls, enqueueCalls, cancelCalls };
+  return { deps, rpcCalls, generateCalls, enqueueCalls, cancelCalls, batchLipsyncCalls };
 }
 
 function parse(r: ToolResult) {
@@ -237,16 +246,16 @@ describe("animateFromDrivingVideoTool (motion, priced via computeCost)", () => {
     driving_video_url: `${TRUSTED_HOST}drive.mp4`,
   };
 
-  it("reserves _kind=motion at the Transfer Motion price (30) when a motion worker is online", async () => {
+  it("reserves _kind=motion at the Transfer Motion price (300) when a motion worker is online", async () => {
     const { deps, rpcCalls } = makeDeps({ hasActiveWorkerForKind: async () => true });
     const res = await animateFromDrivingVideoTool(ARGS, CTX, deps);
     // Must equal the in-app Transfer Motion price at the 5s/720p reference.
     expect(parse(res).credits).toBe(computeCost({ features: ["motion"] }).total);
-    expect(parse(res).credits).toBe(30);
+    expect(parse(res).credits).toBe(300);
     const reserves = reserveCalls(rpcCalls);
     expect(reserves).toHaveLength(1);
     expect(reserves[0].args._kind).toBe("motion");
-    expect(reserves[0].args._amount).toBe(30);
+    expect(reserves[0].args._amount).toBe(300);
   });
 
   it("fails BEFORE reserving when no motion-capable worker is connected", async () => {
@@ -274,16 +283,16 @@ describe("performanceReskinTool (performance_reskin, priced via computeCost)", (
     avatar_image_url: `${TRUSTED_HOST}avatar.png`,
   };
 
-  it("reserves _kind=performance_reskin at the Performance Shot price (40) when a motion worker is online", async () => {
+  it("reserves _kind=performance_reskin at the Performance Shot price (400) when a motion worker is online", async () => {
     const { deps, rpcCalls } = makeDeps({ hasActiveWorkerForKind: async () => true });
     const res = await performanceReskinTool(ARGS, CTX, deps);
     // Must equal the in-app Performance Shot price (video + motion, 5s/720p).
     expect(parse(res).credits).toBe(computeCost({ features: ["video", "motion"] }).total);
-    expect(parse(res).credits).toBe(40);
+    expect(parse(res).credits).toBe(400);
     const reserves = reserveCalls(rpcCalls);
     expect(reserves).toHaveLength(1);
     expect(reserves[0].args._kind).toBe("performance_reskin");
-    expect(reserves[0].args._amount).toBe(40);
+    expect(reserves[0].args._amount).toBe(400);
   });
 
   it("fails BEFORE reserving when no motion-capable worker is connected", async () => {
@@ -511,5 +520,178 @@ describe("cancelJobTool", () => {
       expect(res.isError).toBe(true);
       expect(parse(res).error).toBe(msg);
     }
+  });
+});
+
+// ─── Ownership rejection tests (Task #408) ────────────────────────────────────
+// Each path that accepts a user-supplied reference image URL must reject another
+// user's URL before reserving any credits or dispatching a generation.
+// The assertOwnedRef dep is injected to simulate "foreign URL" without a real DB.
+
+const FOREIGN_OWNERSHIP_ERR = "You can only use character images you own.";
+function forbiddenRef(): ToolDeps["assertOwnedRef"] {
+  return async () => {
+    throw new Error(FOREIGN_OWNERSHIP_ERR);
+  };
+}
+
+describe("imageToVideoTool — ownership guard", () => {
+  it("rejects another user's reference image BEFORE dispatching the generate call", async () => {
+    const { deps, generateCalls } = makeDeps({ assertOwnedRef: forbiddenRef() });
+    const res = await imageToVideoTool(
+      { image_url: `${TRUSTED_HOST}other-user/photo.jpg`, prompt: "slow zoom" },
+      CTX,
+      deps,
+    );
+    expect(res.isError).toBe(true);
+    expect(parse(res).error).toMatch(/You can only use character images you own/);
+    expect(generateCalls).toHaveLength(0);
+  });
+});
+
+describe("animateFromDrivingVideoTool — ownership guard", () => {
+  it("rejects another user's reference image BEFORE reserving any credits", async () => {
+    const { deps, rpcCalls } = makeDeps({
+      assertOwnedRef: forbiddenRef(),
+      hasActiveWorkerForKind: async () => true,
+    });
+    const res = await animateFromDrivingVideoTool(
+      {
+        image_url: `${TRUSTED_HOST}other-user/ref.png`,
+        driving_video_url: `${TRUSTED_HOST}drive.mp4`,
+      },
+      CTX,
+      deps,
+    );
+    expect(res.isError).toBe(true);
+    expect(parse(res).error).toMatch(/You can only use character images you own/);
+    expect(reserveCalls(rpcCalls)).toHaveLength(0);
+  });
+});
+
+describe("performanceReskinTool — ownership guard", () => {
+  it("rejects another user's avatar image BEFORE reserving any credits", async () => {
+    const { deps, rpcCalls } = makeDeps({
+      assertOwnedRef: forbiddenRef(),
+      hasActiveWorkerForKind: async () => true,
+    });
+    const res = await performanceReskinTool(
+      {
+        performance_video_url: `${TRUSTED_HOST}perf.mp4`,
+        avatar_image_url: `${TRUSTED_HOST}other-user/avatar.png`,
+      },
+      CTX,
+      deps,
+    );
+    expect(res.isError).toBe(true);
+    expect(parse(res).error).toMatch(/You can only use character images you own/);
+    expect(reserveCalls(rpcCalls)).toHaveLength(0);
+  });
+});
+
+describe("submitJobTool — ownership guard", () => {
+  it("rejects a foreign image_url BEFORE enqueuing the job", async () => {
+    const { deps, enqueueCalls } = makeDeps({ assertOwnedRef: forbiddenRef() });
+    const res = await submitJobTool(
+      {
+        kind: "image",
+        image_urls: [`${TRUSTED_HOST}other-user/photo.jpg`],
+      },
+      CTX,
+      deps,
+    );
+    expect(res.isError).toBe(true);
+    expect(parse(res).error).toMatch(/You can only use character images you own/);
+    expect(enqueueCalls).toHaveLength(0);
+  });
+
+  it("accepts a job with no image_urls without calling assertOwnedRef", async () => {
+    const assertCalled: string[] = [];
+    const { deps, enqueueCalls } = makeDeps({
+      assertOwnedRef: async (url) => {
+        assertCalled.push(url);
+      },
+    });
+    const res = await submitJobTool({ kind: "image", prompt: "a sunset" }, CTX, deps);
+    expect(res.isError).toBeFalsy();
+    expect(assertCalled).toHaveLength(0);
+    expect(enqueueCalls).toHaveLength(1);
+  });
+});
+
+describe("createAvatarTool — ownership guard", () => {
+  it("rejects a foreign training photo BEFORE creating the persona", async () => {
+    let created = 0;
+    const { deps } = makeDeps({
+      assertOwnedRef: forbiddenRef(),
+      createAvatar: async () => {
+        created++;
+        return makeAvatar();
+      },
+    });
+    const res = await createAvatarTool(
+      { name: "Nova", image_urls: [`${TRUSTED_HOST}other-user/face.jpg`] },
+      CTX,
+      deps,
+    );
+    expect(res.isError).toBe(true);
+    expect(parse(res).error).toMatch(/You can only use character images you own/);
+    expect(created).toBe(0);
+  });
+
+  it("accepts owned training photos and creates the persona", async () => {
+    const seen: string[] = [];
+    const { deps } = makeDeps({
+      assertOwnedRef: async (url) => {
+        seen.push(url);
+      },
+    });
+    const res = await createAvatarTool(
+      { name: "Nova", image_urls: [`${TRUSTED_HOST}me/face.jpg`] },
+      CTX,
+      deps,
+    );
+    expect(res.isError).toBeFalsy();
+    expect(seen).toEqual([`${TRUSTED_HOST}me/face.jpg`]);
+  });
+});
+
+describe("batchLipsyncTool — ownership guard", () => {
+  it("rejects a foreign photo BEFORE dispatching any lip-sync job", async () => {
+    const { deps, batchLipsyncCalls } = makeDeps({ assertOwnedRef: forbiddenRef() });
+    const res = await batchLipsyncTool(
+      {
+        image_urls: [`${TRUSTED_HOST}other-user/1.jpg`, `${TRUSTED_HOST}other-user/2.jpg`],
+        audio_url: `${TRUSTED_HOST}track.mp3`,
+      },
+      CTX,
+      deps,
+    );
+    expect(res.isError).toBe(true);
+    expect(parse(res).error).toMatch(/You can only use character images you own/);
+    expect(batchLipsyncCalls).toHaveLength(0);
+  });
+
+  it("checks EVERY photo, then dispatches once with the shared audio track", async () => {
+    const seen: string[] = [];
+    const { deps, batchLipsyncCalls } = makeDeps({
+      assertOwnedRef: async (url) => {
+        seen.push(url);
+      },
+    });
+    const urls = [`${TRUSTED_HOST}me/1.jpg`, `${TRUSTED_HOST}me/2.jpg`, `${TRUSTED_HOST}me/3.jpg`];
+    const res = await batchLipsyncTool(
+      { image_urls: urls, audio_url: `${TRUSTED_HOST}track.mp3` },
+      CTX,
+      deps,
+    );
+    expect(res.isError).toBeFalsy();
+    expect(seen).toEqual(urls);
+    expect(batchLipsyncCalls).toHaveLength(1);
+    expect(batchLipsyncCalls[0]).toMatchObject({
+      userId: CTX.userId,
+      sourceUrls: urls,
+      engine: "heygen-photo",
+    });
   });
 });

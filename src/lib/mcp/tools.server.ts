@@ -14,7 +14,7 @@ import { selectVideoModel, inferAspectRatio } from "./model-selector";
 import { listAvatars, getAvatarByName, createAvatar, type CreateAvatarInput } from "./avatars.server";
 import { hasActiveWorkerForKind, type GenerateKind } from "@/lib/orchestrator.server";
 import { buildMimicMotionRequest, MOTION_TYPES, CAMERA_MOVEMENTS } from "@/lib/motion-workflows.server";
-import { assertTrustedUrl } from "@/lib/url-guard";
+import { assertTrustedUrl, assertOwnedReferenceImage } from "@/lib/url-guard";
 import { COST_UGC_AD, COST_CAMPAIGN_ITEM, buildCampaignVariations } from "@/lib/ugc.server";
 import { computeCost } from "@/lib/pricing";
 
@@ -131,6 +131,18 @@ export interface ToolDeps {
   enqueueJob: (userId: string, input: EnqueueJobInput) => Promise<{ jobId: string; generationId: string; preview: boolean }>;
   listJobs: (userId: string) => Promise<JobListRow[]>;
   cancelJob: (userId: string, jobId: string) => Promise<{ ok: true }>;
+  // Ownership gate: throws with a caller-facing 403-like message when the URL is
+  // not owned by userId.  Injected so unit tests can use a fake without a real DB.
+  assertOwnedRef: (url: string, userId: string) => Promise<void>;
+  // Batch lip-sync dispatcher. Kept behind deps (dynamic import in the default)
+  // so unit tests can stub it and prove the ownership guard fires BEFORE any
+  // job is dispatched or charged.
+  runBatchLipsync: (input: {
+    userId: string;
+    sourceUrls: string[];
+    audioUrl: string;
+    engine: string;
+  }) => Promise<Record<string, unknown>>;
 }
 
 export const defaultToolDeps: ToolDeps = {
@@ -161,6 +173,13 @@ export const defaultToolDeps: ToolDeps = {
   enqueueJob: enqueueJobForUser,
   listJobs: async (userId) => (await listJobsForUser(userId)) as JobListRow[],
   cancelJob: cancelJobForUser,
+  assertOwnedRef: assertOwnedReferenceImage,
+  runBatchLipsync: async (input) => {
+    const { runBatchLipsyncJob } = await import("@/lib/lipsync.server");
+    return (await runBatchLipsyncJob(
+      input as Parameters<typeof runBatchLipsyncJob>[0],
+    )) as Record<string, unknown>;
+  },
 };
 
 // ─── Identity lock (exported for unit tests) ──────────────────────────────────
@@ -306,6 +325,12 @@ export async function generateVideoTool(args: z.infer<typeof generateVideoSchema
 
 export async function imageToVideoTool(args: z.infer<typeof imageToVideoSchema>, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
   try {
+    // Ownership guard: the reference image must belong to the caller.
+    try {
+      await deps.assertOwnedRef(args.image_url, ctx.userId);
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e));
+    }
     const selection = selectVideoModel(args.prompt, args.model);
     const aspect = args.aspect_ratio ?? inferAspectRatio(args.prompt);
     const duration = clampDuration(args.duration);
@@ -467,6 +492,12 @@ export async function animateFromDrivingVideoTool(args: z.infer<typeof animateFr
     } catch (e) {
       return err(e instanceof Error ? e.message : String(e));
     }
+    // Ownership guard: the reference subject image must belong to the caller.
+    try {
+      await deps.assertOwnedRef(args.image_url, ctx.userId);
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e));
+    }
     if (!(await deps.hasActiveWorkerForKind("motion"))) return err(NO_MOTION_BACKEND_MSG);
 
     const payload = buildMimicMotionRequest({
@@ -505,6 +536,12 @@ export async function performanceReskinTool(args: z.infer<typeof performanceResk
     } catch (e) {
       return err(e instanceof Error ? e.message : String(e));
     }
+    // Ownership guard: the avatar reference image must belong to the caller.
+    try {
+      await deps.assertOwnedRef(args.avatar_image_url, ctx.userId);
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e));
+    }
     if (!(await deps.hasActiveWorkerForKind("motion"))) return err(NO_MOTION_BACKEND_MSG);
 
     const payload = {
@@ -539,6 +576,12 @@ export async function performanceReskinTool(args: z.infer<typeof performanceResk
 
 export async function createAvatarTool(args: z.infer<typeof createAvatarSchema>, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
   try {
+    // Ownership guard: training/reference photos must belong to the caller — a
+    // crafted request could otherwise build a persona from (and permanently
+    // re-host as its preview) another user's private studio asset.
+    for (const url of args.image_urls ?? []) {
+      await deps.assertOwnedRef(url, ctx.userId);
+    }
     const avatar = await deps.createAvatar(ctx.userId, args);
     const trained = avatar.training_status !== "completed";
     return ok({
@@ -727,6 +770,14 @@ export const cancelJobSchema = z.object({
 
 export async function submitJobTool(args: z.infer<typeof submitJobSchema>, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
   try {
+    // Ownership guard: every reference image must belong to the caller.
+    for (const url of args.image_urls ?? []) {
+      try {
+        await deps.assertOwnedRef(url, ctx.userId);
+      } catch (e) {
+        return err(e instanceof Error ? e.message : String(e));
+      }
+    }
     const input: EnqueueJobInput = {
       kind: args.kind,
       prompt: args.prompt,
@@ -805,16 +856,18 @@ export const batchLipsyncSchema = z.object({
     .describe("Lip-sync engine for every item. Default: heygen-photo"),
 });
 
-export async function batchLipsyncTool(args: z.infer<typeof batchLipsyncSchema>, ctx: ToolCtx): Promise<ToolResult> {
+export async function batchLipsyncTool(args: z.infer<typeof batchLipsyncSchema>, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
   try {
     assertTrustedUrl(args.audio_url);
-    for (const u of args.image_urls) assertTrustedUrl(u);
-    const { runBatchLipsyncJob } = await import("@/lib/lipsync.server");
-    const result = await runBatchLipsyncJob({
+    // Ownership guard (not just SSRF): every photo must belong to the caller —
+    // a crafted request could otherwise lip-sync (and re-host) another user's
+    // private photo. Runs BEFORE dispatch so nothing is ever charged.
+    for (const u of args.image_urls) await deps.assertOwnedRef(u, ctx.userId);
+    const result = await deps.runBatchLipsync({
       userId: ctx.userId,
       sourceUrls: args.image_urls,
       audioUrl: args.audio_url,
-      engine: (args.engine ?? "heygen-photo") as never,
+      engine: args.engine ?? "heygen-photo",
     });
     return ok(result);
   } catch (e) {

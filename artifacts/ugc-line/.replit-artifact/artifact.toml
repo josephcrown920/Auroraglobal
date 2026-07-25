@@ -16,9 +16,6 @@ localPort = 8083
 [services.development]
 run = "bash /home/runner/workspace/artifacts/ugc-line/start-dev.sh"
 
-[services.production]
-build = [ "bash", "-c", "npm install && node_modules/.bin/vite build --config vite.config.ts" ]
-
 [services.env]
 BASE_PATH = "/ugc-line/"
 PORT = "8083"

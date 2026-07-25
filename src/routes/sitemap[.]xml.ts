@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 
-const BASE_URL = "https://aurorastudiostar.lovable.app";
+const BASE_URL = "https://auroraperformancestudio.com";
 
 interface SitemapEntry {
   path: string;
@@ -20,12 +20,10 @@ const ENTRIES: SitemapEntry[] = [
   { path: "/spin", changefreq: "weekly", priority: "0.8" },
   { path: "/tiktok", changefreq: "weekly", priority: "0.8" },
   { path: "/photo-edit", changefreq: "weekly", priority: "0.8" },
-  { path: "/orchestrate", changefreq: "weekly", priority: "0.8" },
-  { path: "/agent", changefreq: "weekly", priority: "0.7" },
+  { path: "/agent", changefreq: "weekly", priority: "0.8" },
   { path: "/speech", changefreq: "weekly", priority: "0.7" },
   { path: "/edit", changefreq: "weekly", priority: "0.7" },
   { path: "/reshoot", changefreq: "weekly", priority: "0.7" },
-  { path: "/split-reality", changefreq: "weekly", priority: "0.7" },
   { path: "/content-machine", changefreq: "weekly", priority: "0.7" },
   { path: "/kids", changefreq: "weekly", priority: "0.7" },
   { path: "/workflows", changefreq: "weekly", priority: "0.7" },
@@ -36,7 +34,7 @@ const ENTRIES: SitemapEntry[] = [
   { path: "/guides", changefreq: "weekly", priority: "0.6" },
   { path: "/roadmap", changefreq: "monthly", priority: "0.5" },
   { path: "/gifts", changefreq: "monthly", priority: "0.5" },
-  { path: "/affiliate", changefreq: "monthly", priority: "0.5" },
+  { path: "/partners", changefreq: "monthly", priority: "0.5" },
   { path: "/contact", changefreq: "monthly", priority: "0.4" },
   { path: "/connect", changefreq: "monthly", priority: "0.4" },
   { path: "/legal/terms", changefreq: "yearly", priority: "0.3" },

@@ -432,7 +432,7 @@ function LiveStudioPage() {
                   >
                     {generating
                       ? <><Loader2 size={16} className="animate-spin" /> Rendering…</>
-                      : <><Sparkles size={16} /> Generate · 1 Aura</>}
+                      : <><Sparkles size={16} /> Generate · 10 Aura</>}
                   </Button>
                 </>
               )}

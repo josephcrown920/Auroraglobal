@@ -6,11 +6,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { adminOverview, adminGrantCredits, adminEarnings, adminWithdrawalSummary, adminRecordWithdrawal, adminCheckWithdrawalAmount, adminEditWithdrawal, adminDeleteWithdrawal } from "@/lib/admin.functions";
 import { getSiteImages, adminUpdateSiteImage, adminResetSiteImage, type SiteImageRow } from "@/lib/site-images.functions";
-import { listWorkers, upsertWorker, deleteWorker, pingWorker, setWorkerStatus, getFreeGpuMode, setFreeGpuMode } from "@/lib/workers.functions";
+import { listWorkers, upsertWorker, deleteWorker, pingWorker, setWorkerStatus, getFreeGpuMode, setFreeGpuMode, approveWorker, rejectWorker } from "@/lib/workers.functions";
 import { issuePromoCode, listPromoCodes, setPromoCodeActive, type PromoCodeRow } from "@/lib/promo.functions";
 import { PROFIT_SPLIT_PCT } from "@/lib/profit-split";
 import { ModelBadge } from "@/components/ModelBadge";
-import { Shield, Sparkles, Loader2, Users, DollarSign, ImagePlay, Coins, ArrowRight, Server, Trash2, Activity, TrendingUp, Gift, Pause, Play, Zap, Store, Wallet, Tag, Copy, BookOpen, Image } from "lucide-react";
+import { Shield, Sparkles, Loader2, Users, DollarSign, ImagePlay, Coins, ArrowRight, Server, Trash2, Activity, TrendingUp, Gift, Pause, Play, Zap, Store, Wallet, Tag, Copy, BookOpen, Image, CheckCircle, XCircle, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Button } from "@/components/ui/button";
@@ -153,7 +153,6 @@ function AdminPage() {
               { to: "/roadmap",          label: "Roadmap" },
               { to: "/workflows",        label: "Workflows" },
               { to: "/content-machine",  label: "Content Machine" },
-              { to: "/split-reality",    label: "Split Reality" },
               { to: "/tiktok",           label: "TikTok Studio" },
               { to: "/clips",            label: "Clips" },
               { to: "/edit",             label: "AutoCut" },
@@ -921,6 +920,8 @@ function WorkersPanel() {
   const statusFn = useServerFn(setWorkerStatus);
   const freeModeFn = useServerFn(getFreeGpuMode);
   const setFreeModeFn = useServerFn(setFreeGpuMode);
+  const approveFn = useServerFn(approveWorker);
+  const rejectFn = useServerFn(rejectWorker);
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ["workers"], queryFn: () => listFn() });
   const { data: freeMode } = useQuery({ queryKey: ["free-gpu-mode"], queryFn: () => freeModeFn() });
@@ -931,6 +932,16 @@ function WorkersPanel() {
       qc.invalidateQueries({ queryKey: ["free-gpu-mode"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+  const approveMut = useMutation({
+    mutationFn: (id: string) => approveFn({ data: { id } }),
+    onSuccess: () => { toast.success("Worker approved — now active and serving jobs"); qc.invalidateQueries({ queryKey: ["workers"] }); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Approve failed"),
+  });
+  const rejectMut = useMutation({
+    mutationFn: (id: string) => rejectFn({ data: { id } }),
+    onSuccess: () => { toast.success("Worker rejected — set to paused"); qc.invalidateQueries({ queryKey: ["workers"] }); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Reject failed"),
   });
   const blank = { 
     name: "", endpoint_url: "", auth_token: "", region: "global", 
@@ -1074,6 +1085,84 @@ function WorkersPanel() {
           </div>
         );
       })()}
+
+      {/* ── Pending approval section ───────────────────────────────────────── */}
+      {(() => {
+        const pending = (data?.workers ?? []).filter(w => w.status === "pending_approval");
+        if (pending.length === 0) return null;
+        return (
+          <section className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.04] p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <Clock className="size-4 text-amber-400" />
+              <h2 className="text-sm font-medium uppercase tracking-wider text-amber-400">Pending Approval</h2>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                {pending.length} worker{pending.length === 1 ? "" : "s"}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              These workers self-registered using the Aurora register secret but cannot receive any job until you approve them.
+              Review the endpoint URL and capabilities before approving — a bad actor with the register secret could submit a malicious endpoint.
+            </p>
+            <div className="rounded-xl border border-amber-500/20 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-amber-500/10 text-xs uppercase tracking-wider text-amber-400/70">
+                  <tr>
+                    <th className="text-left p-3">Name</th>
+                    <th className="text-left p-3">Endpoint</th>
+                    <th className="text-left p-3">Capabilities</th>
+                    <th className="text-left p-3">Protocol</th>
+                    <th className="text-left p-3">Registered</th>
+                    <th className="p-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pending.map(w => {
+                    const protocol = (w as Record<string, unknown>).protocol as string ?? "custom";
+                    const createdAt = (w as Record<string, unknown>).created_at as string | null;
+                    const busy = approveMut.isPending || rejectMut.isPending;
+                    return (
+                      <tr key={w.id} className="border-t border-amber-500/10">
+                        <td className="p-3 font-medium">{w.name}</td>
+                        <td className="p-3 text-xs text-muted-foreground">
+                          <span className="truncate block max-w-[200px]">{w.endpoint_url}</span>
+                        </td>
+                        <td className="p-3 text-xs">{(w.capabilities ?? []).join(", ") || "—"}</td>
+                        <td className="p-3 text-xs text-muted-foreground">{protocol}</td>
+                        <td className="p-3 text-xs text-muted-foreground">
+                          {createdAt ? new Date(createdAt).toLocaleString() : heartbeatAge(w.last_heartbeat) + " ago"}
+                        </td>
+                        <td className="p-3">
+                          <div className="flex items-center gap-2 justify-end">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
+                              disabled={busy}
+                              onClick={() => approveMut.mutate(w.id)}
+                            >
+                              <CheckCircle className="size-3.5 mr-1" /> Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
+                              disabled={busy}
+                              onClick={() => rejectMut.mutate(w.id)}
+                            >
+                              <XCircle className="size-3.5 mr-1" /> Reject
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        );
+      })()}
+
       {isLoading ? <div className="text-sm text-muted-foreground">Loading…</div> : (
         <div className="rounded-xl border border-border overflow-hidden">
           <table className="w-full text-sm">
@@ -1091,7 +1180,7 @@ function WorkersPanel() {
               </tr>
             </thead>
             <tbody>
-              {(data?.workers ?? []).map(w => {
+              {(data?.workers ?? []).filter(w => w.status !== "pending_approval").map(w => {
                 const staleMs = w.last_heartbeat ? Date.now() - new Date(w.last_heartbeat).getTime() : Infinity;
                 const isStale = staleMs > 5 * 60_000;
                 const protocol = (w as Record<string, unknown>).protocol as string ?? "custom";

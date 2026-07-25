@@ -62,7 +62,7 @@ export function StickyCreditsBar() {
           to="/"
           hash="pricing"
           onClick={() => void track("sticky_bar_cta_click")}
-          className="inline-flex items-center gap-1 px-4 py-2 rounded-full bg-white text-violet-700 text-sm font-semibold hover:bg-white/95 shrink-0 no-underline"
+          className="inline-flex items-center gap-1 px-4 py-2 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand/90 shrink-0 no-underline"
         >
           <Sparkles className="size-3.5" /> Claim
         </Link>

@@ -135,20 +135,43 @@ export default defineConfig({
     // transform them lazily on first request — shaves several seconds off
     // the first meaningful paint on cold start.
     optimizeDeps: {
+      // Commit the first optimization run as soon as the deps are bundled
+      // instead of holding it until the static-import crawl ends. In this app
+      // the crawl never settles (TanStack Start's server-fn transform keeps
+      // requests pending), so with the default `true` the optimizer piles up
+      // deps_temp_* dirs forever, never renames one to deps/, and every
+      // request for an optimized dep (react, zod, ...) hangs indefinitely —
+      // the browser spins forever on first load.
+      holdUntilCrawlEnd: false,
       include: [
         "react",
         "react-dom",
         "react-dom/client",
         "@tanstack/react-query",
         "@tanstack/react-router",
-        "@tanstack/react-start",
+        // "@tanstack/react-start" must NEVER be listed here: force-including it
+        // overrides the Start plugin's own optimizeDeps.exclude, so Vite
+        // pre-bundles the raw package for the browser WITHOUT the plugin's
+        // server-code-stripping transform. The bundle then executes
+        // start-storage-context's top-level `new AsyncLocalStorage()` (a
+        // node:async_hooks import) in the client, which throws under Vite's
+        // browser-external stub and kills hydration app-wide — every button,
+        // form submit, and nav handler silently dies (forms fall back to
+        // native GET submits). Broke sign-in + sidebar in July 2026.
         "sonner",
         "lucide-react",
         "clsx",
         "tailwind-merge",
         "class-variance-authority",
         "zod",
+        "@simplewebauthn/browser",
       ],
+      // These are server-only packages that leak into the dep-optimizer crawl
+      // through SSR server-fn transforms. Excluding them stops Vite from adding
+      // them to the CLIENT optimized bundle on every restart, which would
+      // invalidate bundle hashes and cause blank-screen flashes in browsers
+      // that cached the previous hash set (notably mobile Safari).
+      exclude: ["openai", "@google/genai", "@anthropic-ai/sdk", "@simplewebauthn/server"],
     },
     server: {
       host: "0.0.0.0",
@@ -166,23 +189,55 @@ export default defineConfig({
       // heaviest server modules (orchestrator owns ~40% of cold-start time).
       warmup: {
         clientFiles: [
+          // Shell — always needed
           "./src/routes/__root.tsx",
-          "./src/routes/index.tsx",
-          "./src/routes/studio.lazy.tsx",
-          "./src/routes/motion.lazy.tsx",
-          "./src/routes/orchestrate.lazy.tsx",
           "./src/components/MobileNav.tsx",
+          // Landing (highest traffic, already fast — keep it first)
+          "./src/routes/index.tsx",
+          // Core app routes — all black-screen on first visit without warmup
+          "./src/routes/auth.lazy.tsx",
+          "./src/routes/studio.lazy.tsx",
+          "./src/routes/gallery.lazy.tsx",
+          "./src/routes/motion.lazy.tsx",
+          "./src/routes/canvas.lazy.tsx",
+          "./src/routes/edit.lazy.tsx",
+          "./src/routes/lipsync.lazy.tsx",
+          "./src/routes/music-video.lazy.tsx",
+          "./src/routes/clips.lazy.tsx",
+          "./src/routes/billing.lazy.tsx",
+          "./src/routes/avatar.lazy.tsx",
+          "./src/routes/dashboard.lazy.tsx",
+          "./src/routes/orchestrate.tsx",
+          "./src/routes/agent.lazy.tsx",
+          "./src/routes/spin.lazy.tsx",
         ],
         ssrFiles: [
+          // Root + landing
           "./src/routes/__root.tsx",
           "./src/routes/index.tsx",
+          // Heavy server libraries
           "./src/lib/orchestrator.server.ts",
           "./src/lib/jobs.server.ts",
+          "./src/lib/generate-core.server.ts",
+          "./src/lib/result-store.server.ts",
+          // Server functions — all lazily compiled on first RPC call without warmup
           "./src/lib/studio.functions.ts",
           "./src/lib/orchestration.functions.ts",
           "./src/lib/billing.functions.ts",
-          "./src/lib/generate-core.server.ts",
-          "./src/lib/result-store.server.ts",
+          "./src/lib/gallery.functions.ts",
+          "./src/lib/video-agent.functions.ts",
+          "./src/lib/agent.functions.ts",
+          "./src/lib/marketplace.functions.ts",
+          "./src/lib/comfy.functions.ts",
+          "./src/lib/aurora-templates.functions.ts",
+          "./src/lib/workflows.functions.ts",
+          "./src/lib/claude-hooks.functions.ts",
+          "./src/lib/lipsync.functions.ts",
+          "./src/lib/photo-edit.functions.ts",
+          "./src/lib/share.functions.ts",
+          "./src/lib/spin.functions.ts",
+          "./src/lib/hf.functions.ts",
+          "./src/lib/chatbot.functions.ts",
         ],
       },
     },

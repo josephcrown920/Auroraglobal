@@ -4,15 +4,36 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Sparkles, LogIn } from "lucide-react";
-import { useState, useEffect } from "react";
+import { LogIn, MailCheck, Fingerprint, Loader2, Eye, EyeOff, KeyRound } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { trackSignUp } from "@/lib/gtm";
+import {
+  beginPasskeyRegistration,
+  completePasskeyRegistration,
+  beginPasskeyAuthentication,
+  completePasskeyAuthentication,
+} from "@/lib/webauthn.server";
 
 export const Route = createLazyFileRoute("/auth")({
   component: AuthPage,
 });
+
+// Detect browser WebAuthn platform-authenticator support
+function useBiometricSupport() {
+  const [supported, setSupported] = useState(false);
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      !window.PublicKeyCredential ||
+      typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable !== "function"
+    ) return;
+    window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+      .then(setSupported)
+      .catch(() => setSupported(false));
+  }, []);
+  return supported;
+}
 
 function AuthPage() {
   const navigate = useNavigate();
@@ -23,16 +44,77 @@ function AuthPage() {
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
+  const [bioBusy, setBioBusy] = useState(false);
+  const [confirmSent, setConfirmSent] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [recoveryBusy, setRecoveryBusy] = useState(false);
+  const biometricSupported = useBiometricSupport();
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Detect Supabase password-recovery links (#...type=recovery) so we show
+  // the "set a new password" form instead of bouncing to the studio.
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash.includes("type=recovery")) {
+      setRecoveryMode(true);
+    }
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
 
   const OAUTH_SIGNUP_INTENT_KEY = "aurora.oauth_signup_intent";
   useEffect(() => {
-    if (loading || !session) return;
+    if (loading || !session || recoveryMode) return;
     if (typeof window !== "undefined" && sessionStorage.getItem(OAUTH_SIGNUP_INTENT_KEY)) {
       sessionStorage.removeItem(OAUTH_SIGNUP_INTENT_KEY);
       trackSignUp("google");
     }
     navigate({ to: "/studio" });
-  }, [session, loading, navigate]);
+  }, [session, loading, navigate, recoveryMode]);
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast.error("Enter your email above first");
+      return;
+    }
+    setResetBusy(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth`,
+      });
+      if (error) throw error;
+      toast.success("Password reset email sent — check your inbox");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not send reset email");
+    } finally {
+      setResetBusy(false);
+    }
+  };
+
+  const handleSetNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    setRecoveryBusy(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      toast.success("Password updated — you're signed in!");
+      setRecoveryMode(false);
+      navigate({ to: "/studio" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update password");
+    } finally {
+      setRecoveryBusy(false);
+    }
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,9 +138,13 @@ function AuthPage() {
         trackSignUp("email");
         if (data.session) {
           toast.success(`Welcome, ${name}!`);
+          // After signup, offer to register a passkey
+          if (biometricSupported) {
+            void offerPasskeyRegistration();
+          }
           navigate({ to: "/studio" });
         } else {
-          toast.success("Check your email to confirm your account");
+          setConfirmSent(true);
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -78,41 +164,221 @@ function AuthPage() {
       if (mode === "signup" && typeof window !== "undefined") {
         sessionStorage.setItem(OAUTH_SIGNUP_INTENT_KEY, "1");
       }
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+      const isInFrame = typeof window !== "undefined" && window.self !== window.top;
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/studio`,
+          skipBrowserRedirect: isInFrame,
+        },
       });
-
-      if (result.error) {
-        throw result.error;
+      if (error) {
+        if (typeof window !== "undefined") sessionStorage.removeItem(OAUTH_SIGNUP_INTENT_KEY);
+        throw error;
       }
-
-      if (result.redirected) {
-        return;
+      if (isInFrame && data?.url) {
+        window.open(data.url, "_blank", "noopener,noreferrer");
+        toast.info("Complete sign-in in the new tab, then come back here.");
       }
-
-      toast.success("Signed in with Google!");
-      navigate({ to: "/studio" });
     } catch (err) {
-      if (typeof window !== "undefined") sessionStorage.removeItem(OAUTH_SIGNUP_INTENT_KEY);
       toast.error(err instanceof Error ? err.message : "Google sign-in failed");
     } finally {
       setGoogleBusy(false);
     }
   };
 
+  // Register a passkey for the currently signed-in user
+  async function offerPasskeyRegistration() {
+    try {
+      const { startRegistration } = await import("@simplewebauthn/browser");
+      const { options, challengeId } = await beginPasskeyRegistration();
+      const credential = await startRegistration(options);
+      await completePasskeyRegistration({
+        data: {
+          challengeId,
+          credential,
+          origin: window.location.origin,
+          deviceName: navigator.userAgent.includes("iPhone")
+            ? "iPhone"
+            : navigator.userAgent.includes("Mac")
+              ? "Mac"
+              : "This device",
+        },
+      });
+      toast.success("Face ID / fingerprint saved — use it next time you sign in.");
+    } catch {
+      // Non-blocking — user can always add it later from settings
+    }
+  }
+
+  // Sign in using a passkey (Face ID / fingerprint)
+  const handleBiometricSignIn = async () => {
+    setBioBusy(true);
+    abortRef.current = new AbortController();
+    try {
+      const { startAuthentication } = await import("@simplewebauthn/browser");
+      const rpID = window.location.hostname;
+
+      const { options, challengeId } = await beginPasskeyAuthentication({ data: { rpID } });
+      const credential = await startAuthentication(options, false);
+
+      const { token_hash } = await completePasskeyAuthentication({
+        data: { challengeId, credential, origin: window.location.origin },
+      });
+
+      const { error } = await supabase.auth.verifyOtp({
+        token_hash,
+        type: "magiclink",
+      });
+      if (error) throw error;
+
+      toast.success("Signed in with biometrics!");
+      navigate({ to: "/studio" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("cancelled") || msg.includes("abort") || msg.includes("NotAllowed")) {
+        return; // User dismissed — silent
+      }
+      toast.error(msg || "Biometric sign-in failed");
+    } finally {
+      setBioBusy(false);
+    }
+  };
+
+  if (recoveryMode) {
+    return (
+      <main className="min-h-screen flex items-center justify-center px-4 bg-zinc-950 relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 65% 25%, oklch(0.58 0.22 25 / 0.10), transparent 55%), radial-gradient(ellipse at 20% 80%, oklch(0.085 0.022 272 / 0.6), transparent 50%)" }} />
+        <div className="relative w-full max-w-md rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-8">
+          <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/25">
+            <KeyRound className="size-7 text-primary" />
+          </div>
+          <h2 className="text-2xl font-semibold tracking-tight text-center">Set a new password</h2>
+          <p className="mt-2 mb-6 text-sm text-muted-foreground text-center">
+            Choose a new password for your account.
+          </p>
+          <form onSubmit={handleSetNewPassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New password</Label>
+              <div className="relative">
+                <Input
+                  id="new-password"
+                  type={showNewPassword ? "text" : "password"}
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="pr-11"
+                />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => setShowNewPassword((v) => !v)}
+                  aria-label={showNewPassword ? "Hide password" : "Show password"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showNewPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
+            </div>
+            <Button type="submit" disabled={recoveryBusy} className="w-full h-11 rounded-xl text-base font-semibold bg-brand text-white hover:bg-brand/90 border-0">
+              {recoveryBusy ? "Saving…" : "Save new password"}
+            </Button>
+          </form>
+        </div>
+      </main>
+    );
+  }
+
+  if (confirmSent) {
+    return (
+      <main className="min-h-screen flex items-center justify-center px-4 bg-zinc-950 relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 65% 25%, oklch(0.58 0.22 25 / 0.10), transparent 55%), radial-gradient(ellipse at 20% 80%, oklch(0.085 0.022 272 / 0.6), transparent 50%)" }} />
+        <div className="relative w-full max-w-md rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-8 text-center">
+          <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/25">
+            <MailCheck className="size-7 text-primary" />
+          </div>
+          <h2 className="text-2xl font-semibold tracking-tight">Check your inbox</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            We sent a confirmation link to{" "}
+            <strong className="text-foreground">{email}</strong>.{" "}
+            Click it to activate your account — you'll land straight in the studio.
+          </p>
+          <p className="mt-4 text-xs text-muted-foreground">
+            Didn't get it? Check your spam folder or wait a minute, then try again.
+          </p>
+          <button
+            type="button"
+            onClick={() => { setConfirmSent(false); setMode("signin"); }}
+            className="mt-6 text-sm text-primary hover:text-primary/80 transition-colors"
+          >
+            ← Back to sign in
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 bg-[var(--gradient-soft)] relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "var(--gradient-stage)" }} />
-      <div className="relative w-full max-w-md rounded-3xl bg-card/80 backdrop-blur-xl border border-border p-8 shadow-[var(--shadow-glow)]">
-        <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
-          <Sparkles className="size-4" /> Aurora Studio
+    <main className="min-h-screen flex items-center justify-center px-4 bg-zinc-950 relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 65% 25%, oklch(0.58 0.22 25 / 0.10), transparent 55%), radial-gradient(ellipse at 20% 80%, oklch(0.085 0.022 272 / 0.6), transparent 50%)" }} />
+      <div className="relative w-full max-w-md rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-8">
+        <Link to="/" className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-100 transition-colors mb-5">
+          <span className="inline-block size-1.5 rounded-full bg-brand" />
+          <span className="text-xs font-semibold uppercase tracking-widest">Aurora Studio</span>
         </Link>
-        <h1 className="text-3xl font-semibold tracking-tight mb-1">
-          {mode === "signup" ? "Create account" : "Welcome back"}
+
+        {/* Mode tab switcher */}
+        <div className="flex rounded-xl bg-zinc-800/70 p-1 mb-6">
+          <button
+            type="button"
+            onClick={() => setMode("signin")}
+            className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
+              mode === "signin"
+                ? "bg-zinc-700 text-foreground shadow"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Sign in
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("signup")}
+            className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
+              mode === "signup"
+                ? "bg-zinc-700 text-foreground shadow"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Create account
+          </button>
+        </div>
+
+        <h1 className="text-2xl font-semibold tracking-tight mb-1">
+          {mode === "signup" ? "Join the studio" : "Welcome back"}
         </h1>
         <p className="text-sm text-muted-foreground mb-6">
-          {mode === "signup" ? "Start directing your own studio shoots." : "Sign in to enter the studio."}
+          {mode === "signup" ? "Built by pro artists, for creators ready to scale." : "Sign in to continue."}
         </p>
+
+        {/* Biometric sign-in button — visible when browser supports it */}
+        {biometricSupported && mode === "signin" && (
+          <Button
+            type="button"
+            onClick={handleBiometricSignIn}
+            disabled={bioBusy}
+            className="w-full h-12 mb-4 rounded-xl text-base font-semibold bg-primary text-white hover:bg-primary/90 border-0 flex items-center justify-center gap-2"
+          >
+            {bioBusy ? (
+              <Loader2 className="size-5 animate-spin" />
+            ) : (
+              <Fingerprint className="size-5" />
+            )}
+            {bioBusy ? "Checking…" : "Sign in with Face ID / Fingerprint"}
+          </Button>
+        )}
+
         <form onSubmit={submit} className="space-y-4">
           {mode === "signup" && (
             <div className="space-y-2">
@@ -133,19 +399,40 @@ function AuthPage() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                required
+                minLength={6}
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="pr-11"
+              />
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
           </div>
-          <Button type="submit" disabled={busy} className="w-full h-11 text-base font-medium" style={{ background: "var(--gradient-hero)" }}>
+          <Button type="submit" disabled={busy} className="w-full h-11 rounded-xl text-base font-semibold bg-brand text-white hover:bg-brand/90 border-0">
             {busy ? "Working…" : mode === "signup" ? "Create account" : "Sign in"}
           </Button>
         </form>
+
+        {/* After signup: prompt to add biometrics */}
+        {biometricSupported && mode === "signup" && (
+          <p className="mt-3 text-[11px] text-center text-muted-foreground">
+            After you create your account, we'll ask if you want to enable Face ID / fingerprint sign-in.
+          </p>
+        )}
+
         <div className="mt-5 flex items-center gap-3">
           <span className="h-px flex-1 bg-border" />
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">or</span>
@@ -160,12 +447,21 @@ function AuthPage() {
         >
           {googleBusy ? "Signing in..." : <><LogIn className="mr-2 size-4" /> Continue with Google</>}
         </Button>
-        <button
-          onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
-          className="mt-6 text-sm text-muted-foreground hover:text-foreground w-full text-center"
-        >
-          {mode === "signup" ? "Already have an account? Sign in" : "New here? Create an account"}
-        </button>
+
+        <div className="mt-6 flex items-center justify-between text-sm text-muted-foreground">
+          <span />
+          {mode === "signin" && (
+            <button
+              type="button"
+              disabled={resetBusy}
+              className="hover:text-foreground disabled:opacity-60 inline-flex items-center gap-1.5"
+              onClick={handleForgotPassword}
+            >
+              {resetBusy && <Loader2 className="size-3.5 animate-spin" />}
+              {resetBusy ? "Sending…" : "Forgot password?"}
+            </button>
+          )}
+        </div>
         <p className="mt-6 text-[11px] text-center text-muted-foreground">
           By continuing you agree to our{" "}
           <Link to="/legal/$slug" params={{ slug: "terms" }} className="underline">

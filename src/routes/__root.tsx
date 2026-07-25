@@ -13,6 +13,7 @@ import {
 
 import appCss from "../styles.css?url";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
+import { CANONICAL_ORIGIN } from "@/lib/seo";
 import { Toaster } from "@/components/ui/sonner";
 import { usePageViewTracking } from "@/hooks/use-tracking";
 import { lazy, Suspense, useEffect, useState } from "react";
@@ -96,15 +97,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "author", content: "Aurora" },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "Aurora" },
-      { property: "og:url", content: "https://auroraperformancestudio.com" },
+      { property: "og:url", content: CANONICAL_ORIGIN },
       { title: "Aurora — AI Creative Studio for Artists & Performers" },
       { property: "og:title", content: "Aurora — AI Creative Studio for Artists & Performers" },
       { name: "twitter:title", content: "Aurora — AI Creative Studio for Artists & Performers" },
-      { name: "description", content: "Turn one photo into magazine-grade performance shots, music-video stills, lip-sync videos and UGC ads — in seconds. The AI creative studio built for artists." },
-      { property: "og:description", content: "Turn one photo into magazine-grade performance shots, music-video stills, lip-sync videos and UGC ads — in seconds. The AI creative studio built for artists." },
-      { name: "twitter:description", content: "Turn one photo into magazine-grade performance shots, music-video stills, lip-sync videos and UGC ads — in seconds. The AI creative studio built for artists." },
-      { property: "og:image", content: "https://auroraperformancestudio.com/landing-photo-nba-josh.png" },
-      { name: "twitter:image", content: "https://auroraperformancestudio.com/landing-photo-nba-josh.png" },
+      { name: "description", content: "Turn one photo into magazine-grade performance shots, music-video stills, lip-sync videos and UGC ads — in seconds. Built by pro artists, for artists who need to scale massively." },
+      { property: "og:description", content: "Turn one photo into magazine-grade performance shots, music-video stills, lip-sync videos and UGC ads — in seconds. Built by pro artists, for artists who need to scale massively." },
+      { name: "twitter:description", content: "Turn one photo into magazine-grade performance shots, music-video stills, lip-sync videos and UGC ads — in seconds. Built by pro artists, for artists who need to scale massively." },
+      { property: "og:image", content: `${CANONICAL_ORIGIN}/landing/reel-poster.jpg` },
+      { name: "twitter:image", content: `${CANONICAL_ORIGIN}/landing/reel-poster.jpg` },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@aurorastudio" },
       { name: "keywords", content: "AI creative studio, AI photos, performance shots, music video stills, lip sync video, UGC ads, artist photos, AI image generation" },
@@ -129,9 +130,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "@context": "https://schema.org",
           "@type": "Organization",
           name: "Aurora",
-          url: "https://auroraperformancestudio.com",
+          url: CANONICAL_ORIGIN,
+          logo: `${CANONICAL_ORIGIN}/icons/aurora-icon-512.png`,
           description:
-            "AI performance shots, music-video stills, lip-sync clips and UGC ads from a single selfie.",
+            "AI performance shots, music-video stills, lip-sync clips and UGC ads from a single selfie. Built by pro artists, for artists who need to scale massively.",
+          contactPoint: {
+            "@type": "ContactPoint",
+            email: "support@auroraperformancestudio.com",
+            contactType: "customer support",
+          },
+          sameAs: [
+            "https://twitter.com/aurorastudio",
+            "https://www.tiktok.com/@aurorastudio",
+          ],
         }),
       },
       {
@@ -140,7 +151,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "@context": "https://schema.org",
           "@type": "WebSite",
           name: "Aurora",
-          url: "https://auroraperformancestudio.com",
+          url: CANONICAL_ORIGIN,
         }),
       },
     ],
@@ -180,6 +191,11 @@ function RootShell({ children }: { children: React.ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        {/* Hide the Replit "Built on Replit" deployment badge — Aurora is a
+            paid product and the badge undercuts trust with real users. The
+            badge is injected by Replit's serving infrastructure as
+            <div id="replit-badge"> so a single CSS rule is enough. */}
+        <style dangerouslySetInnerHTML={{ __html: "#replit-badge{display:none!important}" }} />
         {/* FOUC prevention: set data-theme before first paint so the correct
             theme variables are in effect immediately, with no flash. */}
         <script
@@ -264,8 +280,24 @@ function RootComponent() {
   usePageViewTracking();
   useEffect(() => { captureRefFromUrl(); initCrashReporting(); }, []);
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
+    if (!('serviceWorker' in navigator)) return;
+    if (import.meta.env.PROD) {
       navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    } else {
+      // Dev: a service worker must NEVER intercept the vite dev server —
+      // cached dev HTML references stale module URLs, which breaks hydration
+      // (nav appears dead) and slows loads. Unregister anything left over and
+      // purge Aurora caches so previously-affected browsers recover.
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((regs) => Promise.all(regs.map((r) => r.unregister())))
+        .catch(() => {});
+      if ('caches' in window) {
+        caches
+          .keys()
+          .then((keys) => Promise.all(keys.filter((k) => k.startsWith('aurora-')).map((k) => caches.delete(k))))
+          .catch(() => {});
+      }
     }
   }, []);
 

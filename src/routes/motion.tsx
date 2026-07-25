@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { CANONICAL_ORIGIN } from "@/lib/seo";
 
 export const Route = createFileRoute("/motion")({
   // Deep-link prefill used by Guided Workflows (/guides/$slug): hand off a
@@ -25,8 +26,9 @@ export const Route = createFileRoute("/motion")({
       { name: "description", content: "Record yourself performing on your phone. Aurora transfers your motion into your AI-generated scene — no studio, no crew." },
       { property: "og:title", content: "Perform Anywhere — Aurora" },
       { property: "og:description", content: "Generate your AI scene in Colors Studio, film yourself performing, animate with motion transfer." },
+      { property: "og:url", content: `${CANONICAL_ORIGIN}/motion` },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/motion" }],
+    links: [{ rel: "canonical", href: `${CANONICAL_ORIGIN}/motion` }],
   }),
 });
 

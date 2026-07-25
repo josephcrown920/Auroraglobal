@@ -137,7 +137,7 @@ curl -s -X POST $BASE -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"aurora_list_jobs","arguments":{"limit":3}}}'
 
 # 5. (Optional, net-zero credits) submit an image job, then cancel it —
-#    cancel releases the 1-Aura reservation.
+#    cancel releases the 10-Aura reservation.
 curl -s -X POST $BASE -H 'Content-Type: application/json' -H "Authorization: Bearer $KEY" \
   -d '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"aurora_submit_job","arguments":{"kind":"image","prompt":"verification still"}}}'
 curl -s -X POST $BASE -H 'Content-Type: application/json' -H "Authorization: Bearer $KEY" \

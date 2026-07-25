@@ -129,7 +129,7 @@ const RETRY_BACKOFF_MAX_DOUBLINGS = 6; // base * 2^6 = 32m → clamped by the ca
 // against the (rare) chance of a duplicate provider call.
 export const STALE_PROCESSING_SECONDS = 15 * 60; // 15m
 
-// Motion Transfer (30 Aura) and Performance Shot (48 Aura) reserve a much
+// Motion Transfer (300 Aura) and Performance Shot (480 Aura) reserve a much
 // bigger charge than most job kinds. Waiting out the full 15-minute global
 // stale-processing window before releasing that reservation is a real cost to
 // a user whose job never reached a worker (queue full / worker dropped it
@@ -335,6 +335,7 @@ async function runTiktokRemixChild(job: JobRow, orch: Orchestrate) {
     videoUrl: p.sourceVideoUrl,
     duration: p.duration ?? 5,
     model: "seedance-2.0-fast",
+    forSubscriber: true,
     userId: job.user_id,
     refId: job.id,
   });
@@ -652,6 +653,7 @@ async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
     }),
     imageUrls: [still.url],
     duration,
+    forSubscriber: true,
     userId: job.user_id,
     refId: job.id,
   });
@@ -796,6 +798,7 @@ async function runCampaignItem(job: JobRow, orch: Orchestrate): Promise<JobOutpu
     prompt: p.motionPrompt || `subtle natural motion, ${p.imagePrompt}`,
     imageUrls: [still.url],
     duration,
+    forSubscriber: true,
     userId: job.user_id,
     refId: job.id,
   });
@@ -973,6 +976,7 @@ async function runKidsStory(job: JobRow, orch: Orchestrate, workerId: string): P
         }),
         imageUrls: [still.url],
         duration: secondsPerScene,
+        forSubscriber: true,
         userId: job.user_id,
         refId: job.id,
       }),

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { generateText } from "ai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertOwnedReferenceImage } from "./url-guard";
 
 function getLLM() {
   if (process.env.GEMINI_API_KEY) {
@@ -185,79 +186,110 @@ Output ONLY a raw JSON array of ${count} strings — each string is one complete
     },
   );
 
+type SceneRefInput = {
+  referenceBase64: string;
+  referenceMimeType: string;
+  prompts: string[];
+  aspectRatio: string;
+  referenceUrl?: string;
+};
+
+type SceneRefDeps = {
+  assertOwned: (url: string, userId: string) => Promise<void>;
+  fetchImpl: typeof fetch;
+};
+
+// Deps-injected core (same pattern as gifts.functions.ts): the createServerFn
+// handler can't run without a Start request context, so unit tests exercise
+// this core directly — proving the ownership guard fires BEFORE any
+// generation call, and that an owned reference passes through.
+export async function generateSceneImagesFromRefCore(
+  userId: string,
+  data: SceneRefInput,
+  deps: SceneRefDeps = { assertOwned: assertOwnedReferenceImage, fetchImpl: fetch },
+): Promise<{ results: { prompt: string; imageBase64: string | null; error: string | null }[] }> {
+  const { referenceBase64, referenceMimeType, prompts, aspectRatio, referenceUrl } = data;
+
+  // Ownership guard: if the caller supplied a stored URL alongside the base64,
+  // confirm it belongs to them before using it for generation.
+  if (referenceUrl) {
+    await deps.assertOwned(referenceUrl, userId);
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
+
+  const CONCURRENCY = 4;
+  const results: { prompt: string; imageBase64: string | null; error: string | null }[] = new Array(prompts.length);
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < prompts.length) {
+      const i = cursor++;
+      const prompt = prompts[i];
+      try {
+        const resp = await deps.fetchImpl(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [
+                {
+                  role: "user",
+                  parts: [
+                    { inline_data: { mime_type: referenceMimeType, data: referenceBase64 } },
+                    {
+                      text: `${prompt} Aspect ratio: ${aspectRatio}. Photorealistic, natural phone-camera quality.`,
+                    },
+                  ],
+                },
+              ],
+              generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
+            }),
+          },
+        );
+
+        const json = (await resp.json()) as {
+          candidates?: { content: { parts: { inline_data?: { data: string } }[] } }[];
+          error?: { message: string };
+        };
+        if (!resp.ok || json.error) throw new Error(json.error?.message ?? `Gemini error ${resp.status}`);
+
+        const part = json.candidates?.[0]?.content?.parts?.find((p) => p.inline_data);
+        if (!part?.inline_data?.data) throw new Error("No image in response");
+
+        results[i] = { prompt, imageBase64: part.inline_data.data, error: null };
+      } catch (err) {
+        results[i] = {
+          prompt,
+          imageBase64: null,
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  return { results };
+}
+
 export const generateSceneImagesFromRef = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
     z
       .object({
+        // referenceBase64 is ONLY for a transient client-side upload in the same
+        // request — it cannot be used to bypass the ownership check for a stored URL.
+        // To use a stored studio asset as the reference, pass referenceUrl instead;
+        // ownership will be verified against the authenticated user's assets.
         referenceBase64: z.string().min(1),
         referenceMimeType: z.string().min(1),
         prompts: z.array(z.string().min(1)).min(1).max(30),
         aspectRatio: z.string().default("4:5"),
+        // Optional: if provided, this URL is ownership-checked before generation.
+        referenceUrl: z.string().url().optional(),
       })
       .parse(d),
   )
-  .handler(
-    async ({
-      data,
-    }): Promise<{ results: { prompt: string; imageBase64: string | null; error: string | null }[] }> => {
-      const { referenceBase64, referenceMimeType, prompts, aspectRatio } = data;
-
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
-
-      const CONCURRENCY = 4;
-      const results: { prompt: string; imageBase64: string | null; error: string | null }[] = new Array(prompts.length);
-      let cursor = 0;
-
-      async function worker() {
-        while (cursor < prompts.length) {
-          const i = cursor++;
-          const prompt = prompts[i];
-          try {
-            const resp = await fetch(
-              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  contents: [
-                    {
-                      role: "user",
-                      parts: [
-                        { inline_data: { mime_type: referenceMimeType, data: referenceBase64 } },
-                        {
-                          text: `${prompt} Aspect ratio: ${aspectRatio}. Photorealistic, natural phone-camera quality.`,
-                        },
-                      ],
-                    },
-                  ],
-                  generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
-                }),
-              },
-            );
-
-            const json = (await resp.json()) as {
-              candidates?: { content: { parts: { inline_data?: { data: string } }[] } }[];
-              error?: { message: string };
-            };
-            if (!resp.ok || json.error) throw new Error(json.error?.message ?? `Gemini error ${resp.status}`);
-
-            const part = json.candidates?.[0]?.content?.parts?.find((p) => p.inline_data);
-            if (!part?.inline_data?.data) throw new Error("No image in response");
-
-            results[i] = { prompt, imageBase64: part.inline_data.data, error: null };
-          } catch (err) {
-            results[i] = {
-              prompt,
-              imageBase64: null,
-              error: err instanceof Error ? err.message : String(err),
-            };
-          }
-        }
-      }
-
-      await Promise.all(Array.from({ length: CONCURRENCY }, worker));
-      return { results };
-    },
-  );
+  .handler(async ({ data, context }) => generateSceneImagesFromRefCore(context.userId, data));

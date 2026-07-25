@@ -346,7 +346,7 @@ function ComfyPage() {
                       <div className="mt-4">
                         <div className="h-2 rounded-full bg-muted overflow-hidden">
                           <div
-                            className="h-full bg-gradient-to-r from-primary to-fuchsia-500 transition-all duration-500"
+                            className="h-full bg-gradient-to-r from-brand to-orange-400 transition-all duration-500"
                             style={{ width: `${progress}%` }}
                           />
                         </div>

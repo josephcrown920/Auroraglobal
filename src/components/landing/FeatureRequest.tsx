@@ -18,7 +18,7 @@ export function FeatureRequest() {
     const body = encodeURIComponent(
       `Idea:\n${idea}\n\n${email ? `From: ${email}\n` : ""}`,
     );
-    window.location.href = `mailto:hello@aurorastudiostar.com?subject=${subject}&body=${body}`;
+    window.location.href = `mailto:hello@auroraperformancestudio.com?subject=${subject}&body=${body}`;
     setTimeout(() => {
       setSubmitting(false);
       toast.success("Thanks — your email client should open with your request.");
@@ -88,7 +88,7 @@ export function FeatureRequest() {
           <button
             type="submit"
             disabled={submitting}
-            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-300 to-fuchsia-400 px-6 py-3 text-sm font-bold text-black shadow-lg shadow-fuchsia-500/30 hover:opacity-95 disabled:opacity-60"
+            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-6 py-3 text-sm font-bold text-white shadow-lg shadow-brand/30 hover:bg-brand/90 disabled:opacity-60"
           >
             <Send className="size-4" /> {submitting ? "Sending…" : "Send request"}
           </button>

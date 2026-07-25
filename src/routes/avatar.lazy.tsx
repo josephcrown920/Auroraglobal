@@ -15,10 +15,14 @@ import {
 import {
   generateFromPlatformTemplate,
   generateAvatarShot,
+  saveAvatarShot,
+  listAvatarShots,
+  deleteAvatarShot,
   templateCost,
   GENERATE_ALL_COST,
   SHOT_IMAGE_COST,
   SHOT_KLING_COST,
+  type SavedAvatarShot,
 } from "@/lib/platform-template.functions";
 import {
   PLATFORM_TEMPLATES,
@@ -95,7 +99,7 @@ function AvatarStudioPage() {
   // ── studio state ────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<StudioTab>("script");
   const [script, setScript] = useState("");
-  const [selectedId, setSelectedId] = useState("heygen-loop");
+  const [selectedId, setSelectedId] = useState("heygen-avatar-1");
   const [selectedVoice, setSelectedVoice] = useState<VoiceId>("m3Fp8hA8nS1Gc1Ne9FIf");
   const [cardStates, setCardStates] = useState<Record<string, CardState>>(
     Object.fromEntries(PLATFORM_TEMPLATES.map((t) => [t.id, { status: "idle" }])),
@@ -138,12 +142,21 @@ function AvatarStudioPage() {
   const generatePhotoFn = useServerFn(generateFromPhotoAvatar);
   const generateTemplateFn = useServerFn(generateFromPlatformTemplate);
   const shotFn = useServerFn(generateAvatarShot);
+  const saveShotFn = useServerFn(saveAvatarShot);
+  const listShotsFn = useServerFn(listAvatarShots);
+  const deleteShotFn = useServerFn(deleteAvatarShot);
   const writeFn = useServerFn(writeAvatarScript);
   const improveFn = useServerFn(improveAvatarScript);
 
   const { data: myAvatars = [], isLoading: listLoading } = useQuery({
     queryKey: ["photo-avatars"],
     queryFn: () => listFn(),
+    enabled: !!user,
+  });
+
+  const { data: savedShots = [], refetch: refetchShots } = useQuery({
+    queryKey: ["avatar-shots"],
+    queryFn: () => listShotsFn(),
     enabled: !!user,
   });
 
@@ -731,31 +744,32 @@ function AvatarStudioPage() {
             </div>
 
             {/* ── FEATURED templates ── */}
-            <div className="px-4 py-3">
-              <p className="text-[10px] uppercase tracking-wider mb-2 font-semibold flex items-center gap-1.5">
-                <span className="text-amber-400">★</span>
-                <span className="text-amber-400/90">Best Picks</span>
-                <span className="text-muted-foreground/50 font-normal">— our top 3</span>
-              </p>
-              <div className="grid grid-cols-3 gap-2 mb-1">
-                {FEATURED_TEMPLATES.map((tpl) => (
-                  <TemplateCard
-                    key={tpl.id}
-                    tpl={tpl}
-                    state={cardStates[tpl.id] ?? { status: "idle" }}
-                    isSelected={tpl.id === selectedId}
-                    featured
-                    onSelect={() => { setSelectedId(tpl.id); setActiveTab("preview"); }}
-                    onGenerate={(e) => {
-                      e.stopPropagation();
-                      const trimmed = script.trim();
-                      if (!trimmed) { toast.error("Write your script first"); setActiveTab("script"); return; }
-                      generateOne(tpl.id, trimmed);
-                    }}
-                  />
-                ))}
+            {FEATURED_TEMPLATES.length > 0 && (
+              <div className="px-4 py-3">
+                <p className="text-[10px] uppercase tracking-wider mb-2 font-semibold flex items-center gap-1.5">
+                  <span className="text-amber-400">★</span>
+                  <span className="text-amber-400/90">Best Picks</span>
+                </p>
+                <div className="grid grid-cols-3 gap-2 mb-1">
+                  {FEATURED_TEMPLATES.map((tpl) => (
+                    <TemplateCard
+                      key={tpl.id}
+                      tpl={tpl}
+                      state={cardStates[tpl.id] ?? { status: "idle" }}
+                      isSelected={tpl.id === selectedId}
+                      featured
+                      onSelect={() => { setSelectedId(tpl.id); setActiveTab("preview"); }}
+                      onGenerate={(e) => {
+                        e.stopPropagation();
+                        const trimmed = script.trim();
+                        if (!trimmed) { toast.error("Write your script first"); setActiveTab("script"); return; }
+                        generateOne(tpl.id, trimmed);
+                      }}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* ── All other templates ── */}
             <div className="px-4 pb-3">
@@ -1102,11 +1116,14 @@ function AvatarStudioPage() {
                     if (!res.ok) {
                       toast.error(res.error ?? "Generation failed");
                     } else {
-                      setShotResults((prev) => [
-                        { url: res.url, engine: shotEngine, kind: shotEngine === "kling" ? "video" : "image" },
-                        ...prev,
-                      ]);
+                      const kind = shotEngine === "kling" ? "video" : "image";
+                      setShotResults((prev) => [{ url: res.url, engine: shotEngine, kind }, ...prev]);
                       toast.success("Shot ready!");
+                      saveShotFn({
+                        data: { sourceUrl: res.url, engine: shotEngine, kind, prompt: trimmed },
+                      })
+                        .then(() => { void refetchShots(); })
+                        .catch(() => { /* best-effort */ });
                     }
                   } catch {
                     toast.error("Generation failed");
@@ -1173,7 +1190,7 @@ function AvatarStudioPage() {
               </div>
             )}
 
-            {shotResults.length === 0 && !shotLoading && (
+            {shotResults.length === 0 && !shotLoading && savedShots.length === 0 && (
               <div className="px-4 py-6 text-center text-muted-foreground/50">
                 <div className="text-3xl mb-2">🎨</div>
                 <p className="text-xs">
@@ -1181,6 +1198,77 @@ function AvatarStudioPage() {
                     ? "Describe a scene and KlingAI will create a live avatar video"
                     : "Describe your avatar and get an AI-generated portrait"}
                 </p>
+              </div>
+            )}
+
+            {/* ── My Shots gallery (persisted across sessions) ──────────── */}
+            {savedShots.length > 0 && (
+              <div className="px-4 pb-6">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">
+                  My Shots ({savedShots.length})
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {savedShots.map((shot: SavedAvatarShot) => (
+                    <div key={shot.id} className="aurora-panel rounded-xl overflow-hidden">
+                      {shot.kind === "video" ? (
+                        <video
+                          src={shot.signedUrl}
+                          controls
+                          playsInline
+                          className="w-full aspect-video object-cover"
+                        />
+                      ) : (
+                        <img
+                          src={shot.signedUrl}
+                          alt={shot.prompt.slice(0, 40) || "Avatar shot"}
+                          className="w-full aspect-square object-cover"
+                          loading="lazy"
+                        />
+                      )}
+                      <div className="p-1.5 flex items-center justify-between gap-1 min-w-0">
+                        <span className="text-[9px] text-muted-foreground capitalize truncate">
+                          {shot.engine === "kling"
+                            ? "KlingAI"
+                            : shot.engine === "gemini"
+                              ? "Gemini"
+                              : "SeedDream"}
+                        </span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => {
+                              fetch(shot.signedUrl)
+                                .then((r) => r.blob())
+                                .then((b) => {
+                                  const a = document.createElement("a");
+                                  a.href = URL.createObjectURL(b);
+                                  a.download = `avatar-shot-${shot.id.slice(0, 8)}.${shot.kind === "video" ? "mp4" : "jpg"}`;
+                                  a.click();
+                                });
+                            }}
+                            className="text-[9px] text-primary flex items-center gap-0.5"
+                            title="Download"
+                          >
+                            <Download className="size-3" />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              try {
+                                await deleteShotFn({ data: { id: shot.id } });
+                                void refetchShots();
+                              } catch {
+                                toast.error("Delete failed");
+                              }
+                            }}
+                            className="text-[9px] text-destructive/70 flex items-center gap-0.5 hover:text-destructive"
+                            title="Delete"
+                          >
+                            <Trash2 className="size-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>

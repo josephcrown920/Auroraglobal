@@ -12,6 +12,7 @@ import {
   ArrowRight,
   Check,
   Layers,
+  Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
@@ -25,6 +26,7 @@ import {
   SPIN_PIECE_COUNT,
   type StudioTemplate,
 } from "@/lib/template-studio";
+import { expandTemplatePrompt } from "@/lib/prompt-optimizer.functions";
 
 type UploadState = { url: string; name: string; preview?: string };
 
@@ -44,15 +46,29 @@ export function TemplateDrawer({
   const lipFn = useLipSyncJobFn();
   const ugcFn = useServerFn(generateUGCAd);
   const statusFn = useServerFn(getGenerationStatus);
+  const optimizeFn = useServerFn(expandTemplatePrompt);
+  const [optimizing, setOptimizing] = useState(false);
 
-  const imageInput = template.inputs.find((i) => i.kind === "image");
+  const imageInputs = template.inputs.filter((i) => i.kind === "image");
+  const imageInput = imageInputs[0];
+  const image2Input = imageInputs[1]; // only present on templates with 2 image slots
   const audioInput = template.inputs.find((i) => i.kind === "audio");
   const textInput = template.inputs.find((i) => i.kind === "text");
 
-  const [image, setImage] = useState<UploadState | null>(null);
+  // Pre-populate from template.defaultImageUrl (public-dir path → absolute URL).
+  const defaultImage = (() => {
+    const u = template.defaultImageUrl;
+    if (!u) return null;
+    const abs = u.startsWith("/") && typeof window !== "undefined"
+      ? `${window.location.origin}${u}`
+      : u;
+    return { url: abs, name: "Default reference", preview: u } satisfies UploadState;
+  })();
+  const [image, setImage] = useState<UploadState | null>(defaultImage);
+  const [image2, setImage2] = useState<UploadState | null>(null);
   const [audio, setAudio] = useState<UploadState | null>(null);
   const [text, setText] = useState("");
-  const [uploading, setUploading] = useState<"image" | "audio" | null>(null);
+  const [uploading, setUploading] = useState<"image" | "image2" | "audio" | null>(null);
   const [running, setRunning] = useState(false);
   const [stage, setStage] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +81,7 @@ export function TemplateDrawer({
 
   const cost = templateCost(template);
 
-  async function uploadFile(kind: "image" | "audio", file: File) {
+  async function uploadFile(kind: "image" | "image2" | "audio", file: File) {
     if (!user) {
       navigate({ to: "/auth" });
       return;
@@ -91,9 +107,10 @@ export function TemplateDrawer({
       const state: UploadState = {
         url: signed.signedUrl,
         name: file.name,
-        preview: kind === "image" ? URL.createObjectURL(file) : undefined,
+        preview: (kind === "image" || kind === "image2") ? URL.createObjectURL(file) : undefined,
       };
       if (kind === "image") setImage(state);
+      else if (kind === "image2") setImage2(state);
       else setAudio(state);
     } finally {
       setUploading(null);
@@ -102,6 +119,7 @@ export function TemplateDrawer({
 
   const missingRequired =
     (!!imageInput?.required && !image) ||
+    (!!image2Input?.required && !image2) ||
     (!!audioInput?.required && !audio) ||
     (!!textInput?.required && !text.trim());
 
@@ -175,10 +193,21 @@ export function TemplateDrawer({
 
       // Studio pipeline — image → (video) → (lipsync), gated by the manifest kinds.
       setStage("Creating your image…");
+      // Build image reference list: primary photo, optional second uploaded image, optional bg ref.
+      const bgRef = template.backgroundImageUrl
+        ? template.backgroundImageUrl.startsWith("/") && typeof window !== "undefined"
+          ? `${window.location.origin}${template.backgroundImageUrl}`
+          : template.backgroundImageUrl
+        : null;
+      const imageUrls = [
+        image.url,
+        ...(image2 ? [image2.url] : []),
+        ...(bgRef ? [bgRef] : []),
+      ];
       const img = await genFn({
         data: {
           prompt: buildImagePrompt(),
-          imageUrls: [image.url],
+          imageUrls,
           motionVideoUrl: null,
           model: template.imageModel ?? TEMPLATE_DEFAULTS.imageModel,
         },
@@ -304,6 +333,18 @@ export function TemplateDrawer({
                     onPick={(f) => uploadFile("image", f)}
                   />
                 )}
+                {image2Input && (
+                  <FileField
+                    icon={<ImageIcon className="size-4" />}
+                    label={image2Input.label}
+                    hint={image2Input.hint}
+                    required={image2Input.required}
+                    accept={image2Input.accept}
+                    busy={uploading === "image2"}
+                    value={image2}
+                    onPick={(f) => uploadFile("image2", f)}
+                  />
+                )}
                 {audioInput && (
                   <FileField
                     icon={<Music className="size-4" />}
@@ -318,10 +359,36 @@ export function TemplateDrawer({
                 )}
                 {textInput && (
                   <div>
-                    <label className="text-sm font-medium">
-                      {textInput.label}
-                      {textInput.required && <span className="text-primary"> *</span>}
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium">
+                        {textInput.label}
+                        {textInput.required && <span className="text-primary"> *</span>}
+                      </label>
+                      {text.trim().length > 2 && (
+                        <button
+                          type="button"
+                          disabled={optimizing}
+                          onClick={async () => {
+                            setOptimizing(true);
+                            try {
+                              const result = await optimizeFn({
+                                data: { userText: text, templateTitle: template.title },
+                              });
+                              setText(result.expanded);
+                            } catch {
+                              toast.error("Prompt optimizer unavailable");
+                            } finally {
+                              setOptimizing(false);
+                            }
+                          }}
+                          className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
+                        >
+                          {optimizing
+                            ? <><Loader2 className="size-3 animate-spin" /> Enhancing…</>
+                            : <><Wand2 className="size-3" /> Enhance</>}
+                        </button>
+                      )}
+                    </div>
                     <textarea
                       value={text}
                       onChange={(e) => setText(e.target.value)}
@@ -337,12 +404,12 @@ export function TemplateDrawer({
               {/* Cost — templateCost() is the single source of truth shared with the
                   charging backend; the number shown here is exactly what is reserved.
                   Spin dispatch is Free here: it navigates to /spin where the user
-                  explicitly pays 30 Aura when they click "Spin 30 posts". */}
+                  explicitly pays 300 Aura when they click "Spin 30 posts". */}
               <div className="mt-5 rounded-xl border border-border bg-white/[0.03] px-4 py-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">
                     {template.dispatch === "spin"
-                      ? `${SPIN_PIECE_COUNT} posts · 30 Aura charged on /spin`
+                      ? `${SPIN_PIECE_COUNT} posts · 300 Aura charged on /spin`
                       : "This render uses"}
                   </span>
                   {cost === 0 ? (

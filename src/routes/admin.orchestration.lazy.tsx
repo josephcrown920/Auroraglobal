@@ -30,7 +30,7 @@ export const Route = createLazyFileRoute("/admin/orchestration")({
 type Kind = "image" | "video" | "lipsync" | "text" | "audio";
 
 const KIND_META: Record<Kind, { label: string; icon: typeof ImageIcon; accent: string }> = {
-  image: { label: "Image", icon: ImageIcon, accent: "text-fuchsia-400" },
+  image: { label: "Image", icon: ImageIcon, accent: "text-brand" },
   video: { label: "Video", icon: Film, accent: "text-pink-400" },
   lipsync: { label: "Lipsync", icon: Mic, accent: "text-cyan-400" },
   text: { label: "Text", icon: Zap, accent: "text-amber-400" },
@@ -50,8 +50,8 @@ const BILLING_META: Record<
 > = {
   replit: {
     label: "Replit credits",
-    badgeClass: "bg-violet-500/10 text-violet-400 border-violet-500/20",
-    textClass: "text-violet-400",
+    badgeClass: "bg-brand/10 text-brand border-brand/20",
+    textClass: "text-brand",
   },
   gpu: {
     label: "GPU worker",

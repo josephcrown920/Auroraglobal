@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
+import { createLazyFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
+import { OrchestrateStudio } from "@/components/orchestrate/OrchestrateStudio";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -8,6 +9,7 @@ import {
   chatWithAuroraAgent,
   listAgentChat,
   clearAgentChat,
+  saveAgentMemory,
   type SkillMeta,
 } from "@/lib/agent.functions";
 import { useAuth } from "@/hooks/use-auth";
@@ -30,58 +32,32 @@ import {
   Sparkle,
   Clapperboard,
   Video,
-  Languages,
   Wand2,
-  Scissors,
-  ArrowUpRightSquare,
-  PackageCheck,
-  Layers as LayersIcon,
   UserSquare2,
   ImagePlus,
-  MousePointerClick,
-  Mic,
-  Radio,
   FileVideo,
-  Users,
-  AudioLines,
   Music,
   Captions as CaptionsIcon,
-  MonitorPlay,
-  LayoutTemplate,
   PenLine,
-  Shapes,
   Volume2,
-  Eye,
   Palette,
   Move3d,
   Focus,
   Sun,
-  Cloud,
-  Flame,
-  Snowflake,
   Droplets,
   Sparkles,
-  Clock,
   Ruler,
   Compass,
   Trash2,
   Save,
   BookOpen,
-  Drama,
   Crown,
   Gauge,
   Zap,
-  FileText,
   Rocket,
-  Repeat,
-  TrendingUp,
-  Play,
-  Pause,
-  Square,
-  RotateCcw,
-  CheckCircle2,
+  FileText,
   Loader2,
-  CircleDot,
+  CheckCircle2,
   Search,
   Globe,
   Magnet,
@@ -131,78 +107,41 @@ type Inspector = {
 
 type ToolDef = { label: string; icon: LucideIcon; prompt: string };
 
-const AVATAR_TOOLS: ToolDef[] = [
-  { label: "Quick create",  icon: Wand2,       prompt: "Quick create: draft a 30-second cinematic ad concept end-to-end — logline, script, 5-shot list, and a Seedance prompt. Pick a compelling subject." },
-  { label: "AI Studio",     icon: Video,       prompt: "AI Studio: give me a professional avatar video plan — talking-head anchor, on-screen b-roll cues, and captions timing for a 60s explainer." },
-  { label: "Avatar Shots",  icon: UserSquare2, prompt: "Avatar Shots: describe 6 hyper-realistic film-quality avatar shots (lens, wardrobe, blocking, lighting) for a fashion campaign." },
-  { label: "Avatars",       icon: Users,       prompt: "Design 4 hyper-realistic avatar personas (name, look, wardrobe, voice tone, camera-friendly presence) for a tech brand's video ads." },
-  { label: "Voices",        icon: AudioLines,  prompt: "Recommend 5 voice profiles (accent, timbre, pace, energy) for a moody neon-noir short. Include sample line delivery direction." },
+const CREATE_TOOLS: ToolDef[] = [
+  { label: "Quick Create",      icon: Wand2,       prompt: "Quick create: draft a 30-second cinematic ad concept end-to-end — logline, script, 5-shot list, and a Seedance prompt. Pick a compelling subject." },
+  { label: "Script",            icon: PenLine,     prompt: "Script writer: draft an industry-standard script (SLUGLINE / ACTION / CHARACTER / DIALOGUE) for a 90-second cinematic short. Ask if you need a topic — otherwise pick something evocative." },
+  { label: "Shot List",         icon: Clapperboard,prompt: "Produce a full shot list table for the current scene with columns: # / Shot / Framing / Lens / Movement / Duration / Sound / Notes. Aim for 8-14 shots, industry-realistic." },
+  { label: "Storyboard",        icon: BookOpen,    prompt: "Describe 6 storyboard frames for the current scene — composition, subject action, camera POV, focal length, and light direction — so a storyboard artist could draw them directly." },
+  { label: "Music Video",       icon: Music,       prompt: "Direct a music video: song structure to visual structure map, hero shot per section, wardrobe changes, and 3 hyper-realistic Seedance prompts for signature moments." },
+  { label: "Commercial 30s",    icon: Crown,       prompt: "Direct a 30s premium commercial: brand promise, single visual metaphor, 6-shot spine, hero product moment, VO structure, and a ready-to-paste Seedance prompt for the hero shot." },
+  { label: "Trailer Beats",     icon: Zap,         prompt: "Cut a 60-second trailer for the project: cold open hook, act-out 1, act-out 2, title card placement, needle-drop cue points, and end-tag. Give me the beat sheet with timecodes." },
+  { label: "Avatar Video",      icon: UserSquare2, prompt: "AI Studio: give me a professional avatar video plan — talking-head anchor, on-screen b-roll cues, and captions timing for a 60s explainer." },
+  { label: "Batch Mode",        icon: FileVideo,   prompt: "Batch Mode: plan a 6-variant A/B test — same script, 6 different hooks/openers, each with its own Seedance prompt." },
 ];
 
-const CINEMATIC_TOOLS: ToolDef[] = [
-  { label: "DP Notes",          icon: Camera,       prompt: "As Director of Photography, write a full cinematography breakdown for the current scene: camera body, lens set, T-stop, filtration, sensor/ISO, white balance, and why each choice serves the story." },
-  { label: "Blocking & Staging",icon: Move3d,       prompt: "Block a 2-minute dialogue scene between 3 characters in a cramped interior. Give me actor positions, sightlines, cross-moves, and where the camera lives for each beat." },
-  { label: "Camera Movement",   icon: Compass,      prompt: "Choreograph a single-take oner (~90s): describe camera movement in explicit beats (dolly, crane, gimbal drift, whip, focus rack) synced to story beats and actor blocking." },
-  { label: "Lighting Diagram",  icon: Sun,          prompt: "Give me a lighting diagram in text: key, fill, rim/back, practicals, ambience, negative fill. Specify fixture, wattage/color temp, diffusion, and lighting ratio. Match the current inspector mood." },
-  { label: "Anamorphic Set",    icon: Focus,        prompt: "Recommend an anamorphic lens package for a hyper-real neo-noir feature: primes, close-focus, flare character, breathing, T-stop, and how to lens each key scene type." },
-  { label: "Color Grade / LUT", icon: Palette,      prompt: "Design a color grade: base LUT, secondary keys (skin, sky, neons), roll-off, halation, grain plate, and target display (Rec.709 / P3 / HDR PQ). Include reference films." },
-  { label: "Aspect Reframe",    icon: Ruler,        prompt: "Reframe the current scene across 2.39:1 theatrical, 16:9 broadcast, 9:16 vertical short-form, and 1:1 square. Note what MUST stay in each safe area and what recomposes." },
-  { label: "Shot List Table",   icon: Clapperboard, prompt: "Produce a full shot list table for the current scene with columns: # / Shot / Framing / Lens / Movement / Duration / Sound / Notes. Aim for 8-14 shots, industry-realistic." },
-  { label: "Storyboard Frames", icon: BookOpen,     prompt: "Describe 6 storyboard frames for the current scene — composition, subject action, camera POV, focal length, and light direction — so a storyboard artist could draw them directly." },
-  { label: "VFX Breakdown",     icon: Sparkles,     prompt: "Break the current scene into VFX shots: what's plate, what's CG, what's comp. For each, list plate coverage, matchmove refs, cleanup, and integration notes." },
-  { label: "Production Design", icon: LayersIcon,   prompt: "Design the production/art direction for the scene: palette, textures, hero props, wardrobe, set dressing, and how each element supports the story theme." },
-  { label: "Location Scout",    icon: Compass,      prompt: "Scout 4 hyper-realistic real-world locations for the current scene. For each: geography, time of day sweet spot, sun path, permit reality, logistical risks." },
-  { label: "Trailer Beats",     icon: Zap,          prompt: "Cut a 60-second trailer for the project: cold open hook, act-out 1, act-out 2, title card placement, needle-drop cue points, and end-tag. Give me the beat sheet with timecodes." },
-  { label: "Genre: Neo-Noir",   icon: Drama,        prompt: "Emulate the neo-noir genre: rain, neon, low-key, wide anamorphic, morally grey lead. Write a 3-scene treatment with cinematography notes for each scene." },
-  { label: "Music Video",       icon: Music,        prompt: "Direct a music video: song structure to visual structure map, hero shot per section, wardrobe changes, and 3 hyper-realistic Seedance prompts for signature moments." },
-  { label: "Commercial 30s",    icon: Crown,        prompt: "Direct a 30s premium commercial: brand promise, single visual metaphor, 6-shot spine, hero product moment, VO structure, and a ready-to-paste Seedance prompt for the hero shot." },
+const CRAFT_TOOLS: ToolDef[] = [
+  { label: "DP Notes",          icon: Camera,    prompt: "As Director of Photography, write a full cinematography breakdown for the current scene: camera body, lens set, T-stop, filtration, sensor/ISO, white balance, and why each choice serves the story." },
+  { label: "Lighting",          icon: Sun,       prompt: "Give me a lighting diagram in text: key, fill, rim/back, practicals, ambience, negative fill. Specify fixture, wattage/color temp, diffusion, and lighting ratio. Match the current inspector mood." },
+  { label: "Color Grade",       icon: Palette,   prompt: "Design a color grade: base LUT, secondary keys (skin, sky, neons), roll-off, halation, grain plate, and target display (Rec.709 / P3 / HDR PQ). Include reference films." },
+  { label: "Camera Movement",   icon: Compass,   prompt: "Choreograph a single-take oner (~90s): describe camera movement in explicit beats (dolly, crane, gimbal drift, whip, focus rack) synced to story beats and actor blocking." },
+  { label: "Blocking",          icon: Move3d,    prompt: "Block a 2-minute dialogue scene between 3 characters in a cramped interior. Give me actor positions, sightlines, cross-moves, and where the camera lives for each beat." },
+  { label: "Style: Deakins",    icon: Focus,     prompt: "Emulate Roger Deakins: motivated natural light, restrained camera, wide compositions with negative space, patient blocking. Design a scene from scratch in this idiom." },
+  { label: "Style: Fincher",    icon: Gauge,     prompt: "Emulate David Fincher: cold controlled palette, precise geometry, minimal camera moves that mean something, 40-50mm bias, high shutter clarity. Design a scene." },
+  { label: "Style: Villeneuve", icon: Sparkles,  prompt: "Emulate Denis Villeneuve: monumental scale, foreground silhouette against vast backgrounds, slow zoom-ins, low-frequency drone score. Design a scene." },
+  { label: "Style: Kubrick",    icon: Ruler,     prompt: "Emulate Stanley Kubrick: one-point perspective, symmetrical compositions, slow track-ins, ultra-wide lenses, unsettling stillness. Design a scene." },
+  { label: "Style: Wong Kar-wai",icon: Droplets, prompt: "Emulate Wong Kar-wai: step-printed motion, saturated tungsten, longing framing through doorways, expressive practical light. Design a scene." },
 ];
 
-const DIRECTOR_STYLES: ToolDef[] = [
-  { label: "In the style of Deakins",   icon: Sun,     prompt: "Emulate Roger Deakins: motivated natural light, restrained camera, wide compositions with negative space, patient blocking. Design a scene from scratch in this idiom." },
-  { label: "In the style of Fincher",   icon: Focus,   prompt: "Emulate David Fincher: cold controlled palette, precise geometry, minimal camera moves that mean something, 40-50mm bias, high shutter clarity. Design a scene." },
-  { label: "In the style of Villeneuve",icon: Move3d,  prompt: "Emulate Denis Villeneuve: monumental scale, foreground silhouette against vast backgrounds, slow zoom-ins, low-frequency drone score. Design a scene." },
-  { label: "In the style of Malick",    icon: Sparkles,prompt: "Emulate Terrence Malick: golden hour handheld, whispered VO, subject moving away from camera into light, wide primes. Design a scene." },
-  { label: "In the style of Kubrick",   icon: Compass, prompt: "Emulate Stanley Kubrick: one-point perspective, symmetrical compositions, slow track-ins, ultra-wide lenses, unsettling stillness. Design a scene." },
-  { label: "In the style of Wong Kar-wai",icon:Droplets,prompt: "Emulate Wong Kar-wai: step-printed motion, saturated tungsten, longing framing through doorways, expressive practical light. Design a scene." },
-];
-
-const AI_TOOLS: ToolDef[] = [
-  { label: "Script writer",      icon: PenLine,           prompt: "Script writer: draft an industry-standard script (SLUGLINE / ACTION / CHARACTER / DIALOGUE) for a 90-second cinematic short. Ask if you need a topic — otherwise pick something evocative." },
-  { label: "Motion Designer",    icon: Shapes,            prompt: "Motion Designer: animate a still image into a living shot. Give me exact motion directions (dolly, parallax, subject micro-movement, camera drift) plus a Seedance image-to-video prompt." },
-  { label: "Image Generator",    icon: ImagePlus,         prompt: "Image Generator: write 3 hyper-realistic image prompts (subject, lens, film stock, lighting, negative prompt) suitable for Midjourney or Flux, aligned to my current inspector settings." },
-  { label: "Video Generator",    icon: Video,             prompt: "Video Generator: give me a ready-to-paste Seedance prompt card (subject, action, camera, lighting, film stock, aspect, negative, duration) for a hyper-real 8s clip." },
-  { label: "Translate Videos",   icon: Languages,         prompt: "Translate Videos: adapt a 30s English VO script into Spanish, French, and Japanese, preserving cinematic tone and lip-sync friendliness." },
-  { label: "AI Clipping",        icon: Scissors,          prompt: "AI Clipping: from a 10-minute interview, suggest 5 vertical short-form clips with in/out timecodes, hook lines, and caption styles." },
-  { label: "Speech Cleanup",     icon: Mic,               prompt: "Speech Cleanup: give me a director's note pass — mark filler words, awkward pauses, and breath spots to cut in a rough VO transcript." },
-  { label: "Upscale Video",      icon: ArrowUpRightSquare,prompt: "Upscale Video: recommend a workflow to take a 720p24 handheld clip to hyper-real 4K60 without plastic-skin AI artifacts." },
-  { label: "Product Placement",  icon: PackageCheck,      prompt: "Product Placement: design a 15s ad concept that hero-shots a product organically inside a cinematic narrative moment. Give me a Seedance prompt." },
-  { label: "Batch Mode",         icon: FileVideo,         prompt: "Batch Mode: plan a 6-variant A/B test — same script, 6 different hooks/openers, each with its own Seedance prompt." },
-  { label: "PPT to Video",       icon: FileVideo,         prompt: "PPT/PDF to Video: turn a 5-slide pitch deck into a 60s cinematic explainer. Give me scene breakdowns and VO copy per slide." },
-  { label: "Video Podcast",      icon: Radio,             prompt: "Video Podcast: block a 2-host cinematic podcast set — camera angles, lens choices, lighting, wardrobe, and a cold-open script." },
-  { label: "LiveAvatar",         icon: MonitorPlay,       prompt: "LiveAvatar: design a real-time interactive avatar host persona — appearance, voice, personality, and 5 conversational fallbacks." },
-];
-
-const SCENE_TOOLS: ToolDef[] = [
-  { label: "Media",           icon: ImagePlus,      prompt: "Media: suggest 6 hyper-realistic stock-style reference images that would complete the current scene's storyboard. Describe each precisely." },
-  { label: "Elements",        icon: Shapes,         prompt: "Elements: propose graphic overlays, lower-thirds, and title cards that match a cinematic noir aesthetic — with font, weight, and motion cues." },
-  { label: "Music",           icon: Music,          prompt: "Music: suggest 4 score directions (genre, tempo, key, instrumentation, reference tracks) for a moody neon-noir short." },
-  { label: "Captions",        icon: CaptionsIcon,   prompt: "Captions: draft a caption style guide — font, weight, safe-area, animation, and burn-in timing — for TikTok, Reels, and YouTube Shorts." },
-  { label: "Sound Design",    icon: Volume2,        prompt: "Sound Design: give me a layered SFX bed (foley, ambience, transitions, sub-drops) for a 15s cinematic teaser." },
-  { label: "Templates",       icon: LayoutTemplate, prompt: "Templates: propose 4 reusable scene templates (opening hook, product reveal, testimonial, CTA outro) with camera, lighting, and pacing specs." },
-  { label: "Interactivity",   icon: MousePointerClick, prompt: "Interactivity: design a branching interactive video with 3 viewer-choice moments and clear next-scene consequences." },
-  { label: "Screen Recorder", icon: MonitorPlay,    prompt: "Screen Recorder: outline a workflow to turn a raw screen recording into a cinematic product demo with cutaways, zooms, and VO." },
-];
-
-// Aurora-specific skills that invoke the built-in skill dispatch system
-const AURORA_SKILL_TOOLS: ToolDef[] = [
-  { label: "🔍 Web Search",        icon: Search,   prompt: "Search the web for the latest trends and relevant data for my current video project." },
-  { label: "🌐 URL Scraper",       icon: Globe,    prompt: "Scrape and summarize the content from this URL for research: " },
-  { label: "🎣 Hook Generator",    icon: Magnet,   prompt: "Generate 3 competing viral hooks for my current video concept. Score each and explain which is strongest." },
-  { label: "🎬 B-roll Prompter",   icon: Film,     prompt: "Expand this shot description into a full cinematic image prompt with lens, lighting, texture, movement, and color science: " },
-  { label: "🧠 Recall Brand",      icon: Brain,    prompt: "Recall my brand memory and tell me everything you know about my ongoing projects, brand voice, and characters." },
-  { label: "💾 Save Brand Profile",icon: Save,     prompt: "Save to my brand memory: " },
-  { label: "💬 Add Captions",      icon: CaptionsIcon, prompt: "Add auto-captions to the last video we rendered — use the audio track for timing and style them for TikTok." },
+const SKILLS_TOOLS: ToolDef[] = [
+  { label: "Web Search",        icon: Search,          prompt: "Search the web for the latest trends and relevant data for my current video project." },
+  { label: "Hook Generator",    icon: Magnet,          prompt: "Generate 3 competing viral hooks for my current video concept. Score each and explain which is strongest." },
+  { label: "B-roll Prompter",   icon: Film,            prompt: "Expand this shot description into a full cinematic image prompt with lens, lighting, texture, movement, and color science: " },
+  { label: "Recall Brand",      icon: Brain,           prompt: "Recall my brand memory and tell me everything you know about my ongoing projects, brand voice, and characters." },
+  { label: "Image Generator",   icon: ImagePlus,       prompt: "Image Generator: write 3 hyper-realistic image prompts (subject, lens, film stock, lighting, negative prompt) suitable for Midjourney or Seedream, aligned to my current inspector settings." },
+  { label: "Video Prompt",      icon: Video,           prompt: "Video Generator: give me a ready-to-paste Seedance prompt card (subject, action, camera, lighting, film stock, aspect, negative, duration) for a hyper-real 8s clip." },
+  { label: "Captions",          icon: CaptionsIcon,    prompt: "Captions: draft a caption style guide — font, weight, safe-area, animation, and burn-in timing — for TikTok, Reels, and YouTube Shorts." },
+  { label: "Sound Design",      icon: Volume2,         prompt: "Sound Design: give me a layered SFX bed (foley, ambience, transitions, sub-drops) for a 15s cinematic teaser." },
+  { label: "URL Scraper",       icon: Globe,           prompt: "Scrape and summarize the content from this URL for research: " },
 ];
 
 // ── Chat message type ─────────────────────────────────────────────────────
@@ -241,27 +180,6 @@ const STORYBOARD_SHOTS = [
   { src: "/prime/shot-neon-face.jpg", name: "Shot_02_Med",    meta: "35mm · Static · 24fps",    tc: "00:08:05" },
   { src: "/prime/shot-highway.jpg",   name: "Shot_03_Wide",   meta: "24mm · Handheld · 24fps",  tc: "00:12:22" },
 ];
-
-// ── Autonomous agent run types ────────────────────────────────────────────
-
-type AgentStatus = "idle" | "running" | "paused" | "done" | "stopped";
-type StepStatus  = "pending" | "active" | "done";
-type AgentStep   = { key: string; label: string; detail: string; status: StepStatus; startedAt?: number; endedAt?: number };
-
-const AGENT_STEPS_TEMPLATE: Omit<AgentStep, "status">[] = [
-  { key: "brief",      label: "Brief",            detail: "Locking concept, references, avatar, props" },
-  { key: "directions", label: "Directions",        detail: "Drafting 4 story directions & aesthetics" },
-  { key: "script",     label: "Script",            detail: "Industry-format script + dialogue polish" },
-  { key: "shotlist",   label: "Shot List",         detail: "10–14 shots · lens · movement · duration" },
-  { key: "scenes",     label: "Scenes / Storyboard",detail: "Storyboard frames + blocking" },
-  { key: "voiceover",  label: "Voiceover",         detail: "VO script, cast, delivery notes" },
-  { key: "visuals",    label: "Visuals",            detail: "Seedance / Veo / Sora prompt cards" },
-  { key: "render",     label: "Render",             detail: "16:9 · 9:16 · 1:1 platform cuts" },
-  { key: "review",     label: "Review",             detail: "QC pass + next-actions checklist" },
-];
-
-const makeSteps = (): AgentStep[] =>
-  AGENT_STEPS_TEMPLATE.map((s) => ({ ...s, status: "pending" as StepStatus }));
 
 // ══════════════════════════════════════════════════════════════════════════
 // HeyGen Video Agent panel — /agent tab "HeyGen"
@@ -714,6 +632,7 @@ function AgentPage() {
   const chatFn    = useServerFn(chatWithAuroraAgent);
   const listFn    = useServerFn(listAgentChat);
   const clearFn   = useServerFn(clearAgentChat);
+  const saveFn    = useServerFn(saveAgentMemory);
 
   // Auth guard
   useEffect(() => {
@@ -730,6 +649,8 @@ function AgentPage() {
     if (typeof window === "undefined") return "";
     return window.localStorage.getItem(MEMORY_KEY) ?? "";
   });
+  const [memorySaveState, setMemorySaveState] = useState<"saved" | "unsaved" | "saving">("saved");
+  const memorySaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [inspector, setInspector] = useState<Inspector>({
     focalLength: 35,
@@ -741,23 +662,28 @@ function AgentPage() {
     mood: "Hyper-realistic, atmospheric fog, subtle halation, no plastic AI skin.",
   });
 
-  const [activeTab, setActiveTab] = useState<"Workspace" | "Script" | "Dailies" | "Timeline" | "HeyGen">("Workspace");
+  const { tab: tabParam } = useSearch({ from: "/agent" });
+  const [activeTab, setActiveTab] = useState<"Generate" | "Workspace" | "HeyGen">(
+    tabParam === "generate" ? "Generate" : "Workspace",
+  );
   const [leftOpen,  setLeftOpen]  = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
-
-  // Autonomous agent run state
-  const [agentStatus,  setAgentStatus]  = useState<AgentStatus>("idle");
-  const [agentSteps,   setAgentSteps]   = useState<AgentStep[]>(makeSteps);
-  const [agentIndex,   setAgentIndex]   = useState(0);
-  const [agentTitle,   setAgentTitle]   = useState("");
-  const agentTimer     = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const agentStatusRef = useRef<AgentStatus>("idle");
-  agentStatusRef.current = agentStatus;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLTextAreaElement>(null);
 
-  // Persist director memory to localStorage
+  // Persist director memory: localStorage immediately + debounced server save
+  const saveMemoryToServer = (text: string) => {
+    if (memorySaveTimer.current) clearTimeout(memorySaveTimer.current);
+    setMemorySaveState("unsaved");
+    memorySaveTimer.current = setTimeout(() => {
+      setMemorySaveState("saving");
+      saveFn({ data: { memory: text } })
+        .then(() => setMemorySaveState("saved"))
+        .catch(() => setMemorySaveState("unsaved"));
+    }, 1200);
+  };
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(MEMORY_KEY, directorMemory);
@@ -839,77 +765,6 @@ function AgentPage() {
     qc.invalidateQueries({ queryKey: ["agent-chat-history"] });
   };
 
-  // ── Tab click ─────────────────────────────────────────────────────────────
-  const TAB_PROMPTS: Record<string, string> = {
-    Script:   "Open the Script tab: draft a full industry-standard script for the current project (SLUGLINE / ACTION / CHARACTER / DIALOGUE). If you don't have a locked concept yet, propose 3 directions and pick the strongest.",
-    Dailies:  "Open the Dailies tab: give me a 'dailies review' pass — list each hero shot, what's working, what's not, and a concrete fix (lens, blocking, light, grade) per shot.",
-    Timeline: "Open the Timeline tab: build a shot-by-shot timeline with in/out timecodes, transitions, music cue points, and caption timing for the current cut.",
-  };
-
-  const handleTabClick = (t: typeof activeTab) => {
-    setActiveTab(t);
-    if (t === "Workspace" || t === "HeyGen") return;
-    startAgent(`${t} pass`, TAB_PROMPTS[t] ?? "", t);
-  };
-
-  // ── Autonomous agent run ──────────────────────────────────────────────────
-  const clearAgentTimer = () => {
-    if (agentTimer.current) { clearTimeout(agentTimer.current); agentTimer.current = null; }
-  };
-
-  const advanceAgent = (fromIndex: number) => {
-    if (agentStatusRef.current !== "running") return;
-    setAgentIndex(fromIndex);
-    setAgentSteps((prev) =>
-      prev.map((s, i) => {
-        if (i < fromIndex) return { ...s, status: "done",   endedAt: s.endedAt ?? Date.now() };
-        if (i === fromIndex) return { ...s, status: "active", startedAt: s.startedAt ?? Date.now() };
-        return { ...s, status: "pending" };
-      }),
-    );
-    if (fromIndex >= AGENT_STEPS_TEMPLATE.length) {
-      setAgentSteps((prev) => prev.map((s) => ({ ...s, status: "done", endedAt: s.endedAt ?? Date.now() })));
-      setAgentStatus("done");
-      return;
-    }
-    const delay = 2200 + Math.random() * 1600;
-    agentTimer.current = setTimeout(() => advanceAgent(fromIndex + 1), delay);
-  };
-
-  const startAgent = (title: string, prompt: string, tab: typeof activeTab = "Timeline") => {
-    clearAgentTimer();
-    setAgentTitle(title);
-    setAgentSteps(makeSteps());
-    setAgentIndex(0);
-    setAgentStatus("running");
-    setActiveTab(tab);
-    void sendMessage(prompt);
-    setTimeout(() => advanceAgent(0), 30);
-  };
-
-  const pauseAgent  = () => { if (agentStatus === "running") { clearAgentTimer(); setAgentStatus("paused"); } };
-  const resumeAgent = () => { if (agentStatus === "paused")  { setAgentStatus("running"); setTimeout(() => advanceAgent(agentIndex), 30); } };
-  const stopAgent   = () => {
-    clearAgentTimer();
-    setAgentStatus("stopped");
-    setAgentSteps((prev) => prev.map((s, i) => i < agentIndex ? { ...s, status: "done" } : { ...s, status: "pending" }));
-  };
-  const resetAgent  = () => {
-    clearAgentTimer();
-    setAgentStatus("idle");
-    setAgentSteps(makeSteps());
-    setAgentIndex(0);
-    setAgentTitle("");
-  };
-
-  const renderAll = () =>
-    startAgent(
-      "Full render · package deliverable",
-      "Render All: package the current project — final logline, script, shot list, storyboards, Seedance/Veo/Sora prompts for hero shots, VO, captions, music brief, and 16:9 / 9:16 / 1:1 cuts. Ship the full deliverable.",
-      "Timeline",
-    );
-
-  useEffect(() => () => clearAgentTimer(), []);
 
   // ── Quick prompts ─────────────────────────────────────────────────────────
   const QUICK_PROMPTS = [
@@ -922,7 +777,7 @@ function AgentPage() {
   if (loading) return null;
 
   return (
-    <div className="relative flex h-screen w-full overflow-hidden text-ink" style={{ fontFamily: "inherit" }}>
+    <div data-page="prime-gold" className="relative flex h-screen w-full overflow-hidden text-ink" style={{ fontFamily: "inherit", background: "var(--canvas)", color: "var(--ink)" }}>
       <AmbientBackdrop />
 
       {/* ── LEFT SIDEBAR ────────────────────────────────────────────────────── */}
@@ -941,24 +796,15 @@ function AgentPage() {
           </div>
 
           {/* tool nav */}
-          <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
-            <SidebarSection title="Avatar Videos">
-              {AVATAR_TOOLS.map((t) => <SidebarItem key={t.label} icon={t.icon} label={t.label} onClick={() => launch(t.prompt)} />)}
+          <nav className="flex-1 overflow-y-auto px-2 py-3">
+            <SidebarSection title="Create">
+              {CREATE_TOOLS.map((t) => <SidebarItem key={t.label} icon={t.icon} label={t.label} onClick={() => { setActiveTab("Workspace"); launch(t.prompt); }} />)}
             </SidebarSection>
-            <SidebarSection title="Cinematic Craft">
-              {CINEMATIC_TOOLS.map((t) => <SidebarItem key={t.label} icon={t.icon} label={t.label} onClick={() => launch(t.prompt)} accent />)}
+            <SidebarSection title="Craft">
+              {CRAFT_TOOLS.map((t) => <SidebarItem key={t.label} icon={t.icon} label={t.label} onClick={() => { setActiveTab("Workspace"); launch(t.prompt); }} accent />)}
             </SidebarSection>
-            <SidebarSection title="Director Style">
-              {DIRECTOR_STYLES.map((t) => <SidebarItem key={t.label} icon={t.icon} label={t.label} onClick={() => launch(t.prompt)} />)}
-            </SidebarSection>
-            <SidebarSection title="AI Tools">
-              {AI_TOOLS.map((t) => <SidebarItem key={t.label} icon={t.icon} label={t.label} onClick={() => launch(t.prompt)} accent />)}
-            </SidebarSection>
-            <SidebarSection title="Scene Assets">
-              {SCENE_TOOLS.map((t) => <SidebarItem key={t.label} icon={t.icon} label={t.label} onClick={() => launch(t.prompt)} />)}
-            </SidebarSection>
-            <SidebarSection title="Aurora Skills">
-              {AURORA_SKILL_TOOLS.map((t) => <SidebarItem key={t.label} icon={t.icon} label={t.label} onClick={() => launch(t.prompt)} accent />)}
+            <SidebarSection title="Skills">
+              {SKILLS_TOOLS.map((t) => <SidebarItem key={t.label} icon={t.icon} label={t.label} onClick={() => { setActiveTab("Workspace"); launch(t.prompt); }} />)}
             </SidebarSection>
           </nav>
 
@@ -971,12 +817,23 @@ function AgentPage() {
               </button>
             </div>
             <div className="rounded-sm border border-line bg-panel-2/60 px-2 py-1.5">
-              <div className="mb-1 flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-prime">
-                <Save className="size-3" /> Director Memory
+              <div className="mb-1 flex items-center justify-between gap-1 text-xs font-bold uppercase tracking-widest text-prime">
+                <span className="flex items-center gap-1"><Save className="size-3" /> Director Memory</span>
+                <span className={
+                  "text-[10px] font-medium normal-case tracking-normal " +
+                  (memorySaveState === "saved" ? "text-ink-dim/50" :
+                   memorySaveState === "saving" ? "text-prime/70 animate-pulse" :
+                   "text-amber-400/80")
+                }>
+                  {memorySaveState === "saved" ? "saved" : memorySaveState === "saving" ? "saving…" : "unsaved"}
+                </span>
               </div>
               <textarea
                 value={directorMemory}
-                onChange={(e) => setDirectorMemory(e.target.value)}
+                onChange={(e) => {
+                  setDirectorMemory(e.target.value);
+                  saveMemoryToServer(e.target.value);
+                }}
                 rows={3}
                 placeholder="Brand voice, ongoing project, client rules, characters…"
                 className="w-full resize-none bg-transparent text-[13px] font-medium leading-snug text-ink placeholder:text-ink-dim/50 focus:outline-none"
@@ -989,22 +846,22 @@ function AgentPage() {
       {/* left toggle */}
       <button
         onClick={() => setLeftOpen((v) => !v)}
-        className="absolute left-0 top-1/2 z-20 -translate-y-1/2 translate-x-0 flex h-8 w-4 items-center justify-center rounded-r-sm border border-l-0 border-line bg-panel/80 text-ink-dim hover:text-ink transition-colors"
+        className="absolute top-1/2 z-30 -translate-y-1/2 flex h-12 w-6 flex-col items-center justify-center gap-0.5 rounded-r-md border border-l-0 border-line bg-panel text-ink-dim shadow-md transition-all hover:bg-panel-2 hover:text-ink"
         style={{ left: leftOpen ? "16rem" : "0" }}
         title={leftOpen ? "Collapse sidebar" : "Expand sidebar"}
       >
-        {leftOpen ? <ChevronLeft className="size-3" /> : <ChevronRight className="size-3" />}
+        <ChevronLeft className={"size-3.5 transition-transform " + (leftOpen ? "" : "rotate-180")} />
       </button>
 
       {/* ── CENTER ──────────────────────────────────────────────────────────── */}
       <main className="flex min-w-0 flex-1 flex-col" style={{ zIndex: 5 }}>
         {/* tab bar */}
-        <div className="flex h-13 items-center justify-between border-b border-line bg-canvas/80 px-6 backdrop-blur-sm">
+        <div className="flex h-13 items-center border-b border-line bg-canvas/80 px-6 backdrop-blur-sm">
           <div className="flex gap-6 text-[13px] font-bold uppercase tracking-[0.2em]">
-            {(["Workspace", "Script", "Dailies", "Timeline", "HeyGen"] as const).map((t) => (
+            {(["Generate", "Workspace", "HeyGen"] as const).map((t) => (
               <button
                 key={t}
-                onClick={() => handleTabClick(t)}
+                onClick={() => setActiveTab(t)}
                 className={
                   "py-4 transition-colors " +
                   (activeTab === t
@@ -1016,42 +873,18 @@ function AgentPage() {
               </button>
             ))}
           </div>
-          <button
-            onClick={renderAll}
-            className="flex items-center gap-1.5 rounded-md bg-rec px-4 py-1.5 text-xs font-bold uppercase text-white transition-colors hover:bg-rec-glow"
-          >
-            <Rocket className="size-3" /> Render All
-          </button>
         </div>
 
-        {/* agent dashboard */}
-        <AgentDashboard
-          status={agentStatus}
-          title={agentTitle}
-          steps={agentSteps}
-          activeIndex={agentIndex}
-          onRun={() => startAgent("Autonomous director run", "AGENT MODE: run the full autonomous director loop end-to-end on the current project. Ship the complete production package now.", "Timeline")}
-          onPause={pauseAgent}
-          onResume={resumeAgent}
-          onStop={stopAgent}
-          onReset={resetAgent}
-        />
+        {/* Generate studio — multi-modal quick generation, replaces chat area */}
+        {activeTab === "Generate" && <OrchestrateStudio />}
 
         {/* HeyGen Video Agent panel — replaces the chat area when HeyGen tab is active */}
         {activeTab === "HeyGen" && <HeyGenPanel />}
 
-        {/* chat scroll area — only rendered for non-HeyGen tabs */}
-        {activeTab !== "HeyGen" && (
+        {/* chat scroll area */}
+        {activeTab === "Workspace" && (
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6">
           <div className="mx-auto max-w-3xl">
-            {/* tab-specific header */}
-            {activeTab !== "Workspace" && <TabHeader tab={activeTab as "Script" | "Dailies" | "Timeline"} status={agentStatus} />}
-
-            {/* progress timeline */}
-            {activeTab === "Timeline" && (
-              <ProgressTimeline steps={agentSteps} status={agentStatus} title={agentTitle} />
-            )}
-
             {/* welcome / empty state */}
             {messages.length === 0 && (
               <div className="space-y-6">
@@ -1266,11 +1099,11 @@ function AgentPage() {
       {/* right toggle */}
       <button
         onClick={() => setRightOpen((v) => !v)}
-        className="absolute right-0 top-1/2 z-20 -translate-y-1/2 flex h-8 w-4 items-center justify-center rounded-l-sm border border-r-0 border-line bg-panel/80 text-ink-dim hover:text-ink transition-colors"
+        className="absolute top-1/2 z-30 -translate-y-1/2 flex h-12 w-6 flex-col items-center justify-center gap-0.5 rounded-l-md border border-r-0 border-line bg-panel text-ink-dim shadow-md transition-all hover:bg-panel-2 hover:text-ink"
         style={{ right: rightOpen ? "18rem" : "0" }}
         title={rightOpen ? "Collapse inspector" : "Expand inspector"}
       >
-        {rightOpen ? <ChevronRight className="size-3" /> : <ChevronLeft className="size-3" />}
+        <ChevronRight className={"size-3.5 transition-transform " + (rightOpen ? "" : "rotate-180")} />
       </button>
     </div>
   );
@@ -1372,121 +1205,6 @@ function SidebarItem({ icon: Icon, label, onClick, accent }: { icon: LucideIcon;
   );
 }
 
-function AgentDashboard({
-  status, title, steps, activeIndex, onRun, onPause, onResume, onStop, onReset,
-}: {
-  status: AgentStatus; title: string; steps: AgentStep[]; activeIndex: number;
-  onRun: () => void; onPause: () => void; onResume: () => void; onStop: () => void; onReset: () => void;
-}) {
-  const done = steps.filter((s) => s.status === "done").length;
-  const pct  = Math.round((done / steps.length) * 100);
-  const badge =
-    status === "running" ? { label: "Running", color: "text-rec",        dot: "bg-rec rec-pulse" } :
-    status === "paused"  ? { label: "Paused",  color: "text-amber-400",  dot: "bg-amber-400"     } :
-    status === "done"    ? { label: "Done",    color: "text-prime-glow", dot: "bg-prime-glow"    } :
-    status === "stopped" ? { label: "Stopped", color: "text-ink-dim",    dot: "bg-ink-dim"       } :
-                           { label: "Idle",    color: "text-ink-dim",    dot: "bg-ink-dim/50"    };
-  const current = steps[activeIndex];
-
-  return (
-    <div className="relative flex flex-wrap items-center gap-3 border-b border-line bg-panel/60 px-5 py-2 backdrop-blur-sm" style={{ zIndex: 8 }}>
-      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-ink">
-        <span className={"size-1.5 rounded-full " + badge.dot} />
-        <span className={badge.color}>Agent · {badge.label}</span>
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-[13px] font-bold uppercase tracking-[0.15em] text-ink-dim">
-          {title || "No active run — press Run to launch"}
-          {current && status === "running" && (
-            <> · <span className="text-ink">Step {activeIndex + 1}/{steps.length} · {current.label}</span></>
-          )}
-        </div>
-        <div className="mt-1 h-0.5 w-full overflow-hidden rounded-full bg-panel-2">
-          <div className="h-full rounded-full bg-gradient-to-r from-prime via-prime-glow to-rec transition-[width] duration-500" style={{ width: `${pct}%` }} />
-        </div>
-      </div>
-      <div className="flex items-center gap-1">
-        {status !== "running" && status !== "paused" && <DashBtn onClick={onRun}    tone="rec"   title="Run"><Play  className="size-3" /> Run</DashBtn>}
-        {status === "running"  && <DashBtn onClick={onPause}  tone="amber" title="Pause"><Pause  className="size-3" /> Pause</DashBtn>}
-        {status === "paused"   && <DashBtn onClick={onResume} tone="prime" title="Resume"><Play  className="size-3" /> Resume</DashBtn>}
-        {(status === "running" || status === "paused") && <DashBtn onClick={onStop} tone="line" title="Stop"><Square className="size-3" /> Stop</DashBtn>}
-        {(status === "done"    || status === "stopped") && <DashBtn onClick={onReset} tone="line" title="Reset"><RotateCcw className="size-3" /> Reset</DashBtn>}
-      </div>
-    </div>
-  );
-}
-
-function DashBtn({ onClick, tone, title, children }: { onClick: () => void; tone: "rec" | "prime" | "amber" | "line"; title: string; children: React.ReactNode }) {
-  const cls =
-    tone === "rec"   ? "bg-rec text-white hover:bg-rec-glow" :
-    tone === "prime" ? "bg-prime text-white hover:bg-prime-glow" :
-    tone === "amber" ? "bg-amber-400/90 text-canvas hover:bg-amber-300" :
-                       "border border-line bg-panel-2 text-ink hover:border-prime/60";
-  return (
-    <button onClick={onClick} title={title}
-      className={"inline-flex items-center gap-1 rounded-sm px-2 py-1 text-xs font-bold uppercase tracking-[0.2em] transition-colors " + cls}
-    >{children}</button>
-  );
-}
-
-function TabHeader({ tab, status }: { tab: "Script" | "Dailies" | "Timeline"; status: AgentStatus }) {
-  const meta = {
-    Script:   { title: "Script Room",     sub: "Industry-format script · dialogue polish · scene-by-scene", accent: "border-prime/50" },
-    Dailies:  { title: "Dailies Review",  sub: "Hero shots · what's working · concrete fixes",              accent: "border-rec/50"   },
-    Timeline: { title: "Live Timeline",   sub: "Streaming autonomous director steps",                        accent: "border-prime/50" },
-  }[tab];
-  return (
-    <section className={"fade-up mb-5 rounded-sm border bg-panel/60 p-4 " + meta.accent}>
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-xs font-bold uppercase tracking-[0.25em] text-ink-dim">{tab} tab</div>
-          <div className="font-black-display mt-1 text-xl uppercase text-ink">{meta.title}</div>
-          <div className="mt-0.5 text-[12px] font-medium text-ink-dim">{meta.sub}</div>
-        </div>
-        <span className={"text-xs uppercase tracking-widest " + (status === "running" ? "text-rec" : "text-ink-dim")}>
-          {status === "running" ? "● streaming" : "○ waiting"}
-        </span>
-      </div>
-    </section>
-  );
-}
-
-function ProgressTimeline({ steps, status, title }: { steps: AgentStep[]; status: AgentStatus; title: string }) {
-  return (
-    <section className="fade-up mb-6 overflow-hidden rounded-sm border border-line bg-panel/60">
-      <div className="flex items-center justify-between border-b border-line bg-panel-2/60 px-4 py-2">
-        <div className="text-[13px] font-bold uppercase tracking-[0.25em] text-prime">Agent stream · {title || "no active run"}</div>
-        <span className={
-          "text-xs uppercase tracking-widest " +
-          (status === "running" ? "text-rec" : status === "paused" ? "text-amber-400" : status === "done" ? "text-prime-glow" : "text-ink-dim")
-        }>{status}</span>
-      </div>
-      <ol className="relative divide-y divide-line/70">
-        {steps.map((s, i) => {
-          const Icon = s.status === "done" ? CheckCircle2 : s.status === "active" ? Loader2 : CircleDot;
-          return (
-            <li key={s.key} className="flex items-start gap-3 px-4 py-3">
-              <span className={"mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border " +
-                (s.status === "done"   ? "border-prime/60 bg-prime/15 text-prime-glow" :
-                 s.status === "active" ? "border-rec/70 bg-rec/15 text-rec" :
-                                         "border-line bg-panel-2 text-ink-dim")}>
-                <Icon className={"size-3.5 " + (s.status === "active" ? "animate-spin" : "")} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold uppercase tracking-[0.15em] text-ink">{i + 1}. {s.label}</span>
-                  {s.status === "active" && <span className="text-xs font-bold uppercase tracking-widest text-rec">streaming</span>}
-                  {s.status === "done"   && <span className="text-xs font-bold uppercase tracking-widest text-prime-glow">ok</span>}
-                </div>
-                <div className="mt-0.5 text-sm font-medium text-ink-dim">{s.detail}</div>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
-    </section>
-  );
-}
 
 function AgentModeBanner({ onLaunch }: { onLaunch: (t: string) => void }) {
   const BRIEF = `AGENT MODE — go fully autonomous. From now on, act as an end-to-end video director.

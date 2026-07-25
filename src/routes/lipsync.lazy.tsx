@@ -1,6 +1,7 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ExampleOutputGrid } from "@/components/studio/ExampleOutputGrid";
 import { useServerFn } from "@tanstack/react-start";
 import { LipSyncDemo } from "@/components/landing/LipSyncDemo";
 import { Mic2, ArrowRight, Upload, Music2, Wand2, Download, Loader2, Play, Pause, CheckCircle2, X, Zap, Sparkles, Server, ImageIcon, Info } from "lucide-react";
@@ -62,6 +63,9 @@ function LipSyncStudioPage() {
           </div>
         </div>
       </section>
+
+      {/* ── Inspiration gallery + waveform demo strip ────────────────────── */}
+      <LipsyncInspirationBlock />
 
       <LipSyncModeSwitcher />
 
@@ -983,5 +987,80 @@ function DropSlot({
         </div>
       )}
     </label>
+  );
+}
+
+// ── Lipsync inspiration block ─────────────────────────────────────────────────
+const LIPSYNC_EXAMPLES = [
+  { src: "/josh/josh-pink-mic-portrait.jpg",   label: "Studio Sync",    caption: "Sync 1.9 · film-grade phoneme alignment" },
+  { src: "/josh/josh-concert-performance.webp", label: "Live energy",   caption: "Performance clip + vocal stem → synced" },
+  { src: "/josh/josh-pink-leather-mic.jpg",     label: "Pink leather",  caption: "Full-body performance sync" },
+  { src: "/videos/thumbs/avatar-main.jpg",      label: "Talking head",  caption: "HeyGen Photo — still to audio" },
+  { src: "/videos/thumbs/heygen-avatar-1.jpg",  label: "HeyGen voice",  caption: "Photo → animated + lip-synced" },
+  { src: "/josh/josh-orange-performance.jpg",   label: "xAI UGC",       caption: "Still photo → walking talking-head" },
+];
+
+const WAVEFORM_PORTRAITS = [
+  { src: "/josh/josh-pink-mic-portrait.jpg",    name: "Studio Sync",   color: "#a78bfa" },
+  { src: "/josh/josh-mirror-getready.webp",     name: "HeyGen Photo",  color: "#34d399" },
+  { src: "/videos/thumbs/avatar-iv.jpg",        name: "xAI UGC",       color: "#60a5fa" },
+  { src: "/videos/thumbs/heygen-avatar-2.jpg",  name: "Wav2Lip Fast",  color: "#f472b6" },
+];
+
+function LipsyncInspirationBlock() {
+  return (
+    <div className="relative z-10 px-6 md:px-12 py-6 space-y-8">
+      <style>{`
+        @keyframes waveform-bar {
+          0%, 100% { height: 30%; }
+          50% { height: 100%; }
+        }
+        .wf-bar { animation: waveform-bar 0.7s ease-in-out infinite; }
+      `}</style>
+      <div className="max-w-5xl mx-auto">
+        <ExampleOutputGrid
+          items={LIPSYNC_EXAMPLES}
+          title="What Aurora lip-sync creates"
+          subtitle="Frame-perfect phoneme sync across engines — Sync 1.9, Wav2Lip, HeyGen Photo, xAI UGC."
+          columns={3}
+        />
+
+        {/* "Now syncing" animated waveform strip */}
+        <div className="mt-8 space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Pick a face, give it a voice</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {WAVEFORM_PORTRAITS.map((p) => (
+              <div key={p.src} className="relative rounded-2xl overflow-hidden border border-border/60 bg-background/40 aspect-[3/4] group">
+                <img
+                  src={p.src}
+                  alt={p.name}
+                  loading="lazy"
+                  className="absolute inset-0 size-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-3">
+                  <p className="text-[11px] font-semibold text-white mb-2">{p.name}</p>
+                  {/* Pulsing waveform bars */}
+                  <div className="flex items-end gap-[3px] h-6">
+                    {Array.from({ length: 16 }).map((_, i) => (
+                      <span
+                        key={i}
+                        className="wf-bar w-[4px] rounded-full"
+                        style={{
+                          background: p.color,
+                          animationDelay: `${i * 0.07}s`,
+                          animationDuration: `${0.5 + (i % 4) * 0.15}s`,
+                          minHeight: "20%",
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

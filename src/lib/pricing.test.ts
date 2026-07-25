@@ -20,105 +20,106 @@ import { VIDEO_MODEL_LIST, LIPSYNC_MODEL_LIST } from "./models";
 // Pricing is the single source of truth shared by the public API, the AI Router
 // server fn, and the UI preview — so a preview can never disagree with the
 // charge. These tests pin the model: stacking sums, resolution + length
-// multipliers, round-up/min-1, and the canonical 77-Aura worked example.
+// multipliers, round-up/min-1, and the canonical 770-Aura worked example.
+// 2026-07-19 ×10 rebase: all Aura literals here are the post-rebase scale.
 describe("computeCost — single-feature defaults stay unchanged", () => {
   it("keeps the historical flat prices at baseline resolution/length", () => {
-    expect(computeCost({ features: ["image"] }).total).toBe(1);
-    expect(computeCost({ features: ["upscale"] }).total).toBe(1);
-    expect(computeCost({ features: ["text"] }).total).toBe(1);
-    expect(computeCost({ features: ["audio"] }).total).toBe(2);
-    // Video with no model defaults to the budget tier → 10 (2026-07-08 repricing).
+    expect(computeCost({ features: ["image"] }).total).toBe(10);
+    expect(computeCost({ features: ["upscale"] }).total).toBe(10);
+    expect(computeCost({ features: ["text"] }).total).toBe(10);
+    expect(computeCost({ features: ["audio"] }).total).toBe(20);
+    // Video with no model defaults to the budget tier → 100 (×10 rebase).
     expect(computeCost({ features: ["video"], resolution: "720p", durationSeconds: 5 }).total).toBe(
-      10,
+      100,
     );
-    // Budget-tier (self-hosted) lip-sync keeps the historical flat 3.
+    // Budget-tier (self-hosted) lip-sync at the rebased flat 30.
     expect(
       computeCost({ features: ["lipsync"], durationSeconds: 5, model: "latentsync" }).total,
-    ).toBe(3);
+    ).toBe(30);
   });
 
   it("defaults missing resolution to 720p and missing duration to the reference", () => {
     const q = computeCost({ features: ["video"] });
     expect(q.resolution).toBe("720p");
     expect(q.durationSeconds).toBe(PRICING.referenceSeconds);
-    expect(q.total).toBe(10);
+    expect(q.total).toBe(100);
   });
 });
 
 describe("computeCost — resolution multiplier", () => {
   it("scales a standalone image by resolution", () => {
-    expect(computeCost({ features: ["image"], resolution: "480p" }).total).toBe(1); // 0.5 → ceil 1
-    expect(computeCost({ features: ["image"], resolution: "720p" }).total).toBe(1);
-    expect(computeCost({ features: ["image"], resolution: "1080p" }).total).toBe(2);
+    expect(computeCost({ features: ["image"], resolution: "480p" }).total).toBe(5); // 10 × 0.5
+    expect(computeCost({ features: ["image"], resolution: "720p" }).total).toBe(10);
+    expect(computeCost({ features: ["image"], resolution: "1080p" }).total).toBe(20);
   });
 
   it("scales video by resolution", () => {
     expect(computeCost({ features: ["video"], resolution: "1080p", durationSeconds: 5 }).total).toBe(
-      20,
+      200,
     );
     expect(computeCost({ features: ["video"], resolution: "480p", durationSeconds: 5 }).total).toBe(
-      5,
+      50,
     );
   });
 
   it("does NOT scale a source image when a temporal output is in the stack", () => {
-    // image is a reference input under a video → billed at base 1, not 2.
+    // image is a reference input under a video → billed at base 10, not 20.
     const q = computeCost({ features: ["image", "video"], resolution: "1080p", durationSeconds: 5 });
     const image = q.breakdown.find((b) => b.feature === "image")!;
     expect(image.resolutionFactor).toBe(1);
-    expect(image.subtotal).toBe(1);
-    // video: 10 × 2 = 20 → total 21
-    expect(q.total).toBe(21);
+    expect(image.subtotal).toBe(10);
+    // video: 100 × 2 = 200 → total 210
+    expect(q.total).toBe(210);
   });
 });
 
 describe("computeCost — length multiplier", () => {
   it("doubles time-based features at 10s vs 5s", () => {
-    expect(computeCost({ features: ["video"], durationSeconds: 10 }).total).toBe(20);
-    // Budget-tier lip-sync (3) doubled at 10s.
+    expect(computeCost({ features: ["video"], durationSeconds: 10 }).total).toBe(200);
+    // Budget-tier lip-sync (30) doubled at 10s.
     expect(
       computeCost({ features: ["lipsync"], durationSeconds: 10, model: "latentsync" }).total,
-    ).toBe(6);
-    expect(computeCost({ features: ["motion"], durationSeconds: 10 }).total).toBe(60);
+    ).toBe(60);
+    expect(computeCost({ features: ["motion"], durationSeconds: 10 }).total).toBe(600);
   });
 
   it("does not apply length to non-temporal features", () => {
     const q = computeCost({ features: ["image"], durationSeconds: 10 });
     expect(q.breakdown[0].lengthFactor).toBe(1);
-    expect(q.total).toBe(1);
+    expect(q.total).toBe(10);
   });
 });
 
 describe("computeCost — lyric_video (flat, non-length-scaled)", () => {
   it("charges the flat base cost regardless of song duration", () => {
-    expect(computeCost({ features: ["lyric_video"] }).total).toBe(5);
-    expect(computeCost({ features: ["lyric_video"], durationSeconds: 5 }).total).toBe(5);
-    expect(computeCost({ features: ["lyric_video"], durationSeconds: 180 }).total).toBe(5);
+    expect(computeCost({ features: ["lyric_video"] }).total).toBe(50);
+    expect(computeCost({ features: ["lyric_video"], durationSeconds: 5 }).total).toBe(50);
+    expect(computeCost({ features: ["lyric_video"], durationSeconds: 180 }).total).toBe(50);
   });
 
   it("is not scaled by resolution either (no visual resolution to bill)", () => {
-    expect(computeCost({ features: ["lyric_video"], resolution: "1080p" }).total).toBe(5);
+    expect(computeCost({ features: ["lyric_video"], resolution: "1080p" }).total).toBe(50);
   });
 
   it("stacks additively with other features", () => {
-    expect(computeCost({ features: ["lyric_video", "image"] }).total).toBe(6);
+    expect(computeCost({ features: ["lyric_video", "image"] }).total).toBe(60);
   });
 });
 
 describe("computeCost — rounding & stacking", () => {
   it("rounds the total UP and never charges 0 for a real generation", () => {
-    expect(computeCost({ features: ["image"], resolution: "480p" }).total).toBe(1);
+    expect(computeCost({ features: ["image"], resolution: "480p" }).total).toBe(5);
     expect(computeCost({ features: [] }).total).toBe(0); // nothing requested
   });
 
   it("sums each active feature when stacked", () => {
-    // image + audio at baseline = 1 + 2 = 3
-    expect(computeCost({ features: ["image", "audio"] }).total).toBe(3);
+    // image + audio at baseline = 10 + 20 = 30
+    expect(computeCost({ features: ["image", "audio"] }).total).toBe(30);
   });
 
   it("matches the canonical worked example with tiered defaults", () => {
     // image + video + lip-sync + motion control, 1080p, 10s, no model:
-    // video → budget default (10), lip-sync add-on → premium default (9, the
+    // video → budget default (100), lip-sync add-on → premium default (90, the
     // real default lip-sync model). Resolution + length stack on top of tiers.
     const q = computeCost({
       features: ["image", "video", "lipsync", "motion"],
@@ -126,11 +127,11 @@ describe("computeCost — rounding & stacking", () => {
       durationSeconds: 10,
     });
     const by = Object.fromEntries(q.breakdown.map((b) => [b.feature, b.subtotal]));
-    expect(by.image).toBe(1); // base only (source image under a video)
-    expect(by.video).toBe(40); // 10 (budget) × 2 × 2
-    expect(by.lipsync).toBe(18); // 9 (premium default) × 2 (length)
-    expect(by.motion).toBe(120); // 30 × 2 × 2
-    expect(q.total).toBe(179);
+    expect(by.image).toBe(10); // base only (source image under a video)
+    expect(by.video).toBe(400); // 100 (budget) × 2 × 2
+    expect(by.lipsync).toBe(180); // 90 (premium default) × 2 (length)
+    expect(by.motion).toBe(1200); // 300 × 2 × 2
+    expect(q.total).toBe(1790);
   });
 
   it("budget-tier video + motion + lip-sync stacks correctly at 1080p/10s", () => {
@@ -147,8 +148,8 @@ describe("computeCost — rounding & stacking", () => {
       durationSeconds: 10,
       model: "latentsync",
     });
-    // image(1) + video(40) + motion(30×2×2=120) + lipsync(3×2=6) = 167
-    expect(video.total + lip.total).toBe(167);
+    // image(10) + video(400) + motion(300×2×2=1200) + lipsync(30×2=60) = 1670
+    expect(video.total + lip.total).toBe(1670);
   });
 
   it("returns the breakdown in canonical feature order", () => {
@@ -200,26 +201,26 @@ describe("detectFeatures — conservative, deterministic", () => {
 
   it("override is additive only — the primary kind is always billed (no undercharge)", () => {
     // A caller submitting a video but forcing features:["image"] must still be
-    // charged for the video they actually run, not 1 Aura.
+    // charged for the video they actually run, not 10 Aura.
     const { features } = detectFeatures({ kind: "video", features: ["image"] });
     expect(features).toEqual(["image", "video"]);
     const total = computeCost({ features, resolution: "720p", durationSeconds: 5 }).total;
-    expect(total).toBe(11); // image(1) + video(10) — strictly more than video-only's 10
+    expect(total).toBe(110); // image(10) + video(100) — strictly more than video-only's 100
   });
 });
 
 // ─── Motion repricing assertions ─────────────────────────────────────────────
-describe("motion repricing (2026-07-08) — new base = 30", () => {
-  it("PRICING.base.motion is 30", () => {
-    expect(PRICING.base.motion).toBe(30);
+describe("motion pricing (×10 rebase) — base = 300", () => {
+  it("PRICING.base.motion is 300", () => {
+    expect(PRICING.base.motion).toBe(300);
   });
 
-  it("Transfer Motion (motion only, 720p/5s) = 30 Aura", () => {
-    expect(computeCost({ features: ["motion"], resolution: "720p", durationSeconds: 5 }).total).toBe(30);
+  it("Transfer Motion (motion only, 720p/5s) = 300 Aura", () => {
+    expect(computeCost({ features: ["motion"], resolution: "720p", durationSeconds: 5 }).total).toBe(300);
   });
 
-  it("Performance Shot (budget video + motion, 720p/5s) = 40 Aura", () => {
-    expect(computeCost({ features: ["video", "motion"], resolution: "720p", durationSeconds: 5 }).total).toBe(40);
+  it("Performance Shot (budget video + motion, 720p/5s) = 400 Aura", () => {
+    expect(computeCost({ features: ["video", "motion"], resolution: "720p", durationSeconds: 5 }).total).toBe(400);
   });
 
   it("lipsync UI price equals server charge for every engine", () => {
@@ -227,15 +228,15 @@ describe("motion repricing (2026-07-08) — new base = 30", () => {
     // lipsync.server.ts charge, so parity holds by construction — this test pins
     // the expected Aura per engine so a tier/model change can't slip through.
     const expectedByEngine: Record<string, number> = {
-      "sync-v2": LIPSYNC_TIER_AURA.premium, // 9 Aura
-      "wav2lip": LIPSYNC_TIER_AURA.standard, // 6 Aura
-      "latentsync": LIPSYNC_TIER_AURA.budget, // 3 Aura
-      // xai-ugc is a TWO-stage chain: xAI video (standard video tier, 20) +
-      // mandatory relip to the user's audio (premium lipsync, 9) = 29 Aura.
+      "sync-v2": LIPSYNC_TIER_AURA.premium, // 90 Aura
+      "wav2lip": LIPSYNC_TIER_AURA.standard, // 60 Aura
+      "latentsync": LIPSYNC_TIER_AURA.budget, // 30 Aura
+      // xai-ugc is a TWO-stage chain: xAI video (standard video tier, 200) +
+      // mandatory relip to the user's audio (premium lipsync, 90) = 290 Aura.
       // Covers real cost ~$0.60 (xAI ~$0.30 + Sync.so ~$0.30).
       "xai-ugc": VIDEO_TIER_AURA.standard + LIPSYNC_TIER_AURA.premium,
       // heygen-photo: single-stage photo→talking-head via HeyGen's own audio-driven
-      // API (no relip stage) — priced at the ultra lipsync tier (10 Aura).
+      // API (no relip stage) — priced at the ultra lipsync tier (100 Aura).
       "heygen-photo": LIPSYNC_TIER_AURA.ultra,
     };
     for (const engine of Object.keys(LIPSYNC_ENGINE_MODEL) as LipsyncEngine[]) {
@@ -255,25 +256,26 @@ describe("motion repricing (2026-07-08) — new base = 30", () => {
 
 // ─── Model-tiered video & lip-sync pricing ───────────────────────────────────
 // Premium models cost the Aura their real provider cost warrants; cheap models
-// stay cheap. The funding pool covers ≈ $0.047 per Aura sold.
-const POOL_PER_AURA = 0.047;
+// stay cheap. After the 2026-07-19 ×10 rebase the funding pool covers
+// ≈ $0.0047 per Aura sold (Aura amounts ×10, USD prices unchanged).
+const POOL_PER_AURA = 0.0047;
 
 describe("computeCost — model tiers", () => {
   it("cheap/self-hosted models sit at the budget tier at the reference", () => {
-    // Budget video = Seedance Lite, 10 Aura at 720p/5s (2026-07-08 repricing).
+    // Budget video = Seedance Lite, 100 Aura at 720p/5s (×10 rebase).
     expect(
       computeCost({ features: ["video"], model: "seedance-2.0-fast", durationSeconds: 5 }).total,
-    ).toBe(10);
-    // Budget lip-sync = self-hosted LatentSync, still 3 Aura at 5s.
+    ).toBe(100);
+    // Budget lip-sync = self-hosted LatentSync, 30 Aura at 5s.
     expect(
       computeCost({ features: ["lipsync"], model: "latentsync", durationSeconds: 5 }).total,
-    ).toBe(3);
+    ).toBe(30);
   });
 
   it("premium/ultra video models cost proportionally more than budget", () => {
     const budget = computeCost({ features: ["video"], model: "seedance-2.0-fast" }).total;
     const standard = computeCost({ features: ["video"], model: "kling-v1" }).total;
-    const premium = computeCost({ features: ["video"], model: "wan-2.5" }).total;
+    const premium = computeCost({ features: ["video"], model: "veo-3-fast" }).total;
     const ultra = computeCost({ features: ["video"], model: "seedance-2.0" }).total;
     expect(budget).toBeLessThan(standard);
     expect(standard).toBeLessThan(premium);
@@ -291,7 +293,7 @@ describe("computeCost — model tiers", () => {
   });
 
   it("an unknown / missing model falls back to the default tier", () => {
-    // Unknown video model → budget default (10). Unknown lip-sync → premium default (9).
+    // Unknown video model → budget default (100). Unknown lip-sync → premium default (90).
     expect(computeCost({ features: ["video"], model: "nope/does-not-exist" }).total).toBe(
       VIDEO_TIER_AURA.budget,
     );
@@ -305,7 +307,7 @@ describe("computeCost — model tiers", () => {
   });
 
   it("resolution and length multipliers stack on top of the tier", () => {
-    // Ultra video (48) at 1080p (×2) and 10s (×2) = 192.
+    // Ultra video (480) at 1080p (×2) and 10s (×2) = 1920.
     expect(
       computeCost({
         features: ["video"],
@@ -313,8 +315,8 @@ describe("computeCost — model tiers", () => {
         resolution: "1080p",
         durationSeconds: 10,
       }).total,
-    ).toBe(192);
-    // Premium lip-sync (9) at 10s (×2) = 18 (resolution never applies to lip-sync).
+    ).toBe(1920);
+    // Premium lip-sync (90) at 10s (×2) = 180 (resolution never applies to lip-sync).
     expect(
       computeCost({
         features: ["lipsync"],
@@ -322,7 +324,7 @@ describe("computeCost — model tiers", () => {
         resolution: "1080p",
         durationSeconds: 10,
       }).total,
-    ).toBe(18);
+    ).toBe(180);
   });
 
   it("preview / reserve / charge agree for the same model request", () => {
@@ -333,8 +335,8 @@ describe("computeCost — model tiers", () => {
       durationSeconds: 8,
     };
     expect(computeCost(req).total).toBe(computeCost(req).total);
-    // kling-3.0 is ultra (48) × 8/5 length = 76.8 → ceil 77.
-    expect(computeCost(req).total).toBe(77);
+    // kling-3.0 is ultra (480) × 8/5 length = 768 exactly.
+    expect(computeCost(req).total).toBe(768);
   });
 });
 

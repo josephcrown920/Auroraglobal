@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Sparkles, CheckCircle2, X, Copy, Check } from "lucide-react";
+import { Sparkles, CheckCircle2, X, Copy, Check, Eye } from "lucide-react";
 import { toast } from "sonner";
 import w1 from "@/assets/workflow-img_6068.jpg.asset.json"; // Industrial Playground
 import w2 from "@/assets/workflow-img_6077.jpg.asset.json"; // Car On Fire
@@ -32,9 +32,9 @@ const FINISHED: FinishedWorkflow[] = [
     category: "Portrait · Identity-locked",
     cover: reshootCover,
     nodes: 7,
-    credits: 6,
+    credits: 60,
     models: ["Nano Banana 2"],
-    description: "One reference portrait fans out into six identity-locked 9:16 camera angles — same subject, outfit, scene and lighting, only the lens changes. 1 Aura per shot.",
+    description: "One reference portrait fans out into six identity-locked 9:16 camera angles — same subject, outfit, scene and lighting, only the lens changes. 10 Aura per shot.",
     steps: [
       { node: "Fish-eye", model: "Nano Banana 2", prompt: "Re-photograph the reference subject (identity, outfit, scene and lighting kept identical) on an ultra-wide fish-eye lens at close range: strong barrel distortion, curved bulging perspective, face filling the centre. 9:16 vertical." },
       { node: "Bird's-eye", model: "Nano Banana 2", prompt: "Same subject from a high overhead bird's-eye view, camera straight down, top-of-head and shoulders foreshortened. Identity, outfit, scene and lighting unchanged. 9:16 vertical." },
@@ -50,7 +50,7 @@ const FINISHED: FinishedWorkflow[] = [
     category: "Music · Surreal",
     cover: balloon.url,
     nodes: 5,
-    credits: 18,
+    credits: 180,
     models: ["Nano Banana Pro", "Seedance 2.0", "Sync 1.9"],
     description: "Selfie → balloon-head surreal portrait over NYC skyline → motion → lip-synced hook.",
     steps: [
@@ -67,7 +67,7 @@ const FINISHED: FinishedWorkflow[] = [
     category: "Music Video",
     cover: w4.url,
     nodes: 6,
-    credits: 22,
+    credits: 220,
     models: ["Seedream 4.5", "Kling 3.0", "Sync 1.9"],
     description: "Subject sings into mic while two officers chase — golden-hour bokeh, full lip-sync.",
     steps: [
@@ -84,7 +84,7 @@ const FINISHED: FinishedWorkflow[] = [
     category: "Fashion Editorial",
     cover: w2.url,
     nodes: 5,
-    credits: 30,
+    credits: 300,
     models: ["Full Body Gen", "Nano Banana Pro", "Seedance 2.0"],
     description: "Character + product (top + shorts) → editorial pose → desert night with burning car backdrop.",
     steps: [
@@ -101,7 +101,7 @@ const FINISHED: FinishedWorkflow[] = [
     category: "Fashion · Try-on",
     cover: w3.url,
     nodes: 6,
-    credits: 30,
+    credits: 300,
     models: ["Character Lock", "Full Body Gen", "Image Gen"],
     description: "Two product items + style ref → laughing model interacting with giant colored shapes.",
     steps: [
@@ -119,7 +119,7 @@ const FINISHED: FinishedWorkflow[] = [
     category: "Fashion · Lookbook",
     cover: w1.url,
     nodes: 6,
-    credits: 30,
+    credits: 300,
     models: ["Character", "Full Body Gen", "Environment"],
     description: "Green leather jacket + brown wide-leg pants → curated vinyl-library editorial shoot.",
     steps: [
@@ -135,11 +135,18 @@ const FINISHED: FinishedWorkflow[] = [
 
 export function FinishedWorkflowsGallery({
   onLoad,
+  directLoad = false,
 }: {
   onLoad?: (id: string) => void;
+  directLoad?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<FinishedWorkflow | null>(null);
+
+  const loadWorkflow = (wf: FinishedWorkflow) => {
+    onLoad?.(wf.id);
+    setOpen(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -155,7 +162,9 @@ export function FinishedWorkflowsGallery({
             Finished workflows — real renders, shipped
           </DialogTitle>
           <p className="text-sm text-white/60">
-            Each card is a completed Canvas pipeline. Click one to inspect the recipe, then clone it into your canvas.
+            {directLoad
+              ? "Click a card to load it onto the canvas instantly. Use the eye icon to inspect the recipe first."
+              : "Each card is a completed Canvas pipeline. Click one to inspect the recipe, then clone it into your canvas."}
           </p>
         </DialogHeader>
 
@@ -236,23 +245,32 @@ export function FinishedWorkflowsGallery({
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2 max-h-[70vh] overflow-y-auto pr-1">
             {FINISHED.map((wf) => (
-              <button
+              <div
                 key={wf.id}
-                onClick={() => setActive(wf)}
-                className="group text-left rounded-xl overflow-hidden border border-white/10 bg-black/40 hover:border-emerald-400/50 transition"
+                className="group relative text-left rounded-xl overflow-hidden border border-white/10 bg-black/40 hover:border-emerald-400/50 transition cursor-pointer"
+                onClick={() => (directLoad ? loadWorkflow(wf) : setActive(wf))}
               >
                 <div className="relative aspect-[4/5] overflow-hidden">
                   <img src={wf.cover} alt={wf.name} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" />
                   <div className="absolute top-2 left-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-400/90 text-[9px] font-bold text-emerald-950">
                     <CheckCircle2 className="size-2.5" /> DONE
                   </div>
+                  {directLoad && (
+                    <button
+                      className="absolute top-2 right-2 flex items-center justify-center size-6 rounded-full bg-black/70 text-white/70 hover:text-white hover:bg-black/90 transition"
+                      title="Inspect recipe"
+                      onClick={(e) => { e.stopPropagation(); setActive(wf); }}
+                    >
+                      <Eye className="size-3.5" />
+                    </button>
+                  )}
                   <div className="absolute bottom-0 inset-x-0 p-2 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
                     <p className="text-[10px] uppercase tracking-wider text-emerald-300/90">{wf.category}</p>
                     <p className="text-sm font-semibold text-white leading-tight">{wf.name}</p>
                     <p className="text-[10px] text-white/55 mt-0.5">{wf.nodes} nodes · {wf.credits} Aura</p>
                   </div>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         )}

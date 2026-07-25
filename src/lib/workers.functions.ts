@@ -161,6 +161,49 @@ export const setFreeGpuMode = createServerFn({ method: "POST" })
     return { ok: true, enabled: data.enabled };
   });
 
+// ── Pending-approval helpers ──────────────────────────────────────────────────
+// Community workers land in 'pending_approval' on first self-registration. These
+// two functions let the owner approve or reject them from the admin dashboard
+// without going through the full upsertWorker form (which would wipe auth_token).
+
+export const approveWorker = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    // select("id") after .eq("status","pending_approval") returns null when the
+    // worker doesn't exist OR is already out of pending state — both are safe
+    // sentinel values. We avoid { count:"exact" } because it triggers an extra
+    // COUNT(*) round-trip; selecting the id is enough for the existence check.
+    const { data: row, error } = await supabaseAdmin
+      .from("gpu_workers")
+      .update({ status: "active", paused_reason: null })
+      .eq("id", data.id)
+      .eq("status", "pending_approval") // safety: only approve pending workers
+      .select("id")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) throw new Error(`Worker ${data.id} not found or not in pending_approval state`);
+    return { ok: true, id: data.id, status: "active" };
+  });
+
+export const rejectWorker = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    const { data: row, error } = await supabaseAdmin
+      .from("gpu_workers")
+      .update({ status: "paused", paused_reason: "admin" })
+      .eq("id", data.id)
+      .eq("status", "pending_approval") // safety: only reject pending workers
+      .select("id")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) throw new Error(`Worker ${data.id} not found or not in pending_approval state`);
+    return { ok: true, id: data.id, status: "paused" };
+  });
+
 /** Public (non-admin) check: is there at least one live worker for a given capability? */
 export const checkWorkerCapability = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

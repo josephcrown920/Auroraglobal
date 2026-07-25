@@ -44,14 +44,15 @@ type Feature = {
 
 /** Core creation tools — highest-traffic first. */
 const MAKE_FEATURES: Feature[] = [
-  { to: "/studio",        label: "Image Generation", icon: Sparkles,  previewImg: "/nav-previews/studio.jpg" },
-  { to: "/colors",        label: "Colors Studio",    icon: Palette,   previewImg: "/nav-previews/colors.jpg" },
-  { to: "/canvas",        label: "Canvas",           icon: Workflow,  previewImg: "/nav-previews/canvas.jpg" },
-  { to: "/orchestrate",   label: "Video",            icon: Film,      previewImg: "/nav-previews/music-video.jpg" },
-  { to: "/photo-edit",    label: "Photo Editor",     icon: Brush,     previewImg: "/nav-previews/photo-edit.jpg" },
-  { to: "/live-studio",   label: "Live Studios",     icon: Music2,    previewImg: "/nav-previews/live-studio.jpg" },
-  { to: "/scene-builder", label: "Scene Builder",    icon: Layers,    previewImg: "/nav-previews/scene-builder.jpg" },
-  { to: "/agent",         label: "Video Agent",      icon: Bot,       previewImg: "/nav-previews/video-agent.jpg" },
+  { to: "/studio",         label: "Image Generation", icon: Sparkles,  previewImg: "/nav-previews/studio.jpg" },
+  { to: "/colors",         label: "Colors Studio",    icon: Palette,   previewImg: "/nav-previews/colors.jpg" },
+  { to: "/canvas",         label: "Canvas",           icon: Workflow,  previewImg: "/nav-previews/canvas.jpg" },
+  { to: "/agent",          label: "Video Studio",     icon: Film,      previewImg: "/nav-previews/music-video.jpg" },
+  { to: "/photo-edit",     label: "Photo Editor",     icon: Brush,     previewImg: "/nav-previews/photo-edit.jpg" },
+  { to: "/split-reality",  label: "Split Reality",    icon: Wand2,     previewImg: "/nav-previews/studio.jpg" },
+  { to: "/live-studio",    label: "Live Studios",     icon: Music2,    previewImg: "/nav-previews/live-studio.jpg" },
+  { to: "/scene-builder",  label: "Directors ROOM",   icon: Layers,    previewImg: "/nav-previews/scene-builder.jpg" },
+  { to: "/storyboard",     label: "Storyboard",       icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
 ];
 
 /** Creator & viral tools — ordered by demand. */
@@ -70,7 +71,7 @@ const ACCOUNT_FEATURES: Feature[] = [
   { to: "/gallery",           label: "Gallery",        icon: Images },
   { to: "/creator/dashboard", label: "Creator Hub",    icon: TrendingUp },
   { to: "/billing",           label: "Plan & Billing", icon: CreditCard },
-  { to: "/affiliate",         label: "Affiliate",      icon: Users },
+  { to: "/partners",          label: "Earn Free Aura", icon: Users },
   { to: "/admin",             label: "Admin",          icon: Shield },
 ];
 
@@ -93,7 +94,6 @@ export const ARCHIVED_FEATURES: Feature[] = [
   { to: "/roadmap",          label: "Roadmap",          icon: Sparkles },
   { to: "/workflows",        label: "Workflows",        icon: Sparkles },
   { to: "/content-machine",  label: "Content Machine",  icon: Sparkles },
-  { to: "/split-reality",    label: "Split Reality",    icon: Sparkles },
   { to: "/tiktok",           label: "TikTok Studio",    icon: Music2 },
   { to: "/clips",            label: "Clips",            icon: Sparkles },
   { to: "/edit",             label: "AutoCut",          icon: Sparkles },
@@ -103,10 +103,9 @@ export const ARCHIVED_FEATURES: Feature[] = [
 ];
 
 const TAB_ITEMS: Feature[] = [
-  { to: "/studio",      label: "Studio",  icon: Sparkles },
-  { to: "/orchestrate", label: "Video",   icon: Film },
-  { to: "/canvas",      label: "Canvas",  icon: Workflow },
-  { to: "/gallery",     label: "Gallery", icon: Images },
+  { to: "/canvas",  label: "Infinity Canvas",  icon: Workflow,  badge: "PREMIUM" },
+  { to: "/agent",   label: "Video Agent",      icon: Film,      badge: "PREMIUM" },
+  { to: "/spin",    label: "TikTok30",         icon: Flame,     badge: "PREMIUM" },
 ];
 
 function isActive(pathname: string, to: string) {
@@ -151,7 +150,7 @@ function LiveNavItem({ f, active, onClick }: { f: Feature; active: boolean; onCl
       {f.previewImg && (
         <span
           className="shrink-0 overflow-hidden rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-          style={{ width: 38, height: 27, border: "1px solid oklch(0.72 0.2 300 / 0.25)" }}
+          style={{ width: 38, height: 27, border: "1px solid oklch(0.58 0.22 25 / 0.25)" }}
         >
           <img
             src={f.previewImg}
@@ -176,6 +175,9 @@ export function MobileNav() {
   const activeFeature = allFeatures.find((f) => isActive(pathname, f.to));
 
   const isCanvas = isActive(pathname, "/canvas");
+  // The landing page renders its own sticky top nav (logo + Sign in / Start
+  // free) — the floating Menu pill would sit right on top of its wordmark.
+  const isLanding = pathname === "/";
   const moreActive = !!activeFeature && !TAB_ITEMS.some((t) => t.to === activeFeature.to);
 
   const onTouchStart = (e: React.TouchEvent) => {
@@ -201,8 +203,8 @@ export function MobileNav() {
           50%       { opacity: 1;    transform: scaleX(1);   }
         }
         @keyframes tab-glow-breathe {
-          0%, 100% { box-shadow: 0 0 10px -4px oklch(0.72 0.2 300 / 0.4); }
-          50%       { box-shadow: 0 0 22px -4px oklch(0.72 0.2 300 / 0.75); }
+          0%, 100% { box-shadow: 0 0 10px -4px oklch(0.58 0.22 25 / 0.4); }
+          50%       { box-shadow: 0 0 22px -4px oklch(0.58 0.22 25 / 0.75); }
         }
         .tab-breathe-bar {
           animation: tab-breathe 3s ease-in-out infinite;
@@ -235,21 +237,21 @@ export function MobileNav() {
             className="phone-fixed-x fixed bottom-0 z-50 border-t border-border"
             style={{
               paddingBottom: "env(safe-area-inset-bottom)",
-              background: "oklch(0.085 0.022 272 / 0.6)",
+              background: "oklch(0.085 0.022 272 / 0.92)",
               backdropFilter: "blur(24px) saturate(1.6)",
               WebkitBackdropFilter: "blur(24px) saturate(1.6)",
-              borderTop: "1px solid oklch(0.72 0.2 300 / 0.15)",
-              boxShadow: "0 -1px 40px -12px oklch(0.72 0.2 300 / 0.2), 0 -1px 0 oklch(1 0 0 / 0.06) inset",
+              borderTop: "1px solid oklch(0.58 0.22 25 / 0.15)",
+              boxShadow: "0 -1px 40px -12px oklch(0.58 0.22 25 / 0.2), 0 -1px 0 oklch(1 0 0 / 0.06) inset",
             }}
           >
             {/* Top accent line */}
             <span
               aria-hidden
               className="pointer-events-none absolute inset-x-0 top-0 h-px"
-              style={{ background: "linear-gradient(90deg, transparent 0%, oklch(0.72 0.2 300 / 0.5) 50%, transparent 100%)" }}
+              style={{ background: "linear-gradient(90deg, transparent 0%, oklch(0.58 0.22 25 / 0.5) 50%, transparent 100%)" }}
             />
 
-            <ul className="grid grid-cols-4">
+            <ul className="grid grid-cols-3">
               {TAB_ITEMS.map((t) => {
                 const active = isActive(pathname, t.to);
                 return (
@@ -261,15 +263,25 @@ export function MobileNav() {
                         "relative flex h-16 flex-col items-center justify-center gap-1 text-[10px] font-semibold no-underline transition-colors duration-200",
                         active ? "text-primary" : "text-muted-foreground/70 hover:text-foreground",
                       )}
-                      style={active ? { textShadow: "0 0 12px oklch(0.72 0.2 300 / 0.6)" } : undefined}
+                      style={active ? { textShadow: "0 0 12px oklch(0.58 0.22 25 / 0.6)" } : undefined}
                     >
                       {/* Breathing indicator bar */}
                       {active && (
                         <span
                           aria-hidden
                           className="tab-breathe-bar absolute top-0 h-[2px] w-10 rounded-full"
-                          style={{ background: "linear-gradient(90deg, oklch(0.72 0.2 300), oklch(0.65 0.18 320))" }}
+                          style={{ background: "linear-gradient(90deg, oklch(0.58 0.22 25), oklch(0.68 0.20 30))" }}
                         />
+                      )}
+
+                      {/* PREMIUM badge */}
+                      {t.badge && (
+                        <span
+                          aria-hidden
+                          className="absolute top-1.5 left-1/2 -translate-x-1/2 rounded-full bg-amber-400 px-1.5 py-px text-[7px] font-bold uppercase tracking-wide text-black leading-none"
+                        >
+                          {t.badge}
+                        </span>
                       )}
 
                       {/* Icon wrapper — glass pill when active */}
@@ -277,14 +289,14 @@ export function MobileNav() {
                         className={cn(
                           "relative flex items-center justify-center rounded-xl transition-all duration-300",
                           active
-                            ? "tab-active-glow size-9 bg-[oklch(0.72_0.2_300/0.15)] ring-1 ring-[oklch(0.72_0.2_300/0.25)]"
+                            ? "tab-active-glow size-9 bg-[oklch(0.58_0.22_25/0.15)] ring-1 ring-[oklch(0.58_0.22_25/0.25)]"
                             : "size-8",
                         )}
                       >
                         <t.icon className={cn("transition-all duration-200", active ? "size-[18px]" : "size-5")} />
                       </span>
 
-                      <span className="tracking-wide">{t.label}</span>
+                      <span className="tracking-wide truncate max-w-[72px] text-center">{t.label}</span>
                     </Link>
                   </li>
                 );
@@ -332,20 +344,43 @@ export function MobileNav() {
           {/* ── Nav body ────────────────────────────────────────────────── */}
           <nav aria-label="All features" className="relative flex flex-1 flex-col gap-3 overflow-y-auto p-3 pb-4">
 
-            <NavSection label="Make">
-              {MAKE_FEATURES.map((f) => (
+            <NavSection label="Studio">
+              {([
+                { to: "/canvas",      label: "Infinity Canvas",           icon: Workflow,     previewImg: "/nav-previews/canvas.jpg" },
+                { to: "/perform",     label: "Perform Anywhere",          icon: Film,         previewImg: "/nav-previews/perform-anywhere.jpg" },
+                { to: "/colors",      label: "Colors Performance Sessions", icon: Palette,    previewImg: "/nav-previews/colors.jpg" },
+                { to: "/motion",      label: "Motion Control",            icon: Wand2,        previewImg: "/nav-previews/motion.jpg" },
+                { to: "/music-video", label: "Music Video",               icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
+                { to: "/storyboard",  label: "Storyboard",                icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
+                { to: "/live-studio", label: "Live Studios",              icon: Music2,       previewImg: "/nav-previews/live-studio.jpg" },
+                { to: "/lipsync",     label: "Lip Sync",                  icon: Mic,          previewImg: "/nav-previews/lipsync.jpg" },
+                { to: "/scene-builder", label: "Scene Builder",           icon: Layers,       previewImg: "/nav-previews/scene-builder.jpg" },
+              ] as Feature[]).map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
             </NavSection>
 
-            <NavSection label="Go Viral">
-              {VIRAL_FEATURES.map((f) => (
+            <NavSection label="Creators">
+              {([
+                { to: "/spin",        label: "TikTok30",        icon: Flame,        previewImg: "/nav-previews/spin.jpg" },
+                { to: "/ugc",         label: "UGC Ads",         icon: Megaphone,    previewImg: "/nav-previews/ugc.jpg" },
+                { to: "/ugc-line",    label: "Content Line",    icon: Layers,       previewImg: "/nav-previews/ugc-line.jpg" },
+                { to: "/studio",      label: "Image Generation", icon: Sparkles,    previewImg: "/nav-previews/studio.jpg" },
+                { to: "/photo-edit",  label: "Photo Editor",    icon: Brush,        previewImg: "/nav-previews/photo-edit.jpg" },
+                { to: "/avatar",      label: "Talking Avatars", icon: UserCircle2,  previewImg: "/nav-previews/avatar.jpg" },
+              ] as Feature[]).map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
             </NavSection>
 
             <NavSection label="Account">
-              {ACCOUNT_FEATURES.map((f) => (
+              {([
+                { to: "/gallery",           label: "Gallery",        icon: Images },
+                { to: "/creator/dashboard", label: "Creator Hub",    icon: TrendingUp },
+                { to: "/billing",           label: "Plan & Billing", icon: CreditCard },
+                { to: "/partners",          label: "Earn Free Aura", icon: Users },
+                { to: "/admin",             label: "Admin",          icon: Shield },
+              ] as Feature[]).map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
             </NavSection>

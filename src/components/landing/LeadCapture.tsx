@@ -30,13 +30,13 @@ export function LeadCapture() {
       <div className="rounded-3xl border border-border bg-gradient-to-br from-primary/15 via-primary/10 to-emerald-600/10 p-8 md:p-12 grid md:grid-cols-2 gap-8 items-center">
         <div>
           <span className="inline-flex items-center gap-1.5 text-xs text-primary border border-primary/30 bg-primary/10 px-3 py-1 rounded-full mb-3">
-            <Gift className="size-3" /> Early access · 10 Aura bonus
+            <Gift className="size-3" /> Early access · 100 Aura bonus
           </span>
           <h3 className="text-2xl md:text-3xl font-semibold leading-tight">
             Get on the list. Get the gift.
           </h3>
           <p className="text-muted-foreground mt-2 text-sm md:text-base">
-            New models, recipes, and shoots in your inbox weekly. Subscribers get a 10-Aura head start the moment they sign in.
+            New models, recipes, and shoots in your inbox weekly. Subscribers get a 100-Aura head start the moment they sign in.
           </p>
           <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
             <Link to="/gifts" className="inline-flex items-center gap-1 hover:text-foreground">

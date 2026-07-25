@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { CANONICAL_ORIGIN } from "@/lib/seo";
 
 export const Route = createFileRoute("/photo-edit")({
   head: () => ({
@@ -14,8 +15,9 @@ export const Route = createFileRoute("/photo-edit")({
         property: "og:description",
         content: "Describe the change, keep the photo. One edit, one Aura.",
       },
+      { property: "og:url", content: `${CANONICAL_ORIGIN}/photo-edit` },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/photo-edit" }],
+    links: [{ rel: "canonical", href: `${CANONICAL_ORIGIN}/photo-edit` }],
   }),
 });
 

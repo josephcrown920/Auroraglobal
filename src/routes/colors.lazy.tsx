@@ -562,6 +562,9 @@ function ColorsStudio() {
             <MiniUpload userId={user.id} label="Audio · lipsync" value={audioUrl} onChange={setAudioUrl} accept="audio/*,video/mp4" icon={Music2} />
           </div>
 
+          {/* Real shoots gallery — at the top for immediate inspiration */}
+          <ColorsShotsGallery />
+
           <TriedTestedShowcase
             accent="cyan"
             title="Blue performance studio — tried & tested"
@@ -572,9 +575,6 @@ function ColorsStudio() {
             finalCaption="Royal-blue cyclorama · hanging vintage mic · red jersey + black puffer vest · ARRI rim light"
             prompt="Editorial music-video performance shot of the subject on a seamless deep royal-blue cyclorama studio — background and floor are one continuous royal-blue surface, no visible seams. Full-body side profile, leaning into an exact suspended vintage silver microphone hanging from a thin cable at chest level. Outfit: bright red performance jersey with graphic print under a black hooded puffer vest, distressed black stacked jeans, white chunky sneakers. ARRI softbox key from camera-left + softbox fill from camera-right, professional dual softbox stands visible at far frame edges, gentle floor shadow, clean cinematic rim light separating the subject from the cyclorama. Preserve exact facial likeness, red dreadlocks, sunglasses, skin tone, body proportions. ARRI Alexa look, 50mm, 8K ultra-HD photoreal, no text or logos."
           />
-
-          {/* Real shoots gallery — apply these looks to your selfie */}
-          <ColorsShotsGallery />
 
 
           {/* Scene source — preset setups vs the Scene Builder */}
@@ -893,12 +893,12 @@ function ColorsStudio() {
             </div>
             {workflow === "single" && (
               <Button disabled={singleMut.isPending || refs.length === 0 || (usingBuilder && !builderReady)} onClick={() => singleMut.mutate()} variant="premium" className="w-full h-11">
-                {singleMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting…</> : <><Wand2 className="size-4 mr-2" /> Generate · 1 Aura · ~15s</>}
+                {singleMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting…</> : <><Wand2 className="size-4 mr-2" /> Generate · 10 Aura · ~15s</>}
               </Button>
             )}
             {workflow === "triptych" && (
               <Button disabled={tripletMut.isPending || refs.length === 0 || tripletColors.length !== 3 || (usingBuilder && !builderReady)} onClick={() => tripletMut.mutate()} variant="premium" className="w-full h-11">
-                {tripletMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Queueing 3×…</> : <><Wand2 className="size-4 mr-2" /> Generate triptych · 3 Aura</>}
+                {tripletMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Queueing 3×…</> : <><Wand2 className="size-4 mr-2" /> Generate triptych · 30 Aura</>}
               </Button>
             )}
             {workflow === "all-setups" && !usingBuilder && (
@@ -956,18 +956,22 @@ function ColorsStudio() {
                 Your color shots will appear here.
               </div>
             )}
-            {recent.map((g) => (
+            {recent.map((g) => {
+              const lipUrl = g.result_video_url ? (lipSyncResults[g.result_video_url] ?? null) : null;
+              const cardHref = (lipUrl ?? g.result_video_url ?? g.result_image_url)!;
+              const downloadUrl = (lipUrl ?? g.result_video_url ?? g.result_image_url)!;
+              return (
               <div key={g.id} className="relative group/shot">
                 <a
-                  href={(g.result_video_url ?? g.result_image_url)!}
+                  href={cardHref}
                   target="_blank"
                   rel="noreferrer"
                   className="block aurora-card-hover aspect-[4/5] rounded-xl overflow-hidden border border-border bg-background/40 hover:border-primary/40 transition-colors"
                 >
                   {g.result_video_url ? (
                     <video
-                      src={g.result_video_url}
-                      poster={g.result_image_url ?? undefined}
+                      src={lipUrl ?? g.result_video_url}
+                      poster={lipUrl ? (g.result_video_url ?? undefined) : (g.result_image_url ?? undefined)}
                       muted
                       loop
                       playsInline
@@ -977,11 +981,16 @@ function ColorsStudio() {
                   ) : (
                     <img src={g.result_image_url!} alt="" className="w-full h-full object-cover" />
                   )}
+                  {lipUrl && (
+                    <span className="absolute top-1.5 left-1.5 flex items-center gap-1 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.2em] text-white backdrop-blur-sm">
+                      <Mic2 className="size-2.5" />Lipsync
+                    </span>
+                  )}
                 </a>
                 {/* Download button — fetch→Blob so cross-origin studio URLs actually save */}
                 <button
                   type="button"
-                  onClick={() => downloadShot((g.result_video_url ?? g.result_image_url)!)}
+                  onClick={() => downloadShot(downloadUrl)}
                   title="Download"
                   className="absolute top-1.5 right-1.5 size-7 rounded-lg bg-background/80 backdrop-blur flex items-center justify-center border border-border opacity-0 group-hover/shot:opacity-100 focus-visible:opacity-100 transition-opacity hover:border-primary/50"
                 >
@@ -1026,18 +1035,9 @@ function ColorsStudio() {
                     )}
                   </button>
                 )}
-                {g.result_video_url && lipSyncResults[g.result_video_url] && (
-                  <a
-                    href={lipSyncResults[g.result_video_url]}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="absolute bottom-1.5 left-1.5 right-1.5 rounded-lg bg-emerald-500/90 backdrop-blur px-2 py-1.5 text-[10px] font-medium uppercase tracking-wider text-white border border-emerald-400/60 opacity-0 group-hover/shot:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-emerald-500"
-                  >
-                    <Mic2 className="size-3 inline mr-1" />View Lipsync ↗
-                  </a>
-                )}
               </div>
-            ))}
+              );
+            })}
           </div>
         </aside>
       </div>

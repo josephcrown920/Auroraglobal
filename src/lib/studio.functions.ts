@@ -87,24 +87,55 @@ const GenerateSchema = z.object({
   model: z.string().default("google/nano-banana"),
 });
 
+// Injectable seams for _enqueuePerformanceShot — unit tests stub these to
+// prove the ownership guard fires BEFORE any credits are reserved, without a
+// real DB. Production callers always use the defaults.
+type EnqueueShotDeps = {
+  assertOwned: (url: string, userId: string) => Promise<void>;
+  reserve: typeof reserveGenerationJob;
+  track: typeof trackServer;
+};
+
+// Internal canonical dispatch — shared by the generatePerformanceShot handler
+// AND runSmokeStudioChain so the two can NEVER drift on critical params.
+// The reference-image ownership guard lives HERE (not in the handler) so every
+// caller — server fn, smoke chain, and any future internal path — enforces it.
+// Exported for unit tests only.
+export async function _enqueuePerformanceShot(
+  userId: string,
+  data: z.infer<typeof GenerateSchema>,
+  deps: EnqueueShotDeps = {
+    assertOwned: assertOwnedReferenceImage,
+    reserve: reserveGenerationJob,
+    track: trackServer,
+  },
+): Promise<{ jobId: string; generationId: string }> {
+  // Ownership guard: each reference image must belong to the caller.
+  // Purely text-to-image calls (empty imageUrls) pass through without a check.
+  for (const url of data.imageUrls) {
+    await deps.assertOwned(url, userId);
+  }
+  const out = await deps.reserve(userId, "image", data.prompt, COST_IMAGE, {
+    kind: "image",
+    prompt: data.prompt,
+    imageUrls: data.imageUrls,
+    model: data.model,
+    motionVideoUrl: data.motionVideoUrl ?? null,
+  });
+  await deps.track("performance_shot_enqueued", userId, { jobId: out.jobId });
+  return out;
+}
+
 // Enqueue-only: reserves credits + creates the job/generation row atomically,
 // then returns immediately. The jobs/tick worker (running independently of
 // this request) renders it, so the result survives the tab closing — the
 // client polls getJobStatus (or listGenerations) to learn when it's ready.
+// Ownership of data.imageUrls is enforced inside _enqueuePerformanceShot.
 export const generatePerformanceShot = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => GenerateSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { userId } = context;
-    const out = await reserveGenerationJob(userId, "image", data.prompt, COST_IMAGE, {
-      kind: "image",
-      prompt: data.prompt,
-      imageUrls: data.imageUrls,
-      model: data.model,
-      motionVideoUrl: data.motionVideoUrl ?? null,
-    });
-    await trackServer("performance_shot_enqueued", userId, { jobId: out.jobId });
-    return out;
+    return _enqueuePerformanceShot(context.userId, data);
   });
 
 const VideoSchema = z.object({
@@ -155,165 +186,116 @@ const CAMERA_HINTS: Record<string, string> = {
 };
 
 
+// Internal canonical dispatch — shared by the generateVideoFromImage handler
+// AND runSmokeStudioChain so the two can NEVER drift on gating or payload shape.
+async function _enqueueVideoFromImage(
+  userId: string,
+  data: z.infer<typeof VideoSchema>,
+): Promise<{ jobId: string; generationId: string; preview: boolean }> {
+  const cameraHint = data.cameraMovement ? CAMERA_HINTS[data.cameraMovement] : null;
+  const fullPrompt = cameraHint ? `${data.prompt}. Camera: ${cameraHint}.` : data.prompt;
+
+  // Preview-confirm gate: without a valid confirmPreviewId the render is
+  // forced to 480p/≤5s and recorded as mode='preview' — its id is the ticket
+  // for the follow-up full-quality render. Invalid/expired ids throw here,
+  // before any row insert or charge.
+  const gate = await resolvePreviewGate({
+    userId,
+    confirmPreviewId: data.confirmPreviewId ?? undefined,
+  });
+  const previewPass = !gate.confirmed;
+  const effResolution = previewPass ? PREVIEW_RESOLUTION : data.resolution;
+  const effDuration = previewPass ? Math.min(data.duration, PREVIEW_MAX_SECONDS) : data.duration;
+
+  // Per-tier duration cap (Free 10s / Pro 15s) — rejected here before any
+  // row insert or charge. Preview passes are ≤5s so they always clear it.
+  await assertDurationCap(userId, effDuration);
+  // HD/4K entitlement: 1080p and 2160p require Pro. Preview passes are exempt
+  // (always 480p). Terminal error so jobs fail immediately rather than retry.
+  await assertHdEntitlement(userId, data.resolution, previewPass);
+
+  // Free GPU only mode: video has no $0 hosted fallback, so fail before charging
+  // credits if no free worker is online (no paid provider can ever be reached).
+  await assertFreeModeServable("video");
+  // Model-tiered: premium video models cost more Aura so the render stays
+  // profitable. Same computeCost the UI previews → preview == charge == refund.
+  const videoCost = computeCost({
+    features: ["video"],
+    model: data.modelKey,
+    durationSeconds: effDuration,
+    resolution: effResolution,
+  }).total;
+  const out = await reserveGenerationJob(userId, "video", fullPrompt, videoCost, {
+    kind: "video",
+    model: data.modelKey,
+    prompt: fullPrompt,
+    imageUrls: data.endFrameUrl ? [data.imageUrl, data.endFrameUrl] : [data.imageUrl],
+    duration: effDuration,
+    resolution: effResolution,
+    cameraMovement: data.cameraMovement,
+    cameraMovementKey: data.cameraMovement ?? null,
+    ...(previewPass ? { previewOnly: true } : {}),
+  });
+  if (previewPass) await markGenerationPreview(out.generationId);
+  await trackServer("video_enqueued", userId, { jobId: out.jobId });
+  return { ...out, preview: previewPass };
+}
+
 export const generateVideoFromImage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => VideoSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-
-    const cameraHint = data.cameraMovement ? CAMERA_HINTS[data.cameraMovement] : null;
-    const fullPrompt = cameraHint ? `${data.prompt}. Camera: ${cameraHint}.` : data.prompt;
-
-    // Preview-confirm gate: without a valid confirmPreviewId the render is
-    // forced to 480p/≤5s and recorded as mode='preview' — its id is the ticket
-    // for the follow-up full-quality render. Invalid/expired ids throw here,
-    // before any row insert or charge.
-    const gate = await resolvePreviewGate({
-      userId,
-      confirmPreviewId: data.confirmPreviewId ?? undefined,
-    });
-    const previewPass = !gate.confirmed;
-    const effResolution = previewPass ? PREVIEW_RESOLUTION : data.resolution;
-    const effDuration = previewPass ? Math.min(data.duration, PREVIEW_MAX_SECONDS) : data.duration;
-
-    // Per-tier duration cap (Free 10s / Pro 15s) — rejected here before any
-    // row insert or charge. Preview passes are ≤5s so they always clear it.
-    await assertDurationCap(userId, effDuration);
-    // HD/4K entitlement: 1080p and 2160p require Pro. Preview passes are exempt
-    // (always 480p). Terminal error so jobs fail immediately rather than retry.
-    await assertHdEntitlement(userId, data.resolution, previewPass);
-
-    // Free GPU only mode: video has no $0 hosted fallback, so fail before charging
-    // credits if no free worker is online (no paid provider can ever be reached).
-    await assertFreeModeServable("video");
-    // Model-tiered: premium video models cost more Aura so the render stays
-    // profitable. Same computeCost the UI previews → preview == charge == refund.
-    const videoCost = computeCost({
-      features: ["video"],
-      model: data.modelKey,
-      durationSeconds: effDuration,
-      resolution: effResolution,
-    }).total;
-    const out = await reserveGenerationJob(userId, "video", fullPrompt, videoCost, {
-      kind: "video",
-      model: data.modelKey,
-      prompt: fullPrompt,
-      imageUrls: data.endFrameUrl ? [data.imageUrl, data.endFrameUrl] : [data.imageUrl],
-      duration: effDuration,
-      resolution: effResolution,
-      cameraMovement: data.cameraMovement,
-      cameraMovementKey: data.cameraMovement ?? null,
-      ...(previewPass ? { previewOnly: true } : {}),
-    });
-    if (previewPass) await markGenerationPreview(out.generationId);
-    await trackServer("video_enqueued", userId, { jobId: out.jobId });
-    return { ...out, preview: previewPass };
+    return _enqueueVideoFromImage(context.userId, data);
   });
 
 
 
-// ─── Split Reality ─────────────────────────────────────────────────────────
-// Two flexible modes, both running two image generations in parallel:
-//  - "mirror": ONE subject rendered as two style realities (ultra-real + cinematic).
-//  - "characters": TWO different subjects, each living a contrasting life, doing
-//    the same shared action at the same moment.
-const SplitRealitySchema = z
-  .object({
-    mode: z.enum(["mirror", "characters"]).default("mirror"),
-    // mirror mode
-    imageUrls: z.array(z.string().url()).max(3).default([]),
-    basePrompt: z.string().max(1000).default(""),
-    // characters mode
-    imageUrlsA: z.array(z.string().url()).max(3).default([]),
-    imageUrlsB: z.array(z.string().url()).max(3).default([]),
-    action: z.string().max(300).default(""),
-    lifeA: z.string().max(300).default(""),
-    lifeB: z.string().max(300).default(""),
-  })
-  .refine(
-    (v) => (v.mode === "mirror" ? v.imageUrls.length >= 1 : true),
-    { message: "Upload at least a selfie reference", path: ["imageUrls"] },
-  )
-  .refine(
-    (v) => (v.mode === "characters" ? v.imageUrlsA.length >= 1 && v.imageUrlsB.length >= 1 : true),
-    { message: "Upload a reference photo for both characters", path: ["imageUrlsA"] },
-  )
-  .refine(
-    (v) => (v.mode === "characters" ? v.action.trim().length >= 3 : true),
-    { message: "Describe the shared action both characters are doing", path: ["action"] },
-  );
-
-const ULTRA_REALISM_PROMPT =
-  "Ultra-realistic mirror-selfie style photograph of the subject, taken on a modern smartphone. Preserve exact facial likeness, skin tone, beard, hairstyle, body proportions and outfit. Natural indoor lighting, subtle window reflections, realistic skin texture with visible pores, natural lens distortion, sharp focus on the face, casual confident pose. Documentary photographic realism, 4K, no styling artifacts, no text or logos.";
-
-const CINEMATIC_VISION_PROMPT =
-  "Dramatic cinematic close-up portrait of the subject, anamorphic lens look, intense emotional expression, mid-action (yelling or singing), windswept hair, moody overcast sky in background, desaturated film color grade with subtle teal/charcoal palette. Preserve exact facial likeness. Shallow depth of field, motion in the hair, painterly lighting, shot on ARRI Alexa, film grain, 4K cinematic still.";
-
-const DEFAULT_LIFE_A =
-  "Ordinary, modest everyday life — simple room, natural window light, unremarkable but authentic setting.";
-const DEFAULT_LIFE_B =
-  "Opulent, luxurious life — lavish interior, designer styling, dramatic cinematic lighting.";
-
-function characterActionPrompt(action: string, life: string) {
-  return `The subject is ${action}. Life setting: ${life}. Preserve exact facial likeness, skin tone, hairstyle, body proportions and outfit. Documentary-realistic photograph, natural focus, sharp detail, 4K, no text or logos.`;
-}
-
-export const generateSplitReality = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => {
-    const parsed = SplitRealitySchema.safeParse(input);
-    if (!parsed.success) {
-      throw new Error(parsed.error.issues[0]?.message || "Invalid Split Reality request");
-    }
-    return parsed.data;
-  })
-  .handler(async ({ data, context }) => {
-    const { userId } = context;
-    const model = "google/gemini-3.1-flash-image-preview";
-
-    // Each half is enqueued (not rendered inline) so both halves survive the
-    // tab closing — the client polls each returned jobId via getJobStatus.
-    const runOne = async (variant: string, prompt: string, imageUrls: string[]) => {
-      const out = await reserveGenerationJob(userId, "image", `[Split Reality / ${variant}] ${prompt}`, COST_IMAGE, {
-        kind: "image",
-        model,
-        prompt,
-        imageUrls,
-      });
-      await trackServer("split_reality_enqueued", userId, { jobId: out.jobId, variant });
-      return { ...out, variant };
-    };
-
-    if (data.mode === "characters") {
-      const [left, right] = await Promise.all([
-        runOne(
-          "characterA",
-          characterActionPrompt(data.action, data.lifeA || DEFAULT_LIFE_A) +
-            (data.basePrompt ? " " + data.basePrompt : ""),
-          data.imageUrlsA,
-        ),
-        runOne(
-          "characterB",
-          characterActionPrompt(data.action, data.lifeB || DEFAULT_LIFE_B) +
-            (data.basePrompt ? " " + data.basePrompt : ""),
-          data.imageUrlsB,
-        ),
-      ]);
-      return { mode: "characters" as const, left, right };
-    }
-
-    const [left, right] = await Promise.all([
-      runOne("ultra", ULTRA_REALISM_PROMPT + (data.basePrompt ? " " + data.basePrompt : ""), data.imageUrls),
-      runOne("cinematic", CINEMATIC_VISION_PROMPT + (data.basePrompt ? " " + data.basePrompt : ""), data.imageUrls),
-    ]);
-    return { mode: "mirror" as const, left, right };
-  });
 
 const LipSyncSchema = z.object({
   videoUrl: z.string().url(),
   audioUrl: z.string().url(),
   model: z.enum(["fal-ai/sync-lipsync/v2", "fal-ai/wav2lip", "latentsync"]).default("fal-ai/sync-lipsync/v2"),
 });
+
+// Internal canonical dispatch — shared by the lipSyncVideo handler AND
+// runSmokeStudioChain so the two can NEVER drift on critical params.
+async function _enqueueLipSync(
+  userId: string,
+  data: z.infer<typeof LipSyncSchema>,
+): Promise<{ jobId: string; generationId: string }> {
+  const model = data.model;
+  const selfHosted = model === "latentsync";
+  if (selfHosted && !(await hasActiveWorkerForKind("lipsync"))) {
+    throw new Error(
+      "No self-hosted LatentSync worker is online. Register a GPU worker with the 'lipsync' capability in Admin → Workers, or pick Sync 1.9 / Wav2Lip.",
+    );
+  }
+  const promptLabel =
+    model === "fal-ai/wav2lip" ? "lip sync (wav2lip)"
+    : model === "latentsync" ? "lip sync (latentsync · self-hosted)"
+    : "lip sync (sync 1.9)";
+  // Free GPU only mode: lip-sync has no $0 hosted fallback, so a hosted engine
+  // can't run for free — fail before charging credits unless a worker is online.
+  await assertFreeModeServable("lipsync");
+  // Model-tiered: premium engines (Sync 1.9) cost more Aura than the self-hosted
+  // budget engine. Same computeCost the UI previews → preview == charge == refund.
+  const lipsyncCost = computeCost({ features: ["lipsync"], model }).total;
+  // Self-hosted LatentSync carries a ComfyUI graph + flat params so it runs
+  // on every worker protocol; hosted engines never get these.
+  const selfHostedParts = selfHosted
+    ? buildLatentSyncRequest({ videoUrl: data.videoUrl, audioUrl: data.audioUrl })
+    : undefined;
+  const out = await reserveGenerationJob(userId, "video", promptLabel, lipsyncCost, {
+    kind: "lipsync",
+    model,
+    selfHostedOnly: selfHosted,
+    videoUrl: data.videoUrl,
+    audioUrl: data.audioUrl,
+    ...(selfHostedParts ?? {}),
+  });
+  await trackServer("lipsync_enqueued", userId, { jobId: out.jobId });
+  return out;
+}
 
 // DELIBERATELY NOT preview-gated (task #153): lipsync length is driven by the
 // input audio, so there is no cheaper 480p/5s variant to render — a "preview"
@@ -324,40 +306,162 @@ export const lipSyncVideo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => LipSyncSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { userId } = context;
-    const model = data.model;
-    const selfHosted = model === "latentsync";
-    if (selfHosted && !(await hasActiveWorkerForKind("lipsync"))) {
-      throw new Error(
-        "No self-hosted LatentSync worker is online. Register a GPU worker with the 'lipsync' capability in Admin → Workers, or pick Sync 1.9 / Wav2Lip.",
-      );
-    }
-    const promptLabel =
-      model === "fal-ai/wav2lip" ? "lip sync (wav2lip)"
-      : model === "latentsync" ? "lip sync (latentsync · self-hosted)"
-      : "lip sync (sync 1.9)";
-    // Free GPU only mode: lip-sync has no $0 hosted fallback, so a hosted engine
-    // can't run for free — fail before charging credits unless a worker is online.
-    await assertFreeModeServable("lipsync");
-    // Model-tiered: premium engines (Sync 1.9) cost more Aura than the self-hosted
-    // budget engine. Same computeCost the UI previews → preview == charge == refund.
-    const lipsyncCost = computeCost({ features: ["lipsync"], model }).total;
-    // Self-hosted LatentSync carries a ComfyUI graph + flat params so it runs
-    // on every worker protocol; hosted engines never get these.
-    const selfHostedParts = selfHosted
-      ? buildLatentSyncRequest({ videoUrl: data.videoUrl, audioUrl: data.audioUrl })
-      : undefined;
-    const out = await reserveGenerationJob(userId, "video", promptLabel, lipsyncCost, {
-      kind: "lipsync",
-      model,
-      selfHostedOnly: selfHosted,
-      videoUrl: data.videoUrl,
-      audioUrl: data.audioUrl,
-      ...(selfHostedParts ?? {}),
-    });
-    await trackServer("lipsync_enqueued", userId, { jobId: out.jobId });
-    return out;
+    return _enqueueLipSync(context.userId, data);
   });
+
+// ── Smoke helper ─────────────────────────────────────────────────────────────
+// Exercises the same three-stage queue path the concert-lipsync TemplateDrawer
+// dispatch runs: generatePerformanceShot → generateVideoFromImage → lipSyncVideo.
+// Unlike calling orchestrate() directly, each stage goes through
+// reserveGenerationJob (create_generation_and_reserve RPC) so schema drift in
+// the job payload or generation row is caught before a user sees it.
+// Called by smoke step 14 in smoke.functions.ts.
+
+const SMOKE_POLL_INTERVAL_MS = 3_000;
+const SMOKE_MAX_POLL_ATTEMPTS = 300; // ~15 minutes at 3s intervals (HeyGen avatar videos can take 5-12 min)
+
+async function awaitSmokeJob(
+  jobId: string,
+): Promise<{ resultImageUrl: string | null; resultVideoUrl: string | null; modelUsed: string | null }> {
+  for (let i = 0; i < SMOKE_MAX_POLL_ATTEMPTS; i++) {
+    const { data: job } = await supabaseAdmin
+      .from("jobs")
+      .select("id, status, error, generation_id")
+      .eq("id", jobId)
+      .maybeSingle();
+    if (!job) throw new Error(`Smoke: job ${jobId} not found`);
+
+    let gen: { status: string | null; result_image_url: string | null; result_video_url: string | null; error: string | null; model: string | null } | null = null;
+    if (job.generation_id) {
+      const { data } = await supabaseAdmin
+        .from("generations")
+        .select("status, result_image_url, result_video_url, error, model")
+        .eq("id", job.generation_id)
+        .maybeSingle();
+      gen = data ?? null;
+    }
+
+    const status = gen?.status ?? job.status;
+    if (status === "succeeded" || status === "complete") {
+      return {
+        resultImageUrl: gen?.result_image_url ?? null,
+        resultVideoUrl: gen?.result_video_url ?? null,
+        modelUsed: gen?.model ?? null,
+      };
+    }
+    if (status === "failed" || status === "cancelled" || job.status === "failed" || job.status === "cancelled") {
+      throw new Error(gen?.error ?? job.error ?? "Generation failed");
+    }
+    await new Promise<void>((r) => setTimeout(r, SMOKE_POLL_INTERVAL_MS));
+  }
+  throw new Error("Studio chain smoke: job timed out after ~5 minutes");
+}
+
+/** Ensure the smoke chain's reference image is an asset the given user OWNS.
+ *  Already-owned URLs (own studio upload / saved avatar / own generation
+ *  result) pass through untouched; anything else is fetched (SSRF-guarded)
+ *  and re-uploaded into the user's own studio folder. */
+async function ensureOwnedSmokeReference(userId: string, url: string): Promise<string> {
+  try {
+    await assertOwnedReferenceImage(url, userId);
+    return url;
+  } catch {
+    // Not owned — stage a caller-owned copy below.
+  }
+  assertTrustedUrl(url);
+  const { bytes, mime } = await fetchToBytes(url);
+  const path = `${userId}/smoke/reference-${crypto.randomUUID()}.jpg`;
+  const { error } = await supabaseAdmin.storage
+    .from("studio")
+    .upload(path, bytes, { contentType: mime || "image/jpeg", upsert: true });
+  if (error) throw new Error(`Smoke reference staging failed: ${error.message}`);
+  return supabaseAdmin.storage.from("studio").getPublicUrl(path).data.publicUrl;
+}
+
+/** Smoke-test the full three-stage studio chain through the queue path.
+ *  Calls the SAME internal dispatch helpers the production server fns use
+ *  (_enqueuePerformanceShot → _enqueueVideoFromImage → _enqueueLipSync), so
+ *  gating, payload shape, and charging can never drift from what a real
+ *  TemplateDrawer dispatch runs. Polls each job to completion and chains
+ *  the result URL into the next stage. */
+export async function runSmokeStudioChain(
+  userId: string,
+  referenceImageUrl: string,
+  audioUrl: string,
+): Promise<{ url: string; cost: number; videoModelUsed: string | null; lipsyncModelUsed: string | null }> {
+  const { getStudioTemplate, TEMPLATE_DEFAULTS } = await import("./template-studio");
+  const tpl = getStudioTemplate("concert-lipsync");
+  if (!tpl) throw new Error("concert-lipsync not found in template manifest");
+
+  const imageModel = tpl.imageModel ?? TEMPLATE_DEFAULTS.imageModel;
+  const videoModel = tpl.videoModel ?? TEMPLATE_DEFAULTS.videoModel;
+  const lipsyncModel = LipSyncSchema.shape.model.parse(
+    tpl.lipsyncModel ?? TEMPLATE_DEFAULTS.lipsyncModel,
+  );
+
+  // Stage 0: _enqueuePerformanceShot enforces the reference-image ownership
+  // guard for EVERY caller (no smoke bypass). The canonical smoke selfie is an
+  // external asset, so stage a copy into the smoke user's own studio folder —
+  // the chain then passes the exact same guard a real user does.
+  const ownedRef = await ensureOwnedSmokeReference(userId, referenceImageUrl);
+
+  // Stage 1: generate the performance still — same dispatch as generatePerformanceShot.
+  const imgPrompt = tpl.imagePrompt ?? "smoke test: studio performance portrait";
+  const img = await _enqueuePerformanceShot(userId, {
+    prompt: imgPrompt,
+    imageUrls: [ownedRef],
+    model: imageModel,
+    motionVideoUrl: null,
+  });
+  const imgResult = await awaitSmokeJob(img.jobId);
+  if (!imgResult.resultImageUrl) throw new Error("Studio chain stage 1 (image) returned no URL");
+
+  // Stage 2: animate the still — same dispatch as generateVideoFromImage. No
+  // confirmPreviewId, so the preview gate forces the cheap 480p/≤5s pass —
+  // identical to a first-time user render, and exercises the gate itself.
+  // Primary model: seedance-2.0-fast (BytePlus). Throws on provider failure so
+  // the smoke step accurately reflects provider reachability.
+  const vid = await _enqueueVideoFromImage(userId, {
+    imageUrl: imgResult.resultImageUrl,
+    prompt: tpl.videoPrompt ?? "The subject performs on stage, expressive movement.",
+    duration: TEMPLATE_DEFAULTS.durationSeconds,
+    resolution: TEMPLATE_DEFAULTS.resolution,
+    modelKey: videoModel,
+    cameraMovement: null,
+    endFrameUrl: null,
+    confirmPreviewId: null,
+  });
+  const vidResult = await awaitSmokeJob(vid.jobId);
+  if (!vidResult.resultVideoUrl) throw new Error("Studio chain stage 2 (video) returned no URL");
+  const resultVideoUrl = vidResult.resultVideoUrl;
+  // modelUsed is the actual model key written to the generation row by the
+  // orchestrator on success — may differ from videoModel if fallback triggered.
+  const videoModelUsed = vidResult.modelUsed;
+  const videoCost = computeCost({
+    features: ["video"],
+    model: videoModel,
+    durationSeconds: Math.min(TEMPLATE_DEFAULTS.durationSeconds, PREVIEW_MAX_SECONDS),
+    resolution: PREVIEW_RESOLUTION,
+  }).total;
+
+  // Stage 3: lip-sync the clip to the test audio — same dispatch as lipSyncVideo.
+  // Throws on provider failure so the smoke step accurately reflects lipsync provider
+  // reachability and confirms the fal-ai/sync-lipsync/v2 adapter is wired correctly.
+  const lip = await _enqueueLipSync(userId, {
+    videoUrl: resultVideoUrl,
+    audioUrl,
+    model: lipsyncModel,
+  });
+  const lipResult = await awaitSmokeJob(lip.jobId);
+  if (!lipResult.resultVideoUrl) throw new Error("Studio chain stage 3 (lipsync) returned no URL");
+  const finalLipsyncUrl = lipResult.resultVideoUrl;
+  // modelUsed is the actual model key written to the generation row by the
+  // orchestrator on success — may differ from lipsyncModel if fallback triggered.
+  const lipsyncModelUsed = lipResult.modelUsed;
+  const lipsyncCost = computeCost({ features: ["lipsync"], model: lipsyncModel }).total;
+
+  return { url: finalLipsyncUrl, cost: COST_IMAGE + videoCost + lipsyncCost, videoModelUsed, lipsyncModelUsed };
+}
 
 // Toggle favorite flag — used by gallery to "save permanently"
 export const toggleFavorite = createServerFn({ method: "POST" })

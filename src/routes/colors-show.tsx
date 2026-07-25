@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { CANONICAL_ORIGIN } from "@/lib/seo";
 
 export const Route = createFileRoute("/colors-show")({
   head: () => ({
@@ -15,8 +16,8 @@ export const Route = createFileRoute("/colors-show")({
         content:
           "Upload your portrait, choose a color theme, and let Aurora generate wide and close-up performance stills — then animate them with Motion Control.",
       },
-      { property: "og:url", content: "https://aurorastudiostar.lovable.app/colors-show" },
+      { property: "og:url", content: `${CANONICAL_ORIGIN}/colors-show` },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/colors-show" }],
+    links: [{ rel: "canonical", href: `${CANONICAL_ORIGIN}/colors-show` }],
   }),
 });

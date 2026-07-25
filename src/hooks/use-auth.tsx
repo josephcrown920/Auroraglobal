@@ -16,16 +16,35 @@ export function useAuth() {
       return;
     }
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+    let resolved = false;
+    const resolve = (s: Session | null) => {
       setSession(s);
       setUser(s?.user ?? null);
+      if (!resolved) {
+        resolved = true;
+        setLoading(false);
+      }
+    };
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      resolve(s);
     });
+
     supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      setLoading(false);
+      resolve(data.session);
     });
-    return () => sub.subscription.unsubscribe();
+
+    const timeout = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        setLoading(false);
+      }
+    }, 8000);
+
+    return () => {
+      sub.subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   return { session, user, loading };

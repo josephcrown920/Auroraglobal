@@ -1,3 +1,4 @@
+import { PARTNER_COMMISSION_PCT } from "@/lib/partners";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import {
   Sparkles, Film, Palette, Wand2, Mic, Workflow, Clapperboard, Bot,
@@ -30,10 +31,10 @@ const ITEMS: RoadmapItem[] = [
     status: "live",
   },
   {
-    label: "Video Generation",
-    description: "Text-to-video and image-to-video with multi-model fallback.",
+    label: "Video Studio",
+    description: "Generate video, images, audio and run the AI director agent — all in one page.",
     icon: Film,
-    to: "/orchestrate",
+    to: "/agent",
     status: "live",
   },
   {
@@ -148,13 +149,6 @@ const ITEMS: RoadmapItem[] = [
     status: "planned",
   },
   {
-    label: "Split Reality",
-    description: "Dual-screen compositing — real world meets AI-generated environment.",
-    icon: SplitSquareHorizontal,
-    to: "/split-reality",
-    status: "planned",
-  },
-  {
     label: "TikTok Studio",
     description: "Trending audio detection + auto-matched visual styles for TikTok.",
     icon: Music2,
@@ -190,11 +184,11 @@ const ITEMS: RoadmapItem[] = [
     status: "planned",
   },
   {
-    label: "Affiliate Program",
-    description: "Earn Aura credits for every creator you refer.",
+    label: "Aurora Partners",
+    description: `Earn ${PARTNER_COMMISSION_PCT}% recurring commission plus free Aura for every creator you refer.`,
     icon: Users,
-    to: "/affiliate",
-    status: "planned",
+    to: "/partners",
+    status: "live",
   },
   {
     label: "Gifts",

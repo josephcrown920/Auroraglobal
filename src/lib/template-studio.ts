@@ -24,6 +24,9 @@ import { computeCost, COST_UGC_AD, COST_AUTOCUT, type Resolution } from "./prici
 import { AUDIO_ACCEPT } from "./utils";
 
 // ── Thumbnails (direct file imports resolve to a URL string) ────────────────
+// Josh reference photos live in /public — referenced by URL string directly.
+const JOSH_LOOPING_OFFICERS_THUMB = "/josh-officers-bg.webp";
+
 import stillNeon from "@/assets/josh/generated/still-01-neon-closeup.jpg";
 import stillStage from "@/assets/josh/generated/still-03-stage-mic.jpg";
 import stillRooftopSunset from "@/assets/josh/generated/still-06-rooftop-sunset.jpg";
@@ -33,9 +36,9 @@ import stillCourtBall from "@/assets/josh/generated/still-13-court-ball.jpg";
 import stillFitcheckMirror from "@/assets/josh/generated/still-15-fitcheck-mirror.jpg";
 import stillBoardwalk from "@/assets/josh/generated/still-18-boardwalk.jpg";
 import clipNeon from "@/assets/josh/generated/clip-01-neon-closeup.mp4";
-import clipStreetGolden from "@/assets/josh/generated/clip-02-street-golden.mp4";
+import clipCarOrbit from "@/assets/josh/generated/clip-14-car-orbit.mp4";
 import clipStage from "@/assets/josh/generated/clip-03-stage-mic.mp4";
-import clipStudioGel from "@/assets/josh/generated/clip-05-studio-gel.mp4";
+import clipAlleyNeon from "@/assets/josh/generated/clip-15-alley-neon.mp4";
 import clipRooftopSunset from "@/assets/josh/generated/clip-06-rooftop-sunset.mp4";
 import clipCourtBall from "@/assets/josh/generated/clip-13-court-ball.mp4";
 import kidsMeadow from "@/assets/kids/showcase-meadow.jpg";
@@ -44,6 +47,8 @@ import kidsBedtimeClip from "@/assets/kids/showcase-bedtime.mp4";
 // .asset.json imports expose { url }
 import productLipstick from "@/assets/ugc/product-lipstick-car.jpg.asset.json";
 import productLifestyleCafe from "@/assets/generated_thumbs/product-lifestyle-cafe-table.png";
+import ugcCarProductHold from "@/assets/ugc/ugc-car-product-hold.webp.asset.json";
+import ugcHomeSelfie from "@/assets/ugc/ugc-home-selfie.webp.asset.json";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export type TemplateInputKind = "image" | "audio" | "text";
@@ -97,6 +102,20 @@ export type StudioTemplate = {
   durationSeconds?: number;
   resolution?: Resolution;
   lipsyncModel?: string;
+
+  /**
+   * Pre-fill the image input with this URL so users can generate immediately.
+   * Must be an absolute URL or a public-dir path starting with "/".
+   * The drawer converts "/" paths to an absolute URL using window.location.origin.
+   */
+  defaultImageUrl?: string;
+
+  /**
+   * Additional background / scene reference image passed alongside the user's
+   * photo in the image generation step (appended to imageUrls[]).
+   * Lets the model see the intended background composition as a visual guide.
+   */
+  backgroundImageUrl?: string;
 
   // ── ugc params (dispatch === "ugc") ──
   ugcAspect?: "9:16" | "16:9" | "1:1" | "4:5";
@@ -215,7 +234,7 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
     category: "Motion",
     blurb: "A slow cinematic orbit around you in warm golden light.",
     thumbnail: stillCarGolden,
-    thumbnailVideo: clipStreetGolden,
+    thumbnailVideo: clipCarOrbit,
     kinds: ["image", "video"],
     dispatch: "studio",
     inputs: [IMG("Your photo")],
@@ -232,7 +251,7 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
     category: "Motion",
     blurb: "A moody street-mural clip drenched in neon.",
     thumbnail: stillAlley,
-    thumbnailVideo: clipStudioGel,
+    thumbnailVideo: clipAlleyNeon,
     kinds: ["image", "video"],
     dispatch: "studio",
     inputs: [IMG("Your photo")],
@@ -289,6 +308,70 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
     imagePrompt:
       "Photorealistic hero shot of a person's hand holding a brand-new iPhone 15 Pro in titanium black. The phone screen displays the EXACT uploaded app UI screenshot, pixel-perfect, no distortion. Soft natural window light from camera-left, clean white seamless backdrop with a subtle gradient, professional product photography, 50mm f/2.8, ultra-sharp screen, gentle hand shadow. Preserve the screen content exactly. No text overlays, no logos.",
     imageModel: TEMPLATE_DEFAULTS.imageModel,
+  },
+
+  // ── Grok Imagine-style templates (product promo, UGC walk, fashion try-on) ──
+  {
+    id: "product-promo-video",
+    title: "Product Promo · Cinematic",
+    category: "UGC/Ad",
+    blurb: "Drop your product photo, write one line — Aurora turns it into a cinematic commercial.",
+    thumbnail: ugcCarProductHold.url,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [
+      IMG("Product photo", "Any clear shot of your product — bottle, device, package, etc."),
+      TXT("What makes it special?", true, "e.g. ultra-hydrating serum with visible results in 3 days"),
+    ],
+    imagePrompt:
+      "Cinematic luxury editorial product photograph. The EXACT product from the reference image — preserve its label, shape, colours and proportions exactly. Placed in a beautifully lit aspirational setting: rich textures, soft bokeh background, warm directional light, 9:16 vertical format. Photorealistic, shallow depth of field, high-end commercial aesthetic. No people in frame.",
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "Slow cinematic push-in on the product, subtle light shimmer and dust particles drifting through the beam, premium brand commercial feel.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "push_in",
+    durationSeconds: 6,
+  },
+  {
+    id: "ugc-creator-walk",
+    title: "Creator UGC · Walk & Talk",
+    category: "UGC/Ad",
+    blurb: "Your selfie + your words → authentic walking-toward-camera UGC, ready to post.",
+    thumbnail: ugcHomeSelfie.url,
+    kinds: ["ugc_ad"],
+    dispatch: "ugc",
+    ugcAspect: "9:16",
+    durationSeconds: 10,
+    inputs: [
+      IMG("Your photo / selfie", "A clear front-facing photo — the more natural the better"),
+      TXT(
+        "What do you want to say?",
+        true,
+        "e.g. I just tried this serum and it's honestly a game changer — the texture alone is insane",
+      ),
+    ],
+  },
+  {
+    id: "fashion-tryon",
+    title: "Virtual Try-On",
+    category: "Motion",
+    blurb: "Your portrait + any outfit photo → see yourself wearing it in a styled animation.",
+    thumbnail: stillFitcheckMirror,
+    thumbnailVideo: clipCarOrbit,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [
+      IMG("Your portrait", "A clear front-facing or 3/4 photo of yourself"),
+      IMG("Outfit / look", "A photo of the clothing or style you want to wear"),
+    ],
+    imagePrompt:
+      `Editorial fashion photograph. Show the EXACT person from the first reference image wearing the EXACT outfit from the second reference image. Preserve the person's facial features, skin tone, body proportions, and hair faithfully. Render the outfit with accurate fabric texture, colour, and cut. Professional fashion editorial lighting, 3:4 portrait format, shallow depth of field, high-end styling. ${IDENTITY}`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "Slow graceful fashion editorial movement — the person shifts their pose naturally, fabric catches the light, confident energy, camera holds still.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "static",
+    durationSeconds: 5,
   },
 
   // ───────────── Spin ─────────────
@@ -351,6 +434,34 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
     cameraMovement: "push_in",
   },
 
+  // ───────────── Motion (NBA Josh) ─────────────
+  {
+    id: "looping-officers",
+    title: "Looping Officers",
+    category: "Motion",
+    blurb:
+      "NBA Josh stands calm in the foreground. Officers loop endlessly behind him — running hard, going nowhere. Cinematic 16:9 night scene.",
+    thumbnail: JOSH_LOOPING_OFFICERS_THUMB,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    defaultImageUrl: "/josh-ref-3.jpeg",
+    backgroundImageUrl: "/josh-officers-bg.webp",
+    inputs: [
+      IMG(
+        "Josh reference photo",
+        "Pre-filled — upload a replacement if needed",
+      ),
+    ],
+    imagePrompt: `Cinematic 16:9 music video still. A tall athletic Black male rapper, 6ft 3in, lean build, with long bright red-tipped dreadlocks, alien-frame red sunglasses with circular green reptile-eye lenses, a large diamond "NEVER JXST" chain, arm tattoos with "NBA JOSH" lettering on the right forearm, wearing a maroon and black Z-brand athletic jersey. He stands in the BOTTOM RIGHT of the frame, shot from waist up, facing slightly left toward camera. Dark wet urban street at night. Dramatic overhead streetlight, high contrast cinematic atmosphere, shallow depth of field. Two police officers in full navy uniform run aggressively in the TOP LEFT of frame, full body visible, arms pumping intensely, leaning forward, urgent expressions — motion blur on their bodies. The rapper looks calm, fearless, completely unbothered. Photorealistic, 4K music video aesthetic. ${IDENTITY}`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "The rapper performs his hook in the bottom right with calm fearless energy and subtle hand gestures. The officers in the top left keep running in place — stuck in a looping glitch, never advancing. Static locked-off camera, zero movement. Near the end the rapper glances over his left shoulder with a cool smirk, then casually turns and walks out of frame while the officers are still running.",
+    videoModel: "kling-3.0",
+    cameraMovement: "static",
+    durationSeconds: 10,
+    resolution: "720p",
+  },
+
   // ───────────── Editing ─────────────
   {
     id: "autocut-hype",
@@ -378,12 +489,12 @@ export function getStudioTemplate(id: string): StudioTemplate | undefined {
  *    what generatePerformanceShot / generateVideoFromImage / lipSyncVideo charge.
  *  - ugc:  the flat COST_UGC_AD reserved by generateUGCAd.
  *  - spin: SPIN_PIECE_COUNT × SPIN_PIECE_COST — spinThirty charges the whole
- *    batch upfront (1 Aura per piece; failed pieces auto-refund their Aura).
+ *    batch upfront (10 Aura per piece; failed pieces auto-refund their Aura).
  * Preview can therefore never disagree with the real charge.
  */
 export function templateCost(t: StudioTemplate): number {
   if (t.dispatch === "ugc") return COST_UGC_AD;
-  // Spin templates navigate to /spin where the user explicitly pays 30 Aura.
+  // Spin templates navigate to /spin where the user explicitly pays 300 Aura.
   // No credits are charged in the template drawer itself → cost = 0 (Free).
   if (t.dispatch === "spin") return 0;
   if (t.dispatch === "autocut") return COST_AUTOCUT;

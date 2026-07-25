@@ -15,12 +15,11 @@ const FEATURED_TEMPLATES: Array<{
   accent: string;
   graph: Record<string, unknown>;
 }> = [
-  { slug: "drift-moodboard", name: "Drift Moodboard", description: "4 stills → cohesive cinematic moodboard with color script.", icon: ImageIcon, accent: "from-violet-500 to-fuchsia-500", graph: { nodes: [{ type: "moodboard", count: 4 }], edges: [] } },
+  { slug: "drift-moodboard", name: "Drift Moodboard", description: "4 stills → cohesive cinematic moodboard with color script.", icon: ImageIcon, accent: "from-brand to-orange-400", graph: { nodes: [{ type: "moodboard", count: 4 }], edges: [] } },
   { slug: "skatepark-reel", name: "Skatepark Reel", description: "Identity ref → 6-shot skate sequence, slow-mo finisher.", icon: Video, accent: "from-amber-500 to-orange-500", graph: { nodes: [{ type: "performance" }, { type: "video", shots: 6 }], edges: [] } },
   { slug: "competitor-scan", name: "Competitor Scan", description: "Pull 8 references from a brand URL → style breakdown.", icon: Eye, accent: "from-sky-500 to-cyan-500", graph: { nodes: [{ type: "scrape" }, { type: "analyze" }], edges: [] } },
   { slug: "vocal-sync-music-video", name: "Vocal Sync Music Video", description: "Performance clip + vocal stem → frame-perfect lip-sync render.", icon: Mic2, accent: "from-pink-500 to-rose-500", graph: { nodes: [{ type: "lipsync", engine: "sync-v2" }], edges: [] } },
   { slug: "one-click-trailer", name: "One-Click Trailer", description: "Single prompt → 8s teaser with motion + score.", icon: Wand2, accent: "from-emerald-500 to-teal-500", graph: { nodes: [{ type: "video", duration: 8 }], edges: [] } },
-  { slug: "split-reality", name: "Split Reality", description: "Day/night split of the same scene for before/after reveals.", icon: Layers, accent: "from-indigo-500 to-purple-500", graph: { nodes: [{ type: "split", variants: 2 }], edges: [] } },
 ];
 
 export const Route = createLazyFileRoute("/workflows")({ component: WorkflowsPage });

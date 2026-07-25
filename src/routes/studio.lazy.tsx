@@ -23,6 +23,8 @@ import tutorialStudioFinal from "@/assets/tutorial-studio-final.jpg.asset.json";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, Wand2, LogOut, Loader2, Download, Camera, Film, Mic2, Coins, Zap, LayoutDashboard, Shield, Server, Captions, Crown, Flame, Trash2 } from "lucide-react";
+import { PageSpinner } from "@/components/PageSpinner";
+import { AuthRedirect } from "@/components/AuthRedirect";
 import { CaptionDialog } from "@/components/gallery/CaptionDialog";
 import { toast } from "sonner";
 import { listGenerations } from "@/lib/studio.functions";
@@ -487,13 +489,8 @@ function StudioPage() {
     },
   });
 
-  if (loading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="size-6 animate-spin text-primary" />
-      </div>
-    );
-  }
+  if (loading) return <PageSpinner />;
+  if (!user) return <AuthRedirect />;
 
   return (
     <main className="min-h-screen relative" style={{ background: "var(--gradient-soft)" }}>
@@ -575,8 +572,59 @@ function StudioPage() {
             <p className="mt-1 text-xs text-muted-foreground">Drop references → write direction → generate. That's it.</p>
           </div>
 
-          {/* Image generation slideshow — moved back up under the heading */}
-          <JoshSlideshow />
+          {/* Image generation slideshow — full-width, entrance animation */}
+          <div className="reveal-card" data-revealed="true">
+            <JoshSlideshow />
+          </div>
+
+          {/* ── Inspiration — recipe → result (moved before the form for visibility) ── */}
+          <div className="space-y-5">
+            <TriedTestedShowcase
+              title="See the recipe → see the result"
+              subtitle="Real references. Real render. This is what your shoot can look like."
+              refsImage={tutorialStudioRefs.url}
+              refsCaption="Selfie · Outfit (all black) · Scene (train tracks) · Prop (vintage mic)"
+              finalImage={tutorialStudioFinal.url}
+              finalCaption="Hyper-real composite · identity preserved · golden-hour grade"
+              prompt="Create a hyper-realistic composite using the provided reference images. Use the close-up selfie as the primary identity source, preserving exact facial features, skin tone, dreadlocks. Place the subject in the scene (desert train tracks at golden hour) wearing the outfit (black fuzzy crewneck sweater, black sweatpants). Pose: powerful, hands on hips, slight low angle, leaning into a vintage hanging silver microphone. Cinematic anamorphic 35mm, warm sunset grade, sharp focus on subject, shallow depth of field, 4K editorial."
+            />
+
+            {/* ── What Aurora creates — horizontal photo strip ──────── */}
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3">What Aurora creates</p>
+              <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none snap-x snap-mandatory">
+                {[
+                  { src: "/landing-photo-nba-josh.png",     label: "Artist" },
+                  { src: "/landing-photo-studios-grid.png", label: "Colors Studio" },
+                  { src: "/landing-photo-1.jpeg",           label: "Commercial" },
+                  { src: "/landing-photo-2.jpeg",           label: "Editorial" },
+                  { src: "/landing-photo-3.jpeg",           label: "Lifestyle" },
+                  { src: "/landing-photo-4.jpeg",           label: "Fashion" },
+                  { src: "/landing-photo-5.jpeg",           label: "Product" },
+                  { src: "/landing-photo-6.png",            label: "Performance" },
+                  { src: "/landing-photo-7.png",            label: "Music Video" },
+                  { src: "/landing-photo-8.png",            label: "Production" },
+                ].map(({ src, label }) => (
+                  <div
+                    key={src}
+                    className="relative shrink-0 w-28 snap-start overflow-hidden rounded-xl border border-white/10"
+                    style={{ aspectRatio: "3/4" }}
+                  >
+                    <img
+                      src={src}
+                      alt={label}
+                      className="absolute inset-0 w-full h-full object-cover eg-img"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    <span className="absolute bottom-1.5 left-2 text-[9px] font-bold uppercase tracking-widest text-white/50">
+                      {label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
 
           {/* Compact 5-slot reference row */}
           <div className="grid grid-cols-5 gap-2">
@@ -654,7 +702,7 @@ function StudioPage() {
           <div className="flex items-center justify-between text-xs text-muted-foreground rounded-xl border border-border bg-card/40 px-3 py-2">
             <span className="inline-flex items-center gap-1.5">
               <Zap className="size-3.5 text-primary" />
-              Cost: <span className="text-foreground font-medium">1 Aura</span>
+              Cost: <span className="text-foreground font-medium">10 Aura</span>
               <span className="opacity-50">·</span>
               ETA: <span className="text-foreground font-medium">~10–20s</span>
             </span>
@@ -670,16 +718,10 @@ function StudioPage() {
             {mut.isPending ? (
               <><Loader2 className="size-5 mr-2 animate-spin" /> Staging the shoot…</>
             ) : (
-              <><Wand2 className="size-5 mr-2" /> Generate performance shot · 1 Aura</>
+              <><Wand2 className="size-5 mr-2" /> Generate performance shot · 10 Aura</>
             )}
           </Button>
 
-          <Link
-            to="/split-reality"
-            className="w-full inline-flex items-center justify-center gap-2 h-11 rounded-md border border-primary/40 bg-primary/5 hover:bg-primary/10 text-sm font-medium text-foreground no-underline"
-          >
-            <Sparkles className="size-4 text-primary" /> Split Reality — dedicated studio →
-          </Link>
 
           <Button
             disabled={demoMut.isPending || !demoUrl}
@@ -693,56 +735,6 @@ function StudioPage() {
               <><Zap className="size-4 mr-2" /> Try a demo shoot (no upload needed)</>
             )}
           </Button>
-
-          <div className="pt-6 space-y-5 border-t border-border/50">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Inspiration</p>
-            <TriedTestedShowcase
-              title="See the recipe → see the result"
-              subtitle="Real references. Real render. This is what your shoot can look like."
-              refsImage={tutorialStudioRefs.url}
-              refsCaption="Selfie · Outfit (all black) · Scene (train tracks) · Prop (vintage mic)"
-              finalImage={tutorialStudioFinal.url}
-              finalCaption="Hyper-real composite · identity preserved · golden-hour grade"
-              prompt="Create a hyper-realistic composite using the provided reference images. Use the close-up selfie as the primary identity source, preserving exact facial features, skin tone, dreadlocks. Place the subject in the scene (desert train tracks at golden hour) wearing the outfit (black fuzzy crewneck sweater, black sweatpants). Pose: powerful, hands on hips, slight low angle, leaning into a vintage hanging silver microphone. Cinematic anamorphic 35mm, warm sunset grade, sharp focus on subject, shallow depth of field, 4K editorial."
-            />
-
-            {/* ── What Aurora creates — horizontal photo strip ──────── */}
-            <div>
-              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3">What Aurora creates</p>
-              <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none snap-x snap-mandatory">
-                {[
-                  { src: "/landing-photo-nba-josh.png",     label: "Artist" },
-                  { src: "/landing-photo-studios-grid.png", label: "Colors Studio" },
-                  { src: "/landing-photo-1.jpeg",           label: "Commercial" },
-                  { src: "/landing-photo-2.jpeg",           label: "Editorial" },
-                  { src: "/landing-photo-3.jpeg",           label: "Lifestyle" },
-                  { src: "/landing-photo-4.jpeg",           label: "Fashion" },
-                  { src: "/landing-photo-5.jpeg",           label: "Product" },
-                  { src: "/landing-photo-6.png",            label: "Performance" },
-                  { src: "/landing-photo-7.png",            label: "Music Video" },
-                  { src: "/landing-photo-8.png",            label: "Production" },
-                ].map(({ src, label }) => (
-                  <div
-                    key={src}
-                    className="relative shrink-0 w-28 snap-start overflow-hidden rounded-xl border border-white/10"
-                    style={{ aspectRatio: "3/4" }}
-                  >
-                    <img
-                      src={src}
-                      alt={label}
-                      className="absolute inset-0 w-full h-full object-cover"
-                      style={{ animation: "ken-burns 20s ease-in-out infinite alternate" }}
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                    <span className="absolute bottom-1.5 left-2 text-[9px] font-bold uppercase tracking-widest text-white/50">
-                      {label}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
 
         </section>
 
@@ -1163,7 +1155,7 @@ function StudioPage() {
               </div>
               <p className="text-xs text-muted-foreground">Transcribe your video's audio with Whisper, review and edit the caption segments, then burn them permanently into the video.</p>
               <Button variant="secondary" className="w-full" onClick={() => setCaptionOpen(true)}>
-                <Captions className="size-4 mr-2" /> Add Captions · 2 Aura
+                <Captions className="size-4 mr-2" /> Add Captions · 20 Aura
               </Button>
             </div>
           )}
@@ -1173,7 +1165,7 @@ function StudioPage() {
 
 
           {/* ── Buy Aura — full value-proposition redesign ──────────── */}
-          <div className="relative rounded-3xl overflow-hidden border border-primary/30 bg-gradient-to-br from-[#110826] via-[#0d0820] to-[#130b24] shadow-[0_0_80px_-20px_oklch(0.72_0.2_300/0.6)]">
+          <div className="relative rounded-3xl overflow-hidden border border-brand/25 bg-gradient-to-br from-zinc-900 via-zinc-950 to-zinc-900 shadow-[0_0_80px_-20px_oklch(0.58_0.22_25/0.6)]">
             {/* shimmer top line */}
             <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
             {/* ambient glow orb */}
@@ -1201,12 +1193,12 @@ function StudioPage() {
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/35">What you can make</p>
                 <div className="grid grid-cols-2 gap-y-3 gap-x-4">
                   {([
-                    { icon: Camera,   label: "Hyperrealistic photo",    cost: "1 Aura" },
-                    { icon: Film,     label: "Music video frame",       cost: "3–10 Aura" },
-                    { icon: Mic2,     label: "Lip-sync video",          cost: "from 8 Aura" },
+                    { icon: Camera,   label: "Hyperrealistic photo",    cost: "10 Aura" },
+                    { icon: Film,     label: "Music video frame",       cost: "30–100 Aura" },
+                    { icon: Mic2,     label: "Lip-sync video",          cost: "from 80 Aura" },
                     { icon: Sparkles, label: "AI Director session",     cost: "included" },
-                    { icon: Wand2,    label: "Style transfer & edit",   cost: "from 3 Aura" },
-                    { icon: Zap,      label: "4K export upgrade",       cost: "+30 Aura" },
+                    { icon: Wand2,    label: "Style transfer & edit",   cost: "from 30 Aura" },
+                    { icon: Zap,      label: "4K export upgrade",       cost: "+300 Aura" },
                   ] as const).map(({ icon: Icon, label, cost }) => (
                     <div key={label} className="flex items-start gap-2">
                       <div className="mt-0.5 size-5 rounded-md bg-primary/15 grid place-items-center shrink-0">
@@ -1253,9 +1245,9 @@ function StudioPage() {
                   const isPopular = k === "creator";
                   const isBest = k === "studio";
                   const usageHint =
-                    k === "starter" ? `${p.credits} photos · ${Math.floor(p.credits / 10)} lip-syncs` :
-                    k === "creator" ? `${p.credits} photos · ${Math.floor(p.credits / 10)} lip-syncs · ${Math.floor(p.credits / 5)} edits` :
-                    `${p.credits} photos · ${Math.floor(p.credits / 3)} video frames · full month`;
+                    k === "starter" ? `${Math.floor(p.credits / 10)} photos · ${Math.floor(p.credits / 100)} lip-syncs` :
+                    k === "creator" ? `${Math.floor(p.credits / 10)} photos · ${Math.floor(p.credits / 100)} lip-syncs · ${Math.floor(p.credits / 50)} edits` :
+                    `${Math.floor(p.credits / 10)} photos · ${Math.floor(p.credits / 30)} video frames · full month`;
                   return (
                     <button
                       key={k}
@@ -1264,7 +1256,7 @@ function StudioPage() {
                       onClick={() => checkoutMut.mutate(k)}
                       className={`w-full rounded-2xl border p-4 text-left transition-all active:scale-[0.98] disabled:opacity-50 ${
                         isPopular
-                          ? "border-primary/55 bg-gradient-to-br from-primary/15 to-primary/5 shadow-[0_0_32px_-8px_oklch(0.72_0.2_300/0.5)] hover:shadow-[0_0_40px_-6px_oklch(0.72_0.2_300/0.7)]"
+                          ? "border-brand/55 bg-gradient-to-br from-brand/15 to-brand/5 shadow-[0_0_32px_-8px_oklch(0.58_0.22_25/0.5)] hover:shadow-[0_0_40px_-6px_oklch(0.58_0.22_25/0.7)]"
                           : isBest
                           ? "border-amber-400/35 bg-gradient-to-br from-amber-500/10 to-amber-900/10 hover:border-amber-400/55"
                           : "border-white/10 bg-white/5 hover:border-white/22 hover:bg-white/8"

@@ -38,7 +38,7 @@ const ARC_COLOURS: Record<string, string> = {
   discovery:       "bg-amber-500/15 text-amber-400 border-amber-500/30",
   transformation:  "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
   "social-proof":  "bg-sky-500/15 text-sky-400 border-sky-500/30",
-  fomo:            "bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30",
+  fomo:            "bg-brand/15 text-brand border-brand/30",
   cta:             "bg-primary/15 text-primary border-primary/30",
 };
 function arcColour(pos: string) {
@@ -289,7 +289,7 @@ function ContentLine() {
       {/* Ambient */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[700px] rounded-full bg-primary/5 blur-[120px]" />
-        <div className="absolute top-1/2 -left-40 w-[400px] h-[400px] rounded-full bg-fuchsia-500/4 blur-[100px]" />
+        <div className="absolute top-1/2 -left-40 w-[400px] h-[400px] rounded-full bg-brand/4 blur-[100px]" />
       </div>
 
       <div className="relative z-10 max-w-screen-xl mx-auto px-4 py-10 pb-24">

@@ -7,7 +7,7 @@ export const Route = createFileRoute("/dashboard")({
       { name: "description", content: "Manage your Aura balance, billing, recent generations and account settings." },
       { name: "robots", content: "noindex" },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/dashboard" }],
+    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/dashboard" }],
   }),
 });
 

@@ -13,4 +13,11 @@ It rejects everything else (foreign studio objects, arbitrary URLs), running the
 
 **Why:** a crafted request could otherwise point a render's character reference at someone else's private studio asset — defense-in-depth, not a proven exploit.
 
-**How to apply:** call it (async) right after zod validation, before any credit reservation, for every new endpoint that takes a "character image" URL (Kids Story, motion transfer imageUrl, performance reskin avatarImageUrl already do this). It does NOT cover driving/performance video URLs or generic multi-image inputs (UGC avatarImageUrl, TikTok remix sourceImageUrl, agent.functions referenceImages, MCP tool image params) — those are still open gaps, tracked as a follow-up.
+**How to apply:** call it (async) right after zod validation, before any credit reservation, for every new endpoint that takes a "character image" URL.
+
+## Known intentional exclusions
+
+- UGC `remixImageUrl` / TikTok-remix `sourceImageUrl` are driving-video-like inputs, not character references — deliberately unguarded, but worth a future review.
+- Base64 image data is transient-only (never stored as a URL) so it is not guarded.
+- Any new endpoint that takes a "characterImageUrl"-style field must add the guard at introduction time; grep for `assertOwnedReferenceImage` call sites to see current coverage rather than trusting a list here.
+- Admin-only smoke chains must not bypass the guard: stage the external reference into the smoke user's own studio folder first, then pass it through the same shared enqueue path as a real user.

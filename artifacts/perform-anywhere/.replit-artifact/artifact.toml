@@ -16,9 +16,6 @@ localPort = 8086
 [services.development]
 run = "bash /home/runner/workspace/artifacts/perform-anywhere/start-dev.sh"
 
-[services.production]
-build = [ "bash", "-c", "npm install && node_modules/.bin/vite build --config vite.config.ts" ]
-
 [services.env]
 BASE_PATH = "/perform-anywhere/"
 PORT = "8086"

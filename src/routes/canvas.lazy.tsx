@@ -1,7 +1,10 @@
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { PageSpinner } from "@/components/PageSpinner";
+import { AuthRedirect } from "@/components/AuthRedirect";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { AUDIO_ACCEPT } from "@/lib/utils";
-import { generateProductVideoHooks } from "@/lib/claude-hooks.functions";
+import { CollectionRunner, formatEtr } from "@/lib/collection-runtime";
+import { generateProductVideoHooks, generateStyleBlueprint, type StyleBlueprint } from "@/lib/claude-hooks.functions";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
@@ -26,7 +29,6 @@ import {
   usePerformanceShotJobFn,
   useVideoFromImageJobFn,
   useLipSyncJobFn,
-  useSplitRealityJobFn,
   pollComfyRunUntilDone,
 } from "@/lib/use-job-polling";
 import { listWorkflows, saveWorkflow, getWorkflow } from "@/lib/workflows.functions";
@@ -42,6 +44,7 @@ import {
   type AuroraTemplateRow,
 } from "@/lib/aurora-templates.functions";
 import { MODEL_LIST, VIDEO_MODEL_LIST, getModelMeta, AUTO_MODEL_OPTIONS, resolveAutoModel } from "@/lib/models";
+import { classifyUpstream, resolveVideoStartFrame, resolveVideoEndFrame } from "@/lib/canvas-pipeline";
 import {
   Sparkles,
   Play,
@@ -67,12 +70,23 @@ import {
   Layers,
   MoreVertical,
   Bot,
+  Eye,
+  Lock,
+  Globe,
+  CheckCheck,
+  AlertCircle,
+  Monitor,
+  Smartphone,
+  Target,
+  ShoppingBag,
+  Pause,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -82,7 +96,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { SplitRealityPlayer } from "@/components/canvas/SplitRealityPlayer";
 import { ShareMenu } from "@/components/share/ShareMenu";
 
 import { TrendingTemplatesMenu, type TemplateGraph, getTemplateById } from "@/components/canvas/TrendingTemplatesMenu";
@@ -94,33 +107,45 @@ import { GeneratedAssetGallery } from "@/components/canvas/GeneratedAssetGallery
 export const Route = createLazyFileRoute("/canvas")({ component: CanvasPage });
 
 type NodeKind = "input" | "audio" | "image" | "video" | "lipsync" | "split" | "comfy" | "batchVideo" | "heygenTemplate";
-type BatchVariant = { status: "idle" | "running" | "done" | "error"; url?: string; error?: string };
+type BatchVariant = { status: "queued" | "running" | "done" | "error"; url?: string; error?: string; approved?: boolean };
 type NodeData = {
   kind: NodeKind;
-  label?: string; // optional human label (e.g. the camera angle for reshoot recipes)
+  label?: string;
   comfyWorkflowId?: string;
   outputKind?: "image" | "video";
   url?: string;
-  altUrl?: string; // secondary output (e.g. split-reality cinematic still)
-  videoUrl?: string; // animated version of `url` for split-reality playback
-  altVideoUrl?: string; // animated version of `altUrl`
+  altUrl?: string;
+  videoUrl?: string;
+  altVideoUrl?: string;
   prompt?: string;
   model?: string;
   cameraMovement?: string;
   status?: "idle" | "running" | "done" | "error";
   error?: string;
   animating?: boolean;
-  // batchVideo-only: fan out one prompt/image into N independent video renders.
+  // batchVideo — fan out one image into N independent video renders
   variantCount?: number;
   resolution?: "480p" | "720p" | "1080p" | "2160p";
   duration?: number;
   variants?: BatchVariant[];
-  // Claude-generated per-variant prompts (overrides shared prompt when set)
   claudePrompts?: string[];
   productDescription?: string;
+  // batchVideo extended settings
+  platform?: "tiktok" | "instagram" | "youtube_shorts" | "facebook" | "x" | "linkedin";
+  variationStrategy?: "hooks" | "ctas" | "openings" | "story" | "captions" | "mixed";
+  outputDuration?: "auto" | "15" | "30" | "45" | "60";
+  styleLock?: boolean;
+  brandLock?: boolean;
+  speakerLock?: boolean;
+  styleBlueprint?: StyleBlueprint;
+  // batchVideo collection tracking (live-updated during run)
+  collectionStartedAt?: number;
+  collectionEstimatedMs?: number;
   // heygenTemplate-only
   auroraTemplateId?: string;
   talkingPhotoUrl?: string;
+  // outfit / product swap — secondary reference image for try-on / product nodes
+  outfitUrl?: string;
 };
 
 const initialNodes: Node<NodeData>[] = [
@@ -168,8 +193,11 @@ type Handlers = {
   update: (id: string, patch: Partial<NodeData>) => void;
   remove: (id: string) => void;
   onFile: (id: string, file: File) => void;
-  animateSplit: (id: string) => void;
+  onOutfitFile: (id: string, file: File) => void;
+  openBatchViewer: (id: string) => void;
 };
+
+const OUTFIT_LABELS = /product|try.?on|outfit|top\b|bottom\b|garment|apparel|clothing|fashion/i;
 const HandlersCtx = createContext<Handlers | null>(null);
 
 type ComfyTemplate = {
@@ -262,19 +290,28 @@ function ComfyNodeControls({ id, data }: { id: string; data: NodeData }) {
 function BatchVideoControls({ id, data }: { id: string; data: NodeData }) {
   const h = useContext(HandlersCtx)!;
   const claudeFn = useServerFn(generateProductVideoHooks);
+  const blueprintFn = useServerFn(generateStyleBlueprint);
   const [claudeLoading, setClaudeLoading] = useState(false);
+  const [blueprintLoading, setBlueprintLoading] = useState(false);
+  const [customCountMode, setCustomCountMode] = useState(() => !(VARIANT_COUNTS as readonly number[]).includes(data.variantCount ?? 5));
+  const [customCountStr, setCustomCountStr] = useState(() => String(data.variantCount ?? 5));
+
+  const count = data.variantCount ?? 5;
+  const strategy = data.variationStrategy ?? "mixed";
+  const platform = data.platform ?? "tiktok";
 
   const expandWithClaude = async () => {
     if (!data.productDescription?.trim()) {
-      toast.error("Describe your product first (use the field above)");
+      toast.error("Describe your content first");
       return;
     }
     setClaudeLoading(true);
     try {
-      const count = Math.min(6, Math.max(1, data.variantCount ?? 5));
-      const { prompts } = await claudeFn({ data: { productDescription: data.productDescription, count } });
-      h.update(id, { claudePrompts: prompts, variantCount: prompts.length });
-      toast.success(`Claude generated ${prompts.length} unique video hooks`);
+      const { prompts } = await claudeFn({
+        data: { productDescription: data.productDescription, count, strategy, platform },
+      });
+      h.update(id, { claudePrompts: prompts });
+      toast.success(`Claude generated ${prompts.length} unique ${strategy} prompts`);
     } catch (e) {
       handleGenerationError(e);
     } finally {
@@ -282,94 +319,492 @@ function BatchVideoControls({ id, data }: { id: string; data: NodeData }) {
     }
   };
 
+  const buildBlueprint = async () => {
+    if (!data.productDescription?.trim()) {
+      toast.error("Describe your content first");
+      return;
+    }
+    setBlueprintLoading(true);
+    try {
+      const { blueprint } = await blueprintFn({ data: { description: data.productDescription } });
+      h.update(id, { styleBlueprint: blueprint });
+      toast.success("Style blueprint generated");
+    } catch (e) {
+      handleGenerationError(e);
+    } finally {
+      setBlueprintLoading(false);
+    }
+  };
+
   return (
-    <>
+    <div className="space-y-2.5">
+      {/* ── Content description ─────────────── */}
       <div className="space-y-1.5">
-        <Input
+        <p className="text-[10px] uppercase tracking-[0.15em] text-white/40">Content / Subject</p>
+        <Textarea
+          rows={2}
           value={data.productDescription ?? ""}
           onChange={(e) => h.update(id, { productDescription: e.target.value })}
-          placeholder="Describe your product (e.g. energy drink, sneakers)"
-          className="h-8 text-xs nodrag bg-black/30 border-white/10"
+          placeholder="Describe your content (e.g. new sneaker drop, fitness coaching, beauty tutorial)"
+          className="text-xs resize-none nodrag bg-black/30 border-white/10"
           onMouseDownCapture={(e) => e.stopPropagation()}
         />
+      </div>
+
+      {/* ── Style Blueprint ─────────────────── */}
+      <div className="space-y-1.5">
         <button
           type="button"
-          onClick={expandWithClaude}
-          disabled={claudeLoading || !data.productDescription?.trim()}
-          className="w-full h-7 flex items-center justify-center gap-1.5 rounded-md bg-violet-500/20 hover:bg-violet-500/30 border border-violet-400/30 text-xs text-violet-300 disabled:opacity-50 nodrag transition-colors"
+          onClick={buildBlueprint}
+          disabled={blueprintLoading || !data.productDescription?.trim()}
+          className="w-full h-7 flex items-center justify-center gap-1.5 rounded-md bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/30 text-xs text-amber-300 disabled:opacity-50 nodrag transition-colors"
           onMouseDownCapture={(e) => e.stopPropagation()}
         >
-          {claudeLoading ? <Loader2 className="size-3 animate-spin" /> : <Bot className="size-3" />}
-          {claudeLoading ? "Claude thinking…" : "Expand with Claude · generate unique hooks"}
+          {blueprintLoading ? <Loader2 className="size-3 animate-spin" /> : <Target className="size-3" />}
+          {blueprintLoading ? "Analysing style…" : "Generate Style Blueprint"}
         </button>
+        {data.styleBlueprint && (
+          <div className="rounded-lg bg-amber-500/8 border border-amber-400/20 p-2 space-y-1">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] uppercase tracking-wider text-amber-400/70 flex items-center gap-1"><Target className="size-2.5" /> Style Blueprint</p>
+              <button type="button" onClick={() => h.update(id, { styleBlueprint: undefined })} className="text-[10px] text-white/30 hover:text-rose-400 nodrag" onMouseDownCapture={(e) => e.stopPropagation()}>clear</button>
+            </div>
+            {Object.entries(data.styleBlueprint).map(([k, v]) => (
+              k !== "brandKeywords" ? (
+                <div key={k} className="flex items-start gap-1.5 text-[11px]">
+                  <span className="text-white/30 shrink-0 capitalize">{k.replace(/([A-Z])/g, " $1").trim()}:</span>
+                  <span className="text-amber-200/70">{v as string}</span>
+                </div>
+              ) : (
+                <div key={k} className="flex flex-wrap gap-1 mt-0.5">
+                  {(v as string[]).map((kw) => (
+                    <span key={kw} className="text-[10px] bg-amber-500/15 text-amber-300 rounded px-1.5 py-0.5">{kw}</span>
+                  ))}
+                </div>
+              )
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* ── Platform ────────────────────────── */}
+      <div className="space-y-1">
+        <p className="text-[10px] uppercase tracking-[0.15em] text-white/40">Platform</p>
+        <div className="grid grid-cols-3 gap-1">
+          {PLATFORMS.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => h.update(id, { platform: value as NodeData["platform"] })}
+              onMouseDownCapture={(e) => e.stopPropagation()}
+              className={`h-7 rounded-md text-[11px] font-medium nodrag transition-colors truncate px-1 ${
+                platform === value
+                  ? "bg-primary/20 border border-primary/40 text-primary"
+                  : "bg-white/5 border border-white/10 text-white/50 hover:text-white/80"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Variation Strategy ──────────────── */}
+      <div className="space-y-1">
+        <p className="text-[10px] uppercase tracking-[0.15em] text-white/40">Variation Strategy</p>
+        <Select value={strategy} onValueChange={(v) => h.update(id, { variationStrategy: v as NodeData["variationStrategy"] })}>
+          <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {STRATEGIES.map((s) => (
+              <SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* ── Claude expand ───────────────────── */}
+      <button
+        type="button"
+        onClick={expandWithClaude}
+        disabled={claudeLoading || !data.productDescription?.trim()}
+        className="w-full h-7 flex items-center justify-center gap-1.5 rounded-md bg-violet-500/20 hover:bg-violet-500/30 border border-violet-400/30 text-xs text-violet-300 disabled:opacity-50 nodrag transition-colors"
+        onMouseDownCapture={(e) => e.stopPropagation()}
+      >
+        {claudeLoading ? <Loader2 className="size-3 animate-spin" /> : <Bot className="size-3" />}
+        {claudeLoading ? "Claude generating…" : `Generate ${count} unique prompts with Claude`}
+      </button>
 
       {(data.claudePrompts?.length ?? 0) > 0 && (
         <div className="rounded-lg bg-violet-500/10 border border-violet-400/20 p-2 space-y-1.5">
-          <p className="text-xs uppercase tracking-wider text-violet-400/70">Claude hooks (per-variant)</p>
-          {data.claudePrompts!.map((p, i) => (
-            <p key={i} className="text-[13px] text-white/70 line-clamp-2">
-              <span className="text-violet-400/60 mr-1">#{i + 1}</span>{p}
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] uppercase tracking-wider text-violet-400/70">{data.claudePrompts!.length} Claude prompts ready</p>
+            <button type="button" onClick={() => h.update(id, { claudePrompts: undefined })} className="text-[10px] text-rose-400/60 hover:text-rose-400 nodrag" onMouseDownCapture={(e) => e.stopPropagation()}>clear</button>
+          </div>
+          {data.claudePrompts!.slice(0, 3).map((p, i) => (
+            <p key={i} className="text-[11px] text-white/60 line-clamp-1">
+              <span className="text-violet-400/50 mr-1">#{i + 1}</span>{p}
             </p>
           ))}
-          <button
-            type="button"
-            onClick={() => h.update(id, { claudePrompts: undefined })}
-            className="text-[13px] text-rose-400/60 hover:text-rose-400 nodrag"
-            onMouseDownCapture={(e) => e.stopPropagation()}
-          >
-            Clear Claude hooks
-          </button>
+          {data.claudePrompts!.length > 3 && (
+            <p className="text-[10px] text-white/30">+{data.claudePrompts!.length - 3} more…</p>
+          )}
         </div>
       )}
 
+      {/* ── Shared fallback prompt ──────────── */}
       <Textarea
         rows={2}
         value={data.prompt ?? ""}
         onChange={(e) => h.update(id, { prompt: e.target.value })}
-        placeholder={(data.claudePrompts?.length ?? 0) > 0 ? "Shared fallback (Claude hooks override per-variant)" : "describe the shared motion for every variant"}
+        placeholder={(data.claudePrompts?.length ?? 0) > 0 ? "Shared fallback (Claude overrides per-variant)" : "Shared motion description for all variants"}
         className="text-xs resize-none nodrag bg-black/30 border-white/10"
         onMouseDownCapture={(e) => e.stopPropagation()}
       />
+
+      {/* ── Output duration ─────────────────── */}
+      <div className="space-y-1">
+        <p className="text-[10px] uppercase tracking-[0.15em] text-white/40">Target Output Duration</p>
+        <div className="grid grid-cols-5 gap-1">
+          {OUTPUT_DURATIONS.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => h.update(id, { outputDuration: value as NodeData["outputDuration"] })}
+              onMouseDownCapture={(e) => e.stopPropagation()}
+              className={`h-7 rounded-md text-[11px] font-medium nodrag transition-colors ${
+                (data.outputDuration ?? "auto") === value
+                  ? "bg-primary/20 border border-primary/40 text-primary"
+                  : "bg-white/5 border border-white/10 text-white/50 hover:text-white/80"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Count · Resolution · Clip Duration ─ */}
+      <div className="grid grid-cols-3 gap-1.5">
+        <div className="space-y-0.5">
+          <p className="text-[9px] uppercase tracking-wider text-white/30">Count</p>
+          {customCountMode ? (
+            <div className="flex gap-1 items-center">
+              <Input
+                type="number" min={1} max={100}
+                value={customCountStr}
+                onChange={(e) => {
+                  setCustomCountStr(e.target.value);
+                  const n = Number(e.target.value);
+                  if (n >= 1 && n <= 100) h.update(id, { variantCount: n });
+                }}
+                className="h-7 text-xs nodrag bg-black/30 border-white/10 flex-1"
+                onMouseDownCapture={(e) => e.stopPropagation()}
+              />
+              <button
+                type="button"
+                className="text-[10px] text-white/30 hover:text-white/60 nodrag px-1"
+                onMouseDownCapture={(e) => e.stopPropagation()}
+                onClick={() => setCustomCountMode(false)}
+              >✕</button>
+            </div>
+          ) : (
+            <Select
+              value={String(count)}
+              onValueChange={(v) => {
+                if (v === "custom") { setCustomCountMode(true); setCustomCountStr(String(count)); }
+                else h.update(id, { variantCount: Number(v) });
+              }}
+            >
+              <SelectTrigger className="h-7 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {VARIANT_COUNTS.map((c) => (
+                  <SelectItem key={c} value={String(c)} className="text-xs">{c}</SelectItem>
+                ))}
+                <SelectItem value="custom" className="text-xs text-violet-300">Custom…</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+        <div className="space-y-0.5">
+          <p className="text-[9px] uppercase tracking-wider text-white/30">Resolution</p>
+          <Select value={data.resolution ?? "720p"} onValueChange={(v) => h.update(id, { resolution: v as NodeData["resolution"] })}>
+            <SelectTrigger className="h-7 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {RESOLUTION_OPTIONS.map((r) => (
+                <SelectItem key={r} value={r} className="text-xs">{r}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-0.5">
+          <p className="text-[9px] uppercase tracking-wider text-white/30">Clip dur.</p>
+          <Select value={String(data.duration ?? 5)} onValueChange={(v) => h.update(id, { duration: Number(v) })}>
+            <SelectTrigger className="h-7 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {DURATION_OPTIONS.map((d) => (
+                <SelectItem key={d} value={String(d)} className="text-xs">{d}s</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* ── Model ───────────────────────────── */}
       <Select value={data.model} onValueChange={(v) => h.update(id, { model: v })}>
-        <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue placeholder="Model" /></SelectTrigger>
+        <SelectTrigger className="h-7 text-xs nodrag bg-black/30 border-white/10"><SelectValue placeholder="Video model" /></SelectTrigger>
         <SelectContent>
           {VIDEO_MODEL_LIST.map((m) => (
             <SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>
           ))}
         </SelectContent>
       </Select>
-      <div className="grid grid-cols-3 gap-2">
-        <Select value={String(data.variantCount ?? 3)} onValueChange={(v) => h.update(id, { variantCount: Number(v) })}>
-          <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {VARIANT_COUNTS.map((c) => (
-              <SelectItem key={c} value={String(c)} className="text-xs">{c} variant{c > 1 ? "s" : ""}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={data.resolution ?? "720p"} onValueChange={(v) => h.update(id, { resolution: v as NodeData["resolution"] })}>
-          <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {RESOLUTION_OPTIONS.map((r) => (
-              <SelectItem key={r} value={r} className="text-xs">{r}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={String(data.duration ?? 5)} onValueChange={(v) => h.update(id, { duration: Number(v) })}>
-          <SelectTrigger className="h-8 text-xs nodrag bg-black/30 border-white/10"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {DURATION_OPTIONS.map((d) => (
-              <SelectItem key={d} value={String(d)} className="text-xs">{d}s</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+
+      {/* ── Lock toggles ────────────────────── */}
+      <div className="rounded-lg bg-white/3 border border-white/8 p-2 space-y-1.5">
+        <p className="text-[10px] uppercase tracking-[0.15em] text-white/30 flex items-center gap-1"><Lock className="size-2.5" /> Preservation</p>
+        {(["styleLock", "brandLock", "speakerLock"] as const).map((key) => {
+          const labels = { styleLock: "Style", brandLock: "Brand", speakerLock: "Speaker" };
+          const on = data[key] !== false;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => h.update(id, { [key]: !on })}
+              onMouseDownCapture={(e) => e.stopPropagation()}
+              className={`w-full h-6 flex items-center justify-between rounded px-2 text-xs nodrag transition-colors ${
+                on ? "bg-emerald-500/15 text-emerald-300" : "bg-white/5 text-white/30"
+              }`}
+            >
+              <span>{labels[key]} Lock</span>
+              <span className={`size-2 rounded-full ${on ? "bg-emerald-400" : "bg-white/20"}`} />
+            </button>
+          );
+        })}
       </div>
-      <p className="text-[13px] text-muted-foreground">
-        Fans one image into {data.variantCount ?? 3} independent video renders — each charges &amp; refunds its own credits.
-        {(data.claudePrompts?.length ?? 0) > 0 && " Claude hooks active: each variant uses a unique prompt."}
+
+      <p className="text-[11px] text-muted-foreground">
+        {count} outputs · {platform} · {STRATEGIES.find((s) => s.value === strategy)?.label}
+        {(data.claudePrompts?.length ?? 0) > 0 && " · Claude prompts active"}
       </p>
-    </>
+    </div>
+  );
+}
+
+function BatchOutputViewer({ nodeId, nodes, onClose, onUpdate, onCancel, onPause, onResume, isPaused }: {
+  nodeId: string | null;
+  nodes: Node<NodeData>[];
+  onClose: () => void;
+  onUpdate: (id: string, patch: Partial<NodeData>) => void;
+  onCancel?: () => void;
+  onPause?: () => void;
+  onResume?: () => void;
+  isPaused?: boolean;
+}) {
+  const node = nodes.find((n) => n.id === nodeId);
+  if (!node || node.data.kind !== "batchVideo") return null;
+
+  const variants = node.data.variants ?? [];
+  const done = variants.filter((v) => v.status === "done").length;
+  const failed = variants.filter((v) => v.status === "error").length;
+  const running = variants.filter((v) => v.status === "running").length;
+  const queued = variants.filter((v) => v.status === "queued").length;
+  const approved = variants.filter((v) => v.approved).length;
+
+  const toggleApprove = (i: number) => {
+    const updated = variants.map((v, idx) => idx === i ? { ...v, approved: !v.approved } : v);
+    onUpdate(node.id, { variants: updated });
+  };
+
+  const downloadVariant = async (url: string, i: number) => {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `batch-${node.id}-v${i + 1}.mp4`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    } catch {
+      toast.error("Download failed");
+    }
+  };
+
+  const deleteVariant = (i: number) => {
+    const updated = variants.map((v, idx) =>
+      idx === i ? { status: "queued" as const, url: undefined, error: undefined, approved: false } : v
+    );
+    onUpdate(node.id, { variants: updated });
+  };
+
+  return (
+    <Sheet open={!!nodeId} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto bg-zinc-950 border-white/10 p-0">
+        <SheetHeader className="px-6 py-4 border-b border-white/10 sticky top-0 z-10 bg-zinc-950/95 backdrop-blur-md">
+          <SheetTitle className="text-sm font-semibold tracking-tight flex items-center gap-2">
+            <Layers className="size-4 text-primary" />
+            Batch Output Viewer
+            <span className="ml-1 text-xs text-white/40 font-normal">
+              {node.data.variantCount ?? variants.length} videos
+            </span>
+            {node.data.collectionEstimatedMs && running > 0 && (
+              <span className="ml-auto text-[11px] text-white/30 font-normal">
+                {formatEtr(node.data.collectionEstimatedMs)} left
+              </span>
+            )}
+          </SheetTitle>
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
+            <StatPill label="Done" count={done} color="emerald" />
+            <StatPill label="Running" count={running} color="blue" />
+            <StatPill label="Queued" count={queued} color="amber" />
+            <StatPill label="Failed" count={failed} color="rose" />
+            {(running > 0 || isPaused) && (
+              <div className="ml-auto flex items-center gap-1 shrink-0">
+                {isPaused ? (
+                  <button
+                    type="button"
+                    onClick={onResume}
+                    className="flex items-center gap-1 h-6 px-2 rounded bg-emerald-500/20 border border-emerald-400/30 text-[11px] text-emerald-300 hover:bg-emerald-500/30 transition-colors"
+                  >
+                    <Play className="size-3" /> Resume
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onPause}
+                    className="flex items-center gap-1 h-6 px-2 rounded bg-white/8 border border-white/10 text-[11px] text-white/60 hover:text-white transition-colors"
+                  >
+                    <Pause className="size-3" /> Pause
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="flex items-center gap-1 h-6 px-2 rounded bg-rose-500/15 border border-rose-400/20 text-[11px] text-rose-400 hover:bg-rose-500/25 transition-colors"
+                >
+                  <XCircle className="size-3" /> Cancel
+                </button>
+              </div>
+            )}
+          </div>
+          {variants.length > 0 && (
+            <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mt-2">
+              <div
+                className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all"
+                style={{ width: `${Math.round((done / variants.length) * 100)}%` }}
+              />
+            </div>
+          )}
+        </SheetHeader>
+
+        {variants.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-white/30">
+            <Layers className="size-10 mb-3 opacity-30" />
+            <p className="text-sm">Run the pipeline to generate outputs</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 p-4">
+            {variants.map((v, i) => (
+              <div
+                key={i}
+                className={`relative rounded-xl overflow-hidden border transition-all ${
+                  v.approved
+                    ? "border-emerald-400/50 ring-1 ring-emerald-400/30"
+                    : "border-white/10"
+                } bg-black/40`}
+              >
+                {/* video / state */}
+                <div className="relative aspect-[9/16] bg-white/5 flex items-center justify-center">
+                  {v.status === "done" && v.url ? (
+                    <AutoplayVideo
+                      src={v.url}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      autoPlay={false}
+                      playsInline
+                      controls
+                    />
+                  ) : v.status === "running" ? (
+                    <div className="flex flex-col items-center gap-2 text-white/40">
+                      <Loader2 className="size-6 animate-spin text-primary" />
+                      <span className="text-xs">Generating…</span>
+                    </div>
+                  ) : v.status === "error" ? (
+                    <div className="flex flex-col items-center gap-2 text-rose-400 px-3 text-center">
+                      <AlertCircle className="size-6" />
+                      <span className="text-xs line-clamp-3">{v.error ?? "Failed"}</span>
+                    </div>
+                  ) : (
+                    <span className="size-3 rounded-full border border-white/20" />
+                  )}
+                  {/* variant number badge */}
+                  <span className="absolute top-2 left-2 text-[10px] font-bold bg-black/60 text-white/60 rounded px-1.5 py-0.5">
+                    #{i + 1}
+                  </span>
+                  {/* approved badge */}
+                  {v.approved && (
+                    <span className="absolute top-2 right-2 size-5 rounded-full bg-emerald-400 flex items-center justify-center">
+                      <CheckCheck className="size-3 text-black" />
+                    </span>
+                  )}
+                </div>
+                {/* claude prompt snippet */}
+                {node.data.claudePrompts?.[i] && (
+                  <div className="px-2 py-1.5 border-t border-white/5">
+                    <p className="text-[10px] text-white/40 line-clamp-2">{node.data.claudePrompts[i]}</p>
+                  </div>
+                )}
+                {/* actions */}
+                <div className="flex items-center gap-1 p-1.5 border-t border-white/5">
+                  <button
+                    type="button"
+                    onClick={() => toggleApprove(i)}
+                    className={`flex-1 h-7 rounded-md text-[11px] font-medium transition-colors flex items-center justify-center gap-1 ${
+                      v.approved
+                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/30"
+                        : "bg-white/5 text-white/50 hover:text-white border border-white/10"
+                    }`}
+                  >
+                    <CheckCheck className="size-3" />
+                    {v.approved ? "Approved" : "Approve"}
+                  </button>
+                  {v.url && (
+                    <button
+                      type="button"
+                      onClick={() => void downloadVariant(v.url!, i)}
+                      title="Download"
+                      className="size-7 rounded-md bg-white/5 border border-white/10 text-white/50 hover:text-white flex items-center justify-center"
+                    >
+                      <Download className="size-3" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => deleteVariant(i)}
+                    title="Clear"
+                    className="size-7 rounded-md bg-white/5 border border-white/10 text-white/30 hover:text-rose-400 flex items-center justify-center"
+                  >
+                    <Trash2 className="size-3" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function StatPill({ label, count, color }: { label: string; count: number; color: "emerald" | "rose" | "blue" | "amber" }) {
+  const colors = {
+    emerald: "bg-emerald-500/15 text-emerald-300",
+    rose: "bg-rose-500/15 text-rose-300",
+    blue: "bg-blue-500/15 text-blue-300",
+    amber: "bg-amber-500/15 text-amber-300",
+  };
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 ${colors[color]}`}>
+      {count} {label}
+    </span>
   );
 }
 
@@ -393,15 +828,38 @@ const KIND_META: Record<NodeKind, { label: string; Icon: typeof ImageIcon; accen
   image: { label: "image gen", Icon: Wand2, accent: "from-fuchsia-400 to-purple-500" },
   video: { label: "video gen", Icon: Film, accent: "from-purple-400 to-indigo-500" },
   lipsync: { label: "lip sync", Icon: Mic, accent: "from-rose-400 to-pink-500" },
-  split: { label: "split reality", Icon: SplitSquareHorizontal, accent: "from-amber-400 to-orange-500" },
+  split: { label: "split", Icon: Layers, accent: "from-amber-400 to-orange-500" },
   comfy: { label: "comfyui", Icon: Boxes, accent: "from-sky-400 to-cyan-500" },
   batchVideo: { label: "batch video", Icon: Layers, accent: "from-violet-400 to-fuchsia-500" },
   heygenTemplate: { label: "heygen template", Icon: Sparkles, accent: "from-pink-400 to-rose-500" },
 };
 
-const VARIANT_COUNTS = [1, 2, 3, 5, 10, 15, 20, 25, 30] as const;
+const VARIANT_COUNTS = [3, 5, 10, 15, 20, 30] as const;
 const RESOLUTION_OPTIONS = ["480p", "720p", "1080p", "2160p"] as const;
 const DURATION_OPTIONS = [5, 8, 10, 15] as const;
+const PLATFORMS = [
+  { value: "tiktok", label: "TikTok", Icon: Smartphone },
+  { value: "instagram", label: "Instagram", Icon: Smartphone },
+  { value: "youtube_shorts", label: "YouTube Shorts", Icon: Monitor },
+  { value: "facebook", label: "Facebook", Icon: Globe },
+  { value: "x", label: "X / Twitter", Icon: Globe },
+  { value: "linkedin", label: "LinkedIn", Icon: Monitor },
+] as const;
+const STRATEGIES = [
+  { value: "hooks", label: "Different Hooks" },
+  { value: "ctas", label: "Different CTAs" },
+  { value: "openings", label: "Different Openings" },
+  { value: "story", label: "Different Story Structure" },
+  { value: "captions", label: "Caption-Driven" },
+  { value: "mixed", label: "Mixed (recommended)" },
+] as const;
+const OUTPUT_DURATIONS = [
+  { value: "auto", label: "Auto" },
+  { value: "15", label: "15 sec" },
+  { value: "30", label: "30 sec" },
+  { value: "45", label: "45 sec" },
+  { value: "60", label: "60 sec" },
+] as const;
 
 function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
   const h = useContext(HandlersCtx)!;
@@ -464,30 +922,63 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
 
         {/* preview */}
         {data.kind === "batchVideo" && (data.variants?.length ?? 0) > 0 ? (
-          <div className="grid grid-cols-2 gap-1.5 p-2 bg-black/30">
-            {data.variants!.map((v, i) => (
-              <div key={i} className="relative aspect-square rounded-md overflow-hidden bg-white/5 grid place-items-center">
-                {v.status === "done" && v.url ? (
-                  <AutoplayVideo src={v.url} className="w-full h-full object-cover" autoPlay={false} playsInline controls />
-                ) : v.status === "running" ? (
-                  <Loader2 className="size-4 animate-spin text-primary" />
-                ) : v.status === "error" ? (
-                  <span title={v.error} className="text-rose-400"><XCircle className="size-4" /></span>
-                ) : (
-                  <span className="size-1.5 rounded-full border border-white/20" />
-                )}
-                <span className="absolute top-1 left-1 text-xs text-white/60 bg-black/50 rounded px-1">#{i + 1}</span>
-              </div>
-            ))}
+          <div className="bg-black/30">
+            {/* stats bar */}
+            <div className="px-2 py-1.5 flex items-center gap-2 border-b border-white/5">
+              {(() => {
+                const vs = data.variants!;
+                const total = vs.length;
+                const doneC = vs.filter((v) => v.status === "done").length;
+                const failC = vs.filter((v) => v.status === "error").length;
+                const runC = vs.filter((v) => v.status === "running").length;
+                const queuedC = vs.filter((v) => v.status === "queued").length;
+                const pct = total > 0 ? Math.round((doneC / total) * 100) : 0;
+                const etr = data.collectionEstimatedMs ? formatEtr(data.collectionEstimatedMs) : "";
+                return (
+                  <>
+                    <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-[10px] text-white/50 shrink-0 tabular-nums">{doneC}/{total}</span>
+                    {queuedC > 0 && <span className="text-[10px] text-sky-400/70 shrink-0">{queuedC}q</span>}
+                    {failC > 0 && <span className="text-[10px] text-rose-400 shrink-0">{failC}✗</span>}
+                    {runC > 0 && <Loader2 className="size-2.5 animate-spin text-primary shrink-0" />}
+                    {etr && <span className="text-[9px] text-white/30 shrink-0">{etr}</span>}
+                  </>
+                );
+              })()}
+            </div>
+            {/* preview grid — first 4 */}
+            <div className="grid grid-cols-2 gap-1 p-1.5">
+              {data.variants!.slice(0, 4).map((v, i) => (
+                <div key={i} className="relative aspect-square rounded-md overflow-hidden bg-white/5 grid place-items-center">
+                  {v.status === "done" && v.url ? (
+                    <AutoplayVideo src={v.url} className="w-full h-full object-cover" autoPlay={false} playsInline controls />
+                  ) : v.status === "running" ? (
+                    <Loader2 className="size-4 animate-spin text-primary" />
+                  ) : v.status === "error" ? (
+                    <span title={v.error} className="text-rose-400"><XCircle className="size-4" /></span>
+                  ) : (
+                    <span className="size-1.5 rounded-full border border-white/20" />
+                  )}
+                  <span className="absolute top-1 left-1 text-[9px] text-white/50 bg-black/50 rounded px-1">#{i + 1}</span>
+                  {v.approved && <span className="absolute top-1 right-1 size-3.5 rounded-full bg-emerald-400 grid place-items-center"><CheckCheck className="size-2 text-black" /></span>}
+                </div>
+              ))}
+            </div>
+            {/* view outputs button */}
+            <div className="px-2 pb-2">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); h.openBatchViewer(id); }}
+                onMouseDownCapture={(e) => e.stopPropagation()}
+                className="w-full h-7 rounded-md bg-white/8 hover:bg-white/15 border border-white/10 text-xs text-white/60 hover:text-white flex items-center justify-center gap-1.5 nodrag transition-colors"
+              >
+                <Eye className="size-3" /> View all {data.variants!.length} outputs
+                {data.variants!.length > 4 && <span className="text-white/30">+{data.variants!.length - 4} more</span>}
+              </button>
+            </div>
           </div>
-        ) : data.kind === "split" && (data.url || data.altUrl) ? (
-          <SplitRealityPlayer
-            ultra={{ url: data.url, videoUrl: data.videoUrl, label: "ULTRA" }}
-            cinematic={{ url: data.altUrl, videoUrl: data.altVideoUrl, label: "CINEMATIC" }}
-            prompt={data.prompt}
-            animating={data.animating}
-            onAnimateBoth={() => h.animateSplit(id)}
-          />
         ) : data.kind === "heygenTemplate" && data.url ? (
           <AutoplayVideo src={data.url} className="w-full aspect-video object-cover" autoPlay={false} playsInline controls />
         ) : data.url ? (
@@ -502,7 +993,7 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
               <img src={data.url} alt="" className="w-full aspect-square object-cover" />
               {data.kind === "input" && (
                 <label
-                  className="absolute inset-x-2 bottom-2 text-sm text-center py-1.5 rounded-md bg-black/70 text-white opacity-0 group-hover/img:opacity-100 transition-opacity cursor-pointer nodrag"
+                  className="absolute inset-x-2 bottom-2 text-sm text-center py-1.5 rounded-md bg-black/70 text-white opacity-70 hover:opacity-100 transition-opacity cursor-pointer nodrag"
                   onMouseDownCapture={(e) => e.stopPropagation()}
                 >
                   Swap image
@@ -601,6 +1092,35 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
                 </div>
               )}
               {meta && <p className="text-[13px] text-muted-foreground">{meta.tagline}</p>}
+              {OUTFIT_LABELS.test(data.label ?? "") && (
+                <div className="border border-white/10 rounded-lg p-2 space-y-1.5">
+                  <div className="text-[11px] uppercase tracking-[0.15em] text-white/40 flex items-center gap-1.5">
+                    <ShoppingBag className="size-3" /> Outfit / Product
+                  </div>
+                  {data.outfitUrl ? (
+                    <div className="relative">
+                      <img src={data.outfitUrl} alt="outfit" className="w-full h-16 rounded-md object-cover" />
+                      <label
+                        className="absolute inset-x-1 bottom-1 text-[11px] text-center py-0.5 rounded bg-black/70 text-white/70 hover:text-white cursor-pointer nodrag transition-colors"
+                        onMouseDownCapture={(e) => e.stopPropagation()}
+                      >
+                        Change
+                        <input type="file" accept="image/*" className="hidden"
+                          onChange={(e) => e.target.files?.[0] && h.onOutfitFile(id, e.target.files[0])} />
+                      </label>
+                    </div>
+                  ) : (
+                    <label
+                      className="relative block cursor-pointer nodrag rounded-lg border border-dashed border-fuchsia-400/30 bg-fuchsia-500/5 hover:border-fuchsia-400/60 hover:bg-fuchsia-500/10 transition-colors p-2.5 text-center"
+                      onMouseDownCapture={(e) => e.stopPropagation()}
+                    >
+                      <div className="text-[12px] text-white/50">Upload outfit / product photo</div>
+                      <input type="file" accept="image/*" className="hidden"
+                        onChange={(e) => e.target.files?.[0] && h.onOutfitFile(id, e.target.files[0])} />
+                    </label>
+                  )}
+                </div>
+              )}
             </>
           )}
           {data.kind === "lipsync" && (
@@ -618,21 +1138,6 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
               </Select>
               <p className="text-[13px] text-muted-foreground">
                 Connect a video (or image — auto-animated first) + an audio node.
-              </p>
-            </>
-          )}
-          {data.kind === "split" && (
-            <>
-              <Textarea
-                rows={2}
-                value={data.prompt ?? ""}
-                onChange={(e) => h.update(id, { prompt: e.target.value })}
-                placeholder="Optional base description"
-                className="text-xs resize-none nodrag bg-black/30 border-white/10"
-                onMouseDownCapture={(e) => e.stopPropagation()}
-              />
-              <p className="text-[13px] text-muted-foreground">
-                Generates two stories side by side: ultra-real vs cinematic.
               </p>
             </>
           )}
@@ -655,14 +1160,13 @@ function estimateSeconds(kind: NodeKind): number {
     case "image": return 25;
     case "video": return 75;
     case "lipsync": return 90;
-    case "split": return 50;
     case "comfy": return 60;
     case "heygenTemplate": return 120;
     default: return 5;
   }
 }
 function ProgressPanel({ nodes, edges, running }: { nodes: Node<NodeData>[]; edges: Edge[]; running: boolean }) {
-  const steps = nodes.filter((n) => ["image", "video", "lipsync", "split", "comfy", "heygenTemplate"].includes(n.data.kind));
+  const steps = nodes.filter((n) => ["image", "video", "lipsync", "comfy", "heygenTemplate"].includes(n.data.kind));
   if (steps.length === 0) return null;
   const done = steps.filter((n) => n.data.status === "done").length;
   const active = steps.find((n) => n.data.status === "running");
@@ -720,7 +1224,7 @@ function ExportShareDock({ nodes, edges }: { nodes: Node<NodeData>[]; edges: Edg
     (n) => !outgoing.has(n.id)
       && n.data.status === "done"
       && (n.data.url || n.data.altUrl)
-      && ["image", "video", "lipsync", "split", "comfy", "heygenTemplate"].includes(n.data.kind),
+      && ["image", "video", "lipsync", "comfy", "heygenTemplate"].includes(n.data.kind),
   );
   if (terminals.length === 0) return null;
   const final = terminals[terminals.length - 1];
@@ -913,7 +1417,6 @@ function CanvasPage() {
   const genFn = usePerformanceShotJobFn();
   const vidFn = useVideoFromImageJobFn();
   const lipFn = useLipSyncJobFn();
-  const splitFn = useSplitRealityJobFn();
   const comfyRunFn = useServerFn(startComfyRun);
   const comfyGetRunFn = useServerFn(getComfyRun);
   const comfyListFn = useServerFn(listComfyTemplates);
@@ -961,28 +1464,22 @@ function CanvasPage() {
     update(id, { url: signed.signedUrl });
   }, [user, update]);
 
-  const animateSplit = useCallback(async (id: string) => {
-    const node = nodes.find((n) => n.id === id);
-    if (!node || node.data.kind !== "split") return;
-    const { url, altUrl, prompt } = node.data;
-    if (!url || !altUrl) { toast.error("Run the split first to get both stills"); return; }
-    update(id, { animating: true });
-    try {
-      const motion = (label: string) =>
-        `${label} cinematic motion, subtle parallax, breathing camera, natural micro-expressions${prompt ? `. ${prompt}` : ""}`;
-      const [a, b] = await Promise.all([
-        vidFn({ data: { imageUrl: url, prompt: motion("Ultra-realism"), duration: 5, resolution: "720p", modelKey: VIDEO_MODEL_LIST[0].value, cameraMovement: "push_in", endFrameUrl: null } }),
-        vidFn({ data: { imageUrl: altUrl, prompt: motion("Cinematic vision"), duration: 5, resolution: "720p", modelKey: VIDEO_MODEL_LIST[0].value, cameraMovement: "orbit_cw", endFrameUrl: null } }),
-      ]);
-      update(id, { videoUrl: a.videoUrl, altVideoUrl: b.videoUrl, animating: false });
-      toast.success("Both stories animated");
-    } catch (e) {
-      update(id, { animating: false });
-      handleGenerationError(e);
-    }
-  }, [nodes, update]);
+  const onOutfitFile = useCallback(async (id: string, file: File) => {
+    if (!user) return;
+    const path = `${user.id}/canvas/outfit-${Date.now()}-${file.name}`;
+    const { error } = await supabase.storage.from("studio").upload(path, file, { upsert: true, contentType: file.type });
+    if (error) { toast.error(error.message); return; }
+    const { data: signed, error: signErr } = await supabase.storage
+      .from("studio").createSignedUrl(path, 60 * 60);
+    if (signErr || !signed?.signedUrl) { toast.error(signErr?.message ?? "Could not sign outfit URL"); return; }
+    update(id, { outfitUrl: signed.signedUrl });
+  }, [user, update]);
 
-  const handlers = useMemo<Handlers>(() => ({ update, remove, onFile, animateSplit }), [update, remove, onFile, animateSplit]);
+  const [batchViewerNodeId, setBatchViewerNodeId] = useState<string | null>(null);
+  const openBatchViewer = useCallback((id: string) => setBatchViewerNodeId(id), []);
+  const handlers = useMemo<Handlers>(() => ({ update, remove, onFile, onOutfitFile, openBatchViewer }), [update, remove, onFile, onOutfitFile, openBatchViewer]);
+  const collectionRunnerRef = useRef<CollectionRunner<number, { id: string; videoUrl: string; preview: boolean }> | null>(null);
+  const [batchPaused, setBatchPaused] = useState(false);
 
   // Pre-flight graph validation: compute blocking issues before the user hits Run.
   // Returns a list of human-readable problems; an empty array means the graph is
@@ -1056,29 +1553,24 @@ function CanvasPage() {
         const n = byId.get(id);
         if (!n) continue;
         const upstream = ups.map((u) => resolved.get(u)!).filter(Boolean);
-        const images = upstream.filter((u) => u.kind === "input" || u.kind === "image" || u.kind === "split").map((u) => u.url);
-        const videos = upstream.filter((u) => u.kind === "video" || u.kind === "lipsync").map((u) => u.url);
-        const audios = upstream.filter((u) => u.kind === "audio").map((u) => u.url);
+        const { images, videos, audios } = classifyUpstream(upstream);
 
         try {
           update(id, { status: "running", error: undefined });
           if (n.data.kind === "image") {
             if (images.length === 0) throw new Error("Image node needs an image upstream");
+            const imageUrls = n.data.outfitUrl ? [...images, n.data.outfitUrl] : images;
             const res = await genFn({ data: {
               prompt: n.data.prompt ?? "cinematic portrait",
-              imageUrls: images,
+              imageUrls,
               motionVideoUrl: null,
               model: resolveAutoModel(n.data.model ?? MODEL_LIST[0].value, "image"),
             } });
             resolved.set(id, { url: res.resultUrl, kind: "image" });
             update(id, { status: "done", url: res.resultUrl });
           } else if (n.data.kind === "video") {
-  if (images.length === 0 && videos.length === 0) throw new Error("Video node needs an image or video upstream");
-  // Prefer an upstream image as the start frame; fall back to an upstream video
-  // (e.g., video→video re-animate, or comfy video output feeding a video node).
-  const startFrame = images[0] ?? videos[0];
-  // If we have multiple images (e.g., from split), use the second as the end frame for motion control
-  const endFrame = images.length > 1 ? images[1] : null;
+  const startFrame = resolveVideoStartFrame(images, videos);
+  const endFrame = resolveVideoEndFrame(images);
   const res = await vidFn({ data: {
     imageUrl: startFrame,
     prompt: n.data.prompt ?? "natural movement",
@@ -1090,11 +1582,6 @@ function CanvasPage() {
   } });
             resolved.set(id, { url: res.videoUrl, kind: "video" });
             update(id, { status: "done", url: res.videoUrl });
-          } else if (n.data.kind === "split") {
-            if (images.length === 0) throw new Error("Split node needs an image upstream");
-            const res = await splitFn({ data: { imageUrls: images.slice(0, 3), basePrompt: n.data.prompt ?? "" } });
-            resolved.set(id, { url: res.left.url, kind: "split" });
-            update(id, { status: "done", url: res.left.url, altUrl: res.right.url });
           } else if (n.data.kind === "lipsync") {
             if (audios.length === 0) throw new Error("Lip sync needs an audio node");
             let videoUrl = videos[0];
@@ -1170,37 +1657,62 @@ function CanvasPage() {
             update(id, { status: "done", url: res.url });
           } else if (n.data.kind === "batchVideo") {
             if (images.length === 0) throw new Error("Batch video needs an image upstream");
-            const count = Math.min(30, Math.max(1, n.data.variantCount ?? 3));
-            update(id, { variants: Array.from({ length: count }, () => ({ status: "running" }) as BatchVariant) });
-            const settled = await Promise.allSettled(
-              Array.from({ length: count }, (_, i) =>
-                vidFn({ data: {
-                  imageUrl: images[0],
-                  prompt: n.data.claudePrompts?.[i] ?? n.data.prompt ?? "natural movement, expressive performance",
-                  duration: n.data.duration ?? 5,
-                  resolution: n.data.resolution ?? "720p",
-                  modelKey: resolveAutoModel(n.data.model ?? VIDEO_MODEL_LIST[0].value, "video"),
+            const count = Math.min(100, Math.max(1, n.data.variantCount ?? 3));
+            update(id, {
+              variants: Array.from({ length: count }, () => ({ status: "queued" }) as BatchVariant),
+              collectionStartedAt: Date.now(),
+              collectionEstimatedMs: undefined,
+            });
+            const runner = new CollectionRunner<number, { id: string; videoUrl: string; preview: boolean }>(
+              `batch-${id}-${Date.now()}`, "batchVideo", Array.from({ length: count }, (_, i) => i),
+            );
+            collectionRunnerRef.current = runner;
+            setBatchPaused(false);
+            // Snapshot node data before async execution (avoids stale closure over React state)
+            const batchImageUrl = images[0];
+            const batchPrompts = n.data.claudePrompts;
+            const batchPrompt = n.data.prompt;
+            const batchDuration = n.data.duration ?? 5;
+            const batchResolution = n.data.resolution ?? "720p";
+            const batchModelKey = resolveAutoModel(n.data.model ?? VIDEO_MODEL_LIST[0].value, "video");
+            let firstSuccessUrl: string | undefined;
+            await runner.run({
+              concurrency: 5,
+              execute: async (item) => {
+                return vidFn({ data: {
+                  imageUrl: batchImageUrl,
+                  prompt: batchPrompts?.[item] ?? batchPrompt ?? "natural movement, expressive performance",
+                  duration: batchDuration,
+                  resolution: batchResolution,
+                  modelKey: batchModelKey,
                   cameraMovement: "static",
                   endFrameUrl: null,
-                } }).then((res) => {
-                  updateVariant(id, i, { status: "done", url: res.videoUrl });
-                  return res;
-                }).catch((e: unknown) => {
-                  const msg = e instanceof Error ? e.message : "Failed";
-                  updateVariant(id, i, { status: "error", error: msg });
-                  handleGenerationError(e);
-                  throw e;
-                }),
-              ),
-            );
-            const succeeded = settled.filter(
-              (r): r is PromiseFulfilledResult<{ id: string; videoUrl: string; preview: boolean }> => r.status === "fulfilled",
-            );
-            if (succeeded.length === 0) throw new Error("All batch video variants failed");
-            resolved.set(id, { url: succeeded[0].value.videoUrl, kind: "video" });
-            update(id, { status: "done", url: succeeded[0].value.videoUrl });
-            if (succeeded.length < count) {
-              toast.error(`${count - succeeded.length} of ${count} batch variants failed — the rest completed and were charged individually`);
+                } });
+              },
+              onItemStart: (i) => updateVariant(id, i, { status: "running" }),
+              onItemDone: (i, res) => {
+                updateVariant(id, i, { status: "done", url: res.videoUrl });
+                if (!firstSuccessUrl) firstSuccessUrl = res.videoUrl;
+              },
+              onItemError: (i, err) => {
+                updateVariant(id, i, { status: "error", error: err.message });
+                handleGenerationError(err);
+              },
+              onProgress: (snap) => {
+                update(id, { collectionEstimatedMs: snap.estimatedMs });
+              },
+            });
+            const finalSnap = runner.snapshot();
+            if (runner.isCancelled) {
+              update(id, { status: "idle", collectionEstimatedMs: undefined });
+              toast.info("Batch generation cancelled");
+              return;
+            }
+            if (!firstSuccessUrl) throw new Error("All batch video variants failed");
+            resolved.set(id, { url: firstSuccessUrl, kind: "video" });
+            update(id, { status: "done", url: firstSuccessUrl, collectionEstimatedMs: undefined });
+            if (finalSnap.failed > 0) {
+              toast.error(`${finalSnap.failed} of ${count} batch variants failed — the rest completed and were charged individually`);
             }
           } else {
             // passthrough
@@ -1228,7 +1740,7 @@ function CanvasPage() {
         prompt:
           kind === "video" ? "natural movement, expressive performance"
           : kind === "image" ? "describe the shot"
-          : kind === "split" ? "" : undefined,
+          : undefined,
         model:
           kind === "image" ? MODEL_LIST[0].value
           : kind === "video" ? VIDEO_MODEL_LIST[0].value
@@ -1236,10 +1748,16 @@ function CanvasPage() {
           : kind === "batchVideo" ? VIDEO_MODEL_LIST[0].value
           : undefined,
         cameraMovement: kind === "video" ? "static" : undefined,
-        variantCount: kind === "batchVideo" ? 3 : undefined,
+        variantCount: kind === "batchVideo" ? 5 : undefined,
         resolution: kind === "batchVideo" ? "720p" : undefined,
         duration: kind === "batchVideo" ? 5 : undefined,
         variants: kind === "batchVideo" ? [] : undefined,
+        platform: kind === "batchVideo" ? "tiktok" : undefined,
+        variationStrategy: kind === "batchVideo" ? "mixed" : undefined,
+        outputDuration: kind === "batchVideo" ? "auto" : undefined,
+        styleLock: kind === "batchVideo" ? true : undefined,
+        brandLock: kind === "batchVideo" ? true : undefined,
+        speakerLock: kind === "batchVideo" ? false : undefined,
         status: "idle",
       } as NodeData,
     }]);
@@ -1279,7 +1797,8 @@ function CanvasPage() {
     } catch (e) { toast.error(e instanceof Error ? e.message : "Load failed"); }
   };
 
-  if (loading || !user) return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="size-6 animate-spin text-primary" /></div>;
+  if (loading) return <PageSpinner />;
+  if (!user) return <AuthRedirect />;
 
   return (
     <main className="h-screen flex flex-col bg-[#06060c] relative overflow-hidden">
@@ -1403,6 +1922,16 @@ function CanvasPage() {
         </HandlersCtx.Provider>
         </ComfyCtx.Provider>
         </HeyGenTplCtx.Provider>
+        <BatchOutputViewer
+          nodeId={batchViewerNodeId}
+          nodes={nodes}
+          onClose={() => setBatchViewerNodeId(null)}
+          onUpdate={update}
+          onCancel={() => collectionRunnerRef.current?.cancel()}
+          onPause={() => { collectionRunnerRef.current?.pause(); setBatchPaused(true); }}
+          onResume={() => { collectionRunnerRef.current?.resume(); setBatchPaused(false); }}
+          isPaused={batchPaused}
+        />
         {/* Floating glass toolbar — templates + finished-work gallery live over the canvas */}
         <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 rounded-full border border-white/10 bg-[oklch(0.13_0.04_290/0.85)] backdrop-blur-xl shadow-lg p-1.5">
           <TrendingTemplatesMenu
@@ -1416,6 +1945,7 @@ function CanvasPage() {
             }}
           />
           <FinishedWorkflowsGallery
+            directLoad
             onLoad={(id) => {
               const g = getTemplateById(id) ?? defaultGraphFor(id);
               if (g) {
@@ -1467,7 +1997,6 @@ function CanvasPage() {
           <button onClick={() => addNode("image")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Image gen"><Wand2 className="size-4" /></button>
           <button onClick={() => addNode("video")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Video"><Film className="size-4" /></button>
           <button onClick={() => addNode("lipsync")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Lip sync"><Mic className="size-4" /></button>
-          <button onClick={() => addNode("split")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Split"><SplitSquareHorizontal className="size-4" /></button>
           <button onClick={() => addNode("comfy")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="ComfyUI"><Boxes className="size-4" /></button>
           <button onClick={() => addNode("batchVideo")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Batch video"><Layers className="size-4" /></button>
           <button onClick={() => addNode("heygenTemplate")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="HeyGen Template"><Sparkles className="size-4" /></button>

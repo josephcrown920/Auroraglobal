@@ -9,9 +9,11 @@ import { deleteGeneration, hideGeneration } from "@/lib/gallery.functions";
 import { ModelBadge } from "@/components/ModelBadge";
 import { VisualEditDialog } from "@/components/gallery/VisualEditDialog";
 import { Loader2, ArrowLeft, Star, Download, Film, Image as ImageIcon, Layers, Trash2, Wand2, Captions, Lock, CheckCheck, Check, EyeOff, Eye } from "lucide-react";
+import { PageSpinner } from "@/components/PageSpinner";
+import { AuthRedirect } from "@/components/AuthRedirect";
 import { CaptionDialog } from "@/components/gallery/CaptionDialog";
 import { toast } from "sonner";
-import { saveAssetToDisk, isSplitRealityPrompt, splitRealityVariant } from "@/lib/save";
+import { saveAssetToDisk } from "@/lib/save";
 import { ShareMenu } from "@/components/share/ShareMenu";
 import { publishGeneration } from "@/lib/share.functions";
 import { bulkDeleteGenerations } from "@/lib/gallery.functions";
@@ -94,13 +96,8 @@ function GalleryPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Bulk delete failed"),
   });
 
-  if (loading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="size-6 animate-spin text-primary" />
-      </div>
-    );
-  }
+  if (loading) return <PageSpinner />;
+  if (!user) return <AuthRedirect />;
 
   const items = (data?.items ?? []).filter((g) => {
     if (filter === "favorites") return g.is_favorite;
@@ -314,11 +311,6 @@ function GalleryPage() {
                     <div className="size-7 rounded-full bg-amber-500/40 border border-amber-400 backdrop-blur-md flex items-center justify-center">
                       <Star className="size-3.5 fill-current text-amber-100" />
                     </div>
-                  )}
-                  {isSplitRealityPrompt(g.prompt) && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/85 text-primary-foreground text-[9px] font-semibold uppercase tracking-widest shadow">
-                      <Layers className="size-2.5" /> Split{splitRealityVariant(g.prompt) ? ` · ${splitRealityVariant(g.prompt)}` : ""}
-                    </span>
                   )}
                 </div>
                 <div className="p-2 space-y-1">

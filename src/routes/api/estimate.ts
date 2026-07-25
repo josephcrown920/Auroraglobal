@@ -121,6 +121,8 @@ export function estimateFromParams(
     features,
     primaryKind,
     blocked,
+    // quoteToken is added by the route handler (async HMAC signing cannot run here).
+    quoteToken: undefined as string | undefined,
   };
 }
 
@@ -175,7 +177,19 @@ export const Route = createFileRoute("/api/estimate")({
             params[key] = url.searchParams.get(key) ?? undefined;
           }
           const tier = await resolveTier(request);
-          const result = estimateFromParams(params, tier);
+          const base = estimateFromParams(params, tier);
+          // Sign the quoted feature set into an opaque token the client passes
+          // back with orchestrateGenerate. The server verifies it at execution
+          // and uses it as the authoritative billing set — ensuring the charge
+          // always matches the price shown (especially for motion-priced requests).
+          const { signQuoteToken } = await import("@/lib/quote-token.server");
+          const quoteToken = await signQuoteToken({
+            k: (params.kind ?? "image") as string,
+            f: base.features,
+            r: base.resolution,
+            d: base.durationSeconds,
+          });
+          const result = { ...base, quoteToken };
           return new Response(JSON.stringify(result), { status: 200, headers: cors });
         } catch (e) {
           const message = e instanceof z.ZodError ? e.errors[0]?.message ?? "Invalid params" : e instanceof Error ? e.message : "Invalid params";

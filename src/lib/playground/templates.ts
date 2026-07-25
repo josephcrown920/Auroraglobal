@@ -113,12 +113,12 @@ export const TEMPLATES: PlaygroundTemplate[] = [
   {
     id: "hello",
     label: "Hello Aurora",
-    description: "The basics: logs, one 1-Aura image, showing the result.",
+    description: "The basics: logs, one 10-Aura image, showing the result.",
     code: `// Welcome to the Aurora Playground.
 // Scripts run in a sandbox in YOUR browser — every aurora.* call
 // spends from your real Aura balance, exactly like the Studio.
 
-console.log("Generating one image (1 Aura)…");
+console.log("Generating one image (10 Aura)…");
 
 const res = await aurora.image("a tiny astronaut sticker, bold outlines, white background");
 
@@ -131,7 +131,7 @@ aurora.show(res.url, "Tiny astronaut", "image");
     label: "Batch: prompt variations",
     description: "Generate N variations of one concept with a progress bar.",
     code: `// Generate a small batch of image variations.
-// Cost: 1 Aura per image — raise COUNT once you like the results.
+// Cost: 10 Aura per image — raise COUNT once you like the results.
 const COUNT = 3;
 const CONCEPT = "album cover, retro-futuristic synthwave city";
 const ANGLES = [

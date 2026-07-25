@@ -15,8 +15,10 @@ import {
   generatePerformanceShot,
   generateVideoFromImage,
   lipSyncVideo,
-  generateSplitReality,
 } from "./studio.functions";
+import { splitRealityGenerate } from "./split-reality.functions";
+import { backoffMs } from "./poll-backoff";
+import { supabase } from "@/integrations/supabase/client";
 
 export type JobPollResult = {
   status: string;
@@ -25,63 +27,114 @@ export type JobPollResult = {
   error: string | null;
 };
 
-const POLL_INTERVAL_MS = 2000;
-const MAX_POLL_ATTEMPTS = 150; // ~5 minutes
+// 5-minute outer timeout preserved as a wall-clock deadline.
+// With 2s/×1.5/15s backoff: ~23 attempts exhaust the 5-min budget; the
+// deadline is the authoritative gate so this never exceeds the SLA even if
+// the interval strategy changes.
+const POLL_BUDGET_MS = 5 * 60_000;
+const MAX_POLL_ATTEMPTS = 25; // safety cap (belt-and-suspenders above deadline)
 
 const TERMINAL_OK = new Set(["succeeded", "complete"]);
 const TERMINAL_FAIL = new Set(["failed", "cancelled"]);
 
+/**
+ * Poll a job until it reaches a terminal status.
+ *
+ * Two concurrent paths race to detect completion:
+ *  1. **Realtime** (fast-path): subscribes to `postgres_changes` on the
+ *     `generations` row; resolves the moment a terminal UPDATE arrives.
+ *     Requires `generationId` to be passed.
+ *  2. **Poll loop** (fallback): exponential backoff starting at 2 s, ×1.5 per
+ *     attempt, capped at 15 s — ~80 % fewer requests than the old flat 2 s
+ *     interval. Always runs concurrently with Realtime as a safety net.
+ *
+ * Whichever path settles first wins (Promise.race). The loser is cleaned up
+ * via a shared abort signal; the Realtime channel is always unsubscribed on
+ * settle.
+ */
 export async function pollJobUntilDone(
   statusFn: (opts: { data: { jobId: string } }) => Promise<Awaited<ReturnType<typeof getJobStatus>>>,
   jobId: string,
+  generationId?: string,
 ): Promise<JobPollResult> {
-  for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
-    const { job, generation } = await statusFn({ data: { jobId } });
-    const status = generation?.status ?? job.status;
-    if (TERMINAL_OK.has(status ?? "")) {
-      return {
-        status: status!,
-        resultImageUrl: generation?.result_image_url ?? null,
-        resultVideoUrl: generation?.result_video_url ?? null,
-        error: null,
-      };
-    }
-    if (TERMINAL_FAIL.has(status ?? "") || TERMINAL_FAIL.has(job.status ?? "")) {
-      throw new Error(generation?.error || job.error || "Generation failed");
-    }
-    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+  const abort = { cancelled: false };
+  let rtChannel: ReturnType<typeof supabase.channel> | null = null;
+
+  function pollLoop(): Promise<JobPollResult> {
+    return (async () => {
+      const deadline = Date.now() + POLL_BUDGET_MS;
+      for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS && Date.now() < deadline; attempt++) {
+        if (abort.cancelled) throw new Error("cancelled");
+        const { job, generation } = await statusFn({ data: { jobId } });
+        const status = generation?.status ?? job.status;
+        if (TERMINAL_OK.has(status ?? "")) {
+          return {
+            status: status!,
+            resultImageUrl: generation?.result_image_url ?? null,
+            resultVideoUrl: generation?.result_video_url ?? null,
+            error: null,
+          };
+        }
+        if (TERMINAL_FAIL.has(status ?? "") || TERMINAL_FAIL.has(job.status ?? "")) {
+          throw new Error(generation?.error || job.error || "Generation failed");
+        }
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) break;
+        await new Promise<void>((r) => setTimeout(r, Math.min(backoffMs(attempt), remaining)));
+      }
+      throw new Error(
+        "This is taking longer than expected — it's still running in the background and will appear in your Gallery once it finishes.",
+      );
+    })();
   }
-  throw new Error(
-    "This is taking longer than expected — it's still running in the background and will appear in your Gallery once it finishes.",
-  );
+
+  function realtimePath(): Promise<JobPollResult> {
+    return new Promise<JobPollResult>((resolve, reject) => {
+      rtChannel = supabase
+        .channel(`aurora:gen:${generationId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "generations",
+            filter: `id=eq.${generationId}`,
+          },
+          (payload) => {
+            if (abort.cancelled) return;
+            const row = payload.new as Record<string, unknown>;
+            const s = String(row.status ?? "");
+            if (TERMINAL_OK.has(s)) {
+              resolve({
+                status: s,
+                resultImageUrl: (row.result_image_url as string | null) ?? null,
+                resultVideoUrl: (row.result_video_url as string | null) ?? null,
+                error: null,
+              });
+            } else if (TERMINAL_FAIL.has(s)) {
+              reject(new Error((row.error as string | null) || "Generation failed"));
+            }
+          },
+        )
+        .subscribe();
+    });
+  }
+
+  try {
+    if (generationId) {
+      return await Promise.race([pollLoop(), realtimePath()]);
+    }
+    return await pollLoop();
+  } finally {
+    abort.cancelled = true;
+    if (rtChannel) {
+      supabase.removeChannel(rtChannel).catch(() => {});
+    }
+  }
 }
 
 type EnqueueResult = { jobId: string; generationId: string } & Record<string, unknown>;
 
-type SplitSide = { jobId: string; generationId: string; variant: string } & Record<string, unknown>;
-type SplitEnqueueResult = { mode: "characters" | "mirror"; left: SplitSide; right: SplitSide };
-
-/** Split Reality enqueues TWO jobs (left/right halves); poll both to completion
- *  and reconstruct the old { mode, left: {id,url,variant}, right } shape. */
-export function useSplitJobPollingFn<TInput>(
-  enqueueFn: (opts: { data: TInput }) => Promise<SplitEnqueueResult>,
-) {
-  const enqueue = useServerFn(enqueueFn);
-  const statusFn = useServerFn(getJobStatus);
-  return async (opts: { data: TInput }) => {
-    const res = await enqueue(opts);
-    const [l, r] = await Promise.all([
-      pollJobUntilDone(statusFn, res.left.jobId),
-      pollJobUntilDone(statusFn, res.right.jobId),
-    ]);
-    if (!l.resultImageUrl || !r.resultImageUrl) throw new Error("Split Reality render finished without an image");
-    return {
-      mode: res.mode,
-      left: { id: res.left.generationId, url: l.resultImageUrl, variant: res.left.variant },
-      right: { id: res.right.generationId, url: r.resultImageUrl, variant: res.right.variant },
-    };
-  };
-}
 
 /** Wrap a single-job enqueue-only server fn so callers can keep using it as
  *  if it blocked until the render finished. `mapResult` shapes the final
@@ -94,7 +147,11 @@ export function useJobPollingFn<TInput, TResult>(
   const statusFn = useServerFn(getJobStatus);
   return async (opts: { data: TInput }): Promise<TResult> => {
     const enqueued = await enqueue(opts);
-    const polled = await pollJobUntilDone(statusFn, enqueued.jobId);
+    const polled = await pollJobUntilDone(
+      statusFn,
+      enqueued.jobId,
+      enqueued.generationId,
+    );
     return mapResult(enqueued, polled);
   };
 }
@@ -127,10 +184,6 @@ export function useLipSyncJobFn() {
   });
 }
 
-/** Old shape: { mode, left: {id,url,variant}, right: {id,url,variant} } */
-export function useSplitRealityJobFn() {
-  return useSplitJobPollingFn(generateSplitReality);
-}
 
 // ── ComfyUI runs ───────────────────────────────────────────────────────────
 // Comfy runs poll their own `comfy_runs` row (the worker mirrors the job's
@@ -145,15 +198,30 @@ type ComfyRunRow = {
   error: string | null;
 } & Record<string, unknown>;
 
+// ── Split Reality ───────────────────────────────────────────────────────────
+// splitRealityGenerate is a BLOCKING server fn (both sides run inline in
+// parallel via Promise.all). No job polling needed — just wrap with
+// useServerFn and return the result directly.
+
+export type SideResult = { id: string; url: string; variant: string };
+export type SplitRealityOutput = { left: SideResult; right: SideResult };
+
+export function useSplitRealityJobFn() {
+  return useServerFn(splitRealityGenerate);
+}
+
 export async function pollComfyRunUntilDone(
   getRunFn: (opts: { data: { id: string } }) => Promise<{ run: ComfyRunRow }>,
   runId: string,
 ): Promise<ComfyRunRow> {
-  for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+  const deadline = Date.now() + POLL_BUDGET_MS;
+  for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS && Date.now() < deadline; attempt++) {
     const { run } = await getRunFn({ data: { id: runId } });
     if (run.status === "succeeded") return run;
     if (run.status === "failed") throw new Error(run.error || "ComfyUI run failed");
-    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) break;
+    await new Promise<void>((r) => setTimeout(r, Math.min(backoffMs(attempt), remaining)));
   }
   throw new Error(
     "This is taking longer than expected — the run is still going in the background; check Recent runs in a bit.",

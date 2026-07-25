@@ -19,9 +19,9 @@ export const Route = createFileRoute("/templates")({
         property: "og:description",
         content: "Pick a template, drop in a photo, and Aurora renders the rest.",
       },
-      { property: "og:url", content: "https://aurorastudiostar.lovable.app/templates" },
+      { property: "og:url", content: "https://auroraperformancestudio.com/templates" },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/templates" }],
+    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/templates" }],
   }),
 });
 

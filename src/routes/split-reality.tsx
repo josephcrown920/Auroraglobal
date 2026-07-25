@@ -17,15 +17,14 @@ export const Route = createFileRoute("/split-reality")({
       },
       {
         property: "og:url",
-        content: "https://aurorastudiostar.lovable.app/split-reality",
+        content: "https://auroraperformancestudio.com/split-reality",
       },
     ],
     links: [
       {
         rel: "canonical",
-        href: "https://aurorastudiostar.lovable.app/split-reality",
+        href: "https://auroraperformancestudio.com/split-reality",
       },
     ],
   }),
 });
-

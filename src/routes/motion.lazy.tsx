@@ -1,6 +1,7 @@
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ExampleOutputGrid } from "@/components/studio/ExampleOutputGrid";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,6 +19,8 @@ import { UploadSlot } from "@/components/studio/UploadSlot";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, ArrowLeft, Loader2, Film, Wand2, Camera, Clapperboard, Users, WifiOff, Music2, Download, Zap } from "lucide-react";
+import { PageSpinner } from "@/components/PageSpinner";
+import { AuthRedirect } from "@/components/AuthRedirect";
 import { toast } from "sonner";
 import {
   generateMimicMotion,
@@ -210,6 +213,13 @@ function MotionStudio() {
   const reskinSubmittedAtRef = useRef<number | null>(null);
   const [transferGenId, setTransferGenId] = useState<string | null>(null);
   const [reskinGenId, setReskinGenId] = useState<string | null>(null);
+
+  // Refs for aside DOM elements (scroll-into-view on completion)
+  const transferAsideRef = useRef<HTMLElement>(null);
+  const reskinAsideRef = useRef<HTMLElement>(null);
+  // Track previous status so we detect the exact frame it flips to "complete"
+  const prevTransferStatusRef = useRef<BackendJobStatus>(null);
+  const prevReskinStatusRef = useRef<BackendJobStatus>(null);
   // Preview-confirm tickets: first submit renders a discounted capped preview;
   // its generationId unlocks the full render on the next submit.
   const [transferPreviewId, setTransferPreviewId] = useState<string | null>(null);
@@ -525,6 +535,33 @@ function MotionStudio() {
     return "queued";
   }, [history, reskinMut.isError, reskinGenId]);
 
+  // Fire a toast + scroll the result panel into view the moment a job completes.
+  useEffect(() => {
+    const prev = prevTransferStatusRef.current;
+    prevTransferStatusRef.current = transferJobStatus;
+    if (prev !== null && prev !== "complete" && transferJobStatus === "complete") {
+      toast.success("Motion transfer complete!", {
+        action: {
+          label: "View result",
+          onClick: () => transferAsideRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }),
+        },
+      });
+    }
+  }, [transferJobStatus]);
+
+  useEffect(() => {
+    const prev = prevReskinStatusRef.current;
+    prevReskinStatusRef.current = reskinJobStatus;
+    if (prev !== null && prev !== "complete" && reskinJobStatus === "complete") {
+      toast.success("Performance Shot complete!", {
+        action: {
+          label: "View result",
+          onClick: () => reskinAsideRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }),
+        },
+      });
+    }
+  }, [reskinJobStatus]);
+
   const transferProgress = useGenerationProgress({
     isPending: transferMut.isPending,
     isError: transferMut.isError,
@@ -557,13 +594,8 @@ function MotionStudio() {
     },
   });
 
-  if (loading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="size-6 animate-spin text-primary" />
-      </div>
-    );
-  }
+  if (loading) return <PageSpinner />;
+  if (!user) return <AuthRedirect />;
 
   const stepBadge = (label: string, state: "idle" | "running" | "ok" | "error", error?: string | null) => (
     <div className={`rounded-xl border px-3 py-2 text-xs flex items-start gap-2 ${
@@ -702,6 +734,9 @@ function MotionStudio() {
       <ConnectReplicateBanner />
 
       <div className="relative z-10 max-w-7xl mx-auto p-5 md:p-10 space-y-6">
+
+        {/* ── Example outputs — inspiration before the form ─────────── */}
+        <MotionInspirationBlock />
 
         {/* ── Onboarding guide ──────────────────────────────────────── */}
         <PerformAnywhereGuide />
@@ -922,23 +957,46 @@ function MotionStudio() {
             </section>
 
             {/* aside — preview + recent */}
-            <aside className="space-y-4">
-              <div className="rounded-3xl overflow-hidden border border-border bg-card/60 backdrop-blur-xl aspect-[4/5] relative">
-                {reskinProgress.isActive ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-muted-foreground">
-                    <div className="size-14 rounded-full flex items-center justify-center" style={{ background: "var(--gradient-hero)" }}>
-                      <Loader2 className="size-6 animate-spin text-primary-foreground" />
-                    </div>
-                    <GenerationProgress visible progress={reskinProgress.progress} label={reskinProgress.label} />
+            <aside ref={reskinAsideRef} className="space-y-4">
+              {(() => {
+                const latestReskin = history?.items.find((g: any) => g.kind === "performance_reskin" && g.result_video_url);
+                return (
+                  <div className={cn(
+                    "rounded-3xl overflow-hidden border bg-card/60 backdrop-blur-xl aspect-[4/5] relative transition-colors duration-500",
+                    reskinProgress.isActive ? "border-primary/50" : "border-border",
+                  )}>
+                    {reskinProgress.isActive ? (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-muted-foreground">
+                        <div className="size-14 rounded-full flex items-center justify-center" style={{ background: "var(--gradient-hero)" }}>
+                          <Loader2 className="size-6 animate-spin text-primary-foreground" />
+                        </div>
+                        <GenerationProgress visible progress={reskinProgress.progress} label={reskinProgress.label} />
+                      </div>
+                    ) : latestReskin ? (
+                      <>
+                        <AutoplayVideo src={latestReskin.result_video_url} className="w-full h-full object-cover" controls playsInline loop />
+                        <button
+                          type="button"
+                          onClick={() => fetch(latestReskin.result_video_url).then((r) => r.blob()).then((b) => {
+                            const a = document.createElement("a"); a.href = URL.createObjectURL(b);
+                            a.download = `performance-shot-${Date.now()}.mp4`; a.click();
+                          })}
+                          className="absolute bottom-3 right-3 flex items-center gap-1 rounded-lg border border-white/20 bg-black/60 px-2.5 py-1.5 text-xs text-white backdrop-blur-sm hover:bg-black/80 transition-colors"
+                        >
+                          <Download className="size-3" /> Download
+                        </button>
+                      </>
+                    ) : (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground p-8 text-center">
+                        <Film className="size-10 text-primary/40" />
+                        <p className="text-sm">Your performance video will appear here when ready.</p>
+                        <p className="text-xs">Jobs render on GPU backend — watch the Recent strip below.</p>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground p-8 text-center">
-                    <Film className="size-10 text-primary/40" />
-                    <p className="text-sm">Your performance video will appear here when ready.</p>
-                    <p className="text-xs">Jobs render on GPU backend — watch the Recent strip below.</p>
-                  </div>
-                )}
-              </div>
+                );
+              })()}
+
 
               {history && history.items.length > 0 && (
                 <div>
@@ -1107,7 +1165,7 @@ function MotionStudio() {
                   variant="premium"
                   className="flex-1 h-12"
                 >
-                  {stageMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Staging…</> : <><Wand2 className="size-4 mr-2" /> {imageError ? "Retry pose" : stagedImage ? "Re-stage" : "Stage pose · 1 Aura"}</>}
+                  {stageMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Staging…</> : <><Wand2 className="size-4 mr-2" /> {imageError ? "Retry pose" : stagedImage ? "Re-stage" : "Stage pose · 10 Aura"}</>}
                 </Button>
                 <Button
                   disabled={animateMut.isPending || (!stagedImage && !startFrame)}
@@ -1289,11 +1347,14 @@ function MotionStudio() {
               <GenerationErrorCard visible={transferMut.isError} error={mtError} onRetry={() => transferMut.mutate()} />
               <p className="text-xs text-muted-foreground">First render is a short discounted preview — review it in Recent, then render the full clip. Runs on a self-hosted GPU backend.</p>
             </section>
-            <aside className="space-y-4">
+            <aside ref={transferAsideRef} className="space-y-4">
               {(() => {
                 const latestMotion = history?.items.find((g: any) => g.kind === "motion" && g.result_video_url);
                 return (
-                  <div className="rounded-3xl overflow-hidden border border-border bg-card/60 backdrop-blur-xl aspect-[4/5] relative">
+                  <div className={cn(
+                    "rounded-3xl overflow-hidden border bg-card/60 backdrop-blur-xl aspect-[4/5] relative transition-colors duration-500",
+                    transferProgress.isActive ? "border-primary/50" : "border-border",
+                  )}>
                     {latestMotion ? (
                       <>
                         <AutoplayVideo src={latestMotion.result_video_url} className="w-full h-full object-cover" controls playsInline loop />
@@ -1738,7 +1799,7 @@ function MotionStudio() {
                       if (mvCurrentMode?.needsImage && mvImage) {
                         await videoFn({ data: { imageUrl: mvImage, prompt: mvPrompt, duration: 5, resolution: "720p", modelKey: mvVideoModel, cameraMovement: "static", endFrameUrl: null } });
                       } else {
-                        await genFn({ data: { prompt: mvPrompt, imageUrls: [], motionVideoUrl: null, model: "black-forest-labs/flux-1.1-pro" } });
+                        await genFn({ data: { prompt: mvPrompt, imageUrls: [], motionVideoUrl: null, model: "replit/gemini-2.5-flash-image" } });
                       }
                       markFirstGenComplete();
                       toast.success("Queued — result will appear in Recent below");
@@ -1779,5 +1840,83 @@ function MotionStudio() {
 
       </div>
     </main>
+  );
+}
+
+// ── Motion inspiration block ──────────────────────────────────────────────────
+const MOTION_BEFORE_AFTER = [
+  {
+    before: { src: "/josh/josh-orange-performance.jpg",    label: "Reference image" },
+    after:  { src: "/josh/josh-concert-performance.webp",  label: "Animated result" },
+    caption: "Performance Shot — motion transferred to your avatar",
+  },
+  {
+    before: { src: "/josh/josh-red-angle1.png",            label: "Reference image" },
+    after:  { src: "/josh/josh-red-angle3.png",            label: "New angle" },
+    caption: "Pose → Video — pose staged then animated",
+  },
+  {
+    before: { src: "/josh/josh-pink-mic-portrait.jpg",     label: "Identity ref" },
+    after:  { src: "/josh/josh-pink-leather-mic.jpg",      label: "Motion output" },
+    caption: "Motion Transfer — driving video applied to still",
+  },
+];
+
+const MOTION_EXAMPLES = [
+  { src: "/josh/josh-concert-performance.webp",  label: "Live performance",  caption: "Motion Transfer" },
+  { src: "/josh/josh-orange-performance.jpg",    label: "Stage energy",      caption: "Performance Shot" },
+  { src: "/josh/josh-red-angle2.png",            label: "Low angle hero",    caption: "Pose → Video" },
+  { src: "/josh/josh-red-angle4.png",            label: "Profile shot",      caption: "Avatar Shots" },
+  { src: "/josh/josh-pink-mic-fullbody.jpg",     label: "Full body",         caption: "Music Video" },
+  { src: "/josh/josh-blue-portrait.webp",        label: "Blue cinematic",    caption: "Performance Shot" },
+];
+
+function MotionInspirationBlock() {
+  return (
+    <div className="space-y-8">
+      <style>{`
+        @keyframes divider-pulse {
+          0%, 100% { opacity: 0.4; transform: scaleY(0.85); }
+          50% { opacity: 1; transform: scaleY(1); }
+        }
+        .divider-anim { animation: divider-pulse 2s ease-in-out infinite; }
+      `}</style>
+
+      {/* Before → After comparison row */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Before → After</p>
+          <p className="text-[10px] text-muted-foreground">3 example transformations</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {MOTION_BEFORE_AFTER.map((item) => (
+            <div key={item.caption} className="rounded-2xl border border-border/60 bg-card/40 overflow-hidden">
+              <div className="grid grid-cols-[1fr_auto_1fr]">
+                <div className="aspect-[3/4] relative overflow-hidden">
+                  <img src={item.before.src} alt={item.before.label} loading="lazy" className="absolute inset-0 size-full object-cover" />
+                  <span className="absolute top-1.5 left-1.5 text-[9px] font-bold uppercase tracking-widest bg-black/60 text-white/80 px-1.5 py-0.5 rounded">Before</span>
+                </div>
+                <div className="flex items-center justify-center px-1.5">
+                  <div className="divider-anim w-px bg-gradient-to-b from-transparent via-primary to-transparent h-12 rounded-full" />
+                </div>
+                <div className="aspect-[3/4] relative overflow-hidden">
+                  <img src={item.after.src} alt={item.after.label} loading="lazy" className="absolute inset-0 size-full object-cover" />
+                  <span className="absolute top-1.5 left-1.5 text-[9px] font-bold uppercase tracking-widest bg-primary/80 text-white px-1.5 py-0.5 rounded">After</span>
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground px-2.5 py-2 leading-snug">{item.caption}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Output grid */}
+      <ExampleOutputGrid
+        items={MOTION_EXAMPLES}
+        title="Motion outputs — what you can create"
+        subtitle="Performance Shot, Motion Transfer, Pose → Video, Avatar Shots, Music Video."
+        columns={3}
+      />
+    </div>
   );
 }

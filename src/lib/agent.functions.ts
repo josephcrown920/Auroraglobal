@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateWithFallback } from "@/lib/llm-fallback.server";
 import { computeCost } from "@/lib/pricing";
+import { assertOwnedReferenceImage } from "@/lib/url-guard";
 import {
   PlanSchema,
   DIRECTOR_SYSTEM,
@@ -38,7 +39,40 @@ function mapLlmError(err: unknown): Error {
 // ─── Single-shot planner (public, unchanged behaviour) ───────────────────────
 const COST_VIDEO = computeCost({ features: ["video"] }).total;
 
+type RunAgentDeps = {
+  assertOwned: (url: string, userId: string) => Promise<void>;
+  generate: typeof generateWithFallback;
+};
+
+// Deps-injected core (same pattern as gifts.functions.ts): the createServerFn
+// handler can't run without a Start request context, so unit tests exercise
+// this core directly — proving the ownership guard fires BEFORE any reference
+// image is sent to the LLM provider, and that owned references pass through.
+export async function runAuroraAgentCore(
+  userId: string,
+  data: { brief: string; referenceImages?: string[] },
+  deps: RunAgentDeps = { assertOwned: assertOwnedReferenceImage, generate: generateWithFallback },
+): Promise<AgentPlan> {
+  // Ownership guard: reference images (sent to the LLM as creative context) must
+  // belong to the caller — a crafted request could otherwise expose another user's
+  // private studio asset to the LLM provider.
+  for (const url of data.referenceImages ?? []) {
+    await deps.assertOwned(url, userId);
+  }
+  try {
+    const { output } = await deps.generate({
+      system: DIRECTOR_SYSTEM,
+      prompt: buildDirectorPrompt(data.brief, buildRefNote(data.referenceImages)),
+      schema: PlanSchema,
+    });
+    return output as AgentPlan;
+  } catch (err) {
+    throw mapLlmError(err);
+  }
+}
+
 export const runAuroraAgent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
     z
       .object({
@@ -47,18 +81,7 @@ export const runAuroraAgent = createServerFn({ method: "POST" })
       })
       .parse(d),
   )
-  .handler(async ({ data }) => {
-    try {
-      const { output } = await generateWithFallback({
-        system: DIRECTOR_SYSTEM,
-        prompt: buildDirectorPrompt(data.brief, buildRefNote(data.referenceImages)),
-        schema: PlanSchema,
-      });
-      return output as AgentPlan;
-    } catch (err) {
-      throw mapLlmError(err);
-    }
-  });
+  .handler(async ({ data, context }) => runAuroraAgentCore(context.userId, data));
 
 // ─── Director → Critic refinement + session persistence (authed) ─────────────
 export const refineAuroraPlan = createServerFn({ method: "POST" })
@@ -76,6 +99,12 @@ export const refineAuroraPlan = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
+    // Ownership guard: reference images used for LLM planning context must belong
+    // to the authenticated caller — prevent exposure of private studio assets to
+    // the LLM provider via a crafted referenceImages array.
+    for (const url of data.referenceImages ?? []) {
+      await assertOwnedReferenceImage(url, context.userId);
+    }
     let result;
     try {
       result = await refinePlan({
@@ -227,7 +256,11 @@ export const chatWithAuroraAgent = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     // Load permanent memory + recent transcript (RLS scopes both to the caller).
     const [{ data: memRow }, { data: recent, error: histErr }] = await Promise.all([
-      context.supabase.from("agent_user_memory").select("memory").eq("user_id", context.userId).maybeSingle(),
+      context.supabase
+        .from("agent_user_memory")
+        .select("memory, structured_memory")
+        .eq("user_id", context.userId)
+        .maybeSingle(),
       context.supabase
         .from("agent_chat_messages")
         .select("role, content")
@@ -237,7 +270,13 @@ export const chatWithAuroraAgent = createServerFn({ method: "POST" })
     ]);
     if (histErr) throw new Error(histErr.message);
 
-    const memory = memRow?.memory ?? "";
+    const freeText = memRow?.memory ?? "";
+    const structured = (memRow?.structured_memory as Record<string, unknown> | null) ?? null;
+    const structuredBlock =
+      structured && Object.keys(structured).length > 0
+        ? `\n\nSTRUCTURED BRAND PROFILE (auto-recalled):\n${JSON.stringify(structured, null, 2)}`
+        : "";
+    const memory = (freeText + structuredBlock).trim();
     const transcript = (recent ?? [])
       .reverse()
       .map((m) => ({
@@ -375,6 +414,20 @@ export const clearAgentChat = createServerFn({ method: "POST" })
       .from("agent_chat_messages")
       .delete()
       .eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+/** Directly saves the free-text memory document (used by the Director Memory sidebar textarea). */
+export const saveAgentMemory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ memory: z.string().max(2000) }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.from("agent_user_memory").upsert({
+      user_id: context.userId,
+      memory: data.memory.trim().slice(0, 2000),
+      updated_at: new Date().toISOString(),
+    });
     if (error) throw new Error(error.message);
     return { ok: true as const };
   });

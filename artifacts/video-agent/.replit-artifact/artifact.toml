@@ -16,9 +16,6 @@ localPort = 8082
 [services.development]
 run = "bash /home/runner/workspace/artifacts/video-agent/start-dev.sh"
 
-[services.production]
-build = [ "bash", "-c", "npm install && node_modules/.bin/vite build --config vite.config.ts" ]
-
 [services.env]
 BASE_PATH = "/video-agent/"
 PORT = "8082"

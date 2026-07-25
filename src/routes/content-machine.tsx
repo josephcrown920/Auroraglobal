@@ -15,9 +15,9 @@ export const Route = createFileRoute("/content-machine")({
         content:
           "Turn one product into a wall of faceless short-form videos. Reusable templates, batch generation and real per-batch analytics.",
       },
-      { property: "og:url", content: "https://aurorastudiostar.lovable.app/content-machine" },
+      { property: "og:url", content: "https://auroraperformancestudio.com/content-machine" },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/content-machine" }],
+    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/content-machine" }],
   }),
 });
 

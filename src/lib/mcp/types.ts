@@ -14,10 +14,9 @@ export type VideoModel =
   | "sora-turbo";
 
 export type ImageModel =
-  | "flux-1.1-pro"
   | "kling-kolors"
-  | "huggingface-sdxl"
-  | "ideogram-v3";
+  | "seedream-4"
+  | "nano-banana-pro";
 
 export type AspectRatio = "9:16" | "16:9" | "1:1" | "4:5";
 

@@ -11,7 +11,7 @@ export const Route = createFileRoute("/growth")({
       },
       { property: "og:title", content: "Artist Growth Tools — Aurora" },
     ],
-    links: [{ rel: "canonical", href: "https://aurorastudiostar.lovable.app/growth" }],
+    links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/growth" }],
   }),
 });
 

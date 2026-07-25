@@ -12,9 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as WorkflowsRouteImport } from './routes/workflows'
 import { Route as UgcLineRouteImport } from './routes/ugc-line'
 import { Route as UgcRouteImport } from './routes/ugc'
+import { Route as TutorialRouteImport } from './routes/tutorial'
 import { Route as TiktokRouteImport } from './routes/tiktok'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as StudioRouteImport } from './routes/studio'
+import { Route as StoryboardRouteImport } from './routes/storyboard'
 import { Route as SplitRealityRouteImport } from './routes/split-reality'
 import { Route as SpinRouteImport } from './routes/spin'
 import { Route as SpeechRouteImport } from './routes/speech'
@@ -23,7 +26,10 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SceneBuilderRouteImport } from './routes/scene-builder'
 import { Route as RoadmapRouteImport } from './routes/roadmap'
 import { Route as ReshootRouteImport } from './routes/reshoot'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PhotoEditRouteImport } from './routes/photo-edit'
+import { Route as PartnersRouteImport } from './routes/partners'
 import { Route as OrchestrateRouteImport } from './routes/orchestrate'
 import { Route as NexusarbRouteImport } from './routes/nexusarb'
 import { Route as MusicVideoRouteImport } from './routes/music-video'
@@ -70,7 +76,9 @@ import { Route as AdminSmokeRouteImport } from './routes/admin.smoke'
 import { Route as AdminOrchestrationRouteImport } from './routes/admin.orchestration'
 import { Route as AdminCostsRouteImport } from './routes/admin.costs'
 import { Route as AdminComfyRouteImport } from './routes/admin.comfy'
+import { Route as AdminAssetsRouteImport } from './routes/admin.assets'
 import { Route as ApiVideoAgentSubmitRouteImport } from './routes/api/video-agent/submit'
+import { Route as ApiVideoAgentMessagesRouteImport } from './routes/api/video-agent/messages'
 import { Route as ApiVideoAgentGenerateRouteImport } from './routes/api/video-agent/generate'
 import { Route as ApiVideoAgentFinalizeRouteImport } from './routes/api/video-agent/finalize'
 import { Route as ApiVideoAgentEnhanceRouteImport } from './routes/api/video-agent/enhance'
@@ -86,6 +94,7 @@ import { Route as ApiPublicGenerateRouteImport } from './routes/api/public/gener
 import { Route as ApiPublicFreeMonthlyGrantRouteImport } from './routes/api/public/free-monthly-grant'
 import { Route as ApiPublicCheckApiBalancesRouteImport } from './routes/api/public/check-api-balances'
 import { Route as ApiAdminUploadSiteImageRouteImport } from './routes/api/admin/upload-site-image'
+import { Route as ApiAdminRunSmokeStep14RouteImport } from './routes/api/admin/run-smoke-step14'
 import { Route as ApiVideoAgentStatusVideoIdRouteImport } from './routes/api/video-agent/status.$videoId'
 import { Route as ApiPublicWorkersRegisterRouteImport } from './routes/api/public/workers/register'
 import { Route as ApiPublicWorkersHealthRouteImport } from './routes/api/public/workers/health'
@@ -111,11 +120,21 @@ const UgcRoute = UgcRouteImport.update({
   path: '/ugc',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/ugc.lazy').then((d) => d.Route))
+const TutorialRoute = TutorialRouteImport.update({
+  id: '/tutorial',
+  path: '/tutorial',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/tutorial.lazy').then((d) => d.Route))
 const TiktokRoute = TiktokRouteImport.update({
   id: '/tiktok',
   path: '/tiktok',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/tiktok.lazy').then((d) => d.Route))
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TemplatesRoute = TemplatesRouteImport.update({
   id: '/templates',
   path: '/templates',
@@ -126,6 +145,11 @@ const StudioRoute = StudioRouteImport.update({
   path: '/studio',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/studio.lazy').then((d) => d.Route))
+const StoryboardRoute = StoryboardRouteImport.update({
+  id: '/storyboard',
+  path: '/storyboard',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/storyboard.lazy').then((d) => d.Route))
 const SplitRealityRoute = SplitRealityRouteImport.update({
   id: '/split-reality',
   path: '/split-reality',
@@ -166,16 +190,33 @@ const ReshootRoute = ReshootRouteImport.update({
   path: '/reshoot',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/reshoot.lazy').then((d) => d.Route))
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/reset-password.lazy').then((d) => d.Route),
+)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PhotoEditRoute = PhotoEditRouteImport.update({
   id: '/photo-edit',
   path: '/photo-edit',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/photo-edit.lazy').then((d) => d.Route))
+const PartnersRoute = PartnersRouteImport.update({
+  id: '/partners',
+  path: '/partners',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/partners.lazy').then((d) => d.Route))
 const OrchestrateRoute = OrchestrateRouteImport.update({
   id: '/orchestrate',
   path: '/orchestrate',
   getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/orchestrate.lazy').then((d) => d.Route))
+} as any)
 const NexusarbRoute = NexusarbRouteImport.update({
   id: '/nexusarb',
   path: '/nexusarb',
@@ -314,7 +355,7 @@ const AffiliateRoute = AffiliateRouteImport.update({
   id: '/affiliate',
   path: '/affiliate',
   getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/affiliate.lazy').then((d) => d.Route))
+} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -413,9 +454,19 @@ const AdminComfyRoute = AdminComfyRouteImport.update({
   path: '/comfy',
   getParentRoute: () => AdminRoute,
 } as any).lazy(() => import('./routes/admin.comfy.lazy').then((d) => d.Route))
+const AdminAssetsRoute = AdminAssetsRouteImport.update({
+  id: '/assets',
+  path: '/assets',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin.assets.lazy').then((d) => d.Route))
 const ApiVideoAgentSubmitRoute = ApiVideoAgentSubmitRouteImport.update({
   id: '/api/video-agent/submit',
   path: '/api/video-agent/submit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVideoAgentMessagesRoute = ApiVideoAgentMessagesRouteImport.update({
+  id: '/api/video-agent/messages',
+  path: '/api/video-agent/messages',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiVideoAgentGenerateRoute = ApiVideoAgentGenerateRouteImport.update({
@@ -495,6 +546,11 @@ const ApiPublicCheckApiBalancesRoute =
 const ApiAdminUploadSiteImageRoute = ApiAdminUploadSiteImageRouteImport.update({
   id: '/api/admin/upload-site-image',
   path: '/api/admin/upload-site-image',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminRunSmokeStep14Route = ApiAdminRunSmokeStep14RouteImport.update({
+  id: '/api/admin/run-smoke-step14',
+  path: '/api/admin/run-smoke-step14',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiVideoAgentStatusVideoIdRoute =
@@ -578,7 +634,10 @@ export interface FileRoutesByFullPath {
   '/music-video': typeof MusicVideoRoute
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
+  '/partners': typeof PartnersRoute
   '/photo-edit': typeof PhotoEditRoute
+  '/privacy': typeof PrivacyRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
   '/scene-builder': typeof SceneBuilderRoute
@@ -587,12 +646,16 @@ export interface FileRoutesByFullPath {
   '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
   '/split-reality': typeof SplitRealityRoute
+  '/storyboard': typeof StoryboardRoute
   '/studio': typeof StudioRoute
   '/templates': typeof TemplatesRoute
+  '/terms': typeof TermsRoute
   '/tiktok': typeof TiktokRoute
+  '/tutorial': typeof TutorialRoute
   '/ugc': typeof UgcRoute
   '/ugc-line': typeof UgcLineRoute
   '/workflows': typeof WorkflowsRoute
+  '/admin/assets': typeof AdminAssetsRoute
   '/admin/comfy': typeof AdminComfyRoute
   '/admin/costs': typeof AdminCostsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
@@ -609,6 +672,7 @@ export interface FileRoutesByFullPath {
   '/r/$token': typeof RTokenRoute
   '/cli/': typeof CliIndexRoute
   '/guides/': typeof GuidesIndexRoute
+  '/api/admin/run-smoke-step14': typeof ApiAdminRunSmokeStep14Route
   '/api/admin/upload-site-image': typeof ApiAdminUploadSiteImageRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
@@ -624,6 +688,7 @@ export interface FileRoutesByFullPath {
   '/api/video-agent/enhance': typeof ApiVideoAgentEnhanceRoute
   '/api/video-agent/finalize': typeof ApiVideoAgentFinalizeRoute
   '/api/video-agent/generate': typeof ApiVideoAgentGenerateRoute
+  '/api/video-agent/messages': typeof ApiVideoAgentMessagesRoute
   '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
@@ -666,7 +731,10 @@ export interface FileRoutesByTo {
   '/music-video': typeof MusicVideoRoute
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
+  '/partners': typeof PartnersRoute
   '/photo-edit': typeof PhotoEditRoute
+  '/privacy': typeof PrivacyRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
   '/scene-builder': typeof SceneBuilderRoute
@@ -675,12 +743,16 @@ export interface FileRoutesByTo {
   '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
   '/split-reality': typeof SplitRealityRoute
+  '/storyboard': typeof StoryboardRoute
   '/studio': typeof StudioRoute
   '/templates': typeof TemplatesRoute
+  '/terms': typeof TermsRoute
   '/tiktok': typeof TiktokRoute
+  '/tutorial': typeof TutorialRoute
   '/ugc': typeof UgcRoute
   '/ugc-line': typeof UgcLineRoute
   '/workflows': typeof WorkflowsRoute
+  '/admin/assets': typeof AdminAssetsRoute
   '/admin/comfy': typeof AdminComfyRoute
   '/admin/costs': typeof AdminCostsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
@@ -697,6 +769,7 @@ export interface FileRoutesByTo {
   '/r/$token': typeof RTokenRoute
   '/cli': typeof CliIndexRoute
   '/guides': typeof GuidesIndexRoute
+  '/api/admin/run-smoke-step14': typeof ApiAdminRunSmokeStep14Route
   '/api/admin/upload-site-image': typeof ApiAdminUploadSiteImageRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
@@ -712,6 +785,7 @@ export interface FileRoutesByTo {
   '/api/video-agent/enhance': typeof ApiVideoAgentEnhanceRoute
   '/api/video-agent/finalize': typeof ApiVideoAgentFinalizeRoute
   '/api/video-agent/generate': typeof ApiVideoAgentGenerateRoute
+  '/api/video-agent/messages': typeof ApiVideoAgentMessagesRoute
   '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
@@ -755,7 +829,10 @@ export interface FileRoutesById {
   '/music-video': typeof MusicVideoRoute
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
+  '/partners': typeof PartnersRoute
   '/photo-edit': typeof PhotoEditRoute
+  '/privacy': typeof PrivacyRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
   '/scene-builder': typeof SceneBuilderRoute
@@ -764,12 +841,16 @@ export interface FileRoutesById {
   '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
   '/split-reality': typeof SplitRealityRoute
+  '/storyboard': typeof StoryboardRoute
   '/studio': typeof StudioRoute
   '/templates': typeof TemplatesRoute
+  '/terms': typeof TermsRoute
   '/tiktok': typeof TiktokRoute
+  '/tutorial': typeof TutorialRoute
   '/ugc': typeof UgcRoute
   '/ugc-line': typeof UgcLineRoute
   '/workflows': typeof WorkflowsRoute
+  '/admin/assets': typeof AdminAssetsRoute
   '/admin/comfy': typeof AdminComfyRoute
   '/admin/costs': typeof AdminCostsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
@@ -786,6 +867,7 @@ export interface FileRoutesById {
   '/r/$token': typeof RTokenRoute
   '/cli/': typeof CliIndexRoute
   '/guides/': typeof GuidesIndexRoute
+  '/api/admin/run-smoke-step14': typeof ApiAdminRunSmokeStep14Route
   '/api/admin/upload-site-image': typeof ApiAdminUploadSiteImageRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
@@ -801,6 +883,7 @@ export interface FileRoutesById {
   '/api/video-agent/enhance': typeof ApiVideoAgentEnhanceRoute
   '/api/video-agent/finalize': typeof ApiVideoAgentFinalizeRoute
   '/api/video-agent/generate': typeof ApiVideoAgentGenerateRoute
+  '/api/video-agent/messages': typeof ApiVideoAgentMessagesRoute
   '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
@@ -845,7 +928,10 @@ export interface FileRouteTypes {
     | '/music-video'
     | '/nexusarb'
     | '/orchestrate'
+    | '/partners'
     | '/photo-edit'
+    | '/privacy'
+    | '/reset-password'
     | '/reshoot'
     | '/roadmap'
     | '/scene-builder'
@@ -854,12 +940,16 @@ export interface FileRouteTypes {
     | '/speech'
     | '/spin'
     | '/split-reality'
+    | '/storyboard'
     | '/studio'
     | '/templates'
+    | '/terms'
     | '/tiktok'
+    | '/tutorial'
     | '/ugc'
     | '/ugc-line'
     | '/workflows'
+    | '/admin/assets'
     | '/admin/comfy'
     | '/admin/costs'
     | '/admin/orchestration'
@@ -876,6 +966,7 @@ export interface FileRouteTypes {
     | '/r/$token'
     | '/cli/'
     | '/guides/'
+    | '/api/admin/run-smoke-step14'
     | '/api/admin/upload-site-image'
     | '/api/public/check-api-balances'
     | '/api/public/free-monthly-grant'
@@ -891,6 +982,7 @@ export interface FileRouteTypes {
     | '/api/video-agent/enhance'
     | '/api/video-agent/finalize'
     | '/api/video-agent/generate'
+    | '/api/video-agent/messages'
     | '/api/video-agent/submit'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
@@ -933,7 +1025,10 @@ export interface FileRouteTypes {
     | '/music-video'
     | '/nexusarb'
     | '/orchestrate'
+    | '/partners'
     | '/photo-edit'
+    | '/privacy'
+    | '/reset-password'
     | '/reshoot'
     | '/roadmap'
     | '/scene-builder'
@@ -942,12 +1037,16 @@ export interface FileRouteTypes {
     | '/speech'
     | '/spin'
     | '/split-reality'
+    | '/storyboard'
     | '/studio'
     | '/templates'
+    | '/terms'
     | '/tiktok'
+    | '/tutorial'
     | '/ugc'
     | '/ugc-line'
     | '/workflows'
+    | '/admin/assets'
     | '/admin/comfy'
     | '/admin/costs'
     | '/admin/orchestration'
@@ -964,6 +1063,7 @@ export interface FileRouteTypes {
     | '/r/$token'
     | '/cli'
     | '/guides'
+    | '/api/admin/run-smoke-step14'
     | '/api/admin/upload-site-image'
     | '/api/public/check-api-balances'
     | '/api/public/free-monthly-grant'
@@ -979,6 +1079,7 @@ export interface FileRouteTypes {
     | '/api/video-agent/enhance'
     | '/api/video-agent/finalize'
     | '/api/video-agent/generate'
+    | '/api/video-agent/messages'
     | '/api/video-agent/submit'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
@@ -1021,7 +1122,10 @@ export interface FileRouteTypes {
     | '/music-video'
     | '/nexusarb'
     | '/orchestrate'
+    | '/partners'
     | '/photo-edit'
+    | '/privacy'
+    | '/reset-password'
     | '/reshoot'
     | '/roadmap'
     | '/scene-builder'
@@ -1030,12 +1134,16 @@ export interface FileRouteTypes {
     | '/speech'
     | '/spin'
     | '/split-reality'
+    | '/storyboard'
     | '/studio'
     | '/templates'
+    | '/terms'
     | '/tiktok'
+    | '/tutorial'
     | '/ugc'
     | '/ugc-line'
     | '/workflows'
+    | '/admin/assets'
     | '/admin/comfy'
     | '/admin/costs'
     | '/admin/orchestration'
@@ -1052,6 +1160,7 @@ export interface FileRouteTypes {
     | '/r/$token'
     | '/cli/'
     | '/guides/'
+    | '/api/admin/run-smoke-step14'
     | '/api/admin/upload-site-image'
     | '/api/public/check-api-balances'
     | '/api/public/free-monthly-grant'
@@ -1067,6 +1176,7 @@ export interface FileRouteTypes {
     | '/api/video-agent/enhance'
     | '/api/video-agent/finalize'
     | '/api/video-agent/generate'
+    | '/api/video-agent/messages'
     | '/api/video-agent/submit'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
@@ -1110,7 +1220,10 @@ export interface RootRouteChildren {
   MusicVideoRoute: typeof MusicVideoRoute
   NexusarbRoute: typeof NexusarbRoute
   OrchestrateRoute: typeof OrchestrateRoute
+  PartnersRoute: typeof PartnersRoute
   PhotoEditRoute: typeof PhotoEditRoute
+  PrivacyRoute: typeof PrivacyRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   ReshootRoute: typeof ReshootRoute
   RoadmapRoute: typeof RoadmapRoute
   SceneBuilderRoute: typeof SceneBuilderRoute
@@ -1119,9 +1232,12 @@ export interface RootRouteChildren {
   SpeechRoute: typeof SpeechRoute
   SpinRoute: typeof SpinRoute
   SplitRealityRoute: typeof SplitRealityRoute
+  StoryboardRoute: typeof StoryboardRoute
   StudioRoute: typeof StudioRoute
   TemplatesRoute: typeof TemplatesRoute
+  TermsRoute: typeof TermsRoute
   TiktokRoute: typeof TiktokRoute
+  TutorialRoute: typeof TutorialRoute
   UgcRoute: typeof UgcRoute
   UgcLineRoute: typeof UgcLineRoute
   WorkflowsRoute: typeof WorkflowsRoute
@@ -1135,6 +1251,7 @@ export interface RootRouteChildren {
   RTokenRoute: typeof RTokenRoute
   CliIndexRoute: typeof CliIndexRoute
   GuidesIndexRoute: typeof GuidesIndexRoute
+  ApiAdminRunSmokeStep14Route: typeof ApiAdminRunSmokeStep14Route
   ApiAdminUploadSiteImageRoute: typeof ApiAdminUploadSiteImageRoute
   ApiPublicCheckApiBalancesRoute: typeof ApiPublicCheckApiBalancesRoute
   ApiPublicFreeMonthlyGrantRoute: typeof ApiPublicFreeMonthlyGrantRoute
@@ -1150,6 +1267,7 @@ export interface RootRouteChildren {
   ApiVideoAgentEnhanceRoute: typeof ApiVideoAgentEnhanceRoute
   ApiVideoAgentFinalizeRoute: typeof ApiVideoAgentFinalizeRoute
   ApiVideoAgentGenerateRoute: typeof ApiVideoAgentGenerateRoute
+  ApiVideoAgentMessagesRoute: typeof ApiVideoAgentMessagesRoute
   ApiVideoAgentSubmitRoute: typeof ApiVideoAgentSubmitRoute
   ApiPublicJobsTickRoute: typeof ApiPublicJobsTickRoute
   ApiPublicPaymentsSweepStuckRoute: typeof ApiPublicPaymentsSweepStuckRoute
@@ -1185,11 +1303,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UgcRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tutorial': {
+      id: '/tutorial'
+      path: '/tutorial'
+      fullPath: '/tutorial'
+      preLoaderRoute: typeof TutorialRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tiktok': {
       id: '/tiktok'
       path: '/tiktok'
       fullPath: '/tiktok'
       preLoaderRoute: typeof TiktokRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/templates': {
@@ -1204,6 +1336,13 @@ declare module '@tanstack/react-router' {
       path: '/studio'
       fullPath: '/studio'
       preLoaderRoute: typeof StudioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/storyboard': {
+      id: '/storyboard'
+      path: '/storyboard'
+      fullPath: '/storyboard'
+      preLoaderRoute: typeof StoryboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/split-reality': {
@@ -1262,11 +1401,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReshootRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/photo-edit': {
       id: '/photo-edit'
       path: '/photo-edit'
       fullPath: '/photo-edit'
       preLoaderRoute: typeof PhotoEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/partners': {
+      id: '/partners'
+      path: '/partners'
+      fullPath: '/partners'
+      preLoaderRoute: typeof PartnersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/orchestrate': {
@@ -1591,11 +1751,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminComfyRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/assets': {
+      id: '/admin/assets'
+      path: '/assets'
+      fullPath: '/admin/assets'
+      preLoaderRoute: typeof AdminAssetsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/api/video-agent/submit': {
       id: '/api/video-agent/submit'
       path: '/api/video-agent/submit'
       fullPath: '/api/video-agent/submit'
       preLoaderRoute: typeof ApiVideoAgentSubmitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/video-agent/messages': {
+      id: '/api/video-agent/messages'
+      path: '/api/video-agent/messages'
+      fullPath: '/api/video-agent/messages'
+      preLoaderRoute: typeof ApiVideoAgentMessagesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/video-agent/generate': {
@@ -1703,6 +1877,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminUploadSiteImageRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/run-smoke-step14': {
+      id: '/api/admin/run-smoke-step14'
+      path: '/api/admin/run-smoke-step14'
+      fullPath: '/api/admin/run-smoke-step14'
+      preLoaderRoute: typeof ApiAdminRunSmokeStep14RouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/video-agent/status/$videoId': {
       id: '/api/video-agent/status/$videoId'
       path: '/api/video-agent/status/$videoId'
@@ -1770,6 +1951,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminAssetsRoute: typeof AdminAssetsRoute
   AdminComfyRoute: typeof AdminComfyRoute
   AdminCostsRoute: typeof AdminCostsRoute
   AdminOrchestrationRoute: typeof AdminOrchestrationRoute
@@ -1779,6 +1961,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAssetsRoute: AdminAssetsRoute,
   AdminComfyRoute: AdminComfyRoute,
   AdminCostsRoute: AdminCostsRoute,
   AdminOrchestrationRoute: AdminOrchestrationRoute,
@@ -1820,7 +2003,10 @@ const rootRouteChildren: RootRouteChildren = {
   MusicVideoRoute: MusicVideoRoute,
   NexusarbRoute: NexusarbRoute,
   OrchestrateRoute: OrchestrateRoute,
+  PartnersRoute: PartnersRoute,
   PhotoEditRoute: PhotoEditRoute,
+  PrivacyRoute: PrivacyRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   ReshootRoute: ReshootRoute,
   RoadmapRoute: RoadmapRoute,
   SceneBuilderRoute: SceneBuilderRoute,
@@ -1829,9 +2015,12 @@ const rootRouteChildren: RootRouteChildren = {
   SpeechRoute: SpeechRoute,
   SpinRoute: SpinRoute,
   SplitRealityRoute: SplitRealityRoute,
+  StoryboardRoute: StoryboardRoute,
   StudioRoute: StudioRoute,
   TemplatesRoute: TemplatesRoute,
+  TermsRoute: TermsRoute,
   TiktokRoute: TiktokRoute,
+  TutorialRoute: TutorialRoute,
   UgcRoute: UgcRoute,
   UgcLineRoute: UgcLineRoute,
   WorkflowsRoute: WorkflowsRoute,
@@ -1845,6 +2034,7 @@ const rootRouteChildren: RootRouteChildren = {
   RTokenRoute: RTokenRoute,
   CliIndexRoute: CliIndexRoute,
   GuidesIndexRoute: GuidesIndexRoute,
+  ApiAdminRunSmokeStep14Route: ApiAdminRunSmokeStep14Route,
   ApiAdminUploadSiteImageRoute: ApiAdminUploadSiteImageRoute,
   ApiPublicCheckApiBalancesRoute: ApiPublicCheckApiBalancesRoute,
   ApiPublicFreeMonthlyGrantRoute: ApiPublicFreeMonthlyGrantRoute,
@@ -1860,6 +2050,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiVideoAgentEnhanceRoute: ApiVideoAgentEnhanceRoute,
   ApiVideoAgentFinalizeRoute: ApiVideoAgentFinalizeRoute,
   ApiVideoAgentGenerateRoute: ApiVideoAgentGenerateRoute,
+  ApiVideoAgentMessagesRoute: ApiVideoAgentMessagesRoute,
   ApiVideoAgentSubmitRoute: ApiVideoAgentSubmitRoute,
   ApiPublicJobsTickRoute: ApiPublicJobsTickRoute,
   ApiPublicPaymentsSweepStuckRoute: ApiPublicPaymentsSweepStuckRoute,

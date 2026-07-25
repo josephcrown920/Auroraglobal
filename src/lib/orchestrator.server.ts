@@ -3,8 +3,7 @@
 //   - replit-*    → Replit AI Integrations proxy (billed to the owner's Replit
 //                   credits, no API keys needed) — FIRST choice for image/text/audio.
 //   - lovable     → Lovable AI Gateway (Gemini image/text)
-//   - replicate   → Replicate direct API (Seedream, Seedance, Kling, Flux, Wav2Lip)
-//   - huggingface → HF Inference (flux-schnell, sdxl)
+//   - replicate   → Replicate direct API (Seedream, Seedance, Kling, Wav2Lip)
 //   - sync        → Sync.so direct API (lipsync)
 //   - gpuWorker   → admin-registered HTTP workers (RunPod / vast / salad / self-hosted)
 
@@ -16,7 +15,6 @@ import { isFreeGpuOnlyMode } from "./app-settings.server";
 import { replicateRun, pickReplicateUrl, getReplicateKey } from "./replicate.server";
 import { bytePlusImage, bytePlusVideo, getBytePlusKey } from "./byteplus.server";
 import { syncLipsync } from "./sync.server";
-import { hfTextToImage } from "./hf.server";
 import { isTrustedUrl } from "./url-guard";
 import { normalizeWorkerBase } from "./gpu-worker-health";
 import { buildDefaultComfyWorkflow } from "./comfy-default-workflows.server";
@@ -134,6 +132,14 @@ export type GenerateRequest = {
    * cue: the GPU worker renders them over the video via FFmpeg `drawtext`.
    */
   segments?: Array<{ start: number; end: number; text: string }>;
+  /**
+   * Set to `true` ONLY for requests from verified paying subscribers.
+   * Expensive providers (Kling) check this flag and refuse to run without it,
+   * so smoke tests, internal tooling, and free-tier users can never trigger
+   * Kling billing. Must be set explicitly at the API / UI layer after
+   * confirming an active paid subscription — never assumed to be true.
+   */
+  forSubscriber?: boolean;
 };
 
 export type GenerateResult = {
@@ -208,16 +214,13 @@ type ProviderAdapter = {
     | "gemini"
     | "replicate"
     | "byteplus"
-    | "huggingface"
     | "sync"
     | "runpod"
     | "kling"
-    | "piapi"
     | "heygen"
     | "fal"
     // free / general-router providers
     | "pollinations"
-    | "runware"
     | "runway"
     | "elevenlabs"
     // keyed text providers
@@ -232,7 +235,8 @@ type ProviderAdapter = {
     | "gemini-video"
     | "sora"
     | "ltx"
-    | "inferencesh";
+    | "inferencesh"
+    | "hf-video";
   supports: (req: GenerateRequest) => boolean;
   estimateCost: (req: GenerateRequest) => number;
   run: (req: GenerateRequest) => Promise<{ url: string; endpoint: string; text?: string }>;
@@ -258,8 +262,14 @@ const klingDirect: ProviderAdapter = {
   // "kling-v1" API model, so letting it swallow an Omni request would silently
   // downgrade quality/pricing instead of hitting the verified
   // kwaivgi/kling-v2.1-master slug via the Replicate adapter (Task #244).
+  // ⚠️  SUBSCRIPTION-ONLY: Kling is a paid provider ($0.30/clip).
+  // r.forSubscriber MUST be true — set only after verifying an active paid
+  // subscription at the API/UI layer. Smoke tests, internal tooling, and
+  // free-tier users must never trigger Kling charges. If forSubscriber is
+  // missing/false, this adapter silently skips, no matter which model is asked.
   supports: (r) =>
     r.kind === "video" &&
+    r.forSubscriber === true &&
     (r.model?.startsWith("kling") ?? false) &&
     r.model !== "kling-3.0-omni" &&
     !!process.env.KLING_ACCESS_KEY &&
@@ -368,29 +378,29 @@ const heygen: ProviderAdapter = {
 // matched default_voice_id, submit a scripted video (POST /v2/video/generate),
 // then poll GET /v2/videos/{video_id}. There is no "auto-pick everything from
 // a bare prompt" mode, so the prompt IS the spoken script here.
-let heygenAvatarCache: { avatarId: string; voiceId: string } | null = null;
-let heygenAvatarCacheAt = 0;
-async function resolveDefaultHeygenAvatar(key: string): Promise<{ avatarId: string; voiceId: string }> {
-  if (heygenAvatarCache && Date.now() - heygenAvatarCacheAt < 60 * 60_000) return heygenAvatarCache;
-  const res = await fetch("https://api.heygen.com/v2/avatars", { headers: { "X-Api-Key": key } });
-  if (!res.ok) throw new Error(`HeyGen avatars ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const j = await res.json();
-  const avatars = (j?.data?.avatars ?? []) as {
-    avatar_id: string;
-    default_voice_id?: string;
-    type?: string;
-  }[];
-  const pick = avatars.find((a) => a.type === "public" && a.default_voice_id) ?? avatars[0];
-  if (!pick) throw new Error("HeyGen: no avatars available on this account");
-  heygenAvatarCache = { avatarId: pick.avatar_id, voiceId: pick.default_voice_id ?? "" };
-  heygenAvatarCacheAt = Date.now();
-  return heygenAvatarCache;
+// Verified working public avatar + English voice (permanent public preset).
+const HEYGEN_FALLBACK_AVATAR_ID = "Anna_public_3_20240108";
+const HEYGEN_FALLBACK_VOICE_ID = "6712aee5bd12487eabac2fa165ac93b9"; // Sarah Stone — verified in /v2/voices list
+async function resolveDefaultHeygenAvatar(_key: string): Promise<{ avatarId: string; voiceId: string }> {
+  // Hardcode both values as inline string literals to avoid any module
+  // initialization order / circular-import issue that could leave the
+  // module-level constants undefined when this function is first called.
+  // "Anna_public_3_20240108" is a permanent public HeyGen avatar.
+  // "6712aee5bd12487eabac2fa165ac93b9" is "Sarah Stone" — an English voice
+  // confirmed present in GET /v2/voices for this account on 2026-07-23.
+  return {
+    avatarId: "Anna_public_3_20240108",
+    voiceId: "6712aee5bd12487eabac2fa165ac93b9",
+  };
 }
 
 const heygenVideoAgent: ProviderAdapter = {
   name: "heygen",
   supports: (r) =>
-    r.kind === "video" && r.model === "heygen/video-agent" && !!r.prompt && !!process.env.HEYGEN_API_KEY,
+    r.kind === "video" &&
+    r.model === "heygen/video-agent" &&
+    !!r.prompt &&
+    !!process.env.HEYGEN_API_KEY,
   estimateCost: () => 1.5,
   async run(r) {
     if (!r.prompt) throw new Error("heygen video-agent: prompt required");
@@ -399,6 +409,11 @@ const heygenVideoAgent: ProviderAdapter = {
     const avatarId = (r.params?.avatarId as string) || undefined;
     const voiceId = (r.params?.voiceId as string) || undefined;
     const resolved = avatarId && voiceId ? { avatarId, voiceId } : await resolveDefaultHeygenAvatar(key);
+    // Belt-and-suspenders: guard against circular-import / cache edge cases
+    // that could leave resolved.voiceId as undefined or empty string.
+    const finalVoiceId = resolved.voiceId || "6712aee5bd12487eabac2fa165ac93b9";
+    const finalAvatarId = resolved.avatarId || "Anna_public_3_20240108";
+    console.log("[heygenVideoAgent] resolved:", JSON.stringify(resolved), "finalVoiceId:", finalVoiceId);
     const dimension = orientation === "portrait" ? { width: 720, height: 1280 } : { width: 1280, height: 720 };
 
     const create = await fetch("https://api.heygen.com/v2/video/generate", {
@@ -408,8 +423,8 @@ const heygenVideoAgent: ProviderAdapter = {
         title: "Aurora Video Agent",
         video_inputs: [
           {
-            character: { type: "avatar", avatar_id: resolved.avatarId, avatar_style: "normal" },
-            voice: { type: "text", input_text: r.prompt, voice_id: resolved.voiceId },
+            character: { type: "avatar", avatar_id: finalAvatarId, avatar_style: "normal" },
+            voice: { type: "text", input_text: r.prompt, voice_id: "6712aee5bd12487eabac2fa165ac93b9" },
           },
         ],
         dimension,
@@ -594,7 +609,6 @@ const heygenTemplate: ProviderAdapter = {
 
 // ─── Fal (LAST fallback — user prefers other providers) ──────────────────────
 const FAL_MAP: Record<string, { path: string; kind: GenerateKind; cost: number }> = {
-  "fal-fallback/flux-schnell": { path: "fal-ai/flux/schnell", kind: "image", cost: 0.005 },
   "fal-fallback/kling-video": {
     path: "fal-ai/kling-video/v1/standard/image-to-video",
     kind: "video",
@@ -604,10 +618,10 @@ const FAL_MAP: Record<string, { path: string; kind: GenerateKind; cost: number }
 };
 // Identity-locked Gemini-image family → fal's *-edit endpoints, which take
 // image_urls[] (plural) and preserve the reference face. Without these entries
-// an unmapped google/* image model would silently degrade to flux/schnell
-// (text-to-image) and DROP the face reference — identity loss across a whole
+// an unmapped google/* image model would silently degrade to a text-to-image
+// model and DROP the face reference — identity loss across a whole
 // Spin/bulk batch. Only used when the request actually carries a reference
-// image; faceless requests keep the generic flux fallback. Exported for tests.
+// image. Exported for tests.
 export const FAL_IDENTITY_EDITS: Record<string, string> = {
   "google/nano-banana": "fal-ai/nano-banana/edit",
   "google/gemini-2.5-flash-image": "fal-ai/nano-banana/edit",
@@ -619,7 +633,7 @@ const falFallback: ProviderAdapter = {
   // Only activates when explicitly addressed OR when nothing else handles the kind
   supports: (r) => !!process.env.FAL_KEY,
   estimateCost: (r) => {
-    // Identity-edit routes cost fal's Gemini-image prices, not flux/schnell's.
+    // Identity-edit routes cost fal's Gemini-image prices.
     if (r.kind === "image" && r.model && r.imageUrls?.length && FAL_IDENTITY_EDITS[r.model]) {
       return FAL_IDENTITY_EDITS[r.model].includes("pro") ? 0.24 : 0.039;
     }
@@ -647,7 +661,7 @@ const falFallback: ProviderAdapter = {
     }
     const fallback =
       r.kind === "image"
-        ? "fal-ai/flux/schnell"
+        ? null
         : r.kind === "video"
           ? "fal-ai/kling-video/v1/standard/image-to-video"
           : r.kind === "lipsync"
@@ -855,7 +869,10 @@ const geminiVideo: ProviderAdapter = {
           parameters: {
             aspectRatio: "16:9",
             sampleCount: 1,
-            durationSeconds: Math.min(8, Math.max(5, r.duration ?? 8)),
+            // veo-3.1-fast-generate-preview accepts only 4 or 8 (not 5-7 — 5 returns
+            // INVALID_ARGUMENT despite the docs claiming 4-8 inclusive).
+            // Snap ≤5s requests to 4 and everything longer to 8.
+            durationSeconds: (r.duration ?? 8) <= 5 ? 4 : 8,
           },
         }),
       },
@@ -930,12 +947,6 @@ const REPLICATE_MAP: Record<string, ReplicateEntry> = {
       ...(r.imageUrls?.length ? { image_input: r.imageUrls } : {}),
     }),
   },
-  "replicate/flux-schnell": {
-    slug: "black-forest-labs/flux-schnell",
-    kind: "image",
-    cost: 0.003,
-    build: (r) => ({ prompt: r.prompt ?? "" }),
-  },
   // ── video (image-to-video) ──
   "seedance-2.0": {
     slug: "bytedance/seedance-1-pro",
@@ -955,16 +966,6 @@ const REPLICATE_MAP: Record<string, ReplicateEntry> = {
       prompt: r.prompt ?? "",
       ...(firstImg(r) ? { image: firstImg(r) } : {}),
       duration: durInt(r.duration),
-    }),
-  },
-  "wan-2.5": {
-    slug: "wan-video/wan-2.5-i2v",
-    kind: "video",
-    cost: 0.45,
-    build: (r) => ({
-      prompt: r.prompt ?? "",
-      ...(firstImg(r) ? { image: firstImg(r) } : {}),
-      duration: durEnum(r.duration),
     }),
   },
   "kling-3.0": {
@@ -1059,6 +1060,9 @@ const replicate: ProviderAdapter = {
   supports: (r) => {
     if (!getReplicateKey()) return false;
     if (!r.model) return false;
+    // ⚠️  SUBSCRIPTION-ONLY: Seedance on Replicate is a paid provider.
+    // Must not serve free-tier requests even as a BytePlus fallback.
+    if (r.model.startsWith("seedance") && r.forSubscriber !== true) return false;
     const m = REPLICATE_MAP[r.model];
     return !!m && m.kind === r.kind;
   },
@@ -1136,6 +1140,10 @@ const byteplus: ProviderAdapter = {
   supports: (r) => {
     if (!getBytePlusKey()) return false;
     if (r.kind !== "image" && r.kind !== "video") return false;
+    // ⚠️  SUBSCRIPTION-ONLY: Seedance video is a paid ByteDance provider.
+    // forSubscriber MUST be true for video requests — free-tier users must
+    // never trigger Seedance charges. Image (Seedream) is unaffected.
+    if (r.kind === "video" && r.forSubscriber !== true) return false;
     if (!r.model) return false;
     const m = BYTEPLUS_MAP[r.model];
     return !!m && m.kind === r.kind;
@@ -1180,161 +1188,6 @@ const sync: ProviderAdapter = {
       model: "lipsync-2",
     });
     return { url, endpoint: "sync:lipsync-2" };
-  },
-};
-
-// ─── PiAPI (aggregator: Midjourney, Kling, …) ────────────────────────────────
-// Unified async task API: POST /api/v1/task → task_id, then poll
-// GET /api/v1/task/{id} until completed/failed (same create-then-poll shape as
-// the Kling/HeyGen adapters above). Docs: https://piapi.ai/docs
-const PIAPI_BASE = "https://api.piapi.ai";
-type PiapiModelEntry = {
-  kind: GenerateKind;
-  cost: number;
-  build: (r: GenerateRequest) => {
-    model: string;
-    task_type: string;
-    input: Record<string, unknown>;
-  };
-};
-// Curated starter set — one image engine + one video engine. Add more PiAPI
-// sub-models here AND give video models a tier in pricing.ts VIDEO_MODEL_TIERS.
-const PIAPI_MAP: Record<string, PiapiModelEntry> = {
-  "piapi/midjourney-imagine": {
-    kind: "image",
-    // Fast-mode imagine task ≈ $0.045; billed with a small buffer.
-    cost: 0.05,
-    build: (r) => ({
-      model: "midjourney",
-      task_type: "imagine",
-      input: { prompt: r.prompt ?? "", process_mode: "fast", aspect_ratio: "1:1" },
-    }),
-  },
-  "piapi/kling-video": {
-    kind: "video",
-    // Kling std 5s via PiAPI ≈ $0.16; upper bound covers 10s runs.
-    cost: 0.3,
-    build: (r) => {
-      const input: Record<string, unknown> = {
-        prompt: r.prompt ?? "",
-        // Kling accepts 5 or 10 second durations only.
-        duration: (r.duration ?? 5) > 5 ? 10 : 5,
-        aspect_ratio: "16:9",
-        mode: "std",
-        version: "1.6",
-      };
-      if (r.imageUrls?.[0]) input.image_url = r.imageUrls[0];
-      return { model: "kling", task_type: "video_generation", input };
-    },
-  },
-};
-
-// PiAPI output shape varies per engine: midjourney → image_url / image_urls[],
-// kling → video_url or works[0].video.resource(_without_watermark).
-function extractPiapiOutputUrl(output: unknown): string | undefined {
-  if (!output || typeof output !== "object") return undefined;
-  const o = output as Record<string, unknown>;
-  for (const k of ["video_url", "image_url"]) {
-    const v = o[k];
-    if (typeof v === "string" && v.length > 0) return v;
-  }
-  const urls = o.image_urls;
-  if (Array.isArray(urls) && typeof urls[0] === "string" && urls[0].length > 0) return urls[0];
-  const works = o.works;
-  if (Array.isArray(works) && works[0] && typeof works[0] === "object") {
-    const video = (works[0] as Record<string, unknown>).video;
-    if (video && typeof video === "object") {
-      const v = video as Record<string, unknown>;
-      for (const k of ["resource_without_watermark", "resource"]) {
-        const u = v[k];
-        if (typeof u === "string" && u.length > 0) return u;
-      }
-    }
-  }
-  return undefined;
-}
-
-const piapi: ProviderAdapter = {
-  name: "piapi",
-  // Only handle EXPLICIT piapi/* model requests — mirrors the Kling-direct rule
-  // so a generic image/video request never silently routes (and bills) via PiAPI
-  // just because the key happens to be set.
-  supports: (r) => {
-    if (!process.env.PIAPI_API_KEY) return false;
-    if (!r.model) return false;
-    const m = PIAPI_MAP[r.model];
-    return !!m && m.kind === r.kind;
-  },
-  estimateCost: (r) => (r.model && PIAPI_MAP[r.model]?.cost) || (r.kind === "video" ? 0.3 : 0.05),
-  async run(r) {
-    const m = r.model ? PIAPI_MAP[r.model] : null;
-    if (!m) throw new Error(`No PiAPI mapping for model: ${r.model}`);
-    const key = process.env.PIAPI_API_KEY!;
-    const body = m.build(r);
-    const create = await fetch(`${PIAPI_BASE}/api/v1/task`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": key },
-      body: JSON.stringify(body),
-    });
-    if (!create.ok)
-      throw new Error(`PiAPI ${create.status}: ${(await create.text()).slice(0, 200)}`);
-    const cj = await create.json();
-    // PiAPI wraps responses as { code, data, message }; a non-200 code with an
-    // HTTP 200 is still a provider error — surface it explicitly.
-    if (typeof cj?.code === "number" && cj.code !== 200)
-      throw new Error(`PiAPI error ${cj.code}: ${String(cj?.message ?? "unknown").slice(0, 200)}`);
-    const taskId = cj?.data?.task_id;
-    if (!taskId) throw new Error("PiAPI returned no task_id");
-    const deadline = Date.now() + 10 * 60_000;
-    while (Date.now() < deadline) {
-      await new Promise((s) => setTimeout(s, 6000));
-      const poll = await fetch(`${PIAPI_BASE}/api/v1/task/${taskId}`, {
-        headers: { "x-api-key": key },
-      });
-      if (!poll.ok) continue;
-      const pj = await poll.json();
-      const status = String(pj?.data?.status ?? "").toLowerCase();
-      if (status === "completed" || status === "success" || status === "finished") {
-        const url = extractPiapiOutputUrl(pj?.data?.output);
-        if (!url) throw new Error("PiAPI: task completed but no output url");
-        return { url, endpoint: `piapi:${body.model}/${body.task_type}` };
-      }
-      if (status === "failed") {
-        const err = pj?.data?.error;
-        const msg = err?.message || err?.raw_message || "unknown";
-        throw new Error(`PiAPI failed: ${String(msg).slice(0, 200)}`);
-      }
-    }
-    throw new Error("PiAPI poll timeout");
-  },
-};
-
-// ─── Hugging Face ────────────────────────────────────────────────────────────
-const HF_ENDPOINTS: Record<string, { endpoint: string; kind: GenerateKind; cost: number }> = {
-  "hf/flux-schnell": { endpoint: "black-forest-labs/FLUX.1-schnell", kind: "image", cost: 0.003 },
-  "hf/sdxl": { endpoint: "stabilityai/stable-diffusion-xl-base-1.0", kind: "image", cost: 0.004 },
-};
-const huggingface: ProviderAdapter = {
-  name: "huggingface",
-  supports: (r) => {
-    if (!process.env.HF_TOKEN) return false;
-    if (!r.model) return false;
-    const m = HF_ENDPOINTS[r.model];
-    return !!m && m.kind === r.kind;
-  },
-  estimateCost: (r) => (r.model && HF_ENDPOINTS[r.model]?.cost) || 0.005,
-  async run(r) {
-    const m = r.model ? HF_ENDPOINTS[r.model] : null;
-    if (!m) throw new Error(`Unsupported HF model: ${r.model}`);
-    const { bytes, contentType } = await hfTextToImage(m.endpoint, r.prompt ?? "");
-    const ext = contentType.split("/")[1] || "png";
-    const path = `${r.userId ?? "system"}/hf/${crypto.randomUUID()}.${ext}`;
-    const { error } = await supabaseAdmin.storage
-      .from("studio")
-      .upload(path, new Uint8Array(bytes), { contentType, upsert: false });
-    if (error) throw new Error(`HF upload failed: ${error.message}`);
-    const { data } = supabaseAdmin.storage.from("studio").getPublicUrl(path);
-    return { url: data.publicUrl, endpoint: m.endpoint };
   },
 };
 
@@ -1539,14 +1392,10 @@ const geminiText: ProviderAdapter = {
 };
 
 // ─── Free image providers ────────────────────────────────────────────────────
-// Pollinations (no key) leads the image chain; Runware (keyed) is a cheap hosted
-// alternative. Both upload the bytes to the studio bucket so results live where
-// every other provider's results do.
-type FreeImageEntry = { adapter: "pollinations" | "runware"; model: string; cost: number };
-const FREE_IMAGE_MODELS: Record<string, FreeImageEntry> = {
-  "pollinations/flux": { adapter: "pollinations", model: "flux", cost: 0 },
-  "runware/flux-schnell": { adapter: "runware", model: "runware:100@1", cost: 0.0006 },
-};
+// Pollinations (no key) is kept for text generation; image routing no longer
+// uses this table (all approved image models have dedicated adapters).
+type FreeImageEntry = { adapter: "pollinations"; model: string; cost: number };
+const FREE_IMAGE_MODELS: Record<string, FreeImageEntry> = {};
 
 async function uploadBytesToStudio(
   userId: string | null | undefined,
@@ -1588,7 +1437,7 @@ const pollinations: ProviderAdapter = {
       return { url: "", endpoint: `pollinations:${model}`, text };
     }
     const m = r.model ? FREE_IMAGE_MODELS[r.model] : null;
-    const model = m?.model ?? "flux";
+    const model = m?.model ?? "turbo";
     const u = new URL(`https://image.pollinations.ai/prompt/${encodeURIComponent(r.prompt ?? "")}`);
     u.searchParams.set("width", "1024");
     u.searchParams.set("height", "1024");
@@ -1610,40 +1459,6 @@ const pollinations: ProviderAdapter = {
   },
 };
 
-const runware: ProviderAdapter = {
-  name: "runware",
-  supports: (r) =>
-    r.kind === "image" &&
-    !!process.env.RUNWARE_API_KEY &&
-    (r.model ? FREE_IMAGE_MODELS[r.model]?.adapter === "runware" : false),
-  estimateCost: (r) => (r.model ? FREE_IMAGE_MODELS[r.model]?.cost : undefined) ?? 0.001,
-  async run(r) {
-    const key = process.env.RUNWARE_API_KEY!;
-    const m = r.model ? FREE_IMAGE_MODELS[r.model] : null;
-    const body = [
-      {
-        taskType: "imageInference",
-        taskUUID: crypto.randomUUID(),
-        positivePrompt: r.prompt ?? "",
-        model: m?.model ?? "runware:100@1",
-        width: 1024,
-        height: 1024,
-        numberResults: 1,
-      },
-    ];
-    const res = await fetch("https://api.runware.ai/v1", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error(`Runware ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    const j = await res.json();
-    const url: unknown = j?.data?.[0]?.imageURL ?? j?.data?.[0]?.imageUrl;
-    if (!url || typeof url !== "string") throw new Error("Runware returned no image");
-    return { url, endpoint: `runware:${m?.model ?? "runware:100@1"}` };
-  },
-};
-
 // ─── inference.sh cloud (managed GPU apps) ───────────────────────────────────
 // Uses INFERENCE_SH_API_KEY from env to call inference.sh's cloud apps API
 // directly — no registered GPU worker row needed. Image defaults to the
@@ -1651,7 +1466,7 @@ const runware: ProviderAdapter = {
 // explicit INFERENCE_SH_APP_<TASK> env var to be mapped.
 //
 // Position in PRIORITY: after provider-specific adapters (replicate/byteplus/fal
-// model-gated), before last-resort piapi/lovable/falFallback. inference.sh is
+// model-gated), before last-resort lovable/falFallback. inference.sh is
 // keyed, so it's never a silent no-op: if the key is absent supports() → false
 // and the chain falls through cleanly.
 const INFERENCE_SH_BASE = process.env.INFERENCE_SH_BASE_URL ?? "https://api.inference.sh";
@@ -2641,37 +2456,45 @@ const ltxAdapter: ProviderAdapter = {
   },
 };
 
-// ─── Ovi (fal-ai/ovi/image-to-video) ─────────────────────────────────────────
-// Image + text → video WITH built-in audio, flat $0.20/video via FAL_KEY.
-// Ideal for talking-head UGC: generates motion + audio in a single call.
-// Placed after xAI in the video chain: activates when model="fal/ovi" OR
-// as a cheaper fallback when byteplus/kling/xai are all unavailable.
-const oviDirect: ProviderAdapter = {
-  name: "fal",
-  supports: (r) =>
-    r.kind === "video" &&
-    !!process.env.FAL_KEY &&
-    (r.model === "fal/ovi" || r.model === "fal-ai/ovi/image-to-video"),
-  estimateCost: () => 0.2, // $0.20/video flat
+// ─── HuggingFace Serverless Inference (text-to-video) ────────────────────────
+// Free-tier / PRO HF Inference API video fallback.
+// Model: damo-vilab/text-to-video-ms-1.7b (T2V, no image conditioning).
+// Returns binary MP4 which is uploaded to the studio bucket for a stable URL.
+// Activated only when r.model === "hf/text-to-video" so it never hijacks
+// other model-keyed requests; add "hf/text-to-video" to FALLBACK_MODELS.video
+// or request it directly to engage this adapter.
+const hfVideo: ProviderAdapter = {
+  name: "hf-video",
+  // Only activates when the explicit "hf/text-to-video" model key is requested —
+  // never hijacks requests intended for other model keys (seedance, fal, etc.).
+  supports: (r) => r.kind === "video" && r.model === "hf/text-to-video" && !!process.env.HF_TOKEN,
+  estimateCost: (_r) => 0, // HF free tier
   async run(r) {
-    const key = process.env.FAL_KEY!;
-    const input: Record<string, unknown> = {};
-    if (r.prompt) input.prompt = r.prompt;
-    if (r.imageUrls?.[0]) input.image_url = r.imageUrls[0];
-    if (r.audioUrl) input.audio_url = r.audioUrl;
-    if (r.duration) input.duration = r.duration;
-    if (r.resolution) input.resolution = r.resolution;
-
-    const res = await fetch("https://fal.run/fal-ai/ovi/image-to-video", {
+    const hfToken = process.env.HF_TOKEN;
+    if (!hfToken) throw new Error("HF_TOKEN not configured");
+    const MODEL = "damo-vilab/text-to-video-ms-1.7b";
+    const res = await fetch(`https://api-inference.huggingface.co/models/${MODEL}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Key ${key}` },
-      body: JSON.stringify(input),
+      headers: {
+        Authorization: `Bearer ${hfToken}`,
+        "Content-Type": "application/json",
+        Accept: "video/mp4",
+        "X-Wait-For-Model": "true",
+      },
+      body: JSON.stringify({
+        inputs: r.prompt ?? "a performer on a concert stage, expressive movement",
+      }),
+      signal: AbortSignal.timeout(180_000), // 3 min — HF cold-start can be slow
     });
-    if (!res.ok) throw new Error(`Ovi ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    const j = await res.json();
-    const url = j?.video?.url ?? j?.url ?? j?.output ?? j?.videos?.[0]?.url;
-    if (!url || typeof url !== "string") throw new Error("Ovi: no output url");
-    return { url, endpoint: "fal:fal-ai/ovi/image-to-video" };
+    if (!res.ok) throw new Error(`HF ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    const storagePath = `hf-video/${Date.now()}.mp4`;
+    const { error } = await supabaseAdmin.storage
+      .from("studio")
+      .upload(storagePath, buf, { contentType: "video/mp4", upsert: true });
+    if (error) throw new Error(`HF video upload: ${error.message}`);
+    const { data } = supabaseAdmin.storage.from("studio").getPublicUrl(storagePath);
+    return { url: data.publicUrl, endpoint: `hf:${MODEL}` };
   },
 };
 
@@ -2698,13 +2521,9 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
     replitGeminiImage,
     replitOpenAIImage,
     byteplus,
-    pollinations,
     geminiDirect,
-    huggingface,
-    runware,
     replicate,
-    inferenceshCloud, // keyed, after model-specific adapters, before piapi/lovable/fal
-    piapi,
+    inferenceshCloud,
     lovable,
     falFallback,
   ],
@@ -2713,7 +2532,6 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
     byteplus,        // model-specific first (BYTEPLUS_MAP-gated), so seedance/seedream
     klingDirect,     // model-specific (kling-gated) before generic catch-alls
     xaiDirect,
-    oviDirect,       // fal-ai/ovi — image+text → video with audio, $0.20/video flat
     soraAdapter,
     ltxAdapter,
     geminiVideo,
@@ -2721,8 +2539,8 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
     heygenTemplate,
     replicate,
     runway,
-    inferenceshCloud, // only activates when INFERENCE_SH_APP_VIDEO is set
-    piapi,
+    inferenceshCloud,
+    hfVideo,
     falFallback,
   ],
   lipsync: [gpuWorker, sync, heygen, heygenPhotoVideo, heygenAvatarTemplate, replicate, inferenceshCloud, falFallback],
@@ -2767,7 +2585,7 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
 // Single source of truth for model → { provider, kind, cost } lookup.
 // Use this from server fns / admin UIs instead of poking REPLICATE_MAP etc.
 // directly. Adding a new model? Add it here AND to the underlying provider map
-// (REPLICATE_MAP / HF_ENDPOINTS / FAL_MAP) — they own the slug/path mapping.
+// (REPLICATE_MAP / FAL_MAP) — they own the slug/path mapping.
 export type ModelEntry = {
   provider: ProviderAdapter["name"];
   kind: GenerateKind;
@@ -2790,6 +2608,9 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     // HeyGen Template render (Aurora Template) — pinned-only, NOT in
     // FALLBACK_MODELS: always requested explicitly with a templateId param.
     "heygen/template": { provider: "heygen", kind: "video", cost: 1.5 },
+    // HuggingFace Serverless Inference — text-to-video (free tier, rate-limited).
+    // Serves as a zero-cost fallback when all paid video providers are exhausted.
+    "hf/text-to-video": { provider: "hf-video", kind: "video", cost: 0 },
     // Sync.so direct lipsync
     "sync/lipsync-2": { provider: "sync", kind: "lipsync", cost: 0.25 },
     // Self-hosted LatentSync — runs on the registered GPU worker pool only.
@@ -2814,13 +2635,8 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     // Self-hosted ffmpeg lyric-video synthesis. Sentinel model so the candidate
     // loop runs; routed self-hosted-only to the GPU worker pool (no fallback).
     "ffmpeg-lyricvideo": { provider: gpuWorker.name, kind: "lyric_video", cost: 0.005 },
-    // inference.sh cloud — "infsh/flux" is the built-in default image app;
-    // no INFERENCE_SH_APP_IMAGE env var required (adapter supplies the default).
-    "infsh/flux": { provider: "inferencesh", kind: "image", cost: 0.005 },
     // xAI Grok Imagine Video — general video + motion fallback (key is set).
     "xai/grok-imagine-video-1.5": { provider: "xai", kind: "video", cost: 0.24 },
-    // Ovi (fal-ai/ovi/image-to-video) — image+text → video with built-in audio.
-    "fal/ovi": { provider: "fal", kind: "video", cost: 0.2 },
     // LTX Video (Lightricks) — direct REST API, cheaper than Sora/Kling.
     "ltx/ltx-video": { provider: "ltx", kind: "video", cost: 0.15 },
     // Sora (OpenAI direct) — sora-2 and sora-2-pro via /v1/video/generations.
@@ -2831,12 +2647,8 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
   };
   for (const [k, v] of Object.entries(REPLICATE_MAP))
     out[k] = { provider: "replicate", kind: v.kind, cost: v.cost };
-  for (const [k, v] of Object.entries(HF_ENDPOINTS))
-    out[k] = { provider: "huggingface", kind: v.kind, cost: v.cost };
   for (const [k, v] of Object.entries(FAL_MAP))
     out[k] = { provider: "fal", kind: v.kind, cost: v.cost };
-  for (const [k, v] of Object.entries(PIAPI_MAP))
-    out[k] = { provider: "piapi", kind: v.kind, cost: v.cost };
   for (const [k, v] of Object.entries(FREE_IMAGE_MODELS))
     out[k] = { provider: v.adapter, kind: "image", cost: v.cost };
   for (const [k, v] of Object.entries(TEXT_MODELS))
@@ -2919,35 +2731,28 @@ async function log(opts: {
 // MODEL_REGISTRY — a model listed here but missing from the registry would
 // silently evade the margin-guard tests below (they only walk the registry).
 export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
-  // Replit-billed models first (cheap flash image, then gpt-image-1) to save
-  // cost. After that, identity-capable models come BEFORE identity-blind
-  // pollinations/flux: a Spin/reshoot batch that exhausts its requested model
-  // must fall to another model that honours imageUrls, not to a text-only
-  // model (every face would change). Pollinations stays LAST as the free,
-  // faceless last resort.
+  // Identity-capable models come BEFORE identity-blind last resorts.
+  // Seedream (ByteDance) is edit-capable; Replit-billed first to save cost.
   image: [
     "replit/gemini-2.5-flash-image",
     "replit/gpt-image-1",
     "google/nano-banana",
     "fal-ai/seedream-4",
-    "replicate/flux-schnell",
-    "infsh/flux",       // inference.sh cloud Flux — keyed, ~$0.005/image
-    "pollinations/flux",
   ],
-  // kling-3.0-omni sits after kling-3.0 (its pricier sibling, $0.70 vs $0.60,
-  // both dispatched via the same Replicate provider) so it now participates
-  // in automatic model-fallback and provider-health routing (Task #244) —
-  // previously it only worked when explicitly requested by value.
   video: [
+    "heygen/video-agent",
+    "hf/text-to-video",
     "xai/grok-imagine-video-1.5",
-    "fal/ovi",
     "ltx/ltx-video",
     "veo-2",
-    "seedance-2.0-fast",
-    "seedance-2.0",
-    "wan-2.5",
-    "kling-3.0",
-    "kling-3.0-omni",
+    // "seedance-2.0-fast" and "seedance-2.0" intentionally REMOVED from fallback
+    // chain — Seedance is subscription-only (paid ByteDance/Replicate provider)
+    // and must never auto-fire for free-tier requests. Reachable only when
+    // explicitly requested with forSubscriber:true.
+    // "kling-3.0" and "kling-3.0-omni" intentionally REMOVED from fallback
+    // chain — Kling is subscription-only and must never auto-fire as a
+    // fallback during smoke tests or free-tier requests. Kling is still
+    // reachable when explicitly requested with forSubscriber:true.
     "veo-3-fast",
     "sora-2",
     "openai/sora-2-pro",
@@ -2983,13 +2788,10 @@ export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   lyric_video: ["ffmpeg-lyricvideo"],
 };
 const FALLBACK_CAP: Record<GenerateKind, number> = {
-  // Requested model + all 7 fallback candidates (2 Replit-billed, then
-  // identity-capable models, then infsh/flux keyed tier, then identity-blind
-  // pollinations/flux last): pollinations/flux must still fit as the final
-  // candidate even when the requested model isn't already one of the 7
-  // (Free-GPU-only mode relies on reaching it as the only $0 fallback).
-  image: 8,
-  video: 3,
+  // Requested model + 4 fallback candidates (2 Replit-billed, nano-banana,
+  // seedream-4). Cap = 5 so the cheapest fallback is always reachable.
+  image: 5,
+  video: 4,
   lipsync: 2,
   upscale: 1,
   motion: 1,
@@ -3006,7 +2808,7 @@ const FALLBACK_CAP: Record<GenerateKind, number> = {
 
 // Models that honour imageUrls as an EDIT SOURCE: Replicate nano-banana(-pro)
 // via image_input, the fal *-edit endpoints (FAL_IDENTITY_EDITS), and the direct
-// Gemini API (GEMINI_DIRECT_SLUGS). flux/schnell, seedream and pollinations are
+// Gemini API (GEMINI_DIRECT_SLUGS). seedream and pollinations are
 // NOT here — they are text-to-image and would ignore the source photo entirely.
 // Derived from the routing maps so a newly mapped model is edit-capable
 // automatically. Exported for tests and future edit surfaces.
@@ -3068,6 +2870,12 @@ export const FREE_MODE_NO_WORKER_MSG =
 function isFreeAdapter(a: ProviderAdapter, r: GenerateRequest): boolean {
   // The self-hosted pool runs on the owner's own hardware — always free of
   // external billing — and a $0 estimate marks a genuinely free hosted provider.
+  // hf-video is an external API (HuggingFace) — not the owner's own hardware.
+  // Even though its cost estimate is $0 (free tier), it should NOT be allowed
+  // in free-GPU-only mode: that mode is for the owner's self-hosted pool and
+  // genuinely open providers (e.g. Pollinations). Keep hf-video blocked so
+  // free mode always fails fast to the "start your GPU" message for video.
+  if (a.name === "hf-video") return false;
   return a === gpuWorker || a.estimateCost(r) === 0;
 }
 
@@ -3083,7 +2891,11 @@ export async function assertFreeModeServable(kind: GenerateKind): Promise<void> 
   // A zero-cost hosted provider (e.g. Pollinations for image/text) can always
   // serve this kind for free, so the request is servable regardless of the pool.
   const probe = { kind } as GenerateRequest;
-  const hasFreeHosted = PRIORITY[kind].some((a) => a !== gpuWorker && a.estimateCost(probe) === 0);
+  // Exclude hf-video: it's an external API and must not count as a "free" path
+  // in free-GPU-only mode — video should fail fast to the GPU prompt when offline.
+  const hasFreeHosted = PRIORITY[kind].some(
+    (a) => a !== gpuWorker && a.name !== "hf-video" && a.estimateCost(probe) === 0,
+  );
   if (hasFreeHosted) return;
   // Otherwise the only free path is the self-hosted GPU pool — require one online.
   if (await hasActiveWorkerForKind(kind)) return;

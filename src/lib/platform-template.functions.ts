@@ -14,6 +14,7 @@ import { computeCost } from "@/lib/pricing";
 import { hfTextToSpeech } from "@/lib/hf.server";
 import { UGC_TTS_MODEL } from "@/lib/ugc.server";
 import { PLATFORM_TEMPLATES } from "@/lib/platform-templates";
+import { assertTrustedUrl } from "@/lib/url-guard";
 
 export const PLATFORM_VIDEO_MODEL = "sync/lipsync-2";
 export const PLATFORM_PHOTO_MODEL = "heygen/photo-video";
@@ -278,4 +279,135 @@ export const generateFromPlatformTemplate = createServerFn({ method: "POST" })
     if (!outcome.ok)
       return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
     return { ok: true, generationId: outcome.generationId, url: outcome.url };
+  });
+
+// ── Saved Avatar Shots ────────────────────────────────────────────────────────
+// Generated shot results are downloaded from the provider CDN and re-uploaded
+// to the studio bucket so the URL survives beyond provider expiry.
+
+export type SavedAvatarShot = {
+  id: string;
+  user_id: string;
+  storage_path: string;
+  engine: string;
+  kind: "image" | "video";
+  prompt: string;
+  created_at: string;
+  signedUrl: string;
+};
+
+async function signShotPath(path: string, expiresIn = 3600): Promise<string> {
+  const { data, error } = await supabaseAdmin.storage
+    .from("studio")
+    .createSignedUrl(path, expiresIn);
+  if (error || !data?.signedUrl)
+    throw new Error(`sign failed: ${error?.message ?? "no url"}`);
+  return data.signedUrl;
+}
+
+export const saveAvatarShot = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        sourceUrl: z.string().url(),
+        engine: z.enum(["seedream", "gemini", "kling"]),
+        kind: z.enum(["image", "video"]),
+        prompt: z.string().max(500).default(""),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    // SSRF guard: reject private networks, loopback, and any host outside the
+    // known provider CDN allowlist (fal.ai, replicate, googleapis, etc.)
+    assertTrustedUrl(data.sourceUrl);
+    const resp = await fetch(data.sourceUrl);
+    if (!resp.ok) throw new Error(`download failed: ${resp.status}`);
+    const contentType =
+      resp.headers.get("content-type") ??
+      (data.kind === "video" ? "video/mp4" : "image/jpeg");
+    const ext =
+      data.kind === "video"
+        ? "mp4"
+        : contentType.includes("png")
+          ? "png"
+          : "jpg";
+    const bytes = await resp.arrayBuffer();
+
+    const path = `${context.userId}/shots/${Date.now()}.${ext}`;
+    const { error: uploadErr } = await supabaseAdmin.storage
+      .from("studio")
+      .upload(path, Buffer.from(bytes), { contentType, upsert: false });
+    if (uploadErr) throw new Error(`upload failed: ${uploadErr.message}`);
+
+    const { data: row, error: insertErr } = await supabaseAdmin
+      .from("user_avatar_shots" as never)
+      .insert({
+        user_id: context.userId,
+        storage_path: path,
+        engine: data.engine,
+        kind: data.kind,
+        prompt: data.prompt.slice(0, 500),
+      } as never)
+      .select("*")
+      .single();
+    if (insertErr) throw new Error(insertErr.message);
+
+    const signedUrl = await signShotPath(path);
+    return { ...(row as object), signedUrl } as SavedAvatarShot;
+  });
+
+export const listAvatarShots = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await supabaseAdmin
+      .from("user_avatar_shots" as never)
+      .select("*")
+      .eq("user_id" as never, context.userId)
+      .order("created_at" as never, { ascending: false })
+      .limit(50);
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []) as SavedAvatarShot[];
+    const withUrls = await Promise.all(
+      rows.map(async (r) => {
+        try {
+          const signedUrl = await signShotPath(r.storage_path);
+          return { ...r, signedUrl };
+        } catch {
+          return { ...r, signedUrl: "" };
+        }
+      }),
+    );
+    return withUrls;
+  });
+
+export const deleteAvatarShot = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { data: row, error: fetchErr } = await supabaseAdmin
+      .from("user_avatar_shots" as never)
+      .select("storage_path")
+      .eq("id" as never, data.id)
+      .eq("user_id" as never, context.userId)
+      .maybeSingle();
+    if (fetchErr) throw new Error(fetchErr.message);
+    if (!row) throw new Error("Shot not found");
+
+    const { error: delErr } = await supabaseAdmin
+      .from("user_avatar_shots" as never)
+      .delete()
+      .eq("id" as never, data.id)
+      .eq("user_id" as never, context.userId);
+    if (delErr) throw new Error(delErr.message);
+
+    try {
+      await supabaseAdmin.storage
+        .from("studio")
+        .remove([(row as SavedAvatarShot).storage_path]);
+    } catch {
+      /* best-effort */
+    }
+
+    return { ok: true };
   });

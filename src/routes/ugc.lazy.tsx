@@ -1,6 +1,7 @@
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useState } from "react";
+import { ExampleOutputGrid } from "@/components/studio/ExampleOutputGrid";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -282,6 +283,9 @@ function UGCStudio() {
           </div>
         </div>
 
+        {/* ── Sample campaigns inspiration ────────────────────────── */}
+        <UGCInspirationBlock />
+
         {/* Preset gallery */}
         <div className="mt-12">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4">2. Pick a scene</h2>
@@ -359,7 +363,7 @@ function UGCStudio() {
               ) : (
                 <>
                   <Button onClick={() => imageMut.mutate()} disabled={busy} variant="premium" className="w-full sm:w-auto">
-                    {imageMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting…</> : <><Wand2 className="size-4 mr-2" /> Generate UGC shot · 1 Aura</>}
+                    {imageMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting…</> : <><Wand2 className="size-4 mr-2" /> Generate UGC shot · 10 Aura</>}
                   </Button>
                   <Button onClick={() => videoMut.mutate()} disabled={busy || !resultImage} variant="outline" className="w-full sm:w-auto">
                     {videoMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Animating…</> : <><Film className="size-4 mr-2" /> Animate · {computeCost({ features: ["video"], model: "seedance-2.0-fast", resolution: "720p", durationSeconds: 5 }).total} Aura</>}
@@ -550,5 +554,55 @@ function UGCStudio() {
       </section>
       <SiteFooter tone="light" />
     </main>
+  );
+}
+
+// ── UGC inspiration block ─────────────────────────────────────────────────────
+const UGC_EXAMPLES = [
+  { src: "/josh/josh-orange-performance.jpg",    label: "Orange energy",     caption: "UGC talking-head • xAI UGC" },
+  { src: "/josh/josh-pink-mic-portrait.jpg",     label: "Studio shot",       caption: "Product feature voiceover" },
+  { src: "/josh/josh-concert-performance.webp",  label: "Hype moment",       caption: "Campaign hook · viral format" },
+  { src: "/josh/josh-pink-leather-mic.jpg",      label: "Leather session",   caption: "Brand collab · story format" },
+  { src: "/josh/josh-blue-portrait.webp",        label: "Blue cinematic",    caption: "App-launch announce" },
+  { src: "/josh/josh-red-angle1.png",            label: "Red energy",        caption: "Performance campaign" },
+];
+
+const UGC_FORMATS = [
+  { label: "Product hook",       sec: "7s",  color: "#a78bfa" },
+  { label: "Brand story",        sec: "15s", color: "#34d399" },
+  { label: "Talking head demo",  sec: "30s", color: "#60a5fa" },
+  { label: "Viral lifestyle",    sec: "9s",  color: "#f472b6" },
+];
+
+function UGCInspirationBlock() {
+  return (
+    <div className="py-6 space-y-8">
+      <ExampleOutputGrid
+        items={UGC_EXAMPLES}
+        title="Sample campaigns — what UGC Factory creates"
+        subtitle="Authentic-looking talking-head clips from a single photo. Swap voice, style, call-to-action."
+        columns={3}
+      />
+
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">UGC formats</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          {UGC_FORMATS.map((f) => (
+            <div
+              key={f.label}
+              className="reveal-card rounded-xl border border-border/60 bg-card/40 px-3.5 py-3 space-y-1.5"
+            >
+              <span
+                className="inline-block text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded"
+                style={{ background: f.color + "28", color: f.color }}
+              >
+                {f.sec}
+              </span>
+              <p className="text-xs font-medium leading-tight">{f.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }

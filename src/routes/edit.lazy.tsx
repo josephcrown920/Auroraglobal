@@ -389,7 +389,7 @@ function AutoCutPage() {
   };
 
   // Re-edit: reuses the already-uploaded clips from the completed job — no
-  // re-upload needed — and creates a brand-new job + 8 Aura reservation with
+  // re-upload needed — and creates a brand-new job + 80 Aura reservation with
   // whatever style/music the user picks now. The original job is untouched.
   const handleReEditSubmit = () => {
     if (!user) { toast.error("Sign in to use AutoCut"); return; }
@@ -481,7 +481,7 @@ function AutoCutPage() {
         <div className="flex items-center gap-2">
           <span className="aurora-kicker">AutoCut</span>
           <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-            8 Aura
+            80 Aura
           </span>
         </div>
       </header>
@@ -857,7 +857,7 @@ function AutoCutPage() {
             onClick={isReEditing ? handleReEditSubmit : handleSubmit}
           >
             <Wand2 className="mr-2 size-4" />
-            {isReEditing ? "Regenerate — 8 Aura" : "Auto Edit — 8 Aura"}
+            {isReEditing ? "Regenerate — 80 Aura" : "Auto Edit — 80 Aura"}
           </Button>
           {!user && (
             <p className="mt-2 text-center text-xs text-muted-foreground">

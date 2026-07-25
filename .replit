@@ -34,11 +34,11 @@ args = "test"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "github-sync"
+args = "cron"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "cron"
+args = "prod-build"
 
 [[workflows.workflow]]
 name = "Start application"
@@ -97,17 +97,6 @@ args = "npm test"
 isValidation = true
 
 [[workflows.workflow]]
-name = "github-sync"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "bash scripts/github-sync-daemon.sh"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow]]
 name = "cron"
 author = "agent"
 
@@ -117,6 +106,17 @@ args = "bash scripts/aurora-cron-daemon.sh"
 
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow]]
+name = "prod-build"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd /home/runner/workspace && NODE_OPTIONS=--max-old-space-size=3072 bash scripts/replit-node.sh node_modules/vite/bin/vite.js build"
+
+[workflows.workflow.metadata]
+isValidation = true
 
 [agent]
 stack = "PNPM_WORKSPACE"
@@ -136,4 +136,7 @@ VITE_SUPABASE_URL = "https://tpzmvbczwahxajujvnrq.supabase.co"
 SUPABASE_URL = "https://tpzmvbczwahxajujvnrq.supabase.co"
 VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_SGO6FEm9zbgYEOsFqlSX8Q_dFVMJf4x"
 SUPABASE_PUBLISHABLE_KEY = "sb_publishable_SGO6FEm9zbgYEOsFqlSX8Q_dFVMJf4x"
-VITE_GTM_CONTAINER_ID = ""
+VITE_GTM_CONTAINER_ID = "GTM-MW3PPLW9"
+
+[objectStorage]
+defaultBucketID = "replit-objstore-92420312-7368-4c29-8394-f3bd7ba1e2dd"

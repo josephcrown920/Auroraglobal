@@ -8,6 +8,7 @@ import { Flame, Loader2, Play, RefreshCw, Sparkles, Upload } from "lucide-react"
 import { TiktokPostButton } from "@/components/tiktok/TiktokPostButton";
 import { getMyTiktokAccount } from "@/lib/tiktok-posting.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { backoffMs } from "@/lib/poll-backoff";
 import { useAuth } from "@/hooks/use-auth";
 import {
   startTiktokRemix,
@@ -461,6 +462,25 @@ function TiktokRemixPage() {
         </section>
       )}
 
+      {/* ── Optional Motion Control card ── */}
+      {childGens.some((g) => g.result_video_url) && (
+        <section className="mt-8 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-primary/70">Motion Control</span>
+            <span className="text-[10px] rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-primary/50">Optional</span>
+          </div>
+          <p className="text-xs text-white/50 leading-relaxed mb-3">
+            Want to go further? Take any of your generated clips into Motion Control — upload a phone performance recording to transfer your real movement into an AI scene.
+          </p>
+          <Link
+            to="/motion"
+            className="inline-flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/15 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary/25 transition-colors"
+          >
+            Open Motion Control →
+          </Link>
+        </section>
+      )}
+
       {/* Worker hint */}
       <ClientWorkerTicker enabled={!!activeRemixId} />
     </div>
@@ -476,9 +496,10 @@ function ClientWorkerTicker({ enabled }: { enabled: boolean }) {
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
+    let attempt = 0;
     async function pulse() {
+      if (cancelled) return;
       try {
-        const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
         const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
         if (!key) return;
         await fetch(`/api/public/jobs/tick`, {
@@ -486,14 +507,19 @@ function ClientWorkerTicker({ enabled }: { enabled: boolean }) {
           headers: { "Content-Type": "application/json", apikey: key },
           body: "{}",
         });
-        void url;
       } catch {
         /* ignore */
       }
+      if (!cancelled) {
+        // Doubling backoff: 6 s → 12 s → 20 s cap, so stale tabs don't hammer the API.
+        // Uses backoffMs with factor=2 and a 6 s base rather than the polling helper's default.
+        const delay = backoffMs(attempt, 6_000, 2, 20_000);
+        attempt++;
+        setTimeout(pulse, delay);
+      }
     }
     pulse();
-    const t = setInterval(() => { if (!cancelled) pulse(); }, 6000);
-    return () => { cancelled = true; clearInterval(t); };
+    return () => { cancelled = true; };
   }, [enabled]);
   return null;
 }

@@ -1,132 +1,68 @@
-import { useEffect, useRef, useState } from "react";
-import { Sparkles, Loader2, AlertTriangle } from "lucide-react";
-import { AutoplayVideo } from "@/components/landing/AutoplayVideo";
-// URL from public/videos/split-reality-demo.mp4.asset.json
-const splitVideo = "/__l5e/assets-v1/82946f74-8322-4f16-ab37-164aec7fecfb/split-reality-demo.mp4";
+import { Link } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
+import { Wand2 } from "lucide-react";
 
 /**
- * Split-screen "two lives" demo. The same AI-generated clip plays under
- * both sides — the slider reveals two graded looks of the same render
- * (ultra-real concert vs cinematic golden hour). Auto-sweeps until the
- * user interacts.
+ * Landing page section showcasing the Split Reality feature.
+ * Two parallel AI renders from the same reference: one hyper-real,
+ * one cinematic. Used on the main index landing page.
  */
 export function SplitReality() {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const leftVideoRef = useRef<HTMLVideoElement | null>(null);
-  const rightVideoRef = useRef<HTMLVideoElement | null>(null);
-  const [pos, setPos] = useState(50);
-  const [auto, setAuto] = useState(true);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
-
-  // Keep both videos in lockstep so the split looks like one continuous take.
-  useEffect(() => {
-    const sync = () => {
-      const a = leftVideoRef.current;
-      const b = rightVideoRef.current;
-      if (!a || !b) return;
-      if (Math.abs(a.currentTime - b.currentTime) > 0.08) b.currentTime = a.currentTime;
-    };
-    const id = setInterval(sync, 250);
-    return () => clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    if (!auto) return;
-    let raf = 0;
-    let t = 0;
-    const loop = () => {
-      t += 0.012;
-      setPos(50 + Math.sin(t) * 38);
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [auto]);
-
-  const move = (clientX: number) => {
-    const el = ref.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const p = ((clientX - r.left) / r.width) * 100;
-    setPos(Math.max(2, Math.min(98, p)));
-  };
-
   return (
-    <section className="relative z-10 px-6 md:px-12 pb-24 animate-fade-in">
-      <div className="flex items-end justify-between mb-5 animate-fade-in" style={{ animationDelay: "80ms", animationFillMode: "both" }}>
-        <div>
-          <p className="aurora-kicker mb-2">Split reality · Football × Basketball</p>
-          <h2 className="text-2xl md:text-3xl font-semibold">One athlete. Two sports. Same shot.</h2>
-          <p className="text-muted-foreground text-sm mt-1">Drag the slider — hyper-real footballer on one side, NBA hooper on the other. Same render, same man.</p>
-        </div>
-        <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-primary border border-primary/30 bg-primary/10 px-3 py-1 rounded-full">
-          <Sparkles className="size-3" /> Live AI render
-        </span>
+    <section className="relative py-20 px-5 overflow-hidden">
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
+        <div className="absolute left-1/4 top-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-primary/8 blur-[120px]" />
+        <div className="absolute right-1/4 top-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-cyan-500/6 blur-[120px]" />
       </div>
 
-      <div
-        ref={ref}
-        className="relative w-full aspect-[16/9] md:aspect-[21/9] rounded-3xl overflow-hidden border border-border select-none cursor-ew-resize group bg-black animate-scale-in"
-        style={{ animationDelay: "160ms", animationFillMode: "both" }}
-        onMouseMove={(e) => { setAuto(false); move(e.clientX); }}
-        onTouchMove={(e) => { setAuto(false); move(e.touches[0].clientX); }}
-        onMouseLeave={() => setAuto(true)}
-      >
-
-
-        {/* Right side — Cinematic Golden Hour grade */}
-        <AutoplayVideo
-          ref={rightVideoRef}
-          src={splitVideo}
-          loop
-          playsInline
-          preload="auto"
-          onLoadedData={() => setStatus("ready")}
-          onError={() => setStatus("error")}
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{ filter: "saturate(1.05) contrast(1.05) sepia(0.18) hue-rotate(-8deg) brightness(1.02)" }}
-        />
-        <span className="absolute bottom-3 right-3 text-[13px] uppercase tracking-wider px-2 py-1 rounded bg-black/60 text-amber-300 border border-amber-400/30 z-20">
-          Cinematic · Golden Hour
-        </span>
-
-        {/* Left side — Ultra-real Concert Wash grade, clipped by pos */}
-        <div className="absolute inset-0 overflow-hidden" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}>
-          <AutoplayVideo
-            ref={leftVideoRef}
-            src={splitVideo}
-            loop
-            playsInline
-            className="absolute inset-0 w-full h-full object-cover"
-            style={{ filter: "saturate(1.35) contrast(1.15) hue-rotate(15deg) brightness(0.95)" }}
-          />
-          <span className="absolute bottom-3 left-3 text-[13px] uppercase tracking-wider px-2 py-1 rounded bg-black/60 text-emerald-300 border border-emerald-400/30">
-            Ultra-real · Concert Wash
+      <div className="relative max-w-5xl mx-auto">
+        <div className="text-center mb-12">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-primary mb-4">
+            <Wand2 className="size-3" /> Split Reality
           </span>
+          <h2 className="text-[clamp(28px,4vw,48px)] font-semibold leading-[1.1] mb-4">
+            Two worlds.<br />One reference.
+          </h2>
+          <p className="max-w-[52ch] mx-auto text-base leading-relaxed text-muted-foreground">
+            Upload one photo and Aurora generates two parallel realities side by side —
+            an ultra-real mirror selfie and a cinematic anamorphic close-up. Or put two
+            characters in the same scene living completely different lives.
+          </p>
         </div>
 
-        {/* Divider */}
-        <div
-          className="absolute top-0 bottom-0 w-px bg-white/80 shadow-[0_0_24px_rgba(255,255,255,0.6)] z-10 pointer-events-none"
-          style={{ left: `${pos}%` }}
-        >
-          <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 size-9 rounded-full bg-white text-black flex items-center justify-center text-xs font-bold shadow-xl">
-            ⇆
+        {/* Demo grid */}
+        <div className="grid grid-cols-2 gap-2 rounded-3xl overflow-hidden border border-border/50 shadow-[0_0_60px_-20px_oklch(0.72_0.2_300_/_0.15)] max-w-2xl mx-auto mb-10">
+          <div className="relative bg-zinc-900 aspect-square">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center space-y-2">
+                <div className="w-16 h-16 rounded-full bg-zinc-800 mx-auto animate-pulse" />
+                <p className="text-[11px] font-bold uppercase tracking-widest text-white/30">Ultra-Real</p>
+              </div>
+            </div>
+            <div className="absolute top-2 left-2 rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/60">
+              Mirror
+            </div>
           </div>
-        {status === "loading" && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-30">
-            <Loader2 className="size-6 text-primary animate-spin" />
+          <div className="relative bg-zinc-950 aspect-square">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center space-y-2">
+                <div className="w-16 h-16 rounded-full bg-zinc-800/60 mx-auto animate-pulse [animation-delay:200ms]" />
+                <p className="text-[11px] font-bold uppercase tracking-widest text-white/30">Cinematic</p>
+              </div>
+            </div>
+            <div className="absolute top-2 left-2 rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/60">
+              Anamorphic
+            </div>
           </div>
-        )}
-        {status === "error" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/80 text-center px-6 z-30">
-            <AlertTriangle className="size-6 text-amber-300" />
-            <p className="text-sm text-foreground/80">Couldn't load the split-reality clip. <button onClick={() => { setStatus("loading"); leftVideoRef.current?.load(); rightVideoRef.current?.load(); }} className="underline">Retry</button></p>
-          </div>
-        )}
-      </div>
+        </div>
+
+        <div className="text-center">
+          <Button asChild variant="premium" className="text-base px-8 py-6 rounded-2xl">
+            <Link to="/split-reality">Try Split Reality</Link>
+          </Button>
+          <p className="text-xs text-muted-foreground mt-3">~20 Aura · two images rendered in parallel</p>
+        </div>
       </div>
     </section>
   );
 }
-

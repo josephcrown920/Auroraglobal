@@ -17,13 +17,14 @@ const fitnessTemplateImg       = "/josh/generated2/viral-09-vertical-poster.webp
 const fashionTemplateImg       = "/josh/generated2/colors-royal-blue.webp";
 const beautyTemplateImg        = "/josh/generated2/colors-sunset-orange.webp";
 
-// Kept at 30 for credit parity (1 Aura per piece, charged upfront). The engine
+// Kept at 30 for credit parity (10 Aura per piece, charged upfront). The engine
 // is count-driven so this can grow later without code changes.
 export const SPIN_COUNT = 30;
-// 1 Aura per spin piece — the single client-safe source for the per-piece
-// charge. spin.functions.ts (server) and every cost label import THIS constant
-// so the disclosed price can never drift from what is actually charged.
-export const SPIN_PIECE_COST = 1;
+// 10 Aura per spin piece (2026-07-19 ×10 rebase) — the single client-safe
+// source for the per-piece charge. spin.functions.ts (server) and every cost
+// label import THIS constant so the disclosed price can never drift from what
+// is actually charged.
+export const SPIN_PIECE_COST = 10;
 
 // ─── Video mode (Product Showcase only) ──────────────────────────────────────
 // A person uploads a product photo + a short script and gets SPIN_COUNT
@@ -39,7 +40,7 @@ export const SPIN_VIDEO_DURATION_SECONDS = 15;
 // Forced models (not left to orchestrator default) so the price we quote is
 // the price we actually pay the provider for — both sit in the "premium" tier
 // (see VIDEO_MODEL_TIERS / LIPSYNC_MODEL_TIERS in pricing.ts).
-export const SPIN_VIDEO_MODEL = "wan-2.5";
+export const SPIN_VIDEO_MODEL = "veo-3-fast";
 export const SPIN_VIDEO_LIPSYNC_MODEL = "fal-ai/sync-lipsync/v2";
 
 // Mirrors computeCost()'s formula (image base-only + video/lipsync scaled by

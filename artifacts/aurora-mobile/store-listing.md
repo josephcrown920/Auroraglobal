@@ -102,7 +102,8 @@ support@auroraperformancestudio.com
 **Content Rating:** 17+ (for apps with infrequent mild adult themes via Adult School)
 **Price:** Free (in-app purchases)
 **Privacy Policy URL:** https://auroraperformancestudio.com/privacy
-**Support URL:** mailto:support@auroraperformancestudio.com
+**Support URL:** https://auroraperformancestudio.com
+**Contact Email:** support@auroraperformancestudio.com
 
 ---
 
@@ -175,6 +176,29 @@ Suggested screenshot sequence:
 3. Lip-sync video result
 4. Credits / billing page
 5. Color Studio picker
+
+---
+
+## Submission Readiness Status (updated 2026-07-22)
+
+| Item | Status |
+|---|---|
+| App icon 1024×1024 (`assets/images/icon.png`) | ✅ Done |
+| Splash 1284×2778 (`assets/images/splash.png`) | ✅ Done |
+| Play feature graphic 1024×500 (`assets/images/feature-graphic.png`) | ✅ Done |
+| Privacy policy URL (https://auroraperformancestudio.com/privacy) | ✅ Live — 301-redirects to /legal/privacy |
+| Terms URL (https://auroraperformancestudio.com/terms) | ✅ Live — 301-redirects to /legal/terms |
+| Store copy (Play + App Store) | ✅ Done (this file) |
+| EAS project linked (`@nbajoshs-organization/aurora-performance-studio`) | ✅ ID `9927fad2-c399-4ae3-8727-614a2c751184` in `app.json` |
+| EAS CLI authenticated (EXPO_TOKEN) | ✅ Account `nbajosh` / org `nbajoshs-organization` |
+| **Android production AAB** | ✅ Build `1c5efc61` finished 2026-07-21 — ready to submit |
+| `eas.json` production profiles | ✅ Android AAB + iOS store distribution + submit config |
+| Screenshots | ⬜ Capture on a real device — see `store/submission-guide.md` for resolutions |
+| `google-play-service-account.json` | ⬜ Create from Google Play Console → `artifacts/aurora-mobile/google-play-service-account.json` |
+| Apple `ascAppId` + `appleTeamId` in `eas.json` | ⬜ Fill in from App Store Connect + developer.apple.com |
+| iOS production build | ⬜ Run `eas build --platform ios --profile production` after Apple credentials |
+| Android Play Store submission | ⬜ Run `eas submit --platform android --id 1c5efc61-5ec9-47d8-a26b-26a079732e63` after service account key |
+| iOS App Store submission | ⬜ Run `eas submit --platform ios --latest` after iOS build |
 
 ---
 

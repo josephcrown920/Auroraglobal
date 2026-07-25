@@ -1,19 +1,9 @@
-// Client-only Monaco wrapper. Bundles monaco-editor locally through vite
-// (?worker imports) instead of pulling it from a CDN at runtime, and points
-// @monaco-editor/react's loader at the bundled instance. This file must only
-// ever be imported via React.lazy from client-side code.
-import * as monaco from "monaco-editor";
-import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
-import tsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
-import Editor, { loader } from "@monaco-editor/react";
-
-self.MonacoEnvironment = {
-  getWorker(_workerId: string, label: string) {
-    if (label === "typescript" || label === "javascript") return new tsWorker();
-    return new editorWorker();
-  },
-};
-
-loader.config({ monaco });
+// Client-only Monaco wrapper. Loads the editor at runtime via
+// @monaco-editor/react's default CDN loader instead of bundling the full
+// monaco-editor module graph — bundling ~4,500 monaco modules OOMs the
+// production client build in this container, which blocked every publish.
+// The /editor Playground is an archived, admin-only tool, so a runtime CDN
+// dependency is an acceptable tradeoff for a working production build.
+import Editor from "@monaco-editor/react";
 
 export default Editor;

@@ -29,27 +29,27 @@ function runCommand(raw: string): Line[] {
   if (sub === "login") {
     out.push({
       kind: "out",
-      text: "→ Visit https://aurora-sparkle-charm.lovable.app/cli/authorize",
+      text: "→ Visit https://auroraperformancestudio.com/cli/authorize",
     });
     out.push({ kind: "out", text: "→ Enter device code: A7K9-QM3R" });
     out.push({ kind: "ok", text: "✓ Signed in as you@studio" });
   } else if (sub === "whoami") {
-    out.push({ kind: "ok", text: "✓ you@studio · 250 Aura · plan: Creator" });
+    out.push({ kind: "ok", text: "✓ you@studio · 2,500 Aura · plan: Creator" });
   } else if (sub === "generate") {
     const m = tail.match(/--prompt\s+"([^"]+)"/);
     const o = tail.match(/--out\s+(\S+)/);
     out.push({ kind: "out", text: `↻ Rendering: ${m?.[1] ?? "cinematic shot"} (Nano Banana Pro)` });
-    out.push({ kind: "ok", text: `✓ Saved to ${o?.[1] ?? "shot.png"} · 1 Aura` });
+    out.push({ kind: "ok", text: `✓ Saved to ${o?.[1] ?? "shot.png"} · 10 Aura` });
   } else if (sub === "video") {
     const m = tail.match(/--prompt\s+"([^"]+)"/);
     out.push({
       kind: "out",
       text: `↻ Generating 5s video: ${m?.[1] ?? "cinematic motion"} (Seedance 2.0)`,
     });
-    out.push({ kind: "ok", text: "✓ Saved to clip.mp4 · 10 Aura" });
+    out.push({ kind: "ok", text: "✓ Saved to clip.mp4 · 100 Aura" });
   } else if (sub === "lipsync") {
     out.push({ kind: "out", text: "↻ Aligning audio → mouth shapes (Sync 1.9)" });
-    out.push({ kind: "ok", text: "✓ Saved to lipsync.mp4 · 6 Aura" });
+    out.push({ kind: "ok", text: "✓ Saved to lipsync.mp4 · 60 Aura" });
   } else {
     out.push({ kind: "err", text: `unknown subcommand: ${sub ?? "(none)"}` });
   }

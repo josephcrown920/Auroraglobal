@@ -15,6 +15,9 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+button:not(:disabled), select:not(:disabled) { cursor: pointer; }
+button:disabled, select:disabled { cursor: not-allowed; }
+
 html, body, #root {
   height: 100%;
   background: var(--bg);
