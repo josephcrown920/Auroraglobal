@@ -3,6 +3,7 @@ import { z } from "zod";
 import { generateText } from "ai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertOwnedReferenceImage } from "./url-guard";
 
 function getLLM() {
   if (process.env.GEMINI_API_KEY) {
@@ -190,18 +191,31 @@ export const generateSceneImagesFromRef = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z
       .object({
+        // referenceBase64 is ONLY for a transient client-side upload in the same
+        // request — it cannot be used to bypass the ownership check for a stored URL.
+        // To use a stored studio asset as the reference, pass referenceUrl instead;
+        // ownership will be verified against the authenticated user's assets.
         referenceBase64: z.string().min(1),
         referenceMimeType: z.string().min(1),
         prompts: z.array(z.string().min(1)).min(1).max(30),
         aspectRatio: z.string().default("4:5"),
+        // Optional: if provided, this URL is ownership-checked before generation.
+        referenceUrl: z.string().url().optional(),
       })
       .parse(d),
   )
   .handler(
     async ({
       data,
+      context,
     }): Promise<{ results: { prompt: string; imageBase64: string | null; error: string | null }[] }> => {
-      const { referenceBase64, referenceMimeType, prompts, aspectRatio } = data;
+      const { referenceBase64, referenceMimeType, prompts, aspectRatio, referenceUrl } = data;
+
+      // Ownership guard: if the caller supplied a stored URL alongside the base64,
+      // confirm it belongs to them before using it for generation.
+      if (referenceUrl) {
+        await assertOwnedReferenceImage(referenceUrl, context.userId);
+      }
 
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) throw new Error("GEMINI_API_KEY not configured");

@@ -14,7 +14,7 @@ import { selectVideoModel, inferAspectRatio } from "./model-selector";
 import { listAvatars, getAvatarByName, createAvatar, type CreateAvatarInput } from "./avatars.server";
 import { hasActiveWorkerForKind, type GenerateKind } from "@/lib/orchestrator.server";
 import { buildMimicMotionRequest, MOTION_TYPES, CAMERA_MOVEMENTS } from "@/lib/motion-workflows.server";
-import { assertTrustedUrl } from "@/lib/url-guard";
+import { assertTrustedUrl, assertOwnedReferenceImage } from "@/lib/url-guard";
 import { COST_UGC_AD, COST_CAMPAIGN_ITEM, buildCampaignVariations } from "@/lib/ugc.server";
 import { computeCost } from "@/lib/pricing";
 
@@ -131,6 +131,9 @@ export interface ToolDeps {
   enqueueJob: (userId: string, input: EnqueueJobInput) => Promise<{ jobId: string; generationId: string; preview: boolean }>;
   listJobs: (userId: string) => Promise<JobListRow[]>;
   cancelJob: (userId: string, jobId: string) => Promise<{ ok: true }>;
+  // Ownership gate: throws with a caller-facing 403-like message when the URL is
+  // not owned by userId.  Injected so unit tests can use a fake without a real DB.
+  assertOwnedRef: (url: string, userId: string) => Promise<void>;
 }
 
 export const defaultToolDeps: ToolDeps = {
@@ -161,6 +164,7 @@ export const defaultToolDeps: ToolDeps = {
   enqueueJob: enqueueJobForUser,
   listJobs: async (userId) => (await listJobsForUser(userId)) as JobListRow[],
   cancelJob: cancelJobForUser,
+  assertOwnedRef: assertOwnedReferenceImage,
 };
 
 // ─── Identity lock (exported for unit tests) ──────────────────────────────────
@@ -306,6 +310,12 @@ export async function generateVideoTool(args: z.infer<typeof generateVideoSchema
 
 export async function imageToVideoTool(args: z.infer<typeof imageToVideoSchema>, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
   try {
+    // Ownership guard: the reference image must belong to the caller.
+    try {
+      await deps.assertOwnedRef(args.image_url, ctx.userId);
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e));
+    }
     const selection = selectVideoModel(args.prompt, args.model);
     const aspect = args.aspect_ratio ?? inferAspectRatio(args.prompt);
     const duration = clampDuration(args.duration);
@@ -467,6 +477,12 @@ export async function animateFromDrivingVideoTool(args: z.infer<typeof animateFr
     } catch (e) {
       return err(e instanceof Error ? e.message : String(e));
     }
+    // Ownership guard: the reference subject image must belong to the caller.
+    try {
+      await deps.assertOwnedRef(args.image_url, ctx.userId);
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e));
+    }
     if (!(await deps.hasActiveWorkerForKind("motion"))) return err(NO_MOTION_BACKEND_MSG);
 
     const payload = buildMimicMotionRequest({
@@ -502,6 +518,12 @@ export async function performanceReskinTool(args: z.infer<typeof performanceResk
       assertTrustedUrl(args.performance_video_url);
       assertTrustedUrl(args.avatar_image_url);
       if (args.audio_url) assertTrustedUrl(args.audio_url);
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e));
+    }
+    // Ownership guard: the avatar reference image must belong to the caller.
+    try {
+      await deps.assertOwnedRef(args.avatar_image_url, ctx.userId);
     } catch (e) {
       return err(e instanceof Error ? e.message : String(e));
     }
@@ -727,6 +749,14 @@ export const cancelJobSchema = z.object({
 
 export async function submitJobTool(args: z.infer<typeof submitJobSchema>, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
   try {
+    // Ownership guard: every reference image must belong to the caller.
+    for (const url of args.image_urls ?? []) {
+      try {
+        await deps.assertOwnedRef(url, ctx.userId);
+      } catch (e) {
+        return err(e instanceof Error ? e.message : String(e));
+      }
+    }
     const input: EnqueueJobInput = {
       kind: args.kind,
       prompt: args.prompt,

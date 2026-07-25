@@ -65,14 +65,15 @@ export const Route = createFileRoute("/")({
 });
 
 const HERO_SLIDES = [
-  "/landing/hero-artist.jpg",
-  "/landing-photo-1.jpeg",
-  "/landing-photo-2.jpeg",
-  "/landing-photo-3.jpeg",
-  "/landing-photo-4.jpeg",
-  "/landing-photo-5.jpeg",
-  "/landing/gallery-1.jpg",
-  "/landing/gallery-2.jpg",
+  "/hero/hero-1.png",
+  "/hero/hero-2.png",
+  "/hero/hero-3.png",
+  "/hero/hero-4.png",
+  "/hero/hero-5.png",
+  "/hero/hero-6.png",
+  "/hero/hero-7.png",
+  "/hero/hero-8.png",
+  "/hero/hero-9.png",
 ];
 
 const FEATURED_TOOLS = [
