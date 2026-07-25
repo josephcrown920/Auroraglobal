@@ -27,6 +27,20 @@ interface VideoGen {
 type Stage = "idle" | "enhancing" | "submitting" | "polling" | "finalizing" | "done" | "error";
 
 const DURATIONS = [10, 15, 20, 30, 45, 60, 90];
+const DIRECTORS = [
+  { id: "auto", label: "Auto fastest", desc: "Use the first configured low-latency brain." },
+  { id: "anthropic", label: "Claude", desc: "Prefer Anthropic Claude when ANTHROPIC_API_KEY is configured." },
+  { id: "xai", label: "Grok xAI", desc: "Prefer Grok when XAI_API_KEY is configured." },
+  { id: "openrouter", label: "Fable / OpenRouter", desc: "Prefer the OpenRouter lane for custom Fable-style routing." },
+] as const;
+type DirectorProvider = (typeof DIRECTORS)[number]["id"];
+
+const MODES = [
+  { id: "direct", label: "Direct-to-camera", icon: Camera, desc: "Intimate, personal delivery — speaks straight to the viewer" },
+  { id: "cinematic", label: "Cinematic narration", icon: Film, desc: "Authoritative voiceover with a sense of place and movement" },
+] as const;
+type ModeId = (typeof MODES)[number]["id"];
+
 const POLL_INTERVAL_MS = 5000;
 const POLL_TIMEOUT_MS = 10 * 60_000;
 const STALE_JOB_MS = 20 * 60_000;
@@ -118,12 +132,12 @@ function HistoryItem({ g }: { g: VideoGen }) {
 }
 
 export function VideoAgentUI({ session }: Props) {
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput]       = useState("");
-  const [loadingChat, setLoadingChat]   = useState(false);
-  const [script, setScript]             = useState("");
-  const [mode, setMode]                 = useState<"direct" | "cinematic">("direct");
-  const [orientation, setOrientation]   = useState<"landscape" | "portrait">("landscape");
+  const [view, setView] = useState<View>("project");
+  const [idea, setIdea] = useState("");
+  const [script, setScript] = useState("");
+  const [mode, setMode] = useState<ModeId>("direct");
+  const [orientation, setOrientation] = useState<"landscape" | "portrait">("landscape");
+  const [directorProvider, setDirectorProvider] = useState<DirectorProvider>("auto");
   const [targetSeconds, setTargetSeconds] = useState(30);
   const [stage, setStage]               = useState<Stage>("idle");
   const [resultUrl, setResultUrl]       = useState<string | null>(null);
@@ -208,9 +222,10 @@ export function VideoAgentUI({ session }: Props) {
     setStage("enhancing");
     setScript("");
     try {
-      const res = await enhanceScript({ prompt: idea, targetSeconds, directToCamera: mode === "direct" }, token);
-      const assistantMsg: ChatMessage = { id: crypto.randomUUID(), role: "assistant", content: res.script, created_at: new Date().toISOString() };
-      setChatMessages(prev => [...prev, assistantMsg]);
+      const res = await enhanceScript(
+        { prompt: idea, targetSeconds, directToCamera: mode === "direct", directorProvider },
+        token,
+      );
       setScript(res.script);
       setStage("idle");
     } catch (e) {
@@ -391,12 +406,130 @@ export function VideoAgentUI({ session }: Props) {
                     borderRadius: m.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
                   }}
                 >
-                  {m.role === "assistant" && (
-                    <div className="mb-2 text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">Director</div>
-                  )}
-                  <p className="m-0 whitespace-pre-wrap text-sm leading-relaxed text-[var(--text)]">{m.content}</p>
-                  {m.role === "assistant" && (
-                    <div className="mt-3 flex flex-wrap gap-2">
+                  <div style={{
+                    width: 34, height: 34, borderRadius: 9, flexShrink: 0,
+                    background: "var(--bg)", border: "1px solid var(--border)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 13, fontWeight: 800, color: "var(--text)",
+                  }}>
+                    {o.id}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: "var(--text)" }}>{o.label}</span>
+                      <span style={{ fontSize: 11, color: "var(--text-muted)", opacity: 0.7 }}>· {o.setting}</span>
+                    </div>
+                    <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>{o.key}</p>
+                    {o.note && (
+                      <p style={{ fontSize: 11, color: "#f59e0b", margin: "4px 0 0", fontWeight: 600 }}>★ {o.note}</p>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                    <OutfitStatusIcon status={o.status} />
+                    <OutfitStatusLabel status={o.status} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Post-processing guide */}
+          <div style={{
+            marginTop: 20, borderRadius: 14, border: "1px solid var(--border)",
+            background: "var(--bg-card)", padding: "16px 18px",
+          }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: "var(--text)", marginBottom: 10 }}>
+              Post-processing each clip (CapCut)
+            </div>
+            <ol style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 6 }}>
+              {[
+                "Lay 24-second hook audio underneath — align Josh's movement to the beat drop",
+                "Colour grade: golden hour = warm orange lift + teal shadows · night = deep blue/teal, crushed blacks",
+                "Motion blur on officers (Video Effects → Motion Blur medium) — sells the treadmill illusion",
+                "Vignette 25–35% — darkens edges, focuses eye on Josh",
+                "Export: 1080×1920 vertical (TikTok/Reels) or 1920×1080 horizontal (YouTube)",
+                "Caption: \"[Outfit vibe] 🔥 They ran full speed. Didn't move an inch. #NBAJosh #LoopingOfficers #OutTheMud\"",
+              ].map((step, i) => (
+                <li key={i} style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6 }}>{step}</li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      )}
+
+      {/* ── STUDIO VIEW (HeyGen) ── */}
+      {view === "studio" && (
+        <>
+          <div style={{
+            borderBottom: "1px solid var(--border)",
+            padding: "12px 20px",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            background: "oklch(0.085 0.022 272 / 0.5)",
+            overflowX: "auto",
+          }}>
+            <div style={{ marginLeft: 4 }}>
+              <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 3 }}>
+                HeyGen avatar · your script, your face, any scene
+              </p>
+              <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 0 }}>
+                Identity photo + outfit + scene reference → AI script → video in ~60–120s
+              </p>
+            </div>
+          </div>
+
+          <main style={{ flex: 1, padding: "28px 20px", maxWidth: 760, margin: "0 auto", width: "100%" }}>
+            <Section num={1} label="Write your script">
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <textarea
+                  value={script || idea}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (script) setScript(val); else setIdea(val);
+                  }}
+                  placeholder="Paste your raw idea, rough notes, or draft script here…"
+                  rows={7}
+                  disabled={busy}
+                  style={{
+                    width: "100%", background: "var(--bg-input)",
+                    border: "1px solid var(--border)", borderRadius: 12,
+                    padding: "14px 16px", color: "var(--text)", fontSize: 14,
+                    resize: "vertical", outline: "none", lineHeight: 1.6,
+                    transition: "border-color 0.15s",
+                  }}
+                  onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
+                  onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+                />
+
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {DIRECTORS.map((d) => {
+                    const active = directorProvider === d.id;
+                    return (
+                      <button
+                        key={d.id}
+                        onClick={() => setDirectorProvider(d.id)}
+                        disabled={busy}
+                        title={d.desc}
+                        style={{
+                          padding: "7px 11px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+                          border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
+                          background: active ? "oklch(0.72 0.2 300 / 0.12)" : "transparent",
+                          color: active ? "var(--accent)" : "var(--text-muted)",
+                          cursor: busy ? "not-allowed" : "pointer", transition: "all 0.15s",
+                        }}
+                      >
+                        {d.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  {MODES.map((m) => {
+                    const Icon = m.icon;
+                    const active = mode === m.id;
+                    return (
                       <button
                         onClick={() => { setScript(m.content); void handleGenerate(m.content); }}
                         disabled={busy}

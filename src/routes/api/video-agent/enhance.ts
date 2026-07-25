@@ -31,6 +31,7 @@ const EnhanceSchema = z.object({
   targetSeconds: z.number().int().min(3).max(300).optional(),
   directToCamera: z.boolean().optional(),
   styleId: z.string().optional(),
+  directorProvider: z.enum(["auto", "anthropic", "xai", "openrouter"]).optional(),
 });
 
 const ScriptOutputSchema = z.object({
@@ -128,6 +129,7 @@ export const Route = createFileRoute("/api/video-agent/enhance")({
               historyContext +
               `\n\nNew request from creator:\n${data.prompt}\n\nReturn JSON: {"script": "..."}`,
             schema: ScriptOutputSchema,
+            preferredProvider: data.directorProvider,
           });
 
           const script = sanitizeVideoAgentScript(output.script);

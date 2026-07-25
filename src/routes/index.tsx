@@ -9,56 +9,8 @@ import { AdminLandingEditor } from "@/components/AdminLandingEditor";
 
 export const Route = createFileRoute("/")({
   head: () => ({
-    meta: [
-      { title: "Aurora — AI Creative Studio for Artists & Performers" },
-      { name: "description", content: "Turn one photo into magazine-grade performance shots, music-video stills, lip-sync videos and UGC ads — in seconds. Built by pro artists, for artists who need to scale massively." },
-      { property: "og:title", content: "Aurora — AI Creative Studio for Artists & Performers" },
-      { property: "og:description", content: "Turn one photo into magazine-grade performance shots, music-video stills, lip-sync videos and UGC ads — in seconds. Built by pro artists, for artists who need to scale massively." },
-      { property: "og:url", content: CANONICAL_ORIGIN },
-    ],
-    links: [{ rel: "canonical", href: CANONICAL_ORIGIN }],
-    scripts: [
-      {
-        type: "application/ld+json",
-        children: JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "FAQPage",
-          mainEntity: [
-            {
-              "@type": "Question",
-              name: "Who owns the rights to what I generate?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "You do. Every generation on Aurora is 100% owned by the artist who created it. Full commercial rights are included from your very first click.",
-              },
-            },
-            {
-              "@type": "Question",
-              name: "Is Aurora training on my uploads?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "No. Aurora runs a closed-loop model. Your references and prompts are never used for training unless you explicitly opt in to a private model for your project.",
-              },
-            },
-            {
-              "@type": "Question",
-              name: "Can I export 4K stills and video?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "Yes. Pro and Studio tiers include 4K stills and 4K/60fps motion exports for music-video backgrounds, tour visuals, and DSP canvas loops.",
-              },
-            },
-            {
-              "@type": "Question",
-              name: "Do I need any design or prompting experience?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "No. Aurora is a director-first interface — describe the shoot in plain language and drop references. It handles the technical craft.",
-              },
-            },
-          ],
-        }),
-      },
+    links: [
+      { rel: "preload", as: "image", href: "/landing/hero-artist.jpg", fetchPriority: "high" },
     ],
   }),
   component: LandingPage,
@@ -236,22 +188,17 @@ function LandingPage() {
       <header className="relative -mt-14 flex min-h-screen flex-col justify-end overflow-hidden pb-20 px-5">
         {/* Slideshow */}
         <div className="absolute inset-0 z-0">
-          {HERO_SLIDES.map((src, i) => (
-            <img
-              key={src}
-              src={src}
-              alt=""
-              aria-hidden="true"
-              width={1200}
-              height={1600}
-              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-1000 ${
-                i === slideIdx ? "opacity-100" : "opacity-0"
-              }`}
-              fetchPriority={i === 0 ? "high" : "low"}
-            />
-          ))}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/25" />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/25 to-transparent" />
+          <img
+            src="/landing/hero-artist.jpg"
+            alt="Cinematic AI-generated artist portrait"
+            width={1920}
+            height={1200}
+            className="h-full w-full object-cover"
+            fetchPriority="high"
+            decoding="async"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-zinc-950/60" />
+          <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/80 via-zinc-950/20 to-transparent" />
         </div>
 
         {/* Text content */}
