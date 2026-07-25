@@ -134,6 +134,15 @@ export interface ToolDeps {
   // Ownership gate: throws with a caller-facing 403-like message when the URL is
   // not owned by userId.  Injected so unit tests can use a fake without a real DB.
   assertOwnedRef: (url: string, userId: string) => Promise<void>;
+  // Batch lip-sync dispatcher. Kept behind deps (dynamic import in the default)
+  // so unit tests can stub it and prove the ownership guard fires BEFORE any
+  // job is dispatched or charged.
+  runBatchLipsync: (input: {
+    userId: string;
+    sourceUrls: string[];
+    audioUrl: string;
+    engine: string;
+  }) => Promise<Record<string, unknown>>;
 }
 
 export const defaultToolDeps: ToolDeps = {
@@ -165,6 +174,12 @@ export const defaultToolDeps: ToolDeps = {
   listJobs: async (userId) => (await listJobsForUser(userId)) as JobListRow[],
   cancelJob: cancelJobForUser,
   assertOwnedRef: assertOwnedReferenceImage,
+  runBatchLipsync: async (input) => {
+    const { runBatchLipsyncJob } = await import("@/lib/lipsync.server");
+    return (await runBatchLipsyncJob(
+      input as Parameters<typeof runBatchLipsyncJob>[0],
+    )) as Record<string, unknown>;
+  },
 };
 
 // ─── Identity lock (exported for unit tests) ──────────────────────────────────
@@ -561,6 +576,12 @@ export async function performanceReskinTool(args: z.infer<typeof performanceResk
 
 export async function createAvatarTool(args: z.infer<typeof createAvatarSchema>, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
   try {
+    // Ownership guard: training/reference photos must belong to the caller — a
+    // crafted request could otherwise build a persona from (and permanently
+    // re-host as its preview) another user's private studio asset.
+    for (const url of args.image_urls ?? []) {
+      await deps.assertOwnedRef(url, ctx.userId);
+    }
     const avatar = await deps.createAvatar(ctx.userId, args);
     const trained = avatar.training_status !== "completed";
     return ok({
@@ -835,16 +856,18 @@ export const batchLipsyncSchema = z.object({
     .describe("Lip-sync engine for every item. Default: heygen-photo"),
 });
 
-export async function batchLipsyncTool(args: z.infer<typeof batchLipsyncSchema>, ctx: ToolCtx): Promise<ToolResult> {
+export async function batchLipsyncTool(args: z.infer<typeof batchLipsyncSchema>, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
   try {
     assertTrustedUrl(args.audio_url);
-    for (const u of args.image_urls) assertTrustedUrl(u);
-    const { runBatchLipsyncJob } = await import("@/lib/lipsync.server");
-    const result = await runBatchLipsyncJob({
+    // Ownership guard (not just SSRF): every photo must belong to the caller —
+    // a crafted request could otherwise lip-sync (and re-host) another user's
+    // private photo. Runs BEFORE dispatch so nothing is ever charged.
+    for (const u of args.image_urls) await deps.assertOwnedRef(u, ctx.userId);
+    const result = await deps.runBatchLipsync({
       userId: ctx.userId,
       sourceUrls: args.image_urls,
       audioUrl: args.audio_url,
-      engine: (args.engine ?? "heygen-photo") as never,
+      engine: args.engine ?? "heygen-photo",
     });
     return ok(result);
   } catch (e) {

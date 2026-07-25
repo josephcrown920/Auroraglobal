@@ -15,15 +15,9 @@ It rejects everything else (foreign studio objects, arbitrary URLs), running the
 
 **How to apply:** call it (async) right after zod validation, before any credit reservation, for every new endpoint that takes a "character image" URL.
 
-## Coverage status (as of Task #408)
+## Known intentional exclusions
 
-Now covered:
-- Kids Story, motion transfer imageUrl, performance reskin avatarImageUrl — existing (pre-Task #408)
-- **UGC** (`generateSceneImagesFromRef` — `referenceUrl` field; note: base64 image data is transient-only, never stored as a URL so not guarded) — `src/lib/ugc-line.functions.ts`
-- **Performance Shot** (`generatePerformanceShot` — loops all `imageUrls`) — `src/lib/studio.functions.ts`
-- **Agent** (`runAuroraAgent` — `referenceImages[]`; `refineAuroraPlan` — `referenceImages[]`; also now requires auth) — `src/lib/agent.functions.ts`
-- **MCP tools** (`imageToVideoTool`, `animateFromDrivingVideoTool`, `performanceReskinTool`, `submitJobTool`) via injected `ToolDeps.assertOwnedRef` — `src/lib/mcp/tools.server.ts`
-
-Still open gaps:
-- UGC `remixImageUrl` / TikTok-remix `sourceImageUrl` (driving-video-like inputs, not character references — intentional exclusion, but worth a future review)
-- Any new endpoint added that takes a "characterImageUrl" or similar field — the guard must be added at that time
+- UGC `remixImageUrl` / TikTok-remix `sourceImageUrl` are driving-video-like inputs, not character references — deliberately unguarded, but worth a future review.
+- Base64 image data is transient-only (never stored as a URL) so it is not guarded.
+- Any new endpoint that takes a "characterImageUrl"-style field must add the guard at introduction time; grep for `assertOwnedReferenceImage` call sites to see current coverage rather than trusting a list here.
+- Admin-only smoke chains must not bypass the guard: stage the external reference into the smoke user's own studio folder first, then pass it through the same shared enqueue path as a real user.

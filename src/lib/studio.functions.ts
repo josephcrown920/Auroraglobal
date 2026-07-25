@@ -87,20 +87,42 @@ const GenerateSchema = z.object({
   model: z.string().default("google/nano-banana"),
 });
 
+// Injectable seams for _enqueuePerformanceShot — unit tests stub these to
+// prove the ownership guard fires BEFORE any credits are reserved, without a
+// real DB. Production callers always use the defaults.
+type EnqueueShotDeps = {
+  assertOwned: (url: string, userId: string) => Promise<void>;
+  reserve: typeof reserveGenerationJob;
+  track: typeof trackServer;
+};
+
 // Internal canonical dispatch — shared by the generatePerformanceShot handler
 // AND runSmokeStudioChain so the two can NEVER drift on critical params.
-async function _enqueuePerformanceShot(
+// The reference-image ownership guard lives HERE (not in the handler) so every
+// caller — server fn, smoke chain, and any future internal path — enforces it.
+// Exported for unit tests only.
+export async function _enqueuePerformanceShot(
   userId: string,
   data: z.infer<typeof GenerateSchema>,
+  deps: EnqueueShotDeps = {
+    assertOwned: assertOwnedReferenceImage,
+    reserve: reserveGenerationJob,
+    track: trackServer,
+  },
 ): Promise<{ jobId: string; generationId: string }> {
-  const out = await reserveGenerationJob(userId, "image", data.prompt, COST_IMAGE, {
+  // Ownership guard: each reference image must belong to the caller.
+  // Purely text-to-image calls (empty imageUrls) pass through without a check.
+  for (const url of data.imageUrls) {
+    await deps.assertOwned(url, userId);
+  }
+  const out = await deps.reserve(userId, "image", data.prompt, COST_IMAGE, {
     kind: "image",
     prompt: data.prompt,
     imageUrls: data.imageUrls,
     model: data.model,
     motionVideoUrl: data.motionVideoUrl ?? null,
   });
-  await trackServer("performance_shot_enqueued", userId, { jobId: out.jobId });
+  await deps.track("performance_shot_enqueued", userId, { jobId: out.jobId });
   return out;
 }
 
@@ -108,15 +130,11 @@ async function _enqueuePerformanceShot(
 // then returns immediately. The jobs/tick worker (running independently of
 // this request) renders it, so the result survives the tab closing — the
 // client polls getJobStatus (or listGenerations) to learn when it's ready.
+// Ownership of data.imageUrls is enforced inside _enqueuePerformanceShot.
 export const generatePerformanceShot = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => GenerateSchema.parse(input))
   .handler(async ({ data, context }) => {
-    // Ownership guard: each reference image must belong to the caller.
-    // Purely text-to-image calls (empty imageUrls) pass through without a check.
-    for (const url of data.imageUrls) {
-      await assertOwnedReferenceImage(url, context.userId);
-    }
     return _enqueuePerformanceShot(context.userId, data);
   });
 
@@ -339,6 +357,27 @@ async function awaitSmokeJob(
   throw new Error("Studio chain smoke: job timed out after ~5 minutes");
 }
 
+/** Ensure the smoke chain's reference image is an asset the given user OWNS.
+ *  Already-owned URLs (own studio upload / saved avatar / own generation
+ *  result) pass through untouched; anything else is fetched (SSRF-guarded)
+ *  and re-uploaded into the user's own studio folder. */
+async function ensureOwnedSmokeReference(userId: string, url: string): Promise<string> {
+  try {
+    await assertOwnedReferenceImage(url, userId);
+    return url;
+  } catch {
+    // Not owned — stage a caller-owned copy below.
+  }
+  assertTrustedUrl(url);
+  const { bytes, mime } = await fetchToBytes(url);
+  const path = `${userId}/smoke/reference-${crypto.randomUUID()}.jpg`;
+  const { error } = await supabaseAdmin.storage
+    .from("studio")
+    .upload(path, bytes, { contentType: mime || "image/jpeg", upsert: true });
+  if (error) throw new Error(`Smoke reference staging failed: ${error.message}`);
+  return supabaseAdmin.storage.from("studio").getPublicUrl(path).data.publicUrl;
+}
+
 /** Smoke-test the full three-stage studio chain through the queue path.
  *  Calls the SAME internal dispatch helpers the production server fns use
  *  (_enqueuePerformanceShot → _enqueueVideoFromImage → _enqueueLipSync), so
@@ -360,11 +399,17 @@ export async function runSmokeStudioChain(
     tpl.lipsyncModel ?? TEMPLATE_DEFAULTS.lipsyncModel,
   );
 
+  // Stage 0: _enqueuePerformanceShot enforces the reference-image ownership
+  // guard for EVERY caller (no smoke bypass). The canonical smoke selfie is an
+  // external asset, so stage a copy into the smoke user's own studio folder —
+  // the chain then passes the exact same guard a real user does.
+  const ownedRef = await ensureOwnedSmokeReference(userId, referenceImageUrl);
+
   // Stage 1: generate the performance still — same dispatch as generatePerformanceShot.
   const imgPrompt = tpl.imagePrompt ?? "smoke test: studio performance portrait";
   const img = await _enqueuePerformanceShot(userId, {
     prompt: imgPrompt,
-    imageUrls: [referenceImageUrl],
+    imageUrls: [ownedRef],
     model: imageModel,
     motionVideoUrl: null,
   });
