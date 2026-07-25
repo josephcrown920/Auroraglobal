@@ -96,6 +96,8 @@
 - [Aurora Partners referral loop](aurora-partners-referral.md) — partners.ts constants are the only copy source; grants dedup via partial ledger index + 23505=no-op; validate code BEFORE the CAS attach.
 - [Smoke steps must share production dispatch](smoke-shared-dispatch.md) — reviewers reject "mirror" reconstructions; extract _enqueue*/_dispatch* helpers called by BOTH the handler and the smoke runner.
 - [Vite dep optimizer crawl deadlock](vite-dep-optimizer-crawl-deadlock.md) — deps_temp_* piling up with no deps/ = optimizer never commits; dev hangs on optimized-dep imports; fix holdUntilCrawlEnd:false.
+- [vite optimizeDeps vs TanStack Start](vite-optimizedeps-start-hydration.md) — "@tanstack/react-start" in optimizeDeps.include overrides the Start plugin's exclude → AsyncLocalStorage crashes the browser → app-wide dead UI (native form submits, dead buttons).
+- [HF account inference credits](hf-account-credit-block.md) — HF_TOKEN valid but free-tier monthly inference credits depleted → ALL router models 402; account-level, not a slug/code bug; needs PRO or billing.
 - [Kling subscription gate](kling-subscription-gate.md) — Kling burned real money as a test fallback; subscriber-flag only, out of fallback chains, excluded in BOTH free-mode checks.
 - [Adding a $0 external video adapter](zero-cost-video-adapter-checklist.md) — five registration touch points incl. two separate free-mode exclusion checks; missing one silently misroutes.
 - [Tutorial guide PDF is a manual snapshot](tutorial-pdf-regeneration.md) — /tutorial-guide.pdf is a static Playwright print of /tutorial; regenerate + copy to all three public locations after any tutorial content edit.
