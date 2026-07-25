@@ -13,7 +13,7 @@
     "@supabase/supabase-js": "^2.49.8"
   },
   "devDependencies": {
-    "@babel/core": "^7.25.2",
+    "@babel/core": "^8.0.1",
     "@expo-google-fonts/inter": "^0.4.0",
     "@expo/cli": "57.0.9",
     "@expo/vector-icons": "^15.0.3",
