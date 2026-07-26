@@ -18,6 +18,7 @@ import { LIPSYNC_EXAMPLE_PRESETS } from "@/lib/example-presets";
 import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
 import { hasCompletedFirstGen, hasDismissedTour, isFirstPageVisit, markFirstGenComplete, markPageVisited } from "@/lib/first-run";
 import { computeCost, lipsyncEngineCost, LIPSYNC_ENGINE_MODEL, type LipsyncEngine } from "@/lib/pricing";
+import { saveAssetToDisk } from "@/lib/save";
 import { AUDIO_ACCEPT } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/lipsync")({ component: LipSyncStudioPage });
@@ -340,23 +341,10 @@ function LipSyncForm() {
     setStatus("idle"); setProgress(0); setPlaying(false); setResultUrl(null); setErrorMsg(null);
   };
 
-  const download = async () => {
+  const download = () => {
     if (!resultUrl) return;
-    try {
-      const res = await fetch(resultUrl);
-      if (!res.ok) throw new Error(`fetch ${res.status}`);
-      const blob = await res.blob();
-      const objUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = objUrl;
-      a.download = `synced-${((isPhotoEngine ? image?.name : video?.name) ?? "clip").replace(/\.[^.]+$/, "")}.mp4`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(objUrl);
-    } catch {
-      toast.error("Download failed — try right-clicking the video and choosing Save.");
-    }
+    const filename = `synced-${((isPhotoEngine ? image?.name : video?.name) ?? "clip").replace(/\.[^.]+$/, "")}.mp4`;
+    saveAssetToDisk(resultUrl, filename);
   };
 
   const stageLabel: Record<JobStatus, string> = {
@@ -905,23 +893,7 @@ function BatchLipSyncForm() {
                 {r.status === "done" && r.resultUrl && (
                   <button
                     type="button"
-                    onClick={async () => {
-                      try {
-                        const res = await fetch(r.resultUrl!);
-                        if (!res.ok) throw new Error(`fetch ${res.status}`);
-                        const blob = await res.blob();
-                        const objUrl = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = objUrl;
-                        a.download = `batch-lipsync-${i + 1}.mp4`;
-                        document.body.appendChild(a);
-                        a.click();
-                        a.remove();
-                        URL.revokeObjectURL(objUrl);
-                      } catch {
-                        toast.error("Download failed — try right-clicking the video to save.");
-                      }
-                    }}
+                    onClick={() => saveAssetToDisk(r.resultUrl!, `batch-lipsync-${i + 1}.mp4`)}
                     className="flex items-center justify-center gap-1.5 text-[11px] py-1.5 bg-white/5 hover:bg-white/10 text-white/80 w-full"
                   >
                     <Download className="size-3" /> Save

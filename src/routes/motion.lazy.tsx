@@ -19,6 +19,7 @@ import { UploadSlot } from "@/components/studio/UploadSlot";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, ArrowLeft, Loader2, Film, Wand2, Camera, Clapperboard, Users, WifiOff, Music2, Download, Zap } from "lucide-react";
+import { saveAssetToDisk } from "@/lib/save";
 import { PageSpinner } from "@/components/PageSpinner";
 import { AuthRedirect } from "@/components/AuthRedirect";
 import { toast } from "sonner";
@@ -977,10 +978,7 @@ function MotionStudio() {
                         <AutoplayVideo src={latestReskin.result_video_url} className="w-full h-full object-cover" controls playsInline loop />
                         <button
                           type="button"
-                          onClick={() => fetch(latestReskin.result_video_url).then((r) => r.blob()).then((b) => {
-                            const a = document.createElement("a"); a.href = URL.createObjectURL(b);
-                            a.download = `performance-shot-${Date.now()}.mp4`; a.click();
-                          })}
+                          onClick={() => saveAssetToDisk(latestReskin.result_video_url, `performance-shot-${Date.now()}.mp4`)}
                           className="absolute bottom-3 right-3 flex items-center gap-1 rounded-lg border border-white/20 bg-black/60 px-2.5 py-1.5 text-xs text-white backdrop-blur-sm hover:bg-black/80 transition-colors"
                         >
                           <Download className="size-3" /> Download
@@ -1009,10 +1007,7 @@ function MotionStudio() {
                             <AutoplayVideo src={g.result_video_url} className="w-full h-full object-cover" loop playsInline />
                             <button
                               type="button"
-                              onClick={() => fetch(g.result_video_url).then((r) => r.blob()).then((b) => {
-                                const a = document.createElement("a"); a.href = URL.createObjectURL(b);
-                                a.download = `performance-${Date.now()}.mp4`; a.click();
-                              })}
+                              onClick={() => saveAssetToDisk(g.result_video_url, `performance-${Date.now()}.mp4`)}
                               className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 bg-black/70 rounded p-1 text-white transition-opacity"
                             >
                               <Download className="size-3" />
@@ -1360,10 +1355,7 @@ function MotionStudio() {
                         <AutoplayVideo src={latestMotion.result_video_url} className="w-full h-full object-cover" controls playsInline loop />
                         <button
                           type="button"
-                          onClick={() => fetch(latestMotion.result_video_url).then((r) => r.blob()).then((b) => {
-                            const a = document.createElement("a"); a.href = URL.createObjectURL(b);
-                            a.download = `motion-transfer-${Date.now()}.mp4`; a.click();
-                          })}
+                          onClick={() => saveAssetToDisk(latestMotion.result_video_url, `motion-transfer-${Date.now()}.mp4`)}
                           className="absolute bottom-3 right-3 flex items-center gap-1 rounded-lg border border-white/20 bg-black/60 px-2.5 py-1.5 text-xs text-white backdrop-blur-sm hover:bg-black/80 transition-colors"
                         >
                           <Download className="size-3" /> Download
@@ -1389,10 +1381,7 @@ function MotionStudio() {
                             <AutoplayVideo src={g.result_video_url} className="w-full h-full object-cover" loop playsInline />
                             <button
                               type="button"
-                              onClick={() => fetch(g.result_video_url).then((r) => r.blob()).then((b) => {
-                                const a = document.createElement("a"); a.href = URL.createObjectURL(b);
-                                a.download = `motion-${Date.now()}.mp4`; a.click();
-                              })}
+                              onClick={() => saveAssetToDisk(g.result_video_url, `motion-${Date.now()}.mp4`)}
                               className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 bg-black/70 rounded p-1 text-white transition-opacity"
                             >
                               <Download className="size-3" />
@@ -1516,12 +1505,7 @@ function MotionStudio() {
                         </span>
                         <button
                           type="button"
-                          onClick={() => fetch(r.url).then((res) => res.blob()).then((b) => {
-                            const a = document.createElement("a");
-                            a.href = URL.createObjectURL(b);
-                            a.download = `shot-${Date.now()}.${r.kind === "video" ? "mp4" : "jpg"}`;
-                            a.click();
-                          })}
+                          onClick={() => saveAssetToDisk(r.url, `shot-${Date.now()}.${r.kind === "video" ? "mp4" : "jpg"}`)}
                           className="text-xs text-primary flex items-center gap-1"
                         >
                           <Download className="size-3" /> Save
@@ -1610,12 +1594,7 @@ function MotionStudio() {
                       <div className="p-2 flex justify-end">
                         <button
                           type="button"
-                          onClick={() => fetch(r.url).then((res) => res.blob()).then((b) => {
-                            const a = document.createElement("a");
-                            a.href = URL.createObjectURL(b);
-                            a.download = `live-avatar-${Date.now()}.mp4`;
-                            a.click();
-                          })}
+                          onClick={() => saveAssetToDisk(r.url, `live-avatar-${Date.now()}.mp4`)}
                           className="text-xs text-primary flex items-center gap-1"
                         >
                           <Download className="size-3" /> Save
