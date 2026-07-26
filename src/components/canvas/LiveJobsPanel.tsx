@@ -6,7 +6,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getMyProfile } from "@/lib/billing.functions";
 import { listGenerations } from "@/lib/studio.functions";
 import { cancelMyJob } from "@/lib/jobs.functions";
-import { Loader2, CheckCircle2, XCircle, Clock, Image as ImageIcon, Film, Mic, Crown, X } from "lucide-react";
+import { publishGeneration } from "@/lib/share.functions";
+import { saveAssetToDisk } from "@/lib/save";
+import { ShareMenu } from "@/components/share/ShareMenu";
+import { Loader2, CheckCircle2, XCircle, Clock, Image as ImageIcon, Film, Mic, Crown, X, Download } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
 // Gen type mirrors the masked shape returned by listGenerations server fn.
@@ -124,6 +127,8 @@ export function LiveJobsPanel() {
     refetchInterval: POLL_INTERVAL_MS,
     staleTime: 0,
   });
+
+  const publishFn = useServerFn(publishGeneration);
 
   const cancelMut = useMutation({
     mutationFn: (id: string) => cancelFn({ data: { id } }),
@@ -249,13 +254,43 @@ export function LiveJobsPanel() {
                               <X className="size-3" />
                             </button>
                           ) : isTerminal ? (
-                            <button
-                              onClick={() => dismiss(j.id)}
-                              className="opacity-0 group-hover:opacity-100 ml-1 p-0.5 rounded text-white/40 hover:text-white/70 transition-opacity"
-                              title="Dismiss"
-                            >
-                              <X className="size-3" />
-                            </button>
+                            <>
+                              {(thumb || videoThumb) && (
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      const url = videoThumb || thumb;
+                                      if (url) saveAssetToDisk(url, `aurora-${j.id.slice(0, 8)}.${videoThumb ? "mp4" : "png"}`);
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 ml-1 p-0.5 rounded text-white/40 hover:text-emerald-400 transition-opacity"
+                                    title="Download"
+                                  >
+                                    <Download className="size-3" />
+                                  </button>
+                                  <ShareMenu
+                                    compact
+                                    triggerClassName="opacity-0 group-hover:opacity-100 ml-0.5 p-0.5 rounded text-white/40 hover:text-violet-400 transition-opacity"
+                                    getShareTarget={async () => {
+                                      const r = await publishFn({ data: { id: j.id } });
+                                      const url = videoThumb || thumb;
+                                      return {
+                                        url: `${window.location.origin}${r.url}`,
+                                        text: j.prompt ?? undefined,
+                                        assetUrl: url,
+                                        filename: `aurora-${j.id.slice(0, 8)}.${videoThumb ? "mp4" : "png"}`,
+                                      };
+                                    }}
+                                  />
+                                </>
+                              )}
+                              <button
+                                onClick={() => dismiss(j.id)}
+                                className="opacity-0 group-hover:opacity-100 ml-1 p-0.5 rounded text-white/40 hover:text-white/70 transition-opacity"
+                                title="Dismiss"
+                              >
+                                <X className="size-3" />
+                              </button>
+                            </>
                           ) : null}
                         </div>
                       </div>

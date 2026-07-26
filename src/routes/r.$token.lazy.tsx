@@ -3,6 +3,8 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { notFound } from "@tanstack/react-router";
 import { ArrowLeft, Download, Sparkles } from "lucide-react";
 import { getPublicShare } from "@/lib/share.functions";
+import { saveAssetToDisk } from "@/lib/save";
+import { ShareMenu } from "@/components/share/ShareMenu";
 
 export const Route = createLazyFileRoute("/r/$token")({
   component: SharePage,
@@ -56,15 +58,25 @@ function SharePage() {
               <p className="mt-2 text-xs text-white/50">Rendered with {s.model}</p>
             )}
           </div>
-          <a
-            href={mediaUrl}
-            target="_blank"
-            rel="noopener"
-            download
-            className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-medium no-underline text-white hover:bg-white/10"
-          >
-            <Download className="size-4" /> Download
-          </a>
+          <div className="flex shrink-0 items-center gap-2">
+            <ShareMenu
+              getShareTarget={() => ({
+                url: window.location.href,
+                text: s.prompt ?? undefined,
+                assetUrl: mediaUrl,
+                filename: `aurora-${s.id.slice(0, 8)}.${isVideo ? "mp4" : "png"}`,
+              })}
+              label="Share"
+              triggerClassName="inline-flex items-center gap-2 pl-4 pr-2 py-2 rounded-l-full border border-white/15 bg-white/5 text-sm font-medium text-white hover:bg-white/10"
+            />
+            <button
+              type="button"
+              onClick={() => saveAssetToDisk(mediaUrl, `aurora-${s.id.slice(0, 8)}.${isVideo ? "mp4" : "png"}`)}
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-medium text-white hover:bg-white/10"
+            >
+              <Download className="size-4" /> Download
+            </button>
+          </div>
         </div>
 
         <div className="mt-10 rounded-2xl border border-pink-300/30 bg-pink-500/10 p-5 text-sm text-pink-100">
