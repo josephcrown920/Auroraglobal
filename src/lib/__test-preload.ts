@@ -1,7 +1,12 @@
-// Bun test preload — suppresses noisy-but-intentional console output from
-// production modules exercised during unit tests.
+// Bun test preload — process-level config and suppression of cross-file noise
+// from production modules that fire across many test files.
 //
-// Which patterns are suppressed and why:
+// NOTE: individual test files own their own console suppression via
+// beforeAll/afterAll spyOn blocks (e.g. compress.server.test.ts,
+// jobs.server.test.ts). This preload only handles patterns that would require
+// identical boilerplate in dozens of test files and cannot be localised.
+//
+// Which patterns are suppressed here and why:
 //   [orchestrator] * served by *   — every successful dispatch logs this; it's
 //     structural confirmation that routing worked, not a test failure signal.
 //   [llm-fallback] * failed: *     — expected failure-cascade messages from the
@@ -12,11 +17,9 @@
 //     by a model; exercised intentionally by the llm-fallback tests. Silenced via
 //     the official `AI_SDK_LOG_WARNINGS = false` global AND via regex fallback.
 //
-// All other console.info / console.log / console.warn / console.error output
-// passes through unchanged so genuine failures are still visible.
+// All other console output passes through unchanged so genuine failures are visible.
 
-// Disable the @ai-sdk/* warning subsystem at the source — it checks this global
-// before emitting any "AI SDK Warning" messages.
+// Disable the @ai-sdk/* warning subsystem at the source.
 (globalThis as unknown as Record<string, unknown>).AI_SDK_LOG_WARNINGS = false;
 
 const SUPPRESS_INFO = /^\[orchestrator\] .+ served by /;

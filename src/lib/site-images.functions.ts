@@ -24,7 +24,7 @@ async function assertAdmin(userId: string) {
 }
 
 // Cast to bypass Supabase generated types until types.ts is regenerated after migration
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- site_images table not yet in generated types.ts; cast until next type regen
 const db = supabaseAdmin as any;
 
 export const getSiteImages = createServerFn({ method: "GET" }).handler(async () => {

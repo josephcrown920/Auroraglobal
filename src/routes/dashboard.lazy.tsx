@@ -54,7 +54,7 @@ function DashboardPage() {
       case "failed": return failed;
       default: return items;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- derived arrays (processing/failed) are computed inside and intentionally stable; filter+items cover meaningful reactive values
   }, [filter, items]);
 
   if (loading || !user) {

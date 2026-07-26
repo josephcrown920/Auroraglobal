@@ -1,4 +1,19 @@
-import { describe, expect, spyOn, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, spyOn, test } from "bun:test";
+
+let logSpy: ReturnType<typeof spyOn>;
+let warnSpy: ReturnType<typeof spyOn>;
+
+beforeAll(() => {
+  // ffmpeg and libvips write diagnostic lines during compression; suppress so
+  // genuine assertion failures aren't buried in codec progress output.
+  logSpy = spyOn(console, "log").mockImplementation(() => {});
+  warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+});
+
+afterAll(() => {
+  logSpy.mockRestore();
+  warnSpy.mockRestore();
+});
 import {
   compressImageBytes,
   compressVideoBytes,

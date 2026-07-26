@@ -192,7 +192,7 @@ function StudioPage() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: loads initial studio state once; re-running on dep changes would reset the user's in-progress session
   }, []);
 
   useEffect(() => {

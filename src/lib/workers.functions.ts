@@ -59,11 +59,11 @@ export const upsertWorker = createServerFn({ method: "POST" })
     await assertAdmin(context.userId);
     if (data.id) {
       const { id, ...patch } = data;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial gpu_workers patch is not statically typed for all sub-key shapes accepted by Supabase
       await supabaseAdmin.from("gpu_workers").update(patch as any).eq("id", id);
       return { id };
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- insert payload is narrower than Supabase's expected Row shape for gpu_workers
     const { data: row } = await supabaseAdmin.from("gpu_workers").insert(data as any).select("id").single();
     return { id: row?.id };
   });

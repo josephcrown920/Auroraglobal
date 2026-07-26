@@ -195,7 +195,7 @@ export function useGenerationProgress(
       }
     }, 800);
     return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: initial reconnection and status polling start here; re-running on dep changes would cause loops
   }, []); // intentionally run only on mount
 
   // --- Real backend jobStatus drives state directly ---------------------------
@@ -272,7 +272,7 @@ export function useGenerationProgress(
     }
 
     return clearTicker;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- setProgress/setPhase are stable useState setters and excluded from deps intentionally
   }, [jobStatus, persistKey, estimatedMs]);
 
   // --- Synthetic ticker for blocking mutations --------------------------------
@@ -358,7 +358,7 @@ export function useGenerationProgress(
         setProgress(0);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- setState/setPhase setters are stable and intentionally excluded; listed deps cover all reactive inputs
   }, [isPending, isError, isSuccess, estimatedMs, persistKey, asyncEnqueue, jobStatus]);
 
   const resolvedLabels = { ...PHASE_LABELS, ...labels };

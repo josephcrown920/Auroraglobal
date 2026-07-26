@@ -248,7 +248,7 @@ export function BalloonLipsync() {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: RAF animation loop must start once and run until unmount; re-running on dep changes would restart the animation
   }, []);
 
   return (

@@ -166,7 +166,7 @@ export const Route = createFileRoute("/api/public/watermark-video")({
 
         // Wrap in Blob (valid BodyInit). Cast required because Buffer<ArrayBufferLike>
         // doesn't satisfy BlobPart in stricter TS configs, but is valid at runtime.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Buffer<ArrayBufferLike> is valid BlobPart at runtime but fails stricter TS BlobPart type checks
         const body = new Blob([watermarked as any], { type: "video/mp4" });
         return new Response(body, {
           status: 200,

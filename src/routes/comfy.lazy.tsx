@@ -121,7 +121,7 @@ function ComfyPage() {
         .then((r) => setReach(r))
         .catch(() => {});
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setReach is a stable useState setter; dep narrowed to user identity to avoid redundant re-fetches
   }, [user]);
 
   // Coarse, estimated progress while a synchronous run is in flight. Authoritative
@@ -148,7 +148,7 @@ function ComfyPage() {
     for (const [k, v] of Object.entries(selected.default_inputs ?? {})) seed[k] = v;
     setValues(seed);
     setResult(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setValues/setResult are stable useState setters; dep narrowed to selectedId to seed form only when the template changes
   }, [selectedId]);
 
   const setVal = (key: string, v: unknown) => setValues((prev) => ({ ...prev, [key]: v }));

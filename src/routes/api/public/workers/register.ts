@@ -56,7 +56,7 @@ function json(body: unknown, status = 200): Response {
 // look at but a Kaggle/Colab notebook log the owner may never check. Logging
 // itself must never fail the request — this is diagnostics, not the contract.
 async function logAttempt(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- diagnostic helper accepts any supabase-like client; not part of the public API contract
   supabaseAdmin: any,
   fields: { name?: string | null; endpoint_url?: string | null; protocol?: string | null; ok: boolean; error?: string | null; outcome?: string | null },
 ) {

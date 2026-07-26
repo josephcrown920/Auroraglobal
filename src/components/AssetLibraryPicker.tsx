@@ -39,7 +39,7 @@ export function AssetLibraryPicker({ category, selectedId, onSelect, className }
     let cancelled = false;
     setLoading(true);
     const fetch = async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- admin_asset_packs not yet in generated types.ts; cast until next type regen
       const sb = supabase as any;
       let req = sb
         .from("admin_asset_packs")
