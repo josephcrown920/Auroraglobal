@@ -116,6 +116,17 @@ task = "shell.exec"
 args = "cd /home/runner/workspace && NODE_OPTIONS=--max-old-space-size=3072 bash scripts/replit-node.sh node_modules/vite/bin/vite.js build"
 
 [workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "mcp-tests"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bun test src/lib/mcp"
+
+[workflows.workflow.metadata]
 isValidation = true
 
 [agent]
