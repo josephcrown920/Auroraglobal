@@ -109,6 +109,7 @@ const ENV = [
   "REPLICATE_API_KEY",
   "FAL_KEY",
   "GEMINI_API_KEY",
+  "XAI_API_KEY",
 ] as const;
 const saved: Record<string, string | undefined> = {};
 for (const k of ENV) saved[k] = process.env[k];
@@ -209,7 +210,7 @@ describe("orchestrate — ByteDance direct preference for Seed models", () => {
       });
     });
 
-    const req: GenerateRequest = { kind: "video", prompt: "a dragon", model: "seedance-2.0" };
+    const req: GenerateRequest = { kind: "video", prompt: "a dragon", model: "seedance-2.0", forSubscriber: true };
     const res = await orchestrate(req);
 
     expect(res.provider).toBe("byteplus");
@@ -261,7 +262,7 @@ describe("orchestrate — ByteDance direct preference for Seed models", () => {
       });
     });
 
-    const req: GenerateRequest = { kind: "video", prompt: "a dragon", model: "seedance-3.0" };
+    const req: GenerateRequest = { kind: "video", prompt: "a dragon", model: "seedance-3.0", forSubscriber: true };
     const res = await orchestrate(req);
 
     expect(res.provider).toBe("byteplus");

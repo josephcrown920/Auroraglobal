@@ -134,28 +134,51 @@ fi
 TIP="$(git rev-parse "$BRANCH")"
 echo "[sync] Cleaned tip = $TIP (tip tree $NEW_TREE unchanged)"
 
+# Primary repo: hard-fail if this one can't be synced (it's the canonical copy).
+# Secondary repos: best-effort — a 422 branch-protection error or similar is
+# logged as a warning so the daemon marks the primary sync as OK and advances
+# the SHA marker. The secondary push already uploaded the objects (the temp
+# branch landed); only the ref-update is flaky under branch-protection rules.
+PRIMARY="${REPOS[0]}"
+SECONDARY=("${REPOS[@]:1}")
+
 FAIL=0
-for repo in "${REPOS[@]}"; do
-  url="https://x-access-token:${GITHUB_TOKEN}@github.com/${OWNER}/${repo}"
-  tmp="sync-tmp-$(date +%s)-$$"
-  ok=1
+
+push_repo() {
+  local repo="$1" hard="$2"
+  local url="https://x-access-token:${GITHUB_TOKEN}@github.com/${OWNER}/${repo}"
+  local tmp="sync-tmp-$(date +%s)-$$"
+  local ok=1
   echo "[sync] ${repo}: uploading objects (temp branch ${tmp})"
   if ! git push --no-verify "$url" "${BRANCH}:refs/heads/${tmp}" 2>&1 | redact; then
-    echo "[sync] ERROR: object upload to ${repo} failed" >&2; FAIL=1; continue
+    echo "[sync] ERROR: object upload to ${repo} failed" >&2
+    [[ "$hard" == "1" ]] && FAIL=1
+    return
   fi
   echo "[sync] ${repo}: pointing ${BRANCH} at ${TIP}"
-  if ! gh_api PATCH "https://api.github.com/repos/${OWNER}/${repo}/git/refs/heads/${BRANCH}" \
-        "{\"sha\":\"${TIP}\",\"force\":true}" >/dev/null; then
-    echo "[sync] ERROR: failed to update ${repo}/${BRANCH}" >&2; ok=0; FAIL=1
+  local patch_out patch_rc
+  patch_out=$(gh_api PATCH "https://api.github.com/repos/${OWNER}/${repo}/git/refs/heads/${BRANCH}" \
+        "{\"sha\":\"${TIP}\",\"force\":true}" 2>&1); patch_rc=$?
+  if [[ $patch_rc -ne 0 ]]; then
+    if [[ "$hard" == "1" ]]; then
+      echo "[sync] ERROR: failed to update ${repo}/${BRANCH}" >&2; ok=0; FAIL=1
+    else
+      echo "[sync] WARN: ${repo}/${BRANCH} ref-update failed (branch protection?); objects uploaded, continuing." >&2
+    fi
   fi
   if ! gh_api DELETE "https://api.github.com/repos/${OWNER}/${repo}/git/refs/heads/${tmp}" >/dev/null 2>&1; then
     echo "[sync] WARN: could not delete temp branch ${tmp} on ${repo} (sync still OK)" >&2
   fi
-  if [[ "$ok" -eq 1 ]]; then echo "[sync] OK: ${repo}/${BRANCH} = ${TIP}"; fi
+  if [[ "$ok" -eq 1 && $patch_rc -eq 0 ]]; then echo "[sync] OK: ${repo}/${BRANCH} = ${TIP}"; fi
+}
+
+push_repo "$PRIMARY" "1"
+for repo in "${SECONDARY[@]}"; do
+  push_repo "$repo" "0"
 done
 
 if [[ "$FAIL" -ne 0 ]]; then
   echo "[sync] FAILED — see errors above." >&2
   exit 1
 fi
-echo "[sync] DONE — both repos at ${TIP}"
+echo "[sync] DONE — ${PRIMARY}/${BRANCH} at ${TIP}"
