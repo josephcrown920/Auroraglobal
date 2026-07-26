@@ -44,10 +44,17 @@ export interface InferenceInput {
   /** `"nodeId.inputName": value` patches applied to `comfyWorkflow` before submit. */
   comfyInputs?: Record<string, unknown>;
 
-  // ── Legacy lip-sync fields (kept for backward compatibility) ──
-  /** @deprecated Use `imageUrls`/`videoUrl`. The reference image or video URL. */
+  // ── Legacy lip-sync fields — boundary tombstones ──
+  /**
+   * @internal @deprecated — normalised at boundary via `normaliseInferenceInput()`.
+   * Remove after all deployed Colab/Kaggle workers update to send `image_urls`/`video_url`.
+   * Internal code must NOT write or read these fields; use `imageUrls`/`videoUrl` instead.
+   */
   mediaUrl?: string;
-  /** @deprecated Whether `mediaUrl` is an image or a video. */
+  /**
+   * @internal @deprecated — normalised at boundary via `normaliseInferenceInput()`.
+   * Paired with `mediaUrl`; obsolete once all workers stop sending `mode`.
+   */
   mode?: InputMode;
 }
 

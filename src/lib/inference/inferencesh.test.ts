@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import {
   extractOutputUrl,
   inferenceShInput,
+  normaliseInferenceInput,
   resolveInferenceShApp,
   runInferenceShTask,
 } from "./protocols";
@@ -45,6 +46,56 @@ function stubFetch(handler: (url: string, init?: RequestInit) => Response | Prom
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
+describe("normaliseInferenceInput", () => {
+  it("converts mediaUrl+mode=video to videoUrl", () => {
+    const result = normaliseInferenceInput({
+      task: "lipsync",
+      audioUrl: "https://cdn/audio.wav",
+      mediaUrl: "https://cdn/face.mp4",
+      mode: "video",
+    });
+    expect(result.videoUrl).toBe("https://cdn/face.mp4");
+    expect(result.mediaUrl).toBeUndefined();
+    expect(result.mode).toBeUndefined();
+  });
+
+  it("converts mediaUrl+mode=image to imageUrls", () => {
+    const result = normaliseInferenceInput({
+      task: "lipsync",
+      audioUrl: "https://cdn/audio.wav",
+      mediaUrl: "https://cdn/face.jpg",
+      mode: "image",
+    });
+    expect(result.imageUrls).toEqual(["https://cdn/face.jpg"]);
+    expect(result.mediaUrl).toBeUndefined();
+    expect(result.mode).toBeUndefined();
+  });
+
+  it("treats unset mode as video", () => {
+    const result = normaliseInferenceInput({
+      task: "lipsync",
+      mediaUrl: "https://cdn/face.mp4",
+    });
+    expect(result.videoUrl).toBe("https://cdn/face.mp4");
+    expect(result.mediaUrl).toBeUndefined();
+  });
+
+  it("does not overwrite an existing videoUrl with mediaUrl", () => {
+    const result = normaliseInferenceInput({
+      task: "lipsync",
+      mediaUrl: "https://cdn/legacy.mp4",
+      videoUrl: "https://cdn/canonical.mp4",
+    });
+    expect(result.videoUrl).toBe("https://cdn/canonical.mp4");
+    expect(result.mediaUrl).toBeUndefined();
+  });
+
+  it("is a no-op when mediaUrl is absent", () => {
+    const input = { task: "image" as const, prompt: "a cat", imageUrls: ["https://cdn/ref.png"] };
+    expect(normaliseInferenceInput(input)).toEqual(input);
+  });
+});
+
 describe("resolveInferenceShApp", () => {
   it("prefers the INFERENCE_SH_APP_<TASK> env override", () => {
     expect(resolveInferenceShApp("image", { INFERENCE_SH_APP_IMAGE: "me/my-flux" })).toBe("me/my-flux");
@@ -74,32 +125,51 @@ describe("inferenceShInput", () => {
     expect(inferenceShInput({ task: "image", prompt: "hi" })).toEqual({ prompt: "hi" });
   });
 
-  it("forwards media_url and mode for lipsync tasks", () => {
+  it("derives media_url and mode from canonical videoUrl for lipsync tasks", () => {
+    // Internal code uses videoUrl (canonical); inferenceShInput derives the
+    // wire-compat media_url+mode for old deployed workers automatically.
     expect(
       inferenceShInput({
         task: "lipsync",
         audioUrl: "https://cdn/voice.wav",
-        mediaUrl: "https://cdn/face.mp4",
-        mode: "video",
+        videoUrl: "https://cdn/face.mp4",
       }),
     ).toEqual({
       audio_url: "https://cdn/voice.wav",
+      video_url: "https://cdn/face.mp4",
       media_url: "https://cdn/face.mp4",
       mode: "video",
     });
   });
 
-  it("params win over conventional fields including media_url", () => {
+  it("derives media_url and mode from canonical imageUrls for image-mode lipsync", () => {
+    expect(
+      inferenceShInput({
+        task: "lipsync",
+        audioUrl: "https://cdn/voice.wav",
+        imageUrls: ["https://cdn/face.jpg"],
+      }),
+    ).toEqual({
+      audio_url: "https://cdn/voice.wav",
+      image_urls: ["https://cdn/face.jpg"],
+      media_url: "https://cdn/face.jpg",
+      mode: "image",
+    });
+  });
+
+  it("params win over derived media_url for lipsync", () => {
     expect(
       inferenceShInput({
         task: "lipsync",
         audioUrl: "https://cdn/audio.wav",
-        mediaUrl: "https://cdn/face.mp4",
+        videoUrl: "https://cdn/face.mp4",
         params: { media_url: "https://cdn/override.mp4" },
       }),
     ).toEqual({
       audio_url: "https://cdn/audio.wav",
+      video_url: "https://cdn/face.mp4",
       media_url: "https://cdn/override.mp4",
+      mode: "video",
     });
   });
 });

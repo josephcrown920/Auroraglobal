@@ -5,20 +5,44 @@
 
 import type { InferenceInput, InferenceResult } from "./types";
 
+/**
+ * Normalise legacy `{mediaUrl, mode}` to the canonical `{imageUrls, videoUrl}`.
+ * Call this at every inbound boundary (server fns, API routes) before any internal
+ * processing. After normalisation, `mediaUrl` and `mode` will not be present on the
+ * returned object.
+ */
+export function normaliseInferenceInput(input: InferenceInput): InferenceInput {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { mediaUrl, mode, ...rest } = input;
+  if (!mediaUrl) return rest as InferenceInput;
+  const normalised: InferenceInput = { ...rest };
+  if (mode === "image") {
+    if (!normalised.imageUrls?.length) normalised.imageUrls = [mediaUrl];
+  } else {
+    // mode === "video" or unset — treat as video (lipsync default)
+    if (!normalised.videoUrl) normalised.videoUrl = mediaUrl;
+  }
+  return normalised;
+}
+
 /** Flatten a generalized job into the snake_case body workers/handlers expect. */
 export function jobBody(input: InferenceInput): Record<string, unknown> {
   const body: Record<string, unknown> = {
     task: input.task,
-    mode: input.mode,
     prompt: input.prompt,
     image_urls: input.imageUrls,
     audio_url: input.audioUrl,
     video_url: input.videoUrl,
-    media_url: input.mediaUrl,
     params: input.params,
     workflow: input.comfyWorkflow,
     workflow_inputs: input.comfyInputs,
   };
+  // Wire compat: old deployed lipsync workers (Colab/Kaggle) still read media_url + mode.
+  // Derive from canonical fields so internal code never needs to write the deprecated pair.
+  if (input.task === "lipsync") {
+    body.media_url = input.videoUrl ?? input.imageUrls?.[0];
+    body.mode = input.videoUrl ? "video" : input.imageUrls?.[0] ? "image" : undefined;
+  }
   for (const k of Object.keys(body)) if (body[k] === undefined) delete body[k];
   return body;
 }
@@ -159,10 +183,16 @@ export function inferenceShInput(input: InferenceInput): Record<string, unknown>
     image_urls: input.imageUrls,
     audio_url: input.audioUrl,
     video_url: input.videoUrl,
-    media_url: input.mediaUrl,
-    mode: input.mode,
     ...(input.params ?? {}),
   };
+  // Wire compat: old lipsync workers on inference.sh still read media_url + mode.
+  // Derive from canonical fields; params take priority (already spread above).
+  if (input.task === "lipsync") {
+    const legacyMedia = input.videoUrl ?? input.imageUrls?.[0];
+    const legacyMode = input.videoUrl ? "video" : input.imageUrls?.[0] ? "image" : undefined;
+    if (legacyMedia && !("media_url" in body)) body.media_url = legacyMedia;
+    if (legacyMode && !("mode" in body)) body.mode = legacyMode;
+  }
   for (const k of Object.keys(body)) if (body[k] === undefined) delete body[k];
   return body;
 }
@@ -290,18 +320,17 @@ export async function callGradioSpace(
 
 /**
  * Build the positional Gradio `data` array for a generalized job.
- * Lip-sync keeps the documented `(audio, media, mode)` signature; other tasks use
+ * Lip-sync uses the documented `(audio, media, mode)` signature; other tasks use
  * a generalized `(prompt, image, audio, video)` signature. The Space's `predict`
  * function must accept the matching order.
  */
 export function gradioData(input: InferenceInput): unknown[] {
   const file = (u?: string) => (u ? { path: u, meta: { _type: "gradio.FileData" } } : null);
-  if (input.task === "lipsync" || (input.mediaUrl && input.mode)) {
-    return [
-      file(input.audioUrl),
-      file(input.mediaUrl ?? input.videoUrl ?? input.imageUrls?.[0]),
-      input.mode ?? "video",
-    ];
+  if (input.task === "lipsync") {
+    // Derive media file and mode from canonical fields (videoUrl wins over imageUrls).
+    const mediaUrl = input.videoUrl ?? input.imageUrls?.[0];
+    const mediaMode = input.videoUrl ? "video" : "image";
+    return [file(input.audioUrl), file(mediaUrl), mediaMode];
   }
   return [input.prompt ?? "", file(input.imageUrls?.[0]), file(input.audioUrl), file(input.videoUrl)];
 }
