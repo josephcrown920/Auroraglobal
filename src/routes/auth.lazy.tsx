@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { LogIn, MailCheck, Fingerprint, Loader2, Eye, EyeOff, KeyRound } from "lucide-react";
+import { Github, MailCheck, Fingerprint, Loader2, Eye, EyeOff, KeyRound } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { trackSignUp } from "@/lib/gtm";
@@ -43,7 +43,7 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
-  const [googleBusy, setGoogleBusy] = useState(false);
+  const [githubBusy, setGithubBusy] = useState(false);
   const [bioBusy, setBioBusy] = useState(false);
   const [confirmSent, setConfirmSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -72,7 +72,7 @@ function AuthPage() {
     if (loading || !session || recoveryMode) return;
     if (typeof window !== "undefined" && sessionStorage.getItem(OAUTH_SIGNUP_INTENT_KEY)) {
       sessionStorage.removeItem(OAUTH_SIGNUP_INTENT_KEY);
-      trackSignUp("google");
+      trackSignUp("github");
     }
     navigate({ to: "/studio" });
   }, [session, loading, navigate, recoveryMode]);
@@ -158,15 +158,15 @@ function AuthPage() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setGoogleBusy(true);
+  const handleGithubSignIn = async () => {
+    setGithubBusy(true);
     try {
       if (mode === "signup" && typeof window !== "undefined") {
         sessionStorage.setItem(OAUTH_SIGNUP_INTENT_KEY, "1");
       }
       const isInFrame = typeof window !== "undefined" && window.self !== window.top;
       const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
+        provider: "github",
         options: {
           redirectTo: `${window.location.origin}/studio`,
           skipBrowserRedirect: isInFrame,
@@ -181,9 +181,9 @@ function AuthPage() {
         toast.info("Complete sign-in in the new tab, then come back here.");
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Google sign-in failed");
+      toast.error(err instanceof Error ? err.message : "GitHub sign-in failed");
     } finally {
-      setGoogleBusy(false);
+      setGithubBusy(false);
     }
   };
 
@@ -441,11 +441,11 @@ function AuthPage() {
         <Button
           type="button"
           variant="outline"
-          disabled={googleBusy}
-          onClick={handleGoogleSignIn}
+          disabled={githubBusy}
+          onClick={handleGithubSignIn}
           className="mt-3 w-full h-11"
         >
-          {googleBusy ? "Signing in..." : <><LogIn className="mr-2 size-4" /> Continue with Google</>}
+          {githubBusy ? "Signing in..." : <><Github className="mr-2 size-4" /> Continue with GitHub</>}
         </Button>
 
         <div className="mt-6 flex items-center justify-between text-sm text-muted-foreground">
