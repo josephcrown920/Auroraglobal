@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Flame, Loader2, Play, RefreshCw, Sparkles, Upload } from "lucide-react";
+import { Flame, Loader2, Play, RefreshCw, Shirt, Sparkles, Upload } from "lucide-react";
+import { WardrobePicker } from "@/components/studio/WardrobePicker";
 import { TiktokPostButton } from "@/components/tiktok/TiktokPostButton";
 import { getMyTiktokAccount } from "@/lib/tiktok-posting.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -115,6 +116,7 @@ function TiktokRemixPage() {
   const { user } = useAuth();
   const [sourceUrl, setSourceUrl] = useState("");
   const [basePrompt, setBasePrompt] = useState("");
+  const [outfitUrl, setOutfitUrl] = useState<string | null>(null);
   const [count, setCount] = useState(10);
   const [style, setStyle] = useState<CutStyle>("auto");
   const [activeRemixId, setActiveRemixId] = useState<string | null>(null);
@@ -171,7 +173,15 @@ function TiktokRemixPage() {
     mutationFn: () => {
       const url = sourceUrlOverrideRef.current ?? sourceUrl;
       sourceUrlOverrideRef.current = null;
-      return startFn({ data: { sourceVideoUrl: url, basePrompt: basePrompt || undefined, count, style } });
+      return startFn({
+        data: {
+          sourceVideoUrl: url,
+          basePrompt: basePrompt || undefined,
+          count,
+          style,
+          outfitImageUrl: style === "grwm" && outfitUrl ? outfitUrl : undefined,
+        },
+      });
     },
     onSuccess: (out) => {
       markFirstGenComplete();
@@ -326,6 +336,20 @@ function TiktokRemixPage() {
             </div>
             <p className="mt-1 text-[11px] text-muted-foreground">{STYLE_OPTIONS.find((o) => o.value === style)?.hint}</p>
           </div>
+
+          {/* Virtual wardrobe — shown when GRWM style is active */}
+          {style === "grwm" && user && (
+            <div className="rounded-xl border border-fuchsia-400/20 bg-fuchsia-400/5 px-3 py-3 space-y-2">
+              <div className="flex items-center gap-1.5">
+                <Shirt className="size-3.5 text-fuchsia-300" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-fuchsia-200/80">Virtual Wardrobe</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Pick a saved look and Aurora will thread that outfit through every GRWM cut.
+              </p>
+              <WardrobePicker userId={user.id} value={outfitUrl} onChange={setOutfitUrl} />
+            </div>
+          )}
 
           <div>
             <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">How many cuts</label>

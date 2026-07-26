@@ -8,7 +8,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { assertTrustedUrl } from "./url-guard";
+import { assertTrustedUrl, assertOwnStudioUpload } from "./url-guard";
 import { COST_TIKTOK_REMIX_CUT } from "./pricing";
 
 // Cut styles bias the generated concepts toward a themed look. "auto" keeps the
@@ -21,6 +21,8 @@ export type CutStyle = (typeof CUT_STYLES)[number];
 export const StartInput = z.object({
   sourceVideoUrl: z.string().url(),
   sourceImageUrl: z.string().url().optional(),
+  /** Wardrobe/outfit reference image — used when style="grwm" to thread a specific look through every cut. */
+  outfitImageUrl: z.string().url().optional(),
   count: z.number().int().min(1).max(10).default(10),
   basePrompt: z.string().max(500).optional(),
   duration: z.number().int().min(3).max(10).default(5),
@@ -173,8 +175,16 @@ export const startTiktokRemix = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     assertTrustedUrl(data.sourceVideoUrl);
     if (data.sourceImageUrl) assertTrustedUrl(data.sourceImageUrl);
+    if (data.outfitImageUrl) assertOwnStudioUpload(data.outfitImageUrl, context.userId);
     const userId = context.userId;
-    const basePrompt = data.basePrompt?.trim() || "viral TikTok cut, vertical 9:16, sharp, high energy";
+    const rawBase = data.basePrompt?.trim() || "viral TikTok cut, vertical 9:16, sharp, high energy";
+    // When an outfit reference is provided for a GRWM run, append a directive
+    // so the AI concept generator (and deterministic fallback) thread the same
+    // look through every cut.
+    const basePrompt =
+      data.outfitImageUrl && data.style === "grwm"
+        ? `${rawBase}. Outfit reference provided — preserve the exact garment, colours, and styling in every scene.`
+        : rawBase;
 
     // Concept generation
     const prompts = await generateConcepts(data.sourceVideoUrl, basePrompt, data.count, data.style);
@@ -212,7 +222,11 @@ export const startTiktokRemix = createServerFn({ method: "POST" })
             kind: "video",
             prompt,
             sourceVideoUrl: data.sourceVideoUrl,
-            sourceImageUrl: data.sourceImageUrl,
+            // When a wardrobe outfit is supplied for a GRWM run it becomes the
+            // image conditioning reference (runTiktokRemixChild reads
+            // sourceImageUrl → imageUrls for the orchestrator call).  Fall back
+            // to the caller-supplied sourceImageUrl if no outfit is selected.
+            sourceImageUrl: data.outfitImageUrl ?? data.sourceImageUrl,
             duration: data.duration,
             remixId,
             index: i,

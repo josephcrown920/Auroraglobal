@@ -15,6 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { UploadSlot } from "@/components/studio/UploadSlot";
+import { WardrobePicker } from "@/components/studio/WardrobePicker";
 import { AUDIO_ACCEPT } from "@/lib/utils";
 import { TriedTestedShowcase } from "@/components/studio/TriedTestedShowcase";
 import { BringItToLifePreview } from "@/components/studio/BringItToLifePreview";
@@ -112,6 +113,7 @@ function StudioPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
+  const [activePreset, setActivePreset] = useState<string | null>(null);
   const [selfie, setSelfie] = useState<string | null>(null);
   const [outfit, setOutfit] = useState<string | null>(null);
   const [scene, setScene] = useState<string | null>(null);
@@ -639,8 +641,23 @@ function StudioPage() {
               value={motion}
               onChange={setMotion}
             />
-
           </div>
+
+          {/* Virtual wardrobe — shown when the GRWM preset is active */}
+          {activePreset === "Get Ready With Me" && (
+            <div className="rounded-2xl border border-fuchsia-400/20 bg-gradient-to-br from-fuchsia-500/5 via-background/40 to-violet-500/5 px-4 py-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex size-2 rounded-full bg-fuchsia-400 shadow-[0_0_8px_2px_rgba(232,121,249,0.5)]" />
+                <p className="text-xs font-semibold text-fuchsia-200/80 uppercase tracking-wider">
+                  Get Ready With Me — Virtual Wardrobe
+                </p>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Upload or pick a saved outfit. Aurora will thread this look through every scene — mirror check, styling, full-look reveal.
+              </p>
+              <WardrobePicker userId={user.id} value={outfit} onChange={setOutfit} />
+            </div>
+          )}
 
           <ExampleChips
             presets={STUDIO_EXAMPLE_PRESETS}
@@ -664,8 +681,15 @@ function StudioPage() {
                 <button
                   key={p.label}
                   type="button"
-                  onClick={() => setPrompt(p.prompt)}
-                  className="text-xs px-3 py-1.5 rounded-lg border border-border bg-card/60 hover:bg-accent hover:border-primary/40 transition-colors"
+                  onClick={() => {
+                    setPrompt(p.prompt);
+                    setActivePreset(p.label);
+                  }}
+                  className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                    activePreset === p.label
+                      ? "border-primary/60 bg-primary/10 text-primary"
+                      : "border-border bg-card/60 hover:bg-accent hover:border-primary/40"
+                  }`}
                 >
                   {p.label}
                 </button>
