@@ -4,6 +4,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import {
   extractOutputUrl,
+  gradioData,
   inferenceShInput,
   normaliseInferenceInput,
   resolveInferenceShApp,
@@ -93,6 +94,37 @@ describe("normaliseInferenceInput", () => {
   it("is a no-op when mediaUrl is absent", () => {
     const input = { task: "image" as const, prompt: "a cat", imageUrls: ["https://cdn/ref.png"] };
     expect(normaliseInferenceInput(input)).toEqual(input);
+  });
+});
+
+describe("gradioData (lipsync)", () => {
+  it("builds [audio, video, 'video'] from videoUrl", () => {
+    const result = gradioData({
+      task: "lipsync",
+      audioUrl: "https://cdn/voice.wav",
+      videoUrl: "https://cdn/face.mp4",
+    });
+    expect(result[2]).toBe("video");
+    expect((result[1] as { path: string }).path).toBe("https://cdn/face.mp4");
+  });
+
+  it("builds [audio, image, 'image'] from imageUrls", () => {
+    const result = gradioData({
+      task: "lipsync",
+      audioUrl: "https://cdn/voice.wav",
+      imageUrls: ["https://cdn/face.jpg"],
+    });
+    expect(result[2]).toBe("image");
+    expect((result[1] as { path: string }).path).toBe("https://cdn/face.jpg");
+  });
+
+  it("returns null media file when neither videoUrl nor imageUrls is provided", () => {
+    // Edge case: malformed lipsync input — media slot is null but call still
+    // constructs (the Gradio Space will reject it, not this layer).
+    const result = gradioData({ task: "lipsync", audioUrl: "https://cdn/audio.wav" });
+    expect(result[1]).toBeNull();
+    // Defaults to "image" mode when no video is present
+    expect(result[2]).toBe("image");
   });
 });
 
