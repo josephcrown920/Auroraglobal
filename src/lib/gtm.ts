@@ -32,7 +32,7 @@ function pushToDataLayer(event: string, payload?: Record<string, unknown>): void
 }
 
 /** Fires once a new account is created (email/password or OAuth signup). */
-export function trackSignUp(method: "email" | "google"): void {
+export function trackSignUp(method: "email" | "google" | "github" | "apple"): void {
   pushToDataLayer("sign_up", { method });
 }
 

@@ -5,6 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Github, MailCheck, Fingerprint, Loader2, Eye, EyeOff, KeyRound } from "lucide-react";
+
+// Apple doesn't ship an icon in lucide — inline the official logo mark.
+function AppleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 814 1000" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+      <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-57.8-155.5-127.4C46 376.7 0 290.9 0 209.3c0-150.8 98.3-230.6 194.9-230.6 51.5 0 94.2 33.9 126.7 33.9 30.9 0 79.5-35.8 140.2-35.8 22.6 0 108.2 2 170.5 82.2zm-170.5-82.2c-28.6-35.1-70.8-60.6-117.1-60.6-71.3 0-119.4 44.5-155.5 44.5-34.6 0-83.2-41.4-141.2-41.4-87.5 0-182.8 68.7-182.8 218.3 0 131.5 60.6 285.3 141.2 382.6 67.8 82.2 130.1 148.4 214.5 148.4 74.3 0 95.5-40.8 175.1-40.8 79.5 0 95.5 40.8 175.1 40.8 84.4 0 149.3-70.2 214.5-148.4 55.5-66.8 90.8-162.9 93-165.2-2.6-.6-170.5-65.2-170.5-236.1 0-146.5 120.5-208.2 126.7-211.4z"/>
+    </svg>
+  );
+}
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { trackSignUp } from "@/lib/gtm";
@@ -44,6 +53,7 @@ function AuthPage() {
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
   const [githubBusy, setGithubBusy] = useState(false);
+  const [appleBusy, setAppleBusy] = useState(false);
   const [bioBusy, setBioBusy] = useState(false);
   const [confirmSent, setConfirmSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -70,9 +80,12 @@ function AuthPage() {
   const OAUTH_SIGNUP_INTENT_KEY = "aurora.oauth_signup_intent";
   useEffect(() => {
     if (loading || !session || recoveryMode) return;
-    if (typeof window !== "undefined" && sessionStorage.getItem(OAUTH_SIGNUP_INTENT_KEY)) {
-      sessionStorage.removeItem(OAUTH_SIGNUP_INTENT_KEY);
-      trackSignUp("github");
+    if (typeof window !== "undefined") {
+      const provider = sessionStorage.getItem(OAUTH_SIGNUP_INTENT_KEY);
+      if (provider) {
+        sessionStorage.removeItem(OAUTH_SIGNUP_INTENT_KEY);
+        trackSignUp(provider as "github" | "apple");
+      }
     }
     navigate({ to: "/studio" });
   }, [session, loading, navigate, recoveryMode]);
@@ -158,15 +171,19 @@ function AuthPage() {
     }
   };
 
-  const handleGithubSignIn = async () => {
-    setGithubBusy(true);
+  // Shared OAuth helper — handles frame detection, intent tracking, redirect.
+  const handleOAuth = async (
+    provider: "github" | "apple",
+    setBusy: (v: boolean) => void,
+  ) => {
+    setBusy(true);
     try {
       if (mode === "signup" && typeof window !== "undefined") {
-        sessionStorage.setItem(OAUTH_SIGNUP_INTENT_KEY, "1");
+        sessionStorage.setItem(OAUTH_SIGNUP_INTENT_KEY, provider);
       }
       const isInFrame = typeof window !== "undefined" && window.self !== window.top;
       const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "github",
+        provider,
         options: {
           redirectTo: `${window.location.origin}/studio`,
           skipBrowserRedirect: isInFrame,
@@ -181,11 +198,15 @@ function AuthPage() {
         toast.info("Complete sign-in in the new tab, then come back here.");
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "GitHub sign-in failed");
+      const label = provider === "apple" ? "Apple" : "GitHub";
+      toast.error(err instanceof Error ? err.message : `${label} sign-in failed`);
     } finally {
-      setGithubBusy(false);
+      setBusy(false);
     }
   };
+
+  const handleGithubSignIn = () => handleOAuth("github", setGithubBusy);
+  const handleAppleSignIn  = () => handleOAuth("apple",  setAppleBusy);
 
   // Register a passkey for the currently signed-in user
   async function offerPasskeyRegistration() {
@@ -446,6 +467,14 @@ function AuthPage() {
           className="mt-3 w-full h-11"
         >
           {githubBusy ? "Signing in..." : <><Github className="mr-2 size-4" /> Continue with GitHub</>}
+        </Button>
+        <Button
+          type="button"
+          disabled={appleBusy}
+          onClick={handleAppleSignIn}
+          className="mt-2 w-full h-11 bg-black hover:bg-zinc-900 text-white border border-zinc-700"
+        >
+          {appleBusy ? "Signing in..." : <><AppleIcon className="mr-2 size-4" /> Continue with Apple</>}
         </Button>
 
         <div className="mt-6 flex items-center justify-between text-sm text-muted-foreground">
