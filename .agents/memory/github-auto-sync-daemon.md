@@ -13,4 +13,6 @@ Auto-sync to GitHub is implemented as a **polling background workflow** (`github
 
 **Caveat:** each sync re-clones and re-runs `filter-branch` over full history rather than incrementally pushing — acceptable at current repo size/frequency, but if the repo grows much larger or commits land very frequently, revisit for a lighter incremental push path.
 
+**`attached_assets/` disk quota trap:** the clone must use `--no-checkout` (and `GIT_LFS_SKIP_SMUDGE=1`). Without `--no-checkout`, git checks out hundreds of PNGs/PDFs from `attached_assets/` into `/tmp` and hits a write quota — even though `df -h /tmp` shows 29GB free (likely an inode or per-process quota). The filter-branch strip uses `--index-filter`, which only needs git objects, not a working tree. Fix: `GIT_LFS_SKIP_SMUDGE=1 git clone --no-hardlinks --no-checkout -q "file://$ROOT" "$WORK/repo"` (already applied in `scripts/github-autopush.sh`).
+
 **State file must actually be gitignored:** `*.local` glob-matches files literally named `.local` too, but don't rely on that alone — a dedicated `.local/` line in `.gitignore` makes the intent explicit and is verifiable with `git check-ignore -v <path>`.
