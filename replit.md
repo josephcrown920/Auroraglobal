@@ -12,7 +12,7 @@ AI creative studio for artists, performers, and labels. Generate cinematic perfo
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
 - Required env: `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, `VITE_CLERK_PUBLISHABLE_KEY` — auto-provisioned via Clerk
-- Optional env: `PAYSTACK_SECRET_KEY` — for real payment checkout (Paystack NGN)
+- Optional env: `PAYSTACK_SECRET_KEY` — for real payment checkout (Paystack NGN); required for `/api/paystack/webhook` to credit users automatically
 - Optional env: `FAL_KEY`, `KLING_API_KEY`, `SEEDANCE_API_KEY`, `SYNC_API_KEY`, `HEYGEN_API_KEY`, `REPLICATE_API_TOKEN` — AI provider keys
 
 ## Stack
