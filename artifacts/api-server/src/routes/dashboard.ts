@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, usersTable, generationsTable } from "@workspace/db";
-import { eq, and, gte, count, sql } from "drizzle-orm";
+import { db, usersTable, generationsTable, creditTransactionsTable } from "@workspace/db";
+import { eq, and, gte, count, sql, desc } from "drizzle-orm";
 import { requireAuth, getOrCreateUser } from "../lib/auth";
 
 const router: IRouter = Router();
@@ -76,6 +76,29 @@ router.get("/dashboard", requireAuth, async (req: any, res): Promise<void> => {
     creditsUsedThisMonth: Number(thisMonthRows[0]?.creditsUsed ?? 0),
     favoriteCount: Number(favoriteRows[0]?.count ?? 0),
   });
+});
+
+router.get("/dashboard/credit-history", requireAuth, async (req: any, res): Promise<void> => {
+  const limit = Math.min(Number(req.query.limit ?? 20), 100);
+
+  const transactions = await db
+    .select()
+    .from(creditTransactionsTable)
+    .where(eq(creditTransactionsTable.userId, req.userId))
+    .orderBy(desc(creditTransactionsTable.createdAt))
+    .limit(limit);
+
+  res.json(
+    transactions.map((t) => ({
+      id: t.id,
+      amount: t.amount,
+      type: t.type,
+      description: t.description,
+      reference: t.reference ?? null,
+      balanceAfter: t.balanceAfter,
+      createdAt: t.createdAt.toISOString(),
+    })),
+  );
 });
 
 function serializeGen(g: any) {

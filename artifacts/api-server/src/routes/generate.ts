@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, generationsTable, usersTable } from "@workspace/db";
+import { db, generationsTable, usersTable, creditTransactionsTable } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 import {
   GeneratePhotoBody,
@@ -90,6 +90,31 @@ async function deductCredits(userId: string, amount: number): Promise<{ success:
     return { success: false, remaining: 0 };
   }
   return { success: true, remaining: result[0].credits };
+}
+
+async function refundCredits(
+  userId: string,
+  amount: number,
+  generationId: string,
+  reason: string = "provider_failure",
+): Promise<void> {
+  // Add credits back and get the new balance
+  const result = await db
+    .update(usersTable)
+    .set({ credits: sql`${usersTable.credits} + ${amount}` })
+    .where(eq(usersTable.id, userId))
+    .returning({ credits: usersTable.credits });
+
+  const balanceAfter = result[0]?.credits ?? 0;
+
+  await db.insert(creditTransactionsTable).values({
+    userId,
+    amount,
+    type: "refund",
+    description: `Credit refund: ${reason} (generation ${generationId})`,
+    reference: generationId,
+    balanceAfter,
+  });
 }
 
 async function createGeneration(
@@ -192,6 +217,13 @@ async function syncProviderStatus(generationId: string, providerJobId: string, t
       })
       .where(eq(generationsTable.id, generationId));
   } else if (result.status === "failed") {
+    // Fetch the generation to get userId and creditsUsed for the refund
+    const [gen] = await db
+      .select({ userId: generationsTable.userId, creditsUsed: generationsTable.creditsUsed })
+      .from(generationsTable)
+      .where(eq(generationsTable.id, generationId))
+      .limit(1);
+
     await db
       .update(generationsTable)
       .set({
@@ -199,6 +231,11 @@ async function syncProviderStatus(generationId: string, providerJobId: string, t
         errorMessage: result.error ?? "Provider job failed",
       })
       .where(eq(generationsTable.id, generationId));
+
+    // Issue refund for provider-side failure
+    if (gen && gen.creditsUsed > 0) {
+      await refundCredits(gen.userId, gen.creditsUsed, generationId, "provider_failure");
+    }
   } else {
     // processing — update progress
     await db
@@ -311,6 +348,7 @@ router.post("/generate/photo", requireAuth, async (req: any, res): Promise<void>
           .update(generationsTable)
           .set({ status: "failed", errorMessage: err?.message ?? "Failed to submit to fal.ai" })
           .where(eq(generationsTable.id, gen.id));
+        await refundCredits(req.userId, cost, gen.id, "provider_failure");
       }
     })();
   } else {
@@ -378,6 +416,7 @@ router.post("/generate/video", requireAuth, async (req: any, res): Promise<void>
           .update(generationsTable)
           .set({ status: "failed", errorMessage: err?.message ?? `Failed to submit to ${provider.name}` })
           .where(eq(generationsTable.id, gen.id));
+        await refundCredits(req.userId, cost, gen.id, "provider_failure");
       }
     })();
   } else {
@@ -443,6 +482,7 @@ router.post("/generate/lipsync", requireAuth, async (req: any, res): Promise<voi
           .update(generationsTable)
           .set({ status: "failed", errorMessage: err?.message ?? `Failed to submit to ${provider.name}` })
           .where(eq(generationsTable.id, gen.id));
+        await refundCredits(req.userId, cost, gen.id, "provider_failure");
       }
     })();
   } else {
@@ -510,6 +550,7 @@ router.post("/generate/ugc", requireAuth, async (req: any, res): Promise<void> =
           .update(generationsTable)
           .set({ status: "failed", errorMessage: err?.message ?? "Failed to submit UGC to fal.ai" })
           .where(eq(generationsTable.id, gen.id));
+        await refundCredits(req.userId, cost, gen.id, "provider_failure");
       }
     })();
   } else {
@@ -577,6 +618,7 @@ router.post("/generate/music-video", requireAuth, async (req: any, res): Promise
           .update(generationsTable)
           .set({ status: "failed", errorMessage: err?.message ?? "Failed to submit music video to fal.ai" })
           .where(eq(generationsTable.id, gen.id));
+        await refundCredits(req.userId, cost, gen.id, "provider_failure");
       }
     })();
   } else {
