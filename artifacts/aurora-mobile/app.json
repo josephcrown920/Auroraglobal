@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "Aurora",
+    "slug": "aurora-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "aurora-mobile",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#080A10"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.aurora.mobile"
+    },
+    "android": {
+      "package": "com.aurora.mobile"
+    },
+    "web": {
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": "https://replit.com/"
+        }
+      ],
+      "expo-font",
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Aurora needs access to your photos to use them as reference images.",
+          "cameraPermission": "Aurora needs camera access to capture selfies for AI generation."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
