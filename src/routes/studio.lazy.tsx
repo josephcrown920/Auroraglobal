@@ -643,21 +643,19 @@ function StudioPage() {
             />
           </div>
 
-          {/* Virtual wardrobe — shown when the GRWM preset is active */}
-          {activePreset === "Get Ready With Me" && (
-            <div className="rounded-2xl border border-fuchsia-400/20 bg-gradient-to-br from-fuchsia-500/5 via-background/40 to-violet-500/5 px-4 py-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex size-2 rounded-full bg-fuchsia-400 shadow-[0_0_8px_2px_rgba(232,121,249,0.5)]" />
-                <p className="text-xs font-semibold text-fuchsia-200/80 uppercase tracking-wider">
-                  Get Ready With Me — Virtual Wardrobe
-                </p>
-              </div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Upload or pick a saved outfit. Aurora will thread this look through every scene — mirror check, styling, full-look reveal.
+          {/* Virtual wardrobe — available for every preset */}
+          <div className="rounded-2xl border border-fuchsia-400/20 bg-gradient-to-br from-fuchsia-500/5 via-background/40 to-violet-500/5 px-4 py-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex size-2 rounded-full bg-fuchsia-400 shadow-[0_0_8px_2px_rgba(232,121,249,0.5)]" />
+              <p className="text-xs font-semibold text-fuchsia-200/80 uppercase tracking-wider">
+                Virtual Wardrobe
               </p>
-              <WardrobePicker userId={user.id} value={outfit} onChange={setOutfit} />
             </div>
-          )}
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Pick a saved outfit and Aurora will thread this exact look through your scene.
+            </p>
+            <WardrobePicker userId={user.id} value={outfit} onChange={setOutfit} />
+          </div>
 
           <ExampleChips
             presets={STUDIO_EXAMPLE_PRESETS}

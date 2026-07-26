@@ -41,7 +41,7 @@ export const listWardrobeItems = createServerFn({ method: "GET" })
       rows.map(async (row) => {
         const { data: signed } = await supabaseAdmin.storage
           .from("studio")
-          .createSignedUrl(row.storage_path, 24 * 60 * 60);
+          .createSignedUrl(row.storage_path, 72 * 60 * 60); // 72 h — must outlive any queue wait
         return signed?.signedUrl
           ? ({ ...row, url: signed.signedUrl } as WardrobeItem)
           : null;

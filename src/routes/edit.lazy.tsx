@@ -484,6 +484,12 @@ function AutoCutPage() {
             80 Aura
           </span>
         </div>
+        <Link
+          to="/video-editor"
+          className="flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground no-underline hover:border-primary/40 hover:text-foreground transition"
+        >
+          <Sparkles className="size-3 text-primary" /> AI Editor
+        </Link>
       </header>
 
       <div className="relative z-10 flex flex-col gap-6 px-5 pb-32 pt-6">

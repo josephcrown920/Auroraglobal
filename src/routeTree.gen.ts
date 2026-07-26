@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WorkflowsRouteImport } from './routes/workflows'
+import { Route as VideoEditorRouteImport } from './routes/video-editor'
 import { Route as UgcLineRouteImport } from './routes/ugc-line'
 import { Route as UgcRouteImport } from './routes/ugc'
 import { Route as TutorialRouteImport } from './routes/tutorial'
@@ -110,6 +111,11 @@ const WorkflowsRoute = WorkflowsRouteImport.update({
   path: '/workflows',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/workflows.lazy').then((d) => d.Route))
+const VideoEditorRoute = VideoEditorRouteImport.update({
+  id: '/video-editor',
+  path: '/video-editor',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/video-editor.lazy').then((d) => d.Route))
 const UgcLineRoute = UgcLineRouteImport.update({
   id: '/ugc-line',
   path: '/ugc-line',
@@ -654,6 +660,7 @@ export interface FileRoutesByFullPath {
   '/tutorial': typeof TutorialRoute
   '/ugc': typeof UgcRoute
   '/ugc-line': typeof UgcLineRoute
+  '/video-editor': typeof VideoEditorRoute
   '/workflows': typeof WorkflowsRoute
   '/admin/assets': typeof AdminAssetsRoute
   '/admin/comfy': typeof AdminComfyRoute
@@ -751,6 +758,7 @@ export interface FileRoutesByTo {
   '/tutorial': typeof TutorialRoute
   '/ugc': typeof UgcRoute
   '/ugc-line': typeof UgcLineRoute
+  '/video-editor': typeof VideoEditorRoute
   '/workflows': typeof WorkflowsRoute
   '/admin/assets': typeof AdminAssetsRoute
   '/admin/comfy': typeof AdminComfyRoute
@@ -849,6 +857,7 @@ export interface FileRoutesById {
   '/tutorial': typeof TutorialRoute
   '/ugc': typeof UgcRoute
   '/ugc-line': typeof UgcLineRoute
+  '/video-editor': typeof VideoEditorRoute
   '/workflows': typeof WorkflowsRoute
   '/admin/assets': typeof AdminAssetsRoute
   '/admin/comfy': typeof AdminComfyRoute
@@ -948,6 +957,7 @@ export interface FileRouteTypes {
     | '/tutorial'
     | '/ugc'
     | '/ugc-line'
+    | '/video-editor'
     | '/workflows'
     | '/admin/assets'
     | '/admin/comfy'
@@ -1045,6 +1055,7 @@ export interface FileRouteTypes {
     | '/tutorial'
     | '/ugc'
     | '/ugc-line'
+    | '/video-editor'
     | '/workflows'
     | '/admin/assets'
     | '/admin/comfy'
@@ -1142,6 +1153,7 @@ export interface FileRouteTypes {
     | '/tutorial'
     | '/ugc'
     | '/ugc-line'
+    | '/video-editor'
     | '/workflows'
     | '/admin/assets'
     | '/admin/comfy'
@@ -1240,6 +1252,7 @@ export interface RootRouteChildren {
   TutorialRoute: typeof TutorialRoute
   UgcRoute: typeof UgcRoute
   UgcLineRoute: typeof UgcLineRoute
+  VideoEditorRoute: typeof VideoEditorRoute
   WorkflowsRoute: typeof WorkflowsRoute
   ApiEstimateRoute: typeof ApiEstimateRoute
   ApiHealthRoute: typeof ApiHealthRoute
@@ -1287,6 +1300,13 @@ declare module '@tanstack/react-router' {
       path: '/workflows'
       fullPath: '/workflows'
       preLoaderRoute: typeof WorkflowsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/video-editor': {
+      id: '/video-editor'
+      path: '/video-editor'
+      fullPath: '/video-editor'
+      preLoaderRoute: typeof VideoEditorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ugc-line': {
@@ -2023,6 +2043,7 @@ const rootRouteChildren: RootRouteChildren = {
   TutorialRoute: TutorialRoute,
   UgcRoute: UgcRoute,
   UgcLineRoute: UgcLineRoute,
+  VideoEditorRoute: VideoEditorRoute,
   WorkflowsRoute: WorkflowsRoute,
   ApiEstimateRoute: ApiEstimateRoute,
   ApiHealthRoute: ApiHealthRoute,
