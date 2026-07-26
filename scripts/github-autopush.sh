@@ -95,7 +95,7 @@ for rec in sys.stdin.buffer.read().split(b"\0"):
 }
 
 echo "[sync] Cloning workspace -> $WORK/repo"
-git clone --no-hardlinks -q "file://$ROOT" "$WORK/repo"
+GIT_LFS_SKIP_SMUDGE=1 git clone --no-hardlinks -q "file://$ROOT" "$WORK/repo"
 cd "$WORK/repo"
 
 ORIG_TREE="$(git rev-parse "${BRANCH}^{tree}")"
