@@ -95,7 +95,10 @@ for rec in sys.stdin.buffer.read().split(b"\0"):
 }
 
 echo "[sync] Cloning workspace -> $WORK/repo"
-GIT_LFS_SKIP_SMUDGE=1 git clone --no-hardlinks -q "file://$ROOT" "$WORK/repo"
+# --no-checkout: skip writing working-tree files (attached_assets/ alone has
+# hundreds of large PNGs/PDFs that fill /tmp quota). The filter-branch strip and
+# push only need git objects, not a checked-out tree.
+GIT_LFS_SKIP_SMUDGE=1 git clone --no-hardlinks --no-checkout -q "file://$ROOT" "$WORK/repo"
 cd "$WORK/repo"
 
 ORIG_TREE="$(git rev-parse "${BRANCH}^{tree}")"
