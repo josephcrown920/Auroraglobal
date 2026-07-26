@@ -1,44 +1,41 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
-import path from "path";
-
-const port = Number(process.env.PORT ?? 8082);
-const basePath = process.env.BASE_PATH ?? "/video-agent/";
-// In development the proxy forwards API calls to the running Aurora backend.
-// In production set VITE_AURORA_URL to your deployed Aurora instance.
-const auroraUrl = process.env.AURORA_DEV_URL ?? "http://localhost:8080";
+// Uses the same Lovable/TanStack Start config wrapper as the main Aurora app.
+// Replit-specific overrides: bind 0.0.0.0 (not IPv6 ::), allow all proxy hosts,
+// skip the LFS crawl deadlock, and read PORT from the environment.
+import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
-  base: basePath,
-  plugins: [react(), tailwindcss()],
-  resolve: {
-    alias: { "@": path.resolve(import.meta.dirname, "src") },
+  tanstackStart: {
+    server: { entry: "server" },
   },
-  server: {
-    port,
-    strictPort: true,
-    host: "0.0.0.0",
-    allowedHosts: true,
-    proxy: {
-      // Forward /api/video-agent/* → Aurora backend (dev only)
-      "/api/video-agent": { target: auroraUrl, changeOrigin: true },
+  nitro: { preset: "node-server" },
+  vite: {
+    optimizeDeps: {
+      // Commit the dep bundle as soon as it's ready — TanStack Start's
+      // server-fn transform keeps requests pending so the crawl never settles,
+      // causing deps_temp_* dirs to pile up and imports to hang indefinitely.
+      holdUntilCrawlEnd: false,
+      include: [
+        "react",
+        "react-dom",
+        "react-dom/client",
+        "@tanstack/react-query",
+        "@tanstack/react-router",
+        "sonner",
+        "lucide-react",
+        "clsx",
+        "tailwind-merge",
+        "class-variance-authority",
+        "zod",
+      ],
+      // "@tanstack/react-start" must NOT be listed — force-including it
+      // overrides the Start plugin's exclude, putting AsyncLocalStorage into
+      // the client bundle and killing every button/form/nav handler.
     },
-  },
-  preview: { port, host: "0.0.0.0", allowedHosts: true },
-  define: {
-    // Bake runtime env into the production bundle.
-    // VITE_SUPABASE_PUBLISHABLE_KEY is the shared-env name; ANON_KEY is the
-    // legacy alias used by this artifact's supabase.ts.
-    "import.meta.env.VITE_AURORA_URL": JSON.stringify(process.env.VITE_AURORA_URL ?? ""),
-    "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(
-      process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL ?? ""
-    ),
-    "import.meta.env.VITE_SUPABASE_ANON_KEY": JSON.stringify(
-      process.env.VITE_SUPABASE_ANON_KEY ??
-      process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
-      process.env.SUPABASE_PUBLISHABLE_KEY ??
-      ""
-    ),
+    server: {
+      host: "0.0.0.0",
+      allowedHosts: true,
+      watch: { ignored: ["**/.cache/**"] },
+    },
+    plugins: [],
   },
 });

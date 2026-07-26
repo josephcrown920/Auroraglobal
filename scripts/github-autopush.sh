@@ -99,6 +99,10 @@ echo "[sync] Cloning workspace -> $WORK/repo"
 # hundreds of large PNGs/PDFs that fill /tmp quota). The filter-branch strip and
 # push only need git objects, not a checked-out tree.
 GIT_LFS_SKIP_SMUDGE=1 git clone --no-hardlinks --no-checkout -q "file://$ROOT" "$WORK/repo"
+# Populate the index from HEAD so filter-branch doesn't see the empty working
+# tree as "uncommitted changes" (it calls git diff-index --cached HEAD and
+# fails if index is out of sync with HEAD, which --no-checkout leaves it).
+git read-tree HEAD
 cd "$WORK/repo"
 
 ORIG_TREE="$(git rev-parse "${BRANCH}^{tree}")"
