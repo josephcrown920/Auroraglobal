@@ -4,3 +4,9 @@ minimumReleaseAge = 86400
 # Each entry bypasses the 24h guard for one package — confirm with the user
 # before adding any.
 minimumReleaseAgeExcludes = ["@lovable.dev/vite-tanstack-config"]
+
+[test]
+# Suppress noisy-but-intentional console output from production modules
+# exercised during unit tests (orchestrator routing, llm-fallback cascade,
+# HeyGen adapter, AI SDK "unsupported feature" warnings).
+preload = ["./src/lib/__test-preload.ts"]
