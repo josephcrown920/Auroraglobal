@@ -11,6 +11,22 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertTrustedUrl, assertOwnStudioUpload } from "./url-guard";
 import { COST_TIKTOK_REMIX_CUT } from "./pricing";
 
+/**
+ * Extract the storage path from a Supabase signed URL.
+ * Signed URL format: https://<project>.supabase.co/storage/v1/object/sign/<bucket>/<path>?token=...
+ * Returns null if the URL doesn't match the expected pattern.
+ * Exported for unit-testing.
+ */
+export function extractStudioPath(signedUrl: string): string | null {
+  try {
+    const url = new URL(signedUrl);
+    const m = url.pathname.match(/^\/storage\/v1\/object\/sign\/studio\/(.+)$/);
+    return m ? decodeURIComponent(m[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
 // Cut styles bias the generated concepts toward a themed look. "auto" keeps the
 // original behavior (distinct hooks pulled from the source).
 export const CUT_STYLES = ["auto", "urban_cut", "grwm"] as const;
@@ -176,13 +192,28 @@ export const startTiktokRemix = createServerFn({ method: "POST" })
     assertTrustedUrl(data.sourceVideoUrl);
     if (data.sourceImageUrl) assertTrustedUrl(data.sourceImageUrl);
     if (data.outfitImageUrl) assertOwnStudioUpload(data.outfitImageUrl, context.userId);
+
+    // Re-sign the outfit URL with a fresh 72-hour TTL so it stays valid when
+    // the worker picks up the job — the 72-h signed URL from listWardrobeItems
+    // was created at picker-open time and could expire before dispatch.
+    let outfitImageUrl = data.outfitImageUrl;
+    if (outfitImageUrl) {
+      const storagePath = extractStudioPath(outfitImageUrl);
+      if (storagePath) {
+        const { data: fresh } = await supabaseAdmin.storage
+          .from("studio")
+          .createSignedUrl(storagePath, 72 * 60 * 60);
+        if (fresh?.signedUrl) outfitImageUrl = fresh.signedUrl;
+      }
+    }
+
     const userId = context.userId;
     const rawBase = data.basePrompt?.trim() || "viral TikTok cut, vertical 9:16, sharp, high energy";
     // When an outfit reference is provided for a GRWM run, append a directive
     // so the AI concept generator (and deterministic fallback) thread the same
     // look through every cut.
     const basePrompt =
-      data.outfitImageUrl && data.style === "grwm"
+      outfitImageUrl && data.style === "grwm"
         ? `${rawBase}. Outfit reference provided — preserve the exact garment, colours, and styling in every scene.`
         : rawBase;
 
@@ -226,7 +257,7 @@ export const startTiktokRemix = createServerFn({ method: "POST" })
             // image conditioning reference (runTiktokRemixChild reads
             // sourceImageUrl → imageUrls for the orchestrator call).  Fall back
             // to the caller-supplied sourceImageUrl if no outfit is selected.
-            sourceImageUrl: data.outfitImageUrl ?? data.sourceImageUrl,
+            sourceImageUrl: outfitImageUrl ?? data.sourceImageUrl,
             duration: data.duration,
             remixId,
             index: i,

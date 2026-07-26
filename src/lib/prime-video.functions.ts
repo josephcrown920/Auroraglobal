@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 /**
  * Prime Director page video server functions.
@@ -26,6 +27,7 @@ const GenerateHeygenInput = z.object({
 });
 
 export const generatePrimeHeygenVideo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => GenerateHeygenInput.parse(i))
   .handler(async ({ data }) => {
     const [w, h] =
@@ -59,6 +61,7 @@ export const generatePrimeHeygenVideo = createServerFn({ method: "POST" })
 // ── Poll HeyGen video status ──────────────────────────────────────────────
 
 export const pollPrimeHeygenVideo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ videoId: z.string() }).parse(i))
   .handler(async ({ data }) => {
     const res = await fetch(
@@ -87,6 +90,7 @@ const FreePreviewInput = z.object({
 });
 
 export const generatePrimeFreePreview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => FreePreviewInput.parse(i))
   .handler(async ({ data }) => {
     const [w, h] =
