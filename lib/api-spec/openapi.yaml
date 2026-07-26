@@ -3,20 +3,32 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Aurora Performance Studio API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: user
+    description: User profile and account
+  - name: dashboard
+    description: Dashboard summary data
+  - name: gallery
+    description: Generated content library
+  - name: generate
+    description: AI generation endpoints
+  - name: credits
+    description: Credits and billing
+  - name: providers
+    description: AI provider status
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +36,372 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /me:
+    get:
+      operationId: getMe
+      tags: [user]
+      summary: Get current user profile and credit balance
+      responses:
+        "200":
+          description: User profile with credits
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Unauthorized
+
+  /me/profile:
+    patch:
+      operationId: updateProfile
+      tags: [user]
+      summary: Update user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdate"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Unauthorized
+
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [dashboard]
+      summary: Dashboard summary — credits, usage stats, recent activity
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /gallery:
+    get:
+      operationId: getGallery
+      tags: [gallery]
+      summary: List user's generated content
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [photo, video, lipsync, ugc, music_video]
+        - name: favorited
+          in: query
+          schema:
+            type: boolean
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 24
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Gallery items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GalleryResponse"
+
+  /gallery/{id}:
+    get:
+      operationId: getGalleryItem
+      tags: [gallery]
+      summary: Get a single gallery item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gallery item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GalleryItem"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteGalleryItem
+      tags: [gallery]
+      summary: Delete a gallery item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResult"
+
+  /gallery/{id}/favorite:
+    patch:
+      operationId: toggleFavorite
+      tags: [gallery]
+      summary: Toggle favorite on a gallery item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FavoriteToggle"
+      responses:
+        "200":
+          description: Updated item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GalleryItem"
+
+  /generate/photo:
+    post:
+      operationId: generatePhoto
+      tags: [generate]
+      summary: Generate AI performance photo (Colors Studio)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PhotoInput"
+      responses:
+        "202":
+          description: Generation queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerationJob"
+        "402":
+          description: Insufficient credits
+
+  /generate/video:
+    post:
+      operationId: generateVideo
+      tags: [generate]
+      summary: Generate AI video (Motion Studio / Video Agent)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VideoInput"
+      responses:
+        "202":
+          description: Generation queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerationJob"
+        "402":
+          description: Insufficient credits
+
+  /generate/lipsync:
+    post:
+      operationId: generateLipsync
+      tags: [generate]
+      summary: Generate lip-sync clip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LipsyncInput"
+      responses:
+        "202":
+          description: Generation queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerationJob"
+        "402":
+          description: Insufficient credits
+
+  /generate/ugc:
+    post:
+      operationId: generateUgc
+      tags: [generate]
+      summary: Generate UGC ad clip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UgcInput"
+      responses:
+        "202":
+          description: Generation queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerationJob"
+        "402":
+          description: Insufficient credits
+
+  /generate/music-video:
+    post:
+      operationId: generateMusicVideo
+      tags: [generate]
+      summary: Generate music video clip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MusicVideoInput"
+      responses:
+        "202":
+          description: Generation queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerationJob"
+        "402":
+          description: Insufficient credits
+
+  /generate/{id}:
+    get:
+      operationId: getGenerationStatus
+      tags: [generate]
+      summary: Poll generation status and result
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Generation status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerationStatus"
+        "404":
+          description: Not found
+
+  /generate/recent:
+    get:
+      operationId: getRecentGenerations
+      tags: [generate]
+      summary: Get recent generations across all types
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Recent generations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GalleryItem"
+
+  /credits/packages:
+    get:
+      operationId: getCreditPackages
+      tags: [credits]
+      summary: List available credit top-up packages
+      responses:
+        "200":
+          description: Credit packages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CreditPackage"
+
+  /credits/transactions:
+    get:
+      operationId: getCreditTransactions
+      tags: [credits]
+      summary: Get user credit transaction history
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Transactions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionHistory"
+
+  /credits/checkout:
+    post:
+      operationId: checkoutCredits
+      tags: [credits]
+      summary: Initiate Paystack payment for credit top-up
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckoutInput"
+      responses:
+        "200":
+          description: Paystack checkout URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutResult"
+
+  /providers/status:
+    get:
+      operationId: getProviderStatus
+      tags: [providers]
+      summary: Check availability of all AI providers
+      responses:
+        "200":
+          description: Provider statuses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProviderStatus"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +412,353 @@ components:
       required:
         - status
 
+    UserProfile:
+      type: object
+      required: [id, email, credits, plan, createdAt]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        displayName:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        credits:
+          type: integer
+        plan:
+          type: string
+          enum: [free, starter, pro, studio]
+        totalGenerations:
+          type: integer
+        createdAt:
+          type: string
+
+    ProfileUpdate:
+      type: object
+      properties:
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+
+    DashboardSummary:
+      type: object
+      required: [credits, totalGenerations, thisMonthGenerations, byType, recentActivity]
+      properties:
+        credits:
+          type: integer
+        totalGenerations:
+          type: integer
+        thisMonthGenerations:
+          type: integer
+        photoCount:
+          type: integer
+        videoCount:
+          type: integer
+        lipsyncCount:
+          type: integer
+        ugcCount:
+          type: integer
+        byType:
+          type: array
+          items:
+            $ref: "#/components/schemas/TypeCount"
+        recentActivity:
+          type: array
+          items:
+            $ref: "#/components/schemas/GalleryItem"
+        creditsUsedThisMonth:
+          type: integer
+        favoriteCount:
+          type: integer
+
+    TypeCount:
+      type: object
+      required: [type, count]
+      properties:
+        type:
+          type: string
+        count:
+          type: integer
+
+    GalleryItem:
+      type: object
+      required: [id, type, status, createdAt, creditsUsed]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [photo, video, lipsync, ugc, music_video]
+        status:
+          type: string
+          enum: [queued, processing, completed, failed]
+        prompt:
+          type: ["string", "null"]
+        outputUrl:
+          type: ["string", "null"]
+        thumbnailUrl:
+          type: ["string", "null"]
+        provider:
+          type: ["string", "null"]
+        creditsUsed:
+          type: integer
+        isFavorited:
+          type: boolean
+        metadataJson:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        completedAt:
+          type: ["string", "null"]
+
+    GalleryResponse:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/GalleryItem"
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    FavoriteToggle:
+      type: object
+      required: [favorited]
+      properties:
+        favorited:
+          type: boolean
+
+    DeleteResult:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+
+    PhotoInput:
+      type: object
+      required: [prompt]
+      properties:
+        prompt:
+          type: string
+          minLength: 1
+        style:
+          type: string
+          enum: [cinematic, editorial, performance, concert, portrait, studio]
+          default: cinematic
+        aspectRatio:
+          type: string
+          enum: ["1:1", "16:9", "9:16", "4:3", "3:4"]
+          default: "3:4"
+        referenceImageUrl:
+          type: ["string", "null"]
+        provider:
+          type: string
+          enum: [fal, replicate, auto]
+          default: auto
+        numImages:
+          type: integer
+          minimum: 1
+          maximum: 4
+          default: 1
+
+    VideoInput:
+      type: object
+      required: [prompt]
+      properties:
+        prompt:
+          type: string
+          minLength: 1
+        sourceImageUrl:
+          type: ["string", "null"]
+        motionReferenceUrl:
+          type: ["string", "null"]
+        duration:
+          type: integer
+          enum: [5, 10]
+          default: 5
+        provider:
+          type: string
+          enum: [kling, seedance, fal, auto]
+          default: auto
+        style:
+          type: string
+          enum: [realistic, cinematic, performance]
+          default: cinematic
+
+    LipsyncInput:
+      type: object
+      required: [videoUrl, audioUrl]
+      properties:
+        videoUrl:
+          type: string
+        audioUrl:
+          type: string
+        provider:
+          type: string
+          enum: [sync, heygen, auto]
+          default: auto
+
+    UgcInput:
+      type: object
+      required: [prompt, productDescription]
+      properties:
+        prompt:
+          type: string
+        productDescription:
+          type: string
+        productImageUrl:
+          type: ["string", "null"]
+        avatarStyle:
+          type: string
+          enum: [lifestyle, street, studio, unboxing]
+          default: lifestyle
+        platform:
+          type: string
+          enum: [tiktok, instagram, youtube]
+          default: tiktok
+
+    MusicVideoInput:
+      type: object
+      required: [prompt, audioUrl]
+      properties:
+        prompt:
+          type: string
+        audioUrl:
+          type: string
+        style:
+          type: string
+          enum: [performance, narrative, abstract, lyric_video]
+          default: performance
+        beatSync:
+          type: boolean
+          default: true
+
+    GenerationJob:
+      type: object
+      required: [id, status, creditsUsed, estimatedSeconds]
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [queued, processing]
+        creditsUsed:
+          type: integer
+        estimatedSeconds:
+          type: integer
+        remainingCredits:
+          type: integer
+
+    GenerationStatus:
+      type: object
+      required: [id, status, type, createdAt]
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [queued, processing, completed, failed]
+        type:
+          type: string
+          enum: [photo, video, lipsync, ugc, music_video]
+        outputUrl:
+          type: ["string", "null"]
+        thumbnailUrl:
+          type: ["string", "null"]
+        errorMessage:
+          type: ["string", "null"]
+        progress:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+        completedAt:
+          type: ["string", "null"]
+
+    CreditPackage:
+      type: object
+      required: [id, name, credits, priceNgn, popular]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        credits:
+          type: integer
+        priceNgn:
+          type: integer
+        priceUsd:
+          type: ["number", "null"]
+        popular:
+          type: boolean
+        description:
+          type: string
+
+    CheckoutInput:
+      type: object
+      required: [packageId]
+      properties:
+        packageId:
+          type: string
+        email:
+          type: ["string", "null"]
+
+    CheckoutResult:
+      type: object
+      required: [authorizationUrl, reference]
+      properties:
+        authorizationUrl:
+          type: string
+        reference:
+          type: string
+
+    CreditTransaction:
+      type: object
+      required: [id, amount, type, description, createdAt, balanceAfter]
+      properties:
+        id:
+          type: string
+        amount:
+          type: integer
+        type:
+          type: string
+          enum: [topup, deduction, bonus, refund]
+        description:
+          type: string
+        reference:
+          type: ["string", "null"]
+        balanceAfter:
+          type: integer
+        createdAt:
+          type: string
+
+    TransactionHistory:
+      type: object
+      required: [transactions, total]
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreditTransaction"
+        total:
+          type: integer
+
+    ProviderStatus:
+      type: object
+      required: [name, available, latencyMs]
+      properties:
+        name:
+          type: string
+        available:
+          type: boolean
+        latencyMs:
+          type: ["integer", "null"]
+        lastChecked:
+          type: string

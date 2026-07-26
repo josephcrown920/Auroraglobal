@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Aurora Performance Studio"
+version = "1.0.0"
+id = "artifacts/aurora-studio"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23389
+
+[services.development]
+run = "pnpm --filter @workspace/aurora-studio run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/aurora-studio", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/aurora-studio/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23389"
+BASE_PATH = "/"
