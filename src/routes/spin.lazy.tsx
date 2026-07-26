@@ -330,7 +330,7 @@ function SpinPage() {
       autoStartedRef.current = true;
       void startSpin(search.prompt.trim());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: auto-starts spin from URL prompt param once; re-running on dep changes would restart unexpectedly
   }, []);
 
   const submit = (e: React.FormEvent) => {

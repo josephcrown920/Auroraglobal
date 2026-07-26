@@ -47,7 +47,7 @@ export const Route = createFileRoute("/api/admin/upload-site-image")({
         const { data: urlData } = supabaseAdmin.storage.from(BUCKET).getPublicUrl(path);
         const publicUrl = urlData.publicUrl;
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- site_images table not yet in generated types.ts; cast until next type regen
         await (supabaseAdmin as any)
           .from("site_images")
           .upsert({ key, url: publicUrl, updated_at: new Date().toISOString() }, { onConflict: "key" });

@@ -77,7 +77,7 @@ function BillingPage() {
       const limit = (profile as { daily_spend_limit?: number | null }).daily_spend_limit;
       if (limit) setDailyLimitInput(String(limit));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setDailyLimitInput is a stable useState setter; dep narrowed to profile so it populates once on load
   }, [profile]);
 
   const proMut = useMutation({

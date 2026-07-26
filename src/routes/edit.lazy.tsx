@@ -435,7 +435,7 @@ function AutoCutPage() {
       }
     })();
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- async cancel flag uses a stable closure ref; dep array covers all meaningful reactive inputs
   }, [search.job, user]);
 
   const isActive = phase === "uploading" || phase === "dispatching" || phase === "processing";

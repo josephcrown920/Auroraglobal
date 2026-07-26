@@ -62,7 +62,8 @@ function EditorSheet() {
     }
   }
 
-  useEffect(() => { if (open) refresh(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [open]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh is a stable server fn; re-adding it would trigger on every render instead of only when dialog opens
+  useEffect(() => { if (open) refresh(); }, [open]);
 
   async function bearer(): Promise<string> {
     const { data } = await supabase.auth.getSession();

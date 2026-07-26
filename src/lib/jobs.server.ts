@@ -62,7 +62,7 @@ async function mirrorComfyRun(
   const runId = (job.payload as { comfyRunId?: string })?.comfyRunId;
   if (!runId) return;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- comfy_runs table not yet in generated types.ts; cast until next type regen
     await (supabaseAdmin as any)
       .from("comfy_runs")
       .update({ ...patch, updated_at: new Date().toISOString() })

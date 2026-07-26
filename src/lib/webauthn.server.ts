@@ -13,7 +13,7 @@ import type {
 } from "@simplewebauthn/types";
 import { z } from "zod";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- webauthn tables not yet in generated types.ts; cast until next type regen
 const db = supabaseAdmin as any;
 
 const FIFTEEN_MIN_MS = 15 * 60 * 1000;

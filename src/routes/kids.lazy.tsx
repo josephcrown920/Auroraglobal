@@ -360,7 +360,7 @@ function KidsPage() {
 
   useEffect(() => {
     if (story && TERMINAL.has(story.status)) historyQ.refetch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- historyQ.refetch is a stable TanStack Query method; dep narrowed to story status to avoid redundant refetches
   }, [story?.status]);
 
   const updateScene = (i: number, patch: Partial<Scene>) => {

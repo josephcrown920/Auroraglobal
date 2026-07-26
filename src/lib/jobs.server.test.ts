@@ -1,4 +1,19 @@
-import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
+
+let logSpy: ReturnType<typeof spyOn>;
+let warnSpy: ReturnType<typeof spyOn>;
+
+beforeAll(() => {
+  // Job worker loop emits progress/trace logs on every claim→dispatch→commit cycle;
+  // suppress here so batch-queue decision failures stand out in test output.
+  logSpy = spyOn(console, "log").mockImplementation(() => {});
+  warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+});
+
+afterAll(() => {
+  logSpy.mockRestore();
+  warnSpy.mockRestore();
+});
 
 // The jobs worker loop (processOneJob/processBatch) backs the batch queue used by
 // TikTok remixes, UGC campaigns, performance reskins and plain media jobs. It

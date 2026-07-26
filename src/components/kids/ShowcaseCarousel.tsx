@@ -109,7 +109,7 @@ export function KidsShowcaseCarousel() {
       if (timerRef.current) clearInterval(timerRef.current);
       if (fadeCleanupRef.current) clearTimeout(fadeCleanupRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- timerRef/fadeCleanupRef are stable mutable refs and don't need to be in deps; only reducedMotion/pageCount drive carousel restart
   }, [reducedMotion, pageCount]);
 
   const goTo = (next: number) => {

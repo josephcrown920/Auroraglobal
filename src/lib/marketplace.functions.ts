@@ -13,7 +13,7 @@ export type MarketplaceTemplate = {
   name: string;
   description: string;
   thumbnail_url: string | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ComfyUI graph_json is dynamically structured with runtime-determined node types
   graph_json: Record<string, any>;
   category: string;
   tags: string[];
@@ -249,7 +249,7 @@ export const getMarketplaceTemplateForCanvas = createServerFn({ method: "GET" })
       id: tmpl.id as string,
       name: tmpl.name as string,
       run_cost_aura: tmpl.run_cost_aura as number,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ComfyUI node/edge payloads are dynamically typed at runtime
       graph: tmpl.graph_json as { name: string; nodes: any[]; edges: any[] },
     };
   });

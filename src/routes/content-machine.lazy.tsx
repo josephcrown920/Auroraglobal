@@ -515,7 +515,7 @@ function ContentMachinePage() {
   // Refresh analytics when the active batch finishes processing.
   useEffect(() => {
     if (active && active.counts.processing === 0) dataQ.refetch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- dataQ.refetch is a stable TanStack Query method; dep narrowed to processing count to avoid spurious fetches
   }, [active?.counts.processing]);
 
   const deleteProductMut = useMutation({

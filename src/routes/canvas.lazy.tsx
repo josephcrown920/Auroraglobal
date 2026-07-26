@@ -1321,7 +1321,7 @@ function CanvasPage() {
       url.searchParams.delete("template");
       window.history.replaceState({}, "", url.toString());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: strips template query param from URL on initial load; running again is harmless but unnecessary
   }, []);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<NodeData>>(initialNodes);
