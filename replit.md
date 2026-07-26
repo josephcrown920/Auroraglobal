@@ -2,6 +2,8 @@
 
 AI creative studio for artists, performers, and labels. Generate cinematic performance shots, music-video stills, lip-sync clips, and UGC ads — all powered by AI with a credit-based economy and Paystack monetization.
 
+The web UI is rebuilt from the Lovable reference at `https://github.com/josephcrown920/auroraglobal-Lovable-2`. The design language is dark, premium, and Apple-like: deep charcoal (`#1A1A1A`) backgrounds, crisp white typography, Aurora Blue (`#007AFF`) accents, Instrument Sans display type, and Cormorant Garamond italic accents. Reference files are copied to `artifacts/aurora-studio/reference/` for maintenance.
+
 ## Run & Operate
 
 - `pnpm --filter @workspace/aurora-studio run dev` — run the frontend (auto-managed via workflow)

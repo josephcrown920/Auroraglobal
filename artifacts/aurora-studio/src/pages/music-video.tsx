@@ -1,231 +1,82 @@
-import React, { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { 
-  useGenerateMusicVideo, 
-  useGetGenerationStatus, 
-  MusicVideoInputStyle,
-  getGetDashboardQueryKey,
-  getGetGalleryQueryKey
-} from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Music, Sparkles, Loader2, AlertCircle } from "lucide-react";
+import { useState } from "react";
+import { useGenerateMusicVideo } from "@workspace/api-client-react";
+import { Music, Film, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-
-const formSchema = z.object({
-  prompt: z.string().min(5, "Prompt must be at least 5 characters"),
-  audioUrl: z.string().url("Must be a valid URL"),
-  style: z.nativeEnum(MusicVideoInputStyle).default("performance" as MusicVideoInputStyle),
-  beatSync: z.boolean().default(true),
-});
+import { useLocation } from "wouter";
 
 export default function MusicVideoStudioPage() {
-  const [jobId, setJobId] = useState<string | null>(null);
-  const queryClient = useQueryClient();
-  const generateMV = useGenerateMusicVideo();
-  
-  const { data: status, isError } = useGetGenerationStatus(
-    jobId as string, 
-    { 
-      query: { 
-        enabled: !!jobId && (jobId !== 'null'), 
-        refetchInterval: (query) => {
-          const currentStatus = query.state.data?.status;
-          return (currentStatus === 'completed' || currentStatus === 'failed') ? false : 3000;
-        },
-        queryKey: ['generationStatus', jobId]
-      } 
+  const [prompt, setPrompt] = useState("");
+  const [audioUrl, setAudioUrl] = useState("");
+  const generate = useGenerateMusicVideo();
+  const [, setLocation] = useLocation();
+
+  const handleGenerate = () => {
+    if (!prompt.trim() || !audioUrl.trim()) {
+      toast.error("Please provide both scene direction and audio URL.");
+      return;
     }
-  );
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      prompt: "",
-      audioUrl: "",
-      style: "performance",
-      beatSync: true,
-    },
-  });
-
-  const isGenerating = jobId && (!status || status.status === 'queued' || status.status === 'processing');
-
-  useEffect(() => {
-    if (status?.status === 'completed') {
-      toast.success("Music video complete!");
-      queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
-      queryClient.invalidateQueries({ queryKey: getGetGalleryQueryKey() });
-    } else if (status?.status === 'failed') {
-      toast.error(`Generation failed: ${status.errorMessage || 'Unknown error'}`);
-      setJobId(null);
-    }
-  }, [status?.status, queryClient, status?.errorMessage]);
-
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    setJobId(null);
     
-    generateMV.mutate({ data: values }, {
-      onSuccess: (data) => {
-        setJobId(data.id);
-        toast.info(`Music video queued. Estimated time: ${data.estimatedSeconds}s`);
-        queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
-      },
-      onError: (error: any) => {
-        toast.error(error.message || "Failed to start generation");
+    generate.mutate(
+      { data: { prompt, audioUrl } },
+      {
+        onSuccess: () => {
+          toast.success("Music video generation started!");
+          setLocation("/dashboard");
+        },
+        onError: () => {
+          toast.error("Failed to start generation.");
+        }
       }
-    });
-  }
+    );
+  };
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto w-full h-full flex flex-col md:flex-row gap-8">
-      <div className="w-full md:w-[400px] shrink-0 flex flex-col gap-6">
-        <div>
-          <h1 className="text-3xl font-serif font-bold text-white flex items-center gap-3">
-            <Music className="text-cyan-500" size={28} />
-            Music Video
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">Generate AI music videos synchronized to your track.</p>
+    <div className="max-w-4xl mx-auto pb-12 pt-8">
+      <header className="mb-10 text-center">
+        <div className="inline-block px-3 py-1 rounded-full bg-brand/10 border border-brand/20 text-brand text-[10px] font-bold uppercase tracking-[0.2em] mb-4">
+          Flagship
+        </div>
+        <h1 className="text-4xl md:text-5xl font-display font-semibold text-white mb-4">Perform Anywhere</h1>
+        <p className="text-lg text-[#999999] max-w-2xl mx-auto">
+          Upload an audio track and describe the scene. We'll generate a full cinematic performance perfectly timed to the beat.
+        </p>
+      </header>
+
+      <div className="aurora-card p-8 md:p-12 space-y-8">
+        <div className="space-y-4">
+          <label className="text-xs font-bold uppercase tracking-wider text-white">Audio Track URL</label>
+          <input
+            type="url"
+            value={audioUrl}
+            onChange={(e) => setAudioUrl(e.target.value)}
+            placeholder="https://example.com/master-track.mp3"
+            className="w-full aurora-input text-base py-3"
+          />
         </div>
 
-        <div className="bg-card border border-border rounded-2xl p-6 flex-1 overflow-y-auto">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="prompt"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-white">Director's Prompt</FormLabel>
-                    <FormControl>
-                      <textarea 
-                        className="flex w-full rounded-xl border border-input bg-background px-3 py-3 text-sm text-white shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring min-h-[120px] resize-none" 
-                        placeholder="Describe the overall narrative, aesthetic, lighting, and camera moves..." 
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="audioUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-white">Track Audio URL</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://... (.mp3/.wav)" className="bg-background border-input text-white" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="style"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-white">Video Style</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="bg-background border-input text-white">
-                          <SelectValue placeholder="Select style" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent className="bg-popover border-border text-white">
-                        <SelectItem value="performance">Performance</SelectItem>
-                        <SelectItem value="narrative">Narrative Story</SelectItem>
-                        <SelectItem value="abstract">Abstract Visualizer</SelectItem>
-                        <SelectItem value="lyric_video">Lyric Video Background</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="beatSync"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-xl border border-border bg-background p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base text-white">Audio Beat Sync</FormLabel>
-                      <div className="text-xs text-muted-foreground">Cut and pulse video to the beat</div>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        className="data-[state=checked]:bg-cyan-500"
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              <button 
-                type="submit" 
-                disabled={isGenerating || generateMV.isPending}
-                className="w-full py-4 bg-cyan-500 text-black font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-cyan-400 transition-all shadow-[0_0_20px_rgba(6,182,212,0.3)] disabled:opacity-50 disabled:shadow-none"
-              >
-                {isGenerating || generateMV.isPending ? (
-                  <><Loader2 className="animate-spin" size={20} /> Producing...</>
-                ) : (
-                  <><Sparkles size={20} /> Generate Video (25 Credits)</>
-                )}
-              </button>
-            </form>
-          </Form>
+        <div className="space-y-4">
+          <label className="text-xs font-bold uppercase tracking-wider text-white">Scene Direction & Prompt</label>
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="Artist performing on top of a moving train at sunset, cinematic drone shots circling, high contrast, 35mm film look..."
+            className="w-full h-40 aurora-input resize-none font-mono text-sm leading-relaxed"
+          />
         </div>
-      </div>
 
-      <div className="flex-1 bg-black/60 rounded-3xl border border-border overflow-hidden relative flex flex-col items-center justify-center p-8 min-h-[400px]">
-        {isGenerating ? (
-          <div className="text-center flex flex-col items-center max-w-sm">
-            <div className="w-full h-2 bg-background rounded-full mb-8 overflow-hidden relative">
-              <div 
-                className="absolute top-0 left-0 h-full bg-cyan-500 transition-all duration-1000"
-                style={{ width: `${(status?.progress || 0) * 100}%` }}
-              />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-2 animate-pulse">Directing Masterpiece</h3>
-            <p className="text-muted-foreground text-sm">
-              Music videos are heavy compute tasks. This may take a few minutes to render.
-            </p>
-          </div>
-        ) : status?.status === 'completed' && status.outputUrl ? (
-          <div className="relative w-full h-full flex items-center justify-center group animate-in fade-in duration-1000">
-            <video 
-              src={status.outputUrl} 
-              autoPlay 
-              loop 
-              controls 
-              className="max-w-full max-h-full rounded-lg shadow-2xl border border-border/50"
-            />
-          </div>
-        ) : status?.status === 'failed' || isError ? (
-          <div className="text-center flex flex-col items-center">
-            <AlertCircle className="text-destructive mb-4" size={48} />
-            <h3 className="text-xl font-bold text-white mb-2">Generation Failed</h3>
-            <p className="text-muted-foreground">{status?.errorMessage || 'An unknown error occurred during generation.'}</p>
-          </div>
-        ) : (
-          <div className="text-center flex flex-col items-center opacity-40">
-            <Music className="text-muted-foreground mb-4" size={64} />
-            <h3 className="text-xl font-medium text-white mb-2">Awaiting Track</h3>
-            <p className="text-muted-foreground max-w-sm">
-              Provide your audio track and creative direction to start the shoot.
-            </p>
-          </div>
-        )}
+        <div className="pt-8 border-t border-[#333333] flex justify-end">
+          <button
+            onClick={handleGenerate}
+            disabled={generate.isPending}
+            className="w-full md:w-auto px-12 py-4 aurora-btn-primary flex items-center justify-center gap-2 text-sm uppercase tracking-widest font-bold bg-white text-black hover:bg-gray-200"
+          >
+            {generate.isPending ? (
+              <><Loader2 className="animate-spin" size={16} /> Processing...</>
+            ) : (
+              <><Film size={18} /> Generate Scene (50 Aura)</>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

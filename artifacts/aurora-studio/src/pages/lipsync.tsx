@@ -1,203 +1,111 @@
-import React, { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { 
-  useGenerateLipsync, 
-  useGetGenerationStatus, 
-  LipsyncInputProvider,
-  getGetDashboardQueryKey,
-  getGetGalleryQueryKey
-} from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Mic, Sparkles, Loader2, AlertCircle } from "lucide-react";
+import { useState } from "react";
+import { useGenerateLipsync } from "@workspace/api-client-react";
+import { Mic, Video, Upload, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-
-const formSchema = z.object({
-  videoUrl: z.string().url("Must be a valid URL"),
-  audioUrl: z.string().url("Must be a valid URL"),
-  provider: z.nativeEnum(LipsyncInputProvider).default("auto" as LipsyncInputProvider),
-});
+import { useLocation } from "wouter";
 
 export default function LipsyncStudioPage() {
-  const [jobId, setJobId] = useState<string | null>(null);
-  const queryClient = useQueryClient();
-  const generateLipsync = useGenerateLipsync();
-  
-  const { data: status, isError } = useGetGenerationStatus(
-    jobId as string, 
-    { 
-      query: { 
-        enabled: !!jobId && (jobId !== 'null'), 
-        refetchInterval: (query) => {
-          const currentStatus = query.state.data?.status;
-          return (currentStatus === 'completed' || currentStatus === 'failed') ? false : 3000;
-        },
-        queryKey: ['generationStatus', jobId]
-      } 
+  const [videoUrl, setVideoUrl] = useState("");
+  const [audioUrl, setAudioUrl] = useState("");
+  const generate = useGenerateLipsync();
+  const [, setLocation] = useLocation();
+
+  const handleGenerate = () => {
+    if (!videoUrl.trim() || !audioUrl.trim()) {
+      toast.error("Please provide both video and audio source URLs.");
+      return;
     }
-  );
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      videoUrl: "",
-      audioUrl: "",
-      provider: "auto",
-    },
-  });
-
-  const isGenerating = jobId && (!status || status.status === 'queued' || status.status === 'processing');
-
-  useEffect(() => {
-    if (status?.status === 'completed') {
-      toast.success("Lip sync complete!");
-      queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
-      queryClient.invalidateQueries({ queryKey: getGetGalleryQueryKey() });
-    } else if (status?.status === 'failed') {
-      toast.error(`Generation failed: ${status.errorMessage || 'Unknown error'}`);
-      setJobId(null);
-    }
-  }, [status?.status, queryClient, status?.errorMessage]);
-
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    setJobId(null);
     
-    generateLipsync.mutate({ data: values }, {
-      onSuccess: (data) => {
-        setJobId(data.id);
-        toast.info(`Lip sync queued. Estimated time: ${data.estimatedSeconds}s`);
-        queryClient.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
-      },
-      onError: (error: any) => {
-        toast.error(error.message || "Failed to start generation");
+    generate.mutate(
+      { data: { videoUrl, audioUrl } },
+      {
+        onSuccess: () => {
+          toast.success("Lipsync processing started!");
+          setVideoUrl("");
+          setAudioUrl("");
+          setLocation("/dashboard");
+        },
+        onError: () => {
+          toast.error("Failed to start sync. Check your credit balance.");
+        }
       }
-    });
-  }
+    );
+  };
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto w-full h-full flex flex-col md:flex-row gap-8">
-      <div className="w-full md:w-[400px] shrink-0 flex flex-col gap-6">
-        <div>
-          <h1 className="text-3xl font-serif font-bold text-white flex items-center gap-3">
-            <Mic className="text-accent" size={28} />
-            Lip Sync Studio
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">Perfectly map vocal tracks to any face.</p>
+    <div className="flex flex-col lg:flex-row gap-8 pb-12 h-[calc(100vh-8rem)]">
+      <div className="w-full lg:w-[400px] flex-shrink-0 flex flex-col gap-6 overflow-y-auto pr-2">
+        <header>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#007AFF]">Vocal Sync</span>
+          </div>
+          <h1 className="text-3xl font-display font-semibold text-white">Lip Sync Studio</h1>
+          <p className="text-sm text-[#999999] mt-2 leading-relaxed">
+            Perfectly map any audio track to a subject's face.
+          </p>
+        </header>
+
+        <div className="space-y-8 flex-1">
+          <div className="space-y-4">
+            <label className="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
+              <Video size={14} className="text-brand" /> Base Video URL
+            </label>
+            <input
+              type="url"
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              placeholder="https://example.com/portrait-video.mp4"
+              className="w-full aurora-input text-sm"
+            />
+          </div>
+
+          <div className="space-y-4">
+            <label className="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
+              <Mic size={14} className="text-[#34C759]" /> Target Audio URL
+            </label>
+            <input
+              type="url"
+              value={audioUrl}
+              onChange={(e) => setAudioUrl(e.target.value)}
+              placeholder="https://example.com/vocal-track.mp3"
+              className="w-full aurora-input text-sm"
+            />
+          </div>
         </div>
 
-        <div className="bg-card border border-border rounded-2xl p-6 flex-1 overflow-y-auto">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="videoUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-white">Source Video URL</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://... (.mp4)" className="bg-background border-input text-white" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="audioUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-white">Vocal Audio URL</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://... (.mp3/.wav)" className="bg-background border-input text-white" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="provider"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-white">Processing Engine</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="bg-background border-input text-white">
-                          <SelectValue placeholder="Select engine" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent className="bg-popover border-border text-white">
-                        <SelectItem value="auto">Auto (Recommended)</SelectItem>
-                        <SelectItem value="sync">Sync Engine</SelectItem>
-                        <SelectItem value="heygen">HeyGen Engine</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <button 
-                type="submit" 
-                disabled={isGenerating || generateLipsync.isPending}
-                className="w-full py-4 bg-accent text-accent-foreground font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-accent/90 transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] disabled:opacity-50 disabled:shadow-none"
-              >
-                {isGenerating || generateLipsync.isPending ? (
-                  <><Loader2 className="animate-spin" size={20} /> Processing...</>
-                ) : (
-                  <><Sparkles size={20} /> Generate Sync (5 Credits)</>
-                )}
-              </button>
-            </form>
-          </Form>
+        <div className="pt-4 border-t border-[#333333]">
+          <button
+            onClick={handleGenerate}
+            disabled={generate.isPending}
+            className="w-full aurora-btn-primary flex items-center justify-center gap-2 py-4 text-sm uppercase tracking-widest"
+          >
+            {generate.isPending ? (
+              <><Loader2 className="animate-spin" size={16} /> Processing...</>
+            ) : (
+              <><Sparkles size={16} /> Run Sync (15 Aura)</>
+            )}
+          </button>
         </div>
       </div>
 
-      <div className="flex-1 bg-black/60 rounded-3xl border border-border overflow-hidden relative flex flex-col items-center justify-center p-8 min-h-[400px]">
-        {isGenerating ? (
-          <div className="text-center flex flex-col items-center max-w-sm">
-            <div className="w-full h-2 bg-background rounded-full mb-8 overflow-hidden relative">
-              <div 
-                className="absolute top-0 left-0 h-full bg-accent transition-all duration-1000"
-                style={{ width: `${(status?.progress || 0) * 100}%` }}
-              />
+      <div className="flex-1 bg-[#111111] rounded-2xl border border-[#333333] overflow-hidden flex flex-col items-center justify-center relative shadow-inner">
+        <div className="text-center max-w-sm px-6 relative z-10">
+          <div className="flex items-center justify-center gap-4 mb-8">
+            <div className="w-16 h-16 rounded-full bg-[#1A1A1A] border border-[#333333] flex items-center justify-center">
+              <Video className="text-[#666666]" size={24} />
             </div>
-            <h3 className="text-xl font-bold text-white mb-2 animate-pulse">Syncing Audio & Video</h3>
-            <p className="text-muted-foreground text-sm">
-              Analyzing phonemes and rendering face geometry. Please wait.
-            </p>
+            <div className="w-12 h-px bg-[#333333] relative">
+              <div className="absolute inset-0 bg-brand animate-pulse"></div>
+            </div>
+            <div className="w-16 h-16 rounded-full bg-[#1A1A1A] border border-[#333333] flex items-center justify-center">
+              <Mic className="text-[#666666]" size={24} />
+            </div>
           </div>
-        ) : status?.status === 'completed' && status.outputUrl ? (
-          <div className="relative w-full h-full flex items-center justify-center group animate-in fade-in duration-1000">
-            <video 
-              src={status.outputUrl} 
-              autoPlay 
-              loop 
-              controls 
-              className="max-w-full max-h-full rounded-lg shadow-2xl border border-border/50"
-            />
-          </div>
-        ) : status?.status === 'failed' || isError ? (
-          <div className="text-center flex flex-col items-center">
-            <AlertCircle className="text-destructive mb-4" size={48} />
-            <h3 className="text-xl font-bold text-white mb-2">Generation Failed</h3>
-            <p className="text-muted-foreground">{status?.errorMessage || 'An unknown error occurred during generation.'}</p>
-          </div>
-        ) : (
-          <div className="text-center flex flex-col items-center opacity-40">
-            <Mic className="text-muted-foreground mb-4" size={64} />
-            <h3 className="text-xl font-medium text-white mb-2">Awaiting Source Material</h3>
-            <p className="text-muted-foreground max-w-sm">
-              Provide a video clip and an audio track to generate a synchronized result.
-            </p>
-          </div>
-        )}
+          <h3 className="text-xl font-display font-semibold text-white mb-2">Awaiting Sources</h3>
+          <p className="text-sm text-[#666666]">
+            Provide public URLs for your source video and audio to begin the synchronization process.
+          </p>
+        </div>
       </div>
     </div>
   );

@@ -13,7 +13,8 @@ import {
   LogOut,
   CreditCard,
   Menu,
-  X
+  X,
+  Palette
 } from "lucide-react";
 import { useGetMe } from "@workspace/api-client-react";
 
@@ -25,113 +26,166 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const { data: user } = useGetMe();
 
-  const navItems = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/studio", label: "Colors Studio", icon: ImageIcon },
-    { href: "/motion", label: "Motion Studio", icon: Video },
+  const artistsItems = [
+    { href: "/studio", label: "Colors Performance", icon: Palette, premium: true },
+    { href: "/motion", label: "Video Agent", icon: Video, premium: true },
     { href: "/lipsync", label: "Lip Sync", icon: Mic },
-    { href: "/music-video", label: "Music Videos", icon: Music },
-    { href: "/ugc", label: "UGC Factory", icon: Smartphone },
-    { href: "/gallery", label: "My Gallery", icon: Library },
+    { href: "/music-video", label: "Music Video", icon: Music },
+  ];
+
+  const creatorsItems = [
+    { href: "/ugc", label: "TikTok30", icon: Smartphone, premium: true },
+  ];
+
+  const accountItems = [
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/gallery", label: "Gallery", icon: Library },
   ];
 
   return (
-    <div className="flex h-[100dvh] bg-background text-foreground overflow-hidden">
-      {/* Cinematic noise overlay */}
-      <div className="pointer-events-none fixed inset-0 z-50 opacity-[0.03] mix-blend-overlay bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIj48ZmlsdGVyIGlkPSJuIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iLjYiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjbikiLz48L3N2Zz4=')]" />
+    <div className="flex h-[100dvh] bg-[#1A1A1A] text-white overflow-hidden font-sans">
       
       {/* Mobile Top Bar */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-sidebar border-b border-sidebar-border z-40 flex items-center justify-between px-4">
+      <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-[#1A1A1A] border-b border-[#333333] z-40 flex items-center justify-between px-4">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <img src="/logo.svg" alt="Aurora" className="h-8 w-auto" />
-          <span className="font-serif font-bold text-lg">Aurora</span>
+          <span className="inline-block size-2 shrink-0 rounded-full bg-brand" />
+          <span className="font-display font-bold text-lg uppercase tracking-[0.18em]">Aurora</span>
         </Link>
-        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-muted-foreground hover:text-white">
+        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-[#999999] hover:text-white">
           {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
 
       {/* Sidebar Navigation */}
       <aside className={`
-        fixed inset-y-0 left-0 z-30 w-64 bg-sidebar border-r border-sidebar-border flex flex-col transition-transform duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-30 w-64 bg-[#1A1A1A] border-r border-[#333333] flex flex-col transition-transform duration-300 ease-in-out
         md:translate-x-0 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="h-16 flex items-center px-6 border-b border-sidebar-border mt-16 md:mt-0">
+        <div className="h-20 flex items-center px-6 border-b border-[#333333] mt-16 md:mt-0">
           <Link href="/dashboard" className="flex items-center gap-2 group">
-            <img src="/logo.svg" alt="Aurora" className="h-8 w-auto group-hover:scale-105 transition-transform" />
-            <span className="font-serif font-bold text-xl tracking-tight text-white">Aurora</span>
+            <span className="inline-block size-2 shrink-0 rounded-full bg-brand" />
+            <span className="font-display font-bold text-sm tracking-[0.18em] uppercase text-white">Aurora</span>
           </Link>
         </div>
 
         {/* User Credit Badge */}
         <div className="p-4">
-          <div className="bg-card border border-border rounded-xl p-3 flex items-center justify-between shadow-sm relative overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="aurora-card p-3 flex items-center justify-between group">
             <div>
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Credits</p>
-              <p className="text-lg font-bold font-mono text-white flex items-center gap-1">
-                <span className="text-primary mt-1 text-sm">✦</span> 
+              <p className="text-[10px] text-[#999999] font-bold uppercase tracking-[0.2em] mb-1">Credits</p>
+              <p className="text-lg font-bold font-sans text-white flex items-center gap-1">
+                <span className="text-brand text-sm">✦</span> 
                 {user?.credits !== undefined ? user.credits.toLocaleString() : '...'}
               </p>
             </div>
-            <Link href="/settings" className="bg-sidebar p-2 rounded-lg text-muted-foreground hover:text-white hover:bg-border transition-colors">
+            <Link href="/settings" className="bg-[#1A1A1A] p-2 rounded-lg text-[#999999] border border-[#333333] hover:text-white hover:border-[#555555] transition-colors">
               <CreditCard size={16} />
             </Link>
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-          {navItems.map((item) => {
-            const active = location === item.href;
-            return (
-              <Link 
-                key={item.href} 
-                href={item.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className={`
-                  flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all
-                  ${active 
-                    ? 'bg-primary/10 text-primary hover:bg-primary/20' 
-                    : 'text-muted-foreground hover:text-white hover:bg-sidebar-accent'
-                  }
-                `}
-              >
-                <item.icon size={18} className={active ? "text-primary" : "opacity-70"} />
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 overflow-y-auto py-2 px-3 space-y-6">
+          <div>
+            <h4 className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#666666]">Artists</h4>
+            <div className="space-y-1">
+              {artistsItems.map((item) => {
+                const active = location === item.href;
+                return (
+                  <Link 
+                    key={item.href} 
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`
+                      flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all
+                      ${active ? 'bg-[#2A2A2A] text-white' : 'text-[#999999] hover:text-white hover:bg-[#2A2A2A]/50'}
+                    `}
+                  >
+                    <item.icon size={16} className={active ? "text-brand" : "opacity-70"} />
+                    <span className={item.premium ? "aurora-gradient-text" : ""}>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#666666]">Creators</h4>
+            <div className="space-y-1">
+              {creatorsItems.map((item) => {
+                const active = location === item.href;
+                return (
+                  <Link 
+                    key={item.href} 
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`
+                      flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all
+                      ${active ? 'bg-[#2A2A2A] text-white' : 'text-[#999999] hover:text-white hover:bg-[#2A2A2A]/50'}
+                    `}
+                  >
+                    <item.icon size={16} className={active ? "text-brand" : "opacity-70"} />
+                    <span className={item.premium ? "aurora-gradient-text" : ""}>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#666666]">Account</h4>
+            <div className="space-y-1">
+              {accountItems.map((item) => {
+                const active = location === item.href;
+                return (
+                  <Link 
+                    key={item.href} 
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`
+                      flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all
+                      ${active ? 'bg-[#2A2A2A] text-white' : 'text-[#999999] hover:text-white hover:bg-[#2A2A2A]/50'}
+                    `}
+                  >
+                    <item.icon size={16} className={active ? "text-brand" : "opacity-70"} />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         </nav>
 
-        <div className="p-4 border-t border-sidebar-border space-y-1">
+        <div className="p-4 border-t border-[#333333] space-y-1">
           <Link 
             href="/settings"
             onClick={() => setMobileMenuOpen(false)}
             className={`
-              flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all
+              flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all
               ${location === '/settings' 
-                ? 'bg-primary/10 text-primary' 
-                : 'text-muted-foreground hover:text-white hover:bg-sidebar-accent'
+                ? 'bg-[#2A2A2A] text-white' 
+                : 'text-[#999999] hover:text-white hover:bg-[#2A2A2A]/50'
               }
             `}
           >
-            <Settings size={18} className="opacity-70" />
+            <Settings size={16} className="opacity-70" />
             Settings
           </Link>
           <button 
             onClick={() => signOut({ redirectUrl: basePath || "/" })}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-[#999999] hover:text-[#FF3B30] hover:bg-[#FF3B30]/10 transition-all"
           >
-            <LogOut size={18} className="opacity-70" />
+            <LogOut size={16} className="opacity-70" />
             Sign Out
           </button>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col relative md:ml-64 w-full h-[100dvh]">
-        <div className="flex-1 overflow-y-auto pt-16 md:pt-0 scroll-smooth">
-          {children}
+      <main className="flex-1 flex flex-col relative md:ml-64 w-full h-[100dvh] bg-[#1A1A1A]">
+        <div className="flex-1 overflow-y-auto pt-16 md:pt-0 scroll-smooth px-4 md:px-8">
+          <div className="max-w-[1400px] mx-auto py-8">
+            {children}
+          </div>
         </div>
       </main>
       

@@ -43,47 +43,40 @@ if (!clerkPubKey) {
 const clerkAppearance = {
   theme: shadcn,
   cssLayerName: "clerk",
-  options: {
-    logoPlacement: "inside" as const,
-    logoLinkUrl: basePath || "/",
-    logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
-  },
   variables: {
-    colorPrimary: "hsl(262, 83%, 58%)",
-    colorForeground: "hsl(0, 0%, 98%)",
-    colorMutedForeground: "hsl(240, 5%, 65%)",
-    colorDanger: "hsl(0, 84%, 60%)",
-    colorBackground: "hsl(240, 10%, 7%)",
-    colorInput: "hsl(240, 10%, 12%)",
-    colorInputForeground: "hsl(0, 0%, 98%)",
-    colorNeutral: "hsl(240, 10%, 12%)",
-    fontFamily: "'Plus Jakarta Sans', sans-serif",
+    colorPrimary: "#007AFF",
+    colorForeground: "#FFFFFF",
+    colorMutedForeground: "#999999",
+    colorDanger: "#FF3B30",
+    colorBackground: "#1A1A1A",
+    colorInput: "#1A1A1A",
+    colorInputForeground: "#FFFFFF",
+    colorNeutral: "#1A1A1A",
+    fontFamily: "'Inter', sans-serif",
     borderRadius: "0.75rem",
   },
   elements: {
     rootBox: "w-full flex justify-center",
-    cardBox: "bg-[#111116] border border-[#1e1e24] rounded-2xl w-[440px] max-w-full overflow-hidden shadow-2xl",
+    cardBox: "bg-[#2A2A2A] border border-[#333333] rounded-2xl w-[440px] max-w-full overflow-hidden shadow-2xl",
     card: "!shadow-none !border-0 !bg-transparent !rounded-none",
     footer: "!shadow-none !border-0 !bg-transparent !rounded-none",
-    headerTitle: "text-white font-serif text-2xl tracking-tight",
-    headerSubtitle: "text-[#a1a1aa]",
+    headerTitle: "text-white font-display text-2xl tracking-tight",
+    headerSubtitle: "text-[#999999]",
     socialButtonsBlockButtonText: "text-white font-medium",
-    formFieldLabel: "text-white font-medium",
-    footerActionLink: "text-[#7c3aed] hover:text-[#9353d3]",
-    footerActionText: "text-[#a1a1aa]",
-    dividerText: "text-[#a1a1aa] bg-[#111116]",
-    identityPreviewEditButton: "text-[#7c3aed]",
-    formFieldSuccessText: "text-emerald-500",
+    formFieldLabel: "text-white font-medium text-sm",
+    footerActionLink: "text-brand hover:text-[#0051D5]",
+    footerActionText: "text-[#999999]",
+    dividerText: "text-[#999999] bg-[#2A2A2A]",
+    identityPreviewEditButton: "text-brand",
+    formFieldSuccessText: "text-[#34C759]",
     alertText: "text-white",
-    logoBox: "h-12 w-auto flex justify-center",
-    logoImage: "h-full object-contain",
-    socialButtonsBlockButton: "border-[#1e1e24] bg-[#1a1a21] hover:bg-[#272730]",
-    formButtonPrimary: "bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-[0_0_20px_rgba(124,58,237,0.4)] transition-all",
-    formFieldInput: "bg-[#1a1a21] border-[#272730] text-white focus:ring-[#7c3aed]",
+    socialButtonsBlockButton: "border-[#333333] bg-[#1A1A1A] hover:bg-[#333333]",
+    formButtonPrimary: "bg-brand hover:bg-[#0051D5] text-white shadow-none transition-all",
+    formFieldInput: "bg-[#1A1A1A] border-[#333333] text-white focus:ring-brand",
     footerAction: "bg-transparent",
-    dividerLine: "bg-[#272730]",
-    alert: "bg-[#1a1a21] border-[#272730]",
-    otpCodeFieldInput: "bg-[#1a1a21] border-[#272730] text-white",
+    dividerLine: "bg-[#333333]",
+    alert: "bg-[#1A1A1A] border-[#333333]",
+    otpCodeFieldInput: "bg-[#1A1A1A] border-[#333333] text-white",
     formFieldRow: "mb-4",
     main: "px-6 py-8",
   },
@@ -91,7 +84,7 @@ const clerkAppearance = {
 
 function SignInPage() {
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4 bg-cover bg-center" style={{ backgroundImage: 'linear-gradient(to bottom, rgba(10,10,15,0.9), rgba(10,10,15,0.95)), url(/hero-bg.jpg)' }}>
+    <div className="flex min-h-[100dvh] items-center justify-center bg-[#1A1A1A] px-4">
       <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
     </div>
   );
@@ -99,7 +92,7 @@ function SignInPage() {
 
 function SignUpPage() {
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4 bg-cover bg-center" style={{ backgroundImage: 'linear-gradient(to bottom, rgba(10,10,15,0.9), rgba(10,10,15,0.95)), url(/hero-bg.jpg)' }}>
+    <div className="flex min-h-[100dvh] items-center justify-center bg-[#1A1A1A] px-4">
       <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
     </div>
   );
@@ -212,9 +205,9 @@ function ClerkProviderWithRoutes() {
             <Route path="/settings"><ProtectedRoute component={SettingsPage} /></Route>
             
             <Route>
-              <div className="flex min-h-screen items-center justify-center flex-col gap-4 text-center">
-                <h1 className="text-4xl font-serif font-bold text-white">404</h1>
-                <p className="text-muted-foreground">This scene doesn't exist.</p>
+              <div className="flex min-h-screen items-center justify-center flex-col gap-4 text-center bg-[#1A1A1A]">
+                <h1 className="text-4xl font-display font-bold text-white">404</h1>
+                <p className="text-[#999999]">This scene doesn't exist.</p>
               </div>
             </Route>
           </Switch>
