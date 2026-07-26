@@ -157,8 +157,10 @@ push_repo() {
   fi
   echo "[sync] ${repo}: pointing ${BRANCH} at ${TIP}"
   local patch_out patch_rc
+  # Use && / || so set -e never aborts here on a non-zero exit (e.g. 422 branch
+  # protection on Auroraglobal).  The actual exit code is captured in patch_rc.
   patch_out=$(gh_api PATCH "https://api.github.com/repos/${OWNER}/${repo}/git/refs/heads/${BRANCH}" \
-        "{\"sha\":\"${TIP}\",\"force\":true}" 2>&1); patch_rc=$?
+        "{\"sha\":\"${TIP}\",\"force\":true}" 2>&1) && patch_rc=0 || patch_rc=$?
   if [[ $patch_rc -ne 0 ]]; then
     if [[ "$hard" == "1" ]]; then
       echo "[sync] ERROR: failed to update ${repo}/${BRANCH}" >&2; ok=0; FAIL=1
