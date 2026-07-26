@@ -75,7 +75,7 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-- After any OpenAPI spec change: run `pnpm --filter @workspace/api-spec run codegen` then `pnpm run typecheck:libs` before touching server routes
+- After any OpenAPI spec change: run `pnpm --filter @workspace/api-spec run codegen` then `pnpm run typecheck:libs` before touching server routes. The `codegen` command includes a post-processing step (`lib/api-spec/scripts/post-process-codegen.mjs`) that patches Orval's `react-query` output to be compatible with TanStack Query v5 (`UseQueryOptions` requires `queryKey`/`queryFn` in v5, but Orval supplies them itself).
 - Clerk proxy middleware must be mounted BEFORE body parsers in `app.ts` (it streams raw bytes)
 - The `tailwindcss({ optimize: false })` in `vite.config.ts` is required for Clerk themes to work correctly in production builds
 - `@layer theme, base, clerk, components, utilities;` must come BEFORE `@import 'tailwindcss';` in index.css for Clerk styling
