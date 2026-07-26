@@ -492,6 +492,29 @@ function LandingPage() {
           <div className="absolute bottom-4 left-4 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/80">
             Reel 001 · Motion v1
           </div>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link
+              to="/studio"
+              onClick={() => void track("hero_start_click")}
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-full text-white no-underline bg-[image:var(--gradient-hero)] shadow-[var(--shadow-glow-soft)] hover:brightness-110"
+            >
+              <Sparkles className="size-4" /> Start creating free
+            </Link>
+            <Link
+              to="/templates"
+              onClick={() => void track("hero_templates_click")}
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-full no-underline aurora-glass-strong text-foreground hover:brightness-110"
+            >
+              <Wand2 className="size-4" /> Try a template
+            </Link>
+            <button
+              type="button"
+              onClick={() => setDemoOpen(true)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-full bg-white/5 border border-white/10 text-white/80 hover:text-white hover:border-white/20 transition-colors"
+            >
+              <Play className="size-3.5 fill-current" /> See it in action
+            </button>
+          </div>
         </div>
       </section>
 

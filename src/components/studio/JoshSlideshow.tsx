@@ -22,6 +22,9 @@ const SHOTS = [
   { url: PINK_MIC_PORTRAIT, caption: "Hot-pink side profile · suspended mic" },
 ];
 
+// Lead the rotation with the last four photos of the set, then the rest.
+const SHOTS = [...RAW_SHOTS.slice(-4), ...RAW_SHOTS.slice(0, -4)];
+
 export function JoshSlideshow() {
   const [i, setI] = useState(0);
   useEffect(() => {

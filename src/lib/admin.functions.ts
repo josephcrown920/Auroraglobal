@@ -34,6 +34,13 @@ type SchedulerHeartbeat = {
   last_error: string | null;
 };
 
+type SchedulerHeartbeat = {
+  name: string;
+  last_run_at: string | null;
+  last_ok_at: string | null;
+  last_error: string | null;
+};
+
 async function assertAdmin(userId: string) {
   const { data, error } = await supabaseAdmin
     .from("user_roles")
