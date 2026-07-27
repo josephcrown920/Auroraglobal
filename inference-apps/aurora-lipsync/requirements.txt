@@ -1,8 +1,8 @@
-torch>=2.3.0
+torch>=2.6.0
 torchvision
 torchaudio
 diffusers>=0.31.0
-transformers>=4.44.0
+transformers>=4.46.0
 accelerate>=0.33.0
 huggingface_hub>=0.24.0
 Pillow>=10.0.0
