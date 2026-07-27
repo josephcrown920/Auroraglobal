@@ -6,6 +6,7 @@ import galleryRouter from "./gallery";
 import generateRouter from "./generate";
 import creditsRouter from "./credits";
 import providersRouter from "./providers";
+import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(galleryRouter);
 router.use(generateRouter);
 router.use(creditsRouter);
 router.use(providersRouter);
+router.use(adminRouter);
 
 export default router;

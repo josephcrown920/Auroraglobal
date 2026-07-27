@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { startStaleGenerationCleanup } from "./lib/cleanup";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +23,7 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  // Start periodic cleanup of generations stuck in queued/processing
+  startStaleGenerationCleanup();
 });
