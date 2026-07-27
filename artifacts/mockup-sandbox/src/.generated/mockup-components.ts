@@ -2,6 +2,9 @@
 type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 export const modules: ModuleMap = {
   "./components/mockups/aurora-redesign/Agent.tsx": () => import("../components/mockups/aurora-redesign/Agent.tsx"),
+  "./components/mockups/aurora-redesign/AuroraBloom.tsx": () => import("../components/mockups/aurora-redesign/AuroraBloom.tsx"),
+  "./components/mockups/aurora-redesign/ChromeStudio.tsx": () => import("../components/mockups/aurora-redesign/ChromeStudio.tsx"),
   "./components/mockups/aurora-redesign/Editor.tsx": () => import("../components/mockups/aurora-redesign/Editor.tsx"),
+  "./components/mockups/aurora-redesign/GlassNoir.tsx": () => import("../components/mockups/aurora-redesign/GlassNoir.tsx"),
   "./components/mockups/aurora-redesign/Hub.tsx": () => import("../components/mockups/aurora-redesign/Hub.tsx")
 };
