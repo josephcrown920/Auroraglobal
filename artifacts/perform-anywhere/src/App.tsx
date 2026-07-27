@@ -8,20 +8,26 @@ const STEPS = [
   {
     n: "01",
     emoji: "📱",
-    title: "Record yourself performing",
-    desc: "30 seconds on your phone. Any room. Sing, dance, rap — your real movement is the source material.",
+    title: "Record yourself on your phone",
+    desc: "30 seconds. Any room. Sing, dance, rap — your real movement is the source. No studio needed.",
+    cta: null,
+    ctaLabel: null,
   },
   {
     n: "02",
-    emoji: "✨",
-    title: "Build your AI scene",
-    desc: "Upload a selfie in Colors Studio or Scene Builder. Aurora generates the world: neon stages, luxury sets, any vibe.",
+    emoji: "🎨",
+    title: "Build your scene in Scene Builder",
+    desc: "Open Scene Builder → pick your world. Neon stage, luxury set, rooftop, wherever. Aurora generates the backdrop.",
+    cta: "scene-builder",
+    ctaLabel: "Open Scene Builder →",
   },
   {
     n: "03",
     emoji: "🎬",
-    title: "Aurora transfers your motion",
-    desc: "Drop your phone clip + your AI image into Perform Anywhere. Motion Control places you inside the scene.",
+    title: "Orchestrate — drop both in, get your video",
+    desc: "Upload your phone clip + your scene image into Motion Control. Aurora transfers your movement into the cinematic world.",
+    cta: "motion",
+    ctaLabel: "Go to Motion Control →",
   },
 ];
 
@@ -51,7 +57,7 @@ export default function App() {
           Aurora
         </a>
         <div style={{ display: "flex", gap: 10 }}>
-          <a href={colorsUrl} className="btn-ghost" style={{ padding: "8px 16px", fontSize: 13 }}>Colors Studio</a>
+          <a href={sceneUrl} className="btn-ghost" style={{ padding: "8px 16px", fontSize: 13 }}>Scene Builder</a>
           <a href={motionUrl} className="btn-primary" style={{ padding: "10px 20px", fontSize: 13 }}>
             <Upload size={14} /> Upload Your Clip
           </a>
@@ -104,10 +110,45 @@ export default function App() {
               <Upload size={18} /> Upload Your Performance Clip
             </a>
             <a href={sceneUrl} className="btn-ghost" style={{ fontSize: 15 }}>
-              <Sparkles size={16} /> Build Your Scene First
+              <Sparkles size={16} /> Open Scene Builder
             </a>
           </div>
           <p style={{ marginTop: 14, fontSize: 12, color: "var(--text-muted)" }}>30 sec phone recording · any room · 5 Aura to start</p>
+        </div>
+      </section>
+
+      {/* ── Quick Flow Strip ── */}
+      <section style={{ padding: "0 24px 48px", maxWidth: 700, margin: "0 auto" }}>
+        <div style={{ background: "oklch(0.12 0.035 300 / 0.5)", border: "1px solid var(--border)", borderRadius: 16, padding: "20px 24px" }}>
+          <p style={{ textAlign: "center", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)", margin: "0 0 16px" }}>The 3-step process</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+            {[
+              { step: "1", label: "Record", sub: "30s phone video", icon: "📱", href: null },
+              { step: "2", label: "Scene Builder", sub: "Pick your world", icon: "🎨", href: sceneUrl },
+              { step: "3", label: "Motion Control", sub: "Orchestrate your video", icon: "🎬", href: motionUrl },
+            ].map((item, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {i > 0 && <ArrowRight size={14} color="var(--border)" style={{ flexShrink: 0 }} />}
+                {item.href ? (
+                  <a href={item.href} style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, background: "oklch(0.72 0.2 300 / 0.12)", border: "1px solid oklch(0.72 0.2 300 / 0.3)", color: "inherit" }}>
+                    <span style={{ fontSize: 18 }}>{item.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)" }}>{item.label}</div>
+                      <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{item.sub}</div>
+                    </div>
+                  </a>
+                ) : (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, background: "oklch(0.16 0.02 272)", border: "1px solid var(--border)" }}>
+                    <span style={{ fontSize: 18 }}>{item.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 700 }}>{item.label}</div>
+                      <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{item.sub}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -173,7 +214,7 @@ export default function App() {
         {/* Caption row */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 20, marginTop: 12 }}>
           <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
-            <strong style={{ color: "var(--text)" }}>INPUTS</strong> Identity photo · Outfit (hoodie + chain) · Scene (LA street, golden hour) · Motion clip
+            <strong style={{ color: "var(--text)" }}>INPUTS</strong> Identity photo · Outfit (hoodie + chain) · Scene (golden-hour backdrop) · Motion clip
           </p>
           <div />
           <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
@@ -207,17 +248,20 @@ export default function App() {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
           {STEPS.map((s, i) => (
-            <div key={i} className="card card-hover" style={{ padding: 22, position: "relative", animationDelay: `${i * 80}ms` }}>
+            <div key={i} className="card card-hover" style={{ padding: 22, position: "relative", animationDelay: `${i * 80}ms`, display: "flex", flexDirection: "column" }}>
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
                 <span style={{ fontSize: 26 }}>{s.emoji}</span>
                 <span style={{ fontSize: 36, fontWeight: 900, color: "var(--border)", lineHeight: 1 }}>{s.n}</span>
               </div>
               <h3 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 8px" }}>{s.title}</h3>
-              <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6, margin: 0 }}>{s.desc}</p>
-              {i < STEPS.length - 1 && (
-                <div style={{ position: "absolute", right: -18, top: "50%", transform: "translateY(-50%)", display: "none" }}>
-                  <ArrowRight size={14} color="var(--border)" />
-                </div>
+              <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 auto" }}>{s.desc}</p>
+              {s.cta && (
+                <a
+                  href={`${AURORA_URL}/${s.cta}`}
+                  style={{ marginTop: 16, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: "var(--accent)", textDecoration: "none", letterSpacing: "0.02em" }}
+                >
+                  {s.ctaLabel}
+                </a>
               )}
             </div>
           ))}
@@ -258,8 +302,8 @@ export default function App() {
               <a href={motionUrl} className="btn-primary" style={{ fontSize: 16, padding: "16px 36px" }}>
                 <Upload size={18} /> Upload Your Clip →
               </a>
-              <a href={colorsUrl} className="btn-ghost">
-                <Play size={15} /> Build Your Scene First
+              <a href={sceneUrl} className="btn-ghost">
+                <Sparkles size={15} /> Open Scene Builder
               </a>
             </div>
             <p style={{ marginTop: 16, fontSize: 12, color: "var(--text-muted)" }}>
@@ -275,7 +319,7 @@ export default function App() {
           <Sparkles size={13} style={{ color: "var(--accent)" }} /> Aurora Performance Studio
         </a>
         <div style={{ display: "flex", gap: 20 }}>
-          {[["Motion Control", motionUrl], ["Colors Studio", colorsUrl], ["Directors ROOM", sceneUrl]].map(([label, href]) => (
+          {[["Motion Control", motionUrl], ["Scene Builder", sceneUrl], ["Colors Studio", colorsUrl]].map(([label, href]) => (
             <a key={label} href={href} style={{ fontSize: 12, color: "var(--text-muted)", textDecoration: "none" }}>{label}</a>
           ))}
         </div>
