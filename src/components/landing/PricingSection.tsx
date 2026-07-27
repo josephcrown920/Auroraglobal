@@ -8,7 +8,7 @@ import { PLANS, perCreditDisplay, type PlanKey } from "@/lib/billing.plans";
 import { useAuth } from "@/hooks/use-auth";
 import { track } from "@/lib/tracking";
 
-const META: Record<PlanKey, { name: string; tagline: string; features: string[]; icon: typeof Sparkles; highlight?: boolean }> = {
+const META: Record<"starter" | "creator" | "studio", { name: string; tagline: string; features: string[]; icon: typeof Sparkles; highlight?: boolean }> = {
   starter: {
     name: "Starter", tagline: "Test-drive the studio.", icon: Sparkles,
     features: ["80 Aura (~16 images)", "All image models", "Lip-sync up to 8s", "Standard queue"],
@@ -23,7 +23,7 @@ const META: Record<PlanKey, { name: string; tagline: string; features: string[];
   },
 };
 
-const ORDER: PlanKey[] = ["starter", "creator", "studio"];
+const ORDER: ("starter" | "creator" | "studio")[] = ["starter", "creator", "studio"];
 
 export function PricingSection() {
   const { user } = useAuth();

@@ -3,6 +3,7 @@ import { CANONICAL_ORIGIN } from "@/lib/seo";
 import { Plus, Play, ArrowUpRight, ChevronDown, Sparkles, Palette, Film, Wand2, Mic, Music2, Brush, Megaphone, UserCircle2, Workflow, Layers, Flame, Bot, Clapperboard, Check, Zap, Crown, Download } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useState, useEffect, useRef } from "react";
+import { track } from "@/lib/tracking";
 import { ViralEngine } from "@/components/landing/ViralEngine";
 import { BalloonLipsync } from "@/components/landing/BalloonLipsync";
 import { AdminLandingEditor } from "@/components/AdminLandingEditor";
@@ -181,6 +182,7 @@ function LandingPage() {
   const { canInstall, install } = usePwaInstall();
 
   const [slideIdx, setSlideIdx] = useState(0);
+  const [demoOpen, setDemoOpen] = useState(false);
   useEffect(() => {
     const t = setInterval(() => setSlideIdx((i) => (i + 1) % HERO_SLIDES.length), 4500);
     return () => clearInterval(t);

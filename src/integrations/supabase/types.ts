@@ -3,45 +3,6 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
-      agent_sessions: {
-        Row: {
-          brief: string;
-          created_at: string;
-          id: string;
-          iterations: Json;
-          messages: Json;
-          plan: Json;
-          status: string;
-          title: string | null;
-          updated_at: string;
-          user_id: string;
-        };
-        Insert: {
-          brief?: string;
-          created_at?: string;
-          id?: string;
-          iterations?: Json;
-          messages?: Json;
-          plan?: Json;
-          status?: string;
-          title?: string | null;
-          updated_at?: string;
-          user_id: string;
-        };
-        Update: {
-          brief?: string;
-          created_at?: string;
-          id?: string;
-          iterations?: Json;
-          messages?: Json;
-          plan?: Json;
-          status?: string;
-          title?: string | null;
-          updated_at?: string;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
       affiliate_events: {
         Row: {
           amount_usd: number | null;
