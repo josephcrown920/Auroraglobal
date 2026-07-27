@@ -2,7 +2,6 @@ import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { LEGAL, LEGAL_VERSION, COMPANY, type LegalDoc } from "@/lib/legal";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ArrowLeft } from "lucide-react";
-import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 
 export const Route = createLazyFileRoute("/legal/$slug")({
   component: LegalPage,
@@ -15,7 +14,7 @@ function LegalPage() {
       <header className="flex items-center justify-between pl-24 pr-6 md:pl-24 md:pr-10 py-5 border-b border-border bg-card/40 backdrop-blur-xl">
         <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight no-underline">
           <ArrowLeft className="size-4 text-muted-foreground" />
-          <img src={auroraLogo.url} alt="Aurora" className="size-8 rounded-xl object-contain" />
+          <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20"><span className="inline-block size-2.5 rounded-full bg-primary" /></span>
           {COMPANY.product}
         </Link>
         <div className="text-xs text-muted-foreground">Version {LEGAL_VERSION}</div>

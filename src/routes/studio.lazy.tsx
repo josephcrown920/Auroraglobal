@@ -62,7 +62,6 @@ import { saveAssetToDisk } from "@/lib/save";
 import { ShareMenu } from "@/components/share/ShareMenu";
 import { ConnectReplicateBanner } from "@/components/ConnectReplicateBanner";
 import { JoshSlideshow } from "@/components/studio/JoshSlideshow";
-import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import { ExampleChips } from "@/components/onboarding/ExampleChips";
 import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
 import { TutorialOnboarding as SnipTutorialCards } from "@/components/onboarding/TutorialOnboarding";
@@ -519,7 +518,7 @@ function StudioPage() {
 
       <header className="relative z-10 flex items-center justify-between pl-24 pr-6 md:pl-24 md:pr-10 py-5 border-b border-border/60 backdrop-blur-xl bg-background/40">
         <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <img src={auroraLogo.url} alt="Aurora" className="size-8 rounded-xl object-contain shadow-[var(--shadow-glow-soft)]" />
+          <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20 shadow-[var(--shadow-glow-soft)]"><span className="inline-block size-2.5 rounded-full bg-primary" /></span>
           Aurora Studio
         </Link>
         <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">

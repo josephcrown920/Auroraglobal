@@ -1,7 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Sparkles } from "lucide-react";
 import { useRef } from "react";
-import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import { openConsentManager } from "@/lib/consent";
 
 export function SiteFooter({ tone = "dark" }: { tone?: "dark" | "light" }) {
@@ -24,7 +23,7 @@ export function SiteFooter({ tone = "dark" }: { tone?: "dark" | "light" }) {
     <footer className={`relative z-10 border-t ${border} px-6 md:px-12 py-10 mt-12`}>
       <div className="max-w-6xl mx-auto grid gap-8 md:grid-cols-[1fr_2fr] items-start">
         <div className="flex items-center gap-2">
-          <img src={auroraLogo.url} alt="Aurora" className="size-8 rounded-xl object-contain shadow-[var(--shadow-glow-soft)]" />
+          <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20 shadow-[var(--shadow-glow-soft)]"><span className="inline-block size-2.5 rounded-full bg-primary" /></span>
           <span className="font-semibold tracking-tight">Aurora Studio</span>
         </div>
         <nav className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-2 text-sm">

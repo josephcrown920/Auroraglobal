@@ -13,7 +13,6 @@ import {
 import { useState } from "react";
 import { AuroraTerminal } from "@/components/cli/AuroraTerminal";
 import { SiteFooter } from "@/components/SiteFooter";
-import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 
 export const Route = createLazyFileRoute("/cli/")({
   component: CliPage,
@@ -79,7 +78,7 @@ function CliPage() {
       <header className="phone-fixed-x fixed top-0 z-40 w-full bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="flex items-center justify-between pl-24 pr-6 md:px-12 py-4">
           <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight no-underline">
-            <img src={auroraLogo.url} alt="Aurora" className="size-8 rounded-xl object-contain" />
+            <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20"><span className="inline-block size-2.5 rounded-full bg-primary" /></span>
             <span className="text-foreground">Aurora</span>
           </Link>
           <Link

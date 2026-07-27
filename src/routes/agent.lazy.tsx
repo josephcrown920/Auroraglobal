@@ -23,7 +23,6 @@ import {
 import { VIDEO_AGENT_HELPER_TEXT } from "@/lib/video-agent-prompt";
 import { HEYGEN_STYLES, type VideoPlan, type VideoShot } from "@/lib/video-agent-skills";
 import { UgcBatchStudio } from "@/components/prime/UgcBatchStudio";
-import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import {
   Send,
   Sparkle,
@@ -769,7 +768,7 @@ function AgentPage() {
         >
           {/* header */}
           <div className="flex items-center gap-3 border-b border-line px-4 py-4">
-            <img src={auroraLogo.url} alt="Aurora" width={28} height={28} className="rounded-md" />
+            <span className="flex size-7 items-center justify-center rounded-md bg-primary/10 ring-1 ring-primary/20"><span className="inline-block size-2 rounded-full bg-primary" /></span>
             <div className="flex flex-col leading-tight">
               <span className="text-[11px] font-bold uppercase tracking-[0.3em] text-ink-dim">Video Agent</span>
               <span className="text-[13px] font-black uppercase tracking-widest text-ink">Aurora</span>
@@ -926,13 +925,7 @@ function AgentPage() {
                       </div>
                     ) : (
                       <>
-                        <img
-                          src={auroraLogo.url}
-                          alt=""
-                          width={26}
-                          height={26}
-                          className="mt-1 size-[26px] shrink-0 rounded"
-                        />
+                        <span className="mt-1 flex size-[26px] shrink-0 items-center justify-center rounded bg-primary/10"><span className="inline-block size-1.5 rounded-full bg-primary" /></span>
                         <div className="min-w-0 flex-1">
                           <div className="mb-1 flex items-center gap-2 text-xs uppercase tracking-widest text-prime">
                             Aurora
@@ -954,13 +947,7 @@ function AgentPage() {
 
                 {isLoading && (
                   <div className="flex gap-3">
-                    <img
-                      src={auroraLogo.url}
-                      alt=""
-                      width={26}
-                      height={26}
-                      className="mt-1 size-[26px] shrink-0 rounded"
-                    />
+                    <span className="mt-1 flex size-[26px] shrink-0 items-center justify-center rounded bg-primary/10"><span className="inline-block size-1.5 rounded-full bg-primary" /></span>
                     <div className="flex items-center gap-2 text-[13px] uppercase tracking-widest text-ink-dim">
                       <span className="size-1.5 rounded-full bg-prime rec-pulse" />
                       Aurora is thinking…

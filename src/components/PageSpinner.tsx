@@ -1,5 +1,3 @@
-import auroraLogo from "@/assets/aurora-logo.png.asset.json";
-
 export function PageSpinner() {
   return (
     <div
@@ -14,13 +12,28 @@ export function PageSpinner() {
       }}
     >
       <div style={{ position: "relative" }}>
-        <img
-          src={auroraLogo.url}
-          alt="Aurora"
-          width={40}
-          height={40}
-          style={{ borderRadius: 10, opacity: 0.9 }}
-        />
+        <span
+          style={{
+            display: "flex",
+            width: 40,
+            height: 40,
+            borderRadius: 10,
+            background: "oklch(0.72 0.2 300 / 0.12)",
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: 0.9,
+          }}
+        >
+          <span
+            style={{
+              display: "inline-block",
+              width: 14,
+              height: 14,
+              borderRadius: "50%",
+              background: "oklch(0.72 0.2 300)",
+            }}
+          />
+        </span>
         <span
           style={{
             position: "absolute",

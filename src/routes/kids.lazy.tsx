@@ -31,7 +31,6 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { saveAssetToDisk } from "@/lib/save";
 import { ShareMenu } from "@/components/share/ShareMenu";
-import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import { CartoonPreview } from "@/components/kids/CartoonPreview";
 import { KidsShowcaseCarousel } from "@/components/kids/ShowcaseCarousel";
 import { KIDS_CHARACTER_PREVIEWS } from "@/lib/kids-previews";
@@ -394,7 +393,7 @@ function KidsPage() {
       <header className="relative z-10 flex items-center justify-between px-6 md:px-10 py-4 border-b border-border bg-background/80 backdrop-blur-xl">
         <Link to="/studio" className="flex items-center gap-2 font-semibold tracking-tight">
           <ArrowLeft className="size-4 text-muted-foreground" />
-          <img src={auroraLogo.url} alt="Aurora" className="size-8 rounded-xl object-contain" />
+          <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20"><span className="inline-block size-2.5 rounded-full bg-primary" /></span>
           Kids Story Studio
         </Link>
         <div className="flex items-center gap-3 text-sm">
