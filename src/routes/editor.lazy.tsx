@@ -24,7 +24,6 @@ import {
 } from "@/lib/playground/sandbox";
 import { TEMPLATES, AURORA_DTS, DEFAULT_TEMPLATE_ID, getTemplate } from "@/lib/playground/templates";
 import { ConsolePanel, entryFromEvent, nextEntryId, type ConsoleEntry } from "@/components/playground/ConsolePanel";
-import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 
 const MonacoEditor = lazy(() => import("@/components/playground/CodeEditor"));
 
@@ -156,7 +155,7 @@ function EditorPage() {
       <header className="phone-fixed-x fixed top-0 z-40 w-full bg-[#070612]/80 backdrop-blur-xl border-b border-white/10">
         <div className="flex items-center justify-between pl-24 pr-6 md:px-12 py-4">
           <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight no-underline">
-            <img src={auroraLogo.url} alt="Aurora" className="size-8 rounded-xl object-contain" />
+            <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20"><span className="inline-block size-2.5 rounded-full bg-primary" /></span>
             <span className="text-white">Aurora</span>
           </Link>
           <Link

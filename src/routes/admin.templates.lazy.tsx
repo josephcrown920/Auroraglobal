@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Shield, Loader2, ArrowLeft, CheckCircle2, XCircle, Clock, Store, Eye } from "lucide-react";
-import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 
 export const Route = createLazyFileRoute("/admin/templates")({
   component: AdminTemplatesPage,
@@ -77,7 +76,7 @@ function AdminTemplatesPage() {
       <header className="flex items-center justify-between pl-24 pr-6 md:pl-24 md:pr-10 py-5 border-b border-border bg-card/40 backdrop-blur-xl">
         <div className="flex items-center gap-4">
           <Link to="/admin" className="flex items-center gap-2 font-semibold tracking-tight">
-            <img src={auroraLogo.url} alt="Aurora" className="size-8 rounded-xl object-contain" />
+            <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20"><span className="inline-block size-2.5 rounded-full bg-primary" /></span>
             Aurora Admin
             <span className="ml-2 text-xs uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-500 flex items-center gap-1">
               <Shield className="size-3" /> Admin

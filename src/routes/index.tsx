@@ -11,10 +11,10 @@ import { AdminLandingEditor } from "@/components/AdminLandingEditor";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Aurora — AI Creative Studio for Artists & Performers" },
-      { name: "description", content: "Turn one photo into magazine-grade performance shots, music-video stills, lip-sync videos and UGC ads — in seconds. Built by pro artists, for artists who need to scale massively." },
-      { property: "og:title", content: "Aurora — AI Creative Studio for Artists & Performers" },
-      { property: "og:description", content: "Turn one photo into magazine-grade performance shots, music-video stills, lip-sync videos and UGC ads — in seconds. Built by pro artists, for artists who need to scale massively." },
+      { title: "Aurora — Turn Your Phone Recording into a Cinematic Music Video" },
+      { name: "description", content: "Create videos that look like a $50,000 production — for a fraction of the cost. Aurora is the AI studio built for music artists and creators. No crew, no studio, no waiting." },
+      { property: "og:title", content: "Aurora — Turn Your Phone Recording into a Cinematic Music Video" },
+      { property: "og:description", content: "Create videos that look like a $50,000 production — for a fraction of the cost. Aurora is the AI studio built for music artists and creators. No crew, no studio, no waiting." },
       { property: "og:url", content: CANONICAL_ORIGIN },
     ],
     links: [{ rel: "canonical", href: CANONICAL_ORIGIN }],
@@ -30,7 +30,15 @@ export const Route = createFileRoute("/")({
               name: "Who owns the rights to what I generate?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "You do. Every generation on Aurora is 100% owned by the artist who created it. Full commercial rights are included from your very first click.",
+                text: "You do. Every generation on Aurora is 100% owned by the artist who created it. Commercial rights are included on Creator and Pro plans from the first export.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "What is the difference between Creator and Pro?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Creator ($25/month) gives you clean exports, full video access, and 1,000 Aura per month — enough for regular creators. Pro ($79/month) adds priority rendering, the highest-quality models, 5,000 Aura per month, and full commercial use rights.",
               },
             },
             {
@@ -46,7 +54,7 @@ export const Route = createFileRoute("/")({
               name: "Can I export 4K stills and video?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "Yes. Pro and Studio tiers include 4K stills and 4K/60fps motion exports for music-video backgrounds, tour visuals, and DSP canvas loops.",
+                text: "Yes. Creator and Pro plans include full-resolution exports for music-video backgrounds, tour visuals, and DSP canvas loops. Pro unlocks priority rendering and the highest-quality models.",
               },
             },
             {
@@ -122,21 +130,28 @@ const FEATURED_TOOLS = [
   },
 ];
 
+// Silence unused-import warnings for icons kept for future use
+((_: unknown) => _)([Mic, Music2, Brush, Megaphone, Workflow, Layers, Clapperboard]);
 
 const TICKER_ITEMS = [
-  "Album covers",
-  "Music video stills",
-  "Tour posters",
-  "Press photos",
-  "Spotify Canvas",
-  "Social assets",
-  "Concert reels",
+  "Go viral in 30 seconds",
+  "$50K look · zero crew",
+  "30s phone clip → cinematic reel",
+  "10 hours saved every week",
+  "1,000+ artists scaled",
+  "No crew · No studio",
+  "Phone recording → music video",
+  "Director's chair · your phone",
 ];
 
 const FAQS = [
   {
     q: "Who owns the rights to what I generate?",
-    a: "You do. Every generation on Aurora is 100% owned by the artist who created it. Full commercial rights are included from your very first click.",
+    a: "You do. Every generation on Aurora is 100% owned by the artist who created it. Commercial rights are included on Creator and Pro plans from the first export.",
+  },
+  {
+    q: "What's the difference between Creator and Pro?",
+    a: "Creator ($25/month) gives you clean exports, full video access, and 1,000 Aura per month — enough for regular creators. Pro ($79/month) adds priority rendering, the highest-quality models, 5,000 Aura per month, and full commercial use rights.",
   },
   {
     q: "Is Aurora training on my uploads?",
@@ -144,7 +159,7 @@ const FAQS = [
   },
   {
     q: "Can I export 4K stills and video?",
-    a: "Yes. Pro and Studio tiers include 4K stills and 4K/60fps motion exports for music-video backgrounds, tour visuals, and DSP canvas loops.",
+    a: "Yes. Creator and Pro plans include full-resolution exports for music-video backgrounds, tour visuals, and DSP canvas loops. Pro unlocks priority rendering and the highest-quality models.",
   },
   {
     q: "Do I need any design or prompting experience?",
@@ -162,8 +177,8 @@ function usePwaInstall() {
       promptRef.current = e as Event & { prompt: () => Promise<void> };
       setCanInstall(true);
     };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
   const install = async () => {
@@ -205,6 +220,12 @@ function LandingPage() {
                 Install
               </button>
             )}
+            <Link
+              to="/partners"
+              className="text-sm font-medium text-zinc-400 hover:text-zinc-100 transition-colors"
+            >
+              Partners
+            </Link>
             {user ? (
               <Link
                 to="/studio"
@@ -262,13 +283,13 @@ function LandingPage() {
             <span className="inline-block size-1.5 rounded-full bg-[#e5383b]" />
             By Artists, for Artists
           </p>
-          <h1 className="text-[3.2rem] font-semibold leading-[0.92] tracking-tight text-white">
-            Direct your
+          <h1 className="text-[2.9rem] font-semibold leading-[0.93] tracking-tight text-white">
+            Turn your phone recording into a
             <br />
-            <span className="font-serif italic">visual identity.</span>
+            <span className="font-serif italic">cinematic music video.</span>
           </h1>
           <p className="mt-5 text-base leading-relaxed text-zinc-200">
-            The AI performance studio built by artists, for artists. Drop your references, direct the shoot in plain language, and ship studio grade covers, promo, and cinematic performance reels in seconds, not weeks.
+            Create videos that look like a $50,000 production — for a fraction of the cost. Aurora saves creators 10 hours a week and grows audiences. No crew required.
           </p>
           <div className="mt-8 flex flex-col gap-3">
             <Link
@@ -279,7 +300,7 @@ function LandingPage() {
               {user ? "Open Studio" : "Start creating"}
             </Link>
             <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-zinc-500">
-              Credit card accepted · 5 free credits on signup
+              Free to start · no card needed
             </span>
           </div>
         </div>
@@ -520,21 +541,63 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* ── Testimonial ─────────────────────────────────────────────────── */}
+      {/* ── Social Proof / Testimonials ──────────────────────────────────── */}
       <section className="py-20 px-5 border-y border-white/5">
-        <div className="text-center">
-          <p className="font-serif text-2xl italic leading-snug text-zinc-200">
-            &ldquo;Aurora shifted how we handle visual rollouts. We went from three weeks of
-            production to a single afternoon — without losing an ounce of soul.&rdquo;
-          </p>
-          <div className="mt-8 flex flex-col items-center">
-            <div className="size-11 rounded-full bg-gradient-to-br from-[#e5383b] to-zinc-800 ring-1 ring-white/10" />
-            <span className="mt-3 text-sm font-semibold uppercase tracking-widest">
-              Marcus Vane
-            </span>
-            <span className="text-xs text-zinc-500">Creative Director · Nocturne Records</span>
+        <div className="mb-10">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
+            30-day transformation
+          </span>
+          <h2 className="mt-3 text-3xl font-semibold leading-tight">
+            How artists change their career in just{" "}
+            <span className="font-serif italic">30 days.</span>
+          </h2>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          {/* Artist quote */}
+          <div className="rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-6">
+            <p className="font-serif text-xl italic leading-snug text-zinc-200 mb-6">
+              &ldquo;Aurora completely changed the way I make content. I get a ton of content in just an hour — which normally would take me weeks of work and planning.&rdquo;
+            </p>
+            <div className="flex items-center gap-3">
+              <div className="size-9 rounded-full bg-gradient-to-br from-[#e5383b] to-zinc-700 ring-1 ring-white/10 shrink-0" />
+              <div>
+                <span className="text-sm font-semibold text-zinc-100 block">Aurora Artist</span>
+                <span className="text-xs text-zinc-500">Music Creator</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Platform stat */}
+          <div className="rounded-2xl bg-gradient-to-br from-[#e5383b]/10 to-transparent ring-1 ring-[#e5383b]/20 p-6">
+            <div className="text-5xl font-bold text-white mb-2">1,000+</div>
+            <p className="text-zinc-300 text-sm leading-relaxed">
+              artists scaled massively with Aurora in a short time. None of them thought it was possible — before Aurora found them.
+            </p>
           </div>
         </div>
+      </section>
+
+      {/* ── Complete Artist ──────────────────────────────────────────────── */}
+      <section className="py-20 px-5 border-b border-white/5">
+        <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
+          The director&apos;s chair
+        </span>
+        <h2 className="mt-3 text-4xl font-semibold leading-tight mb-5">
+          Most musicians never get to
+          <br />
+          <span className="font-serif italic">direct their own music video.</span>
+        </h2>
+        <p className="text-zinc-400 text-base leading-relaxed max-w-[38ch] mb-8">
+          With Aurora they step into the director&apos;s chair, choose Hollywood-grade cinematic looks, and shape unlimited endings. Because artists deserve the ending they want.
+        </p>
+        <Link
+          to={ctaTo}
+          className="inline-flex items-center gap-2 rounded-full bg-white/8 ring-1 ring-white/15 px-5 py-3 text-sm font-semibold text-zinc-200 transition-colors hover:bg-white/12 no-underline"
+        >
+          <Play className="size-4 fill-current" />
+          Start directing
+        </Link>
       </section>
 
       {/* ── Pricing ──────────────────────────────────────────────────────── */}
@@ -544,11 +607,11 @@ function LandingPage() {
             Pricing
           </span>
           <h2 className="mt-3 text-4xl font-semibold leading-tight">
-            Simple pricing.<br />
-            <span className="font-serif italic">Pay for what you make.</span>
+            Pick your level.<br />
+            <span className="font-serif italic">Upgrade any time.</span>
           </h2>
           <p className="mt-3 text-sm text-zinc-400 max-w-[40ch] leading-relaxed">
-            Start free. Upgrade when you're ready. All features available on every plan.
+            Start free — experience the quality before you pay. Upgrade when you&apos;re ready.
           </p>
         </div>
 
@@ -558,16 +621,22 @@ function LandingPage() {
           <div className="rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-6">
             <div className="flex items-start justify-between gap-4 mb-5">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500 mb-1">Starter</p>
-                <p className="text-3xl font-semibold text-zinc-100">Free</p>
-                <p className="text-sm text-zinc-500 mt-1">50 Aura on signup · 200 Aura / month</p>
+                <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500 mb-1">Free</p>
+                <p className="text-3xl font-semibold text-zinc-100">$0</p>
+                <p className="text-sm text-zinc-500 mt-1">5 Aura on signup to try every tool</p>
               </div>
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/5 ring-1 ring-white/10">
                 <Zap className="size-5 text-zinc-400" />
               </span>
             </div>
             <ul className="flex flex-col gap-2 mb-6">
-              {["All 14 generation tools", "Permanent gallery", "Canvas pipeline editor", "Aurora watermark on exports", "Standard queue priority"].map((f) => (
+              {[
+                "Image generation (all styles)",
+                "Aurora watermark on video exports",
+                "5 Aura to try every tool",
+                "Permanent gallery",
+                "Standard queue priority",
+              ].map((f) => (
                 <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-400">
                   <Check className="size-4 shrink-0 mt-0.5 text-zinc-600" />
                   {f}
@@ -576,9 +645,47 @@ function LandingPage() {
             </ul>
             <Link
               to={ctaTo}
-              className="block w-full rounded-xl bg-white/8 py-3 text-center text-sm font-semibold text-zinc-200 ring-1 ring-white/10 transition-colors hover:bg-white/12"
+              className="block w-full rounded-xl bg-white/8 py-3 text-center text-sm font-semibold text-zinc-200 ring-1 ring-white/10 transition-colors hover:bg-white/12 no-underline"
             >
               {user ? "You're on Free" : "Start free — no card needed"}
+            </Link>
+          </div>
+
+          {/* Creator */}
+          <div className="rounded-2xl bg-zinc-900 ring-1 ring-white/15 p-6">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-400 mb-1">Creator</p>
+                <div className="flex items-baseline gap-1.5">
+                  <p className="text-3xl font-semibold text-zinc-100">$25</p>
+                  <p className="text-sm text-zinc-500">/ month</p>
+                </div>
+                <p className="text-sm text-zinc-500 mt-1">1,000 Aura included monthly</p>
+              </div>
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/8 ring-1 ring-white/15">
+                <Sparkles className="size-5 text-zinc-300" />
+              </span>
+            </div>
+            <ul className="flex flex-col gap-2 mb-6">
+              {[
+                "1,000 Aura / month included",
+                "No watermark — clean exports",
+                "Full video access (all models)",
+                "Standard queue priority",
+                "All 14 generation tools",
+                "Permanent gallery + Canvas",
+              ].map((f) => (
+                <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-300">
+                  <Check className="size-4 shrink-0 mt-0.5 text-zinc-400" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+            <Link
+              to={user ? "/billing" : ctaTo}
+              className="block w-full rounded-xl bg-white/10 py-3 text-center text-sm font-semibold text-zinc-100 ring-1 ring-white/20 transition-colors hover:bg-white/15 no-underline"
+            >
+              {user ? "Upgrade to Creator" : "Get Creator — $25 / month"}
             </Link>
           </div>
 
@@ -593,10 +700,10 @@ function LandingPage() {
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#e5383b] mb-1">Pro</p>
                 <div className="flex items-baseline gap-1.5">
-                  <p className="text-3xl font-semibold text-zinc-100">$15</p>
+                  <p className="text-3xl font-semibold text-zinc-100">$79</p>
                   <p className="text-sm text-zinc-500">/ month</p>
                 </div>
-                <p className="text-sm text-zinc-500 mt-1">2,000 Aura included monthly</p>
+                <p className="text-sm text-zinc-500 mt-1">5,000 Aura included monthly</p>
               </div>
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#e5383b]/15 ring-1 ring-[#e5383b]/30">
                 <Crown className="size-5 text-[#e5383b]" />
@@ -604,13 +711,12 @@ function LandingPage() {
             </div>
             <ul className="flex flex-col gap-2 mb-6">
               {[
-                "2,000 Aura / month included",
-                "No watermark on exports",
-                "Priority queue — faster renders",
-                "All premium templates unlocked",
-                "Growth Tools — daily posts, rollout plans & social packs",
-                "All 14 generation tools",
-                "Permanent gallery + Canvas",
+                "5,000 Aura / month included",
+                "Priority rendering — fastest queue",
+                "Highest-quality models unlocked",
+                "Full commercial use rights",
+                "Everything in Creator",
+                "Growth Tools — daily posts & rollout plans",
               ].map((f) => (
                 <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-300">
                   <Check className="size-4 shrink-0 mt-0.5 text-[#e5383b]" />
@@ -620,9 +726,9 @@ function LandingPage() {
             </ul>
             <Link
               to={user ? "/billing" : ctaTo}
-              className="block w-full rounded-xl bg-[#e5383b] py-3 text-center text-sm font-semibold text-white shadow-[0_6px_20px_-4px_rgba(229,56,59,0.5)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
+              className="block w-full rounded-xl bg-[#e5383b] py-3 text-center text-sm font-semibold text-white shadow-[0_6px_20px_-4px_rgba(229,56,59,0.5)] transition-transform hover:scale-[1.01] active:scale-[0.99] no-underline"
             >
-              {user ? "Upgrade to Pro" : "Get Pro — $15 / month"}
+              {user ? "Upgrade to Pro" : "Get Pro — $79 / month"}
             </Link>
           </div>
         </div>
@@ -673,6 +779,41 @@ function LandingPage() {
         </p>
       </section>
 
+      {/* ── Aurora Partners ─────────────────────────────────────────────── */}
+      <section className="py-20 px-5 border-t border-white/5">
+        <div className="mb-8">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
+            Aurora Partners
+          </span>
+          <h2 className="mt-3 text-4xl font-semibold leading-tight">
+            Earn while you{" "}
+            <span className="font-serif italic">grow the movement.</span>
+          </h2>
+          <p className="mt-3 text-sm text-zinc-400 max-w-[38ch] leading-relaxed">
+            Bring artists into Aurora and earn recurring revenue for every creator who signs up through your link.
+          </p>
+        </div>
+        <ul className="flex flex-col gap-3 mb-8">
+          {[
+            "Recurring revenue for every active creator you refer",
+            "Exclusive partner dashboard with real-time stats",
+            "Co-marketing with Aurora — grow your brand alongside ours",
+          ].map((b) => (
+            <li key={b} className="flex items-start gap-3 text-sm text-zinc-300">
+              <Check className="size-4 shrink-0 mt-0.5 text-[#e5383b]" />
+              {b}
+            </li>
+          ))}
+        </ul>
+        <Link
+          to="/partners"
+          className="inline-flex items-center gap-2 rounded-full bg-[#e5383b] px-6 py-3 text-sm font-semibold text-white shadow-[0_6px_20px_-4px_rgba(229,56,59,0.5)] transition-transform hover:scale-[1.02] active:scale-95 no-underline"
+        >
+          Become a Partner
+          <ArrowUpRight className="size-4" />
+        </Link>
+      </section>
+
       {/* ── FAQ ─────────────────────────────────────────────────────────── */}
       <section id="faq" className="py-20 px-5">
         <div className="mb-10 text-center">
@@ -708,6 +849,7 @@ function LandingPage() {
               { label: "Canvas", to: "/canvas" },
               { label: "Video", to: "/music-video" },
               { label: "Pricing", to: "/billing" },
+              { label: "Partners", to: "/partners" },
             ]}
           />
           <FooterCol

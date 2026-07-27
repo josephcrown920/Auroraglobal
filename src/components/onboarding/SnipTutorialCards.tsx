@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { X, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 
 const STORAGE_KEY = "aurora.snip.dismissed.v3";
 
@@ -120,7 +119,7 @@ export function SnipTutorialCards({ show = true, forceShow = false, onDismiss }:
 
         <div className="p-4 flex items-start gap-3">
           <div className="shrink-0 size-10 rounded-xl overflow-hidden border border-white/20 bg-black flex items-center justify-center">
-            <img src={auroraLogo.url} alt="Aurora" className="size-8 object-contain" />
+            <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20"><span className="inline-block size-2.5 rounded-full bg-primary" /></span>
           </div>
 
           <div className="flex-1 min-w-0">

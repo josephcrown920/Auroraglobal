@@ -28,7 +28,7 @@ import {
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import auroraLogo from "@/assets/aurora-logo.png.asset.json";
+
 import { useTheme } from "@/lib/theme-context";
 import { WhatsNew } from "@/components/WhatsNew";
 
@@ -324,16 +324,11 @@ export function MobileNav() {
             />
             <SheetTitle className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="relative">
-                  <img
-                    src={auroraLogo.url}
-                    alt=""
-                    className="size-10 rounded-2xl object-contain shadow-[var(--shadow-glow-soft)]"
-                  />
-                  <span aria-hidden className="absolute inset-0 rounded-2xl ring-1 ring-white/10" />
-                </div>
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/25">
+                  <span className="inline-block size-3 rounded-full bg-primary" />
+                </span>
                 <span className="flex flex-col leading-tight">
-                  <span className="text-base font-bold tracking-tight text-foreground">Aurora</span>
+                  <span className="font-serif italic text-base font-semibold text-foreground">Aurora</span>
                   <span className="text-[11px] text-muted-foreground font-normal">AI Creative Studio</span>
                 </span>
               </div>
