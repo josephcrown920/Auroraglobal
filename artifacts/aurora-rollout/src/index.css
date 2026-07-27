@@ -1,0 +1,228 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --font-sans: var(--app-font-sans);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* Aurora Rollout dark theme — deep navy + violet accent */
+:root {
+  --background: 242 28% 7%;
+  --foreground: 246 20% 96%;
+  --card: 242 25% 9%;
+  --card-foreground: 246 20% 96%;
+  --popover: 242 25% 8%;
+  --popover-foreground: 246 20% 96%;
+  --primary: 285 65% 55%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 242 22% 13%;
+  --secondary-foreground: 246 20% 96%;
+  --muted: 242 22% 12%;
+  --muted-foreground: 242 14% 55%;
+  --accent: 242 22% 15%;
+  --accent-foreground: 246 20% 96%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 242 20% 18%;
+  --input: 242 22% 13%;
+  --ring: 285 65% 55%;
+  --radius: 0.625rem;
+  --app-font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+
+  /* Aurora design tokens */
+  --canvas-bg: 242 28% 6%;
+  --node-bg: 242 25% 11%;
+  --node-border: hsl(285 65% 55% / 0.4);
+  --node-glow: hsl(285 65% 55% / 0.15);
+  --connector-color: hsl(285 65% 55% / 0.6);
+  --success: 142 72% 45%;
+}
+
+.dark {
+  --background: 242 28% 7%;
+  --foreground: 246 20% 96%;
+  --card: 242 25% 9%;
+  --card-foreground: 246 20% 96%;
+  --popover: 242 25% 8%;
+  --popover-foreground: 246 20% 96%;
+  --primary: 285 65% 55%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 242 22% 13%;
+  --secondary-foreground: 246 20% 96%;
+  --muted: 242 22% 12%;
+  --muted-foreground: 242 14% 55%;
+  --accent: 242 22% 15%;
+  --accent-foreground: 246 20% 96%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 242 20% 18%;
+  --input: 242 22% 13%;
+  --ring: 285 65% 55%;
+}
+
+@layer base {
+  * { @apply border-border; }
+  html, body { height: 100%; }
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    overflow: hidden;
+  }
+}
+
+/* Glass effect */
+.glass {
+  background: hsl(var(--card) / 0.8);
+  backdrop-filter: blur(12px) saturate(1.4);
+  border: 1px solid hsl(var(--border));
+}
+
+/* Gradient text */
+.text-gradient {
+  background: linear-gradient(135deg, hsl(285 55% 75%), hsl(285 65% 55%), hsl(270 65% 50%));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Node card */
+.node-card {
+  background: hsl(var(--node-bg));
+  border: 1px solid var(--node-border);
+  border-radius: calc(var(--radius) * 1.5);
+  box-shadow: 0 0 20px var(--node-glow);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.node-card:hover, .node-card.active {
+  border-color: hsl(285 65% 55% / 0.5);
+  box-shadow: 0 0 32px hsl(285 65% 55% / 0.25);
+}
+.node-card.done {
+  border-color: hsl(var(--success) / 0.5);
+  box-shadow: 0 0 24px hsl(var(--success) / 0.15);
+}
+
+/* Status dot */
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.status-dot.idle    { background: hsl(var(--muted-foreground)); }
+.status-dot.active  { background: hsl(var(--primary)); animation: pulse-dot 1s ease-in-out infinite; }
+.status-dot.done    { background: hsl(var(--success)); }
+.status-dot.error   { background: hsl(var(--destructive)); }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(1.3); }
+}
+
+/* SVG connector line */
+.connector-line {
+  stroke: var(--connector-color);
+  stroke-width: 2;
+  fill: none;
+  stroke-dasharray: 6 4;
+  animation: dash-flow 1s linear infinite;
+}
+.connector-line.done {
+  stroke: hsl(var(--success) / 0.7);
+  stroke-dasharray: none;
+  animation: none;
+}
+
+@keyframes dash-flow { to { stroke-dashoffset: -10; } }
+
+/* Mood chip */
+.mood-chip {
+  padding: 0.3rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.mood-chip:hover { border-color: hsl(var(--primary) / 0.4); color: hsl(var(--foreground)); }
+.mood-chip.selected {
+  border-color: hsl(var(--primary) / 0.6);
+  background: hsl(var(--primary) / 0.15);
+  color: hsl(285 55% 80%);
+}
+
+/* Hero gradient */
+.hero-gradient {
+  background: radial-gradient(ellipse 80% 60% at 50% -10%,
+    hsl(285 65% 55% / 0.25) 0%,
+    hsl(270 55% 45% / 0.08) 50%,
+    transparent 80%);
+}
+
+/* Ambient orb */
+.aurora-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(120px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Output card */
+.output-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.output-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px hsl(var(--primary) / 0.12);
+}
+
+/* Chat bubbles */
+.chat-bubble-user {
+  background: hsl(var(--primary) / 0.15);
+  border: 1px solid hsl(var(--primary) / 0.3);
+  border-radius: 1rem 1rem 0.25rem 1rem;
+}
+.chat-bubble-ai {
+  background: hsl(var(--secondary));
+  border: 1px solid hsl(var(--border));
+  border-radius: 1rem 1rem 1rem 0.25rem;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.3); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.5); }
+
+/* Scrollable panels */
+.panel-scroll { overflow-y: auto; scrollbar-gutter: stable; }
