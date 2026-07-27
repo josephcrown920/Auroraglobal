@@ -236,7 +236,8 @@ type ProviderAdapter = {
     | "sora"
     | "ltx"
     | "inferencesh"
-    | "hf-video";
+    | "hf-video"
+    | "runware";
   supports: (req: GenerateRequest) => boolean;
   estimateCost: (req: GenerateRequest) => number;
   run: (req: GenerateRequest) => Promise<{ url: string; endpoint: string; text?: string }>;
@@ -1392,10 +1393,14 @@ const geminiText: ProviderAdapter = {
 };
 
 // ─── Free image providers ────────────────────────────────────────────────────
-// Pollinations (no key) is kept for text generation; image routing no longer
-// uses this table (all approved image models have dedicated adapters).
-type FreeImageEntry = { adapter: "pollinations"; model: string; cost: number };
-const FREE_IMAGE_MODELS: Record<string, FreeImageEntry> = {};
+// Pollinations (no key, free) and Runware (keyed, cheap) handle unclaimed image
+// model keys. Both upload bytes to the studio bucket so results live where
+// every other provider's results do.
+type FreeImageEntry = { adapter: "pollinations" | "runware"; model: string; cost: number };
+const FREE_IMAGE_MODELS: Record<string, FreeImageEntry> = {
+  "pollinations/flux": { adapter: "pollinations", model: "flux", cost: 0 },
+  "runware/flux-schnell": { adapter: "runware", model: "runware:100@1", cost: 0.0006 },
+};
 
 async function uploadBytesToStudio(
   userId: string | null | undefined,
@@ -1437,7 +1442,7 @@ const pollinations: ProviderAdapter = {
       return { url: "", endpoint: `pollinations:${model}`, text };
     }
     const m = r.model ? FREE_IMAGE_MODELS[r.model] : null;
-    const model = m?.model ?? "turbo";
+    const model = m?.model ?? "flux";
     const u = new URL(`https://image.pollinations.ai/prompt/${encodeURIComponent(r.prompt ?? "")}`);
     u.searchParams.set("width", "1024");
     u.searchParams.set("height", "1024");
@@ -1456,6 +1461,40 @@ const pollinations: ProviderAdapter = {
       contentType.split("/")[1] || "jpg",
     );
     return { url, endpoint: `pollinations:${model}` };
+  },
+};
+
+const runware: ProviderAdapter = {
+  name: "runware",
+  supports: (r) =>
+    r.kind === "image" &&
+    !!process.env.RUNWARE_API_KEY &&
+    (r.model ? FREE_IMAGE_MODELS[r.model]?.adapter === "runware" : false),
+  estimateCost: (r) => (r.model ? FREE_IMAGE_MODELS[r.model]?.cost : undefined) ?? 0.001,
+  async run(r) {
+    const key = process.env.RUNWARE_API_KEY!;
+    const m = r.model ? FREE_IMAGE_MODELS[r.model] : null;
+    const body = [
+      {
+        taskType: "imageInference",
+        taskUUID: crypto.randomUUID(),
+        positivePrompt: r.prompt ?? "",
+        model: m?.model ?? "runware:100@1",
+        width: 1024,
+        height: 1024,
+        numberResults: 1,
+      },
+    ];
+    const res = await fetch("https://api.runware.ai/v1", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`Runware ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const j = await res.json();
+    const url: unknown = j?.data?.[0]?.imageURL ?? j?.data?.[0]?.imageUrl;
+    if (!url || typeof url !== "string") throw new Error("Runware returned no image");
+    return { url, endpoint: `runware:${m?.model ?? "runware:100@1"}` };
   },
 };
 
@@ -1865,366 +1904,6 @@ const replitOpenAIAudio: ProviderAdapter = {
   },
 };
 
-// ─── Text generation (free-first chain) ──────────────────────────────────────
-// A new `text` modality. Pollinations (no key, free) leads; keyed OpenAI-compatible
-// providers Aurora may already hold credentials for follow, cheapest first. Each
-// text model key maps to exactly one adapter, so model-level fallback walks the
-// chain provider-by-provider.
-type TextModelEntry = { adapter: ProviderAdapter["name"]; providerModel: string; cost: number };
-const TEXT_MODELS: Record<string, TextModelEntry> = {
-  "pollinations/openai": { adapter: "pollinations", providerModel: "openai", cost: 0 },
-  "groq/llama-3.3-70b": { adapter: "groq", providerModel: "llama-3.3-70b-versatile", cost: 0.001 },
-  "gemini/gemini-2.0-flash": {
-    adapter: "gemini-text",
-    providerModel: "gemini-2.0-flash",
-    cost: 0.001,
-  },
-  "mistral/mistral-small": {
-    adapter: "mistral",
-    providerModel: "mistral-small-latest",
-    cost: 0.001,
-  },
-  "openai/gpt-4o-mini": { adapter: "openai", providerModel: "gpt-4o-mini", cost: 0.002 },
-  "hf/llama-3.1-8b": {
-    adapter: "hf-text",
-    providerModel: "meta-llama/Llama-3.1-8B-Instruct",
-    cost: 0.001,
-  },
-  "lovable/gemini-2.5-flash": {
-    adapter: "lovable-text",
-    providerModel: "google/gemini-2.5-flash",
-    cost: 0.002,
-  },
-};
-
-/** POST an OpenAI-compatible /chat/completions request and return the message text. */
-async function openAIChat(opts: {
-  url: string;
-  apiKey: string;
-  model: string;
-  prompt: string;
-  authStyle: "bearer" | "lovable";
-  imageUrls?: string[];
-}): Promise<string> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (opts.authStyle === "lovable") headers["Lovable-API-Key"] = opts.apiKey;
-  else headers.Authorization = `Bearer ${opts.apiKey}`;
-  // Vision: only switch to the multimodal content-array shape when trusted image
-  // refs are supplied — text-only callers keep the plain-string content (no change).
-  const imgs = (opts.imageUrls ?? []).filter(isTrustedUrl);
-  const content =
-    imgs.length > 0
-      ? [
-          { type: "text", text: opts.prompt },
-          ...imgs.map((u) => ({ type: "image_url", image_url: { url: u } })),
-        ]
-      : opts.prompt;
-  const res = await fetch(opts.url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ model: opts.model, messages: [{ role: "user", content }] }),
-  });
-  if (!res.ok) throw new Error(`${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const j = await res.json();
-  const text: unknown = j?.choices?.[0]?.message?.content;
-  if (!text || typeof text !== "string") throw new Error("provider returned no text");
-  return text;
-}
-
-/** Build a keyed OpenAI-compatible text adapter (groq/mistral/openai/hf/lovable). */
-function makeTextAdapter(cfg: {
-  name: ProviderAdapter["name"];
-  envKey: string;
-  url: string;
-  authStyle: "bearer" | "lovable";
-}): ProviderAdapter {
-  return {
-    name: cfg.name,
-    supports: (r) =>
-      r.kind === "text" &&
-      !!process.env[cfg.envKey] &&
-      (r.model ? TEXT_MODELS[r.model]?.adapter === cfg.name : false),
-    estimateCost: (r) => (r.model ? TEXT_MODELS[r.model]?.cost : undefined) ?? 0.001,
-    async run(r) {
-      const m = r.model ? TEXT_MODELS[r.model] : null;
-      if (!m) throw new Error(`No text model mapping for "${r.model}"`);
-      const text = await openAIChat({
-        url: cfg.url,
-        apiKey: process.env[cfg.envKey]!,
-        model: m.providerModel,
-        prompt: r.prompt ?? "",
-        authStyle: cfg.authStyle,
-        imageUrls: r.imageUrls,
-      });
-      return { url: "", endpoint: `${cfg.name}:${m.providerModel}`, text };
-    },
-  };
-}
-
-const groqText = makeTextAdapter({
-  name: "groq",
-  envKey: "GROQ_API_KEY",
-  url: "https://api.groq.com/openai/v1/chat/completions",
-  authStyle: "bearer",
-});
-const mistralText = makeTextAdapter({
-  name: "mistral",
-  envKey: "MISTRAL_API_KEY",
-  url: "https://api.mistral.ai/v1/chat/completions",
-  authStyle: "bearer",
-});
-const openaiText = makeTextAdapter({
-  name: "openai",
-  envKey: "OPENAI_API_KEY",
-  url: "https://api.openai.com/v1/chat/completions",
-  authStyle: "bearer",
-});
-const hfText = makeTextAdapter({
-  name: "hf-text",
-  envKey: "HF_TOKEN",
-  url: "https://router.huggingface.co/v1/chat/completions",
-  authStyle: "bearer",
-});
-const lovableText = makeTextAdapter({
-  name: "lovable-text",
-  envKey: "LOVABLE_API_KEY",
-  url: "https://ai.gateway.lovable.dev/v1/chat/completions",
-  authStyle: "lovable",
-});
-
-// Gemini uses its own generateContent API (not OpenAI-compatible).
-const geminiText: ProviderAdapter = {
-  name: "gemini-text",
-  supports: (r) =>
-    r.kind === "text" &&
-    !!process.env.GEMINI_API_KEY &&
-    (r.model ? TEXT_MODELS[r.model]?.adapter === "gemini-text" : false),
-  estimateCost: (r) => (r.model ? TEXT_MODELS[r.model]?.cost : undefined) ?? 0.001,
-  async run(r) {
-    const key = process.env.GEMINI_API_KEY!;
-    const m = r.model ? TEXT_MODELS[r.model] : null;
-    const model = m?.providerModel ?? "gemini-2.0-flash";
-    // Vision: inline any trusted image refs so the model can analyze them.
-    const parts: Array<Record<string, unknown>> = [{ text: r.prompt ?? "" }];
-    for (const url of r.imageUrls ?? []) {
-      if (!isTrustedUrl(url)) continue; // SSRF guard: skip untrusted ref hosts
-      try {
-        const resp = await fetch(url);
-        if (!resp.ok) continue;
-        const mime = resp.headers.get("content-type") || "image/jpeg";
-        const buf = Buffer.from(await resp.arrayBuffer());
-        parts.push({ inline_data: { mime_type: mime, data: buf.toString("base64") } });
-      } catch {
-        /* skip unreachable ref */
-      }
-    }
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ parts }] }),
-      },
-    );
-    if (!res.ok) throw new Error(`Gemini text ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    const j = await res.json();
-    const respParts: Array<{ text?: string }> = j?.candidates?.[0]?.content?.parts ?? [];
-    const text = respParts
-      .map((p) => p.text)
-      .filter(Boolean)
-      .join("");
-    if (!text) throw new Error("Gemini text returned empty");
-    return { url: "", endpoint: `gemini-text:${model}`, text };
-  },
-};
-
-// ─── Free image providers ────────────────────────────────────────────────────
-// Pollinations (no key) leads the image chain; Runware (keyed) is a cheap hosted
-// alternative. Both upload the bytes to the studio bucket so results live where
-// every other provider's results do.
-type FreeImageEntry = { adapter: "pollinations" | "runware"; model: string; cost: number };
-const FREE_IMAGE_MODELS: Record<string, FreeImageEntry> = {
-  "pollinations/flux": { adapter: "pollinations", model: "flux", cost: 0 },
-  "runware/flux-schnell": { adapter: "runware", model: "runware:100@1", cost: 0.0006 },
-};
-
-async function uploadBytesToStudio(
-  userId: string | null | undefined,
-  folder: string,
-  bytes: Uint8Array,
-  contentType: string,
-  ext: string,
-): Promise<string> {
-  const path = `${userId ?? "system"}/${folder}/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabaseAdmin.storage
-    .from("studio")
-    .upload(path, bytes, { contentType, upsert: false });
-  if (error) throw new Error(`${folder} upload failed: ${error.message}`);
-  const { data } = supabaseAdmin.storage.from("studio").getPublicUrl(path);
-  return data.publicUrl;
-}
-
-const pollinations: ProviderAdapter = {
-  name: "pollinations",
-  supports: (r) => {
-    if (r.kind === "text")
-      return r.model ? TEXT_MODELS[r.model]?.adapter === "pollinations" : false;
-    if (r.kind === "image")
-      return r.model ? FREE_IMAGE_MODELS[r.model]?.adapter === "pollinations" : false;
-    return false;
-  },
-  estimateCost: () => 0,
-  async run(r) {
-    if (r.kind === "text") {
-      const m = r.model ? TEXT_MODELS[r.model] : null;
-      const model = m?.providerModel ?? "openai";
-      const res = await fetch(
-        `https://text.pollinations.ai/${encodeURIComponent(r.prompt ?? "")}?model=${encodeURIComponent(model)}`,
-      );
-      if (!res.ok)
-        throw new Error(`Pollinations text ${res.status}: ${(await res.text()).slice(0, 150)}`);
-      const text = await res.text();
-      if (!text) throw new Error("Pollinations returned empty text");
-      return { url: "", endpoint: `pollinations:${model}`, text };
-    }
-    const m = r.model ? FREE_IMAGE_MODELS[r.model] : null;
-    const model = m?.model ?? "flux";
-    const u = new URL(`https://image.pollinations.ai/prompt/${encodeURIComponent(r.prompt ?? "")}`);
-    u.searchParams.set("width", "1024");
-    u.searchParams.set("height", "1024");
-    u.searchParams.set("model", model);
-    u.searchParams.set("nologo", "true");
-    const res = await fetch(u.toString());
-    if (!res.ok)
-      throw new Error(`Pollinations image ${res.status}: ${(await res.text()).slice(0, 150)}`);
-    const contentType = res.headers.get("content-type") || "image/jpeg";
-    const bytes = new Uint8Array(await res.arrayBuffer());
-    const url = await uploadBytesToStudio(
-      r.userId,
-      "pollinations",
-      bytes,
-      contentType,
-      contentType.split("/")[1] || "jpg",
-    );
-    return { url, endpoint: `pollinations:${model}` };
-  },
-};
-
-const runware: ProviderAdapter = {
-  name: "runware",
-  supports: (r) =>
-    r.kind === "image" &&
-    !!process.env.RUNWARE_API_KEY &&
-    (r.model ? FREE_IMAGE_MODELS[r.model]?.adapter === "runware" : false),
-  estimateCost: (r) => (r.model ? FREE_IMAGE_MODELS[r.model]?.cost : undefined) ?? 0.001,
-  async run(r) {
-    const key = process.env.RUNWARE_API_KEY!;
-    const m = r.model ? FREE_IMAGE_MODELS[r.model] : null;
-    const body = [
-      {
-        taskType: "imageInference",
-        taskUUID: crypto.randomUUID(),
-        positivePrompt: r.prompt ?? "",
-        model: m?.model ?? "runware:100@1",
-        width: 1024,
-        height: 1024,
-        numberResults: 1,
-      },
-    ];
-    const res = await fetch("https://api.runware.ai/v1", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error(`Runware ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    const j = await res.json();
-    const url: unknown = j?.data?.[0]?.imageURL ?? j?.data?.[0]?.imageUrl;
-    if (!url || typeof url !== "string") throw new Error("Runware returned no image");
-    return { url, endpoint: `runware:${m?.model ?? "runware:100@1"}` };
-  },
-};
-
-// ─── Runway video (official REST, image-to-video) ────────────────────────────
-const RUNWAY_MODELS: Record<string, { model: string; cost: number }> = {
-  "runway/gen4-turbo": { model: "gen4_turbo", cost: 0.5 },
-  "runway/gen3a-turbo": { model: "gen3a_turbo", cost: 0.4 },
-};
-const runway: ProviderAdapter = {
-  name: "runway",
-  supports: (r) =>
-    r.kind === "video" &&
-    !!process.env.RUNWAY_API_KEY &&
-    (r.model ? !!RUNWAY_MODELS[r.model] : false),
-  estimateCost: (r) => (r.model ? RUNWAY_MODELS[r.model]?.cost : undefined) ?? 0.5,
-  async run(r) {
-    const key = process.env.RUNWAY_API_KEY!;
-    const m = r.model ? RUNWAY_MODELS[r.model] : null;
-    const img = firstImg(r);
-    if (!img) throw new Error("Runway requires a start image (image-to-video)");
-    const headers = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${key}`,
-      "X-Runway-Version": "2024-11-06",
-    };
-    const create = await fetch("https://api.dev.runwayml.com/v1/image_to_video", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model: m?.model ?? "gen4_turbo",
-        promptImage: img,
-        promptText: r.prompt ?? "",
-        duration: r.duration ?? 5,
-        ratio: "1280:720",
-      }),
-    });
-    if (!create.ok)
-      throw new Error(`Runway ${create.status}: ${(await create.text()).slice(0, 200)}`);
-    const cj = await create.json();
-    const id = cj?.id;
-    if (!id) throw new Error("Runway returned no task id");
-    const deadline = Date.now() + 10 * 60_000;
-    while (Date.now() < deadline) {
-      await new Promise((s) => setTimeout(s, 6000));
-      const st = await fetch(`https://api.dev.runwayml.com/v1/tasks/${id}`, { headers });
-      if (!st.ok) continue;
-      const sj = await st.json();
-      const status = sj?.status;
-      if (status === "SUCCEEDED") {
-        const url = Array.isArray(sj?.output) ? sj.output[0] : undefined;
-        if (!url) throw new Error("Runway: no output url");
-        return { url, endpoint: `runway:${m?.model ?? "gen4_turbo"}` };
-      }
-      if (status === "FAILED")
-        throw new Error(
-          `Runway failed: ${String(sj?.failure ?? sj?.failureCode ?? "unknown").slice(0, 200)}`,
-        );
-    }
-    throw new Error("Runway poll timeout");
-  },
-};
-
-// ─── ElevenLabs (TTS / audio) ────────────────────────────────────────────────
-const elevenlabs: ProviderAdapter = {
-  name: "elevenlabs",
-  supports: (r) => r.kind === "audio" && !!process.env.ELEVENLABS_API_KEY,
-  estimateCost: () => 0.01,
-  async run(r) {
-    const key = process.env.ELEVENLABS_API_KEY!;
-    const voiceId =
-      (typeof r.params?.voiceId === "string" && r.params.voiceId) || "21m00Tcm4TlvDq8ikWAM";
-    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "xi-api-key": key },
-      body: JSON.stringify({ text: r.prompt ?? "", model_id: "eleven_multilingual_v2" }),
-    });
-    if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    const bytes = new Uint8Array(await res.arrayBuffer());
-    const url = await uploadBytesToStudio(r.userId, "tts", bytes, "audio/mpeg", "mp3");
-    return { url, endpoint: `elevenlabs:${voiceId}` };
-  },
-};
-
-// ─── GPU worker pool ─────────────────────────────────────────────────────────
 // Admin-registered HTTP workers (RunPod / vast / salad / self-hosted). Each row
 // declares the request contract it speaks via `protocol`:
 //   custom  → POST {endpoint}/generate  with a flat body, returns { url } | { output_url }
@@ -2884,6 +2563,8 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
     replicate,
     inferenceshCloud,
     lovable,
+    pollinations, // model-keyed (pollinations/flux) — free, last resort before fal
+    runware,      // model-keyed (runware/flux-schnell) — cheap hosted fallback
     falFallback,
   ],
   video: [

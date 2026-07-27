@@ -177,13 +177,6 @@ export function LiveJobsPanel() {
       now - new Date(j.created_at).getTime() > QUEUE_WAIT_THRESHOLD_MS,
   );
 
-  // Show upgrade nudge when a Free user has a queued/pending job waiting > 30 s.
-  const longQueuedJob = !isPro && jobs.find(
-    (j) =>
-      (j.status === "queued" || j.status === "pending") &&
-      now - new Date(j.created_at).getTime() > QUEUE_WAIT_THRESHOLD_MS,
-  );
-
   return (
     <div className="phone-edge-right fixed bottom-20 z-40 w-[300px] max-w-[calc(100vw-2rem)]">
       <button
