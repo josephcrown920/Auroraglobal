@@ -74,6 +74,7 @@ import { Route as ApiEstimateRouteImport } from './routes/api/estimate'
 import { Route as AdminWorkflowsRouteImport } from './routes/admin.workflows'
 import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
 import { Route as AdminSmokeRouteImport } from './routes/admin.smoke'
+import { Route as AdminSiteImagesRouteImport } from './routes/admin.site-images'
 import { Route as AdminOrchestrationRouteImport } from './routes/admin.orchestration'
 import { Route as AdminCostsRouteImport } from './routes/admin.costs'
 import { Route as AdminComfyRouteImport } from './routes/admin.comfy'
@@ -443,6 +444,13 @@ const AdminSmokeRoute = AdminSmokeRouteImport.update({
   path: '/smoke',
   getParentRoute: () => AdminRoute,
 } as any).lazy(() => import('./routes/admin.smoke.lazy').then((d) => d.Route))
+const AdminSiteImagesRoute = AdminSiteImagesRouteImport.update({
+  id: '/site-images',
+  path: '/site-images',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() =>
+  import('./routes/admin.site-images.lazy').then((d) => d.Route),
+)
 const AdminOrchestrationRoute = AdminOrchestrationRouteImport.update({
   id: '/orchestration',
   path: '/orchestration',
@@ -666,6 +674,7 @@ export interface FileRoutesByFullPath {
   '/admin/comfy': typeof AdminComfyRoute
   '/admin/costs': typeof AdminCostsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
+  '/admin/site-images': typeof AdminSiteImagesRoute
   '/admin/smoke': typeof AdminSmokeRoute
   '/admin/templates': typeof AdminTemplatesRoute
   '/admin/workflows': typeof AdminWorkflowsRoute
@@ -764,6 +773,7 @@ export interface FileRoutesByTo {
   '/admin/comfy': typeof AdminComfyRoute
   '/admin/costs': typeof AdminCostsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
+  '/admin/site-images': typeof AdminSiteImagesRoute
   '/admin/smoke': typeof AdminSmokeRoute
   '/admin/templates': typeof AdminTemplatesRoute
   '/admin/workflows': typeof AdminWorkflowsRoute
@@ -863,6 +873,7 @@ export interface FileRoutesById {
   '/admin/comfy': typeof AdminComfyRoute
   '/admin/costs': typeof AdminCostsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
+  '/admin/site-images': typeof AdminSiteImagesRoute
   '/admin/smoke': typeof AdminSmokeRoute
   '/admin/templates': typeof AdminTemplatesRoute
   '/admin/workflows': typeof AdminWorkflowsRoute
@@ -963,6 +974,7 @@ export interface FileRouteTypes {
     | '/admin/comfy'
     | '/admin/costs'
     | '/admin/orchestration'
+    | '/admin/site-images'
     | '/admin/smoke'
     | '/admin/templates'
     | '/admin/workflows'
@@ -1061,6 +1073,7 @@ export interface FileRouteTypes {
     | '/admin/comfy'
     | '/admin/costs'
     | '/admin/orchestration'
+    | '/admin/site-images'
     | '/admin/smoke'
     | '/admin/templates'
     | '/admin/workflows'
@@ -1159,6 +1172,7 @@ export interface FileRouteTypes {
     | '/admin/comfy'
     | '/admin/costs'
     | '/admin/orchestration'
+    | '/admin/site-images'
     | '/admin/smoke'
     | '/admin/templates'
     | '/admin/workflows'
@@ -1750,6 +1764,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSmokeRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/site-images': {
+      id: '/admin/site-images'
+      path: '/site-images'
+      fullPath: '/admin/site-images'
+      preLoaderRoute: typeof AdminSiteImagesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/orchestration': {
       id: '/admin/orchestration'
       path: '/orchestration'
@@ -1975,6 +1996,7 @@ interface AdminRouteChildren {
   AdminComfyRoute: typeof AdminComfyRoute
   AdminCostsRoute: typeof AdminCostsRoute
   AdminOrchestrationRoute: typeof AdminOrchestrationRoute
+  AdminSiteImagesRoute: typeof AdminSiteImagesRoute
   AdminSmokeRoute: typeof AdminSmokeRoute
   AdminTemplatesRoute: typeof AdminTemplatesRoute
   AdminWorkflowsRoute: typeof AdminWorkflowsRoute
@@ -1985,6 +2007,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminComfyRoute: AdminComfyRoute,
   AdminCostsRoute: AdminCostsRoute,
   AdminOrchestrationRoute: AdminOrchestrationRoute,
+  AdminSiteImagesRoute: AdminSiteImagesRoute,
   AdminSmokeRoute: AdminSmokeRoute,
   AdminTemplatesRoute: AdminTemplatesRoute,
   AdminWorkflowsRoute: AdminWorkflowsRoute,
