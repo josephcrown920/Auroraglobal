@@ -53,7 +53,7 @@ describe("template-studio manifest", () => {
     expect(new Set(ids).size).toBe(ids.length); // ids are unique
     for (const t of STUDIO_TEMPLATES) {
       expect(t.kinds.length).toBeGreaterThan(0);
-      expect(["studio", "ugc", "spin", "autocut"]).toContain(t.dispatch);
+      expect(["studio", "ugc", "spin", "autocut", "beat-reel"]).toContain(t.dispatch);
       if (t.dispatch === "ugc") expect(t.kinds).toContain("ugc_ad");
       if (t.dispatch === "spin") expect(t.kinds).toContain("spin");
       if (t.dispatch === "autocut") expect(t.kinds).toContain("autocut");
@@ -100,7 +100,7 @@ describe("template-studio manifest", () => {
       } else {
         expect(templateCost(t)).toBeGreaterThan(0);
       }
-      expect(["studio", "ugc", "autocut", "spin"]).toContain(t.dispatch);
+      expect(["studio", "ugc", "autocut", "spin", "beat-reel"]).toContain(t.dispatch);
     }
   });
 

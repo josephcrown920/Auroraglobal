@@ -8,6 +8,8 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
+import { createFileRoute } from '@tanstack/react-router'
+
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WorkflowsRouteImport } from './routes/workflows'
 import { Route as VideoEditorRouteImport } from './routes/video-editor'
@@ -107,6 +109,13 @@ import { Route as ApiPublicWorkersFilesNameRouteImport } from './routes/api/publ
 import { Route as ApiPublicCliDeviceStartRouteImport } from './routes/api/public/cli/device/start'
 import { Route as ApiPublicCliDevicePollRouteImport } from './routes/api/public/cli/device/poll'
 
+const BeatReelLazyRouteImport = createFileRoute('/beat-reel')()
+
+const BeatReelLazyRoute = BeatReelLazyRouteImport.update({
+  id: '/beat-reel',
+  path: '/beat-reel',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/beat-reel.lazy').then((d) => d.Route))
 const WorkflowsRoute = WorkflowsRouteImport.update({
   id: '/workflows',
   path: '/workflows',
@@ -670,6 +679,7 @@ export interface FileRoutesByFullPath {
   '/ugc-line': typeof UgcLineRoute
   '/video-editor': typeof VideoEditorRoute
   '/workflows': typeof WorkflowsRoute
+  '/beat-reel': typeof BeatReelLazyRoute
   '/admin/assets': typeof AdminAssetsRoute
   '/admin/comfy': typeof AdminComfyRoute
   '/admin/costs': typeof AdminCostsRoute
@@ -769,6 +779,7 @@ export interface FileRoutesByTo {
   '/ugc-line': typeof UgcLineRoute
   '/video-editor': typeof VideoEditorRoute
   '/workflows': typeof WorkflowsRoute
+  '/beat-reel': typeof BeatReelLazyRoute
   '/admin/assets': typeof AdminAssetsRoute
   '/admin/comfy': typeof AdminComfyRoute
   '/admin/costs': typeof AdminCostsRoute
@@ -869,6 +880,7 @@ export interface FileRoutesById {
   '/ugc-line': typeof UgcLineRoute
   '/video-editor': typeof VideoEditorRoute
   '/workflows': typeof WorkflowsRoute
+  '/beat-reel': typeof BeatReelLazyRoute
   '/admin/assets': typeof AdminAssetsRoute
   '/admin/comfy': typeof AdminComfyRoute
   '/admin/costs': typeof AdminCostsRoute
@@ -970,6 +982,7 @@ export interface FileRouteTypes {
     | '/ugc-line'
     | '/video-editor'
     | '/workflows'
+    | '/beat-reel'
     | '/admin/assets'
     | '/admin/comfy'
     | '/admin/costs'
@@ -1069,6 +1082,7 @@ export interface FileRouteTypes {
     | '/ugc-line'
     | '/video-editor'
     | '/workflows'
+    | '/beat-reel'
     | '/admin/assets'
     | '/admin/comfy'
     | '/admin/costs'
@@ -1168,6 +1182,7 @@ export interface FileRouteTypes {
     | '/ugc-line'
     | '/video-editor'
     | '/workflows'
+    | '/beat-reel'
     | '/admin/assets'
     | '/admin/comfy'
     | '/admin/costs'
@@ -1268,6 +1283,7 @@ export interface RootRouteChildren {
   UgcLineRoute: typeof UgcLineRoute
   VideoEditorRoute: typeof VideoEditorRoute
   WorkflowsRoute: typeof WorkflowsRoute
+  BeatReelLazyRoute: typeof BeatReelLazyRoute
   ApiEstimateRoute: typeof ApiEstimateRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiMcpRoute: typeof ApiMcpRoute
@@ -1309,6 +1325,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/beat-reel': {
+      id: '/beat-reel'
+      path: '/beat-reel'
+      fullPath: '/beat-reel'
+      preLoaderRoute: typeof BeatReelLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/workflows': {
       id: '/workflows'
       path: '/workflows'
@@ -2068,6 +2091,7 @@ const rootRouteChildren: RootRouteChildren = {
   UgcLineRoute: UgcLineRoute,
   VideoEditorRoute: VideoEditorRoute,
   WorkflowsRoute: WorkflowsRoute,
+  BeatReelLazyRoute: BeatReelLazyRoute,
   ApiEstimateRoute: ApiEstimateRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiMcpRoute: ApiMcpRoute,

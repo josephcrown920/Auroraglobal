@@ -65,7 +65,7 @@ export type TemplateCategory = "Lip-sync" | "Motion" | "UGC/Ad" | "Spin" | "Kids
 export type OrchestratorKind = "image" | "video" | "lipsync" | "ugc_ad" | "spin" | "autocut";
 
 /** Which backend runs a template on submit. */
-export type TemplateDispatch = "studio" | "ugc" | "spin" | "autocut";
+export type TemplateDispatch = "studio" | "ugc" | "spin" | "autocut" | "beat-reel";
 
 export type TemplateInput = {
   kind: TemplateInputKind;
@@ -374,6 +374,29 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
     durationSeconds: 5,
   },
 
+  {
+    id: "beat-reel",
+    title: "Beat-Drop Reel",
+    category: "Motion",
+    blurb: "Portrait + outfit photo → 9:16 fashion reel with a snap-zoom jump-cut at the beat drop.",
+    thumbnail: stillFitcheckMirror,
+    thumbnailVideo: clipAlleyNeon,
+    kinds: ["image", "video"],
+    dispatch: "beat-reel",
+    inputs: [
+      IMG("Your portrait", "A clear front-facing or ¾ photo of you"),
+      IMG("Outfit / look", "A photo of the clothing or style you want to wear"),
+    ],
+    imagePrompt:
+      `Editorial fashion photograph. Show the EXACT person from the first reference image wearing the EXACT outfit from the second reference image. Preserve the person's facial features, skin tone, body proportions, and hair faithfully. Render the outfit with accurate fabric texture, colour, and cut. Professional fashion editorial lighting, VERTICAL 9:16 portrait format for mobile short-form video, urban streetwear aesthetic, shallow depth of field, high-end styling. ${IDENTITY}`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "Vertical 9:16 fashion reel. At EXACTLY the midpoint of the clip a sudden snap-zoom jump-cut fires — the camera lurches instantly close to the outfit, like a beat-drop. The cut is abrupt and dramatic, not a smooth zoom. First half: wide confident stance. Second half: tight close-up on outfit detail. Urban fashion editorial, cinematic lighting, camera locked off except for the snap-zoom moment.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "static",
+    durationSeconds: 5,
+  },
+
   // ───────────── Spin ─────────────
   {
     id: "viral-spin",
@@ -498,6 +521,18 @@ export function templateCost(t: StudioTemplate): number {
   // No credits are charged in the template drawer itself → cost = 0 (Free).
   if (t.dispatch === "spin") return 0;
   if (t.dispatch === "autocut") return COST_AUTOCUT;
+  // beat-reel: image composite + full-quality video (same stack the page charges)
+  if (t.dispatch === "beat-reel") {
+    return (
+      computeCost({ features: ["image"] }).total +
+      computeCost({
+        features: ["video"],
+        model: t.videoModel ?? TEMPLATE_DEFAULTS.videoModel,
+        durationSeconds: t.durationSeconds ?? TEMPLATE_DEFAULTS.durationSeconds,
+        resolution: t.resolution ?? TEMPLATE_DEFAULTS.resolution,
+      }).total
+    );
+  }
 
   let total = 0;
   for (const kind of t.kinds) {
@@ -525,6 +560,7 @@ export function templateFlowLabel(t: StudioTemplate): string {
   if (t.dispatch === "spin") return `1 → ${SPIN_PIECE_COUNT}`;
   if (t.dispatch === "ugc") return "Talking ad";
   if (t.dispatch === "autocut") return "Auto edit";
+  if (t.dispatch === "beat-reel") return "Reel";
   if (t.kinds.includes("lipsync")) return "Lip-sync";
   if (t.kinds.includes("video")) return "Video";
   return "Image";

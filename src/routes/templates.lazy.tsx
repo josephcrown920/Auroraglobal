@@ -127,6 +127,8 @@ function TemplatesPage() {
                       onSelect={
                         t.dispatch === "autocut"
                           ? () => navigateTo({ to: "/edit" })
+                          : t.dispatch === "beat-reel"
+                          ? () => navigateTo({ to: "/beat-reel" })
                           : () => openTemplate(t.id)
                       }
                       className="w-40 shrink-0 snap-start"
