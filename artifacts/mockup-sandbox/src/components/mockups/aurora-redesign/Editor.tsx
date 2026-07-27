@@ -244,7 +244,7 @@ function RailItem({ icon, label, active = false }: { icon: React.ReactNode, labe
           active ? 'bg-[#007AFF]/10 text-[#007AFF]' : 'text-white/40 hover:text-white hover:bg-white/5'
         }`}
       >
-        {React.cloneElement(icon as React.ReactElement, { className: 'w-5 h-5 stroke-[1.5]' })}
+        {React.cloneElement(icon as React.ReactElement<any>, { className: 'w-5 h-5 stroke-[1.5]' })}
       </button>
       {active && (
         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#007AFF] rounded-r-full" />
@@ -273,7 +273,7 @@ function ToolButton({
       } border`}
     >
       <div className={`${active ? 'text-[#007AFF]' : 'text-white/60'}`}>
-        {React.cloneElement(icon as React.ReactElement, { className: 'w-6 h-6 stroke-[1.5]' })}
+        {React.cloneElement(icon as React.ReactElement<any>, { className: 'w-6 h-6 stroke-[1.5]' })}
       </div>
       <div className="text-center">
         <div className={`text-sm font-medium ${active ? 'text-white' : 'text-white/80'}`}>{label}</div>
@@ -341,7 +341,7 @@ function ToolSettingsPanel({ tool, onClose }: { tool: string, onClose: () => voi
           <button onClick={onClose} className="w-6 h-6 rounded flex items-center justify-center hover:bg-white/10 text-white/40 hover:text-white mr-1 -ml-1 transition-colors">
             <ChevronRight className="w-4 h-4 rotate-180" />
           </button>
-          <div className="text-[#007AFF] w-4 h-4">{React.cloneElement(details.icon as React.ReactElement, { className: 'w-full h-full' })}</div>
+          <div className="text-[#007AFF] w-4 h-4">{React.cloneElement(details.icon as React.ReactElement<any>, { className: 'w-full h-full' })}</div>
           <h3 className="font-medium text-sm text-white/90">{details.name}</h3>
         </div>
         <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 border border-white/10 text-xs text-white/70">

@@ -189,7 +189,7 @@ export function Hub() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-16">
             {TOOLS.map((tool) => (
               <button key={tool.id} className="glass-panel p-5 rounded-2xl flex flex-col items-start text-left group transition-all duration-300 hover:-translate-y-1">
-                <div className={\`w-12 h-12 rounded-xl flex items-center justify-center mb-4 \${tool.color}\`}>
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${tool.color}`}>
                   {tool.icon}
                 </div>
                 <h3 className="font-outfit font-medium text-lg mb-1">{tool.name}</h3>
