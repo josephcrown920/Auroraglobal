@@ -366,10 +366,11 @@ describe("assertFreeModeServable()", () => {
     await expect(assertFreeModeServable("video")).resolves.toBeUndefined();
   });
 
-  it("blocks IMAGE in free mode when no worker is online (no free hosted image fallback)", async () => {
+  it("allows IMAGE in free mode without a GPU worker (Pollinations is a $0 hosted fallback)", async () => {
     freeModeQueryResult = { ...FREE_ON };
     workersQueryResult = { data: [], error: null };
-    await expect(assertFreeModeServable("image")).rejects.toThrow(FREE_MODE_NO_WORKER_MSG);
+    // Pollinations has estimateCost === 0 so assertFreeModeServable returns early — no worker needed.
+    await expect(assertFreeModeServable("image")).resolves.toBeUndefined();
   });
 
   it("blocks VIDEO in free mode when no worker is online", async () => {
