@@ -11,7 +11,7 @@ import joshBlueOrange from "@/assets/josh/josh-blue-orange.jpg.asset.json";
 const PINK_MIC_PORTRAIT = "/josh/josh-pink-mic-portrait.jpg";
 // (Mirror session slide removed — that photo now lives exclusively in the
 // Get Ready With Me landing section so no image repeats across the page.)
-const SHOTS = [
+const RAW_SHOTS = [
   { url: joshBlueOrange.url, caption: "Blue × orange studio · color wash" },
   { url: josh3.url, caption: "Blue close-up · live mic portrait" },
   { url: josh4.url, caption: "Electric cobalt crop · signature frames" },
