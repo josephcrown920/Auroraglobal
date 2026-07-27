@@ -5,6 +5,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 // toolLinks stored in DB rows) working.
 export const Route = createFileRoute("/orchestrate")({
   beforeLoad: () => {
-    throw redirect({ to: "/agent", search: { tab: "generate" } });
+    // "Generate" tab was retired — land on the Prime Director Workspace instead.
+    throw redirect({ to: "/agent" });
   },
 });

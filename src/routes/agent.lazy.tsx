@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { createLazyFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
-import { OrchestrateStudio } from "@/components/orchestrate/OrchestrateStudio";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -654,8 +653,10 @@ function AgentPage() {
   const memorySaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { tab: tabParam } = useSearch({ from: "/agent" });
-  const [activeTab, setActiveTab] = useState<"Generate" | "Workspace" | "HeyGen">(
-    tabParam === "generate" ? "Generate" : "Workspace",
+  // "Generate" tab (OrchestrateStudio) was retired; always open Workspace.
+  // tabParam kept in search type so old ?tab=generate deep-links don't 404.
+  const [activeTab, setActiveTab] = useState<"Workspace" | "HeyGen">(
+    tabParam === "heygen" ? "HeyGen" : "Workspace",
   );
   const [leftOpen, setLeftOpen] = useState(true);
 
@@ -857,7 +858,7 @@ function AgentPage() {
         {/* tab bar */}
         <div className="flex h-13 items-center border-b border-line bg-canvas/80 px-6 backdrop-blur-sm">
           <div className="flex gap-6 text-[13px] font-bold uppercase tracking-[0.2em]">
-            {(["Generate", "Workspace", "HeyGen"] as const).map((t) => (
+            {(["Workspace", "HeyGen"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setActiveTab(t)}
@@ -872,8 +873,7 @@ function AgentPage() {
           </div>
         </div>
 
-        {activeTab === "Generate" && <OrchestrateStudio />}
-        {activeTab === "HeyGen"   && <HeyGenPanel />}
+        {activeTab === "HeyGen" && <HeyGenPanel />}
 
         {activeTab === "Workspace" && (
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-8">
