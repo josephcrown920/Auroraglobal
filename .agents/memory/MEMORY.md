@@ -102,3 +102,4 @@
 - [Adding a $0 external video adapter](zero-cost-video-adapter-checklist.md) — five registration touch points incl. two separate free-mode exclusion checks; missing one silently misroutes.
 - [Tutorial guide PDF is a manual snapshot](tutorial-pdf-regeneration.md) — /tutorial-guide.pdf is a static Playwright print of /tutorial; regenerate + copy to all three public locations after any tutorial content edit.
 - [Gemini Veo discrete durations](gemini-veo-discrete-durations.md) — veo-3.1-fast-generate-preview accepts only 4 or 8 for durationSeconds (not 5-7); snap with `d <= 5 ? 4 : 8`; 5 returns 400 despite misleading "4-8" error.
+- [TanStack nested router-core conflict](tanstack-nested-router-core-conflict.md) — npm override fixes getScriptPreloadAttrs build failure; never delete ALL nested @tanstack node_modules.
