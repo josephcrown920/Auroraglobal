@@ -40,6 +40,10 @@ args = "cron"
 task = "workflow.run"
 args = "prod-build"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "tutorial-pdf"
+
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
@@ -125,6 +129,17 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "bun test src/lib/mcp"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow]]
+name = "tutorial-pdf"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bash scripts/check-tutorial-pdf-fresh.sh"
 
 [workflows.workflow.metadata]
 isValidation = true

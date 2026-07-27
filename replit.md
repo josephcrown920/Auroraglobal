@@ -69,6 +69,28 @@ Every task must be propagated across all artifacts before it is considered done.
 4. **Never leave one artifact behind** — do not close a task if any artifact still shows the old behaviour, a broken import, or a missing feature that the others already have.
 5. **Confirm TypeScript compiles across all** — after changes, run `tsc --noEmit` (or equivalent) in every affected artifact directory and in the root; zero new errors before marking complete.
 
+## Tutorial PDF
+
+The downloadable tutorial PDF is a static Playwright snapshot of `/tutorial`. It lives at three locations that must always be identical:
+
+```
+public/tutorial-guide.pdf
+public/Aurora-Studio-Tutorial-Guide.pdf
+artifacts/web/public/Aurora-Studio-Tutorial-Guide.pdf
+```
+
+**After editing any tutorial source file** (`src/components/tutorial/*.tsx`, `tokens.ts`, or `src/routes/tutorial.lazy.tsx`), regenerate the PDF:
+
+```bash
+# 1. Make sure the dev server is running (Start application workflow on :8080)
+# 2. Then:
+bash scripts/regen-tutorial-pdf.sh
+```
+
+The script writes the PDF to all three locations automatically.
+
+A CI staleness check (`tutorial-pdf` validation command) will fail if tutorial sources are newer than the PDF — run the regen script above to fix it.
+
 ## Development principles (Karpathy Guidelines)
 
 Apply these four principles on every code task:
