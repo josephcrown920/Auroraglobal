@@ -87,7 +87,7 @@ function AuthPage() {
         trackSignUp(provider as "github" | "apple");
       }
     }
-    navigate({ to: "/studio" });
+    navigate({ to: "/home" });
   }, [session, loading, navigate, recoveryMode]);
 
   const handleForgotPassword = async () => {
@@ -121,7 +121,7 @@ function AuthPage() {
       if (error) throw error;
       toast.success("Password updated — you're signed in!");
       setRecoveryMode(false);
-      navigate({ to: "/studio" });
+      navigate({ to: "/home" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not update password");
     } finally {
@@ -138,7 +138,7 @@ function AuthPage() {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/studio`,
+            emailRedirectTo: `${window.location.origin}/home`,
             data: { display_name: displayName.trim() || email.split("@")[0] },
           },
         });
@@ -155,14 +155,14 @@ function AuthPage() {
           if (biometricSupported) {
             void offerPasskeyRegistration();
           }
-          navigate({ to: "/studio" });
+          navigate({ to: "/home" });
         } else {
           setConfirmSent(true);
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate({ to: "/studio" });
+        navigate({ to: "/home" });
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Auth failed");
@@ -185,7 +185,7 @@ function AuthPage() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/studio`,
+          redirectTo: `${window.location.origin}/home`,
           skipBrowserRedirect: isInFrame,
         },
       });
@@ -254,7 +254,7 @@ function AuthPage() {
       if (error) throw error;
 
       toast.success("Signed in with biometrics!");
-      navigate({ to: "/studio" });
+      navigate({ to: "/home" });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes("cancelled") || msg.includes("abort") || msg.includes("NotAllowed")) {

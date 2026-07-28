@@ -193,7 +193,7 @@ function usePwaInstall() {
 
 function LandingPage() {
   const { user } = useAuth();
-  const ctaTo = user ? "/studio" : "/auth";
+  const ctaTo = user ? "/home" : "/auth";
   const { canInstall, install } = usePwaInstall();
 
   const [slideIdx, setSlideIdx] = useState(0);
@@ -228,7 +228,7 @@ function LandingPage() {
             </Link>
             {user ? (
               <Link
-                to="/studio"
+                to="/home"
                 className="inline-flex items-center rounded-full bg-[#e5383b] py-2 pl-3 pr-4 text-sm font-semibold text-white transition-transform hover:scale-[1.02] active:scale-95"
               >
                 <Plus className="size-4 mr-1.5 shrink-0" strokeWidth={2.5} />

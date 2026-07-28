@@ -370,6 +370,7 @@ export function MobileNav() {
 
             <NavSection label="Account">
               {([
+                { to: "/home",              label: "My Home",        icon: Sparkles },
                 { to: "/gallery",           label: "Gallery",        icon: Images },
                 { to: "/creator/dashboard", label: "Creator Hub",    icon: TrendingUp },
                 { to: "/billing",           label: "Plan & Billing", icon: CreditCard },

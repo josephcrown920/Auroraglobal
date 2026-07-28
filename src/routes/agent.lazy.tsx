@@ -652,7 +652,13 @@ function AgentPage() {
   const [memorySaveState, setMemorySaveState] = useState<"saved" | "unsaved" | "saving">("saved");
   const memorySaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { tab: tabParam } = useSearch({ from: "/agent" });
+  const { tab: tabParam, q: initialQ } = useSearch({ from: "/agent" });
+
+  // Pre-fill chat input from ?q= (sent by the home screen composer bar)
+  useEffect(() => {
+    if (initialQ) setInput(initialQ);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount only
+  }, []);
   // "Generate" tab (OrchestrateStudio) was retired; always open Workspace.
   // tabParam kept in search type so old ?tab=generate deep-links don't 404.
   const [activeTab, setActiveTab] = useState<"Workspace" | "HeyGen">(
