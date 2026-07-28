@@ -15,7 +15,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { signOut } = useClerk();
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
-  const { data: user } = useGetMe();
+  const { data: user } = useGetMe({ query: { refetchOnWindowFocus: true } });
 
   return (
     <div className="flex h-[100dvh] bg-background text-white overflow-hidden font-sans">
