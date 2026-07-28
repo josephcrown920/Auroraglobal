@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
 
-import { AUTOCUT_STYLES, getStyleCutRule, runLocalFfmpegAssemble } from "./autocut.server";
+import { AUTOCUT_STYLES, getStyleCutRule, runLocalFfmpegAssemble, MUSIC_TRACKS, signedAutocutUrl } from "./autocut.server";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -258,4 +258,37 @@ describe("runLocalFfmpegAssemble (integration)", () => {
     },
     FFMPEG_TIMEOUT,
   );
+});
+
+// ── signedAutocutUrl smoke tests ───────────────────────────────────────────────
+//
+// Each of the 24 MUSIC_TRACKS entries must resolve to a non-null signed URL,
+// proving the corresponding MP3 file exists in the studio bucket at the path
+// declared in MUSIC_TRACKS. Skipped when SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY
+// are absent (CI environments without storage access).
+
+const HAS_SUPABASE =
+  typeof process.env.SUPABASE_URL === "string" &&
+  process.env.SUPABASE_URL.length > 0 &&
+  typeof process.env.SUPABASE_SERVICE_ROLE_KEY === "string" &&
+  process.env.SUPABASE_SERVICE_ROLE_KEY.length > 0;
+
+describe("signedAutocutUrl — music track smoke tests", () => {
+  if (!HAS_SUPABASE) {
+    it.skip("skipped: no Supabase credentials available", () => {});
+    return;
+  }
+
+  for (const track of MUSIC_TRACKS) {
+    it(
+      `${track.id} (${track.storagePath}) resolves to a signed URL`,
+      async () => {
+        const url = await signedAutocutUrl(track.storagePath);
+        expect(url).not.toBeNull();
+        expect(typeof url).toBe("string");
+        expect(url!.length).toBeGreaterThan(0);
+      },
+      15_000,
+    );
+  }
 });
