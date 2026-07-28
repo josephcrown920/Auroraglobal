@@ -152,6 +152,11 @@ export const VIDEO_MODEL_TIERS: Record<string, ModelTier> = {
   "heygen/video-agent": "ultra", // $1.50 — needs the ultra pool ($2.26) to clear the retry buffer
   "heygen/template": "ultra", // $1.50 — Aurora Template render, same HeyGen credit burn as video-agent
   "hf/text-to-video": "budget", // $0 — HuggingFace free-tier T2V fallback
+  // fal.ai LTX Video — first-priority video/motion via fal.ai (FAL_KEY gated, ~$0.06)
+  "fal/ltx-video":  "budget",  // $0.06 — fal-ai/ltx-video T2V
+  "fal/ltx-motion": "budget",  // $0.06 — fal-ai/ltx-video I2V (motion)
+  // inference.sh cloud Veo 3.1 Fast — secondary cloud fallback (~$0.15)
+  "inferencesh/veo-3-1-fast": "standard", // $0.15 via google/veo-3-1-fast app slug
 };
 
 export const LIPSYNC_MODEL_TIERS: Record<string, ModelTier> = {
