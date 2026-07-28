@@ -113,7 +113,7 @@ export function ViralEngine() {
           </span>
           <h2 className="mt-3 text-4xl font-semibold leading-tight">
             Type a hook.{" "}
-            <span className="font-serif italic">See your 30 posts.</span>
+            <span className="font-serif italic">See your 50 posts.</span>
           </h2>
           <p className="mt-3 text-sm text-zinc-400 max-w-[38ch] leading-relaxed">
             Pick a topic below or type your own — Aurora generates a scroll-stopping
@@ -186,7 +186,7 @@ export function ViralEngine() {
         </div>
 
         <p className="text-[11px] text-zinc-600 mb-4 text-center tracking-wide">
-          Showing {PREVIEW_COUNT} of 30 posts · all from your topic, zero repeats
+          Showing {PREVIEW_COUNT} of 50 posts · all from your topic, zero repeats
         </p>
 
         <Link
@@ -194,7 +194,7 @@ export function ViralEngine() {
           search={{ prompt: navigateTopic, jobId: undefined }}
           className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-brand to-violet-400 py-4 text-sm font-bold text-white shadow-[0_8px_30px_-8px] shadow-brand/60 transition-transform hover:scale-[1.01] active:scale-[0.99] no-underline"
         >
-          Generate all 30 posts
+          Generate all 50 posts
           <ArrowRight className="size-4" />
         </Link>
 

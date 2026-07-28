@@ -138,7 +138,7 @@ export const TEMPLATE_DEFAULTS = {
 // can import them from one place without pulling in server-only modules.
 export { COST_UGC_AD, COST_AUTOCUT };
 // Batch size for the Spin experience — every "1 → N" label reads from this.
-export const SPIN_PIECE_COUNT = 30; // === SPIN_COUNT in spin-engine.ts
+export const SPIN_PIECE_COUNT = 50; // === SPIN_COUNT in spin-engine.ts
 
 const IDENTITY =
   "Preserve the exact facial likeness, skin tone, hair and identity from the uploaded reference photo with no drift.";
