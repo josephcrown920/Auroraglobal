@@ -1,5 +1,32 @@
 # The format of this file is identical to `.dockerignore`.
 # It is used to reduce the size of deployed images to make the process of publishing faster.
 
-# No need to store the pnpm store twice.
+# ── Dev-workspace directories (never needed at runtime) ──────────────────────
+
+# Git history (~4.4 GB) — not needed in the deployed container
+.git
+
+# Replit workspace caches (~3.1 GB: playwright, typescript, pip, bun, node-gyp…)
+.cache
+
+# Agent/skill files and pnpm store (~529 MB)
 .local
+
+# Attached assets uploaded during development (~2 GB of videos, ZIPs, PDFs)
+attached_assets
+
+# Build artefacts regenerated on every deploy — no need to ship the dev copy
+.output
+.vinxi
+.tanstack
+.nitro
+
+# Dev notebooks, docs, screenshots, and one-off scripts
+notebooks
+screenshots
+QA_REPORT.md
+gen-josh-pdf.js
+
+# Lock files (deployer installs from package.json; bun.lock causes stale-pin issues)
+bun.lock
+package-lock.json

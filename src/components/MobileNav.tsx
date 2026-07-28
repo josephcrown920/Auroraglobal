@@ -178,6 +178,8 @@ export function MobileNav() {
   // The landing page renders its own sticky top nav (logo + Sign in / Start
   // free) — the floating Menu pill would sit right on top of its wordmark.
   const isLanding = pathname === "/";
+  // The home page has its own HomeTopBar + no bottom tabs — suppress both.
+  const isHome = pathname === "/home";
   const moreActive = !!activeFeature && !TAB_ITEMS.some((t) => t.to === activeFeature.to);
 
   const onTouchStart = (e: React.TouchEvent) => {
@@ -214,22 +216,24 @@ export function MobileNav() {
         }
       `}</style>
 
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label="Open navigation menu"
-        className={cn(
-          "phone-edge-left fixed top-3 z-[60] flex items-center gap-1.5 rounded-full aurora-glass-strong px-3.5 py-2 text-xs font-medium shadow-[var(--shadow-soft)] transition-[filter,color] hover:brightness-110",
-          moreActive ? "text-primary" : "text-foreground",
-        )}
-      >
-        <Menu className="size-4" />
-        Menu
-      </button>
+      {!isHome && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-label="Open navigation menu"
+          className={cn(
+            "phone-edge-left fixed top-3 z-[60] flex items-center gap-1.5 rounded-full aurora-glass-strong px-3.5 py-2 text-xs font-medium shadow-[var(--shadow-soft)] transition-[filter,color] hover:brightness-110",
+            moreActive ? "text-primary" : "text-foreground",
+          )}
+        >
+          <Menu className="size-4" />
+          Menu
+        </button>
+      )}
 
-      {!isCanvas && (
+      {!isCanvas && !isHome && (
         <>
           <div aria-hidden style={{ height: "calc(4rem + env(safe-area-inset-bottom))" }} />
           <nav
