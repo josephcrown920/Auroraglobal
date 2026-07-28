@@ -354,7 +354,7 @@ function SpinPage() {
 
         <div className="mt-6 flex items-center gap-2">
           <span className="inline-flex items-center gap-2 rounded-md border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Flame className="size-3.5" /> TikTok30
+            <Flame className="size-3.5" /> TikTok50
           </span>
         </div>
         <h1 className="mt-3 text-4xl md:text-5xl font-extrabold tracking-tight">

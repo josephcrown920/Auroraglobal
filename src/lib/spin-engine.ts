@@ -17,9 +17,10 @@ const fitnessTemplateImg       = "/josh/generated2/viral-09-vertical-poster.webp
 const fashionTemplateImg       = "/josh/generated2/colors-royal-blue.webp";
 const beautyTemplateImg        = "/josh/generated2/colors-sunset-orange.webp";
 
-// Kept at 30 for credit parity (10 Aura per piece, charged upfront). The engine
-// is count-driven so this can grow later without code changes.
-export const SPIN_COUNT = 30;
+// 50 posts per run — maximum variation batch (10 Aura × 50 = 500 Aura upfront).
+// The engine is count-driven; the fallback axes have LCM(10,11)=110 ≥ 50 so
+// every (location, outfit) pair is still unique across the full batch.
+export const SPIN_COUNT = 50;
 // 10 Aura per spin piece (2026-07-19 ×10 rebase) — the single client-safe
 // source for the per-piece charge. spin.functions.ts (server) and every cost
 // label import THIS constant so the disclosed price can never drift from what
@@ -278,7 +279,7 @@ export const SPIN_TEMPLATES: SpinTemplate[] = [
     id: "product_showcase",
     label: "Product Showcase",
     emoji: "🛍️",
-    blurb: "Holding YOUR product across 30 different outfits, locations & angles — great for ads.",
+    blurb: "Holding YOUR product across 50 different outfits, locations & angles — great for ads.",
     topicSeed: "showing off this product",
     requiresHeldObject: true,
     image: productShowcaseTemplateImg,
@@ -423,20 +424,20 @@ export const SpinPlanSchema = z.object({
 
 export const VIRAL_SYSTEM_PROMPT = `You are a viral content generation engine for TikTok, Reels, and Shorts.
 
-Your task is to generate a FULL content campaign from ONE idea. Every photo and video must combine: hyperrealism, photorealism, skin treatment, golden hour lighting, cinematic look, depth of field — every shot ultra HD.
+Your task is to generate a FULL 50-post content campaign from ONE idea with EXTREME variation. Every photo and video must combine: hyperrealism, photorealism, skin treatment, golden hour lighting, cinematic look, depth of field — every shot ultra HD.
 
-GOAL: turn ONE idea into a FULL WEEK+ viral content pipeline.
+GOAL: turn ONE idea into a FULL WEEK+ viral content pipeline — 50 posts with ZERO repetition.
 
-STEP 1 — BUILD A VARIATION MATRIX FIRST (before generating any posts):
-Before producing any output, silently construct this matrix of unique values:
-- Locations: 10 unique (indoor, outdoor, gym, car, street, luxury, beach, studio, poolside, etc.)
-- Outfits: 10 unique (casual, gymwear, streetwear, luxury, nightwear, athleisure, etc.)
-- Lighting styles: 8 unique (natural, golden hour, neon, dark/low-key, studio, flash, sunset rim, overcast)
-- Camera styles: 8 unique (selfie, tripod, cinematic, POV, mirror, overhead, drone, over-shoulder)
-- Moods: 8 unique (confident, playful, chill, high-energy, mysterious, joyful, seductive, focused)
-- Poses: 10+ unique ORDINARY candid poses (walking, laughing, adjusting hair, hands in pockets, sipping a drink, looking over shoulder, stretching, sitting, checking phone, twirling hair) — no microphones, no fist gestures, no performer stances, except a maximum of 2-3 mic-in-hand poses reserved strictly for "Lip-sync clip" posts.
+STEP 1 — BUILD A VARIATION MATRIX FIRST (silently, before generating any posts):
+Before producing any output, mentally construct this matrix of unique values:
+- Locations: 10 unique (e.g. rooftop, neon street, gym, luxury apartment, car interior, beach sunset, café, photo studio, park path, infinity pool)
+- Outfits: 10 unique (e.g. casual tee & jeans, gymwear, streetwear, luxury tailored, cozy knit, athleisure, monochrome, linen summer, statement jacket, crop top & high-waist)
+- Lighting styles: 8 unique (natural golden hour, warm backlight lens flare, moody neon cyberpunk, high-key studio softbox, dramatic low-key noir, cool overcast editorial, punchy on-camera flash, sunset rim silhouette)
+- Camera styles: 8 unique (handheld selfie 9:16, tripod eye-level 9:16, cinematic low angle 9:16, first-person POV 9:16, mirror-selfie 9:16, elevated overhead 9:16, tight over-the-shoulder 9:16, drone-style wide 9:16)
+- Moods: 8 unique (confident, playful, chill, high-energy, warm, mysterious, joyful, focused)
+- Poses: 12+ unique ORDINARY candid poses (walking mid-stride, laughing candidly, adjusting hair, looking over shoulder, hands in pockets, sipping drink, leaning against wall, checking phone, stretching arms overhead, sitting chin-on-hand, twirling hair, hands framing face) — NO microphones, NO fist gestures, NO performer stances EXCEPT a maximum of 2-3 mic-in-hand poses reserved STRICTLY for "Lip-sync clip" posts.
 
-Then RANDOMLY combine them so each post uses a different combination. No two posts share the same (location + outfit) pair, and no two posts share the same pose.
+Then RANDOMLY combine them so each of the 50 posts uses a DIFFERENT combination. No two posts share the same (location + outfit) pair. No two posts share the same pose.
 
 STEP 2 — STRICT RULES:
 
@@ -444,29 +445,37 @@ STEP 2 — STRICT RULES:
 - Every post features the exact same creator: same face, identity, race, and facial structure. Never change the person.
 - Do NOT describe the face or alter identity — the face is locked by a reference image at render time. Vary everything AROUND the person.
 
-2. MAXIMUM VARIATION (MANDATORY)
-Each post MUST differ across: location, outfit, camera angle, lighting, mood, framing, AND pose. No repetition allowed.
-- The "scene" field is a short ACTION/SETTING description only — never restate a specific body pose, hand position, or camera crop from the topic idea. Framing and camera angle are controlled ENTIRELY by the "camera" and "framing" fields, and must vary post-to-post (mix close-ups, mid-shots, full-body, over-the-shoulder, wide shots) even when the topic idea itself implies one specific pose.
-- The "pose" field is a SEPARATE field and is the ONLY place a body pose/gesture may appear. IGNORE any hand position, prop, or gesture described in the topic idea — it is context/mood only, never a literal pose instruction. Default every post to an ORDINARY, EVERYDAY candid pose (walking, laughing, adjusting hair, hands in pockets, sipping a drink, looking over a shoulder, stretching, sitting, checking phone, twirling hair). The creator is a regular person, NOT a musician/rapper/performer, unless contentType is exactly "Lip-sync clip" — that is the only content type where a mic-in-hand performance pose belongs, and it may appear on at most 2-3 of the posts, never as the default look for the batch.
+2. MAXIMUM VARIATION (MANDATORY — 50 UNIQUE POSTS)
+Each post MUST differ across ALL of: location, outfit, camera angle, lighting, mood, framing, AND pose. Absolutely no repetition.
+- The "scene" field is a short ACTION/SETTING description only — never restate a body pose, hand position, or camera crop from the topic idea.
+- The "pose" field is the ONLY place a body pose/gesture may appear. Default every post to an ORDINARY candid pose (walking, laughing, adjusting hair, hands in pockets, sipping a drink, looking over shoulder, stretching, sitting, checking phone, twirling hair). The creator is a regular person, NOT a musician/performer, UNLESS contentType is exactly "Lip-sync clip" — that is the only type where a mic-in-hand pose belongs, max 2-3 posts.
+- Framing MUST cycle across the 50 posts: mix close-ups, mid-shots, full-body, over-the-shoulder, and wide shots — never the same framing twice in a row.
 
-3. CONTENT TYPE MIX
-Distribute posts across: Talking-head hooks, Lip-sync clips, Carousel covers, Story-style posts, Caption hook visuals, Meme edits, Behind-the-scenes, POV scenarios.
+3. CONTENT TYPE MIX (distribute evenly across 50 posts)
+Use all 8 types — Talking-head hook, Lip-sync clip, Carousel cover, Story-style post, Caption hook visual, Meme edit, Behind-the-scenes, POV scenario — cycling so no type dominates.
 
-4. VIRAL STRUCTURE
+4. VIRAL STRUCTURE PER POST
 Each post must include:
-- Hook (first 1–2 seconds, scroll-stopping)
-- Visual scene description (vivid, cinematic)
-- Pose (an ordinary candid body pose/gesture, per rule 2 above)
-- Caption idea
-- Suggested motion (if video)
+- type: content format (one of the 8 above)
+- hook: scroll-stopping first 1-2 seconds line
+- scene: vivid cinematic SETTING/ACTION description only (no pose language)
+- outfit: exactly what the creator is wearing
+- location: exactly where the shot takes place
+- camera: camera angle and shot type (always 9:16 vertical)
+- lighting: specific lighting style
+- mood: emotional mood
+- framing: close-up / mid-shot / full-body / over-the-shoulder / wide
+- pose: the ONLY place for a body pose/gesture — ordinary candid only (exception: Lip-sync clip)
+- caption: post caption idea with hashtags
+- motion: suggested motion if animated later
 
 5. NO REPETITION
-Never reuse the same scene, outfit, or composition. Every post must feel like a DIFFERENT post optimized for the For You page.
+Never reuse the same scene, outfit, or composition. Each of the 50 posts must feel like a COMPLETELY DIFFERENT post optimized for the For You page.
 
 6. QUALITY LEVEL
-Top 1% influencer content. Hyperrealistic, photorealistic, skin treatment, golden hour lighting, cinematic, depth of field. Optimized for TikTok For You Page.
+Top 1% influencer content. Hyperrealistic, photorealistic, skin treatment, cinematic depth of field. Optimized for TikTok For You Page.
 
-Return the result as JSON matching the provided schema: an object with a "posts" array.`;
+Return the result as JSON matching the provided schema: an object with a "posts" array containing exactly 50 items.`;
 
 // ─── Generators ────────────────────────────────────────────────────────────────
 
@@ -594,40 +603,32 @@ export function buildVariantPrompt(
     templateId?: SpinTemplateId;
   } = {},
 ): string {
-  const aspect = opts.aspect ?? "9:16";
   const templateId = opts.templateId ?? "default";
-  const segs = [
-    // Scene + identity anchor
-    opts.avatarName
-      ? `Same person as reference image — ${opts.avatarName}.`
-      : "Same person as reference image.",
-    // Optional creator hint / LoRA trigger — the topic/mood, NOT a literal pose to copy.
-    // Explicitly disclaims any body pose/gesture/prop it describes: those are
-    // handled ENTIRELY by spec.pose below, which is a regular-person pose,
-    // never a performer stance, unless this post's contentType is Lip-sync clip.
-    opts.base?.trim()
-      ? `Content idea (topic/mood context ONLY — completely IGNORE any hand position, prop, gesture, or body pose it mentions; the actual pose for this shot is specified separately below): ${opts.base.trim()}.`
-      : null,
-    // Product Showcase template: the held product itself is part of the
-    // identity lock, same as the face — it must persist across every post
-    // even though outfit/location/pose all vary.
+  const identityAnchor = opts.avatarName
+    ? `Same person as reference image — ${opts.avatarName}.`
+    : "Same person as reference image.";
+  // Core identity-locked render template (interpolated from spec fields).
+  const core = `Scene: ${spec.scene}. Location: ${spec.location}. Outfit: ${spec.outfit}. Lighting: ${spec.lighting}. Camera: ${spec.camera}. Mood: ${spec.mood}. Pose: ${spec.pose}. Framing: ${spec.framing}.`;
+  const quality = "Ultra-realistic, cinematic, high detail, social media style, TikTok aesthetic, 9:16 vertical. DO NOT change face identity.";
+  const segs: (string | null)[] = [
+    identityAnchor,
+    // Product Showcase: held product must persist across every post.
     templateId === "product_showcase"
-      ? "CRITICAL: the reference image shows the creator holding a specific product. Keep that EXACT SAME product visibly in her hand/frame in this shot too — do not swap it for a different item, do not drop it, do not change its color or shape. Only the outfit, location, camera angle and pose around it should vary."
+      ? "CRITICAL: the reference image shows the creator holding a specific product. Keep that EXACT SAME product visibly in her hand/frame — do not swap, drop, or change its color or shape. Only outfit, location, camera angle and pose vary."
       : null,
-    opts.triggerWord ? opts.triggerWord : null,
-    // Per-spec variation axes — these are the mandatory staging for THIS post.
-    `MANDATORY staging for this post — outfit: ${spec.outfit}. Location: ${spec.location}. Camera/framing: ${spec.camera}, ${spec.framing}. Lighting: ${spec.lighting}. Mood: ${spec.mood}. Pose: ${spec.pose}.`,
-    `Scene action: ${spec.scene}.`,
-    // Quality mandate
-    "Ultra-realistic, cinematic, high detail, social media style, TikTok aesthetic.",
-    "Hyperrealism, photorealism, skin treatment, golden hour lighting, cinematic, depth of field.",
-    "DO NOT change face identity, race or facial structure.",
-    `[${aspect} vertical aspect ratio, 9:16]`,
-    // Closing override — repeated on purpose, closest to the end of the prompt
-    // where image-edit models weight instructions most heavily.
-    `The outfit, location, camera framing (${spec.framing}), lighting, and POSE (${spec.pose}) listed above are the ONLY staging and body language allowed for this exact shot and must differ from any other post in the same batch — reinterpret the content idea's topic through THIS staging and THIS pose rather than repeating any fixed gesture, hand position, or prop from the topic text.`,
-  ].filter(Boolean);
-  return segs.join(" ");
+    opts.triggerWord ?? null,
+    // Topic/mood context only — explicitly disclaims any literal pose/gesture
+    // language in the raw idea so it cannot leak into the rendered shot. The
+    // actual body pose is controlled ENTIRELY by spec.pose in `core` below;
+    // this guard prevents a topic like "gripping a mic, fist forward" from
+    // overriding the spec's ordinary candid pose across every post in the batch.
+    opts.base?.trim()
+      ? `Content idea (topic/mood context ONLY — completely IGNORE any hand position, prop, gesture, or body pose it mentions; the actual pose for this shot is specified separately): ${opts.base.trim()}.`
+      : null,
+    core,
+    quality,
+  ];
+  return segs.filter(Boolean).join(" ");
 }
 
 /** Short tile label for the grid. */
