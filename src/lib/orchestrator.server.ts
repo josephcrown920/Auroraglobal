@@ -616,6 +616,12 @@ const FAL_MAP: Record<string, { path: string; kind: GenerateKind; cost: number }
     cost: 0.4,
   },
   "fal-fallback/sync-lipsync": { path: "fal-ai/sync-lipsync", kind: "lipsync", cost: 0.3 },
+  // First-priority video/motion: LTX Video (Lightricks) via fal.ai.
+  // T2V sentinel for unpinned video requests; cheap (~$0.06), no subscription.
+  "fal/ltx-video": { path: "fal-ai/ltx-video", kind: "video", cost: 0.06 },
+  // Motion sentinel (image-to-video): same model, separate key so FALLBACK_MODELS
+  // for "motion" has its own unambiguous candidate.
+  "fal/ltx-motion": { path: "fal-ai/ltx-video/image-to-video", kind: "motion", cost: 0.06 },
 };
 // Identity-locked Gemini-image family → fal's *-edit endpoints, which take
 // image_urls[] (plural) and preserve the reference face. Without these entries
@@ -631,13 +637,36 @@ export const FAL_IDENTITY_EDITS: Record<string, string> = {
 };
 const falFallback: ProviderAdapter = {
   name: "fal",
-  // Only activates when explicitly addressed OR when nothing else handles the kind
-  supports: (r) => !!process.env.FAL_KEY,
+  // Model-key gated for video/motion so an early PRIORITY slot doesn't silently
+  // intercept requests pinned to Kling/xAI/Gemini/Replicate (which have their own
+  // adapters in the chain). A request is served here when:
+  //   • kind === "image"  — permissive (identity-edit routing or generic image gen)
+  //   • kind === "lipsync" — requires both video + audio present
+  //   • kind === "video"  — only unkeyed requests OR explicit fal/* sentinel keys
+  //   • kind === "motion" — only explicit fal/* sentinel keys (no keyless motion)
+  supports(r) {
+    if (!process.env.FAL_KEY) return false;
+    if (r.kind === "image") return true;
+    if (r.kind === "lipsync") return !!r.videoUrl && !!r.audioUrl;
+    if (r.kind === "video") {
+      // Drop requests pinned to another provider's model.
+      if (r.model && !r.model.startsWith("fal/") && !FAL_MAP[r.model]) return false;
+      return true;
+    }
+    if (r.kind === "motion") {
+      // Motion requires an explicit fal/ sentinel — no keyless motion fallback.
+      return !!r.model && (r.model.startsWith("fal/") || !!FAL_MAP[r.model]);
+    }
+    return false;
+  },
   estimateCost: (r) => {
     // Identity-edit routes cost fal's Gemini-image prices.
     if (r.kind === "image" && r.model && r.imageUrls?.length && FAL_IDENTITY_EDITS[r.model]) {
       return FAL_IDENTITY_EDITS[r.model].includes("pro") ? 0.24 : 0.039;
     }
+    // Named fal/ sentinel model keys carry their actual cost from FAL_MAP.
+    if (r.model && FAL_MAP[r.model]) return FAL_MAP[r.model].cost;
+    // Legacy defaults (fal-fallback/* keys or keyless requests).
     return r.kind === "video" ? 0.4 : r.kind === "lipsync" ? 0.3 : 0.005;
   },
   async run(r) {
@@ -1519,6 +1548,17 @@ const ISH_KIND_TASK: Partial<Record<GenerateKind, TaskType>> = {
   audio: "tts",
 };
 
+// inference.sh sentinel model keys — used in FALLBACK_MODELS and supports() to
+// prevent inferenceshCloud from hijacking requests explicitly pinned to another
+// provider (e.g. xai/grok-imagine-video-1.5). A request without any model key
+// (unpinned) is also routed here when the app is configured.
+const INFERENCE_SH_MODEL_KEYS = new Set([
+  "inferencesh/veo-3-1-fast",
+  "inferencesh/motion",
+  "inferencesh/lipsync",
+  "inferencesh/tts",
+]);
+
 const inferenceshCloud: ProviderAdapter = {
   name: "inferencesh",
   supports(r) {
@@ -1526,8 +1566,16 @@ const inferenceshCloud: ProviderAdapter = {
     const task = ISH_KIND_TASK[r.kind];
     if (!task) return false;
     // Image always has the built-in infsh/flux default app — no extra env var.
-    if (task === "image") return true;
-    // Every other task must have an explicit app mapped, or we'd throw at run time.
+    // For image: support any unkeyed request or an explicit inferencesh/ key.
+    if (task === "image") {
+      return !r.model || INFERENCE_SH_MODEL_KEYS.has(r.model) || r.model.startsWith("inferencesh/");
+    }
+    // For video/motion/lipsync/tts: only run when the model is an inferencesh/
+    // sentinel OR unpinned, so we never intercept requests pinned to xAI/Gemini/etc.
+    if (r.model && !INFERENCE_SH_MODEL_KEYS.has(r.model) && !r.model.startsWith("inferencesh/")) {
+      return false;
+    }
+    // Every non-image task must have an explicit app mapped, or we'd throw at run time.
     return !!resolveInferenceShApp(task, process.env);
   },
   estimateCost(r) {
@@ -2569,6 +2617,7 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   ],
   video: [
     gpuWorker,
+    falFallback,     // fal.ai first: key-gated (fal/ltx-video sentinel), cheap LTX Video
     byteplus,        // model-specific first (BYTEPLUS_MAP-gated), so seedance/seedream
     klingDirect,     // model-specific (kling-gated) before generic catch-alls
     xaiDirect,
@@ -2579,16 +2628,15 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
     heygenTemplate,
     replicate,
     runway,
-    inferenceshCloud,
+    inferenceshCloud, // inference.sh cloud: key-gated fallback after fal
     hfVideo,
-    falFallback,
   ],
   lipsync: [gpuWorker, sync, heygen, heygenPhotoVideo, heygenAvatarTemplate, replicate, inferenceshCloud, falFallback],
   // GPU-first: a worker advertising "upscale" is tried before Replicate.
   upscale: [gpuWorker, replicate, falFallback],
-  // Motion transfer: GPU/ComfyUI workers first (MimicMotion), then xAI image-to-video
-  // and Gemini Veo 2 as hosted fallbacks when no worker is online.
-  motion: [gpuWorker, xaiDirect, geminiVideo],
+  // Motion transfer: GPU/ComfyUI workers first (MimicMotion), then fal LTX I2V
+  // (key-gated fal/ltx-motion sentinel), then xAI image-to-video and Gemini Veo 2.
+  motion: [gpuWorker, falFallback, inferenceshCloud, xaiDirect, geminiVideo],
   // GPU-first, then Replit-billed (gpt-5-nano, gemini-2.5-flash), then the
   // rest of the external text chain.
   text: [
@@ -2675,6 +2723,11 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     // Self-hosted ffmpeg lyric-video synthesis. Sentinel model so the candidate
     // loop runs; routed self-hosted-only to the GPU worker pool (no fallback).
     "ffmpeg-lyricvideo": { provider: gpuWorker.name, kind: "lyric_video", cost: 0.005 },
+    // fal.ai LTX Video — first-priority video/motion via fal.ai (FAL_KEY gated, cheap).
+    "fal/ltx-video":  { provider: "fal", kind: "video",  cost: 0.06 },
+    "fal/ltx-motion": { provider: "fal", kind: "motion", cost: 0.06 },
+    // inference.sh cloud (Veo 3.1 Fast via google/veo-3-1-fast app slug) — fallback.
+    "inferencesh/veo-3-1-fast": { provider: "inferencesh", kind: "video", cost: 0.15 },
     // xAI Grok Imagine Video — general video + motion fallback (key is set).
     "xai/grok-imagine-video-1.5": { provider: "xai", kind: "video", cost: 0.24 },
     // LTX Video (Lightricks) — direct REST API, cheaper than Sora/Kling.
@@ -2780,6 +2833,10 @@ export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
     "fal-ai/seedream-4",
   ],
   video: [
+    // fal.ai LTX Video first (key-gated, cheap ~$0.06, no subscription)
+    "fal/ltx-video",
+    // inference.sh Veo 3.1 Fast — secondary cloud fallback when fal is down/depleted
+    "inferencesh/veo-3-1-fast",
     "heygen/video-agent",
     "hf/text-to-video",
     "xai/grok-imagine-video-1.5",
@@ -2799,8 +2856,9 @@ export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   ],
   lipsync: ["fal-ai/sync-lipsync/v2", "fal-ai/wav2lip"],
   upscale: [],
-  // motion sentinels: xAI + Gemini Veo 2 as hosted fallbacks when no GPU worker online.
-  motion: ["xai/grok-imagine-video-1.5", "veo-2"],
+  // motion sentinels: fal LTX I2V first (key-gated, cheap), then inference.sh Veo,
+  // then xAI + Gemini Veo 2.
+  motion: ["fal/ltx-motion", "inferencesh/veo-3-1-fast", "xai/grok-imagine-video-1.5", "veo-2"],
   // Replit-billed models first (gpt-5-nano, then gemini-2.5-flash), then the
   // existing free/keyed chain unchanged: Pollinations → Groq → Gemini → Claude
   // → Lovable.
@@ -2831,10 +2889,10 @@ const FALLBACK_CAP: Record<GenerateKind, number> = {
   // Requested model + 4 fallback candidates (2 Replit-billed, nano-banana,
   // seedream-4). Cap = 5 so the cheapest fallback is always reachable.
   image: 5,
-  video: 4,
+  video: 6, // fal/ltx-video + inferencesh/veo-3-1-fast added as sentinels
   lipsync: 2,
   upscale: 1,
-  motion: 1,
+  motion: 4, // fal/ltx-motion + inferencesh/veo-3-1-fast + xai + veo-2
   // 2 Replit-billed + 5 existing candidates (Pollinations → Groq → Gemini →
   // Claude → Lovable); text calls are cheap, so the cap covers the full list.
   text: 7,
