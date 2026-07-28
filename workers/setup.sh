@@ -101,7 +101,7 @@ if have_task image; then
     exit 1
   fi
   echo "==> Image generation (SDXL-Turbo / diffusers)"
-  pip install -q "diffusers>=0.30" "transformers>=4.40" accelerate safetensors
+  pip install -q "torch>=2.6.0" "diffusers>=0.31.0" "transformers>=4.47.0" accelerate safetensors
   # Pre-fetch SDXL-Turbo weights into HF_HOME now so the first request is instant.
   # Skip if IMAGE_MODEL is overridden — the caller controls the download.
   _IMG_MODEL="${IMAGE_MODEL:-stabilityai/sdxl-turbo}"
