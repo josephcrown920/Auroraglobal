@@ -7,6 +7,7 @@ import generateRouter from "./generate";
 import creditsRouter from "./credits";
 import providersRouter from "./providers";
 import adminRouter from "./admin";
+import storageRouter from "./storage";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(generateRouter);
 router.use(creditsRouter);
 router.use(providersRouter);
 router.use(adminRouter);
+router.use(storageRouter);
 
 export default router;

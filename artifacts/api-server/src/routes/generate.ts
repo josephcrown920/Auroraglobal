@@ -11,6 +11,7 @@ import {
   GetRecentGenerationsQueryParams,
 } from "@workspace/api-zod";
 import { requireAuth } from "../lib/auth";
+import { toAbsoluteMediaUrl } from "../lib/mediaUrl";
 import { serializeGen } from "./dashboard";
 import {
   hasFal,
@@ -334,7 +335,7 @@ router.post("/generate/photo", requireAuth, async (req: any, res): Promise<void>
           prompt: data.prompt,
           style: data.style,
           aspectRatio: data.aspectRatio,
-          referenceImageUrl: data.referenceImageUrl,
+          referenceImageUrl: toAbsoluteMediaUrl(data.referenceImageUrl),
           numImages: data.numImages,
         });
 
@@ -403,7 +404,7 @@ router.post("/generate/video", requireAuth, async (req: any, res): Promise<void>
           prompt: data.prompt,
           duration: data.duration,
           style: data.style,
-          sourceImageUrl: data.sourceImageUrl,
+          sourceImageUrl: toAbsoluteMediaUrl(data.sourceImageUrl),
         });
 
         await db
@@ -468,8 +469,8 @@ router.post("/generate/lipsync", requireAuth, async (req: any, res): Promise<voi
           .where(eq(generationsTable.id, gen.id));
 
         const { jobId } = await provider.submit({
-          videoUrl: data.videoUrl,
-          audioUrl: data.audioUrl,
+          videoUrl: toAbsoluteMediaUrl(data.videoUrl) as string,
+          audioUrl: toAbsoluteMediaUrl(data.audioUrl) as string,
         });
 
         await db
@@ -603,7 +604,7 @@ router.post("/generate/music-video", requireAuth, async (req: any, res): Promise
 
         const { jobId } = await falSubmitMusicVideo({
           prompt: data.prompt,
-          audioUrl: data.audioUrl,
+          audioUrl: toAbsoluteMediaUrl(data.audioUrl) as string,
           style: data.style,
           beatSync: data.beatSync,
         });
