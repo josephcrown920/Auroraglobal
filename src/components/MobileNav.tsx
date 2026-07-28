@@ -104,7 +104,7 @@ export const ARCHIVED_FEATURES: Feature[] = [
 
 const TAB_ITEMS: Feature[] = [
   { to: "/canvas",  label: "Infinity Canvas",  icon: Workflow,  badge: "PREMIUM" },
-  { to: "/agent",   label: "Video Agent",      icon: Film,      badge: "PREMIUM" },
+  { to: "/motion",  label: "Perform Anywhere", icon: Film,      badge: "PREMIUM" },
   { to: "/spin",    label: "TikTok30",         icon: Flame,     badge: "PREMIUM" },
 ];
 
