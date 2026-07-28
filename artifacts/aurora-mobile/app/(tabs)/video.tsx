@@ -20,6 +20,7 @@ import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
 import { useGenerateVideo, useGetGenerationStatus } from '@workspace/api-client-react';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
+import { useShareDownload } from '@/hooks/useShareDownload';
 
 const { width } = Dimensions.get('window');
 const VIDEO_STYLES = ['cinematic', 'realistic', 'performance'] as const;
@@ -63,6 +64,7 @@ export default function VideoAgentScreen() {
   }, [statusData?.status, statusData?.outputUrl, statusData?.thumbnailUrl]);
 
   const isGenerating = !!jobId || generateMutation.isPending;
+  const { shareMedia, saveToLibrary, isSharing, isSaving } = useShareDownload();
 
   const pickSource = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -154,13 +156,39 @@ export default function VideoAgentScreen() {
               </View>
               <Text style={styles.videoDone}>Video ready</Text>
             </View>
-            <TouchableOpacity
-              style={[styles.resetBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}
-              onPress={() => { setResultUrl(null); setThumbnailUrl(null); setJobId(null); }}
-            >
-              <Ionicons name="refresh" size={16} color={colors.foreground} />
-              <Text style={[styles.resetBtnText, { color: colors.foreground }]}>New Video</Text>
-            </TouchableOpacity>
+            <View style={styles.resultBtns}>
+              <TouchableOpacity
+                style={[styles.resetBtn, { backgroundColor: colors.muted, borderColor: colors.border, flex: 1 }]}
+                onPress={() => { setResultUrl(null); setThumbnailUrl(null); setJobId(null); }}
+              >
+                <Ionicons name="refresh" size={16} color={colors.foreground} />
+                <Text style={[styles.resetBtnText, { color: colors.foreground }]}>New</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.resetBtn, { backgroundColor: colors.card, borderColor: colors.border, flex: 1 }]}
+                onPress={() => saveToLibrary(resultUrl!, 'video')}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <ActivityIndicator size="small" color={colors.foreground} />
+                ) : (
+                  <Ionicons name="download-outline" size={16} color={colors.foreground} />
+                )}
+                <Text style={[styles.resetBtnText, { color: colors.foreground }]}>Save</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.resetBtn, { backgroundColor: colors.primary, borderColor: colors.primary, flex: 1 }]}
+                onPress={() => shareMedia(resultUrl!, 'video')}
+                disabled={isSharing}
+              >
+                {isSharing ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="share-outline" size={16} color="#fff" />
+                )}
+                <Text style={[styles.resetBtnText, { color: '#fff' }]}>Share</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ) : (
           /* Source image */
@@ -412,16 +440,17 @@ const styles = StyleSheet.create({
   },
   playBadge: { alignItems: 'center', justifyContent: 'center' },
   videoDone: { color: '#fff', fontSize: 12, fontFamily: 'Inter_500Medium' },
+  resultBtns: { flexDirection: 'row', gap: 8 },
   resetBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
   },
-  resetBtnText: { fontSize: 14, fontFamily: 'Inter_500Medium' },
+  resetBtnText: { fontSize: 13, fontFamily: 'Inter_500Medium' },
   inputWrapper: { borderRadius: 14, borderWidth: 1, padding: 14, minHeight: 80 },
   input: { fontSize: 15, fontFamily: 'Inter_400Regular', lineHeight: 22 },
   sectionLabel: { fontSize: 13, fontFamily: 'Inter_500Medium', marginBottom: -8 },

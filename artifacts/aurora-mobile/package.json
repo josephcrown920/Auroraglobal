@@ -58,6 +58,9 @@
   "dependencies": {
     "@clerk/clerk-expo": "^2.19.31",
     "expo-auth-session": "~7.0.11",
-    "expo-secure-store": "^15.0.8"
+    "expo-file-system": "^57.0.1",
+    "expo-media-library": "^57.0.3",
+    "expo-secure-store": "^15.0.8",
+    "expo-sharing": "^57.0.7"
   }
 }

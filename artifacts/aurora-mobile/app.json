@@ -38,6 +38,14 @@
           "photosPermission": "Aurora needs access to your photos to use them as reference images.",
           "cameraPermission": "Aurora needs camera access to capture selfies for AI generation."
         }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Aurora needs access to save generated photos and videos to your camera roll.",
+          "savePhotosPermission": "Aurora needs permission to save your generated content to the camera roll.",
+          "isAccessMediaLocationEnabled": true
+        }
       ]
     ],
     "experiments": {

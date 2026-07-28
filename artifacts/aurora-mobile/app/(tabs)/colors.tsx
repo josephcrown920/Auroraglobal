@@ -23,6 +23,7 @@ import {
   useGetGenerationStatus,
 } from '@workspace/api-client-react';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
+import { useShareDownload } from '@/hooks/useShareDownload';
 
 const { width } = Dimensions.get('window');
 const STYLES = ['cinematic', 'editorial', 'performance', 'concert', 'portrait', 'studio'] as const;
@@ -125,6 +126,8 @@ export default function ColorsStudioScreen() {
     }
   }, [prompt, selectedStyle, selectedRatio, referenceUri, generateMutation]);
 
+  const { shareMedia, saveToLibrary, isSharing, isSaving } = useShareDownload();
+
   const handleReset = () => {
     setResultUrl(null);
     setJobId(null);
@@ -167,11 +170,28 @@ export default function ColorsStudioScreen() {
                 <Text style={[styles.resultBtnText, { color: colors.foreground }]}>New</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.resultBtn, { backgroundColor: colors.primary }]}
-                onPress={handleGenerate}
+                style={[styles.resultBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                onPress={() => saveToLibrary(resultUrl!, 'photo')}
+                disabled={isSaving}
               >
-                <Ionicons name="sparkles" size={18} color="#fff" />
-                <Text style={[styles.resultBtnText, { color: '#fff' }]}>Regenerate</Text>
+                {isSaving ? (
+                  <ActivityIndicator size="small" color={colors.foreground} />
+                ) : (
+                  <Ionicons name="download-outline" size={18} color={colors.foreground} />
+                )}
+                <Text style={[styles.resultBtnText, { color: colors.foreground }]}>Save</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.resultBtn, { backgroundColor: colors.primary }]}
+                onPress={() => shareMedia(resultUrl!, 'photo')}
+                disabled={isSharing}
+              >
+                {isSharing ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="share-outline" size={18} color="#fff" />
+                )}
+                <Text style={[styles.resultBtnText, { color: '#fff' }]}>Share</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -354,7 +374,7 @@ const styles = StyleSheet.create({
   clearBtn: { padding: 6 },
   resultContainer: { gap: 12 },
   resultImage: { width: '100%', height: width * 0.9, borderRadius: 14 },
-  resultActions: { flexDirection: 'row', gap: 12 },
+  resultActions: { flexDirection: 'row', gap: 8 },
   resultBtn: {
     flex: 1,
     flexDirection: 'row',

@@ -11,6 +11,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import type { GalleryItem } from '@workspace/api-client-react';
+import { useShareDownload } from '@/hooks/useShareDownload';
 
 const CARD_WIDTH = (Dimensions.get('window').width - 48) / 2;
 
@@ -31,6 +32,9 @@ interface GenerationCardProps {
 export function GenerationCard({ item, onFavoriteToggle, onPress }: GenerationCardProps) {
   const colors = useColors();
   const iconName = TYPE_ICONS[item.type] ?? 'image';
+  const { shareMedia, saveToLibrary, isSharing, isSaving } = useShareDownload();
+  const mediaUrl = item.outputUrl ?? item.thumbnailUrl ?? null;
+  const canShare = !!mediaUrl && item.status === 'completed';
 
   return (
     <TouchableOpacity
@@ -67,6 +71,36 @@ export function GenerationCard({ item, onFavoriteToggle, onPress }: GenerationCa
         <View style={[styles.typeBadge, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
           <Ionicons name={iconName as any} size={10} color="#fff" />
         </View>
+
+        {/* Share/Save overlay buttons */}
+        {canShare && (
+          <View style={styles.actionOverlay}>
+            <TouchableOpacity
+              style={[styles.overlayBtn, { backgroundColor: 'rgba(0,0,0,0.55)' }]}
+              onPress={() => saveToLibrary(mediaUrl!, item.type)}
+              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="download-outline" size={14} color="#fff" />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.overlayBtn, { backgroundColor: 'rgba(0,0,0,0.55)' }]}
+              onPress={() => shareMedia(mediaUrl!, item.type)}
+              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+              disabled={isSharing}
+            >
+              {isSharing ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="share-outline" size={14} color="#fff" />
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       <View style={styles.info}>
@@ -132,6 +166,20 @@ const styles = StyleSheet.create({
     left: 6,
     borderRadius: 4,
     padding: 3,
+  },
+  actionOverlay: {
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
+    flexDirection: 'row',
+    gap: 5,
+  },
+  overlayBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   info: {
     padding: 10,
