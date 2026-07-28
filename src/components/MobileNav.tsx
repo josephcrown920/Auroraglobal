@@ -339,30 +339,36 @@ export function MobileNav() {
           {/* ── Nav body ────────────────────────────────────────────────── */}
           <nav aria-label="All features" className="relative flex flex-1 flex-col gap-3 overflow-y-auto p-3 pb-4">
 
-            <NavSection label="Studio">
+            <NavSection label="Music Video Production">
               {([
-                { to: "/canvas",      label: "Infinity Canvas",           icon: Workflow,     previewImg: "/nav-previews/canvas.jpg" },
-                { to: "/perform",     label: "Perform Anywhere",          icon: Film,         previewImg: "/nav-previews/perform-anywhere.jpg" },
-                { to: "/colors",      label: "Colors Performance Sessions", icon: Palette,    previewImg: "/nav-previews/colors.jpg" },
-                { to: "/motion",      label: "Motion Control",            icon: Wand2,        previewImg: "/nav-previews/motion.jpg" },
-                { to: "/music-video", label: "Music Video",               icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
-                { to: "/storyboard",  label: "Storyboard",                icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
-                { to: "/live-studio", label: "Live Studios",              icon: Music2,       previewImg: "/nav-previews/live-studio.jpg" },
-                { to: "/lipsync",     label: "Lip Sync",                  icon: Mic,          previewImg: "/nav-previews/lipsync.jpg" },
-                { to: "/scene-builder", label: "Scene Builder",           icon: Layers,       previewImg: "/nav-previews/scene-builder.jpg" },
+                { to: "/music-video",   label: "Music Video",         icon: Music2,       previewImg: "/nav-previews/music-video.jpg" },
+                { to: "/lipsync",       label: "Lip Sync",            icon: Mic,          previewImg: "/nav-previews/lipsync.jpg" },
+                { to: "/motion",        label: "Motion Control",      icon: Wand2,        previewImg: "/nav-previews/motion.jpg" },
+                { to: "/live-studio",   label: "Live Studios",        icon: Music2,       previewImg: "/nav-previews/live-studio.jpg" },
+                { to: "/storyboard",    label: "Storyboard",          icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
+                { to: "/scene-builder", label: "Scene Builder",       icon: Layers,       previewImg: "/nav-previews/scene-builder.jpg" },
               ] as Feature[]).map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
             </NavSection>
 
-            <NavSection label="Creators">
+            <NavSection label="Photo & Visual">
               {([
-                { to: "/spin",        label: "TikTok30",        icon: Flame,        previewImg: "/nav-previews/spin.jpg" },
-                { to: "/ugc",         label: "UGC Ads",         icon: Megaphone,    previewImg: "/nav-previews/ugc.jpg" },
-                { to: "/ugc-line",    label: "Content Line",    icon: Layers,       previewImg: "/nav-previews/ugc-line.jpg" },
-                { to: "/studio",      label: "Image Generation", icon: Sparkles,    previewImg: "/nav-previews/studio.jpg" },
-                { to: "/photo-edit",  label: "Photo Editor",    icon: Brush,        previewImg: "/nav-previews/photo-edit.jpg" },
-                { to: "/avatar",      label: "Talking Avatars", icon: UserCircle2,  previewImg: "/nav-previews/avatar.jpg" },
+                { to: "/colors",      label: "Colors Studio",       icon: Palette,    previewImg: "/nav-previews/colors.jpg" },
+                { to: "/studio",      label: "Image Generation",    icon: Sparkles,   previewImg: "/nav-previews/studio.jpg" },
+                { to: "/photo-edit",  label: "Photo Editor",        icon: Brush,      previewImg: "/nav-previews/photo-edit.jpg" },
+                { to: "/canvas",      label: "Infinity Canvas",     icon: Workflow,   previewImg: "/nav-previews/canvas.jpg" },
+              ] as Feature[]).map((f) => (
+                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
+              ))}
+            </NavSection>
+
+            <NavSection label="Social Content">
+              {([
+                { to: "/spin",     label: "TikTok30",        icon: Flame,       previewImg: "/nav-previews/spin.jpg" },
+                { to: "/ugc",      label: "UGC Ads",         icon: Megaphone,   previewImg: "/nav-previews/ugc.jpg" },
+                { to: "/ugc-line", label: "Content Line",    icon: Layers,      previewImg: "/nav-previews/ugc-line.jpg" },
+                { to: "/avatar",   label: "Talking Avatars", icon: UserCircle2, previewImg: "/nav-previews/avatar.jpg" },
               ] as Feature[]).map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
@@ -370,7 +376,7 @@ export function MobileNav() {
 
             <NavSection label="Account">
               {([
-                { to: "/home",              label: "My Home",        icon: Sparkles },
+                { to: "/home",              label: "Home",           icon: Sparkles },
                 { to: "/gallery",           label: "Gallery",        icon: Images },
                 { to: "/creator/dashboard", label: "Creator Hub",    icon: TrendingUp },
                 { to: "/billing",           label: "Plan & Billing", icon: CreditCard },

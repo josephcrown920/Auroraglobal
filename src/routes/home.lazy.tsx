@@ -8,84 +8,121 @@ import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import {
   Sparkles,
   Mic,
-  Clapperboard,
-  Flame,
-  Wand2,
   Film,
+  Flame,
+  Music2,
   Palette,
-  Bot,
-  UserCircle2,
   ArrowRight,
   Coins,
   Image as ImageIcon,
-  ArrowUpRight,
   Loader2,
+  Layers,
+  type LucideIcon,
 } from "lucide-react";
 import { useState, useRef, useEffect, type FormEvent } from "react";
 
 export const Route = createLazyFileRoute("/home")({ component: HomePage });
 
-// ── Featured tools ─────────────────────────────────────────────────────────
+// ── Tool categories ─────────────────────────────────────────────────────────
 
-const FEATURED_TOOLS = [
+type Tool = {
+  label: string;
+  tagline: string;
+  to: string;
+  icon: LucideIcon;
+  credits: number;
+  creditDisplay?: string;
+};
+
+type Category = {
+  id: string;
+  label: string;
+  tools: Tool[];
+};
+
+const TOOL_CATEGORIES: Category[] = [
   {
-    label: "Motion Control",
-    tagline: "30s clip → cinematic scene",
-    to: "/motion",
-    icon: Wand2,
-    img: "/nav-previews/motion.jpg",
-    price: "From 30 Aura",
+    id: "music-video",
+    label: "Music Video Production",
+    tools: [
+      {
+        label: "Music Video",
+        tagline: "Full video production",
+        to: "/music-video",
+        icon: Music2,
+        credits: 12,
+      },
+      {
+        label: "Lip Sync",
+        tagline: "Synced performance video",
+        to: "/lipsync",
+        icon: Mic,
+        credits: 8,
+      },
+      {
+        label: "Motion Control",
+        tagline: "Cinematic video clips",
+        to: "/motion",
+        icon: Film,
+        credits: 10,
+      },
+    ],
   },
   {
-    label: "Colors Studio",
-    tagline: "Palette-matched performance sets",
-    to: "/colors",
-    icon: Palette,
-    img: "/nav-previews/colors.jpg",
-    price: "From 10 Aura",
+    id: "photo",
+    label: "Photo & Visual",
+    tools: [
+      {
+        label: "Colors Studio",
+        tagline: "Performance photo sets",
+        to: "/colors",
+        icon: Palette,
+        credits: 2,
+      },
+      {
+        label: "Image Studio",
+        tagline: "AI photo creation",
+        to: "/studio",
+        icon: Sparkles,
+        credits: 2,
+      },
+    ],
   },
   {
-    label: "Lip Sync",
-    tagline: "Any video · any audio",
-    to: "/lipsync",
-    icon: Mic,
-    img: "/nav-previews/lipsync.jpg",
-    price: "From 20 Aura",
-  },
-  {
-    label: "Video Agent",
-    tagline: "AI creative director",
-    to: "/agent",
-    icon: Bot,
-    img: "/nav-previews/video-agent.jpg",
-    price: "From 8 Aura",
-  },
-  {
-    label: "TikTok30",
-    tagline: "30 campaign posts at once",
-    to: "/spin",
-    icon: Flame,
-    img: "/nav-previews/spin.jpg",
-    price: "85 Aura",
-  },
-  {
-    label: "Music Video",
-    tagline: "Lyric video from a still",
-    to: "/music-video",
-    icon: Clapperboard,
-    img: "/nav-previews/music-video.jpg",
-    price: "From 15 Aura",
+    id: "social",
+    label: "Social Content",
+    tools: [
+      {
+        label: "TikTok30",
+        tagline: "UGC campaign batch",
+        to: "/spin",
+        icon: Flame,
+        credits: 6,
+        creditDisplay: "85/batch",
+      },
+      {
+        label: "Content Line",
+        tagline: "Viral content series",
+        to: "/ugc-line",
+        icon: Layers,
+        credits: 6,
+      },
+    ],
   },
 ];
 
-// ── Quick start ────────────────────────────────────────────────────────────
+// ── kind → badge label ───────────────────────────────────────────────────────
 
-const QUICK_START = [
-  { label: "New Image",  icon: Sparkles,    to: "/studio" },
-  { label: "Lip Sync",   icon: Mic,         to: "/lipsync" },
-  { label: "Music Video", icon: Clapperboard, to: "/music-video" },
-  { label: "Spin Up",    icon: Flame,       to: "/spin" },
-];
+const KIND_BADGE: Record<string, string> = {
+  image:       "COLORS",
+  video:       "MOTION",
+  lipsync:     "LIP SYNC",
+  music_video: "MUSIC VIDEO",
+  motion:      "MOTION",
+  spin:        "TIKTOK UGC",
+  ugc:         "UGC",
+  lyric_video: "MUSIC VIDEO",
+};
 
 // ── Home page ──────────────────────────────────────────────────────────────
 
@@ -113,12 +150,17 @@ function HomePage() {
   });
 
   const items     = hist?.items ?? [];
-  const succeeded = items.filter((i) => (i.status === "complete" || i.status === "succeeded") && (i.result_image_url || i.result_video_url));
-  const heroGen   = succeeded[0];
-  const recent    = succeeded.slice(0, 6);
+  const succeeded = items.filter(
+    (i) =>
+      (i.status === "complete" || i.status === "succeeded") &&
+      (i.result_image_url || i.result_video_url),
+  );
+  const heroGen = succeeded[0];
+  const recent  = succeeded.slice(0, 4);
 
-  const displayName = profile?.display_name || user?.email?.split("@")[0] || "Creator";
-  const aura        = profile?.credits ?? null;
+  const displayName =
+    profile?.display_name || user?.email?.split("@")[0] || "Creator";
+  const aura = profile?.credits ?? null;
 
   const [heroLoaded, setHeroLoaded] = useState(false);
 
@@ -135,13 +177,16 @@ function HomePage() {
       <span aria-hidden className="aurora-ambient" />
 
       {/* ── Hero ──────────────────────────────────────────────────────── */}
-      <section className="relative min-h-[52vw] max-h-[420px] overflow-hidden">
-        {/* Background layer: last generation (or gradient fallback) */}
+      <section className="relative min-h-[42vw] max-h-[300px] overflow-hidden">
+        {/* Background */}
         <div className="absolute inset-0 z-0">
           {!heroGen && (
             <div
               className="absolute inset-0"
-              style={{ background: "linear-gradient(135deg, oklch(0.14 0.04 272) 0%, oklch(0.10 0.06 290) 60%, oklch(0.08 0.04 310) 100%)" }}
+              style={{
+                background:
+                  "linear-gradient(135deg, oklch(0.14 0.04 272) 0%, oklch(0.10 0.06 290) 60%, oklch(0.08 0.04 310) 100%)",
+              }}
             />
           )}
           {heroGen?.result_image_url && (
@@ -150,15 +195,20 @@ function HomePage() {
               alt=""
               aria-hidden
               onLoad={() => setHeroLoaded(true)}
-              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${heroLoaded ? "opacity-100" : "opacity-0"}`}
-              style={{ filter: "blur(18px) saturate(0.9) brightness(0.45)", transform: "scale(1.08)" }}
+              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
+                heroLoaded ? "opacity-100" : "opacity-0"
+              }`}
+              style={{
+                filter: "blur(20px) saturate(0.8) brightness(0.4)",
+                transform: "scale(1.1)",
+              }}
             />
           )}
           {heroGen?.result_video_url && !heroGen.result_image_url && (
             <AutoplayVideo
               src={heroGen.result_video_url}
-              className="absolute inset-0 h-full w-full object-cover opacity-40"
-              style={{ filter: "blur(12px) brightness(0.45)", transform: "scale(1.08)" }}
+              className="absolute inset-0 h-full w-full object-cover opacity-35"
+              style={{ filter: "blur(14px) brightness(0.4)", transform: "scale(1.1)" }}
               autoPlay
               playsInline
               loop
@@ -166,201 +216,198 @@ function HomePage() {
             />
           )}
           {/* Gradient overlays */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.085_0.022_272)] via-[oklch(0.085_0.022_272/0.55)] to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.085_0.022_272)] via-[oklch(0.085_0.022_272/0.6)] to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-r from-[oklch(0.085_0.022_272/0.7)] via-transparent to-transparent" />
         </div>
 
         {/* Content */}
-        <div className="relative z-10 flex h-full flex-col justify-end px-5 pb-8 pt-16">
-          {/* Aura balance chip */}
+        <div className="relative z-10 flex h-full flex-col justify-end px-5 pb-7 pt-14">
           {aura !== null && (
-            <div className="mb-4 inline-flex w-fit items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.07] px-3 py-1.5 backdrop-blur-sm">
+            <div className="mb-3 inline-flex w-fit items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.07] px-3 py-1 backdrop-blur-sm">
               <Coins className="size-3 text-amber-400" />
               <span className="text-xs font-semibold text-zinc-300">
-                <span className="text-amber-400">{aura.toLocaleString()}</span> Aura
+                <span className="text-amber-400">{aura.toLocaleString()}</span>{" "}
+                Aura available
               </span>
             </div>
           )}
 
-          <h1 className="text-[2.2rem] font-semibold leading-[1.05] tracking-tight text-white">
-            Welcome back,{" "}
-            <span className="font-serif italic text-primary">{displayName}.</span>
+          <h1 className="text-[1.85rem] font-semibold leading-[1.1] tracking-tight text-white">
+            What are we creating,{" "}
+            <span className="font-serif italic text-primary">{displayName}?</span>
           </h1>
-          <p className="mt-2 text-sm text-zinc-400 max-w-[28ch]">
-            {heroGen ? "Continue where you left off." : "Your creative studio — everything in one place."}
+          <p className="mt-1.5 text-sm text-zinc-400">
+            Select a format to begin.
           </p>
-
-          <div className="mt-5 flex items-center gap-3">
-            <Link
-              to="/studio"
-              className="inline-flex items-center gap-1.5 rounded-full bg-primary py-2.5 pl-4 pr-5 text-sm font-semibold text-white shadow-[0_8px_30px_-8px_oklch(0.58_0.22_25/0.6)] transition-transform hover:scale-[1.02] active:scale-95"
-            >
-              <Sparkles className="size-3.5" /> Create
-            </Link>
-            {recent.length > 0 && (
-              <Link
-                to="/dashboard"
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.06] px-4 py-2.5 text-sm font-medium text-zinc-300 backdrop-blur-sm transition-colors hover:bg-white/10"
-              >
-                Gallery
-              </Link>
-            )}
-          </div>
         </div>
       </section>
 
-      {/* ── Main content ────────────────────────────────────────────────── */}
-      {/* Enough bottom padding to clear the fixed composer bar + mobile tab bar */}
-      <div className="relative z-10 space-y-10 px-5 pt-8 pb-[calc(7rem+env(safe-area-inset-bottom))]">
+      {/* ── Main content ─────────────────────────────────────────────────── */}
+      <div
+        className="relative z-10 px-4 pt-6 pb-[calc(7rem+env(safe-area-inset-bottom))]"
+        style={{ display: "flex", flexDirection: "column", gap: "2rem" }}
+      >
 
-        {/* ── Featured Tools ─────────────────────────────────────────── */}
-        <section>
-          <div className="mb-4 flex items-baseline justify-between">
-            <h2 className="text-xs font-bold uppercase tracking-[0.25em] text-muted-foreground/70">
-              Featured Tools
-            </h2>
-            <Link
-              to="/studio"
-              className="inline-flex items-center gap-1 text-xs font-medium text-primary/80 hover:text-primary transition-colors no-underline"
-            >
-              See all <ArrowUpRight className="size-3" />
-            </Link>
-          </div>
-
-          <div className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-2 snap-x snap-mandatory scrollbar-none" style={{ scrollbarWidth: "none" }}>
-            {FEATURED_TOOLS.map((tool) => (
-              <Link
-                key={tool.label}
-                to={tool.to}
-                className="group shrink-0 w-36 snap-start rounded-2xl overflow-hidden border border-white/[0.08] bg-zinc-900/60 backdrop-blur-sm no-underline transition-all hover:border-primary/30 hover:scale-[1.02] active:scale-[0.98]"
-              >
-                {/* Cover image */}
-                <div className="relative h-24 overflow-hidden bg-zinc-800/60">
-                  <img
-                    src={tool.img}
-                    alt=""
-                    aria-hidden
-                    className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                  <span className="absolute bottom-2 left-2.5 flex size-6 items-center justify-center rounded-lg bg-black/40 backdrop-blur-sm ring-1 ring-white/10">
-                    <tool.icon className="size-3 text-primary" />
-                  </span>
-                </div>
-                {/* Label */}
-                <div className="px-3 py-2.5">
-                  <p className="text-[12px] font-semibold text-zinc-100 leading-tight line-clamp-1">{tool.label}</p>
-                  <p className="mt-0.5 text-[10px] text-zinc-500 line-clamp-1">{tool.price}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        {/* ── Recent Work ────────────────────────────────────────────── */}
-        {recent.length > 0 && (
-          <section>
-            <div className="mb-4 flex items-baseline justify-between">
-              <h2 className="text-xs font-bold uppercase tracking-[0.25em] text-muted-foreground/70">
-                Recent Work
-              </h2>
-              <Link
-                to="/dashboard"
-                className="inline-flex items-center gap-1 text-xs font-medium text-primary/80 hover:text-primary transition-colors no-underline"
-              >
-                View all <ArrowRight className="size-3" />
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              {recent.map((g) => (
-                <article
-                  key={g.id}
-                  className="group relative aspect-square overflow-hidden rounded-xl border border-white/[0.06] bg-zinc-900/50"
-                >
-                  {g.result_image_url ? (
-                    <img
-                      src={g.result_image_url}
-                      alt={g.prompt?.slice(0, 50) ?? ""}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      loading="lazy"
-                    />
-                  ) : g.result_video_url ? (
-                    <AutoplayVideo
-                      src={g.result_video_url}
-                      className="h-full w-full object-cover"
-                      autoPlay={false}
-                      playsInline
-                      loop
-                      onMouseEnter={(e) => e.currentTarget.play()}
-                      onMouseLeave={(e) => e.currentTarget.pause()}
-                    />
-                  ) : null}
-                  {/* Video badge */}
-                  {g.result_video_url && (
-                    <span className="absolute bottom-1.5 right-1.5 flex items-center gap-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur-sm">
-                      <Film className="size-2.5" /> MP4
-                    </span>
-                  )}
-                </article>
+        {/* ── Tool categories ───────────────────────────────────────────── */}
+        {TOOL_CATEGORIES.map((cat) => (
+          <section key={cat.id}>
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">
+              {cat.label}
+            </p>
+            <div className="grid grid-cols-2 gap-2.5">
+              {cat.tools.map((tool) => (
+                <ToolCard key={tool.label} tool={tool} />
               ))}
             </div>
           </section>
-        )}
+        ))}
 
-        {/* Empty state for new users */}
-        {succeeded.length === 0 && (
-          <section className="rounded-3xl border border-dashed border-white/10 p-10 text-center">
-            <ImageIcon className="size-8 text-zinc-600 mx-auto mb-3" />
-            <p className="text-sm text-zinc-500 mb-4">No generations yet — let's make your first one.</p>
-            <Link
-              to="/studio"
-              className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white"
-            >
-              <Sparkles className="size-3.5" /> Open Studio
-            </Link>
-          </section>
-        )}
-
-        {/* ── Quick Start ────────────────────────────────────────────── */}
+        {/* ── Recent Projects ───────────────────────────────────────────── */}
         <section>
-          <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.25em] text-muted-foreground/70">
-            Quick Start
-          </h2>
-          <div className="grid grid-cols-2 gap-2.5">
-            {QUICK_START.map((qs) => (
-              <Link
-                key={qs.label}
-                to={qs.to}
-                className="group flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-zinc-900/50 px-4 py-4 no-underline transition-all hover:border-primary/25 hover:bg-zinc-900/80 active:scale-[0.98]"
-              >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20 transition-colors group-hover:bg-primary/15">
-                  <qs.icon className="size-4 text-primary" />
-                </span>
-                <span className="text-sm font-medium text-zinc-200 leading-tight">{qs.label}</span>
-              </Link>
-            ))}
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">
+              Recent Projects
+            </p>
+            <Link
+              to="/dashboard"
+              className="text-[11px] text-zinc-500 no-underline hover:text-zinc-300 transition-colors"
+            >
+              View all →
+            </Link>
           </div>
-        </section>
 
-        {/* ── Explore ────────────────────────────────────────────────── */}
-        <section className="rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-5">
-          <UserCircle2 className="size-5 text-primary mb-3" />
-          <h2 className="text-base font-semibold text-zinc-100">Motion Control</h2>
-          <p className="mt-1 text-sm text-zinc-400">Transfer your 30-second performance into any AI cinematic scene.</p>
-          <Link
-            to="/motion"
-            className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors no-underline"
-          >
-            Try it <ArrowRight className="size-3.5" />
-          </Link>
+          {recent.length > 0 ? (
+            <div className="grid grid-cols-2 gap-2.5">
+              {recent.map((g) => (
+                <RecentCard key={g.id} g={g} />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center">
+              <ImageIcon className="size-7 text-zinc-600 mx-auto mb-2.5" />
+              <p className="text-sm text-zinc-500 mb-4">
+                No generations yet — pick a tool above to start.
+              </p>
+            </div>
+          )}
         </section>
       </div>
 
-      {/* ── Fixed bottom composer bar ────────────────────────────────── */}
+      {/* ── Fixed bottom composer bar ──────────────────────────────────── */}
       <BottomComposer />
     </main>
+  );
+}
+
+// ── Tool card ─────────────────────────────────────────────────────────────
+
+function ToolCard({ tool }: { tool: Tool }) {
+  return (
+    <Link
+      to={tool.to}
+      className="group flex flex-col rounded-2xl border border-white/[0.08] p-4 no-underline transition-all hover:border-white/[0.14] active:scale-[0.97]"
+      style={{ background: "oklch(0.11 0.015 272)" }}
+    >
+      {/* Icon + credits row */}
+      <div className="flex items-start justify-between mb-3">
+        <span
+          className="flex size-9 items-center justify-center rounded-xl"
+          style={{ background: "oklch(0.16 0.02 272)" }}
+        >
+          <tool.icon className="size-4 text-zinc-300" />
+        </span>
+        <span className="text-[11px] font-semibold tabular-nums" style={{ color: "#60a5fa" }}>
+          {tool.creditDisplay ?? tool.credits} •
+        </span>
+      </div>
+
+      {/* Name + description */}
+      <p className="text-[13px] font-semibold text-zinc-100 leading-tight">
+        {tool.label}
+      </p>
+      <p className="mt-1 text-[11px] leading-snug text-zinc-500">
+        {tool.tagline}
+      </p>
+
+      {/* CREATE → */}
+      <div className="mt-3 flex items-center gap-1 text-[11px] font-medium text-zinc-500 group-hover:text-zinc-300 transition-colors">
+        CREATE <ArrowRight className="size-3" />
+      </div>
+    </Link>
+  );
+}
+
+// ── Recent card ──────────────────────────────────────────────────────────
+
+type GenItem = {
+  id: string;
+  kind?: string | null;
+  prompt?: string | null;
+  status?: string | null;
+  result_image_url?: string | null;
+  result_video_url?: string | null;
+  created_at?: string | null;
+};
+
+function timeAgo(dateStr: string | null | undefined): string {
+  if (!dateStr) return "";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const h = Math.floor(diff / 3_600_000);
+  if (h < 1) return "Just now";
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d === 1) return "Yesterday";
+  return `${d} days ago`;
+}
+
+function RecentCard({ g }: { g: GenItem }) {
+  const badge = KIND_BADGE[g.kind ?? "image"] ?? null;
+  const ago   = timeAgo(g.created_at);
+
+  return (
+    <article>
+      {/* Thumbnail */}
+      <div className="relative aspect-[4/3] overflow-hidden rounded-xl border border-white/[0.06] bg-zinc-900/60">
+        {g.result_image_url ? (
+          <img
+            src={g.result_image_url}
+            alt={g.prompt?.slice(0, 50) ?? ""}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+        ) : g.result_video_url ? (
+          <AutoplayVideo
+            src={g.result_video_url}
+            className="h-full w-full object-cover"
+            playsInline
+            loop
+            autoPlay={false}
+            onMouseEnter={(e) => e.currentTarget.play()}
+            onMouseLeave={(e) => e.currentTarget.pause()}
+          />
+        ) : null}
+
+        {/* Category badge — top left */}
+        {badge && (
+          <span
+            className="absolute left-2 top-2 rounded-md px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-widest text-white"
+            style={{ background: "rgba(0,0,0,0.62)", backdropFilter: "blur(6px)" }}
+          >
+            {badge}
+          </span>
+        )}
+      </div>
+
+      {/* Name + time */}
+      <div className="mt-1.5 px-0.5">
+        <p className="text-[11px] font-medium text-zinc-300 leading-tight line-clamp-1">
+          {g.prompt?.slice(0, 36) || badge || "Generation"}
+        </p>
+        {ago && (
+          <p className="mt-0.5 text-[10px] text-zinc-600">{ago}</p>
+        )}
+      </div>
+    </article>
   );
 }
 
@@ -395,10 +442,16 @@ function BottomComposer() {
       <span
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-px"
-        style={{ background: "linear-gradient(90deg, transparent 0%, oklch(0.58 0.22 25 / 0.4) 50%, transparent 100%)" }}
+        style={{
+          background:
+            "linear-gradient(90deg, transparent 0%, oklch(0.58 0.22 25 / 0.4) 50%, transparent 100%)",
+        }}
       />
 
-      <form onSubmit={handleSubmit} className="flex items-center gap-2 px-4 pt-3 pb-1">
+      <form
+        onSubmit={handleSubmit}
+        className="flex items-center gap-2 px-4 pt-3 pb-1"
+      >
         <div className="flex flex-1 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-2.5">
           <Sparkles className="size-3.5 shrink-0 text-primary/70" />
           <input
