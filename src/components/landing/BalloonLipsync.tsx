@@ -3,11 +3,11 @@ import { Play, Pause, Volume2, Sparkles, ArrowRight, Wand2, Upload, Loader2, Mic
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import audioAsset from "@/assets/the-one-hook.mp3.asset.json";
-import balloonVideoAsset from "@/assets/balloon-talking-v2.mp4.asset.json";
 import { transcribeAudio } from "@/lib/hf.functions";
 import { AUDIO_ACCEPT } from "@/lib/utils";
 
-const lipsyncDemoVideo = balloonVideoAsset.url;
+// Balloon-head lip-sync demo video (local public path — reliable across environments)
+const lipsyncDemoVideo = "/videos/balloon-lipsync-demo.mp4";
 
 /**
  * Every Face Sings — drives a clear lip-sync mouth, upper/lower lips and
@@ -265,7 +265,7 @@ export function BalloonLipsync() {
             loop
             muted
             playsInline
-            preload="none"
+            preload="metadata"
             className="absolute inset-0 size-full object-cover"
           />
           <div
