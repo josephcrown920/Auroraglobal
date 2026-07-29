@@ -116,6 +116,8 @@ function GalleryCard({ item, height, onTry }: { item: GenItem; height: number; o
 
 function InspirationCard({ item, height, onTry }: { item: typeof INSPIRATIONS[0]; height: number; onTry: (presetId: string) => void }) {
   const [hovered, setHovered] = useState(false);
+  // Alias to uppercase so the cartographer/JSX transform can resolve it as a component
+  const ItemIcon = item.Icon;
   return (
     <div
       onClick={() => onTry(item.presetId)}
@@ -131,7 +133,7 @@ function InspirationCard({ item, height, onTry }: { item: typeof INSPIRATIONS[0]
       }}
     >
       <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.13)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        <item.Icon size={17} color="rgba(255,255,255,0.9)" />
+        <ItemIcon size={17} color="rgba(255,255,255,0.9)" />
       </div>
       <div style={{ flex: 1 }} />
       <p style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.8px", fontWeight: 600, marginBottom: 3 }}>{item.tag}</p>
@@ -147,6 +149,14 @@ function InspirationCard({ item, height, onTry }: { item: typeof INSPIRATIONS[0]
 function HomePage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+
+  // Suppress SSR/client hydration mismatch: the grid content depends on
+  // auth state that is only available client-side (no session during SSR).
+  // Render a neutral blank shell on the server; the real grid mounts after
+  // the first client paint. This also prevents the cartographer plugin's
+  // transform from running on dynamic JSX in an SSR context.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     if (!loading && !user) void navigate({ to: "/auth" });
@@ -238,6 +248,16 @@ function HomePage() {
       : prompt || "Professional portrait, high quality";
     void navigate({ to: selectedPreset.to as "/agent", search: { q: finalPrompt } });
   };
+
+  // During SSR (or before first client paint) show a neutral shell so that
+  // server HTML matches client HTML — avoids hydration mismatch cascade.
+  if (!mounted) {
+    return (
+      <div className="aurora-page-shell min-h-screen" style={{ overflow: "hidden" }}>
+        <span aria-hidden className="aurora-ambient" />
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -341,6 +361,8 @@ function HomePage() {
         >
           {PRESETS.map((p) => {
             const active = p.id === selectedPreset.id;
+            // Alias to uppercase so the cartographer/JSX transform resolves it as a component
+            const PresetIcon = p.Icon;
             return (
               <button
                 key={p.id}
@@ -355,7 +377,7 @@ function HomePage() {
                   fontSize: 11, fontWeight: 600, cursor: "pointer", transition: "all 0.15s",
                 }}
               >
-                <p.Icon size={10} />
+                <PresetIcon size={10} />
                 {p.label}
               </button>
             );
