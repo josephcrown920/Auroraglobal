@@ -76,19 +76,28 @@ export const Route = createFileRoute("/")({
 const HERO_SLIDES = [
   {
     src: "/hero/hero-new-1.png",
-    eyebrow: "Flagship Feature",
-    headline: "Perform Anywhere",
-    sub: "Turn a phone recording into a cinematic music video. No crew. No studio. Just you.",
-    cta: "Try Perform Anywhere →",
+    eyebrow: "By Artists, For Artists",
+    badge: "★ Flagship",
+    headline: "Film Yourself. Aurora Builds the World.",
+    sub: "Aurora's Motion Control reads your real performance from a 30-second phone clip and places you in any cinematic scene on earth — style, motion, energy intact. No studio. No crew. No budget.",
+    cta: "Perform From Anywhere →",
     ctaTo: "/perform",
   },
   {
-    src: "/hero/hero-new-2.png",
-    eyebrow: "Go Viral",
-    headline: "Go Viral On TikTok In 30 Seconds",
-    sub: "TikTok30 generates 30 campaign-ready posts from a single idea. Post daily. Grow fast.",
+    src: "/hero/hero-tiktok30.jpg",
+    eyebrow: "TikTok 30",
+    headline: "One Prompt. 30 Posts. Posted.",
+    sub: "Type your hook. Aurora uses Claude + Seedance 2.0 to generate 30 scroll-stopping posts — lyric hooks, cover reveals, performance clips, styled portraits — a full month of content from one idea.",
     cta: "Launch TikTok30 Free →",
     ctaTo: "/spin",
+  },
+  {
+    src: "/hero/hero-multiangle.jpg",
+    eyebrow: "Multi-Angle Studio",
+    headline: "One Session. Every Angle.",
+    sub: "9 unique shots. Every pose. Every perspective — from a single 30-second recording. No re-setup. No second booking. Your best look, every time.",
+    cta: "Start Your Session →",
+    ctaTo: "/studio",
   },
   {
     src: "/hero/hero-colors.png",
@@ -349,9 +358,14 @@ function LandingPage() {
                 i === slideIdx ? "opacity-100" : "opacity-0 absolute inset-0 pointer-events-none"
               }`}
             >
-              <p className="mb-3 flex items-center gap-2 font-serif italic text-amber-400 text-sm">
+              <p className="mb-2 flex items-center gap-2 font-serif italic text-amber-400 text-sm">
                 <span className="inline-block size-1.5 rounded-full bg-[#e5383b]" />
                 {slide.eyebrow}
+                {"badge" in slide && slide.badge && (
+                  <span className="ml-1 inline-flex items-center rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300 not-italic">
+                    {slide.badge}
+                  </span>
+                )}
               </p>
               <h1 className="text-[2.9rem] font-semibold leading-[0.93] tracking-tight text-white">
                 <span className="font-serif italic">{slide.headline}</span>
