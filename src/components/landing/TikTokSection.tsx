@@ -161,7 +161,7 @@ export function TikTokSection() {
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
               <div className="max-w-2xl">
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-2 rounded-md border border-pink-300/20 bg-pink-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-pink-200">
+                  <span className="inline-flex items-center gap-2 rounded-md border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary/90">
                     <Flame className="size-3.5" /> On TikTok
                   </span>
                   <span className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-white/70">
@@ -170,7 +170,7 @@ export function TikTokSection() {
                 </div>
                 <h2 className="mt-5 text-4xl font-extrabold tracking-tight text-white md:text-6xl">
                   Aurora is the{" "}
-                  <span className="bg-gradient-to-r from-[#25F4EE] via-white to-[#FE2C55] bg-clip-text text-transparent">
+                    <span className="bg-gradient-to-r from-[#25F4EE] via-white to-[#a855f7] bg-clip-text text-transparent">
                     For You page.
                   </span>
                 </h2>
@@ -199,7 +199,7 @@ export function TikTokSection() {
                   key={s.label}
                   className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3"
                 >
-                  <div className="flex items-center gap-2 text-pink-200">
+                  <div className="flex items-center gap-2 text-primary/90">
                     {s.icon}
                     <span className="text-[11px] uppercase tracking-widest text-white/55">
                       {s.label}

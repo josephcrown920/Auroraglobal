@@ -23,7 +23,7 @@ const QUOTES = [
     location: "London, UK",
     flag: "🇬🇧",
     text: "The lip-sync is unreal. My UGC ads with Aurora are converting 3x my last batch.",
-    color: "from-amber-500/30 to-rose-500/10",
+    color: "from-amber-500/30 to-violet-500/10",
   },
   {
     name: "Tobi A.",
@@ -39,7 +39,7 @@ const QUOTES = [
     location: "Tokyo, Japan",
     flag: "🇯🇵",
     text: "The agent reads my brief in Japanese and returns shot lists I'd hire a director to write. Insane.",
-    color: "from-pink-500/30 to-rose-500/10",
+    color: "from-violet-500/30 to-fuchsia-500/10",
   },
   {
     name: "Camila V.",
@@ -95,7 +95,7 @@ const QUOTES = [
     location: "Medellín, Colombia",
     flag: "🇨🇴",
     text: "Dropped a full visual EP on Aurora. Looks like a Bad Bunny budget. Costó nada.",
-    color: "from-rose-500/30 to-red-500/10",
+    color: "from-violet-500/30 to-fuchsia-500/10",
   },
 ];
 

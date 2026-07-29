@@ -115,7 +115,7 @@ export function TutorialOnboarding({ show = true, forceShow = false, onDismiss }
       aria-label="Aurora tutorial"
     >
       <div className="relative rounded-2xl border border-white/15 bg-[#0d0a1e]/95 backdrop-blur-xl shadow-2xl shadow-black/60 overflow-hidden">
-        <div className="h-0.5 bg-gradient-to-r from-red-500 via-pink-500 to-primary" />
+        <div className="h-0.5 bg-gradient-to-r from-primary via-fuchsia-500 to-primary" />
 
         <div className="p-4 flex items-start gap-3">
           <div className="shrink-0 size-10 rounded-xl overflow-hidden border border-white/20 bg-black flex items-center justify-center">

@@ -112,7 +112,7 @@ export function CanvasWorkflowShowcase() {
       {/* UGC FACTORY */}
       <section className="relative z-10 px-6 md:px-12 py-20">
         <div className="text-center max-w-2xl mx-auto mb-10">
-          <p className="text-xs uppercase tracking-[0.2em] text-rose-300/80 mb-2 inline-flex items-center gap-2 justify-center">
+          <p className="text-xs uppercase tracking-[0.2em] text-primary/80 mb-2 inline-flex items-center gap-2 justify-center">
             <Megaphone className="size-3.5" /> UGC Factory
           </p>
           <h2 className="text-3xl md:text-5xl font-semibold tracking-tight">
@@ -128,7 +128,7 @@ export function CanvasWorkflowShowcase() {
             <Link
               key={a.name}
               to="/ugc"
-              className="group relative rounded-xl overflow-hidden border border-border hover:border-rose-400/60 no-underline transition animate-fade-in"
+              className="group relative rounded-xl overflow-hidden border border-border hover:border-primary/60 no-underline transition animate-fade-in"
               style={{ animationDelay: `${i * 60}ms`, animationFillMode: "backwards" }}
             >
               <div className="relative aspect-square">
@@ -137,7 +137,7 @@ export function CanvasWorkflowShowcase() {
                   <p className="text-white text-sm font-semibold leading-none">{a.name}</p>
                   <p className="text-white/70 text-[10px] mt-0.5 leading-tight">{a.vibe}</p>
                 </div>
-                <span className="absolute top-2 right-2 size-6 rounded-full bg-rose-500/90 text-white grid place-items-center opacity-0 group-hover:opacity-100 transition">
+                <span className="absolute top-2 right-2 size-6 rounded-full bg-primary/90 text-white grid place-items-center opacity-0 group-hover:opacity-100 transition">
                   <Check className="size-3.5" />
                 </span>
               </div>
@@ -148,7 +148,7 @@ export function CanvasWorkflowShowcase() {
         <div className="mt-8 flex justify-center">
           <Link
             to="/ugc"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-white no-underline bg-gradient-to-r from-rose-500 to-pink-500 hover:opacity-95 shadow-lg shadow-rose-500/30"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-white no-underline bg-[image:var(--gradient-hero)] hover:brightness-110 shadow-[var(--shadow-glow-soft)]"
           >
             Open UGC Factory <ArrowRight className="size-4" />
           </Link>

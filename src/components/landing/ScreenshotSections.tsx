@@ -39,7 +39,7 @@ export function SupercomputerSection() {
         <div className="mt-10 max-w-2xl mx-auto">
           <Link to="/studio" className="block no-underline rounded-2xl border border-primary/40 bg-black/50 backdrop-blur-xl shadow-[var(--shadow-glow)] overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-2 border-b border-border text-[13px] uppercase tracking-widest text-white/40">
-              <span className="size-2 rounded-full bg-rose-400/70" />
+              <span className="size-2 rounded-full bg-primary/70" />
               <span className="size-2 rounded-full bg-amber-300/70" />
               <span className="size-2 rounded-full bg-emerald-400/70" />
               <span className="ml-2">aurora · prompt</span>
@@ -285,7 +285,7 @@ export function AiCanvasSection() {
         </div>
 
         <div className="text-center border-2 border-cyan-300/60 rounded-2xl p-8 md:p-12 relative">
-          <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-pink-500 text-[13px] font-bold text-white tracking-wider">30% OFF</span>
+          <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-primary text-[13px] font-bold text-white tracking-wider">30% OFF</span>
           <p className="text-xs uppercase tracking-[0.3em] text-white/50">HIGGSFIELD CANVAS</p>
           <h2 className="mt-4 text-3xl md:text-5xl font-bold text-white">
             GENERATE STUNNING<br />MEDIA WITH AI CANVAS
