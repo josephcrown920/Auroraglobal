@@ -1,3 +1,4 @@
+- [Vite double-plugin cartographer crash](vite-double-plugin-cartographer.md) — replitPlugins in BOTH top-level plugins: AND vite.plugins runs cartographer twice → duplicate attrs → SSR/client mismatch → "Invalid hook call" crash.
 - [TanStack package version alignment](tanstack-package-versions.md) — router-plugin version cadence differs from react-start; verify each on npm before bumping; routeTree.gen.ts auto-regenerates on new route file addition during dev (no manual edit needed).
 - [Prime Director agent page](prime-director-agent-page.md) — /agent is now the Prime Video Agent UI (3-panel: sidebar/chat/inspector); Aurora skills live in sidebar "Aurora Skills" section; CSS tokens at --canvas/panel/prime/rec; useServerFn takes { data: {...} } not bare args.
 - [index.tsx desktop header nav is unreachable](landing-nav-desktop-header-dead-code.md) — real nav lives in MobileNav.tsx (single-column build); edit header nav = no visible effect.

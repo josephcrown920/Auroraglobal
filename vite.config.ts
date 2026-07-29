@@ -113,11 +113,23 @@ const serverFileClientStub = {
   },
 };
 
-const extraPlugins = [monacoSsrStub, serverFileClientStub, ...replitPlugins];
+// monacoSsrStub and serverFileClientStub use resolveId hooks that must live in
+// vite.plugins (client-only). Do NOT add replitPlugins here — cartographer must
+// be in the top-level plugins: key so it runs on BOTH the SSR and client bundles
+// with identical output. If it only runs on client (via vite.plugins), the
+// server renders elements without data-replit-metadata but the client adds them,
+// causing a hydration mismatch on every page load.
+const extraPlugins = [monacoSsrStub, serverFileClientStub];
 
 // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
 // @cloudflare/vite-plugin builds from this — wrangler.jsonc main alone is insufficient.
 export default defineConfig({
+  // replitPlugins (cartographer) lives here — top-level plugins: covers BOTH
+  // the SSR and client Vite environments, so the server and browser render
+  // identical data-replit-metadata / data-component-name attributes.
+  // It must NOT also appear in vite.plugins (via extraPlugins) — that would
+  // run it twice on the client bundle and corrupt JSX with duplicate attrs,
+  // causing "Invalid hook call" crashes (hit us before; see memory note).
   plugins: replitPlugins,
   tanstackStart: {
     server: { entry: "server" },
