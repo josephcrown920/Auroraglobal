@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { COLOR_PRESETS, SETUP_KINDS, SETUPS, buildPrompt, type SetupKind } from "@/lib/colors-data";
+import { COLOR_PRESETS, SETUP_KINDS, SETUPS, buildPrompt, type SetupKind, type OutputMode, type CameraMode } from "@/lib/colors-data";
 import { Palette, ImagePlus, X, Download, Loader2, Sparkles, LogOut, RefreshCw, Check, ArrowLeft } from "lucide-react";
 
 interface Props { session: Session; }
@@ -19,7 +19,8 @@ interface Generation {
 }
 
 const AURORA_URL = import.meta.env.VITE_AURORA_URL || "";
-const COST_AURA = 1;
+const COST_IMAGE = 1;
+const COST_VIDEO = 10;
 const MODEL = "google/gemini-3.1-flash-image-preview";
 
 function download(url: string, name: string) {
@@ -64,6 +65,8 @@ export function ColorsStudio({ session }: Props) {
   const [colorId, setColorId] = useState(COLOR_PRESETS[1].id);
   const [setupKind, setSetupKind] = useState<SetupKind>("performance");
   const [setupId, setSetupId] = useState("performance");
+  const [outputMode, setOutputMode] = useState<OutputMode>("image");
+  const [cameraMode, setCameraMode] = useState<CameraMode>("tripod");
   const [refFiles, setRefFiles] = useState<File[]>([]);
   const [refPreviews, setRefPreviews] = useState<string[]>([]);
   const [generating, setGenerating] = useState(false);
@@ -146,12 +149,17 @@ export function ColorsStudio({ session }: Props) {
     setGenerating(true);
     try {
       const imageUrls = await Promise.all(refFiles.map(uploadRef));
-      const prompt = buildPrompt(colorId, setup?.id ?? setupId, refFiles.length > 1);
+      const prompt = buildPrompt(colorId, setup?.id ?? setupId, refFiles.length > 1, outputMode, cameraMode);
       const token = session.access_token;
       const res = await fetch(`${AURORA_URL}/api/public/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ kind: "image", prompt, imageUrls, model: MODEL }),
+        body: JSON.stringify({
+          kind: outputMode === "video" ? "video" : "image",
+          prompt,
+          imageUrls,
+          model: outputMode === "video" ? undefined : MODEL,
+        }),
       });
       const data: unknown = await res.json();
       if (!res.ok) {
@@ -430,6 +438,81 @@ export function ColorsStudio({ session }: Props) {
             </div>
           </section>
 
+          {/* ── Output mode ─────────────────────────────────────── */}
+          <section>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
+              Output
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {([
+                { id: "image", label: "📸 Still", hint: "Photoreal image · 1 Aura" },
+                { id: "video", label: "🎬 Animated Clip", hint: "3–5 sec loopable · 10 Aura" },
+              ] as { id: OutputMode; label: string; hint: string }[]).map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => setOutputMode(m.id)}
+                  title={m.hint}
+                  style={{
+                    flex: 1,
+                    padding: "9px 10px",
+                    borderRadius: 10,
+                    border: `1px solid ${outputMode === m.id ? "var(--accent)" : "var(--border)"}`,
+                    background: outputMode === m.id ? "rgba(139,92,246,0.12)" : "var(--bg-card)",
+                    color: outputMode === m.id ? "var(--accent)" : "var(--text-muted)",
+                    fontWeight: 600,
+                    fontSize: 13,
+                    cursor: "pointer",
+                    textAlign: "center",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            {outputMode === "video" && (
+              <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>
+                Breathing · head movement · mic interaction — loopable performance clip.
+              </p>
+            )}
+          </section>
+
+          {/* ── Camera mode ──────────────────────────────────────── */}
+          <section>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
+              Camera
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {([
+                { id: "tripod",   label: "Tripod",   icon: "🎥" },
+                { id: "push-in",  label: "Push-in",  icon: "🔭" },
+                { id: "handheld", label: "Handheld", icon: "📷" },
+                { id: "closeup",  label: "Close-up", icon: "🔬" },
+              ] as { id: CameraMode; label: string; icon: string }[]).map((cam) => (
+                <button
+                  key={cam.id}
+                  onClick={() => setCameraMode(cam.id)}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 8,
+                    border: `1px solid ${cameraMode === cam.id ? "var(--accent)" : "var(--border)"}`,
+                    background: cameraMode === cam.id ? "rgba(139,92,246,0.1)" : "transparent",
+                    color: cameraMode === cam.id ? "var(--accent)" : "var(--text-muted)",
+                    fontWeight: 600,
+                    fontSize: 12,
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                  }}
+                >
+                  {cam.icon} {cam.label}
+                </button>
+              ))}
+            </div>
+          </section>
+
           {/* ── Reference photos ─────────────────────────────────── */}
           <section>
             <div
@@ -582,7 +665,7 @@ export function ColorsStudio({ session }: Props) {
             }}
           >
             {generating ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
-            {generating ? "Queuing shot…" : `Generate · ${COST_AURA} Aura`}
+            {generating ? "Queuing shot…" : `Generate · ${outputMode === "video" ? COST_VIDEO : COST_IMAGE} Aura`}
           </button>
         </div>
 

@@ -66,31 +66,53 @@ const MIC_DETAIL: Record<ColorPreset["performance"]["mic"], string> = {
 };
 
 const REALISM = "Hyper-realistic photography, ultra-HD 8K resolution, shot on cinema glass — lifelike micro-texture in skin, fabric and every surface, physically accurate light falloff and reflections, true-to-life color, no CGI, illustration or plastic AI look.";
-const CAMERA = "CAMERA: locked-off tripod performance framing, full-body 9:16 vertical, cinematic quality, 50mm at eye level, gentle depth of field.";
 
-export function buildPrompt(colorId: string, setupId: string, hasOutfitRef = false): string {
+export type CameraMode = "tripod" | "push-in" | "handheld" | "closeup";
+export type OutputMode = "image" | "video";
+
+const CAMERA_INSTRUCTIONS: Record<CameraMode, string> = {
+  "tripod":   "CAMERA: locked-off tripod performance framing, full-body 9:16 vertical, 50mm at eye level, gentle depth of field.",
+  "push-in":  "CAMERA: slow cinematic push-in starting wide full-body, drifting toward a medium close-up, smooth and deliberate, 50mm, 9:16 vertical.",
+  "handheld": "CAMERA: slight handheld realism — subtle micro-sway, organic energy, full-body 9:16, 35mm at eye level.",
+  "closeup":  "CAMERA: tight close-up cut — face and shoulders only, 85mm f/1.8, shallow DOF, cinematic 9:16.",
+};
+
+const MOTION_INSTRUCTIONS =
+  "MOTION (animated clip): animate the subject with subtle lifelike movement — slow natural breathing (gentle chest rise-and-fall), micro head movement and weight shift, natural mic interaction matching the pose. Loopable 3–5 second performance clip. Do NOT teleport or jump-cut. Movement must feel organic and continuous.";
+
+export function buildPrompt(
+  colorId: string,
+  setupId: string,
+  hasOutfitRef = false,
+  outputMode: OutputMode = "image",
+  cameraMode: CameraMode = "tripod",
+): string {
   const c = COLOR_PRESETS.find((x) => x.id === colorId) ?? COLOR_PRESETS[0];
   const s = SETUPS.find((x) => x.id === setupId) ?? SETUPS[0];
   const isPerf = s.id === "performance";
+  const isVideo = outputMode === "video";
 
   if (isPerf) {
     const { mic, pose, energy } = c.performance;
     return [
-      "You are an AI performance compositor: place the REAL person from the reference photos into the predefined studio scene and render one photoreal performance still.",
+      `You are an AI performance compositor: place the REAL person from the reference photos into the predefined studio scene and render one photoreal performance ${isVideo ? "animated clip" : "still"}.`,
       `IDENTITY LOCK: use the uploaded face as identity reference — keep it EXACTLY the same (face, skin tone, hairstyle, facial hair, body proportions). ${hasOutfitRef ? "Dress them in the exact outfit from reference photo 2." : "Keep the outfit they wear in photo 1."}`,
       `SCENE LOCK: use this studio scene EXACTLY — ${c.studioTemplate}`,
       `COLOR CONTROL: the entire set follows the ${c.promptName} theme — background, lighting tone, reflections and shadows are all graded ${c.promptName}.`,
       `PERFORMANCE MODE: ${pose}. Energy: ${energy}. Microphone: ${MIC_DETAIL[mic]}.`,
-      CAMERA,
+      CAMERA_INSTRUCTIONS[cameraMode],
+      isVideo ? MOTION_INSTRUCTIONS : "",
       REALISM,
-    ].join("\n");
+    ].filter(Boolean).join("\n");
   }
 
   return [
-    "You are an AI performance compositor: place the REAL person from the reference photos into the predefined studio scene.",
+    `You are an AI performance compositor: place the REAL person from the reference photos into the predefined studio scene${isVideo ? " and animate it" : ""}.`,
     `IDENTITY LOCK: use the uploaded face as identity reference. ${hasOutfitRef ? "Dress them in the exact outfit from reference photo 2." : "Keep the outfit they wear in photo 1."}`,
     `COLOR CONTROL: ${c.promptName} theme throughout.`,
     s.prompt(c.promptName),
+    CAMERA_INSTRUCTIONS[cameraMode],
+    isVideo ? MOTION_INSTRUCTIONS : "",
     REALISM,
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
