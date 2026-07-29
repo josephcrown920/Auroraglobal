@@ -31,6 +31,7 @@ export default defineConfig({
       // overrides the Start plugin's exclude, putting AsyncLocalStorage into
       // the client bundle and killing every button/form/nav handler.
     },
+    base: process.env.BASE_PATH ?? "/",
     server: {
       host: "0.0.0.0",
       allowedHosts: true,

@@ -10,6 +10,7 @@ import {
   Settings,
   BookOpen,
   Sparkles,
+  Zap,
 } from "lucide-react";
 
 import {
@@ -48,6 +49,12 @@ const groups = [
       { title: "Workflows", url: "/workflows", icon: Workflow },
       { title: "Docs", url: "/docs", icon: BookOpen },
       { title: "Settings", url: "/settings", icon: Settings },
+    ],
+  },
+  {
+    label: "APEX",
+    items: [
+      { title: "APEX Orchestration", url: "/apex", icon: Zap },
     ],
   },
 ];
