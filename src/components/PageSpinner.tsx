@@ -18,7 +18,7 @@ export function PageSpinner() {
             width: 40,
             height: 40,
             borderRadius: 10,
-            background: "oklch(0.72 0.2 300 / 0.12)",
+            background: "oklch(0.60 0.24 293 / 0.15)",
             alignItems: "center",
             justifyContent: "center",
             opacity: 0.9,
@@ -30,7 +30,7 @@ export function PageSpinner() {
               width: 14,
               height: 14,
               borderRadius: "50%",
-              background: "oklch(0.72 0.2 300)",
+              background: "var(--primary)",
             }}
           />
         </span>
@@ -40,7 +40,7 @@ export function PageSpinner() {
             inset: -6,
             borderRadius: 16,
             border: "2px solid transparent",
-            borderTopColor: "oklch(0.72 0.2 300)",
+            borderTopColor: "var(--primary)",
             animation: "aurora-spin 0.9s linear infinite",
           }}
         />

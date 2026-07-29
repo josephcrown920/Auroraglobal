@@ -30,6 +30,17 @@ STATE_FILE="$ROOT/.local/.github-sync-last-sha"
 INTERVAL_SECONDS="${GITHUB_SYNC_INTERVAL_SECONDS:-30}"
 mkdir -p "$(dirname "$STATE_FILE")"
 
+# ── Main-workspace guard ─────────────────────────────────────────────────────
+# Task-agent / isolated-environment clones of this project run these exact same
+# workflows, including this daemon. On 2026-07-29 one of them force-pushed its
+# own lineage over Auroraglobal/Main, overwriting the real workspace's history
+# on GitHub. Only the primary workspace may ever publish to GitHub.
+MAIN_REPL_ID="70e0e8ce-1ee1-49b1-8d1e-35dc6c558d3d"
+if [[ "${REPL_ID:-}" != "$MAIN_REPL_ID" ]]; then
+  echo "[github-sync] Not the main workspace (REPL_ID=${REPL_ID:-unset}); GitHub publishing is disabled in this environment. Idling."
+  exec sleep infinity
+fi
+
 echo "[github-sync] daemon starting (poll every ${INTERVAL_SECONDS}s)"
 
 if [[ -z "${GITHUB_TOKEN:-}" ]]; then

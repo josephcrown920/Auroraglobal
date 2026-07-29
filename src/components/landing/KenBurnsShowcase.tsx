@@ -88,7 +88,7 @@ export function KenBurnsShowcase() {
             <p className="aurora-kicker mb-4">{s.kicker}</p>
             <h2
               className="text-[2.6rem] font-black tracking-tight leading-[1.05] text-white whitespace-pre-line"
-              style={{ textShadow: "0 2px 40px oklch(0.72 0.2 300 / 0.25)" }}
+              style={{ textShadow: "0 2px 40px oklch(0.775 0.148 307 / 0.35)" }}
             >
               {s.headline}
             </h2>
@@ -112,7 +112,7 @@ export function KenBurnsShowcase() {
             <p className="aurora-kicker mb-4">{s.kicker}</p>
             <h2
               className="text-[2.6rem] font-black tracking-tight leading-[1.05] text-white whitespace-pre-line"
-              style={{ textShadow: "0 2px 40px oklch(0.72 0.2 300 / 0.25)" }}
+              style={{ textShadow: "0 2px 40px oklch(0.775 0.148 307 / 0.35)" }}
             >
               {s.headline}
             </h2>

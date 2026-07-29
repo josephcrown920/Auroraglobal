@@ -102,7 +102,7 @@ function GalleryCard({ item, height, onTry }: { item: GenItem; height: number; o
         {hovered && (
           <span style={{
             display: "flex", alignItems: "center", gap: 5,
-            background: "oklch(0.72 0.20 300)",
+            background: "var(--primary)",
             padding: "6px 14px", borderRadius: 20,
             color: "#fff", fontSize: 13, fontWeight: 700,
           }}>
@@ -299,8 +299,8 @@ function HomePage() {
                 style={{
                   flexShrink: 0,
                   padding: "5px 13px", borderRadius: 20,
-                  border: `1px solid ${active ? "oklch(0.72 0.20 300)" : "oklch(1 0 0 / 0.10)"}`,
-                  background: active ? "oklch(0.72 0.20 300 / 0.18)" : "oklch(1 0 0 / 0.04)",
+                  border: `1px solid ${active ? "var(--primary)" : "oklch(1 0 0 / 0.10)"}`,
+                  background: active ? "oklch(0.60 0.24 293 / 0.18)" : "oklch(1 0 0 / 0.04)",
                   color: active ? "oklch(0.82 0.16 300)" : "oklch(0.55 0.01 272)",
                   fontSize: 13, fontWeight: 600, cursor: "pointer",
                   transition: "all 0.15s", whiteSpace: "nowrap",
@@ -371,8 +371,8 @@ function HomePage() {
                 style={{
                   flexShrink: 0, display: "flex", alignItems: "center", gap: 5,
                   padding: "5px 10px", borderRadius: 16,
-                  border: `1px solid ${active ? "oklch(0.72 0.20 300)" : "oklch(1 0 0 / 0.08)"}`,
-                  background: active ? "oklch(0.72 0.20 300 / 0.18)" : "oklch(1 0 0 / 0.04)",
+                  border: `1px solid ${active ? "var(--primary)" : "oklch(1 0 0 / 0.08)"}`,
+                  background: active ? "oklch(0.60 0.24 293 / 0.18)" : "oklch(1 0 0 / 0.04)",
                   color: active ? "oklch(0.82 0.16 300)" : "oklch(0.55 0.01 272)",
                   fontSize: 11, fontWeight: 600, cursor: "pointer", transition: "all 0.15s",
                 }}
@@ -437,11 +437,11 @@ function HomePage() {
             type="submit"
             style={{
               width: 44, height: 44, borderRadius: 22, flexShrink: 0,
-              background: "linear-gradient(135deg, oklch(0.72 0.20 300), oklch(0.45 0.20 300))",
+              background: "var(--gradient-hero)",
               border: "none",
               display: "flex", alignItems: "center", justifyContent: "center",
               cursor: "pointer",
-              boxShadow: "0 4px 18px -4px oklch(0.72 0.20 300 / 0.65)",
+              boxShadow: "var(--shadow-glow-soft)",
             }}
           >
             <Zap size={20} color="#fff" />

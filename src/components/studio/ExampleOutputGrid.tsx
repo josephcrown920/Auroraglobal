@@ -48,7 +48,7 @@ export function ExampleOutputGrid({
         }
         .eg-img { animation: ken-burns 5s ease-in-out infinite alternate; will-change: transform; }
         .eg-card { transition: transform 300ms ease, box-shadow 300ms ease; }
-        .eg-card:hover { transform: translateY(-4px); box-shadow: 0 0 0 1.5px oklch(0.78 0.18 305/0.65), 0 16px 40px oklch(0.78 0.18 305/0.25); }
+        .eg-card:hover { transform: translateY(-4px); box-shadow: 0 0 0 1.5px oklch(0.70 0.17 294/0.65), 0 16px 40px oklch(0.775 0.148 307/0.30); }
         /* reveal-card: starts hidden, animates in when data-revealed is set */
         .reveal-card { opacity: 0; transform: translateY(20px); transition: opacity 400ms ease-out, transform 400ms ease-out; }
         .reveal-card[data-revealed="true"] { opacity: 1; transform: translateY(0); }

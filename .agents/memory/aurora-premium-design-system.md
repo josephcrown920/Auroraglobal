@@ -22,8 +22,10 @@ glass/gradient recipe per surface.
   pointer-events:none`); and the real content wrapper gets `relative z-10` so the
   ambient glow can never overlay/block clicks. Landing (`index.tsx`) is the deliberate
   exception — it keeps its bespoke `bg-[#070612]` + radial glows.
-- Convert hardcoded `white/alpha` surfaces and **brand** violet/fuchsia accents →
-  primary tokens / aurora utilities for cohesion.
+- Convert hardcoded `white/alpha` surfaces and **brand** purple accents →
+  primary tokens / aurora utilities for cohesion. Brand primary = electric violet
+  `oklch(0.60 0.24 293)` `#8d54ff` (see aurora-theme-system.md; pale
+  `oklch(0.72 0.20 300)` was owner-rejected as not premium/glowing).
 - KEEP semantic status colors as-is: emerald/amber/rose/destructive/sky (scores,
   approvals, progress, success/error, admin). Never recolor those to brand primary.
 - Eyebrow/overline labels → `aurora-kicker`; hero/section emphasis → `aurora-gradient-text`.
