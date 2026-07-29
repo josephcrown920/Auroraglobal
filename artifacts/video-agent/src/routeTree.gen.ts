@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApexRouteImport } from './routes/apex'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as PlaygroundRouteImport } from './routes/playground'
@@ -23,6 +24,11 @@ import { Route as ApiGenerateImageRouteImport } from './routes/api/generate-imag
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApexRoute = ApexRouteImport.update({
+  id: '/apex',
+  path: '/apex',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DocsRoute = DocsRouteImport.update({
@@ -73,6 +79,7 @@ const ApiGenerateImageRoute = ApiGenerateImageRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/apex': typeof ApexRoute
   '/docs': typeof DocsRoute
   '/gallery': typeof GalleryRoute
   '/playground': typeof PlaygroundRoute
@@ -85,6 +92,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/apex': typeof ApexRoute
   '/docs': typeof DocsRoute
   '/gallery': typeof GalleryRoute
   '/playground': typeof PlaygroundRoute
@@ -98,6 +106,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/apex': typeof ApexRoute
   '/docs': typeof DocsRoute
   '/gallery': typeof GalleryRoute
   '/playground': typeof PlaygroundRoute
@@ -112,6 +121,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/apex'
     | '/docs'
     | '/gallery'
     | '/playground'
@@ -124,6 +134,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/apex'
     | '/docs'
     | '/gallery'
     | '/playground'
@@ -136,6 +147,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/apex'
     | '/docs'
     | '/gallery'
     | '/playground'
@@ -149,6 +161,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApexRoute: typeof ApexRoute
   DocsRoute: typeof DocsRoute
   GalleryRoute: typeof GalleryRoute
   PlaygroundRoute: typeof PlaygroundRoute
@@ -167,6 +180,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/apex': {
+      id: '/apex'
+      path: '/apex'
+      fullPath: '/apex'
+      preLoaderRoute: typeof ApexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/docs': {
@@ -237,6 +257,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApexRoute: ApexRoute,
   DocsRoute: DocsRoute,
   GalleryRoute: GalleryRoute,
   PlaygroundRoute: PlaygroundRoute,

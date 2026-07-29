@@ -74,17 +74,78 @@ export const Route = createFileRoute("/")({
 });
 
 const HERO_SLIDES = [
-  "/hero/hero-new-1.png",
-  "/hero/hero-new-2.png",
-  "/hero/hero-1.png",
-  "/hero/hero-2.png",
-  "/hero/hero-3.png",
-  "/hero/hero-4.png",
-  "/hero/hero-5.png",
-  "/hero/hero-6.png",
-  "/hero/hero-7.png",
-  "/hero/hero-8.png",
-  "/hero/hero-9.png",
+  {
+    src: "/hero/hero-new-1.png",
+    eyebrow: "Flagship Feature",
+    headline: "Perform Anywhere",
+    sub: "Turn a phone recording into a cinematic music video. No crew. No studio. Just you.",
+    cta: "Try Perform Anywhere →",
+    ctaTo: "/perform",
+  },
+  {
+    src: "/hero/hero-new-2.png",
+    eyebrow: "Go Viral",
+    headline: "Go Viral On TikTok In 30 Seconds",
+    sub: "TikTok30 generates 30 campaign-ready posts from a single idea. Post daily. Grow fast.",
+    cta: "Launch TikTok30 Free →",
+    ctaTo: "/spin",
+  },
+  {
+    src: "/hero/hero-colors.png",
+    eyebrow: "Colors Performance Studio",
+    headline: "One Recording. Infinite Colors.",
+    sub: "Record 30 seconds on your phone. Pick a color palette. Pick an outfit. Aurora delivers unlimited cinematic content — on demand, every drop.",
+    cta: "Start Colors Studio Free →",
+    ctaTo: "/colors",
+  },
+  {
+    src: "/hero/hero-4.png",
+    eyebrow: "Video Agent",
+    headline: "Your AI Creative Director",
+    sub: "Describe your vision. Chat a shot. Get a fully rendered music video back in minutes.",
+    cta: "Open Video Agent →",
+    ctaTo: "/agent",
+  },
+  {
+    src: "/hero/hero-5.png",
+    eyebrow: "GRWM Studio",
+    headline: "From Selfie to Studio Reel",
+    sub: "Drop one photo. Swap outfits. Aurora builds your talking GRWM reel — ready to post.",
+    cta: "Make Your GRWM Reel →",
+    ctaTo: "/studio",
+  },
+  {
+    src: "/hero/hero-6.png",
+    eyebrow: "Motion Control",
+    headline: "Your 30-Second Clip. Any Scene.",
+    sub: "Your real performance. Any location on earth — or off it. Aurora places you in the scene.",
+    cta: "Control Your Scene →",
+    ctaTo: "/motion",
+  },
+  {
+    src: "/hero/hero-7.png",
+    eyebrow: "Press Ready",
+    headline: "$50K Look. Zero Crew.",
+    sub: "Studio-grade press photos and tour visuals. Shot on your phone. Delivered in minutes.",
+    cta: "Get Press-Ready Now →",
+    ctaTo: "/music-video",
+  },
+  {
+    src: "/hero/hero-8.png",
+    eyebrow: "Scale Fast",
+    headline: "10 Hours Saved Every Week",
+    sub: "1,000+ artists scaling their content with Aurora. Join them. Start free today.",
+    cta: "Start Scaling Today →",
+    ctaTo: "/auth",
+  },
+  {
+    src: "/hero/hero-9.png",
+    eyebrow: "Built for Artists",
+    headline: "No Studio. No Limits.",
+    sub: "Every tool. Every release. From anywhere on your phone. This is Aurora.",
+    cta: "Create From Anywhere →",
+    ctaTo: "/auth",
+  },
 ];
 
 const FEATURED_TOOLS = [
@@ -201,7 +262,7 @@ function LandingPage() {
   const [slideIdx, setSlideIdx] = useState(0);
   const [demoOpen, setDemoOpen] = useState(false);
   useEffect(() => {
-    const t = setInterval(() => setSlideIdx((i) => (i + 1) % HERO_SLIDES.length), 8000);
+    const t = setInterval(() => setSlideIdx((i) => (i + 1) % HERO_SLIDES.length), 10000);
     return () => clearInterval(t);
   }, []);
 
@@ -261,10 +322,10 @@ function LandingPage() {
       <header className="relative -mt-14 flex min-h-screen flex-col justify-end overflow-hidden pb-20 px-5">
         {/* Slideshow */}
         <div className="absolute inset-0 z-0">
-          {HERO_SLIDES.map((src, i) => (
+          {HERO_SLIDES.map((slide, i) => (
             <img
-              key={src}
-              src={src}
+              key={slide.src}
+              src={slide.src}
               alt=""
               aria-hidden="true"
               width={1200}
@@ -279,20 +340,33 @@ function LandingPage() {
           <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/25 to-transparent" />
         </div>
 
-        {/* Text content */}
+        {/* Text content — transitions with each slide */}
         <div className="relative z-10 max-w-sm">
-          <p className="mb-3 flex items-center gap-2 font-serif italic text-amber-400 text-sm">
-            <span className="inline-block size-1.5 rounded-full bg-[#e5383b]" />
-            By Artists, for Artists
-          </p>
-          <h1 className="text-[2.9rem] font-semibold leading-[0.93] tracking-tight text-white">
-            Turn your phone recording into a
-            <br />
-            <span className="font-serif italic">cinematic music video.</span>
-          </h1>
-          <p className="mt-5 text-base leading-relaxed text-zinc-200">
-            Create videos that look like a $50,000 production — for a fraction of the cost. Aurora saves creators 10 hours a week and grows audiences. No crew required.
-          </p>
+          {HERO_SLIDES.map((slide, i) => (
+            <div
+              key={slide.src}
+              className={`transition-opacity duration-700 ${
+                i === slideIdx ? "opacity-100" : "opacity-0 absolute inset-0 pointer-events-none"
+              }`}
+            >
+              <p className="mb-3 flex items-center gap-2 font-serif italic text-amber-400 text-sm">
+                <span className="inline-block size-1.5 rounded-full bg-[#e5383b]" />
+                {slide.eyebrow}
+              </p>
+              <h1 className="text-[2.9rem] font-semibold leading-[0.93] tracking-tight text-white">
+                <span className="font-serif italic">{slide.headline}</span>
+              </h1>
+              <p className="mt-5 text-base leading-relaxed text-zinc-200">
+                {slide.sub}
+              </p>
+              <Link
+                to={user ? slide.ctaTo : "/auth"}
+                className="mt-6 inline-flex w-fit items-center gap-1.5 text-sm font-bold text-[#e5383b] hover:text-white transition-colors"
+              >
+                {slide.cta}
+              </Link>
+            </div>
+          ))}
           <div className="mt-8 flex flex-col gap-3">
             <Link
               to={ctaTo}
@@ -430,6 +504,67 @@ function LandingPage() {
             See all tools <ArrowUpRight className="size-4" />
           </Link>
         </div>
+      </section>
+
+      {/* ── Colors Performance Studio Showcase ──────────────────────────── */}
+      <section id="colors" className="py-20 px-5 border-t border-white/5 bg-zinc-950">
+        <div className="mb-8">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
+            Colors Performance Studio
+          </span>
+          <h2 className="mt-3 text-4xl font-semibold leading-tight">
+            One recording.{" "}
+            <span className="font-serif italic">Infinite colors.</span>
+          </h2>
+          <p className="mt-4 text-base text-zinc-300 max-w-[38ch] leading-relaxed">
+            Record 30 seconds on your phone. Pick a color palette. Pick an outfit. Aurora generates unlimited cinematic content — every drop, on demand, as an artist.
+          </p>
+          {/* 3-step flow */}
+          <div className="mt-6 flex flex-col gap-3">
+            {[
+              { step: "01", label: "Record", desc: "30 seconds on your phone — any room, any lighting." },
+              { step: "02", label: "Pick a Color", desc: "Choose your scene palette. Pink. Blue. Orange. Gold. Any vibe." },
+              { step: "03", label: "Pick an Outfit", desc: "Aurora dresses you and drops you in the scene. Unlimited looks, zero fitting rooms." },
+            ].map(({ step, label, desc }) => (
+              <div key={step} className="flex items-start gap-4 rounded-xl bg-white/4 ring-1 ring-white/8 px-4 py-3">
+                <span className="text-[11px] font-black tracking-widest text-[#e5383b] mt-0.5 shrink-0">{step}</span>
+                <div>
+                  <p className="text-sm font-semibold text-white">{label}</p>
+                  <p className="text-xs text-zinc-400 leading-relaxed mt-0.5">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Photo grid — shows what Colors can produce */}
+        <div className="grid grid-cols-2 gap-2 mb-8">
+          {[
+            { src: "/colors/colors-1.jpg", alt: "Colors Studio — orange performance session" },
+            { src: "/colors/colors-2.jpg", alt: "Colors Studio — blue studio session" },
+            { src: "/colors/colors-3.jpg", alt: "Colors Studio — yellow cyc session" },
+            { src: "/colors/colors-4.jpg", alt: "Colors Studio — red stage session" },
+            { src: "/colors/colors-5.jpg", alt: "Colors Studio — outdoor session" },
+            { src: "/colors/colors-6.png", alt: "Colors Studio — editorial session" },
+          ].map(({ src, alt }) => (
+            <div key={src} className="aspect-[3/4] overflow-hidden rounded-xl bg-zinc-900 ring-1 ring-white/8">
+              <img
+                src={src}
+                alt={alt}
+                loading="lazy"
+                className="h-full w-full object-cover object-top transition-transform duration-500 hover:scale-105"
+              />
+            </div>
+          ))}
+        </div>
+
+        <Link
+          to="/colors"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#e5383b] py-4 text-base font-bold text-white shadow-[0_10px_40px_-10px_rgba(229,56,59,0.7)] transition-transform hover:scale-[1.01] active:scale-95"
+        >
+          <Palette className="size-5 shrink-0" />
+          Start Colors Studio Free — Pick Your Color Now
+        </Link>
       </section>
 
       {/* ── Viral Engine ─────────────────────────────────────────────── */}
