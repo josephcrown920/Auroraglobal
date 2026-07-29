@@ -47,7 +47,10 @@ export function ToolSection({ title, accentColor, iconBg, iconBorder, tools }: T
           WebkitOverflowScrolling: "touch",
         } as React.CSSProperties}
       >
-        {tools.map((tool) => (
+        {tools.map((tool) => {
+          // Alias to uppercase so the cartographer/JSX transform resolves it as a component
+          const ToolIcon = tool.Icon;
+          return (
           <Link
             key={tool.to}
             to={tool.to}
@@ -109,7 +112,7 @@ export function ToolSection({ title, accentColor, iconBg, iconBorder, tools }: T
                   justifyContent: "center",
                 }}
               >
-                <tool.Icon size={12} color={accentColor} />
+                <ToolIcon size={12} color={accentColor} />
               </div>
 
               {/* Cost badge — top-right */}
@@ -166,7 +169,8 @@ export function ToolSection({ title, accentColor, iconBg, iconBorder, tools }: T
               </div>
             </div>
           </Link>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
