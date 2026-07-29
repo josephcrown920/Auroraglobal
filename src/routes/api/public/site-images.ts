@@ -10,7 +10,18 @@ export const Route = createFileRoute("/api/public/site-images")({
           .from("site_images")
           .select("key, url")
           .order("key");
-        if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+        // This endpoint is an optional override layer. Some environments may
+        // not have received the site_images migration yet; in that case the
+        // landing page must keep using its bundled defaults instead of
+        // surfacing a runtime 500. Preserve real database failures so they
+        // remain observable and actionable.
+        if (error) {
+          const missingTable = error.code === "PGRST205" || /could not find the table ['"]?public\.site_images/i.test(error.message);
+          if (missingTable) {
+            return new Response("[]", { headers: { "Content-Type": "application/json" } });
+          }
+          return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+        }
         return new Response(JSON.stringify(data ?? []), { headers: { "Content-Type": "application/json" } });
       },
     },
