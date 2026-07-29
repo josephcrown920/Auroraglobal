@@ -74,6 +74,8 @@ export const Route = createFileRoute("/")({
 });
 
 const HERO_SLIDES = [
+  "/hero/hero-new-1.png",
+  "/hero/hero-new-2.png",
   "/hero/hero-1.png",
   "/hero/hero-2.png",
   "/hero/hero-3.png",
@@ -199,7 +201,7 @@ function LandingPage() {
   const [slideIdx, setSlideIdx] = useState(0);
   const [demoOpen, setDemoOpen] = useState(false);
   useEffect(() => {
-    const t = setInterval(() => setSlideIdx((i) => (i + 1) % HERO_SLIDES.length), 4500);
+    const t = setInterval(() => setSlideIdx((i) => (i + 1) % HERO_SLIDES.length), 8000);
     return () => clearInterval(t);
   }, []);
 

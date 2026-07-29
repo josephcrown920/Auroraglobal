@@ -33,7 +33,7 @@ export const Route = createFileRoute("/api/generate-image")({
             prompt,
             n: 1,
             size: "1024x1024",
-            quality: "standard",
+            quality: "medium",
             output_format: "png",
             stream: true,
           }),
