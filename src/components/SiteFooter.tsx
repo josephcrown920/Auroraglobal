@@ -24,7 +24,10 @@ export function SiteFooter({ tone = "dark" }: { tone?: "dark" | "light" }) {
       <div className="max-w-6xl mx-auto grid gap-8 md:grid-cols-[1fr_2fr] items-start">
         <div className="flex items-center gap-2">
           <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20 shadow-[var(--shadow-glow-soft)]"><span className="inline-block size-2.5 rounded-full bg-primary" /></span>
-          <span className="font-semibold tracking-tight">Aurora Studio</span>
+          <div>
+            <span className="font-semibold tracking-tight">Aurora Performance Studio</span>
+            <p className="text-[10px] font-medium tracking-[0.14em] uppercase text-white/40 mt-0.5">For Artists &amp; Creators</p>
+          </div>
         </div>
         <nav className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-2 text-sm">
           <Link to="/studio" className={`no-underline ${muted}`}>Image &amp; Video</Link>
@@ -46,7 +49,7 @@ export function SiteFooter({ tone = "dark" }: { tone?: "dark" | "light" }) {
         </nav>
       </div>
       <p className={`text-center text-xs mt-8 ${dim}`}>
-        © {new Date().getFullYear()} Aurora Studio. AI-generated content — review before publishing.
+        © {new Date().getFullYear()} Aurora Performance Studio. AI-generated content — review before publishing.
         {/* Hidden owner entrance: tap the dot 7× within 3s */}
         <button
           type="button"

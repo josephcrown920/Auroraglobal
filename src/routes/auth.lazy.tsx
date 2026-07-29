@@ -257,10 +257,44 @@ function AuthPage() {
       navigate({ to: "/home" });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("cancelled") || msg.includes("abort") || msg.includes("NotAllowed")) {
-        return; // User dismissed — silent
+      // User dismissed the native picker — stay silent
+      if (
+        msg.includes("cancelled") ||
+        msg.includes("cancel") ||
+        msg.includes("abort") ||
+        msg.toLowerCase().includes("notallowed") ||
+        msg.includes("NotAllowedError")
+      ) {
+        return;
       }
-      toast.error(msg || "Biometric sign-in failed");
+      // No passkey registered yet for this device
+      if (
+        msg.includes("not recognised") ||
+        msg.includes("not recognized") ||
+        msg.includes("No credentials") ||
+        msg.includes("no credentials") ||
+        msg.includes("email first")
+      ) {
+        toast.error(
+          "No Face ID / fingerprint saved yet. Sign in with your password first, then enable biometrics in Settings.",
+          { duration: 6000 }
+        );
+        return;
+      }
+      // No passkeys at all on this device for this domain
+      if (
+        msg.includes("no available") ||
+        msg.includes("no passkey") ||
+        msg.includes("NotSupportedError") ||
+        msg.includes("InvalidStateError")
+      ) {
+        toast.error(
+          "This device has no saved passkey for Aurora. Sign in with your password, then set up Face ID in Settings.",
+          { duration: 6000 }
+        );
+        return;
+      }
+      toast.error(msg || "Biometric sign-in failed — try your password instead.");
     } finally {
       setBioBusy(false);
     }
@@ -345,9 +379,12 @@ function AuthPage() {
     <main className="min-h-screen flex items-center justify-center px-4 bg-zinc-950 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 65% 25%, oklch(0.58 0.22 25 / 0.10), transparent 55%), radial-gradient(ellipse at 20% 80%, oklch(0.085 0.022 272 / 0.6), transparent 50%)" }} />
       <div className="relative w-full max-w-md rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-8">
-        <Link to="/" className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-100 transition-colors mb-5">
-          <span className="inline-block size-1.5 rounded-full bg-brand" />
-          <span className="text-xs font-semibold uppercase tracking-widest">Aurora Studio</span>
+        <Link to="/" className="inline-flex flex-col gap-0.5 mb-5 group">
+          <span className="inline-flex items-center gap-2">
+            <span className="inline-block size-1.5 rounded-full bg-brand" />
+            <span className="text-xs font-bold uppercase tracking-widest text-zinc-300 group-hover:text-white transition-colors">Aurora Performance Studio</span>
+          </span>
+          <span className="text-[10px] font-medium tracking-[0.15em] uppercase text-zinc-500 pl-3.5">For Artists &amp; Creators</span>
         </Link>
 
         {/* Mode tab switcher */}
@@ -429,16 +466,17 @@ function AuthPage() {
                 autoComplete={mode === "signup" ? "new-password" : "current-password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="pr-11"
+                className="pr-12 [&::-ms-reveal]:hidden [&::-webkit-contacts-auto-fill-button]:hidden"
               />
+              {/* 44×44 touch target so the toggle is reliably tappable on mobile */}
               <button
                 type="button"
                 tabIndex={-1}
                 onClick={() => setShowPassword((v) => !v)}
                 aria-label={showPassword ? "Hide password" : "Show password"}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-1 top-1/2 -translate-y-1/2 z-10 flex size-10 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors touch-manipulation"
               >
-                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                {showPassword ? <EyeOff className="size-4.5" /> : <Eye className="size-4.5" />}
               </button>
             </div>
           </div>

@@ -80,7 +80,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { name: "author", content: "Aurora" },
       { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "Aurora" },
+      { property: "og:site_name", content: "Aurora Performance Studio" },
       { property: "og:url", content: CANONICAL_ORIGIN },
       { title: "Aurora — AI Creative Studio for Artists & Performers" },
       { property: "og:title", content: "Aurora — AI Creative Studio for Artists & Performers" },
