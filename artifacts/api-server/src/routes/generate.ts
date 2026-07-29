@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, generationsTable, usersTable, creditTransactionsTable } from "@workspace/db";
+import { db, generationsTable, usersTable } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 import {
   GeneratePhotoBody,
@@ -13,17 +13,19 @@ import {
 import { requireAuth } from "../lib/auth";
 import { toAbsoluteMediaUrl } from "../lib/mediaUrl";
 import { serializeGen } from "./dashboard";
+import { sendPushToUser } from "../lib/push";
+import {
+  refundCredits,
+  encodeProviderJobId,
+  syncProviderStatus,
+} from "../lib/generationSync";
 import {
   hasFal,
   falSubmitPhoto,
-  falPollPhoto,
   falSubmitUgc,
-  falPollUgc,
   falSubmitMusicVideo,
-  falPollMusicVideo,
   resolveVideoProvider,
   resolveLipsyncProvider,
-  type ProviderStatus,
 } from "../lib/providers";
 
 const router: IRouter = Router();
@@ -93,31 +95,6 @@ async function deductCredits(userId: string, amount: number): Promise<{ success:
   return { success: true, remaining: result[0].credits };
 }
 
-async function refundCredits(
-  userId: string,
-  amount: number,
-  generationId: string,
-  reason: string = "provider_failure",
-): Promise<void> {
-  // Add credits back and get the new balance
-  const result = await db
-    .update(usersTable)
-    .set({ credits: sql`${usersTable.credits} + ${amount}` })
-    .where(eq(usersTable.id, userId))
-    .returning({ credits: usersTable.credits });
-
-  const balanceAfter = result[0]?.credits ?? 0;
-
-  await db.insert(creditTransactionsTable).values({
-    userId,
-    amount,
-    type: "refund",
-    description: `Credit refund: ${reason} (generation ${generationId})`,
-    reference: generationId,
-    balanceAfter,
-  });
-}
-
 async function createGeneration(
   userId: string,
   type: keyof typeof CREDIT_COSTS,
@@ -138,115 +115,6 @@ async function createGeneration(
     })
     .returning();
   return gen;
-}
-
-// ─── Provider job dispatch ────────────────────────────────────────────────────
-
-/**
- * Encode the provider name + external job ID into a single string stored in
- * `providerJobId` so we know which provider to poll later.
- * Format: "{providerName}:{externalJobId}"
- */
-function encodeProviderJobId(providerName: string, jobId: string): string {
-  return `${providerName}:${jobId}`;
-}
-
-function decodeProviderJobId(raw: string): { providerName: string; jobId: string } | null {
-  const idx = raw.indexOf(":");
-  if (idx < 1) return null;
-  return { providerName: raw.slice(0, idx), jobId: raw.slice(idx + 1) };
-}
-
-/**
- * Poll an already-submitted provider job and update the DB row when done.
- * Called from GET /generate/:id so every client poll drives a real provider check.
- */
-async function syncProviderStatus(generationId: string, providerJobId: string, type: string): Promise<void> {
-  const decoded = decodeProviderJobId(providerJobId);
-  if (!decoded) return;
-
-  const { providerName, jobId } = decoded;
-
-  let result: ProviderStatus | null = null;
-
-  try {
-    switch (providerName) {
-      case "fal-photo":
-        result = await falPollPhoto(jobId);
-        break;
-      case "fal-video":
-        result = await (await import("../lib/providers")).falPollVideo(jobId);
-        break;
-      case "fal-ugc":
-        result = await falPollUgc(jobId);
-        break;
-      case "fal-music_video":
-        result = await falPollMusicVideo(jobId);
-        break;
-      case "kling":
-        result = await (await import("../lib/providers")).klingPollVideo(jobId);
-        break;
-      case "seedance":
-        result = await (await import("../lib/providers")).seedancePollVideo(jobId);
-        break;
-      case "sync":
-        result = await (await import("../lib/providers")).syncPollLipsync(jobId);
-        break;
-      case "heygen":
-        result = await (await import("../lib/providers")).heygenPollLipsync(jobId);
-        break;
-      default:
-        return;
-    }
-  } catch (err: any) {
-    // Polling error — log but don't crash; DB row stays as-is
-    console.error(`[providers] poll error for ${providerName} job ${jobId}:`, err?.message);
-    return;
-  }
-
-  if (!result) return;
-
-  if (result.status === "completed") {
-    await db
-      .update(generationsTable)
-      .set({
-        status: "completed",
-        outputUrl: result.outputUrl,
-        thumbnailUrl: result.thumbnailUrl ?? result.outputUrl ?? null,
-        progress: 100,
-        completedAt: new Date(),
-      })
-      .where(eq(generationsTable.id, generationId));
-  } else if (result.status === "failed") {
-    // Fetch the generation to get userId and creditsUsed for the refund
-    const [gen] = await db
-      .select({ userId: generationsTable.userId, creditsUsed: generationsTable.creditsUsed })
-      .from(generationsTable)
-      .where(eq(generationsTable.id, generationId))
-      .limit(1);
-
-    await db
-      .update(generationsTable)
-      .set({
-        status: "failed",
-        errorMessage: result.error ?? "Provider job failed",
-      })
-      .where(eq(generationsTable.id, generationId));
-
-    // Issue refund for provider-side failure
-    if (gen && gen.creditsUsed > 0) {
-      await refundCredits(gen.userId, gen.creditsUsed, generationId, "provider_failure");
-    }
-  } else {
-    // processing — update progress
-    await db
-      .update(generationsTable)
-      .set({
-        status: "processing",
-        progress: result.progress ?? 30,
-      })
-      .where(eq(generationsTable.id, generationId));
-  }
 }
 
 // ─── Demo fallback simulation ─────────────────────────────────────────────────
@@ -276,7 +144,8 @@ function runDemoSimulation(generationId: string, type: string): void {
 
       const output = DEMO_OUTPUTS[type] ?? DEMO_OUTPUTS["photo"]!;
 
-      await db
+      // Atomic update: only fires push if the row wasn't already completed
+      const updated = await db
         .update(generationsTable)
         .set({
           status: "completed",
@@ -285,7 +154,29 @@ function runDemoSimulation(generationId: string, type: string): void {
           progress: 100,
           completedAt: new Date(),
         })
-        .where(eq(generationsTable.id, generationId));
+        .where(
+          and(
+            eq(generationsTable.id, generationId),
+            sql`${generationsTable.status} != 'completed'`,
+          ),
+        )
+        .returning({ userId: generationsTable.userId, type: generationsTable.type });
+
+      if (updated[0]) {
+        const { userId, type: genType } = updated[0];
+        const typeLabel =
+          genType === "photo" ? "Photo"
+          : genType === "video" ? "Video"
+          : genType === "lipsync" ? "Lip Sync"
+          : genType === "music_video" ? "Music Video"
+          : "Generation";
+        sendPushToUser(
+          userId,
+          `${typeLabel} ready! 🎉`,
+          "Your generation has finished — tap to view it in your Gallery.",
+          { screen: "gallery", generationId },
+        );
+      }
     } catch {
       await db
         .update(generationsTable)

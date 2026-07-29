@@ -11,11 +11,12 @@ import {
   Inter_700Bold,
   useFonts,
 } from '@expo-google-fonts/inter';
-import { Redirect, Slot, Stack } from 'expo-router';
+import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { ClerkProvider, ClerkLoaded, useAuth } from '@clerk/clerk-expo';
 import * as SecureStore from 'expo-secure-store';
 import { setBaseUrl, setAuthTokenGetter } from '@workspace/api-client-react';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 // Set the API base URL so Expo (outside proxy) can reach the server
 if (process.env.EXPO_PUBLIC_DOMAIN) {
@@ -58,7 +59,8 @@ const tokenCache = {
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? '';
 
 /**
- * Sets the auth token getter for API calls using Clerk's getToken.
+ * Sets the auth token getter for API calls using Clerk's getToken,
+ * and registers for push notifications once the user is signed in.
  * Must be inside ClerkProvider to access useAuth.
  */
 function AuthSetup() {
@@ -66,6 +68,10 @@ function AuthSetup() {
   useEffect(() => {
     setAuthTokenGetter(() => getToken());
   }, [getToken]);
+
+  // Register push notifications (no-op on web)
+  usePushNotifications();
+
   return null;
 }
 

@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startStaleGenerationCleanup } from "./lib/cleanup";
+import { startBackgroundPoller } from "./lib/backgroundPoller";
 
 const rawPort = process.env["PORT"];
 
@@ -26,4 +27,7 @@ app.listen(port, (err) => {
 
   // Start periodic cleanup of generations stuck in queued/processing
   startStaleGenerationCleanup();
+
+  // Start server-side background poller for real provider jobs
+  startBackgroundPoller();
 });
