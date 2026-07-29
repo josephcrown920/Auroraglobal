@@ -30,3 +30,8 @@ gen-josh-pdf.js
 # Lock files (deployer installs from package.json; bun.lock causes stale-pin issues)
 bun.lock
 package-lock.json
+
+# Per-artifact dev dependencies (~1.8 GB) — the production deploy only builds and
+# serves the flat-root app; artifact preview apps are dev-only
+artifacts/*/node_modules
+artifacts/aurora-mobile/.expo

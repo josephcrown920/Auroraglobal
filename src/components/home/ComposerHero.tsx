@@ -28,7 +28,7 @@ export function ComposerHero() {
         <br />
         <span
           className="font-serif italic"
-          style={{ color: "oklch(0.72 0.20 300)" }}
+          style={{ color: "var(--primary-glow)" }}
         >
           today?
         </span>

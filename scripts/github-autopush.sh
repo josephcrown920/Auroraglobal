@@ -42,6 +42,16 @@ EXTRA_STRIP_PATHS=(
   "attached_assets/c076509be6eb4ecc9c3e0cb16ad2ba38_1782179904594.mp4"
 )
 
+# Only the primary workspace may publish to GitHub. Task-agent clones of this
+# project run this same script via the sync daemon, and on 2026-07-29 one
+# force-pushed its own lineage over Auroraglobal/Main.
+MAIN_REPL_ID="70e0e8ce-1ee1-49b1-8d1e-35dc6c558d3d"
+if [[ "${REPL_ID:-}" != "$MAIN_REPL_ID" ]]; then
+  echo "[sync] ERROR: refusing to push from a non-main environment (REPL_ID=${REPL_ID:-unset})." >&2
+  echo "[sync] Only the primary workspace may publish to GitHub." >&2
+  exit 1
+fi
+
 if [[ -z "${GITHUB_TOKEN:-}" ]]; then
   echo "[sync] ERROR: GITHUB_TOKEN is not set (need a token with repo + workflow scopes)." >&2
   echo "[sync] Refusing to run so we never silently fail. Set the secret and re-run." >&2
