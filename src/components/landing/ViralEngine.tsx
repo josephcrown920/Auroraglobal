@@ -119,6 +119,26 @@ export function ViralEngine() {
             Pick a topic below or type your own — Aurora generates a scroll-stopping
             preview before you even sign in.
           </p>
+
+          {/* Real output showcase */}
+          <div className="mt-6 rounded-2xl overflow-hidden ring-1 ring-white/10 relative">
+            <img
+              src="/spin-demo.jpg"
+              alt="9 campaign shots generated from one studio session"
+              className="w-full object-cover"
+              loading="lazy"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+            <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand">Real output</p>
+                <p className="text-xs font-semibold text-white mt-0.5">9 campaign shots · one studio session</p>
+              </div>
+              <span className="rounded-full bg-brand/20 border border-brand/40 px-2.5 py-1 text-[10px] font-bold text-brand">
+                TikTok30
+              </span>
+            </div>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2 mb-5">
