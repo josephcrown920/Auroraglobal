@@ -95,14 +95,11 @@ for rec in sys.stdin.buffer.read().split(b"\0"):
 }
 
 echo "[sync] Cloning workspace -> $WORK/repo"
-# --no-checkout: skip writing working-tree files (attached_assets/ alone has
-# hundreds of large PNGs/PDFs that fill /tmp quota). The filter-branch strip and
-# push only need git objects, not a checked-out tree.
-GIT_LFS_SKIP_SMUDGE=1 git clone --no-hardlinks --no-checkout -q "file://$ROOT" "$WORK/repo"
-# Populate the index from HEAD so filter-branch doesn't see the empty working
-# tree as "uncommitted changes" (it calls git diff-index --cached HEAD and
-# fails if index is out of sync with HEAD, which --no-checkout leaves it).
-git read-tree HEAD
+# --bare: clones git objects only, no working tree at all.  A bare repo has no
+# concept of "unstaged changes" so filter-branch never hits the index/work-tree
+# mismatch that breaks --no-checkout clones (where read-tree populates the index
+# but the empty work-tree looks like every file is deleted).
+GIT_LFS_SKIP_SMUDGE=1 git clone --no-hardlinks --bare -q "file://$ROOT" "$WORK/repo"
 cd "$WORK/repo"
 
 ORIG_TREE="$(git rev-parse "${BRANCH}^{tree}")"
@@ -117,7 +114,7 @@ if [[ -s "$WORK/bigpaths.nul" ]]; then
   FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch --force --index-filter \
     "git rm -r --cached --ignore-unmatch --pathspec-from-file='$WORK/bigpaths.nul' --pathspec-file-nul" \
     -- "$BRANCH" >/dev/null
-  rm -rf .git/refs/original
+  rm -rf refs/original   # bare clone: refs/ is at root, no .git/ subdir
 fi
 
 # Safety 1: stripping must NOT change the published tip tree. If it did, an

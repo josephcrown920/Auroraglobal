@@ -8,7 +8,6 @@ import { track } from "@/lib/tracking";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
-const GREETED_KEY = "aurora.chatbot.greeted";
 const SHOWN_TIPS_KEY = "aurora.chatbot.shown_tips";
 const OFFER_START_KEY = "aurora_offer_start";
 const OFFER_DURATION_MS = 1000 * 60 * 60 * 24;
@@ -121,20 +120,6 @@ export function AuroraChatbot() {
     };
   }, [scheduleTip]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (sessionStorage.getItem(GREETED_KEY)) return;
-    const id = window.setTimeout(() => {
-      const greet = firstName ? `Welcome back, ${firstName} ✨` : "Welcome to Aurora ✨";
-      toast(greet, {
-        description: "Need help? Tap the chat bubble — Aurora Prime is on call.",
-        duration: 6000,
-      });
-      sessionStorage.setItem(GREETED_KEY, "1");
-      void track("chatbot_greeted");
-    }, 1800);
-    return () => window.clearTimeout(id);
-  }, [firstName]);
 
   useEffect(() => {
     if (open && messages.length === 0) {
