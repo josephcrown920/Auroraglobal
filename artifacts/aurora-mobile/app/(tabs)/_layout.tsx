@@ -24,6 +24,14 @@ function NativeTabLayout() {
         <Icon sf={{ default: 'film', selected: 'film.fill' }} />
         <Label>Video</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="lipsync">
+        <Icon sf={{ default: 'waveform', selected: 'waveform.badge.mic' }} />
+        <Label>Lip Sync</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="musicvideo">
+        <Icon sf={{ default: 'music.note.tv', selected: 'music.note.tv.fill' }} />
+        <Label>Music Video</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="gallery">
         <Icon sf={{ default: 'photo.on.rectangle', selected: 'photo.on.rectangle.angled.fill' }} />
         <Label>Gallery</Label>
@@ -107,6 +115,30 @@ function ClassicTabLayout() {
               <SymbolView name="film" tintColor={color} size={22} />
             ) : (
               <Feather name="film" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="lipsync"
+        options={{
+          title: 'Lip Sync',
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="waveform" tintColor={color} size={22} />
+            ) : (
+              <Feather name="mic" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="musicvideo"
+        options={{
+          title: 'Music Video',
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="music.note.tv" tintColor={color} size={22} />
+            ) : (
+              <Feather name="music" size={22} color={color} />
             ),
         }}
       />
