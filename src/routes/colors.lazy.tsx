@@ -495,6 +495,27 @@ function ColorsStudio() {
             </p>
           </div>
 
+          {/* Real output proof — 9 shots from one session */}
+          <div className="relative rounded-2xl overflow-hidden ring-1 ring-white/10">
+            <img
+              src="/spin-demo.jpg"
+              alt="9 cinematic shots generated from one Colors Studio session"
+              className="w-full object-cover"
+              loading="lazy"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
+            <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-2">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Real output</p>
+                <p className="text-xs font-semibold text-white mt-0.5">9 cinematic shots · one 30-second recording</p>
+                <p className="text-[10px] text-white/60 mt-0.5">Pick a color → pick an outfit → unlimited content</p>
+              </div>
+              <span className="shrink-0 rounded-full bg-primary/20 border border-primary/40 px-2.5 py-1 text-[10px] font-bold text-primary">
+                Colors Studio
+              </span>
+            </div>
+          </div>
+
           <ColorsStudioGuide />
 
           {/* Featured live studio set — switches with the selected swatch */}
