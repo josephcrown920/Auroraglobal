@@ -6,7 +6,7 @@ import demo2 from "@/assets/demo-2.mov.asset.json";
 
 const SERVICES = [
   { icon: Wand2, title: "Music Video Lip Sync", desc: "Frame-accurate Sync 1.9 lip-sync. Drop your track — get a music video that looks like you really sang it.", to: "/lipsync" as const, accent: "from-emerald-500/30 to-teal-500/10", video: null as string | null },
-  { icon: Megaphone, title: "Beat-Sync Remix Factory", desc: "Turn one song into a week of TikToks. Pick an AI avatar, ship scroll-stopping music clips in seconds.", to: "/ugc" as const, accent: "from-rose-500/30 to-pink-500/10", video: demo1.url },
+  { icon: Megaphone, title: "Beat-Sync Remix Factory", desc: "Turn one song into a week of TikToks. Pick an AI avatar, ship scroll-stopping music clips in seconds.", to: "/ugc" as const, accent: "from-violet-500/30 to-fuchsia-500/10", video: demo1.url },
   { icon: Film, title: "Video Generation", desc: "Cinematic 5–10s performance clips. Seedance 2.0 and Kling 3.0 in one canvas.", to: "/studio" as const, accent: "from-indigo-500/30 to-violet-500/10", video: demo2.url },
   { icon: ImageIcon, title: "Image Generation", desc: "Cover art and press shots from a selfie. Seedream 4.5, Nano Banana Pro.", to: "/studio" as const, accent: "from-violet-500/30 to-fuchsia-500/10", video: null as string | null },
   { icon: Palette, title: "Cover Art Studio", desc: "Pick a color, pick a studio. Pro mic, pro lighting, single-cover-grade portraits.", to: "/colors" as const, accent: "from-amber-500/30 to-orange-500/10", video: null as string | null },

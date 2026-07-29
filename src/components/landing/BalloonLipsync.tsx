@@ -282,7 +282,7 @@ export function BalloonLipsync() {
             ref={glowRef}
             className="absolute inset-x-0 bottom-0 h-32 pointer-events-none"
             style={{
-              background: "linear-gradient(to top, rgba(236,72,153,0.35), transparent)",
+               background: "linear-gradient(to top, rgba(168,85,247,0.35), transparent)",
               opacity: 0.35,
             }}
           />
@@ -294,7 +294,7 @@ export function BalloonLipsync() {
 
           {/* Lyrics overlay */}
           <div className="absolute inset-x-0 bottom-20 px-6 text-center pointer-events-none">
-            <p className="text-[10px] uppercase tracking-[0.3em] text-pink-200/80 mb-2">
+            <p className="text-[10px] uppercase tracking-[0.3em] text-primary/80 mb-2">
               Now playing · lyrics
             </p>
             <p
@@ -313,7 +313,7 @@ export function BalloonLipsync() {
                   key={i}
                   className="block flex-1 rounded-sm origin-bottom"
                   style={{
-                    background: "linear-gradient(to top, #ec4899, #a855f7, #22d3ee)",
+                     background: "linear-gradient(to top, #a855f7, #7c3aed, #22d3ee)",
                     transform: "scaleY(0.08)",
                     opacity: 0.4,
                   }}
@@ -323,19 +323,19 @@ export function BalloonLipsync() {
           </div>
 
           {/* Live tag */}
-          <div className="absolute top-4 left-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-pink-500/90 text-[10px] font-bold uppercase tracking-widest text-white shadow-lg">
+          <div className="absolute top-4 left-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/90 text-[10px] font-bold uppercase tracking-widest text-white shadow-lg">
             <span className="size-1.5 rounded-full bg-white animate-pulse" /> Live lip-sync
           </div>
         </div>
 
         {/* Side panel */}
         <div className="relative p-6 md:p-10 flex flex-col justify-center">
-          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-pink-300/40 bg-pink-500/10 text-pink-200 text-[11px] uppercase tracking-widest w-fit">
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/40 bg-primary/10 text-primary/90 text-[11px] uppercase tracking-widest w-fit">
             <Sparkles className="size-3" /> Sync 1.9 · Audio reactive
           </span>
           <h2 className="mt-4 text-3xl md:text-5xl font-bold tracking-tight text-white leading-[1.05]">
             Every face{" "}
-            <span className="bg-gradient-to-r from-pink-300 via-fuchsia-300 to-violet-300 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-primary bg-clip-text text-transparent">
               sings
             </span>
             .
@@ -349,14 +349,14 @@ export function BalloonLipsync() {
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <button
               onClick={toggle}
-              className="inline-flex items-center gap-2 rounded-full bg-pink-400 px-5 py-3 text-sm font-bold text-pink-950 hover:opacity-95 shadow-[0_0_30px_-5px_rgba(236,72,153,0.7)]"
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-bold text-primary-foreground hover:opacity-95 shadow-[var(--shadow-glow-soft)]"
             >
               {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
               {playing ? "Pause hook" : "Play the hook"}
             </button>
             <a
               href="/canvas?template=lipsync-preset"
-              className="inline-flex items-center gap-2 rounded-full border border-pink-300/40 bg-white/5 px-4 py-2.5 text-sm font-medium text-pink-100 hover:bg-white/10 no-underline"
+              className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-white/5 px-4 py-2.5 text-sm font-medium text-primary/90 hover:bg-white/10 no-underline"
             >
               <Wand2 className="size-3.5" /> Use this template <ArrowRight className="size-3.5" />
             </a>
@@ -372,10 +372,10 @@ export function BalloonLipsync() {
           </span>
 
           {/* Upload your own audio → Whisper timed cues */}
-          <div className="mt-6 rounded-2xl border border-pink-300/20 bg-pink-500/5 p-4">
+          <div className="mt-6 rounded-2xl border border-primary/20 bg-primary/5 p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Mic2 className="size-4 text-pink-300" />
-              <p className="text-xs uppercase tracking-[0.2em] text-pink-200/80">
+              <Mic2 className="size-4 text-primary" />
+              <p className="text-xs uppercase tracking-[0.2em] text-primary/80">
                 Your audio → Whisper timed cues
               </p>
             </div>
@@ -383,7 +383,7 @@ export function BalloonLipsync() {
               Drop an MP3/WAV. We transcribe it with Whisper and re-time the lyric overlay to your track.
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <label className={`inline-flex items-center gap-2 px-3 py-2 rounded-full text-xs font-medium cursor-pointer border ${transcribing ? "border-white/10 bg-white/5 text-white/40" : "border-pink-300/40 bg-white/5 text-pink-100 hover:bg-white/10"}`}>
+              <label className={`inline-flex items-center gap-2 px-3 py-2 rounded-full text-xs font-medium cursor-pointer border ${transcribing ? "border-white/10 bg-white/5 text-white/40" : "border-primary/40 bg-white/5 text-primary/90 hover:bg-white/10"}`}>
                 {transcribing ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
                 {transcribing ? "Transcribing…" : "Upload audio"}
                 <input
