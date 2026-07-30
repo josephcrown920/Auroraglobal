@@ -19,17 +19,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
-type Mode = "signin" | "signup";
-
 export default function AuthScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { signIn, signUp } = useAuth();
+  const { signIn } = useAuth();
 
-  const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPass, setShowPass] = useState(false);
@@ -39,18 +35,10 @@ export default function AuthScreen() {
       setError("Please fill in all fields.");
       return;
     }
-    if (mode === "signup" && !name.trim()) {
-      setError("Please enter your name.");
-      return;
-    }
     setError(null);
     setLoading(true);
     try {
-      if (mode === "signin") {
-        await signIn(email.trim(), password);
-      } else {
-        await signUp(email.trim(), password, name.trim());
-      }
+      await signIn(email.trim(), password);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
       const msg = e?.message ?? "Something went wrong";
@@ -64,11 +52,6 @@ export default function AuthScreen() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const switchMode = () => {
-    setMode(m => m === "signin" ? "signup" : "signin");
-    setError(null);
   };
 
   return (
@@ -103,47 +86,7 @@ export default function AuthScreen() {
 
           <Animated.View entering={FadeInDown.duration(500).delay(100)} style={styles.card}>
             <View style={[styles.cardInner, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={[styles.tabs, { backgroundColor: colors.muted }]}>
-                {(["signin", "signup"] as Mode[]).map((m) => (
-                  <Pressable
-                    key={m}
-                    onPress={() => { setMode(m); setError(null); }}
-                    style={[
-                      styles.tab,
-                      m === mode && {
-                        backgroundColor: colors.primary,
-                        borderRadius: colors.radius - 2,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.tabText,
-                        { color: m === mode ? colors.primaryForeground : colors.mutedForeground },
-                      ]}
-                    >
-                      {m === "signin" ? "Sign In" : "Sign Up"}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-
               <View style={styles.fields}>
-                {mode === "signup" && (
-                  <View style={[styles.inputWrap, { backgroundColor: colors.input, borderColor: colors.border }]}>
-                    <Feather name="user" size={16} color={colors.mutedForeground} />
-                    <TextInput
-                      style={[styles.input, { color: colors.foreground }]}
-                      placeholder="Full name"
-                      placeholderTextColor={colors.mutedForeground}
-                      value={name}
-                      onChangeText={setName}
-                      autoCapitalize="words"
-                      returnKeyType="next"
-                    />
-                  </View>
-                )}
-
                 <View style={[styles.inputWrap, { backgroundColor: colors.input, borderColor: colors.border }]}>
                   <Feather name="mail" size={16} color={colors.mutedForeground} />
                   <TextInput
@@ -195,30 +138,15 @@ export default function AuthScreen() {
                   <ActivityIndicator color={colors.primaryForeground} />
                 ) : (
                   <Text style={[styles.submitText, { color: colors.primaryForeground }]}>
-                    {mode === "signin" ? "Sign In" : "Create Account"}
+                    Sign In
                   </Text>
                 )}
               </Pressable>
 
-              {mode === "signup" && (
-                <Text style={[styles.legal, { color: colors.mutedForeground }]}>
-                  By creating an account you agree to our{" "}
-                  <Text style={{ color: colors.primary }}>Terms of Service</Text> and{" "}
-                  <Text style={{ color: colors.primary }}>Privacy Policy</Text>.
-                </Text>
-              )}
-            </View>
-          </Animated.View>
-
-          <Animated.View entering={FadeInDown.duration(400).delay(200)} style={styles.footer}>
-            <Text style={[styles.footerText, { color: colors.mutedForeground }]}>
-              {mode === "signin" ? "New to Aurora?" : "Already have an account?"}
-            </Text>
-            <Pressable onPress={switchMode}>
-              <Text style={[styles.footerLink, { color: colors.primary }]}>
-                {mode === "signin" ? "Create account" : "Sign in"}
+              <Text style={[styles.legal, { color: colors.mutedForeground }]}>
+                Sign in with your Aurora account.
               </Text>
-            </Pressable>
+            </View>
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>

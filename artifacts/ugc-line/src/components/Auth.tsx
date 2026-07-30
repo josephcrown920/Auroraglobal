@@ -7,18 +7,13 @@ export function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState<"login" | "signup">("login");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     try {
-      const { error } =
-        mode === "login"
-          ? await supabase.auth.signInWithPassword({ email, password })
-          : await supabase.auth.signUp({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) toast.error(error.message);
-      else if (mode === "signup") toast.success("Check your email to confirm your account.");
     } finally {
       setLoading(false);
     }
@@ -66,7 +61,7 @@ export function Auth() {
           {/* Auth card */}
           <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 20, padding: "32px 28px" }}>
             <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 20, color: "var(--text)" }}>
-              {mode === "login" ? "Sign in to your workspace" : "Create an account"}
+              Sign in to your workspace
             </h2>
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {[{ label: "Email", type: "email", value: email, set: setEmail, placeholder: "you@example.com" },
@@ -86,15 +81,10 @@ export function Auth() {
                 </div>
               ))}
               <button type="submit" disabled={loading} className="glow-btn" style={{ marginTop: 6, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "13px 20px", borderRadius: 12, background: "var(--accent)", color: "#fff", fontWeight: 700, fontSize: 14, border: "none", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
-                {loading ? "Please wait…" : <>{mode === "login" ? "Sign in" : "Create account"} <ArrowRight size={15} /></>}
+                {loading ? "Please wait…" : <>Sign in <ArrowRight size={15} /></>}
               </button>
             </form>
-            <p style={{ textAlign: "center", marginTop: 18, fontSize: 13, color: "var(--text-muted)" }}>
-              {mode === "login" ? "No account yet?" : "Already have one?"}{" "}
-              <button onClick={() => setMode(mode === "login" ? "signup" : "login")} style={{ color: "var(--accent)", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
-                {mode === "login" ? "Sign up" : "Sign in"}
-              </button>
-            </p>
+            <p style={{ textAlign: "center", marginTop: 18, marginBottom: 0, fontSize: 13, color: "var(--text-muted)" }}>Sign in with your Aurora account.</p>
           </div>
         </div>
       </div>
