@@ -20,8 +20,15 @@
 # Attached assets uploaded during development (~2 GB of videos, ZIPs, PDFs)
 attached_assets
 
-# Build artefacts regenerated on every deploy — no need to ship the dev copy
-.output
+# Build caches — regenerated during the deploy build, never needed at runtime.
+#
+# DO NOT add `.output` here. The deployer builds INSIDE the workspace and THEN
+# snapshots it into the image through this filter, so ignoring `.output` strips
+# the freshly built Nitro server bundle out of the image. At runtime the
+# process then dies instantly with
+#   node:internal/modules/cjs/loader — Cannot find module '.../.output/server/index.mjs'
+# port 8080 never opens, and promote fails with
+#   "a port configuration was specified but the required port was never opened".
 .vinxi
 .tanstack
 .nitro
