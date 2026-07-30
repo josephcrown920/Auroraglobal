@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { Lock, Mail, Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
 
 export function Auth() {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -14,14 +13,8 @@ export function Auth() {
     e.preventDefault();
     setLoading(true);
     try {
-      if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        toast.success("Check your email to confirm your account.");
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Authentication failed");
     } finally {
@@ -41,14 +34,6 @@ export function Auth() {
         </div>
 
         <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 20, padding: 32 }}>
-          <div style={{ display: "flex", background: "var(--bg)", borderRadius: 10, padding: 4, marginBottom: 28 }}>
-            {(["signin", "signup"] as const).map((m) => (
-              <button key={m} onClick={() => setMode(m)} style={{ flex: 1, padding: "8px 0", borderRadius: 7, border: "none", cursor: "pointer", fontWeight: 600, fontSize: 14, transition: "all 0.15s", background: mode === m ? "var(--bg-elevated)" : "transparent", color: mode === m ? "var(--text)" : "var(--text-muted)", boxShadow: mode === m ? "0 1px 4px rgba(0,0,0,0.4)" : "none" }}>
-                {m === "signin" ? "Sign in" : "Create account"}
-              </button>
-            ))}
-          </div>
-
           <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-muted)" }}>Email</span>
@@ -69,9 +54,10 @@ export function Auth() {
             </label>
             <button type="submit" disabled={loading} style={{ marginTop: 4, padding: "13px", background: "linear-gradient(135deg, #e11d6a, #9b1239)", border: "none", borderRadius: 10, color: "white", fontWeight: 700, fontSize: 15, cursor: loading ? "default" : "pointer", opacity: loading ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 0 28px rgba(225,29,106,0.35)" }}>
               {loading ? <Loader2 size={16} className="animate-spin" /> : <Lock size={15} />}
-              {mode === "signin" ? "Sign in securely" : "Create private account"}
+              Sign in securely
             </button>
           </form>
+          <p style={{ textAlign: "center", marginTop: 18, marginBottom: 0, fontSize: 13, color: "var(--text-muted)" }}>Sign in with your Aurora account.</p>
         </div>
 
         <p style={{ textAlign: "center", marginTop: 20, fontSize: 13, color: "var(--text-muted)" }}>
