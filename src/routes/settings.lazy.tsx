@@ -3,9 +3,16 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, ExternalLink, Loader2, LogOut, Music2, Shield, UserCircle2, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ExternalLink, Fingerprint, Loader2, LogOut, Music2, Plus, Shield, Trash2, UserCircle2, X } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useBiometricSupport } from "@/hooks/use-biometric-support";
 import { getMyTiktokAccount, initTiktokConnect, disconnectTiktok } from "@/lib/tiktok-posting.functions";
+import {
+  beginPasskeyRegistration,
+  completePasskeyRegistration,
+  listPasskeys,
+  deletePasskey,
+} from "@/lib/webauthn.functions";
 import { MobileNav } from "@/components/MobileNav";
 import { SiteFooter } from "@/components/SiteFooter";
 
@@ -66,6 +73,65 @@ function SettingsPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to disconnect"),
   });
 
+  // ── Sign-in methods (Face ID / fingerprint) ────────────────────────────────
+  const biometricSupported = useBiometricSupport();
+  const [addBusy, setAddBusy] = useState(false);
+
+  const passkeysQ = useQuery({
+    queryKey: ["passkeys"],
+    queryFn: () => listPasskeys(),
+    enabled: !!user,
+  });
+
+  const deletePasskeyMut = useMutation({
+    mutationFn: (id: string) => deletePasskey({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Sign-in method removed.");
+      qc.invalidateQueries({ queryKey: ["passkeys"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to remove sign-in method"),
+  });
+
+  const addPasskey = async () => {
+    setAddBusy(true);
+    try {
+      const { startRegistration } = await import("@simplewebauthn/browser");
+      const { options, challengeId } = await beginPasskeyRegistration({
+        data: { origin: window.location.origin },
+      });
+      const credential = await startRegistration(options);
+      const ua = navigator.userAgent;
+      const deviceName = ua.includes("iPhone") ? "iPhone"
+        : ua.includes("iPad") ? "iPad"
+        : ua.includes("Android") ? "Android device"
+        : ua.includes("Mac") ? "Mac"
+        : ua.includes("Windows") ? "Windows PC"
+        : "This device";
+      const res = await completePasskeyRegistration({
+        data: { challengeId, credential, origin: window.location.origin, deviceName },
+      });
+      if (res.alreadyRegistered) {
+        toast.info("This device is already set up for Face ID / fingerprint.");
+      } else {
+        toast.success("Face ID / fingerprint saved — use it next time you sign in.");
+      }
+      qc.invalidateQueries({ queryKey: ["passkeys"] });
+    } catch (err) {
+      const name = err instanceof Error ? err.name : "";
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[passkey] registration failed:", name, msg);
+      // User dismissed the native prompt — stay silent
+      if (name === "NotAllowedError" || /cancel|abort/i.test(msg)) return;
+      if (name === "InvalidStateError") {
+        toast.info("This device is already set up for Face ID / fingerprint.");
+        return;
+      }
+      toast.error(msg || "Couldn't set up Face ID / fingerprint — try again.");
+    } finally {
+      setAddBusy(false);
+    }
+  };
+
   if (loading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -100,6 +166,73 @@ function SettingsPage() {
             <UserCircle2 className="size-4 text-primary" /> Account
           </div>
           <div className="text-sm text-muted-foreground">{user.email}</div>
+        </section>
+
+        {/* Sign-in methods (Face ID / fingerprint) */}
+        <section className="aurora-card rounded-2xl p-5 space-y-4">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Fingerprint className="size-4 text-primary" /> Sign-in methods
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Sign in faster with Face ID, Touch ID, or your fingerprint — no password needed.
+          </p>
+
+          {passkeysQ.isLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" /> Loading…
+            </div>
+          ) : (passkeysQ.data ?? []).length > 0 ? (
+            <ul className="space-y-2">
+              {(passkeysQ.data ?? []).map((pk) => (
+                <li key={pk.id} className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5">
+                  <Fingerprint className="size-4 text-primary flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{pk.device_name ?? "Passkey"}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Added {new Date(pk.created_at).toLocaleDateString()}
+                      {pk.last_used_at ? ` · Last used ${new Date(pk.last_used_at).toLocaleDateString()}` : ""}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${pk.device_name ?? "passkey"}`}
+                    onClick={() => {
+                      if (window.confirm("Remove this sign-in method? You can add it again anytime.")) {
+                        deletePasskeyMut.mutate(pk.id);
+                      }
+                    }}
+                    disabled={deletePasskeyMut.isPending}
+                    className="ml-auto flex size-8 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                  >
+                    {deletePasskeyMut.isPending && deletePasskeyMut.variables === pk.id ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="size-4" />
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">No Face ID or fingerprint set up on any device yet.</p>
+          )}
+
+          {biometricSupported ? (
+            <button
+              type="button"
+              onClick={addPasskey}
+              disabled={addBusy}
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-primary/90 disabled:opacity-50"
+            >
+              {addBusy ? <Loader2 className="size-3 animate-spin" /> : <Plus className="size-3" />}
+              Add Face ID / fingerprint
+            </button>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Face ID / fingerprint isn't available in this browser — open Aurora on a phone or laptop with
+              biometrics to set it up.
+            </p>
+          )}
         </section>
 
         {/* TikTok Connection */}

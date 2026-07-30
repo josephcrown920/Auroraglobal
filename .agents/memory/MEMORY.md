@@ -106,3 +106,6 @@
 - [Gemini Veo discrete durations](gemini-veo-discrete-durations.md) — veo-3.1-fast-generate-preview accepts only 4 or 8 for durationSeconds (not 5-7); snap with `d <= 5 ? 4 : 8`; 5 returns 400 despite misleading "4-8" error.
 - [TanStack nested router-core conflict](tanstack-nested-router-core-conflict.md) — npm override fixes getScriptPreloadAttrs build failure; never delete ALL nested @tanstack node_modules.
 - [Live site-image override table](live-site-images-table.md) — `/api/public/site-images` can 500 when the live DB migration is absent; landing safely falls back to bundled defaults.
+- [Server-file client stub](server-file-client-stub.md) — *.server.ts is stubbed from the client bundle (runtime-only explosion); client-called createServerFn must live in *.functions.ts; empty-state UI ≠ proof a query round-tripped.
+- [WebAuthn passkeys](webauthn-passkeys.md) — rpID from validated client origin on BOTH begin paths (own-domain allowlist, no replit wildcards); E2E-testable via CDP virtual authenticator; @simplewebauthn v10 positional API.
+- [Deploy dangling symlinks & artifact prod services](deploy-dangling-symlink-node.md) — dev-only artifacts must have no [services.production]; bare `node` run cmds can resolve to a dangling .pythonlibs symlink in the prod image → whole deploy killed.
