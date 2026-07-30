@@ -12,6 +12,11 @@
 # Agent/skill files and pnpm store (~529 MB)
 .local
 
+# Python dev-tooling venv (~72 MB). Its bin/ also contains a `node` symlink into
+# the dev Nix store that dangles inside the production image and breaks any
+# bare `node` invocation that resolves through it.
+.pythonlibs
+
 # Attached assets uploaded during development (~2 GB of videos, ZIPs, PDFs)
 attached_assets
 

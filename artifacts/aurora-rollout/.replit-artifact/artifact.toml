@@ -15,7 +15,7 @@ run = "bash /home/runner/workspace/artifacts/aurora-rollout/start-dev.sh"
 [services.production]
 build = [ "npm", "run", "build" ]
 serve = "static"
-publicDir = "artifacts/aurora-rollout/dist/public"
+publicDir = "artifacts/aurora-rollout/dist"
 
 [[services.production.rewrites]]
 from = "/*"

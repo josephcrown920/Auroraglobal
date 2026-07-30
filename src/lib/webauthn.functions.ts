@@ -12,30 +12,12 @@ import type {
   AuthenticationResponseJSON,
 } from "@simplewebauthn/types";
 import { z } from "zod";
+import { getRP, isAllowedOrigin } from "./webauthn-origins";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- webauthn tables not yet in generated types.ts; cast until next type regen
 const db = supabaseAdmin as any;
 
 const FIFTEEN_MIN_MS = 15 * 60 * 1000;
-
-function getRP() {
-  const siteUrl = (process.env.SITE_URL ?? "https://auroraperformancestudio.com").replace(/\/$/, "");
-  const url = new URL(siteUrl.startsWith("http") ? siteUrl : `https://${siteUrl}`);
-  return { rpName: "Aurora Studio", rpID: url.hostname, origin: url.origin };
-}
-
-function isAllowedOrigin(origin: string): boolean {
-  const { origin: prodOrigin, rpID: prodRPID } = getRP();
-  if (origin === prodOrigin) return true;
-  try {
-    const parsed = new URL(origin);
-    if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") return true;
-    if (parsed.hostname.endsWith(".replit.dev") || parsed.hostname.endsWith(".repl.co")) return true;
-    if (parsed.hostname.endsWith(".replit.app")) return true;
-    if (parsed.hostname === prodRPID) return true;
-  } catch { /* fall through */ }
-  return false;
-}
 
 async function storeChallenge(challenge: string, userId?: string): Promise<string> {
   const { data, error } = await db
@@ -68,11 +50,19 @@ async function consumeChallenge(challengeId: string): Promise<string> {
 
 // ─── Registration ────────────────────────────────────────────────────────────
 
+const BeginRegisterSchema = z.object({ origin: z.string().url() });
+
 export const beginPasskeyRegistration = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d: z.input<typeof BeginRegisterSchema>) => BeginRegisterSchema.parse(d))
+  .handler(async ({ data: input, context }) => {
     const { userId } = context;
-    const { rpName, rpID } = getRP();
+    const { rpName } = getRP();
+    // The rpID must match the origin the browser is actually on (dev previews
+    // included), or navigator.credentials.create() throws a SecurityError.
+    // Same allowlist + derivation as completePasskeyRegistration/authentication.
+    if (!isAllowedOrigin(input.origin)) throw new Error("Origin not allowed");
+    const rpID = new URL(input.origin).hostname;
 
     const { data: existingKeys } = await db
       .from("user_passkeys")
@@ -84,12 +74,17 @@ export const beginPasskeyRegistration = createServerFn({ method: "POST" })
       transports: undefined as never,
     }));
 
+    // Label the passkey with the user's email so the OS passkey manager shows
+    // something recognisable instead of a raw UUID.
+    const { data: userRecord } = await supabaseAdmin.auth.admin.getUserById(userId);
+    const accountLabel = userRecord?.user?.email ?? "Aurora Studio account";
+
     const options = await generateRegistrationOptions({
       rpName,
       rpID,
       userID: new TextEncoder().encode(userId),
-      userName: userId,
-      userDisplayName: "Aurora Studio",
+      userName: accountLabel,
+      userDisplayName: accountLabel,
       attestationType: "none",
       authenticatorSelection: {
         authenticatorAttachment: "platform",
@@ -152,13 +147,16 @@ export const completePasskeyRegistration = createServerFn({ method: "POST" })
 
 // ─── Authentication ──────────────────────────────────────────────────────────
 
-const BeginAuthSchema = z.object({ rpID: z.string() });
+const BeginAuthSchema = z.object({ origin: z.string().url() });
 
 export const beginPasskeyAuthentication = createServerFn({ method: "POST" })
   .inputValidator((d: z.input<typeof BeginAuthSchema>) => BeginAuthSchema.parse(d))
   .handler(async ({ data: input }) => {
+    // Derive rpID from a validated origin — never trust a free-form rpID.
+    if (!isAllowedOrigin(input.origin)) throw new Error("Origin not allowed");
+    const rpID = new URL(input.origin).hostname;
     const options = await generateAuthenticationOptions({
-      rpID: input.rpID,
+      rpID,
       userVerification: "preferred",
       timeout: 60000,
     });

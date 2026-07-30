@@ -22,27 +22,13 @@ import {
   completePasskeyRegistration,
   beginPasskeyAuthentication,
   completePasskeyAuthentication,
-} from "@/lib/webauthn.server";
+} from "@/lib/webauthn.functions";
 
 export const Route = createLazyFileRoute("/auth")({
   component: AuthPage,
 });
 
-// Detect browser WebAuthn platform-authenticator support
-function useBiometricSupport() {
-  const [supported, setSupported] = useState(false);
-  useEffect(() => {
-    if (
-      typeof window === "undefined" ||
-      !window.PublicKeyCredential ||
-      typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable !== "function"
-    ) return;
-    window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
-      .then(setSupported)
-      .catch(() => setSupported(false));
-  }, []);
-  return supported;
-}
+import { useBiometricSupport } from "@/hooks/use-biometric-support";
 
 function AuthPage() {
   const navigate = useNavigate();
@@ -212,7 +198,9 @@ function AuthPage() {
   async function offerPasskeyRegistration() {
     try {
       const { startRegistration } = await import("@simplewebauthn/browser");
-      const { options, challengeId } = await beginPasskeyRegistration();
+      const { options, challengeId } = await beginPasskeyRegistration({
+        data: { origin: window.location.origin },
+      });
       const credential = await startRegistration(options);
       await completePasskeyRegistration({
         data: {
@@ -238,9 +226,9 @@ function AuthPage() {
     abortRef.current = new AbortController();
     try {
       const { startAuthentication } = await import("@simplewebauthn/browser");
-      const rpID = window.location.hostname;
-
-      const { options, challengeId } = await beginPasskeyAuthentication({ data: { rpID } });
+      const { options, challengeId } = await beginPasskeyAuthentication({
+        data: { origin: window.location.origin },
+      });
       const credential = await startAuthentication(options, false);
 
       const { token_hash } = await completePasskeyAuthentication({
