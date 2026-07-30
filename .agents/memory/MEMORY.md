@@ -109,3 +109,4 @@
 - [Server-file client stub](server-file-client-stub.md) — *.server.ts is stubbed from the client bundle (runtime-only explosion); client-called createServerFn must live in *.functions.ts; empty-state UI ≠ proof a query round-tripped.
 - [WebAuthn passkeys](webauthn-passkeys.md) — rpID from validated client origin on BOTH begin paths (own-domain allowlist, no replit wildcards); E2E-testable via CDP virtual authenticator; @simplewebauthn v10 positional API.
 - [Deploy dangling symlinks & artifact prod services](deploy-dangling-symlink-node.md) — dev-only artifacts must have no [services.production]; bare `node` run cmds can resolve to a dangling .pythonlibs symlink in the prod image → whole deploy killed.
+- [Silent promote failure diagnosis](deploy-promote-silent-failure.md) — zero runtime logs = container never started (infra/transient, retry); with logs = app crash; publicDir is repo-root-relative; rollout's git-ignored dist ships from the workspace copy.
