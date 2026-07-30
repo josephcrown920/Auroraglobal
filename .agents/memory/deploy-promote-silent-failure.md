@@ -6,7 +6,9 @@ description: How to tell an app-crash promote failure from a platform-side one o
 **Rule:** Build logs for this repl ALWAYS end at `Creating Autoscale service` — success or failure; the promote error never appears there. Diagnose via runtime logs (`fetchDeploymentLogs` / RefreshAllLogs deployment source):
 
 - Promote failed **WITH runtime log lines** → the container started and crashed (e.g. 2026-07-29 dangling-`node` ENOENT). Fix the app/config.
-- Promote failed **with ZERO runtime log lines** (2026-07-30 04:27 build) → the container was never started; service-creation/infra-level failure. If build ✓ + local boot of the exact production run command serves 200 on `/` and the healthcheck path, treat as transient platform issue → retry publish; if reproducible, get the exact error text from the user's Publish pane (it is not exposed via any agent API).
+- Promote failed **with ZERO runtime log lines** → CAUTION: runtime logs can LAG the attempt (04:27 showed nothing; the near-identical 04:37 retry logged fully). Re-fetch later before concluding infra-side.
+- **Flat-app promote failure mode (2026-07-30 04:37):** `not all artifact ports opened within timeout expected=[8080] detected=0` + endless `healthcheck / returned status 500` (synthetic — no upstream). pid1 runs the artifact process but does NOT hand it a PORT; nitro then binds its default (3000). Fix: force `PORT=8080` (the service's localPort) BOTH in `[services.env]` and inline in the production run command. Platform scaffolds (aurora-rollout) always carry PORT in `[services.env]` — a hand-written artifact.toml that omits it deploys a server on the wrong port.
+- `healthcheckPath` is NOT a valid artifact.toml key — it is silently ignored; the startup probe hits `GET /`. Keep `/` returning 200.
 
 **Local boot proof:** `PORT=5555 NODE_OPTIONS=--max-old-space-size=3072 bash scripts/replit-node.sh .output/server/index.mjs` then curl `/api/health` and `/` on 5555.
 
