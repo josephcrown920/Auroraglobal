@@ -47,6 +47,13 @@ Must be provided by the user:
 - User is non-technical. Explain in plain language; avoid jargon.
 - Goal was: pick the best of 3 repos, merge missing features, and run it fully in Replit.
 - Always give selectable options (choice/boolean queries) when asking questions — never a blank text box.
+- **Build it the way the owner describes it, not the way you would design it.** When the
+  owner supplies a reference, a screenshot, or a written spec, follow it. If something in
+  the spec looks wrong or is missing, ask — do not silently substitute your own layout,
+  styling, or feature choices.
+- **Do not spin up a new app/artifact for a feature that belongs in the main app.** Extra
+  standalone copies have repeatedly accumulated and then had to be deleted. Add to the
+  existing app unless the owner explicitly asks for a separate one.
 
 ## Cross-artifact sync rule
 
