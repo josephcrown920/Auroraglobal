@@ -50,7 +50,7 @@ function StatusIcon({ status }: { status: string }) {
   if (status === "pending" || status === "queued")
     return <Clock className="size-3 text-amber-300/90" />;
   if (status === "running" || status === "processing")
-    return <Loader2 className="size-3 animate-spin text-violet-300" />;
+    return <Loader2 className="size-3 animate-spin text-cyan-300" />;
   if (status === "done" || status === "completed" || status === "succeeded" || status === "complete")
     return <CheckCircle2 className="size-3 text-emerald-400" />;
   if (status === "error" || status === "failed")
@@ -101,7 +101,7 @@ export function GeneratedAssetGallery() {
     <>
       <button
         onClick={() => setOpen((o) => !o)}
-        className={`fixed top-20 z-30 flex items-center gap-1.5 px-2.5 py-2 rounded-l-xl border border-r-0 border-white/10 bg-[oklch(0.13_0.04_290/0.92)] backdrop-blur-xl text-[13px] uppercase tracking-[0.15em] text-white/70 hover:text-white transition-[right] duration-200 ${
+        className={`fixed top-20 z-30 flex items-center gap-1.5 px-2.5 py-2 rounded-l-xl border border-r-0 border-white/10 bg-[oklch(0.13_0.02_25/0.92)] backdrop-blur-xl text-[13px] uppercase tracking-[0.15em] text-white/70 hover:text-white transition-[right] duration-200 ${
           open ? "right-[min(18rem,85vw)]" : "right-0"
         }`}
         title={open ? "Collapse asset gallery" : "Show generated assets"}
@@ -110,7 +110,7 @@ export function GeneratedAssetGallery() {
         {!open && <span>Gallery{assets.length > 0 ? ` · ${assets.length}` : ""}</span>}
       </button>
       {open && (
-        <aside className="fixed top-14 right-0 bottom-0 z-20 w-72 max-w-[85vw] flex flex-col border-l border-white/10 bg-[oklch(0.12_0.035_290/0.96)] backdrop-blur-xl">
+        <aside className="fixed top-14 right-0 bottom-0 z-20 w-72 max-w-[85vw] flex flex-col border-l border-white/10 bg-[oklch(0.12_0.02_25/0.96)] backdrop-blur-xl">
           <div className="px-3 py-2.5 border-b border-white/10 flex items-center justify-between shrink-0">
             <span className="text-sm uppercase tracking-[0.15em] text-white/80 flex items-center gap-1.5">
               <LayoutGrid className="size-3.5 text-primary" /> Generated assets

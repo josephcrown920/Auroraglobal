@@ -882,7 +882,7 @@ export const DEFAULT_GUIDED_WORKFLOWS: GuidedWorkflowContent[] = [
         referenceSlots: [],
         usesPreviousResult: false,
         tips: ["It will give you angles you hadn't thought of — ground-level POVs, mirror shots, environmental storytelling."],
-        toolLink: { label: "Open Aurora Agent", to: "/agent" },
+        toolLink: { label: "Open Studio", to: "/studio" },
         variants: [],
       },
       {
@@ -967,7 +967,7 @@ export const DEFAULT_GUIDED_WORKFLOWS: GuidedWorkflowContent[] = [
         referenceSlots: [],
         usesPreviousResult: false,
         tips: ["Generate a few storyboard variations and pick the one that tells the best story."],
-        toolLink: { label: "Open Aurora Agent", to: "/agent" },
+        toolLink: { label: "Open Studio", to: "/studio" },
         variants: [],
       },
       {
@@ -984,7 +984,7 @@ export const DEFAULT_GUIDED_WORKFLOWS: GuidedWorkflowContent[] = [
         referenceSlots: [],
         usesPreviousResult: false,
         tips: [],
-        toolLink: { label: "Open Aurora Agent", to: "/agent" },
+        toolLink: { label: "Open Studio", to: "/studio" },
         variants: [],
       },
       {

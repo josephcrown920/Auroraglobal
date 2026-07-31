@@ -8,7 +8,7 @@ const STORAGE_KEY = "aurora-whats-new-last-seen";
 
 const BADGE_STYLES: Record<string, string> = {
   new: "bg-primary/15 text-primary border border-primary/25",
-  update: "bg-violet-500/15 text-violet-400 border border-violet-500/25",
+  update: "bg-red-500/15 text-red-400 border border-red-500/25",
   fix: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25",
   "coming-soon": "bg-muted text-muted-foreground border border-border",
 };

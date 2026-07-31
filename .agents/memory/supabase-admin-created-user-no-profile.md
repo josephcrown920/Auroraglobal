@@ -28,3 +28,15 @@ user already has 5 credits — top up further with the `grant_credits` RPC
 you can rely on the auto-created profile row; call `grant_credits` RPC first
 if the flow under test costs more than 5 credits, and always filter
 `profiles` by `user_id`.
+
+## Creating a test account: don't sign up, use the Admin API
+
+Supabase auth here rejects invented domains outright — `@aurora-test.dev` returns
+`400 email_address_invalid` from `/auth/v1/signup`. Retrying then trips
+`429 over_email_send_rate_limit`, which makes the failure look like an app bug in a
+browser test (the form just sits on "Working…").
+
+**How to apply:** for e2e runs, POST to `/auth/v1/admin/users` with the service-role
+key, `email_confirm: true`, and an `@example.com` address. That skips domain
+validation, the confirmation email, and the rate limit. Delete the user afterwards.
+Note bash `UID` is readonly — name the captured id something else.

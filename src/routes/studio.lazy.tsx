@@ -1,4 +1,4 @@
-import { createLazyFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createLazyFileRoute, useNavigate, Link, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertDialog,
@@ -118,7 +118,8 @@ function StudioPage() {
   const [scene, setScene] = useState<string | null>(null);
   const [prop, setProp] = useState<string | null>(null);
   const [motion, setMotion] = useState<string | null>(null);
-  const [prompt, setPrompt] = useState(PRESETS[0].prompt);
+  const { q: incomingIdea } = useSearch({ from: "/studio" });
+  const [prompt, setPrompt] = useState(incomingIdea ?? PRESETS[0].prompt);
   const [model, setModel] = useState(MODELS[0].value);
   const [videoModel, setVideoModel] = useState(VIDEO_MODEL_LIST[0].value);
   const [cameraMovement, setCameraMovement] = useState<string>("static");
@@ -643,10 +644,10 @@ function StudioPage() {
           </div>
 
           {/* Virtual wardrobe — available for every preset */}
-          <div className="rounded-2xl border border-fuchsia-400/20 bg-gradient-to-br from-fuchsia-500/5 via-background/40 to-violet-500/5 px-4 py-4 space-y-3">
+          <div className="rounded-2xl border border-orange-400/20 bg-gradient-to-br from-orange-500/5 via-background/40 to-red-500/5 px-4 py-4 space-y-3">
             <div className="flex items-center gap-2">
-              <span className="inline-flex size-2 rounded-full bg-fuchsia-400 shadow-[0_0_8px_2px_rgba(232,121,249,0.5)]" />
-              <p className="text-xs font-semibold text-fuchsia-200/80 uppercase tracking-wider">
+              <span className="inline-flex size-2 rounded-full bg-orange-400 shadow-[0_0_8px_2px_rgba(232,121,249,0.5)]" />
+              <p className="text-xs font-semibold text-orange-200/80 uppercase tracking-wider">
                 Virtual Wardrobe
               </p>
             </div>

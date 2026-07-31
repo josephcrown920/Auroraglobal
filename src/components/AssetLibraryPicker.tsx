@@ -115,7 +115,7 @@ export function AssetLibraryPicker({ category, selectedId, onSelect, className }
                 className={cn(
                   "group relative text-left rounded-2xl border overflow-hidden transition-all",
                   isSelected
-                    ? "border-primary shadow-[0_0_16px_-4px_oklch(0.72_0.2_300_/_0.3)]"
+                    ? "border-primary shadow-[0_0_16px_-4px_oklch(0.72_0.2_25_/_0.3)]"
                     : "border-border hover:border-primary/40",
                 )}
               >

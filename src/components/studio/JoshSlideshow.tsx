@@ -45,11 +45,11 @@ export function JoshSlideshow() {
           />
         ))}
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent pointer-events-none" />
-        <div className="absolute top-4 left-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-fuchsia-500/90 text-[10px] font-bold uppercase tracking-widest text-white shadow-lg">
+        <div className="absolute top-4 left-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/90 text-[10px] font-bold uppercase tracking-widest text-white shadow-lg">
           <span className="size-1.5 rounded-full bg-white animate-pulse" /> Image generation · NBA Josh
         </div>
         <div className="absolute inset-x-0 bottom-0 p-5 md:p-6">
-          <p className="text-[10px] uppercase tracking-[0.25em] text-fuchsia-200/80 mb-1">Now showing</p>
+          <p className="text-[10px] uppercase tracking-[0.25em] text-orange-200/80 mb-1">Now showing</p>
           <p className="text-white text-base md:text-xl font-semibold drop-shadow">{SHOTS[i].caption}</p>
           <div className="mt-3 flex gap-1.5">
             {SHOTS.map((_, idx) => (

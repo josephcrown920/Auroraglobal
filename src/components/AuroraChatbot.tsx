@@ -184,7 +184,7 @@ export function AuroraChatbot() {
         type="button"
         aria-label={open ? "Close chat" : "Open chat with Aurora Prime"}
         onClick={() => setOpen((o) => !o)}
-        className="phone-edge-right fixed bottom-[calc(5rem_+_env(safe-area-inset-bottom))] z-50 size-14 rounded-full flex items-center justify-center text-white shadow-2xl shadow-violet-900/50 bg-gradient-to-br from-violet-500 to-fuchsia-500 hover:scale-105 transition-transform"
+        className="phone-edge-right fixed bottom-[calc(5rem_+_env(safe-area-inset-bottom))] z-50 size-14 rounded-full flex items-center justify-center text-white shadow-2xl shadow-red-900/50 bg-gradient-to-br from-red-500 to-orange-500 hover:scale-105 transition-transform"
       >
         {open ? <X className="size-6" /> : <MessageCircle className="size-6" />}
         {!open && (
@@ -194,9 +194,9 @@ export function AuroraChatbot() {
 
       {/* Panel */}
       {open && (
-        <div className="phone-edge-right fixed bottom-24 z-50 w-[min(92vw,380px)] h-[min(72vh,560px)] rounded-3xl border border-white/10 bg-[#0c0a1c]/95 backdrop-blur-2xl shadow-2xl shadow-violet-950/60 flex flex-col overflow-hidden animate-fade-in">
+        <div className="phone-edge-right fixed bottom-24 z-50 w-[min(92vw,380px)] h-[min(72vh,560px)] rounded-3xl border border-white/10 bg-[#0c0a1c]/95 backdrop-blur-2xl shadow-2xl shadow-red-950/60 flex flex-col overflow-hidden animate-fade-in">
           <header className="px-4 py-3 border-b border-white/10 flex items-center gap-3">
-            <span className="size-9 rounded-xl flex items-center justify-center bg-gradient-to-br from-violet-500 to-fuchsia-500">
+            <span className="size-9 rounded-xl flex items-center justify-center bg-gradient-to-br from-red-500 to-orange-500">
               <Sparkles className="size-4 text-white" />
             </span>
             <div className="flex-1">
@@ -220,7 +220,7 @@ export function AuroraChatbot() {
                 key={i}
                 className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed ${
                   m.role === "user"
-                    ? "ml-auto bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white"
+                    ? "ml-auto bg-gradient-to-br from-red-500 to-orange-500 text-white"
                     : "bg-white/[0.06] border border-white/10 text-white/90"
                 }`}
               >
@@ -241,13 +241,13 @@ export function AuroraChatbot() {
               onChange={(e) => setInput(e.target.value)}
               maxLength={1500}
               placeholder="Ask Aurora anything…"
-              className="flex-1 rounded-full bg-black/30 border border-white/10 focus:border-violet-400/60 outline-none px-4 py-2.5 text-sm text-white placeholder:text-white/30"
+              className="flex-1 rounded-full bg-black/30 border border-white/10 focus:border-red-400/60 outline-none px-4 py-2.5 text-sm text-white placeholder:text-white/30"
             />
             <button
               type="submit"
               disabled={loading || !input.trim()}
               aria-label="Send"
-              className="size-10 rounded-full flex items-center justify-center text-white bg-gradient-to-br from-violet-500 to-fuchsia-500 disabled:opacity-50"
+              className="size-10 rounded-full flex items-center justify-center text-white bg-gradient-to-br from-red-500 to-orange-500 disabled:opacity-50"
             >
               <Send className="size-4" />
             </button>

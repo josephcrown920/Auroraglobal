@@ -339,10 +339,10 @@ function TiktokRemixPage() {
 
           {/* Virtual wardrobe — shown when GRWM style is active */}
           {style === "grwm" && user && (
-            <div className="rounded-xl border border-fuchsia-400/20 bg-fuchsia-400/5 px-3 py-3 space-y-2">
+            <div className="rounded-xl border border-orange-400/20 bg-orange-400/5 px-3 py-3 space-y-2">
               <div className="flex items-center gap-1.5">
-                <Shirt className="size-3.5 text-fuchsia-300" />
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-fuchsia-200/80">Virtual Wardrobe</span>
+                <Shirt className="size-3.5 text-orange-300" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-orange-200/80">Virtual Wardrobe</span>
               </div>
               <p className="text-[11px] text-muted-foreground">
                 Pick a saved look and Aurora will thread that outfit through every GRWM cut.

@@ -16,7 +16,7 @@ const KIND_COLORS: Record<string, string> = {
   image: "text-brand bg-brand/10",
   video: "text-pink-400 bg-pink-500/10",
   lipsync: "text-cyan-400 bg-cyan-500/10",
-  motion: "text-purple-400 bg-purple-500/10",
+  motion: "text-red-400 bg-red-500/10",
   text: "text-amber-400 bg-amber-500/10",
   audio: "text-emerald-400 bg-emerald-500/10",
   upscale: "text-blue-400 bg-blue-500/10",

@@ -39,13 +39,13 @@ export function SubscriptionPlans({ currentPlanId, onUpgrade, onUpgradePending, 
               className={[
                 "relative rounded-2xl border p-5 flex flex-col gap-4 transition-all",
                 isFeatured
-                  ? "border-primary/40 bg-primary/8 shadow-[0_0_30px_-12px_oklch(0.72_0.2_300_/_0.4)]"
+                  ? "border-primary/40 bg-primary/8 shadow-[0_0_30px_-12px_oklch(0.72_0.2_25_/_0.4)]"
                   : "aurora-glass border-border",
               ].join(" ")}
             >
               {isFeatured && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-primary border border-primary/40 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-[0_0_12px_-3px_oklch(0.72_0.2_300_/_0.5)]">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary border border-primary/40 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-[0_0_12px_-3px_oklch(0.72_0.2_25_/_0.5)]">
                     <Star className="size-2.5" /> Recommended
                   </span>
                 </div>

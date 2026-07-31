@@ -47,7 +47,6 @@ const MAKE_FEATURES: Feature[] = [
   { to: "/studio",         label: "Image Generation", icon: Sparkles,  previewImg: "/nav-previews/studio.jpg" },
   { to: "/colors",         label: "Colors Studio",    icon: Palette,   previewImg: "/nav-previews/colors.jpg" },
   { to: "/canvas",         label: "Canvas",           icon: Workflow,  previewImg: "/nav-previews/canvas.jpg" },
-  { to: "/agent",          label: "Video Studio",     icon: Film,      previewImg: "/nav-previews/music-video.jpg" },
   { to: "/photo-edit",     label: "Photo Editor",     icon: Brush,     previewImg: "/nav-previews/photo-edit.jpg" },
   { to: "/split-reality",  label: "Split Reality",    icon: Wand2,     previewImg: "/nav-previews/studio.jpg" },
   { to: "/live-studio",    label: "Live Studios",     icon: Music2,    previewImg: "/nav-previews/live-studio.jpg" },
@@ -103,7 +102,7 @@ export const ARCHIVED_FEATURES: Feature[] = [
 ];
 
 const TAB_ITEMS: Feature[] = [
-  { to: "/agent",   label: "Create",  icon: Sparkles },
+  { to: "/home",   label: "Create",  icon: Sparkles },
   { to: "/studio",  label: "Studio",  icon: Palette },
   { to: "/gallery", label: "Gallery", icon: Images },
 ];
@@ -251,7 +250,7 @@ export function MobileNav() {
             <ul className="grid grid-cols-4">
               {TAB_ITEMS.map((t) => {
                 const active = isActive(pathname, t.to);
-                const isCreate = t.to === "/agent";
+                const isCreate = t.to === "/home";
                 return (
                   <li key={t.to}>
                     <Link
@@ -379,7 +378,6 @@ export function MobileNav() {
 
             <NavSection label="For Artists">
               {([
-                { to: "/agent",         label: "Video Studio",    icon: Film,        previewImg: "/nav-previews/music-video.jpg" },
                 { to: "/colors",        label: "Colors Studio",   icon: Palette,     previewImg: "/nav-previews/colors.jpg" },
                 { to: "/studio",        label: "Image Generation",icon: Sparkles,    previewImg: "/nav-previews/studio.jpg" },
                 { to: "/live-studio",   label: "Live Studios",    icon: Music2,      previewImg: "/nav-previews/live-studio.jpg" },

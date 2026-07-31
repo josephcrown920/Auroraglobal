@@ -11,9 +11,9 @@ export function ComposerHero() {
     e.preventDefault();
     const q = text.trim();
     if (q) {
-      void navigate({ to: "/agent", search: { q } });
+      void navigate({ to: "/studio", search: { q } });
     } else {
-      void navigate({ to: "/agent" });
+      void navigate({ to: "/studio" });
     }
   };
 

@@ -176,7 +176,7 @@ function EditorPage() {
             </span>
             <h1 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
               Script the studio{" "}
-              <span className="bg-gradient-to-r from-cyan-200 via-white to-fuchsia-200 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-cyan-200 via-white to-orange-200 bg-clip-text text-transparent">
                 with code.
               </span>
             </h1>

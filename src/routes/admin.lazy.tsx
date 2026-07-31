@@ -143,7 +143,6 @@ function AdminPage() {
               { to: "/templates",        label: "Templates" },
               { to: "/colors-show",      label: "Colors Show Creator" },
               { to: "/editor",           label: "Playground" },
-              { to: "/agent",            label: "Video Agent" },
               { to: "/heygen-templates", label: "HeyGen Templates" },
               { to: "/growth",           label: "Growth Tools" },
               { to: "/guides",           label: "Viral Guides" },

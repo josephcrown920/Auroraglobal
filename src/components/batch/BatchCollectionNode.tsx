@@ -48,7 +48,7 @@ export const BatchCollectionNode = memo(function BatchCollectionNode({
       onClick={() => onSelect?.(collection)}
       className={cn(
         "group relative overflow-hidden rounded-2xl border bg-[var(--color-panel)] transition-all cursor-pointer",
-        selected ? "border-primary shadow-[0_0_20px_-5px_oklch(0.72_0.2_300_/_0.4)]" : "border-border hover:border-primary/40",
+        selected ? "border-primary shadow-[0_0_20px_-5px_oklch(0.72_0.2_25_/_0.4)]" : "border-border hover:border-primary/40",
         className,
       )}
     >

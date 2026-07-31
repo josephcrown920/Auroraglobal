@@ -95,17 +95,11 @@ import { Route as ApiPublicWatermarkVideoRouteImport } from './routes/api/public
 import { Route as ApiUgcLineImagesRouteImport } from './routes/api/ugc-line/images'
 import { Route as ApiUgcLineScriptsRouteImport } from './routes/api/ugc-line/scripts'
 import { Route as ApiUgcLineVariationsRouteImport } from './routes/api/ugc-line/variations'
-import { Route as ApiVideoAgentEnhanceRouteImport } from './routes/api/video-agent/enhance'
-import { Route as ApiVideoAgentFinalizeRouteImport } from './routes/api/video-agent/finalize'
-import { Route as ApiVideoAgentGenerateRouteImport } from './routes/api/video-agent/generate'
-import { Route as ApiVideoAgentMessagesRouteImport } from './routes/api/video-agent/messages'
-import { Route as ApiVideoAgentSubmitRouteImport } from './routes/api/video-agent/submit'
 import { Route as ApiPublicJobsTickRouteImport } from './routes/api/public/jobs/tick'
 import { Route as ApiPublicPaymentsSweepStuckRouteImport } from './routes/api/public/payments/sweep-stuck'
 import { Route as ApiPublicTiktokCallbackRouteImport } from './routes/api/public/tiktok/callback'
 import { Route as ApiPublicWorkersHealthRouteImport } from './routes/api/public/workers/health'
 import { Route as ApiPublicWorkersRegisterRouteImport } from './routes/api/public/workers/register'
-import { Route as ApiVideoAgentStatusVideoIdRouteImport } from './routes/api/video-agent/status.$videoId'
 import { Route as ApiPublicCliDevicePollRouteImport } from './routes/api/public/cli/device/poll'
 import { Route as ApiPublicCliDeviceStartRouteImport } from './routes/api/public/cli/device/start'
 import { Route as ApiPublicWorkersFilesNameRouteImport } from './routes/api/public/workers/files/$name'
@@ -131,7 +125,7 @@ const AgentRoute = AgentRouteImport.update({
   id: '/agent',
   path: '/agent',
   getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/agent.lazy').then((d) => d.Route))
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -557,31 +551,6 @@ const ApiUgcLineVariationsRoute = ApiUgcLineVariationsRouteImport.update({
   path: '/api/ugc-line/variations',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiVideoAgentEnhanceRoute = ApiVideoAgentEnhanceRouteImport.update({
-  id: '/api/video-agent/enhance',
-  path: '/api/video-agent/enhance',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiVideoAgentFinalizeRoute = ApiVideoAgentFinalizeRouteImport.update({
-  id: '/api/video-agent/finalize',
-  path: '/api/video-agent/finalize',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiVideoAgentGenerateRoute = ApiVideoAgentGenerateRouteImport.update({
-  id: '/api/video-agent/generate',
-  path: '/api/video-agent/generate',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiVideoAgentMessagesRoute = ApiVideoAgentMessagesRouteImport.update({
-  id: '/api/video-agent/messages',
-  path: '/api/video-agent/messages',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiVideoAgentSubmitRoute = ApiVideoAgentSubmitRouteImport.update({
-  id: '/api/video-agent/submit',
-  path: '/api/video-agent/submit',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicJobsTickRoute = ApiPublicJobsTickRouteImport.update({
   id: '/api/public/jobs/tick',
   path: '/api/public/jobs/tick',
@@ -607,12 +576,6 @@ const ApiPublicWorkersRegisterRoute =
   ApiPublicWorkersRegisterRouteImport.update({
     id: '/api/public/workers/register',
     path: '/api/public/workers/register',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiVideoAgentStatusVideoIdRoute =
-  ApiVideoAgentStatusVideoIdRouteImport.update({
-    id: '/api/video-agent/status/$videoId',
-    path: '/api/video-agent/status/$videoId',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicCliDevicePollRoute = ApiPublicCliDevicePollRouteImport.update({
@@ -718,17 +681,11 @@ export interface FileRoutesByFullPath {
   '/api/ugc-line/images': typeof ApiUgcLineImagesRoute
   '/api/ugc-line/scripts': typeof ApiUgcLineScriptsRoute
   '/api/ugc-line/variations': typeof ApiUgcLineVariationsRoute
-  '/api/video-agent/enhance': typeof ApiVideoAgentEnhanceRoute
-  '/api/video-agent/finalize': typeof ApiVideoAgentFinalizeRoute
-  '/api/video-agent/generate': typeof ApiVideoAgentGenerateRoute
-  '/api/video-agent/messages': typeof ApiVideoAgentMessagesRoute
-  '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
-  '/api/video-agent/status/$videoId': typeof ApiVideoAgentStatusVideoIdRoute
   '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
   '/api/public/cli/device/start': typeof ApiPublicCliDeviceStartRoute
   '/api/public/workers/files/$name': typeof ApiPublicWorkersFilesNameRoute
@@ -819,17 +776,11 @@ export interface FileRoutesByTo {
   '/api/ugc-line/images': typeof ApiUgcLineImagesRoute
   '/api/ugc-line/scripts': typeof ApiUgcLineScriptsRoute
   '/api/ugc-line/variations': typeof ApiUgcLineVariationsRoute
-  '/api/video-agent/enhance': typeof ApiVideoAgentEnhanceRoute
-  '/api/video-agent/finalize': typeof ApiVideoAgentFinalizeRoute
-  '/api/video-agent/generate': typeof ApiVideoAgentGenerateRoute
-  '/api/video-agent/messages': typeof ApiVideoAgentMessagesRoute
-  '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
-  '/api/video-agent/status/$videoId': typeof ApiVideoAgentStatusVideoIdRoute
   '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
   '/api/public/cli/device/start': typeof ApiPublicCliDeviceStartRoute
   '/api/public/workers/files/$name': typeof ApiPublicWorkersFilesNameRoute
@@ -921,17 +872,11 @@ export interface FileRoutesById {
   '/api/ugc-line/images': typeof ApiUgcLineImagesRoute
   '/api/ugc-line/scripts': typeof ApiUgcLineScriptsRoute
   '/api/ugc-line/variations': typeof ApiUgcLineVariationsRoute
-  '/api/video-agent/enhance': typeof ApiVideoAgentEnhanceRoute
-  '/api/video-agent/finalize': typeof ApiVideoAgentFinalizeRoute
-  '/api/video-agent/generate': typeof ApiVideoAgentGenerateRoute
-  '/api/video-agent/messages': typeof ApiVideoAgentMessagesRoute
-  '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
-  '/api/video-agent/status/$videoId': typeof ApiVideoAgentStatusVideoIdRoute
   '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
   '/api/public/cli/device/start': typeof ApiPublicCliDeviceStartRoute
   '/api/public/workers/files/$name': typeof ApiPublicWorkersFilesNameRoute
@@ -1024,17 +969,11 @@ export interface FileRouteTypes {
     | '/api/ugc-line/images'
     | '/api/ugc-line/scripts'
     | '/api/ugc-line/variations'
-    | '/api/video-agent/enhance'
-    | '/api/video-agent/finalize'
-    | '/api/video-agent/generate'
-    | '/api/video-agent/messages'
-    | '/api/video-agent/submit'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
     | '/api/public/tiktok/callback'
     | '/api/public/workers/health'
     | '/api/public/workers/register'
-    | '/api/video-agent/status/$videoId'
     | '/api/public/cli/device/poll'
     | '/api/public/cli/device/start'
     | '/api/public/workers/files/$name'
@@ -1125,17 +1064,11 @@ export interface FileRouteTypes {
     | '/api/ugc-line/images'
     | '/api/ugc-line/scripts'
     | '/api/ugc-line/variations'
-    | '/api/video-agent/enhance'
-    | '/api/video-agent/finalize'
-    | '/api/video-agent/generate'
-    | '/api/video-agent/messages'
-    | '/api/video-agent/submit'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
     | '/api/public/tiktok/callback'
     | '/api/public/workers/health'
     | '/api/public/workers/register'
-    | '/api/video-agent/status/$videoId'
     | '/api/public/cli/device/poll'
     | '/api/public/cli/device/start'
     | '/api/public/workers/files/$name'
@@ -1226,17 +1159,11 @@ export interface FileRouteTypes {
     | '/api/ugc-line/images'
     | '/api/ugc-line/scripts'
     | '/api/ugc-line/variations'
-    | '/api/video-agent/enhance'
-    | '/api/video-agent/finalize'
-    | '/api/video-agent/generate'
-    | '/api/video-agent/messages'
-    | '/api/video-agent/submit'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
     | '/api/public/tiktok/callback'
     | '/api/public/workers/health'
     | '/api/public/workers/register'
-    | '/api/video-agent/status/$videoId'
     | '/api/public/cli/device/poll'
     | '/api/public/cli/device/start'
     | '/api/public/workers/files/$name'
@@ -1320,17 +1247,11 @@ export interface RootRouteChildren {
   ApiUgcLineImagesRoute: typeof ApiUgcLineImagesRoute
   ApiUgcLineScriptsRoute: typeof ApiUgcLineScriptsRoute
   ApiUgcLineVariationsRoute: typeof ApiUgcLineVariationsRoute
-  ApiVideoAgentEnhanceRoute: typeof ApiVideoAgentEnhanceRoute
-  ApiVideoAgentFinalizeRoute: typeof ApiVideoAgentFinalizeRoute
-  ApiVideoAgentGenerateRoute: typeof ApiVideoAgentGenerateRoute
-  ApiVideoAgentMessagesRoute: typeof ApiVideoAgentMessagesRoute
-  ApiVideoAgentSubmitRoute: typeof ApiVideoAgentSubmitRoute
   ApiPublicJobsTickRoute: typeof ApiPublicJobsTickRoute
   ApiPublicPaymentsSweepStuckRoute: typeof ApiPublicPaymentsSweepStuckRoute
   ApiPublicTiktokCallbackRoute: typeof ApiPublicTiktokCallbackRoute
   ApiPublicWorkersHealthRoute: typeof ApiPublicWorkersHealthRoute
   ApiPublicWorkersRegisterRoute: typeof ApiPublicWorkersRegisterRoute
-  ApiVideoAgentStatusVideoIdRoute: typeof ApiVideoAgentStatusVideoIdRoute
   ApiPublicCliDevicePollRoute: typeof ApiPublicCliDevicePollRoute
   ApiPublicCliDeviceStartRoute: typeof ApiPublicCliDeviceStartRoute
   ApiPublicWorkersFilesNameRoute: typeof ApiPublicWorkersFilesNameRoute
@@ -1933,41 +1854,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiUgcLineVariationsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/video-agent/enhance': {
-      id: '/api/video-agent/enhance'
-      path: '/api/video-agent/enhance'
-      fullPath: '/api/video-agent/enhance'
-      preLoaderRoute: typeof ApiVideoAgentEnhanceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/video-agent/finalize': {
-      id: '/api/video-agent/finalize'
-      path: '/api/video-agent/finalize'
-      fullPath: '/api/video-agent/finalize'
-      preLoaderRoute: typeof ApiVideoAgentFinalizeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/video-agent/generate': {
-      id: '/api/video-agent/generate'
-      path: '/api/video-agent/generate'
-      fullPath: '/api/video-agent/generate'
-      preLoaderRoute: typeof ApiVideoAgentGenerateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/video-agent/messages': {
-      id: '/api/video-agent/messages'
-      path: '/api/video-agent/messages'
-      fullPath: '/api/video-agent/messages'
-      preLoaderRoute: typeof ApiVideoAgentMessagesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/video-agent/submit': {
-      id: '/api/video-agent/submit'
-      path: '/api/video-agent/submit'
-      fullPath: '/api/video-agent/submit'
-      preLoaderRoute: typeof ApiVideoAgentSubmitRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/jobs/tick': {
       id: '/api/public/jobs/tick'
       path: '/api/public/jobs/tick'
@@ -2001,13 +1887,6 @@ declare module '@tanstack/react-router' {
       path: '/api/public/workers/register'
       fullPath: '/api/public/workers/register'
       preLoaderRoute: typeof ApiPublicWorkersRegisterRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/video-agent/status/$videoId': {
-      id: '/api/video-agent/status/$videoId'
-      path: '/api/video-agent/status/$videoId'
-      fullPath: '/api/video-agent/status/$videoId'
-      preLoaderRoute: typeof ApiVideoAgentStatusVideoIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/cli/device/poll': {
@@ -2136,17 +2015,11 @@ const rootRouteChildren: RootRouteChildren = {
   ApiUgcLineImagesRoute: ApiUgcLineImagesRoute,
   ApiUgcLineScriptsRoute: ApiUgcLineScriptsRoute,
   ApiUgcLineVariationsRoute: ApiUgcLineVariationsRoute,
-  ApiVideoAgentEnhanceRoute: ApiVideoAgentEnhanceRoute,
-  ApiVideoAgentFinalizeRoute: ApiVideoAgentFinalizeRoute,
-  ApiVideoAgentGenerateRoute: ApiVideoAgentGenerateRoute,
-  ApiVideoAgentMessagesRoute: ApiVideoAgentMessagesRoute,
-  ApiVideoAgentSubmitRoute: ApiVideoAgentSubmitRoute,
   ApiPublicJobsTickRoute: ApiPublicJobsTickRoute,
   ApiPublicPaymentsSweepStuckRoute: ApiPublicPaymentsSweepStuckRoute,
   ApiPublicTiktokCallbackRoute: ApiPublicTiktokCallbackRoute,
   ApiPublicWorkersHealthRoute: ApiPublicWorkersHealthRoute,
   ApiPublicWorkersRegisterRoute: ApiPublicWorkersRegisterRoute,
-  ApiVideoAgentStatusVideoIdRoute: ApiVideoAgentStatusVideoIdRoute,
   ApiPublicCliDevicePollRoute: ApiPublicCliDevicePollRoute,
   ApiPublicCliDeviceStartRoute: ApiPublicCliDeviceStartRoute,
   ApiPublicWorkersFilesNameRoute: ApiPublicWorkersFilesNameRoute,

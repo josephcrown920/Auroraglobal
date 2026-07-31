@@ -34,7 +34,7 @@ const ITEMS: RoadmapItem[] = [
     label: "Video Studio",
     description: "Generate video, images, audio and run the AI director agent — all in one page.",
     icon: Film,
-    to: "/agent",
+    to: "/studio",
     status: "live",
   },
   {
@@ -76,7 +76,7 @@ const ITEMS: RoadmapItem[] = [
     label: "Claude MCP",
     description: "Connect Claude Desktop or any MCP client to Aurora's generation API.",
     icon: Bot,
-    to: "/agent",
+    to: "/studio",
     status: "live",
   },
   {

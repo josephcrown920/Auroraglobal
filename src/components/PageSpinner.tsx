@@ -18,7 +18,7 @@ export function PageSpinner() {
             width: 40,
             height: 40,
             borderRadius: 10,
-            background: "oklch(0.60 0.24 293 / 0.15)",
+            background: "oklch(0.60 0.24 28 / 0.15)",
             alignItems: "center",
             justifyContent: "center",
             opacity: 0.9,

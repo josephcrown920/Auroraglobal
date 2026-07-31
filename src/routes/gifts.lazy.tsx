@@ -15,9 +15,9 @@ export const Route = createLazyFileRoute("/gifts")({ component: GiftsPage });
 
 type Design = "aurora" | "midnight" | "neon" | "rose";
 const DESIGNS: Record<Design, { name: string; bg: string; ring: string; text: string }> = {
-  aurora: { name: "Aura", bg: "bg-gradient-to-br from-violet-500 via-fuchsia-500 to-amber-400", ring: "ring-violet-400/40", text: "text-white" },
+  aurora: { name: "Aura", bg: "bg-gradient-to-br from-red-500 via-orange-500 to-amber-400", ring: "ring-red-400/40", text: "text-white" },
   midnight: { name: "Midnight", bg: "bg-gradient-to-br from-slate-900 via-indigo-900 to-cyan-900", ring: "ring-indigo-400/40", text: "text-white" },
-  neon: { name: "Neon", bg: "bg-gradient-to-br from-emerald-400 via-cyan-400 to-fuchsia-500", ring: "ring-emerald-400/40", text: "text-black" },
+  neon: { name: "Neon", bg: "bg-gradient-to-br from-emerald-400 via-cyan-400 to-orange-500", ring: "ring-emerald-400/40", text: "text-black" },
   rose: { name: "Rose", bg: "bg-gradient-to-br from-rose-300 via-pink-400 to-amber-200", ring: "ring-rose-400/40", text: "text-rose-950" },
 };
 

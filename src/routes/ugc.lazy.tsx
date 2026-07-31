@@ -265,7 +265,7 @@ function UGCStudio() {
                 <button
                   key={a.id}
                   onClick={() => setAvatarId(a.id)}
-                  className={`aurora-card-hover relative rounded-xl overflow-hidden border-2 transition group ${active ? "border-primary shadow-[0_0_24px_oklch(0.78_0.18_305/0.4)]" : "border-border hover:border-primary/50"}`}
+                  className={`aurora-card-hover relative rounded-xl overflow-hidden border-2 transition group ${active ? "border-primary shadow-[0_0_24px_oklch(0.78_0.18_25/0.4)]" : "border-border hover:border-primary/50"}`}
                 >
                   <img src={a.img} alt={a.name} width={512} height={512} loading="lazy" className="aspect-square w-full object-cover" />
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent p-2 text-left">
@@ -295,7 +295,7 @@ function UGCStudio() {
                 key={p.id}
                 onClick={() => setPresetId(p.id)}
                 aria-pressed={p.id === presetId}
-                className={`group relative aspect-[4/3] rounded-2xl overflow-hidden text-left transition-all ${p.id === presetId ? "ring-2 ring-primary shadow-[0_0_28px_oklch(0.78_0.18_305/0.45)]" : "ring-1 ring-white/10 hover:ring-primary/50"}`}
+                className={`group relative aspect-[4/3] rounded-2xl overflow-hidden text-left transition-all ${p.id === presetId ? "ring-2 ring-primary shadow-[0_0_28px_oklch(0.78_0.18_25/0.45)]" : "ring-1 ring-white/10 hover:ring-primary/50"}`}
               >
                 {/* Background media */}
                 {p.poster ? (

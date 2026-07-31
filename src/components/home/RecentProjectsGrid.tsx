@@ -120,7 +120,7 @@ export function RecentProjectsGrid({ items }: RecentProjectsGridProps) {
       <div className="grid grid-cols-2 gap-3">
         {/* ＋ New Project ghost card */}
         <Link
-          to="/agent"
+          to="/studio"
           className="no-underline"
           aria-label="New project"
         >

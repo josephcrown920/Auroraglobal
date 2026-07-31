@@ -20,7 +20,6 @@ const ENTRIES: SitemapEntry[] = [
   { path: "/spin", changefreq: "weekly", priority: "0.8" },
   { path: "/tiktok", changefreq: "weekly", priority: "0.8" },
   { path: "/photo-edit", changefreq: "weekly", priority: "0.8" },
-  { path: "/agent", changefreq: "weekly", priority: "0.8" },
   { path: "/speech", changefreq: "weekly", priority: "0.7" },
   { path: "/edit", changefreq: "weekly", priority: "0.7" },
   { path: "/reshoot", changefreq: "weekly", priority: "0.7" },

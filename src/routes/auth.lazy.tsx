@@ -4,7 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Github, MailCheck, Fingerprint, Loader2, Eye, EyeOff, KeyRound } from "lucide-react";
+import { Github, MailCheck, Fingerprint, Loader2, Eye, EyeOff, KeyRound, Mic2, Clapperboard } from "lucide-react";
+
+/** Asked once, on the signup form. Decides which side of the studio opens by
+ *  default and how tools are ranked. Stored on profiles.persona. */
+const PERSONA_OPTIONS = [
+  { id: "artist" as const,  label: "Artist",  blurb: "Music, performance, visuals.", Icon: Mic2 },
+  { id: "creator" as const, label: "Creator", blurb: "UGC, short-form, ads.",        Icon: Clapperboard },
+];
 
 // Apple doesn't ship an icon in lucide — inline the official logo mark.
 function AppleIcon({ className }: { className?: string }) {
@@ -37,6 +44,7 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [persona, setPersona] = useState<"artist" | "creator" | null>(null);
   const [busy, setBusy] = useState(false);
   const [githubBusy, setGithubBusy] = useState(false);
   const [appleBusy, setAppleBusy] = useState(false);
@@ -125,7 +133,9 @@ function AuthPage() {
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/home`,
-            data: { display_name: displayName.trim() || email.split("@")[0] },
+            // persona is read back out of user_metadata when the profile row is
+            // first created, so it survives the email-confirmation round trip.
+            data: { display_name: displayName.trim() || email.split("@")[0], persona },
           },
         });
         if (error) throw error;
@@ -428,6 +438,37 @@ function AuthPage() {
         <form onSubmit={submit} className="space-y-4">
           {mode === "signup" && (
             <div className="space-y-2">
+              <Label>Which one are you?</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {PERSONA_OPTIONS.map((opt) => {
+                  const active = persona === opt.id;
+                  const OptIcon = opt.Icon;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setPersona(opt.id)}
+                      className={`rounded-xl border p-3 text-left transition-all ${
+                        active
+                          ? "border-primary bg-primary/10"
+                          : "border-white/10 bg-white/[0.03] hover:border-white/25"
+                      }`}
+                    >
+                      <OptIcon className={`size-5 mb-2 ${active ? "text-primary" : "text-muted-foreground"}`} />
+                      <p className="text-sm font-semibold leading-none">{opt.label}</p>
+                      <p className="mt-1 text-[11px] leading-snug text-muted-foreground">{opt.blurb}</p>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                We'll set your studio up for this — you can flip between both any time.
+              </p>
+            </div>
+          )}
+          {mode === "signup" && (
+            <div className="space-y-2">
               <Label htmlFor="name">What should we call you?</Label>
               <Input
                 id="name"
@@ -468,8 +509,18 @@ function AuthPage() {
               </button>
             </div>
           </div>
-          <Button type="submit" disabled={busy} className="w-full h-11 rounded-xl text-base font-semibold bg-brand text-white hover:bg-brand/90 border-0">
-            {busy ? "Working…" : mode === "signup" ? "Create account" : "Sign in"}
+          <Button
+            type="submit"
+            disabled={busy || (mode === "signup" && !persona)}
+            className="w-full h-11 rounded-xl text-base font-semibold bg-brand text-white hover:bg-brand/90 border-0"
+          >
+            {busy
+              ? "Working…"
+              : mode === "signup"
+                ? persona
+                  ? "Create account"
+                  : "Pick artist or creator to continue"
+                : "Sign in"}
           </Button>
         </form>
 

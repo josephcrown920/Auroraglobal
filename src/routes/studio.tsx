@@ -1,6 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+type StudioSearch = { q?: string };
+
 export const Route = createFileRoute("/studio")({
+  // Optional idea handed over from the home composer / preset cards.
+  validateSearch: (search: Record<string, unknown>): StudioSearch => ({
+    q: typeof search.q === "string" && search.q.trim() ? search.q.trim() : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Studio — Aurora" },
