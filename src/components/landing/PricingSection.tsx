@@ -56,7 +56,7 @@ export function PricingSection() {
       <div className="text-center max-w-2xl mx-auto mb-8">
         <p className="text-xs uppercase tracking-[0.2em] text-violet-300/80 mb-2">Pricing</p>
         <h2 className="text-3xl md:text-5xl font-semibold tracking-tight">
-          Simple Aura. <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-primary bg-clip-text text-transparent">No subscriptions.</span>
+          Simple Aura. <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-pink-200 bg-clip-text text-transparent">No subscriptions.</span>
         </h2>
         <p className="text-white/65 mt-3 text-sm md:text-base">
           One Aura ≈ one image. Budget video &amp; lip-sync from 5 Aura; premium models cost more. Aura never expires.
