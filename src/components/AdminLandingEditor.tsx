@@ -79,7 +79,7 @@ function EditorSheet() {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("key", key);
-      const res = await fetch("/api/admin/upload-image", {
+      const res = await fetch("/api/admin/upload-site-image", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: fd,
@@ -103,7 +103,7 @@ function EditorSheet() {
       const token = await bearer();
       const fd = new FormData();
       for (const f of files) fd.append("files", f);
-      const res = await fetch("/api/admin/upload-image", {
+      const res = await fetch("/api/admin/upload-site-image", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: fd,

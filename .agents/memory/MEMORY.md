@@ -112,3 +112,4 @@
 - [Promote failure diagnosis](deploy-promote-silent-failure.md) — runtime logs can lag a failed promote (recheck); flat-app prod needs PORT=8080 forced (services.env + run cmd); healthcheckPath key is ignored, probe hits /.
 - [Partial .replit [[ports]] block](replit-ports-partial-list.md) — an incomplete [[ports]] list → DIDNT_OPEN_A_PORT though the server binds fine; complete the list, deleting it gets auto-reverted.
 - [Local migrations != live schema](supabase-migrations-not-applied-live.md) — check schema_migrations before blaming code for a missing table; and every new public table ships anon-writable until RLS+revoke.
+- [Aurora admin auth duality](aurora-admin-auth-duality.md) — /api/admin/* must accept BOTH the passcode header and a verified Supabase bearer; owner-only products gate visibility, not the shared generate endpoint.
