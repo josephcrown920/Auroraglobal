@@ -6,5 +6,8 @@ export const modules: ModuleMap = {
   "./components/mockups/aurora-redesign/ChromeStudio.tsx": () => import("../components/mockups/aurora-redesign/ChromeStudio.tsx"),
   "./components/mockups/aurora-redesign/Editor.tsx": () => import("../components/mockups/aurora-redesign/Editor.tsx"),
   "./components/mockups/aurora-redesign/GlassNoir.tsx": () => import("../components/mockups/aurora-redesign/GlassNoir.tsx"),
-  "./components/mockups/aurora-redesign/Hub.tsx": () => import("../components/mockups/aurora-redesign/Hub.tsx")
+  "./components/mockups/aurora-redesign/GradientStage.tsx": () => import("../components/mockups/aurora-redesign/GradientStage.tsx"),
+  "./components/mockups/aurora-redesign/Hub.tsx": () => import("../components/mockups/aurora-redesign/Hub.tsx"),
+  "./components/mockups/aurora-redesign/Nocturne.tsx": () => import("../components/mockups/aurora-redesign/Nocturne.tsx"),
+  "./components/mockups/aurora-redesign/Tabloid.tsx": () => import("../components/mockups/aurora-redesign/Tabloid.tsx")
 };
