@@ -1,8 +1,11 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
 import { useClerk } from "@clerk/react";
-import { LayoutDashboard, Library, Settings, LogOut, Menu, X, Sparkles } from "lucide-react";
+import { LayoutDashboard, Library, Settings, LogOut, Menu, X, Sparkles, AlertTriangle } from "lucide-react";
 import { useGetMe } from "@workspace/api-client-react";
+
+const LOW_CREDIT_THRESHOLD = 50;
+const DISMISSED_KEY = "aurora_low_credit_dismissed";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -16,6 +19,38 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const { data: user } = useGetMe({ query: { refetchOnWindowFocus: true } });
+  const [warningDismissed, setWarningDismissed] = React.useState(() => {
+    try {
+      return localStorage.getItem(DISMISSED_KEY) === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const credits = user?.credits;
+
+  // Reset dismissal when credits go back above threshold so the warning
+  // reappears the next time the balance drops below it again.
+  React.useEffect(() => {
+    if (credits !== undefined && credits >= LOW_CREDIT_THRESHOLD) {
+      try {
+        localStorage.removeItem(DISMISSED_KEY);
+      } catch { /* ignore */ }
+      setWarningDismissed(false);
+    }
+  }, [credits]);
+
+  const showLowCreditWarning =
+    credits !== undefined &&
+    credits < LOW_CREDIT_THRESHOLD &&
+    !warningDismissed;
+
+  function dismissWarning() {
+    try {
+      localStorage.setItem(DISMISSED_KEY, "true");
+    } catch { /* ignore */ }
+    setWarningDismissed(true);
+  }
 
   return (
     <div className="flex h-[100dvh] bg-background text-white overflow-hidden font-sans">
@@ -42,19 +77,46 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </Link>
         </div>
 
-        <div className="p-4">
-          <div className="aurora-card p-4 flex items-center justify-between">
+        <div className="p-4 space-y-2">
+          <div className={`aurora-card p-4 flex items-center justify-between ${showLowCreditWarning ? 'border border-amber-500/40' : ''}`}>
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Credits</p>
-              <p className="text-xl font-bold text-white flex items-center gap-1">
-                <span className="text-brand text-sm">✦</span>
-                {user?.credits !== undefined ? user.credits.toLocaleString() : '—'}
+              <p className={`text-xl font-bold flex items-center gap-1 ${showLowCreditWarning ? 'text-amber-400' : 'text-white'}`}>
+                <span className={`text-sm ${showLowCreditWarning ? 'text-amber-400' : 'text-brand'}`}>✦</span>
+                {credits !== undefined ? credits.toLocaleString() : '—'}
               </p>
             </div>
             <Link href="/settings" className="text-[10px] font-bold uppercase tracking-wider text-brand hover:underline">
               Top up
             </Link>
           </div>
+
+          {showLowCreditWarning && (
+            <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3 flex flex-col gap-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-amber-400">
+                  <AlertTriangle size={13} className="shrink-0 mt-px" />
+                  <span className="text-[11px] font-bold uppercase tracking-[0.15em]">Low balance</span>
+                </div>
+                <button
+                  onClick={dismissWarning}
+                  className="text-amber-400/60 hover:text-amber-400 transition-colors"
+                  aria-label="Dismiss warning"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+              <p className="text-[11px] text-amber-300/80 leading-relaxed">
+                You have fewer than {LOW_CREDIT_THRESHOLD} credits left. Top up to keep creating.
+              </p>
+              <Link
+                href="/pricing"
+                className="text-[10px] font-bold uppercase tracking-wider text-amber-400 hover:text-amber-300 transition-colors"
+              >
+                Add credits →
+              </Link>
+            </div>
+          )}
         </div>
 
         <nav className="flex-1 overflow-y-auto py-2 px-3 space-y-1">
