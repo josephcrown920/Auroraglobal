@@ -45,6 +45,8 @@ type Feature = {
 /** Core creation tools — highest-traffic first. */
 const MAKE_FEATURES: Feature[] = [
   { to: "/studio",         label: "Image Generation", icon: Sparkles,  previewImg: "/nav-previews/studio.jpg" },
+  { to: "/video-agent",    label: "Video Agent",      icon: Bot,       badge: "NEW" },
+  { to: "/mastering",      label: "AI Mastering",     icon: Music2,    badge: "NEW" },
   { to: "/colors",         label: "Colors Studio",    icon: Palette,   previewImg: "/nav-previews/colors.jpg" },
   { to: "/canvas",         label: "Canvas",           icon: Workflow,  previewImg: "/nav-previews/canvas.jpg" },
   { to: "/photo-edit",     label: "Photo Editor",     icon: Brush,     previewImg: "/nav-previews/photo-edit.jpg" },
