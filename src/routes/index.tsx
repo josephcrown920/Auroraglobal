@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CANONICAL_ORIGIN } from "@/lib/seo";
-import { Plus, Play, ArrowUpRight, ChevronDown, Sparkles, Palette, Film, Wand2, Mic, Music2, Brush, Megaphone, UserCircle2, Workflow, Layers, Flame, Bot, Clapperboard, Check, Zap, Crown, Download } from "lucide-react";
+import { Plus, Play, ArrowUpRight, ChevronDown, Sparkles, Palette, Film, Wand2, Mic, Music2, Brush, Megaphone, UserCircle2, Workflow, Layers, Flame, Clapperboard, Check, Zap, Crown, Download } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useState, useEffect, useRef } from "react";
 import { track } from "@/lib/tracking";
@@ -108,14 +108,6 @@ const HERO_SLIDES = [
     ctaTo: "/colors",
   },
   {
-    src: "/hero/hero-4.png",
-    eyebrow: "Video Agent",
-    headline: "Your AI Creative Director",
-    sub: "Describe your vision. Chat a shot. Get a fully rendered music video back in minutes.",
-    cta: "Open Video Agent →",
-    ctaTo: "/agent",
-  },
-  {
     src: "/hero/hero-5.png",
     eyebrow: "GRWM Studio",
     headline: "From Selfie to Studio Reel",
@@ -178,13 +170,6 @@ const FEATURED_TOOLS = [
     to: "/colors",
     icon: Palette,
     price: "From 10 Aura",
-  },
-  {
-    label: "Video Agent",
-    desc: "AI creative director, chat a shot, get a rendered video back.",
-    to: "/agent",
-    icon: Bot,
-    price: "From 8 Aura",
   },
   {
     label: "Get Ready With Me",

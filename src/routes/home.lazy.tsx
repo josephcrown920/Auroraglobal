@@ -434,13 +434,80 @@ function HomePage() {
         paddingLeft: 12, paddingRight: 12,
         position: "relative", zIndex: 10,
       }}>
+        {/* ── FOR ARTISTS / FOR CREATORS — page-level toggle ── */}
+        <div
+          role="tablist"
+          aria-label="Studio mode"
+          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}
+        >
+          {SIDE_ORDER.map((id) => {
+            const active = id === activeSideId;
+            const TabIcon = id === "artist" ? Mic2 : Clapperboard;
+            const sub = id === "artist"
+              ? "Press shots · Music videos · Live visuals"
+              : "UGC ads · Short-form · Avatars";
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => flipTo(id)}
+                style={{
+                  display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 5,
+                  padding: "14px 14px 13px", borderRadius: 18, border: "none", textAlign: "left",
+                  cursor: "pointer",
+                  background: active
+                    ? "linear-gradient(135deg, oklch(0.58 0.22 25 / 0.22), oklch(0.62 0.18 30 / 0.12))"
+                    : "oklch(1 0 0 / 0.04)",
+                  boxShadow: active
+                    ? "inset 0 0 0 1.5px oklch(0.58 0.22 25 / 0.55), 0 4px 20px -6px oklch(0.58 0.22 25 / 0.25)"
+                    : "inset 0 0 0 1px oklch(1 0 0 / 0.09)",
+                  transition: "all 0.22s cubic-bezier(0.22, 0.8, 0.3, 1)",
+                }}
+              >
+                <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  <span style={{
+                    width: 28, height: 28, borderRadius: 9, flexShrink: 0,
+                    background: active ? "oklch(0.58 0.22 25 / 0.25)" : "oklch(1 0 0 / 0.07)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "background 0.2s",
+                  }}>
+                    <TabIcon size={14} color={active ? "oklch(0.88 0.16 28)" : "oklch(0.55 0.01 272)"} />
+                  </span>
+                  <span style={{
+                    fontSize: 14.5, fontWeight: 800, letterSpacing: "-0.01em",
+                    color: active ? "oklch(0.90 0.14 28)" : "oklch(0.68 0.01 272)",
+                    transition: "color 0.2s",
+                  }}>
+                    For {SIDES[id].tab}
+                  </span>
+                  {storedPersona === id && (
+                    <span style={{
+                      fontSize: 8, fontWeight: 700, letterSpacing: "0.08em",
+                      background: "oklch(0.58 0.22 25 / 0.22)", color: "oklch(0.82 0.14 28)",
+                      padding: "2px 6px", borderRadius: 6,
+                    }}>YOU</span>
+                  )}
+                </span>
+                <span style={{
+                  fontSize: 10.5, fontWeight: 500, lineHeight: 1.4, paddingLeft: 35,
+                  color: active ? "oklch(0.68 0.08 28)" : "oklch(0.44 0.01 272)",
+                  transition: "color 0.2s",
+                }}>
+                  {sub}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* ── One-time persona question for accounts that never got asked ── */}
         {!storedPersona && <PersonaAsk onPick={handlePickPersona} busy={personaBusy} />}
 
         {/* ── Heading ── */}
-        <h1 style={{ margin: "0 0 12px", fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em", color: "oklch(0.97 0.01 272)" }}>
-          Start creating{" "}
-          <span style={{ color: "var(--primary)" }}>as {side.label === "Artist" ? "an Artist" : "a Creator"}</span>
+        <h1 style={{ margin: "0 0 12px", fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", color: "oklch(0.97 0.01 272)" }}>
+          {side.label === "Artist" ? "Artist tools" : "Creator tools"}
         </h1>
 
         {/* ── Composer ── */}
@@ -551,49 +618,8 @@ function HomePage() {
           </div>
         </form>
 
-        {/* ── Artists / Creators flip ── */}
-        <div
-          role="tablist"
-          aria-label="Studio side"
-          style={{
-            display: "flex", gap: 4, padding: 4, borderRadius: 14, marginBottom: 12,
-            background: "oklch(1 0 0 / 0.045)",
-            border: "1px solid oklch(1 0 0 / 0.07)",
-          }}
-        >
-          {SIDE_ORDER.map((id) => {
-            const active = id === activeSideId;
-            const TabIcon = id === "artist" ? Mic2 : Clapperboard;
-            return (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => flipTo(id)}
-                style={{
-                  flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                  padding: "9px 10px", borderRadius: 11, border: "none",
-                  background: active ? "oklch(0.60 0.24 28 / 0.20)" : "transparent",
-                  boxShadow: active ? "inset 0 0 0 1px oklch(0.58 0.22 25 / 0.45)" : "none",
-                  color: active ? "oklch(0.86 0.14 28)" : "oklch(0.56 0.01 272)",
-                  fontSize: 13.5, fontWeight: 700, cursor: "pointer",
-                  transition: "background 0.2s, color 0.2s",
-                }}
-              >
-                <TabIcon size={14} />
-                {SIDES[id].tab}
-                {storedPersona === id && (
-                  <span style={{ fontSize: 9, fontWeight: 700, opacity: 0.75, letterSpacing: "0.06em" }}>YOU</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
         {/* Everything below flips as one page when the side changes */}
         <div key={activeSideId} className="side-flip">
-          <p style={{ margin: "0 0 10px", fontSize: 12.5, color: "oklch(0.58 0.01 272)" }}>{side.blurb}</p>
 
           {/* ── Tool rail for this side ── */}
           <div

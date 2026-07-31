@@ -21,7 +21,6 @@ import {
   Megaphone,
   Brush,
   Shield,
-  Bot,
   Layers,
   type LucideIcon,
 } from "lucide-react";
@@ -45,7 +44,6 @@ type Feature = {
 /** Core creation tools — highest-traffic first. */
 const MAKE_FEATURES: Feature[] = [
   { to: "/studio",         label: "Image Generation", icon: Sparkles,  previewImg: "/nav-previews/studio.jpg" },
-  { to: "/video-agent",    label: "Video Agent",      icon: Bot,       badge: "NEW" },
   { to: "/colors",         label: "Colors Studio",    icon: Palette,   previewImg: "/nav-previews/colors.jpg" },
   { to: "/canvas",         label: "Canvas",           icon: Workflow,  previewImg: "/nav-previews/canvas.jpg" },
   { to: "/photo-edit",     label: "Photo Editor",     icon: Brush,     previewImg: "/nav-previews/photo-edit.jpg" },
@@ -393,7 +391,6 @@ export function MobileNav() {
 
             <NavSection label="Film & Video">
               {([
-                { to: "/video-agent",   label: "Video Agent",    icon: Bot,          badge: "NEW" },
                 { to: "/storyboard",    label: "Storyboard",     icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
                 { to: "/music-video",   label: "Lyric Video",    icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
                 { to: "/scene-builder", label: "Directors ROOM", icon: Layers,       previewImg: "/nav-previews/scene-builder.jpg" },
