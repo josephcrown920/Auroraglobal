@@ -46,14 +46,14 @@ type Feature = {
 const MAKE_FEATURES: Feature[] = [
   { to: "/studio",         label: "Image Generation", icon: Sparkles,  previewImg: "/nav-previews/studio.jpg" },
   { to: "/video-agent",    label: "Video Agent",      icon: Bot,       badge: "NEW" },
-  { to: "/mastering",      label: "AI Mastering",     icon: Music2,    badge: "NEW" },
   { to: "/colors",         label: "Colors Studio",    icon: Palette,   previewImg: "/nav-previews/colors.jpg" },
   { to: "/canvas",         label: "Canvas",           icon: Workflow,  previewImg: "/nav-previews/canvas.jpg" },
   { to: "/photo-edit",     label: "Photo Editor",     icon: Brush,     previewImg: "/nav-previews/photo-edit.jpg" },
   { to: "/split-reality",  label: "Split Reality",    icon: Wand2,     previewImg: "/nav-previews/studio.jpg" },
   { to: "/live-studio",    label: "Live Studios",     icon: Music2,    previewImg: "/nav-previews/live-studio.jpg" },
-  { to: "/scene-builder",  label: "Directors ROOM",   icon: Layers,    previewImg: "/nav-previews/scene-builder.jpg" },
   { to: "/storyboard",     label: "Storyboard",       icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
+  { to: "/music-video",    label: "Lyric Video",      icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
+  { to: "/scene-builder",  label: "Directors ROOM",   icon: Layers,    previewImg: "/nav-previews/scene-builder.jpg" },
 ];
 
 /** Creator & viral tools — ordered by demand. */
@@ -380,15 +380,24 @@ export function MobileNav() {
 
             <NavSection label="For Artists">
               {([
-                { to: "/colors",        label: "Colors Studio",   icon: Palette,     previewImg: "/nav-previews/colors.jpg" },
-                { to: "/studio",        label: "Image Generation",icon: Sparkles,    previewImg: "/nav-previews/studio.jpg" },
-                { to: "/live-studio",   label: "Live Studios",    icon: Music2,      previewImg: "/nav-previews/live-studio.jpg" },
-                { to: "/scene-builder", label: "Directors ROOM",  icon: Layers,      previewImg: "/nav-previews/scene-builder.jpg" },
-                { to: "/photo-edit",    label: "Photo Editor",    icon: Brush,       previewImg: "/nav-previews/photo-edit.jpg" },
-                { to: "/canvas",        label: "Infinity Canvas", icon: Workflow,    previewImg: "/nav-previews/canvas.jpg" },
-                { to: "/storyboard",    label: "Storyboard",      icon: Clapperboard,previewImg: "/nav-previews/music-video.jpg" },
-                { to: "/music-video",   label: "Lyric Video",     icon: Clapperboard,previewImg: "/nav-previews/music-video.jpg" },
-                { to: "/motion",        label: "Motion Control",  icon: Wand2,       previewImg: "/nav-previews/motion.jpg" },
+                { to: "/colors",      label: "Colors Studio",   icon: Palette,  previewImg: "/nav-previews/colors.jpg" },
+                { to: "/studio",      label: "Image Generation",icon: Sparkles, previewImg: "/nav-previews/studio.jpg" },
+                { to: "/live-studio", label: "PureMix Studio",  icon: Music2,   previewImg: "/nav-previews/live-studio.jpg" },
+                { to: "/photo-edit",  label: "Photo Editor",    icon: Brush,    previewImg: "/nav-previews/photo-edit.jpg" },
+                { to: "/canvas",      label: "Infinity Canvas", icon: Workflow, previewImg: "/nav-previews/canvas.jpg" },
+                { to: "/split-reality", label: "Split Reality", icon: Wand2,   previewImg: "/nav-previews/studio.jpg" },
+              ] as Feature[]).map((f) => (
+                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
+              ))}
+            </NavSection>
+
+            <NavSection label="Film & Video">
+              {([
+                { to: "/video-agent",   label: "Video Agent",    icon: Bot,          badge: "NEW" },
+                { to: "/storyboard",    label: "Storyboard",     icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
+                { to: "/music-video",   label: "Lyric Video",    icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
+                { to: "/scene-builder", label: "Directors ROOM", icon: Layers,       previewImg: "/nav-previews/scene-builder.jpg" },
+                { to: "/motion",        label: "Motion Control", icon: Wand2,        previewImg: "/nav-previews/motion.jpg" },
               ] as Feature[]).map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
@@ -396,11 +405,11 @@ export function MobileNav() {
 
             <NavSection label="For Creators">
               {([
-                { to: "/lipsync",   label: "Lip Sync",        icon: Mic,          previewImg: "/nav-previews/lipsync.jpg" },
-                { to: "/spin",      label: "TikTok30",        icon: Flame,        previewImg: "/nav-previews/spin.jpg" },
-                { to: "/ugc-line",  label: "Content Line",    icon: Layers,       previewImg: "/nav-previews/ugc-line.jpg" },
-                { to: "/ugc",       label: "UGC Ads",         icon: Megaphone,    previewImg: "/nav-previews/ugc.jpg" },
-                { to: "/avatar",    label: "Talking Avatars", icon: UserCircle2,  previewImg: "/nav-previews/avatar.jpg" },
+                { to: "/lipsync",   label: "Lip Sync",        icon: Mic,         previewImg: "/nav-previews/lipsync.jpg" },
+                { to: "/spin",      label: "TikTok30",        icon: Flame,       previewImg: "/nav-previews/spin.jpg" },
+                { to: "/ugc-line",  label: "Content Line",    icon: Layers,      previewImg: "/nav-previews/ugc-line.jpg" },
+                { to: "/ugc",       label: "UGC Ads",         icon: Megaphone,   previewImg: "/nav-previews/ugc.jpg" },
+                { to: "/avatar",    label: "Talking Avatars", icon: UserCircle2, previewImg: "/nav-previews/avatar.jpg" },
               ] as Feature[]).map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
