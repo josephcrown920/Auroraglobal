@@ -4,6 +4,7 @@ import { Mic, Video, Sparkles, Loader2, Link } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import FileUploadSlot from "@/components/FileUploadSlot";
+import { useSetActiveGeneration } from "@/contexts/generationWatcher";
 
 type InputMode = "upload" | "url";
 
@@ -16,6 +17,7 @@ export default function LipsyncStudioPage() {
   const [audioObjectPath, setAudioObjectPath] = useState<string | null>(null);
   const generate = useGenerateLipsync();
   const [, setLocation] = useLocation();
+  const setActiveGeneration = useSetActiveGeneration();
 
   const resolvedVideoUrl =
     videoMode === "upload"
@@ -40,7 +42,8 @@ export default function LipsyncStudioPage() {
     generate.mutate(
       { data: { videoUrl: resolvedVideoUrl, audioUrl: resolvedAudioUrl } },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
+          setActiveGeneration({ id: data.id, creditsUsed: 8 });
           toast.success("Lipsync processing started!");
           setVideoUrl("");
           setAudioUrl("");

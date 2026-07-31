@@ -23,4 +23,8 @@ export interface GenerationStatus {
   createdAt: string;
   /** @nullable */
   completedAt?: string | null;
+  /** @nullable */
+  refunded?: boolean | null;
+  /** @nullable */
+  creditsRefunded?: number | null;
 }

@@ -3,12 +3,14 @@ import { useGenerateMusicVideo } from "@workspace/api-client-react";
 import { Music, Film, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
+import { useSetActiveGeneration } from "@/contexts/generationWatcher";
 
 export default function MusicVideoStudioPage() {
   const [prompt, setPrompt] = useState("");
   const [audioUrl, setAudioUrl] = useState("");
   const generate = useGenerateMusicVideo();
   const [, setLocation] = useLocation();
+  const setActiveGeneration = useSetActiveGeneration();
 
   const handleGenerate = () => {
     if (!prompt.trim() || !audioUrl.trim()) {
@@ -19,7 +21,8 @@ export default function MusicVideoStudioPage() {
     generate.mutate(
       { data: { prompt, audioUrl } },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
+          setActiveGeneration({ id: data.id, creditsUsed: 12 });
           toast.success("Music video generation started!");
           setLocation("/dashboard");
         },

@@ -3,12 +3,14 @@ import { useGenerateUgc } from "@workspace/api-client-react";
 import { Smartphone, Sparkles, Loader2, User } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
+import { useSetActiveGeneration } from "@/contexts/generationWatcher";
 
 export default function UgcFactoryPage() {
   const [prompt, setPrompt] = useState("");
   const [avatarStyle, setAvatarStyle] = useState<"lifestyle" | "studio" | "unboxing">("lifestyle");
   const generate = useGenerateUgc();
   const [, setLocation] = useLocation();
+  const setActiveGeneration = useSetActiveGeneration();
 
   const handleGenerate = () => {
     if (!prompt.trim()) {
@@ -19,7 +21,8 @@ export default function UgcFactoryPage() {
     generate.mutate(
       { data: { prompt, productDescription: prompt, avatarStyle } },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
+          setActiveGeneration({ id: data.id, creditsUsed: 6 });
           toast.success("UGC Generation queued!");
           setLocation("/dashboard");
         },

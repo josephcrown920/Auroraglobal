@@ -4,6 +4,7 @@ import { Video, Film, Sparkles, Loader2, Image } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import FileUploadSlot from "@/components/FileUploadSlot";
+import { useSetActiveGeneration } from "@/contexts/generationWatcher";
 
 export default function MotionStudioPage() {
   const [prompt, setPrompt] = useState("");
@@ -12,6 +13,7 @@ export default function MotionStudioPage() {
   >(null);
   const generate = useGenerateVideo();
   const [, setLocation] = useLocation();
+  const setActiveGeneration = useSetActiveGeneration();
 
   const resolvedSourceImageUrl = sourceImageObjectPath
     ? `/api/storage${sourceImageObjectPath}`
@@ -33,7 +35,8 @@ export default function MotionStudioPage() {
         },
       },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
+          setActiveGeneration({ id: data.id, creditsUsed: 10 });
           toast.success("Motion generation queued! Videos take 2-4 minutes.");
           setPrompt("");
           setSourceImageObjectPath(null);

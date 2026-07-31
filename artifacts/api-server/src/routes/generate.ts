@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, generationsTable, usersTable } from "@workspace/db";
+import { db, generationsTable, usersTable, creditTransactionsTable } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 import {
   GeneratePhotoBody,
@@ -567,6 +567,22 @@ router.get("/generate/:id", requireAuth, async (req: any, res): Promise<void> =>
     return;
   }
 
+  // Helper: look up whether a refund was issued for this generation
+  async function getRefundInfo(generationId: string): Promise<{ refunded: boolean; creditsRefunded: number }> {
+    const [tx] = await db
+      .select()
+      .from(creditTransactionsTable)
+      .where(
+        and(
+          eq(creditTransactionsTable.reference, generationId),
+          eq(creditTransactionsTable.type, "refund"),
+        ),
+      )
+      .limit(1);
+    if (tx) return { refunded: true, creditsRefunded: tx.amount };
+    return { refunded: false, creditsRefunded: 0 };
+  }
+
   // If the job is still in-flight and has a real provider job ID, sync provider status
   if (
     gen.providerJobId &&
@@ -585,6 +601,7 @@ router.get("/generate/:id", requireAuth, async (req: any, res): Promise<void> =>
       .limit(1);
 
     if (fresh) {
+      const refundInfo = fresh.status === "failed" ? await getRefundInfo(fresh.id) : { refunded: false, creditsRefunded: 0 };
       res.json({
         id: fresh.id,
         status: fresh.status,
@@ -595,11 +612,14 @@ router.get("/generate/:id", requireAuth, async (req: any, res): Promise<void> =>
         progress: fresh.progress ?? null,
         createdAt: fresh.createdAt.toISOString(),
         completedAt: fresh.completedAt?.toISOString() ?? null,
+        refunded: refundInfo.refunded,
+        creditsRefunded: refundInfo.creditsRefunded,
       });
       return;
     }
   }
 
+  const refundInfo = gen.status === "failed" ? await getRefundInfo(gen.id) : { refunded: false, creditsRefunded: 0 };
   res.json({
     id: gen.id,
     status: gen.status,
@@ -610,6 +630,8 @@ router.get("/generate/:id", requireAuth, async (req: any, res): Promise<void> =>
     progress: gen.progress ?? null,
     createdAt: gen.createdAt.toISOString(),
     completedAt: gen.completedAt?.toISOString() ?? null,
+    refunded: refundInfo.refunded,
+    creditsRefunded: refundInfo.creditsRefunded,
   });
 });
 

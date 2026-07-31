@@ -55,29 +55,54 @@ export default function MusicVideoScreen() {
   const audioUpload = useFileUpload();
   const { shareMedia, saveToLibrary, isSharing, isSaving } = useShareDownload();
 
-  const { data: statusData } = useGetGenerationStatus(jobId ?? '', {
+  const failedPollsRef = React.useRef(0);
+
+  const { data: statusData, dataUpdatedAt } = useGetGenerationStatus(jobId ?? '', {
     query: {
       enabled: !!jobId && !resultUrl,
       refetchInterval: (query) => {
-        const status = query.state.data?.status;
-        if (status === 'completed' || status === 'failed') return false;
+        const d = query.state.data;
+        if (!d) return 3000;
+        if (d.status === 'completed') return false;
+        if (d.status === 'failed') {
+          if (d.refunded === true) return false;
+          if (failedPollsRef.current >= 4) return false;
+          return 2000;
+        }
         return 3000;
       },
     },
   });
 
   React.useEffect(() => {
-    if (statusData?.status === 'completed') {
+    if (!statusData) return;
+    if (statusData.status === 'completed') {
       if (statusData.outputUrl) setResultUrl(statusData.outputUrl);
       if (statusData.thumbnailUrl) setThumbnailUrl(statusData.thumbnailUrl);
+      failedPollsRef.current = 0;
       setJobId(null);
       setStatusMsg('');
-    } else if (statusData?.status === 'failed') {
-      setJobId(null);
-      setStatusMsg('');
-      Alert.alert('Generation failed', 'Your credits have been returned.');
+    } else if (statusData.status === 'failed') {
+      if (statusData.refunded === true) {
+        failedPollsRef.current = 0;
+        setJobId(null);
+        setStatusMsg('');
+        Alert.alert(
+          'Generation failed',
+          `Your ${statusData.creditsRefunded} credits have been refunded.`,
+        );
+      } else {
+        failedPollsRef.current += 1;
+        if (failedPollsRef.current > 4) {
+          failedPollsRef.current = 0;
+          setJobId(null);
+          setStatusMsg('');
+          Alert.alert('Generation failed', 'Something went wrong with this generation.');
+        }
+      }
     }
-  }, [statusData?.status, statusData?.outputUrl, statusData?.thumbnailUrl]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataUpdatedAt]);
 
   const isGenerating =
     !!jobId || generateMutation.isPending || audioUpload.isUploading;

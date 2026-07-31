@@ -11,6 +11,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 // Layouts & Pages
 import PublicLayout from "./components/layout/PublicLayout";
 import AppLayout from "./components/layout/AppLayout";
+import { GenerationWatcherProvider } from "./contexts/generationWatcher";
 import LandingPage from "./pages/landing";
 import PricingPage from "./pages/pricing";
 import DashboardPage from "./pages/dashboard";
@@ -187,6 +188,7 @@ function ClerkProviderWithRoutes() {
     >
       <QueryClientProvider client={queryClient}>
         <ClerkQueryClientCacheInvalidator />
+        <GenerationWatcherProvider>
         <TooltipProvider>
           <Switch>
             <Route path="/" component={HomeRoute} />
@@ -213,6 +215,7 @@ function ClerkProviderWithRoutes() {
           </Switch>
           <Toaster theme="dark" position="bottom-right" />
         </TooltipProvider>
+        </GenerationWatcherProvider>
       </QueryClientProvider>
     </ClerkProvider>
   );

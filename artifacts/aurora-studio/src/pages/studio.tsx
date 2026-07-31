@@ -3,6 +3,7 @@ import { useGeneratePhoto } from "@workspace/api-client-react";
 import { Sparkles, Image as ImageIcon, Upload, Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
+import { useSetActiveGeneration } from "@/contexts/generationWatcher";
 
 export default function ColorsStudioPage() {
   const [prompt, setPrompt] = useState("");
@@ -10,6 +11,7 @@ export default function ColorsStudioPage() {
   const [style, setStyle] = useState<"cinematic" | "editorial" | "concert">("editorial");
   const generate = useGeneratePhoto();
   const [, setLocation] = useLocation();
+  const setActiveGeneration = useSetActiveGeneration();
 
   const handleGenerate = () => {
     if (!prompt.trim()) {
@@ -20,7 +22,8 @@ export default function ColorsStudioPage() {
     generate.mutate(
       { data: { prompt, aspectRatio, style: style } },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
+          setActiveGeneration({ id: data.id, creditsUsed: 2 });
           toast.success("Generation started! Check your gallery in a minute.");
           setPrompt("");
           setLocation("/dashboard");

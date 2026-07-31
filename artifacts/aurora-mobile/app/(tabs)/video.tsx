@@ -43,25 +43,56 @@ export default function VideoAgentScreen() {
 
   const generateMutation = useGenerateVideo();
 
-  const { data: statusData } = useGetGenerationStatus(jobId ?? '', {
+  // Track how many extra polls we've done after first seeing "failed"
+  const failedPollsRef = React.useRef(0);
+
+  const { data: statusData, dataUpdatedAt } = useGetGenerationStatus(jobId ?? '', {
     query: {
       enabled: !!jobId && !resultUrl,
       refetchInterval: (query) => {
-        const status = query.state.data?.status;
-        if (status === 'completed' || status === 'failed') return false;
+        const d = query.state.data;
+        if (!d) return 3000;
+        if (d.status === 'completed') return false;
+        if (d.status === 'failed') {
+          // Keep polling until refund is confirmed or retry budget exhausted
+          if (d.refunded === true) return false;
+          if (failedPollsRef.current >= 4) return false;
+          return 2000;
+        }
         return 3000;
       },
     },
   });
 
-  // React to completed status outside select to avoid side effects in pure fn
+  // Use dataUpdatedAt so this fires after every fetch, even when data is unchanged.
+  // This lets us detect a refund that lands a moment after the initial "failed" response.
   React.useEffect(() => {
-    if (statusData?.status === 'completed') {
+    if (!statusData) return;
+    if (statusData.status === 'completed') {
       if (statusData.outputUrl) setResultUrl(statusData.outputUrl);
       if (statusData.thumbnailUrl) setThumbnailUrl(statusData.thumbnailUrl);
+      failedPollsRef.current = 0;
       setJobId(null);
+    } else if (statusData.status === 'failed') {
+      if (statusData.refunded === true) {
+        failedPollsRef.current = 0;
+        setJobId(null);
+        Alert.alert(
+          'Generation failed',
+          `Your ${statusData.creditsRefunded} credits have been refunded.`,
+        );
+      } else {
+        failedPollsRef.current += 1;
+        if (failedPollsRef.current > 4) {
+          failedPollsRef.current = 0;
+          setJobId(null);
+          Alert.alert('Generation failed', 'Something went wrong with this generation.');
+        }
+        // else: keep polling — refetchInterval will schedule the next fetch
+      }
     }
-  }, [statusData?.status, statusData?.outputUrl, statusData?.thumbnailUrl]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataUpdatedAt]);
 
   const isGenerating = !!jobId || generateMutation.isPending;
   const { shareMedia, saveToLibrary, isSharing, isSaving } = useShareDownload();
