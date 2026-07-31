@@ -1,0 +1,866 @@
+{
+  "x-generator": "NSwag v14.1.0.0 (NJsonSchema v11.0.2.0 (Newtonsoft.Json v13.0.0.0))",
+  "openapi": "3.0.0",
+  "info": {
+    "title": "LANDR Mastering Api",
+    "description": "\n# Authentication\n\n<SecurityDefinitions />\n\n# Webhook\nLANDR signs the webhook events sent to your endpoint. This allows you to ensure that the event was sent by LANDR and not a third party. To configure your webhook or to fetch webhook details, see the <a href=\"#operation/Webhook_ConfigureWebhook\">webhook api section</a> below.\n## Verifying signatures\nLANDR generates a signature by computing the hash (HMAC/SHA-256) of the http request's body using the secret key that was generated upon webhook configuration. The signature is located in the http request's header with key <code>x-signature</code>. The following pseudo code shows how the signature can be validated against the request body:\n\nNB: The secret given by LANDR when configuring the webhook is encoded in base64.\n\n```javascript\nfunction processRequest(request) {\n    var secret = decodeBase64(\"client-secret-configured-in-landr\");\t\t\n    var signature = request.getHeaders()[\"x-signature\"];\n    var bodyAsString = request.getBodyAsString();\n    if(hash(bodyAsString, secret) != signature)\n    \tthrow new Exception();\n}\n```\n\n## Event types\n\n<h3>track.status</h3>\nThis event is triggered upon completion of a preview or master.\n\n```json\n{\n    \"type\": \"track.status\",\n    \"data\": {\n        \"trackId\": \"...\",\n        \"status\": \"completed\"\n    }\n}\n```\n\n",
+    "version": "v1",
+    "x-logo": {
+      "url": "https://cdn.landr.com/images/landr-logo-masteringapi-280x250.png"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.landr.com"
+    }
+  ],
+  "paths": {
+    "/v1/master/single": {
+      "post": {
+        "tags": [
+          "Master"
+        ],
+        "summary": "Create a single master",
+        "description": "When successful, the request returns a 202 Accepted.\nThe body of the response contains the id of the master and a url to poll in order to fetch the status of the master. \\\n\\\nnb. For staging clients, no actual master will be performed. The flow is simulated over 10 seconds resulting in a dummy audio file.  \\\n\\\nRate Limits: 50 requests per hour",
+        "operationId": "Master_CreateSingleMaster",
+        "requestBody": {
+          "x-name": "requestDto",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMasterRequestDto"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateSingleMasterResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "cURL",
+            "source": "curl -si -X POST \\\n    --url 'https://api.landr.com/mastering/v1/master/single' \\\n    -H \"Content-Type: application/json\" \\\n    -H 'x-landr-mastering-api-key: YOUR_API_KEY' \\\n    -d '{ \"inputUri\": \"<input_uri>\", \"format\": \"cd\", \"loudness\": \"low\", \"style\":\"balanced\" }'"
+          },
+          {
+            "lang": "C#",
+            "source": "using var client = new HttpClient();\nvar request = new HttpRequestMessage(HttpMethod.Post,\n                        \"https://api.landr.com/mastering/v1/master/single\");\n\nvar body = JsonConvert.SerializeObject(new\n{\n  inputUri = inputUri,\n  loudness = \"low\",\n  style = \"balanced\",\n  format = \"cd\",\n});\n\nrequest.Content =\n    new StringContent(body, Encoding.UTF8, \"application/json\");\n\nrequest.Headers.Add(\"x-landr-mastering-api-key\", yourApiKey);\n\nvar response = await client.SendAsync(request);\nvar responseStr = await response.Content.ReadAsStringAsync();"
+          },
+          {
+            "lang": "Node.js",
+            "source": "const { request } = require('https');\nconst yourApiKey= 'your-api-key';\nconst inputUri = 'https://path-to-audio-file.com';\n\nconst callback = function (response) {\n    var str = '';\n    response.on('data', function (chunk) {\n        str += chunk;\n    });\n\n    response.on('end', function () {\n        console.log(str);\n    });\n};\n\nconst req = request(\n    {\n        host: 'api.landr.com',\n        path: '/mastering/v1/master/single',\n        headers: {\n            'x-landr-mastering-api-key': `${yourApiKey}`,\n            'Content-Type': 'application/json',\n        },\n        method: 'POST',\n    },\n    callback\n);\n\nreq.write(\n    JSON.stringify({\n        inputUri: inputUri,\n        loudness: 'low',\n        style: 'balanced',\n        format: 'cd',\n    })\n);\nreq.end();"
+          }
+        ]
+      }
+    },
+    "/v1/master/single/{id}/status": {
+      "get": {
+        "tags": [
+          "Master"
+        ],
+        "summary": "Retrieve a master's status",
+        "description": "Rate Limits: 100 requests per minute",
+        "operationId": "Master_GetTrackMasterStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The unique id of the master.",
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "\n            ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetTrackMasterStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "\n              Returned if the unique id does not refer to an existing master.\n            ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "cURL",
+            "source": "curl -si \\\n    --url 'https://api.landr.com/mastering/v1/master/single/a0f3e327-3bea-4764-9d95-1bc1936f2297/status' \\\n    -H 'x-landr-mastering-api-key: YOUR_API_KEY'"
+          },
+          {
+            "lang": "C#",
+            "source": "using var client = new HttpClient();\nvar request = new HttpRequestMessage(HttpMethod.Get,\n                        \"https://api.landr.com/mastering/v1/master/single/a0f3e327-3bea-4764-9d95-1bc1936f2297/status\");\n\nrequest.Headers.Add(\"x-landr-mastering-api-key\", yourApiKey);\n\nvar response = await client.SendAsync(request);\nvar responseStr = await response.Content.ReadAsStringAsync();"
+          },
+          {
+            "lang": "Node.js",
+            "source": "const { request } = require('https');\nconst yourApiKey= 'your-api-key';\nconst assetId = 'my-asset-id';\n\nconst callback = function (response) {\n    var str = '';\n    response.on('data', function (chunk) {\n        str += chunk;\n    });\n\n    response.on('end', function () {\n        console.log(str);\n    });\n};\n\nconst req = request(\n    {\n        host: 'api.landr.com',\n        path: `/mastering/v1/master/single/${assetId}/status`,\n        headers: {\n            'x-landr-mastering-api-key': `${yourApiKey}`,\n            'Content-Type': 'application/json',\n        },\n        method: 'GET',\n    },\n    callback\n);\n\nreq.end();"
+          }
+        ]
+      }
+    },
+    "/v1/master/single/{id}/download": {
+      "get": {
+        "tags": [
+          "Master"
+        ],
+        "summary": "Retrieve a master's download url",
+        "description": "Rate Limits: 100 requests per minute",
+        "operationId": "Master_GetDownloadPath",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The unique id of the master.",
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetDownloadPathResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "\n              Returned when the master does not exist yet. The status of the master is not `completed`.\n            ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "\n              Returned if the mastered track has been removed. The status of the master is `expired`.\n            ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "cURL",
+            "source": "curl -si \\\n    --url 'https://api.landr.com/mastering/v1/master/single/a0f3e327-3bea-4764-9d95-1bc1936f2297/download' \\\n    -H 'x-landr-mastering-api-key: YOUR_API_KEY'"
+          },
+          {
+            "lang": "C#",
+            "source": "using var client = new HttpClient();\nvar request = new HttpRequestMessage(HttpMethod.Get,\n                        \"https://api.landr.com/mastering/v1/master/single/a0f3e327-3bea-4764-9d95-1bc1936f2297/download\");\n\nrequest.Headers.Add(\"x-landr-mastering-api-key\", yourApiKey);\n\nvar response = await client.SendAsync(request);\nvar responseStr = await response.Content.ReadAsStringAsync();"
+          },
+          {
+            "lang": "Node.js",
+            "source": "const { request } = require('https');\nconst yourApiKey= 'your-api-key';\nconst masterId = 'my-master-id';\n\nconst callback = function (response) {\n    var str = '';\n    response.on('data', function (chunk) {\n        str += chunk;\n    });\n\n    response.on('end', function () {\n        console.log(str);\n    });\n};\n\nconst req = request(\n    {\n        host: 'api.landr.com',\n        path: `/mastering/v1/master/single/${masterId}/download`,\n        headers: {\n            'x-landr-mastering-api-key': `${yourApiKey}`,\n            'Content-Type': 'application/json',\n        },\n        method: 'GET',\n    },\n    callback\n);\n\nreq.end();"
+          }
+        ]
+      }
+    },
+    "/v1/preview/single": {
+      "post": {
+        "tags": [
+          "Preview"
+        ],
+        "summary": "Create a single preview",
+        "description": "The created preview will always be an MP3 file. \\\n\\\nWhen successful, the request returns a 202 Accepted. The body of the response contains the id of the preview being processed and a url to poll in order to fetch the status of the preview. \\\n\\\nnb. For staging clients, no actual preview will be performed. The flow is simulated over 10 seconds resulting in a dummy audio file.  \\\n\\\nRate Limits: 50 requests per hour",
+        "operationId": "Preview_CreateSinglePreview",
+        "requestBody": {
+          "x-name": "requestDto",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePreviewRequestDto"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateSinglePreviewResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "cURL",
+            "source": "curl -si -X POST \\\n    --url 'https://api.landr.com/mastering/v1/preview/single' \\\n    -H \"Content-Type: application/json\" \\\n    -H 'x-landr-mastering-api-key: YOUR_API_KEY' \\\n    -d '{ \"inputUri\": \"<input_uri>\",  \"loudness\": \"low\", \"style\":\"balanced\" }'"
+          },
+          {
+            "lang": "C#",
+            "source": "using var client = new HttpClient();\nvar request = new HttpRequestMessage(HttpMethod.Post,\n                        \"https://api.landr.com/mastering/v1/preview/single\");\n\nvar body = JsonConvert.SerializeObject(new\n{\n  inputUri = inputUri,\n  loudness = \"low\",\n  style = \"balanced\"\n});\n\nrequest.Content =\n    new StringContent(body, Encoding.UTF8, \"application/json\");\n\nrequest.Headers.Add(\"x-landr-mastering-api-key\", yourApiKey);\n\nvar response = await client.SendAsync(request);\nvar responseStr = await response.Content.ReadAsStringAsync();"
+          },
+          {
+            "lang": "Node.js",
+            "source": "const { request } = require('https');\nconst yourApiKey= 'your-api-key';\nconst inputUri = 'https://path-to-audio-file.com';\n\nconst callback = function (response) {\n    var str = '';\n    response.on('data', function (chunk) {\n        str += chunk;\n    });\n\n    response.on('end', function () {\n        console.log(str);\n    });\n};\n\nconst req = request(\n    {\n        host: 'api.landr.com',\n        path: '/mastering/v1/preview/single',\n        headers: {\n            'x-landr-mastering-api-key': `${yourApiKey}`,\n            'Content-Type': 'application/json',\n        },\n        method: 'POST',\n    },\n    callback\n);\n\nreq.write(\n    JSON.stringify({\n        inputUri: inputUri,\n        loudness: 'low',\n        style: 'balanced',\n        format: 'cd',\n    })\n);\nreq.end();"
+          }
+        ]
+      }
+    },
+    "/v1/preview/single/{id}/status": {
+      "get": {
+        "tags": [
+          "Preview"
+        ],
+        "summary": "Retrieve a preview's status",
+        "description": "Rate Limits: 100 requests per minute",
+        "operationId": "Preview_GetTrackMasterStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The unique id of the preview.",
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "\n            ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetTrackPreviewStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "\n              Returned if the id does not refer to an existing preview.\n            ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "cURL",
+            "source": "curl -si \\\n    --url 'https://api.landr.com/mastering/v1/preview/single/a0f3e327-3bea-4764-9d95-1bc1936f2297/status' \\\n    -H 'x-landr-mastering-api-key: YOUR_API_KEY'"
+          },
+          {
+            "lang": "C#",
+            "source": "using var client = new HttpClient();\nvar request = new HttpRequestMessage(HttpMethod.Get,\n                        \"https://api.landr.com/mastering/v1/preview/single/a0f3e327-3bea-4764-9d95-1bc1936f2297/status\");\n\nrequest.Headers.Add(\"x-landr-mastering-api-key\", yourApiKey);\n\nvar response = await client.SendAsync(request);\nvar responseStr = await response.Content.ReadAsStringAsync();"
+          },
+          {
+            "lang": "Node.js",
+            "source": "const { request } = require('https');\nconst yourApiKey= 'your-api-key';\nconst previewId = 'my-preview-id';\n\nconst callback = function (response) {\n    var str = '';\n    response.on('data', function (chunk) {\n        str += chunk;\n    });\n\n    response.on('end', function () {\n        console.log(str);\n    });\n};\n\nconst req = request(\n    {\n        host: 'api.landr.com',\n        path: `/mastering/v1/preview/single/${previewId}/status`,\n        headers: {\n            'x-landr-mastering-api-key': `${yourApiKey}`,\n            'Content-Type': 'application/json',\n        },\n        method: 'GET',\n    },\n    callback\n);\n\nreq.end();"
+          }
+        ]
+      }
+    },
+    "/v1/preview/single/{id}/download": {
+      "get": {
+        "tags": [
+          "Preview"
+        ],
+        "summary": "Retrieve a preview's download url",
+        "description": "Rate Limits: 100 requests per minute",
+        "operationId": "Preview_GetDownloadPath",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The unique id of the preview.",
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetDownloadPathResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "\n              Returned when the preview does not exist yet. The status of the preview is not `completed`.\n            ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "\n              Returned if the preview has been removed. The status of the preview is `expired`.\n            ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "cURL",
+            "source": "curl -si \\\n    --url 'https://api.landr.com/mastering/v1/preview/single/a0f3e327-3bea-4764-9d95-1bc1936f2297/download' \\\n    -H 'x-landr-mastering-api-key: YOUR_API_KEY'"
+          },
+          {
+            "lang": "C#",
+            "source": "using var client = new HttpClient();\nvar request = new HttpRequestMessage(HttpMethod.Get,\n                        \"https://api.landr.com/mastering/v1/preview/single/a0f3e327-3bea-4764-9d95-1bc1936f2297/download\");\n\nrequest.Headers.Add(\"x-landr-mastering-api-key\", yourApiKey);\n\nvar response = await client.SendAsync(request);\nvar responseStr = await response.Content.ReadAsStringAsync();"
+          },
+          {
+            "lang": "Node.js",
+            "source": "const { request } = require('https');\nconst yourApiKey= 'your-api-key';\nconst previewId = 'my-master-id';\n\nconst callback = function (response) {\n    var str = '';\n    response.on('data', function (chunk) {\n        str += chunk;\n    });\n\n    response.on('end', function () {\n        console.log(str);\n    });\n};\n\nconst req = request(\n    {\n        host: 'api.landr.com',\n        path: `/mastering/v1/preview/single/${previewId}/download`,\n        headers: {\n            'x-landr-mastering-api-key': `${yourApiKey}`,\n            'Content-Type': 'application/json',\n        },\n        method: 'GET',\n    },\n    callback\n);\n\nreq.end();"
+          }
+        ]
+      }
+    },
+    "/v1/webhook": {
+      "post": {
+        "tags": [
+          "Webhook"
+        ],
+        "summary": "Configure webhook",
+        "description": "After configuration, LANDR will notify you when a master or preview is complete by sending a message at the configured endpoint.",
+        "operationId": "Webhook_ConfigureWebhook",
+        "requestBody": {
+          "x-name": "requestDto",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigureWebhookRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "\n            ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "\n              Returned if the request contained validation errors.\n            ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "\n              Returned if the webhook is already configured.\n            ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "cURL",
+            "source": "curl -si -X POST \\\n    --url 'https://api.landr.com/mastering/v1/webhook' \\\n    -H \"Content-Type: application/json\" \\\n    -H 'x-landr-mastering-api-key: YOUR_API_KEY' \\\n    -d '{ \"url\": \"<url>\", \"enabled\": true }'"
+          },
+          {
+            "lang": "C#",
+            "source": "using var client = new HttpClient();\nvar request = new HttpRequestMessage(HttpMethod.Post,\n                        \"https://api.landr.com/mastering/v1/webhook\");\n\nvar body = JsonConvert.SerializeObject(new\n{\n  url = \"url\",\n  enabled = true\n});\n\nrequest.Content =\n    new StringContent(body, Encoding.UTF8, \"application/json\");\n\nrequest.Headers.Add(\"x-landr-mastering-api-key\", yourApiKey);\n\nvar response = await client.SendAsync(request);\nvar responseStr = await response.Content.ReadAsStringAsync();"
+          },
+          {
+            "lang": "Node.js",
+            "source": "const { request } = require('https');\nconst yourApiKey= 'your-api-key';\nconst url = 'https://path-to-webhook.com';\n\nconst callback = function (response) {\n    var str = '';\n    response.on('data', function (chunk) {\n        str += chunk;\n    });\n\n    response.on('end', function () {\n        console.log(str);\n    });\n};\n\nconst req = request(\n    {\n        host: 'api.landr.com',\n        path: '/mastering/v1/webhook',\n        headers: {\n            'x-landr-mastering-api-key': `${yourApiKey}`,\n            'Content-Type': 'application/json',\n        },\n        method: 'POST',\n    },\n    callback\n);\n\nreq.write(\n    JSON.stringify({\n        url: url,\n        enabled: true\n    })\n);\nreq.end();"
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Webhook"
+        ],
+        "summary": "Update webhook",
+        "description": "Update the Url or disable the webhook.",
+        "operationId": "Webhook_UpdateWebhookConfiguration",
+        "requestBody": {
+          "x-name": "requestDto",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWebhookRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "\n            ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookDto"
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "cURL",
+            "source": "curl -si -X PUT \\\n    --url 'https://api.landr.com/mastering/v1/webhook' \\\n    -H \"Content-Type: application/json\" \\\n    -H 'x-landr-mastering-api-key: YOUR_API_KEY' \\\n    -d '{ \"enabled\": true }'"
+          },
+          {
+            "lang": "C#",
+            "source": "using var client = new HttpClient();\nvar request = new HttpRequestMessage(HttpMethod.Put,\n                        \"https://api.landr.com/mastering/v1/webhook\");\n\nvar body = JsonConvert.SerializeObject(new\n{\n  enabled = false\n});\n\nrequest.Content =\n    new StringContent(body, Encoding.UTF8, \"application/json\");\n\nrequest.Headers.Add(\"x-landr-mastering-api-key\", yourApiKey);\n\nvar response = await client.SendAsync(request);\nvar responseStr = await response.Content.ReadAsStringAsync();"
+          },
+          {
+            "lang": "Node.js",
+            "source": "const { request } = require('https');\nconst yourApiKey= 'your-api-key';\n\nconst callback = function (response) {\n    var str = '';\n    response.on('data', function (chunk) {\n        str += chunk;\n    });\n\n    response.on('end', function () {\n        console.log(str);\n    });\n};\n\nconst req = request(\n    {\n        host: 'api.landr.com',\n        path: '/mastering/v1/webhook',\n        headers: {\n            'x-landr-mastering-api-key': `${yourApiKey}`,\n            'Content-Type': 'application/json',\n        },\n        method: 'PUT',\n    },\n    callback\n);\n\nreq.write(\n    JSON.stringify({\n        enabled: false\n    })\n);\nreq.end();"
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Webhook"
+        ],
+        "summary": "Get webhook",
+        "description": "Get the webhook configuration.",
+        "operationId": "Webhook_GetWebhookConfiguration",
+        "responses": {
+          "200": {
+            "description": "\n            ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookDto"
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "cURL",
+            "source": "curl -si \\\n    --url 'https://api.landr.com/mastering/v1/webhook' \\\n    -H 'x-landr-mastering-api-key: YOUR_API_KEY'"
+          },
+          {
+            "lang": "C#",
+            "source": "using var client = new HttpClient();\nvar request = new HttpRequestMessage(HttpMethod.Get,\n                        \"https://api.landr.com/mastering/webhook\");\n\nrequest.Headers.Add(\"x-landr-mastering-api-key\", yourApiKey);\n\nvar response = await client.SendAsync(request);\nvar responseStr = await response.Content.ReadAsStringAsync();"
+          },
+          {
+            "lang": "Node.js",
+            "source": "const { request } = require('https');\nconst yourApiKey= 'your-api-key';\n\nconst callback = function (response) {\n    var str = '';\n    response.on('data', function (chunk) {\n        str += chunk;\n    });\n\n    response.on('end', function () {\n        console.log(str);\n    });\n};\n\nconst req = request(\n    {\n        host: 'api.landr.com',\n        path: `/mastering/v1/webhook`,\n        headers: {\n            'x-landr-mastering-api-key': `${yourApiKey}`,\n            'Content-Type': 'application/json',\n        },\n        method: 'GET',\n    },\n    callback\n);\n\nreq.end();"
+          }
+        ]
+      }
+    },
+    "/v1/webhook/secret": {
+      "post": {
+        "tags": [
+          "Webhook"
+        ],
+        "summary": "Regenerate secret",
+        "description": "Generates a new signing secret for the webhook. The old secret is expired immediately.",
+        "operationId": "Webhook_RegenerateSecret",
+        "responses": {
+          "200": {
+            "description": "\n            ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecretResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "cURL",
+            "source": "curl -si -X POST \\\n    --url 'https://api.landr.com/mastering/v1/webhook/secret' \\\n    -H \"Content-Type: application/json\" \\\n    -H 'x-landr-mastering-api-key: YOUR_API_KEY'"
+          },
+          {
+            "lang": "C#",
+            "source": "using var client = new HttpClient();\nvar request = new HttpRequestMessage(HttpMethod.Post,\n                        \"https://api.landr.com/mastering/v1/webhook/secret\");\n\nrequest.Headers.Authorization =\n    new AuthenticationHeaderValue(\"Bearer\", BearerToken);\n\nvar response = await client.SendAsync(request);\nvar responseStr = await response.Content.ReadAsStringAsync();"
+          },
+          {
+            "lang": "Node.js",
+            "source": "const { request } = require('https');\nconst yourApiKey= 'your-api-key';\n\nconst callback = function (response) {\n    var str = '';\n    response.on('data', function (chunk) {\n        str += chunk;\n    });\n\n    response.on('end', function () {\n        console.log(str);\n    });\n};\n\nconst req = request(\n    {\n        host: 'api.landr.com',\n        path: '/mastering/v1/webhook/secret',\n        headers: {\n            'x-landr-mastering-api-key': `${yourApiKey}`,\n            'Content-Type': 'application/json',\n        },\n        method: 'POST',\n    },\n    callback\n);\n\nreq.end();"
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CreateSingleMasterResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The unique id of the master.",
+            "format": "guid"
+          },
+          "location": {
+            "type": "string",
+            "description": "The path of the url to poll to get the status of the master.",
+            "nullable": true
+          }
+        }
+      },
+      "CreateMasterRequestDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "inputUri"
+        ],
+        "properties": {
+          "inputUri": {
+            "type": "string",
+            "description": "Uri of the audio file to master.",
+            "minLength": 1
+          },
+          "loudness": {
+            "type": "string",
+            "description": "The desired loudness for the master. If empty, a default is automatically computed. \\\nExpected values: \\\n`low`: Preserves acoustic work with gentler and more subtle masters. \\\n`medium`: The most dynamic and versatile mastering option. Great for commercial work. \\\n`high`: Get maximum loudness, while still preserving details.",
+            "nullable": true
+          },
+          "style": {
+            "type": "string",
+            "description": "The desired mastering style. Default is `balanced`. \\\nExpected values: \\\n`warm`: Vintage warmth with softer compression for thick, smooth sound. \\\n`balanced`: Controlled, with a focus on balance, clarity and depth. \\\n`open`: Modern, open sound with emphasis on punch and presence.",
+            "nullable": true
+          },
+          "format": {
+            "type": "string",
+            "description": "The desired format. Default is `wav`. \\\nExpected values: \\\n`cd`: CD quality. A wav audio file with a sample rate of 44.1kHz and bit depth of 16 bit.\\\n`mp3`: An mp3 audio file encoded at 320kbps.\\\n`wav`: A wav audio file preserving the input’s sample rate and bit depth.",
+            "nullable": true
+          }
+        }
+      },
+      "GetTrackMasterStatusResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The unique id of the master.\n            ",
+            "format": "guid"
+          },
+          "status": {
+            "description": "The status of the master. \\\n    Possible values are:\\\n`downloading`: The input file is being downloaded on our server.\\\n`processing`: The master is still processing.\\\n`completed`: The master has finished. At this point, `/master/single/{id}/download` can be called.\\\n`failed`: The mastering process has failed.\\\n`expired`: The master has been removed from LANDR storage. At this point, calling `/master/single/{id}/download` will return a `410 Gone`.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Status"
+              }
+            ]
+          },
+          "error": {
+            "description": "Gives information about the reason of the failure. The property is filled only when `status` is `failed`. It is null otherwise. \n            ",
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Error"
+              }
+            ]
+          }
+        }
+      },
+      "Status": {
+        "type": "string",
+        "description": "",
+        "x-enumNames": [
+          "Processing",
+          "Completed",
+          "Failed",
+          "Expired",
+          "Downloading"
+        ],
+        "enum": [
+          "processing",
+          "completed",
+          "failed",
+          "expired",
+          "downloading"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "byte"
+          },
+          "details": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "additionalProperties": {
+          "nullable": true
+        },
+        "properties": {
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "detail": {
+            "type": "string",
+            "nullable": true
+          },
+          "instance": {
+            "type": "string",
+            "nullable": true
+          },
+          "extensions": {
+            "type": "object",
+            "additionalProperties": {}
+          }
+        }
+      },
+      "GetDownloadPathResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The unique id of the master.\n            ",
+            "format": "guid"
+          },
+          "downloadUrl": {
+            "type": "string",
+            "description": "The url where the master can be downloaded.\n            ",
+            "nullable": true
+          }
+        }
+      },
+      "CreateSinglePreviewResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The unique id of the preview.",
+            "format": "guid"
+          },
+          "location": {
+            "type": "string",
+            "description": "The path of the url to poll to get the status of the preview.",
+            "nullable": true
+          }
+        }
+      },
+      "CreatePreviewRequestDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "inputUri"
+        ],
+        "properties": {
+          "inputUri": {
+            "type": "string",
+            "description": "The uri of the audio file to preview.",
+            "minLength": 1
+          },
+          "loudness": {
+            "type": "string",
+            "description": "The desired loudness for the preview. If empty, a default is automatically computed. \\\nExpected values: \\\n`low`: Preserves acoustic work with gentler and more subtle masters. \\\n`medium`: The most dynamic and versatile mastering option. Great for commercial work. \\\n`high`: Get maximum loudness, while still preserving details.",
+            "nullable": true
+          },
+          "style": {
+            "type": "string",
+            "description": "The desired mastering style. Default is `balanced`. \\\nExpected values: \\\n`warm`: Vintage warmth with softer compression for thick, smooth sound. \\\n`balanced`: Controlled, with a focus on balance, clarity and depth. \\\n`open`: Modern, open sound with emphasis on punch and presence.",
+            "nullable": true
+          }
+        }
+      },
+      "GetTrackPreviewStatusResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The unique id of the preview.\n            ",
+            "format": "guid"
+          },
+          "status": {
+            "description": "The status of the preview. \\\n    Possible values are:\\\n`downloading`: The input file is being downloaded on our server.\\\n`processing`: the preview is still processing.\\\n`completed`: the preview has finished. At this point, `/preview/single/{id}/download` can be called.\\\n`failed`: the preview process has failed.\\\n`expired`: the preview has been removed from LANDR storage. At this point, calling `/preview/single/{id}/download` will return a `410 Gone`.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Status"
+              }
+            ]
+          },
+          "error": {
+            "description": "Gives information about the reason of the failure. The property is filled only when `status` is `failed`. It is null otherwise. \n            ",
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Error"
+              }
+            ]
+          }
+        }
+      },
+      "WebhookDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "url": {
+            "type": "string",
+            "nullable": true
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "secret": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ConfigureWebhookRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Endpoint at which you would be notified about a completed master or preview. \\\nThe url scheme must be https. The endpoint must be publicly accessible.",
+            "minLength": 1
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "UpdateWebhookRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Endpoint at which you would be notified about a completed master or preview. \\\nThe url scheme must be https. The endpoint must be publicly accessible.",
+            "nullable": true
+          },
+          "enabled": {
+            "type": "boolean",
+            "nullable": true
+          }
+        }
+      },
+      "SecretResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "secret": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "Test": {
+        "title": "title",
+        "type": "string",
+        "description": "Hello"
+      }
+    },
+    "securitySchemes": {
+      "Api Key": {
+        "type": "apiKey",
+        "description": "\nEvery request made to the LANDR Mastering API, the `x-landr-mastering-api-key` header of the request must contain the client's unique API KEY.",
+        "name": "x-landr-mastering-api-key",
+        "in": "header",
+        "flows": {
+          "implicit": {}
+        }
+      }
+    }
+  },
+  "x-tagGroups": [
+    {
+      "name": "Api",
+      "tags": [
+        "Master",
+        "Preview",
+        "Webhook"
+      ]
+    }
+  ]
+}

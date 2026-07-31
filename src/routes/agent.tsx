@@ -6,6 +6,6 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 // stored in the database that still point at "/agent".
 export const Route = createFileRoute("/agent")({
   beforeLoad: () => {
-    throw redirect({ to: "/studio" });
+    throw redirect({ to: "/video-agent" });
   },
 });

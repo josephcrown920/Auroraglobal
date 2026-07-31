@@ -38,6 +38,7 @@ import { Route as KidsRouteImport } from './routes/kids'
 import { Route as LipsyncRouteImport } from './routes/lipsync'
 import { Route as LiveStudioRouteImport } from './routes/live-studio'
 import { Route as MarketplaceRouteImport } from './routes/marketplace'
+import { Route as MasteringRouteImport } from './routes/mastering'
 import { Route as MotionRouteImport } from './routes/motion'
 import { Route as MusicVideoRouteImport } from './routes/music-video'
 import { Route as NexusarbRouteImport } from './routes/nexusarb'
@@ -62,6 +63,9 @@ import { Route as TiktokRouteImport } from './routes/tiktok'
 import { Route as TutorialRouteImport } from './routes/tutorial'
 import { Route as UgcRouteImport } from './routes/ugc'
 import { Route as UgcLineRouteImport } from './routes/ugc-line'
+import { Route as VideoAgentRouteImport } from './routes/video-agent'
+import { Route as VideoAgentEditRouteImport } from './routes/video-agent-edit'
+import { Route as VideoAgentProcessRouteImport } from './routes/video-agent-process'
 import { Route as VideoEditorRouteImport } from './routes/video-editor'
 import { Route as WorkflowsRouteImport } from './routes/workflows'
 import { Route as AdminAssetsRouteImport } from './routes/admin.assets'
@@ -84,6 +88,8 @@ import { Route as LegalSlugRouteImport } from './routes/legal.$slug'
 import { Route as RTokenRouteImport } from './routes/r.$token'
 import { Route as ApiAdminRunSmokeStep14RouteImport } from './routes/api/admin/run-smoke-step14'
 import { Route as ApiAdminUploadSiteImageRouteImport } from './routes/api/admin/upload-site-image'
+import { Route as ApiAudioMasterRouteImport } from './routes/api/audio/master'
+import { Route as ApiAudioUploadRouteImport } from './routes/api/audio/upload'
 import { Route as ApiPublicCheckApiBalancesRouteImport } from './routes/api/public/check-api-balances'
 import { Route as ApiPublicFreeMonthlyGrantRouteImport } from './routes/api/public/free-monthly-grant'
 import { Route as ApiPublicGenerateRouteImport } from './routes/api/public/generate'
@@ -95,11 +101,14 @@ import { Route as ApiPublicWatermarkVideoRouteImport } from './routes/api/public
 import { Route as ApiUgcLineImagesRouteImport } from './routes/api/ugc-line/images'
 import { Route as ApiUgcLineScriptsRouteImport } from './routes/api/ugc-line/scripts'
 import { Route as ApiUgcLineVariationsRouteImport } from './routes/api/ugc-line/variations'
+import { Route as ApiVideoAgentGenerateFrameRouteImport } from './routes/api/video-agent/generate-frame'
+import { Route as ApiVideoAgentGenerateScriptRouteImport } from './routes/api/video-agent/generate-script'
 import { Route as ApiPublicJobsTickRouteImport } from './routes/api/public/jobs/tick'
 import { Route as ApiPublicPaymentsSweepStuckRouteImport } from './routes/api/public/payments/sweep-stuck'
 import { Route as ApiPublicTiktokCallbackRouteImport } from './routes/api/public/tiktok/callback'
 import { Route as ApiPublicWorkersHealthRouteImport } from './routes/api/public/workers/health'
 import { Route as ApiPublicWorkersRegisterRouteImport } from './routes/api/public/workers/register'
+import { Route as ApiAudioMasterIdStatusRouteImport } from './routes/api/audio/master.$id.status'
 import { Route as ApiPublicCliDevicePollRouteImport } from './routes/api/public/cli/device/poll'
 import { Route as ApiPublicCliDeviceStartRouteImport } from './routes/api/public/cli/device/start'
 import { Route as ApiPublicWorkersFilesNameRouteImport } from './routes/api/public/workers/files/$name'
@@ -250,6 +259,11 @@ const MarketplaceRoute = MarketplaceRouteImport.update({
   path: '/marketplace',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/marketplace.lazy').then((d) => d.Route))
+const MasteringRoute = MasteringRouteImport.update({
+  id: '/mastering',
+  path: '/mastering',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/mastering.lazy').then((d) => d.Route))
 const MotionRoute = MotionRouteImport.update({
   id: '/motion',
   path: '/motion',
@@ -372,6 +386,25 @@ const UgcLineRoute = UgcLineRouteImport.update({
   path: '/ugc-line',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/ugc-line.lazy').then((d) => d.Route))
+const VideoAgentRoute = VideoAgentRouteImport.update({
+  id: '/video-agent',
+  path: '/video-agent',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/video-agent.lazy').then((d) => d.Route))
+const VideoAgentEditRoute = VideoAgentEditRouteImport.update({
+  id: '/video-agent-edit',
+  path: '/video-agent-edit',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/video-agent-edit.lazy').then((d) => d.Route),
+)
+const VideoAgentProcessRoute = VideoAgentProcessRouteImport.update({
+  id: '/video-agent-process',
+  path: '/video-agent-process',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/video-agent-process.lazy').then((d) => d.Route),
+)
 const VideoEditorRoute = VideoEditorRouteImport.update({
   id: '/video-editor',
   path: '/video-editor',
@@ -492,6 +525,16 @@ const ApiAdminUploadSiteImageRoute = ApiAdminUploadSiteImageRouteImport.update({
   path: '/api/admin/upload-site-image',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAudioMasterRoute = ApiAudioMasterRouteImport.update({
+  id: '/api/audio/master',
+  path: '/api/audio/master',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAudioUploadRoute = ApiAudioUploadRouteImport.update({
+  id: '/api/audio/upload',
+  path: '/api/audio/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCheckApiBalancesRoute =
   ApiPublicCheckApiBalancesRouteImport.update({
     id: '/api/public/check-api-balances',
@@ -551,6 +594,18 @@ const ApiUgcLineVariationsRoute = ApiUgcLineVariationsRouteImport.update({
   path: '/api/ugc-line/variations',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiVideoAgentGenerateFrameRoute =
+  ApiVideoAgentGenerateFrameRouteImport.update({
+    id: '/api/video-agent/generate-frame',
+    path: '/api/video-agent/generate-frame',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiVideoAgentGenerateScriptRoute =
+  ApiVideoAgentGenerateScriptRouteImport.update({
+    id: '/api/video-agent/generate-script',
+    path: '/api/video-agent/generate-script',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicJobsTickRoute = ApiPublicJobsTickRouteImport.update({
   id: '/api/public/jobs/tick',
   path: '/api/public/jobs/tick',
@@ -578,6 +633,11 @@ const ApiPublicWorkersRegisterRoute =
     path: '/api/public/workers/register',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiAudioMasterIdStatusRoute = ApiAudioMasterIdStatusRouteImport.update({
+  id: '/$id/status',
+  path: '/$id/status',
+  getParentRoute: () => ApiAudioMasterRoute,
+} as any)
 const ApiPublicCliDevicePollRoute = ApiPublicCliDevicePollRouteImport.update({
   id: '/api/public/cli/device/poll',
   path: '/api/public/cli/device/poll',
@@ -623,6 +683,7 @@ export interface FileRoutesByFullPath {
   '/lipsync': typeof LipsyncRoute
   '/live-studio': typeof LiveStudioRoute
   '/marketplace': typeof MarketplaceRoute
+  '/mastering': typeof MasteringRoute
   '/motion': typeof MotionRoute
   '/music-video': typeof MusicVideoRoute
   '/nexusarb': typeof NexusarbRoute
@@ -647,6 +708,9 @@ export interface FileRoutesByFullPath {
   '/tutorial': typeof TutorialRoute
   '/ugc': typeof UgcRoute
   '/ugc-line': typeof UgcLineRoute
+  '/video-agent': typeof VideoAgentRoute
+  '/video-agent-edit': typeof VideoAgentEditRoute
+  '/video-agent-process': typeof VideoAgentProcessRoute
   '/video-editor': typeof VideoEditorRoute
   '/workflows': typeof WorkflowsRoute
   '/beat-reel': typeof BeatReelLazyRoute
@@ -670,6 +734,8 @@ export interface FileRoutesByFullPath {
   '/guides/': typeof GuidesIndexRoute
   '/api/admin/run-smoke-step14': typeof ApiAdminRunSmokeStep14Route
   '/api/admin/upload-site-image': typeof ApiAdminUploadSiteImageRoute
+  '/api/audio/master': typeof ApiAudioMasterRouteWithChildren
+  '/api/audio/upload': typeof ApiAudioUploadRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
@@ -681,11 +747,14 @@ export interface FileRoutesByFullPath {
   '/api/ugc-line/images': typeof ApiUgcLineImagesRoute
   '/api/ugc-line/scripts': typeof ApiUgcLineScriptsRoute
   '/api/ugc-line/variations': typeof ApiUgcLineVariationsRoute
+  '/api/video-agent/generate-frame': typeof ApiVideoAgentGenerateFrameRoute
+  '/api/video-agent/generate-script': typeof ApiVideoAgentGenerateScriptRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
+  '/api/audio/master/$id/status': typeof ApiAudioMasterIdStatusRoute
   '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
   '/api/public/cli/device/start': typeof ApiPublicCliDeviceStartRoute
   '/api/public/workers/files/$name': typeof ApiPublicWorkersFilesNameRoute
@@ -718,6 +787,7 @@ export interface FileRoutesByTo {
   '/lipsync': typeof LipsyncRoute
   '/live-studio': typeof LiveStudioRoute
   '/marketplace': typeof MarketplaceRoute
+  '/mastering': typeof MasteringRoute
   '/motion': typeof MotionRoute
   '/music-video': typeof MusicVideoRoute
   '/nexusarb': typeof NexusarbRoute
@@ -742,6 +812,9 @@ export interface FileRoutesByTo {
   '/tutorial': typeof TutorialRoute
   '/ugc': typeof UgcRoute
   '/ugc-line': typeof UgcLineRoute
+  '/video-agent': typeof VideoAgentRoute
+  '/video-agent-edit': typeof VideoAgentEditRoute
+  '/video-agent-process': typeof VideoAgentProcessRoute
   '/video-editor': typeof VideoEditorRoute
   '/workflows': typeof WorkflowsRoute
   '/beat-reel': typeof BeatReelLazyRoute
@@ -765,6 +838,8 @@ export interface FileRoutesByTo {
   '/guides': typeof GuidesIndexRoute
   '/api/admin/run-smoke-step14': typeof ApiAdminRunSmokeStep14Route
   '/api/admin/upload-site-image': typeof ApiAdminUploadSiteImageRoute
+  '/api/audio/master': typeof ApiAudioMasterRouteWithChildren
+  '/api/audio/upload': typeof ApiAudioUploadRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
@@ -776,11 +851,14 @@ export interface FileRoutesByTo {
   '/api/ugc-line/images': typeof ApiUgcLineImagesRoute
   '/api/ugc-line/scripts': typeof ApiUgcLineScriptsRoute
   '/api/ugc-line/variations': typeof ApiUgcLineVariationsRoute
+  '/api/video-agent/generate-frame': typeof ApiVideoAgentGenerateFrameRoute
+  '/api/video-agent/generate-script': typeof ApiVideoAgentGenerateScriptRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
+  '/api/audio/master/$id/status': typeof ApiAudioMasterIdStatusRoute
   '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
   '/api/public/cli/device/start': typeof ApiPublicCliDeviceStartRoute
   '/api/public/workers/files/$name': typeof ApiPublicWorkersFilesNameRoute
@@ -814,6 +892,7 @@ export interface FileRoutesById {
   '/lipsync': typeof LipsyncRoute
   '/live-studio': typeof LiveStudioRoute
   '/marketplace': typeof MarketplaceRoute
+  '/mastering': typeof MasteringRoute
   '/motion': typeof MotionRoute
   '/music-video': typeof MusicVideoRoute
   '/nexusarb': typeof NexusarbRoute
@@ -838,6 +917,9 @@ export interface FileRoutesById {
   '/tutorial': typeof TutorialRoute
   '/ugc': typeof UgcRoute
   '/ugc-line': typeof UgcLineRoute
+  '/video-agent': typeof VideoAgentRoute
+  '/video-agent-edit': typeof VideoAgentEditRoute
+  '/video-agent-process': typeof VideoAgentProcessRoute
   '/video-editor': typeof VideoEditorRoute
   '/workflows': typeof WorkflowsRoute
   '/beat-reel': typeof BeatReelLazyRoute
@@ -861,6 +943,8 @@ export interface FileRoutesById {
   '/guides/': typeof GuidesIndexRoute
   '/api/admin/run-smoke-step14': typeof ApiAdminRunSmokeStep14Route
   '/api/admin/upload-site-image': typeof ApiAdminUploadSiteImageRoute
+  '/api/audio/master': typeof ApiAudioMasterRouteWithChildren
+  '/api/audio/upload': typeof ApiAudioUploadRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
@@ -872,11 +956,14 @@ export interface FileRoutesById {
   '/api/ugc-line/images': typeof ApiUgcLineImagesRoute
   '/api/ugc-line/scripts': typeof ApiUgcLineScriptsRoute
   '/api/ugc-line/variations': typeof ApiUgcLineVariationsRoute
+  '/api/video-agent/generate-frame': typeof ApiVideoAgentGenerateFrameRoute
+  '/api/video-agent/generate-script': typeof ApiVideoAgentGenerateScriptRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
+  '/api/audio/master/$id/status': typeof ApiAudioMasterIdStatusRoute
   '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
   '/api/public/cli/device/start': typeof ApiPublicCliDeviceStartRoute
   '/api/public/workers/files/$name': typeof ApiPublicWorkersFilesNameRoute
@@ -911,6 +998,7 @@ export interface FileRouteTypes {
     | '/lipsync'
     | '/live-studio'
     | '/marketplace'
+    | '/mastering'
     | '/motion'
     | '/music-video'
     | '/nexusarb'
@@ -935,6 +1023,9 @@ export interface FileRouteTypes {
     | '/tutorial'
     | '/ugc'
     | '/ugc-line'
+    | '/video-agent'
+    | '/video-agent-edit'
+    | '/video-agent-process'
     | '/video-editor'
     | '/workflows'
     | '/beat-reel'
@@ -958,6 +1049,8 @@ export interface FileRouteTypes {
     | '/guides/'
     | '/api/admin/run-smoke-step14'
     | '/api/admin/upload-site-image'
+    | '/api/audio/master'
+    | '/api/audio/upload'
     | '/api/public/check-api-balances'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
@@ -969,11 +1062,14 @@ export interface FileRouteTypes {
     | '/api/ugc-line/images'
     | '/api/ugc-line/scripts'
     | '/api/ugc-line/variations'
+    | '/api/video-agent/generate-frame'
+    | '/api/video-agent/generate-script'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
     | '/api/public/tiktok/callback'
     | '/api/public/workers/health'
     | '/api/public/workers/register'
+    | '/api/audio/master/$id/status'
     | '/api/public/cli/device/poll'
     | '/api/public/cli/device/start'
     | '/api/public/workers/files/$name'
@@ -1006,6 +1102,7 @@ export interface FileRouteTypes {
     | '/lipsync'
     | '/live-studio'
     | '/marketplace'
+    | '/mastering'
     | '/motion'
     | '/music-video'
     | '/nexusarb'
@@ -1030,6 +1127,9 @@ export interface FileRouteTypes {
     | '/tutorial'
     | '/ugc'
     | '/ugc-line'
+    | '/video-agent'
+    | '/video-agent-edit'
+    | '/video-agent-process'
     | '/video-editor'
     | '/workflows'
     | '/beat-reel'
@@ -1053,6 +1153,8 @@ export interface FileRouteTypes {
     | '/guides'
     | '/api/admin/run-smoke-step14'
     | '/api/admin/upload-site-image'
+    | '/api/audio/master'
+    | '/api/audio/upload'
     | '/api/public/check-api-balances'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
@@ -1064,11 +1166,14 @@ export interface FileRouteTypes {
     | '/api/ugc-line/images'
     | '/api/ugc-line/scripts'
     | '/api/ugc-line/variations'
+    | '/api/video-agent/generate-frame'
+    | '/api/video-agent/generate-script'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
     | '/api/public/tiktok/callback'
     | '/api/public/workers/health'
     | '/api/public/workers/register'
+    | '/api/audio/master/$id/status'
     | '/api/public/cli/device/poll'
     | '/api/public/cli/device/start'
     | '/api/public/workers/files/$name'
@@ -1101,6 +1206,7 @@ export interface FileRouteTypes {
     | '/lipsync'
     | '/live-studio'
     | '/marketplace'
+    | '/mastering'
     | '/motion'
     | '/music-video'
     | '/nexusarb'
@@ -1125,6 +1231,9 @@ export interface FileRouteTypes {
     | '/tutorial'
     | '/ugc'
     | '/ugc-line'
+    | '/video-agent'
+    | '/video-agent-edit'
+    | '/video-agent-process'
     | '/video-editor'
     | '/workflows'
     | '/beat-reel'
@@ -1148,6 +1257,8 @@ export interface FileRouteTypes {
     | '/guides/'
     | '/api/admin/run-smoke-step14'
     | '/api/admin/upload-site-image'
+    | '/api/audio/master'
+    | '/api/audio/upload'
     | '/api/public/check-api-balances'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
@@ -1159,11 +1270,14 @@ export interface FileRouteTypes {
     | '/api/ugc-line/images'
     | '/api/ugc-line/scripts'
     | '/api/ugc-line/variations'
+    | '/api/video-agent/generate-frame'
+    | '/api/video-agent/generate-script'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
     | '/api/public/tiktok/callback'
     | '/api/public/workers/health'
     | '/api/public/workers/register'
+    | '/api/audio/master/$id/status'
     | '/api/public/cli/device/poll'
     | '/api/public/cli/device/start'
     | '/api/public/workers/files/$name'
@@ -1197,6 +1311,7 @@ export interface RootRouteChildren {
   LipsyncRoute: typeof LipsyncRoute
   LiveStudioRoute: typeof LiveStudioRoute
   MarketplaceRoute: typeof MarketplaceRoute
+  MasteringRoute: typeof MasteringRoute
   MotionRoute: typeof MotionRoute
   MusicVideoRoute: typeof MusicVideoRoute
   NexusarbRoute: typeof NexusarbRoute
@@ -1221,6 +1336,9 @@ export interface RootRouteChildren {
   TutorialRoute: typeof TutorialRoute
   UgcRoute: typeof UgcRoute
   UgcLineRoute: typeof UgcLineRoute
+  VideoAgentRoute: typeof VideoAgentRoute
+  VideoAgentEditRoute: typeof VideoAgentEditRoute
+  VideoAgentProcessRoute: typeof VideoAgentProcessRoute
   VideoEditorRoute: typeof VideoEditorRoute
   WorkflowsRoute: typeof WorkflowsRoute
   BeatReelLazyRoute: typeof BeatReelLazyRoute
@@ -1236,6 +1354,8 @@ export interface RootRouteChildren {
   GuidesIndexRoute: typeof GuidesIndexRoute
   ApiAdminRunSmokeStep14Route: typeof ApiAdminRunSmokeStep14Route
   ApiAdminUploadSiteImageRoute: typeof ApiAdminUploadSiteImageRoute
+  ApiAudioMasterRoute: typeof ApiAudioMasterRouteWithChildren
+  ApiAudioUploadRoute: typeof ApiAudioUploadRoute
   ApiPublicCheckApiBalancesRoute: typeof ApiPublicCheckApiBalancesRoute
   ApiPublicFreeMonthlyGrantRoute: typeof ApiPublicFreeMonthlyGrantRoute
   ApiPublicGenerateRoute: typeof ApiPublicGenerateRoute
@@ -1247,6 +1367,8 @@ export interface RootRouteChildren {
   ApiUgcLineImagesRoute: typeof ApiUgcLineImagesRoute
   ApiUgcLineScriptsRoute: typeof ApiUgcLineScriptsRoute
   ApiUgcLineVariationsRoute: typeof ApiUgcLineVariationsRoute
+  ApiVideoAgentGenerateFrameRoute: typeof ApiVideoAgentGenerateFrameRoute
+  ApiVideoAgentGenerateScriptRoute: typeof ApiVideoAgentGenerateScriptRoute
   ApiPublicJobsTickRoute: typeof ApiPublicJobsTickRoute
   ApiPublicPaymentsSweepStuckRoute: typeof ApiPublicPaymentsSweepStuckRoute
   ApiPublicTiktokCallbackRoute: typeof ApiPublicTiktokCallbackRoute
@@ -1455,6 +1577,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketplaceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mastering': {
+      id: '/mastering'
+      path: '/mastering'
+      fullPath: '/mastering'
+      preLoaderRoute: typeof MasteringRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/motion': {
       id: '/motion'
       path: '/motion'
@@ -1623,6 +1752,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UgcLineRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/video-agent': {
+      id: '/video-agent'
+      path: '/video-agent'
+      fullPath: '/video-agent'
+      preLoaderRoute: typeof VideoAgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/video-agent-edit': {
+      id: '/video-agent-edit'
+      path: '/video-agent-edit'
+      fullPath: '/video-agent-edit'
+      preLoaderRoute: typeof VideoAgentEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/video-agent-process': {
+      id: '/video-agent-process'
+      path: '/video-agent-process'
+      fullPath: '/video-agent-process'
+      preLoaderRoute: typeof VideoAgentProcessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/video-editor': {
       id: '/video-editor'
       path: '/video-editor'
@@ -1777,6 +1927,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminUploadSiteImageRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/audio/master': {
+      id: '/api/audio/master'
+      path: '/api/audio/master'
+      fullPath: '/api/audio/master'
+      preLoaderRoute: typeof ApiAudioMasterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/audio/upload': {
+      id: '/api/audio/upload'
+      path: '/api/audio/upload'
+      fullPath: '/api/audio/upload'
+      preLoaderRoute: typeof ApiAudioUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/check-api-balances': {
       id: '/api/public/check-api-balances'
       path: '/api/public/check-api-balances'
@@ -1854,6 +2018,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiUgcLineVariationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/video-agent/generate-frame': {
+      id: '/api/video-agent/generate-frame'
+      path: '/api/video-agent/generate-frame'
+      fullPath: '/api/video-agent/generate-frame'
+      preLoaderRoute: typeof ApiVideoAgentGenerateFrameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/video-agent/generate-script': {
+      id: '/api/video-agent/generate-script'
+      path: '/api/video-agent/generate-script'
+      fullPath: '/api/video-agent/generate-script'
+      preLoaderRoute: typeof ApiVideoAgentGenerateScriptRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/jobs/tick': {
       id: '/api/public/jobs/tick'
       path: '/api/public/jobs/tick'
@@ -1888,6 +2066,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/public/workers/register'
       preLoaderRoute: typeof ApiPublicWorkersRegisterRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/audio/master/$id/status': {
+      id: '/api/audio/master/$id/status'
+      path: '/$id/status'
+      fullPath: '/api/audio/master/$id/status'
+      preLoaderRoute: typeof ApiAudioMasterIdStatusRouteImport
+      parentRoute: typeof ApiAudioMasterRoute
     }
     '/api/public/cli/device/poll': {
       id: '/api/public/cli/device/poll'
@@ -1937,6 +2122,18 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface ApiAudioMasterRouteChildren {
+  ApiAudioMasterIdStatusRoute: typeof ApiAudioMasterIdStatusRoute
+}
+
+const ApiAudioMasterRouteChildren: ApiAudioMasterRouteChildren = {
+  ApiAudioMasterIdStatusRoute: ApiAudioMasterIdStatusRoute,
+}
+
+const ApiAudioMasterRouteWithChildren = ApiAudioMasterRoute._addFileChildren(
+  ApiAudioMasterRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
@@ -1965,6 +2162,7 @@ const rootRouteChildren: RootRouteChildren = {
   LipsyncRoute: LipsyncRoute,
   LiveStudioRoute: LiveStudioRoute,
   MarketplaceRoute: MarketplaceRoute,
+  MasteringRoute: MasteringRoute,
   MotionRoute: MotionRoute,
   MusicVideoRoute: MusicVideoRoute,
   NexusarbRoute: NexusarbRoute,
@@ -1989,6 +2187,9 @@ const rootRouteChildren: RootRouteChildren = {
   TutorialRoute: TutorialRoute,
   UgcRoute: UgcRoute,
   UgcLineRoute: UgcLineRoute,
+  VideoAgentRoute: VideoAgentRoute,
+  VideoAgentEditRoute: VideoAgentEditRoute,
+  VideoAgentProcessRoute: VideoAgentProcessRoute,
   VideoEditorRoute: VideoEditorRoute,
   WorkflowsRoute: WorkflowsRoute,
   BeatReelLazyRoute: BeatReelLazyRoute,
@@ -2004,6 +2205,8 @@ const rootRouteChildren: RootRouteChildren = {
   GuidesIndexRoute: GuidesIndexRoute,
   ApiAdminRunSmokeStep14Route: ApiAdminRunSmokeStep14Route,
   ApiAdminUploadSiteImageRoute: ApiAdminUploadSiteImageRoute,
+  ApiAudioMasterRoute: ApiAudioMasterRouteWithChildren,
+  ApiAudioUploadRoute: ApiAudioUploadRoute,
   ApiPublicCheckApiBalancesRoute: ApiPublicCheckApiBalancesRoute,
   ApiPublicFreeMonthlyGrantRoute: ApiPublicFreeMonthlyGrantRoute,
   ApiPublicGenerateRoute: ApiPublicGenerateRoute,
@@ -2015,6 +2218,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiUgcLineImagesRoute: ApiUgcLineImagesRoute,
   ApiUgcLineScriptsRoute: ApiUgcLineScriptsRoute,
   ApiUgcLineVariationsRoute: ApiUgcLineVariationsRoute,
+  ApiVideoAgentGenerateFrameRoute: ApiVideoAgentGenerateFrameRoute,
+  ApiVideoAgentGenerateScriptRoute: ApiVideoAgentGenerateScriptRoute,
   ApiPublicJobsTickRoute: ApiPublicJobsTickRoute,
   ApiPublicPaymentsSweepStuckRoute: ApiPublicPaymentsSweepStuckRoute,
   ApiPublicTiktokCallbackRoute: ApiPublicTiktokCallbackRoute,
