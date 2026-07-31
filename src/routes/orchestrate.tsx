@@ -1,11 +1,11 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-// Merged into /agent — the Orchestrate studio now lives on the Video page's
-// "Generate" tab. Redirect keeps deep links (sitemap history, guided-workflow
-// toolLinks stored in DB rows) working.
+// The Orchestrate studio was retired and the Video Agent screen that
+// absorbed it has been removed. The full Studio replaces both. This
+// redirect keeps deep links working — sitemap history and guided-workflow
+// `toolLink` rows already stored in the database.
 export const Route = createFileRoute("/orchestrate")({
   beforeLoad: () => {
-    // "Generate" tab was retired — land on the Prime Director Workspace instead.
-    throw redirect({ to: "/agent" });
+    throw redirect({ to: "/studio" });
   },
 });

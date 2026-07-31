@@ -64,7 +64,7 @@ function StatusBadge({ status }: { status: string }) {
   if (status === "pending" || status === "queued")
     return <span className="inline-flex items-center gap-1 text-amber-300/90 text-[10px]"><Clock className="size-3" /> queued</span>;
   if (status === "running" || status === "processing")
-    return <span className="inline-flex items-center gap-1 text-violet-300 text-[10px]"><Loader2 className="size-3 animate-spin" /> running</span>;
+    return <span className="inline-flex items-center gap-1 text-cyan-300 text-[10px]"><Loader2 className="size-3 animate-spin" /> running</span>;
   if (status === "done" || status === "completed" || status === "succeeded" || status === "complete")
     return <span className="inline-flex items-center gap-1 text-emerald-300 text-[10px]"><CheckCircle2 className="size-3" /> done</span>;
   if (status === "error" || status === "failed")
@@ -181,7 +181,7 @@ export function LiveJobsPanel() {
     <div className="phone-edge-right fixed bottom-20 z-40 w-[300px] max-w-[calc(100vw-2rem)]">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-3 py-2 rounded-t-xl bg-violet-600/90 hover:bg-violet-500 text-white text-xs font-medium shadow-lg shadow-violet-900/40 backdrop-blur"
+        className="w-full flex items-center justify-between px-3 py-2 rounded-t-xl bg-red-600/90 hover:bg-red-500 text-white text-xs font-medium shadow-lg shadow-red-900/40 backdrop-blur"
       >
         <span className="flex items-center gap-2">
           {active > 0 ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkle />}
@@ -190,7 +190,7 @@ export function LiveJobsPanel() {
         <span className="text-white/70 text-[10px]">{open ? "hide" : "show"}</span>
       </button>
       {open && (
-        <div className="bg-black/85 border border-violet-500/30 border-t-0 rounded-b-xl max-h-[50vh] overflow-y-auto backdrop-blur">
+        <div className="bg-black/85 border border-red-500/30 border-t-0 rounded-b-xl max-h-[50vh] overflow-y-auto backdrop-blur">
           {longQueuedJob && (
             <div className="mx-2 my-2 rounded-lg bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-400/30 p-2.5 flex items-start gap-2">
               <Crown className="size-4 shrink-0 text-amber-400 mt-0.5" />
@@ -262,7 +262,7 @@ export function LiveJobsPanel() {
                                   </button>
                                   <ShareMenu
                                     compact
-                                    triggerClassName="opacity-0 group-hover:opacity-100 ml-0.5 p-0.5 rounded text-white/40 hover:text-violet-400 transition-opacity"
+                                    triggerClassName="opacity-0 group-hover:opacity-100 ml-0.5 p-0.5 rounded text-white/40 hover:text-red-400 transition-opacity"
                                     getShareTarget={async () => {
                                       const r = await publishFn({ data: { id: j.id } });
                                       const url = videoThumb || thumb;

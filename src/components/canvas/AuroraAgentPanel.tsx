@@ -65,11 +65,11 @@ const SAMPLES = [
 // to Aurora's own gradient/genre language so a tap actually steers the plan.
 const STYLES: { name: string; hint: string; gradient: string }[] = [
   { name: "Cinematic", hint: "moody cinematic lighting, anamorphic lens, film grain", gradient: "from-slate-600 to-slate-900" },
-  { name: "Neon Noir", hint: "neon-drenched noir, rain-slicked streets, magenta/cyan rim light", gradient: "from-fuchsia-600 to-indigo-700" },
+  { name: "Neon Noir", hint: "neon-drenched noir, rain-slicked streets, magenta/cyan rim light", gradient: "from-orange-600 to-indigo-700" },
   { name: "Retro VHS", hint: "90s VHS tape aesthetic, scan lines, warm grain, boxy framing", gradient: "from-amber-500 to-rose-600" },
   { name: "Studio Clean", hint: "clean studio backdrop, soft key light, high production polish", gradient: "from-zinc-300 to-zinc-500" },
   { name: "Documentary", hint: "handheld documentary realism, natural light, candid framing", gradient: "from-emerald-600 to-teal-700" },
-  { name: "Anime", hint: "vivid anime-style illustration, bold linework, cel shading", gradient: "from-sky-500 to-violet-600" },
+  { name: "Anime", hint: "vivid anime-style illustration, bold linework, cel shading", gradient: "from-sky-500 to-red-600" },
 ];
 
 // Map skill names → Lucide icons (keeps the chip consistent with the registry).
@@ -89,11 +89,11 @@ function SkillChip({ meta }: { meta: SkillMeta }) {
   const icon = SKILL_ICONS[meta.name] ?? <Sparkles className="size-2.5" />;
   const secs = (meta.durationMs / 1000).toFixed(1);
   return (
-    <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full border border-violet-400/30 bg-violet-500/10 px-2 py-0.5 text-[9.5px] font-medium text-violet-200/90 max-w-full">
-      <span className="text-violet-300 shrink-0">{icon}</span>
+    <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full border border-red-400/30 bg-red-500/10 px-2 py-0.5 text-[9.5px] font-medium text-red-200/90 max-w-full">
+      <span className="text-red-300 shrink-0">{icon}</span>
       <span className="truncate">{meta.label}</span>
-      <span className="text-violet-400/70 shrink-0">· {meta.summary.slice(0, 55)}</span>
-      <span className="text-violet-400/50 shrink-0 ml-0.5">{secs}s</span>
+      <span className="text-red-400/70 shrink-0">· {meta.summary.slice(0, 55)}</span>
+      <span className="text-red-400/50 shrink-0 ml-0.5">{secs}s</span>
     </div>
   );
 }
@@ -102,8 +102,8 @@ function SkillChip({ meta }: { meta: SkillMeta }) {
 
 function SkillPulse({ label }: { label: string }) {
   return (
-    <div className="inline-flex items-center gap-1.5 rounded-full border border-violet-400/25 bg-violet-500/10 px-2 py-0.5 text-[9.5px] font-medium text-violet-200/80">
-      <span className="size-1.5 rounded-full bg-violet-400 animate-pulse" />
+    <div className="inline-flex items-center gap-1.5 rounded-full border border-red-400/25 bg-red-500/10 px-2 py-0.5 text-[9.5px] font-medium text-red-200/80">
+      <span className="size-1.5 rounded-full bg-red-400 animate-pulse" />
       {label}…
     </div>
   );
@@ -148,7 +148,7 @@ function ShotCard({ shot, index, palette }: { shot: AgentShot; index: number; pa
       </div>
       <div className="p-2 space-y-1.5">
         <p className="text-[9.5px] text-white/50 inline-flex items-center gap-1">
-          <Camera className="size-2.5 text-violet-300" /> {shot.shotType} · {shot.camera}
+          <Camera className="size-2.5 text-red-300" /> {shot.shotType} · {shot.camera}
         </p>
         <p className="text-[10px] text-white/60 leading-snug line-clamp-2">{shot.action}</p>
         <button
@@ -158,7 +158,7 @@ function ShotCard({ shot, index, palette }: { shot: AgentShot; index: number; pa
             toast.success("Prompt copied");
             setTimeout(() => setCopied(false), 1500);
           }}
-          className="w-full mt-1 inline-flex items-center justify-center gap-1 text-[10px] font-medium text-violet-300 hover:text-violet-200 rounded-md py-1 bg-white/5 hover:bg-white/10"
+          className="w-full mt-1 inline-flex items-center justify-center gap-1 text-[10px] font-medium text-red-300 hover:text-red-200 rounded-md py-1 bg-white/5 hover:bg-white/10"
         >
           {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
           {copied ? "Copied" : "Copy prompt"}
@@ -172,23 +172,23 @@ function ShotCard({ shot, index, palette }: { shot: AgentShot; index: number; pa
 
 function PlanCard({ plan, onSend }: { plan: AgentPlan; onSend: () => void }) {
   return (
-    <div className="mt-2 rounded-2xl border border-violet-400/25 bg-gradient-to-b from-violet-500/[0.09] to-transparent overflow-hidden shadow-lg shadow-violet-900/20">
+    <div className="mt-2 rounded-2xl border border-red-400/25 bg-gradient-to-b from-red-500/[0.09] to-transparent overflow-hidden shadow-lg shadow-red-900/20">
       <div className="p-3.5 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <p className="text-[9px] uppercase tracking-[0.25em] text-violet-300/80 inline-flex items-center gap-1.5">
+            <p className="text-[9px] uppercase tracking-[0.25em] text-red-300/80 inline-flex items-center gap-1.5">
               <Clapperboard className="size-3" /> Storyboard built
             </p>
             <p className="text-base font-bold text-white leading-tight mt-1">{plan.title}</p>
             <p className="text-[11px] text-white/55 italic mt-0.5">"{plan.logline}"</p>
           </div>
-          <span className="shrink-0 rounded-full border border-violet-400/30 bg-violet-500/15 px-2 py-1 text-[10px] font-semibold text-violet-200">
+          <span className="shrink-0 rounded-full border border-red-400/30 bg-red-500/15 px-2 py-1 text-[10px] font-semibold text-red-200">
             {plan.shots.length} shots
           </span>
         </div>
 
         {plan.direction && (
-          <p className="text-[11px] text-white/60 leading-relaxed border-l-2 border-violet-400/40 pl-2">
+          <p className="text-[11px] text-white/60 leading-relaxed border-l-2 border-red-400/40 pl-2">
             {plan.direction}
           </p>
         )}
@@ -234,7 +234,7 @@ function PlanCard({ plan, onSend }: { plan: AgentPlan; onSend: () => void }) {
       <button
         onClick={onSend}
         className="w-full py-2.5 text-xs font-bold text-white inline-flex items-center justify-center gap-1.5 hover:brightness-110 transition-[filter]"
-        style={{ background: "linear-gradient(135deg, oklch(0.65 0.22 305), oklch(0.62 0.22 340))" }}
+        style={{ background: "linear-gradient(135deg, oklch(0.65 0.22 28), oklch(0.62 0.22 340))" }}
       >
         <Plus className="size-3.5" /> Send storyboard to canvas
       </button>
@@ -336,10 +336,10 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
   if (!open) return null;
 
   return (
-    <div className="phone-panel-col fixed inset-y-0 z-50 bg-[oklch(0.09_0.03_290/0.97)] backdrop-blur-xl border-l border-white/10 shadow-2xl flex flex-col animate-slide-in-right">
+    <div className="phone-panel-col fixed inset-y-0 z-50 bg-[oklch(0.09_0.02_25/0.97)] backdrop-blur-xl border-l border-white/10 shadow-2xl flex flex-col animate-slide-in-right">
       <header className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="relative size-9 rounded-xl flex items-center justify-center bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg shadow-violet-500/40">
+          <span className="relative size-9 rounded-xl flex items-center justify-center bg-gradient-to-br from-red-500 to-orange-500 shadow-lg shadow-red-500/40">
             <Clapperboard className="size-4.5 text-white" />
             <span className="absolute -bottom-1 -right-1 size-3.5 rounded-full bg-emerald-400 border-2 border-[#0c0a17]" />
           </span>
@@ -355,8 +355,8 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
             <p className="text-[10px] text-white/50 inline-flex items-center gap-1">
               {hasMemory ? (
                 <>
-                  <Brain className="size-2.5 text-violet-300" />
-                  <span className="text-violet-300/90">Remembers you</span>
+                  <Brain className="size-2.5 text-red-300" />
+                  <span className="text-red-300/90">Remembers you</span>
                 </>
               ) : (
                 "Scripts, styles & storyboards — end to end"
@@ -408,15 +408,15 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {history.isLoading && (
           <div className="flex justify-center py-10">
-            <Loader2 className="size-5 animate-spin text-violet-300" />
+            <Loader2 className="size-5 animate-spin text-red-300" />
           </div>
         )}
 
         {!history.isLoading && messages.length === 0 && !pendingUserMsg && (
           <div className="space-y-5">
-            <div className="rounded-2xl border border-violet-400/20 bg-gradient-to-br from-violet-500/10 via-fuchsia-500/[0.06] to-transparent p-4">
+            <div className="rounded-2xl border border-red-400/20 bg-gradient-to-br from-red-500/10 via-orange-500/[0.06] to-transparent p-4">
               <div className="flex items-center gap-2 mb-2">
-                <span className="size-8 rounded-lg grid place-items-center bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg shadow-violet-500/30">
+                <span className="size-8 rounded-lg grid place-items-center bg-gradient-to-br from-red-500 to-orange-500 shadow-lg shadow-red-500/30">
                   <Wand2 className="size-4 text-white" />
                 </span>
                 <p className="text-sm font-bold text-white">Direct a full video, start to finish</p>
@@ -425,7 +425,7 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
                 Pick a look, describe the idea, and I'll write the script, shot list, camera direction and color
                 story — then build a storyboard you can drop straight onto the canvas.
               </p>
-              <p className="text-[10px] text-violet-300/70 mt-2 leading-relaxed">
+              <p className="text-[10px] text-red-300/70 mt-2 leading-relaxed">
                 Enable <strong className="text-amber-300/90">Cinematic mode</strong> (🎬 button above) for director-tier
                 prompts with film stocks, focal lengths, and auto-generated B-roll.
               </p>
@@ -440,7 +440,7 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
                     onClick={() => toggleStyle(style)}
                     className={`group relative aspect-[4/3] rounded-lg overflow-hidden border transition-all ${
                       activeStyle === style.name
-                        ? "border-violet-300 ring-2 ring-violet-400/50"
+                        ? "border-red-300 ring-2 ring-red-400/50"
                         : "border-white/10 hover:border-white/25"
                     }`}
                   >
@@ -463,7 +463,7 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
                 <button
                   key={s}
                   onClick={() => setDraft(s)}
-                  className="w-full text-left text-xs p-2.5 rounded-lg border border-white/10 bg-white/[0.02] hover:bg-white/5 hover:border-violet-400/30 text-white/75"
+                  className="w-full text-left text-xs p-2.5 rounded-lg border border-white/10 bg-white/[0.02] hover:bg-white/5 hover:border-red-400/30 text-white/75"
                 >
                   {s}
                 </button>
@@ -477,7 +477,7 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
             <div
               className={
                 m.role === "user"
-                  ? "max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2.5 text-xs leading-relaxed text-white bg-gradient-to-br from-violet-600/80 to-fuchsia-600/70 border border-violet-400/20"
+                  ? "max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2.5 text-xs leading-relaxed text-white bg-gradient-to-br from-red-600/80 to-orange-600/70 border border-red-400/20"
                   : "max-w-[94%] rounded-2xl rounded-bl-md px-3.5 py-2.5 text-xs leading-relaxed text-white/85 bg-white/[0.05] border border-white/10"
               }
             >
@@ -502,7 +502,7 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
 
         {pendingUserMsg && (
           <div className="flex justify-end">
-            <div className="max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2.5 text-xs leading-relaxed text-white bg-gradient-to-br from-violet-600/80 to-fuchsia-600/70 border border-violet-400/20 opacity-80">
+            <div className="max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2.5 text-xs leading-relaxed text-white bg-gradient-to-br from-red-600/80 to-orange-600/70 border border-red-400/20 opacity-80">
               <p className="whitespace-pre-wrap">{pendingUserMsg}</p>
             </div>
           </div>
@@ -513,7 +513,7 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
             <div className="rounded-2xl rounded-bl-md px-3.5 py-2.5 bg-white/[0.05] border border-white/10 space-y-1.5">
               {activeSkillLabel && <SkillPulse label={activeSkillLabel} />}
               <div className="inline-flex items-center gap-2 text-xs text-white/60">
-                <Film className="size-3.5 text-violet-300 animate-pulse" />
+                <Film className="size-3.5 text-red-300 animate-pulse" />
                 {activeSkillLabel ? "Integrating results…" : "Directing your storyboard…"}
               </div>
             </div>
@@ -530,7 +530,7 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
                 onClick={() => toggleStyle(style)}
                 className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium border transition-colors ${
                   activeStyle === style.name
-                    ? "border-violet-300/60 bg-violet-500/20 text-violet-100"
+                    ? "border-red-300/60 bg-red-500/20 text-red-100"
                     : "border-white/10 bg-white/[0.03] text-white/55 hover:text-white/80 hover:border-white/25"
                 }`}
               >
@@ -568,8 +568,8 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
           <Button
             onClick={send}
             disabled={sendMut.isPending || draft.trim().length < 2}
-            className="flex-1 text-white shadow-lg shadow-violet-500/30"
-            style={{ background: "linear-gradient(135deg, oklch(0.65 0.22 305), oklch(0.62 0.22 340))" }}
+            className="flex-1 text-white shadow-lg shadow-red-500/30"
+            style={{ background: "linear-gradient(135deg, oklch(0.65 0.22 28), oklch(0.62 0.22 340))" }}
           >
             {sendMut.isPending ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : <Send className="size-3.5 mr-1" />}
             Send

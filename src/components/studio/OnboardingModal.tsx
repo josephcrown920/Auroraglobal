@@ -47,7 +47,7 @@ const VIBES: VibeChoice[] = [
     id: "cyclo",
     name: "Color Cyclorama",
     tag: "Performance · Hot pink",
-    gradient: "from-pink-500/60 via-rose-500/40 to-fuchsia-500/20",
+    gradient: "from-pink-500/60 via-rose-500/40 to-orange-500/20",
     prompt:
       "Place the subject into a minimalist studio performance scene. Full-body side profile pose. Use an exact suspended vintage studio microphone hanging from ceiling at chest level. Environment is a seamless hot pink cyclorama — background and floor one continuous color. Soft glossy lighting. Preserve exact facial likeness, hairstyle, body proportions. Ultra-realistic, hyper-real 8K ultra-HD.",
     previewImg: vibeCycloPreview,

@@ -17,7 +17,7 @@ export const getMyProfile = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data } = await (supabase.from("profiles") as any)
       .select(
-        "credits, plan, lifetime_credits_purchased, email, display_name, subscription_expires_at, daily_spend_limit",
+        "credits, plan, lifetime_credits_purchased, email, display_name, subscription_expires_at, daily_spend_limit, persona",
       )
       .eq("user_id", userId)
       .maybeSingle();
@@ -38,7 +38,24 @@ export const getMyProfile = createServerFn({ method: "GET" })
       // grant_monthly_aura so the ledger entry is created.  The deterministic ref
       // matches grant_free_monthly_aura_all(), making the cron a no-op for this month.
       const freeAmount = SUBSCRIPTION_TIERS.free.monthly_aura;
-      await supabaseAdmin.from("profiles").insert({ user_id: userId, credits: 0 }).select().maybeSingle();
+      // The artist/creator choice is made on the signup form and rides along in the
+      // auth user metadata until the profile row is first created — here. Doing it
+      // at creation time (rather than on every read) keeps the hot path free of an
+      // extra admin API call for the many accounts that predate the question.
+      let persona: string | null = null;
+      try {
+        const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
+        const raw = (authUser?.user?.user_metadata as Record<string, unknown> | undefined)?.persona;
+        if (raw === "artist" || raw === "creator") persona = raw;
+      } catch {
+        // Metadata is a nicety — never block profile creation (and the free Aura
+        // grant that follows) on it. The home page asks again when persona is null.
+      }
+      await supabaseAdmin
+        .from("profiles")
+        .insert({ user_id: userId, credits: 0, persona } as never)
+        .select()
+        .maybeSingle();
       const month = new Date().toISOString().slice(0, 7); // e.g. "2026-07"
       await supabaseAdmin.rpc("grant_monthly_aura" as any, {
         _user: userId,
@@ -53,6 +70,7 @@ export const getMyProfile = createServerFn({ method: "GET" })
         display_name: null as string | null,
         subscription_expires_at: null as string | null,
         daily_spend_limit: null as number | null,
+        persona,
         is_pro: false,
         subscription_status,
         isAdmin,
@@ -64,6 +82,24 @@ export const getMyProfile = createServerFn({ method: "GET" })
       subscription_status,
       isAdmin,
     };
+  });
+
+/** Persist the caller's artist/creator choice. Asked on the signup form; also
+ *  offered once on the home page for accounts created before the question
+ *  existed (or via OAuth, where there is no form to ask on). */
+export const setMyPersona = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ persona: z.enum(["artist", "creator"]) }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { userId } = context;
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({ persona: data.persona } as never)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { persona: data.persona };
   });
 
 /** Set or clear the caller's personal daily Aura cap. Enforced for real inside

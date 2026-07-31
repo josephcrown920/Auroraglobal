@@ -61,7 +61,7 @@ function ResultCard({ entry }: { entry: Extract<ConsoleEntry, { type: "result" }
         {kind === "image" ? (
           <ImageIcon className="size-3.5 shrink-0 text-cyan-300" />
         ) : kind === "video" ? (
-          <Film className="size-3.5 shrink-0 text-violet-300" />
+          <Film className="size-3.5 shrink-0 text-red-300" />
         ) : kind === "audio" ? (
           <Music className="size-3.5 shrink-0 text-emerald-300" />
         ) : (
@@ -93,7 +93,7 @@ function ProgressRow({ entry }: { entry: Extract<ConsoleEntry, { type: "progress
       </div>
       <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-fuchsia-400 transition-all"
+          className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-orange-400 transition-all"
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -143,7 +143,7 @@ export function ConsolePanel({ entries, running }: { entries: ConsoleEntry[]; ru
               );
             case "api-call":
               return (
-                <p key={e.id} className="text-[12px] text-fuchsia-300/80">
+                <p key={e.id} className="text-[12px] text-orange-300/80">
                   → {e.path.replace("/api/public/", "")} {e.summary && <span className="text-white/40">({e.summary})</span>}
                 </p>
               );

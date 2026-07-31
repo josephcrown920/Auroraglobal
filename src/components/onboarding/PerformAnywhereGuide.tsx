@@ -11,9 +11,9 @@ const STEPS = [
     title: "Generate your AI scene",
     where: "Colors Studio",
     to: "/colors" as const,
-    color: "text-violet-400",
-    bg: "bg-violet-500/10 border-violet-500/30",
-    dot: "bg-violet-400",
+    color: "text-red-400",
+    bg: "bg-red-500/10 border-red-500/30",
+    dot: "bg-red-400",
     lines: [
       "Go to Colors Studio and pick a background color — hot pink, deep blue, any vibe.",
       "Upload a selfie (identity reference) and optionally a Colors screenshot for the mic/setup.",

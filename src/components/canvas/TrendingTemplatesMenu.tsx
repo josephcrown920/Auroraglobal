@@ -664,24 +664,24 @@ export function TrendingTemplatesMenu({ onPick }: { onPick: (g: TemplateGraph) =
                       key={t.id}
                       to="/marketplace"
                       onClick={() => setOpen(false)}
-                      className="text-left p-3 rounded-xl border border-violet-400/30 bg-violet-500/5 hover:border-violet-400/60 transition-colors no-underline block"
+                      className="text-left p-3 rounded-xl border border-red-400/30 bg-red-500/5 hover:border-red-400/60 transition-colors no-underline block"
                     >
                       <div className="flex items-center gap-2 mb-1">
-                        <Store className="size-4 text-violet-400 shrink-0" />
+                        <Store className="size-4 text-red-400 shrink-0" />
                         <span className="font-medium text-sm text-foreground">{t.name}</span>
-                        <span className="ml-auto text-xs font-semibold px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-400 shrink-0">
+                        <span className="ml-auto text-xs font-semibold px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 shrink-0">
                           {t.run_cost_aura} Aura
                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground line-clamp-2">{t.description}</p>
-                      <p className="mt-1.5 text-[13px] text-violet-400/70">by {t.creator_display_name ?? "Creator"}</p>
+                      <p className="mt-1.5 text-[13px] text-red-400/70">by {t.creator_display_name ?? "Creator"}</p>
                     </Link>
                   ))}
                 </div>
                 <Link
                   to="/marketplace"
                   onClick={() => setOpen(false)}
-                  className="mt-2 flex items-center gap-1 text-xs text-violet-400 hover:text-violet-300 no-underline px-1"
+                  className="mt-2 flex items-center gap-1 text-xs text-red-400 hover:text-red-300 no-underline px-1"
                 >
                   <Store className="size-3" /> Browse all marketplace templates →
                 </Link>
@@ -696,9 +696,9 @@ export function TrendingTemplatesMenu({ onPick }: { onPick: (g: TemplateGraph) =
                 <Link
                   to="/marketplace"
                   onClick={() => setOpen(false)}
-                  className="block p-3 rounded-xl border border-dashed border-violet-400/20 text-center text-xs text-muted-foreground hover:border-violet-400/40 transition-colors no-underline"
+                  className="block p-3 rounded-xl border border-dashed border-red-400/20 text-center text-xs text-muted-foreground hover:border-red-400/40 transition-colors no-underline"
                 >
-                  <Store className="size-4 text-violet-400/50 mx-auto mb-1" />
+                  <Store className="size-4 text-red-400/50 mx-auto mb-1" />
                   Browse community templates →
                 </Link>
               </section>

@@ -764,7 +764,7 @@ function ColorsStudio() {
                     onClick={() => setSetup(s.id)}
                     className={cn(
                       "group relative aspect-[4/3] rounded-2xl overflow-hidden text-left transition-all",
-                      active ? "ring-2 ring-primary shadow-[0_0_28px_oklch(0.78_0.18_305/0.45)]" : "ring-1 ring-white/10 hover:ring-primary/50",
+                      active ? "ring-2 ring-primary shadow-[0_0_28px_oklch(0.78_0.18_25/0.45)]" : "ring-1 ring-white/10 hover:ring-primary/50",
                     )}
                     style={{ background: s.preview(selectedColor.swatch) }}
                   >

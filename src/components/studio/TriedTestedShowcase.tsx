@@ -10,7 +10,7 @@ type Props = {
   finalImage: string;
   finalCaption: string;
   prompt?: string;
-  accent?: "violet" | "cyan";
+  accent?: "brand" | "cyan";
 };
 
 export function TriedTestedShowcase({
@@ -22,10 +22,10 @@ export function TriedTestedShowcase({
   finalImage,
   finalCaption,
   prompt,
-  accent = "violet",
+  accent = "brand",
 }: Props) {
-  const ring = accent === "cyan" ? "border-cyan-300/40" : "border-violet-300/40";
-  const chip = accent === "cyan" ? "bg-cyan-400/15 text-cyan-200 border-cyan-300/40" : "bg-violet-500/15 text-violet-200 border-violet-400/40";
+  const ring = accent === "cyan" ? "border-cyan-300/40" : "border-red-300/40";
+  const chip = accent === "cyan" ? "bg-cyan-400/15 text-cyan-200 border-cyan-300/40" : "bg-red-500/15 text-red-200 border-red-400/40";
 
   return (
     <section className={`relative rounded-3xl border ${ring} bg-card/40 backdrop-blur-sm overflow-hidden`}>
@@ -65,7 +65,7 @@ export function TriedTestedShowcase({
           <span className="hidden md:block mt-1 text-[10px] uppercase tracking-widest">Render</span>
         </div>
 
-        <figure className={`rounded-2xl overflow-hidden border-2 ${accent === "cyan" ? "border-cyan-300/60 shadow-[0_0_50px_-10px_rgba(103,232,249,0.45)]" : "border-violet-400/60 shadow-[0_0_50px_-10px_rgba(167,139,250,0.45)]"} bg-black relative`}>
+        <figure className={`rounded-2xl overflow-hidden border-2 ${accent === "cyan" ? "border-cyan-300/60 shadow-[0_0_50px_-10px_rgba(103,232,249,0.45)]" : "border-red-400/60 shadow-[0_0_50px_-10px_rgba(248,113,113,0.45)]"} bg-black relative`}>
           <span className="absolute top-2 left-2 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-400/90 text-[10px] font-bold text-emerald-950">
             <CheckCircle2 className="size-3" /> RENDERED
           </span>
