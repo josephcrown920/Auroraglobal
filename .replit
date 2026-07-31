@@ -171,3 +171,23 @@ INFERENCE_SH_APP_VIDEO = "google/veo-3-1-fast"
 
 [objectStorage]
 defaultBucketID = "replit-objstore-92420312-7368-4c29-8394-f3bd7ba1e2dd"
+
+[[ports]]
+localPort = 8081
+externalPort = 80
+
+[[ports]]
+localPort = 8083
+externalPort = 3003
+
+[[ports]]
+localPort = 8084
+externalPort = 3000
+
+[[ports]]
+localPort = 8085
+externalPort = 3001
+
+[[ports]]
+localPort = 8086
+externalPort = 3002
