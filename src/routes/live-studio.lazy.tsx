@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Sparkles, Loader2, ImagePlus, X, Download, Check, RefreshCw, Music2, Camera } from "lucide-react";
+import { Sparkles, Loader2, ImagePlus, X, Download, Check, RefreshCw, Music2, Camera, Upload, Headphones } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Link } from "@tanstack/react-router";
@@ -166,9 +166,190 @@ function dlImage(url: string, name: string) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+// ── Mastering panel (inline, lives inside the Mastering tab) ─────────────────
+
+type MasterLoudness = "low" | "medium" | "high";
+type MasterStyle = "balanced" | "warm" | "open" | "punchy" | "clean";
+type MasterFormat = "mp3" | "wav" | "flac";
+type MasterPhase = "idle" | "uploading" | "submitting" | "polling" | "done" | "error";
+
+const LOUDNESS_OPTS: { value: MasterLoudness; label: string; sub: string }[] = [
+  { value: "low",    label: "Low",    sub: "Streaming-optimised, true to source" },
+  { value: "medium", label: "Medium", sub: "Balanced, works everywhere" },
+  { value: "high",   label: "High",   sub: "Loud and punchy, club-ready" },
+];
+const STYLE_OPTS: { value: MasterStyle; label: string; sub: string }[] = [
+  { value: "balanced", label: "Balanced", sub: "Clean, works across genres" },
+  { value: "warm",     label: "Warm",     sub: "Analogue richness, softer highs" },
+  { value: "open",     label: "Open",     sub: "Wide, airy, detailed top end" },
+  { value: "punchy",   label: "Punchy",   sub: "Forward mids, tight low end" },
+  { value: "clean",    label: "Clean",    sub: "Transparent, high clarity" },
+];
+const FORMAT_OPTS: MasterFormat[] = ["mp3", "wav", "flac"];
+
+function MasteringPanel() {
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [loudness, setLoudness] = useState<MasterLoudness>("medium");
+  const [style, setStyle] = useState<MasterStyle>("balanced");
+  const [format, setFormat] = useState<MasterFormat>("mp3");
+  const [phase, setPhase] = useState<MasterPhase>("idle");
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+
+  async function submit() {
+    if (!audioFile) { toast.error("Upload a mix first"); return; }
+    setPhase("uploading");
+    setErrorMsg(null);
+    try {
+      // 1. Upload
+      const fd = new FormData();
+      fd.append("file", audioFile);
+      const up = await fetch("/api/audio/upload", { method: "POST", body: fd });
+      const { url, error: upErr } = await up.json() as { url?: string; error?: string };
+      if (!up.ok || !url) throw new Error(upErr ?? "Upload failed");
+
+      // 2. Submit to LANDR
+      setPhase("submitting");
+      const res = await fetch("/api/audio/master", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audioUrl: url, loudness, style, format }),
+      });
+      const { id, error: mErr } = await res.json() as { id?: string; error?: string };
+      if (!res.ok || !id) throw new Error(mErr ?? "Mastering request failed");
+      setJobId(id);
+
+      // 3. Poll
+      setPhase("polling");
+      pollRef.current = setInterval(async () => {
+        const st = await fetch(`/api/audio/master/${id}/status`);
+        const { status, downloadUrl: dl, error: stErr } = await st.json() as { status?: string; downloadUrl?: string; error?: string };
+        if (status === "completed" && dl) {
+          if (pollRef.current) clearInterval(pollRef.current);
+          setDownloadUrl(dl);
+          setPhase("done");
+        } else if (status === "failed") {
+          if (pollRef.current) clearInterval(pollRef.current);
+          throw new Error(stErr ?? "Mastering failed");
+        }
+      }, 4000);
+    } catch (e) {
+      if (pollRef.current) clearInterval(pollRef.current);
+      setPhase("error");
+      setErrorMsg(e instanceof Error ? e.message : "Something went wrong");
+    }
+  }
+
+  function reset() {
+    setAudioFile(null); setJobId(null); setDownloadUrl(null);
+    setErrorMsg(null); setPhase("idle");
+  }
+
+  return (
+    <div className="space-y-6 max-w-xl">
+      <div className="bg-card border border-border rounded-2xl p-5 space-y-5">
+        {/* Upload */}
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Your Mix</p>
+          <input ref={fileRef} type="file" accept=".mp3,.wav,.aif,.aiff,.flac" className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) setAudioFile(f); e.target.value = ""; }} />
+          <button onClick={() => audioFile ? reset() : fileRef.current?.click()}
+            className={cn("w-full h-28 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all",
+              audioFile ? "border-primary/60 bg-primary/5" : "border-border hover:border-border/60")}>
+            {audioFile ? (
+              <><Headphones size={22} className="text-primary" />
+                <span className="text-sm font-semibold text-foreground">{audioFile.name}</span>
+                <span className="text-[11px] text-muted-foreground">tap to remove</span></>
+            ) : (
+              <><Upload size={22} className="text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground">MP3, WAV, AIFF, FLAC · up to 200MB</span></>
+            )}
+          </button>
+        </div>
+
+        {/* Loudness */}
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Loudness</p>
+          <div className="grid grid-cols-3 gap-2">
+            {LOUDNESS_OPTS.map(o => (
+              <button key={o.value} onClick={() => setLoudness(o.value)}
+                className={cn("rounded-xl p-3 text-left border transition-all",
+                  loudness === o.value ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:border-border/60")}>
+                <div className="text-sm font-bold">{o.label}</div>
+                <div className="text-[10px] leading-snug mt-0.5">{o.sub}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Style */}
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Master Style</p>
+          <div className="grid grid-cols-2 gap-2">
+            {STYLE_OPTS.map(o => (
+              <button key={o.value} onClick={() => setStyle(o.value)}
+                className={cn("rounded-xl p-3 text-left border transition-all",
+                  style === o.value ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:border-border/60")}>
+                <div className="text-sm font-bold">{o.label}</div>
+                <div className="text-[10px] leading-snug mt-0.5">{o.sub}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Format */}
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Output Format</p>
+          <div className="flex gap-2">
+            {FORMAT_OPTS.map(f => (
+              <button key={f} onClick={() => setFormat(f)}
+                className={cn("rounded-lg px-4 py-2 text-sm font-bold border transition-all uppercase",
+                  format === f ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground")}>
+                {f}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Status / action */}
+        {phase === "done" && downloadUrl ? (
+          <div className="space-y-3">
+            <p className="text-sm font-semibold text-emerald-400">✓ Mastered and ready</p>
+            <a href={downloadUrl} target="_blank" rel="noreferrer">
+              <Button className="w-full aurora-button-primary gap-2 h-11">
+                <Download size={15} /> Download Master
+              </Button>
+            </a>
+            <Button variant="outline" onClick={reset} className="w-full h-9 text-sm">Master another track</Button>
+          </div>
+        ) : phase === "error" ? (
+          <div className="space-y-3">
+            <p className="text-sm text-destructive">{errorMsg ?? "An error occurred"}</p>
+            <Button variant="outline" onClick={reset} className="w-full h-9 text-sm">Try again</Button>
+          </div>
+        ) : (
+          <Button onClick={() => void submit()} disabled={!audioFile || phase !== "idle"}
+            className="w-full aurora-button-primary gap-2 h-12 text-base font-bold">
+            {phase === "idle" ? <><Sparkles size={16} /> Master this track</>
+              : <><Loader2 size={16} className="animate-spin" />
+                {phase === "uploading" ? "Uploading…" : phase === "submitting" ? "Sending to LANDR…" : "Mastering…"}</>}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+
 function LiveStudioPage() {
   const { session } = useAuth();
-  const [tab, setTab] = useState<"live" | "artist">("live");
+  const [tab, setTab] = useState<"live" | "artist" | "mastering">("live");
   const [sceneId, setSceneId] = useState("kexp-purple");
   const [refFile, setRefFile] = useState<File | null>(null);
   const [refPreview, setRefPreview] = useState<string | null>(null);
@@ -204,10 +385,12 @@ function LiveStudioPage() {
     return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
   }, [generations, fetchGallery]);
 
-  function switchTab(t: "live" | "artist") {
+  function switchTab(t: "live" | "artist" | "mastering") {
     setTab(t);
-    const first = SCENES.find(s => s.tab === t);
-    if (first) setSceneId(first.id);
+    if (t !== "mastering") {
+      const first = SCENES.find(s => s.tab === t);
+      if (first) setSceneId(first.id);
+    }
   }
 
   async function uploadRef(file: File): Promise<string> {
@@ -292,9 +475,20 @@ function LiveStudioPage() {
           >
             <Camera size={15} /> Artist Shoot
           </button>
+          <button
+            onClick={() => switchTab("mastering")}
+            className={cn(
+              "flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all",
+              tab === "mastering" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Headphones size={15} /> AI Mastering
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
+        {tab === "mastering" && <MasteringPanel />}
+
+        <div className={cn("grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8", tab === "mastering" && "hidden")}>
           {/* Left: scene grid */}
           <div>
             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 mb-8">
