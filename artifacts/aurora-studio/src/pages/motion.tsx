@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { useGenerateVideo } from "@workspace/api-client-react";
+import { useGenerateVideo, useGetMe } from "@workspace/api-client-react";
 import { Video, Film, Sparkles, Loader2, Image } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import FileUploadSlot from "@/components/FileUploadSlot";
 import { useSetActiveGeneration } from "@/contexts/generationWatcher";
+import { CreditCostIndicator } from "@/components/CreditCostIndicator";
+
+const MOTION_COST = 25;
 
 export default function MotionStudioPage() {
   const [prompt, setPrompt] = useState("");
@@ -14,6 +17,8 @@ export default function MotionStudioPage() {
   const generate = useGenerateVideo();
   const [, setLocation] = useLocation();
   const setActiveGeneration = useSetActiveGeneration();
+  const { data: user } = useGetMe();
+  const insufficientCredits = user?.credits !== undefined && user.credits < MOTION_COST;
 
   const resolvedSourceImageUrl = sourceImageObjectPath
     ? `/api/storage${sourceImageObjectPath}`
@@ -36,7 +41,7 @@ export default function MotionStudioPage() {
       },
       {
         onSuccess: (data) => {
-          setActiveGeneration({ id: data.id, creditsUsed: 10 });
+          setActiveGeneration({ id: data.id, creditsUsed: MOTION_COST });
           toast.success("Motion generation queued! Videos take 2-4 minutes.");
           setPrompt("");
           setSourceImageObjectPath(null);
@@ -107,22 +112,33 @@ export default function MotionStudioPage() {
           </div>
         </div>
 
-        <div className="pt-4 border-t border-[#333333]">
-          <button
-            onClick={handleGenerate}
-            disabled={generate.isPending}
-            className="w-full aurora-btn-primary flex items-center justify-center gap-2 py-4 text-sm uppercase tracking-widest bg-gradient-to-r from-[#b8860b] to-[#f6d365] text-black hover:from-[#fbbf24] hover:to-[#f6d365] border-none shadow-[0_0_20px_rgba(246,211,101,0.2)]"
-          >
-            {generate.isPending ? (
-              <>
-                <Loader2 className="animate-spin" size={16} /> Queuing...
-              </>
-            ) : (
-              <>
-                <Film size={16} /> Render Motion (25 Aura)
-              </>
-            )}
-          </button>
+        <div className="pt-4 border-t border-[#333333] space-y-3">
+          <CreditCostIndicator
+            cost={MOTION_COST}
+            balance={user?.credits}
+            accentColor="#f6d365"
+          />
+          {insufficientCredits ? (
+            <div className="w-full py-4 rounded-xl border border-[#FF453A]/40 bg-[#FF453A]/10 flex items-center justify-center gap-2 text-sm font-bold text-[#FF453A] uppercase tracking-widest">
+              Not enough credits — top up
+            </div>
+          ) : (
+            <button
+              onClick={handleGenerate}
+              disabled={generate.isPending}
+              className="w-full aurora-btn-primary flex items-center justify-center gap-2 py-4 text-sm uppercase tracking-widest bg-gradient-to-r from-[#b8860b] to-[#f6d365] text-black hover:from-[#fbbf24] hover:to-[#f6d365] border-none shadow-[0_0_20px_rgba(246,211,101,0.2)]"
+            >
+              {generate.isPending ? (
+                <>
+                  <Loader2 className="animate-spin" size={16} /> Queuing...
+                </>
+              ) : (
+                <>
+                  <Film size={16} /> Render Motion
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 

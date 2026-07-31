@@ -1,9 +1,12 @@
 import { useState } from "react";
-import { useGenerateUgc } from "@workspace/api-client-react";
+import { useGenerateUgc, useGetMe } from "@workspace/api-client-react";
 import { Smartphone, Sparkles, Loader2, User } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import { useSetActiveGeneration } from "@/contexts/generationWatcher";
+import { CreditCostIndicator } from "@/components/CreditCostIndicator";
+
+const UGC_COST = 85;
 
 export default function UgcFactoryPage() {
   const [prompt, setPrompt] = useState("");
@@ -11,6 +14,8 @@ export default function UgcFactoryPage() {
   const generate = useGenerateUgc();
   const [, setLocation] = useLocation();
   const setActiveGeneration = useSetActiveGeneration();
+  const { data: user } = useGetMe();
+  const insufficientCredits = user?.credits !== undefined && user.credits < UGC_COST;
 
   const handleGenerate = () => {
     if (!prompt.trim()) {
@@ -22,7 +27,7 @@ export default function UgcFactoryPage() {
       { data: { prompt, productDescription: prompt, avatarStyle } },
       {
         onSuccess: (data) => {
-          setActiveGeneration({ id: data.id, creditsUsed: 6 });
+          setActiveGeneration({ id: data.id, creditsUsed: UGC_COST });
           toast.success("UGC Generation queued!");
           setLocation("/dashboard");
         },
@@ -81,18 +86,29 @@ export default function UgcFactoryPage() {
           </div>
         </div>
 
-        <div className="pt-4 border-t border-[#333333]">
-          <button
-            onClick={handleGenerate}
-            disabled={generate.isPending}
-            className="w-full aurora-btn-primary flex items-center justify-center gap-2 py-4 text-sm uppercase tracking-widest bg-[#FF3B30] hover:bg-[#D70015] border-none"
-          >
-            {generate.isPending ? (
-              <><Loader2 className="animate-spin" size={16} /> Queuing...</>
-            ) : (
-              <><Smartphone size={16} /> Render 30s Clip (85 Aura)</>
-            )}
-          </button>
+        <div className="pt-4 border-t border-[#333333] space-y-3">
+          <CreditCostIndicator
+            cost={UGC_COST}
+            balance={user?.credits}
+            accentColor="#FF3B30"
+          />
+          {insufficientCredits ? (
+            <div className="w-full py-4 rounded-xl border border-[#FF453A]/40 bg-[#FF453A]/10 flex items-center justify-center gap-2 text-sm font-bold text-[#FF453A] uppercase tracking-widest">
+              Not enough credits — top up
+            </div>
+          ) : (
+            <button
+              onClick={handleGenerate}
+              disabled={generate.isPending}
+              className="w-full aurora-btn-primary flex items-center justify-center gap-2 py-4 text-sm uppercase tracking-widest bg-[#FF3B30] hover:bg-[#D70015] border-none"
+            >
+              {generate.isPending ? (
+                <><Loader2 className="animate-spin" size={16} /> Queuing...</>
+              ) : (
+                <><Smartphone size={16} /> Render 30s Clip</>
+              )}
+            </button>
+          )}
         </div>
       </div>
 

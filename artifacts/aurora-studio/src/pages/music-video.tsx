@@ -1,9 +1,12 @@
 import { useState } from "react";
-import { useGenerateMusicVideo } from "@workspace/api-client-react";
+import { useGenerateMusicVideo, useGetMe } from "@workspace/api-client-react";
 import { Music, Film, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import { useSetActiveGeneration } from "@/contexts/generationWatcher";
+import { CreditCostIndicator } from "@/components/CreditCostIndicator";
+
+const MUSIC_VIDEO_COST = 50;
 
 export default function MusicVideoStudioPage() {
   const [prompt, setPrompt] = useState("");
@@ -11,6 +14,8 @@ export default function MusicVideoStudioPage() {
   const generate = useGenerateMusicVideo();
   const [, setLocation] = useLocation();
   const setActiveGeneration = useSetActiveGeneration();
+  const { data: user } = useGetMe();
+  const insufficientCredits = user?.credits !== undefined && user.credits < MUSIC_VIDEO_COST;
 
   const handleGenerate = () => {
     if (!prompt.trim() || !audioUrl.trim()) {
@@ -22,7 +27,7 @@ export default function MusicVideoStudioPage() {
       { data: { prompt, audioUrl } },
       {
         onSuccess: (data) => {
-          setActiveGeneration({ id: data.id, creditsUsed: 12 });
+          setActiveGeneration({ id: data.id, creditsUsed: MUSIC_VIDEO_COST });
           toast.success("Music video generation started!");
           setLocation("/dashboard");
         },
@@ -67,18 +72,31 @@ export default function MusicVideoStudioPage() {
           />
         </div>
 
-        <div className="pt-8 border-t border-[#333333] flex justify-end">
-          <button
-            onClick={handleGenerate}
-            disabled={generate.isPending}
-            className="w-full md:w-auto px-12 py-4 aurora-btn-primary flex items-center justify-center gap-2 text-sm uppercase tracking-widest font-bold bg-white text-black hover:bg-gray-200"
-          >
-            {generate.isPending ? (
-              <><Loader2 className="animate-spin" size={16} /> Processing...</>
+        <div className="pt-8 border-t border-[#333333] space-y-4">
+          <CreditCostIndicator
+            cost={MUSIC_VIDEO_COST}
+            balance={user?.credits}
+            accentColor="#007AFF"
+          />
+          <div className="flex justify-end">
+            {insufficientCredits ? (
+              <div className="w-full py-4 rounded-xl border border-[#FF453A]/40 bg-[#FF453A]/10 flex items-center justify-center gap-2 text-sm font-bold text-[#FF453A] uppercase tracking-widest">
+                Not enough credits — top up
+              </div>
             ) : (
-              <><Film size={18} /> Generate Scene (50 Aura)</>
+              <button
+                onClick={handleGenerate}
+                disabled={generate.isPending}
+                className="w-full md:w-auto px-12 py-4 aurora-btn-primary flex items-center justify-center gap-2 text-sm uppercase tracking-widest font-bold bg-white text-black hover:bg-gray-200"
+              >
+                {generate.isPending ? (
+                  <><Loader2 className="animate-spin" size={16} /> Processing...</>
+                ) : (
+                  <><Film size={18} /> Generate Scene</>
+                )}
+              </button>
             )}
-          </button>
+          </div>
         </div>
       </div>
     </div>

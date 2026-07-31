@@ -1,9 +1,12 @@
 import { useState } from "react";
-import { useGeneratePhoto } from "@workspace/api-client-react";
+import { useGeneratePhoto, useGetMe } from "@workspace/api-client-react";
 import { Sparkles, Image as ImageIcon, Upload, Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import { useSetActiveGeneration } from "@/contexts/generationWatcher";
+import { CreditCostIndicator } from "@/components/CreditCostIndicator";
+
+const PHOTO_COST = 10;
 
 export default function ColorsStudioPage() {
   const [prompt, setPrompt] = useState("");
@@ -12,6 +15,8 @@ export default function ColorsStudioPage() {
   const generate = useGeneratePhoto();
   const [, setLocation] = useLocation();
   const setActiveGeneration = useSetActiveGeneration();
+  const { data: user } = useGetMe();
+  const insufficientCredits = user?.credits !== undefined && user.credits < PHOTO_COST;
 
   const handleGenerate = () => {
     if (!prompt.trim()) {
@@ -23,7 +28,7 @@ export default function ColorsStudioPage() {
       { data: { prompt, aspectRatio, style: style } },
       {
         onSuccess: (data) => {
-          setActiveGeneration({ id: data.id, creditsUsed: 2 });
+          setActiveGeneration({ id: data.id, creditsUsed: PHOTO_COST });
           toast.success("Generation started! Check your gallery in a minute.");
           setPrompt("");
           setLocation("/dashboard");
@@ -117,18 +122,29 @@ export default function ColorsStudioPage() {
           </div>
         </div>
 
-        <div className="pt-4 border-t border-[#333333]">
-          <button
-            onClick={handleGenerate}
-            disabled={generate.isPending}
-            className="w-full aurora-btn-primary flex items-center justify-center gap-2 py-4 text-sm uppercase tracking-widest shadow-[0_0_20px_rgba(0,122,255,0.3)] hover:shadow-[0_0_30px_rgba(0,122,255,0.5)]"
-          >
-            {generate.isPending ? (
-              <><Loader2 className="animate-spin" size={16} /> Rendering...</>
-            ) : (
-              <><Sparkles size={16} /> Render Shot (10 Aura)</>
-            )}
-          </button>
+        <div className="pt-4 border-t border-[#333333] space-y-3">
+          <CreditCostIndicator
+            cost={PHOTO_COST}
+            balance={user?.credits}
+            accentColor="#007AFF"
+          />
+          {insufficientCredits ? (
+            <div className="w-full py-4 rounded-xl border border-[#FF453A]/40 bg-[#FF453A]/10 flex items-center justify-center gap-2 text-sm font-bold text-[#FF453A] uppercase tracking-widest">
+              Not enough credits — top up
+            </div>
+          ) : (
+            <button
+              onClick={handleGenerate}
+              disabled={generate.isPending}
+              className="w-full aurora-btn-primary flex items-center justify-center gap-2 py-4 text-sm uppercase tracking-widest shadow-[0_0_20px_rgba(0,122,255,0.3)] hover:shadow-[0_0_30px_rgba(0,122,255,0.5)]"
+            >
+              {generate.isPending ? (
+                <><Loader2 className="animate-spin" size={16} /> Rendering...</>
+              ) : (
+                <><Sparkles size={16} /> Render Shot</>
+              )}
+            </button>
+          )}
         </div>
       </div>
 

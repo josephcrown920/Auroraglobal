@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { useGenerateLipsync } from "@workspace/api-client-react";
+import { useGenerateLipsync, useGetMe } from "@workspace/api-client-react";
 import { Mic, Video, Sparkles, Loader2, Link } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import FileUploadSlot from "@/components/FileUploadSlot";
 import { useSetActiveGeneration } from "@/contexts/generationWatcher";
+import { CreditCostIndicator } from "@/components/CreditCostIndicator";
+
+const LIPSYNC_COST = 15;
 
 type InputMode = "upload" | "url";
 
@@ -18,6 +21,8 @@ export default function LipsyncStudioPage() {
   const generate = useGenerateLipsync();
   const [, setLocation] = useLocation();
   const setActiveGeneration = useSetActiveGeneration();
+  const { data: user } = useGetMe();
+  const insufficientCredits = user?.credits !== undefined && user.credits < LIPSYNC_COST;
 
   const resolvedVideoUrl =
     videoMode === "upload"
@@ -43,7 +48,7 @@ export default function LipsyncStudioPage() {
       { data: { videoUrl: resolvedVideoUrl, audioUrl: resolvedAudioUrl } },
       {
         onSuccess: (data) => {
-          setActiveGeneration({ id: data.id, creditsUsed: 8 });
+          setActiveGeneration({ id: data.id, creditsUsed: LIPSYNC_COST });
           toast.success("Lipsync processing started!");
           setVideoUrl("");
           setAudioUrl("");
@@ -144,22 +149,33 @@ export default function LipsyncStudioPage() {
           </div>
         </div>
 
-        <div className="pt-4 border-t border-[#333333]">
-          <button
-            onClick={handleGenerate}
-            disabled={generate.isPending || !canSubmit}
-            className="w-full aurora-btn-primary flex items-center justify-center gap-2 py-4 text-sm uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {generate.isPending ? (
-              <>
-                <Loader2 className="animate-spin" size={16} /> Processing...
-              </>
-            ) : (
-              <>
-                <Sparkles size={16} /> Run Sync (15 Aura)
-              </>
-            )}
-          </button>
+        <div className="pt-4 border-t border-[#333333] space-y-3">
+          <CreditCostIndicator
+            cost={LIPSYNC_COST}
+            balance={user?.credits}
+            accentColor="#007AFF"
+          />
+          {insufficientCredits ? (
+            <div className="w-full py-4 rounded-xl border border-[#FF453A]/40 bg-[#FF453A]/10 flex items-center justify-center gap-2 text-sm font-bold text-[#FF453A] uppercase tracking-widest">
+              Not enough credits — top up
+            </div>
+          ) : (
+            <button
+              onClick={handleGenerate}
+              disabled={generate.isPending || !canSubmit}
+              className="w-full aurora-btn-primary flex items-center justify-center gap-2 py-4 text-sm uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {generate.isPending ? (
+                <>
+                  <Loader2 className="animate-spin" size={16} /> Processing...
+                </>
+              ) : (
+                <>
+                  <Sparkles size={16} /> Run Sync
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
