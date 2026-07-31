@@ -16,10 +16,10 @@ const WORKFLOWS: Workflow[] = [
   { name: "Lip-sync · NBA Josh preset", uses: "14.2k", icon: Mic2, glow: "from-emerald-500/40 to-teal-500/10", nodes: ["Selfie", "Audio", "Concert shot", "Sync 1.9"], template: "lipsync-preset", badge: "PRESET" },
   { name: "Lip-sync · Blank scaffold", uses: "6.8k", icon: Mic2, glow: "from-emerald-400/30 to-cyan-500/10", nodes: ["Selfie", "Audio", "Video", "Lip-sync"], template: "lipsync-blank", badge: "BLANK" },
   { name: "Colors · Blue Performance", uses: "9.7k", icon: Palette, glow: "from-blue-500/40 to-indigo-500/10", nodes: ["Selfie", "Royal-blue cyc", "Editorial portrait"], template: "colors-preset", badge: "PRESET" },
-  { name: "Colors · Blank canvas", uses: "4.4k", icon: Palette, glow: "from-violet-500/40 to-fuchsia-500/10", nodes: ["Selfie", "Palette", "Scene"], template: "colors-blank", badge: "BLANK" },
-  { name: "Editorial Cover Shoot", uses: "8.9k", icon: Camera, glow: "from-amber-500/40 to-violet-500/10", nodes: ["Selfie", "Outfit", "Rembrandt", "Cover crop"], template: "editorial-cover" },
+  { name: "Colors · Blank canvas", uses: "4.4k", icon: Palette, glow: "from-fuchsia-500/40 to-pink-500/10", nodes: ["Selfie", "Palette", "Scene"], template: "colors-blank", badge: "BLANK" },
+  { name: "Editorial Cover Shoot", uses: "8.9k", icon: Camera, glow: "from-amber-500/40 to-rose-500/10", nodes: ["Selfie", "Outfit", "Rembrandt", "Cover crop"], template: "editorial-cover" },
   { name: "UGC Ad Loop", uses: "4.1k", icon: Film, glow: "from-cyan-500/40 to-blue-500/10", nodes: ["Product", "Talent", "Kling 3.0", "Caption"], template: "ugc-loop" },
-  { name: "Music Video Mini", uses: "3.2k", icon: Wand2, glow: "from-violet-500/40 to-fuchsia-500/10", nodes: ["Selfie", "Audio", "Video", "Lip-sync"], template: "music-video-mini" },
+  { name: "Music Video Mini", uses: "3.2k", icon: Wand2, glow: "from-pink-500/40 to-rose-500/10", nodes: ["Selfie", "Audio", "Video", "Lip-sync"], template: "music-video-mini" },
 ];
 
 export function TrendingWorkflows() {
@@ -28,7 +28,7 @@ export function TrendingWorkflows() {
       <div className="flex items-end justify-between mb-5">
         <div>
           <p className="aurora-kicker mb-2 inline-flex items-center gap-1.5">
-            <Flame className="size-3.5 text-primary" /> Trending workflows
+            <Flame className="size-3.5 text-rose-400" /> Trending workflows
           </p>
           <h2 className="text-2xl md:text-3xl font-semibold">Start from a pipeline the community loves.</h2>
           <p className="text-muted-foreground text-sm mt-1 max-w-xl">One-click recipes on Canvas. Wire your selfie in, run, ship.</p>
@@ -82,12 +82,12 @@ export function TrendingWorkflows() {
 
 const FEATURES = [
   { name: "Performance Studio", desc: "Selfie → magazine-grade portrait in seconds.", to: "/studio", icon: Camera, glow: "from-violet-500/30 to-fuchsia-500/10" },
-  { name: "Aurora Canvas", desc: "Node-graph orchestrator for image + video + lip-sync.", to: "/canvas", icon: Sparkles, glow: "from-violet-500/30 to-fuchsia-500/10" },
-  { name: "Colors Studio", desc: "Direct your color palette across studio, indoor, rooftop scenes.", to: "/colors", icon: Palette, glow: "from-violet-500/30 to-fuchsia-500/10" },
+  { name: "Aurora Canvas", desc: "Node-graph orchestrator for image + video + lip-sync.", to: "/canvas", icon: Sparkles, glow: "from-fuchsia-500/30 to-pink-500/10" },
+  { name: "Colors Studio", desc: "Direct your color palette across studio, indoor, rooftop scenes.", to: "/colors", icon: Palette, glow: "from-pink-500/30 to-rose-500/10" },
   { name: "Lip-sync", desc: "Frame-accurate Sync 1.9 in 8+ languages.", to: "/studio", icon: Mic2, glow: "from-emerald-500/30 to-teal-500/10" },
   { name: "UGC Ads", desc: "Talent + product → looping social ads.", to: "/ugc", icon: Film, glow: "from-amber-500/30 to-orange-500/10" },
   { name: "Gallery", desc: "Browse the community's best Aurora shots.", to: "/gallery", icon: ImageIcon, glow: "from-indigo-500/30 to-violet-500/10" },
-  { name: "Gifts", desc: "Send Aura to a friend.", to: "/gifts", icon: Wand2, glow: "from-violet-500/30 to-fuchsia-500/10" },
+  { name: "Gifts", desc: "Send Aura to a friend.", to: "/gifts", icon: Wand2, glow: "from-rose-500/30 to-pink-500/10" },
 ];
 
 export function FeaturesGrid() {

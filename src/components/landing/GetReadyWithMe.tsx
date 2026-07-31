@@ -6,7 +6,7 @@ const STAGES = [
   { label: "Outfit flat-lay", color: "from-cyan-500 to-blue-600" },
   { label: "Pick the look", color: "from-amber-400 to-orange-500" },
   { label: "Style & accessories", color: "from-emerald-400 to-teal-600" },
-  { label: "Vanity moment", color: "from-violet-400 to-fuchsia-600" },
+  { label: "Vanity moment", color: "from-rose-400 to-pink-600" },
   { label: "Full-look reveal", color: "from-violet-400 to-indigo-600" },
 ];
 

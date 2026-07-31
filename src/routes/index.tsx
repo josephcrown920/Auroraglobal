@@ -276,7 +276,7 @@ function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-display antialiased selection:bg-primary selection:text-white">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-display antialiased selection:bg-[#e5383b] selection:text-white">
 
       {/* ── Nav ─────────────────────────────────────────────────────────── */}
       <nav className="absolute top-0 left-0 right-0 z-40 w-full">
@@ -301,7 +301,7 @@ function LandingPage() {
             {user ? (
               <Link
                 to="/home"
-                className="inline-flex items-center rounded-full bg-primary py-2 pl-3 pr-4 text-sm font-semibold text-white transition-transform hover:scale-[1.02] active:scale-95"
+                className="inline-flex items-center rounded-full bg-[#e5383b] py-2 pl-3 pr-4 text-sm font-semibold text-white transition-transform hover:scale-[1.02] active:scale-95"
               >
                 <Plus className="size-4 mr-1.5 shrink-0" strokeWidth={2.5} />
                 Open Studio
@@ -316,7 +316,7 @@ function LandingPage() {
                 </Link>
                 <Link
                   to="/auth"
-                  className="inline-flex items-center rounded-full bg-primary py-2 pl-3 pr-4 text-sm font-semibold text-white transition-transform hover:scale-[1.02] active:scale-95"
+                  className="inline-flex items-center rounded-full bg-[#e5383b] py-2 pl-3 pr-4 text-sm font-semibold text-white transition-transform hover:scale-[1.02] active:scale-95"
                 >
                   <Plus className="size-4 mr-1.5 shrink-0" strokeWidth={2.5} />
                   Start creating
@@ -359,7 +359,7 @@ function LandingPage() {
               }`}
             >
               <p className="mb-2 flex items-center gap-2 font-serif italic text-amber-400 text-sm">
-                <span className="inline-block size-1.5 rounded-full bg-primary" />
+                <span className="inline-block size-1.5 rounded-full bg-[#e5383b]" />
                 {slide.eyebrow}
                 {"badge" in slide && slide.badge && (
                   <span className="ml-1 inline-flex items-center rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300 not-italic">
@@ -375,7 +375,7 @@ function LandingPage() {
               </p>
               <Link
                 to={user ? slide.ctaTo : "/auth"}
-                className="mt-6 inline-flex w-fit items-center gap-1.5 text-sm font-bold text-primary hover:text-white transition-colors"
+                className="mt-6 inline-flex w-fit items-center gap-1.5 text-sm font-bold text-[#e5383b] hover:text-white transition-colors"
               >
                 {slide.cta}
               </Link>
@@ -384,7 +384,7 @@ function LandingPage() {
           <div className="mt-8 flex flex-col gap-3">
             <Link
               to={ctaTo}
-              className="inline-flex w-fit items-center rounded-full bg-primary py-3.5 pl-5 pr-6 text-base font-semibold text-white shadow-[var(--shadow-glow)] transition-transform hover:scale-[1.02] active:scale-95"
+              className="inline-flex w-fit items-center rounded-full bg-[#e5383b] py-3.5 pl-5 pr-6 text-base font-semibold text-white shadow-[0_10px_40px_-10px_rgba(229,56,59,0.7)] transition-transform hover:scale-[1.02] active:scale-95"
             >
               <Plus className="size-4 mr-2 shrink-0" strokeWidth={2.5} />
               {user ? "Open Studio" : "Start creating"}
@@ -429,7 +429,7 @@ function LandingPage() {
                 {item.label}
               </Link>
               {i < arr.length - 1 && (
-                <span className="text-primary text-sm font-bold">+</span>
+                <span className="text-[#e5383b] text-sm font-bold">+</span>
               )}
             </div>
           ))}
@@ -442,7 +442,7 @@ function LandingPage() {
           {[...TICKER_ITEMS, ...TICKER_ITEMS, ...TICKER_ITEMS].map((label, i) => (
             <span key={i} className="flex items-center gap-12">
               <span>{label}</span>
-              <span className="text-primary">✦</span>
+              <span className="text-[#e5383b]">✦</span>
             </span>
           ))}
         </div>
@@ -451,7 +451,7 @@ function LandingPage() {
       {/* ── Process ─────────────────────────────────────────────────────── */}
       <section id="process" className="py-20 px-5">
         <div className="mb-12">
-          <span className="text-xs font-bold uppercase tracking-[0.3em] text-primary">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
             The studio flow
           </span>
           <h2 className="mt-3 text-4xl font-semibold leading-tight">
@@ -493,7 +493,7 @@ function LandingPage() {
       {/* ── Featured Tools ───────────────────────────────────────────────── */}
       <section id="services" className="py-20 px-5 border-t border-white/5">
         <div className="mb-10">
-          <span className="text-xs font-bold uppercase tracking-[0.3em] text-primary">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
             Every tool
           </span>
           <h2 className="mt-3 text-4xl font-semibold leading-tight">
@@ -523,7 +523,7 @@ function LandingPage() {
       {/* ── Colors Performance Studio Showcase ──────────────────────────── */}
       <section id="colors" className="py-20 px-5 border-t border-white/5 bg-zinc-950">
         <div className="mb-8">
-          <span className="text-xs font-bold uppercase tracking-[0.3em] text-primary">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
             Colors Performance Studio
           </span>
           <h2 className="mt-3 text-4xl font-semibold leading-tight">
@@ -541,7 +541,7 @@ function LandingPage() {
               { step: "03", label: "Pick an Outfit", desc: "Aurora dresses you and drops you in the scene. Unlimited looks, zero fitting rooms." },
             ].map(({ step, label, desc }) => (
               <div key={step} className="flex items-start gap-4 rounded-xl bg-white/4 ring-1 ring-white/8 px-4 py-3">
-                <span className="text-[11px] font-black tracking-widest text-primary mt-0.5 shrink-0">{step}</span>
+                <span className="text-[11px] font-black tracking-widest text-[#e5383b] mt-0.5 shrink-0">{step}</span>
                 <div>
                   <p className="text-sm font-semibold text-white">{label}</p>
                   <p className="text-xs text-zinc-400 leading-relaxed mt-0.5">{desc}</p>
@@ -574,7 +574,7 @@ function LandingPage() {
 
         <Link
           to="/colors"
-          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary py-4 text-base font-bold text-white shadow-[var(--shadow-glow)] transition-transform hover:scale-[1.01] active:scale-95"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#e5383b] py-4 text-base font-bold text-white shadow-[0_10px_40px_-10px_rgba(229,56,59,0.7)] transition-transform hover:scale-[1.01] active:scale-95"
         >
           <Palette className="size-5 shrink-0" />
           Start Colors Studio Free — Pick Your Color Now
@@ -590,7 +590,7 @@ function LandingPage() {
       {/* ── Gallery ─────────────────────────────────────────────────────── */}
       <section id="gallery" className="bg-zinc-900/30 py-20 border-y border-white/5 overflow-hidden">
         <div className="px-5 mb-10">
-          <span className="text-xs font-bold uppercase tracking-[0.3em] text-primary">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
             Output gallery
           </span>
           <h2 className="mt-3 text-4xl font-semibold leading-tight">
@@ -631,7 +631,7 @@ function LandingPage() {
       <section className="py-20 px-5">
         <div className="mb-8 flex items-end justify-between gap-4">
           <div>
-            <span className="text-xs font-bold uppercase tracking-[0.3em] text-primary">
+            <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
               Motion generation
             </span>
             <h2 className="mt-3 text-3xl font-semibold leading-tight">
@@ -695,7 +695,7 @@ function LandingPage() {
       {/* ── Social Proof / Testimonials ──────────────────────────────────── */}
       <section className="py-20 px-5 border-y border-white/5">
         <div className="mb-10">
-          <span className="text-xs font-bold uppercase tracking-[0.3em] text-primary">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
             30-day transformation
           </span>
           <h2 className="mt-3 text-3xl font-semibold leading-tight">
@@ -711,7 +711,7 @@ function LandingPage() {
               &ldquo;Aurora completely changed the way I make content. I get a ton of content in just an hour — which normally would take me weeks of work and planning.&rdquo;
             </p>
             <div className="flex items-center gap-3">
-              <div className="size-9 rounded-full bg-gradient-to-br from-primary to-zinc-700 ring-1 ring-white/10 shrink-0" />
+              <div className="size-9 rounded-full bg-gradient-to-br from-[#e5383b] to-zinc-700 ring-1 ring-white/10 shrink-0" />
               <div>
                 <span className="text-sm font-semibold text-zinc-100 block">Aurora Artist</span>
                 <span className="text-xs text-zinc-500">Music Creator</span>
@@ -720,7 +720,7 @@ function LandingPage() {
           </div>
 
           {/* Platform stat */}
-          <div className="rounded-2xl bg-gradient-to-br from-primary/10 to-transparent ring-1 ring-primary/20 p-6">
+          <div className="rounded-2xl bg-gradient-to-br from-[#e5383b]/10 to-transparent ring-1 ring-[#e5383b]/20 p-6">
             <div className="text-5xl font-bold text-white mb-2">1,000+</div>
             <p className="text-zinc-300 text-sm leading-relaxed">
               artists scaled massively with Aurora in a short time. None of them thought it was possible — before Aurora found them.
@@ -731,7 +731,7 @@ function LandingPage() {
 
       {/* ── Complete Artist ──────────────────────────────────────────────── */}
       <section className="py-20 px-5 border-b border-white/5">
-        <span className="text-xs font-bold uppercase tracking-[0.3em] text-primary">
+        <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
           The director&apos;s chair
         </span>
         <h2 className="mt-3 text-4xl font-semibold leading-tight mb-5">
@@ -754,7 +754,7 @@ function LandingPage() {
       {/* ── Pricing ──────────────────────────────────────────────────────── */}
       <section id="pricing" className="py-20 px-5 border-t border-white/5">
         <div className="mb-10">
-          <span className="text-xs font-bold uppercase tracking-[0.3em] text-primary">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
             Pricing
           </span>
           <h2 className="mt-3 text-4xl font-semibold leading-tight">
@@ -841,23 +841,23 @@ function LandingPage() {
           </div>
 
           {/* Pro */}
-          <div className="relative rounded-2xl bg-zinc-900 ring-2 ring-primary/60 p-6 shadow-[var(--shadow-glow-soft)]">
+          <div className="relative rounded-2xl bg-zinc-900 ring-2 ring-[#e5383b]/60 p-6 shadow-[0_0_40px_-10px] shadow-red-600/30">
             <div className="absolute -top-3 left-5">
-              <span className="rounded-full bg-primary px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white">
+              <span className="rounded-full bg-[#e5383b] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white">
                 Most popular
               </span>
             </div>
             <div className="flex items-start justify-between gap-4 mb-5">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.25em] text-primary mb-1">Pro</p>
+                <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#e5383b] mb-1">Pro</p>
                 <div className="flex items-baseline gap-1.5">
                   <p className="text-3xl font-semibold text-zinc-100">$79</p>
                   <p className="text-sm text-zinc-500">/ month</p>
                 </div>
                 <p className="text-sm text-zinc-500 mt-1">5,000 Aura included monthly</p>
               </div>
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 ring-1 ring-primary/30">
-                <Crown className="size-5 text-primary" />
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#e5383b]/15 ring-1 ring-[#e5383b]/30">
+                <Crown className="size-5 text-[#e5383b]" />
               </span>
             </div>
             <ul className="flex flex-col gap-2 mb-6">
@@ -870,14 +870,14 @@ function LandingPage() {
                 "Growth Tools — daily posts & rollout plans",
               ].map((f) => (
                 <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-300">
-                  <Check className="size-4 shrink-0 mt-0.5 text-primary" />
+                  <Check className="size-4 shrink-0 mt-0.5 text-[#e5383b]" />
                   {f}
                 </li>
               ))}
             </ul>
             <Link
               to={user ? "/billing" : ctaTo}
-              className="block w-full rounded-xl bg-primary py-3 text-center text-sm font-semibold text-white shadow-[var(--shadow-glow-soft)] transition-transform hover:scale-[1.01] active:scale-[0.99] no-underline"
+              className="block w-full rounded-xl bg-[#e5383b] py-3 text-center text-sm font-semibold text-white shadow-[0_6px_20px_-4px_rgba(229,56,59,0.5)] transition-transform hover:scale-[1.01] active:scale-[0.99] no-underline"
             >
               {user ? "Upgrade to Pro" : "Get Pro — $79 / month"}
             </Link>
@@ -898,11 +898,11 @@ function LandingPage() {
               <Link
                 key={p.label}
                 to={user ? "/billing" : ctaTo}
-                className={`group flex items-center justify-between rounded-xl px-5 py-4 ring-1 transition-all no-underline ${p.popular ? "bg-zinc-800 ring-white/15 hover:ring-primary/40" : "bg-zinc-900 ring-white/8 hover:ring-white/15"}`}
+                className={`group flex items-center justify-between rounded-xl px-5 py-4 ring-1 transition-all no-underline ${p.popular ? "bg-zinc-800 ring-white/15 hover:ring-[#e5383b]/40" : "bg-zinc-900 ring-white/8 hover:ring-white/15"}`}
               >
                 <div className="flex items-center gap-3">
                   {p.popular && (
-                    <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-primary">
+                    <span className="rounded-full bg-[#e5383b]/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-[#e5383b]">
                       Best value
                     </span>
                   )}
@@ -913,7 +913,7 @@ function LandingPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-base font-bold text-zinc-100">{p.usd}</span>
-                  <ArrowUpRight className="size-4 text-zinc-600 transition-colors group-hover:text-primary" />
+                  <ArrowUpRight className="size-4 text-zinc-600 transition-colors group-hover:text-[#e5383b]" />
                 </div>
               </Link>
             ))}
@@ -923,7 +923,7 @@ function LandingPage() {
         {/* Day passes note */}
         <p className="text-center text-[11px] text-zinc-600 leading-relaxed">
           Just trying it out?{" "}
-          <Link to={user ? "/billing" : ctaTo} className="text-zinc-400 hover:text-primary underline underline-offset-2 transition-colors">
+          <Link to={user ? "/billing" : ctaTo} className="text-zinc-400 hover:text-[#e5383b] underline underline-offset-2 transition-colors">
             Day passes from $2
           </Link>
           {" "}· 150 Aura · no commitment.
@@ -933,7 +933,7 @@ function LandingPage() {
       {/* ── Aurora Partners ─────────────────────────────────────────────── */}
       <section className="py-20 px-5 border-t border-white/5">
         <div className="mb-8">
-          <span className="text-xs font-bold uppercase tracking-[0.3em] text-primary">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
             Aurora Partners
           </span>
           <h2 className="mt-3 text-4xl font-semibold leading-tight">
@@ -951,14 +951,14 @@ function LandingPage() {
             "Co-marketing with Aurora — grow your brand alongside ours",
           ].map((b) => (
             <li key={b} className="flex items-start gap-3 text-sm text-zinc-300">
-              <Check className="size-4 shrink-0 mt-0.5 text-primary" />
+              <Check className="size-4 shrink-0 mt-0.5 text-[#e5383b]" />
               {b}
             </li>
           ))}
         </ul>
         <Link
           to="/partners"
-          className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white shadow-[var(--shadow-glow-soft)] transition-transform hover:scale-[1.02] active:scale-95 no-underline"
+          className="inline-flex items-center gap-2 rounded-full bg-[#e5383b] px-6 py-3 text-sm font-semibold text-white shadow-[0_6px_20px_-4px_rgba(229,56,59,0.5)] transition-transform hover:scale-[1.02] active:scale-95 no-underline"
         >
           Become a Partner
           <ArrowUpRight className="size-4" />
@@ -968,7 +968,7 @@ function LandingPage() {
       {/* ── FAQ ─────────────────────────────────────────────────────────── */}
       <section id="faq" className="py-20 px-5">
         <div className="mb-10 text-center">
-          <span className="text-xs font-bold uppercase tracking-[0.3em] text-primary">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
             Questions
           </span>
           <h2 className="mt-3 text-4xl font-semibold tracking-tight">
@@ -985,7 +985,7 @@ function LandingPage() {
       {/* ── Footer ──────────────────────────────────────────────────────── */}
       <footer className="border-t border-white/5 pt-14 pb-8 px-5">
         <div className="flex items-center gap-2 mb-4">
-          <span className="inline-block size-2 rounded-full bg-primary" />
+          <span className="inline-block size-2 rounded-full bg-[#e5383b]" />
           <span className="text-sm font-bold tracking-[0.15em] uppercase text-zinc-100">Aurora</span>
         </div>
         <p className="text-sm text-zinc-500 mb-10">
@@ -1041,7 +1041,7 @@ function FeaturedToolCard({ tool }: { tool: typeof FEATURED_TOOLS[number] }) {
         <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/6 ring-1 ring-white/10">
           <Icon className="size-4 text-zinc-300" />
         </span>
-        <span className="text-[11px] font-bold text-primary tabular-nums">
+        <span className="text-[11px] font-bold text-[#e5383b] tabular-nums">
           {tool.price}
         </span>
       </div>
@@ -1095,7 +1095,7 @@ function ProcessCard({
         )}
       </div>
       <div className="flex items-baseline gap-3">
-        <span className="text-xs font-bold text-primary uppercase tracking-[0.25em]">{step}</span>
+        <span className="text-xs font-bold text-[#e5383b] uppercase tracking-[0.25em]">{step}</span>
         <span className="text-xs font-medium text-zinc-500 uppercase tracking-widest">{label}</span>
       </div>
       <h3 className="mt-2 text-xl font-semibold">{title}</h3>
@@ -1113,8 +1113,8 @@ function PromptMock() {
       <div className="rounded-lg bg-zinc-800/80 px-3 py-2 text-[11px] text-zinc-300 ring-1 ring-white/10 w-4/5">
         Editorial fashion styling, deep shadow
       </div>
-      <div className="rounded-lg bg-primary/15 px-3 py-2 text-[11px] text-primary ring-1 ring-primary/50 w-3/5 flex items-center gap-2">
-        <span className="inline-block size-1.5 rounded-full bg-primary animate-pulse" />
+      <div className="rounded-lg bg-[#e5383b]/15 px-3 py-2 text-[11px] text-[#e5383b] ring-1 ring-[#e5383b]/50 w-3/5 flex items-center gap-2">
+        <span className="inline-block size-1.5 rounded-full bg-[#e5383b] animate-pulse" />
         Directing shoot…
       </div>
       <div className="mt-2 rounded-lg bg-zinc-900 px-3 py-2 text-[10px] text-zinc-500 ring-1 ring-white/5">
@@ -1214,7 +1214,7 @@ function FooterCol({
         <Link
           key={l.label}
           to={l.to}
-          className="text-sm text-zinc-500 hover:text-primary transition-colors"
+          className="text-sm text-zinc-500 hover:text-[#e5383b] transition-colors"
         >
           {l.label}
         </Link>

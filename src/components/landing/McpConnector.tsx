@@ -55,7 +55,7 @@ const STEPS = [
 
 function ConnectorMark({ className = "size-6" }: { className?: string }) {
   return (
-    <span aria-hidden className="relative inline-grid place-items-center rounded-lg bg-[image:var(--gradient-hero)] shadow-[var(--shadow-glow-soft)] p-1.5 align-middle">
+    <span aria-hidden className="relative inline-grid place-items-center rounded-lg bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 shadow-lg shadow-orange-500/30 p-1.5 align-middle">
       <Asterisk className={`${className} text-white`} strokeWidth={2.5} />
     </span>
   );
