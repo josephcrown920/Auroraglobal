@@ -97,6 +97,7 @@ import { Route as ApiPublicLifecycleEmailsRouteImport } from './routes/api/publi
 import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/public/paystack-webhook'
 import { Route as ApiPublicSiteCopyRouteImport } from './routes/api/public/site-copy'
 import { Route as ApiPublicSiteImagesRouteImport } from './routes/api/public/site-images'
+import { Route as ApiPublicUptimeMonitorRouteImport } from './routes/api/public/uptime-monitor'
 import { Route as ApiPublicWatermarkImageRouteImport } from './routes/api/public/watermark-image'
 import { Route as ApiPublicWatermarkVideoRouteImport } from './routes/api/public/watermark-video'
 import { Route as ApiUgcLineImagesRouteImport } from './routes/api/ugc-line/images'
@@ -575,6 +576,11 @@ const ApiPublicSiteImagesRoute = ApiPublicSiteImagesRouteImport.update({
   path: '/api/public/site-images',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicUptimeMonitorRoute = ApiPublicUptimeMonitorRouteImport.update({
+  id: '/api/public/uptime-monitor',
+  path: '/api/public/uptime-monitor',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicWatermarkImageRoute = ApiPublicWatermarkImageRouteImport.update({
   id: '/api/public/watermark-image',
   path: '/api/public/watermark-image',
@@ -749,6 +755,7 @@ export interface FileRoutesByFullPath {
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
+  '/api/public/uptime-monitor': typeof ApiPublicUptimeMonitorRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
   '/api/ugc-line/images': typeof ApiUgcLineImagesRoute
@@ -854,6 +861,7 @@ export interface FileRoutesByTo {
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
+  '/api/public/uptime-monitor': typeof ApiPublicUptimeMonitorRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
   '/api/ugc-line/images': typeof ApiUgcLineImagesRoute
@@ -960,6 +968,7 @@ export interface FileRoutesById {
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
+  '/api/public/uptime-monitor': typeof ApiPublicUptimeMonitorRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
   '/api/ugc-line/images': typeof ApiUgcLineImagesRoute
@@ -1067,6 +1076,7 @@ export interface FileRouteTypes {
     | '/api/public/paystack-webhook'
     | '/api/public/site-copy'
     | '/api/public/site-images'
+    | '/api/public/uptime-monitor'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
     | '/api/ugc-line/images'
@@ -1172,6 +1182,7 @@ export interface FileRouteTypes {
     | '/api/public/paystack-webhook'
     | '/api/public/site-copy'
     | '/api/public/site-images'
+    | '/api/public/uptime-monitor'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
     | '/api/ugc-line/images'
@@ -1277,6 +1288,7 @@ export interface FileRouteTypes {
     | '/api/public/paystack-webhook'
     | '/api/public/site-copy'
     | '/api/public/site-images'
+    | '/api/public/uptime-monitor'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
     | '/api/ugc-line/images'
@@ -1375,6 +1387,7 @@ export interface RootRouteChildren {
   ApiPublicPaystackWebhookRoute: typeof ApiPublicPaystackWebhookRoute
   ApiPublicSiteCopyRoute: typeof ApiPublicSiteCopyRoute
   ApiPublicSiteImagesRoute: typeof ApiPublicSiteImagesRoute
+  ApiPublicUptimeMonitorRoute: typeof ApiPublicUptimeMonitorRoute
   ApiPublicWatermarkImageRoute: typeof ApiPublicWatermarkImageRoute
   ApiPublicWatermarkVideoRoute: typeof ApiPublicWatermarkVideoRoute
   ApiUgcLineImagesRoute: typeof ApiUgcLineImagesRoute
@@ -2003,6 +2016,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSiteImagesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/uptime-monitor': {
+      id: '/api/public/uptime-monitor'
+      path: '/api/public/uptime-monitor'
+      fullPath: '/api/public/uptime-monitor'
+      preLoaderRoute: typeof ApiPublicUptimeMonitorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/watermark-image': {
       id: '/api/public/watermark-image'
       path: '/api/public/watermark-image'
@@ -2234,6 +2254,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicPaystackWebhookRoute: ApiPublicPaystackWebhookRoute,
   ApiPublicSiteCopyRoute: ApiPublicSiteCopyRoute,
   ApiPublicSiteImagesRoute: ApiPublicSiteImagesRoute,
+  ApiPublicUptimeMonitorRoute: ApiPublicUptimeMonitorRoute,
   ApiPublicWatermarkImageRoute: ApiPublicWatermarkImageRoute,
   ApiPublicWatermarkVideoRoute: ApiPublicWatermarkVideoRoute,
   ApiUgcLineImagesRoute: ApiUgcLineImagesRoute,
