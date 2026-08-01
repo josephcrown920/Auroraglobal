@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { adminOverview, adminGrantCredits, adminEarnings, adminWithdrawalSummary, adminRecordWithdrawal, adminCheckWithdrawalAmount, adminEditWithdrawal, adminDeleteWithdrawal } from "@/lib/admin.functions";
 import { getSiteImages, adminUpdateSiteImage, adminResetSiteImage, type SiteImageRow } from "@/lib/site-images.functions";
 import { getSiteCopy, adminSetSiteCopy, adminDeleteSiteCopy, type SiteCopyRow } from "@/lib/site-copy.functions";
+import { getRouterHealth, getRouterLogs, type RouterHealthRow, type RouterLogRow } from "@/lib/ai-router.functions";
 import { SITE_COPY_DEFAULTS, SITE_COPY_LABELS, SITE_COPY_SECTIONS } from "@/lib/site-copy-defaults";
 import { listWorkers, upsertWorker, deleteWorker, pingWorker, setWorkerStatus, getFreeGpuMode, setFreeGpuMode, approveWorker, rejectWorker } from "@/lib/workers.functions";
 import { issuePromoCode, listPromoCodes, setPromoCodeActive, type PromoCodeRow } from "@/lib/promo.functions";
@@ -44,7 +45,7 @@ function AdminPage() {
   });
 
 
-  const [tab, setTab] = useState<"gens" | "users" | "payments" | "earnings" | "workers" | "promos" | "images" | "copy">("gens");
+  const [tab, setTab] = useState<"gens" | "users" | "payments" | "earnings" | "workers" | "promos" | "images" | "copy" | "router">("gens");
   const [grantUser, setGrantUser] = useState("");
   const [grantAmount, setGrantAmount] = useState(100);
 
@@ -184,9 +185,9 @@ function AdminPage() {
 
         {/* Tabs */}
         <div className="flex gap-2 border-b border-border overflow-x-auto">
-          {(["gens", "users", "payments", "earnings", "workers", "promos", "images", "copy"] as const).map((t) => (
+          {(["gens", "users", "payments", "earnings", "workers", "promos", "images", "copy", "router"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 text-sm capitalize border-b-2 -mb-px transition-colors whitespace-nowrap ${tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-              {t === "gens" ? "Generations" : t === "workers" ? "GPU Workers" : t === "promos" ? "Promo Codes" : t === "images" ? "Site Images" : t === "copy" ? "Site Copy" : t}
+              {t === "gens" ? "Generations" : t === "workers" ? "GPU Workers" : t === "promos" ? "Promo Codes" : t === "images" ? "Site Images" : t === "copy" ? "Site Copy" : t === "router" ? "AI Router" : t}
             </button>
           ))}
         </div>
@@ -274,6 +275,7 @@ function AdminPage() {
         {tab === "promos" && <PromosPanel />}
         {tab === "images" && <ImagesPanel />}
         {tab === "copy" && <CopyPanel />}
+        {tab === "router" && <RouterPanel />}
       </div>
     </main>
   );
@@ -1656,6 +1658,139 @@ function CopyPanel() {
           </div>
         </section>
       ))}
+    </div>
+  );
+}
+
+function RouterPanel() {
+  const healthFn = useServerFn(getRouterHealth);
+  const logsFn = useServerFn(getRouterLogs);
+
+  const { data: healthData, isLoading: healthLoading } = useQuery({
+    queryKey: ["router-health"],
+    queryFn: () => healthFn(),
+    refetchInterval: 15_000,
+  });
+
+  const { data: logsData, isLoading: logsLoading } = useQuery({
+    queryKey: ["router-logs"],
+    queryFn: () => logsFn(),
+    refetchInterval: 30_000,
+  });
+
+  const providers: RouterHealthRow[] = healthData?.providers ?? [];
+  const logs: RouterLogRow[] = logsData?.logs ?? [];
+  const migrationPending = logsData?.migrationPending ?? false;
+
+  function pct(n: number | null) {
+    if (n === null) return "—";
+    return `${Math.round(n * 100)}%`;
+  }
+  function ms(n: number | null) {
+    if (n === null) return "—";
+    return `${Math.round(n)}ms`;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Provider health grid */}
+      <section className="rounded-2xl border border-border bg-card/40 p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <Activity className="size-4 text-primary" />
+          <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Provider health (5-min window)</h2>
+          {healthLoading && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {providers.map((p) => (
+            <div
+              key={p.name}
+              className={`rounded-xl border p-3 space-y-1.5 ${
+                !p.enabled
+                  ? "border-border bg-muted/20 opacity-50"
+                  : p.healthy
+                    ? "border-emerald-500/30 bg-emerald-500/5"
+                    : "border-red-500/40 bg-red-500/10"
+              }`}
+            >
+              <div className="flex items-center gap-2 justify-between">
+                <span className="text-xs font-medium truncate">{p.displayName ?? p.name}</span>
+                {!p.enabled ? (
+                  <span className="text-[10px] text-muted-foreground shrink-0">OFF</span>
+                ) : p.callsInWindow === 0 ? (
+                  <Clock className="size-3 text-muted-foreground shrink-0" />
+                ) : p.healthy ? (
+                  <CheckCircle className="size-3 text-emerald-500 shrink-0" />
+                ) : (
+                  <XCircle className="size-3 text-red-500 shrink-0" />
+                )}
+              </div>
+              <div className="text-[10px] text-muted-foreground space-y-0.5">
+                <div className="flex justify-between"><span>Calls</span><span>{p.callsInWindow}</span></div>
+                <div className="flex justify-between"><span>Success</span><span>{pct(p.successRate)}</span></div>
+                <div className="flex justify-between"><span>Avg lat.</span><span>{ms(p.avgLatencyMs)}</span></div>
+              </div>
+            </div>
+          ))}
+          {!healthLoading && providers.length === 0 && (
+            <p className="col-span-full text-sm text-muted-foreground text-center py-4">
+              No routing calls recorded yet — start a chat to see data.
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* Recent log table */}
+      <section className="rounded-2xl border border-border bg-card/40 p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <Zap className="size-4 text-primary" />
+          <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Recent routing decisions</h2>
+          {logsLoading && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
+        </div>
+        {migrationPending && (
+          <p className="text-xs text-amber-500 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2">
+            ⚠ The <code>ai_router_logs</code> migration hasn't been applied to the live DB yet. Logs will appear here once applied.
+          </p>
+        )}
+        <div className="rounded-xl border border-border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-card/60 text-xs uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="text-left p-3">When</th>
+                <th className="text-left p-3">Category</th>
+                <th className="text-left p-3">Provider</th>
+                <th className="text-right p-3">Fallbacks</th>
+                <th className="text-right p-3">Latency</th>
+                <th className="text-left p-3">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs.map((l) => (
+                <tr key={l.id} className="border-t border-border hover:bg-card/40">
+                  <td className="p-3 text-xs text-muted-foreground">{new Date(l.created_at).toLocaleTimeString()}</td>
+                  <td className="p-3 text-xs font-mono">{l.category}</td>
+                  <td className="p-3 text-xs">{l.provider_used}</td>
+                  <td className="p-3 text-right text-xs">{l.fallback_count}</td>
+                  <td className="p-3 text-right text-xs">{l.latency_ms}ms</td>
+                  <td className="p-3">
+                    {l.success ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500">
+                        <CheckCircle className="size-3" /> OK
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-red-500/15 text-red-500" title={l.failure_reason ?? ""}>
+                        <XCircle className="size-3" /> Failed
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {!logsLoading && logs.length === 0 && !migrationPending && (
+                <tr><td colSpan={6} className="p-6 text-center text-muted-foreground text-sm">No routing decisions logged yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }
