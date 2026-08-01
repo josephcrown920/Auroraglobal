@@ -1,0 +1,473 @@
+# AURORA AI INTELLIGENCE ROUTER V2
+
+MISSION
+
+Build an intelligent AI routing engine for the entire platform.
+
+The router must classify every request before selecting a model.
+
+Never use Claude for simple requests.
+
+Reserve Claude for premium creative work.
+
+========================================
+
+STEP 1
+
+Analyze the user's request.
+
+Classify it into one of these categories:
+
+GENERAL_CHAT
+
+CUSTOMER_SUPPORT
+
+FAQ
+
+PRICING
+
+VIDEO_DIRECTION
+
+VIDEO_PROMPTS
+
+IMAGE_PROMPTS
+
+SCRIPT_WRITING
+
+MUSIC_MARKETING
+
+ARTIST_BRANDING
+
+SOCIAL_CONTENT
+
+ADVERTISEMENT
+
+COPYWRITING
+
+EMAIL_WRITING
+
+LANDING_PAGE
+
+BLOG
+
+CODING
+
+DEBUGGING
+
+PLAYLIST_PITCHING
+
+BRAINSTORMING
+
+PRODUCT_DISCOVERY
+
+========================================
+
+STEP 2
+
+Assign the best model.
+
+GENERAL CHAT
+
+Gemini
+
+↓
+
+Grok
+
+↓
+
+Qwen
+
+↓
+
+DeepSeek
+
+↓
+
+Llama
+
+CUSTOMER SUPPORT
+
+Gemini
+
+↓
+
+Qwen
+
+↓
+
+Llama
+
+↓
+
+Claude
+
+FAQ
+
+Gemini
+
+↓
+
+DeepSeek
+
+↓
+
+Qwen
+
+↓
+
+Llama
+
+PRICING
+
+Gemini
+
+↓
+
+DeepSeek
+
+↓
+
+Qwen
+
+VIDEO DIRECTOR
+
+Claude
+
+↓
+
+Gemini
+
+↓
+
+DeepSeek
+
+↓
+
+Qwen
+
+↓
+
+Llama
+
+VIDEO PROMPTS
+
+Claude
+
+↓
+
+Gemini
+
+↓
+
+DeepSeek
+
+↓
+
+Qwen
+
+IMAGE PROMPTS
+
+Claude
+
+↓
+
+Gemini
+
+↓
+
+DeepSeek
+
+↓
+
+Qwen
+
+SCRIPT WRITING
+
+Claude
+
+↓
+
+Grok
+
+↓
+
+Gemini
+
+↓
+
+DeepSeek
+
+↓
+
+Qwen
+
+MUSIC MARKETING
+
+Claude
+
+↓
+
+Grok
+
+↓
+
+Gemini
+
+↓
+
+DeepSeek
+
+ARTIST BRANDING
+
+Claude
+
+↓
+
+Grok
+
+↓
+
+Gemini
+
+↓
+
+DeepSeek
+
+SOCIAL CONTENT
+
+Claude
+
+↓
+
+Grok
+
+↓
+
+Gemini
+
+↓
+
+DeepSeek
+
+ADVERTISEMENT
+
+Claude
+
+↓
+
+Grok
+
+↓
+
+Gemini
+
+↓
+
+DeepSeek
+
+COPYWRITING
+
+Claude
+
+↓
+
+Gemini
+
+↓
+
+DeepSeek
+
+↓
+
+Grok
+
+LANDING PAGE
+
+Claude
+
+↓
+
+Gemini
+
+↓
+
+DeepSeek
+
+BLOG
+
+Claude
+
+↓
+
+Gemini
+
+↓
+
+DeepSeek
+
+EMAIL WRITING
+
+Claude
+
+↓
+
+Gemini
+
+↓
+
+DeepSeek
+
+CODING
+
+Claude
+
+↓
+
+Qwen Coder
+
+↓
+
+DeepSeek Coder
+
+↓
+
+Gemini
+
+↓
+
+Grok
+
+DEBUGGING
+
+Claude
+
+↓
+
+Qwen Coder
+
+↓
+
+DeepSeek Coder
+
+↓
+
+Gemini
+
+PLAYLIST PITCHING
+
+Claude
+
+↓
+
+Grok
+
+↓
+
+Gemini
+
+↓
+
+DeepSeek
+
+PRODUCT DISCOVERY
+
+Gemini
+
+↓
+
+Grok
+
+↓
+
+Claude
+
+↓
+
+DeepSeek
+
+========================================
+
+FAILOVER
+
+If the selected provider fails:
+
+Retry once.
+
+If still unavailable:
+
+Move to the next model.
+
+Repeat until success.
+
+Users should never see provider failures.
+
+========================================
+
+MEMORY
+
+Pass the same conversation history and user context to every model.
+
+Keep responses consistent regardless of provider.
+
+========================================
+
+KNOWLEDGE
+
+Search internal documentation before generating answers.
+
+Always prioritize product documentation over hallucination.
+
+========================================
+
+HEALTH
+
+Continuously monitor providers.
+
+Track:
+
+Latency
+
+Availability
+
+Error rate
+
+Quota status
+
+Automatically avoid unhealthy providers.
+
+========================================
+
+LOGGING
+
+Store:
+
+Task category
+
+Selected provider
+
+Fallback provider
+
+Latency
+
+Success
+
+Failure reason
+
+Estimated cost
+
+========================================
+
+GOAL
+
+Claude is the Premium Creative Director.
+
+Gemini is the Reliable General Assistant.
+
+Grok is the Creative Collaborator.
+
+Qwen and DeepSeek are intelligent backups.
+
+Llama is the emergency fallback.
+
+The platform should always choose the best model automatically while keeping costs low and maintaining high uptime.

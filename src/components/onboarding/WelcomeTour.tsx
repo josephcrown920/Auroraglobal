@@ -67,7 +67,7 @@ export function WelcomeTour({ show, onDismiss }: Props) {
   return (
     <div
       className={cn(
-        "fixed bottom-20 left-0 right-0 z-50 px-4 transition-all duration-400",
+        "fixed bottom-36 left-0 right-0 z-50 px-4 transition-all duration-400",
         visible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0",
       )}
     >
