@@ -92,14 +92,6 @@ const HERO_SLIDES = [
     ctaTo: "/spin",
   },
   {
-    src: "/hero/hero-multiangle.jpg",
-    eyebrow: "Multi-Angle Studio",
-    headline: "One Session. Every Angle.",
-    sub: "9 unique shots. Every pose. Every perspective — from a single 30-second recording. No re-setup. No second booking. Your best look, every time.",
-    cta: "Start Your Session →",
-    ctaTo: "/studio",
-  },
-  {
     src: "/hero/hero-colors.png",
     eyebrow: "Colors Performance Studio",
     headline: "One Recording. Infinite Colors.",
@@ -108,44 +100,12 @@ const HERO_SLIDES = [
     ctaTo: "/colors",
   },
   {
-    src: "/hero/hero-5.png",
-    eyebrow: "GRWM Studio",
-    headline: "From Selfie to Studio Reel",
-    sub: "Drop one photo. Swap outfits. Aurora builds your talking GRWM reel — ready to post.",
-    cta: "Make Your GRWM Reel →",
-    ctaTo: "/studio",
-  },
-  {
-    src: "/hero/hero-6.png",
-    eyebrow: "Motion Control",
-    headline: "Your 30-Second Clip. Any Scene.",
-    sub: "Your real performance. Any location on earth — or off it. Aurora places you in the scene.",
-    cta: "Control Your Scene →",
-    ctaTo: "/motion",
-  },
-  {
     src: "/hero/hero-7.png",
     eyebrow: "Press Ready",
     headline: "$50K Look. Zero Crew.",
     sub: "Studio-grade press photos and tour visuals. Shot on your phone. Delivered in minutes.",
     cta: "Get Press-Ready Now →",
     ctaTo: "/music-video",
-  },
-  {
-    src: "/hero/hero-8.png",
-    eyebrow: "Scale Fast",
-    headline: "10 Hours Saved Every Week",
-    sub: "1,000+ artists scaling their content with Aurora. Join them. Start free today.",
-    cta: "Start Scaling Today →",
-    ctaTo: "/auth",
-  },
-  {
-    src: "/hero/hero-9.png",
-    eyebrow: "Built for Artists",
-    headline: "No Studio. No Limits.",
-    sub: "Every tool. Every release. From anywhere on your phone. This is Aurora.",
-    cta: "Create From Anywhere →",
-    ctaTo: "/auth",
   },
 ];
 
@@ -490,9 +450,9 @@ function LandingPage() {
             Every feature is credit based. No subscriptions required to start. 5 free Aura on signup.
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col divide-y divide-white/5">
           {FEATURED_TOOLS.map((tool) => (
-            <FeaturedToolCard key={tool.label} tool={tool} />
+            <FeaturedToolRow key={tool.label} tool={tool} />
           ))}
         </div>
         <div className="mt-6 text-center">
@@ -505,66 +465,6 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* ── Colors Performance Studio Showcase ──────────────────────────── */}
-      <section id="colors" className="py-20 px-5 border-t border-white/5 bg-zinc-950">
-        <div className="mb-8">
-          <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
-            Colors Performance Studio
-          </span>
-          <h2 className="mt-3 text-4xl font-semibold leading-tight">
-            One recording.{" "}
-            <span className="font-serif italic">Infinite colors.</span>
-          </h2>
-          <p className="mt-4 text-base text-zinc-300 max-w-[38ch] leading-relaxed">
-            Record 30 seconds on your phone. Pick a color palette. Pick an outfit. Aurora generates unlimited cinematic content — every drop, on demand, as an artist.
-          </p>
-          {/* 3-step flow */}
-          <div className="mt-6 flex flex-col gap-3">
-            {[
-              { step: "01", label: "Record", desc: "30 seconds on your phone — any room, any lighting." },
-              { step: "02", label: "Pick a Color", desc: "Choose your scene palette. Pink. Blue. Orange. Gold. Any vibe." },
-              { step: "03", label: "Pick an Outfit", desc: "Aurora dresses you and drops you in the scene. Unlimited looks, zero fitting rooms." },
-            ].map(({ step, label, desc }) => (
-              <div key={step} className="flex items-start gap-4 rounded-xl bg-white/4 ring-1 ring-white/8 px-4 py-3">
-                <span className="text-[11px] font-black tracking-widest text-[#e5383b] mt-0.5 shrink-0">{step}</span>
-                <div>
-                  <p className="text-sm font-semibold text-white">{label}</p>
-                  <p className="text-xs text-zinc-400 leading-relaxed mt-0.5">{desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Photo grid — shows what Colors can produce */}
-        <div className="grid grid-cols-2 gap-2 mb-8">
-          {[
-            { src: "/colors/colors-1.jpg", alt: "Colors Studio — orange performance session" },
-            { src: "/colors/colors-2.jpg", alt: "Colors Studio — blue studio session" },
-            { src: "/colors/colors-3.jpg", alt: "Colors Studio — yellow cyc session" },
-            { src: "/colors/colors-4.jpg", alt: "Colors Studio — red stage session" },
-            { src: "/colors/colors-5.jpg", alt: "Colors Studio — outdoor session" },
-            { src: "/colors/colors-6.png", alt: "Colors Studio — editorial session" },
-          ].map(({ src, alt }) => (
-            <div key={src} className="aspect-[3/4] overflow-hidden rounded-xl bg-zinc-900 ring-1 ring-white/8">
-              <img
-                src={src}
-                alt={alt}
-                loading="lazy"
-                className="h-full w-full object-cover object-top transition-transform duration-500 hover:scale-105"
-              />
-            </div>
-          ))}
-        </div>
-
-        <Link
-          to="/colors"
-          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#e5383b] py-4 text-base font-bold text-white shadow-[0_10px_40px_-10px_rgba(229,56,59,0.7)] transition-transform hover:scale-[1.01] active:scale-95"
-        >
-          <Palette className="size-5 shrink-0" />
-          Start Colors Studio Free — Pick Your Color Now
-        </Link>
-      </section>
 
       {/* ── Viral Engine ─────────────────────────────────────────────── */}
       <ViralEngine />
@@ -1015,32 +915,24 @@ function LandingPage() {
   );
 }
 
-function FeaturedToolCard({ tool }: { tool: typeof FEATURED_TOOLS[number] }) {
+function FeaturedToolRow({ tool }: { tool: typeof FEATURED_TOOLS[number] }) {
   const Icon = tool.icon;
   return (
     <Link
       to={tool.to}
-      className="group flex flex-col justify-between rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-4 transition-all hover:ring-white/20 no-underline min-h-[180px]"
+      className="group flex items-center gap-4 py-4 no-underline hover:bg-white/[0.025] transition-colors -mx-5 px-5"
     >
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/6 ring-1 ring-white/10">
-          <Icon className="size-4 text-zinc-300" />
-        </span>
-        <span className="text-[11px] font-bold text-[#e5383b] tabular-nums">
-          {tool.price}
-        </span>
-      </div>
-      <div className="flex-1">
-        <p className="text-[13px] font-semibold text-zinc-100 leading-tight mb-1.5">
-          {tool.label}
-        </p>
-        <p className="text-[11px] leading-snug text-zinc-500 line-clamp-2">
-          {tool.desc}
-        </p>
-      </div>
-      <span className="mt-3 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 transition-colors group-hover:text-zinc-300">
-        Open <ArrowUpRight className="size-3" />
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/6 ring-1 ring-white/10">
+        <Icon className="size-4.5 text-zinc-300" />
       </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-zinc-100 leading-tight">{tool.label}</p>
+        <p className="text-[11px] text-zinc-500 mt-0.5 leading-snug">{tool.desc}</p>
+      </div>
+      <div className="flex items-center gap-2.5 shrink-0">
+        <span className="text-[11px] font-bold text-[#e5383b]">{tool.price}</span>
+        <ArrowUpRight className="size-3.5 text-zinc-600 group-hover:text-zinc-300 transition-colors" />
+      </div>
     </Link>
   );
 }
