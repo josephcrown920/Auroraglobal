@@ -95,6 +95,7 @@ import { Route as ApiPublicFreeMonthlyGrantRouteImport } from './routes/api/publ
 import { Route as ApiPublicGenerateRouteImport } from './routes/api/public/generate'
 import { Route as ApiPublicLifecycleEmailsRouteImport } from './routes/api/public/lifecycle-emails'
 import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/public/paystack-webhook'
+import { Route as ApiPublicSiteCopyRouteImport } from './routes/api/public/site-copy'
 import { Route as ApiPublicSiteImagesRouteImport } from './routes/api/public/site-images'
 import { Route as ApiPublicWatermarkImageRouteImport } from './routes/api/public/watermark-image'
 import { Route as ApiPublicWatermarkVideoRouteImport } from './routes/api/public/watermark-video'
@@ -564,6 +565,11 @@ const ApiPublicPaystackWebhookRoute =
     path: '/api/public/paystack-webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicSiteCopyRoute = ApiPublicSiteCopyRouteImport.update({
+  id: '/api/public/site-copy',
+  path: '/api/public/site-copy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicSiteImagesRoute = ApiPublicSiteImagesRouteImport.update({
   id: '/api/public/site-images',
   path: '/api/public/site-images',
@@ -741,6 +747,7 @@ export interface FileRoutesByFullPath {
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
+  '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
@@ -845,6 +852,7 @@ export interface FileRoutesByTo {
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
+  '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
@@ -950,6 +958,7 @@ export interface FileRoutesById {
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
+  '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
@@ -1056,6 +1065,7 @@ export interface FileRouteTypes {
     | '/api/public/generate'
     | '/api/public/lifecycle-emails'
     | '/api/public/paystack-webhook'
+    | '/api/public/site-copy'
     | '/api/public/site-images'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
@@ -1160,6 +1170,7 @@ export interface FileRouteTypes {
     | '/api/public/generate'
     | '/api/public/lifecycle-emails'
     | '/api/public/paystack-webhook'
+    | '/api/public/site-copy'
     | '/api/public/site-images'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
@@ -1264,6 +1275,7 @@ export interface FileRouteTypes {
     | '/api/public/generate'
     | '/api/public/lifecycle-emails'
     | '/api/public/paystack-webhook'
+    | '/api/public/site-copy'
     | '/api/public/site-images'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
@@ -1361,6 +1373,7 @@ export interface RootRouteChildren {
   ApiPublicGenerateRoute: typeof ApiPublicGenerateRoute
   ApiPublicLifecycleEmailsRoute: typeof ApiPublicLifecycleEmailsRoute
   ApiPublicPaystackWebhookRoute: typeof ApiPublicPaystackWebhookRoute
+  ApiPublicSiteCopyRoute: typeof ApiPublicSiteCopyRoute
   ApiPublicSiteImagesRoute: typeof ApiPublicSiteImagesRoute
   ApiPublicWatermarkImageRoute: typeof ApiPublicWatermarkImageRoute
   ApiPublicWatermarkVideoRoute: typeof ApiPublicWatermarkVideoRoute
@@ -1976,6 +1989,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPaystackWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/site-copy': {
+      id: '/api/public/site-copy'
+      path: '/api/public/site-copy'
+      fullPath: '/api/public/site-copy'
+      preLoaderRoute: typeof ApiPublicSiteCopyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/site-images': {
       id: '/api/public/site-images'
       path: '/api/public/site-images'
@@ -2212,6 +2232,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicGenerateRoute: ApiPublicGenerateRoute,
   ApiPublicLifecycleEmailsRoute: ApiPublicLifecycleEmailsRoute,
   ApiPublicPaystackWebhookRoute: ApiPublicPaystackWebhookRoute,
+  ApiPublicSiteCopyRoute: ApiPublicSiteCopyRoute,
   ApiPublicSiteImagesRoute: ApiPublicSiteImagesRoute,
   ApiPublicWatermarkImageRoute: ApiPublicWatermarkImageRoute,
   ApiPublicWatermarkVideoRoute: ApiPublicWatermarkVideoRoute,

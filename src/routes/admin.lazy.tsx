@@ -1,11 +1,13 @@
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { adminOverview, adminGrantCredits, adminEarnings, adminWithdrawalSummary, adminRecordWithdrawal, adminCheckWithdrawalAmount, adminEditWithdrawal, adminDeleteWithdrawal } from "@/lib/admin.functions";
 import { getSiteImages, adminUpdateSiteImage, adminResetSiteImage, type SiteImageRow } from "@/lib/site-images.functions";
+import { getSiteCopy, adminSetSiteCopy, adminDeleteSiteCopy, type SiteCopyRow } from "@/lib/site-copy.functions";
+import { SITE_COPY_DEFAULTS, SITE_COPY_LABELS, SITE_COPY_SECTIONS } from "@/lib/site-copy-defaults";
 import { listWorkers, upsertWorker, deleteWorker, pingWorker, setWorkerStatus, getFreeGpuMode, setFreeGpuMode, approveWorker, rejectWorker } from "@/lib/workers.functions";
 import { issuePromoCode, listPromoCodes, setPromoCodeActive, type PromoCodeRow } from "@/lib/promo.functions";
 import { PROFIT_SPLIT_PCT } from "@/lib/profit-split";
@@ -42,7 +44,7 @@ function AdminPage() {
   });
 
 
-  const [tab, setTab] = useState<"gens" | "users" | "payments" | "earnings" | "workers" | "promos" | "images">("gens");
+  const [tab, setTab] = useState<"gens" | "users" | "payments" | "earnings" | "workers" | "promos" | "images" | "copy">("gens");
   const [grantUser, setGrantUser] = useState("");
   const [grantAmount, setGrantAmount] = useState(100);
 
@@ -181,10 +183,10 @@ function AdminPage() {
         </section>
 
         {/* Tabs */}
-        <div className="flex gap-2 border-b border-border">
-          {(["gens", "users", "payments", "earnings", "workers", "promos", "images"] as const).map((t) => (
-            <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 text-sm capitalize border-b-2 -mb-px transition-colors ${tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-              {t === "gens" ? "Generations" : t === "workers" ? "GPU Workers" : t === "promos" ? "Promo Codes" : t === "images" ? "Site Images" : t}
+        <div className="flex gap-2 border-b border-border overflow-x-auto">
+          {(["gens", "users", "payments", "earnings", "workers", "promos", "images", "copy"] as const).map((t) => (
+            <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 text-sm capitalize border-b-2 -mb-px transition-colors whitespace-nowrap ${tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+              {t === "gens" ? "Generations" : t === "workers" ? "GPU Workers" : t === "promos" ? "Promo Codes" : t === "images" ? "Site Images" : t === "copy" ? "Site Copy" : t}
             </button>
           ))}
         </div>
@@ -271,6 +273,7 @@ function AdminPage() {
         {tab === "workers" && <WorkersPanel />}
         {tab === "promos" && <PromosPanel />}
         {tab === "images" && <ImagesPanel />}
+        {tab === "copy" && <CopyPanel />}
       </div>
     </main>
   );
@@ -1456,6 +1459,200 @@ function ImagesPanel() {
                 </div>
               );
             })}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+// ── Site Copy panel ──────────────────────────────────────────────────────────
+function CopyPanel() {
+  const getCopyFn     = useServerFn(getSiteCopy);
+  const setFn         = useServerFn(adminSetSiteCopy);
+  const deleteFn      = useServerFn(adminDeleteSiteCopy);
+  const qc            = useQueryClient();
+
+  const { data: rows, isLoading } = useQuery({
+    queryKey: ["admin-site-copy"],
+    queryFn: () => getCopyFn(),
+  });
+
+  // Build a fast lookup: key → DB row (only keys that have overrides)
+  const overrideMap = useMemo(() => {
+    const map: Record<string, SiteCopyRow> = {};
+    for (const row of (rows ?? [])) map[row.key] = row;
+    return map;
+  }, [rows]);
+
+  // Group all known keys by section
+  const grouped = useMemo(() => {
+    const sections: Record<string, string[]> = {};
+    for (const key of Object.keys(SITE_COPY_DEFAULTS)) {
+      const section = SITE_COPY_SECTIONS[key] ?? "Other";
+      (sections[section] ??= []).push(key);
+    }
+    return sections;
+  }, []);
+
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [draft, setDraft]           = useState("");
+  const [saving, setSaving]         = useState(false);
+  const [resetting, setResetting]   = useState<string | null>(null);
+
+  function startEdit(key: string) {
+    const current = overrideMap[key]?.value ?? SITE_COPY_DEFAULTS[key] ?? "";
+    setDraft(current);
+    setEditingKey(key);
+  }
+
+  async function handleSave(key: string) {
+    setSaving(true);
+    try {
+      await setFn({ data: { key, value: draft } });
+      await qc.invalidateQueries({ queryKey: ["admin-site-copy"] });
+      toast.success("Copy saved");
+      setEditingKey(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleReset(key: string) {
+    setResetting(key);
+    try {
+      await deleteFn({ data: { key } });
+      await qc.invalidateQueries({ queryKey: ["admin-site-copy"] });
+      toast.success("Reset to default");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to reset");
+    } finally {
+      setResetting(null);
+    }
+  }
+
+  if (isLoading) return <div className="text-sm text-muted-foreground">Loading…</div>;
+
+  return (
+    <div className="space-y-8">
+      <div className="rounded-2xl border border-border bg-card/40 p-5">
+        <p className="text-sm text-muted-foreground">
+          Override any landing page or home-dashboard text string. Leave a key at its
+          default to use the hardcoded fallback. A{" "}
+          <span className="inline-block size-2 rounded-full bg-primary align-middle" />{" "}
+          dot in the live UI marks items that have active overrides.
+        </p>
+      </div>
+
+      {Object.entries(grouped).map(([section, keys]) => (
+        <section key={section} className="space-y-3">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{section}</h3>
+          <div className="rounded-xl border border-border overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-card/60 text-xs uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="text-left p-3 w-[30%]">Label</th>
+                  <th className="text-left p-3">Value</th>
+                  <th className="text-right p-3 w-[120px]">Last edited</th>
+                  <th className="text-right p-3 w-[140px]" />
+                </tr>
+              </thead>
+              <tbody>
+                {keys.map((key) => {
+                  const override   = overrideMap[key];
+                  const isCustom   = !!override;
+                  const isEditing  = editingKey === key;
+                  const isBusy     = saving && isEditing;
+                  const isResetting = resetting === key;
+                  const displayed  = override?.value ?? SITE_COPY_DEFAULTS[key] ?? "";
+
+                  return (
+                    <tr key={key} className="border-t border-border hover:bg-card/20">
+                      <td className="p-3 align-top">
+                        <div className="font-medium text-sm flex items-center gap-1.5">
+                          {isCustom && (
+                            <span
+                              title="Custom override active"
+                              className="inline-block size-1.5 rounded-full bg-primary flex-shrink-0"
+                            />
+                          )}
+                          {SITE_COPY_LABELS[key] ?? key}
+                        </div>
+                        <div className="text-[10px] font-mono text-muted-foreground mt-0.5">{key}</div>
+                      </td>
+                      <td className="p-3 align-top">
+                        {isEditing ? (
+                          <textarea
+                            value={draft}
+                            onChange={(e) => setDraft(e.target.value)}
+                            rows={3}
+                            autoFocus
+                            className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+                          />
+                        ) : (
+                          <span className={`text-sm ${isCustom ? "text-foreground" : "text-muted-foreground italic"}`}>
+                            {isCustom ? displayed : `(default) ${displayed.slice(0, 80)}${displayed.length > 80 ? "…" : ""}`}
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-3 text-right text-xs text-muted-foreground align-top whitespace-nowrap">
+                        {override?.updated_at
+                          ? new Date(override.updated_at).toLocaleDateString()
+                          : "—"}
+                      </td>
+                      <td className="p-3 text-right align-top">
+                        {isEditing ? (
+                          <div className="flex gap-1 justify-end">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => setEditingKey(null)}
+                              disabled={isBusy}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="h-7 px-3 text-xs"
+                              onClick={() => handleSave(key)}
+                              disabled={isBusy}
+                            >
+                              {isBusy ? <Loader2 className="size-3 animate-spin" /> : "Save"}
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-1 justify-end">
+                            {isCustom && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-xs text-muted-foreground"
+                                onClick={() => handleReset(key)}
+                                disabled={isResetting}
+                                title="Reset to hardcoded default"
+                              >
+                                {isResetting ? <Loader2 className="size-3 animate-spin" /> : "Reset"}
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="h-7 px-3 text-xs"
+                              onClick={() => startEdit(key)}
+                            >
+                              Edit
+                            </Button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </section>
       ))}

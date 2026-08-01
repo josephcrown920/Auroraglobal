@@ -31,6 +31,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { listGenerations } from "@/lib/studio.functions";
 import { getMyProfile, setMyPersona } from "@/lib/billing.functions";
 import { HomeTopBar } from "@/components/home/HomeTopBar";
+import { EditableCopy } from "@/components/EditableCopy";
+import { useSiteCopyValue } from "@/components/landing/SiteCopyProvider";
 
 export const Route = createLazyFileRoute("/home")({ component: HomePage });
 
@@ -328,6 +330,9 @@ function HomePage() {
     [hist]
   );
 
+  const composerPlaceholder =
+    useSiteCopyValue("home_composer_placeholder") ?? "Describe what you want to make…";
+
   const [presetId, setPresetId] = useState<string | null>(null);
   const [prompt, setPrompt]     = useState("");
   const [feed, setFeed]         = useState<"trends" | "mine">("trends");
@@ -495,7 +500,10 @@ function HomePage() {
                   color: active ? "oklch(0.68 0.08 28)" : "oklch(0.44 0.01 272)",
                   transition: "color 0.2s",
                 }}>
-                  {sub}
+                  <EditableCopy
+                    copyKey={id === "artist" ? "home_artist_tab_sub" : "home_creator_tab_sub"}
+                    fallback={sub}
+                  />
                 </span>
               </button>
             );
@@ -507,7 +515,10 @@ function HomePage() {
 
         {/* ── Heading ── */}
         <h1 style={{ margin: "0 0 12px", fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", color: "oklch(0.97 0.01 272)" }}>
-          {side.label === "Artist" ? "Artist tools" : "Creator tools"}
+          <EditableCopy
+            copyKey={activeSideId === "artist" ? "home_artist_heading" : "home_creator_heading"}
+            fallback={side.label === "Artist" ? "Artist tools" : "Creator tools"}
+          />
         </h1>
 
         {/* ── Composer ── */}
@@ -547,7 +558,7 @@ function HomePage() {
               placeholder={
                 selectedPreset.prompt
                   ? `Add your details for ${selectedPreset.label}…`
-                  : "Describe what you want to make…"
+                  : composerPlaceholder
               }
               style={{
                 flex: 1, minHeight: 52, resize: "none",
