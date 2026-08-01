@@ -10,5 +10,6 @@ export const modules: ModuleMap = {
   "./components/mockups/aurora-redesign/Hub.tsx": () => import("../components/mockups/aurora-redesign/Hub.tsx"),
   "./components/mockups/aurora-redesign/Nocturne.tsx": () => import("../components/mockups/aurora-redesign/Nocturne.tsx"),
   "./components/mockups/aurora-redesign/Tabloid.tsx": () => import("../components/mockups/aurora-redesign/Tabloid.tsx"),
-  "./components/mockups/aurora-redesign/TabloidV2.tsx": () => import("../components/mockups/aurora-redesign/TabloidV2.tsx")
+  "./components/mockups/aurora-redesign/TabloidV2.tsx": () => import("../components/mockups/aurora-redesign/TabloidV2.tsx"),
+  "./components/mockups/aurora-redesign/TabloidV2Director.tsx": () => import("../components/mockups/aurora-redesign/TabloidV2Director.tsx")
 };
