@@ -39,14 +39,38 @@ export async function refundCredits(
 
   const balanceAfter = result[0]?.credits ?? 0;
 
-  await db.insert(creditTransactionsTable).values({
-    userId,
-    amount,
-    type: "refund",
-    description: `Credit refund: ${reason} (generation ${generationId})`,
-    reference: generationId,
-    balanceAfter,
-  });
+  try {
+    await db.insert(creditTransactionsTable).values({
+      userId,
+      amount,
+      type: "refund",
+      description: `Credit refund: ${reason} (generation ${generationId})`,
+      reference: generationId,
+      balanceAfter,
+    });
+  } catch (err: any) {
+    // Unique constraint violation — a refund for this generation already exists.
+    // This is a second layer of defence behind the conditional UPDATE in
+    // syncProviderStatus; treat it as a no-op rather than a fatal error.
+    const isDuplicateRefund =
+      err?.code === "23505" &&
+      err?.constraint?.includes("credit_transactions_reference_type_uidx");
+
+    if (isDuplicateRefund) {
+      console.warn(
+        `[refundCredits] duplicate refund blocked by DB constraint for generation ${generationId} — rolling back balance increment`,
+      );
+      // Undo the balance increment that already ran above, since the transaction
+      // row was not actually inserted.
+      await db
+        .update(usersTable)
+        .set({ credits: sql`${usersTable.credits} - ${amount}` })
+        .where(eq(usersTable.id, userId));
+      return;
+    }
+
+    throw err;
+  }
 }
 
 // ─── Provider ID codec ────────────────────────────────────────────────────────
