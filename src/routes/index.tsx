@@ -7,6 +7,7 @@ import { track } from "@/lib/tracking";
 import { ViralEngine } from "@/components/landing/ViralEngine";
 import { BalloonLipsync } from "@/components/landing/BalloonLipsync";
 import { AdminLandingEditor } from "@/components/AdminLandingEditor";
+import { EditableCopy } from "@/components/EditableCopy";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -313,16 +314,18 @@ function LandingPage() {
                 )}
               </p>
               <h1 className="text-[2.9rem] font-semibold leading-[0.93] tracking-tight text-white">
-                <span className="font-serif italic">{slide.headline}</span>
+                <span className="font-serif italic">
+                  <EditableCopy copyKey={`landing_hero_${i}_headline`} fallback={slide.headline} />
+                </span>
               </h1>
               <p className="mt-5 text-base leading-relaxed text-zinc-200">
-                {slide.sub}
+                <EditableCopy copyKey={`landing_hero_${i}_sub`} fallback={slide.sub} />
               </p>
               <Link
                 to={user ? slide.ctaTo : "/auth"}
                 className="mt-6 inline-flex w-fit items-center gap-1.5 text-sm font-bold text-[#e5383b] hover:text-white transition-colors"
               >
-                {slide.cta}
+                <EditableCopy copyKey={`landing_hero_${i}_cta`} fallback={slide.cta} />
               </Link>
             </div>
           ))}
@@ -400,11 +403,10 @@ function LandingPage() {
             The studio flow
           </span>
           <h2 className="mt-3 text-4xl font-semibold leading-tight">
-            Reference. Direction.{" "}
-            <span className="font-serif italic">Delivered.</span>
+            <EditableCopy copyKey="landing_process_heading" fallback="Reference. Direction. Delivered." />
           </h2>
           <p className="mt-3 text-zinc-400 text-sm leading-relaxed">
-            Three steps between the sound in your head and the visual on your feed.
+            <EditableCopy copyKey="landing_process_sub" fallback="Three steps between the sound in your head and the visual on your feed." />
           </p>
         </div>
 
@@ -442,12 +444,14 @@ function LandingPage() {
             Every tool
           </span>
           <h2 className="mt-3 text-4xl font-semibold leading-tight">
-            The full studio.
+            <EditableCopy copyKey="landing_tools_heading" fallback="The full studio." />
             <br />
-            <span className="font-serif italic">Pay only for what you make.</span>
+            <span className="font-serif italic">
+              <EditableCopy copyKey="landing_tools_subheading" fallback="Pay only for what you make." />
+            </span>
           </h2>
           <p className="mt-3 text-sm text-zinc-400 max-w-[40ch] leading-relaxed">
-            Every feature is credit based. No subscriptions required to start. 5 free Aura on signup.
+            <EditableCopy copyKey="landing_tools_blurb" fallback="Every feature is credit based. No subscriptions required to start. 5 free Aura on signup." />
           </p>
         </div>
         <div className="flex flex-col divide-y divide-white/5">
@@ -479,11 +483,10 @@ function LandingPage() {
             Output gallery
           </span>
           <h2 className="mt-3 text-4xl font-semibold leading-tight">
-            Real artists. Real outputs.{" "}
-            <span className="font-serif italic">Zero stock.</span>
+            <EditableCopy copyKey="landing_gallery_heading" fallback="Real artists. Real outputs. Zero stock." />
           </h2>
           <p className="mt-3 text-sm text-zinc-400">
-            A curated feed of recent generations across covers, promo, and motion.
+            <EditableCopy copyKey="landing_gallery_sub" fallback="A curated feed of recent generations across covers, promo, and motion." />
           </p>
         </div>
         {/* Row 1 — scrolls left */}
