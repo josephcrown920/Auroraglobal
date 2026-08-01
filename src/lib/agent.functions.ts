@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateWithFallback } from "@/lib/llm-fallback.server";
+import { routedGenerate } from "@/lib/ai-router";
 import { computeCost } from "@/lib/pricing";
 import { assertOwnedReferenceImage } from "@/lib/url-guard";
 import {
@@ -287,7 +288,7 @@ export const chatWithAuroraAgent = createServerFn({ method: "POST" })
 
     let turn: AgentChatTurn;
     try {
-      const { output } = await generateWithFallback({
+      const { output } = await routedGenerate({
         system: CHAT_DIRECTOR_SYSTEM,
         prompt: buildChatPrompt({ memory, transcript, message: data.message, cinematicMode: data.cinematicMode }),
         schema: ChatTurnSchema,
@@ -317,7 +318,7 @@ export const chatWithAuroraAgent = createServerFn({ method: "POST" })
         if (skillResult.ok) {
           // Second LLM pass: inject skill result and compose the real reply.
           try {
-            const { output: turn2 } = await generateWithFallback({
+            const { output: turn2 } = await routedGenerate({
               system: CHAT_DIRECTOR_SYSTEM,
               prompt: buildChatPromptWithSkill({
                 memory,
