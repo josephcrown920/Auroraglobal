@@ -151,6 +151,52 @@ describe("syncProviderStatus — failure atomicity", () => {
       }),
     );
   });
+
+  it("increments the user balance by exactly creditsUsed (not doubled) when two concurrent syncs race", async () => {
+    const providers = await import("./providers");
+    const CREDITS_USED = 8; // e.g. a lipsync generation
+
+    (providers.falPollPhoto as any).mockResolvedValue({
+      status: "failed",
+      error: "Provider timeout",
+    });
+
+    // Sequence of db.update calls under a race:
+    //  1. Concurrent sync A — generationsTable transition (winner): returns the generation row
+    //  2. Concurrent sync B — generationsTable transition (loser):  returns [] (row already failed)
+    //  3. Sync A's refundCredits — usersTable balance increment:    returns updated balance
+    // A correct guard means there are exactly 3 db.update calls.
+    // A broken guard would produce a 4th call (sync B also incrementing the balance).
+    (db.update as any)
+      .mockReturnValueOnce(makeUpdateChain([{ userId: "user-4", creditsUsed: CREDITS_USED }])) // A wins
+      .mockReturnValueOnce(makeUpdateChain([]))                                                 // B loses
+      .mockReturnValueOnce(makeUpdateChain([{ credits: 100 - CREDITS_USED + CREDITS_USED }])); // A refunds
+
+    const insertChain = makeInsertChain();
+    (db.insert as any).mockReturnValue(insertChain);
+
+    await Promise.all([
+      syncProviderStatus("gen-4", "fal-photo:job-4", "photo"),
+      syncProviderStatus("gen-4", "fal-photo:job-4", "photo"),
+    ]);
+
+    // The user balance was incremented exactly once — not twice.
+    // db.update is called 3 times total:
+    //   • twice for the generationsTable status transition (one winner, one loser)
+    //   • once for the usersTable balance increment inside refundCredits
+    // A double-refund would produce a 4th call.
+    expect(db.update).toHaveBeenCalledTimes(3);
+
+    // The single balance-increment call carries exactly creditsUsed, not 2×creditsUsed.
+    expect(insertChain.values).toHaveBeenCalledTimes(1);
+    expect(insertChain.values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-4",
+        amount: CREDITS_USED,
+        type: "refund",
+      }),
+    );
+  });
 });
 
 describe("refundCredits", () => {
