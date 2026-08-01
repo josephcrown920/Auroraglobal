@@ -63,6 +63,7 @@ import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
 import { TutorialOnboarding as SnipTutorialCards } from "@/components/onboarding/TutorialOnboarding";
 import { STUDIO_EXAMPLE_PRESETS } from "@/lib/example-presets";
 import { hasDismissedTour, markFirstGenComplete, hasCompletedFirstGen, isFirstPageVisit, markPageVisited, markFirstPurchaseComplete } from "@/lib/first-run";
+import { loadStudioSession, saveStudioSession } from "@/lib/studio-session";
 
 export const Route = createLazyFileRoute("/studio")({ component: StudioPage });
 
@@ -214,6 +215,46 @@ function StudioPage() {
     if (p.prompt) setPrompt(p.prompt);
     setActiveExampleId(p.id);
   }, []);
+
+  // ── Session restore ────────────────────────────────────────────────────────
+  // On mount, restore the last saved session for returning users.
+  // incomingIdea from the URL always takes precedence over the saved prompt.
+  // This runs AFTER the first-visit auto-prefill so it wins for returning users.
+  useEffect(() => {
+    const saved = loadStudioSession();
+    if (!saved) return;
+    if (!incomingIdea && saved.prompt) setPrompt(saved.prompt);
+    if (saved.model) setModel(saved.model);
+    if (saved.videoModel) setVideoModel(saved.videoModel);
+    if (saved.cameraMovement) setCameraMovement(saved.cameraMovement);
+    if (saved.videoPrompt) setVideoPrompt(saved.videoPrompt);
+    if (saved.lipsyncModel) setLipsyncModel(saved.lipsyncModel as "fal-ai/sync-lipsync/v2" | "fal-ai/wav2lip" | "latentsync");
+    if (saved.videoResolution) setVideoResolution(saved.videoResolution as Resolution);
+    if (saved.activePreset !== undefined) setActivePreset(saved.activePreset ?? null);
+    if (saved.selfie !== undefined) setSelfie(saved.selfie ?? null);
+    if (saved.outfit !== undefined) setOutfit(saved.outfit ?? null);
+    if (saved.scene !== undefined) setScene(saved.scene ?? null);
+    if (saved.prop !== undefined) setProp(saved.prop ?? null);
+    if (saved.motion !== undefined) setMotion(saved.motion ?? null);
+    if (saved.endFrameUrl !== undefined) setEndFrameUrl(saved.endFrameUrl ?? null);
+    if (saved.audioUrl !== undefined) setAudioUrl(saved.audioUrl ?? null);
+    toast.info("Session restored", { duration: 2500, id: "studio-session-restore" });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only restore; incomingIdea is stable from the URL
+  }, []);
+
+  // ── Session save (debounced 600 ms) ───────────────────────────────────────
+  // Persists the user's current settings to localStorage so they can resume
+  // exactly where they left off after a page reload or browser restart.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      saveStudioSession({
+        prompt, model, videoModel, cameraMovement, videoPrompt,
+        lipsyncModel, videoResolution, activePreset,
+        selfie, outfit, scene, prop, motion, endFrameUrl, audioUrl,
+      });
+    }, 600);
+    return () => clearTimeout(t);
+  }, [prompt, model, videoModel, cameraMovement, videoPrompt, lipsyncModel, videoResolution, activePreset, selfie, outfit, scene, prop, motion, endFrameUrl, audioUrl]);
 
   const genFn = usePerformanceShotJobFn();
   const listFn = useServerFn(listGenerations);
