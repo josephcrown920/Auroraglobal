@@ -1721,7 +1721,7 @@ function getReplitOpenAI(): OpenAI {
     timeout: 60_000,
   });
 }
-function getReplitGemini(): GoogleGenAI {
+export function getReplitGemini(): GoogleGenAI {
   return new GoogleGenAI({
     apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
     httpOptions: {

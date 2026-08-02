@@ -92,6 +92,7 @@ const SIDES: Record<SideId, Side> = {
       { label: "Image Studio",   to: "/studio",        Icon: Sparkles },
       { label: "Live Studios",   to: "/live-studio",   Icon: Mic2     },
       { label: "Directors ROOM", to: "/scene-builder", Icon: Film     },
+      { label: "Scene Weaver",  to: "/scene-weaver",  Icon: Camera   },
       { label: "Lyric Video",    to: "/music-video",   Icon: Music    },
       { label: "Storyboard",     to: "/storyboard",    Icon: Layers   },
       { label: "Photo Editor",   to: "/photo-edit",    Icon: Palette  },
