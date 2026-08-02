@@ -560,10 +560,12 @@ function LandingPage() {
           />
           <video
             src="/videos/landing-demo-reel.mp4"
+            poster="/videos/landing-demo-reel-poster.jpg"
             autoPlay
             muted
             loop
             playsInline
+            preload="metadata"
             className="aspect-video w-full object-cover relative"
             aria-label="Aurora-generated cinematic music video — artist in a neon rain scene"
           />
