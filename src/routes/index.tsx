@@ -534,25 +534,35 @@ function LandingPage() {
           </Link>
         </div>
         <div className="relative overflow-hidden rounded-2xl bg-zinc-900 ring-1 ring-white/5">
+          {/* Poster image paints instantly while the video buffers */}
           <img
-            src="/landing/reel-poster.jpg"
-            alt="Cinematic music video still — artist walking through neon rain"
-            width={1920}
-            height={1080}
-            loading="lazy"
-            className="aspect-video w-full object-cover"
+            src="/videos/landing-demo-reel-poster.jpg"
+            alt="Cinematic Aurora-generated music video frame"
+            className="absolute inset-0 w-full h-full object-cover"
+            aria-hidden
           />
-          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+          <video
+            src="/videos/landing-demo-reel.mp4"
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="aspect-video w-full object-cover relative"
+            aria-label="Aurora-generated cinematic music video — artist in a neon rain scene"
+          />
+          {/* Subtle gradient + CTA at bottom */}
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
+          <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/80">
+              Reel 001 · Motion v1
+            </span>
             <Link
               to={ctaTo}
-              aria-label="Start creating videos"
-              className="flex size-20 items-center justify-center rounded-full bg-white/10 backdrop-blur-md ring-1 ring-white/30 transition-transform hover:scale-105"
+              onClick={() => void track("hero_video_cta_click")}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full bg-white/15 backdrop-blur-md ring-1 ring-white/25 text-white no-underline hover:bg-white/25 transition-colors"
             >
-              <Play className="size-7 text-white translate-x-0.5" fill="currentColor" />
+              <Sparkles className="size-3" /> Create yours
             </Link>
-          </div>
-          <div className="absolute bottom-4 left-4 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/80">
-            Reel 001 · Motion v1
           </div>
           <div className="mt-5 flex flex-wrap gap-3">
             <Link
