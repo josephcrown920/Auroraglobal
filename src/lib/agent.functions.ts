@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { generateWithFallback } from "@/lib/llm-fallback.server";
 import { routedGenerate } from "@/lib/ai-router";
 import { computeCost } from "@/lib/pricing";
 import { assertOwnedReferenceImage } from "@/lib/url-guard";
@@ -42,7 +41,7 @@ const COST_VIDEO = computeCost({ features: ["video"] }).total;
 
 type RunAgentDeps = {
   assertOwned: (url: string, userId: string) => Promise<void>;
-  generate: typeof generateWithFallback;
+  generate: typeof routedGenerate;
 };
 
 // Deps-injected core (same pattern as gifts.functions.ts): the createServerFn
@@ -52,7 +51,7 @@ type RunAgentDeps = {
 export async function runAuroraAgentCore(
   userId: string,
   data: { brief: string; referenceImages?: string[] },
-  deps: RunAgentDeps = { assertOwned: assertOwnedReferenceImage, generate: generateWithFallback },
+  deps: RunAgentDeps = { assertOwned: assertOwnedReferenceImage, generate: routedGenerate },
 ): Promise<AgentPlan> {
   // Ownership guard: reference images (sent to the LLM as creative context) must
   // belong to the caller — a crafted request could otherwise expose another user's
@@ -65,6 +64,7 @@ export async function runAuroraAgentCore(
       system: DIRECTOR_SYSTEM,
       prompt: buildDirectorPrompt(data.brief, buildRefNote(data.referenceImages)),
       schema: PlanSchema,
+      category: "VIDEO_DIRECTION",
     });
     return output as AgentPlan;
   } catch (err) {

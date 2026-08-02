@@ -2,7 +2,7 @@
 // Each skill is a discrete capability the agent chat loop can invoke mid-turn.
 // Skills return a { summary, data } result that is injected back into the LLM
 // context so the agent can compose a final, data-enriched reply.
-import { generateWithFallback } from "@/lib/llm-fallback.server";
+import { routedGenerate } from "@/lib/ai-router";
 import { z } from "zod";
 import type { BrandMemory, SkillName } from "@/lib/agent.schema";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -48,10 +48,11 @@ async function webSearch(args: unknown, _ctx: SkillContext): Promise<SkillResult
 
     if (bullets.length === 0) {
       // Fallback: use LLM knowledge to synthesize an answer
-      const { output } = await generateWithFallback({
+      const { output } = await routedGenerate({
         system: "You are a research assistant. Summarize what you know about the topic in 3-5 factual bullets.",
         prompt: `Topic: ${query}\n\nReturn 3-5 bullet points of relevant facts.`,
         schema: z.object({ bullets: z.array(z.string()).min(1).max(8) }),
+        category: "GENERAL_CHAT",
       });
       bullets.push(...(output as { bullets: string[] }).bullets);
     }
@@ -95,7 +96,7 @@ async function scrapeUrl(args: unknown, _ctx: SkillContext): Promise<SkillResult
     const title = titleMatch ? titleMatch[1].trim() : url;
 
     // Use LLM to extract structured brand info from the raw text
-    const { output } = await generateWithFallback({
+    const { output } = await routedGenerate({
       system: "You extract brand/product info from webpage text. Return headline, features list (max 5 bullets), and CTA copy.",
       prompt: `PAGE TITLE: ${title}\n\nPAGE TEXT:\n${text}\n\nExtract the key info now.`,
       schema: z.object({
@@ -103,6 +104,7 @@ async function scrapeUrl(args: unknown, _ctx: SkillContext): Promise<SkillResult
         features: z.array(z.string()).max(5),
         cta: z.string(),
       }),
+      category: "ARTIST_BRANDING",
     });
 
     return {
@@ -144,10 +146,11 @@ async function generateHooks(args: unknown, _ctx: SkillContext): Promise<SkillRe
     youtube_shorts: "YouTube Shorts (curiosity gap, search-friendly, slightly more context OK)",
   };
 
-  const { output } = await generateWithFallback({
+  const { output } = await routedGenerate({
     system: `You are a viral video hook specialist. Generate 3 competing opening hooks for ${platformHints[platform] ?? platform}. Each hook must stop the scroll in the first 1.5 seconds. Score each 0-100 and explain why.`,
     prompt: `TOPIC: ${topic}\n\nGenerate exactly 3 competing hooks now. Vary the style (e.g., question vs. bold claim vs. story opener). Score each and give one-line rationale.`,
     schema: HookSchema,
+    category: "SOCIAL_CONTENT",
   });
 
   const hooks = (output as z.infer<typeof HookSchema>).hooks;
@@ -167,10 +170,11 @@ async function generateBroll(args: unknown, ctx: SkillContext): Promise<SkillRes
   const { shot_description } = z.object({ shot_description: z.string().min(5).max(500) }).parse(args);
 
   // Enrich the shot description with cinematic vocabulary
-  const { output: enriched } = await generateWithFallback({
+  const { output: enriched } = await routedGenerate({
     system: "You are a cinematographer. Expand a shot description into a full, render-ready image prompt with lens, lighting, texture, camera movement, and color science. ~80-120 words. Plain text only.",
     prompt: `Shot: ${shot_description}\n\nWrite the full cinematic image prompt now.`,
     schema: z.object({ prompt: z.string().min(20).max(600) }),
+    category: "IMAGE_PROMPTS",
   });
 
   const richPrompt = (enriched as { prompt: string }).prompt;

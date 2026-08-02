@@ -51,7 +51,7 @@ export type RoutedGenerateArgs<T> = {
 
 /**
  * Category-aware LLM call with per-provider health tracking and decision logging.
- * Replaces direct `generateWithFallback` calls in agent chat paths.
+ * Central entry point for structured LLM generation across Aurora.
  */
 export async function routedGenerate<T>(args: RoutedGenerateArgs<T>): Promise<RoutedResult<T>> {
   const t0 = Date.now();

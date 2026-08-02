@@ -53,6 +53,16 @@ export function countHealthyForCategory(
   ).length;
 }
 
+/** Return the categories that currently have no enabled, healthy provider. */
+export function getDegradedCategories(
+  categories: readonly RequestCategory[],
+  enabledProviders: ReadonlySet<string>,
+): RequestCategory[] {
+  return categories.filter(
+    (category) => countHealthyForCategory(category, enabledProviders) === 0,
+  );
+}
+
 export type ProviderHealthStatus = {
   name: string;
   displayName?: string;

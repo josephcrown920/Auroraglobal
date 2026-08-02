@@ -6,7 +6,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isAdmin } from "@/lib/admin.server";
-import { countHealthyForCategory, getHealthSnapshot } from "@/lib/ai-router/health";
+import { getDegradedCategories, getHealthSnapshot } from "@/lib/ai-router/health";
 import { REQUEST_CATEGORIES } from "@/lib/ai-router/categories";
 import { getProviderRegistry } from "@/lib/ai-router/providers";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -53,9 +53,7 @@ export const getRouterHealth = createServerFn({ method: "GET" })
 
     const providers = getHealthSnapshot(allProviders) as RouterHealthRow[];
     const enabledNames = new Set(providers.filter((p) => p.enabled).map((p) => p.name));
-    const degradedCategories = REQUEST_CATEGORIES.filter(
-      (category) => countHealthyForCategory(category, enabledNames) === 0,
-    );
+    const degradedCategories = getDegradedCategories(REQUEST_CATEGORIES, enabledNames);
 
     return { providers, degradedCategories };
   });
