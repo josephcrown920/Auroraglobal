@@ -898,7 +898,7 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
               <Icon className="size-3" />
             </span>
             {km.label}
-            {data.label && <span className="text-[oklch(0.72_0.28_25)] normal-case tracking-normal font-semibold">· {data.label}</span>}
+            {data.label && <span className="text-[oklch(0.72_0.28_295)] normal-case tracking-normal font-semibold">· {data.label}</span>}
           </span>
           <div className="flex items-center gap-2">
             {data.status === "running" && (
@@ -1177,7 +1177,7 @@ function ProgressPanel({ nodes, edges, running }: { nodes: Node<NodeData>[]; edg
   const pct = Math.round((done / steps.length) * 100);
   if (!running && done === 0 && errored.length === 0) return null;
   return (
-    <div className="absolute bottom-20 right-3 z-30 w-[260px] max-w-[calc(100%-1.5rem)] rounded-xl border border-white/10 bg-[oklch(0.13_0.02_25/0.92)] backdrop-blur-xl shadow-[0_0_30px_oklch(0.78_0.18_25/0.4)] p-3">
+    <div className="absolute bottom-20 right-3 z-30 w-[260px] max-w-[calc(100%-1.5rem)] rounded-xl border border-white/10 bg-[oklch(0.13_0.02_295/0.92)] backdrop-blur-xl shadow-[0_0_30px_oklch(0.78_0.18_295/0.4)] p-3">
       <div className="flex items-center justify-between mb-2">
         <div className="text-sm uppercase tracking-[0.15em] text-white/70 flex items-center gap-1.5">
           <Clock className="size-3" /> Pipeline · {done}/{steps.length}
@@ -1250,7 +1250,7 @@ function ExportShareDock({ nodes, edges }: { nodes: Node<NodeData>[]; edges: Edg
     }
   };
   return (
-    <div className="absolute bottom-20 left-3 z-30 flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-xl border border-emerald-400/30 bg-[oklch(0.13_0.02_25/0.92)] backdrop-blur-xl shadow-[0_0_30px_oklch(0.62_0.22_165/0.3)] p-2">
+    <div className="absolute bottom-20 left-3 z-30 flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-xl border border-emerald-400/30 bg-[oklch(0.13_0.02_295/0.92)] backdrop-blur-xl shadow-[0_0_30px_oklch(0.62_0.22_165/0.3)] p-2">
       <span className="text-[13px] uppercase tracking-[0.15em] text-emerald-300 px-1">Final · {KIND_META[final.data.kind].label}</span>
       <Button size="sm" variant="outline" onClick={download} className="border-white/10 bg-white/5">
         <Download className="size-3.5 mr-1" /> Download
@@ -1804,13 +1804,13 @@ function CanvasPage() {
     <main className="h-screen flex flex-col bg-[#06060c] relative overflow-hidden">
       {/* ambient fuchsia halo at top, matching xyflow dark aesthetic */}
       <div className="pointer-events-none absolute inset-0 -z-0">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_90%_40%_at_50%_0%,oklch(0.70_0.32_25/0.10),transparent)]" />
-        <div className="absolute inset-x-0 top-14 h-px bg-gradient-to-r from-transparent via-[oklch(0.70_0.32_25/0.4)] to-transparent" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_90%_40%_at_50%_0%,oklch(0.70_0.27_295/0.10),transparent)]" />
+        <div className="absolute inset-x-0 top-14 h-px bg-gradient-to-r from-transparent via-[oklch(0.70_0.27_295/0.4)] to-transparent" />
       </div>
 
       <header className="relative z-10 flex items-center justify-between gap-2 px-3 py-2 border-b border-white/10 bg-background/70 backdrop-blur-xl">
         <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight shrink-0">
-          <span className="size-8 rounded-xl flex items-center justify-center shadow-[0_0_24px_oklch(0.78_0.18_25/0.65)]" style={{ background: "var(--gradient-hero)" }}>
+          <span className="size-8 rounded-xl flex items-center justify-center shadow-[0_0_24px_oklch(0.78_0.18_295/0.65)]" style={{ background: "var(--gradient-hero)" }}>
             <Sparkles className="size-4 text-primary-foreground" />
           </span>
           <span className="uppercase tracking-[0.2em] text-xs text-foreground/90">Canvas</span>
@@ -1828,7 +1828,7 @@ function CanvasPage() {
             disabled={runMut.isPending}
             title={graphWarnings.length ? graphWarnings[0] : undefined}
             style={{ background: "var(--gradient-hero)" }}
-            className="h-8 text-primary-foreground shadow-[0_0_24px_oklch(0.78_0.18_25/0.55)]"
+            className="h-8 text-primary-foreground shadow-[0_0_24px_oklch(0.78_0.18_295/0.55)]"
           >
             {runMut.isPending ? <><Loader2 className="size-3.5 mr-1 animate-spin" /> Running</> : <><Play className="size-3.5 mr-1" /> Run</>}
           </Button>
@@ -1917,7 +1917,7 @@ function CanvasPage() {
             proOptions={{ hideAttribution: true }}
           >
             <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color="oklch(0.70 0.32 28 / 0.28)" />
-            <Controls position="bottom-right" className="!bottom-16 !bg-[oklch(0.13_0.02_25/0.8)] !border-white/10 [&>button]:!bg-transparent [&>button]:!border-white/10 [&>button]:!text-foreground" />
+            <Controls position="bottom-right" className="!bottom-16 !bg-[oklch(0.13_0.02_295/0.8)] !border-white/10 [&>button]:!bg-transparent [&>button]:!border-white/10 [&>button]:!text-foreground" />
           </ReactFlow>
         </HandlersCtx.Provider>
         </ComfyCtx.Provider>
@@ -1933,7 +1933,7 @@ function CanvasPage() {
           isPaused={batchPaused}
         />
         {/* Floating glass toolbar — templates + finished-work gallery live over the canvas */}
-        <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 rounded-full border border-white/10 bg-[oklch(0.13_0.02_25/0.85)] backdrop-blur-xl shadow-lg p-1.5">
+        <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 rounded-full border border-white/10 bg-[oklch(0.13_0.02_295/0.85)] backdrop-blur-xl shadow-lg p-1.5">
           <TrendingTemplatesMenu
             onPick={(g: TemplateGraph & { id?: string }) => {
               setNodes(g.nodes);
@@ -1963,7 +1963,7 @@ function CanvasPage() {
         </div>
         {/* Quick-start coach mark — appears after loading a template */}
         {coachTplName && (
-          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 max-w-xl w-[calc(100%-1.5rem)] rounded-xl border border-primary/30 bg-[oklch(0.15_0.02_25/0.95)] backdrop-blur-xl shadow-[0_0_30px_oklch(0.78_0.18_25/0.4)] p-3 animate-fade-in">
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 max-w-xl w-[calc(100%-1.5rem)] rounded-xl border border-primary/30 bg-[oklch(0.15_0.02_295/0.95)] backdrop-blur-xl shadow-[0_0_30px_oklch(0.78_0.18_295/0.4)] p-3 animate-fade-in">
             <div className="flex items-start gap-3">
               <div className="size-8 rounded-lg grid place-items-center text-white shrink-0" style={{ background: "var(--gradient-hero)" }}>
                 <Sparkles className="size-4" />
@@ -1991,7 +1991,7 @@ function CanvasPage() {
         <ProgressPanel nodes={nodes} edges={edges} running={runMut.isPending} />
         {/* Export / share dock */}
         <ExportShareDock nodes={nodes} edges={edges} />
-        <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-2 py-2 rounded-full border border-white/10 bg-[oklch(0.13_0.02_25/0.92)] backdrop-blur-xl shadow-[0_0_30px_oklch(0.78_0.18_25/0.5)] animate-fade-in max-w-[calc(100%-1rem)] overflow-x-auto">
+        <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-2 py-2 rounded-full border border-white/10 bg-[oklch(0.13_0.02_295/0.92)] backdrop-blur-xl shadow-[0_0_30px_oklch(0.78_0.18_295/0.5)] animate-fade-in max-w-[calc(100%-1rem)] overflow-x-auto">
           <button onClick={() => addNode("input")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Image"><ImageIcon className="size-4" /></button>
           <button onClick={() => addNode("audio")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Audio"><Music className="size-4" /></button>
           <button onClick={() => addNode("image")} className="size-9 shrink-0 rounded-full grid place-items-center text-white/80 hover:text-white hover:bg-white/10" title="Image gen"><Wand2 className="size-4" /></button>
@@ -2007,7 +2007,7 @@ function CanvasPage() {
             }}
             disabled={runMut.isPending}
             title={graphWarnings.length ? graphWarnings[0] : undefined}
-            className="ml-1 h-9 px-4 shrink-0 rounded-full text-primary-foreground text-sm font-medium inline-flex items-center gap-1.5 shadow-[0_0_24px_oklch(0.78_0.18_25/0.8)] disabled:opacity-60"
+            className="ml-1 h-9 px-4 shrink-0 rounded-full text-primary-foreground text-sm font-medium inline-flex items-center gap-1.5 shadow-[0_0_24px_oklch(0.78_0.18_295/0.8)] disabled:opacity-60"
             style={{ background: "var(--gradient-hero)" }}
           >
             {runMut.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />} Run
