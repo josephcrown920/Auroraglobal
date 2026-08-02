@@ -292,6 +292,12 @@ export const chatWithAuroraAgent = createServerFn({ method: "POST" })
         system: CHAT_DIRECTOR_SYSTEM,
         prompt: buildChatPrompt({ memory, transcript, message: data.message, cinematicMode: data.cinematicMode }),
         schema: ChatTurnSchema,
+        degradedOutput: {
+          reply: "Aurora is catching up right now. Your context is safe — please try again in about 30 seconds.",
+          plan: null,
+          memoryUpdate: null,
+          skillCall: null,
+        },
       });
       turn = output;
     } catch (err) {
@@ -329,6 +335,12 @@ export const chatWithAuroraAgent = createServerFn({ method: "POST" })
                 cinematicMode: data.cinematicMode,
               }),
               schema: ChatTurnSchema,
+              degradedOutput: {
+                reply: "Aurora is catching up right now. Your context is safe — please try again in about 30 seconds.",
+                plan: null,
+                memoryUpdate: null,
+                skillCall: null,
+              },
             });
             // Suppress further skill calls from the second pass to avoid loops.
             turn = { ...turn2, skillCall: null };

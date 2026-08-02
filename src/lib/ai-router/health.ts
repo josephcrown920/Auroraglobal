@@ -3,6 +3,9 @@
 // Process-scoped: resets on restart (intentional — stale health state is worse
 // than a fresh start). Providers with poor recent success rates are skipped.
 
+import { CATEGORY_CHAINS } from "./chains";
+import type { RequestCategory } from "./categories";
+
 type HealthEntry = { timestamp: number; latencyMs: number; success: boolean };
 
 const WINDOW_MS = 5 * 60 * 1000; // 5 minutes
@@ -30,6 +33,24 @@ export function isHealthy(provider: string): boolean {
   if (entries.length < MIN_CALLS_TO_FLAG) return true; // not enough data — assume healthy
   const successRate = entries.filter((e) => e.success).length / entries.length;
   return successRate >= MIN_SUCCESS_RATE;
+}
+
+/**
+ * Count providers in a category that are currently healthy.
+ *
+ * Pass the enabled provider names when the caller needs the operational
+ * count. Without that set this counts health only, which is useful for
+ * diagnostics and tests.
+ */
+export function countHealthyForCategory(
+  category: RequestCategory,
+  enabledProviders?: ReadonlySet<string>,
+): number {
+  return (CATEGORY_CHAINS[category] ?? []).filter(
+    (provider) =>
+      (!enabledProviders || enabledProviders.has(provider)) &&
+      isHealthy(provider),
+  ).length;
 }
 
 export type ProviderHealthStatus = {
