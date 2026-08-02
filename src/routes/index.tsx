@@ -217,7 +217,7 @@ function LandingPage() {
   const [slideIdx, setSlideIdx] = useState(0);
   const [demoOpen, setDemoOpen] = useState(false);
   useEffect(() => {
-    const t = setInterval(() => setSlideIdx((i) => (i + 1) % HERO_SLIDES.length), 10000);
+    const t = setInterval(() => setSlideIdx((i) => (i + 1) % HERO_SLIDES.length), 5000);
     return () => clearInterval(t);
   }, []);
 
