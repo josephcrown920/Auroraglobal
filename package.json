@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^2.0.48",
-    "@cloudflare/vite-plugin": "^1.25.5",
+    "@cloudflare/vite-plugin": "^1.49.1",
     "@fontsource/cormorant-garamond": "^5.2.11",
     "@fontsource/instrument-sans": "^5.2.8",
     "@fontsource/inter": "^5.2.8",
@@ -82,6 +82,7 @@
     "react-markdown": "^10.1.0",
     "react-resizable-panels": "^4.6.5",
     "recharts": "^2.15.4",
+    "sharp": "^0.35.3",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.1",
@@ -91,7 +92,23 @@
     "zod": "^3.24.2"
   },
   "overrides": {
-    "@tanstack/router-core": "1.171.15"
+    "@tanstack/router-core": "1.171.15",
+    "minimatch@3": {
+      "brace-expansion": "1.1.17"
+    },
+    "minimatch@10": {
+      "brace-expansion": "5.0.9"
+    },
+    "monaco-editor": {
+      "dompurify": "3.4.0"
+    },
+    "miniflare": {
+      "sharp": "0.35.3"
+    },
+    "postcss": "8.5.25",
+    "undici": "7.28.0",
+    "ws": "8.21.1",
+    "js-yaml": "4.3.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
@@ -110,6 +127,6 @@
     "prettier": "^3.7.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
-    "vite": "^7.3.1"
+    "vite": "^7.3.5"
   }
 }
