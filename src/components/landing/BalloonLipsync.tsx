@@ -260,7 +260,7 @@ export function BalloonLipsync() {
 
         {/* Live badge */}
         <div className="absolute top-4 left-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/70 backdrop-blur border border-white/10 text-[10px] font-bold uppercase tracking-widest text-white">
-          <span className={`size-1.5 rounded-full bg-[#e5383b] ${playing ? "animate-pulse" : ""}`} />
+          <span className={`size-1.5 rounded-full bg-[#8b5cf6] ${playing ? "animate-pulse" : ""}`} />
           Live lip-sync · Sync 1.9
         </div>
 
@@ -283,8 +283,8 @@ export function BalloonLipsync() {
                 className="block flex-1 rounded-t-sm origin-bottom"
                 style={{
                   background: i < 28
-                    ? `linear-gradient(to top, #e5383b, rgba(229,56,59,0.3))`
-                    : `linear-gradient(to top, #e5383b, rgba(229,56,59,0.3))`,
+                    ? `linear-gradient(to top, #8b5cf6, rgba(139,92,246,0.3))`
+                    : `linear-gradient(to top, #8b5cf6, rgba(139,92,246,0.3))`,
                   transform: "scaleY(0.06)",
                   opacity: 0.35,
                 }}
@@ -297,18 +297,18 @@ export function BalloonLipsync() {
       {/* ── 2. Content row below video ────────────────────────────── */}
       <div className="relative bg-black border-t border-white/5">
         {/* Subtle red top glow line */}
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#e5383b]/40 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#8b5cf6]/40 to-transparent" />
 
         <div className="max-w-5xl mx-auto px-5 md:px-10 py-10 md:py-14 grid md:grid-cols-[1.2fr_1fr] gap-8 md:gap-16 items-start">
 
           {/* Left — headline + CTA */}
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-[#e5383b] mb-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-[#8b5cf6] mb-4">
               Aurora · Lip-sync engine
             </p>
             <h2 className="text-4xl md:text-6xl font-black tracking-tighter text-white leading-[0.95] mb-5">
               Every face<br />
-              <span className="text-[#e5383b]">sings.</span>
+              <span className="text-[#8b5cf6]">sings.</span>
             </h2>
             <p className="text-white/55 text-sm md:text-base leading-relaxed max-w-sm mb-8">
               Drop any selfie and any audio — Aurora's Sync 1.9 engine drives
@@ -367,7 +367,7 @@ export function BalloonLipsync() {
             {/* Upload your own track */}
             <div className="rounded-2xl border border-white/8 bg-white/3 p-4">
               <div className="flex items-center gap-2 mb-1.5">
-                <Mic2 className="size-3.5 text-[#e5383b]" />
+                <Mic2 className="size-3.5 text-[#8b5cf6]" />
                 <p className="text-xs font-semibold text-white/60">
                   Try it with your own track
                 </p>
@@ -381,7 +381,7 @@ export function BalloonLipsync() {
                   className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium cursor-pointer border transition-colors ${
                     transcribing
                       ? "border-white/8 text-white/25 pointer-events-none"
-                      : "border-white/15 text-white/60 hover:border-[#e5383b]/50 hover:text-white bg-white/4 hover:bg-[#e5383b]/8"
+                      : "border-white/15 text-white/60 hover:border-[#8b5cf6]/50 hover:text-white bg-white/4 hover:bg-[#8b5cf6]/8"
                   }`}
                 >
                   {transcribing ? (

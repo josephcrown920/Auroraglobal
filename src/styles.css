@@ -143,11 +143,11 @@
   --input: oklch(1 0 0 / 12%);
   --ring: oklch(0.60 0.27 295);
 
-  --gradient-hero: linear-gradient(135deg, oklch(0.48 0.22 20), oklch(0.64 0.20 30));
+  --gradient-hero: linear-gradient(135deg, oklch(0.46 0.28 285), oklch(0.66 0.24 310));
   --gradient-soft: linear-gradient(180deg, oklch(0.10 0.025 272), oklch(0.085 0.022 272));
   --gradient-stage: radial-gradient(ellipse at 72% 28%, oklch(0.60 0.27 295 / 0.055), transparent 52%),
                     radial-gradient(ellipse at 18% 78%, oklch(0.18 0.04 272 / 0.18), transparent 50%);
-  --shadow-glow: 0 20px 60px -20px oklch(0.48 0.22 20 / 0.45);
+  --shadow-glow: 0 20px 60px -20px oklch(0.50 0.27 295 / 0.45);
   --shadow-soft: 0 8px 30px -10px oklch(0 0 0 / 0.5);
   --shadow-elevated: 0 24px 60px -28px oklch(0 0 0 / 0.7), 0 2px 10px -6px oklch(0 0 0 / 0.55);
   --shadow-glow-soft: 0 0 44px -16px oklch(0.70 0.25 295 / 0.5);
@@ -217,7 +217,7 @@ html[data-theme="light"] {
   --input: oklch(0 0 0 / 10%);
   --ring: oklch(0.54 0.27 295);
 
-  --gradient-hero: linear-gradient(135deg, oklch(0.44 0.22 20), oklch(0.58 0.20 30));
+  --gradient-hero: linear-gradient(135deg, oklch(0.42 0.28 285), oklch(0.60 0.24 310));
   --gradient-soft: linear-gradient(180deg, oklch(0.99 0 0), oklch(0.97 0.005 272));
   --gradient-stage: none;
   --shadow-glow: 0 20px 60px -20px oklch(0.46 0.22 295 / 0.25);
