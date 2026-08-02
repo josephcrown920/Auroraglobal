@@ -76,6 +76,23 @@ export const Route = createFileRoute("/")({
 
 const HERO_SLIDES = [
   {
+    src: "/hero/hero-new-1.png",
+    eyebrow: "AI CREATIVE DIRECTOR",
+    badge: "★ Pro",
+    headline: "Every Shot. Every Angle. Every Scene Directed By AI.",
+    sub: "Chat your idea. Aurora turns it into a complete production script, shot list, locations, performances, edits, and final delivery without hiring a director or crew.",
+    cta: "Director's Room →",
+    ctaTo: "/home",
+  },
+  {
+    src: "/hero/hero-new-2.png",
+    eyebrow: "BY ARTISTS, FOR ARTISTS",
+    headline: "Direct Your Visual Identity.",
+    sub: "The AI performance studio built by artists, for artists. Drop your references, direct the shoot in plain language, and ship studio-grade covers, promo, and cinematic performance reels in seconds, not weeks.",
+    cta: "Start Creating →",
+    ctaTo: "/home",
+  },
+  {
     src: "/hero/hero-perform-anywhere.png",
     eyebrow: "PERFORM ANYWHERE",
     badge: "★ Pro",
@@ -107,14 +124,6 @@ const HERO_SLIDES = [
     sub: "Create magazine-quality press photos, tour posters, album covers, and promotional visuals in minutes—not weeks.",
     cta: "Create Press Photos →",
     ctaTo: "/music-video",
-  },
-  {
-    src: "/hero/hero-new-2.png",
-    eyebrow: "AI Creative Director",
-    headline: "Your Entire Creative Team. Powered By AI.",
-    sub: "Instead of hiring a Director, Photographer, Editor, Colorist, Stylist, or Motion Designer — Aurora does it all from one dashboard.",
-    cta: "Meet Aurora →",
-    ctaTo: "/home",
   },
 ];
 
