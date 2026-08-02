@@ -76,37 +76,45 @@ export const Route = createFileRoute("/")({
 
 const HERO_SLIDES = [
   {
-    src: "/hero/hero-new-1.png",
-    eyebrow: "By Artists, For Artists",
-    badge: "★ Flagship",
-    headline: "Film Yourself. Aurora Builds the World.",
-    sub: "Aurora's Motion Control reads your real performance from a 30-second phone clip and places you in any cinematic scene on earth — style, motion, energy intact. No studio. No crew. No budget.",
-    cta: "Perform From Anywhere →",
+    src: "/hero/hero-perform-anywhere.png",
+    eyebrow: "PERFORM ANYWHERE",
+    badge: "★ Pro",
+    headline: "Turn a 30-Second Phone Recording Into a Cinematic Music Video.",
+    sub: "Stop renting studios, hiring crews, and waiting weeks for edits. Record yourself for 30 seconds on your iPhone or any device with a clear camera. Aurora transforms your performance into cinematic music videos, performances, and visuals that look like they were directed by a major production team.",
+    cta: "Perform Anywhere →",
     ctaTo: "/perform",
   },
   {
     src: "/hero/hero-tiktok30.jpg",
     eyebrow: "TikTok 30",
-    headline: "One Prompt. 30 Posts. Posted.",
-    sub: "Type your hook. Aurora uses Claude + Seedance 2.0 to generate 30 scroll-stopping posts — lyric hooks, cover reveals, performance clips, styled portraits — a full month of content from one idea.",
-    cta: "Launch TikTok30 Free →",
+    headline: "Go Viral Without Running Out Of Content.",
+    sub: "Turn one idea into an entire month of scroll-stopping content. Aurora creates 30 unique TikToks, lyric videos, teasers, cover reveals, reels, and promo posts ready to publish.",
+    cta: "TikTok 30 →",
     ctaTo: "/spin",
   },
   {
     src: "/hero/hero-colors.png",
-    eyebrow: "Colors Performance Studio",
-    headline: "One Recording. Infinite Colors.",
-    sub: "Record 30 seconds on your phone. Pick a color palette. Pick an outfit. Aurora delivers unlimited cinematic content — on demand, every drop.",
-    cta: "Start Colors Studio Free →",
+    eyebrow: "Colors Studio",
+    headline: "One Performance. Unlimited Visual Worlds.",
+    sub: "Record one 30-second performance. Aurora rebuilds it into endless cinematic stages, lighting styles, outfits, moods and color worlds ready for every release.",
+    cta: "Explore Colors Studio →",
     ctaTo: "/colors",
   },
   {
     src: "/hero/hero-7.png",
     eyebrow: "Press Ready",
-    headline: "$50K Look. Zero Crew.",
-    sub: "Studio-grade press photos and tour visuals. Shot on your phone. Delivered in minutes.",
-    cta: "Get Press-Ready Now →",
+    headline: "Look Like The Biggest Artist In Your City.",
+    sub: "Create magazine-quality press photos, tour posters, album covers, and promotional visuals in minutes—not weeks.",
+    cta: "Create Press Photos →",
     ctaTo: "/music-video",
+  },
+  {
+    src: "/hero/hero-new-2.png",
+    eyebrow: "AI Creative Director",
+    headline: "Your Entire Creative Team. Powered By AI.",
+    sub: "Instead of hiring a Director, Photographer, Editor, Colorist, Stylist, or Motion Designer — Aurora does it all from one dashboard.",
+    cta: "Meet Aurora →",
+    ctaTo: "/home",
   },
 ];
 
@@ -304,7 +312,7 @@ function LandingPage() {
                 i === slideIdx ? "opacity-100" : "opacity-0 absolute inset-0 pointer-events-none"
               }`}
             >
-              <p className="mb-2 flex items-center gap-2 font-serif italic text-amber-400 text-sm">
+              <p className="mb-2 flex items-center gap-2 font-serif italic text-amber-400 text-base">
                 <span className="inline-block size-1.5 rounded-full bg-[#e5383b]" />
                 <EditableCopy copyKey={`landing_hero_${i}_eyebrow`} fallback={slide.eyebrow} />
                 {"badge" in slide && slide.badge && (
