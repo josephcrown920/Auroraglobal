@@ -95,7 +95,7 @@ const QUOTES = [
     location: "Medellín, Colombia",
     flag: "🇨🇴",
     text: "Dropped a full visual EP on Aurora. Looks like a Bad Bunny budget. Costó nada.",
-    color: "from-rose-500/30 to-red-500/10",
+    color: "from-violet-500/30 to-purple-500/10",
   },
 ];
 

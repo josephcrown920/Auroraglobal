@@ -232,7 +232,7 @@ export function FinishedWorkflowsGallery({
                     onLoad?.(active.id);
                     setOpen(false);
                   }}
-                  className="bg-gradient-to-r from-red-500 to-orange-500"
+                  className="bg-gradient-to-r from-violet-600 to-purple-500"
                 >
                   Clone into canvas
                 </Button>

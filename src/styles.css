@@ -166,7 +166,7 @@
   --ink: oklch(0.98 0 0);
   --ink-dim: oklch(0.62 0.015 295);
   --prime: oklch(0.68 0.25 295);
-  --prime-glow: oklch(0.74 0.19 30);
+  --prime-glow: oklch(0.74 0.19 295);
   --rec: oklch(0.58 0.22 24);
   --rec-glow: oklch(0.68 0.22 24);
   --teal: oklch(0.68 0.13 185);
