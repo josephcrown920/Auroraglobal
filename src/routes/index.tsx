@@ -414,20 +414,20 @@ function LandingPage() {
       </div>
 
       {/* ── Process ─────────────────────────────────────────────────────── */}
-      <section id="process" className="py-20 px-5">
-        <div className="mb-12">
+      <section id="process" className="px-5 py-12">
+        <div className="mb-7">
           <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
             The studio flow
           </span>
-          <h2 className="mt-3 text-4xl font-semibold leading-tight">
+          <h2 className="mt-2 text-3xl font-semibold leading-tight">
             <EditableCopy copyKey="landing_process_heading" fallback="Reference. Direction. Delivered." />
           </h2>
-          <p className="mt-3 text-zinc-400 text-sm leading-relaxed">
+          <p className="mt-2 text-xs leading-relaxed text-zinc-400">
             <EditableCopy copyKey="landing_process_sub" fallback="Three steps between the sound in your head and the visual on your feed." />
           </p>
         </div>
 
-        <div className="flex flex-col gap-12">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
           <ProcessCard
             step="01"
             label="Reference"
@@ -455,28 +455,28 @@ function LandingPage() {
       </section>
 
       {/* ── Featured Tools ───────────────────────────────────────────────── */}
-      <section id="services" className="py-20 px-5 border-t border-white/5">
-        <div className="mb-10">
+      <section id="services" className="border-t border-white/5 px-5 py-12">
+        <div className="mb-7">
           <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
             Every tool
           </span>
-          <h2 className="mt-3 text-4xl font-semibold leading-tight">
+          <h2 className="mt-2 text-3xl font-semibold leading-tight">
             <EditableCopy copyKey="landing_tools_heading" fallback="The full studio." />
             <br />
             <span className="font-serif italic">
               <EditableCopy copyKey="landing_tools_subheading" fallback="Pay only for what you make." />
             </span>
           </h2>
-          <p className="mt-3 text-sm text-zinc-400 max-w-[40ch] leading-relaxed">
+          <p className="mt-2 max-w-[48ch] text-xs leading-relaxed text-zinc-400">
             <EditableCopy copyKey="landing_tools_blurb" fallback="Every feature is credit based. No subscriptions required to start. 5 free Aura on signup." />
           </p>
         </div>
-        <div className="flex flex-col divide-y divide-white/5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURED_TOOLS.map((tool) => (
             <FeaturedToolRow key={tool.label} tool={tool} />
           ))}
         </div>
-        <div className="mt-6 text-center">
+        <div className="mt-5 text-center">
           <Link
             to="/studio"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-500 hover:text-zinc-200 transition-colors no-underline"
@@ -608,39 +608,29 @@ function LandingPage() {
       </section>
 
       {/* ── Social Proof / Testimonials ──────────────────────────────────── */}
-      <section className="py-20 px-5 border-y border-white/5">
-        <div className="mb-10">
+      <section className="border-y border-white/5 px-5 py-12">
+        <div className="mb-7">
           <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
             30-day transformation
           </span>
-          <h2 className="mt-3 text-3xl font-semibold leading-tight">
-            How artists change their career in just{" "}
-            <span className="font-serif italic">30 days.</span>
+          <h2 className="mt-2 text-3xl font-semibold leading-tight">
+            Make the next release feel{" "}
+            <span className="font-serif italic">impossible to ignore.</span>
           </h2>
         </div>
 
-        <div className="flex flex-col gap-6">
-          {/* Artist quote */}
-          <div className="rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-6">
-            <p className="font-serif text-xl italic leading-snug text-zinc-200 mb-6">
-              &ldquo;Aurora completely changed the way I make content. I get a ton of content in just an hour — which normally would take me weeks of work and planning.&rdquo;
-            </p>
-            <div className="flex items-center gap-3">
-              <div className="size-9 rounded-full bg-gradient-to-br from-[#e5383b] to-zinc-700 ring-1 ring-white/10 shrink-0" />
-              <div>
-                <span className="text-sm font-semibold text-zinc-100 block">Aurora Artist</span>
-                <span className="text-xs text-zinc-500">Music Creator</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Platform stat */}
-          <div className="rounded-2xl bg-gradient-to-br from-[#e5383b]/10 to-transparent ring-1 ring-[#e5383b]/20 p-6">
-            <div className="text-5xl font-bold text-white mb-2">1,000+</div>
-            <p className="text-zinc-300 text-sm leading-relaxed">
-              artists scaled massively with Aurora in a short time. None of them thought it was possible — before Aurora found them.
-            </p>
-          </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          {[
+            { quote: "“I can test three visual directions before I book a single shoot. That changes every release meeting.”", role: "Independent artist · Visual rollout" },
+            { quote: "“The moodboard finally became a real world I could send to my team — not another folder of references.”", role: "Creative director · Music & culture" },
+            { quote: "“I made a week of release assets in one night, then spent the rest of it making the music better.”", role: "Recording artist · Campaign launch" },
+          ].map((testimonial) => (
+            <figure key={testimonial.role} className="rounded-2xl border border-white/8 bg-zinc-900/70 p-5">
+              <div className="mb-4 flex items-center gap-1 text-[#e5383b]" aria-label="Five star review">★★★★★</div>
+              <blockquote className="font-serif text-base leading-snug text-zinc-100">{testimonial.quote}</blockquote>
+              <figcaption className="mt-5 border-t border-white/8 pt-3 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">{testimonial.role}</figcaption>
+            </figure>
+          ))}
         </div>
       </section>
 
@@ -667,22 +657,22 @@ function LandingPage() {
       </section>
 
       {/* ── Pricing ──────────────────────────────────────────────────────── */}
-      <section id="pricing" className="py-20 px-5 border-t border-white/5">
-        <div className="mb-10">
+      <section id="pricing" className="border-t border-white/5 px-5 py-12">
+        <div className="mb-7">
           <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
             Pricing
           </span>
-          <h2 className="mt-3 text-4xl font-semibold leading-tight">
+          <h2 className="mt-2 text-3xl font-semibold leading-tight">
             Pick your level.<br />
             <span className="font-serif italic">Upgrade any time.</span>
           </h2>
-          <p className="mt-3 text-sm text-zinc-400 max-w-[40ch] leading-relaxed">
-            Start free — experience the quality before you pay. Upgrade when you&apos;re ready.
+          <p className="mt-2 max-w-[44ch] text-xs leading-relaxed text-zinc-400">
+            Start with Aura. Upgrade only when your creative output needs more room.
           </p>
         </div>
 
         {/* Subscription tiers */}
-        <div className="flex flex-col gap-4 mb-8">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 mb-6">
           {/* Free */}
           <div className="rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-6">
             <div className="flex items-start justify-between gap-4 mb-5">
@@ -950,18 +940,21 @@ function FeaturedToolRow({ tool }: { tool: typeof FEATURED_TOOLS[number] }) {
   return (
     <Link
       to={tool.to}
-      className="group flex items-center gap-4 py-4 no-underline hover:bg-white/[0.025] transition-colors -mx-5 px-5"
+      className="group relative min-h-40 overflow-hidden rounded-2xl border border-white/8 bg-zinc-900/75 p-4 no-underline transition-all hover:-translate-y-0.5 hover:border-white/20 hover:bg-zinc-900"
     >
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/6 ring-1 ring-white/10">
-        <Icon className="size-4.5 text-zinc-300" />
-      </span>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-zinc-100 leading-tight">{tool.label}</p>
-        <p className="text-[11px] text-zinc-500 mt-0.5 leading-snug">{tool.desc}</p>
-      </div>
-      <div className="flex items-center gap-2.5 shrink-0">
-        <span className="text-[11px] font-bold text-[#e5383b]">{tool.price}</span>
-        <ArrowUpRight className="size-3.5 text-zinc-600 group-hover:text-zinc-300 transition-colors" />
+      <span className="absolute -right-7 -top-7 size-28 rounded-full bg-[#e5383b]/10 blur-2xl transition-opacity group-hover:opacity-100" />
+      <div className="relative flex h-full flex-col">
+        <span className="flex size-9 items-center justify-center rounded-xl bg-white/6 ring-1 ring-white/10">
+          <Icon className="size-4 text-zinc-200" />
+        </span>
+        <div className="mt-auto pt-6">
+          <p className="text-sm font-semibold leading-tight text-zinc-100">{tool.label}</p>
+          <p className="mt-1 text-[11px] leading-snug text-zinc-500">{tool.desc}</p>
+        </div>
+        <div className="mt-3 flex items-center justify-between border-t border-white/7 pt-3">
+          <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#e5383b]">{tool.price}</span>
+          <ArrowUpRight className="size-3.5 text-zinc-600 transition-colors group-hover:text-zinc-200" />
+        </div>
       </div>
     </Link>
   );
@@ -987,7 +980,7 @@ function ProcessCard({
 }) {
   return (
     <div className="group">
-      <div className="mb-5 flex aspect-[4/3] items-center justify-center overflow-hidden rounded-2xl bg-zinc-900 ring-1 ring-white/5">
+      <div className="mb-3 flex aspect-[4/3] items-center justify-center overflow-hidden rounded-xl bg-zinc-900 ring-1 ring-white/5">
         {image ? (
           <img
             src={image}
@@ -1005,8 +998,8 @@ function ProcessCard({
         <span className="text-xs font-bold text-[#e5383b] uppercase tracking-[0.25em]">{step}</span>
         <span className="text-xs font-medium text-zinc-500 uppercase tracking-widest">{label}</span>
       </div>
-      <h3 className="mt-2 text-xl font-semibold">{title}</h3>
-      <p className="mt-1.5 text-sm leading-relaxed text-zinc-400">{body}</p>
+      <h3 className="mt-1.5 text-base font-semibold">{title}</h3>
+      <p className="mt-1 text-xs leading-relaxed text-zinc-400">{body}</p>
     </div>
   );
 }
