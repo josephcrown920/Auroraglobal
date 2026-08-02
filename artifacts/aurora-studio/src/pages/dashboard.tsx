@@ -1,69 +1,146 @@
-import { useGetDashboard } from "@workspace/api-client-react";
+import React from "react";
 import { Link } from "wouter";
-import {
-  Image as ImageIcon,
-  Video,
-  Mic,
-  Music,
-  Smartphone,
-  RefreshCw,
-  ArrowUpRight,
-} from "lucide-react";
+import { useGetDashboard } from "@workspace/api-client-react";
+import { RefreshCw, Image as ImageIcon } from "lucide-react";
 
-const tools = [
+const TOOLS = [
   {
-    href: "/studio",
-    label: "Colors",
-    desc: "High-fidelity performance photos",
-    icon: ImageIcon,
-    cost: 2,
-    image:
-      "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=800&q=85&fit=crop&crop=center",
+    id: "00", label: "Perform Anywhere", sub: "AI live performance engine",
+    cost: "FREE", badge: "FLAGSHIP", href: "/perform-anywhere", color: "#E8FF47",
+    img: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=1200&q=90&fit=crop",
   },
   {
-    href: "/motion",
-    label: "Motion",
-    desc: "Cinematic video snippets",
-    icon: Video,
-    cost: 10,
-    image:
-      "https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=800&q=85&fit=crop&crop=center",
+    id: "01", label: "Colors", sub: "Performance photo generation",
+    cost: "2 CR", badge: null, href: "/studio", color: "#FF6BCD",
+    img: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1200&q=90&fit=crop",
   },
   {
-    href: "/lipsync",
-    label: "Lip Sync",
-    desc: "AI audio-synced performance",
-    icon: Mic,
-    cost: 8,
-    image:
-      "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&q=85&fit=crop&crop=top",
+    id: "02", label: "TikTok30", sub: "UGC campaign engine",
+    cost: "6 CR", badge: null, href: "/ugc", color: "#A78BFF",
+    img: "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=1200&q=90&fit=crop",
   },
   {
-    href: "/music-video",
-    label: "Music Video",
-    desc: "Full-length track production",
-    icon: Music,
-    cost: 12,
-    image:
-      "https://images.unsplash.com/photo-1598387993441-a364f854cde0?w=800&q=85&fit=crop&crop=center",
+    id: "03", label: "Video Agent", sub: "AI video production assistant",
+    cost: "10 CR", badge: null, href: "/video-agent", color: "#3CF0FF",
+    img: "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=1200&q=90&fit=crop",
   },
   {
-    href: "/ugc",
-    label: "TikTok30 UGC",
-    desc: "Campaign batch generation",
-    icon: Smartphone,
-    cost: 6,
-    image:
-      "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=800&q=85&fit=crop&crop=top",
+    id: "04", label: "Director's Room", sub: "Cinematic visual studio",
+    cost: "12 CR", badge: "SUITE", href: "/directors-room", color: "#FFB340",
+    img: "https://images.unsplash.com/photo-1598387993441-a364f854cde0?w=1200&q=90&fit=crop",
+  },
+  {
+    id: "05", label: "GRWM", sub: "Get Ready With Me",
+    cost: "6 CR", badge: null, href: "/grwm", color: "#FF8FAB",
+    img: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=1200&q=90&fit=crop",
+  },
+  {
+    id: "06", label: "Motion Control", sub: "Kinetic visual generation",
+    cost: "10 CR", badge: "FLAGSHIP", href: "/motion", color: "#FFFFFF",
+    img: "https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=1200&q=90&fit=crop",
   },
 ];
 
 type Generation = {
   id: string;
   type: string;
-  thumbnailUrl?: string;
+  thumbnailUrl?: string | null;
   createdAt: string;
 };
+
+function ToolStrip({ tool }: { tool: typeof TOOLS[0] }) {
+  const [hovered, setHovered] = React.useState(false);
+
+  return (
+    <Link href={tool.href}>
+      <div
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          position: "relative",
+          height: hovered ? 108 : 92,
+          overflow: "hidden",
+          cursor: "pointer",
+          borderBottom: "1px solid #161616",
+          display: "flex",
+          alignItems: "center",
+          transition: "height 0.22s ease",
+          background: hovered ? "#0d0d0d" : "transparent",
+        }}
+      >
+        {/* Background image */}
+        <img
+          src={tool.img}
+          alt=""
+          style={{
+            position: "absolute", inset: 0, width: "100%", height: "100%",
+            objectFit: "cover",
+            opacity: hovered ? 0.22 : 0.08,
+            transition: "opacity 0.35s ease",
+          }}
+        />
+        {/* Gradient overlay */}
+        <div style={{
+          position: "absolute", inset: 0,
+          background: hovered
+            ? `linear-gradient(to right, ${tool.color}18 0%, transparent 50%)`
+            : "transparent",
+          transition: "all 0.35s ease",
+        }} />
+
+        {/* Content */}
+        <div style={{
+          position: "relative", display: "flex", alignItems: "center",
+          width: "100%", padding: "0 40px", gap: 24,
+        }}>
+          {/* Number */}
+          <span style={{
+            fontSize: 10, fontWeight: 800,
+            color: hovered ? tool.color : "#282828",
+            letterSpacing: "0.12em", minWidth: 24,
+            transition: "color 0.3s",
+          }}>{tool.id}</span>
+
+          {/* Tool name + badge */}
+          <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{
+              fontSize: "clamp(22px, 2.4vw, 32px)", fontWeight: 900,
+              letterSpacing: "-0.03em", textTransform: "uppercase", color: "#fff",
+            }}>{tool.label}</span>
+            {tool.badge && (
+              <span style={{
+                fontSize: 9, fontWeight: 800, letterSpacing: "0.22em",
+                color: tool.color, border: `1px solid ${tool.color}44`,
+                padding: "2px 9px", borderRadius: 2,
+              }}>{tool.badge}</span>
+            )}
+          </div>
+
+          {/* Sub */}
+          <span style={{
+            fontSize: 11, color: "#444", letterSpacing: "0.06em",
+            display: hovered ? "none" : "block",
+          }}>{tool.sub}</span>
+
+          {/* Cost */}
+          <span style={{
+            fontSize: 10, fontWeight: 800,
+            color: tool.cost === "FREE" ? tool.color : "#FF3B30",
+            background: tool.cost === "FREE" ? `${tool.color}18` : "rgba(255,59,48,0.1)",
+            padding: "5px 12px", borderRadius: 14,
+          }}>{tool.cost}</span>
+
+          {/* CTA */}
+          <span style={{
+            fontSize: 10, fontWeight: 700, letterSpacing: "0.2em",
+            color: hovered ? "#fff" : "#2c2c2c",
+            transition: "color 0.3s",
+          }}>OPEN →</span>
+        </div>
+      </div>
+    </Link>
+  );
+}
 
 export default function DashboardPage() {
   const { data: dashboard, isLoading, error } = useGetDashboard();
@@ -71,151 +148,109 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <RefreshCw className="size-5 animate-spin text-white/30" />
+        <RefreshCw className="size-5 animate-spin text-white/20" />
       </div>
     );
   }
 
   if (error || !dashboard) {
     return (
-      <div className="p-8 text-center max-w-sm mx-auto mt-20">
-        <p className="text-white/50 text-sm mb-4">Failed to load dashboard.</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="text-xs font-semibold uppercase tracking-wider text-white/40 hover:text-white transition-colors"
-        >
+      <div className="p-8 text-center mt-20">
+        <p className="text-white/30 text-sm mb-4">Failed to load dashboard.</p>
+        <button onClick={() => window.location.reload()}
+          className="text-[10px] font-bold uppercase tracking-widest text-white/20 hover:text-white/60 transition-colors">
           Retry
         </button>
       </div>
     );
   }
 
+  const recentActivity = (dashboard.recentActivity as Generation[]) ?? [];
+
   return (
-    <div className="pb-16 space-y-12">
-      {/* Header */}
-      <header className="space-y-1 pt-2">
-        <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#FF3B30]">
-          Aurora Studio
-        </p>
-        <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">
-          Create something new.
-        </h1>
-        <p className="text-base text-white/40 italic font-serif">
-          Select a tool to begin your next project.
-        </p>
-      </header>
+    <div style={{ background: "#080808", minHeight: "100vh", color: "#fff", fontFamily: "'Inter', sans-serif" }}>
+      <style>{`
+        @keyframes heroGlow { 0%,100%{opacity:.55} 50%{opacity:.9} }
+      `}</style>
 
-      {/* Tool Cards — 2-col grid */}
-      <section>
-        <div className="grid grid-cols-2 gap-3 md:gap-4">
-          {tools.map((tool) => {
-            const Icon = tool.icon;
-            return (
-              <Link
-                key={tool.href}
-                href={tool.href}
-                className="group flex flex-col rounded-2xl overflow-hidden bg-[#111] border border-white/5 hover:border-white/10 transition-all duration-300"
-              >
-                {/* Image */}
-                <div className="relative aspect-[4/5] overflow-hidden">
-                  <img
-                    src={tool.image}
-                    alt={tool.label}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
-                    loading="lazy"
-                  />
-                  {/* Gradient overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
-                  {/* Overlaid bottom row */}
-                  <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between">
-                    <span className="flex size-7 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm border border-white/10">
-                      <Icon className="size-3.5 text-white/90" />
-                    </span>
-                    <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-[#FF3B30] text-white leading-none">
-                      {tool.cost} CR
-                    </span>
-                  </div>
-                </div>
-
-                {/* Text */}
-                <div className="px-3.5 pt-3 pb-3.5 flex flex-col gap-1">
-                  <p className="text-white font-semibold text-[15px] leading-snug">
-                    {tool.label}
-                  </p>
-                  <p className="text-white/40 text-[12px] leading-snug hidden sm:block">
-                    {tool.desc}
-                  </p>
-                  <span className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-white/30 group-hover:text-white/70 transition-colors flex items-center gap-0.5">
-                    Open <ArrowUpRight className="size-3" />
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Recent Projects */}
-      {dashboard.recentActivity.length > 0 && (
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[13px] font-bold uppercase tracking-[0.2em] text-white/40">
-              Recent Projects
-            </h2>
-            <Link
-              href="/gallery"
-              className="text-[11px] font-semibold uppercase tracking-wider text-white/30 hover:text-white transition-colors flex items-center gap-0.5"
-            >
-              View all <ArrowUpRight className="size-3" />
-            </Link>
+      {/* ── Hero ── */}
+      <div style={{ position: "relative", padding: "56px 40px 44px", overflow: "hidden" }}>
+        <div style={{
+          position: "absolute", inset: 0,
+          background: "radial-gradient(ellipse 55% 70% at 50% 0%, #E8FF4710 0%, transparent 65%)",
+          animation: "heroGlow 5s ease-in-out infinite",
+        }} />
+        <div style={{ position: "relative" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.35em", color: "#383838", marginBottom: 18 }}>
+            THE COMPLETE TOOLKIT
           </div>
+          <div style={{
+            fontSize: "clamp(52px, 8vw, 104px)", fontWeight: 900,
+            lineHeight: 0.88, letterSpacing: "-0.04em", textTransform: "uppercase",
+          }}>
+            PERFORM.<br />
+            <span style={{ WebkitTextStroke: "1px #383838", color: "transparent" }}>CREATE.</span><br />
+            RELEASE.
+          </div>
+          <div style={{ marginTop: 28, display: "flex", gap: 14, alignItems: "center" }}>
+            <div style={{ width: 36, height: 1, background: "#282828" }} />
+            <span style={{ fontSize: 10, color: "#444", letterSpacing: "0.12em" }}>
+              {TOOLS.length} TOOLS · BUILT FOR ARTISTS
+            </span>
+          </div>
+        </div>
+      </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {(dashboard.recentActivity as Generation[]).slice(0, 8).map((item) => (
-              <Link
-                key={item.id}
-                href="/gallery"
-                className="group relative aspect-square rounded-xl overflow-hidden bg-[#111] border border-white/5 hover:border-white/15 transition-all"
-              >
-                {item.thumbnailUrl ? (
-                  <img
-                    src={item.thumbnailUrl}
-                    alt={item.type}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <ImageIcon className="text-white/10" size={22} />
-                  </div>
-                )}
-                {/* Hover overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2.5">
-                  <div>
-                    <p className="text-[11px] font-semibold text-white capitalize">
-                      {item.type}
-                    </p>
-                    <p className="text-[10px] text-white/50">
-                      {new Date(item.createdAt).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </p>
+      {/* ── Tool strips ── */}
+      <div style={{ borderTop: "1px solid #161616" }}>
+        {TOOLS.map(tool => <ToolStrip key={tool.id} tool={tool} />)}
+      </div>
+
+      {/* ── Recent Work ── */}
+      <div style={{ padding: "48px 40px 0" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.3em", color: "#383838" }}>RECENT WORK</span>
+          <Link href="/gallery">
+            <span style={{ fontSize: 10, color: "#383838", letterSpacing: "0.15em", cursor: "pointer" }}>VIEW ALL →</span>
+          </Link>
+        </div>
+
+        {recentActivity.length > 0 ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 2 }}>
+            {recentActivity.slice(0, 8).map((item) => (
+              <Link key={item.id} href="/gallery">
+                <div style={{ position: "relative", aspectRatio: "4/3", overflow: "hidden", cursor: "pointer", borderRadius: 2, background: "#111" }}>
+                  {item.thumbnailUrl ? (
+                    <img src={item.thumbnailUrl} alt={item.type} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <ImageIcon size={20} color="rgba(255,255,255,0.08)" />
+                    </div>
+                  )}
+                  <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #000c 0%, transparent 50%)" }} />
+                  <div style={{ position: "absolute", bottom: 10, left: 10, right: 10 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>{item.type}</div>
+                    <div style={{ fontSize: 9, color: "#888", marginTop: 2 }}>
+                      {new Date(item.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                    </div>
                   </div>
                 </div>
               </Link>
             ))}
           </div>
-        </section>
-      )}
+        ) : (
+          <div style={{ padding: "40px 0", textAlign: "center" }}>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.15)" }}>No projects yet.</p>
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.08)", marginTop: 4 }}>Pick a tool above to start creating.</p>
+          </div>
+        )}
+      </div>
 
-      {dashboard.recentActivity.length === 0 && (
-        <section className="text-center py-12">
-          <p className="text-white/20 text-sm mb-1">No projects yet.</p>
-          <p className="text-white/10 text-xs">
-            Pick a tool above to start creating.
-          </p>
-        </section>
-      )}
+      {/* Footer */}
+      <div style={{ padding: "48px 40px", marginTop: 48, borderTop: "1px solid #161616", display: "flex", justifyContent: "space-between" }}>
+        <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.35em", color: "#222" }}>AURORA</span>
+        <span style={{ fontSize: 10, color: "#1e1e1e", letterSpacing: "0.12em" }}>MADE FOR PERFORMERS</span>
+      </div>
     </div>
   );
 }

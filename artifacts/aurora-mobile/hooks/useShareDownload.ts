@@ -1,8 +1,11 @@
 import { useState, useCallback } from 'react';
 import { Alert, Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
-import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
+
+// Lazy-load MediaLibrary so its native module is never initialized on web
+const getMediaLibrary = () =>
+  Platform.OS !== 'web' ? require('expo-media-library') : null;
 
 type MediaType = 'photo' | 'video' | 'lipsync' | 'music_video' | 'ugc' | string;
 
@@ -36,6 +39,8 @@ export function useShareDownload() {
       return;
     }
 
+    const MediaLibrary = getMediaLibrary();
+    if (!MediaLibrary) return;
     const { status } = await MediaLibrary.requestPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please allow access to save to your camera roll.');

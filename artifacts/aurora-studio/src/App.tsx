@@ -22,6 +22,7 @@ import MusicVideoStudioPage from "./pages/music-video";
 import UgcFactoryPage from "./pages/ugc";
 import GalleryPage from "./pages/gallery";
 import SettingsPage from "./pages/settings";
+import ComingSoonPage from "./pages/coming-soon";
 
 const clerkPubKey = publishableKeyFromHost(
   window.location.hostname,
@@ -205,6 +206,10 @@ function ClerkProviderWithRoutes() {
             <Route path="/ugc"><ProtectedRoute component={UgcFactoryPage} /></Route>
             <Route path="/gallery"><ProtectedRoute component={GalleryPage} /></Route>
             <Route path="/settings"><ProtectedRoute component={SettingsPage} /></Route>
+            <Route path="/perform-anywhere"><ProtectedRoute component={ComingSoonPage} /></Route>
+            <Route path="/video-agent"><ProtectedRoute component={ComingSoonPage} /></Route>
+            <Route path="/directors-room"><ProtectedRoute component={ComingSoonPage} /></Route>
+            <Route path="/grwm"><ProtectedRoute component={ComingSoonPage} /></Route>
             
             <Route>
               <div className="flex min-h-screen items-center justify-center flex-col gap-4 text-center bg-[#1A1A1A]">
