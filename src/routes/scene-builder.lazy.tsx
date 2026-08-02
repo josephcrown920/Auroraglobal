@@ -2,7 +2,7 @@ import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Clapperboard, Upload, Sparkles, Video, RefreshCw, Plus, X, Smartphone, Play } from "lucide-react";
+import { Clapperboard, Camera, Upload, Sparkles, Video, RefreshCw, Plus, X, Smartphone, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
@@ -247,6 +247,45 @@ function SceneBuilderPage() {
           <span className="text-xs font-semibold tracking-widest uppercase text-primary">
             Directors ROOM
           </span>
+        </div>
+
+        {/* ── Sub-tools: Scene Weaver + Storyboard ────────────────────── */}
+        <div className="px-4 pb-2">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 mb-2">Also in Directors ROOM</p>
+          <div className="grid grid-cols-2 gap-2">
+            <Link
+              to="/scene-weaver"
+              className="group relative overflow-hidden rounded-xl no-underline"
+              style={{ background: "oklch(0.12 0.016 272)", border: "1px solid oklch(1 0 0 / 0.07)" }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative p-3.5 flex flex-col gap-2">
+                <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/20">
+                  <Camera className="size-4 text-primary" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-foreground leading-tight">Scene Weaver</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Weave cinematic shots from your references</p>
+                </div>
+              </div>
+            </Link>
+            <Link
+              to="/storyboard"
+              className="group relative overflow-hidden rounded-xl no-underline"
+              style={{ background: "oklch(0.12 0.016 272)", border: "1px solid oklch(1 0 0 / 0.07)" }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative p-3.5 flex flex-col gap-2">
+                <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/20">
+                  <Clapperboard className="size-4 text-primary" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-foreground leading-tight">Storyboard</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Plan and visualise your shot sequence</p>
+                </div>
+              </div>
+            </Link>
+          </div>
         </div>
 
         <div className="px-4 space-y-8">

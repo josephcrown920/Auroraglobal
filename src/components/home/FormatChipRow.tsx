@@ -59,7 +59,7 @@ export function FormatChipRow() {
     <div className="pb-6">
       <p
         className="aurora-kicker mb-3 px-5"
-        style={{ color: "oklch(0.58 0.22 25 / 0.6)" }}
+        style={{ color: "oklch(0.60 0.27 295 / 0.6)" }}
       >
         Suggested Formats
       </p>

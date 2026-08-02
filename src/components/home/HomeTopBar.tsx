@@ -58,8 +58,8 @@ export function HomeTopBar({ credits, avatarInitial }: HomeTopBarProps) {
           aria-label="Account"
           className="flex size-8 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-primary no-underline transition-colors hover:opacity-80"
           style={{
-            background: "oklch(0.58 0.22 25 / 0.15)",
-            boxShadow: "0 0 0 1px oklch(0.58 0.22 25 / 0.3)",
+            background: "oklch(0.60 0.27 295 / 0.15)",
+            boxShadow: "0 0 0 1px oklch(0.60 0.27 295 / 0.3)",
           }}
         >
           {avatarInitial}
