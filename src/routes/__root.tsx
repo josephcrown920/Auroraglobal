@@ -291,6 +291,7 @@ function RootComponent() {
   // self-contained. Its route renders its own slim back-to-Aurora bar.
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isIsolated = pathname === "/nexusarb" || pathname.startsWith("/nexusarb/");
+  const isVideoAgent = pathname === "/video-agent" || pathname.startsWith("/video-agent/");
 
   if (isIsolated) {
     // NexusARB stays a self-contained, full-bleed page: no phone frame, no
@@ -319,10 +320,10 @@ function RootComponent() {
             </SiteCopyProvider>
           </SiteImagesProvider>
           <Toaster />
-          <AuroraChatbot />
+          {!isVideoAgent && <AuroraChatbot />}
           <AdminHotkey />
           <ReferralAttacher />
-          <MobileNav />
+          {!isVideoAgent && <MobileNav />}
           <CookieConsentBanner />
         </QueryClientProvider>
       </ThemeProvider>

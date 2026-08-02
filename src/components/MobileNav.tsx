@@ -22,6 +22,9 @@ import {
   Brush,
   Shield,
   Layers,
+  Camera,
+  LayoutGrid,
+  UserRound,
   type LucideIcon,
 } from "lucide-react";
 
@@ -39,45 +42,48 @@ type Feature = {
   previewImg?: string;
 };
 
-// ── Active features, ordered by demand for artists & creators ─────────────────
-
-/** Core creation tools — highest-traffic first. */
-const MAKE_FEATURES: Feature[] = [
-  { to: "/studio",         label: "Image Generation", icon: Sparkles,  previewImg: "/nav-previews/studio.jpg" },
-  { to: "/colors",         label: "Colors Studio",    icon: Palette,   previewImg: "/nav-previews/colors.jpg" },
-  { to: "/canvas",         label: "Canvas",           icon: Workflow,  previewImg: "/nav-previews/canvas.jpg" },
-  { to: "/photo-edit",     label: "Photo Editor",     icon: Brush,     previewImg: "/nav-previews/photo-edit.jpg" },
-  { to: "/split-reality",  label: "Split Reality",    icon: Wand2,     previewImg: "/nav-previews/studio.jpg" },
-  { to: "/live-studio",    label: "Live Studios",     icon: Music2,    previewImg: "/nav-previews/live-studio.jpg" },
-  { to: "/storyboard",     label: "Storyboard",       icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
-  { to: "/music-video",    label: "Lyric Video",      icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
-  { to: "/scene-builder",  label: "Directors ROOM",   icon: Layers,    previewImg: "/nav-previews/scene-builder.jpg" },
+// ── Five destinations ─────────────────────────────────────────────────────────
+// Specialist tools remain available as modes from these destinations, but they
+// no longer compete with Create, Studio, Content, Gallery, and Account.
+const DESTINATIONS: Feature[] = [
+  { to: "/home", label: "Create", icon: Sparkles },
+  { to: "/studio", label: "Studio", icon: Palette },
+  { to: "/content", label: "Content", icon: LayoutGrid },
+  { to: "/gallery", label: "Gallery", icon: Images },
+  { to: "/account", label: "Account", icon: UserRound },
 ];
 
-/** Creator & viral tools — ordered by demand. */
-const VIRAL_FEATURES: Feature[] = [
-  { to: "/lipsync",     label: "Lip Sync",        icon: Mic,          previewImg: "/nav-previews/lipsync.jpg" },
-  { to: "/ugc-line",    label: "Content Line",    icon: Layers,       previewImg: "/nav-previews/ugc-line.jpg" },
-  { to: "/ugc",         label: "UGC Ads",         icon: Megaphone,    previewImg: "/nav-previews/ugc.jpg" },
-  { to: "/spin",        label: "TikTok30",        icon: Flame,        previewImg: "/nav-previews/spin.jpg" },
-  { to: "/motion",      label: "Motion Control",  icon: Wand2,        previewImg: "/nav-previews/perform-anywhere.jpg" },
-  { to: "/music-video", label: "Lyric Video",     icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
-  { to: "/avatar",      label: "Talking Avatars", icon: UserCircle2,  previewImg: "/nav-previews/avatar.jpg" },
+const STUDIO_FEATURES: Feature[] = [
+  { to: "/studio", label: "Image & Video Studio", icon: Sparkles, previewImg: "/nav-previews/studio.jpg" },
+  { to: "/colors", label: "Colors Studio", icon: Palette, previewImg: "/nav-previews/colors.jpg" },
+  { to: "/photo-edit", label: "Photo Editor", icon: Brush, previewImg: "/nav-previews/photo-edit.jpg" },
+  { to: "/canvas", label: "Infinity Canvas", icon: Workflow, previewImg: "/nav-previews/canvas.jpg" },
+  { to: "/split-reality", label: "Split Reality", icon: Wand2, previewImg: "/nav-previews/studio.jpg" },
+  { to: "/scene-weaver", label: "Scene Weaver", icon: Camera, previewImg: "/nav-previews/scene-builder.jpg" },
+  { to: "/scene-builder", label: "Directors ROOM", icon: Layers, previewImg: "/nav-previews/scene-builder.jpg" },
+  { to: "/motion", label: "Motion Control", icon: Wand2, previewImg: "/nav-previews/perform-anywhere.jpg" },
+  { to: "/storyboard", label: "Storyboard", icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
+  { to: "/music-video", label: "Lyric Video", icon: Film, previewImg: "/nav-previews/music-video.jpg" },
+  { to: "/live-studio", label: "Live Studios", icon: Music2, previewImg: "/nav-previews/live-studio.jpg" },
 ];
 
-/** Account & monetization — affiliate promoted to live. */
+const CONTENT_FEATURES: Feature[] = [
+  { to: "/ugc", label: "UGC Ads", icon: Megaphone, previewImg: "/nav-previews/ugc.jpg" },
+  { to: "/ugc-line", label: "Content Line", icon: Layers, previewImg: "/nav-previews/ugc-line.jpg" },
+  { to: "/spin", label: "TikTok30", icon: Flame, previewImg: "/nav-previews/spin.jpg" },
+  { to: "/tiktok", label: "TikTok Studio", icon: Music2 },
+  { to: "/lipsync", label: "Lip Sync", icon: Mic, previewImg: "/nav-previews/lipsync.jpg" },
+  { to: "/avatar", label: "Talking Avatars", icon: UserCircle2, previewImg: "/nav-previews/avatar.jpg" },
+  { to: "/content-machine", label: "Content Machine", icon: LayoutGrid },
+];
+
 const ACCOUNT_FEATURES: Feature[] = [
-  { to: "/gallery",           label: "Gallery",        icon: Images },
-  { to: "/creator/dashboard", label: "Creator Hub",    icon: TrendingUp },
-  { to: "/billing",           label: "Plan & Billing", icon: CreditCard },
-  { to: "/partners",          label: "Earn Free Aura", icon: Users },
-  { to: "/admin",             label: "Admin",          icon: Shield },
-];
-
-const LIVE_FEATURES: Feature[] = [
-  ...MAKE_FEATURES,
-  ...VIRAL_FEATURES,
-  ...ACCOUNT_FEATURES,
+  { to: "/gallery", label: "Gallery", icon: Images },
+  { to: "/billing", label: "Plan & Billing", icon: CreditCard },
+  { to: "/creator/dashboard", label: "Creator Hub", icon: TrendingUp },
+  { to: "/settings", label: "Settings", icon: UserRound },
+  { to: "/partners", label: "Earn Free Aura", icon: Users },
+  { to: "/admin", label: "Admin", icon: Shield },
 ];
 
 /** Archived — hidden from the main nav; still reachable from /admin. */
@@ -101,11 +107,18 @@ export const ARCHIVED_FEATURES: Feature[] = [
   { to: "/nexusarb",         label: "NexusARB (Sim)",   icon: Sparkles },
 ];
 
-const TAB_ITEMS: Feature[] = [
-  { to: "/home",   label: "Create",  icon: Sparkles },
-  { to: "/studio",  label: "Studio",  icon: Palette },
-  { to: "/gallery", label: "Gallery", icon: Images },
-];
+const TAB_ITEMS = DESTINATIONS;
+
+const STUDIO_PATHS = ["/studio", "/colors", "/photo-edit", "/canvas", "/split-reality", "/scene-weaver", "/scene-builder", "/motion", "/storyboard", "/music-video", "/live-studio"];
+const CONTENT_PATHS = ["/content", "/ugc", "/ugc-line", "/spin", "/tiktok", "/lipsync", "/avatar", "/content-machine"];
+const ACCOUNT_PATHS = ["/account", "/gallery", "/billing", "/creator/dashboard", "/settings", "/partners", "/admin"];
+
+function destinationIsActive(pathname: string, destination: string) {
+  if (destination === "/studio") return STUDIO_PATHS.some((path) => isActive(pathname, path));
+  if (destination === "/content") return CONTENT_PATHS.some((path) => isActive(pathname, path));
+  if (destination === "/account") return ACCOUNT_PATHS.some((path) => isActive(pathname, path));
+  return isActive(pathname, destination);
+}
 
 function isActive(pathname: string, to: string) {
   return pathname === to || pathname.startsWith(`${to}/`);
@@ -170,12 +183,8 @@ export function MobileNav() {
   const touchStartX = useRef<number | null>(null);
   const { theme, toggle } = useTheme();
 
-  const allFeatures = [...LIVE_FEATURES, ...ARCHIVED_FEATURES];
-  const activeFeature = allFeatures.find((f) => isActive(pathname, f.to));
-
   const isCanvas  = isActive(pathname, "/canvas");
   const isLanding = pathname === "/";
-  const moreActive = !!activeFeature && !TAB_ITEMS.some((t) => t.to === activeFeature.to);
 
   const onTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0]?.clientX ?? null;
@@ -211,6 +220,42 @@ export function MobileNav() {
         }
       `}</style>
 
+      <aside className="aurora-desktop-rail" aria-label="Primary navigation">
+        <Link to="/home" className="aurora-rail-brand" aria-label="Aurora Create">
+          <span className="aurora-rail-mark" aria-hidden />
+          <span className="aurora-rail-wordmark">Aurora</span>
+        </Link>
+        <nav className="aurora-rail-links">
+          {TAB_ITEMS.map((item) => {
+            const active = destinationIsActive(pathname, item.to);
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                aria-current={active ? "page" : undefined}
+                className={cn("aurora-rail-link", active && "is-active")}
+              >
+                <item.icon className="size-[18px]" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="aurora-rail-footer">
+          <button
+            type="button"
+            onClick={toggle}
+            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            className="aurora-rail-icon"
+          >
+            {theme === "dark" ? <Moon className="size-[17px]" /> : <Sun className="size-[17px]" />}
+          </button>
+          <button type="button" onClick={() => setOpen(true)} aria-label="Open all tools" className="aurora-rail-icon">
+            <Menu className="size-[17px]" />
+          </button>
+        </div>
+      </aside>
+
       {isCanvas && (
         <button
           type="button"
@@ -228,9 +273,9 @@ export function MobileNav() {
       {!isCanvas && !isLanding && (
         <>
           <div aria-hidden style={{ height: "calc(4rem + env(safe-area-inset-bottom))" }} />
-          <nav
+            <nav
             aria-label="Primary"
-            className="phone-fixed-x fixed bottom-0 z-50 border-t border-border"
+              className="aurora-bottom-nav phone-fixed-x fixed bottom-0 z-50 border-t border-border"
             style={{
               paddingBottom: "env(safe-area-inset-bottom)",
               background: "oklch(0.085 0.022 272 / 0.92)",
@@ -247,9 +292,9 @@ export function MobileNav() {
               style={{ background: "linear-gradient(90deg, transparent 0%, oklch(0.58 0.22 25 / 0.5) 50%, transparent 100%)" }}
             />
 
-            <ul className="grid grid-cols-4">
+            <ul className="grid grid-cols-5">
               {TAB_ITEMS.map((t) => {
-                const active = isActive(pathname, t.to);
+                const active = destinationIsActive(pathname, t.to);
                 const isCreate = t.to === "/home";
                 return (
                   <li key={t.to}>
@@ -300,44 +345,6 @@ export function MobileNav() {
                 );
               })}
 
-              {/* ── More — opens full nav sheet */}
-              <li>
-                <button
-                  type="button"
-                  onClick={() => setOpen(true)}
-                  className={cn(
-                    "relative flex h-16 w-full flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors duration-200",
-                    open || moreActive
-                      ? "text-primary"
-                      : "text-muted-foreground/70 hover:text-foreground",
-                  )}
-                  style={open || moreActive ? { textShadow: "0 0 12px oklch(0.58 0.22 25 / 0.6)" } : undefined}
-                >
-                  {(open || moreActive) && (
-                    <span
-                      aria-hidden
-                      className="tab-breathe-bar absolute top-0 h-[2px] w-10 rounded-full"
-                      style={{ background: "linear-gradient(90deg, oklch(0.58 0.22 25), oklch(0.68 0.20 30))" }}
-                    />
-                  )}
-                  <span
-                    className={cn(
-                      "relative flex items-center justify-center rounded-xl transition-all duration-300",
-                      open || moreActive
-                        ? "tab-active-glow size-9 bg-[oklch(0.58_0.22_25/0.15)] ring-1 ring-[oklch(0.58_0.22_25/0.25)]"
-                        : "size-8",
-                    )}
-                  >
-                    <Menu
-                      className={cn(
-                        "transition-all duration-200",
-                        open || moreActive ? "size-[18px]" : "size-5",
-                      )}
-                    />
-                  </span>
-                  <span className="tracking-wide">More</span>
-                </button>
-              </li>
             </ul>
           </nav>
         </>
@@ -376,51 +383,20 @@ export function MobileNav() {
           {/* ── Nav body ────────────────────────────────────────────────── */}
           <nav aria-label="All features" className="relative flex flex-1 flex-col gap-3 overflow-y-auto p-3 pb-4">
 
-            <NavSection label="For Artists">
-              {([
-                { to: "/colors",      label: "Colors Studio",   icon: Palette,  previewImg: "/nav-previews/colors.jpg" },
-                { to: "/studio",      label: "Image Generation",icon: Sparkles, previewImg: "/nav-previews/studio.jpg" },
-                { to: "/live-studio", label: "PureMix Studio",  icon: Music2,   previewImg: "/nav-previews/live-studio.jpg" },
-                { to: "/photo-edit",  label: "Photo Editor",    icon: Brush,    previewImg: "/nav-previews/photo-edit.jpg" },
-                { to: "/canvas",      label: "Infinity Canvas", icon: Workflow, previewImg: "/nav-previews/canvas.jpg" },
-                { to: "/split-reality", label: "Split Reality", icon: Wand2,   previewImg: "/nav-previews/studio.jpg" },
-              ] as Feature[]).map((f) => (
+            <NavSection label="Studio modes">
+              {STUDIO_FEATURES.map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
             </NavSection>
 
-            <NavSection label="Film & Video">
-              {([
-                { to: "/storyboard",    label: "Storyboard",     icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
-                { to: "/music-video",   label: "Lyric Video",    icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
-                { to: "/scene-builder", label: "Directors ROOM", icon: Layers,       previewImg: "/nav-previews/scene-builder.jpg" },
-                { to: "/motion",        label: "Motion Control", icon: Wand2,        previewImg: "/nav-previews/motion.jpg" },
-              ] as Feature[]).map((f) => (
-                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
-              ))}
-            </NavSection>
-
-            <NavSection label="For Creators">
-              {([
-                { to: "/lipsync",   label: "Lip Sync",        icon: Mic,         previewImg: "/nav-previews/lipsync.jpg" },
-                { to: "/spin",      label: "TikTok30",        icon: Flame,       previewImg: "/nav-previews/spin.jpg" },
-                { to: "/ugc-line",  label: "Content Line",    icon: Layers,      previewImg: "/nav-previews/ugc-line.jpg" },
-                { to: "/ugc",       label: "UGC Ads",         icon: Megaphone,   previewImg: "/nav-previews/ugc.jpg" },
-                { to: "/avatar",    label: "Talking Avatars", icon: UserCircle2, previewImg: "/nav-previews/avatar.jpg" },
-              ] as Feature[]).map((f) => (
+            <NavSection label="Content modes">
+              {CONTENT_FEATURES.map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
             </NavSection>
 
             <NavSection label="Account">
-              {([
-                { to: "/home",              label: "Home",           icon: Sparkles },
-                { to: "/gallery",           label: "Gallery",        icon: Images },
-                { to: "/creator/dashboard", label: "Creator Hub",    icon: TrendingUp },
-                { to: "/billing",           label: "Plan & Billing", icon: CreditCard },
-                { to: "/partners",          label: "Earn Free Aura", icon: Users },
-                { to: "/admin",             label: "Admin",          icon: Shield },
-              ] as Feature[]).map((f) => (
+              {ACCOUNT_FEATURES.map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
             </NavSection>

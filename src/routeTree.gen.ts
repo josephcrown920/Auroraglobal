@@ -12,6 +12,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccountRouteImport } from './routes/account'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AffiliateRouteImport } from './routes/affiliate'
 import { Route as AgentRouteImport } from './routes/agent'
@@ -25,6 +26,7 @@ import { Route as ColorsShowRouteImport } from './routes/colors-show'
 import { Route as ComfyRouteImport } from './routes/comfy'
 import { Route as ConnectRouteImport } from './routes/connect'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as ContentRouteImport } from './routes/content'
 import { Route as ContentMachineRouteImport } from './routes/content-machine'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as EditRouteImport } from './routes/edit'
@@ -123,6 +125,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccountRoute = AccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/account.lazy').then((d) => d.Route))
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -193,6 +200,11 @@ const ContactRoute = ContactRouteImport.update({
   path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/contact.lazy').then((d) => d.Route))
+const ContentRoute = ContentRouteImport.update({
+  id: '/content',
+  path: '/content',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/content.lazy').then((d) => d.Route))
 const ContentMachineRoute = ContentMachineRouteImport.update({
   id: '/content-machine',
   path: '/content-machine',
@@ -675,6 +687,7 @@ const ApiPublicWorkersFilesNameRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/admin': typeof AdminRouteWithChildren
   '/affiliate': typeof AffiliateRoute
   '/agent': typeof AgentRoute
@@ -688,6 +701,7 @@ export interface FileRoutesByFullPath {
   '/comfy': typeof ComfyRoute
   '/connect': typeof ConnectRoute
   '/contact': typeof ContactRoute
+  '/content': typeof ContentRoute
   '/content-machine': typeof ContentMachineRoute
   '/dashboard': typeof DashboardRoute
   '/edit': typeof EditRoute
@@ -782,6 +796,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/admin': typeof AdminRouteWithChildren
   '/affiliate': typeof AffiliateRoute
   '/agent': typeof AgentRoute
@@ -795,6 +810,7 @@ export interface FileRoutesByTo {
   '/comfy': typeof ComfyRoute
   '/connect': typeof ConnectRoute
   '/contact': typeof ContactRoute
+  '/content': typeof ContentRoute
   '/content-machine': typeof ContentMachineRoute
   '/dashboard': typeof DashboardRoute
   '/edit': typeof EditRoute
@@ -890,6 +906,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/admin': typeof AdminRouteWithChildren
   '/affiliate': typeof AffiliateRoute
   '/agent': typeof AgentRoute
@@ -903,6 +920,7 @@ export interface FileRoutesById {
   '/comfy': typeof ComfyRoute
   '/connect': typeof ConnectRoute
   '/contact': typeof ContactRoute
+  '/content': typeof ContentRoute
   '/content-machine': typeof ContentMachineRoute
   '/dashboard': typeof DashboardRoute
   '/edit': typeof EditRoute
@@ -999,6 +1017,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/account'
     | '/admin'
     | '/affiliate'
     | '/agent'
@@ -1012,6 +1031,7 @@ export interface FileRouteTypes {
     | '/comfy'
     | '/connect'
     | '/contact'
+    | '/content'
     | '/content-machine'
     | '/dashboard'
     | '/edit'
@@ -1106,6 +1126,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/account'
     | '/admin'
     | '/affiliate'
     | '/agent'
@@ -1119,6 +1140,7 @@ export interface FileRouteTypes {
     | '/comfy'
     | '/connect'
     | '/contact'
+    | '/content'
     | '/content-machine'
     | '/dashboard'
     | '/edit'
@@ -1213,6 +1235,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/account'
     | '/admin'
     | '/affiliate'
     | '/agent'
@@ -1226,6 +1249,7 @@ export interface FileRouteTypes {
     | '/comfy'
     | '/connect'
     | '/contact'
+    | '/content'
     | '/content-machine'
     | '/dashboard'
     | '/edit'
@@ -1321,6 +1345,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccountRoute: typeof AccountRoute
   AdminRoute: typeof AdminRouteWithChildren
   AffiliateRoute: typeof AffiliateRoute
   AgentRoute: typeof AgentRoute
@@ -1334,6 +1359,7 @@ export interface RootRouteChildren {
   ComfyRoute: typeof ComfyRoute
   ConnectRoute: typeof ConnectRoute
   ContactRoute: typeof ContactRoute
+  ContentRoute: typeof ContentRoute
   ContentMachineRoute: typeof ContentMachineRoute
   DashboardRoute: typeof DashboardRoute
   EditRoute: typeof EditRoute
@@ -1425,6 +1451,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account': {
+      id: '/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AccountRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -1523,6 +1556,13 @@ declare module '@tanstack/react-router' {
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/content': {
+      id: '/content'
+      path: '/content'
+      fullPath: '/content'
+      preLoaderRoute: typeof ContentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/content-machine': {
@@ -2196,6 +2236,7 @@ const ApiAudioMasterRouteWithChildren = ApiAudioMasterRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccountRoute: AccountRoute,
   AdminRoute: AdminRouteWithChildren,
   AffiliateRoute: AffiliateRoute,
   AgentRoute: AgentRoute,
@@ -2209,6 +2250,7 @@ const rootRouteChildren: RootRouteChildren = {
   ComfyRoute: ComfyRoute,
   ConnectRoute: ConnectRoute,
   ContactRoute: ContactRoute,
+  ContentRoute: ContentRoute,
   ContentMachineRoute: ContentMachineRoute,
   DashboardRoute: DashboardRoute,
   EditRoute: EditRoute,

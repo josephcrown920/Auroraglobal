@@ -10,7 +10,7 @@ interface HomeTopBarProps {
 export function HomeTopBar({ credits, avatarInitial }: HomeTopBarProps) {
   return (
     <header
-      className="phone-fixed-x fixed top-0 z-50 flex h-14 items-center justify-between px-4"
+      className="aurora-home-topbar phone-fixed-x fixed top-0 z-50 flex h-14 items-center justify-between px-4"
       style={{
         background: "oklch(0.085 0.022 272 / 0.90)",
         backdropFilter: "blur(28px) saturate(1.6)",
