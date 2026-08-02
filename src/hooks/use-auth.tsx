@@ -3,9 +3,28 @@ import { supabase } from "@/integrations/supabase/client";
 import { hasBackendEnv } from "@/integrations/backend-config";
 import type { Session, User } from "@supabase/supabase-js";
 
+// Supabase stores the session under this key in localStorage.
+// Project ref is derived from VITE_SUPABASE_URL: tpzmvbczwahxajujvnrq
+const SUPABASE_STORAGE_KEY = "sb-tpzmvbczwahxajujvnrq-auth-token";
+
+/** Synchronously checks whether a Supabase session token is already stored in
+ *  localStorage.  When true, getSession() is performing a background network
+ *  token-refresh — we must wait for it, not time out after 8 s. */
+function hasStoredSession(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = localStorage.getItem(SUPABASE_STORAGE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return Boolean(parsed?.access_token || parsed?.refresh_token);
+  } catch {
+    return false;
+  }
+}
+
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser, ] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -33,10 +52,14 @@ export function useAuth() {
       setUser(s?.user ?? null);
     });
 
-    // Safety net: if the DB round-trip stalls, unblock the UI after 8s.
-    const timeout = setTimeout(() => {
-      setLoading(false);
-    }, 8000);
+    // Safety net: only unblock the UI if getSession truly stalls.
+    //
+    // • No stored session → nothing to wait for; 5 s is ample.
+    // • Stored session found → getSession is doing a background token-refresh
+    //   network call.  Give it 30 s before giving up so a slow connection never
+    //   incorrectly evicts a perfectly valid signed-in user.
+    const safetyMs = hasStoredSession() ? 30_000 : 5_000;
+    const timeout = setTimeout(() => setLoading(false), safetyMs);
 
     return () => {
       void sessionPromise;
