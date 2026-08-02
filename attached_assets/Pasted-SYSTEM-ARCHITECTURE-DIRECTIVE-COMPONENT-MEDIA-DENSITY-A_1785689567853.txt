@@ -1,0 +1,26 @@
+SYSTEM ARCHITECTURE DIRECTIVE: COMPONENT MEDIA DENSITY & AGENT UI OVERHAUL
+
+Execute a complete refactoring of all navigation views, empty states, and inner dashboard panels across the entire application (including /create, /studio, /content, /gallery).
+
+1. ELIMINATE EMPTY CONTAINER STATES & SKELETON WIREFRAMES
+- Zero empty containers or flat-bordered wireframe cards are permitted in the application UI.
+- Replace all bare text blocks, icon-only panels, and plain grey/black option cards with media-rich Visual Component Containers.
+- Every workflow option (e.g., 'For Artists', 'For Creators', 'UGC Ad', 'Talking Avatar', 'TikTok Hook', 'GRWM') must mount a 16:9 or 4:3 high-resolution background image banner or video thumbnail preview.
+
+2. ENFORCE HIGH-DENSITY MOCK MEDIA FALLBACKS
+- Implement a centralized `mediaAssets.ts` file containing curated, high-quality dark-mode visual assets (Unsplash/Pexels CDN links focused on cinematic visualizers, studio production, music videos, and AI creative workflows).
+- Map every internal card component directly to this asset file. If remote data is unpopulated, render these media fallbacks immediately so no section ever appears empty or unfinished.
+- Wrap all media containers in subtle dark gradient overlays (`bg-gradient-to-t from-black via-black/40 to-transparent`) to guarantee typography legibility.
+
+3. DYNAMIC STATE & DATABASE AUTO-SEEDING
+- Inject auto-seeding logic into the backend API and frontend state managers (`Zustand`/`Redux`/`React Context`).
+- On initial app load or route transition, populate local storage / database tables with at least 8 complete mock projects containing populated thumbnail fields, metadata, glowing status pills, and sample node structures.
+
+4. UPGRADE CARD UI DESIGN SYSTEM
+- Standardize all inner panel cards to use multi-layered component structures:
+  * Layer 1 (Background): High-res media with dynamic object-fit (`object-cover`).
+  * Layer 2 (Overlay): Red/Dark themed gradient overlay with active hover glow (`group-hover:border-red-500/50`).
+  * Layer 3 (Foreground): Micro-badges, category pills, title text, and primary action buttons.
+  * Motion: Add Smooth transform state transitions (`transition-all duration-300 hover:scale-[1.02]`).
+
+Rebuild all route components according to these rules immediately. Run the dev server and verify every internal section renders with rich visual assets.

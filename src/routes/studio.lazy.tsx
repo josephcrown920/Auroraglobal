@@ -20,13 +20,12 @@ import { AUDIO_ACCEPT } from "@/lib/utils";
 import { BringItToLifePreview } from "@/components/studio/BringItToLifePreview";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Wand2, LogOut, Loader2, Download, Camera, Film, Mic2, Coins, Zap, Shield, Server, Captions, Crown, Flame, Trash2, Settings2 } from "lucide-react";
+import { Sparkles, Wand2, LogOut, Loader2, Download, Camera, Film, Mic2, Coins, Zap, Shield, Server, Captions, Crown, Flame, Settings2 } from "lucide-react";
 import { PageSpinner } from "@/components/PageSpinner";
 import { AuthRedirect } from "@/components/AuthRedirect";
 import { CaptionDialog } from "@/components/gallery/CaptionDialog";
 import { toast } from "sonner";
 import { listGenerations } from "@/lib/studio.functions";
-import { deleteGeneration } from "@/lib/gallery.functions";
 import { usePerformanceShotJobFn, useVideoFromImageJobFn, useLipSyncJobFn } from "@/lib/use-job-polling";
 import { handleGenerationError, friendlyGenerationMessage } from "@/lib/error-toasts";
 import { useGenerationProgress } from "@/hooks/use-generation-progress";
@@ -501,17 +500,6 @@ function StudioPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Checkout failed"),
   });
 
-  const studioDelFn = useServerFn(deleteGeneration);
-  const studioDelMut = useMutation({
-    mutationFn: async (id: string) => studioDelFn({ data: { id } }),
-    onSuccess: () => {
-      toast.success("Deleted");
-      qc.invalidateQueries({ queryKey: ["gens"] });
-      qc.invalidateQueries({ queryKey: ["gallery"] });
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Delete failed"),
-  });
-
   const imageProgress = useGenerationProgress({
     isPending: mut.isPending,
     isError: mut.isError,
@@ -784,31 +772,6 @@ function StudioPage() {
                   <Download className="size-3.5" /> Save
                 </button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Recent shoots */}
-        {history && history.items.length > 0 && (
-          <div className="px-4 py-4 border-b border-white/5">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Recent shoots</p>
-              <Link to="/dashboard" className="text-[11px] text-[#e5383b] hover:underline">View all →</Link>
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {history.items.slice(0, 8).map((g) => (
-                <div key={g.id} className="aspect-square rounded-xl overflow-hidden border border-white/8 bg-zinc-900 relative group">
-                  {g.result_image_url ? (
-                    <img src={g.result_image_url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-600 px-1 text-center">{g.status === "failed" ? "Failed" : g.status}</div>
-                  )}
-                  <button type="button" onClick={(e) => { e.stopPropagation(); if (confirm("Delete permanently?")) studioDelMut.mutate(g.id); }} disabled={studioDelMut.isPending}
-                    className="absolute top-1 right-1 size-5 rounded-full bg-black/60 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 hover:bg-red-600/80 transition-opacity disabled:opacity-50">
-                    <Trash2 className="size-2.5" />
-                  </button>
-                </div>
-              ))}
             </div>
           </div>
         )}
