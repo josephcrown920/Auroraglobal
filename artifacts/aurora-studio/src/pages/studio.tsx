@@ -41,14 +41,32 @@ export default function ColorsStudioPage() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8 pb-12 h-[calc(100vh-8rem)]">
-      {/* Left Panel: Controls */}
-      <div className="w-full lg:w-[400px] flex-shrink-0 flex flex-col gap-6 overflow-y-auto pr-2">
-        <header>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand">Colors Session</span>
+    <div style={{ background: "#080808", minHeight: "100vh", color: "#fff" }}>
+      {/* ── Hero image header ── */}
+      <div style={{ position: "relative", height: 220, overflow: "hidden" }}>
+        <img
+          src="https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1400&q=90&fit=crop"
+          alt=""
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.22 }}
+        />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 0%, #080808 100%)" }} />
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 60% 100% at 0% 50%, #FF6BCD12 0%, transparent 60%)" }} />
+        <div style={{ position: "absolute", bottom: 28, left: 40 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.3em", color: "#FF6BCD", marginBottom: 10 }}>
+            01 — PERFORMANCE PHOTO GENERATION
           </div>
-          <h1 className="text-3xl font-display font-semibold text-white">Performance Studio</h1>
+          <div style={{ fontSize: "clamp(38px, 5vw, 60px)", fontWeight: 900, letterSpacing: "-0.04em", textTransform: "uppercase", lineHeight: 0.9 }}>
+            COLORS
+          </div>
+        </div>
+      </div>
+
+      {/* ── Form content ── */}
+      <div style={{ padding: "0 40px 48px" }}>
+    <div className="flex flex-col lg:flex-row gap-8 pb-12">
+      {/* Left Panel: Controls */}
+      <div className="w-full lg:w-[400px] flex-shrink-0 flex flex-col gap-6 pr-2">
+        <header>
           <p className="text-sm text-[#999999] mt-2 leading-relaxed">
             Direct your shoot. Define lighting, texture, and mood.
           </p>
@@ -149,18 +167,21 @@ export default function ColorsStudioPage() {
       </div>
 
       {/* Right Panel: Preview Space */}
-      <div className="flex-1 bg-[#111111] rounded-2xl border border-[#333333] overflow-hidden flex flex-col items-center justify-center relative shadow-inner">
-        <div className="absolute inset-0 bg-[url('/hero-bg.jpg')] bg-cover bg-center opacity-[0.03] grayscale mix-blend-overlay" />
-        
+      <div className="flex-1 bg-[#111111] rounded-2xl border border-[#1a1a1a] overflow-hidden flex flex-col items-center justify-center relative" style={{ minHeight: 320 }}>
+        <img
+          src="https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&q=80&fit=crop"
+          alt=""
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.06 }}
+        />
         <div className="text-center max-w-sm px-6 relative z-10">
           <div className="w-16 h-16 rounded-full bg-[#1A1A1A] border border-[#333333] flex items-center justify-center mx-auto mb-6">
             <ImageIcon className="text-[#666666]" size={24} />
           </div>
           <h3 className="text-xl font-display font-semibold text-white mb-2">Stage empty</h3>
-          <p className="text-sm text-[#666666]">
-            Configure your direction on the left and render to see your performance shot here.
-          </p>
+          <p className="text-sm text-[#666666]">Configure your direction and render to see your shot here.</p>
         </div>
+      </div>
+    </div>
       </div>
     </div>
   );

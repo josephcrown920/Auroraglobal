@@ -67,17 +67,31 @@ export default function LipsyncStudioPage() {
     resolvedVideoUrl.trim() !== "" && resolvedAudioUrl.trim() !== "";
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8 pb-12 h-[calc(100vh-8rem)]">
-      <div className="w-full lg:w-[420px] flex-shrink-0 flex flex-col gap-6 overflow-y-auto pr-2">
-        <header>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#007AFF]">
-              Vocal Sync
-            </span>
+    <div style={{ background: "#080808", minHeight: "100vh", color: "#fff" }}>
+      {/* ── Hero image header ── */}
+      <div style={{ position: "relative", height: 220, overflow: "hidden" }}>
+        <img
+          src="https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=1400&q=90&fit=crop"
+          alt=""
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.22 }}
+        />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 0%, #080808 100%)" }} />
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 60% 100% at 0% 50%, #007AFF10 0%, transparent 60%)" }} />
+        <div style={{ position: "absolute", bottom: 28, left: 40 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.3em", color: "#007AFF", marginBottom: 10 }}>
+            VOCAL SYNC
           </div>
-          <h1 className="text-3xl font-display font-semibold text-white">
-            Lip Sync Studio
-          </h1>
+          <div style={{ fontSize: "clamp(38px, 5vw, 60px)", fontWeight: 900, letterSpacing: "-0.04em", textTransform: "uppercase", lineHeight: 0.9 }}>
+            LIP SYNC STUDIO
+          </div>
+        </div>
+      </div>
+
+      {/* ── Form content ── */}
+      <div style={{ padding: "0 40px 48px" }}>
+    <div className="flex flex-col lg:flex-row gap-8 pb-12">
+      <div className="w-full lg:w-[420px] flex-shrink-0 flex flex-col gap-6 pr-2">
+        <header>
           <p className="text-sm text-[#999999] mt-2 leading-relaxed">
             Perfectly map any audio track to a subject's face.
           </p>
@@ -180,7 +194,12 @@ export default function LipsyncStudioPage() {
       </div>
 
       {/* Preview pane */}
-      <div className="flex-1 bg-[#111111] rounded-2xl border border-[#333333] overflow-hidden flex flex-col items-center justify-center relative shadow-inner">
+      <div className="flex-1 bg-[#111111] rounded-2xl border border-[#1a1a1a] overflow-hidden flex flex-col items-center justify-center relative" style={{ minHeight: 320 }}>
+        <img
+          src="https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=800&q=80&fit=crop"
+          alt=""
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.07 }}
+        />
         <div className="text-center max-w-sm px-6 relative z-10">
           <div className="flex items-center justify-center gap-4 mb-8">
             <div className="w-16 h-16 rounded-full bg-[#1A1A1A] border border-[#333333] flex items-center justify-center">
@@ -193,14 +212,11 @@ export default function LipsyncStudioPage() {
               <Mic className="text-[#666666]" size={24} />
             </div>
           </div>
-          <h3 className="text-xl font-display font-semibold text-white mb-2">
-            Awaiting Sources
-          </h3>
-          <p className="text-sm text-[#666666]">
-            Upload or paste URLs for your source video and audio to begin the
-            synchronization process.
-          </p>
+          <h3 className="text-xl font-display font-semibold text-white mb-2">Awaiting Sources</h3>
+          <p className="text-sm text-[#666666]">Upload or paste URLs for your source video and audio.</p>
         </div>
+      </div>
+    </div>
       </div>
     </div>
   );

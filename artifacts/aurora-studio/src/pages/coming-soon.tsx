@@ -2,27 +2,31 @@ import { Link, useLocation } from "wouter";
 
 const TOOL_META: Record<string, {
   id: string; label: string; sub: string; desc: string;
-  color: string; badge?: string; tags: string[];
+  color: string; badge?: string; tags: string[]; img: string;
 }> = {
   "/perform-anywhere": {
     id: "00", label: "Perform Anywhere", sub: "AI live performance engine", badge: "FLAGSHIP",
     desc: "Transform any stage into a cinematic production. Real-time AI direction, multi-camera sync, and instant broadcast-ready cuts. Built for artists who perform everywhere.",
     color: "#E8FF47", tags: ["Live", "Multi-cam", "Real-time"],
+    img: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=1400&q=90&fit=crop",
   },
   "/video-agent": {
     id: "03", label: "Video Agent", sub: "AI video production assistant",
     desc: "Describe your vision in plain language. The Video Agent plans, shoots, and assembles the final cut autonomously — no timeline editing required.",
     color: "#3CF0FF", tags: ["Autonomous", "Full-cut", "AI director"],
+    img: "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=1400&q=90&fit=crop",
   },
   "/directors-room": {
     id: "04", label: "Director's Room", sub: "Cinematic visual studio", badge: "SUITE",
     desc: "Full production suite: Storyboard Builder, Scene Weaver, AI Auto-Cuts editor, and one-click color grading. Your complete cinematic production environment.",
     color: "#FFB340", tags: ["Storyboards", "Scene Weaver", "Auto Cuts"],
+    img: "https://images.unsplash.com/photo-1598387993441-a364f854cde0?w=1400&q=90&fit=crop",
   },
   "/grwm": {
     id: "05", label: "GRWM", sub: "Get Ready With Me",
     desc: "Beauty, lifestyle, and behind-the-scenes content engine. Mirror-ready lighting scripts, tutorial cuts, vlog formatting, and trend-matched pacing.",
     color: "#FF8FAB", tags: ["Beauty", "Lifestyle", "Vlog"],
+    img: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=1400&q=90&fit=crop",
   },
 };
 
@@ -42,13 +46,19 @@ export default function ComingSoonPage() {
 
       {/* Hero */}
       <div style={{ position: "relative", minHeight: 360, display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: "0 40px 40px", overflow: "hidden" }}>
+        {/* Background image */}
+        <img
+          src={meta.img}
+          alt=""
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.18 }}
+        />
         {/* Glow */}
         <div style={{
           position: "absolute", inset: 0,
-          background: `radial-gradient(ellipse 80% 70% at 50% 100%, ${meta.color}18 0%, transparent 70%)`,
+          background: `radial-gradient(ellipse 80% 70% at 50% 100%, ${meta.color}22 0%, transparent 70%)`,
           animation: "csPulse 4s ease-in-out infinite",
         }} />
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, #080808 0%, transparent 40%, #080808 100%)" }} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, #08080888 0%, transparent 35%, #080808 100%)" }} />
 
         <div style={{ position: "relative", animation: "csFade 0.5s ease" }}>
           <div style={{ fontSize: 9, fontWeight: 700, color: meta.color, letterSpacing: "0.3em", marginBottom: 12 }}>

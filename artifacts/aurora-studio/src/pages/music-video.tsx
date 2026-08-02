@@ -39,18 +39,28 @@ export default function MusicVideoStudioPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto pb-12 pt-8">
-      <header className="mb-10 text-center">
-        <div className="inline-block px-3 py-1 rounded-full bg-brand/10 border border-brand/20 text-brand text-[10px] font-bold uppercase tracking-[0.2em] mb-4">
-          Flagship
+    <div style={{ background: "#080808", minHeight: "100vh", color: "#fff" }}>
+      {/* ── Hero image header ── */}
+      <div style={{ position: "relative", height: 220, overflow: "hidden" }}>
+        <img
+          src="https://images.unsplash.com/photo-1598387993441-a364f854cde0?w=1400&q=90&fit=crop"
+          alt=""
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.22 }}
+        />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 0%, #080808 100%)" }} />
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 60% 100% at 0% 50%, #007AFF10 0%, transparent 60%)" }} />
+        <div style={{ position: "absolute", bottom: 28, left: 40 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.3em", color: "#007AFF", marginBottom: 10 }}>
+            MUSIC VIDEO GENERATION
+          </div>
+          <div style={{ fontSize: "clamp(38px, 5vw, 60px)", fontWeight: 900, letterSpacing: "-0.04em", textTransform: "uppercase", lineHeight: 0.9 }}>
+            MUSIC VIDEO
+          </div>
         </div>
-        <h1 className="text-4xl md:text-5xl font-display font-semibold text-white mb-4">Perform Anywhere</h1>
-        <p className="text-lg text-[#999999] max-w-2xl mx-auto">
-          Upload an audio track and describe the scene. We'll generate a full cinematic performance perfectly timed to the beat.
-        </p>
-      </header>
+      </div>
 
-      <div className="aurora-card p-8 md:p-12 space-y-8">
+      <div style={{ padding: "0 40px 48px" }}>
+      <div className="max-w-2xl pb-12 pt-6 space-y-8">
         <div className="space-y-4">
           <label className="text-xs font-bold uppercase tracking-wider text-white">Audio Track URL</label>
           <input
@@ -98,6 +108,7 @@ export default function MusicVideoStudioPage() {
             )}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

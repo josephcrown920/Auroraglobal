@@ -55,17 +55,31 @@ export default function MotionStudioPage() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8 pb-12 h-[calc(100vh-8rem)]">
-      <div className="w-full lg:w-[420px] flex-shrink-0 flex flex-col gap-6 overflow-y-auto pr-2">
-        <header>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#f6d365]">
-              Video Agent
-            </span>
+    <div style={{ background: "#080808", minHeight: "100vh", color: "#fff" }}>
+      {/* ── Hero image header ── */}
+      <div style={{ position: "relative", height: 220, overflow: "hidden" }}>
+        <img
+          src="https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=1400&q=90&fit=crop"
+          alt=""
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.22 }}
+        />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 0%, #080808 100%)" }} />
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 60% 100% at 0% 50%, #FFFFFF0e 0%, transparent 60%)" }} />
+        <div style={{ position: "absolute", bottom: 28, left: 40 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.3em", color: "#f6d365", marginBottom: 10 }}>
+            06 — KINETIC VISUAL GENERATION
           </div>
-          <h1 className="text-3xl font-display font-semibold text-white">
-            Motion Control
-          </h1>
+          <div style={{ fontSize: "clamp(38px, 5vw, 60px)", fontWeight: 900, letterSpacing: "-0.04em", textTransform: "uppercase", lineHeight: 0.9 }}>
+            MOTION CONTROL
+          </div>
+        </div>
+      </div>
+
+      {/* ── Form content ── */}
+      <div style={{ padding: "0 40px 48px" }}>
+    <div className="flex flex-col lg:flex-row gap-8 pb-12">
+      <div className="w-full lg:w-[420px] flex-shrink-0 flex flex-col gap-6 pr-2">
+        <header>
           <p className="text-sm text-[#999999] mt-2 leading-relaxed">
             Turn static concepts into cinematic performance videos.
           </p>
@@ -143,7 +157,12 @@ export default function MotionStudioPage() {
       </div>
 
       {/* Preview pane */}
-      <div className="flex-1 bg-[#111111] rounded-2xl border border-[#333333] overflow-hidden flex flex-col items-center justify-center relative shadow-inner">
+      <div className="flex-1 bg-[#111111] rounded-2xl border border-[#1a1a1a] overflow-hidden flex flex-col items-center justify-center relative" style={{ minHeight: 320 }}>
+        <img
+          src="https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=800&q=80&fit=crop"
+          alt=""
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.07 }}
+        />
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
           <div className="w-[120%] h-px bg-gradient-to-r from-transparent via-[#f6d365] to-transparent animate-pulse transform -rotate-12"></div>
         </div>
@@ -151,14 +170,11 @@ export default function MotionStudioPage() {
           <div className="w-16 h-16 rounded-full bg-[#1A1A1A] border border-[#333333] flex items-center justify-center mx-auto mb-6">
             <Video className="text-[#666666]" size={24} />
           </div>
-          <h3 className="text-xl font-display font-semibold text-white mb-2">
-            Motion Director
-          </h3>
-          <p className="text-sm text-[#666666]">
-            Write a detailed action script. Upload a reference image to anchor
-            the subject, or let the model generate from scratch.
-          </p>
+          <h3 className="text-xl font-display font-semibold text-white mb-2">Motion Director</h3>
+          <p className="text-sm text-[#666666]">Write a detailed action script. Upload a reference image to anchor the subject.</p>
         </div>
+      </div>
+    </div>
       </div>
     </div>
   );

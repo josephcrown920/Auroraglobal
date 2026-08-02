@@ -143,29 +143,8 @@ function ToolStrip({ tool }: { tool: typeof TOOLS[0] }) {
 }
 
 export default function DashboardPage() {
-  const { data: dashboard, isLoading, error } = useGetDashboard();
-
-  if (isLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <RefreshCw className="size-5 animate-spin text-white/20" />
-      </div>
-    );
-  }
-
-  if (error || !dashboard) {
-    return (
-      <div className="p-8 text-center mt-20">
-        <p className="text-white/30 text-sm mb-4">Failed to load dashboard.</p>
-        <button onClick={() => window.location.reload()}
-          className="text-[10px] font-bold uppercase tracking-widest text-white/20 hover:text-white/60 transition-colors">
-          Retry
-        </button>
-      </div>
-    );
-  }
-
-  const recentActivity = (dashboard.recentActivity as Generation[]) ?? [];
+  const { data: dashboard } = useGetDashboard();
+  const recentActivity = (dashboard?.recentActivity as Generation[]) ?? [];
 
   return (
     <div style={{ background: "#080808", minHeight: "100vh", color: "#fff", fontFamily: "'Inter', sans-serif" }}>
