@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { generateWithFallback } from "./llm-fallback.server";
+import { routedGenerate } from "./ai-router";
 import { sanitizeVideoAgentScript, videoAgentWordTarget } from "./video-agent-prompt";
 import { computeCost } from "./pricing";
 import {
@@ -68,7 +68,7 @@ export const enhanceVideoAgentPrompt = createServerFn({ method: "POST" })
     const styleInstruction = style
       ? `\n\nAfter the spoken script, append this style block exactly as written (it is a technical directive to the Video Agent renderer, not speech):\n\n${style.styleBlock}`
       : "";
-    const { provider, output } = await generateWithFallback({
+    const { provider, output } = await routedGenerate({
       system:
         "You are an elite scriptwriter for AI avatar presenter videos, with deep expertise in cinematic storytelling, brand narrative, and spoken-word performance. The presenter reads your output aloud word-for-word — so return ONLY the exact words to be spoken: natural, rhythmic, first-person voice. Apply these craft principles: open with a visceral hook that grabs attention in the first 3 words; build tension or curiosity in the body; land a clear, memorable closing line. Use the natural cadence of spoken English — short declarative sentences land harder than long ones. Vary sentence length for rhythm. Avoid academic or corporate language; speak like a confident human. Never include timestamps, stage directions, camera notes, bracketed cues, production labels like 'Tone:' or 'Background:', bullet points, emojis, hashtags, quotation marks, or negative instructions — all of those would be read aloud on camera. Frame everything positively. Respond in JSON.",
       prompt: `Rewrite the following into a polished, high-impact spoken script of about ${words} words. Keep the speaker's intent, key facts, and any product or brand names exactly as given. Apply cinematic storytelling structure: start with a bold hook (3-8 words that earn the next sentence), build through the body with specific concrete details rather than vague claims, and close with a line that resonates or calls to action.${
@@ -77,6 +77,7 @@ export const enhanceVideoAgentPrompt = createServerFn({ method: "POST" })
           : " CINEMATIC NARRATION MODE: Write as a confident voiceover narrator — authoritative, evocative, with a sense of place and movement. Use present tense for immediacy. Paint pictures with words."
       }${styleInstruction}\n\nRaw idea or draft:\n${data.prompt}\n\nReturn JSON: {"script": "..."}`,
       schema: ScriptOutputSchema,
+      category: "SCRIPT_WRITING",
     });
     const script = sanitizeVideoAgentScript(output.script);
     if (!script) throw new Error("Enhance produced an empty script — try rewording your idea");
@@ -117,10 +118,11 @@ export const analyzeCinematicBrief = createServerFn({ method: "POST" })
   .handler(async ({ context, data }): Promise<VideoPlan> => {
     assertCinematicRateLimit(context.userId);
     const formatHint = data.format ? ` Preferred format: ${data.format}.` : "";
-    const { output } = await generateWithFallback({
+    const { output } = await routedGenerate({
       system: CINEMATIC_SYSTEM_PROMPT + "\n\n" + CINEMATIC_ANALYSIS_PROMPT,
       prompt: `User request: ${data.userIdea}${formatHint}\n\nAnalyze this into a complete video plan with brief, direction, and 4–6 shots. Return only valid JSON matching the VideoPlan schema.`,
       schema: VideoPlanSchema,
+      category: "VIDEO_DIRECTION",
     });
     if (output.needs_clarification) {
       throw new Error(output.question ?? "Idea is too vague — add a subject or clear intent");

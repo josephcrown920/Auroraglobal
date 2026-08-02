@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { generateWithFallback } from "@/lib/llm-fallback.server";
+import { routedGenerate } from "@/lib/ai-router";
 
 const SceneSchema = z.object({
   index: z.number(),
@@ -67,10 +67,11 @@ Number of scenes: ${sceneCount}
 Generate a complete professional video script with cinematic scene descriptions.`;
 
         try {
-          const { output } = await generateWithFallback({
+          const { output } = await routedGenerate({
             system: SYSTEM_PROMPT,
             prompt: userMessage,
             schema: ScriptSchema,
+            category: "SCRIPT_WRITING",
           });
 
           return new Response(JSON.stringify(output), {

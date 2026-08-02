@@ -4,7 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { generateWithFallback } from "@/lib/llm-fallback.server";
+import { routedGenerate } from "@/lib/ai-router";
 import { runLocalFfmpegAssemble, uploadAutocutResult, signedAutocutUrl, getMusicTrack } from "@/lib/autocut.server";
 
 // edit_sessions is a new table not yet in generated types — use any cast.
@@ -263,10 +263,11 @@ ${JSON.stringify(timelineSummary, null, 2)}
 
 User command: ${data.userMessage}`;
 
-    const { output } = await generateWithFallback({
+    const { output } = await routedGenerate({
       system: EDITOR_SYSTEM_PROMPT,
       prompt,
       schema: ChatResponseSchema,
+      category: "VIDEO_DIRECTION",
     });
     return { summary: output.summary, mutations: output.mutations as EditorMutation[] };
   });

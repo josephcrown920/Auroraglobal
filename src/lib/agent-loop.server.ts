@@ -6,10 +6,9 @@
 // or no blocking issues), improvement stalls, or we hit maxIterations.
 //
 // `refinePlan` takes injectable `deps` so the loop is unit-testable WITHOUT real
-// LLM calls. The default deps call generateWithFallback, which throws explicitly
-// ("No LLM provider keys configured") when no provider is available — no silent
-// fallback.
-import { generateWithFallback } from "@/lib/llm-fallback.server";
+// LLM calls. The default deps use the category-aware AI Router, which throws
+// explicitly when no provider is available — no silent fallback.
+import { routedGenerate } from "@/lib/ai-router";
 import {
   PlanSchema,
   CritiqueSchema,
@@ -32,26 +31,29 @@ export type RefineDeps = {
 
 export const defaultRefineDeps: RefineDeps = {
   async propose(brief, refNote) {
-    const { output } = await generateWithFallback({
+    const { output } = await routedGenerate({
       system: DIRECTOR_SYSTEM,
       prompt: buildDirectorPrompt(brief, refNote),
       schema: PlanSchema,
+      category: "VIDEO_DIRECTION",
     });
     return output as AgentPlan;
   },
   async critique(brief, plan) {
-    const { output } = await generateWithFallback({
+    const { output } = await routedGenerate({
       system: CRITIC_SYSTEM,
       prompt: buildCritiquePrompt(brief, plan),
       schema: CritiqueSchema,
+      category: "VIDEO_DIRECTION",
     });
     return output as Critique;
   },
   async refine(brief, plan, critique, refNote) {
-    const { output } = await generateWithFallback({
+    const { output } = await routedGenerate({
       system: DIRECTOR_SYSTEM,
       prompt: buildRefinePrompt(brief, plan, critique, refNote),
       schema: PlanSchema,
+      category: "VIDEO_DIRECTION",
     });
     return output as AgentPlan;
   },

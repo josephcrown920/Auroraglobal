@@ -8,7 +8,7 @@ import { fetchToBytes } from "./replicate.server";
 import { compressImageBytes } from "./compress.server";
 import { assertTrustedUrl, assertOwnedReferenceImage } from "./url-guard";
 import { listAvatars } from "./mcp/avatars.server";
-import { generateWithFallback } from "./llm-fallback.server";
+import { routedGenerate } from "./ai-router";
 import { hfTextToSpeech } from "./hf.server";
 import { UGC_TTS_MODEL } from "./ugc.server";
 import {
@@ -312,7 +312,7 @@ export const spinThirty = createServerFn({ method: "POST" })
     const base = data.prompt.trim();
     let specs: SpinSpec[];
     try {
-      const { output } = await generateWithFallback({
+      const { output } = await routedGenerate({
         system: VIRAL_SYSTEM_PROMPT,
         prompt:
           `Creator: ${avatarName ?? "one single creator"} — keep the EXACT same person (same face/identity) in every post. ` +
@@ -325,6 +325,7 @@ export const spinThirty = createServerFn({ method: "POST" })
             : "") +
           `Generate exactly ${SPIN_COUNT} unique posts with MAXIMUM variation as JSON.`,
         schema: SpinPlanSchema,
+        category: "SOCIAL_CONTENT",
       });
       specs = normalizeSpecs(output.posts ?? [], base, SPIN_COUNT, templateId);
     } catch {

@@ -89,6 +89,7 @@ function providers(): Provider[] {
 
 export type FallbackResult<T> = { provider: string; output: T };
 
+/** @deprecated Use routedGenerate from "@/lib/ai-router" so calls get category routing and health tracking. */
 export async function generateWithFallback<T>(args: {
   system: string;
   prompt: string;
