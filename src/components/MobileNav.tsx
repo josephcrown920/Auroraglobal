@@ -330,9 +330,9 @@ export function MobileNav() {
                         className={cn(
                           "relative flex items-center justify-center rounded-xl transition-all duration-300",
                           active
-                            ? "tab-active-glow size-9 bg-[oklch(0.58_0.22_25/0.15)] ring-1 ring-[oklch(0.58_0.22_25/0.25)]"
+                            ? "tab-active-glow size-9 bg-[oklch(0.60_0.27_295/0.15)] ring-1 ring-[oklch(0.60_0.27_295/0.25)]"
                             : isCreate
-                            ? "size-9 bg-[oklch(0.58_0.22_25/0.09)] ring-1 ring-[oklch(0.58_0.22_25/0.18)]"
+                            ? "size-9 bg-[oklch(0.60_0.27_295/0.09)] ring-1 ring-[oklch(0.60_0.27_295/0.18)]"
                             : "size-8",
                         )}
                       >
