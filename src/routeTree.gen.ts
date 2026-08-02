@@ -50,6 +50,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ReshootRouteImport } from './routes/reshoot'
 import { Route as RoadmapRouteImport } from './routes/roadmap'
 import { Route as SceneBuilderRouteImport } from './routes/scene-builder'
+import { Route as SceneWeaverRouteImport } from './routes/scene-weaver'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SpeechRouteImport } from './routes/speech'
@@ -323,6 +324,11 @@ const SceneBuilderRoute = SceneBuilderRouteImport.update({
   path: '/scene-builder',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/scene-builder.lazy').then((d) => d.Route))
+const SceneWeaverRoute = SceneWeaverRouteImport.update({
+  id: '/scene-weaver',
+  path: '/scene-weaver',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/scene-weaver.lazy').then((d) => d.Route))
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -707,6 +713,7 @@ export interface FileRoutesByFullPath {
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
   '/scene-builder': typeof SceneBuilderRoute
+  '/scene-weaver': typeof SceneWeaverRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speech': typeof SpeechRoute
@@ -813,6 +820,7 @@ export interface FileRoutesByTo {
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
   '/scene-builder': typeof SceneBuilderRoute
+  '/scene-weaver': typeof SceneWeaverRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speech': typeof SpeechRoute
@@ -920,6 +928,7 @@ export interface FileRoutesById {
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
   '/scene-builder': typeof SceneBuilderRoute
+  '/scene-weaver': typeof SceneWeaverRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speech': typeof SpeechRoute
@@ -1028,6 +1037,7 @@ export interface FileRouteTypes {
     | '/reshoot'
     | '/roadmap'
     | '/scene-builder'
+    | '/scene-weaver'
     | '/settings'
     | '/sitemap.xml'
     | '/speech'
@@ -1134,6 +1144,7 @@ export interface FileRouteTypes {
     | '/reshoot'
     | '/roadmap'
     | '/scene-builder'
+    | '/scene-weaver'
     | '/settings'
     | '/sitemap.xml'
     | '/speech'
@@ -1240,6 +1251,7 @@ export interface FileRouteTypes {
     | '/reshoot'
     | '/roadmap'
     | '/scene-builder'
+    | '/scene-weaver'
     | '/settings'
     | '/sitemap.xml'
     | '/speech'
@@ -1347,6 +1359,7 @@ export interface RootRouteChildren {
   ReshootRoute: typeof ReshootRoute
   RoadmapRoute: typeof RoadmapRoute
   SceneBuilderRoute: typeof SceneBuilderRoute
+  SceneWeaverRoute: typeof SceneWeaverRoute
   SettingsRoute: typeof SettingsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SpeechRoute: typeof SpeechRoute
@@ -1685,6 +1698,13 @@ declare module '@tanstack/react-router' {
       path: '/scene-builder'
       fullPath: '/scene-builder'
       preLoaderRoute: typeof SceneBuilderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scene-weaver': {
+      id: '/scene-weaver'
+      path: '/scene-weaver'
+      fullPath: '/scene-weaver'
+      preLoaderRoute: typeof SceneWeaverRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -2214,6 +2234,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReshootRoute: ReshootRoute,
   RoadmapRoute: RoadmapRoute,
   SceneBuilderRoute: SceneBuilderRoute,
+  SceneWeaverRoute: SceneWeaverRoute,
   SettingsRoute: SettingsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SpeechRoute: SpeechRoute,
