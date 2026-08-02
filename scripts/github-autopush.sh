@@ -27,7 +27,9 @@
 set -euo pipefail
 
 OWNER="josephcrown920"
-REPOS=("aurora-charm-forge-87e3e757" "Auroraglobal")
+# Legacy Aurora Global publishing is intentionally disabled.
+# Lovable-2 is the active build home; never create a sync branch for this repo.
+REPOS=("aurora-charm-forge-87e3e757")
 BRANCH="Main"
 LIMIT=104857600  # 100 MiB
 
