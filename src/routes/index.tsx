@@ -784,7 +784,7 @@ function LandingPage() {
             </ul>
             <Link
               to={user ? "/billing" : ctaTo}
-              className="block w-full rounded-xl bg-[#8b5cf6] py-3 text-center text-sm font-semibold text-white shadow-[0_6px_20px_-4px_rgba(229,56,59,0.5)] transition-transform hover:scale-[1.01] active:scale-[0.99] no-underline"
+              className="block w-full rounded-xl bg-[#8b5cf6] py-3 text-center text-sm font-semibold text-white shadow-[0_6px_20px_-4px_rgba(139,92,246,0.5)] transition-transform hover:scale-[1.01] active:scale-[0.99] no-underline"
             >
               {user ? "Upgrade to Pro" : "Get Pro — $79 / month"}
             </Link>
@@ -865,7 +865,7 @@ function LandingPage() {
         </ul>
         <Link
           to="/partners"
-          className="inline-flex items-center gap-2 rounded-full bg-[#8b5cf6] px-6 py-3 text-sm font-semibold text-white shadow-[0_6px_20px_-4px_rgba(229,56,59,0.5)] transition-transform hover:scale-[1.02] active:scale-95 no-underline"
+          className="inline-flex items-center gap-2 rounded-full bg-[#8b5cf6] px-6 py-3 text-sm font-semibold text-white shadow-[0_6px_20px_-4px_rgba(139,92,246,0.5)] transition-transform hover:scale-[1.02] active:scale-95 no-underline"
         >
           Become a Partner
           <ArrowUpRight className="size-4" />

@@ -89,7 +89,7 @@ function SkillChip({ meta }: { meta: SkillMeta }) {
   const icon = SKILL_ICONS[meta.name] ?? <Sparkles className="size-2.5" />;
   const secs = (meta.durationMs / 1000).toFixed(1);
   return (
-    <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full border border-red-400/30 bg-red-500/10 px-2 py-0.5 text-[9.5px] font-medium text-red-200/90 max-w-full">
+    <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full border border-red-400/30 bg-red-500/10 px-2 py-0.5 text-[9.5px] font-medium text-violet-200/90 max-w-full">
       <span className="text-red-300 shrink-0">{icon}</span>
       <span className="truncate">{meta.label}</span>
       <span className="text-red-400/70 shrink-0">· {meta.summary.slice(0, 55)}</span>
@@ -102,7 +102,7 @@ function SkillChip({ meta }: { meta: SkillMeta }) {
 
 function SkillPulse({ label }: { label: string }) {
   return (
-    <div className="inline-flex items-center gap-1.5 rounded-full border border-red-400/25 bg-red-500/10 px-2 py-0.5 text-[9.5px] font-medium text-red-200/80">
+    <div className="inline-flex items-center gap-1.5 rounded-full border border-violet-400/25 bg-violet-500/10 px-2 py-0.5 text-[9.5px] font-medium text-violet-200/80">
       <span className="size-1.5 rounded-full bg-red-400 animate-pulse" />
       {label}…
     </div>
@@ -158,7 +158,7 @@ function ShotCard({ shot, index, palette }: { shot: AgentShot; index: number; pa
             toast.success("Prompt copied");
             setTimeout(() => setCopied(false), 1500);
           }}
-          className="w-full mt-1 inline-flex items-center justify-center gap-1 text-[10px] font-medium text-red-300 hover:text-red-200 rounded-md py-1 bg-white/5 hover:bg-white/10"
+          className="w-full mt-1 inline-flex items-center justify-center gap-1 text-[10px] font-medium text-red-300 hover:text-violet-200 rounded-md py-1 bg-white/5 hover:bg-white/10"
         >
           {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
           {copied ? "Copied" : "Copy prompt"}
@@ -172,7 +172,7 @@ function ShotCard({ shot, index, palette }: { shot: AgentShot; index: number; pa
 
 function PlanCard({ plan, onSend }: { plan: AgentPlan; onSend: () => void }) {
   return (
-    <div className="mt-2 rounded-2xl border border-red-400/25 bg-gradient-to-b from-red-500/[0.09] to-transparent overflow-hidden shadow-lg shadow-red-900/20">
+    <div className="mt-2 rounded-2xl border border-violet-400/25 bg-gradient-to-b from-violet-500/[0.09] to-transparent overflow-hidden shadow-lg shadow-violet-900/20">
       <div className="p-3.5 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div>
@@ -182,7 +182,7 @@ function PlanCard({ plan, onSend }: { plan: AgentPlan; onSend: () => void }) {
             <p className="text-base font-bold text-white leading-tight mt-1">{plan.title}</p>
             <p className="text-[11px] text-white/55 italic mt-0.5">"{plan.logline}"</p>
           </div>
-          <span className="shrink-0 rounded-full border border-red-400/30 bg-red-500/15 px-2 py-1 text-[10px] font-semibold text-red-200">
+          <span className="shrink-0 rounded-full border border-red-400/30 bg-red-500/15 px-2 py-1 text-[10px] font-semibold text-violet-200">
             {plan.shots.length} shots
           </span>
         </div>
@@ -234,7 +234,7 @@ function PlanCard({ plan, onSend }: { plan: AgentPlan; onSend: () => void }) {
       <button
         onClick={onSend}
         className="w-full py-2.5 text-xs font-bold text-white inline-flex items-center justify-center gap-1.5 hover:brightness-110 transition-[filter]"
-        style={{ background: "linear-gradient(135deg, oklch(0.65 0.22 28), oklch(0.62 0.22 340))" }}
+        style={{ background: "linear-gradient(135deg, oklch(0.48 0.28 285), oklch(0.62 0.22 310))" }}
       >
         <Plus className="size-3.5" /> Send storyboard to canvas
       </button>
@@ -339,7 +339,7 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
     <div className="phone-panel-col fixed inset-y-0 z-50 bg-[oklch(0.09_0.02_295/0.97)] backdrop-blur-xl border-l border-white/10 shadow-2xl flex flex-col animate-slide-in-right">
       <header className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="relative size-9 rounded-xl flex items-center justify-center bg-gradient-to-br from-red-500 to-orange-500 shadow-lg shadow-red-500/40">
+          <span className="relative size-9 rounded-xl flex items-center justify-center bg-gradient-to-br from-violet-600 to-purple-500 shadow-lg shadow-violet-500/40">
             <Clapperboard className="size-4.5 text-white" />
             <span className="absolute -bottom-1 -right-1 size-3.5 rounded-full bg-emerald-400 border-2 border-[#0c0a17]" />
           </span>
@@ -414,9 +414,9 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
 
         {!history.isLoading && messages.length === 0 && !pendingUserMsg && (
           <div className="space-y-5">
-            <div className="rounded-2xl border border-red-400/20 bg-gradient-to-br from-red-500/10 via-orange-500/[0.06] to-transparent p-4">
+            <div className="rounded-2xl border border-violet-400/20 bg-gradient-to-br from-violet-500/10 via-purple-500/[0.06] to-transparent p-4">
               <div className="flex items-center gap-2 mb-2">
-                <span className="size-8 rounded-lg grid place-items-center bg-gradient-to-br from-red-500 to-orange-500 shadow-lg shadow-red-500/30">
+                <span className="size-8 rounded-lg grid place-items-center bg-gradient-to-br from-violet-600 to-purple-500 shadow-lg shadow-violet-500/30">
                   <Wand2 className="size-4 text-white" />
                 </span>
                 <p className="text-sm font-bold text-white">Direct a full video, start to finish</p>
@@ -477,7 +477,7 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
             <div
               className={
                 m.role === "user"
-                  ? "max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2.5 text-xs leading-relaxed text-white bg-gradient-to-br from-red-600/80 to-orange-600/70 border border-red-400/20"
+                  ? "max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2.5 text-xs leading-relaxed text-white bg-gradient-to-br from-violet-700/80 to-purple-600/70 border border-red-400/20"
                   : "max-w-[94%] rounded-2xl rounded-bl-md px-3.5 py-2.5 text-xs leading-relaxed text-white/85 bg-white/[0.05] border border-white/10"
               }
             >
@@ -502,7 +502,7 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
 
         {pendingUserMsg && (
           <div className="flex justify-end">
-            <div className="max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2.5 text-xs leading-relaxed text-white bg-gradient-to-br from-red-600/80 to-orange-600/70 border border-red-400/20 opacity-80">
+            <div className="max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2.5 text-xs leading-relaxed text-white bg-gradient-to-br from-violet-700/80 to-purple-600/70 border border-red-400/20 opacity-80">
               <p className="whitespace-pre-wrap">{pendingUserMsg}</p>
             </div>
           </div>
@@ -568,8 +568,8 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
           <Button
             onClick={send}
             disabled={sendMut.isPending || draft.trim().length < 2}
-            className="flex-1 text-white shadow-lg shadow-red-500/30"
-            style={{ background: "linear-gradient(135deg, oklch(0.65 0.22 28), oklch(0.62 0.22 340))" }}
+            className="flex-1 text-white shadow-lg shadow-violet-500/30"
+            style={{ background: "linear-gradient(135deg, oklch(0.48 0.28 285), oklch(0.62 0.22 310))" }}
           >
             {sendMut.isPending ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : <Send className="size-3.5 mr-1" />}
             Send

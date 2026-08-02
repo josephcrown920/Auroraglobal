@@ -253,7 +253,7 @@ export function BalloonLipsync() {
           ref={glowRef}
           className="absolute inset-x-0 bottom-0 h-40 pointer-events-none transition-opacity duration-75"
           style={{
-            background: "radial-gradient(ellipse at 50% 100%, rgba(229,56,59,0.28) 0%, transparent 70%)",
+            background: "radial-gradient(ellipse at 50% 100%, rgba(139,92,246,0.28) 0%, transparent 70%)",
             opacity: 0.25,
           }}
         />

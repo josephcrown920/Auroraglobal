@@ -8,9 +8,9 @@ const STEPS = [
     n: "01",
     icon: Camera,
     title: "Gather your references",
-    color: "text-red-400",
-    bg: "bg-red-500/10 border-red-500/30",
-    dot: "bg-red-500",
+    color: "text-violet-400",
+    bg: "bg-violet-500/10 border-violet-500/30",
+    dot: "bg-violet-500",
     lines: [
       "Selfie — clear face shot, the AI uses this to lock in your exact features, skin tone, and likeness.",
       "Optional: a Colors Show screenshot for the mic and studio setup reference.",
@@ -101,7 +101,7 @@ export function ColorsStudioGuide() {
         className="w-full flex items-center justify-between px-5 py-4 hover:bg-card/60 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <span className="size-8 rounded-xl flex items-center justify-center bg-red-500/15 border border-red-500/30">
+          <span className="size-8 rounded-xl flex items-center justify-center bg-violet-500/15 border border-violet-500/30">
             <Palette className="size-4 text-red-400" />
           </span>
           <div className="text-left">
