@@ -154,9 +154,10 @@ function StudioPage() {
     if (!loading && !user) navigate({ to: "/auth" });
   }, [user, loading, navigate]);
 
-  // Paystack redirects back here with ?paid=1 after a successful credit-pack
-  // checkout (see createPaystackCheckout's callback_url) — fire the funnel
-  // event once per browser, mirroring markFirstGenComplete's dedup pattern.
+  // Paystack redirects back here with ?paid=1 after a credit-pack checkout —
+  // both on success AND on failure (e.g. 3D Secure decline). Fire the GTM
+  // purchase event on success; show a helpful message on failure so the user
+  // knows exactly why their credits didn't appear.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -177,6 +178,7 @@ function StudioPage() {
         const payment = await paymentByRefFn({ data: { reference } });
         if (payment) {
           trackPurchase({ transactionId: payment.reference, value: payment.amount, currency: payment.currency });
+          toast.success("Payment successful! Your Aura has been added.");
           return;
         }
       } catch {
@@ -186,7 +188,29 @@ function StudioPage() {
         await new Promise((r) => setTimeout(r, 2000));
         return attempt(retriesLeft - 1);
       }
-      // Best-effort — a payment row that never settles should never block the page.
+      // All retries exhausted — check the raw status so we can show a
+      // meaningful message instead of silently doing nothing.
+      if (cancelled) return;
+      try {
+        const statusResult = await paymentStatusFn({ data: { reference } });
+        if (!statusResult) {
+          // Reference not found at all — very unusual
+          toast.error("We couldn't find your payment. If you were charged, contact support.", { duration: 8000 });
+        } else if (statusResult.status === "failed" || statusResult.status === "abandoned") {
+          toast.error(
+            "Your payment wasn't completed — your bank may have declined the 3D Secure authentication. Please try again.",
+            { duration: 8000 },
+          );
+        } else if (statusResult.status === "pending") {
+          toast.info("Your payment is still processing. Refresh the page in a moment and your Aura should appear.", {
+            duration: 8000,
+          });
+        }
+        // status === "succeeded" means the webhook just hadn't fired by the
+        // time all retries ran — treat this as success without a GTM event.
+      } catch {
+        // Best-effort — never block the page on a status lookup failure.
+      }
     };
     void attempt(4);
     return () => {
