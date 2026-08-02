@@ -10,13 +10,14 @@ import type { z } from "zod";
 import { classifyRequest } from "./classifier";
 import { CATEGORY_CHAINS } from "./chains";
 import { getProviderRegistry } from "./providers";
-import { isHealthy, recordOutcome } from "./health";
+import { countHealthyForCategory, isHealthy, recordOutcome } from "./health";
 import { logRouterDecision } from "./logger";
 import type { RequestCategory } from "./categories";
 
 export type { RequestCategory } from "./categories";
 export { classifyRequest } from "./classifier";
 export { getHealthSnapshot } from "./health";
+export { countHealthyForCategory } from "./health";
 export { CATEGORY_CHAINS } from "./chains";
 
 export type RoutedResult<T> = {
@@ -30,6 +31,8 @@ export type RoutedResult<T> = {
   fallbackCount: number;
   /** End-to-end latency in ms. */
   latencyMs: number;
+  /** True when no healthy provider was available and the caller received its soft fallback. */
+  degraded?: boolean;
 };
 
 export type RoutedGenerateArgs<T> = {
@@ -42,6 +45,8 @@ export type RoutedGenerateArgs<T> = {
   conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>;
   /** Estimated credit cost for logging purposes (does not affect routing). */
   estimatedCost?: number;
+  /** Schema-shaped response to return when every enabled provider is circuit-broken. */
+  degradedOutput?: T;
 };
 
 /**
@@ -64,13 +69,39 @@ export async function routedGenerate<T>(args: RoutedGenerateArgs<T>): Promise<Ro
     .filter((p): p is NonNullable<typeof p> => !!p && p.enabled && isHealthy(p.name));
 
   if (candidates.length === 0) {
-    // All providers are disabled or unhealthy — try the full chain anyway
-    // (explicit failure is better than silent "no candidates" void).
-    const fallbacks = chain.map((name) => registry.get(name)).filter((p): p is NonNullable<typeof p> => !!p && p.enabled);
-    if (fallbacks.length === 0) {
+    const enabledCandidates = chain
+      .map((name) => registry.get(name))
+      .filter((p): p is NonNullable<typeof p> => !!p && p.enabled);
+    if (enabledCandidates.length === 0) {
       throw new Error("No LLM provider keys configured for Aurora AI Router");
     }
-    candidates.push(...fallbacks);
+
+    // Do not immediately hammer a chain that the health tracker has
+    // circuit-broken. Chat callers can render a friendly retryable response;
+    // other callers must explicitly provide a schema-shaped fallback.
+    if (countHealthyForCategory(category, new Set(enabledCandidates.map((p) => p.name))) === 0) {
+      if (args.degradedOutput === undefined) {
+        throw new Error("Aurora AI is temporarily catching up. Please try again in a moment.");
+      }
+      const latencyMs = Date.now() - t0;
+      void logRouterDecision({
+        category,
+        provider_used: "none",
+        fallback_count: 0,
+        latency_ms: latencyMs,
+        success: false,
+        failure_reason: "All enabled providers are temporarily unhealthy",
+        estimated_cost: args.estimatedCost ?? 0,
+      });
+      return {
+        output: args.degradedOutput,
+        provider: "none",
+        category,
+        fallbackCount: 0,
+        latencyMs,
+        degraded: true,
+      };
+    }
   }
 
   // 4. Build the messages array (multi-turn when history is present).

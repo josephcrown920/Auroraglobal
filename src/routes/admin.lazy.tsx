@@ -1679,6 +1679,7 @@ function RouterPanel() {
   });
 
   const providers: RouterHealthRow[] = healthData?.providers ?? [];
+  const degradedCategories = healthData?.degradedCategories ?? [];
   const logs: RouterLogRow[] = logsData?.logs ?? [];
   const migrationPending = logsData?.migrationPending ?? false;
 
@@ -1693,6 +1694,17 @@ function RouterPanel() {
 
   return (
     <div className="space-y-6">
+      {degradedCategories.length > 0 && (
+        <div className="flex items-start gap-3 rounded-xl border border-orange-500/40 bg-orange-500/10 px-4 py-3 text-orange-300">
+          <Activity className="mt-0.5 size-4 shrink-0 text-orange-400" />
+          <div>
+            <p className="text-sm font-medium">AI Router degraded</p>
+            <p className="mt-0.5 text-xs text-orange-200/75">
+              No healthy providers are available for: {degradedCategories.join(", ")}. Aurora will recover automatically as providers return.
+            </p>
+          </div>
+        </div>
+      )}
       {/* Provider health grid */}
       <section className="rounded-2xl border border-border bg-card/40 p-5 space-y-4">
         <div className="flex items-center gap-2">

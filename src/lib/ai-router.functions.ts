@@ -6,7 +6,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isAdmin } from "@/lib/admin.server";
-import { getHealthSnapshot } from "@/lib/ai-router/health";
+import { countHealthyForCategory, getHealthSnapshot } from "@/lib/ai-router/health";
+import { REQUEST_CATEGORIES } from "@/lib/ai-router/categories";
 import { getProviderRegistry } from "@/lib/ai-router/providers";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
@@ -18,6 +19,11 @@ export type RouterHealthRow = {
   callsInWindow: number;
   successRate: number | null;
   avgLatencyMs: number | null;
+};
+
+export type RouterHealthData = {
+  providers: RouterHealthRow[];
+  degradedCategories: string[];
 };
 
 export type RouterLogRow = {
@@ -45,7 +51,13 @@ export const getRouterHealth = createServerFn({ method: "GET" })
       enabled: p.enabled,
     }));
 
-    return { providers: getHealthSnapshot(allProviders) as RouterHealthRow[] };
+    const providers = getHealthSnapshot(allProviders) as RouterHealthRow[];
+    const enabledNames = new Set(providers.filter((p) => p.enabled).map((p) => p.name));
+    const degradedCategories = REQUEST_CATEGORIES.filter(
+      (category) => countHealthyForCategory(category, enabledNames) === 0,
+    );
+
+    return { providers, degradedCategories };
   });
 
 /** Returns the 50 most recent AI router log entries from the database. */
