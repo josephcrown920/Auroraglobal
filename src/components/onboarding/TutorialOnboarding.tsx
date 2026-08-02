@@ -108,7 +108,7 @@ export function TutorialOnboarding({ show = true, forceShow = false, onDismiss }
   return (
     <div
       className={cn(
-        "fixed bottom-4 left-1/2 -translate-x-1/2 z-[80] w-[calc(100vw-2rem)] max-w-md transition-all duration-500",
+        "fixed bottom-36 left-1/2 -translate-x-1/2 z-[80] w-[calc(100vw-2rem)] max-w-md transition-all duration-500",
         visible ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0 pointer-events-none",
       )}
       role="dialog"

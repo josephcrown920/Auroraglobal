@@ -77,6 +77,20 @@ while true; do
     echo "[$ts][tick] WARN — $resp (rc=$rc)"
   fi
 
+  # Production uptime monitor (every 60 s — pings the external SITE_URL/api/health
+  # and emails the operator if 2+ consecutive failures; also sends recovery email).
+  resp=$(curl -sf "$APP/api/public/uptime-monitor" \
+    -X POST \
+    -H "apikey: $APIKEY" \
+    -H "content-type: application/json" \
+    --max-time 25 2>&1) && rc=0 || rc=$?
+  ts=$(date -u +"%H:%M:%S")
+  if [ $rc -eq 0 ]; then
+    echo "[$ts][uptime] OK — $resp"
+  else
+    echo "[$ts][uptime] WARN — $resp (rc=$rc)"
+  fi
+
   # Worker health (every 5 min)
   if [ $((now - last_health)) -ge $HEALTH_INTERVAL ]; then
     resp=$(curl -sf "$APP/api/public/workers/health" \

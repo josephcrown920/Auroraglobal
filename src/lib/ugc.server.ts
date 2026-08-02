@@ -4,7 +4,7 @@
 // MCP tools, the /ugc page and the queue all produce consistent prompts.
 
 import { z } from "zod";
-import { generateWithFallback } from "./llm-fallback.server";
+import { routedGenerate } from "./ai-router";
 
 // ─── Credit costs ─────────────────────────────────────────────────────────────
 // COST_UGC_AD is the single source in pricing.ts; re-exported here so existing
@@ -41,7 +41,7 @@ export async function generateUGCScript(input: {
   const dur = input.durationSec ?? 8;
   const wordTarget = Math.max(18, Math.round(dur * 2.6)); // ~2.6 spoken words/sec
   try {
-    const { provider, output } = await generateWithFallback({
+    const { provider, output } = await routedGenerate({
       system:
         "You are a short-form UGC ad scriptwriter. Write punchy, authentic, first-person spoken copy a creator would actually say to camera. No stage directions, no emojis, no hashtags, no quotation marks.",
       prompt: `Write a ${dur}-second UGC ad script (about ${wordTarget} words total) for ${
@@ -50,6 +50,7 @@ export async function generateUGCScript(input: {
         input.sceneHint ? ` Scene: ${input.sceneHint}.` : ""
       } Return a hook, body and call to action. Keep it natural and spoken, like a real TikTok or Reel.`,
       schema: UGCScriptSchema,
+      category: "ADVERTISEMENT",
     });
     const full = [output.hook, output.body, output.cta]
       .map((s) => (s ?? "").trim())

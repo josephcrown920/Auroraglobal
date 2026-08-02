@@ -12,6 +12,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccountRouteImport } from './routes/account'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AffiliateRouteImport } from './routes/affiliate'
 import { Route as AgentRouteImport } from './routes/agent'
@@ -25,6 +26,7 @@ import { Route as ColorsShowRouteImport } from './routes/colors-show'
 import { Route as ComfyRouteImport } from './routes/comfy'
 import { Route as ConnectRouteImport } from './routes/connect'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as ContentRouteImport } from './routes/content'
 import { Route as ContentMachineRouteImport } from './routes/content-machine'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as EditRouteImport } from './routes/edit'
@@ -50,6 +52,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ReshootRouteImport } from './routes/reshoot'
 import { Route as RoadmapRouteImport } from './routes/roadmap'
 import { Route as SceneBuilderRouteImport } from './routes/scene-builder'
+import { Route as SceneWeaverRouteImport } from './routes/scene-weaver'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SpeechRouteImport } from './routes/speech'
@@ -95,7 +98,9 @@ import { Route as ApiPublicFreeMonthlyGrantRouteImport } from './routes/api/publ
 import { Route as ApiPublicGenerateRouteImport } from './routes/api/public/generate'
 import { Route as ApiPublicLifecycleEmailsRouteImport } from './routes/api/public/lifecycle-emails'
 import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/public/paystack-webhook'
+import { Route as ApiPublicSiteCopyRouteImport } from './routes/api/public/site-copy'
 import { Route as ApiPublicSiteImagesRouteImport } from './routes/api/public/site-images'
+import { Route as ApiPublicUptimeMonitorRouteImport } from './routes/api/public/uptime-monitor'
 import { Route as ApiPublicWatermarkImageRouteImport } from './routes/api/public/watermark-image'
 import { Route as ApiPublicWatermarkVideoRouteImport } from './routes/api/public/watermark-video'
 import { Route as ApiUgcLineImagesRouteImport } from './routes/api/ugc-line/images'
@@ -120,6 +125,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccountRoute = AccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/account.lazy').then((d) => d.Route))
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -190,6 +200,11 @@ const ContactRoute = ContactRouteImport.update({
   path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/contact.lazy').then((d) => d.Route))
+const ContentRoute = ContentRouteImport.update({
+  id: '/content',
+  path: '/content',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/content.lazy').then((d) => d.Route))
 const ContentMachineRoute = ContentMachineRouteImport.update({
   id: '/content-machine',
   path: '/content-machine',
@@ -321,6 +336,11 @@ const SceneBuilderRoute = SceneBuilderRouteImport.update({
   path: '/scene-builder',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/scene-builder.lazy').then((d) => d.Route))
+const SceneWeaverRoute = SceneWeaverRouteImport.update({
+  id: '/scene-weaver',
+  path: '/scene-weaver',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/scene-weaver.lazy').then((d) => d.Route))
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -564,9 +584,19 @@ const ApiPublicPaystackWebhookRoute =
     path: '/api/public/paystack-webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicSiteCopyRoute = ApiPublicSiteCopyRouteImport.update({
+  id: '/api/public/site-copy',
+  path: '/api/public/site-copy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicSiteImagesRoute = ApiPublicSiteImagesRouteImport.update({
   id: '/api/public/site-images',
   path: '/api/public/site-images',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicUptimeMonitorRoute = ApiPublicUptimeMonitorRouteImport.update({
+  id: '/api/public/uptime-monitor',
+  path: '/api/public/uptime-monitor',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicWatermarkImageRoute = ApiPublicWatermarkImageRouteImport.update({
@@ -657,6 +687,7 @@ const ApiPublicWorkersFilesNameRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/admin': typeof AdminRouteWithChildren
   '/affiliate': typeof AffiliateRoute
   '/agent': typeof AgentRoute
@@ -670,6 +701,7 @@ export interface FileRoutesByFullPath {
   '/comfy': typeof ComfyRoute
   '/connect': typeof ConnectRoute
   '/contact': typeof ContactRoute
+  '/content': typeof ContentRoute
   '/content-machine': typeof ContentMachineRoute
   '/dashboard': typeof DashboardRoute
   '/edit': typeof EditRoute
@@ -695,6 +727,7 @@ export interface FileRoutesByFullPath {
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
   '/scene-builder': typeof SceneBuilderRoute
+  '/scene-weaver': typeof SceneWeaverRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speech': typeof SpeechRoute
@@ -741,7 +774,9 @@ export interface FileRoutesByFullPath {
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
+  '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
+  '/api/public/uptime-monitor': typeof ApiPublicUptimeMonitorRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
   '/api/ugc-line/images': typeof ApiUgcLineImagesRoute
@@ -761,6 +796,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/admin': typeof AdminRouteWithChildren
   '/affiliate': typeof AffiliateRoute
   '/agent': typeof AgentRoute
@@ -774,6 +810,7 @@ export interface FileRoutesByTo {
   '/comfy': typeof ComfyRoute
   '/connect': typeof ConnectRoute
   '/contact': typeof ContactRoute
+  '/content': typeof ContentRoute
   '/content-machine': typeof ContentMachineRoute
   '/dashboard': typeof DashboardRoute
   '/edit': typeof EditRoute
@@ -799,6 +836,7 @@ export interface FileRoutesByTo {
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
   '/scene-builder': typeof SceneBuilderRoute
+  '/scene-weaver': typeof SceneWeaverRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speech': typeof SpeechRoute
@@ -845,7 +883,9 @@ export interface FileRoutesByTo {
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
+  '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
+  '/api/public/uptime-monitor': typeof ApiPublicUptimeMonitorRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
   '/api/ugc-line/images': typeof ApiUgcLineImagesRoute
@@ -866,6 +906,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/admin': typeof AdminRouteWithChildren
   '/affiliate': typeof AffiliateRoute
   '/agent': typeof AgentRoute
@@ -879,6 +920,7 @@ export interface FileRoutesById {
   '/comfy': typeof ComfyRoute
   '/connect': typeof ConnectRoute
   '/contact': typeof ContactRoute
+  '/content': typeof ContentRoute
   '/content-machine': typeof ContentMachineRoute
   '/dashboard': typeof DashboardRoute
   '/edit': typeof EditRoute
@@ -904,6 +946,7 @@ export interface FileRoutesById {
   '/reshoot': typeof ReshootRoute
   '/roadmap': typeof RoadmapRoute
   '/scene-builder': typeof SceneBuilderRoute
+  '/scene-weaver': typeof SceneWeaverRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/speech': typeof SpeechRoute
@@ -950,7 +993,9 @@ export interface FileRoutesById {
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
+  '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
+  '/api/public/uptime-monitor': typeof ApiPublicUptimeMonitorRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
   '/api/ugc-line/images': typeof ApiUgcLineImagesRoute
@@ -972,6 +1017,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/account'
     | '/admin'
     | '/affiliate'
     | '/agent'
@@ -985,6 +1031,7 @@ export interface FileRouteTypes {
     | '/comfy'
     | '/connect'
     | '/contact'
+    | '/content'
     | '/content-machine'
     | '/dashboard'
     | '/edit'
@@ -1010,6 +1057,7 @@ export interface FileRouteTypes {
     | '/reshoot'
     | '/roadmap'
     | '/scene-builder'
+    | '/scene-weaver'
     | '/settings'
     | '/sitemap.xml'
     | '/speech'
@@ -1056,7 +1104,9 @@ export interface FileRouteTypes {
     | '/api/public/generate'
     | '/api/public/lifecycle-emails'
     | '/api/public/paystack-webhook'
+    | '/api/public/site-copy'
     | '/api/public/site-images'
+    | '/api/public/uptime-monitor'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
     | '/api/ugc-line/images'
@@ -1076,6 +1126,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/account'
     | '/admin'
     | '/affiliate'
     | '/agent'
@@ -1089,6 +1140,7 @@ export interface FileRouteTypes {
     | '/comfy'
     | '/connect'
     | '/contact'
+    | '/content'
     | '/content-machine'
     | '/dashboard'
     | '/edit'
@@ -1114,6 +1166,7 @@ export interface FileRouteTypes {
     | '/reshoot'
     | '/roadmap'
     | '/scene-builder'
+    | '/scene-weaver'
     | '/settings'
     | '/sitemap.xml'
     | '/speech'
@@ -1160,7 +1213,9 @@ export interface FileRouteTypes {
     | '/api/public/generate'
     | '/api/public/lifecycle-emails'
     | '/api/public/paystack-webhook'
+    | '/api/public/site-copy'
     | '/api/public/site-images'
+    | '/api/public/uptime-monitor'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
     | '/api/ugc-line/images'
@@ -1180,6 +1235,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/account'
     | '/admin'
     | '/affiliate'
     | '/agent'
@@ -1193,6 +1249,7 @@ export interface FileRouteTypes {
     | '/comfy'
     | '/connect'
     | '/contact'
+    | '/content'
     | '/content-machine'
     | '/dashboard'
     | '/edit'
@@ -1218,6 +1275,7 @@ export interface FileRouteTypes {
     | '/reshoot'
     | '/roadmap'
     | '/scene-builder'
+    | '/scene-weaver'
     | '/settings'
     | '/sitemap.xml'
     | '/speech'
@@ -1264,7 +1322,9 @@ export interface FileRouteTypes {
     | '/api/public/generate'
     | '/api/public/lifecycle-emails'
     | '/api/public/paystack-webhook'
+    | '/api/public/site-copy'
     | '/api/public/site-images'
+    | '/api/public/uptime-monitor'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
     | '/api/ugc-line/images'
@@ -1285,6 +1345,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccountRoute: typeof AccountRoute
   AdminRoute: typeof AdminRouteWithChildren
   AffiliateRoute: typeof AffiliateRoute
   AgentRoute: typeof AgentRoute
@@ -1298,6 +1359,7 @@ export interface RootRouteChildren {
   ComfyRoute: typeof ComfyRoute
   ConnectRoute: typeof ConnectRoute
   ContactRoute: typeof ContactRoute
+  ContentRoute: typeof ContentRoute
   ContentMachineRoute: typeof ContentMachineRoute
   DashboardRoute: typeof DashboardRoute
   EditRoute: typeof EditRoute
@@ -1323,6 +1385,7 @@ export interface RootRouteChildren {
   ReshootRoute: typeof ReshootRoute
   RoadmapRoute: typeof RoadmapRoute
   SceneBuilderRoute: typeof SceneBuilderRoute
+  SceneWeaverRoute: typeof SceneWeaverRoute
   SettingsRoute: typeof SettingsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SpeechRoute: typeof SpeechRoute
@@ -1361,7 +1424,9 @@ export interface RootRouteChildren {
   ApiPublicGenerateRoute: typeof ApiPublicGenerateRoute
   ApiPublicLifecycleEmailsRoute: typeof ApiPublicLifecycleEmailsRoute
   ApiPublicPaystackWebhookRoute: typeof ApiPublicPaystackWebhookRoute
+  ApiPublicSiteCopyRoute: typeof ApiPublicSiteCopyRoute
   ApiPublicSiteImagesRoute: typeof ApiPublicSiteImagesRoute
+  ApiPublicUptimeMonitorRoute: typeof ApiPublicUptimeMonitorRoute
   ApiPublicWatermarkImageRoute: typeof ApiPublicWatermarkImageRoute
   ApiPublicWatermarkVideoRoute: typeof ApiPublicWatermarkVideoRoute
   ApiUgcLineImagesRoute: typeof ApiUgcLineImagesRoute
@@ -1386,6 +1451,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account': {
+      id: '/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AccountRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -1484,6 +1556,13 @@ declare module '@tanstack/react-router' {
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/content': {
+      id: '/content'
+      path: '/content'
+      fullPath: '/content'
+      preLoaderRoute: typeof ContentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/content-machine': {
@@ -1659,6 +1738,13 @@ declare module '@tanstack/react-router' {
       path: '/scene-builder'
       fullPath: '/scene-builder'
       preLoaderRoute: typeof SceneBuilderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scene-weaver': {
+      id: '/scene-weaver'
+      path: '/scene-weaver'
+      fullPath: '/scene-weaver'
+      preLoaderRoute: typeof SceneWeaverRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -1976,11 +2062,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPaystackWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/site-copy': {
+      id: '/api/public/site-copy'
+      path: '/api/public/site-copy'
+      fullPath: '/api/public/site-copy'
+      preLoaderRoute: typeof ApiPublicSiteCopyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/site-images': {
       id: '/api/public/site-images'
       path: '/api/public/site-images'
       fullPath: '/api/public/site-images'
       preLoaderRoute: typeof ApiPublicSiteImagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/uptime-monitor': {
+      id: '/api/public/uptime-monitor'
+      path: '/api/public/uptime-monitor'
+      fullPath: '/api/public/uptime-monitor'
+      preLoaderRoute: typeof ApiPublicUptimeMonitorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/watermark-image': {
@@ -2136,6 +2236,7 @@ const ApiAudioMasterRouteWithChildren = ApiAudioMasterRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccountRoute: AccountRoute,
   AdminRoute: AdminRouteWithChildren,
   AffiliateRoute: AffiliateRoute,
   AgentRoute: AgentRoute,
@@ -2149,6 +2250,7 @@ const rootRouteChildren: RootRouteChildren = {
   ComfyRoute: ComfyRoute,
   ConnectRoute: ConnectRoute,
   ContactRoute: ContactRoute,
+  ContentRoute: ContentRoute,
   ContentMachineRoute: ContentMachineRoute,
   DashboardRoute: DashboardRoute,
   EditRoute: EditRoute,
@@ -2174,6 +2276,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReshootRoute: ReshootRoute,
   RoadmapRoute: RoadmapRoute,
   SceneBuilderRoute: SceneBuilderRoute,
+  SceneWeaverRoute: SceneWeaverRoute,
   SettingsRoute: SettingsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SpeechRoute: SpeechRoute,
@@ -2212,7 +2315,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicGenerateRoute: ApiPublicGenerateRoute,
   ApiPublicLifecycleEmailsRoute: ApiPublicLifecycleEmailsRoute,
   ApiPublicPaystackWebhookRoute: ApiPublicPaystackWebhookRoute,
+  ApiPublicSiteCopyRoute: ApiPublicSiteCopyRoute,
   ApiPublicSiteImagesRoute: ApiPublicSiteImagesRoute,
+  ApiPublicUptimeMonitorRoute: ApiPublicUptimeMonitorRoute,
   ApiPublicWatermarkImageRoute: ApiPublicWatermarkImageRoute,
   ApiPublicWatermarkVideoRoute: ApiPublicWatermarkVideoRoute,
   ApiUgcLineImagesRoute: ApiUgcLineImagesRoute,

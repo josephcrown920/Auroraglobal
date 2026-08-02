@@ -17,13 +17,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { UploadSlot } from "@/components/studio/UploadSlot";
 import { WardrobePicker } from "@/components/studio/WardrobePicker";
 import { AUDIO_ACCEPT } from "@/lib/utils";
-import { TriedTestedShowcase } from "@/components/studio/TriedTestedShowcase";
 import { BringItToLifePreview } from "@/components/studio/BringItToLifePreview";
-import tutorialStudioRefs from "@/assets/tutorial-studio-refs.jpg.asset.json";
-import tutorialStudioFinal from "@/assets/tutorial-studio-final.jpg.asset.json";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Wand2, LogOut, Loader2, Download, Camera, Film, Mic2, Coins, Zap, LayoutDashboard, Shield, Server, Captions, Crown, Flame, Trash2 } from "lucide-react";
+import { Sparkles, Wand2, LogOut, Loader2, Download, Camera, Film, Mic2, Coins, Zap, Shield, Server, Captions, Crown, Flame, Trash2, Settings2 } from "lucide-react";
 import { PageSpinner } from "@/components/PageSpinner";
 import { AuthRedirect } from "@/components/AuthRedirect";
 import { CaptionDialog } from "@/components/gallery/CaptionDialog";
@@ -35,7 +32,7 @@ import { handleGenerationError, friendlyGenerationMessage } from "@/lib/error-to
 import { useGenerationProgress } from "@/hooks/use-generation-progress";
 import { GenerationProgress } from "@/components/ui/GenerationProgress";
 import { BlurredPreview } from "@/components/ui/BlurredPreview";
-import { getMyProfile, createPaystackCheckout, getPaymentByReference } from "@/lib/billing.functions";
+import { getMyProfile, createPaystackCheckout, getPaymentByReference, getPaymentStatusByReference } from "@/lib/billing.functions";
 import { trackPurchase, trackGenerationCompleted } from "@/lib/gtm";
 import { PLANS } from "@/lib/billing.plans";
 import { computeCost, type Resolution } from "@/lib/pricing";
@@ -57,16 +54,16 @@ import {
 } from "@/components/ui/select";
 import { HfAudioPanel } from "@/components/studio/HfAudioPanel";
 import { publishGeneration } from "@/lib/share.functions";
-import { Share2 } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { saveAssetToDisk } from "@/lib/save";
 import { ShareMenu } from "@/components/share/ShareMenu";
 import { ConnectReplicateBanner } from "@/components/ConnectReplicateBanner";
-import { JoshSlideshow } from "@/components/studio/JoshSlideshow";
 import { ExampleChips } from "@/components/onboarding/ExampleChips";
 import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
 import { TutorialOnboarding as SnipTutorialCards } from "@/components/onboarding/TutorialOnboarding";
 import { STUDIO_EXAMPLE_PRESETS } from "@/lib/example-presets";
 import { hasDismissedTour, markFirstGenComplete, hasCompletedFirstGen, isFirstPageVisit, markPageVisited, markFirstPurchaseComplete } from "@/lib/first-run";
+import { loadStudioSession, saveStudioSession } from "@/lib/studio-session";
 
 export const Route = createLazyFileRoute("/studio")({ component: StudioPage });
 
@@ -148,6 +145,7 @@ function StudioPage() {
     [lipsyncModel],
   );
 
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [onboardOpen, setOnboardOpen] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [activeExampleId, setActiveExampleId] = useState(STUDIO_EXAMPLE_PRESETS[0].id);
@@ -156,9 +154,10 @@ function StudioPage() {
     if (!loading && !user) navigate({ to: "/auth" });
   }, [user, loading, navigate]);
 
-  // Paystack redirects back here with ?paid=1 after a successful credit-pack
-  // checkout (see createPaystackCheckout's callback_url) — fire the funnel
-  // event once per browser, mirroring markFirstGenComplete's dedup pattern.
+  // Paystack redirects back here with ?paid=1 after a credit-pack checkout —
+  // both on success AND on failure (e.g. 3D Secure decline). Fire the GTM
+  // purchase event on success; show a helpful message on failure so the user
+  // knows exactly why their credits didn't appear.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -179,6 +178,7 @@ function StudioPage() {
         const payment = await paymentByRefFn({ data: { reference } });
         if (payment) {
           trackPurchase({ transactionId: payment.reference, value: payment.amount, currency: payment.currency });
+          toast.success("Payment successful! Your Aura has been added.");
           return;
         }
       } catch {
@@ -188,7 +188,29 @@ function StudioPage() {
         await new Promise((r) => setTimeout(r, 2000));
         return attempt(retriesLeft - 1);
       }
-      // Best-effort — a payment row that never settles should never block the page.
+      // All retries exhausted — check the raw status so we can show a
+      // meaningful message instead of silently doing nothing.
+      if (cancelled) return;
+      try {
+        const statusResult = await paymentStatusFn({ data: { reference } });
+        if (!statusResult) {
+          // Reference not found at all — very unusual
+          toast.error("We couldn't find your payment. If you were charged, contact support.", { duration: 8000 });
+        } else if (statusResult.status === "failed" || statusResult.status === "abandoned") {
+          toast.error(
+            "Your payment wasn't completed — your bank may have declined the 3D Secure authentication. Please try again.",
+            { duration: 8000 },
+          );
+        } else if (statusResult.status === "pending") {
+          toast.info("Your payment is still processing. Refresh the page in a moment and your Aura should appear.", {
+            duration: 8000,
+          });
+        }
+        // status === "succeeded" means the webhook just hadn't fired by the
+        // time all retries ran — treat this as success without a GTM event.
+      } catch {
+        // Best-effort — never block the page on a status lookup failure.
+      }
     };
     void attempt(4);
     return () => {
@@ -218,6 +240,46 @@ function StudioPage() {
     setActiveExampleId(p.id);
   }, []);
 
+  // ── Session restore ────────────────────────────────────────────────────────
+  // On mount, restore the last saved session for returning users.
+  // incomingIdea from the URL always takes precedence over the saved prompt.
+  // This runs AFTER the first-visit auto-prefill so it wins for returning users.
+  useEffect(() => {
+    const saved = loadStudioSession();
+    if (!saved) return;
+    if (!incomingIdea && saved.prompt) setPrompt(saved.prompt);
+    if (saved.model) setModel(saved.model);
+    if (saved.videoModel) setVideoModel(saved.videoModel);
+    if (saved.cameraMovement) setCameraMovement(saved.cameraMovement);
+    if (saved.videoPrompt) setVideoPrompt(saved.videoPrompt);
+    if (saved.lipsyncModel) setLipsyncModel(saved.lipsyncModel as "fal-ai/sync-lipsync/v2" | "fal-ai/wav2lip" | "latentsync");
+    if (saved.videoResolution) setVideoResolution(saved.videoResolution as Resolution);
+    if (saved.activePreset !== undefined) setActivePreset(saved.activePreset ?? null);
+    if (saved.selfie !== undefined) setSelfie(saved.selfie ?? null);
+    if (saved.outfit !== undefined) setOutfit(saved.outfit ?? null);
+    if (saved.scene !== undefined) setScene(saved.scene ?? null);
+    if (saved.prop !== undefined) setProp(saved.prop ?? null);
+    if (saved.motion !== undefined) setMotion(saved.motion ?? null);
+    if (saved.endFrameUrl !== undefined) setEndFrameUrl(saved.endFrameUrl ?? null);
+    if (saved.audioUrl !== undefined) setAudioUrl(saved.audioUrl ?? null);
+    toast.info("Session restored", { duration: 2500, id: "studio-session-restore" });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only restore; incomingIdea is stable from the URL
+  }, []);
+
+  // ── Session save (debounced 600 ms) ───────────────────────────────────────
+  // Persists the user's current settings to localStorage so they can resume
+  // exactly where they left off after a page reload or browser restart.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      saveStudioSession({
+        prompt, model, videoModel, cameraMovement, videoPrompt,
+        lipsyncModel, videoResolution, activePreset,
+        selfie, outfit, scene, prop, motion, endFrameUrl, audioUrl,
+      });
+    }, 600);
+    return () => clearTimeout(t);
+  }, [prompt, model, videoModel, cameraMovement, videoPrompt, lipsyncModel, videoResolution, activePreset, selfie, outfit, scene, prop, motion, endFrameUrl, audioUrl]);
+
   const genFn = usePerformanceShotJobFn();
   const listFn = useServerFn(listGenerations);
   const videoFn = useVideoFromImageJobFn();
@@ -225,6 +287,7 @@ function StudioPage() {
   const profileFn = useServerFn(getMyProfile);
   const checkoutFn = useServerFn(createPaystackCheckout);
   const paymentByRefFn = useServerFn(getPaymentByReference);
+  const paymentStatusFn = useServerFn(getPaymentStatusByReference);
   const publishFn = useServerFn(publishGeneration);
   const detectCurrencyFn = useServerFn(detectCurrency);
   const { data: geo } = useQuery({ queryKey: ["geo-currency"], queryFn: () => detectCurrencyFn(), staleTime: 60 * 60 * 1000 });
@@ -495,224 +558,399 @@ function StudioPage() {
   if (!user) return <AuthRedirect />;
 
   return (
-    <main className="min-h-screen relative" style={{ background: "var(--gradient-soft)" }}>
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "var(--gradient-stage)" }} />
+    <main className="flex flex-col min-h-screen bg-zinc-950 text-zinc-100">
+      {/* Modals + global banners */}
       <ConnectReplicateBanner />
-
-
       {user && (
         <OnboardingModal
           userId={user.id}
           open={onboardOpen}
           onOpenChange={setOnboardOpen}
-          onApply={({ selfieUrl, prompt: p }) => {
-            setSelfie(selfieUrl);
-            setPrompt(p);
-          }}
-          onBonusGranted={() => {
-            qc.invalidateQueries({ queryKey: ["profile"] });
-          }}
+          onApply={({ selfieUrl, prompt: p }) => { setSelfie(selfieUrl); setPrompt(p); }}
+          onBonusGranted={() => qc.invalidateQueries({ queryKey: ["profile"] })}
         />
       )}
       <WelcomeTour show={showTour} onDismiss={() => setShowTour(false)} />
       <SnipTutorialCards show={showTour} />
 
-      <header className="relative z-10 flex items-center justify-between pl-24 pr-6 md:pl-24 md:pr-10 py-5 border-b border-border/60 backdrop-blur-xl bg-background/40">
-        <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20 shadow-[var(--shadow-glow-soft)]"><span className="inline-block size-2.5 rounded-full bg-primary" /></span>
-          Aurora Studio
-        </Link>
-        <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card/60 text-sm">
-            <Coins className="size-3.5 text-primary" />
-            <span className="font-medium">{profile?.credits ?? "—"}</span>
-            <span className="text-muted-foreground text-xs">Aura</span>
+      {/* ── Compact sticky header ─────────────────────────────────── */}
+      <header className="sticky top-0 z-30 flex items-center justify-between h-12 px-4 border-b border-white/5 bg-zinc-950/90 backdrop-blur-xl">
+        <div className="flex items-center gap-2">
+          <span className="inline-block size-2 rounded-full bg-[#e5383b]" />
+          <span className="text-sm font-semibold tracking-tight">Aurora Studio</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <LowCreditBanner credits={profile?.credits} />
+          <div className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs">
+            <Coins className="size-3 text-[#e5383b]" />
+            <span className="font-semibold tabular-nums">{profile?.credits ?? "—"}</span>
+            <span className="text-zinc-500">Aura</span>
           </div>
-          <span className="text-sm text-muted-foreground hidden md:inline">
-            Hi, <span className="text-foreground font-medium">{profile?.display_name || user.email?.split("@")[0]}</span> 👋
-          </span>
-          <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-foreground hidden md:inline-flex items-center gap-1.5">
-            <LayoutDashboard className="size-3.5" /> Dashboard
-          </Link>
-          <Link to="/gallery" className="text-sm text-muted-foreground hover:text-foreground hidden md:inline-flex items-center gap-1.5">Gallery</Link>
           {profile?.isAdmin && (
-            <Link to="/admin" className="text-sm hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 transition-colors">
-              <Shield className="size-3.5 text-amber-500" /> Admin
+            <Link to="/admin" className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-400 hover:bg-amber-500/20 transition-colors">
+              <Shield className="size-3" /> Admin
             </Link>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={async () => {
-              await supabase.auth.signOut();
-              navigate({ to: "/" });
-            }}
-          >
-            <LogOut className="size-4 mr-1" /> Sign out
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-zinc-400 hover:text-zinc-100"
+            onClick={async () => { await supabase.auth.signOut(); navigate({ to: "/" }); }}>
+            <LogOut className="size-3.5" />
           </Button>
         </div>
       </header>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-10 py-10 grid lg:grid-cols-[1fr_1.1fr] gap-10">
-        {/* Control panel */}
-        <section className="space-y-5">
-          <div className="rounded-2xl border border-emerald-400/30 bg-gradient-to-br from-emerald-500/10 via-background/40 to-cyan-500/10 px-4 py-3 flex items-center gap-3">
-            <span className="inline-flex size-2 rounded-full bg-emerald-400 shadow-[0_0_12px_2px_rgba(52,211,153,0.6)]" />
-            <p className="text-xs text-emerald-100/90">
-              Studio is ready — you're signed in and pre-authorized. Just upload references and hit generate.
-            </p>
-          </div>
-          <LowCreditBanner credits={profile?.credits} />
-          <div>
-            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
-              {profile?.display_name ? (
-                <>Welcome, <span className="aurora-gradient-text">{profile.display_name}.</span></>
-              ) : (
-                <>Direct your <span className="aurora-gradient-text">shoot.</span></>
-              )}
-            </h1>
-            <p className="mt-1 text-xs text-muted-foreground">Drop references → write direction → generate. That's it.</p>
-          </div>
+      {/* ── Main scroll area (leave room for sticky prompt bar) ──── */}
+      <div className="flex-1 pb-36 space-y-0">
 
-          {/* Image generation slideshow — full-width, entrance animation */}
-          <div className="reveal-card" data-revealed="true">
-            <JoshSlideshow />
-          </div>
+        {/* Canvas — result at top */}
+        <div className="relative bg-zinc-900">
+          {mut.isPending ? (
+            <div className="flex flex-col items-center justify-center gap-6 px-8 py-16 min-h-[56vw]">
+              <div className="size-14 rounded-full flex items-center justify-center bg-[#e5383b]/10 ring-1 ring-[#e5383b]/30">
+                <Loader2 className="size-6 animate-spin text-[#e5383b]" />
+              </div>
+              <div className="w-full max-w-xs space-y-2 text-center">
+                <p className="text-sm text-zinc-300">{imageProgress.label || "Lighting the stage…"}</p>
+                <GenerationProgress visible progress={imageProgress.progress} />
+              </div>
+            </div>
+          ) : latest?.result_image_url ? (
+            <>
+              <BlurredPreview
+                src={latest.result_image_url}
+                alt="Latest shot"
+                aspectRatio="4/5"
+                className="w-full border-0 rounded-none"
+                transitionMs={800}
+              />
+              {/* Action bar over image */}
+              <div className="absolute bottom-3 right-3 flex items-center gap-2">
+                <ShareMenu
+                  getShareTarget={async () => {
+                    if (!latest) throw new Error("Nothing to share yet");
+                    const r = await publishFn({ data: { id: latest.id } });
+                    return { url: `${window.location.origin}${r.url}`, text: latest.prompt ?? undefined, assetUrl: latest.result_image_url, filename: `aurora-${latest.id.slice(0, 8)}.png` };
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => latest?.result_image_url && saveAssetToDisk(latest.result_image_url, `aurora-${latest.id.slice(0, 8)}.png`)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur text-xs font-medium hover:bg-black/90"
+                >
+                  <Download className="size-3.5" /> Save
+                </button>
+              </div>
+            </>
+          ) : (
+            /* ── Empty canvas: example photo strip ─────────────────────────────
+               Shows real Aurora-generated shots so new artists immediately see
+               the quality. Tapping any card pre-fills the prompt bar with the
+               matching direction. The whole block disappears once the user
+               completes their first generation. */
+            <div className="flex flex-col min-h-[56vw]">
+              {/* Header */}
+              <div className="flex flex-col items-center gap-1.5 pt-8 pb-5 px-4 text-center">
+                <Sparkles className="size-7 text-[#e5383b]/50" />
+                <p className="text-sm font-semibold text-zinc-300">See what Aurora can do</p>
+                <p className="text-xs text-zinc-600">Tap a style to load its prompt — then add your photo</p>
+              </div>
 
-          {/* ── Inspiration — recipe → result (moved before the form for visibility) ── */}
-          <div className="space-y-5">
-            <TriedTestedShowcase
-              title="See the recipe → see the result"
-              subtitle="Real references. Real render. This is what your shoot can look like."
-              refsImage={tutorialStudioRefs.url}
-              refsCaption="Selfie · Outfit (all black) · Scene (train tracks) · Prop (vintage mic)"
-              finalImage={tutorialStudioFinal.url}
-              finalCaption="Hyper-real composite · identity preserved · golden-hour grade"
-              prompt="Create a hyper-realistic composite using the provided reference images. Use the close-up selfie as the primary identity source, preserving exact facial features, skin tone, dreadlocks. Place the subject in the scene (desert train tracks at golden hour) wearing the outfit (black fuzzy crewneck sweater, black sweatpants). Pose: powerful, hands on hips, slight low angle, leaning into a vintage hanging silver microphone. Cinematic anamorphic 35mm, warm sunset grade, sharp focus on subject, shallow depth of field, 4K editorial."
-            />
+              {/* Horizontal photo strip */}
+              <div className="w-full overflow-x-auto pb-5 px-4 scrollbar-none">
+                <div className="flex gap-3 w-max">
+                  {STUDIO_EXAMPLE_PRESETS.filter((p) => !!p.imageUrl).map((preset) => {
+                    const isActive = activeExampleId === preset.id;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => {
+                          if (preset.prompt) setPrompt(preset.prompt);
+                          setActiveExampleId(preset.id);
+                        }}
+                        className={[
+                          "relative shrink-0 w-[38vw] max-w-[152px] rounded-2xl overflow-hidden border-2 transition-all duration-200 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e5383b]",
+                          isActive
+                            ? "border-[#e5383b] shadow-[0_0_0_3px_rgba(229,56,59,0.20)]"
+                            : "border-white/10 hover:border-white/30 active:scale-[0.97]",
+                        ].join(" ")}
+                        aria-pressed={isActive}
+                        aria-label={`Use ${preset.label} direction`}
+                      >
+                        {/* Image */}
+                        <img
+                          src={preset.imageUrl}
+                          alt={preset.label}
+                          className="w-full aspect-[3/4] object-cover block"
+                          loading="lazy"
+                          draggable={false}
+                        />
 
-            {/* ── What Aurora creates — horizontal photo strip ──────── */}
-            <div>
-              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3">What Aurora creates</p>
-              <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none snap-x snap-mandatory">
-                {[
-                  { src: "/landing-photo-nba-josh.png",     label: "Artist" },
-                  { src: "/landing-photo-studios-grid.png", label: "Colors Studio" },
-                  { src: "/landing-photo-1.jpeg",           label: "Commercial" },
-                  { src: "/landing-photo-2.jpeg",           label: "Editorial" },
-                  { src: "/landing-photo-3.jpeg",           label: "Lifestyle" },
-                  { src: "/landing-photo-4.jpeg",           label: "Fashion" },
-                  { src: "/landing-photo-5.jpeg",           label: "Product" },
-                  { src: "/landing-photo-6.png",            label: "Performance" },
-                  { src: "/landing-photo-7.png",            label: "Music Video" },
-                  { src: "/landing-photo-8.png",            label: "Production" },
-                ].map(({ src, label }) => (
-                  <div
-                    key={src}
-                    className="relative shrink-0 w-28 snap-start overflow-hidden rounded-xl border border-white/10"
-                    style={{ aspectRatio: "3/4" }}
-                  >
-                    <img
-                      src={src}
-                      alt={label}
-                      className="absolute inset-0 w-full h-full object-cover eg-img"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                    <span className="absolute bottom-1.5 left-2 text-[9px] font-bold uppercase tracking-widest text-white/50">
-                      {label}
-                    </span>
+                        {/* Caption overlay */}
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent pt-8 pb-2.5 px-2.5">
+                          <p className="text-[11px] font-bold text-white leading-tight">{preset.emoji} {preset.label}</p>
+                          <p className="text-[10px] text-zinc-400 leading-snug mt-0.5 line-clamp-2">{preset.hint}</p>
+                        </div>
+
+                        {/* Selected indicator */}
+                        {isActive && (
+                          <div className="absolute top-2 right-2 flex items-center gap-1 bg-[#e5383b] rounded-full px-1.5 py-0.5">
+                            <span className="block size-1.5 rounded-full bg-white" />
+                            <span className="text-[9px] font-bold text-white leading-none">LOADED</span>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Nudge below the strip */}
+              <p className="text-center text-[11px] text-zinc-700 pb-4 px-4">
+                Upload your photo above, then hit <span className="text-zinc-500">Generate</span>
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Pipeline status */}
+        {(mut.isPending || mut.isError || videoMut.isPending || videoMut.isError || lipSyncMut.isPending || lipSyncMut.isError) && (
+          <div className="px-4 py-3 space-y-2 border-b border-white/5">
+            <p className="text-[10px] uppercase tracking-wider text-zinc-600 px-1">Pipeline</p>
+            {[
+              { label: "Image", state: mut.isPending ? "running" : mut.isError ? "error" : latest?.result_image_url ? "ok" : "idle", error: mut.isError ? friendlyGenerationMessage(mut.error) : null, canRetry: mut.isError, onRetry: () => mut.mutate(undefined), progress: imageProgress },
+              { label: "Video", state: videoMut.isPending ? "running" : videoMut.isError ? "error" : latestVideo?.result_video_url ? "ok" : "idle", error: videoMut.isError ? friendlyGenerationMessage(videoMut.error) : null, canRetry: videoMut.isError && !!latest?.result_image_url, onRetry: () => videoMut.mutate(), progress: videoProgress },
+              { label: "Lip sync", state: lipSyncMut.isPending ? "running" : lipSyncMut.isError ? "error" : "idle", error: lipSyncMut.isError ? friendlyGenerationMessage(lipSyncMut.error) : null, canRetry: lipSyncMut.isError && !!audioUrl, onRetry: () => lipSyncMut.mutate(), progress: lipsyncProgress },
+            ].map((s) => (
+              <div key={s.label} className={`flex items-start gap-2 rounded-xl border px-3 py-2 text-xs ${s.state === "ok" ? "border-emerald-500/30 bg-emerald-500/8" : s.state === "running" ? "border-[#e5383b]/30 bg-[#e5383b]/8" : s.state === "error" ? "border-destructive/40 bg-destructive/8" : "border-white/5 bg-white/3"}`}>
+                <span className={`mt-1 size-2 rounded-full shrink-0 ${s.state === "ok" ? "bg-emerald-400" : s.state === "running" ? "bg-[#e5383b] animate-pulse" : s.state === "error" ? "bg-destructive" : "bg-zinc-600"}`} />
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="font-medium text-zinc-200 flex items-center gap-2">
+                    {s.label}
+                    <span className="text-[10px] text-zinc-500 uppercase">{s.state === "running" ? s.progress.label || "Running…" : s.state}</span>
                   </div>
-                ))}
+                  {s.state === "running" && <GenerationProgress visible progress={s.progress.progress} gradient />}
+                  {s.error && <div className="text-destructive/80 text-[11px] truncate">{s.error}</div>}
+                </div>
+                {s.canRetry && (
+                  <button type="button" onClick={s.onRetry} className="shrink-0 text-[11px] px-2 py-1 rounded-md border border-white/10 bg-white/5 hover:border-white/20">Try again</button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Re-angle chips */}
+        {latest?.result_image_url && (
+          <div className="px-4 py-4 border-b border-white/5">
+            <div className="flex items-center gap-2 mb-3">
+              <Camera className="size-3.5 text-zinc-500" />
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Re-angle</p>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {REANGLES.map((a) => (
+                <button key={a.label} type="button" disabled={reangleMut.isPending} onClick={() => reangleMut.mutate(a.prompt)}
+                  className="text-xs px-3 py-1.5 rounded-full border border-white/10 bg-white/4 hover:border-white/25 hover:bg-white/8 disabled:opacity-40 transition-colors">
+                  {a.label}
+                </button>
+              ))}
+              {latest?.result_image_url && (
+                <Link to="/motion" search={{ image: latest.result_image_url }}
+                  className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-[#e5383b]/30 bg-[#e5383b]/8 text-[#e5383b] no-underline hover:border-[#e5383b]/60 transition-colors">
+                  <Wand2 className="size-3" /> Motion
+                </Link>
+              )}
+            </div>
+            {reangleMut.isPending && <p className="text-xs text-zinc-500 mt-2 flex items-center gap-1.5"><Loader2 className="size-3 animate-spin" /> Re-shooting…</p>}
+          </div>
+        )}
+
+        {/* Video result */}
+        {latestVideo?.result_video_url && (
+          <div className="px-4 py-4 border-b border-white/5 space-y-3">
+            <div className="flex items-center gap-2">
+              <Film className="size-3.5 text-zinc-500" />
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Video</p>
+            </div>
+            <div className="rounded-xl overflow-hidden border border-white/8 relative">
+              <video src={latestVideo.result_video_url} className="w-full h-auto" controls playsInline />
+              <div className="absolute bottom-3 right-3 flex items-center gap-2">
+                <ShareMenu getShareTarget={async () => {
+                  if (!latestVideo) throw new Error("Nothing to share yet");
+                  const r = await publishFn({ data: { id: latestVideo.id } });
+                  return { url: `${window.location.origin}${r.url}`, text: latestVideo.prompt ?? undefined, assetUrl: latestVideo.result_video_url, filename: `aurora-${latestVideo.id.slice(0, 8)}.mp4` };
+                }} />
+                <button type="button" onClick={() => latestVideo?.result_video_url && saveAssetToDisk(latestVideo.result_video_url, `aurora-${latestVideo.id.slice(0, 8)}.mp4`)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur text-xs font-medium hover:bg-black/90">
+                  <Download className="size-3.5" /> Save
+                </button>
               </div>
             </div>
           </div>
+        )}
 
-          {/* Compact 5-slot reference row */}
-          <div className="grid grid-cols-5 gap-2">
-            <UploadSlot userId={user.id} label="You" hint="Selfie" value={selfie} onChange={setSelfie} />
-            <UploadSlot userId={user.id} label="Outfit" hint="Wear" value={outfit} onChange={setOutfit} />
-            <UploadSlot userId={user.id} label="Scene" hint="Vibe" value={scene} onChange={setScene} />
-            <UploadSlot userId={user.id} label="Prop" hint="Mic / car" value={prop} onChange={setProp} />
-            <UploadSlot
-              userId={user.id}
-              label="Pose"
-              hint="Reference photo"
-              value={motion}
-              onChange={setMotion}
-            />
-          </div>
-
-          {/* Virtual wardrobe — available for every preset */}
-          <div className="rounded-2xl border border-orange-400/20 bg-gradient-to-br from-orange-500/5 via-background/40 to-red-500/5 px-4 py-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex size-2 rounded-full bg-orange-400 shadow-[0_0_8px_2px_rgba(232,121,249,0.5)]" />
-              <p className="text-xs font-semibold text-orange-200/80 uppercase tracking-wider">
-                Virtual Wardrobe
-              </p>
+        {/* Recent shoots */}
+        {history && history.items.length > 0 && (
+          <div className="px-4 py-4 border-b border-white/5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Recent shoots</p>
+              <Link to="/dashboard" className="text-[11px] text-[#e5383b] hover:underline">View all →</Link>
             </div>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Pick a saved outfit and Aurora will thread this exact look through your scene.
-            </p>
-            <WardrobePicker userId={user.id} value={outfit} onChange={setOutfit} />
-          </div>
-
-          <ExampleChips
-            presets={STUDIO_EXAMPLE_PRESETS}
-            activeId={activeExampleId}
-            onSelect={(preset) => {
-              if (preset.prompt) setPrompt(preset.prompt);
-              setActiveExampleId(preset.id);
-            }}
-            onGenerate={() => {
-              const preset = STUDIO_EXAMPLE_PRESETS.find((p) => p.id === activeExampleId);
-              mut.mutate({ promptOverride: preset?.prompt ?? prompt });
-            }}
-            label="Quick start:"
-          />
-
-          <div className="space-y-2">
-            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Direction</label>
-            <Textarea rows={5} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Describe the shot you want — e.g. 'cinematic rooftop performance at golden hour, anamorphic 50mm, hanging vintage mic'" className="resize-none bg-card/60 text-base" />
-            <div className="flex flex-wrap gap-2 pt-1">
-              {PRESETS.map((p) => (
-                <button
-                  key={p.label}
-                  type="button"
-                  onClick={() => {
-                    setPrompt(p.prompt);
-                    setActivePreset(p.label);
-                  }}
-                  className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
-                    activePreset === p.label
-                      ? "border-primary/60 bg-primary/10 text-primary"
-                      : "border-border bg-card/60 hover:bg-accent hover:border-primary/40"
-                  }`}
-                >
-                  {p.label}
-                </button>
+            <div className="grid grid-cols-4 gap-2">
+              {history.items.slice(0, 8).map((g) => (
+                <div key={g.id} className="aspect-square rounded-xl overflow-hidden border border-white/8 bg-zinc-900 relative group">
+                  {g.result_image_url ? (
+                    <img src={g.result_image_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-600 px-1 text-center">{g.status === "failed" ? "Failed" : g.status}</div>
+                  )}
+                  <button type="button" onClick={(e) => { e.stopPropagation(); if (confirm("Delete permanently?")) studioDelMut.mutate(g.id); }} disabled={studioDelMut.isPending}
+                    className="absolute top-1 right-1 size-5 rounded-full bg-black/60 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 hover:bg-red-600/80 transition-opacity disabled:opacity-50">
+                    <Trash2 className="size-2.5" />
+                  </button>
+                </div>
               ))}
             </div>
           </div>
+        )}
 
-          <div className="space-y-2">
-            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Image model</label>
+        {/* Buy Aura */}
+        <div className="relative overflow-hidden border-t border-[#e5383b]/15 bg-gradient-to-b from-zinc-950 to-zinc-900">
+          <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 w-[400px] h-[180px] rounded-full bg-[#e5383b]/10 blur-[70px]" />
+          <div className="relative px-4 py-6 space-y-5">
+            <div>
+              <p className="aurora-kicker mb-2 flex items-center gap-1.5"><Coins className="size-3" />Aura Credits</p>
+              <h3 className="text-xl font-black tracking-tight text-white">Every tool. <span className="aurora-gradient-text">One balance.</span></h3>
+              <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">Photos, videos, lip-syncs, 4K exports — all charged from the same Aura wallet. Never expires.</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {(["day1", "day2"] as const).map((k) => {
+                const p = PLANS[k];
+                return (
+                  <button key={k} type="button" disabled={checkoutMut.isPending} onClick={() => checkoutMut.mutate(k)}
+                    className="flex flex-col gap-0.5 rounded-xl border border-white/10 bg-white/4 hover:border-[#e5383b]/30 hover:bg-[#e5383b]/8 active:scale-[0.98] transition-all p-3 text-left disabled:opacity-50">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-600">{k === "day1" ? "1-Day Pass" : "2-Day Pass"}</span>
+                    <span className="text-lg font-black text-white leading-none">{p.credits} <span className="text-xs font-normal text-zinc-500">Aura</span></span>
+                    <span className="text-xs font-semibold text-zinc-400">{p.prices[currency].display}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="space-y-2">
+              {(["starter", "creator", "studio"] as const).map((k) => {
+                const p = PLANS[k];
+                const isPopular = k === "creator";
+                const isBest = k === "studio";
+                return (
+                  <button key={k} type="button" disabled={checkoutMut.isPending} onClick={() => checkoutMut.mutate(k)}
+                    className={`w-full rounded-2xl border p-4 text-left transition-all active:scale-[0.98] disabled:opacity-50 ${isPopular ? "border-[#e5383b]/50 bg-gradient-to-br from-[#e5383b]/12 to-[#e5383b]/4" : isBest ? "border-amber-400/30 bg-gradient-to-br from-amber-500/8 to-transparent" : "border-white/8 bg-white/4"}`}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-black capitalize ${isPopular ? "text-white" : isBest ? "text-amber-100" : "text-zinc-300"}`}>{k}</span>
+                        {isPopular && <span className="text-[10px] font-bold text-[#e5383b] border border-[#e5383b]/40 rounded px-1.5 py-0.5 flex items-center gap-1"><Flame className="size-2.5" />Popular</span>}
+                        {isBest && <span className="text-[10px] font-bold text-amber-400 border border-amber-400/30 rounded px-1.5 py-0.5">Best value</span>}
+                      </div>
+                      <span className={`text-lg font-black ${isPopular ? "text-[#e5383b]" : isBest ? "text-amber-300" : "text-zinc-300"}`}>{p.prices[currency].display}</span>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <span className={`text-3xl font-black tabular-nums ${isPopular ? "text-white" : isBest ? "text-amber-100" : "text-zinc-400"}`}>{p.credits}</span>
+                      <span className="text-xs text-zinc-600">Aura</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-center gap-3 pt-1">
+              {checkoutMut.isPending ? (
+                <span className="text-[11px] text-zinc-500 flex items-center gap-1.5"><Loader2 className="size-3 animate-spin" />Opening checkout…</span>
+              ) : (
+                <>
+                  <span className="text-[10px] text-zinc-600 flex items-center gap-1"><Shield className="size-3" />Paystack secured</span>
+                  <span className="text-[10px] text-zinc-700">·</span>
+                  <span className="text-[10px] text-zinc-600">Credits never expire</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Sticky bottom prompt bar ──────────────────────────────── */}
+      <div className="fixed bottom-16 left-0 right-0 z-20 border-t border-white/8 bg-zinc-950/95 backdrop-blur-xl px-3 py-3">
+        <div className="flex items-end gap-2">
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            className="shrink-0 flex size-10 items-center justify-center rounded-xl border border-white/10 bg-white/6 hover:bg-white/12 transition-colors"
+            aria-label="Open settings"
+          >
+            <Settings2 className="size-4.5 text-zinc-400" />
+          </button>
+          <Textarea
+            rows={2}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="Describe the shot — rooftop at golden hour, hanging mic, anamorphic…"
+            className="flex-1 min-h-[2.5rem] max-h-32 resize-none bg-zinc-900 border-white/10 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-[#e5383b]/40 rounded-xl"
+          />
+          <button
+            type="button"
+            disabled={mut.isPending}
+            onClick={() => mut.mutate(undefined)}
+            className="shrink-0 flex size-10 items-center justify-center rounded-xl bg-[#e5383b] hover:bg-[#e5383b]/80 disabled:opacity-50 transition-colors shadow-[0_0_20px_-4px_rgba(229,56,59,0.6)]"
+            aria-label="Generate"
+          >
+            {mut.isPending ? <Loader2 className="size-4.5 animate-spin text-white" /> : <Wand2 className="size-4.5 text-white" />}
+          </button>
+        </div>
+        <div className="flex items-center justify-between mt-1.5 px-1">
+          <span className="text-[10px] text-zinc-600">{getModelMeta(model)?.label ?? model} · 10 Aura</span>
+          <button type="button" onClick={() => setSettingsOpen(true)} className="text-[10px] text-zinc-600 hover:text-zinc-300 transition-colors">
+            {selfie || outfit ? "✓ refs set" : "Add references"}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Settings Sheet ─────────────────────────────────────────── */}
+      <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-2xl bg-zinc-950 border-white/10 px-4 pb-10">
+          <SheetHeader className="mb-5">
+            <SheetTitle className="text-base font-semibold text-zinc-100">Studio Settings</SheetTitle>
+          </SheetHeader>
+
+          {/* References */}
+          <div className="space-y-3 mb-6">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">References</p>
+            <div className="grid grid-cols-5 gap-2">
+              <UploadSlot userId={user.id} label="You" hint="Selfie" value={selfie} onChange={setSelfie} />
+              <UploadSlot userId={user.id} label="Outfit" hint="Wear" value={outfit} onChange={setOutfit} />
+              <UploadSlot userId={user.id} label="Scene" hint="Vibe" value={scene} onChange={setScene} />
+              <UploadSlot userId={user.id} label="Prop" hint="Mic/car" value={prop} onChange={setProp} />
+              <UploadSlot userId={user.id} label="Pose" hint="Ref photo" value={motion} onChange={setMotion} />
+            </div>
+          </div>
+
+          {/* Virtual Wardrobe */}
+          <div className="space-y-3 mb-6">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Virtual Wardrobe</p>
+            <WardrobePicker userId={user.id} value={outfit} onChange={setOutfit} />
+          </div>
+
+          {/* Model */}
+          <div className="space-y-2 mb-6">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Image model</p>
             <Select value={model} onValueChange={setModel}>
-              <SelectTrigger className="bg-card/60">
-                <div className="flex items-center gap-2">
-                  <ModelBadge model={model} />
-                  <span className="text-sm">{getModelMeta(model).label}</span>
-                </div>
+              <SelectTrigger className="bg-zinc-900 border-white/10">
+                <div className="flex items-center gap-2"><ModelBadge model={model} /><span className="text-sm">{getModelMeta(model).label}</span></div>
               </SelectTrigger>
               <SelectContent>
                 {MODELS.map((m) => (
                   <SelectItem key={m.value} value={m.value}>
                     <div className="flex items-center gap-2 py-0.5">
                       <ModelBadge model={m.value} />
-                      <div className="flex flex-col">
-                        <span className="text-sm">{m.label}</span>
-                        <span className="text-[10px] text-muted-foreground">{m.tagline}</span>
-                      </div>
+                      <div className="flex flex-col"><span className="text-sm">{m.label}</span><span className="text-[10px] text-zinc-500">{m.tagline}</span></div>
                     </div>
                   </SelectItem>
                 ))}
@@ -720,284 +958,58 @@ function StudioPage() {
             </Select>
           </div>
 
-          {/* Cost + runtime estimate */}
-          <div className="flex items-center justify-between text-xs text-muted-foreground rounded-xl border border-border bg-card/40 px-3 py-2">
-            <span className="inline-flex items-center gap-1.5">
-              <Zap className="size-3.5 text-primary" />
-              Cost: <span className="text-foreground font-medium">10 Aura</span>
-              <span className="opacity-50">·</span>
-              ETA: <span className="text-foreground font-medium">~10–20s</span>
-            </span>
-            <span className="opacity-70">{getModelMeta(model)?.label ?? model}</span>
-          </div>
-
-          <Button
-            disabled={mut.isPending}
-            onClick={() => mut.mutate(undefined)}
-            className="w-full h-14 text-base font-medium shadow-[var(--shadow-glow)]"
-            style={{ background: "var(--gradient-hero)" }}
-          >
-            {mut.isPending ? (
-              <><Loader2 className="size-5 mr-2 animate-spin" /> Staging the shoot…</>
-            ) : (
-              <><Wand2 className="size-5 mr-2" /> Generate performance shot · 10 Aura</>
-            )}
-          </Button>
-
-
-          <Button
-            disabled={demoMut.isPending || !demoUrl}
-            onClick={() => demoMut.mutate()}
-            variant="outline"
-            className="w-full"
-          >
-            {demoMut.isPending ? (
-              <><Loader2 className="size-4 mr-2 animate-spin" /> Running demo…</>
-            ) : (
-              <><Zap className="size-4 mr-2" /> Try a demo shoot (no upload needed)</>
-            )}
-          </Button>
-
-        </section>
-
-        {/* Preview / Gallery */}
-        <section className="space-y-4">
-          <div className="rounded-3xl overflow-hidden border border-border bg-card/60 backdrop-blur-xl aspect-[4/5] relative shadow-[var(--shadow-soft)]">
-            {mut.isPending ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-8 text-muted-foreground px-8">
-                <div className="size-16 rounded-full flex items-center justify-center" style={{ background: "var(--gradient-hero)" }}>
-                  <Loader2 className="size-7 animate-spin text-primary-foreground" />
-                </div>
-                <div className="w-full space-y-2">
-                  <p className="text-sm text-center">{imageProgress.label || "Lighting the stage…"}</p>
-                  <GenerationProgress visible progress={imageProgress.progress} />
-                </div>
-              </div>
-            ) : latest?.result_image_url ? (
-              <>
-                <BlurredPreview
-                  src={latest.result_image_url}
-                  alt="Latest shot"
-                  aspectRatio="4/5"
-                  className="absolute inset-0 w-full h-full rounded-none border-0"
-                  transitionMs={800}
-                />
-                <div className="absolute bottom-4 right-4 flex items-center gap-2">
-                  <ShareMenu
-                    getShareTarget={async () => {
-                      if (!latest) throw new Error("Nothing to share yet");
-                      const r = await publishFn({ data: { id: latest.id } });
-                      return {
-                        url: `${window.location.origin}${r.url}`,
-                        text: latest.prompt ?? undefined,
-                        assetUrl: latest.result_image_url,
-                        filename: `aurora-${latest.id.slice(0, 8)}.png`,
-                      };
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => latest?.result_image_url && saveAssetToDisk(latest.result_image_url, `aurora-${latest.id.slice(0,8)}.png`)}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-background/90 backdrop-blur text-sm font-medium hover:bg-background"
-                  >
-                    <Download className="size-4" /> Save
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground p-8 text-center">
-                <Sparkles className="size-10 text-primary/50" />
-                <p className="text-sm">Your performance shot will appear here.</p>
-              </div>
-            )}
-          </div>
-
-          {/* Per-step pipeline status + progress + retry */}
-          {(mut.isPending || mut.isError || videoMut.isPending || videoMut.isError || lipSyncMut.isPending || lipSyncMut.isError || latest || latestVideo) && (
-            <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl p-3 space-y-2">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-1">Pipeline</div>
-              {[
-                {
-                  label: "Image",
-                  state: mut.isPending ? "running" : mut.isError ? "error" : latest?.result_image_url ? "ok" : "idle",
-                  error: mut.isError ? friendlyGenerationMessage(mut.error) : null,
-                  canRetry: mut.isError,
-                  onRetry: () => mut.mutate(undefined),
-                  progress: imageProgress,
-                },
-                {
-                  label: "Video",
-                  state: videoMut.isPending ? "running" : videoMut.isError ? "error" : latestVideo?.result_video_url ? "ok" : "idle",
-                  error: videoMut.isError ? friendlyGenerationMessage(videoMut.error) : null,
-                  canRetry: videoMut.isError && !!latest?.result_image_url,
-                  onRetry: () => videoMut.mutate(),
-                  progress: videoProgress,
-                },
-                {
-                  label: "Lip sync",
-                  state: lipSyncMut.isPending ? "running" : lipSyncMut.isError ? "error" : "idle",
-                  error: lipSyncMut.isError ? friendlyGenerationMessage(lipSyncMut.error) : null,
-                  canRetry: lipSyncMut.isError && !!audioUrl,
-                  onRetry: () => lipSyncMut.mutate(),
-                  progress: lipsyncProgress,
-                },
-              ].map((s) => (
-                <div
-                  key={s.label}
-                  className={`flex items-start gap-2 rounded-xl border px-3 py-2 text-xs ${
-                    s.state === "ok" ? "border-emerald-500/40 bg-emerald-500/10" :
-                    s.state === "running" ? "border-primary/40 bg-primary/10" :
-                    s.state === "error" ? "border-destructive/50 bg-destructive/10" :
-                    "border-border bg-background/40"
-                  }`}
-                >
-                  <span className={`mt-1 size-2 rounded-full ${
-                    s.state === "ok" ? "bg-emerald-400" :
-                    s.state === "running" ? "bg-primary animate-pulse" :
-                    s.state === "error" ? "bg-destructive" : "bg-muted-foreground/40"
-                  }`} />
-                  <div className="flex-1 min-w-0 space-y-1.5">
-                    <div className="font-medium text-foreground flex items-center gap-2">
-                      {s.label}
-                      <span className="text-[10px] text-muted-foreground uppercase">
-                        {s.state === "running" ? s.progress.label || "Running…" : s.state}
-                      </span>
-                    </div>
-                    {s.state === "running" && (
-                      <GenerationProgress
-                        visible
-                        progress={s.progress.progress}
-                        gradient
-                      />
-                    )}
-                    {s.error && <div className="text-destructive/90 text-[11px] truncate" title={s.error}>{s.error}</div>}
-                  </div>
-                  {s.canRetry && (
-                    <button
-                      type="button"
-                      onClick={s.onRetry}
-                      className="shrink-0 text-[11px] px-2 py-1 rounded-md border border-border bg-background/80 hover:border-primary/40"
-                    >
-                      Try again
-                    </button>
-                  )}
-                </div>
+          {/* Presets */}
+          <div className="space-y-2 mb-6">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Presets</p>
+            <div className="flex flex-wrap gap-2">
+              {PRESETS.map((p) => (
+                <button key={p.label} type="button" onClick={() => { setPrompt(p.prompt); setActivePreset(p.label); setSettingsOpen(false); }}
+                  className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${activePreset === p.label ? "border-[#e5383b]/60 bg-[#e5383b]/10 text-[#e5383b]" : "border-white/8 bg-white/4 hover:bg-white/8"}`}>
+                  {p.label}
+                </button>
               ))}
             </div>
-          )}
+          </div>
 
-          {history && history.items.length > 0 && (
-            <div>
-              <h3 className="text-sm font-medium text-muted-foreground mb-3 uppercase tracking-wider">Recent shoots</h3>
-              <div className="grid grid-cols-3 gap-3">
-                {history.items.slice(0, 9).map((g) => (
-                  <div key={g.id} className="aspect-square rounded-xl overflow-hidden border border-border bg-card/60 relative group">
-                    {g.result_image_url ? (
-                      <>
-                        <img src={g.result_image_url} alt="" className="w-full h-full object-cover" />
-                        <div className="absolute top-1.5 left-1.5"><ModelBadge model={g.model} size="xs" /></div>
-                      </>
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground px-2 text-center">
-                        {g.status === "failed" ? "Failed" : g.status}
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); if (confirm("Delete this generation permanently?")) studioDelMut.mutate(g.id); }}
-                      disabled={studioDelMut.isPending}
-                      className="absolute top-1 right-1 size-6 rounded-full bg-black/60 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600/80 disabled:opacity-50"
-                      title="Delete"
-                    >
-                      <Trash2 className="size-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 text-right">
-                <Link to="/dashboard" className="text-xs text-primary hover:underline">View all in dashboard →</Link>
-              </div>
-            </div>
-          )}
+          {/* Quick-start examples */}
+          <div className="mb-6">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 mb-2">Quick start</p>
+            <ExampleChips presets={STUDIO_EXAMPLE_PRESETS} activeId={activeExampleId}
+              onSelect={(preset) => { if (preset.prompt) setPrompt(preset.prompt); setActiveExampleId(preset.id); }}
+              onGenerate={() => { const preset = STUDIO_EXAMPLE_PRESETS.find((p) => p.id === activeExampleId); mut.mutate({ promptOverride: preset?.prompt ?? prompt }); setSettingsOpen(false); }}
+              label="Quick start:" />
+          </div>
 
+          {/* Demo shot */}
+          <Button disabled={demoMut.isPending || !demoUrl} onClick={() => { demoMut.mutate(); setSettingsOpen(false); }} variant="outline" className="w-full mb-6">
+            {demoMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" />Running demo…</> : <><Zap className="size-4 mr-2" />Try a demo (no upload needed)</>}
+          </Button>
+
+          {/* Video section */}
           {latest?.result_image_url && (
-            <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Camera className="size-4 text-primary" />
-                <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Re-angle the last shot</h3>
-              </div>
-              <p className="text-xs text-muted-foreground mb-3">Generate a new camera angle from your latest result — same scene, same outfit, new shot.</p>
-              <div className="flex flex-wrap gap-2">
-                {REANGLES.map((a) => (
-                  <button
-                    key={a.label}
-                    type="button"
-                    disabled={reangleMut.isPending}
-                    onClick={() => reangleMut.mutate(a.prompt)}
-                    className="text-xs px-3 py-1.5 rounded-lg border border-border bg-background/60 hover:bg-accent hover:border-primary/40 transition-colors disabled:opacity-50"
-                  >
-                    {a.label}
-                  </button>
-                ))}
-              </div>
-              {reangleMut.isPending && (
-                <p className="text-xs text-muted-foreground mt-3 flex items-center gap-2">
-                  <Loader2 className="size-3 animate-spin" /> Re-shooting…
-                </p>
-              )}
-            </div>
-          )}
-
-          {latest?.result_image_url && (
-            <Link
-              to="/motion"
-              search={{ image: latest.result_image_url }}
-              className="no-underline block rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-4 hover:border-primary/70 hover:bg-primary/15 transition-all group"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Wand2 className="size-4 text-primary" />
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">Motion Control</h3>
-                </div>
-                <span className="text-xs text-primary group-hover:translate-x-0.5 transition-transform">Open →</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1.5">Transfer your real-world movement onto this shot — upload a performance clip and Aurora maps your motion onto the generated scene.</p>
-            </Link>
-          )}
-
-          {latest?.result_image_url && (
-            <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <Film className="size-4 text-primary" />
-                <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Bring it to life</h3>
-              </div>
-              <p className="text-xs text-muted-foreground">Animate your latest shot. Pick a video model and a camera move — Kling supports an optional end-frame for true motion control.</p>
-
+            <div className="space-y-3 mb-6 pt-5 border-t border-white/5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Animate this shot</p>
               <BringItToLifePreview active={cameraMovement} onPick={setCameraMovement} />
-
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Video model</label>
+                  <label className="text-[10px] uppercase tracking-wider text-zinc-600">Video model</label>
                   <Select value={videoModel} onValueChange={setVideoModel}>
-                    <SelectTrigger className="bg-background/60 h-9 text-sm"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="bg-zinc-900 border-white/10 h-9 text-sm"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {VIDEO_MODEL_LIST.map((m) => (
                         <SelectItem key={m.value} value={m.value} className="text-sm">
-                          <div className="flex flex-col">
-                            <span>{m.label}</span>
-                            <span className="text-[10px] text-muted-foreground">{m.tagline}</span>
-                          </div>
+                          <div className="flex flex-col"><span>{m.label}</span><span className="text-[10px] text-zinc-500">{m.tagline}</span></div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Camera move</label>
+                  <label className="text-[10px] uppercase tracking-wider text-zinc-600">Camera move</label>
                   <Select value={cameraMovement} onValueChange={setCameraMovement}>
-                    <SelectTrigger className="bg-background/60 h-9 text-sm"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="bg-zinc-900 border-white/10 h-9 text-sm"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="static">Static (locked off)</SelectItem>
+                      <SelectItem value="static">Static</SelectItem>
                       <SelectItem value="push_in">Push in</SelectItem>
                       <SelectItem value="pull_out">Pull out</SelectItem>
                       <SelectItem value="zoom_in">Slow zoom in</SelectItem>
@@ -1012,354 +1024,87 @@ function StudioPage() {
                   </Select>
                 </div>
               </div>
-
-              <Textarea rows={2} value={videoPrompt} onChange={(e) => setVideoPrompt(e.target.value)} className="resize-none bg-background/60 text-sm" />
-
+              <Textarea rows={2} value={videoPrompt} onChange={(e) => setVideoPrompt(e.target.value)} className="resize-none bg-zinc-900 border-white/10 text-sm" />
               {videoModel.startsWith("kling") && (
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">End frame (optional, Kling motion control)</label>
-                  <div className="w-32">
-                    <UploadSlot
-                      userId={user.id}
-                      label=""
-                      hint="Where it ends"
-                      value={endFrameUrl}
-                      onChange={setEndFrameUrl}
-                    />
-                  </div>
+                  <label className="text-[10px] uppercase tracking-wider text-zinc-600">End frame (optional)</label>
+                  <div className="w-28"><UploadSlot userId={user.id} label="" hint="Where it ends" value={endFrameUrl} onChange={setEndFrameUrl} /></div>
                 </div>
               )}
-
-              <ResolutionPicker
-                resolution={videoResolution}
-                onChange={setVideoResolution}
-                isPro={!!(profile?.is_pro || profile?.isAdmin)}
-                features={["video"]}
-                durationSeconds={5}
-                model={videoModel}
-              />
-
-              <div className="flex items-center justify-between text-xs text-muted-foreground rounded-xl border border-border bg-background/40 px-3 py-2">
-                <span className="inline-flex items-center gap-1.5">
-                  <Zap className="size-3.5 text-primary" />
-                  Cost: <span className="text-foreground font-medium">{videoCost} Aura</span>
-                  <span className="opacity-50">·</span>
-                  ETA: <span className="text-foreground font-medium">~60–180s</span>
-                </span>
-                <span className="opacity-70">{getModelMeta(videoModel).short}</span>
+              <ResolutionPicker resolution={videoResolution} onChange={setVideoResolution} isPro={!!(profile?.is_pro || profile?.isAdmin)} features={["video"]} durationSeconds={5} model={videoModel} />
+              <div className="flex items-center justify-between text-xs text-zinc-500 rounded-xl border border-white/8 bg-white/3 px-3 py-2">
+                <span className="inline-flex items-center gap-1.5"><Zap className="size-3.5 text-[#e5383b]" />Cost: <span className="text-zinc-200 font-medium">{videoCost} Aura</span><span className="opacity-40">·</span>ETA: ~60–180s</span>
+                <span>{getModelMeta(videoModel).short}</span>
               </div>
-              <Button
-                disabled={videoMut.isPending}
-                onClick={() => {
-                  const isHd = videoResolution === "1080p" || videoResolution === "2160p";
-                  if (videoPreviewId && isHd) {
-                    setVideoHdDialogOpen(true);
-                  } else {
-                    videoMut.mutate();
-                  }
-                }}
-                variant="secondary"
-                className="w-full"
-              >
-                {videoMut.isPending
-                  ? <><Loader2 className="size-4 mr-2 animate-spin" /> {videoPreviewId ? "Rendering full quality…" : "Rendering preview…"}</>
-                  : videoPreviewId
-                  ? <><Film className="size-4 mr-2" /> Render full quality · {videoCost} Aura</>
-                  : <><Film className="size-4 mr-2" /> Preview animation · {videoPreviewCost} Aura</>
-                }
+              <Button disabled={videoMut.isPending} onClick={() => { const isHd = videoResolution === "1080p" || videoResolution === "2160p"; if (videoPreviewId && isHd) setVideoHdDialogOpen(true); else videoMut.mutate(); }} variant="secondary" className="w-full">
+                {videoMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" />{videoPreviewId ? "Rendering…" : "Rendering preview…"}</> : videoPreviewId ? <><Film className="size-4 mr-2" />Render full · {videoCost} Aura</> : <><Film className="size-4 mr-2" />Preview · {videoPreviewCost} Aura</>}
               </Button>
-              <AlertDialog open={videoHdDialogOpen} onOpenChange={setVideoHdDialogOpen}>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      Render at {videoResolution === "2160p" ? "4K (2160p)" : "HD (1080p)"}?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will charge <strong>{videoCost} Aura</strong> from your balance to produce a full-quality {videoResolution === "2160p" ? "4K" : "HD"} video render.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => videoMut.mutate()}>
-                      Confirm &amp; Render
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-
-              {latestVideo?.result_video_url && (
-                <div className="rounded-xl overflow-hidden border border-border bg-background/40 relative">
-                  <video src={latestVideo.result_video_url} className="w-full h-auto" controls playsInline />
-                  <div className="absolute bottom-3 right-3 flex items-center gap-2">
-                    <ShareMenu
-                      getShareTarget={async () => {
-                        if (!latestVideo) throw new Error("Nothing to share yet");
-                        const r = await publishFn({ data: { id: latestVideo.id } });
-                        return {
-                          url: `${window.location.origin}${r.url}`,
-                          text: latestVideo.prompt ?? undefined,
-                          assetUrl: latestVideo.result_video_url,
-                          filename: `aurora-${latestVideo.id.slice(0, 8)}.mp4`,
-                        };
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => latestVideo?.result_video_url && saveAssetToDisk(latestVideo.result_video_url, `aurora-${latestVideo.id.slice(0,8)}.mp4`)}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-background/90 backdrop-blur text-sm font-medium hover:bg-background"
-                    >
-                      <Download className="size-4" /> Save
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
+          {/* Lip sync */}
           {latestVideo?.result_video_url && (
-            <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <Mic2 className="size-4 text-primary" />
-                <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Lip sync to your audio</h3>
-              </div>
-              <p className="text-xs text-muted-foreground">Upload your song/vocal and we'll sync the lips on your latest video. Sync 1.9 (premium, more natural), Wav2Lip (classic, faster & cheaper), or LatentSync on your own registered GPU worker.</p>
+            <div className="space-y-3 mb-6 pt-5 border-t border-white/5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Lip sync</p>
               <div className="grid grid-cols-3 gap-2">
-                {[
-                  { v: "fal-ai/sync-lipsync/v2" as const, label: "Sync 1.9", hint: "Premium · natural", icon: Sparkles },
-                  { v: "fal-ai/wav2lip" as const, label: "Wav2Lip", hint: "Classic · fast", icon: Zap },
-                  { v: "latentsync" as const, label: "Self-hosted", hint: "LatentSync · your GPU", icon: Server },
-                ].map((opt) => (
-                  <button
-                    key={opt.v}
-                    type="button"
-                    onClick={() => setLipsyncModel(opt.v)}
-                    className={`text-left rounded-xl border p-2.5 transition-colors ${lipsyncModel === opt.v ? "border-primary/60 bg-primary/10" : "border-border bg-background/60 hover:border-primary/30"}`}
-                  >
-                    <div className="text-sm font-medium flex items-center gap-1.5"><opt.icon className="size-3.5" />{opt.label}</div>
-                    <div className="text-[10px] text-muted-foreground">{opt.hint}</div>
+                {([
+                  { v: "fal-ai/sync-lipsync/v2" as const, label: "Sync 1.9", hint: "Premium", icon: Sparkles },
+                  { v: "fal-ai/wav2lip" as const, label: "Wav2Lip", hint: "Fast", icon: Zap },
+                  { v: "latentsync" as const, label: "Self-hosted", hint: "Your GPU", icon: Server },
+                ]).map((opt) => (
+                  <button key={opt.v} type="button" onClick={() => setLipsyncModel(opt.v)}
+                    className={`text-left rounded-xl border p-2.5 transition-colors ${lipsyncModel === opt.v ? "border-[#e5383b]/50 bg-[#e5383b]/10" : "border-white/8 bg-white/4 hover:border-white/20"}`}>
+                    <div className="text-xs font-medium flex items-center gap-1.5"><opt.icon className="size-3.5" />{opt.label}</div>
+                    <div className="text-[10px] text-zinc-600 mt-0.5">{opt.hint}</div>
                   </button>
                 ))}
               </div>
-              <UploadSlot
-                userId={user.id}
-                label="Audio"
-                hint="Upload mp3 / wav"
-                accept={AUDIO_ACCEPT}
-                kind="video"
-                value={audioUrl}
-                onChange={setAudioUrl}
-              />
+              <UploadSlot userId={user.id} label="Audio" hint="Upload mp3/wav" accept={AUDIO_ACCEPT} kind="video" value={audioUrl} onChange={setAudioUrl} />
               <label className="flex items-start gap-2.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={studioLipsyncConsent}
-                  onChange={(e) => setStudioLipsyncConsent(e.target.checked)}
-                  className="mt-0.5 size-4 accent-[var(--color-primary)] flex-shrink-0"
-                />
-                <span className="text-xs text-muted-foreground leading-relaxed">
-                  I confirm I have the legal right to use this voice and likeness.{" "}
-                  <Link to="/legal/$slug" params={{ slug: "ai-policy" }} className="underline hover:text-foreground" target="_blank">
-                    AI Policy
-                  </Link>
-                </span>
+                <input type="checkbox" checked={studioLipsyncConsent} onChange={(e) => setStudioLipsyncConsent(e.target.checked)} className="mt-0.5 size-4 accent-[#e5383b] shrink-0" />
+                <span className="text-xs text-zinc-500 leading-relaxed">I confirm I have the legal right to use this voice and likeness. <Link to="/legal/$slug" params={{ slug: "ai-policy" }} className="underline hover:text-zinc-200" target="_blank">AI Policy</Link></span>
               </label>
               <Button disabled={lipSyncMut.isPending || !audioUrl || !studioLipsyncConsent} onClick={() => lipSyncMut.mutate()} variant="secondary" className="w-full">
-                {lipSyncMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Syncing lips…</> : <><Mic2 className="size-4 mr-2" /> Lip sync video · {lipsyncCost} Aura</>}
+                {lipSyncMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" />Syncing…</> : <><Mic2 className="size-4 mr-2" />Lip sync · {lipsyncCost} Aura</>}
               </Button>
             </div>
           )}
 
+          {/* Captions */}
           {latestVideo?.result_video_url && (
-            <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <Captions className="size-4 text-primary" />
-                <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Add Captions</h3>
-              </div>
-              <p className="text-xs text-muted-foreground">Transcribe your video's audio with Whisper, review and edit the caption segments, then burn them permanently into the video.</p>
-              <Button variant="secondary" className="w-full" onClick={() => setCaptionOpen(true)}>
-                <Captions className="size-4 mr-2" /> Add Captions · 20 Aura
+            <div className="space-y-3 mb-6 pt-5 border-t border-white/5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Captions</p>
+              <Button variant="secondary" className="w-full" onClick={() => { setCaptionOpen(true); setSettingsOpen(false); }}>
+                <Captions className="size-4 mr-2" />Add Captions · 20 Aura
               </Button>
             </div>
           )}
 
-          <HfAudioPanel onAudioReady={(url) => setAudioUrl(url)} />
-
-
-
-          {/* ── Buy Aura — full value-proposition redesign ──────────── */}
-          <div className="relative rounded-3xl overflow-hidden border border-brand/25 bg-gradient-to-br from-zinc-900 via-zinc-950 to-zinc-900 shadow-[0_0_80px_-20px_oklch(0.58_0.22_25/0.6)]">
-            {/* shimmer top line */}
-            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
-            {/* ambient glow orb */}
-            <div aria-hidden className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 w-[500px] h-[220px] rounded-full bg-primary/12 blur-[90px]" />
-
-            <div className="relative p-5 space-y-6">
-
-              {/* ── Value headline ─────────────────────────────────── */}
-              <div>
-                <p className="aurora-kicker mb-3 flex items-center gap-2">
-                  <Coins className="size-3" />
-                  Aura Credits
-                </p>
-                <h3 className="text-2xl font-black tracking-tight leading-tight text-white">
-                  Every tool.{" "}
-                  <span className="aurora-gradient-text">One balance.</span>
-                </h3>
-                <p className="mt-2 text-[13px] leading-relaxed text-white/50">
-                  Photos, videos, lip-syncs, 4K exports — all charged from the same Aura wallet. Buy once, use everywhere, never expires.
-                </p>
-              </div>
-
-              {/* ── What Aura unlocks ──────────────────────────────── */}
-              <div className="rounded-2xl border border-white/8 bg-white/4 p-4 space-y-3">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/35">What you can make</p>
-                <div className="grid grid-cols-2 gap-y-3 gap-x-4">
-                  {([
-                    { icon: Camera,   label: "Hyperrealistic photo",    cost: "10 Aura" },
-                    { icon: Film,     label: "Music video frame",       cost: "30–100 Aura" },
-                    { icon: Mic2,     label: "Lip-sync video",          cost: "from 80 Aura" },
-                    { icon: Sparkles, label: "AI Director session",     cost: "included" },
-                    { icon: Wand2,    label: "Style transfer & edit",   cost: "from 30 Aura" },
-                    { icon: Zap,      label: "4K export upgrade",       cost: "+300 Aura" },
-                  ] as const).map(({ icon: Icon, label, cost }) => (
-                    <div key={label} className="flex items-start gap-2">
-                      <div className="mt-0.5 size-5 rounded-md bg-primary/15 grid place-items-center shrink-0">
-                        <Icon className="size-3 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-[11px] font-medium text-white/80 leading-tight">{label}</p>
-                        <p className="text-[10px] text-primary/70 font-semibold">{cost}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* ── Day passes ─────────────────────────────────────── */}
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30 mb-2.5">Try it today</p>
-                <div className="flex gap-2">
-                  {(["day1", "day2"] as const).map((k) => {
-                    const p = PLANS[k];
-                    return (
-                      <button
-                        key={k}
-                        type="button"
-                        disabled={checkoutMut.isPending}
-                        onClick={() => checkoutMut.mutate(k)}
-                        className="flex-1 flex flex-col gap-1 rounded-xl border border-white/12 bg-white/6 hover:border-primary/35 hover:bg-primary/10 active:scale-[0.98] transition-all p-3.5 text-left disabled:opacity-50"
-                      >
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-white/35">{k === "day1" ? "1-Day Pass" : "2-Day Pass"}</span>
-                        <span className="text-xl font-black text-white leading-none">{p.credits}<span className="text-xs font-normal text-white/40 ml-1">Aura</span></span>
-                        <span className="text-[12px] font-semibold text-white/60">{p.prices[currency].display}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* ── Credit packs — main 3 ─────────────────────────── */}
-              <div className="space-y-2.5">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">Top up your wallet</p>
-
-                {(["starter", "creator", "studio"] as const).map((k) => {
-                  const p = PLANS[k];
-                  const isPopular = k === "creator";
-                  const isBest = k === "studio";
-                  const usageHint =
-                    k === "starter" ? `${Math.floor(p.credits / 10)} photos · ${Math.floor(p.credits / 100)} lip-syncs` :
-                    k === "creator" ? `${Math.floor(p.credits / 10)} photos · ${Math.floor(p.credits / 100)} lip-syncs · ${Math.floor(p.credits / 50)} edits` :
-                    `${Math.floor(p.credits / 10)} photos · ${Math.floor(p.credits / 30)} video frames · full month`;
-                  return (
-                    <button
-                      key={k}
-                      type="button"
-                      disabled={checkoutMut.isPending}
-                      onClick={() => checkoutMut.mutate(k)}
-                      className={`w-full rounded-2xl border p-4 text-left transition-all active:scale-[0.98] disabled:opacity-50 ${
-                        isPopular
-                          ? "border-brand/55 bg-gradient-to-br from-brand/15 to-brand/5 shadow-[0_0_32px_-8px_oklch(0.58_0.22_25/0.5)] hover:shadow-[0_0_40px_-6px_oklch(0.58_0.22_25/0.7)]"
-                          : isBest
-                          ? "border-amber-400/35 bg-gradient-to-br from-amber-500/10 to-amber-900/10 hover:border-amber-400/55"
-                          : "border-white/10 bg-white/5 hover:border-white/22 hover:bg-white/8"
-                      }`}
-                    >
-                      {/* top row: name + badge + price */}
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <div className={`size-7 rounded-lg grid place-items-center ${isPopular ? "bg-primary/25 border border-primary/40" : isBest ? "bg-amber-500/20 border border-amber-400/30" : "bg-white/10 border border-white/12"}`}>
-                            {isPopular ? <Sparkles className="size-3.5 text-primary" /> : isBest ? <Crown className="size-3.5 text-amber-400" /> : <Zap className="size-3.5 text-white/55" />}
-                          </div>
-                          <span className={`text-[15px] font-black capitalize tracking-tight ${isPopular ? "text-white" : isBest ? "text-amber-100" : "text-white/80"}`}>{k}</span>
-                          {isPopular && (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-primary/25 border border-primary/45 px-2 py-1 text-xs font-bold text-primary">
-                              <Flame className="size-2.5" />Most Popular
-                            </span>
-                          )}
-                          {isBest && (
-                            <span className="inline-flex items-center rounded-md bg-amber-500/20 border border-amber-400/35 px-2 py-1 text-xs font-bold text-amber-400">
-                              Best Value
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <span className={`text-xl font-black ${isPopular ? "text-primary" : isBest ? "text-amber-300" : "text-white/85"}`}>
-                            {p.prices[currency].display}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* credit count — big number */}
-                      <div className="flex items-baseline gap-1.5 mb-1.5">
-                        <span className={`text-4xl font-black leading-none tabular-nums ${isPopular ? "text-white" : isBest ? "text-amber-100" : "text-white/70"}`}>
-                          {p.credits}
-                        </span>
-                        <span className="text-sm font-bold text-white/35">Aura</span>
-                      </div>
-
-                      {/* usage hint */}
-                      <p className={`text-[11px] leading-tight ${isPopular ? "text-primary/70" : isBest ? "text-amber-400/60" : "text-white/35"}`}>
-                        {usageHint}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* ── Footer trust line ──────────────────────────────── */}
-              <div className="flex items-center justify-center gap-4 pt-1">
-                {checkoutMut.isPending ? (
-                  <span className="inline-flex items-center gap-2 text-[11px] text-white/40">
-                    <Loader2 className="size-3 animate-spin" /> Opening secure checkout…
-                  </span>
-                ) : (
-                  <>
-                    <span className="text-[10px] text-white/28 flex items-center gap-1"><Shield className="size-3" />Paystack secured</span>
-                    <span className="text-[10px] text-white/28">·</span>
-                    <span className="text-[10px] text-white/28">Credits never expire</span>
-                    <span className="text-[10px] text-white/28">·</span>
-                    <span className="text-[10px] text-white/28">No subscription</span>
-                  </>
-                )}
-              </div>
-
-            </div>
+          {/* Audio generator */}
+          <div className="pt-5 border-t border-white/5">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 mb-3">Audio</p>
+            <HfAudioPanel onAudioReady={(url) => setAudioUrl(url)} />
           </div>
-        </section>
-      </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* AlertDialog for HD video confirm */}
+      <AlertDialog open={videoHdDialogOpen} onOpenChange={setVideoHdDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Render at {videoResolution === "2160p" ? "4K (2160p)" : "HD (1080p)"}?</AlertDialogTitle>
+            <AlertDialogDescription>This will charge <strong>{videoCost} Aura</strong> to produce a full-quality {videoResolution === "2160p" ? "4K" : "HD"} render.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => videoMut.mutate()}>Confirm &amp; Render</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {latestVideo?.result_video_url && (
-        <CaptionDialog
-          open={captionOpen}
-          onOpenChange={setCaptionOpen}
-          videoUrl={latestVideo.result_video_url}
-          generationId={latestVideo.id}
-          credits={profile?.credits}
-          onDone={() => {
-            qc.invalidateQueries({ queryKey: ["gens"] });
-            qc.invalidateQueries({ queryKey: ["gallery"] });
-          }}
-        />
+        <CaptionDialog open={captionOpen} onOpenChange={setCaptionOpen} videoUrl={latestVideo.result_video_url} generationId={latestVideo.id} credits={profile?.credits}
+          onDone={() => { qc.invalidateQueries({ queryKey: ["gens"] }); qc.invalidateQueries({ queryKey: ["gallery"] }); }} />
       )}
     </main>
   );

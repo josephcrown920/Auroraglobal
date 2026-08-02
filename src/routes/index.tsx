@@ -2,11 +2,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { CANONICAL_ORIGIN } from "@/lib/seo";
 import { Plus, Play, ArrowUpRight, ChevronDown, Sparkles, Palette, Film, Wand2, Mic, Music2, Brush, Megaphone, UserCircle2, Workflow, Layers, Flame, Clapperboard, Check, Zap, Crown, Download } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { track } from "@/lib/tracking";
 import { ViralEngine } from "@/components/landing/ViralEngine";
 import { BalloonLipsync } from "@/components/landing/BalloonLipsync";
 import { AdminLandingEditor } from "@/components/AdminLandingEditor";
+import { EditableCopy } from "@/components/EditableCopy";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -76,76 +77,53 @@ export const Route = createFileRoute("/")({
 const HERO_SLIDES = [
   {
     src: "/hero/hero-new-1.png",
-    eyebrow: "By Artists, For Artists",
-    badge: "★ Flagship",
-    headline: "Film Yourself. Aurora Builds the World.",
-    sub: "Aurora's Motion Control reads your real performance from a 30-second phone clip and places you in any cinematic scene on earth — style, motion, energy intact. No studio. No crew. No budget.",
-    cta: "Perform From Anywhere →",
+    eyebrow: "AI CREATIVE DIRECTOR",
+    badge: "★ Pro",
+    headline: "Every Shot. Every Angle. Every Scene Directed By AI.",
+    sub: "Chat your idea. Aurora turns it into a complete production script, shot list, locations, performances, edits, and final delivery without hiring a director or crew.",
+    cta: "Director's Room →",
+    ctaTo: "/home",
+  },
+  {
+    src: "/hero/hero-new-2.png",
+    eyebrow: "BY ARTISTS, FOR ARTISTS",
+    headline: "Direct Your Visual Identity.",
+    sub: "The AI performance studio built by artists, for artists. Drop your references, direct the shoot in plain language, and ship studio-grade covers, promo, and cinematic performance reels in seconds, not weeks.",
+    cta: "Start Creating →",
+    ctaTo: "/home",
+  },
+  {
+    src: "/hero/hero-perform-anywhere.png",
+    eyebrow: "PERFORM ANYWHERE",
+    badge: "★ Pro",
+    headline: "Turn a 30-Second Phone Recording Into a Cinematic Music Video.",
+    sub: "Stop renting studios, hiring crews, and waiting weeks for edits. Record yourself for 30 seconds on your iPhone or any device with a clear camera. Aurora transforms your performance into cinematic music videos, performances, and visuals that look like they were directed by a major production team.",
+    cta: "Perform Anywhere →",
     ctaTo: "/perform",
   },
   {
     src: "/hero/hero-tiktok30.jpg",
     eyebrow: "TikTok 30",
-    headline: "One Prompt. 30 Posts. Posted.",
-    sub: "Type your hook. Aurora uses Claude + Seedance 2.0 to generate 30 scroll-stopping posts — lyric hooks, cover reveals, performance clips, styled portraits — a full month of content from one idea.",
-    cta: "Launch TikTok30 Free →",
+    headline: "Go Viral Without Running Out Of Content.",
+    sub: "Turn one idea into an entire month of scroll-stopping content. Aurora creates 30 unique TikToks, lyric videos, teasers, cover reveals, reels, and promo posts ready to publish.",
+    cta: "TikTok 30 →",
     ctaTo: "/spin",
   },
   {
-    src: "/hero/hero-multiangle.jpg",
-    eyebrow: "Multi-Angle Studio",
-    headline: "One Session. Every Angle.",
-    sub: "9 unique shots. Every pose. Every perspective — from a single 30-second recording. No re-setup. No second booking. Your best look, every time.",
-    cta: "Start Your Session →",
-    ctaTo: "/studio",
-  },
-  {
     src: "/hero/hero-colors.png",
-    eyebrow: "Colors Performance Studio",
-    headline: "One Recording. Infinite Colors.",
-    sub: "Record 30 seconds on your phone. Pick a color palette. Pick an outfit. Aurora delivers unlimited cinematic content — on demand, every drop.",
-    cta: "Start Colors Studio Free →",
+    eyebrow: "Colors Studio",
+    headline: "One Performance. Unlimited Visual Worlds.",
+    sub: "Record one 30-second performance. Aurora rebuilds it into endless cinematic stages, lighting styles, outfits, moods and color worlds ready for every release.",
+    cta: "Explore Colors Studio →",
     ctaTo: "/colors",
-  },
-  {
-    src: "/hero/hero-5.png",
-    eyebrow: "GRWM Studio",
-    headline: "From Selfie to Studio Reel",
-    sub: "Drop one photo. Swap outfits. Aurora builds your talking GRWM reel — ready to post.",
-    cta: "Make Your GRWM Reel →",
-    ctaTo: "/studio",
-  },
-  {
-    src: "/hero/hero-6.png",
-    eyebrow: "Motion Control",
-    headline: "Your 30-Second Clip. Any Scene.",
-    sub: "Your real performance. Any location on earth — or off it. Aurora places you in the scene.",
-    cta: "Control Your Scene →",
-    ctaTo: "/motion",
   },
   {
     src: "/hero/hero-7.png",
     eyebrow: "Press Ready",
-    headline: "$50K Look. Zero Crew.",
-    sub: "Studio-grade press photos and tour visuals. Shot on your phone. Delivered in minutes.",
-    cta: "Get Press-Ready Now →",
+    headline: "Look Like The Biggest Artist In Your City.",
+    sub: "Create magazine-quality press photos, tour posters, album covers, and promotional visuals in minutes—not weeks.",
+    cta: "Create Press Photos →",
     ctaTo: "/music-video",
-  },
-  {
-    src: "/hero/hero-8.png",
-    eyebrow: "Scale Fast",
-    headline: "10 Hours Saved Every Week",
-    sub: "1,000+ artists scaling their content with Aurora. Join them. Start free today.",
-    cta: "Start Scaling Today →",
-    ctaTo: "/auth",
-  },
-  {
-    src: "/hero/hero-9.png",
-    eyebrow: "Built for Artists",
-    headline: "No Studio. No Limits.",
-    sub: "Every tool. Every release. From anywhere on your phone. This is Aurora.",
-    cta: "Create From Anywhere →",
-    ctaTo: "/auth",
   },
 ];
 
@@ -256,7 +234,7 @@ function LandingPage() {
   const [slideIdx, setSlideIdx] = useState(0);
   const [demoOpen, setDemoOpen] = useState(false);
   useEffect(() => {
-    const t = setInterval(() => setSlideIdx((i) => (i + 1) % HERO_SLIDES.length), 10000);
+    const t = setInterval(() => setSlideIdx((i) => (i + 1) % HERO_SLIDES.length), 5000);
     return () => clearInterval(t);
   }, []);
 
@@ -343,26 +321,28 @@ function LandingPage() {
                 i === slideIdx ? "opacity-100" : "opacity-0 absolute inset-0 pointer-events-none"
               }`}
             >
-              <p className="mb-2 flex items-center gap-2 font-serif italic text-amber-400 text-sm">
+              <p className="mb-2 flex items-center gap-2 font-sans text-sm font-bold uppercase tracking-[0.18em] text-amber-300">
                 <span className="inline-block size-1.5 rounded-full bg-[#e5383b]" />
-                {slide.eyebrow}
+                <EditableCopy copyKey={`landing_hero_${i}_eyebrow`} fallback={slide.eyebrow} />
                 {"badge" in slide && slide.badge && (
                   <span className="ml-1 inline-flex items-center rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300 not-italic">
-                    {slide.badge}
+                    <EditableCopy copyKey={`landing_hero_${i}_badge`} fallback={slide.badge} />
                   </span>
                 )}
               </p>
               <h1 className="text-[2.9rem] font-semibold leading-[0.93] tracking-tight text-white">
-                <span className="font-serif italic">{slide.headline}</span>
+                <span className="font-serif italic">
+                  <EditableCopy copyKey={`landing_hero_${i}_headline`} fallback={slide.headline} />
+                </span>
               </h1>
               <p className="mt-5 text-base leading-relaxed text-zinc-200">
-                {slide.sub}
+                <EditableCopy copyKey={`landing_hero_${i}_sub`} fallback={slide.sub} />
               </p>
               <Link
                 to={user ? slide.ctaTo : "/auth"}
                 className="mt-6 inline-flex w-fit items-center gap-1.5 text-sm font-bold text-[#e5383b] hover:text-white transition-colors"
               >
-                {slide.cta}
+                <EditableCopy copyKey={`landing_hero_${i}_cta`} fallback={slide.cta} />
               </Link>
             </div>
           ))}
@@ -434,21 +414,20 @@ function LandingPage() {
       </div>
 
       {/* ── Process ─────────────────────────────────────────────────────── */}
-      <section id="process" className="py-20 px-5">
-        <div className="mb-12">
+      <section id="process" className="px-5 py-12">
+        <div className="mb-7">
           <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
             The studio flow
           </span>
-          <h2 className="mt-3 text-4xl font-semibold leading-tight">
-            Reference. Direction.{" "}
-            <span className="font-serif italic">Delivered.</span>
+          <h2 className="mt-2 text-3xl font-semibold leading-tight">
+            <EditableCopy copyKey="landing_process_heading" fallback="Reference. Direction. Delivered." />
           </h2>
-          <p className="mt-3 text-zinc-400 text-sm leading-relaxed">
-            Three steps between the sound in your head and the visual on your feed.
+          <p className="mt-2 text-xs leading-relaxed text-zinc-400">
+            <EditableCopy copyKey="landing_process_sub" fallback="Three steps between the sound in your head and the visual on your feed." />
           </p>
         </div>
 
-        <div className="flex flex-col gap-12">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
           <ProcessCard
             step="01"
             label="Reference"
@@ -476,26 +455,28 @@ function LandingPage() {
       </section>
 
       {/* ── Featured Tools ───────────────────────────────────────────────── */}
-      <section id="services" className="py-20 px-5 border-t border-white/5">
-        <div className="mb-10">
+      <section id="services" className="border-t border-white/5 px-5 py-12">
+        <div className="mb-7">
           <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
             Every tool
           </span>
-          <h2 className="mt-3 text-4xl font-semibold leading-tight">
-            The full studio.
+          <h2 className="mt-2 text-3xl font-semibold leading-tight">
+            <EditableCopy copyKey="landing_tools_heading" fallback="The full studio." />
             <br />
-            <span className="font-serif italic">Pay only for what you make.</span>
+            <span className="font-serif italic">
+              <EditableCopy copyKey="landing_tools_subheading" fallback="Pay only for what you make." />
+            </span>
           </h2>
-          <p className="mt-3 text-sm text-zinc-400 max-w-[40ch] leading-relaxed">
-            Every feature is credit based. No subscriptions required to start. 5 free Aura on signup.
+          <p className="mt-2 max-w-[48ch] text-xs leading-relaxed text-zinc-400">
+            <EditableCopy copyKey="landing_tools_blurb" fallback="Every feature is credit based. No subscriptions required to start. 5 free Aura on signup." />
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURED_TOOLS.map((tool) => (
-            <FeaturedToolCard key={tool.label} tool={tool} />
+            <FeaturedToolRow key={tool.label} tool={tool} />
           ))}
         </div>
-        <div className="mt-6 text-center">
+        <div className="mt-5 text-center">
           <Link
             to="/studio"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-500 hover:text-zinc-200 transition-colors no-underline"
@@ -505,66 +486,6 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* ── Colors Performance Studio Showcase ──────────────────────────── */}
-      <section id="colors" className="py-20 px-5 border-t border-white/5 bg-zinc-950">
-        <div className="mb-8">
-          <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
-            Colors Performance Studio
-          </span>
-          <h2 className="mt-3 text-4xl font-semibold leading-tight">
-            One recording.{" "}
-            <span className="font-serif italic">Infinite colors.</span>
-          </h2>
-          <p className="mt-4 text-base text-zinc-300 max-w-[38ch] leading-relaxed">
-            Record 30 seconds on your phone. Pick a color palette. Pick an outfit. Aurora generates unlimited cinematic content — every drop, on demand, as an artist.
-          </p>
-          {/* 3-step flow */}
-          <div className="mt-6 flex flex-col gap-3">
-            {[
-              { step: "01", label: "Record", desc: "30 seconds on your phone — any room, any lighting." },
-              { step: "02", label: "Pick a Color", desc: "Choose your scene palette. Pink. Blue. Orange. Gold. Any vibe." },
-              { step: "03", label: "Pick an Outfit", desc: "Aurora dresses you and drops you in the scene. Unlimited looks, zero fitting rooms." },
-            ].map(({ step, label, desc }) => (
-              <div key={step} className="flex items-start gap-4 rounded-xl bg-white/4 ring-1 ring-white/8 px-4 py-3">
-                <span className="text-[11px] font-black tracking-widest text-[#e5383b] mt-0.5 shrink-0">{step}</span>
-                <div>
-                  <p className="text-sm font-semibold text-white">{label}</p>
-                  <p className="text-xs text-zinc-400 leading-relaxed mt-0.5">{desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Photo grid — shows what Colors can produce */}
-        <div className="grid grid-cols-2 gap-2 mb-8">
-          {[
-            { src: "/colors/colors-1.jpg", alt: "Colors Studio — orange performance session" },
-            { src: "/colors/colors-2.jpg", alt: "Colors Studio — blue studio session" },
-            { src: "/colors/colors-3.jpg", alt: "Colors Studio — yellow cyc session" },
-            { src: "/colors/colors-4.jpg", alt: "Colors Studio — red stage session" },
-            { src: "/colors/colors-5.jpg", alt: "Colors Studio — outdoor session" },
-            { src: "/colors/colors-6.png", alt: "Colors Studio — editorial session" },
-          ].map(({ src, alt }) => (
-            <div key={src} className="aspect-[3/4] overflow-hidden rounded-xl bg-zinc-900 ring-1 ring-white/8">
-              <img
-                src={src}
-                alt={alt}
-                loading="lazy"
-                className="h-full w-full object-cover object-top transition-transform duration-500 hover:scale-105"
-              />
-            </div>
-          ))}
-        </div>
-
-        <Link
-          to="/colors"
-          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#e5383b] py-4 text-base font-bold text-white shadow-[0_10px_40px_-10px_rgba(229,56,59,0.7)] transition-transform hover:scale-[1.01] active:scale-95"
-        >
-          <Palette className="size-5 shrink-0" />
-          Start Colors Studio Free — Pick Your Color Now
-        </Link>
-      </section>
 
       {/* ── Viral Engine ─────────────────────────────────────────────── */}
       <ViralEngine />
@@ -579,20 +500,19 @@ function LandingPage() {
             Output gallery
           </span>
           <h2 className="mt-3 text-4xl font-semibold leading-tight">
-            Real artists. Real outputs.{" "}
-            <span className="font-serif italic">Zero stock.</span>
+            <EditableCopy copyKey="landing_gallery_heading" fallback="Real artists. Real outputs. Zero stock." />
           </h2>
           <p className="mt-3 text-sm text-zinc-400">
-            A curated feed of recent generations across covers, promo, and motion.
+            <EditableCopy copyKey="landing_gallery_sub" fallback="A curated feed of recent generations across covers, promo, and motion." />
           </p>
         </div>
         {/* Row 1 — scrolls left */}
         <GalleryRow
           items={[
-            { src: "/josh-ref-1.png",         alt: "NBA Josh — artist promo",   tag: "Promo"     },
-            { src: "/landing-client-2.png",   alt: "Editorial shoot",           tag: "Editorial" },
-            { src: "/landing-client-4.png",   alt: "Backstage promo",           tag: "Promo"     },
-            { src: "/landing-photo-3.jpeg",   alt: "Album artwork",             tag: "Cover art" },
+            { src: "/josh-ref-1.png",         alt: "NBA Josh — artist promo",   tag: <EditableCopy copyKey="landing_marquee_r1_1_tag" fallback="Promo"     /> },
+            { src: "/landing-client-2.png",   alt: "Editorial shoot",           tag: <EditableCopy copyKey="landing_marquee_r1_2_tag" fallback="Editorial" /> },
+            { src: "/landing-client-4.png",   alt: "Backstage promo",           tag: <EditableCopy copyKey="landing_marquee_r1_3_tag" fallback="Promo"     /> },
+            { src: "/landing-photo-3.jpeg",   alt: "Album artwork",             tag: <EditableCopy copyKey="landing_marquee_r1_4_tag" fallback="Cover art" /> },
           ]}
           direction="left"
           duration={38}
@@ -601,11 +521,11 @@ function LandingPage() {
         {/* Row 2 — scrolls right */}
         <GalleryRow
           items={[
-            { src: "/landing-client-5.png",   alt: "Concert energy",              tag: "Concert"   },
-            { src: "/josh-scene-still.jpeg",  alt: "NBA Josh — scene still",      tag: "Cinema"    },
-            { src: "/landing-client-7.png",   alt: "Editorial glam",              tag: "Glam"      },
-            { src: "/landing-photo-5.jpeg",   alt: "Cinematic scene",             tag: "Cinema"    },
-            { src: "/landing-photo-6.png",    alt: "Color grade",                 tag: "Color"     },
+            { src: "/landing-client-5.png",   alt: "Concert energy",              tag: <EditableCopy copyKey="landing_marquee_r2_1_tag" fallback="Concert"   /> },
+            { src: "/josh-scene-still.jpeg",  alt: "NBA Josh — scene still",      tag: <EditableCopy copyKey="landing_marquee_r2_2_tag" fallback="Cinema"    /> },
+            { src: "/landing-client-7.png",   alt: "Editorial glam",              tag: <EditableCopy copyKey="landing_marquee_r2_3_tag" fallback="Glam"      /> },
+            { src: "/landing-photo-5.jpeg",   alt: "Cinematic scene",             tag: <EditableCopy copyKey="landing_marquee_r2_4_tag" fallback="Cinema"    /> },
+            { src: "/landing-photo-6.png",    alt: "Color grade",                 tag: <EditableCopy copyKey="landing_marquee_r2_5_tag" fallback="Color"     /> },
           ]}
           direction="right"
           duration={30}
@@ -631,25 +551,37 @@ function LandingPage() {
           </Link>
         </div>
         <div className="relative overflow-hidden rounded-2xl bg-zinc-900 ring-1 ring-white/5">
+          {/* Poster image paints instantly while the video buffers */}
           <img
-            src="/landing/reel-poster.jpg"
-            alt="Cinematic music video still — artist walking through neon rain"
-            width={1920}
-            height={1080}
-            loading="lazy"
-            className="aspect-video w-full object-cover"
+            src="/videos/landing-demo-reel-poster.jpg"
+            alt="Cinematic Aurora-generated music video frame"
+            className="absolute inset-0 w-full h-full object-cover"
+            aria-hidden
           />
-          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+          <video
+            src="/videos/landing-demo-reel.mp4"
+            poster="/videos/landing-demo-reel-poster.jpg"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            className="aspect-video w-full object-cover relative"
+            aria-label="Aurora-generated cinematic music video — artist in a neon rain scene"
+          />
+          {/* Subtle gradient + CTA at bottom */}
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
+          <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/80">
+              Reel 001 · Motion v1
+            </span>
             <Link
               to={ctaTo}
-              aria-label="Start creating videos"
-              className="flex size-20 items-center justify-center rounded-full bg-white/10 backdrop-blur-md ring-1 ring-white/30 transition-transform hover:scale-105"
+              onClick={() => void track("hero_video_cta_click")}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full bg-white/15 backdrop-blur-md ring-1 ring-white/25 text-white no-underline hover:bg-white/25 transition-colors"
             >
-              <Play className="size-7 text-white translate-x-0.5" fill="currentColor" />
+              <Sparkles className="size-3" /> Create yours
             </Link>
-          </div>
-          <div className="absolute bottom-4 left-4 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/80">
-            Reel 001 · Motion v1
           </div>
           <div className="mt-5 flex flex-wrap gap-3">
             <Link
@@ -678,39 +610,29 @@ function LandingPage() {
       </section>
 
       {/* ── Social Proof / Testimonials ──────────────────────────────────── */}
-      <section className="py-20 px-5 border-y border-white/5">
-        <div className="mb-10">
+      <section className="border-y border-white/5 px-5 py-12">
+        <div className="mb-7">
           <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
             30-day transformation
           </span>
-          <h2 className="mt-3 text-3xl font-semibold leading-tight">
-            How artists change their career in just{" "}
-            <span className="font-serif italic">30 days.</span>
+          <h2 className="mt-2 text-3xl font-semibold leading-tight">
+            Make the next release feel{" "}
+            <span className="font-serif italic">impossible to ignore.</span>
           </h2>
         </div>
 
-        <div className="flex flex-col gap-6">
-          {/* Artist quote */}
-          <div className="rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-6">
-            <p className="font-serif text-xl italic leading-snug text-zinc-200 mb-6">
-              &ldquo;Aurora completely changed the way I make content. I get a ton of content in just an hour — which normally would take me weeks of work and planning.&rdquo;
-            </p>
-            <div className="flex items-center gap-3">
-              <div className="size-9 rounded-full bg-gradient-to-br from-[#e5383b] to-zinc-700 ring-1 ring-white/10 shrink-0" />
-              <div>
-                <span className="text-sm font-semibold text-zinc-100 block">Aurora Artist</span>
-                <span className="text-xs text-zinc-500">Music Creator</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Platform stat */}
-          <div className="rounded-2xl bg-gradient-to-br from-[#e5383b]/10 to-transparent ring-1 ring-[#e5383b]/20 p-6">
-            <div className="text-5xl font-bold text-white mb-2">1,000+</div>
-            <p className="text-zinc-300 text-sm leading-relaxed">
-              artists scaled massively with Aurora in a short time. None of them thought it was possible — before Aurora found them.
-            </p>
-          </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          {[
+            { quote: "“I can test three visual directions before I book a single shoot. That changes every release meeting.”", role: "Independent artist · Visual rollout" },
+            { quote: "“The moodboard finally became a real world I could send to my team — not another folder of references.”", role: "Creative director · Music & culture" },
+            { quote: "“I made a week of release assets in one night, then spent the rest of it making the music better.”", role: "Recording artist · Campaign launch" },
+          ].map((testimonial) => (
+            <figure key={testimonial.role} className="rounded-2xl border border-white/8 bg-zinc-900/70 p-5">
+              <div className="mb-4 flex items-center gap-1 text-[#e5383b]" aria-label="Five star review">★★★★★</div>
+              <blockquote className="font-serif text-base leading-snug text-zinc-100">{testimonial.quote}</blockquote>
+              <figcaption className="mt-5 border-t border-white/8 pt-3 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">{testimonial.role}</figcaption>
+            </figure>
+          ))}
         </div>
       </section>
 
@@ -737,22 +659,22 @@ function LandingPage() {
       </section>
 
       {/* ── Pricing ──────────────────────────────────────────────────────── */}
-      <section id="pricing" className="py-20 px-5 border-t border-white/5">
-        <div className="mb-10">
+      <section id="pricing" className="border-t border-white/5 px-5 py-12">
+        <div className="mb-7">
           <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#e5383b]">
             Pricing
           </span>
-          <h2 className="mt-3 text-4xl font-semibold leading-tight">
+          <h2 className="mt-2 text-3xl font-semibold leading-tight">
             Pick your level.<br />
             <span className="font-serif italic">Upgrade any time.</span>
           </h2>
-          <p className="mt-3 text-sm text-zinc-400 max-w-[40ch] leading-relaxed">
-            Start free — experience the quality before you pay. Upgrade when you&apos;re ready.
+          <p className="mt-2 max-w-[44ch] text-xs leading-relaxed text-zinc-400">
+            Start with Aura. Upgrade only when your creative output needs more room.
           </p>
         </div>
 
         {/* Subscription tiers */}
-        <div className="flex flex-col gap-4 mb-8">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 mb-6">
           {/* Free */}
           <div className="rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-6">
             <div className="flex items-start justify-between gap-4 mb-5">
@@ -1015,32 +937,27 @@ function LandingPage() {
   );
 }
 
-function FeaturedToolCard({ tool }: { tool: typeof FEATURED_TOOLS[number] }) {
+function FeaturedToolRow({ tool }: { tool: typeof FEATURED_TOOLS[number] }) {
   const Icon = tool.icon;
   return (
     <Link
       to={tool.to}
-      className="group flex flex-col justify-between rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-4 transition-all hover:ring-white/20 no-underline min-h-[180px]"
+      className="group relative min-h-40 overflow-hidden rounded-2xl border border-white/8 bg-zinc-900/75 p-4 no-underline transition-all hover:-translate-y-0.5 hover:border-white/20 hover:bg-zinc-900"
     >
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/6 ring-1 ring-white/10">
-          <Icon className="size-4 text-zinc-300" />
+      <span className="absolute -right-7 -top-7 size-28 rounded-full bg-[#e5383b]/10 blur-2xl transition-opacity group-hover:opacity-100" />
+      <div className="relative flex h-full flex-col">
+        <span className="flex size-9 items-center justify-center rounded-xl bg-white/6 ring-1 ring-white/10">
+          <Icon className="size-4 text-zinc-200" />
         </span>
-        <span className="text-[11px] font-bold text-[#e5383b] tabular-nums">
-          {tool.price}
-        </span>
+        <div className="mt-auto pt-6">
+          <p className="text-sm font-semibold leading-tight text-zinc-100">{tool.label}</p>
+          <p className="mt-1 text-[11px] leading-snug text-zinc-500">{tool.desc}</p>
+        </div>
+        <div className="mt-3 flex items-center justify-between border-t border-white/7 pt-3">
+          <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#e5383b]">{tool.price}</span>
+          <ArrowUpRight className="size-3.5 text-zinc-600 transition-colors group-hover:text-zinc-200" />
+        </div>
       </div>
-      <div className="flex-1">
-        <p className="text-[13px] font-semibold text-zinc-100 leading-tight mb-1.5">
-          {tool.label}
-        </p>
-        <p className="text-[11px] leading-snug text-zinc-500 line-clamp-2">
-          {tool.desc}
-        </p>
-      </div>
-      <span className="mt-3 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 transition-colors group-hover:text-zinc-300">
-        Open <ArrowUpRight className="size-3" />
-      </span>
     </Link>
   );
 }
@@ -1065,7 +982,7 @@ function ProcessCard({
 }) {
   return (
     <div className="group">
-      <div className="mb-5 flex aspect-[4/3] items-center justify-center overflow-hidden rounded-2xl bg-zinc-900 ring-1 ring-white/5">
+      <div className="mb-3 flex aspect-[4/3] items-center justify-center overflow-hidden rounded-xl bg-zinc-900 ring-1 ring-white/5">
         {image ? (
           <img
             src={image}
@@ -1083,8 +1000,8 @@ function ProcessCard({
         <span className="text-xs font-bold text-[#e5383b] uppercase tracking-[0.25em]">{step}</span>
         <span className="text-xs font-medium text-zinc-500 uppercase tracking-widest">{label}</span>
       </div>
-      <h3 className="mt-2 text-xl font-semibold">{title}</h3>
-      <p className="mt-1.5 text-sm leading-relaxed text-zinc-400">{body}</p>
+      <h3 className="mt-1.5 text-base font-semibold">{title}</h3>
+      <p className="mt-1 text-xs leading-relaxed text-zinc-400">{body}</p>
     </div>
   );
 }
@@ -1109,7 +1026,7 @@ function PromptMock() {
   );
 }
 
-type GalleryItem = { src: string; alt: string; tag: string };
+type GalleryItem = { src: string; alt: string; tag: ReactNode };
 
 function MarqueePhoto({ src, alt, tag }: GalleryItem) {
   return (

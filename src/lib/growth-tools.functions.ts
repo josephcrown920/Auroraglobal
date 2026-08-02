@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Json } from "@/integrations/supabase/types";
-import { generateWithFallback } from "@/lib/llm-fallback.server";
+import { routedGenerate } from "@/lib/ai-router";
 import { reserveOrchestrateRecord } from "@/lib/generate-core.server";
 import {
   COST_DAILY_POSTS,
@@ -210,7 +210,7 @@ type DailyPostsInput = {
 // issueGiftCardCore pattern in gifts.functions.ts). The createServerFn
 // handler below supplies the real admin client + LLM caller.
 export async function generateDailyPostsCore(
-  deps: { admin: AdminClient; generate: typeof generateWithFallback },
+  deps: { admin: AdminClient; generate: typeof routedGenerate },
   userId: string,
   data: DailyPostsInput,
 ) {
@@ -261,6 +261,7 @@ Rules:
 
 Return exactly 7 day entries.`,
       schema: DailyPostsOutputSchema,
+      category: "SOCIAL_CONTENT",
     });
 
     await commitReservation(deps.admin, ref);
@@ -286,7 +287,7 @@ export const generateDailyPosts = createServerFn({ method: "POST" })
     }).parse
   )
   .handler(async ({ data, context }) =>
-    generateDailyPostsCore({ admin: supabaseAdmin, generate: generateWithFallback }, context.userId, data),
+    generateDailyPostsCore({ admin: supabaseAdmin, generate: routedGenerate }, context.userId, data),
   );
 
 type RolloutPlanInput = {
@@ -299,7 +300,7 @@ type RolloutPlanInput = {
 };
 
 export async function generateRolloutPlanCore(
-  deps: { admin: AdminClient; generate: typeof generateWithFallback },
+  deps: { admin: AdminClient; generate: typeof routedGenerate },
   userId: string,
   data: RolloutPlanInput,
 ) {
@@ -337,6 +338,7 @@ For each week, provide 2-4 specific actionable posts with platform-native tips.
 Focus on tactics that actually work for independent artists in ${data.genre}.
 Include specific hashtags that are active in this genre community.`,
       schema: RolloutPlanOutputSchema,
+      category: "MUSIC_MARKETING",
     });
 
     await commitReservation(deps.admin, ref);
@@ -362,7 +364,7 @@ export const generateRolloutPlan = createServerFn({ method: "POST" })
     }).parse
   )
   .handler(async ({ data, context }) =>
-    generateRolloutPlanCore({ admin: supabaseAdmin, generate: generateWithFallback }, context.userId, data),
+    generateRolloutPlanCore({ admin: supabaseAdmin, generate: routedGenerate }, context.userId, data),
   );
 
 type SocialPackInput = {
@@ -375,7 +377,7 @@ type SocialPackInput = {
 };
 
 export async function generateSocialPackCore(
-  deps: { admin: AdminClient; generate: typeof generateWithFallback },
+  deps: { admin: AdminClient; generate: typeof routedGenerate },
   userId: string,
   data: SocialPackInput,
 ) {
@@ -410,6 +412,7 @@ Generate:
 
 Make every piece feel cohesive with the song's mood and the artist's brand.`,
       schema: SocialPackOutputSchema,
+      category: "SOCIAL_CONTENT",
     });
 
     await commitReservation(deps.admin, ref);
@@ -435,7 +438,7 @@ export const generateSocialPack = createServerFn({ method: "POST" })
     }).parse
   )
   .handler(async ({ data, context }) =>
-    generateSocialPackCore({ admin: supabaseAdmin, generate: generateWithFallback }, context.userId, data),
+    generateSocialPackCore({ admin: supabaseAdmin, generate: routedGenerate }, context.userId, data),
   );
 
 // ─── Daily Post Generator: per-day cover art render ──────────────────────────

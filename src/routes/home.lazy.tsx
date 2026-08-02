@@ -31,6 +31,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { listGenerations } from "@/lib/studio.functions";
 import { getMyProfile, setMyPersona } from "@/lib/billing.functions";
 import { HomeTopBar } from "@/components/home/HomeTopBar";
+import { EditableCopy } from "@/components/EditableCopy";
+import { useSiteCopyValue } from "@/components/landing/SiteCopyProvider";
 
 export const Route = createLazyFileRoute("/home")({ component: HomePage });
 
@@ -90,6 +92,7 @@ const SIDES: Record<SideId, Side> = {
       { label: "Image Studio",   to: "/studio",        Icon: Sparkles },
       { label: "Live Studios",   to: "/live-studio",   Icon: Mic2     },
       { label: "Directors ROOM", to: "/scene-builder", Icon: Film     },
+      { label: "Scene Weaver",  to: "/scene-weaver",  Icon: Camera   },
       { label: "Lyric Video",    to: "/music-video",   Icon: Music    },
       { label: "Storyboard",     to: "/storyboard",    Icon: Layers   },
       { label: "Photo Editor",   to: "/photo-edit",    Icon: Palette  },
@@ -328,6 +331,9 @@ function HomePage() {
     [hist]
   );
 
+  const composerPlaceholder =
+    useSiteCopyValue("home_composer_placeholder") ?? "Describe what you want to make…";
+
   const [presetId, setPresetId] = useState<string | null>(null);
   const [prompt, setPrompt]     = useState("");
   const [feed, setFeed]         = useState<"trends" | "mine">("trends");
@@ -415,7 +421,7 @@ function HomePage() {
   const NAV_H = 64;  // MobileNav tab bar (4rem)
 
   return (
-    <div className="aurora-page-shell relative min-h-screen text-foreground">
+    <div className="aurora-page-shell aurora-content-shell relative min-h-screen text-foreground">
       <span aria-hidden className="aurora-ambient" />
 
       <style>{`
@@ -431,9 +437,10 @@ function HomePage() {
       <div style={{
         paddingTop: TOP_H + 14,
         paddingBottom: NAV_H + 24,
-        paddingLeft: 12, paddingRight: 12,
+         paddingLeft: 12, paddingRight: 12,
         position: "relative", zIndex: 10,
       }}>
+        <div style={{ width: "100%", maxWidth: 1040, margin: "0 auto" }}>
         {/* ── FOR ARTISTS / FOR CREATORS — page-level toggle ── */}
         <div
           role="tablist"
@@ -495,7 +502,10 @@ function HomePage() {
                   color: active ? "oklch(0.68 0.08 28)" : "oklch(0.44 0.01 272)",
                   transition: "color 0.2s",
                 }}>
-                  {sub}
+                  <EditableCopy
+                    copyKey={id === "artist" ? "home_artist_tab_sub" : "home_creator_tab_sub"}
+                    fallback={sub}
+                  />
                 </span>
               </button>
             );
@@ -506,9 +516,20 @@ function HomePage() {
         {!storedPersona && <PersonaAsk onPick={handlePickPersona} busy={personaBusy} />}
 
         {/* ── Heading ── */}
-        <h1 style={{ margin: "0 0 12px", fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", color: "oklch(0.97 0.01 272)" }}>
-          {side.label === "Artist" ? "Artist tools" : "Creator tools"}
-        </h1>
+        <div style={{ marginBottom: 12 }}>
+          <p style={{ margin: 0, fontSize: 10, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "oklch(0.58 0.01 272)" }}>
+            Create
+          </p>
+          <h1 style={{ margin: "4px 0 0", fontSize: 24, fontWeight: 700, letterSpacing: "-0.03em", color: "oklch(0.97 0.01 272)" }}>
+          <EditableCopy
+            copyKey={activeSideId === "artist" ? "home_artist_heading" : "home_creator_heading"}
+            fallback="Start creating"
+          />
+          </h1>
+          <p style={{ margin: "5px 0 0", fontSize: 12, color: "oklch(0.52 0.01 272)" }}>
+            Describe the image, video, or social post you want to make.
+          </p>
+        </div>
 
         {/* ── Composer ── */}
         <form
@@ -547,7 +568,7 @@ function HomePage() {
               placeholder={
                 selectedPreset.prompt
                   ? `Add your details for ${selectedPreset.label}…`
-                  : "Describe what you want to make…"
+                  : composerPlaceholder
               }
               style={{
                 flex: 1, minHeight: 52, resize: "none",
@@ -621,39 +642,11 @@ function HomePage() {
         {/* Everything below flips as one page when the side changes */}
         <div key={activeSideId} className="side-flip">
 
-          {/* ── Tool rail for this side ── */}
-          <div
-            className="flex gap-2 overflow-x-auto"
-            style={{ scrollbarWidth: "none", paddingBottom: 4, marginBottom: 16 } as React.CSSProperties}
-          >
-            {side.tools.map((t) => {
-              // Alias to uppercase so the cartographer/JSX transform resolves it as a component
-              const ToolIcon = t.Icon;
-              return (
-                <Link
-                  key={t.to}
-                  to={t.to as "/studio"}
-                  style={{
-                    flexShrink: 0, display: "flex", flexDirection: "column", gap: 7,
-                    width: 96, padding: "11px 10px", borderRadius: 14,
-                    border: "1px solid oklch(1 0 0 / 0.08)",
-                    background: "oklch(1 0 0 / 0.04)",
-                    textDecoration: "none",
-                  }}
-                >
-                  <span style={{
-                    width: 30, height: 30, borderRadius: 9,
-                    background: "oklch(0.58 0.22 25 / 0.14)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    <ToolIcon size={15} color="oklch(0.78 0.16 28)" />
-                  </span>
-                  <span style={{ fontSize: 11.5, fontWeight: 600, color: "oklch(0.90 0.01 272)", lineHeight: 1.25 }}>
-                    {t.label}
-                  </span>
-                </Link>
-              );
-            })}
+          <div className="mb-5 flex items-center gap-2 text-xs text-muted-foreground">
+            <span>Need a focused workflow?</span>
+            <Link to="/studio" className="font-semibold text-primary no-underline hover:underline">Open Studio</Link>
+            <span className="text-border">·</span>
+            <Link to="/content" className="font-semibold text-primary no-underline hover:underline">Open Content</Link>
           </div>
 
           {/* ── Feed tabs ── */}
@@ -721,6 +714,7 @@ function HomePage() {
               </div>
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>

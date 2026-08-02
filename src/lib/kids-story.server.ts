@@ -12,7 +12,7 @@
 // illustration reused as a reference image for the later scenes.
 
 import { z } from "zod";
-import { generateWithFallback } from "./llm-fallback.server";
+import { routedGenerate } from "./ai-router";
 import { computeCost } from "./pricing";
 
 // ─── Brief vocabulary ─────────────────────────────────────────────────────────
@@ -262,7 +262,7 @@ export async function generateKidsStoryScript(
   const age = KIDS_AGE_RANGES.find((a) => a.id === input.ageRange) ?? KIDS_AGE_RANGES[1];
 
   try {
-    const { provider, output } = await generateWithFallback({
+    const { provider, output } = await routedGenerate({
       system:
         "You are a warm, gentle children's storyteller. You write short, wholesome, age-appropriate stories that are safe and kind — never scary, violent or sad. No emojis, no hashtags, no quotation marks, no stage directions.",
       prompt:
@@ -275,6 +275,7 @@ export async function generateKidsStoryScript(
         `narration (1-2 short sentences read aloud) and illustration (a vivid picture description of the scene — setting, the character's action, mood, colors; pictures only, never any words or text). ` +
         `Also give the whole story a short friendly title. Keep ${input.characterName} the same character in every scene.`,
       schema: KidsScriptSchema,
+      category: "SCRIPT_WRITING",
     });
     const scenes = (output.scenes ?? [])
       .map((s) => ({

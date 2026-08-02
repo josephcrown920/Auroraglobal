@@ -356,6 +356,503 @@ html[data-theme="light"] {
   max-width: 28rem;
 }
 
+/* Aurora's signed-in shell: a quiet rail on desktop, five simple tabs on
+ * smaller screens. The rail intentionally contains destinations only; modes
+ * stay in the destination drawers so the first decision is always obvious. */
+.aurora-desktop-rail {
+  display: none;
+}
+.aurora-rail-brand,
+.aurora-rail-link,
+.aurora-rail-icon {
+  text-decoration: none;
+}
+.aurora-rail-brand {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--foreground);
+}
+.aurora-rail-mark {
+  display: block;
+  width: 24px;
+  height: 24px;
+  border-radius: 9px 9px 9px 3px;
+  transform: rotate(-14deg);
+  background: linear-gradient(135deg, #f7f7f7 0 35%, #8de5ff 36% 59%, #4e82ff 60% 100%);
+  box-shadow: 0 0 24px oklch(0.7 0.18 220 / 35%);
+}
+.aurora-rail-wordmark {
+  font-family: var(--font-serif);
+  font-size: 13px;
+  font-style: italic;
+  font-weight: 600;
+}
+.aurora-rail-links {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 34px;
+}
+.aurora-rail-link {
+  align-items: center;
+  border-radius: 14px;
+  color: var(--muted-foreground);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+  min-height: 58px;
+  padding: 8px 4px;
+  transition: color 160ms ease, background 160ms ease;
+}
+.aurora-rail-link span {
+  font-size: 10px;
+  font-weight: 600;
+}
+.aurora-rail-link:hover,
+.aurora-rail-link.is-active {
+  background: oklch(0.58 0.22 25 / 10%);
+  color: var(--foreground);
+}
+.aurora-rail-link.is-active svg {
+  color: var(--primary);
+}
+.aurora-rail-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.aurora-rail-icon {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  min-height: 38px;
+  width: 100%;
+}
+.aurora-rail-icon:hover {
+  background: var(--accent);
+  color: var(--foreground);
+}
+.aurora-content-shell {
+  min-height: 100vh;
+}
+
+/* Video Agent workspace structure. The slot surfaces are intentionally empty:
+ * the route owns the placement and rhythm while product-specific cards can be
+ * added later without reworking the shell. */
+.video-agent-shell {
+  min-height: 100vh;
+  overflow: hidden;
+  position: relative;
+  color: oklch(0.95 0.01 272);
+  background:
+    radial-gradient(circle at 64% 18%, oklch(0.24 0.12 300 / 16%), transparent 32rem),
+    radial-gradient(circle at 18% 86%, oklch(0.22 0.11 270 / 12%), transparent 28rem),
+    oklch(0.035 0.018 285);
+}
+.video-agent-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin: 0 auto;
+  max-width: 1180px;
+  padding: 28px 28px 0;
+}
+.video-agent-brand,
+.video-agent-new-project,
+.video-agent-header-icon {
+  color: inherit;
+  text-decoration: none;
+}
+.video-agent-brand {
+  align-items: center;
+  display: inline-flex;
+  font-size: 14px;
+  font-weight: 650;
+  gap: 9px;
+}
+.video-agent-brand-mark {
+  align-items: center;
+  background: linear-gradient(135deg, #ce55ff, #7f35ec);
+  border-radius: 50%;
+  box-shadow: 0 0 22px oklch(0.64 0.26 310 / 55%);
+  display: inline-flex;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+.video-agent-header-actions {
+  align-items: center;
+  display: flex;
+  gap: 9px;
+}
+.video-agent-new-project,
+.video-agent-header-icon {
+  align-items: center;
+  background: oklch(1 0 0 / 3%);
+  border: 1px solid oklch(1 0 0 / 11%);
+  border-radius: 999px;
+  color: oklch(0.7 0.01 285);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 11px;
+  gap: 5px;
+  padding: 8px 12px;
+}
+.video-agent-header-icon {
+  border-radius: 50%;
+  height: 32px;
+  justify-content: center;
+  padding: 0;
+  width: 32px;
+}
+.video-agent-content {
+  margin: 0 auto;
+  max-width: 1180px;
+  padding: 72px 28px 160px;
+}
+.video-agent-greeting h1,
+.video-agent-greeting-muted {
+  font-size: clamp(2.2rem, 5vw, 3.5rem);
+  letter-spacing: -0.055em;
+  line-height: 1.02;
+  margin: 0;
+}
+.video-agent-greeting h1 {
+  color: oklch(0.96 0.01 285);
+  font-weight: 500;
+}
+.video-agent-greeting-muted {
+  color: oklch(0.48 0.035 285);
+  font-weight: 500;
+}
+.video-agent-eyebrow {
+  color: oklch(0.62 0.02 285);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  margin: 0 0 13px;
+  text-transform: uppercase;
+}
+.video-agent-slot-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 48px;
+}
+.video-agent-slot,
+.video-agent-draft-slot,
+.video-agent-project-slot,
+.video-agent-history-slot {
+  align-items: center;
+  background: oklch(0 0 0 / 42%);
+  border: 1px dashed oklch(1 0 0 / 13%);
+  color: oklch(0.43 0.02 285);
+  display: flex;
+  font-size: 11px;
+  justify-content: center;
+}
+.video-agent-slot {
+  border-radius: 14px;
+  min-height: 78px;
+}
+.video-agent-drafts-section {
+  margin-top: 34px;
+}
+.video-agent-section-heading {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 13px;
+}
+.video-agent-section-heading h2 {
+  color: oklch(0.47 0.02 285);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  margin: 0;
+  text-transform: uppercase;
+}
+.video-agent-section-heading span {
+  color: oklch(0.67 0.15 310);
+  font-size: 10px;
+}
+.video-agent-drafts-layout {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1.65fr) minmax(220px, 0.8fr);
+}
+.video-agent-draft-slot {
+  border-radius: 15px;
+  min-height: 255px;
+}
+.video-agent-project-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.video-agent-project-slot {
+  border-radius: 13px;
+  flex: 1;
+  min-height: 68px;
+}
+.video-agent-history-slot {
+  border-radius: 13px;
+  min-height: 68px;
+}
+.video-agent-composer {
+  background: oklch(0.055 0.02 285 / 94%);
+  border: 1px solid oklch(0.7 0.18 310 / 22%);
+  border-radius: 18px;
+  bottom: 32px;
+  box-shadow: 0 18px 70px oklch(0 0 0 / 45%), 0 0 30px oklch(0.6 0.2 310 / 10%);
+  left: 50%;
+  max-width: 680px;
+  padding: 14px 14px 10px;
+  position: absolute;
+  transform: translateX(-50%);
+  width: calc(100% - 56px);
+  z-index: 2;
+}
+.video-agent-composer-input {
+  background: transparent;
+  border: 0;
+  color: oklch(0.9 0.01 285);
+  min-height: 62px;
+  outline: 0;
+  padding: 2px 48px 4px 0;
+  resize: none;
+}
+.video-agent-composer-input:focus-visible {
+  box-shadow: none;
+}
+.video-agent-send {
+  align-items: center;
+  background: oklch(1 0 0 / 10%);
+  border: 0;
+  border-radius: 10px;
+  color: oklch(0.85 0.01 285);
+  cursor: pointer;
+  display: flex;
+  height: 32px;
+  justify-content: center;
+  position: absolute;
+  right: 13px;
+  top: 13px;
+  width: 32px;
+}
+.video-agent-send:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+.video-agent-composer-toolbar {
+  align-items: center;
+  color: oklch(0.5 0.02 285);
+  display: flex;
+  font-size: 10px;
+  gap: 14px;
+}
+.video-agent-composer-toolbar button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 4px;
+  padding: 0;
+}
+.video-agent-composer-toolbar button:hover {
+  color: oklch(0.8 0.05 285);
+}
+.video-agent-composer-spacer {
+  flex: 1;
+}
+.video-agent-settings {
+  color: oklch(0.5 0.02 285);
+  font-size: 10px;
+  margin: 14px auto 0;
+  max-width: 680px;
+}
+.video-agent-settings summary {
+  align-items: center;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 5px;
+}
+.video-agent-settings-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 10px;
+}
+.video-agent-settings-body > div {
+  align-items: center;
+  display: flex;
+  gap: 7px;
+}
+.video-agent-settings select,
+.video-agent-setting-chips button {
+  background: oklch(1 0 0 / 5%);
+  border: 1px solid oklch(1 0 0 / 12%);
+  border-radius: 7px;
+  color: oklch(0.72 0.02 285);
+  font-size: 10px;
+  padding: 4px 7px;
+}
+.video-agent-setting-chips {
+  display: flex;
+  gap: 4px;
+}
+.video-agent-setting-chips button {
+  cursor: pointer;
+}
+.video-agent-setting-chips button[aria-pressed="true"] {
+  border-color: oklch(0.65 0.2 310 / 55%);
+  color: oklch(0.8 0.14 310);
+}
+.video-agent-recent-data {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 20px auto 0;
+  max-width: 680px;
+}
+.video-agent-recent-data a {
+  align-items: center;
+  color: oklch(0.53 0.02 285);
+  display: inline-flex;
+  font-size: 10px;
+  gap: 4px;
+  text-decoration: none;
+}
+.video-agent-recent-data a:hover {
+  color: oklch(0.8 0.1 310);
+}
+.video-agent-disclaimer {
+  bottom: 10px;
+  color: oklch(0.35 0.02 285);
+  font-size: 9px;
+  left: 0;
+  margin: 0;
+  position: absolute;
+  text-align: center;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .video-agent-header {
+    padding: 20px 18px 0;
+  }
+  .video-agent-header-actions {
+    gap: 5px;
+  }
+  .video-agent-new-project {
+    font-size: 10px;
+    padding: 7px 9px;
+  }
+  .video-agent-header-icon {
+    height: 29px;
+    width: 29px;
+  }
+  .video-agent-content {
+    padding: 58px 18px 170px;
+  }
+  .video-agent-greeting h1,
+  .video-agent-greeting-muted {
+    font-size: clamp(2rem, 11vw, 2.75rem);
+  }
+  .video-agent-slot-grid {
+    gap: 8px;
+    margin-top: 36px;
+  }
+  .video-agent-slot {
+    min-height: 76px;
+    padding: 8px;
+    text-align: center;
+  }
+  .video-agent-drafts-layout {
+    gap: 8px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .video-agent-draft-slot,
+  .video-agent-project-slot,
+  .video-agent-history-slot {
+    min-height: 78px;
+    padding: 8px;
+    text-align: center;
+  }
+  .video-agent-draft-slot {
+    min-height: 246px;
+  }
+  .video-agent-composer {
+    bottom: 22px;
+    padding: 12px 12px 9px;
+    width: calc(100% - 36px);
+  }
+  .video-agent-composer-toolbar {
+    gap: 9px;
+  }
+  .video-agent-composer-toolbar span:last-child {
+    max-width: 98px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .video-agent-disclaimer {
+    display: none;
+  }
+}
+
+@media (min-width: 900px) {
+  .aurora-bottom-nav {
+    display: none;
+  }
+  .aurora-desktop-rail {
+    background: oklch(0.085 0.022 272 / 92%);
+    border-right: 1px solid oklch(1 0 0 / 7%);
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    left: 0;
+    padding: 24px 12px 18px;
+    position: fixed;
+    top: 0;
+    width: 84px;
+    z-index: 60;
+  }
+  .aurora-content-shell {
+    padding-left: 84px;
+  }
+  .aurora-home-topbar {
+    left: 84px;
+    width: calc(100% - 84px);
+  }
+  .aurora-home-topbar + * {
+    /* Preserve the centered Create canvas under the desktop top bar. */
+  }
+  .aurora-content-shell > div {
+    padding-top: 76px !important;
+  }
+  .aurora-content-shell .aurora-page-shell {
+    padding-left: 0;
+  }
+  .aurora-hub-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .aurora-hub-cta-inner {
+    align-items: center;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+}
+
 /* ── Premium shared design language ──────────────────────────────────────
  * Opt-in utility classes applied consistently across the sidebar/menu,
  * landing, and every tool page so the whole app reads as one high-end

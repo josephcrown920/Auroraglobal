@@ -1,11 +1,14 @@
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { adminOverview, adminGrantCredits, adminEarnings, adminWithdrawalSummary, adminRecordWithdrawal, adminCheckWithdrawalAmount, adminEditWithdrawal, adminDeleteWithdrawal } from "@/lib/admin.functions";
 import { getSiteImages, adminUpdateSiteImage, adminResetSiteImage, type SiteImageRow } from "@/lib/site-images.functions";
+import { getSiteCopy, adminSetSiteCopy, adminDeleteSiteCopy, type SiteCopyRow } from "@/lib/site-copy.functions";
+import { getRouterHealth, getRouterLogs, type RouterHealthRow, type RouterLogRow } from "@/lib/ai-router.functions";
+import { SITE_COPY_DEFAULTS, SITE_COPY_LABELS, SITE_COPY_SECTIONS } from "@/lib/site-copy-defaults";
 import { listWorkers, upsertWorker, deleteWorker, pingWorker, setWorkerStatus, getFreeGpuMode, setFreeGpuMode, approveWorker, rejectWorker } from "@/lib/workers.functions";
 import { issuePromoCode, listPromoCodes, setPromoCodeActive, type PromoCodeRow } from "@/lib/promo.functions";
 import { PROFIT_SPLIT_PCT } from "@/lib/profit-split";
@@ -42,7 +45,7 @@ function AdminPage() {
   });
 
 
-  const [tab, setTab] = useState<"gens" | "users" | "payments" | "earnings" | "workers" | "promos" | "images">("gens");
+  const [tab, setTab] = useState<"gens" | "users" | "payments" | "earnings" | "workers" | "promos" | "images" | "copy" | "router">("gens");
   const [grantUser, setGrantUser] = useState("");
   const [grantAmount, setGrantAmount] = useState(100);
 
@@ -181,10 +184,10 @@ function AdminPage() {
         </section>
 
         {/* Tabs */}
-        <div className="flex gap-2 border-b border-border">
-          {(["gens", "users", "payments", "earnings", "workers", "promos", "images"] as const).map((t) => (
-            <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 text-sm capitalize border-b-2 -mb-px transition-colors ${tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-              {t === "gens" ? "Generations" : t === "workers" ? "GPU Workers" : t === "promos" ? "Promo Codes" : t === "images" ? "Site Images" : t}
+        <div className="flex gap-2 border-b border-border overflow-x-auto">
+          {(["gens", "users", "payments", "earnings", "workers", "promos", "images", "copy", "router"] as const).map((t) => (
+            <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 text-sm capitalize border-b-2 -mb-px transition-colors whitespace-nowrap ${tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+              {t === "gens" ? "Generations" : t === "workers" ? "GPU Workers" : t === "promos" ? "Promo Codes" : t === "images" ? "Site Images" : t === "copy" ? "Site Copy" : t === "router" ? "AI Router" : t}
             </button>
           ))}
         </div>
@@ -271,6 +274,8 @@ function AdminPage() {
         {tab === "workers" && <WorkersPanel />}
         {tab === "promos" && <PromosPanel />}
         {tab === "images" && <ImagesPanel />}
+        {tab === "copy" && <CopyPanel />}
+        {tab === "router" && <RouterPanel />}
       </div>
     </main>
   );
@@ -1459,6 +1464,345 @@ function ImagesPanel() {
           </div>
         </section>
       ))}
+    </div>
+  );
+}
+
+// ── Site Copy panel ──────────────────────────────────────────────────────────
+function CopyPanel() {
+  const getCopyFn     = useServerFn(getSiteCopy);
+  const setFn         = useServerFn(adminSetSiteCopy);
+  const deleteFn      = useServerFn(adminDeleteSiteCopy);
+  const qc            = useQueryClient();
+
+  const { data: rows, isLoading } = useQuery({
+    queryKey: ["admin-site-copy"],
+    queryFn: () => getCopyFn(),
+  });
+
+  // Build a fast lookup: key → DB row (only keys that have overrides)
+  const overrideMap = useMemo(() => {
+    const map: Record<string, SiteCopyRow> = {};
+    for (const row of (rows ?? [])) map[row.key] = row;
+    return map;
+  }, [rows]);
+
+  // Group all known keys by section
+  const grouped = useMemo(() => {
+    const sections: Record<string, string[]> = {};
+    for (const key of Object.keys(SITE_COPY_DEFAULTS)) {
+      const section = SITE_COPY_SECTIONS[key] ?? "Other";
+      (sections[section] ??= []).push(key);
+    }
+    return sections;
+  }, []);
+
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [draft, setDraft]           = useState("");
+  const [saving, setSaving]         = useState(false);
+  const [resetting, setResetting]   = useState<string | null>(null);
+
+  function startEdit(key: string) {
+    const current = overrideMap[key]?.value ?? SITE_COPY_DEFAULTS[key] ?? "";
+    setDraft(current);
+    setEditingKey(key);
+  }
+
+  async function handleSave(key: string) {
+    setSaving(true);
+    try {
+      await setFn({ data: { key, value: draft } });
+      await qc.invalidateQueries({ queryKey: ["admin-site-copy"] });
+      toast.success("Copy saved");
+      setEditingKey(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleReset(key: string) {
+    setResetting(key);
+    try {
+      await deleteFn({ data: { key } });
+      await qc.invalidateQueries({ queryKey: ["admin-site-copy"] });
+      toast.success("Reset to default");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to reset");
+    } finally {
+      setResetting(null);
+    }
+  }
+
+  if (isLoading) return <div className="text-sm text-muted-foreground">Loading…</div>;
+
+  return (
+    <div className="space-y-8">
+      <div className="rounded-2xl border border-border bg-card/40 p-5">
+        <p className="text-sm text-muted-foreground">
+          Override any landing page or home-dashboard text string. Leave a key at its
+          default to use the hardcoded fallback. A{" "}
+          <span className="inline-block size-2 rounded-full bg-primary align-middle" />{" "}
+          dot in the live UI marks items that have active overrides.
+        </p>
+      </div>
+
+      {Object.entries(grouped).map(([section, keys]) => (
+        <section key={section} className="space-y-3">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{section}</h3>
+          <div className="rounded-xl border border-border overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-card/60 text-xs uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="text-left p-3 w-[30%]">Label</th>
+                  <th className="text-left p-3">Value</th>
+                  <th className="text-right p-3 w-[120px]">Last edited</th>
+                  <th className="text-right p-3 w-[140px]" />
+                </tr>
+              </thead>
+              <tbody>
+                {keys.map((key) => {
+                  const override   = overrideMap[key];
+                  const isCustom   = !!override;
+                  const isEditing  = editingKey === key;
+                  const isBusy     = saving && isEditing;
+                  const isResetting = resetting === key;
+                  const displayed  = override?.value ?? SITE_COPY_DEFAULTS[key] ?? "";
+
+                  return (
+                    <tr key={key} className="border-t border-border hover:bg-card/20">
+                      <td className="p-3 align-top">
+                        <div className="font-medium text-sm flex items-center gap-1.5">
+                          {isCustom && (
+                            <span
+                              title="Custom override active"
+                              className="inline-block size-1.5 rounded-full bg-primary flex-shrink-0"
+                            />
+                          )}
+                          {SITE_COPY_LABELS[key] ?? key}
+                        </div>
+                        <div className="text-[10px] font-mono text-muted-foreground mt-0.5">{key}</div>
+                      </td>
+                      <td className="p-3 align-top">
+                        {isEditing ? (
+                          <textarea
+                            value={draft}
+                            onChange={(e) => setDraft(e.target.value)}
+                            rows={3}
+                            autoFocus
+                            className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+                          />
+                        ) : (
+                          <span className={`text-sm ${isCustom ? "text-foreground" : "text-muted-foreground italic"}`}>
+                            {isCustom ? displayed : `(default) ${displayed.slice(0, 80)}${displayed.length > 80 ? "…" : ""}`}
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-3 text-right text-xs text-muted-foreground align-top whitespace-nowrap">
+                        {override?.updated_at
+                          ? new Date(override.updated_at).toLocaleDateString()
+                          : "—"}
+                      </td>
+                      <td className="p-3 text-right align-top">
+                        {isEditing ? (
+                          <div className="flex gap-1 justify-end">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => setEditingKey(null)}
+                              disabled={isBusy}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="h-7 px-3 text-xs"
+                              onClick={() => handleSave(key)}
+                              disabled={isBusy}
+                            >
+                              {isBusy ? <Loader2 className="size-3 animate-spin" /> : "Save"}
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-1 justify-end">
+                            {isCustom && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-xs text-muted-foreground"
+                                onClick={() => handleReset(key)}
+                                disabled={isResetting}
+                                title="Reset to hardcoded default"
+                              >
+                                {isResetting ? <Loader2 className="size-3 animate-spin" /> : "Reset"}
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="h-7 px-3 text-xs"
+                              onClick={() => startEdit(key)}
+                            >
+                              Edit
+                            </Button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function RouterPanel() {
+  const healthFn = useServerFn(getRouterHealth);
+  const logsFn = useServerFn(getRouterLogs);
+
+  const { data: healthData, isLoading: healthLoading } = useQuery({
+    queryKey: ["router-health"],
+    queryFn: () => healthFn(),
+    refetchInterval: 15_000,
+  });
+
+  const { data: logsData, isLoading: logsLoading } = useQuery({
+    queryKey: ["router-logs"],
+    queryFn: () => logsFn(),
+    refetchInterval: 30_000,
+  });
+
+  const providers: RouterHealthRow[] = healthData?.providers ?? [];
+  const degradedCategories = healthData?.degradedCategories ?? [];
+  const logs: RouterLogRow[] = logsData?.logs ?? [];
+  const migrationPending = logsData?.migrationPending ?? false;
+
+  function pct(n: number | null) {
+    if (n === null) return "—";
+    return `${Math.round(n * 100)}%`;
+  }
+  function ms(n: number | null) {
+    if (n === null) return "—";
+    return `${Math.round(n)}ms`;
+  }
+
+  return (
+    <div className="space-y-6">
+      {degradedCategories.length > 0 && (
+        <div className="flex items-start gap-3 rounded-xl border border-orange-500/40 bg-orange-500/10 px-4 py-3 text-orange-300">
+          <Activity className="mt-0.5 size-4 shrink-0 text-orange-400" />
+          <div>
+            <p className="text-sm font-medium">AI Router degraded</p>
+            <p className="mt-0.5 text-xs text-orange-200/75">
+              No healthy providers are available for: {degradedCategories.join(", ")}. Aurora will recover automatically as providers return.
+            </p>
+          </div>
+        </div>
+      )}
+      {/* Provider health grid */}
+      <section className="rounded-2xl border border-border bg-card/40 p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <Activity className="size-4 text-primary" />
+          <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Provider health (5-min window)</h2>
+          {healthLoading && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {providers.map((p) => (
+            <div
+              key={p.name}
+              className={`rounded-xl border p-3 space-y-1.5 ${
+                !p.enabled
+                  ? "border-border bg-muted/20 opacity-50"
+                  : p.healthy
+                    ? "border-emerald-500/30 bg-emerald-500/5"
+                    : "border-red-500/40 bg-red-500/10"
+              }`}
+            >
+              <div className="flex items-center gap-2 justify-between">
+                <span className="text-xs font-medium truncate">{p.displayName ?? p.name}</span>
+                {!p.enabled ? (
+                  <span className="text-[10px] text-muted-foreground shrink-0">OFF</span>
+                ) : p.callsInWindow === 0 ? (
+                  <Clock className="size-3 text-muted-foreground shrink-0" />
+                ) : p.healthy ? (
+                  <CheckCircle className="size-3 text-emerald-500 shrink-0" />
+                ) : (
+                  <XCircle className="size-3 text-red-500 shrink-0" />
+                )}
+              </div>
+              <div className="text-[10px] text-muted-foreground space-y-0.5">
+                <div className="flex justify-between"><span>Calls</span><span>{p.callsInWindow}</span></div>
+                <div className="flex justify-between"><span>Success</span><span>{pct(p.successRate)}</span></div>
+                <div className="flex justify-between"><span>Avg lat.</span><span>{ms(p.avgLatencyMs)}</span></div>
+              </div>
+            </div>
+          ))}
+          {!healthLoading && providers.length === 0 && (
+            <p className="col-span-full text-sm text-muted-foreground text-center py-4">
+              No routing calls recorded yet — start a chat to see data.
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* Recent log table */}
+      <section className="rounded-2xl border border-border bg-card/40 p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <Zap className="size-4 text-primary" />
+          <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Recent routing decisions</h2>
+          {logsLoading && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
+        </div>
+        {migrationPending && (
+          <p className="text-xs text-amber-500 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2">
+            ⚠ The <code>ai_router_logs</code> migration hasn't been applied to the live DB yet. Logs will appear here once applied.
+          </p>
+        )}
+        <div className="rounded-xl border border-border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-card/60 text-xs uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="text-left p-3">When</th>
+                <th className="text-left p-3">Category</th>
+                <th className="text-left p-3">Provider</th>
+                <th className="text-right p-3">Fallbacks</th>
+                <th className="text-right p-3">Latency</th>
+                <th className="text-left p-3">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs.map((l) => (
+                <tr key={l.id} className="border-t border-border hover:bg-card/40">
+                  <td className="p-3 text-xs text-muted-foreground">{new Date(l.created_at).toLocaleTimeString()}</td>
+                  <td className="p-3 text-xs font-mono">{l.category}</td>
+                  <td className="p-3 text-xs">{l.provider_used}</td>
+                  <td className="p-3 text-right text-xs">{l.fallback_count}</td>
+                  <td className="p-3 text-right text-xs">{l.latency_ms}ms</td>
+                  <td className="p-3">
+                    {l.success ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500">
+                        <CheckCircle className="size-3" /> OK
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-red-500/15 text-red-500" title={l.failure_reason ?? ""}>
+                        <XCircle className="size-3" /> Failed
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {!logsLoading && logs.length === 0 && !migrationPending && (
+                <tr><td colSpan={6} className="p-6 text-center text-muted-foreground text-sm">No routing decisions logged yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }
