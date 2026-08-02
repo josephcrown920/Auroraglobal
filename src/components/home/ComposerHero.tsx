@@ -22,7 +22,7 @@ export function ComposerHero() {
       {/* Headline */}
       <h1
         className="mb-1.5 text-[1.75rem] font-semibold leading-[1.18] tracking-tight text-foreground"
-        style={{ textShadow: "0 2px 24px oklch(0.58 0.22 25 / 0.15)" }}
+        style={{ textShadow: "0 2px 24px oklch(0.60 0.27 295 / 0.15)" }}
       >
         What are we creating
         <br />
@@ -44,7 +44,7 @@ export function ComposerHero() {
           style={{
             background: "oklch(0.11 0.015 272)",
             border: "1px solid oklch(1 0 0 / 0.09)",
-            boxShadow: "0 8px 40px -10px oklch(0.58 0.22 25 / 0.20), 0 2px 0 oklch(1 0 0 / 0.04) inset",
+            boxShadow: "0 8px 40px -10px oklch(0.60 0.27 295 / 0.20), 0 2px 0 oklch(1 0 0 / 0.04) inset",
           }}
         >
           {/* Top gradient line */}
@@ -53,7 +53,7 @@ export function ComposerHero() {
             className="pointer-events-none absolute inset-x-0 top-0 h-px"
             style={{
               background:
-                "linear-gradient(90deg, transparent 10%, oklch(0.58 0.22 25 / 0.35) 50%, transparent 90%)",
+                "linear-gradient(90deg, transparent 10%, oklch(0.60 0.27 295 / 0.35) 50%, transparent 90%)",
             }}
           />
 
@@ -87,8 +87,8 @@ export function ComposerHero() {
               aria-label="Create"
               className="flex size-8 items-center justify-center rounded-xl transition-all hover:scale-105 active:scale-95"
               style={{
-                background: "oklch(0.58 0.22 25)",
-                boxShadow: "0 4px 18px -4px oklch(0.58 0.22 25 / 0.65)",
+                background: "oklch(0.60 0.27 295)",
+                boxShadow: "0 4px 18px -4px oklch(0.60 0.27 295 / 0.65)",
               }}
             >
               <ArrowUp className="size-[17px] text-white" />

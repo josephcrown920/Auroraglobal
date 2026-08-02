@@ -53,28 +53,19 @@ const DESTINATIONS: Feature[] = [
   { to: "/account", label: "Account", icon: UserRound },
 ];
 
+// ── Live studio tools — visible to all users ──────────────────────────────
 const STUDIO_FEATURES: Feature[] = [
-  { to: "/studio", label: "Image & Video Studio", icon: Sparkles, previewImg: "/nav-previews/studio.jpg" },
-  { to: "/colors", label: "Colors Studio", icon: Palette, previewImg: "/nav-previews/colors.jpg" },
-  { to: "/photo-edit", label: "Photo Editor", icon: Brush, previewImg: "/nav-previews/photo-edit.jpg" },
-  { to: "/canvas", label: "Infinity Canvas", icon: Workflow, previewImg: "/nav-previews/canvas.jpg" },
-  { to: "/split-reality", label: "Split Reality", icon: Wand2, previewImg: "/nav-previews/studio.jpg" },
-  { to: "/scene-weaver", label: "Scene Weaver", icon: Camera, previewImg: "/nav-previews/scene-builder.jpg" },
-  { to: "/scene-builder", label: "Directors ROOM", icon: Layers, previewImg: "/nav-previews/scene-builder.jpg" },
-  { to: "/motion", label: "Motion Control", icon: Wand2, previewImg: "/nav-previews/perform-anywhere.jpg" },
-  { to: "/storyboard", label: "Storyboard", icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg" },
-  { to: "/music-video", label: "Lyric Video", icon: Film, previewImg: "/nav-previews/music-video.jpg" },
-  { to: "/live-studio", label: "Live Studios", icon: Music2, previewImg: "/nav-previews/live-studio.jpg" },
+  { to: "/studio",        label: "Image & Video Studio", icon: Sparkles,    previewImg: "/nav-previews/studio.jpg" },
+  { to: "/colors",        label: "Colors Studio",        icon: Palette,     previewImg: "/nav-previews/colors.jpg" },
+  { to: "/scene-builder", label: "Directors ROOM",       icon: Layers,      previewImg: "/nav-previews/scene-builder.jpg" },
+  { to: "/motion",        label: "Motion Control",       icon: Wand2,       previewImg: "/nav-previews/perform-anywhere.jpg" },
+  { to: "/music-video",   label: "Lyric Video",          icon: Film,        previewImg: "/nav-previews/music-video.jpg" },
 ];
 
+// ── Live content tools — visible to all users ─────────────────────────────
 const CONTENT_FEATURES: Feature[] = [
-  { to: "/ugc", label: "UGC Ads", icon: Megaphone, previewImg: "/nav-previews/ugc.jpg" },
-  { to: "/ugc-line", label: "Content Line", icon: Layers, previewImg: "/nav-previews/ugc-line.jpg" },
-  { to: "/spin", label: "TikTok30", icon: Flame, previewImg: "/nav-previews/spin.jpg" },
-  { to: "/tiktok", label: "TikTok Studio", icon: Music2 },
-  { to: "/lipsync", label: "Lip Sync", icon: Mic, previewImg: "/nav-previews/lipsync.jpg" },
-  { to: "/avatar", label: "Talking Avatars", icon: UserCircle2, previewImg: "/nav-previews/avatar.jpg" },
-  { to: "/content-machine", label: "Content Machine", icon: LayoutGrid },
+  { to: "/spin",    label: "TikTok30", icon: Flame, previewImg: "/nav-previews/spin.jpg" },
+  { to: "/lipsync", label: "Lip Sync", icon: Mic,   previewImg: "/nav-previews/lipsync.jpg" },
 ];
 
 const ACCOUNT_FEATURES: Feature[] = [
@@ -86,8 +77,24 @@ const ACCOUNT_FEATURES: Feature[] = [
   { to: "/admin", label: "Admin", icon: Shield },
 ];
 
-/** Archived — hidden from the main nav; still reachable from /admin. */
+/** Archived — hidden from the main nav; still reachable from /admin.
+ *  Add features here when they need more design work before going live. */
 export const ARCHIVED_FEATURES: Feature[] = [
+  // ── Studio tools (coming soon) ────────────────────────────────────────
+  { to: "/photo-edit",      label: "Photo Editor",     icon: Brush },
+  { to: "/canvas",          label: "Infinity Canvas",  icon: Workflow },
+  { to: "/split-reality",   label: "Split Reality",    icon: Wand2 },
+  { to: "/live-studio",     label: "Live Studios",     icon: Music2 },
+  { to: "/scene-weaver",    label: "Scene Weaver",     icon: Camera },
+  { to: "/storyboard",      label: "Storyboard",       icon: Clapperboard },
+  // ── Content tools (coming soon) ──────────────────────────────────────
+  { to: "/ugc",             label: "UGC Ads",          icon: Megaphone },
+  { to: "/ugc-line",        label: "Content Line",     icon: Layers },
+  { to: "/tiktok",          label: "TikTok Studio",    icon: Music2 },
+  { to: "/avatar",          label: "Talking Avatars",  icon: UserCircle2 },
+  { to: "/content-machine", label: "Content Machine",  icon: LayoutGrid },
+  { to: "/video-agent",     label: "Video Agent",      icon: Film },
+  // ── Legacy / dev tools ───────────────────────────────────────────────
   { to: "/templates",        label: "Templates",        icon: Layers },
   { to: "/colors-show",      label: "Colors Show Creator", icon: Film },
   { to: "/editor",           label: "Playground",       icon: Sparkles },
@@ -98,8 +105,6 @@ export const ARCHIVED_FEATURES: Feature[] = [
   { to: "/marketplace",      label: "Marketplace",      icon: Sparkles },
   { to: "/roadmap",          label: "Roadmap",          icon: Sparkles },
   { to: "/workflows",        label: "Workflows",        icon: Sparkles },
-  { to: "/content-machine",  label: "Content Machine",  icon: Sparkles },
-  { to: "/tiktok",           label: "TikTok Studio",    icon: Music2 },
   { to: "/clips",            label: "Clips",            icon: Sparkles },
   { to: "/edit",             label: "AutoCut",          icon: Sparkles },
   { to: "/cli",              label: "CLI",              icon: Sparkles },
@@ -110,7 +115,7 @@ export const ARCHIVED_FEATURES: Feature[] = [
 const TAB_ITEMS = DESTINATIONS;
 
 const STUDIO_PATHS = ["/studio", "/colors", "/photo-edit", "/canvas", "/split-reality", "/scene-weaver", "/scene-builder", "/motion", "/storyboard", "/music-video", "/live-studio"];
-const CONTENT_PATHS = ["/content", "/ugc", "/ugc-line", "/spin", "/tiktok", "/lipsync", "/avatar", "/content-machine"];
+const CONTENT_PATHS = ["/content", "/ugc", "/ugc-line", "/spin", "/tiktok", "/lipsync", "/avatar", "/content-machine", "/video-agent"];
 const ACCOUNT_PATHS = ["/account", "/gallery", "/billing", "/creator/dashboard", "/settings", "/partners", "/admin"];
 
 function destinationIsActive(pathname: string, destination: string) {
@@ -162,7 +167,7 @@ function LiveNavItem({ f, active, onClick }: { f: Feature; active: boolean; onCl
       {f.previewImg && (
         <span
           className="shrink-0 overflow-hidden rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-          style={{ width: 38, height: 27, border: "1px solid oklch(0.58 0.22 25 / 0.25)" }}
+          style={{ width: 38, height: 27, border: "1px solid oklch(0.60 0.27 295 / 0.25)" }}
         >
           <img
             src={f.previewImg}
@@ -209,8 +214,8 @@ export function MobileNav() {
           50%       { opacity: 1;    transform: scaleX(1);   }
         }
         @keyframes tab-glow-breathe {
-          0%, 100% { box-shadow: 0 0 10px -4px oklch(0.58 0.22 25 / 0.4); }
-          50%       { box-shadow: 0 0 22px -4px oklch(0.58 0.22 25 / 0.75); }
+          0%, 100% { box-shadow: 0 0 10px -4px oklch(0.60 0.27 295 / 0.4); }
+          50%       { box-shadow: 0 0 22px -4px oklch(0.60 0.27 295 / 0.75); }
         }
         .tab-breathe-bar {
           animation: tab-breathe 3s ease-in-out infinite;
@@ -281,15 +286,15 @@ export function MobileNav() {
               background: "oklch(0.085 0.022 272 / 0.92)",
               backdropFilter: "blur(24px) saturate(1.6)",
               WebkitBackdropFilter: "blur(24px) saturate(1.6)",
-              borderTop: "1px solid oklch(0.58 0.22 25 / 0.15)",
-              boxShadow: "0 -1px 40px -12px oklch(0.58 0.22 25 / 0.2), 0 -1px 0 oklch(1 0 0 / 0.06) inset",
+              borderTop: "1px solid oklch(0.60 0.27 295 / 0.15)",
+              boxShadow: "0 -1px 40px -12px oklch(0.60 0.27 295 / 0.2), 0 -1px 0 oklch(1 0 0 / 0.06) inset",
             }}
           >
             {/* Top accent line */}
             <span
               aria-hidden
               className="pointer-events-none absolute inset-x-0 top-0 h-px"
-              style={{ background: "linear-gradient(90deg, transparent 0%, oklch(0.58 0.22 25 / 0.5) 50%, transparent 100%)" }}
+              style={{ background: "linear-gradient(90deg, transparent 0%, oklch(0.60 0.27 295 / 0.5) 50%, transparent 100%)" }}
             />
 
             <ul className="grid grid-cols-5">
@@ -309,14 +314,14 @@ export function MobileNav() {
                           ? "text-primary/60 hover:text-primary"
                           : "text-muted-foreground/70 hover:text-foreground",
                       )}
-                      style={active ? { textShadow: "0 0 12px oklch(0.58 0.22 25 / 0.6)" } : undefined}
+                      style={active ? { textShadow: "0 0 12px oklch(0.60 0.27 295 / 0.6)" } : undefined}
                     >
                       {/* Breathing indicator bar */}
                       {active && (
                         <span
                           aria-hidden
                           className="tab-breathe-bar absolute top-0 h-[2px] w-10 rounded-full"
-                          style={{ background: "linear-gradient(90deg, oklch(0.58 0.22 25), oklch(0.68 0.20 30))" }}
+                          style={{ background: "linear-gradient(90deg, oklch(0.60 0.27 295), oklch(0.72 0.22 315))" }}
                         />
                       )}
 

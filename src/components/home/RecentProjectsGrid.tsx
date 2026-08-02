@@ -104,7 +104,7 @@ export function RecentProjectsGrid({ items }: RecentProjectsGridProps) {
   return (
     <section className="px-5 pb-12">
       <div className="mb-4 flex items-center justify-between">
-        <p className="aurora-kicker" style={{ color: "oklch(0.58 0.22 25 / 0.6)" }}>
+        <p className="aurora-kicker" style={{ color: "oklch(0.60 0.27 295 / 0.6)" }}>
           Recent Projects
         </p>
         {items.length > 0 && (
@@ -134,7 +134,7 @@ export function RecentProjectsGrid({ items }: RecentProjectsGridProps) {
           >
             <span
               className="flex size-10 items-center justify-center rounded-full"
-              style={{ background: "oklch(0.58 0.22 25 / 0.12)", border: "1px solid oklch(0.58 0.22 25 / 0.25)" }}
+              style={{ background: "oklch(0.60 0.27 295 / 0.12)", border: "1px solid oklch(0.60 0.27 295 / 0.25)" }}
             >
               <Plus className="size-5 text-primary" />
             </span>
