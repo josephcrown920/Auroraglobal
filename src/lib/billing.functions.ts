@@ -247,6 +247,24 @@ export const getPaymentByReference = createServerFn({ method: "GET" })
     };
   });
 
+/** Returns the raw payment status for a reference regardless of success/failure.
+ * Used to show a helpful 3D Secure error when Paystack redirects back but the
+ * charge didn't go through (failed / abandoned) instead of silently doing nothing. */
+export const getPaymentStatusByReference = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ reference: z.string().min(1).max(200) }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    const { data: payment } = await supabaseAdmin
+      .from("payments")
+      .select("status")
+      .eq("reference", data.reference)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!payment) return null;
+    return { status: payment.status as "pending" | "succeeded" | "failed" | "abandoned" };
+  });
+
 // ── Pro subscription checkout ─────────────────────────────────────────────────
 
 /** Get or create the Aurora Pro Paystack plan, caching the plan_code. */

@@ -32,7 +32,7 @@ import { handleGenerationError, friendlyGenerationMessage } from "@/lib/error-to
 import { useGenerationProgress } from "@/hooks/use-generation-progress";
 import { GenerationProgress } from "@/components/ui/GenerationProgress";
 import { BlurredPreview } from "@/components/ui/BlurredPreview";
-import { getMyProfile, createPaystackCheckout, getPaymentByReference } from "@/lib/billing.functions";
+import { getMyProfile, createPaystackCheckout, getPaymentByReference, getPaymentStatusByReference } from "@/lib/billing.functions";
 import { trackPurchase, trackGenerationCompleted } from "@/lib/gtm";
 import { PLANS } from "@/lib/billing.plans";
 import { computeCost, type Resolution } from "@/lib/pricing";
@@ -263,6 +263,7 @@ function StudioPage() {
   const profileFn = useServerFn(getMyProfile);
   const checkoutFn = useServerFn(createPaystackCheckout);
   const paymentByRefFn = useServerFn(getPaymentByReference);
+  const paymentStatusFn = useServerFn(getPaymentStatusByReference);
   const publishFn = useServerFn(publishGeneration);
   const detectCurrencyFn = useServerFn(detectCurrency);
   const { data: geo } = useQuery({ queryKey: ["geo-currency"], queryFn: () => detectCurrencyFn(), staleTime: 60 * 60 * 1000 });
