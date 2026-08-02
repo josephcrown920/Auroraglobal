@@ -312,7 +312,7 @@ function LandingPage() {
                 i === slideIdx ? "opacity-100" : "opacity-0 absolute inset-0 pointer-events-none"
               }`}
             >
-              <p className="mb-2 flex items-center gap-2 font-serif italic text-amber-400 text-base">
+              <p className="mb-2 flex items-center gap-2 font-sans text-sm font-bold uppercase tracking-[0.18em] text-amber-300">
                 <span className="inline-block size-1.5 rounded-full bg-[#e5383b]" />
                 <EditableCopy copyKey={`landing_hero_${i}_eyebrow`} fallback={slide.eyebrow} />
                 {"badge" in slide && slide.badge && (
