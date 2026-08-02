@@ -75,6 +75,12 @@ onlyBuiltDependencies:
   - unrs-resolver
 
 overrides:
+  brace-expansion: 5.0.9
+  fast-uri: 3.1.5
+  js-yaml: 4.3.1
+  linkify-it: 5.0.2
+  postcss: 8.5.25
+  vite: 7.3.5
   # replit uses linux-x64 only, we can exclude all other platforms
   "esbuild>@esbuild/darwin-arm64": "-"
   "esbuild>@esbuild/darwin-x64": "-"
