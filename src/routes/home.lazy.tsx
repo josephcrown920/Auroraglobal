@@ -33,6 +33,7 @@ import { getMyProfile, setMyPersona } from "@/lib/billing.functions";
 import { HomeTopBar } from "@/components/home/HomeTopBar";
 import { EditableCopy } from "@/components/EditableCopy";
 import { useSiteCopyValue } from "@/components/landing/SiteCopyProvider";
+import { INSPIRATION_IMAGES } from "@/lib/mediaAssets";
 
 export const Route = createLazyFileRoute("/home")({ component: HomePage });
 
@@ -197,8 +198,7 @@ function GalleryCard({ item, height, onTry }: { item: GenItem; height: number; o
 
 function InspirationCard({ item, height, onTry }: { item: Inspiration; height: number; onTry: (presetId: string) => void }) {
   const [hovered, setHovered] = useState(false);
-  // Alias to uppercase so the cartographer/JSX transform can resolve it as a component
-  const ItemIcon = item.Icon;
+  const imgSrc = INSPIRATION_IMAGES[item.id];
   return (
     <div
       onClick={() => onTry(item.presetId)}
@@ -206,22 +206,61 @@ function InspirationCard({ item, height, onTry }: { item: Inspiration; height: n
       onMouseLeave={() => setHovered(false)}
       style={{
         height, borderRadius: 12, overflow: "hidden", cursor: "pointer",
-        background: item.gradient,
-        padding: 12, display: "flex", flexDirection: "column",
-        transform: hovered ? "scale(0.98)" : "scale(1)",
-        transition: "transform 0.15s",
-        boxShadow: hovered ? "0 8px 28px -8px rgba(0,0,0,0.5)" : "none",
+        background: "#0e0e11", position: "relative",
+        transform: hovered ? "scale(1.025)" : "scale(1)",
+        transition: "transform 0.22s cubic-bezier(0.22,0.8,0.3,1), border-color 0.18s",
+        border: `1px solid ${hovered ? "oklch(0.58 0.22 25 / 0.45)" : "oklch(1 0 0 / 0.06)"}`,
+        boxShadow: hovered ? "0 8px 32px -8px oklch(0.58 0.22 25 / 0.30)" : "none",
       }}
     >
-      <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.13)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        <ItemIcon size={17} color="rgba(255,255,255,0.9)" />
+      {/* Real background image */}
+      {imgSrc && (
+        <img
+          src={imgSrc}
+          alt=""
+          aria-hidden
+          loading="lazy"
+          style={{
+            position: "absolute", inset: 0,
+            width: "100%", height: "100%",
+            objectFit: "cover", display: "block",
+            opacity: hovered ? 0.85 : 0.7,
+            transition: "opacity 0.22s",
+          }}
+        />
+      )}
+      {/* Permanent bottom gradient — keeps text readable at all times */}
+      <div style={{
+        position: "absolute", inset: 0,
+        background: "linear-gradient(to top, rgba(0,0,0,0.90) 0%, rgba(0,0,0,0.30) 50%, transparent 100%)",
+        pointerEvents: "none",
+      }} />
+      {/* Top-left category pill */}
+      <div style={{ position: "absolute", top: 9, left: 9 }}>
+        <span style={{
+          fontSize: 9, fontWeight: 700, letterSpacing: "0.09em",
+          textTransform: "uppercase",
+          background: "rgba(0,0,0,0.52)", backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          color: "rgba(255,255,255,0.65)", padding: "3px 8px", borderRadius: 6,
+          border: "1px solid rgba(255,255,255,0.10)",
+        }}>{item.tag}</span>
       </div>
-      <div style={{ flex: 1 }} />
-      <p style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.8px", fontWeight: 600, marginBottom: 3 }}>{item.tag}</p>
-      <p style={{ margin: "0 0 7px", fontSize: 13, color: "#fff", fontWeight: 700, lineHeight: 1.3 }}>{item.label}</p>
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "rgba(255,255,255,0.14)", padding: "4px 10px", borderRadius: 16, fontSize: 11, color: "rgba(255,255,255,0.85)", fontWeight: 600, alignSelf: "flex-start" }}>
-        <Sparkles size={9} /> Try this
-      </span>
+      {/* Bottom label + CTA */}
+      <div style={{ position: "absolute", bottom: 9, left: 10, right: 10 }}>
+        <p style={{ margin: "0 0 5px", fontSize: 13, fontWeight: 700, color: "#fff", lineHeight: 1.25, letterSpacing: "-0.01em" }}>
+          {item.label}
+        </p>
+        <span style={{
+          display: "inline-flex", alignItems: "center", gap: 4,
+          background: hovered ? "oklch(0.58 0.22 25)" : "rgba(255,255,255,0.12)",
+          padding: "4px 10px", borderRadius: 14,
+          fontSize: 10.5, color: "#fff", fontWeight: 600,
+          transition: "background 0.18s",
+        }}>
+          <Sparkles size={9} /> Try this
+        </span>
+      </div>
     </div>
   );
 }
@@ -642,11 +681,45 @@ function HomePage() {
         {/* Everything below flips as one page when the side changes */}
         <div key={activeSideId} className="side-flip">
 
-          <div className="mb-5 flex items-center gap-2 text-xs text-muted-foreground">
-            <span>Need a focused workflow?</span>
-            <Link to="/studio" className="font-semibold text-primary no-underline hover:underline">Open Studio</Link>
-            <span className="text-border">·</span>
-            <Link to="/content" className="font-semibold text-primary no-underline hover:underline">Open Content</Link>
+          {/* ── Higgsfield-style tool tiles ──────────────────────────────── */}
+          <div style={{ marginBottom: 16, overflowX: "auto", scrollbarWidth: "none" } as React.CSSProperties}>
+            <div style={{ display: "flex", gap: 6, paddingBottom: 2 }}>
+              {side.tools.map((tool) => {
+                const TileIcon = tool.Icon;
+                return (
+                  <Link
+                    key={tool.to}
+                    to={tool.to as "/studio"}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 7, flexShrink: 0,
+                      padding: "7px 12px", borderRadius: 10,
+                      background: "oklch(0.11 0.008 272)",
+                      border: "1px solid oklch(1 0 0 / 0.07)",
+                      color: "oklch(0.75 0.01 272)", fontSize: 11.5, fontWeight: 600,
+                      textDecoration: "none", whiteSpace: "nowrap",
+                      transition: "border-color 0.15s, color 0.15s",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.borderColor = "oklch(0.58 0.22 25 / 0.35)";
+                      (e.currentTarget as HTMLElement).style.color = "oklch(0.92 0.01 272)";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.borderColor = "oklch(1 0 0 / 0.07)";
+                      (e.currentTarget as HTMLElement).style.color = "oklch(0.75 0.01 272)";
+                    }}
+                  >
+                    <span style={{
+                      width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+                      background: "oklch(0.58 0.22 25 / 0.13)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <TileIcon size={11} color="oklch(0.72 0.16 28)" />
+                    </span>
+                    {tool.label}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
 
           {/* ── Feed tabs ── */}

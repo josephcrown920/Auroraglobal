@@ -173,7 +173,7 @@ function GalleryPage() {
             <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               {group.label} <span className="text-muted-foreground/50">· {group.items.length}</span>
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1.5">
               {group.items.map((g) => {
             // watermark_display_url replaces result_image_url for free-tier items
             const isWatermarked = !!(g as any).is_watermarked;
@@ -188,7 +188,8 @@ function GalleryPage() {
             return (
               <div
                 key={g.id}
-                className={`group relative rounded-2xl overflow-hidden border bg-card/40 transition-all ${selectMode ? "cursor-pointer" : ""} ${selectedIds.has(g.id) ? "border-primary ring-2 ring-primary/50" : "border-border"}`}
+                className={`group relative rounded-xl overflow-hidden transition-all ${selectMode ? "cursor-pointer" : ""} ${selectedIds.has(g.id) ? "ring-2 ring-primary/60" : ""}`}
+                style={{ background: "oklch(0.10 0.012 272)", border: `1px solid ${selectedIds.has(g.id) ? "oklch(0.58 0.22 25)" : "oklch(1 0 0 / 0.06)"}` }}
                 onClick={selectMode ? () => toggleSelect(g.id) : undefined}
               >
                 {selectMode && (
