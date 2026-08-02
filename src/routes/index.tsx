@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { CANONICAL_ORIGIN } from "@/lib/seo";
 import { Plus, Play, ArrowUpRight, ChevronDown, Sparkles, Palette, Film, Wand2, Mic, Music2, Brush, Megaphone, UserCircle2, Workflow, Layers, Flame, Clapperboard, Check, Zap, Crown, Download } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { track } from "@/lib/tracking";
 import { ViralEngine } from "@/components/landing/ViralEngine";
 import { BalloonLipsync } from "@/components/landing/BalloonLipsync";
@@ -306,10 +306,10 @@ function LandingPage() {
             >
               <p className="mb-2 flex items-center gap-2 font-serif italic text-amber-400 text-sm">
                 <span className="inline-block size-1.5 rounded-full bg-[#e5383b]" />
-                {slide.eyebrow}
+                <EditableCopy copyKey={`landing_hero_${i}_eyebrow`} fallback={slide.eyebrow} />
                 {"badge" in slide && slide.badge && (
                   <span className="ml-1 inline-flex items-center rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300 not-italic">
-                    {slide.badge}
+                    <EditableCopy copyKey={`landing_hero_${i}_badge`} fallback={slide.badge} />
                   </span>
                 )}
               </p>
@@ -492,10 +492,10 @@ function LandingPage() {
         {/* Row 1 — scrolls left */}
         <GalleryRow
           items={[
-            { src: "/josh-ref-1.png",         alt: "NBA Josh — artist promo",   tag: "Promo"     },
-            { src: "/landing-client-2.png",   alt: "Editorial shoot",           tag: "Editorial" },
-            { src: "/landing-client-4.png",   alt: "Backstage promo",           tag: "Promo"     },
-            { src: "/landing-photo-3.jpeg",   alt: "Album artwork",             tag: "Cover art" },
+            { src: "/josh-ref-1.png",         alt: "NBA Josh — artist promo",   tag: <EditableCopy copyKey="landing_marquee_r1_1_tag" fallback="Promo"     /> },
+            { src: "/landing-client-2.png",   alt: "Editorial shoot",           tag: <EditableCopy copyKey="landing_marquee_r1_2_tag" fallback="Editorial" /> },
+            { src: "/landing-client-4.png",   alt: "Backstage promo",           tag: <EditableCopy copyKey="landing_marquee_r1_3_tag" fallback="Promo"     /> },
+            { src: "/landing-photo-3.jpeg",   alt: "Album artwork",             tag: <EditableCopy copyKey="landing_marquee_r1_4_tag" fallback="Cover art" /> },
           ]}
           direction="left"
           duration={38}
@@ -504,11 +504,11 @@ function LandingPage() {
         {/* Row 2 — scrolls right */}
         <GalleryRow
           items={[
-            { src: "/landing-client-5.png",   alt: "Concert energy",              tag: "Concert"   },
-            { src: "/josh-scene-still.jpeg",  alt: "NBA Josh — scene still",      tag: "Cinema"    },
-            { src: "/landing-client-7.png",   alt: "Editorial glam",              tag: "Glam"      },
-            { src: "/landing-photo-5.jpeg",   alt: "Cinematic scene",             tag: "Cinema"    },
-            { src: "/landing-photo-6.png",    alt: "Color grade",                 tag: "Color"     },
+            { src: "/landing-client-5.png",   alt: "Concert energy",              tag: <EditableCopy copyKey="landing_marquee_r2_1_tag" fallback="Concert"   /> },
+            { src: "/josh-scene-still.jpeg",  alt: "NBA Josh — scene still",      tag: <EditableCopy copyKey="landing_marquee_r2_2_tag" fallback="Cinema"    /> },
+            { src: "/landing-client-7.png",   alt: "Editorial glam",              tag: <EditableCopy copyKey="landing_marquee_r2_3_tag" fallback="Glam"      /> },
+            { src: "/landing-photo-5.jpeg",   alt: "Cinematic scene",             tag: <EditableCopy copyKey="landing_marquee_r2_4_tag" fallback="Cinema"    /> },
+            { src: "/landing-photo-6.png",    alt: "Color grade",                 tag: <EditableCopy copyKey="landing_marquee_r2_5_tag" fallback="Color"     /> },
           ]}
           direction="right"
           duration={30}
@@ -1014,7 +1014,7 @@ function PromptMock() {
   );
 }
 
-type GalleryItem = { src: string; alt: string; tag: string };
+type GalleryItem = { src: string; alt: string; tag: ReactNode };
 
 function MarqueePhoto({ src, alt, tag }: GalleryItem) {
   return (
