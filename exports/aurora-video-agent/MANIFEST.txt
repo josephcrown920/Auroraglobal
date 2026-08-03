@@ -1,0 +1,6 @@
+Aurora Video Agent source export
+
+Generated from the current Aurora project.
+This bundle contains source owned by the Video Agent feature and its global UI styling.
+Shared Aurora dependencies are referenced by README.md and intentionally not duplicated.
+No secrets, credentials, node_modules, build output, or generated provider assets are included.

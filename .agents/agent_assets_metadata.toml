@@ -383,3 +383,10 @@ id = "82ZIzQU-Ptp0ekqPKUCjY"
 uri = "file://attached_assets/Aurora-Store-Icons.zip"
 type = "unspecified"
 title = "Aurora Store Icons (Play Store + App Store)"
+
+[[outputs]]
+id = "4Q2EcJj1RYsc_rNAI1iu7"
+uri = "file://exports/aurora-video-agent.zip"
+type = "unspecified"
+title = "Aurora Video Agent source export"
+description = "ZIP bundle containing the current Video Agent routes, processing/editor UI, APIs, prompt and skill packs, HeyGen capability, local store, tests, styling, manifest, and README."
