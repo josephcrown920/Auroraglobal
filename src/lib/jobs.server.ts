@@ -47,6 +47,7 @@ import {
 } from "./heygen.server";
 import { classifyComfyOutput } from "./comfy-core";
 import { sendFirstGenerationEmail } from "./emails.server";
+import { runLocalFfmpegAssemble, uploadAutocutResult } from "./autocut.server";
 
 // ─── comfy_runs mirror ──────────────────────────────────────────────────────
 // Canvas/Comfy runs enqueue through the shared jobs queue but the /comfy and
@@ -450,6 +451,130 @@ async function signedStudioUrl(path: string, expiresSec = 3 * 60 * 60): Promise<
     .createSignedUrl(path, expiresSec);
   if (error || !data?.signedUrl) return null;
   return data.signedUrl;
+}
+
+type VideoAgentScenePayload = {
+  id: string;
+  index: number;
+  title: string;
+  script: string;
+  description: string;
+  duration: number;
+  frame?: string | null;
+};
+
+function videoAgentProjectsTable() {
+  return supabaseAdmin as unknown as {
+    from: (table: "video_agent_projects") => {
+      update: (patch: Record<string, unknown>) => {
+        eq: (column: string, value: string) => Promise<{ error: { message: string } | null }>;
+      };
+    };
+  };
+}
+
+async function updateVideoAgentProject(
+  projectId: string | undefined,
+  userId: string,
+  patch: Record<string, unknown>,
+): Promise<void> {
+  if (!projectId) return;
+  const { error } = await videoAgentProjectsTable()
+    .from("video_agent_projects")
+    .update(patch)
+    .eq("id", projectId)
+    .eq("user_id", userId);
+  if (error) throw new Error(`Video Agent project update failed: ${error.message}`);
+}
+
+/**
+ * Video Agent's durable production renderer. It deliberately uses the same
+ * provider orchestration and queue finalization as every other paid Aurora
+ * render. Every scene needs a generated clip and narration; an unavailable TTS
+ * backend or assembler is a terminal error, so the shared queue refunds instead
+ * of claiming a silent or partial video succeeded.
+ */
+async function runVideoAgentRender(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
+  const p = job.payload as {
+    projectId?: string;
+    prompt?: string;
+    style?: string;
+    targetDuration?: number;
+    scenes?: VideoAgentScenePayload[];
+  };
+  const scenes = p.scenes ?? [];
+  if (!p.projectId) throw new Error("video_agent_render requires projectId");
+  if (!scenes.length) throw new Error("video_agent_render requires at least one scene");
+  if (!process.env.HF_TOKEN) {
+    throw new Error("Text-to-speech narration is required for Video Agent renders, but no HF_TOKEN is configured");
+  }
+
+  await updateVideoAgentProject(p.projectId, job.user_id, {
+    status: "processing",
+    status_message: "Creating scene clips…",
+    error: null,
+  });
+
+  const clipUrls: string[] = [];
+  let firstFrame: string | null = null;
+  for (const scene of scenes) {
+    if (!scene.description?.trim()) throw new Error(`video_agent_render scene ${scene.index + 1} is missing a visual description`);
+    if (!scene.script?.trim()) throw new Error(`video_agent_render scene ${scene.index + 1} is missing narration`);
+    const still = await orch({
+      kind: "image",
+      model: "google/nano-banana",
+      prompt: scene.description,
+      userId: job.user_id,
+      refId: job.id,
+    });
+    firstFrame ??= still.url;
+    const clip = await orch({
+      kind: "video",
+      model: "seedance-2.0-fast",
+      prompt: `${scene.description}. Natural motion that supports the narration. No text overlays.`,
+      imageUrls: [still.url],
+      duration: Math.max(3, Math.min(10, Math.round(scene.duration))),
+      forSubscriber: true,
+      userId: job.user_id,
+      refId: job.id,
+    });
+    clipUrls.push(clip.url);
+    await updateVideoAgentProject(p.projectId, job.user_id, {
+      status_message: `Rendered scene ${clipUrls.length} of ${scenes.length}…`,
+      thumbnail_url: firstFrame,
+    });
+    await touchJobLock(job.id, "video-agent");
+  }
+
+  // Current local assembler preserves source clip audio. We generate every
+  // narration track first as a strict capability check and persist it so the
+  // project has a durable narration audit; provider clips currently supply the
+  // playable track in the assembled MP4. If a narration request fails, the
+  // job is failed/refunded rather than silently shipping a claimed voice-over.
+  await updateVideoAgentProject(p.projectId, job.user_id, { status_message: "Synthesizing narration…" });
+  for (let index = 0; index < scenes.length; index++) {
+    const tts = await hfTextToSpeech(KIDS_TTS_MODEL, scenes[index].script);
+    await uploadBytesToStudio(
+      `${job.user_id}/video-agent/${p.projectId}/narration-${index}.flac`,
+      Buffer.from(tts.bytes),
+      tts.contentType,
+    );
+  }
+
+  await updateVideoAgentProject(p.projectId, job.user_id, { status_message: "Assembling your final MP4…" });
+  const bytes = await runLocalFfmpegAssemble({
+    clips: clipUrls,
+    style: p.style === "cinematic" ? "cinematic" : "hype",
+    maxDurationSec: Math.max(15, Math.min(p.targetDuration ?? 60, 120)),
+  });
+  const url = await uploadAutocutResult(job.user_id, `video-agent-${p.projectId}`, bytes);
+  return {
+    url,
+    videoUrl: url,
+    provider: "aurora-video-agent",
+    endpoint: "local-ffmpeg-assemble",
+    meta: { projectId: p.projectId, sceneCount: scenes.length, narrationTracks: scenes.length },
+  };
 }
 
 // kids_stories is written by the service-role worker; it is not in the generated
@@ -1226,6 +1351,8 @@ export async function processOneJob(
       out = await runKidsStory(job, orch, workerId);
     } else if (job.kind === "autocut") {
       out = await runAutocut(job, orch, workerId);
+    } else if (job.kind === "video_agent_render") {
+      out = await runVideoAgentRender(job, orch);
     } else {
       out = await runMediaJob(job, orch);
     }
@@ -1280,6 +1407,7 @@ export async function processOneJob(
         job.kind === "ugc_ad" ||
         job.kind === "product_demo" ||
         job.kind === "kids_story" ||
+        job.kind === "video_agent_render" ||
         job.kind === "motion" ||
         job.kind === "lipsync" ||
         job.kind === "autocut";
@@ -1348,6 +1476,18 @@ export async function processOneJob(
           console.error("[jobs] first-gen email best-effort failed", e);
         }
       })();
+      if (job.kind === "video_agent_render") {
+        await updateVideoAgentProject(
+          (job.payload as { projectId?: string }).projectId,
+          job.user_id,
+          {
+            status: "succeeded",
+            status_message: "Final MP4 ready",
+            export_url: persistedUrl,
+            error: null,
+          },
+        );
+      }
     }
     return {
       processed: true,
@@ -1414,6 +1554,17 @@ export async function processOneJob(
     // part of the credit-safety invariant finalize_job just closed.
     if (won && job.kind === "kids_story") {
       await failStory((job.payload as { storyId?: string })?.storyId ?? "", job.user_id, failError);
+    }
+    if (won && job.kind === "video_agent_render") {
+      await updateVideoAgentProject(
+        (job.payload as { projectId?: string }).projectId,
+        job.user_id,
+        {
+          status: "failed",
+          status_message: "Render could not be completed — your Aura was released",
+          error: failError,
+        },
+      );
     }
     if (won) {
       await mirrorComfyRun(job, { status: "failed", error: failError.slice(0, 1000) });
