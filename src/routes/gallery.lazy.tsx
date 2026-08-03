@@ -189,7 +189,7 @@ function GalleryPage() {
               <div
                 key={g.id}
                 className={`group relative rounded-xl overflow-hidden transition-all ${selectMode ? "cursor-pointer" : ""} ${selectedIds.has(g.id) ? "ring-2 ring-primary/60" : ""}`}
-                style={{ background: "oklch(0.10 0.012 272)", border: `1px solid ${selectedIds.has(g.id) ? "oklch(0.58 0.22 25)" : "oklch(1 0 0 / 0.06)"}` }}
+                style={{ background: "oklch(0.10 0.012 272)", border: `1px solid ${selectedIds.has(g.id) ? "oklch(0.58 0.22 295)" : "oklch(1 0 0 / 0.06)"}` }}
                 onClick={selectMode ? () => toggleSelect(g.id) : undefined}
               >
                 {selectMode && (

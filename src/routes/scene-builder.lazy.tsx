@@ -19,6 +19,7 @@ import {
 import { generateBaseScene } from "@/lib/scene-builder.functions";
 import { generatePerformanceShot, listGenerations } from "@/lib/studio.functions";
 import { Button } from "@/components/ui/button";
+import { HiggsHero, StepGuide, type GuideStep } from "@/components/studio/HiggsLayout";
 
 export const Route = createLazyFileRoute("/scene-builder")({
   component: SceneBuilderPage,
@@ -237,10 +238,11 @@ function SceneBuilderPage() {
   const angleCount = selectedChips.size + (freeformAngle.trim() ? 1 : 0);
 
   return (
-    <div className="aurora-page-shell">
+    <div className="aurora-page-shell lg:flex lg:flex-row lg:h-[100dvh] lg:overflow-hidden">
       <div className="aurora-ambient" />
 
-      <div className="relative z-10 min-h-[100dvh] pb-24">
+      {/* ── Left sidebar ─────────────────────────────────────────────── */}
+      <div className="relative z-10 flex flex-col w-full lg:w-[320px] lg:shrink-0 lg:h-full lg:overflow-y-auto lg:border-r lg:border-white/8 scrollbar-none min-h-[100dvh] lg:min-h-0 pb-24 lg:pb-8">
         {/* Header */}
         <div className="px-4 pt-4 pb-4 flex items-center gap-2">
           <Clapperboard className="w-4 h-4 text-primary shrink-0" />
@@ -727,6 +729,44 @@ function SceneBuilderPage() {
             </section>
           )}
         </div>
+      </div>
+
+      {/* ── Right panel: hero / result — desktop only ───────────────── */}
+      <div className="hidden lg:flex lg:flex-1 lg:flex-col lg:h-full lg:overflow-y-auto bg-zinc-900/40 scrollbar-none relative z-10">
+        {baseResult ? (
+          <div className="flex flex-1 h-full items-center justify-center p-8">
+            <div className="relative max-w-full flex flex-col items-center gap-4">
+              <img
+                src={baseResult.url}
+                alt="Base scene"
+                className="max-h-[72vh] object-contain rounded-2xl shadow-2xl shadow-black/60"
+              />
+              <Link
+                to="/motion"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-500 transition-colors shadow-lg"
+              >
+                <Video className="w-4 h-4" />
+                Animate with Motion Control →
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <>
+            <HiggsHero
+              kicker="Directors ROOM"
+              lines={["DIRECT ANYTHING", "YOU IMAGINE"]}
+              bracketWord="YOU IMAGINE"
+              description="Build cinematic scenes from your references. Upload your character, outfit, location, and prop — Aurora stages the world."
+            />
+            <StepGuide
+              steps={[
+                { icon: <Upload className="size-4" />, title: "UPLOAD REFERENCES", description: "Selfie, outfit, location, pose, and prop — up to 5 sources" },
+                { icon: <Sparkles className="size-4" />, title: "GENERATE SCENE", description: "Aurora composites a cinema-quality scene using your references" },
+                { icon: <Video className="size-4" />, title: "ANIMATE IT", description: "Send the result to Motion Control and add real movement" },
+              ] as GuideStep[]}
+            />
+          </>
+        )}
       </div>
     </div>
   );

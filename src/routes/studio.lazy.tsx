@@ -63,6 +63,7 @@ import { TutorialOnboarding as SnipTutorialCards } from "@/components/onboarding
 import { STUDIO_EXAMPLE_PRESETS } from "@/lib/example-presets";
 import { hasDismissedTour, markFirstGenComplete, hasCompletedFirstGen, isFirstPageVisit, markPageVisited, markFirstPurchaseComplete } from "@/lib/first-run";
 import { loadStudioSession, saveStudioSession } from "@/lib/studio-session";
+import { HiggsHero, StepGuide, HiggsDivider, type GuideStep } from "@/components/studio/HiggsLayout";
 
 export const Route = createLazyFileRoute("/studio")({ component: StudioPage });
 
@@ -546,7 +547,7 @@ function StudioPage() {
   if (!user) return <AuthRedirect />;
 
   return (
-    <main className="flex flex-col min-h-screen bg-zinc-950 text-zinc-100">
+    <main className="flex flex-col min-h-screen lg:flex-row lg:h-[100dvh] lg:overflow-hidden bg-zinc-950 text-zinc-100">
       {/* Modals + global banners */}
       <ConnectReplicateBanner />
       {user && (
@@ -561,16 +562,19 @@ function StudioPage() {
       <WelcomeTour show={showTour} onDismiss={() => setShowTour(false)} />
       <SnipTutorialCards show={showTour} />
 
+      {/* ── Left sidebar ─────────────────────────────────────────── */}
+      <div className="flex flex-col w-full lg:w-[300px] lg:shrink-0 lg:h-full lg:border-r lg:border-white/8">
+
       {/* ── Compact sticky header ─────────────────────────────────── */}
       <header className="sticky top-0 z-30 flex items-center justify-between h-12 px-4 border-b border-white/5 bg-zinc-950/90 backdrop-blur-xl">
         <div className="flex items-center gap-2">
-          <span className="inline-block size-2 rounded-full bg-[#e5383b]" />
+          <span className="inline-block size-2 rounded-full bg-[#8b5cf6]" />
           <span className="text-sm font-semibold tracking-tight">Aurora Studio</span>
         </div>
         <div className="flex items-center gap-3">
           <LowCreditBanner credits={profile?.credits} />
           <div className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs">
-            <Coins className="size-3 text-[#e5383b]" />
+            <Coins className="size-3 text-[#8b5cf6]" />
             <span className="font-semibold tabular-nums">{profile?.credits ?? "—"}</span>
             <span className="text-zinc-500">Aura</span>
           </div>
@@ -587,14 +591,14 @@ function StudioPage() {
       </header>
 
       {/* ── Main scroll area (leave room for sticky prompt bar) ──── */}
-      <div className="flex-1 pb-36 space-y-0">
+      <div className="flex-1 overflow-y-auto pb-36 lg:pb-24 space-y-0">
 
         {/* Canvas — result at top */}
         <div className="relative bg-zinc-900">
           {mut.isPending ? (
             <div className="flex flex-col items-center justify-center gap-6 px-8 py-16 min-h-[56vw]">
-              <div className="size-14 rounded-full flex items-center justify-center bg-[#e5383b]/10 ring-1 ring-[#e5383b]/30">
-                <Loader2 className="size-6 animate-spin text-[#e5383b]" />
+              <div className="size-14 rounded-full flex items-center justify-center bg-[#8b5cf6]/10 ring-1 ring-[#8b5cf6]/30">
+                <Loader2 className="size-6 animate-spin text-[#8b5cf6]" />
               </div>
               <div className="w-full max-w-xs space-y-2 text-center">
                 <p className="text-sm text-zinc-300">{imageProgress.label || "Lighting the stage…"}</p>
@@ -637,7 +641,7 @@ function StudioPage() {
             <div className="flex flex-col min-h-[56vw]">
               {/* Header */}
               <div className="flex flex-col items-center gap-1.5 pt-8 pb-5 px-4 text-center">
-                <Sparkles className="size-7 text-[#e5383b]/50" />
+                <Sparkles className="size-7 text-[#8b5cf6]/50" />
                 <p className="text-sm font-semibold text-zinc-300">See what Aurora can do</p>
                 <p className="text-xs text-zinc-600">Tap a style to load its prompt — then add your photo</p>
               </div>
@@ -656,9 +660,9 @@ function StudioPage() {
                           setActiveExampleId(preset.id);
                         }}
                         className={[
-                          "relative shrink-0 w-[38vw] max-w-[152px] rounded-2xl overflow-hidden border-2 transition-all duration-200 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e5383b]",
+                          "relative shrink-0 w-[38vw] max-w-[152px] rounded-2xl overflow-hidden border-2 transition-all duration-200 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b5cf6]",
                           isActive
-                            ? "border-[#e5383b] shadow-[0_0_0_3px_rgba(229,56,59,0.20)]"
+                            ? "border-[#8b5cf6] shadow-[0_0_0_3px_rgba(139,92,246,0.20)]"
                             : "border-white/10 hover:border-white/30 active:scale-[0.97]",
                         ].join(" ")}
                         aria-pressed={isActive}
@@ -681,7 +685,7 @@ function StudioPage() {
 
                         {/* Selected indicator */}
                         {isActive && (
-                          <div className="absolute top-2 right-2 flex items-center gap-1 bg-[#e5383b] rounded-full px-1.5 py-0.5">
+                          <div className="absolute top-2 right-2 flex items-center gap-1 bg-[#8b5cf6] rounded-full px-1.5 py-0.5">
                             <span className="block size-1.5 rounded-full bg-white" />
                             <span className="text-[9px] font-bold text-white leading-none">LOADED</span>
                           </div>
@@ -709,8 +713,8 @@ function StudioPage() {
               { label: "Video", state: videoMut.isPending ? "running" : videoMut.isError ? "error" : latestVideo?.result_video_url ? "ok" : "idle", error: videoMut.isError ? friendlyGenerationMessage(videoMut.error) : null, canRetry: videoMut.isError && !!latest?.result_image_url, onRetry: () => videoMut.mutate(), progress: videoProgress },
               { label: "Lip sync", state: lipSyncMut.isPending ? "running" : lipSyncMut.isError ? "error" : "idle", error: lipSyncMut.isError ? friendlyGenerationMessage(lipSyncMut.error) : null, canRetry: lipSyncMut.isError && !!audioUrl, onRetry: () => lipSyncMut.mutate(), progress: lipsyncProgress },
             ].map((s) => (
-              <div key={s.label} className={`flex items-start gap-2 rounded-xl border px-3 py-2 text-xs ${s.state === "ok" ? "border-emerald-500/30 bg-emerald-500/8" : s.state === "running" ? "border-[#e5383b]/30 bg-[#e5383b]/8" : s.state === "error" ? "border-destructive/40 bg-destructive/8" : "border-white/5 bg-white/3"}`}>
-                <span className={`mt-1 size-2 rounded-full shrink-0 ${s.state === "ok" ? "bg-emerald-400" : s.state === "running" ? "bg-[#e5383b] animate-pulse" : s.state === "error" ? "bg-destructive" : "bg-zinc-600"}`} />
+              <div key={s.label} className={`flex items-start gap-2 rounded-xl border px-3 py-2 text-xs ${s.state === "ok" ? "border-emerald-500/30 bg-emerald-500/8" : s.state === "running" ? "border-[#8b5cf6]/30 bg-[#8b5cf6]/8" : s.state === "error" ? "border-destructive/40 bg-destructive/8" : "border-white/5 bg-white/3"}`}>
+                <span className={`mt-1 size-2 rounded-full shrink-0 ${s.state === "ok" ? "bg-emerald-400" : s.state === "running" ? "bg-[#8b5cf6] animate-pulse" : s.state === "error" ? "bg-destructive" : "bg-zinc-600"}`} />
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="font-medium text-zinc-200 flex items-center gap-2">
                     {s.label}
@@ -743,7 +747,7 @@ function StudioPage() {
               ))}
               {latest?.result_image_url && (
                 <Link to="/motion" search={{ image: latest.result_image_url }}
-                  className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-[#e5383b]/30 bg-[#e5383b]/8 text-[#e5383b] no-underline hover:border-[#e5383b]/60 transition-colors">
+                  className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-[#8b5cf6]/30 bg-[#8b5cf6]/8 text-[#8b5cf6] no-underline hover:border-[#8b5cf6]/60 transition-colors">
                   <Wand2 className="size-3" /> Motion
                 </Link>
               )}
@@ -777,8 +781,8 @@ function StudioPage() {
         )}
 
         {/* Buy Aura */}
-        <div className="relative overflow-hidden border-t border-[#e5383b]/15 bg-gradient-to-b from-zinc-950 to-zinc-900">
-          <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 w-[400px] h-[180px] rounded-full bg-[#e5383b]/10 blur-[70px]" />
+        <div className="relative overflow-hidden border-t border-[#8b5cf6]/15 bg-gradient-to-b from-zinc-950 to-zinc-900">
+          <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 w-[400px] h-[180px] rounded-full bg-[#8b5cf6]/10 blur-[70px]" />
           <div className="relative px-4 py-6 space-y-5">
             <div>
               <p className="aurora-kicker mb-2 flex items-center gap-1.5"><Coins className="size-3" />Aura Credits</p>
@@ -791,7 +795,7 @@ function StudioPage() {
                 const p = PLANS[k];
                 return (
                   <button key={k} type="button" disabled={checkoutMut.isPending} onClick={() => checkoutMut.mutate(k)}
-                    className="flex flex-col gap-0.5 rounded-xl border border-white/10 bg-white/4 hover:border-[#e5383b]/30 hover:bg-[#e5383b]/8 active:scale-[0.98] transition-all p-3 text-left disabled:opacity-50">
+                    className="flex flex-col gap-0.5 rounded-xl border border-white/10 bg-white/4 hover:border-[#8b5cf6]/30 hover:bg-[#8b5cf6]/8 active:scale-[0.98] transition-all p-3 text-left disabled:opacity-50">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-600">{k === "day1" ? "1-Day Pass" : "2-Day Pass"}</span>
                     <span className="text-lg font-black text-white leading-none">{p.credits} <span className="text-xs font-normal text-zinc-500">Aura</span></span>
                     <span className="text-xs font-semibold text-zinc-400">{p.prices[currency].display}</span>
@@ -807,14 +811,14 @@ function StudioPage() {
                 const isBest = k === "studio";
                 return (
                   <button key={k} type="button" disabled={checkoutMut.isPending} onClick={() => checkoutMut.mutate(k)}
-                    className={`w-full rounded-2xl border p-4 text-left transition-all active:scale-[0.98] disabled:opacity-50 ${isPopular ? "border-[#e5383b]/50 bg-gradient-to-br from-[#e5383b]/12 to-[#e5383b]/4" : isBest ? "border-amber-400/30 bg-gradient-to-br from-amber-500/8 to-transparent" : "border-white/8 bg-white/4"}`}>
+                    className={`w-full rounded-2xl border p-4 text-left transition-all active:scale-[0.98] disabled:opacity-50 ${isPopular ? "border-[#8b5cf6]/50 bg-gradient-to-br from-[#8b5cf6]/12 to-[#8b5cf6]/4" : isBest ? "border-amber-400/30 bg-gradient-to-br from-amber-500/8 to-transparent" : "border-white/8 bg-white/4"}`}>
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-2">
                         <span className={`text-sm font-black capitalize ${isPopular ? "text-white" : isBest ? "text-amber-100" : "text-zinc-300"}`}>{k}</span>
-                        {isPopular && <span className="text-[10px] font-bold text-[#e5383b] border border-[#e5383b]/40 rounded px-1.5 py-0.5 flex items-center gap-1"><Flame className="size-2.5" />Popular</span>}
+                        {isPopular && <span className="text-[10px] font-bold text-[#8b5cf6] border border-[#8b5cf6]/40 rounded px-1.5 py-0.5 flex items-center gap-1"><Flame className="size-2.5" />Popular</span>}
                         {isBest && <span className="text-[10px] font-bold text-amber-400 border border-amber-400/30 rounded px-1.5 py-0.5">Best value</span>}
                       </div>
-                      <span className={`text-lg font-black ${isPopular ? "text-[#e5383b]" : isBest ? "text-amber-300" : "text-zinc-300"}`}>{p.prices[currency].display}</span>
+                      <span className={`text-lg font-black ${isPopular ? "text-[#8b5cf6]" : isBest ? "text-amber-300" : "text-zinc-300"}`}>{p.prices[currency].display}</span>
                     </div>
                     <div className="flex items-baseline gap-1">
                       <span className={`text-3xl font-black tabular-nums ${isPopular ? "text-white" : isBest ? "text-amber-100" : "text-zinc-400"}`}>{p.credits}</span>
@@ -841,7 +845,7 @@ function StudioPage() {
       </div>
 
       {/* ── Sticky bottom prompt bar ──────────────────────────────── */}
-      <div className="fixed bottom-16 left-0 right-0 z-20 border-t border-white/8 bg-zinc-950/95 backdrop-blur-xl px-3 py-3">
+      <div className="fixed bottom-16 left-0 right-0 z-20 lg:right-auto lg:w-[300px] lg:bottom-0 border-t border-white/8 bg-zinc-950/95 backdrop-blur-xl px-3 py-3">
         <div className="flex items-end gap-2">
           <button
             type="button"
@@ -856,13 +860,13 @@ function StudioPage() {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="Describe the shot — rooftop at golden hour, hanging mic, anamorphic…"
-            className="flex-1 min-h-[2.5rem] max-h-32 resize-none bg-zinc-900 border-white/10 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-[#e5383b]/40 rounded-xl"
+            className="flex-1 min-h-[2.5rem] max-h-32 resize-none bg-zinc-900 border-white/10 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-[#8b5cf6]/40 rounded-xl"
           />
           <button
             type="button"
             disabled={mut.isPending}
             onClick={() => mut.mutate(undefined)}
-            className="shrink-0 flex size-10 items-center justify-center rounded-xl bg-[#e5383b] hover:bg-[#e5383b]/80 disabled:opacity-50 transition-colors shadow-[0_0_20px_-4px_rgba(229,56,59,0.6)]"
+            className="shrink-0 flex size-10 items-center justify-center rounded-xl bg-[#8b5cf6] hover:bg-[#8b5cf6]/80 disabled:opacity-50 transition-colors shadow-[0_0_20px_-4px_rgba(139,92,246,0.6)]"
             aria-label="Generate"
           >
             {mut.isPending ? <Loader2 className="size-4.5 animate-spin text-white" /> : <Wand2 className="size-4.5 text-white" />}
@@ -874,6 +878,69 @@ function StudioPage() {
             {selfie || outfit ? "✓ refs set" : "Add references"}
           </button>
         </div>
+      </div>
+      </div>{/* ← end left sidebar */}
+
+      {/* ── Right panel: hero / canvas — desktop only ───────────────── */}
+      <div className="hidden lg:flex lg:flex-1 lg:flex-col lg:h-full lg:overflow-y-auto bg-zinc-900/40 scrollbar-none">
+        {mut.isPending ? (
+          <div className="flex flex-1 h-full items-center justify-center p-8">
+            <div className="flex flex-col items-center gap-6 text-center">
+              <div className="size-16 rounded-full flex items-center justify-center bg-violet-500/10 ring-1 ring-violet-500/30">
+                <Loader2 className="size-7 animate-spin text-violet-400" />
+              </div>
+              <p className="text-sm text-zinc-400">{imageProgress.label || "Lighting the stage…"}</p>
+              <div className="w-64"><GenerationProgress visible progress={imageProgress.progress} /></div>
+            </div>
+          </div>
+        ) : latest?.result_image_url ? (
+          <div className="flex flex-1 h-full items-center justify-center p-8">
+            <img
+              src={latest.result_image_url}
+              alt="Latest shot"
+              className="max-h-[85vh] max-w-full object-contain rounded-2xl shadow-2xl shadow-black/60"
+            />
+          </div>
+        ) : (
+          <>
+            <HiggsHero
+              kicker="Aurora Studio"
+              lines={["MAKE VIDEOS IN", "ONE CLICK"]}
+              bracketWord="ONE CLICK"
+              description="From a selfie to a cinematic AI video. Upload your photo, describe your vision, and watch it come to life."
+            />
+            <StepGuide
+              steps={[
+                { icon: <Camera className="size-4" />, title: "ADD YOUR PHOTO", description: "Upload a selfie and optional outfit, scene, or prop reference" },
+                { icon: <Wand2 className="size-4" />, title: "DESCRIBE THE SHOT", description: "Tell Aurora the vibe — rooftop at golden hour, vintage mic, anamorphic" },
+                { icon: <Film className="size-4" />, title: "GET YOUR VIDEO", description: "Photo → cinematic still → animated clip, all in one session" },
+              ] as GuideStep[]}
+            />
+            <HiggsDivider label="STYLE GALLERY" />
+            <div className="px-10 xl:px-14 pb-10">
+              <div className="flex gap-3 overflow-x-auto scrollbar-none pb-2">
+                {STUDIO_EXAMPLE_PRESETS.filter((p) => !!p.imageUrl).slice(0, 8).map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => { if (preset.prompt) setPrompt(preset.prompt); setActiveExampleId(preset.id); }}
+                    className={[
+                      "relative shrink-0 w-32 rounded-2xl overflow-hidden border-2 transition-all focus-visible:outline-none",
+                      activeExampleId === preset.id
+                        ? "border-violet-500 shadow-[0_0_0_3px_rgba(139,92,246,0.20)]"
+                        : "border-white/10 hover:border-white/30",
+                    ].join(" ")}
+                  >
+                    <img src={preset.imageUrl} alt={preset.label} className="w-full aspect-[3/4] object-cover block" loading="lazy" draggable={false} />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-6 pb-2 px-2">
+                      <p className="text-[10px] font-bold text-white leading-tight">{preset.label}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* ── Settings Sheet ─────────────────────────────────────────── */}
@@ -927,7 +994,7 @@ function StudioPage() {
             <div className="flex flex-wrap gap-2">
               {PRESETS.map((p) => (
                 <button key={p.label} type="button" onClick={() => { setPrompt(p.prompt); setActivePreset(p.label); setSettingsOpen(false); }}
-                  className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${activePreset === p.label ? "border-[#e5383b]/60 bg-[#e5383b]/10 text-[#e5383b]" : "border-white/8 bg-white/4 hover:bg-white/8"}`}>
+                  className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${activePreset === p.label ? "border-[#8b5cf6]/60 bg-[#8b5cf6]/10 text-[#8b5cf6]" : "border-white/8 bg-white/4 hover:bg-white/8"}`}>
                   {p.label}
                 </button>
               ))}
@@ -996,7 +1063,7 @@ function StudioPage() {
               )}
               <ResolutionPicker resolution={videoResolution} onChange={setVideoResolution} isPro={!!(profile?.is_pro || profile?.isAdmin)} features={["video"]} durationSeconds={5} model={videoModel} />
               <div className="flex items-center justify-between text-xs text-zinc-500 rounded-xl border border-white/8 bg-white/3 px-3 py-2">
-                <span className="inline-flex items-center gap-1.5"><Zap className="size-3.5 text-[#e5383b]" />Cost: <span className="text-zinc-200 font-medium">{videoCost} Aura</span><span className="opacity-40">·</span>ETA: ~60–180s</span>
+                <span className="inline-flex items-center gap-1.5"><Zap className="size-3.5 text-[#8b5cf6]" />Cost: <span className="text-zinc-200 font-medium">{videoCost} Aura</span><span className="opacity-40">·</span>ETA: ~60–180s</span>
                 <span>{getModelMeta(videoModel).short}</span>
               </div>
               <Button disabled={videoMut.isPending} onClick={() => { const isHd = videoResolution === "1080p" || videoResolution === "2160p"; if (videoPreviewId && isHd) setVideoHdDialogOpen(true); else videoMut.mutate(); }} variant="secondary" className="w-full">
@@ -1016,7 +1083,7 @@ function StudioPage() {
                   { v: "latentsync" as const, label: "Self-hosted", hint: "Your GPU", icon: Server },
                 ]).map((opt) => (
                   <button key={opt.v} type="button" onClick={() => setLipsyncModel(opt.v)}
-                    className={`text-left rounded-xl border p-2.5 transition-colors ${lipsyncModel === opt.v ? "border-[#e5383b]/50 bg-[#e5383b]/10" : "border-white/8 bg-white/4 hover:border-white/20"}`}>
+                    className={`text-left rounded-xl border p-2.5 transition-colors ${lipsyncModel === opt.v ? "border-[#8b5cf6]/50 bg-[#8b5cf6]/10" : "border-white/8 bg-white/4 hover:border-white/20"}`}>
                     <div className="text-xs font-medium flex items-center gap-1.5"><opt.icon className="size-3.5" />{opt.label}</div>
                     <div className="text-[10px] text-zinc-600 mt-0.5">{opt.hint}</div>
                   </button>
@@ -1024,7 +1091,7 @@ function StudioPage() {
               </div>
               <UploadSlot userId={user.id} label="Audio" hint="Upload mp3/wav" accept={AUDIO_ACCEPT} kind="video" value={audioUrl} onChange={setAudioUrl} />
               <label className="flex items-start gap-2.5 cursor-pointer select-none">
-                <input type="checkbox" checked={studioLipsyncConsent} onChange={(e) => setStudioLipsyncConsent(e.target.checked)} className="mt-0.5 size-4 accent-[#e5383b] shrink-0" />
+                <input type="checkbox" checked={studioLipsyncConsent} onChange={(e) => setStudioLipsyncConsent(e.target.checked)} className="mt-0.5 size-4 accent-[#8b5cf6] shrink-0" />
                 <span className="text-xs text-zinc-500 leading-relaxed">I confirm I have the legal right to use this voice and likeness. <Link to="/legal/$slug" params={{ slug: "ai-policy" }} className="underline hover:text-zinc-200" target="_blank">AI Policy</Link></span>
               </label>
               <Button disabled={lipSyncMut.isPending || !audioUrl || !studioLipsyncConsent} onClick={() => lipSyncMut.mutate()} variant="secondary" className="w-full">

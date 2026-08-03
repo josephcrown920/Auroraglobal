@@ -209,8 +209,8 @@ function InspirationCard({ item, height, onTry }: { item: Inspiration; height: n
         background: "#0e0e11", position: "relative",
         transform: hovered ? "scale(1.025)" : "scale(1)",
         transition: "transform 0.22s cubic-bezier(0.22,0.8,0.3,1), border-color 0.18s",
-        border: `1px solid ${hovered ? "oklch(0.58 0.22 25 / 0.45)" : "oklch(1 0 0 / 0.06)"}`,
-        boxShadow: hovered ? "0 8px 32px -8px oklch(0.58 0.22 25 / 0.30)" : "none",
+        border: `1px solid ${hovered ? "oklch(0.58 0.22 295 / 0.45)" : "oklch(1 0 0 / 0.06)"}`,
+        boxShadow: hovered ? "0 8px 32px -8px oklch(0.58 0.22 295 / 0.30)" : "none",
       }}
     >
       {/* Real background image */}
@@ -253,7 +253,7 @@ function InspirationCard({ item, height, onTry }: { item: Inspiration; height: n
         </p>
         <span style={{
           display: "inline-flex", alignItems: "center", gap: 4,
-          background: hovered ? "oklch(0.58 0.22 25)" : "rgba(255,255,255,0.12)",
+          background: hovered ? "oklch(0.58 0.22 295)" : "rgba(255,255,255,0.12)",
           padding: "4px 10px", borderRadius: 14,
           fontSize: 10.5, color: "#fff", fontWeight: 600,
           transition: "background 0.18s",
@@ -271,8 +271,8 @@ function PersonaAsk({ onPick, busy }: { onPick: (p: SideId) => void; busy: boole
   return (
     <div style={{
       borderRadius: 16, padding: 14, marginBottom: 14,
-      border: "1px solid oklch(0.58 0.22 25 / 0.30)",
-      background: "oklch(0.58 0.22 25 / 0.07)",
+      border: "1px solid oklch(0.58 0.22 295 / 0.30)",
+      background: "oklch(0.58 0.22 295 / 0.07)",
     }}>
       <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "oklch(0.96 0.01 272)" }}>Quick one — which are you?</p>
       <p style={{ margin: "3px 0 10px", fontSize: 12, color: "oklch(0.62 0.01 272)" }}>
@@ -480,6 +480,23 @@ function HomePage() {
         position: "relative", zIndex: 10,
       }}>
         <div style={{ width: "100%", maxWidth: 1040, margin: "0 auto" }}>
+
+        {/* ── Higgsfield-style heading — desktop only ─────────── */}
+        <div className="hidden lg:block mb-8 mt-2">
+          <p className="text-[11px] font-bold tracking-[0.26em] uppercase text-violet-400/70 mb-4">Aurora</p>
+          <h1
+            className="font-display font-black uppercase text-white leading-[0.88] tracking-tight mb-3"
+            style={{ fontSize: "clamp(2.6rem, 4.5vw, 4rem)" }}
+          >
+            WHAT ARE WE<br />
+            <span className="text-violet-400">[CREATING]</span><br />
+            TODAY?
+          </h1>
+          <p className="text-[14px] text-zinc-500 max-w-xs leading-relaxed">
+            Pick your mode and describe your vision — Aurora handles the rest.
+          </p>
+        </div>
+
         {/* ── FOR ARTISTS / FOR CREATORS — page-level toggle ── */}
         <div
           role="tablist"
@@ -504,10 +521,10 @@ function HomePage() {
                   padding: "14px 14px 13px", borderRadius: 18, border: "none", textAlign: "left",
                   cursor: "pointer",
                   background: active
-                    ? "linear-gradient(135deg, oklch(0.58 0.22 25 / 0.22), oklch(0.62 0.18 30 / 0.12))"
+                    ? "linear-gradient(135deg, oklch(0.58 0.22 295 / 0.22), oklch(0.62 0.18 295 / 0.12))"
                     : "oklch(1 0 0 / 0.04)",
                   boxShadow: active
-                    ? "inset 0 0 0 1.5px oklch(0.58 0.22 25 / 0.55), 0 4px 20px -6px oklch(0.58 0.22 25 / 0.25)"
+                    ? "inset 0 0 0 1.5px oklch(0.58 0.22 295 / 0.55), 0 4px 20px -6px oklch(0.58 0.22 295 / 0.25)"
                     : "inset 0 0 0 1px oklch(1 0 0 / 0.09)",
                   transition: "all 0.22s cubic-bezier(0.22, 0.8, 0.3, 1)",
                 }}
@@ -515,15 +532,15 @@ function HomePage() {
                 <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
                   <span style={{
                     width: 28, height: 28, borderRadius: 9, flexShrink: 0,
-                    background: active ? "oklch(0.58 0.22 25 / 0.25)" : "oklch(1 0 0 / 0.07)",
+                    background: active ? "oklch(0.58 0.22 295 / 0.25)" : "oklch(1 0 0 / 0.07)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     transition: "background 0.2s",
                   }}>
-                    <TabIcon size={14} color={active ? "oklch(0.88 0.16 28)" : "oklch(0.55 0.01 272)"} />
+                    <TabIcon size={14} color={active ? "oklch(0.88 0.16 295)" : "oklch(0.55 0.01 272)"} />
                   </span>
                   <span style={{
                     fontSize: 14.5, fontWeight: 800, letterSpacing: "-0.01em",
-                    color: active ? "oklch(0.90 0.14 28)" : "oklch(0.68 0.01 272)",
+                    color: active ? "oklch(0.90 0.14 295)" : "oklch(0.68 0.01 272)",
                     transition: "color 0.2s",
                   }}>
                     For {SIDES[id].tab}
@@ -531,14 +548,14 @@ function HomePage() {
                   {storedPersona === id && (
                     <span style={{
                       fontSize: 8, fontWeight: 700, letterSpacing: "0.08em",
-                      background: "oklch(0.58 0.22 25 / 0.22)", color: "oklch(0.82 0.14 28)",
+                      background: "oklch(0.58 0.22 295 / 0.22)", color: "oklch(0.82 0.14 295)",
                       padding: "2px 6px", borderRadius: 6,
                     }}>YOU</span>
                   )}
                 </span>
                 <span style={{
                   fontSize: 10.5, fontWeight: 500, lineHeight: 1.4, paddingLeft: 35,
-                  color: active ? "oklch(0.68 0.08 28)" : "oklch(0.44 0.01 272)",
+                  color: active ? "oklch(0.68 0.08 295)" : "oklch(0.44 0.01 272)",
                   transition: "color 0.2s",
                 }}>
                   <EditableCopy
@@ -648,8 +665,8 @@ function HomePage() {
                       flexShrink: 0, display: "flex", alignItems: "center", gap: 5,
                       padding: "6px 11px", borderRadius: 16,
                       border: `1px solid ${active ? "var(--primary)" : "oklch(1 0 0 / 0.08)"}`,
-                      background: active ? "oklch(0.60 0.24 28 / 0.18)" : "oklch(1 0 0 / 0.04)",
-                      color: active ? "oklch(0.82 0.16 28)" : "oklch(0.58 0.01 272)",
+                      background: active ? "oklch(0.60 0.24 295 / 0.18)" : "oklch(1 0 0 / 0.04)",
+                      color: active ? "oklch(0.82 0.16 295)" : "oklch(0.58 0.01 272)",
                       fontSize: 11.5, fontWeight: 600, cursor: "pointer", transition: "all 0.15s",
                       whiteSpace: "nowrap",
                     }}
@@ -700,7 +717,7 @@ function HomePage() {
                       transition: "border-color 0.15s, color 0.15s",
                     }}
                     onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLElement).style.borderColor = "oklch(0.58 0.22 25 / 0.35)";
+                      (e.currentTarget as HTMLElement).style.borderColor = "oklch(0.58 0.22 295 / 0.35)";
                       (e.currentTarget as HTMLElement).style.color = "oklch(0.92 0.01 272)";
                     }}
                     onMouseLeave={(e) => {
@@ -710,10 +727,10 @@ function HomePage() {
                   >
                     <span style={{
                       width: 22, height: 22, borderRadius: 6, flexShrink: 0,
-                      background: "oklch(0.58 0.22 25 / 0.13)",
+                      background: "oklch(0.58 0.22 295 / 0.13)",
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}>
-                      <TileIcon size={11} color="oklch(0.72 0.16 28)" />
+                      <TileIcon size={11} color="oklch(0.72 0.16 295)" />
                     </span>
                     {tool.label}
                   </Link>
