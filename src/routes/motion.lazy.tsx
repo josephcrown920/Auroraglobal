@@ -72,6 +72,7 @@ import {
 } from "@/lib/music-video-prompts";
 import { useBeatDetect } from "@/hooks/use-beat-detect";
 import { cn, AUDIO_ACCEPT } from "@/lib/utils";
+import { HiggsHero, HiggsDivider, FanPhotos } from "@/components/studio/HiggsLayout";
 
 export const Route = createLazyFileRoute("/motion")({ component: MotionStudio });
 
@@ -715,9 +716,11 @@ function MotionStudio() {
   );
 
   return (
-    <main className="aurora-page-shell text-foreground">
+    <main className="aurora-page-shell text-foreground lg:flex lg:flex-row lg:h-[100dvh] lg:overflow-hidden">
       <span aria-hidden className="aurora-ambient" />
       <WelcomeTour show={showTour} onDismiss={() => setShowTour(false)} />
+      {/* ── Left sidebar ─────────────────────────────────────────────── */}
+      <div className="flex flex-col w-full lg:w-[340px] lg:shrink-0 lg:h-full lg:overflow-y-auto lg:border-r lg:border-white/8 scrollbar-none">
       <header className="relative z-10 flex items-center justify-between px-6 md:px-10 py-4 border-b border-border bg-card/40 backdrop-blur-xl">
         <Link to="/studio" className="flex items-center gap-2 font-semibold tracking-tight no-underline">
           <ArrowLeft className="size-4 text-muted-foreground" />
@@ -736,11 +739,11 @@ function MotionStudio() {
 
       <div className="relative z-10 max-w-7xl mx-auto p-5 md:p-10 space-y-6">
 
-        {/* ── Example outputs — inspiration before the form ─────────── */}
-        <MotionInspirationBlock />
-
-        {/* ── Onboarding guide ──────────────────────────────────────── */}
-        <PerformAnywhereGuide />
+        {/* ── Example outputs + onboarding guide — mobile only ──────── */}
+        <div className="lg:hidden space-y-6">
+          <MotionInspirationBlock />
+          <PerformAnywhereGuide />
+        </div>
 
         {/* ── Mode tabs ─────────────────────────────────────────────── */}
         <div className="grid grid-cols-3 gap-2">
@@ -1817,6 +1820,28 @@ function MotionStudio() {
           </div>
         )}
 
+      </div>
+      </div>{/* ← end left sidebar */}
+
+      {/* ── Right panel: hero + inspiration — desktop only ─────────── */}
+      <div className="hidden lg:flex lg:flex-1 lg:flex-col lg:h-full lg:overflow-y-auto bg-zinc-900/40 scrollbar-none">
+        <HiggsHero
+          kicker="Motion Control"
+          lines={["RECREATE ANY", "MOTION", "WITH YOUR IMAGE"]}
+          bracketWord="MOTION"
+          description="Copy the exact movement from any video and place your character into the same performance."
+        />
+        <FanPhotos
+          photos={[
+            { src: "/josh/josh-concert-performance.webp", alt: "Live performance" },
+            { src: "/josh/josh-pink-mic-portrait.jpg",    alt: "Stage energy" },
+            { src: "/josh/josh-blue-portrait.webp",       alt: "Cinematic shot" },
+          ]}
+        />
+        <HiggsDivider label="MOTION LIBRARY" />
+        <div className="px-4 pb-8">
+          <MotionInspirationBlock />
+        </div>
       </div>
     </main>
   );

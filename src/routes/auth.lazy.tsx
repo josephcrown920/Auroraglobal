@@ -301,7 +301,7 @@ function AuthPage() {
   if (recoveryMode) {
     return (
       <main className="min-h-screen flex items-center justify-center px-4 bg-zinc-950 relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 65% 25%, oklch(0.58 0.22 25 / 0.10), transparent 55%), radial-gradient(ellipse at 20% 80%, oklch(0.085 0.022 272 / 0.6), transparent 50%)" }} />
+        <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 65% 25%, oklch(0.58 0.22 295 / 0.10), transparent 55%), radial-gradient(ellipse at 20% 80%, oklch(0.085 0.022 272 / 0.6), transparent 50%)" }} />
         <div className="relative w-full max-w-md rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-8">
           <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/25">
             <KeyRound className="size-7 text-primary" />
@@ -347,7 +347,7 @@ function AuthPage() {
   if (confirmSent) {
     return (
       <main className="min-h-screen flex items-center justify-center px-4 bg-zinc-950 relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 65% 25%, oklch(0.58 0.22 25 / 0.10), transparent 55%), radial-gradient(ellipse at 20% 80%, oklch(0.085 0.022 272 / 0.6), transparent 50%)" }} />
+        <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 65% 25%, oklch(0.58 0.22 295 / 0.10), transparent 55%), radial-gradient(ellipse at 20% 80%, oklch(0.085 0.022 272 / 0.6), transparent 50%)" }} />
         <div className="relative w-full max-w-md rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-8 text-center">
           <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/25">
             <MailCheck className="size-7 text-primary" />
@@ -375,7 +375,7 @@ function AuthPage() {
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4 bg-zinc-950 relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 65% 25%, oklch(0.58 0.22 25 / 0.10), transparent 55%), radial-gradient(ellipse at 20% 80%, oklch(0.085 0.022 272 / 0.6), transparent 50%)" }} />
+      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 65% 25%, oklch(0.58 0.22 295 / 0.10), transparent 55%), radial-gradient(ellipse at 20% 80%, oklch(0.085 0.022 272 / 0.6), transparent 50%)" }} />
       <div className="relative w-full max-w-md rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-8">
         <Link to="/" className="inline-flex flex-col gap-0.5 mb-5 group">
           <span className="inline-flex items-center gap-2">
