@@ -9,6 +9,11 @@
 @import "@fontsource/instrument-sans/600.css";
 @import "@fontsource/cormorant-garamond/400-italic.css";
 @import "@fontsource/cormorant-garamond/600-italic.css";
+@import "@fontsource/plus-jakarta-sans/400.css";
+@import "@fontsource/plus-jakarta-sans/500.css";
+@import "@fontsource/plus-jakarta-sans/600.css";
+@import "@fontsource/plus-jakarta-sans/700.css";
+@import "@fontsource/plus-jakarta-sans/800.css";
 @source "../src";
 
 @custom-variant dark (&:is(.dark *));
@@ -17,6 +22,8 @@
 /* Instrument Sans + Cormorant Garamond are loaded via <link> in __root.tsx */
 @theme {
   --color-brand: oklch(0.60 0.27 295);
+  /* CapCut-style UI: Plus Jakarta Sans is the app-wide default font. */
+  --font-sans: 'Plus Jakarta Sans', 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-display: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
   --font-serif: 'Cormorant Garamond', ui-serif, Georgia, serif;
 }
@@ -97,6 +104,8 @@
   --color-brand-red: var(--brand-red);
   --color-brand-red-dim: var(--brand-red-dim);
   --color-brand-red-border: var(--brand-red-border);
+  --color-brand-ink: var(--brand-ink);
+  --color-dot: var(--dot);
 }
 
 /*
@@ -157,6 +166,15 @@
   --brand-red: oklch(0.60 0.27 295);
   --brand-red-dim: oklch(0.60 0.27 295 / 15%);
   --brand-red-border: oklch(0.60 0.27 295 / 30%);
+
+  /* ── CapCut-style surface tokens (violet-adapted) ────────────────────── */
+  --brand-ink: oklch(0.80 0.16 305);
+  --dot: oklch(0.70 0.20 22);
+  --gradient-page: linear-gradient(180deg, oklch(0.15 0.045 295) 0%, oklch(0.09 0.022 272) 100%);
+  --gradient-sheet: linear-gradient(180deg, oklch(0.18 0.06 295) 0%, oklch(0.13 0.035 285) 45%, oklch(0.10 0.022 272) 100%);
+  --gradient-cta: linear-gradient(90deg, oklch(0.55 0.26 290) 0%, oklch(0.66 0.22 305) 50%, oklch(0.60 0.25 285) 100%);
+  --shadow-card: 0 1px 2px oklch(0.05 0.02 295 / 40%), 0 10px 30px oklch(0.05 0.02 295 / 45%);
+  --shadow-float: 0 -2px 28px oklch(0.05 0.02 295 / 55%);
 
   /* ── Prime Director page palette ─────────────────────────────────────── */
   --canvas: oklch(0.085 0.012 295);
@@ -227,6 +245,15 @@ html[data-theme="light"] {
   --surface-glass: oklch(0 0 0 / 3%);
   --surface-glass-strong: oklch(0 0 0 / 6%);
   --border-strong: oklch(0 0 0 / 15%);
+
+  /* ── CapCut-style surface tokens (light) ─────────────────────────────── */
+  --brand-ink: oklch(0.50 0.24 300);
+  --dot: oklch(0.62 0.21 25);
+  --gradient-page: linear-gradient(180deg, oklch(0.97 0.012 300) 0%, oklch(1 0 0) 100%);
+  --gradient-sheet: linear-gradient(180deg, oklch(0.95 0.02 300) 0%, oklch(0.98 0.008 295) 45%, oklch(1 0 0) 100%);
+  --gradient-cta: linear-gradient(90deg, oklch(0.52 0.26 290) 0%, oklch(0.62 0.22 305) 50%, oklch(0.56 0.25 285) 100%);
+  --shadow-card: 0 1px 2px oklch(0.2 0.02 295 / 8%), 0 10px 30px oklch(0.2 0.02 295 / 12%);
+  --shadow-float: 0 -2px 28px oklch(0.2 0.02 295 / 14%);
   --teal: oklch(0.55 0.13 185);
   --teal-dim: oklch(0.55 0.13 185 / 10%);
   --teal-border: oklch(0.55 0.13 185 / 25%);

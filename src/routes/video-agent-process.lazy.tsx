@@ -1,20 +1,28 @@
 import { createLazyFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   CheckCircle2, Circle, Loader2, AlertCircle,
-  Film, ArrowRight, Wand2, Mic, Layers, Clapperboard, FileText,
+  Film, ArrowRight, Wand2, Layers, Clapperboard, FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  videoAgentStore, vaUid, type VideoScene,
-} from "@/lib/video-agent-store";
+  getVideoAgentProject,
+  updateVideoAgentProject,
+  type VideoAgentProjectDto,
+} from "@/lib/video-agent-projects.functions";
+import { vaUid } from "@/lib/video-agent-shared";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createLazyFileRoute("/video-agent-process")({
   component: AgentProcessing,
 });
 
-type StepId = "script" | "scenes" | "visuals" | "voiceover" | "compile";
+type SceneDraft = VideoAgentProjectDto["scenes"][number];
+
+type StepId = "script" | "scenes" | "frames";
 type StepStatus = "pending" | "running" | "done" | "error";
 
 type Step = {
@@ -27,26 +35,46 @@ type Step = {
 };
 
 const INITIAL_STEPS: Step[] = [
-  { id: "script",   label: "Generating script",   sublabel: "AI writes scenes, voiceover text, and timing", icon: FileText,    status: "pending" },
-  { id: "scenes",   label: "Planning scenes",      sublabel: "Breaking script into visual moments",          icon: Clapperboard, status: "pending" },
-  { id: "visuals",  label: "Creating visuals",     sublabel: "Generating cinematic keyframes",               icon: Layers,      status: "pending" },
-  { id: "voiceover",label: "Synthesizing voice",   sublabel: "Recording AI narration",                       icon: Mic,         status: "pending" },
-  { id: "compile",  label: "Compiling video",      sublabel: "Assembling scenes into final video",           icon: Film,        status: "pending" },
+  { id: "script", label: "Writing script", sublabel: "AI writes scenes, narration, and timing", icon: FileText, status: "pending" },
+  { id: "scenes", label: "Saving storyboard", sublabel: "Storing the plan to your account", icon: Clapperboard, status: "pending" },
+  { id: "frames", label: "Sketching frames", sublabel: "Preview keyframes for each scene", icon: Layers, status: "pending" },
 ];
+
+const STYLE_HINTS: Record<string, string> = {
+  cinematic: "cinematic anamorphic, 35mm film grain, teal-orange color grade",
+  minimal: "clean minimal, soft light, negative space, modern",
+  vibrant: "vibrant saturated colors, dynamic, energetic, bold",
+  documentary: "natural light, candid, handheld, authentic documentary",
+};
 
 function AgentProcessing() {
   const { id } = useSearch({ from: "/video-agent-process" });
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  const getProject = useServerFn(getVideoAgentProject);
+  const updateProject = useServerFn(updateVideoAgentProject);
+
   const [steps, setSteps] = useState<Step[]>(INITIAL_STEPS);
   const [log, setLog] = useState<string[]>([]);
-  const [scenes, setScenes] = useState<VideoScene[]>([]);
+  const [scenes, setScenes] = useState<SceneDraft[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [scenesPersisted, setScenesPersisted] = useState(false);
   const [done, setDone] = useState(false);
   const hasStarted = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
 
-  const project = videoAgentStore.get(id);
+  useEffect(() => {
+    if (!authLoading && !user) void navigate({ to: "/auth" });
+  }, [authLoading, user, navigate]);
+
+  const projectQuery = useQuery({
+    queryKey: ["video-agent-project", id],
+    queryFn: () => getProject({ data: { id } }),
+    enabled: !!user && !!id,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
 
   const addLog = (msg: string) =>
     setLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
@@ -59,25 +87,29 @@ function AgentProcessing() {
   }, [log]);
 
   useEffect(() => {
+    const project = projectQuery.data;
     if (!project || hasStarted.current) return;
     hasStarted.current = true;
-    runPipeline();
-    return () => { abortRef.current?.abort(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
-
-  async function runPipeline() {
-    if (!project) {
-      setError("Project not found. Please go back and try again.");
+    // A render (or finished storyboard) already lives on the server — this
+    // page only plans brand-new drafts. Resume in the editor instead.
+    if (project.scenes.length > 0 || ["queued", "processing", "succeeded", "failed"].includes(project.status)) {
+      void navigate({ to: "/video-agent-edit", search: { id }, replace: true });
       return;
     }
+    void runPipeline(project);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectQuery.data]);
 
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  async function runPipeline(project: VideoAgentProjectDto) {
     abortRef.current = new AbortController();
+    const signal = abortRef.current.signal;
 
     try {
-      // ── Step 1: Generate Script ──
+      // ── Step 1: Script ──
       setStep("script", "running");
-      addLog(`Starting script for: "${project.prompt.slice(0, 60)}…"`);
+      addLog(`Writing script for: "${project.prompt.slice(0, 60)}…"`);
 
       const scriptRes = await fetch("/api/video-agent/generate-script", {
         method: "POST",
@@ -88,127 +120,130 @@ function AgentProcessing() {
           voice: project.voice,
           targetDuration: project.targetDuration,
         }),
-        signal: abortRef.current.signal,
+        signal,
       });
-
       if (!scriptRes.ok) {
-        throw new Error(`Script generation failed: ${await scriptRes.text()}`);
+        let detail = "";
+        try { detail = ((await scriptRes.json()) as { error?: string }).error ?? ""; } catch { /* not json */ }
+        throw new Error(detail || `Script generation failed (${scriptRes.status})`);
       }
-
       const scriptData = (await scriptRes.json()) as {
-        title: string;
-        scenes: Array<{ index: number; title: string; script: string; description: string; duration: number }>;
+        title?: string;
+        scenes: Array<{ title?: string; script?: string; description?: string; duration?: number }>;
       };
 
-      const title = scriptData.title ?? "Untitled Video";
-      addLog(`✓ Script ready: "${title}" — ${scriptData.scenes.length} scenes`);
-      setStep("script", "done", `${scriptData.scenes.length} scenes`);
+      const title = (scriptData.title ?? "").trim().slice(0, 160) || "Untitled Video";
+      const cleaned: SceneDraft[] = scriptData.scenes
+        .map((s, i) => ({
+          id: vaUid(),
+          index: i,
+          title: (s.title ?? "").trim().slice(0, 160) || `Scene ${i + 1}`,
+          script: (s.script ?? "").trim().slice(0, 2400),
+          description: (s.description ?? "").trim().slice(0, 3000),
+          duration: Math.max(3, Math.min(15, Math.round(Number(s.duration)) || 6)),
+          frame: null,
+          frameStatus: "idle" as const,
+        }))
+        .filter((s) => s.script && s.description)
+        .slice(0, 12)
+        .map((s, i) => ({ ...s, index: i }));
+      if (!cleaned.length) {
+        throw new Error("The script came back without usable scenes — try a more specific prompt.");
+      }
+      addLog(`✓ Script ready: "${title}" — ${cleaned.length} scenes`);
+      setStep("script", "done", `${cleaned.length} scenes`);
 
-      // ── Step 2: Plan Scenes ──
+      // ── Step 2: Persist the storyboard (durable — survives reloads) ──
       setStep("scenes", "running");
+      await updateProject({ data: { id, title, scenes: cleaned } });
+      setScenesPersisted(true);
+      setScenes(cleaned);
+      cleaned.forEach((s, i) => addLog(`  Scene ${i + 1}: "${s.title}" (${s.duration}s)`));
+      setStep("scenes", "done", "Saved to your account");
 
-      const newScenes: VideoScene[] = scriptData.scenes.map((s) => ({
-        id: vaUid(),
-        index: s.index,
-        title: s.title,
-        script: s.script,
-        description: s.description,
-        duration: s.duration,
-        frame: null,
-        frameStatus: "idle" as const,
-        voiceoverStatus: "idle" as const,
-      }));
+      // ── Step 3: Preview frames (free storyboard sketches) ──
+      setStep("frames", "running");
+      addLog("Sketching storyboard frames…");
+      const styleHint = STYLE_HINTS[project.style] ?? STYLE_HINTS.cinematic;
 
-      videoAgentStore.update(id, { title, scenes: newScenes });
-      setScenes(newScenes);
-      newScenes.forEach((s, i) => addLog(`  Scene ${i + 1}: "${s.title}" (${s.duration}s)`));
-      setStep("scenes", "done", `${newScenes.length} scenes planned`);
-
-      // ── Step 3: Generate Visuals ──
-      setStep("visuals", "running");
-      addLog("Generating cinematic keyframes…");
-
-      const styleHints: Record<string, string> = {
-        cinematic: "cinematic anamorphic, 35mm film grain, teal-orange color grade",
-        minimal: "clean minimal, soft light, negative space, modern",
-        vibrant: "vibrant saturated colors, dynamic, energetic, bold",
-        documentary: "natural light, candid, handheld, authentic documentary",
-      };
-      const styleHint = styleHints[project.style] ?? "cinematic";
-      let firstFrameUrl: string | null = null;
-
-      for (let i = 0; i < newScenes.length; i++) {
-        const sc = newScenes[i];
-        addLog(`  Generating frame ${i + 1}/${newScenes.length}: "${sc.title}"`);
-        videoAgentStore.updateScene(id, sc.id, { frameStatus: "loading" });
-        setScenes((prev) => prev.map((s) => s.id === sc.id ? { ...s, frameStatus: "loading" } : s));
-
+      let current = cleaned;
+      let failures = 0;
+      for (let i = 0; i < current.length; i++) {
+        const sc = current[i];
+        addLog(`  Frame ${i + 1}/${current.length}: "${sc.title}"`);
+        current = current.map((s) => (s.id === sc.id ? { ...s, frameStatus: "loading" as const } : s));
+        setScenes(current);
         try {
           const frameRes = await fetch("/api/video-agent/generate-frame", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ prompt: `${sc.description}. Style: ${styleHint}. Cinematic keyframe.` }),
-            signal: abortRef.current?.signal,
+            signal,
           });
-
           if (!frameRes.ok) throw new Error(`Frame generation failed: ${frameRes.status}`);
           const { url } = (await frameRes.json()) as { url: string };
-
-          videoAgentStore.updateScene(id, sc.id, { frame: url, frameStatus: "done" });
-          setScenes((prev) => prev.map((s) => s.id === sc.id ? { ...s, frame: url, frameStatus: "done" } : s));
-          if (!firstFrameUrl) {
-            firstFrameUrl = url;
-            videoAgentStore.update(id, { thumbnailUrl: url });
-          }
+          current = current.map((s) => (s.id === sc.id ? { ...s, frame: url, frameStatus: "done" as const } : s));
+          setScenes(current);
+          await updateProject({ data: { id, scenes: current } });
           addLog(`  ✓ Frame ${i + 1} ready`);
         } catch (imgErr) {
           if ((imgErr as Error).name === "AbortError") throw imgErr;
+          failures++;
           addLog(`  ⚠ Frame ${i + 1} failed: ${(imgErr as Error).message}`);
-          videoAgentStore.updateScene(id, sc.id, { frameStatus: "error" });
-          setScenes((prev) => prev.map((s) => s.id === sc.id ? { ...s, frameStatus: "error" } : s));
+          current = current.map((s) => (s.id === sc.id ? { ...s, frameStatus: "error" as const } : s));
+          setScenes(current);
         }
       }
+      setStep(
+        "frames",
+        "done",
+        failures ? `${current.length - failures}/${current.length} frames (retry the rest in the editor)` : `${current.length} frames`,
+      );
 
-      setStep("visuals", "done", `${newScenes.length} frames generated`);
-
-      // ── Step 4: Voiceover (simulated — HeyGen/TTS would go here) ──
-      setStep("voiceover", "running");
-      addLog(`Synthesizing voice-over (${project.voice})…`);
-      await delay(1500);
-      newScenes.forEach((_, i) => addLog(`  ✓ Voice recorded: scene ${i + 1}`));
-      setStep("voiceover", "done", `${newScenes.length} tracks`);
-
-      // ── Step 5: Compile ──
-      setStep("compile", "running");
-      addLog("Assembling scenes…");
-      await delay(1800);
-      addLog("✓ Video compiled — opening editor…");
-      setStep("compile", "done", "Ready");
-
-      videoAgentStore.update(id, { status: "editing", statusMessage: "Ready to edit" });
+      addLog("✓ Storyboard ready — opening editor…");
       setDone(true);
-      await delay(1000);
-      navigate({ to: "/video-agent-edit", search: { id } });
-
+      await delay(900);
+      await navigate({ to: "/video-agent-edit", search: { id }, replace: true });
     } catch (err) {
       if ((err as Error).name === "AbortError") return;
       const msg = (err as Error).message;
       setError(msg);
       addLog(`✗ Error: ${msg}`);
-      videoAgentStore.update(id, { status: "failed", statusMessage: msg });
       setSteps((prev) => prev.map((s) => (s.status === "running" ? { ...s, status: "error" } : s)));
       toast.error(msg);
     }
   }
 
+  function retry() {
+    setSteps(INITIAL_STEPS);
+    setLog([]);
+    setScenes([]);
+    setError(null);
+    setDone(false);
+    setScenesPersisted(false);
+    const project = projectQuery.data;
+    if (project) void runPipeline(project);
+  }
+
   const progress = steps.filter((s) => s.status === "done").length / steps.length;
 
-  if (!project) {
+  if (authLoading || !user || projectQuery.isLoading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (projectQuery.isError || !projectQuery.data) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="glass rounded-2xl p-10 text-center max-w-md">
           <AlertCircle className="mx-auto h-10 w-10 text-destructive mb-4" />
           <h2 className="text-xl font-semibold">Project not found</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            It may belong to another account, or it was created before projects were saved to your account.
+          </p>
           <Button className="mt-6" onClick={() => navigate({ to: "/video-agent" })}>
             New Video
           </Button>
@@ -217,14 +252,16 @@ function AgentProcessing() {
     );
   }
 
+  const project = projectQuery.data;
+
   return (
     <div className="aurora-page-shell">
       <div className="relative z-10 mx-auto max-w-4xl px-6 py-10">
         <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground mb-2">
-          <Wand2 className="h-3.5 w-3.5 text-primary" /> Aurora Agent · Processing
+          <Wand2 className="h-3.5 w-3.5 text-primary" /> Aurora Agent · Planning
         </div>
         <h1 className="text-3xl font-bold tracking-tight">
-          {done ? "Video ready!" : "Creating your video…"}
+          {done ? "Storyboard ready!" : "Planning your video…"}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{project.prompt}</p>
 
@@ -237,7 +274,7 @@ function AgentProcessing() {
         </div>
         <div className="mt-1 flex justify-between text-xs text-muted-foreground">
           <span>{Math.round(progress * 100)}% complete</span>
-          <span>{steps.filter((s) => s.status === "done").length}/{steps.length} steps</span>
+          <span>Nothing is charged during planning — you approve the final render in the editor.</span>
         </div>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[300px_1fr]">
@@ -335,7 +372,7 @@ function AgentProcessing() {
             {done && (
               <Button
                 className="gap-2"
-                onClick={() => navigate({ to: "/video-agent-edit", search: { id } })}
+                onClick={() => navigate({ to: "/video-agent-edit", search: { id }, replace: true })}
               >
                 <Film className="h-4 w-4" /> Open Editor
                 <ArrowRight className="h-4 w-4" />
@@ -343,15 +380,17 @@ function AgentProcessing() {
             )}
             {error && (
               <>
-                <Button variant="secondary" onClick={() => navigate({ to: "/video-agent" })}>
+                <Button variant="secondary" onClick={retry}>
                   Try again
                 </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => navigate({ to: "/video-agent-edit", search: { id } })}
-                >
-                  Open partial result
-                </Button>
+                {scenesPersisted && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => navigate({ to: "/video-agent-edit", search: { id } })}
+                  >
+                    Open saved storyboard
+                  </Button>
+                )}
               </>
             )}
           </div>

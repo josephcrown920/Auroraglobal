@@ -34,6 +34,18 @@ function classifyBillingBucket(provider: string): BillingBucket {
   return "paid";
 }
 
+// Loosely-typed select chain for tables/columns not in the generated Supabase
+// types (jobs scheduling columns, video_agent_projects) — same approach the
+// kids/avatars server code uses.
+type QueueSelectChain = {
+  gte: (col: string, val: string) => QueueSelectChain;
+  eq: (col: string, val: string) => QueueSelectChain;
+  lt: (col: string, val: string) => QueueSelectChain;
+  or: (filters: string) => QueueSelectChain;
+  order: (col: string, opts: { ascending: boolean }) => QueueSelectChain;
+  limit: (n: number) => QueueSelectChain;
+} & PromiseLike<{ data: unknown; count: number | null; error: { message: string } | null }>;
+
 export const orchestrationHealth = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -386,6 +398,84 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
       b.cost += Number(l.cost_usd ?? 0);
     }
 
+    // ── Queue health: customer-impacting job-pipeline signals ───────────────
+    // Per-kind activity over the last 24h, the oldest ELIGIBLE queued job (a
+    // retry still waiting out its scheduled_at backoff is not "stuck"), stale
+    // processing locks older than 2× the 15-min sweep window (which means the
+    // sweeps themselves aren't running), and Video Agent render outcomes (7d).
+    const queueDb = supabaseAdmin as unknown as {
+      from: (t: string) => {
+        select: (c: string, o?: { count?: "exact"; head?: boolean }) => QueueSelectChain;
+      };
+    };
+    const nowIso = new Date().toISOString();
+    const staleCutoffIso = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const weekAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const [jobs24hRes, oldestQueuedRes, staleProcRes, vaProjectsRes] = await Promise.all([
+      queueDb.from("jobs").select("kind,status").gte("created_at", since).limit(5000),
+      queueDb
+        .from("jobs")
+        .select("created_at,scheduled_at")
+        .eq("status", "queued")
+        .or(`scheduled_at.is.null,scheduled_at.lte.${nowIso}`)
+        .order("created_at", { ascending: true })
+        .limit(25),
+      queueDb
+        .from("jobs")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "processing")
+        .lt("locked_at", staleCutoffIso),
+      queueDb.from("video_agent_projects").select("status").gte("updated_at", weekAgoIso).limit(2000),
+    ]);
+    const jobRows = (jobs24hRes.data ?? []) as Array<{ kind: string; status: string }>;
+    const queueByKind: Record<
+      string,
+      { queued: number; processing: number; succeeded: number; failed: number }
+    > = {};
+    const queueTotals = { queued: 0, processing: 0, succeeded: 0, failed: 0 };
+    for (const row of jobRows) {
+      const k = (queueByKind[row.kind] ??= { queued: 0, processing: 0, succeeded: 0, failed: 0 });
+      const s = row.status as keyof typeof queueTotals;
+      if (s === "queued" || s === "processing" || s === "succeeded" || s === "failed") {
+        k[s] += 1;
+        queueTotals[s] += 1;
+      }
+    }
+    // Age each eligible queued job from when it BECAME eligible — retries keep
+    // created_at but wait out scheduled_at, so created_at alone overstates the
+    // wait. (Sampled from the 25 oldest-created rows; the alerting path in
+    // uptime-monitor uses an exact count-based query.)
+    const eligibleQueuedRows = (oldestQueuedRes.data ?? []) as Array<{
+      created_at: string;
+      scheduled_at: string | null;
+    }>;
+    let oldestEligibleSinceMs: number | null = null;
+    for (const r of eligibleQueuedRows) {
+      const createdMs = new Date(r.created_at).getTime();
+      const scheduledMs = r.scheduled_at ? new Date(r.scheduled_at).getTime() : null;
+      const eligibleSince = scheduledMs != null && scheduledMs > createdMs ? scheduledMs : createdMs;
+      if (oldestEligibleSinceMs == null || eligibleSince < oldestEligibleSinceMs) {
+        oldestEligibleSinceMs = eligibleSince;
+      }
+    }
+    const vaRows = (vaProjectsRes.data ?? []) as Array<{ status: string }>;
+    const queue = {
+      totals24h: queueTotals,
+      byKind: Object.entries(queueByKind)
+        .map(([kind, counts]) => ({ kind, ...counts }))
+        .sort((a, b) => b.failed - a.failed || b.queued - a.queued),
+      oldestQueuedAgeSec:
+        oldestEligibleSinceMs != null
+          ? Math.max(0, Math.floor((Date.now() - oldestEligibleSinceMs) / 1000))
+          : null,
+      staleProcessing: staleProcRes.count ?? 0,
+      videoAgent7d: {
+        active: vaRows.filter((r) => r.status === "queued" || r.status === "processing").length,
+        succeeded: vaRows.filter((r) => r.status === "succeeded").length,
+        failed: vaRows.filter((r) => r.status === "failed").length,
+      },
+    };
+
     const health = getProviderHealthSnapshot();
     const providersWithHealth = providers.map((p) => {
       // map dashboard id → orchestrator adapter name
@@ -462,6 +552,7 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
       recent: (logs ?? []).slice(0, 50),
       gpuBackends,
       billingSummary,
+      queue,
     };
   });
 

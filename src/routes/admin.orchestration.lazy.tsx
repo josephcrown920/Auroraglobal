@@ -162,6 +162,12 @@ function timeAgo(iso: string): string {
   return `${Math.floor(secs / 3600)}h ago`;
 }
 
+function formatAge(secs: number): string {
+  if (secs < 60) return `${secs}s`;
+  if (secs < 3600) return `${Math.floor(secs / 60)}m`;
+  return `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`;
+}
+
 function OrchestrationDashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -266,6 +272,72 @@ function OrchestrationDashboard() {
                   </div>
                 );
               })}
+            </div>
+
+            {/* Generation queue — customer-impacting pipeline signals */}
+            <div className="rounded-xl border border-border bg-card/40 mb-8 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-sm font-semibold flex items-center gap-2">
+                  <Activity className="size-4 text-primary" /> Generation queue
+                </span>
+                <span className="text-xs text-muted-foreground">jobs created in last 24h · stall checks are live</span>
+              </div>
+              <div className="grid sm:grid-cols-4 gap-4">
+                <div>
+                  <div className="text-2xl font-semibold tabular-nums">{data.queue.totals24h.queued}</div>
+                  <div className="text-sm text-muted-foreground">queued</div>
+                  <div
+                    className={`text-xs mt-1 ${
+                      (data.queue.oldestQueuedAgeSec ?? 0) > 20 * 60 ? "text-amber-400" : "text-muted-foreground"
+                    }`}
+                  >
+                    {data.queue.oldestQueuedAgeSec == null
+                      ? "no waiting jobs"
+                      : `oldest waiting ${formatAge(data.queue.oldestQueuedAgeSec)}`}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-2xl font-semibold tabular-nums">{data.queue.totals24h.processing}</div>
+                  <div className="text-sm text-muted-foreground">processing</div>
+                  <div className={`text-xs mt-1 ${data.queue.staleProcessing > 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                    {data.queue.staleProcessing > 0
+                      ? `${data.queue.staleProcessing} stale lock${data.queue.staleProcessing > 1 ? "s" : ""} (>30m — sweeps stalled?)`
+                      : "locks healthy"}
+                  </div>
+                </div>
+                <div>
+                  <div className={`text-2xl font-semibold tabular-nums ${data.queue.totals24h.failed > 0 ? "text-destructive" : ""}`}>
+                    {data.queue.totals24h.failed}
+                  </div>
+                  <div className="text-sm text-muted-foreground">failed · 24h</div>
+                  <div className="text-xs mt-1 text-emerald-400">{data.queue.totals24h.succeeded} succeeded</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-semibold tabular-nums">{data.queue.videoAgent7d.active}</div>
+                  <div className="text-sm text-muted-foreground">Video Agent rendering</div>
+                  <div className="text-xs mt-1 text-muted-foreground">
+                    7d: <span className="text-emerald-400">{data.queue.videoAgent7d.succeeded} ok</span>
+                    {data.queue.videoAgent7d.failed > 0 && (
+                      <span className="text-destructive"> · {data.queue.videoAgent7d.failed} failed</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {data.queue.byKind.some((k) => k.failed > 0) && (
+                <div className="mt-4 pt-3 border-t border-border flex flex-wrap gap-2">
+                  {data.queue.byKind
+                    .filter((k) => k.failed > 0)
+                    .slice(0, 6)
+                    .map((k) => (
+                      <span
+                        key={k.kind}
+                        className="text-xs px-2 py-0.5 rounded-full border border-destructive/30 text-destructive bg-destructive/5"
+                      >
+                        {k.kind}: {k.failed} failed
+                      </span>
+                    ))}
+                </div>
+              )}
             </div>
 
             {/* Provider Credit Balances */}
