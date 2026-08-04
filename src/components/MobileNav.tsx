@@ -225,42 +225,6 @@ export function MobileNav() {
         }
       `}</style>
 
-      <aside className="aurora-desktop-rail" aria-label="Primary navigation">
-        <Link to="/home" className="aurora-rail-brand" aria-label="Aurora Create">
-          <span className="aurora-rail-mark" aria-hidden />
-          <span className="aurora-rail-wordmark">Aurora</span>
-        </Link>
-        <nav className="aurora-rail-links">
-          {TAB_ITEMS.map((item) => {
-            const active = destinationIsActive(pathname, item.to);
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                aria-current={active ? "page" : undefined}
-                className={cn("aurora-rail-link", active && "is-active")}
-              >
-                <item.icon className="size-[18px]" />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="aurora-rail-footer">
-          <button
-            type="button"
-            onClick={toggle}
-            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            className="aurora-rail-icon"
-          >
-            {theme === "dark" ? <Moon className="size-[17px]" /> : <Sun className="size-[17px]" />}
-          </button>
-          <button type="button" onClick={() => setOpen(true)} aria-label="Open all tools" className="aurora-rail-icon">
-            <Menu className="size-[17px]" />
-          </button>
-        </div>
-      </aside>
-
       {isCanvas && (
         <button
           type="button"

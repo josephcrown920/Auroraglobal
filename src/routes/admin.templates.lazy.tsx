@@ -79,7 +79,7 @@ function AdminTemplatesPage() {
 
   return (
     <main className="min-h-screen bg-background">
-      <header className="flex items-center justify-between pl-24 pr-6 md:pl-24 md:pr-10 py-5 border-b border-border bg-card/40 backdrop-blur-xl">
+      <header className="flex items-center justify-between pl-5 pr-5 py-5 border-b border-border bg-card/40 backdrop-blur-xl">
         <div className="flex items-center gap-4">
           <Link to="/admin" className="flex items-center gap-2 font-semibold tracking-tight">
             <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20"><span className="inline-block size-2.5 rounded-full bg-primary" /></span>

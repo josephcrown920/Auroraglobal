@@ -633,73 +633,8 @@ function StudioPage() {
               </div>
             </>
           ) : (
-            /* ── Empty canvas: example photo strip ─────────────────────────────
-               Shows real Aurora-generated shots so new artists immediately see
-               the quality. Tapping any card pre-fills the prompt bar with the
-               matching direction. The whole block disappears once the user
-               completes their first generation. */
-            <div className="flex flex-col min-h-[56vw]">
-              {/* Header */}
-              <div className="flex flex-col items-center gap-1.5 pt-8 pb-5 px-4 text-center">
-                <Sparkles className="size-7 text-[#8b5cf6]/50" />
-                <p className="text-sm font-semibold text-zinc-300">See what Aurora can do</p>
-                <p className="text-xs text-zinc-600">Tap a style to load its prompt — then add your photo</p>
-              </div>
-
-              {/* Horizontal photo strip */}
-              <div className="w-full overflow-x-auto pb-5 px-4 scrollbar-none">
-                <div className="flex gap-3 w-max">
-                  {STUDIO_EXAMPLE_PRESETS.filter((p) => !!p.imageUrl).map((preset) => {
-                    const isActive = activeExampleId === preset.id;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => {
-                          if (preset.prompt) setPrompt(preset.prompt);
-                          setActiveExampleId(preset.id);
-                        }}
-                        className={[
-                          "relative shrink-0 w-[38vw] max-w-[152px] rounded-2xl overflow-hidden border-2 transition-all duration-200 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b5cf6]",
-                          isActive
-                            ? "border-[#8b5cf6] shadow-[0_0_0_3px_rgba(139,92,246,0.20)]"
-                            : "border-white/10 hover:border-white/30 active:scale-[0.97]",
-                        ].join(" ")}
-                        aria-pressed={isActive}
-                        aria-label={`Use ${preset.label} direction`}
-                      >
-                        {/* Image */}
-                        <img
-                          src={preset.imageUrl}
-                          alt={preset.label}
-                          className="w-full aspect-[3/4] object-cover block"
-                          loading="lazy"
-                          draggable={false}
-                        />
-
-                        {/* Caption overlay */}
-                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent pt-8 pb-2.5 px-2.5">
-                          <p className="text-[11px] font-bold text-white leading-tight">{preset.emoji} {preset.label}</p>
-                          <p className="text-[10px] text-zinc-400 leading-snug mt-0.5 line-clamp-2">{preset.hint}</p>
-                        </div>
-
-                        {/* Selected indicator */}
-                        {isActive && (
-                          <div className="absolute top-2 right-2 flex items-center gap-1 bg-[#8b5cf6] rounded-full px-1.5 py-0.5">
-                            <span className="block size-1.5 rounded-full bg-white" />
-                            <span className="text-[9px] font-bold text-white leading-none">LOADED</span>
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Nudge below the strip */}
-              <p className="text-center text-[11px] text-zinc-700 pb-4 px-4">
-                Upload your photo above, then hit <span className="text-zinc-500">Generate</span>
-              </p>
+            <div className="flex flex-col items-center justify-center min-h-[40vw] gap-2 px-4 text-center">
+              <p className="text-xs text-zinc-600">Upload your photo above, then hit Generate</p>
             </div>
           )}
         </div>

@@ -196,7 +196,7 @@ function AdminComfyPage() {
 
   return (
     <main className="min-h-screen bg-background">
-      <header className="flex items-center justify-between pl-24 pr-6 md:pl-24 md:pr-10 py-5 border-b border-border bg-card/40 backdrop-blur-xl">
+      <header className="flex items-center justify-between pl-5 pr-5 py-5 border-b border-border bg-card/40 backdrop-blur-xl">
         <Link to="/admin" className="flex items-center gap-2 font-semibold tracking-tight no-underline text-foreground">
           <Boxes className="size-5 text-primary" /> ComfyUI admin
           <span className="ml-2 text-xs uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-500 flex items-center gap-1">

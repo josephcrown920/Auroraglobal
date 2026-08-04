@@ -11,7 +11,7 @@ function LegalPage() {
   const { doc } = Route.useLoaderData() as { doc: LegalDoc };
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <header className="flex items-center justify-between pl-24 pr-6 md:pl-24 md:pr-10 py-5 border-b border-border bg-card/40 backdrop-blur-xl">
+      <header className="flex items-center justify-between pl-5 pr-5 py-5 border-b border-border bg-card/40 backdrop-blur-xl">
         <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight no-underline">
           <ArrowLeft className="size-4 text-muted-foreground" />
           <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20"><span className="inline-block size-2.5 rounded-full bg-primary" /></span>
