@@ -20,7 +20,7 @@ import { AUDIO_ACCEPT } from "@/lib/utils";
 import { BringItToLifePreview } from "@/components/studio/BringItToLifePreview";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Wand2, LogOut, Loader2, Download, Camera, Film, Mic2, Coins, Zap, Shield, Server, Captions, Crown, Flame, Settings2 } from "lucide-react";
+import { Sparkles, Wand2, LogOut, Loader2, Download, Camera, Film, Mic2, Coins, Zap, Shield, Server, Captions, Crown, Flame, Settings2, Check } from "lucide-react";
 import { PageSpinner } from "@/components/PageSpinner";
 import { AuthRedirect } from "@/components/AuthRedirect";
 import { CaptionDialog } from "@/components/gallery/CaptionDialog";
@@ -605,33 +605,13 @@ function StudioPage() {
                 <GenerationProgress visible progress={imageProgress.progress} />
               </div>
             </div>
-          ) : latest?.result_image_url ? (
-            <>
-              <BlurredPreview
-                src={latest.result_image_url}
-                alt="Latest shot"
-                aspectRatio="4/5"
-                className="w-full border-0 rounded-none"
-                transitionMs={800}
-              />
-              {/* Action bar over image */}
-              <div className="absolute bottom-3 right-3 flex items-center gap-2">
-                <ShareMenu
-                  getShareTarget={async () => {
-                    if (!latest) throw new Error("Nothing to share yet");
-                    const r = await publishFn({ data: { id: latest.id } });
-                    return { url: `${window.location.origin}${r.url}`, text: latest.prompt ?? undefined, assetUrl: latest.result_image_url, filename: `aurora-${latest.id.slice(0, 8)}.png` };
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => latest?.result_image_url && saveAssetToDisk(latest.result_image_url, `aurora-${latest.id.slice(0, 8)}.png`)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur text-xs font-medium hover:bg-black/90"
-                >
-                  <Download className="size-3.5" /> Save
-                </button>
-              </div>
-            </>
+          ) : mut.isSuccess ? (
+            <div className="flex flex-col items-center justify-center min-h-[40vw] gap-3 px-4 text-center">
+              <Link to="/gallery" className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-4 py-2.5 text-sm font-semibold text-emerald-400 no-underline hover:bg-emerald-500/20 transition-colors">
+                <Check className="size-4" /> Shot ready — View in Gallery
+              </Link>
+              <p className="text-xs text-zinc-600">Your generation is saved to your gallery</p>
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center min-h-[40vw] gap-2 px-4 text-center">
               <p className="text-xs text-zinc-600">Upload your photo above, then hit Generate</p>
@@ -666,54 +646,7 @@ function StudioPage() {
           </div>
         )}
 
-        {/* Re-angle chips */}
-        {latest?.result_image_url && (
-          <div className="px-4 py-4 border-b border-white/5">
-            <div className="flex items-center gap-2 mb-3">
-              <Camera className="size-3.5 text-zinc-500" />
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Re-angle</p>
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {REANGLES.map((a) => (
-                <button key={a.label} type="button" disabled={reangleMut.isPending} onClick={() => reangleMut.mutate(a.prompt)}
-                  className="text-xs px-3 py-1.5 rounded-full border border-white/10 bg-white/4 hover:border-white/25 hover:bg-white/8 disabled:opacity-40 transition-colors">
-                  {a.label}
-                </button>
-              ))}
-              {latest?.result_image_url && (
-                <Link to="/motion" search={{ image: latest.result_image_url }}
-                  className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-[#8b5cf6]/30 bg-[#8b5cf6]/8 text-[#8b5cf6] no-underline hover:border-[#8b5cf6]/60 transition-colors">
-                  <Wand2 className="size-3" /> Motion
-                </Link>
-              )}
-            </div>
-            {reangleMut.isPending && <p className="text-xs text-zinc-500 mt-2 flex items-center gap-1.5"><Loader2 className="size-3 animate-spin" /> Re-shooting…</p>}
-          </div>
-        )}
 
-        {/* Video result */}
-        {latestVideo?.result_video_url && (
-          <div className="px-4 py-4 border-b border-white/5 space-y-3">
-            <div className="flex items-center gap-2">
-              <Film className="size-3.5 text-zinc-500" />
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Video</p>
-            </div>
-            <div className="rounded-xl overflow-hidden border border-white/8 relative">
-              <video src={latestVideo.result_video_url} className="w-full h-auto" controls playsInline />
-              <div className="absolute bottom-3 right-3 flex items-center gap-2">
-                <ShareMenu getShareTarget={async () => {
-                  if (!latestVideo) throw new Error("Nothing to share yet");
-                  const r = await publishFn({ data: { id: latestVideo.id } });
-                  return { url: `${window.location.origin}${r.url}`, text: latestVideo.prompt ?? undefined, assetUrl: latestVideo.result_video_url, filename: `aurora-${latestVideo.id.slice(0, 8)}.mp4` };
-                }} />
-                <button type="button" onClick={() => latestVideo?.result_video_url && saveAssetToDisk(latestVideo.result_video_url, `aurora-${latestVideo.id.slice(0, 8)}.mp4`)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur text-xs font-medium hover:bg-black/90">
-                  <Download className="size-3.5" /> Save
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Buy Aura */}
         <div className="relative overflow-hidden border-t border-[#8b5cf6]/15 bg-gradient-to-b from-zinc-950 to-zinc-900">
@@ -828,13 +761,14 @@ function StudioPage() {
               <div className="w-64"><GenerationProgress visible progress={imageProgress.progress} /></div>
             </div>
           </div>
-        ) : latest?.result_image_url ? (
+        ) : mut.isSuccess ? (
           <div className="flex flex-1 h-full items-center justify-center p-8">
-            <img
-              src={latest.result_image_url}
-              alt="Latest shot"
-              className="max-h-[85vh] max-w-full object-contain rounded-2xl shadow-2xl shadow-black/60"
-            />
+            <div className="flex flex-col items-center gap-4 text-center">
+              <Link to="/gallery" className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-4 py-2.5 text-sm font-semibold text-emerald-400 no-underline hover:bg-emerald-500/20 transition-colors">
+                <Check className="size-4" /> Shot ready — View in Gallery
+              </Link>
+              <p className="text-xs text-zinc-600">Your generation is saved to your gallery</p>
+            </div>
           </div>
         ) : (
           <>

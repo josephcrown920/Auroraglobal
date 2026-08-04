@@ -527,7 +527,6 @@ function LiveStudioPage() {
       const data: unknown = await res.json();
       if (!res.ok) throw new Error((data as { error?: string })?.error ?? "Generation failed");
       toast.success("Scene queued! Rendering now…");
-      await fetchGallery();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to start generation");
     } finally {
@@ -634,43 +633,6 @@ function LiveStudioPage() {
               ))}
             </div>
 
-            {/* Gallery */}
-            {generations.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-bold text-base">Your shots</h2>
-                  <button onClick={() => void fetchGallery()} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                    <RefreshCw size={12} /> Refresh
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                  {generations.map(g => (
-                    <div key={g.id} className="rounded-xl border border-border bg-card overflow-hidden">
-                      {g.status === "completed" && g.result_image_url ? (
-                        <>
-                          <img src={g.result_image_url} alt="Generated" className="w-full aspect-square object-cover" />
-                          <div className="flex items-center justify-between px-2.5 py-2">
-                            <span className="text-[11px] font-semibold text-emerald-400">Done</span>
-                            <button onClick={() => dlImage(g.result_image_url!, `live-studio-${g.id}.jpg`)} className="text-muted-foreground hover:text-foreground transition-colors">
-                              <Download size={13} />
-                            </button>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="aspect-square flex flex-col items-center justify-center gap-2">
-                          {(g.status === "pending" || g.status === "processing") && (
-                            <Loader2 size={18} className="animate-spin text-primary" />
-                          )}
-                          <span className={cn("text-[11px] font-semibold", g.status === "failed" ? "text-destructive" : "text-amber-400")}>
-                            {g.status === "pending" ? "Queued" : g.status === "processing" ? "Rendering…" : "Failed"}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Right: upload + generate panel */}

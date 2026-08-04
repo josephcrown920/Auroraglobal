@@ -943,17 +943,13 @@ function ColorsStudio() {
               <p className="text-[11px] text-muted-foreground">Describe your scene above to enable rendering.</p>
             )}
             <p className="text-[11px] text-muted-foreground">
-              Queued shots keep rendering on our servers even if you close this page — results land in Recent shots and your Gallery.
+              Queued shots keep rendering on our servers even if you close this page — results land in your Gallery.
             </p>
           </div>
         </section>
 
-        {/* RIGHT — recent */}
+        {/* RIGHT — gallery */}
         <aside className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Sparkles className="size-4 text-primary" />
-            <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Recent shots</h2>
-          </div>
           {inFlight.length > 0 && (
             <div className="rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5 flex items-center gap-2.5 text-xs text-foreground/85">
               <Loader2 className="size-3.5 animate-spin text-primary shrink-0" />
@@ -962,104 +958,14 @@ function ColorsStudio() {
               </span>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-2">
-            {inFlight.slice(0, 8).map((g) => (
-              <div
-                key={g.id}
-                className="aspect-[4/5] rounded-xl overflow-hidden border border-dashed border-primary/30 bg-card/30 flex flex-col items-center justify-center gap-2 text-[10px] text-muted-foreground"
-              >
-                <Loader2 className="size-4 animate-spin text-primary" />
-                <span className="uppercase tracking-wider">Rendering…</span>
-              </div>
-            ))}
-            {recent.length === 0 && inFlight.length === 0 && (
-              <div className="col-span-2 rounded-xl border border-dashed border-border bg-card/30 p-8 text-center text-xs text-muted-foreground">
-                Your color shots will appear here.
-              </div>
-            )}
-            {recent.map((g) => {
-              const lipUrl = g.result_video_url ? (lipSyncResults[g.result_video_url] ?? null) : null;
-              const cardHref = (lipUrl ?? g.result_video_url ?? g.result_image_url)!;
-              const downloadUrl = (lipUrl ?? g.result_video_url ?? g.result_image_url)!;
-              return (
-              <div key={g.id} className="relative group/shot">
-                <a
-                  href={cardHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block aurora-card-hover aspect-[4/5] rounded-xl overflow-hidden border border-border bg-background/40 hover:border-primary/40 transition-colors"
-                >
-                  {g.result_video_url ? (
-                    <video
-                      src={lipUrl ?? g.result_video_url}
-                      poster={lipUrl ? (g.result_video_url ?? undefined) : (g.result_image_url ?? undefined)}
-                      muted
-                      loop
-                      playsInline
-                      autoPlay
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <img src={g.result_image_url!} alt="" className="w-full h-full object-cover" />
-                  )}
-                  {lipUrl && (
-                    <span className="absolute top-1.5 left-1.5 flex items-center gap-1 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.2em] text-white backdrop-blur-sm">
-                      <Mic2 className="size-2.5" />Lipsync
-                    </span>
-                  )}
-                </a>
-                {/* Download button — fetch→Blob so cross-origin studio URLs actually save */}
-                <button
-                  type="button"
-                  onClick={() => downloadShot(downloadUrl)}
-                  title="Download"
-                  className="absolute top-1.5 right-1.5 size-7 rounded-lg bg-background/80 backdrop-blur flex items-center justify-center border border-border opacity-0 group-hover/shot:opacity-100 focus-visible:opacity-100 transition-opacity hover:border-primary/50"
-                >
-                  <Download className="size-3.5 text-foreground/80" />
-                </button>
-                {!g.result_video_url && g.result_image_url && (
-                  <button
-                    type="button"
-                    disabled={animateMut.isPending}
-                    onClick={() =>
-                      animateMut.mutate(
-                        animatePreviews[g.result_image_url!]
-                          ? {
-                              imageUrl: g.result_image_url!,
-                              confirmPreviewId: animatePreviews[g.result_image_url!],
-                            }
-                          : { imageUrl: g.result_image_url! },
-                      )
-                    }
-                    className="absolute bottom-1.5 left-1.5 right-1.5 rounded-lg bg-background/80 backdrop-blur px-2 py-1.5 text-[10px] font-medium uppercase tracking-wider text-foreground/90 border border-border opacity-0 group-hover/shot:opacity-100 focus-visible:opacity-100 transition-opacity hover:border-primary/50 disabled:opacity-60"
-                  >
-                    {animateMut.isPending ? (
-                      <Loader2 className="size-3 animate-spin inline" />
-                    ) : animatePreviews[g.result_image_url!] ? (
-                      <>Render full quality · {animateFullCost} Aura</>
-                    ) : (
-                      <>Preview loop · 480p · {animatePreviewCost} Aura</>
-                    )}
-                  </button>
-                )}
-                {g.result_video_url && audioUrl && !lipSyncResults[g.result_video_url] && (
-                  <button
-                    type="button"
-                    disabled={lipMut.isPending}
-                    onClick={() => lipMut.mutate(g.result_video_url!)}
-                    className="absolute bottom-1.5 left-1.5 right-1.5 rounded-lg bg-primary/90 backdrop-blur px-2 py-1.5 text-[10px] font-medium uppercase tracking-wider text-primary-foreground border border-primary/60 opacity-0 group-hover/shot:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-primary disabled:opacity-60"
-                  >
-                    {lipMut.isPending ? (
-                      <><Loader2 className="size-3 animate-spin inline mr-1" />Syncing…</>
-                    ) : (
-                      <><Mic2 className="size-3 inline mr-1" />Add Lipsync</>
-                    )}
-                  </button>
-                )}
-              </div>
-              );
-            })}
-          </div>
+          <Link
+            to="/gallery"
+            className="flex items-center gap-2 rounded-xl border border-border bg-card/60 px-4 py-3 text-sm font-medium no-underline hover:border-primary/40 hover:bg-card/80 transition-colors"
+          >
+            <Sparkles className="size-4 text-primary" />
+            <span>View your shots in Gallery</span>
+            <span className="ml-auto text-muted-foreground text-xs">→</span>
+          </Link>
         </aside>
       </div>
     </main>

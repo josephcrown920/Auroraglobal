@@ -419,10 +419,10 @@ function MotionStudio() {
       if (out && typeof out === "object" && out.generationId) setTransferGenId(out.generationId);
       if (out && typeof out === "object" && out.preview) {
         setTransferPreviewId(out.generationId ?? null);
-        toast.success("Preview queued — review it in Recent, then render the full clip");
+        toast.success("Preview queued — review it in Gallery, then render the full clip");
       } else {
         setTransferPreviewId(null);
-        toast.success("Motion transfer queued — it'll appear in Recent when ready");
+        toast.success("Motion transfer queued — view in Gallery when ready");
       }
       qc.invalidateQueries({ queryKey: ["motion-gens"] });
     },
@@ -458,10 +458,10 @@ function MotionStudio() {
       if (out && typeof out === "object" && out.generationId) setReskinGenId(out.generationId);
       if (out && typeof out === "object" && out.preview) {
         setReskinPreviewId(out.generationId ?? null);
-        toast.success("Preview queued — review it in Recent, then render the full clip");
+        toast.success("Preview queued — review it in Gallery, then render the full clip");
       } else {
         setReskinPreviewId(null);
-        toast.success("Performance Shot queued — it'll appear in Recent when ready");
+        toast.success("Performance Shot queued — view in Gallery when ready");
       }
       qc.invalidateQueries({ queryKey: ["motion-gens"] });
     },
@@ -921,7 +921,7 @@ function MotionStudio() {
                     ))}
                   </div>
 
-                  <p className="text-xs text-muted-foreground">Rendering typically takes 2–3 min · standard quality. You can leave this page — the job updates live in Recent.</p>
+                  <p className="text-xs text-muted-foreground">Rendering typically takes 2–3 min · standard quality. You can leave this page — check your Gallery for results.</p>
 
                   <GenerationProgress
                     visible={reskinProgress.isActive}
@@ -960,72 +960,32 @@ function MotionStudio() {
               )}
             </section>
 
-            {/* aside — preview + recent */}
+            {/* aside — progress only */}
             <aside ref={reskinAsideRef} className="space-y-4">
-              {(() => {
-                const latestReskin = history?.items.find((g: any) => g.kind === "performance_reskin" && g.result_video_url);
-                return (
-                  <div className={cn(
-                    "rounded-3xl overflow-hidden border bg-card/60 backdrop-blur-xl aspect-[4/5] relative transition-colors duration-500",
-                    reskinProgress.isActive ? "border-primary/50" : "border-border",
-                  )}>
-                    {reskinProgress.isActive ? (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-muted-foreground">
-                        <div className="size-14 rounded-full flex items-center justify-center" style={{ background: "var(--gradient-hero)" }}>
-                          <Loader2 className="size-6 animate-spin text-primary-foreground" />
-                        </div>
-                        <GenerationProgress visible progress={reskinProgress.progress} label={reskinProgress.label} />
-                      </div>
-                    ) : latestReskin ? (
-                      <>
-                        <AutoplayVideo src={latestReskin.result_video_url} className="w-full h-full object-cover" controls playsInline loop />
-                        <button
-                          type="button"
-                          onClick={() => saveAssetToDisk(latestReskin.result_video_url, `performance-shot-${Date.now()}.mp4`)}
-                          className="absolute bottom-3 right-3 flex items-center gap-1 rounded-lg border border-white/20 bg-black/60 px-2.5 py-1.5 text-xs text-white backdrop-blur-sm hover:bg-black/80 transition-colors"
-                        >
-                          <Download className="size-3" /> Download
-                        </button>
-                      </>
-                    ) : (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground p-8 text-center">
-                        <Film className="size-10 text-primary/40" />
-                        <p className="text-sm">Your performance video will appear here when ready.</p>
-                        <p className="text-xs">Jobs render on GPU backend — watch the Recent strip below.</p>
-                      </div>
-                    )}
+              <div className={cn(
+                "rounded-3xl overflow-hidden border bg-card/60 backdrop-blur-xl aspect-[4/5] relative transition-colors duration-500",
+                reskinProgress.isActive ? "border-primary/50" : "border-border",
+              )}>
+                {reskinProgress.isActive ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-muted-foreground">
+                    <div className="size-14 rounded-full flex items-center justify-center" style={{ background: "var(--gradient-hero)" }}>
+                      <Loader2 className="size-6 animate-spin text-primary-foreground" />
+                    </div>
+                    <GenerationProgress visible progress={reskinProgress.progress} label={reskinProgress.label} />
                   </div>
-                );
-              })()}
-
-
-              {history && history.items.length > 0 && (
-                <div>
-                  <h3 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Recent</h3>
-                  <div className="grid grid-cols-3 gap-2">
-                    {history.items.slice(0, 6).map((g: any) => (
-                      <div key={g.id} className="aspect-square rounded-lg overflow-hidden border border-border bg-card/40 relative group">
-                        {g.result_video_url ? (
-                          <>
-                            <AutoplayVideo src={g.result_video_url} className="w-full h-full object-cover" loop playsInline />
-                            <button
-                              type="button"
-                              onClick={() => saveAssetToDisk(g.result_video_url, `performance-${Date.now()}.mp4`)}
-                              className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 bg-black/70 rounded p-1 text-white transition-opacity"
-                            >
-                              <Download className="size-3" />
-                            </button>
-                          </>
-                        ) : g.result_image_url ? (
-                          <img src={g.result_image_url} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground">{g.status}</div>
-                        )}
-                      </div>
-                    ))}
+                ) : reskinMut.isSuccess ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-8 text-center">
+                    <Link to="/gallery" className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-4 py-2.5 text-sm font-semibold text-emerald-400 no-underline hover:bg-emerald-500/20 transition-colors">
+                      <Check className="size-4" /> Queued — View in Gallery
+                    </Link>
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground p-8 text-center">
+                    <Film className="size-10 text-primary/40" />
+                    <p className="text-sm">Your performance video will appear here when ready.</p>
+                  </div>
+                )}
+              </div>
             </aside>
           </div>
         )}
@@ -1238,11 +1198,7 @@ function MotionStudio() {
             </section>
             <aside className="space-y-4">
               <div className="rounded-3xl overflow-hidden border border-border bg-card/60 backdrop-blur-xl aspect-[4/5] relative">
-                {videoUrl ? (
-                  <AutoplayVideo src={videoUrl} className="w-full h-full object-cover" controls playsInline loop />
-                ) : stagedImage ? (
-                  <BlurredPreview src={stagedImage} alt="Staged pose" aspectRatio="3/4" className="absolute inset-0 w-full h-full rounded-none border-0" transitionMs={700} />
-                ) : (stageMut.isPending || animateMut.isPending) ? (
+                {(stageMut.isPending || animateMut.isPending) ? (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 px-8 text-muted-foreground">
                     <div className="size-14 rounded-full flex items-center justify-center" style={{ background: "var(--gradient-hero)" }}>
                       <Loader2 className="size-6 animate-spin text-primary-foreground" />
@@ -1252,6 +1208,12 @@ function MotionStudio() {
                       <GenerationProgress visible progress={stageMut.isPending ? stageProgress.progress : animateProgress.progress} />
                     </div>
                   </div>
+                ) : animateMut.isSuccess ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-8 text-center">
+                    <Link to="/gallery" className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-4 py-2.5 text-sm font-semibold text-emerald-400 no-underline hover:bg-emerald-500/20 transition-colors">
+                      <Check className="size-4" /> Queued — View in Gallery
+                    </Link>
+                  </div>
                 ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground p-8 text-center">
                     <Sparkles className="size-10 text-primary/50" />
@@ -1259,24 +1221,6 @@ function MotionStudio() {
                   </div>
                 )}
               </div>
-              {history && history.items.length > 0 && (
-                <div>
-                  <h3 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Recent</h3>
-                  <div className="grid grid-cols-3 gap-2">
-                    {history.items.slice(0, 6).map((g) => (
-                      <div key={g.id} className="aspect-square rounded-lg overflow-hidden border border-border bg-card/40">
-                        {g.result_video_url ? (
-                          <AutoplayVideo src={g.result_video_url} className="w-full h-full object-cover" loop playsInline />
-                        ) : g.result_image_url ? (
-                          <img src={g.result_image_url} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground">{g.status}</div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </aside>
           </div>
         )}
@@ -1343,63 +1287,33 @@ function MotionStudio() {
               </Button>
               <GenerationProgress visible={transferProgress.isActive} progress={transferProgress.progress} label={transferProgress.label} />
               <GenerationErrorCard visible={transferMut.isError} error={mtError} onRetry={() => transferMut.mutate()} />
-              <p className="text-xs text-muted-foreground">First render is a short discounted preview — review it in Recent, then render the full clip. Runs on a self-hosted GPU backend.</p>
+              <p className="text-xs text-muted-foreground">First render is a short discounted preview — review it in Gallery, then render the full clip. Runs on a self-hosted GPU backend.</p>
             </section>
             <aside ref={transferAsideRef} className="space-y-4">
-              {(() => {
-                const latestMotion = history?.items.find((g: any) => g.kind === "motion" && g.result_video_url);
-                return (
-                  <div className={cn(
-                    "rounded-3xl overflow-hidden border bg-card/60 backdrop-blur-xl aspect-[4/5] relative transition-colors duration-500",
-                    transferProgress.isActive ? "border-primary/50" : "border-border",
-                  )}>
-                    {latestMotion ? (
-                      <>
-                        <AutoplayVideo src={latestMotion.result_video_url} className="w-full h-full object-cover" controls playsInline loop />
-                        <button
-                          type="button"
-                          onClick={() => saveAssetToDisk(latestMotion.result_video_url, `motion-transfer-${Date.now()}.mp4`)}
-                          className="absolute bottom-3 right-3 flex items-center gap-1 rounded-lg border border-white/20 bg-black/60 px-2.5 py-1.5 text-xs text-white backdrop-blur-sm hover:bg-black/80 transition-colors"
-                        >
-                          <Download className="size-3" /> Download
-                        </button>
-                      </>
-                    ) : (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground p-8 text-center">
-                        <Clapperboard className="size-10 text-primary/40" />
-                        <p className="text-sm">Queued jobs render on a GPU backend — watch the Recent strip below.</p>
-                      </div>
-                    )}
+              <div className={cn(
+                "rounded-3xl overflow-hidden border bg-card/60 backdrop-blur-xl aspect-[4/5] relative transition-colors duration-500",
+                transferProgress.isActive ? "border-primary/50" : "border-border",
+              )}>
+                {transferProgress.isActive ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-muted-foreground">
+                    <div className="size-14 rounded-full flex items-center justify-center" style={{ background: "var(--gradient-hero)" }}>
+                      <Loader2 className="size-6 animate-spin text-primary-foreground" />
+                    </div>
+                    <GenerationProgress visible progress={transferProgress.progress} label={transferProgress.label} />
                   </div>
-                );
-              })()}
-              {history && history.items.length > 0 && (
-                <div>
-                  <h3 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Recent</h3>
-                  <div className="grid grid-cols-3 gap-2">
-                    {history.items.slice(0, 6).map((g: any) => (
-                      <div key={g.id} className="aspect-square rounded-lg overflow-hidden border border-border bg-card/40 relative group">
-                        {g.result_video_url ? (
-                          <>
-                            <AutoplayVideo src={g.result_video_url} className="w-full h-full object-cover" loop playsInline />
-                            <button
-                              type="button"
-                              onClick={() => saveAssetToDisk(g.result_video_url, `motion-${Date.now()}.mp4`)}
-                              className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 bg-black/70 rounded p-1 text-white transition-opacity"
-                            >
-                              <Download className="size-3" />
-                            </button>
-                          </>
-                        ) : g.result_image_url ? (
-                          <img src={g.result_image_url} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground">{g.status}</div>
-                        )}
-                      </div>
-                    ))}
+                ) : transferMut.isSuccess ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-8 text-center">
+                    <Link to="/gallery" className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-4 py-2.5 text-sm font-semibold text-emerald-400 no-underline hover:bg-emerald-500/20 transition-colors">
+                      <Check className="size-4" /> Queued — View in Gallery
+                    </Link>
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground p-8 text-center">
+                    <Clapperboard className="size-10 text-primary/40" />
+                    <p className="text-sm">Queued jobs render on a GPU backend — check your Gallery for results.</p>
+                  </div>
+                )}
+              </div>
             </aside>
           </div>
         )}
@@ -1490,34 +1404,12 @@ function MotionStudio() {
               </Button>
             </section>
 
-            {/* Results */}
-            {shotResults.length > 0 && (
-              <section className="space-y-3">
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Generated Shots ({shotResults.length})</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {shotResults.map((r, i) => (
-                    <div key={i} className="rounded-2xl border border-border bg-card/60 overflow-hidden">
-                      {r.kind === "video" ? (
-                        <video src={r.url} controls playsInline className="w-full aspect-video object-cover" />
-                      ) : (
-                        <img src={r.url} alt={`Shot ${i + 1}`} className="w-full aspect-square object-cover" loading="lazy" />
-                      )}
-                      <div className="p-2 flex items-center justify-between">
-                        <span className="text-[10px] text-muted-foreground capitalize">
-                          {r.engine === "kling" ? "KlingAI" : r.engine === "gemini" ? "Gemini" : "SeedDream"}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => saveAssetToDisk(r.url, `shot-${Date.now()}.${r.kind === "video" ? "mp4" : "jpg"}`)}
-                          className="text-xs text-primary flex items-center gap-1"
-                        >
-                          <Download className="size-3" /> Save
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
+            {shotResults.length > 0 && !shotLoading && (
+              <div>
+                <Link to="/gallery" className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-4 py-2.5 text-sm font-semibold text-emerald-400 no-underline hover:bg-emerald-500/20 transition-colors">
+                  <Check className="size-4" /> Ready — View in Gallery
+                </Link>
+              </div>
             )}
 
             {shotResults.length === 0 && !shotLoading && (
@@ -1587,26 +1479,12 @@ function MotionStudio() {
               </Button>
             </section>
 
-            {shotResults.filter((r) => r.kind === "video").length > 0 && (
-              <section className="space-y-3">
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Live Avatar Results</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {shotResults.filter((r) => r.kind === "video").map((r, i) => (
-                    <div key={i} className="rounded-2xl border border-border bg-card/60 overflow-hidden">
-                      <video src={r.url} controls playsInline className="w-full aspect-video object-cover" />
-                      <div className="p-2 flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => saveAssetToDisk(r.url, `live-avatar-${Date.now()}.mp4`)}
-                          className="text-xs text-primary flex items-center gap-1"
-                        >
-                          <Download className="size-3" /> Save
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
+            {shotResults.filter((r) => r.kind === "video").length > 0 && !shotLoading && (
+              <div>
+                <Link to="/gallery" className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-4 py-2.5 text-sm font-semibold text-emerald-400 no-underline hover:bg-emerald-500/20 transition-colors">
+                  <Check className="size-4" /> Ready — View in Gallery
+                </Link>
+              </div>
             )}
           </div>
         )}
@@ -1716,7 +1594,7 @@ function MotionStudio() {
                     const res = await lyricVideoFn({ data: { audioUrl: lyricAudioUrl, lines: lyricSegments } });
                     if (!res.ok) { toast.error(res.error); return; }
                     markFirstGenComplete();
-                    toast.success("Lyric video queued — check Recent in the studio");
+                    toast.success("Lyric video queued — check your Gallery");
                     qc.invalidateQueries({ queryKey: ["motion-gens"] });
                   }}
                   variant="premium"
@@ -1784,7 +1662,7 @@ function MotionStudio() {
                         await genFn({ data: { prompt: mvPrompt, imageUrls: [], motionVideoUrl: null, model: "replit/gemini-2.5-flash-image" } });
                       }
                       markFirstGenComplete();
-                      toast.success("Queued — result will appear in Recent below");
+                      toast.success("Queued — check your Gallery for results");
                       qc.invalidateQueries({ queryKey: ["motion-gens"] });
                     } catch (e) {
                       handleGenerationError(e as Error);
@@ -1798,25 +1676,11 @@ function MotionStudio() {
               </section>
             )}
 
-            {/* Recent results */}
-            {history && history.items.filter((i) => i.status === "complete").length > 0 && (
-              <section className="space-y-3">
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Recent</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {history.items.filter((i) => i.status === "complete" && (i.result_video_url ?? i.result_image_url)).slice(0, 6).map((g) => (
-                    <div key={g.id} className="aspect-square rounded-lg overflow-hidden border border-border bg-card/40">
-                      {g.result_video_url ? (
-                        <AutoplayVideo src={g.result_video_url} className="w-full h-full object-cover" loop playsInline />
-                      ) : g.result_image_url ? (
-                        <img src={g.result_image_url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground">{g.status}</div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
+            <Link to="/gallery" className="flex items-center gap-2 rounded-xl border border-border bg-card/60 px-4 py-3 text-sm font-medium no-underline hover:border-primary/40 hover:bg-card/80 transition-colors">
+              <Sparkles className="size-4 text-primary" />
+              <span>View your generations in Gallery</span>
+              <span className="ml-auto text-muted-foreground text-xs">→</span>
+            </Link>
           </div>
         )}
 

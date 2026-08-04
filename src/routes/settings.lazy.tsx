@@ -13,7 +13,6 @@ import {
   listPasskeys,
   deletePasskey,
 } from "@/lib/webauthn.functions";
-import { MobileNav } from "@/components/MobileNav";
 import { SiteFooter } from "@/components/SiteFooter";
 
 export const Route = createLazyFileRoute("/settings")({ component: SettingsPage });
@@ -145,8 +144,6 @@ function SettingsPage() {
   return (
     <div className="aurora-page-shell text-foreground min-h-screen">
       <div className="aurora-ambient" />
-      <MobileNav />
-
       <main className="relative mx-auto max-w-2xl px-4 pb-20 pt-6 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
