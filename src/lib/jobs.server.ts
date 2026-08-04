@@ -467,7 +467,9 @@ function videoAgentProjectsTable() {
   return supabaseAdmin as unknown as {
     from: (table: "video_agent_projects") => {
       update: (patch: Record<string, unknown>) => {
-        eq: (column: string, value: string) => Promise<{ error: { message: string } | null }>;
+        eq: (column: string, value: string) => {
+          eq: (column: string, value: string) => Promise<{ error: { message: string } | null }>;
+        };
       };
     };
   };
@@ -494,7 +496,7 @@ async function updateVideoAgentProject(
  * backend or assembler is a terminal error, so the shared queue refunds instead
  * of claiming a silent or partial video succeeded.
  */
-async function runVideoAgentRender(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
+async function runVideoAgentRender(job: JobRow, orch: Orchestrate, workerId: string): Promise<JobOutput> {
   const p = job.payload as {
     projectId?: string;
     prompt?: string;
@@ -543,7 +545,10 @@ async function runVideoAgentRender(job: JobRow, orch: Orchestrate): Promise<JobO
       status_message: `Rendered scene ${clipUrls.length} of ${scenes.length}…`,
       thumbnail_url: firstFrame,
     });
-    await touchJobLock(job.id, "video-agent");
+    // Heartbeat with the REAL lock owner — touchJobLock is fenced on
+    // locked_by=workerId, so any other value silently no-ops and the stale
+    // sweep would reclaim a long render mid-flight.
+    await touchJobLock(job.id, workerId);
   }
 
   // Current local assembler preserves source clip audio. We generate every
@@ -1352,7 +1357,7 @@ export async function processOneJob(
     } else if (job.kind === "autocut") {
       out = await runAutocut(job, orch, workerId);
     } else if (job.kind === "video_agent_render") {
-      out = await runVideoAgentRender(job, orch);
+      out = await runVideoAgentRender(job, orch, workerId);
     } else {
       out = await runMediaJob(job, orch);
     }

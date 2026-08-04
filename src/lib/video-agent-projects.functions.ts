@@ -17,6 +17,8 @@ const SceneSchema = z.object({
   frameStatus: z.enum(["idle", "loading", "done", "error"]).optional(),
   voiceoverStatus: z.enum(["idle", "loading", "done", "error"]).optional(),
 });
+const SceneListSchema = z.array(SceneSchema);
+type SceneRecord = z.infer<typeof SceneSchema>;
 
 const ProjectInput = z.object({
   prompt: z.string().min(10).max(4000),
@@ -24,7 +26,7 @@ const ProjectInput = z.object({
   style: StyleSchema.default("cinematic"),
   voice: VoiceSchema.default("narrator-warm"),
   targetDuration: z.number().int().min(15).max(120).default(60),
-  scenes: z.array(SceneSchema).max(12).default([]),
+  scenes: SceneListSchema.max(12).default([]),
 });
 
 type ProjectRow = {
@@ -34,7 +36,7 @@ type ProjectRow = {
   style: z.infer<typeof StyleSchema>;
   voice: z.infer<typeof VoiceSchema>;
   target_duration: number;
-  scenes: unknown[];
+  scenes: unknown;
   status: string;
   status_message: string;
   job_id: string | null;
@@ -52,24 +54,49 @@ export const VIDEO_AGENT_RENDER_COST = computeCost({
   durationSeconds: 5,
 }).total;
 
+type SingleResult = Promise<{ data: ProjectRow | null; error: { message: string } | null }>;
+type ListResult = Promise<{ data: ProjectRow[] | null; error: { message: string } | null }>;
+
+type ProjectSelectChain = {
+  eq: (column: string, value: string) => ProjectSelectChain;
+  order: (column: string, options: { ascending: boolean }) => { limit: (count: number) => ListResult };
+  maybeSingle: () => SingleResult;
+};
+
+type ProjectUpdateChain = {
+  eq: (column: string, value: string) => ProjectUpdateChain & {
+    select: (columns: string) => { single: () => SingleResult };
+  };
+};
+
+/**
+ * `video_agent_projects` is newer than the generated Supabase types, so the
+ * table access goes through a narrow structural type until types.ts is
+ * regenerated. Every accessor still scopes by user_id — RLS is a second fence,
+ * not the only one.
+ */
 function projectTable() {
-  return supabaseAdmin.from("video_agent_projects") as unknown as {
-    insert: (value: Record<string, unknown>) => { select: (columns: string) => { single: () => Promise<{ data: ProjectRow | null; error: { message: string } | null }> } };
-    select: (columns: string) => {
-      eq: (column: string, value: string) => {
-        order: (column: string, options: { ascending: boolean }) => {
-          limit: (count: number) => Promise<{ data: ProjectRow[] | null; error: { message: string } | null }>;
-        };
-        maybeSingle: () => Promise<{ data: ProjectRow | null; error: { message: string } | null }>;
+  const client = supabaseAdmin as unknown as {
+    from: (table: string) => {
+      insert: (value: Record<string, unknown>) => {
+        select: (columns: string) => { single: () => SingleResult };
       };
-    };
-    update: (value: Record<string, unknown>) => {
-      eq: (column: string, value: string) => {
-        eq: (column: string, value: string) => { select: (columns: string) => { single: () => Promise<{ data: ProjectRow | null; error: { message: string } | null }> } };
-      };
+      select: (columns: string) => ProjectSelectChain;
+      update: (value: Record<string, unknown>) => ProjectUpdateChain;
     };
   };
+  return client.from("video_agent_projects");
 }
+
+function parseScenes(value: unknown): SceneRecord[] {
+  const parsed = SceneListSchema.safeParse(value ?? []);
+  // Rows are always written through SceneSchema-validated inputs, so a parse
+  // failure means a manually-corrupted row; surface it as an empty storyboard
+  // rather than bricking the whole project list.
+  return parsed.success ? parsed.data : [];
+}
+
+export type VideoAgentProjectDto = ReturnType<typeof mapVideoAgentProject>;
 
 export function mapVideoAgentProject(row: ProjectRow) {
   return {
@@ -79,7 +106,7 @@ export function mapVideoAgentProject(row: ProjectRow) {
     style: row.style,
     voice: row.voice,
     targetDuration: row.target_duration,
-    scenes: row.scenes,
+    scenes: parseScenes(row.scenes),
     status: row.status,
     statusMessage: row.status_message,
     jobId: row.job_id,
@@ -90,6 +117,17 @@ export function mapVideoAgentProject(row: ProjectRow) {
     createdAt: new Date(row.created_at).getTime(),
     updatedAt: new Date(row.updated_at).getTime(),
   };
+}
+
+async function fetchOwnedProject(id: string, userId: string) {
+  const { data: row, error } = await projectTable()
+    .select("*")
+    .eq("id", id)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!row) throw new Error("Project not found");
+  return row;
 }
 
 export const createVideoAgentProject = createServerFn({ method: "POST" })
@@ -130,13 +168,7 @@ export const getVideoAgentProject = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
-    const { data: row, error } = await projectTable()
-      .select("*")
-      .eq("id", data.id)
-      .eq("user_id", context.userId)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!row) throw new Error("Project not found");
+    const row = await fetchOwnedProject(data.id, context.userId);
     return mapVideoAgentProject(row);
   });
 
@@ -145,13 +177,32 @@ export const updateVideoAgentProject = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => z.object({
     id: z.string().uuid(),
     title: z.string().min(1).max(160).optional(),
-    scenes: z.array(SceneSchema).max(12).optional(),
+    scenes: SceneListSchema.max(12).optional(),
   }).parse(data))
   .handler(async ({ data, context }) => {
+    const current = await fetchOwnedProject(data.id, context.userId);
     const patch: Record<string, unknown> = {};
     if (data.title !== undefined) patch.title = data.title;
-    if (data.scenes !== undefined) patch.scenes = data.scenes;
-    if (!Object.keys(patch).length) return getVideoAgentProject({ data: { id: data.id } });
+    if (data.scenes !== undefined) {
+      // The queued/processing render consumed a snapshot of this storyboard;
+      // silently mutating it mid-render would make the delivered MP4 look
+      // wrong ("that's not what I approved"). Editing re-opens after the job
+      // reaches a terminal state.
+      if (current.status === "queued" || current.status === "processing") {
+        throw new Error("The storyboard is locked while a render is in progress");
+      }
+      patch.scenes = data.scenes;
+      // Storyboard edits move a draft into the editable state, but never
+      // clobber a terminal render status (succeeded/failed keep showing the
+      // last render result until a re-render is queued).
+      if (current.status === "draft" || current.status === "editing") {
+        patch.status = data.scenes.length ? "editing" : "draft";
+        patch.status_message = data.scenes.length
+          ? "Storyboard ready to render"
+          : "Planning storyboard";
+      }
+    }
+    if (!Object.keys(patch).length) return mapVideoAgentProject(current);
     const { data: row, error } = await projectTable()
       .update(patch)
       .eq("id", data.id)
@@ -166,15 +217,62 @@ export const enqueueVideoAgentRender = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
-    const { data: project, error: projectError } = await projectTable()
-      .select("*")
-      .eq("id", data.id)
-      .eq("user_id", context.userId)
-      .maybeSingle();
-    if (projectError || !project) throw new Error(projectError?.message ?? "Project not found");
-    const scenes = z.array(SceneSchema).min(1).max(12).parse(project.scenes);
+    const project = await fetchOwnedProject(data.id, context.userId);
+    const scenes = SceneListSchema.min(1).max(12).parse(project.scenes);
     if (project.job_id && ["queued", "processing"].includes(project.status)) {
       return { jobId: project.job_id, generationId: project.generation_id, cost: VIDEO_AGENT_RENDER_COST };
+    }
+
+    // Idempotency: if a previous enqueue reserved + created the job but the
+    // project-row update afterwards failed, the row still looks unqueued while
+    // an active job (and its reservation) already exists. Adopt that job
+    // instead of reserving a second time — double-charging is worse than a
+    // stale status message (the runner overwrites the row when it claims).
+    const jobsClient = supabaseAdmin as unknown as {
+      from: (t: "jobs") => {
+        select: (c: string) => {
+          eq: (col: string, val: string) => {
+            eq: (col: string, val: string) => {
+              eq: (col: string, val: string) => {
+                in: (col: string, vals: string[]) => {
+                  order: (col: string, o: { ascending: boolean }) => {
+                    limit: (n: number) => Promise<{
+                      data: Array<{ id: string; generation_id: string | null }> | null;
+                      error: { message: string } | null;
+                    }>;
+                  };
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+    const { data: activeJobs } = await jobsClient
+      .from("jobs")
+      .select("id, generation_id")
+      .eq("kind", "video_agent_render")
+      .eq("user_id", context.userId)
+      .eq("payload->>projectId", project.id)
+      .in("status", ["queued", "processing"])
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const existing = activeJobs?.[0];
+    if (existing) {
+      await projectTable()
+        .update({
+          job_id: existing.id,
+          generation_id: existing.generation_id,
+          status: "queued",
+          status_message: "Render queued — you can safely leave this page",
+          export_url: null,
+          error: null,
+        })
+        .eq("id", project.id)
+        .eq("user_id", context.userId)
+        .select("id")
+        .single();
+      return { jobId: existing.id, generationId: existing.generation_id, cost: VIDEO_AGENT_RENDER_COST };
     }
 
     const payload = {
@@ -215,6 +313,14 @@ export const enqueueVideoAgentRender = createServerFn({ method: "POST" })
       .eq("user_id", context.userId)
       .select("*")
       .single();
-    if (updateError) throw new Error(`Render queued, but project status could not be updated: ${updateError.message}`);
+    if (updateError) {
+      // NON-fatal: the reservation + job already exist, so throwing here would
+      // make the client believe nothing was charged and invite a retry (and a
+      // double reserve). The adoption lookup above also covers a re-click, and
+      // the runner rewrites the row as soon as it claims the job.
+      console.error(
+        `[video-agent] job ${row.job_id} enqueued but project ${project.id} status update failed: ${updateError.message}`,
+      );
+    }
     return { jobId: row.job_id, generationId: row.generation_id, cost: VIDEO_AGENT_RENDER_COST };
   });

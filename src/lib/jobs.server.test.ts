@@ -638,6 +638,149 @@ describe("processOneJob", () => {
   });
 });
 
+describe("video_agent_render jobs", () => {
+  // Mirrors the kids_story contract: the project row (which /video-agent-edit
+  // polls) must always land on a terminal status when the job terminally fails,
+  // the reservation must release exactly once (inside finalize_job), and no
+  // paid generation stage may run when a preflight/validation fails.
+  const validScenes = [
+    { id: "sc1", index: 0, title: "Open", script: "Narration one.", description: "A sunrise over a quiet city", duration: 5 },
+    { id: "sc2", index: 1, title: "Close", script: "Narration two.", description: "A busy street at dusk", duration: 5 },
+  ];
+  const basePayload = {
+    projectId: "p1",
+    prompt: "make a launch video",
+    style: "cinematic",
+    targetDuration: 30,
+    scenes: validScenes,
+  };
+
+  it("fails terminally and refunds when no TTS backend is configured, before any paid stage", async () => {
+    const prevHf = process.env.HF_TOKEN;
+    delete process.env.HF_TOKEN;
+    try {
+      claimQueue = [job({ kind: "video_agent_render", credits_reserved: 20, payload: basePayload })];
+      const r = await processOneJob("w1");
+      expect(r.status).toBe("failed");
+
+      const finalizeCalls = calls.rpc.filter((c) => c.name === "finalize_job");
+      expect(finalizeCalls).toHaveLength(1);
+      expect(finalizeCalls[0].args).toMatchObject({ _job: "j1", _outcome: "failed" });
+      expect(String(finalizeCalls[0].args._error)).toMatch(/narration/i);
+      expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeUndefined();
+
+      // Failed the preflight BEFORE any paid generation stage ran.
+      expect(orchCalls).toBe(0);
+
+      // The project row lands on failed with the Aura-released message so the
+      // editor stops polling and shows the refunded state.
+      const projectUpdates = calls.updates.filter((u) => u.table === "video_agent_projects");
+      const last = projectUpdates[projectUpdates.length - 1];
+      expect(last?.patch).toMatchObject({ status: "failed" });
+      expect(String(last?.patch.status_message)).toMatch(/released/i);
+      expect(String(last?.patch.error)).toMatch(/narration/i);
+    } finally {
+      if (prevHf === undefined) delete process.env.HF_TOKEN;
+      else process.env.HF_TOKEN = prevHf;
+    }
+  });
+
+  it("fails terminally on a scene missing narration before any paid stage runs", async () => {
+    const prevHf = process.env.HF_TOKEN;
+    process.env.HF_TOKEN = "test-token";
+    try {
+      claimQueue = [
+        job({
+          kind: "video_agent_render",
+          credits_reserved: 20,
+          // Force the terminal branch via the retry ceiling — the validation
+          // message itself may not be in the hopeless-error classifier.
+          attempts: PERSISTENT_RETRY_MAX_ATTEMPTS,
+          payload: {
+            ...basePayload,
+            scenes: [{ ...validScenes[0], script: "   " }, validScenes[1]],
+          },
+        }),
+      ];
+      const r = await processOneJob("w1");
+      expect(r.status).toBe("failed");
+
+      // Scene 1 is validated before its first orchestrate call, so nothing was spent.
+      expect(orchCalls).toBe(0);
+
+      const finalizeCalls = calls.rpc.filter((c) => c.name === "finalize_job");
+      expect(finalizeCalls).toHaveLength(1);
+      expect(String(finalizeCalls[0].args._error)).toMatch(/missing narration/i);
+
+      // The runner honestly reported "processing" first, then landed on failed.
+      const projectUpdates = calls.updates.filter((u) => u.table === "video_agent_projects");
+      expect(projectUpdates[0]?.patch).toMatchObject({ status: "processing" });
+      const last = projectUpdates[projectUpdates.length - 1];
+      expect(last?.patch).toMatchObject({ status: "failed" });
+    } finally {
+      if (prevHf === undefined) delete process.env.HF_TOKEN;
+      else process.env.HF_TOKEN = prevHf;
+    }
+  });
+
+  it("marks the project failed and releases exactly once when a provider dies mid-render", async () => {
+    const prevHf = process.env.HF_TOKEN;
+    process.env.HF_TOKEN = "test-token";
+    try {
+      orchestrateImpl = async () => {
+        throw new Error("provider exploded mid-render");
+      };
+      claimQueue = [
+        job({
+          kind: "video_agent_render",
+          credits_reserved: 20,
+          attempts: PERSISTENT_RETRY_MAX_ATTEMPTS,
+          payload: basePayload,
+        }),
+      ];
+      const r = await processOneJob("w1");
+      expect(r.status).toBe("failed");
+
+      // At least one paid stage was genuinely attempted (not a preflight rerun).
+      expect(orchCalls).toBeGreaterThan(0);
+
+      const finalizeCalls = calls.rpc.filter((c) => c.name === "finalize_job");
+      expect(finalizeCalls).toHaveLength(1);
+      expect(finalizeCalls[0].args).toMatchObject({ _job: "j1", _outcome: "failed" });
+      expect(String(finalizeCalls[0].args._error)).toMatch(/provider exploded mid-render/i);
+      expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeUndefined();
+      expect(calls.updates.find((u) => u.table === "generations")).toBeUndefined();
+
+      const projectUpdates = calls.updates.filter((u) => u.table === "video_agent_projects");
+      const last = projectUpdates[projectUpdates.length - 1];
+      expect(last?.patch).toMatchObject({ status: "failed" });
+      expect(String(last?.patch.status_message)).toMatch(/released/i);
+    } finally {
+      if (prevHf === undefined) delete process.env.HF_TOKEN;
+      else process.env.HF_TOKEN = prevHf;
+    }
+  });
+
+  it("does NOT touch the project row when it has lost the lock to a stale-sweep reclaim", async () => {
+    const prevHf = process.env.HF_TOKEN;
+    delete process.env.HF_TOKEN; // fail the preflight before any project write
+    try {
+      jobsCasWins = false;
+      claimQueue = [job({ kind: "video_agent_render", credits_reserved: 20, payload: basePayload })];
+      const r = await processOneJob("w1");
+      expect(r.status).toBe("stale");
+      expect(calls.rpc.find((c) => c.name === "finalize_job")?.args).toMatchObject({
+        _outcome: "failed",
+      });
+      expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeUndefined();
+      expect(calls.updates.find((u) => u.table === "video_agent_projects")).toBeUndefined();
+    } finally {
+      if (prevHf === undefined) delete process.env.HF_TOKEN;
+      else process.env.HF_TOKEN = prevHf;
+    }
+  });
+});
+
 describe("processBatch", () => {
   it("drains queued jobs and stops at the first empty claim", async () => {
     claimQueue = [job({ id: "a" }), job({ id: "b" })];

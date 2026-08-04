@@ -97,6 +97,22 @@ The script writes the PDF to all three locations automatically.
 
 A CI staleness check (`tutorial-pdf` validation command) will fail if tutorial sources are newer than the PDF — run the regen script above to fix it.
 
+## Video Agent (durable renders)
+
+Video Agent projects are server-state, not browser-state: rows in `video_agent_projects`
+(Supabase), CRUD in `src/lib/video-agent-projects.functions.ts`, rendered by the
+production job queue (`video_agent_render` kind in `src/lib/jobs.server.ts`).
+- Planning (script + free storyboard frames) charges nothing; the only charge point is
+  the explicit "Render video" button (reserve → render → finalize; Aura auto-released
+  on terminal failure).
+- The editor polls the project row while a render is queued/processing — renders
+  survive closing the tab.
+- Queue stall alerts: `/api/public/uptime-monitor` also runs a render-queue distress
+  check (eligible job queued >20 min, or a processing lock >30 min old → operator
+  email; dedup state row `id='queue'` in `uptime_monitor_state`). Ops view:
+  `/admin/orchestration` → "Generation queue" panel.
+- Live schema check without provider spend: `bun run scripts/va-live-roundtrip.ts`.
+
 ## Development principles (Karpathy Guidelines)
 
 Apply these four principles on every code task:
