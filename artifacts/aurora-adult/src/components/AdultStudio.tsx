@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Lock, EyeOff, ShieldCheck, Star, ImagePlus, X, Download, Loader2, Sparkles, LogOut, RefreshCw, Camera } from "lucide-react";
 
-interface Props { session: Session; }
+interface Props { session: Session | null; }
 
 type JobStatus = "pending" | "processing" | "completed" | "failed";
 interface Generation { id: string; prompt: string; status: JobStatus; result_image_url: string | null; created_at: string; error: string | null; }
@@ -101,7 +101,7 @@ export function AdultStudio({ session }: Props) {
 
   async function uploadRef(file: File): Promise<string> {
     const ext = file.name.split(".").pop() ?? "jpg";
-    const path = `${session.user.id}/adult-refs/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const path = `${session?.user.id ?? "anon"}/adult-refs/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
     const { error } = await supabase.storage.from("studio").upload(path, file, { contentType: file.type, upsert: false });
     if (error) throw error;
     const { data: signed, error: se } = await supabase.storage.from("studio").createSignedUrl(path, 3600);
@@ -118,7 +118,7 @@ export function AdultStudio({ session }: Props) {
       const extra = customPrompt.trim() ? ` Additional details: ${customPrompt.trim()}` : "";
       const identityPrefix = "You are an AI compositor. Use the uploaded face photo as identity reference — keep facial likeness, skin tone, hairstyle EXACTLY the same. ";
       const prompt = identityPrefix + base + extra + " Hyper-realistic photography, ultra-HD 8K, lifelike skin texture, physically accurate lighting, no CGI or illustration look.";
-      const token = session.access_token;
+      const token = session?.access_token ?? "";
       const base_url = AURORA_URL || "";
       const res = await fetch(`${base_url}/api/public/generate`, {
         method: "POST",
@@ -167,10 +167,14 @@ export function AdultStudio({ session }: Props) {
               {v}
             </button>
           ))}
-          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{session.user.email}</span>
-          <button onClick={() => supabase.auth.signOut()} style={{ padding: "7px 12px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
-            <LogOut size={14} /> Out
-          </button>
+          {session && (
+            <>
+              <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{session.user.email}</span>
+              <button onClick={() => supabase.auth.signOut()} style={{ padding: "7px 12px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+                <LogOut size={14} /> Out
+              </button>
+            </>
+          )}
         </div>
       </header>
 

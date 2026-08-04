@@ -180,7 +180,7 @@ function AdminPage() {
           >
             <span className="size-1.5 rounded-full bg-amber-400 shrink-0" />
             Adult School
-            <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-background/60 border border-border text-muted-foreground">owner only · 18+</span>
+            <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-background/60 border border-border text-muted-foreground">18+</span>
           </a>
         </section>
 
