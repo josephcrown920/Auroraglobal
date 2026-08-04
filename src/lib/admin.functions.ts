@@ -3,6 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { GENERATION_SUCCESS_STATUSES, aggregateByDayKind, bucketEarningsSeries } from "./cost-stats";
 import { computeProfitSplit, PROFIT_SPLIT_PCT, CREDIT_FUNDING_PCT } from "@/lib/profit-split";
+import { runModelWatchScan, type ModelWatchRow } from "@/lib/model-watch.server";
 import { z } from "zod";
 
 // Hidden owner gate. Validates against ADMIN_USERNAME + ADMIN_PASSCODE
@@ -590,4 +591,49 @@ export const adminCostStats = createServerFn({ method: "GET" })
     const byDayKind = aggregateByDayKind(gens ?? []);
 
     return { byDayKind, since };
+  });
+
+// ─── Model Watch (automatic new-AI-model discovery) ──────────────────────────
+// Rows live in `model_watch` (service-role only — not in generated types).
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const modelWatch = () => supabaseAdmin.from("model_watch" as any) as any;
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+export const adminModelWatchList = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
+    const { data, error } = await modelWatch()
+      .select("*")
+      .order("first_seen", { ascending: false })
+      .limit(400);
+    if (error) throw new Error(error.message);
+    return { rows: (data ?? []) as ModelWatchRow[] };
+  });
+
+export const adminModelWatchSetStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({ id: z.string().uuid(), status: z.enum(["new", "reviewed", "ignored"]) })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context.userId);
+    const { error } = await modelWatch()
+      .update({ status: data.status })
+      .eq("id", data.id)
+      // Anticipated rows keep their probe lifecycle — only catalog rows are
+      // review-workflow items.
+      .eq("watch_kind", "catalog");
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const adminModelWatchScanNow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
+    return await runModelWatchScan();
   });

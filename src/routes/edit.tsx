@@ -1,9 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-type EditSearch = { job?: string };
+import { AUTOCUT_STYLE_IDS, type AutocutStyle } from "@/lib/template-studio";
+
+// All-optional return type — required so existing <Link to="/edit"> calls
+// without search params keep typechecking.
+type EditSearch = { job?: string; style?: AutocutStyle };
 
 export const Route = createFileRoute("/edit")({
   validateSearch: (search: Record<string, unknown>): EditSearch => ({
     job: typeof search.job === "string" ? search.job : undefined,
+    style:
+      typeof search.style === "string" &&
+      (AUTOCUT_STYLE_IDS as readonly string[]).includes(search.style)
+        ? (search.style as AutocutStyle)
+        : undefined,
   }),
   head: () => ({
     meta: [

@@ -1138,6 +1138,14 @@ const BYTEPLUS_DEFAULTS: Record<string, BytePlusEntry> = {
   // Newest confirmed-live Seedance tier (2026-07-05 catalog pull). Same
   // ByteDance-only caveat as seedream-5 above — no verified Replicate slug.
   "seedance-3.0": { modelId: "seedance-1-5-pro-251215", kind: "video" },
+  // Seedance 2.5 (ByteDance release 2026-07-31). Slug confirmed REAL on
+  // ModelArk 2026-08-04 via live probe: the API returns ModelNotOpen
+  // ("Your account … has not activated the model — activate in the Ark
+  // Console"), NOT InvalidEndpointOrModel.NotFound (dead slug). Until the
+  // account activates it, byteplus.run() fails and orchestrate() falls
+  // through to the video fallback chain like any provider error. Same
+  // ByteDance-only caveat as seedance-3.0 — no Replicate/fal slug exists.
+  "seedance-2.5": { modelId: "dreamina-seedance-2-5-260628", kind: "video" },
 };
 const BYTEPLUS_MAP: Record<string, BytePlusEntry> = (() => {
   const out: Record<string, BytePlusEntry> = { ...BYTEPLUS_DEFAULTS };
@@ -2711,6 +2719,11 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     // hand here. Cost is a conservative estimate above the existing pro tier
     // ($0.65) pending real invoice data.
     "seedance-3.0": { provider: "byteplus", kind: "video", cost: 0.75 },
+    // Seedance 2.5 — preview until the BytePlus account activates the slug in
+    // the Ark Console (2026-08-04 probe: ModelNotOpen). Cost is the published
+    // t2v token rate ($10.70/M ≈ $1.16 per 720p·5s) — the conservative end;
+    // with-video-input runs are cheaper (~$0.69).
+    "seedance-2.5": { provider: "byteplus", kind: "video", cost: 1.16 },
     // Seedream 5.0 — same ByteDance-only caveat as seedance-3.0.
     "fal-ai/seedream-5": { provider: "byteplus", kind: "image", cost: 0.06 },
     // ElevenLabs TTS (sentinel — adapter ignores the model key, picks voice via params)

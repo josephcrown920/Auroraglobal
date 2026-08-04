@@ -139,13 +139,36 @@ export const VIDEO_MODEL_LIST: ModelMeta[] = [
     icon: Film,
     color: "text-violet-500",
     bg: "bg-violet-600/15 border-violet-600/30",
-    tagline: "Newest ByteDance video model · best motion + fidelity",
+    tagline: "High-fidelity motion · cinematic detail",
     status: "live",
     category: "video",
     // BytePlus-direct only (see BYTEPLUS_DEFAULTS in orchestrator.server.ts) —
     // no verified Replicate/fal slug exists yet, so `endpoint` above is a
     // placeholder label, not a real dispatchable path. Actual routing keys
     // off `value` (seedance-3.0), not this field.
+  },
+  {
+    value: "seedance-2.5",
+    // BytePlus-direct only. `endpoint` is a display label (must stay UNIQUE —
+    // it feeds the ALL[m.endpoint] index); real routing keys off `value` via
+    // BYTEPLUS_DEFAULTS → ModelArk slug dreamina-seedance-2-5-260628.
+    endpoint: "byteplus/dreamina-seedance-2-5-260628",
+    label: "Seedance 2.5",
+    short: "Seedance 2.5",
+    group: "Replicate",
+    icon: Film,
+    color: "text-fuchsia-400",
+    bg: "bg-fuchsia-500/15 border-fuchsia-500/30",
+    tagline: "ByteDance's newest · 30s scenes with native audio",
+    // "preview" (same pattern as kling-3.0-omni): fully wired end-to-end, and
+    // a 2026-08-04 live probe confirmed the ModelArk slug is REAL (error was
+    // ModelNotOpen "activate in Ark Console" — NOT InvalidEndpointOrModel
+    // .NotFound, which is what a dead slug returns). The BytePlus account has
+    // not activated the model yet, so a render cannot complete. Promote to
+    // "live" after Ark Console activation + one verified render (the
+    // model-watch cron probes this slug and emails when it flips callable).
+    status: "preview",
+    category: "video",
   },
   {
     value: "kling-3.0",

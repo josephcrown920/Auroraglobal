@@ -292,6 +292,10 @@ function RootComponent() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isIsolated = pathname === "/nexusarb" || pathname.startsWith("/nexusarb/");
   const isVideoAgent = pathname === "/video-agent" || pathname.startsWith("/video-agent/");
+  // /edit is a full-screen CapCut-style editor: it owns the whole viewport
+  // (h-dvh stage + timeline + tool dock), so the tab bar and chat bubble
+  // would overlap its dock — hide them there, like on the video agent.
+  const isFullScreenEditor = pathname === "/edit";
 
   if (isIsolated) {
     // NexusARB stays a self-contained, full-bleed page: no phone frame, no
@@ -320,10 +324,10 @@ function RootComponent() {
             </SiteCopyProvider>
           </SiteImagesProvider>
           <Toaster />
-          {!isVideoAgent && <AuroraChatbot />}
+          {!isVideoAgent && !isFullScreenEditor && <AuroraChatbot />}
           <AdminHotkey />
           <ReferralAttacher />
-          {!isVideoAgent && <MobileNav />}
+          {!isVideoAgent && !isFullScreenEditor && <MobileNav />}
           <CookieConsentBanner />
         </QueryClientProvider>
       </ThemeProvider>

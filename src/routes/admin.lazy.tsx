@@ -13,7 +13,7 @@ import { listWorkers, upsertWorker, deleteWorker, pingWorker, setWorkerStatus, g
 import { issuePromoCode, listPromoCodes, setPromoCodeActive, type PromoCodeRow } from "@/lib/promo.functions";
 import { PROFIT_SPLIT_PCT } from "@/lib/profit-split";
 import { ModelBadge } from "@/components/ModelBadge";
-import { Shield, Sparkles, Loader2, Users, DollarSign, ImagePlay, Coins, ArrowRight, Server, Trash2, Activity, TrendingUp, Gift, Pause, Play, Zap, Store, Wallet, Tag, Copy, BookOpen, Image, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Shield, Sparkles, Loader2, Users, DollarSign, ImagePlay, Coins, ArrowRight, Server, Trash2, Activity, TrendingUp, Gift, Pause, Play, Zap, Store, Wallet, Tag, Copy, BookOpen, Image, CheckCircle, XCircle, Clock, Radar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Button } from "@/components/ui/button";
@@ -96,6 +96,7 @@ function AdminPage() {
           <Link to="/admin/orchestration" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"><Activity className="size-3.5" /> Orchestration</Link>
           <Link to="/admin/costs" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"><Coins className="size-3.5" /> Costs</Link>
           <Link to="/admin/templates" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"><Store className="size-3.5" /> Templates</Link>
+          <Link to="/admin/models" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"><Radar className="size-3.5" /> Model Watch</Link>
           <Link to="/admin/workflows" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"><BookOpen className="size-3.5" /> Guides</Link>
           <Link to="/admin/smoke" className="text-sm text-muted-foreground hover:text-foreground">Smoke test</Link>
           <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">My dashboard</Link>

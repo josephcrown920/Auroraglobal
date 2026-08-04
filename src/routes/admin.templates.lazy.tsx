@@ -4,11 +4,17 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { adminListMarketplaceTemplates, adminReviewMarketplaceTemplate } from "@/lib/marketplace.functions";
+import {
+  STUDIO_TEMPLATES,
+  CATEGORY_ORDER,
+  templateCost,
+  templateFlowLabel,
+} from "@/lib/template-studio";
 import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Shield, Loader2, ArrowLeft, CheckCircle2, XCircle, Clock, Store, Eye } from "lucide-react";
+import { Shield, Loader2, ArrowLeft, CheckCircle2, XCircle, Clock, Store, Eye, Crown, Wand2 } from "lucide-react";
 
 export const Route = createLazyFileRoute("/admin/templates")({
   component: AdminTemplatesPage,
@@ -93,6 +99,84 @@ function AdminTemplatesPage() {
       </header>
 
       <div className="max-w-6xl mx-auto p-6 md:p-10 space-y-6">
+        {/* ── Platform templates (built-in manifest) ───────────────────── */}
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
+              <Wand2 className="size-6 text-primary" /> Platform Templates
+            </h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              The {STUDIO_TEMPLATES.length} built-in templates live on /templates. Defined in the
+              app manifest (template-studio.ts) — costs derive from pricing.ts, so what you see
+              here is exactly what users are charged.
+            </p>
+          </div>
+          <div className="grid gap-3">
+            {CATEGORY_ORDER.map((cat) => {
+              const items = STUDIO_TEMPLATES.filter((t) => t.category === cat);
+              if (items.length === 0) return null;
+              return (
+                <div key={cat} className="rounded-2xl border border-border bg-card/40">
+                  <p className="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {cat} · {items.length}
+                  </p>
+                  <div className="divide-y divide-border/60">
+                    {items.map((t) => {
+                      const cost = templateCost(t);
+                      return (
+                        <div key={t.id} className="flex items-center gap-3 px-4 py-2.5">
+                          <img
+                            src={t.thumbnail}
+                            alt=""
+                            loading="lazy"
+                            className="size-10 rounded-lg object-cover border border-border shrink-0"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <p className="truncate text-sm font-medium">{t.title}</p>
+                              {t.premium && <Crown className="size-3 shrink-0 text-primary" />}
+                            </div>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {templateFlowLabel(t)} · dispatch: {t.dispatch} · {t.id}
+                            </p>
+                          </div>
+                          <span className="shrink-0 text-xs font-semibold text-primary">
+                            {cost > 0 ? `${cost} Aura` : "Free"}
+                          </span>
+                          {t.dispatch === "autocut" ? (
+                            <Link
+                              to="/edit"
+                              search={t.autocutStyle ? { style: t.autocutStyle } : {}}
+                              className="shrink-0 text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                            >
+                              Open
+                            </Link>
+                          ) : t.dispatch === "beat-reel" ? (
+                            <Link
+                              to="/beat-reel"
+                              className="shrink-0 text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                            >
+                              Open
+                            </Link>
+                          ) : (
+                            <Link
+                              to="/templates"
+                              search={{ open: t.id }}
+                              className="shrink-0 text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                            >
+                              Open
+                            </Link>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">

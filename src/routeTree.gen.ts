@@ -86,6 +86,7 @@ import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
 import { Route as AdminSmokeRouteImport } from './routes/admin.smoke'
 import { Route as AdminSiteImagesRouteImport } from './routes/admin.site-images'
 import { Route as AdminOrchestrationRouteImport } from './routes/admin.orchestration'
+import { Route as AdminModelsRouteImport } from './routes/admin.models'
 import { Route as AdminCostsRouteImport } from './routes/admin.costs'
 import { Route as AdminComfyRouteImport } from './routes/admin.comfy'
 import { Route as AdminAssetsRouteImport } from './routes/admin.assets'
@@ -100,6 +101,7 @@ import { Route as ApiPublicUptimeMonitorRouteImport } from './routes/api/public/
 import { Route as ApiPublicSiteImagesRouteImport } from './routes/api/public/site-images'
 import { Route as ApiPublicSiteCopyRouteImport } from './routes/api/public/site-copy'
 import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/public/paystack-webhook'
+import { Route as ApiPublicModelWatchRouteImport } from './routes/api/public/model-watch'
 import { Route as ApiPublicLifecycleEmailsRouteImport } from './routes/api/public/lifecycle-emails'
 import { Route as ApiPublicGenerateRouteImport } from './routes/api/public/generate'
 import { Route as ApiPublicFreeMonthlyGrantRouteImport } from './routes/api/public/free-monthly-grant'
@@ -520,6 +522,11 @@ const AdminOrchestrationRoute = AdminOrchestrationRouteImport.update({
 } as any).lazy(() =>
   import('./routes/admin.orchestration.lazy').then((d) => d.Route),
 )
+const AdminModelsRoute = AdminModelsRouteImport.update({
+  id: '/models',
+  path: '/models',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin.models.lazy').then((d) => d.Route))
 const AdminCostsRoute = AdminCostsRouteImport.update({
   id: '/costs',
   path: '/costs',
@@ -593,6 +600,11 @@ const ApiPublicPaystackWebhookRoute =
     path: '/api/public/paystack-webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicModelWatchRoute = ApiPublicModelWatchRouteImport.update({
+  id: '/api/public/model-watch',
+  path: '/api/public/model-watch',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicLifecycleEmailsRoute =
   ApiPublicLifecycleEmailsRouteImport.update({
     id: '/api/public/lifecycle-emails',
@@ -750,6 +762,7 @@ export interface FileRoutesByFullPath {
   '/admin/assets': typeof AdminAssetsRoute
   '/admin/comfy': typeof AdminComfyRoute
   '/admin/costs': typeof AdminCostsRoute
+  '/admin/models': typeof AdminModelsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
   '/admin/site-images': typeof AdminSiteImagesRoute
   '/admin/smoke': typeof AdminSmokeRoute
@@ -773,6 +786,7 @@ export interface FileRoutesByFullPath {
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
+  '/api/public/model-watch': typeof ApiPublicModelWatchRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
@@ -859,6 +873,7 @@ export interface FileRoutesByTo {
   '/admin/assets': typeof AdminAssetsRoute
   '/admin/comfy': typeof AdminComfyRoute
   '/admin/costs': typeof AdminCostsRoute
+  '/admin/models': typeof AdminModelsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
   '/admin/site-images': typeof AdminSiteImagesRoute
   '/admin/smoke': typeof AdminSmokeRoute
@@ -882,6 +897,7 @@ export interface FileRoutesByTo {
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
+  '/api/public/model-watch': typeof ApiPublicModelWatchRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
@@ -969,6 +985,7 @@ export interface FileRoutesById {
   '/admin/assets': typeof AdminAssetsRoute
   '/admin/comfy': typeof AdminComfyRoute
   '/admin/costs': typeof AdminCostsRoute
+  '/admin/models': typeof AdminModelsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
   '/admin/site-images': typeof AdminSiteImagesRoute
   '/admin/smoke': typeof AdminSmokeRoute
@@ -992,6 +1009,7 @@ export interface FileRoutesById {
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
+  '/api/public/model-watch': typeof ApiPublicModelWatchRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
@@ -1080,6 +1098,7 @@ export interface FileRouteTypes {
     | '/admin/assets'
     | '/admin/comfy'
     | '/admin/costs'
+    | '/admin/models'
     | '/admin/orchestration'
     | '/admin/site-images'
     | '/admin/smoke'
@@ -1103,6 +1122,7 @@ export interface FileRouteTypes {
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
     | '/api/public/lifecycle-emails'
+    | '/api/public/model-watch'
     | '/api/public/paystack-webhook'
     | '/api/public/site-copy'
     | '/api/public/site-images'
@@ -1189,6 +1209,7 @@ export interface FileRouteTypes {
     | '/admin/assets'
     | '/admin/comfy'
     | '/admin/costs'
+    | '/admin/models'
     | '/admin/orchestration'
     | '/admin/site-images'
     | '/admin/smoke'
@@ -1212,6 +1233,7 @@ export interface FileRouteTypes {
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
     | '/api/public/lifecycle-emails'
+    | '/api/public/model-watch'
     | '/api/public/paystack-webhook'
     | '/api/public/site-copy'
     | '/api/public/site-images'
@@ -1298,6 +1320,7 @@ export interface FileRouteTypes {
     | '/admin/assets'
     | '/admin/comfy'
     | '/admin/costs'
+    | '/admin/models'
     | '/admin/orchestration'
     | '/admin/site-images'
     | '/admin/smoke'
@@ -1321,6 +1344,7 @@ export interface FileRouteTypes {
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
     | '/api/public/lifecycle-emails'
+    | '/api/public/model-watch'
     | '/api/public/paystack-webhook'
     | '/api/public/site-copy'
     | '/api/public/site-images'
@@ -1423,6 +1447,7 @@ export interface RootRouteChildren {
   ApiPublicFreeMonthlyGrantRoute: typeof ApiPublicFreeMonthlyGrantRoute
   ApiPublicGenerateRoute: typeof ApiPublicGenerateRoute
   ApiPublicLifecycleEmailsRoute: typeof ApiPublicLifecycleEmailsRoute
+  ApiPublicModelWatchRoute: typeof ApiPublicModelWatchRoute
   ApiPublicPaystackWebhookRoute: typeof ApiPublicPaystackWebhookRoute
   ApiPublicSiteCopyRoute: typeof ApiPublicSiteCopyRoute
   ApiPublicSiteImagesRoute: typeof ApiPublicSiteImagesRoute
@@ -1978,6 +2003,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminOrchestrationRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/models': {
+      id: '/admin/models'
+      path: '/models'
+      fullPath: '/admin/models'
+      preLoaderRoute: typeof AdminModelsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/costs': {
       id: '/admin/costs'
       path: '/costs'
@@ -2074,6 +2106,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/paystack-webhook'
       fullPath: '/api/public/paystack-webhook'
       preLoaderRoute: typeof ApiPublicPaystackWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/model-watch': {
+      id: '/api/public/model-watch'
+      path: '/api/public/model-watch'
+      fullPath: '/api/public/model-watch'
+      preLoaderRoute: typeof ApiPublicModelWatchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/lifecycle-emails': {
@@ -2202,6 +2241,7 @@ interface AdminRouteChildren {
   AdminAssetsRoute: typeof AdminAssetsRoute
   AdminComfyRoute: typeof AdminComfyRoute
   AdminCostsRoute: typeof AdminCostsRoute
+  AdminModelsRoute: typeof AdminModelsRoute
   AdminOrchestrationRoute: typeof AdminOrchestrationRoute
   AdminSiteImagesRoute: typeof AdminSiteImagesRoute
   AdminSmokeRoute: typeof AdminSmokeRoute
@@ -2213,6 +2253,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminAssetsRoute: AdminAssetsRoute,
   AdminComfyRoute: AdminComfyRoute,
   AdminCostsRoute: AdminCostsRoute,
+  AdminModelsRoute: AdminModelsRoute,
   AdminOrchestrationRoute: AdminOrchestrationRoute,
   AdminSiteImagesRoute: AdminSiteImagesRoute,
   AdminSmokeRoute: AdminSmokeRoute,
@@ -2314,6 +2355,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicFreeMonthlyGrantRoute: ApiPublicFreeMonthlyGrantRoute,
   ApiPublicGenerateRoute: ApiPublicGenerateRoute,
   ApiPublicLifecycleEmailsRoute: ApiPublicLifecycleEmailsRoute,
+  ApiPublicModelWatchRoute: ApiPublicModelWatchRoute,
   ApiPublicPaystackWebhookRoute: ApiPublicPaystackWebhookRoute,
   ApiPublicSiteCopyRoute: ApiPublicSiteCopyRoute,
   ApiPublicSiteImagesRoute: ApiPublicSiteImagesRoute,

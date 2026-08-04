@@ -1,7 +1,7 @@
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Sparkles, Wand2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { getMyProfile } from "@/lib/billing.functions";
 import {
@@ -12,8 +12,6 @@ import {
 } from "@/lib/template-studio";
 import { TemplateCard } from "@/components/templates/TemplateCard";
 import { TemplateDrawer } from "@/components/templates/TemplateDrawer";
-
-type TemplateSearch = { open?: string; category?: string };
 
 export const Route = createLazyFileRoute("/templates")({ component: TemplatesPage });
 
@@ -45,59 +43,40 @@ function TemplatesPage() {
     : CATEGORY_ORDER;
 
   return (
-    <main className="aurora-page-shell text-foreground">
-      <span aria-hidden className="aurora-ambient" />
-
-      <header className="relative z-10 flex items-center justify-between border-b border-border bg-background/80 px-5 py-4 backdrop-blur-xl">
+    <main
+      className="min-h-dvh pt-[env(safe-area-inset-top)] text-foreground"
+      style={{ background: "var(--gradient-page)" }}
+    >
+      {/* ── Top bar ─────────────────────────────────────────────────────── */}
+      <header className="flex items-center justify-between px-4 pb-2 pt-3">
         <Link
           to="/"
-          className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground no-underline"
+          aria-label="Back home"
+          className="flex size-9 items-center justify-center rounded-full bg-card text-muted-foreground shadow-[var(--shadow-card)] no-underline transition hover:text-foreground"
         >
-          <ArrowLeft className="size-4" /> Home
+          <ArrowLeft className="size-4" />
         </Link>
         <Link
           to="/gallery"
-          className="text-sm font-medium text-primary no-underline hover:brightness-110"
+          className="flex items-center gap-1.5 rounded-full bg-card px-3.5 py-2 text-xs font-bold text-muted-foreground shadow-[var(--shadow-card)] no-underline transition hover:text-foreground"
         >
-          My gallery
+          <Sparkles className="size-3.5 text-brand-ink" /> My gallery
         </Link>
       </header>
 
-      <section className="relative z-10 px-5 pb-24 pt-6">
+      <section className="px-4 pb-24 pt-2">
         {/* Intro */}
-        <div className="mb-5">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs text-primary">
-            <Wand2 className="size-3.5" /> One-tap studio
-          </span>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight">
-            Pick a template.
-            <span className="block aurora-gradient-text">We do the rest.</span>
+        <div className="mb-4">
+          <h1 className="text-[28px] font-extrabold leading-tight tracking-tight">
+            Templates
           </h1>
-          <p className="mt-2 max-w-md text-sm text-muted-foreground">
-            Upload a photo (and a song for lip-sync), tap generate, and your render lands in your
-            gallery.
+          <p className="mt-1 max-w-md text-sm text-muted-foreground">
+            One tap — Aurora does the rest. Your render lands in your gallery.
           </p>
         </div>
 
-        {/* Viral Guides cross-link */}
-        <Link
-          to="/guides"
-          className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 no-underline transition hover:bg-primary/10"
-        >
-          <div>
-            <p className="text-sm font-semibold text-foreground">
-              Prefer step-by-step? Browse the Viral Guides
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Helicopter Reveal, Floating Music Cards, the Wong Kar-wai Look and more — full
-              prompt walkthroughs you run at your own pace.
-            </p>
-          </div>
-          <ArrowLeft className="size-4 shrink-0 rotate-180 text-primary" />
-        </Link>
-
         {/* Category chips */}
-        <div className="mb-6 flex flex-wrap gap-2">
+        <div className="no-scrollbar -mx-4 mb-4 flex gap-2 overflow-x-auto px-4">
           <Chip active={!activeCategory} onClick={() => setCategory(null)}>
             All
           </Chip>
@@ -108,17 +87,39 @@ function TemplatesPage() {
           ))}
         </div>
 
-        {/* Grouped grid */}
-        <div className="space-y-8">
+        {/* Viral Guides cross-link */}
+        <Link
+          to="/guides"
+          className="mb-5 flex items-center justify-between gap-3 rounded-2xl bg-card px-4 py-3 no-underline shadow-[var(--shadow-card)] transition active:scale-[0.99]"
+        >
+          <div className="flex items-center gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/12 text-brand-ink">
+              <BookOpen className="size-4" />
+            </span>
+            <div>
+              <p className="text-sm font-bold text-foreground">Prefer step-by-step? Viral Guides</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Full prompt walkthroughs you run at your own pace.
+              </p>
+            </div>
+          </div>
+          <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+        </Link>
+
+        {/* Grouped strips */}
+        <div className="space-y-7">
           {shownCategories.map((cat) => {
             const items = STUDIO_TEMPLATES.filter((t) => t.category === cat);
             if (items.length === 0) return null;
             return (
               <div key={cat}>
-                <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/70">
-                  <Sparkles className="size-3.5 text-primary" /> {cat}
-                </h2>
-                <div className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2">
+                <div className="mb-2.5 flex items-baseline justify-between">
+                  <h2 className="text-[15px] font-bold tracking-tight">{cat}</h2>
+                  <span className="text-[11px] font-medium text-muted-foreground">
+                    {items.length} template{items.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+                <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
                   {items.map((t) => (
                     <TemplateCard
                       key={t.id}
@@ -126,7 +127,11 @@ function TemplatesPage() {
                       locked={!!t.premium && !isPro}
                       onSelect={
                         t.dispatch === "autocut"
-                          ? () => navigateTo({ to: "/edit" })
+                          ? () =>
+                              navigateTo({
+                                to: "/edit",
+                                search: t.autocutStyle ? { style: t.autocutStyle } : {},
+                              })
                           : t.dispatch === "beat-reel"
                           ? () => navigateTo({ to: "/beat-reel" })
                           : () => openTemplate(t.id)
@@ -165,11 +170,12 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+      className={`shrink-0 rounded-full px-4 py-2 text-[13px] font-bold transition-colors ${
         active
-          ? "bg-[image:var(--gradient-hero)] text-white shadow-[var(--shadow-glow-soft)]"
-          : "border border-border bg-white/[0.03] text-muted-foreground hover:text-foreground"
+          ? "text-white"
+          : "bg-card text-muted-foreground shadow-[var(--shadow-card)] hover:text-foreground"
       }`}
+      style={active ? { background: "var(--gradient-cta)" } : undefined}
     >
       {children}
     </button>
