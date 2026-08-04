@@ -17,10 +17,10 @@ const fitnessTemplateImg       = "/josh/generated2/viral-09-vertical-poster.webp
 const fashionTemplateImg       = "/josh/generated2/colors-royal-blue.webp";
 const beautyTemplateImg        = "/josh/generated2/colors-sunset-orange.webp";
 
-// 50 posts per run — maximum variation batch (10 Aura × 50 = 500 Aura upfront).
-// The engine is count-driven; the fallback axes have LCM(10,11)=110 ≥ 50 so
+// 30 posts per run — (10 Aura × 30 = 300 Aura upfront).
+// The engine is count-driven; the fallback axes have LCM(10,11)=110 ≥ 30 so
 // every (location, outfit) pair is still unique across the full batch.
-export const SPIN_COUNT = 50;
+export const SPIN_COUNT = 30;
 // 10 Aura per spin piece (2026-07-19 ×10 rebase) — the single client-safe
 // source for the per-piece charge. spin.functions.ts (server) and every cost
 // label import THIS constant so the disclosed price can never drift from what
@@ -213,14 +213,16 @@ export const SPIN_CONTENT_TYPES = [
 ];
 
 const HOOK_TEMPLATES = [
-  (b: string) => `POV: ${b}`,
-  (b: string) => `Wait for it… ${b}`,
-  (b: string) => `Nobody talks about ${b}`,
-  (b: string) => `3 things about ${b}`,
-  (b: string) => `How I ${b}`,
-  (b: string) => `The truth about ${b}`,
-  (b: string) => `Day in my life: ${b}`,
-  (b: string) => `Stop scrolling — ${b}`,
+  (b: string) => `POV: you finally stopped playing small — ${b}`,
+  (b: string) => `I almost gave up. Then ${b} happened.`,
+  (b: string) => `Nobody talks about what it actually takes to ${b}`,
+  (b: string) => `They laughed at me. Now ${b}.`,
+  (b: string) => `The moment I decided to bet on myself: ${b}`,
+  (b: string) => `This is the thing that changed everything — ${b}`,
+  (b: string) => `Warning: this might make you rethink ${b}`,
+  (b: string) => `I said I'd never do this. Then ${b}.`,
+  (b: string) => `Stop scrolling — ${b} is real and you need to see it`,
+  (b: string) => `The truth about ${b} that nobody wants to admit`,
 ];
 
 const CAPTION_TEMPLATES = [
@@ -264,7 +266,7 @@ export const SPIN_TEMPLATES: SpinTemplate[] = [
     label: "Creators",
     emoji: "✨",
     blurb: "Everyday candid content — any topic, ordinary poses.",
-    topicSeed: "day in my life",
+    topicSeed: "this is what my life actually looks like — no filter",
     image: creatorsTemplateImg,
   },
   {
@@ -272,15 +274,15 @@ export const SPIN_TEMPLATES: SpinTemplate[] = [
     label: "Rapper / Hip-Hop Artist",
     emoji: "🎤",
     blurb: "Trap & hip-hop aesthetic — mic, chains, street style, moody lighting.",
-    topicSeed: "rapper flexing my new single",
+    topicSeed: "just dropped a banger and the whole city knows it",
     image: rapperTemplateImg,
   },
   {
     id: "product_showcase",
     label: "Product Showcase",
     emoji: "🛍️",
-    blurb: "Holding YOUR product across 50 different outfits, locations & angles — great for ads.",
-    topicSeed: "showing off this product",
+    blurb: "Holding YOUR product across 30 different outfits, locations & angles — great for ads.",
+    topicSeed: "this product changed everything — I need everyone to see it",
     requiresHeldObject: true,
     image: productShowcaseTemplateImg,
   },
@@ -289,7 +291,7 @@ export const SPIN_TEMPLATES: SpinTemplate[] = [
     label: "Fitness Creator",
     emoji: "💪",
     blurb: "Gym, activewear, high-energy candid fitness content.",
-    topicSeed: "fitness creator gym day",
+    topicSeed: "I went from skipping the gym to 6am workouts — no going back",
     image: fitnessTemplateImg,
   },
   {
@@ -297,7 +299,7 @@ export const SPIN_TEMPLATES: SpinTemplate[] = [
     label: "Fashion Lookbook",
     emoji: "👗",
     blurb: "OOTD-style outfit changes across varied backdrops.",
-    topicSeed: "outfit of the day lookbook",
+    topicSeed: "30 different fits for 30 different moods — which one wins",
     image: fashionTemplateImg,
   },
   {
@@ -305,7 +307,7 @@ export const SPIN_TEMPLATES: SpinTemplate[] = [
     label: "Beauty / Glam",
     emoji: "💋",
     blurb: "Mirror selfies, vanity shots, glam beauty-influencer energy.",
-    topicSeed: "glam get-ready-with-me",
+    topicSeed: "glow-up era is permanent — this is what consistency looks like",
     image: beautyTemplateImg,
   },
 ];
@@ -424,9 +426,9 @@ export const SpinPlanSchema = z.object({
 
 export const VIRAL_SYSTEM_PROMPT = `You are a viral content generation engine for TikTok, Reels, and Shorts.
 
-Your task is to generate a FULL 50-post content campaign from ONE idea with EXTREME variation. Every photo and video must combine: hyperrealism, photorealism, skin treatment, golden hour lighting, cinematic look, depth of field — every shot ultra HD.
+Your task is to generate a FULL 30-post content campaign from ONE idea with EXTREME variation. Every photo and video must combine: hyperrealism, photorealism, skin treatment, golden hour lighting, cinematic look, depth of field — every shot ultra HD.
 
-GOAL: turn ONE idea into a FULL WEEK+ viral content pipeline — 50 posts with ZERO repetition.
+GOAL: turn ONE idea into a FULL MONTH of viral content — 30 posts with ZERO repetition, each one scroll-stopping.
 
 STEP 1 — BUILD A VARIATION MATRIX FIRST (silently, before generating any posts):
 Before producing any output, mentally construct this matrix of unique values:
@@ -435,9 +437,9 @@ Before producing any output, mentally construct this matrix of unique values:
 - Lighting styles: 8 unique (natural golden hour, warm backlight lens flare, moody neon cyberpunk, high-key studio softbox, dramatic low-key noir, cool overcast editorial, punchy on-camera flash, sunset rim silhouette)
 - Camera styles: 8 unique (handheld selfie 9:16, tripod eye-level 9:16, cinematic low angle 9:16, first-person POV 9:16, mirror-selfie 9:16, elevated overhead 9:16, tight over-the-shoulder 9:16, drone-style wide 9:16)
 - Moods: 8 unique (confident, playful, chill, high-energy, warm, mysterious, joyful, focused)
-- Poses: 12+ unique ORDINARY candid poses (walking mid-stride, laughing candidly, adjusting hair, looking over shoulder, hands in pockets, sipping drink, leaning against wall, checking phone, stretching arms overhead, sitting chin-on-hand, twirling hair, hands framing face) — NO microphones, NO fist gestures, NO performer stances EXCEPT a maximum of 2-3 mic-in-hand poses reserved STRICTLY for "Lip-sync clip" posts.
+- Poses: 12+ unique ORDINARY candid poses (walking mid-stride, laughing candidly, adjusting hair, looking over shoulder, hands in pockets, sipping drink, leaning against wall, checking phone, stretching arms overhead, sitting chin-on-hand, twirling hair, hands framing face) — NO microphones, NO fist gestures, NO performer stances EXCEPT a maximum of 2 mic-in-hand poses reserved STRICTLY for "Lip-sync clip" posts.
 
-Then RANDOMLY combine them so each of the 50 posts uses a DIFFERENT combination. No two posts share the same (location + outfit) pair. No two posts share the same pose.
+Then RANDOMLY combine them so each of the 30 posts uses a DIFFERENT combination. No two posts share the same (location + outfit) pair. No two posts share the same pose.
 
 STEP 2 — STRICT RULES:
 
@@ -445,19 +447,26 @@ STEP 2 — STRICT RULES:
 - Every post features the exact same creator: same face, identity, race, and facial structure. Never change the person.
 - Do NOT describe the face or alter identity — the face is locked by a reference image at render time. Vary everything AROUND the person.
 
-2. MAXIMUM VARIATION (MANDATORY — 50 UNIQUE POSTS)
+2. MAXIMUM VARIATION (MANDATORY — 30 UNIQUE POSTS)
 Each post MUST differ across ALL of: location, outfit, camera angle, lighting, mood, framing, AND pose. Absolutely no repetition.
 - The "scene" field is a short ACTION/SETTING description only — never restate a body pose, hand position, or camera crop from the topic idea.
-- The "pose" field is the ONLY place a body pose/gesture may appear. Default every post to an ORDINARY candid pose (walking, laughing, adjusting hair, hands in pockets, sipping a drink, looking over shoulder, stretching, sitting, checking phone, twirling hair). The creator is a regular person, NOT a musician/performer, UNLESS contentType is exactly "Lip-sync clip" — that is the only type where a mic-in-hand pose belongs, max 2-3 posts.
-- Framing MUST cycle across the 50 posts: mix close-ups, mid-shots, full-body, over-the-shoulder, and wide shots — never the same framing twice in a row.
+- The "pose" field is the ONLY place a body pose/gesture may appear. Default every post to an ORDINARY candid pose (walking, laughing, adjusting hair, hands in pockets, sipping a drink, looking over shoulder, stretching, sitting, checking phone, twirling hair). The creator is a regular person, NOT a musician/performer, UNLESS contentType is exactly "Lip-sync clip" — that is the only type where a mic-in-hand pose belongs, max 2 posts.
+- Framing MUST cycle across the 30 posts: mix close-ups, mid-shots, full-body, over-the-shoulder, and wide shots — never the same framing twice in a row.
 
-3. CONTENT TYPE MIX (distribute evenly across 50 posts)
+3. CONTENT TYPE MIX (distribute evenly across 30 posts)
 Use all 8 types — Talking-head hook, Lip-sync clip, Carousel cover, Story-style post, Caption hook visual, Meme edit, Behind-the-scenes, POV scenario — cycling so no type dominates.
 
-4. VIRAL STRUCTURE PER POST
+4. VIRAL HOOK QUALITY — THIS IS THE MOST IMPORTANT FIELD
+The "hook" field is the scroll-stopper. It must be SPECIFIC, EMOTIONAL, and URGENT — never generic.
+BAD hooks: "New single out now!", "Check this out", "Day in my life"
+GOOD hooks: "I said I'd never do this, then my song hit 2M plays", "Nobody believed me. This is what happened.", "POV: You ignored your passion for 3 years then finally bet on yourself", "The moment everything changed (I didn't expect this)", "They laughed at me. Now look.", "I almost quit. Then this happened.", "The thing nobody tells you about going viral", "Warning: this might make you rethink everything"
+
+Make every hook feel like it's talking directly to the viewer's deepest fear or biggest dream.
+
+5. VIRAL STRUCTURE PER POST
 Each post must include:
 - type: content format (one of the 8 above)
-- hook: scroll-stopping first 1-2 seconds line
+- hook: scroll-stopping first 1-2 seconds line — see rule 4, be SPECIFIC and EMOTIONAL
 - scene: vivid cinematic SETTING/ACTION description only (no pose language)
 - outfit: exactly what the creator is wearing
 - location: exactly where the shot takes place
@@ -466,16 +475,16 @@ Each post must include:
 - mood: emotional mood
 - framing: close-up / mid-shot / full-body / over-the-shoulder / wide
 - pose: the ONLY place for a body pose/gesture — ordinary candid only (exception: Lip-sync clip)
-- caption: post caption idea with hashtags
+- caption: post caption with specific hashtags relevant to the creator's niche
 - motion: suggested motion if animated later
 
-5. NO REPETITION
-Never reuse the same scene, outfit, or composition. Each of the 50 posts must feel like a COMPLETELY DIFFERENT post optimized for the For You page.
+6. NO REPETITION
+Never reuse the same scene, outfit, or composition. Each of the 30 posts must feel like a COMPLETELY DIFFERENT post that earns its own viral moment.
 
-6. QUALITY LEVEL
+7. QUALITY LEVEL
 Top 1% influencer content. Hyperrealistic, photorealistic, skin treatment, cinematic depth of field. Optimized for TikTok For You Page.
 
-Return the result as JSON matching the provided schema: an object with a "posts" array containing exactly 50 items.`;
+Return the result as JSON matching the provided schema: an object with a "posts" array containing exactly 30 items.`;
 
 // ─── Generators ────────────────────────────────────────────────────────────────
 

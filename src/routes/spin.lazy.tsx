@@ -179,8 +179,9 @@ function SpinPage() {
           .from("studio")
           .upload(path, file, { contentType: file.type, upsert: false });
         if (error) throw error;
-        const { data } = supabase.storage.from("studio").getPublicUrl(path);
-        setFaceUrl(data.publicUrl);
+        const { data: signed, error: se } = await supabase.storage.from("studio").createSignedUrl(path, 86400);
+        if (se || !signed) throw new Error("Could not create signed URL for reference photo");
+        setFaceUrl(signed.signedUrl);
         setAvatarId(undefined); // an uploaded photo takes priority over a saved avatar
       } catch (e) {
         setErr(e instanceof Error ? e.message : "Reference photo upload failed");
@@ -354,11 +355,11 @@ function SpinPage() {
 
         <div className="mt-6 flex items-center gap-2">
           <span className="inline-flex items-center gap-2 rounded-md border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Flame className="size-3.5" /> TikTok50
+            <Flame className="size-3.5" /> TikTok30
           </span>
         </div>
         <h1 className="mt-3 text-4xl md:text-5xl font-extrabold tracking-tight">
-          One prompt. <span className="aurora-gradient-text">{SPIN_COUNT} unique posts.</span>
+          One prompt. <span className="aurora-gradient-text">30 scroll-stopping posts.</span>
         </h1>
         <p className="mt-3 max-w-2xl text-muted-foreground">
           Describe your idea once. Aurora writes a full viral campaign — every post a different location, outfit, angle,
@@ -370,14 +371,14 @@ function SpinPage() {
           <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             <Sparkles className="size-3.5" /> Pick a template
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6">
+          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-6">
             {templates.map((t) => (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => pickTemplate(t.id)}
                 disabled={active}
-                className={`group relative flex flex-col items-start justify-end gap-0.5 overflow-hidden rounded-xl border p-3 text-left transition aspect-[3/4] ${
+                className={`group relative flex flex-col items-start justify-end overflow-hidden rounded-lg border text-left transition aspect-square ${
                   templateId === t.id ? "border-primary" : "border-white/10 hover:border-white/25"
                 }`}
               >
@@ -392,13 +393,13 @@ function SpinPage() {
                   <div className="absolute inset-0 bg-white/5" />
                 )}
                 <div
-                  className={`absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 ${
+                  className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent ${
                     templateId === t.id ? "ring-2 ring-inset ring-primary" : ""
                   }`}
                 />
-                <span className="relative text-lg leading-none">{t.emoji}</span>
-                <span className="relative text-xs font-semibold text-white">{t.label}</span>
-                <span className="relative text-[10px] leading-tight text-white/70">{t.blurb}</span>
+                <div className="relative w-full p-1.5">
+                  <span className="block text-[10px] font-semibold text-white leading-tight truncate">{t.label}</span>
+                </div>
               </button>
             ))}
           </div>
@@ -587,7 +588,7 @@ function SpinPage() {
           <input
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="e.g. day in my life as a Miami fitness creator"
+            placeholder="e.g. went viral in 30 days with zero budget — here's exactly what I did"
             className="flex-1 rounded-xl aurora-glass px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
             disabled={active}
           />
