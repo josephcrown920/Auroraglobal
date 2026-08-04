@@ -682,34 +682,10 @@ function SpinPage() {
                 {heygenMut.isPending ? "Generating…" : `Generate · ${HEYGEN_COST} Aura`}
               </button>
 
-              {/* result */}
-              {heygenResult && (
-                <div className="mt-2 rounded-xl overflow-hidden border border-pink-400/20">
-                  <video
-                    src={heygenResult.url}
-                    className="w-full max-h-72 object-contain bg-black"
-                    controls
-                    playsInline
-                    autoPlay
-                    muted
-                  />
-                  <div className="flex items-center gap-2 px-3 py-2 bg-black/30">
-                    <a
-                      href={heygenResult.url}
-                      download
-                      className="text-[11px] text-pink-300 hover:text-pink-100 underline underline-offset-2"
-                    >
-                      Download
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() => { navigator.clipboard.writeText(heygenResult!.url); toast.success("URL copied"); }}
-                      className="text-[11px] text-white/50 hover:text-white"
-                    >
-                      Copy URL
-                    </button>
-                  </div>
-                </div>
+              {heygenMut.isSuccess && (
+                <Link to="/gallery" className="mt-2 flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-4 py-2.5 text-sm font-semibold text-emerald-400 no-underline hover:bg-emerald-500/20 transition-colors">
+                  <Check className="size-4" /> Ready — View in Gallery
+                </Link>
               )}
             </div>
           )}
@@ -734,67 +710,13 @@ function SpinPage() {
               <div className="h-full bg-[image:var(--gradient-hero)] transition-all" style={{ width: `${pct}%` }} />
             </div>
 
-            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6">
-              {(variants.length
-                ? variants
-                : Array.from({ length: SPIN_COUNT }).map((_, i) => ({
-                    id: String(i),
-                    idx: i,
-                    label: "Queued",
-                    status: "queued" as const,
-                    url: null,
-                    spec: null,
-                    kind: (mode === "video" ? "video" : "image") as "image" | "video",
-                  }))
-              ).map((v) => (
-                <div key={v.id} className="group relative overflow-hidden rounded-xl aurora-glass aspect-[2/3]">
-                  {v.url ? (
-                    v.kind === "video" ? (
-                      <video
-                        src={v.url}
-                        className="absolute inset-0 h-full w-full object-cover"
-                        muted
-                        loop
-                        playsInline
-                        autoPlay
-                        preload="metadata"
-                      />
-                    ) : (
-                      <img src={v.url} alt={v.spec?.caption ?? v.label} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
-                    )
-                  ) : (
-                    <div className="absolute inset-0 grid place-items-center">
-                      {v.status === "running" ? (
-                        <Loader2 className="size-5 animate-spin text-primary" />
-                      ) : v.status === "error" ? (
-                        <AlertCircle className="size-5 text-red-300/70" />
-                      ) : (
-                        <span className="size-2 rounded-full bg-white/30" />
-                      )}
-                    </div>
-                  )}
-                  {v.status === "done" && v.url && (
-                    <button
-                      type="button"
-                      onClick={() => downloadVariant(v.url!, v.idx, v.kind).catch(() => toast.error("Download failed"))}
-                      className="absolute right-2 top-2 rounded-full bg-black/60 p-1.5 opacity-0 backdrop-blur-sm transition group-hover:opacity-100"
-                      title="Download"
-                    >
-                      <Download className="size-3 text-white" />
-                    </button>
-                  )}
-                  <div className="absolute inset-x-0 bottom-0 flex flex-col gap-0.5 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-2">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="truncate text-[10px] font-semibold text-foreground">{v.label}</span>
-                      {v.status === "done" && <Check className="size-3 shrink-0 text-emerald-300" />}
-                    </div>
-                    {v.spec?.caption && (
-                      <span className="truncate text-[9px] leading-tight text-white/60">{v.spec.caption}</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+            {done > 0 && (
+              <div className="mt-6">
+                <Link to="/gallery" className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-4 py-2.5 text-sm font-semibold text-emerald-400 no-underline hover:bg-emerald-500/20 transition-colors">
+                  <Check className="size-4" /> {done === total ? `All ${total} shots ready` : `${done} / ${total} ready`} — View in Gallery
+                </Link>
+              </div>
+            )}
           </section>
         )}
 

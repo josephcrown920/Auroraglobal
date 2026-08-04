@@ -14,6 +14,7 @@ import {
   Download,
   RefreshCw,
   Trash2,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -161,7 +162,7 @@ function MusicVideoPage() {
     },
     onSuccess: () => {
       markFirstGenComplete();
-      toast.success("Queued — result will appear below when ready");
+      toast.success("Queued — view your result in Gallery");
       qc.invalidateQueries({ queryKey: ["mv-gens"] });
     },
     onError: (e) => handleGenerationError(e),
@@ -177,7 +178,7 @@ function MusicVideoPage() {
     },
     onSuccess: () => {
       markFirstGenComplete();
-      toast.success("Queued — result will appear below when ready");
+      toast.success("Queued — view your result in Gallery");
       qc.invalidateQueries({ queryKey: ["mv-gens"] });
     },
     onError: (e) => handleGenerationError(e),
@@ -596,86 +597,15 @@ function MusicVideoPage() {
           </p>
         )}
 
-        {/* Sample outputs — shown when no user results yet */}
-        {recentResults.length === 0 && (
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Sample outputs
-            </h2>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                "/sample-photos/staircase-mic.jpeg",
-                "/sample-photos/miami-car.jpeg",
-                "/sample-photos/fire-street.png",
-                "/sample-photos/balloon-josh.png",
-                "/sample-photos/supermarket.jpeg",
-                "/sample-photos/fire-warehouse.png",
-              ].map((src) => (
-                <div key={src} className="relative aspect-video rounded-xl overflow-hidden bg-card/60 border border-border">
-                  <img src={src} alt="Sample output" className="w-full h-full object-cover object-top" />
-                </div>
-              ))}
-            </div>
-            <p className="text-center text-xs text-muted-foreground">
-              Generate your first video to see your results here
-            </p>
-          </section>
-        )}
-
-        {/* Recent results */}
-        {recentResults.length > 0 && (
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Recent results
-            </h2>
-            <div className="grid grid-cols-2 gap-3">
-              {recentResults.map((r) => {
-                const url = r.result_video_url ?? r.result_image_url;
-                if (!url) return null;
-                return (
-                  <div
-                    key={r.id}
-                    className="relative aspect-video rounded-xl overflow-hidden bg-card/60 border border-border group"
-                  >
-                    {r.result_video_url ? (
-                      <video
-                        src={url}
-                        className="w-full h-full object-cover"
-                        loop
-                        muted
-                        playsInline
-                        autoPlay
-                      />
-                    ) : (
-                      <img src={url} alt="Generated result" className="w-full h-full object-cover" />
-                    )}
-                    <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <a
-                        href={url}
-                        download
-                        target="_blank"
-                        rel="noreferrer"
-                        className="size-7 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80"
-                        title="Download"
-                      >
-                        <Download className="size-3.5" />
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => { if (confirm("Delete this generation permanently?")) delMut.mutate(r.id); }}
-                        disabled={delMut.isPending}
-                        className="size-7 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-red-600/80 disabled:opacity-50"
-                        title="Delete"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
+        {/* Gallery redirect */}
+        <Link
+          to="/gallery"
+          className="flex items-center gap-3 rounded-xl border border-border bg-card/60 px-4 py-3 text-sm font-medium no-underline hover:border-primary/40 hover:bg-card/80 transition-colors"
+        >
+          <Check className="size-4 text-emerald-400" />
+          <span>View your generations in Gallery</span>
+          <span className="ml-auto text-muted-foreground text-xs">→</span>
+        </Link>
 
         {/* Nav links */}
         <div className="flex flex-wrap gap-3 pt-2">

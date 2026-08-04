@@ -64,8 +64,9 @@ const STUDIO_FEATURES: Feature[] = [
 
 // ── Live content tools — visible to all users ─────────────────────────────
 const CONTENT_FEATURES: Feature[] = [
-  { to: "/spin",    label: "TikTok30", icon: Flame, previewImg: "/nav-previews/spin.jpg" },
-  { to: "/lipsync", label: "Lip Sync", icon: Mic,   previewImg: "/nav-previews/lipsync.jpg" },
+  { to: "/spin",      label: "TikTok30",  icon: Flame,  previewImg: "/nav-previews/spin.jpg" },
+  { to: "/lipsync",   label: "Lip Sync",  icon: Mic,    previewImg: "/nav-previews/lipsync.jpg" },
+  { to: "/templates", label: "Templates", icon: Layers },
 ];
 
 const ACCOUNT_FEATURES: Feature[] = [
@@ -95,7 +96,7 @@ export const ARCHIVED_FEATURES: Feature[] = [
   { to: "/content-machine", label: "Content Machine",  icon: LayoutGrid },
   { to: "/video-agent",     label: "Video Agent",      icon: Film },
   // ── Legacy / dev tools ───────────────────────────────────────────────
-  { to: "/templates",        label: "Templates",        icon: Layers },
+  // moved to CONTENT_FEATURES (live nav)
   { to: "/colors-show",      label: "Colors Show Creator", icon: Film },
   { to: "/editor",           label: "Playground",       icon: Sparkles },
   { to: "/heygen-templates", label: "HeyGen Templates", icon: Film },
