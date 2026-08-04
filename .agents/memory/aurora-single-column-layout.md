@@ -11,6 +11,11 @@ description: Why Tailwind breakpoints are disabled, how fixed chrome is position
 - **Why:** user chose "stretch the single column to fill the whole screen" over a responsive desktop redesign. A "bottom nav not showing" bug was actually `.phone-fixed-x` capping the bar to a 440px centered column — fixed by making the helper full-width. The nav always rendered (it's in the SSR HTML); it was just a narrow centered bar.
 - `--aurora-phone-max` (440px) is legacy/unused after the full-screen change.
 
+## Full-screen editor routes must opt out of global chrome in `__root.tsx`
+- `MobileNav` (bottom tab bar) and `AuroraChatbot` (floating bubble) are rendered globally from `src/routes/__root.tsx` and OVERLAY any route that owns the whole viewport (`h-dvh` header/stage/dock layouts). A new full-screen route's bottom dock will render but sit underneath the opaque tab bar.
+- **Fix:** extend the existing pathname exclusions in `__root.tsx` (pattern: `isVideoAgent`, `isFullScreenEditor` for `/edit`) — don't try to out-z-index the nav or pad around it.
+- **How to apply:** any time a route is built as a self-contained full-screen tool (own bottom action bar), add it to those exclusions and screenshot to confirm.
+
 ## Fixed chrome trapped by a `relative z-0` ancestor
 - A `position:relative` wrapper with an explicit `z-0` (or any numeric z-index, even 0) creates its OWN stacking context — any `fixed`/`z-30` descendant inside it is capped at that context's level and can render BELOW unrelated siblings with a higher z-index (e.g. a `relative z-10` header), even though the descendant's own z-index looks higher in isolation.
 - **Symptom:** a new fixed-position toggle/panel appears in the DOM (no console errors, visible in accessibility snapshot) but clicks on it fail with "header intercepts pointer events" — it LOOKS present but is fully unclickable in the overlapping region.

@@ -20,6 +20,7 @@ TICK_INTERVAL=60       # seconds between job-queue ticks
 HEALTH_INTERVAL=300      # seconds between worker health checks
 BALANCE_INTERVAL=21600   # seconds between API balance checks (6 hours)
 SWEEP_INTERVAL=21600     # seconds between stuck-payment sweeps (6 hours)
+MODELWATCH_INTERVAL=21600 # seconds between new-AI-model catalog scans (6 hours)
 
 # ── Auth key ────────────────────────────────────────────────────────────────
 APIKEY="${SUPABASE_PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-${CRON_SECRET:-}}}"
@@ -47,6 +48,7 @@ done
 last_health=0
 last_balance=0
 last_sweep=0
+last_modelwatch=0
 
 while true; do
   now=$(date +%s)
@@ -128,6 +130,24 @@ while true; do
       echo "[$ts][payments-sweep] WARN — $resp (rc=$rc)"
     fi
     last_sweep=$now
+  fi
+
+  # Model watch — new-AI-model discovery scan (every 6 hours).
+  # Scans fal.ai + Replicate catalogs for unseen models and probes the
+  # anticipated ModelArk slugs (e.g. Seedance 2.5); emails the operator
+  # when something genuinely new shows up.
+  if [ $((now - last_modelwatch)) -ge $MODELWATCH_INTERVAL ]; then
+    resp=$(curl -sf "$APP/api/public/model-watch" \
+      -X GET \
+      -H "apikey: $APIKEY" \
+      --max-time 120 2>&1) && rc=0 || rc=$?
+    ts=$(date -u +"%H:%M:%S")
+    if [ $rc -eq 0 ]; then
+      echo "[$ts][model-watch] OK — $resp"
+    else
+      echo "[$ts][model-watch] WARN — $resp (rc=$rc)"
+    fi
+    last_modelwatch=$now
   fi
 
   sleep $TICK_INTERVAL

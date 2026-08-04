@@ -148,6 +148,7 @@ export const VIDEO_MODEL_TIERS: Record<string, ModelTier> = {
   "veo-2": "premium", // $0.35 — Gemini Veo 2 direct API
   "veo-3": "ultra", // $0.75
   "seedance-3.0": "ultra", // $0.75 (seedance-1-5-pro, ByteDance-direct only)
+  "seedance-2.5": "ultra", // ~$0.69–$1.16 per 720p·5s (dreamina-seedance-2-5-260628, ByteDance-direct; $6.40–$10.70/M tokens)
   "xai/grok-imagine-video-1.5": "standard", // ~$0.24 (8s @ $0.03/s)
   "heygen/video-agent": "ultra", // $1.50 — needs the ultra pool ($2.26) to clear the retry buffer
   "heygen/template": "ultra", // $1.50 — Aurora Template render, same HeyGen credit burn as video-agent

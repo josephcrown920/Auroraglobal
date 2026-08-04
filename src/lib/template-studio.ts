@@ -67,6 +67,14 @@ export type OrchestratorKind = "image" | "video" | "lipsync" | "ugc_ad" | "spin"
 /** Which backend runs a template on submit. */
 export type TemplateDispatch = "studio" | "ugc" | "spin" | "autocut" | "beat-reel";
 
+/**
+ * AutoCut edit styles — client-safe mirror of autocut.server.ts STYLES.
+ * /edit validates its `?style=` search param against this list, and the
+ * Editing templates below deep-link into /edit with one pre-selected.
+ */
+export const AUTOCUT_STYLE_IDS = ["hype", "cinematic", "talking_head", "tiktok_hook"] as const;
+export type AutocutStyle = (typeof AUTOCUT_STYLE_IDS)[number];
+
 export type TemplateInput = {
   kind: TemplateInputKind;
   label: string;
@@ -123,6 +131,10 @@ export type StudioTemplate = {
   // ── spin params (dispatch === "spin") ──
   /** Optional preset appended in front of the user's idea before /spin. */
   spinPreset?: string;
+
+  // ── autocut params (dispatch === "autocut") ──
+  /** Pre-selected AutoCut edit style — /edit opens with this style active. */
+  autocutStyle?: AutocutStyle;
 };
 
 // ── Shared defaults (kept in step with pricing tiers) ────────────────────────
@@ -486,15 +498,52 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
   },
 
   // ───────────── Editing ─────────────
+  // CutLab presets: each deep-links into the CapCut-style /edit editor with a
+  // real AutoCut style pre-selected. Same backend, same COST_AUTOCUT charge.
   {
     id: "autocut-hype",
     title: "AutoCut — Hype",
     category: "Editing",
-    blurb: "Drop your clips and Aurora cuts a beat-synced, fast-paced 9:16 short for you.",
+    blurb: "Fast beat-synced cuts, high energy — drop clips, get a hype 9:16 short.",
     thumbnail: stillCourtBall,
     thumbnailVideo: clipCourtBall,
     kinds: ["autocut"],
     dispatch: "autocut",
+    autocutStyle: "hype",
+    inputs: [],
+  },
+  {
+    id: "autocut-cinematic",
+    title: "AutoCut — Cinematic",
+    category: "Editing",
+    blurb: "Slow crossfades and epic pacing — your clips cut like a short film.",
+    thumbnail: stillRooftopSunset,
+    thumbnailVideo: clipRooftopSunset,
+    kinds: ["autocut"],
+    dispatch: "autocut",
+    autocutStyle: "cinematic",
+    inputs: [],
+  },
+  {
+    id: "autocut-talking-head",
+    title: "AutoCut — Talking Head",
+    category: "Editing",
+    blurb: "Speaker-led edit with B-roll mixing — perfect for vlogs and explainers.",
+    thumbnail: ugcHomeSelfie.url,
+    kinds: ["autocut"],
+    dispatch: "autocut",
+    autocutStyle: "talking_head",
+    inputs: [],
+  },
+  {
+    id: "autocut-tiktok-hook",
+    title: "AutoCut — TikTok Hook",
+    category: "Editing",
+    blurb: "A 3-second opener then a story arc — cut for the FYP scroll.",
+    thumbnail: "/josh/generated2/viral-11-captioned-hook.webp",
+    kinds: ["autocut"],
+    dispatch: "autocut",
+    autocutStyle: "tiktok_hook",
     inputs: [],
   },
 ];

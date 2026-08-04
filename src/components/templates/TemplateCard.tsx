@@ -38,7 +38,7 @@ export function TemplateCard({
     <button
       type="button"
       onClick={onSelect}
-      className={`group relative text-left rounded-2xl overflow-hidden aurora-card aurora-card-hover focus:outline-none aurora-focus-ring ${className ?? ""}`}
+      className={`group relative text-left rounded-2xl overflow-hidden bg-card shadow-[var(--shadow-card)] transition-transform active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${className ?? ""}`}
     >
       {/* Thumbnail */}
       <div className="relative aspect-[3/4] w-full overflow-hidden bg-muted">
