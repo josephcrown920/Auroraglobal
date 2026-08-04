@@ -112,7 +112,7 @@ function GalleryPage() {
   return (
     <main className="aurora-page-shell text-foreground">
       <span aria-hidden className="aurora-ambient" />
-      <header className="relative z-10 flex items-center justify-between pl-24 pr-6 md:pl-24 md:pr-10 py-5 border-b border-border bg-background/80 backdrop-blur-xl">
+      <header className="relative z-10 flex items-center justify-between pl-5 pr-5 py-5 border-b border-border bg-background/80 backdrop-blur-xl">
         <Link to="/studio" className="flex items-center gap-2 font-semibold tracking-tight">
           <ArrowLeft className="size-4 text-muted-foreground" />
           <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20"><span className="inline-block size-2.5 rounded-full bg-primary" /></span>

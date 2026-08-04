@@ -63,7 +63,7 @@ function DashboardPage() {
   return (
     <main className="aurora-page-shell text-foreground">
       <span aria-hidden className="aurora-ambient" />
-      <header className="relative z-10 flex items-center justify-between pl-24 pr-6 md:pl-24 md:pr-10 py-5 border-b border-border/60 backdrop-blur-xl bg-background/40">
+      <header className="relative z-10 flex items-center justify-between pl-5 pr-5 py-5 border-b border-border/60 backdrop-blur-xl bg-background/40">
         <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
           <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20"><span className="inline-block size-2.5 rounded-full bg-primary" /></span>
           Aurora Studio

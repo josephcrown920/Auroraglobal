@@ -399,91 +399,6 @@ html[data-theme="light"] {
   max-width: 28rem;
 }
 
-/* Aurora's signed-in shell: a quiet rail on desktop, five simple tabs on
- * smaller screens. The rail intentionally contains destinations only; modes
- * stay in the destination drawers so the first decision is always obvious. */
-.aurora-desktop-rail {
-  display: none;
-}
-.aurora-rail-brand,
-.aurora-rail-link,
-.aurora-rail-icon {
-  text-decoration: none;
-}
-.aurora-rail-brand {
-  align-items: center;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  color: var(--foreground);
-}
-.aurora-rail-mark {
-  display: block;
-  width: 24px;
-  height: 24px;
-  border-radius: 9px 9px 9px 3px;
-  transform: rotate(-14deg);
-  background: linear-gradient(135deg, #f7f7f7 0 35%, #8de5ff 36% 59%, #4e82ff 60% 100%);
-  box-shadow: 0 0 24px oklch(0.7 0.18 220 / 35%);
-}
-.aurora-rail-wordmark {
-  font-family: var(--font-serif);
-  font-size: 13px;
-  font-style: italic;
-  font-weight: 600;
-}
-.aurora-rail-links {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 34px;
-}
-.aurora-rail-link {
-  align-items: center;
-  border-radius: 14px;
-  color: var(--muted-foreground);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  justify-content: center;
-  min-height: 58px;
-  padding: 8px 4px;
-  transition: color 160ms ease, background 160ms ease;
-}
-.aurora-rail-link span {
-  font-size: 10px;
-  font-weight: 600;
-}
-.aurora-rail-link:hover,
-.aurora-rail-link.is-active {
-  background: oklch(0.60 0.27 295 / 10%);
-  color: var(--foreground);
-}
-.aurora-rail-link.is-active svg {
-  color: var(--primary);
-}
-.aurora-rail-footer {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.aurora-rail-icon {
-  align-items: center;
-  background: transparent;
-  border: 0;
-  border-radius: 12px;
-  color: var(--muted-foreground);
-  cursor: pointer;
-  display: flex;
-  justify-content: center;
-  min-height: 38px;
-  width: 100%;
-}
-.aurora-rail-icon:hover {
-  background: var(--accent);
-  color: var(--foreground);
-}
 .aurora-content-shell {
   min-height: 100vh;
 }
@@ -857,34 +772,8 @@ html[data-theme="light"] {
   .aurora-bottom-nav {
     display: none;
   }
-  .aurora-desktop-rail {
-    background: oklch(0.085 0.022 272 / 92%);
-    border-right: 1px solid oklch(1 0 0 / 7%);
-    bottom: 0;
-    display: flex;
-    flex-direction: column;
-    left: 0;
-    padding: 24px 12px 18px;
-    position: fixed;
-    top: 0;
-    width: 84px;
-    z-index: 60;
-  }
-  .aurora-content-shell {
-    padding-left: 84px;
-  }
-  .aurora-home-topbar {
-    left: 84px;
-    width: calc(100% - 84px);
-  }
   .aurora-home-topbar + * {
     /* Preserve the centered Create canvas under the desktop top bar. */
-  }
-  .aurora-content-shell > div {
-    padding-top: 76px !important;
-  }
-  .aurora-content-shell .aurora-page-shell {
-    padding-left: 0;
   }
   .aurora-hub-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

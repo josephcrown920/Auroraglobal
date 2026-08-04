@@ -4,15 +4,17 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { getMyProfile, createPaystackCheckout, createProSubscriptionCheckout, cancelProSubscription, setDailySpendLimit } from "@/lib/billing.functions";
+import { amIAdmin } from "@/lib/admin.functions";
 import { markFirstPurchaseComplete } from "@/lib/first-run";
 import { redeemPromoCode } from "@/lib/promo.functions";
-import { PLANS, SUBSCRIPTION_TIERS } from "@/lib/billing.plans";
+import { PLANS, SUBSCRIPTION_TIERS, PRO_GEO_PRICES, perCreditDisplay, type Currency } from "@/lib/billing.plans";
+import { REGIONS } from "@/lib/geo-pricing";
 import { SubscriptionPlans } from "@/components/pricing/SubscriptionPlans";
 import { toast } from "sonner";
 import {
   ArrowLeft, Zap, Star, CheckCircle2, XCircle, CreditCard, Loader2,
   Crown, Tag, Rocket, Gauge, Lock, Calendar, RefreshCw, Bell,
-  Sparkles, Image, Film, Mic2, TrendingUp, ChevronRight,
+  Sparkles, Image, Film, Mic2, TrendingUp, ChevronRight, Globe,
 } from "lucide-react";
 import { PageSpinner } from "@/components/PageSpinner";
 import { AuthRedirect } from "@/components/AuthRedirect";
@@ -45,6 +47,26 @@ function BillingPage() {
   const [redeemCode, setRedeemCode] = useState("");
   const [dailyLimitInput, setDailyLimitInput] = useState("");
   const [autoReload, setAutoReload] = useState(() => getAutoReloadSettings());
+
+  // ── Owner-only region preview ─────────────────────────────────────────────
+  // Live billing is USD-only for everyone today (geo/PPP tables exist in
+  // billing.plans.ts but detectCurrency is pinned to USD). This lets the
+  // owner SEE each region's intended PPP price table without affecting what
+  // real users see or pay. Display-only: buy buttons lock while previewing.
+  const amIAdminFn = useServerFn(amIAdmin);
+  const adminQ = useQuery({
+    queryKey: ["am-i-admin", user?.id],
+    queryFn: () => amIAdminFn(),
+    enabled: !!user,
+    staleTime: Infinity,
+    retry: false,
+  });
+  const isAdmin = adminQ.data?.isAdmin === true;
+  const [previewRegion, setPreviewRegion] = useState<Currency>("USD");
+  const region: Currency = isAdmin ? previewRegion : "USD";
+  const previewing = region !== "USD";
+  const proPriceLabel =
+    region === "USD" ? "$15 / month" : `${PRO_GEO_PRICES[region].display.replace("/mo", "")} / month`;
 
   const search = Route.useSearch() as Record<string, string>;
 
@@ -129,7 +151,7 @@ function BillingPage() {
       <span aria-hidden className="aurora-ambient" />
 
       {/* Header */}
-      <header className="relative z-10 flex items-center justify-between pl-24 pr-6 md:pl-24 md:pr-10 py-5 border-b border-border bg-background/80 backdrop-blur-xl">
+      <header className="relative z-10 flex items-center justify-between pl-5 pr-5 py-5 border-b border-border bg-background/80 backdrop-blur-xl">
         <Link to="/studio" className="flex items-center gap-2 font-semibold tracking-tight no-underline text-foreground">
           <ArrowLeft className="size-4 text-muted-foreground" />
           <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20"><span className="inline-block size-2.5 rounded-full bg-primary" /></span>
@@ -225,6 +247,39 @@ function BillingPage() {
           </div>
         </section>
 
+        {/* ── Owner-only: preview pricing as another region ── */}
+        {isAdmin && (
+          <section>
+            <div className="rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-4">
+              <div className="flex items-center gap-2 mb-2.5">
+                <Globe className="size-4 text-primary" />
+                <h3 className="text-sm font-semibold">Owner preview — view pricing as</h3>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {(Object.keys(REGIONS) as Currency[]).map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setPreviewRegion(c)}
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                      region === c
+                        ? "border-primary/60 bg-primary/20 text-primary"
+                        : "border-border bg-card/40 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {REGIONS[c].name} · {REGIONS[c].symbol.trim()}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-2.5 leading-relaxed">
+                {previewing
+                  ? `Previewing the ${REGIONS[region].name} (${region}) price table. These regional prices are defined but NOT live — every real checkout charges USD today. Buy buttons are disabled while previewing.`
+                  : "Only you can see this. International (USD) is what every visitor sees today — regional prices exist in the price tables but geo pricing is currently switched off."}
+              </p>
+            </div>
+          </section>
+        )}
+
         {/* ── Upgrade to Pro ── */}
         {!isPro && !profileLoading && (
           <section>
@@ -236,7 +291,7 @@ function BillingPage() {
                     <div className="inline-flex items-center gap-2 mb-2">
                       <Crown className="size-5 text-primary" />
                       <span className="text-xl font-bold">Aurora Pro</span>
-                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-primary/20 text-primary font-bold border border-primary/30">$15 / month</span>
+                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-primary/20 text-primary font-bold border border-primary/30">{proPriceLabel}</span>
                     </div>
                     <p className="text-sm text-muted-foreground">2,000 Aura every month + no watermarks + priority queue + Growth Tools.</p>
                   </div>
@@ -252,7 +307,7 @@ function BillingPage() {
 
                 <Button
                   onClick={() => proMut.mutate()}
-                  disabled={proMut.isPending}
+                  disabled={proMut.isPending || previewing}
                   variant="premium"
                   className="w-full text-base py-6 rounded-xl shadow-[0_0_30px_-8px_oklch(0.58_0.22_25)]"
                 >
@@ -261,7 +316,7 @@ function BillingPage() {
                   ) : (
                     <Crown className="size-4 mr-2" />
                   )}
-                  Upgrade to Pro — $15 / month
+                  Upgrade to Pro — {proPriceLabel}
                 </Button>
                 <p className="text-xs text-muted-foreground mt-2.5 text-center">Cancel anytime · Secure payment via Paystack</p>
               </div>
@@ -273,7 +328,7 @@ function BillingPage() {
         <SubscriptionPlans
           currentPlanId={isPro ? "pro" : "free"}
           onUpgrade={() => proMut.mutate()}
-          onUpgradePending={proMut.isPending}
+          onUpgradePending={proMut.isPending || previewing}
         />
 
         {/* ── Top up Aura ── */}
@@ -328,9 +383,9 @@ function BillingPage() {
                       <Star className={`size-3.5 ${isCreator ? "text-primary" : "text-amber-400"}`} />
                       <span className="font-bold text-sm">{p.credits} Aura</span>
                     </div>
-                    <div className="text-2xl font-black">${p.usd}</div>
+                    <div className="text-2xl font-black">{region === "USD" ? `$${p.usd}` : p.prices[region].display}</div>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      ${(p.usd / p.credits).toFixed(4)} / Aura · {i === 0 ? "~80 images" : i === 1 ? "~240 images or 24 videos" : "~640 images or 64 videos"}
+                      {region === "USD" ? `$${(p.usd / p.credits).toFixed(4)} / Aura` : perCreditDisplay(key, region)} · {i === 0 ? "~80 images" : i === 1 ? "~240 images or 24 videos" : "~640 images or 64 videos"}
                     </p>
                   </div>
                   <Button
@@ -338,7 +393,7 @@ function BillingPage() {
                     variant={isCreator ? "premium" : "outline"}
                     className="w-full"
                     onClick={() => packMut.mutate(key)}
-                    disabled={packMut.isPending}
+                    disabled={packMut.isPending || previewing}
                   >
                     {packMut.isPending ? <Loader2 className="size-3 animate-spin" /> : (
                       <><CreditCard className="size-3 mr-1" /> Buy {p.credits} Aura</>
@@ -371,7 +426,7 @@ function BillingPage() {
                         {key === "day1" ? "1-Day Pass" : "2-Day Pass"}
                       </span>
                     </div>
-                    <div className="text-xl font-black">${p.usd}</div>
+                    <div className="text-xl font-black">{region === "USD" ? `$${p.usd}` : p.prices[region].display}</div>
                     <p className="text-[13px] font-semibold text-foreground/80 mt-0.5">{p.credits} Aura</p>
                     <p className="text-xs text-muted-foreground mt-1">
                       {key === "day1"
@@ -384,7 +439,7 @@ function BillingPage() {
                     variant="outline"
                     className="w-full border-primary/30 text-primary hover:bg-primary/10"
                     onClick={() => packMut.mutate(key)}
-                    disabled={packMut.isPending}
+                    disabled={packMut.isPending || previewing}
                   >
                     {packMut.isPending ? <Loader2 className="size-3 animate-spin" /> : <><CreditCard className="size-3 mr-1" /> Get pass</>}
                   </Button>
@@ -412,7 +467,7 @@ function BillingPage() {
                 Open <ChevronRight className="size-3.5" />
               </Link>
             ) : (
-              <Button size="sm" variant="outline" className="shrink-0 border-primary/40 text-primary hover:bg-primary/10" onClick={() => proMut.mutate()} disabled={proMut.isPending}>
+              <Button size="sm" variant="outline" className="shrink-0 border-primary/40 text-primary hover:bg-primary/10" onClick={() => proMut.mutate()} disabled={proMut.isPending || previewing}>
                 {proMut.isPending ? <Loader2 className="size-3 animate-spin mr-1" /> : <Crown className="size-3 mr-1" />}
                 Upgrade to unlock
               </Button>
