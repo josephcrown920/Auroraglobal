@@ -2,15 +2,12 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { CANONICAL_ORIGIN } from "@/lib/seo";
 import {
   ArrowUp,
-  ChevronRight,
-  History,
   Image as ImageIcon,
-  LayoutGrid,
   Plus,
   Sparkles,
   Video,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/hooks/use-auth";
@@ -39,42 +36,27 @@ export const Route = createFileRoute("/")({
             {
               "@type": "Question",
               name: "Who owns the rights to what I generate?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "You do. Every generation on Aurora is 100% owned by the artist who created it. Commercial rights are included on Creator and Pro plans from the first export.",
-              },
+              acceptedAnswer: { "@type": "Answer", text: "You do. Every generation on Aurora is 100% owned by the artist who created it. Commercial rights are included on Creator and Pro plans from the first export." },
             },
             {
               "@type": "Question",
               name: "What is the difference between Creator and Pro?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "Creator ($25/month) gives you clean exports, full video access, and 1,000 Aura per month — enough for regular creators. Pro ($79/month) adds priority rendering, the highest-quality models, 5,000 Aura per month, and full commercial use rights.",
-              },
+              acceptedAnswer: { "@type": "Answer", text: "Creator ($25/month) gives you clean exports, full video access, and 1,000 Aura per month — enough for regular creators. Pro ($79/month) adds priority rendering, the highest-quality models, 5,000 Aura per month, and full commercial use rights." },
             },
             {
               "@type": "Question",
               name: "Is Aurora training on my uploads?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "No. Aurora runs a closed-loop model. Your references and prompts are never used for training unless you explicitly opt in to a private model for your project.",
-              },
+              acceptedAnswer: { "@type": "Answer", text: "No. Aurora runs a closed-loop model. Your references and prompts are never used for training unless you explicitly opt in to a private model for your project." },
             },
             {
               "@type": "Question",
               name: "Can I export 4K stills and video?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "Yes. Creator and Pro plans include full-resolution exports for music-video backgrounds, tour visuals, and DSP canvas loops. Pro unlocks priority rendering and the highest-quality models.",
-              },
+              acceptedAnswer: { "@type": "Answer", text: "Yes. Creator and Pro plans include full-resolution exports for music-video backgrounds, tour visuals, and DSP canvas loops. Pro unlocks priority rendering and the highest-quality models." },
             },
             {
               "@type": "Question",
               name: "Do I need any design or prompting experience?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "No. Aurora is a director-first interface — describe the shoot in plain language and drop references. It handles the technical craft.",
-              },
+              acceptedAnswer: { "@type": "Answer", text: "No. Aurora is a director-first interface — describe the shoot in plain language and drop references. It handles the technical craft." },
             },
           ],
         }),
@@ -84,21 +66,90 @@ export const Route = createFileRoute("/")({
   component: LandingPage,
 });
 
-// Real Aurora output stills shipped with the app — shown as the reels strip.
-const REELS = [
-  { src: "/landing-photo-1.jpeg", alt: "Aurora render — cinematic stage performance still", duration: "0:09" },
-  { src: "/landing-photo-2.jpeg", alt: "Aurora render — music video frame with dramatic lighting" },
-  { src: "/landing-photo-3.jpeg", alt: "Aurora render — editorial artist portrait" },
-  { src: "/landing-photo-4.jpeg", alt: "Aurora render — color-world visual scene" },
+// ── Slide data ─────────────────────────────────────────────────────────────────
+// Each slide maps copy keys (editable via admin panel) to hero images and routes.
+
+type Slide = {
+  id: string;
+  img: string;
+  eyebrowKey: string; eyebrowDefault: string;
+  badgeKey?: string;  badgeDefault?: string;
+  headlineKey: string; headlineDefault: string;
+  subKey: string;      subDefault: string;
+  ctaKey: string;      ctaDefault: string;
+  ctaTo: string;
+  btnLabel: string;
+  btnTo: string;
+};
+
+const SLIDES: Slide[] = [
+  {
+    id: "ai-director",
+    img: "/hero/hero-multiangle.jpg",
+    eyebrowKey: "landing_hero_0_eyebrow",   eyebrowDefault: "AI CREATIVE DIRECTOR",
+    badgeKey: "landing_hero_0_badge",         badgeDefault: "★ PRO",
+    headlineKey: "landing_hero_0_headline",  headlineDefault: "Every Shot. Every Angle. Every Scene Directed By AI.",
+    subKey: "landing_hero_0_sub",            subDefault: "Chat your idea. Aurora turns it into a complete production script, shot list, locations, performances, edits, and final delivery without hiring a director or crew.",
+    ctaKey: "landing_hero_0_cta",            ctaDefault: "Director's Room →",
+    ctaTo: "/scene-builder",
+    btnLabel: "Start creating", btnTo: "/home",
+  },
+  {
+    id: "visual-identity",
+    img: "/hero/hero-1.png",
+    eyebrowKey: "landing_hero_1_eyebrow",   eyebrowDefault: "BY ARTISTS, FOR ARTISTS",
+    headlineKey: "landing_hero_1_headline",  headlineDefault: "Film Yourself. Aurora Builds the World.",
+    subKey: "landing_hero_1_sub",            subDefault: "Aurora's Motion Control reads your real performance from a 30-second phone clip and places you in any cinematic scene on earth — style, motion, energy intact. No studio. No crew. No budget.",
+    ctaKey: "landing_hero_1_cta",            ctaDefault: "Perform From Anywhere →",
+    ctaTo: "/motion",
+    btnLabel: "Open Studio", btnTo: "/home",
+  },
+  {
+    id: "perform-anywhere",
+    img: "/hero/hero-perform-anywhere.png",
+    eyebrowKey: "landing_hero_2_eyebrow",   eyebrowDefault: "PERFORM ANYWHERE",
+    badgeKey: "landing_hero_2_badge",         badgeDefault: "★ PRO",
+    headlineKey: "landing_hero_2_headline",  headlineDefault: "Turn a 30-Second Phone Recording Into a Cinematic Music Video.",
+    subKey: "landing_hero_2_sub",            subDefault: "Stop renting studios, hiring crews, and waiting weeks for edits. Record yourself for 30 seconds on your phone. Aurora transforms your performance into cinematic music videos that look like a major production.",
+    ctaKey: "landing_hero_2_cta",            ctaDefault: "Perform Anywhere →",
+    ctaTo: "/motion",
+    btnLabel: "Start creating", btnTo: "/home",
+  },
+  {
+    id: "tiktok30",
+    img: "/hero/hero-tiktok30.jpg",
+    eyebrowKey: "landing_hero_3_eyebrow",   eyebrowDefault: "TIKTOK 30",
+    headlineKey: "landing_hero_3_headline",  headlineDefault: "Go Viral Without Running Out Of Content.",
+    subKey: "landing_hero_3_sub",            subDefault: "Turn one idea into an entire month of scroll-stopping content. Aurora creates 30 unique TikToks, lyric videos, teasers, cover reveals, reels, and promo posts ready to publish.",
+    ctaKey: "landing_hero_3_cta",            ctaDefault: "TikTok 30 →",
+    ctaTo: "/spin",
+    btnLabel: "Open TikTok 30", btnTo: "/spin",
+  },
+  {
+    id: "colors-studio",
+    img: "/hero/hero-colors.png",
+    eyebrowKey: "landing_hero_4_eyebrow",   eyebrowDefault: "COLORS STUDIO",
+    headlineKey: "landing_hero_4_headline",  headlineDefault: "One Performance. Unlimited Visual Worlds.",
+    subKey: "landing_hero_4_sub",            subDefault: "Record one 30-second performance. Aurora rebuilds it into endless cinematic stages, lighting styles, outfits, moods and color worlds ready for every release.",
+    ctaKey: "landing_hero_4_cta",            ctaDefault: "Explore Colors Studio →",
+    ctaTo: "/colors",
+    btnLabel: "Open Studio", btnTo: "/colors",
+  },
+  {
+    id: "press-ready",
+    img: "/hero/hero-new-1.png",
+    eyebrowKey: "landing_hero_5_eyebrow",   eyebrowDefault: "PRESS READY",
+    headlineKey: "landing_hero_5_headline",  headlineDefault: "Look Like The Biggest Artist In Your City.",
+    subKey: "landing_hero_5_sub",            subDefault: "Create magazine-quality press photos, tour posters, album covers, and promotional visuals in minutes — not weeks.",
+    ctaKey: "landing_hero_5_cta",            ctaDefault: "Create Press Photos →",
+    ctaTo: "/live-studio",
+    btnLabel: "Open Studio", btnTo: "/home",
+  },
 ];
 
-// Every chip routes to a live Aurora tool — nothing aspirational.
-const CHIPS = [
-  { id: "directors-room", label: "Direct a scene like a pro", to: "/scene-builder" as const, search: undefined },
-  { id: "lyric-video", label: "Turn my song into a lyric video", to: "/music-video" as const, search: undefined },
-  { id: "tiktok30", label: "30 TikTok posts from one selfie", to: "/spin" as const, search: undefined },
-  { id: "grwm", label: "GRWM outfit swap", to: "/studio" as const, search: { q: "Get ready with me style selfie video, mirror lighting, outfit focus" } },
-];
+const SLIDE_INTERVAL_MS = 5000;
+
+// ── Component ──────────────────────────────────────────────────────────────────
 
 function LandingPage() {
   const { user } = useAuth();
@@ -108,6 +159,12 @@ function LandingPage() {
   const [idea, setIdea] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Carousel state
+  const [idx, setIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const touchStartX = useRef<number | null>(null);
+
   const profileFn = useServerFn(getMyProfile);
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -115,6 +172,31 @@ function LandingPage() {
     enabled: !!user,
   });
   const credits = profile?.credits ?? null;
+
+  // Auto-advance
+  const advance = useCallback((dir: 1 | -1 = 1) => {
+    setIdx(i => (i + dir + SLIDES.length) % SLIDES.length);
+  }, []);
+
+  useEffect(() => {
+    if (paused) { if (timerRef.current) clearInterval(timerRef.current); return; }
+    timerRef.current = setInterval(() => advance(1), SLIDE_INTERVAL_MS);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [paused, advance]);
+
+  // Touch swipe
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0]?.clientX ?? null;
+    setPaused(true);
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const dx = (e.changedTouches[0]?.clientX ?? 0) - touchStartX.current;
+    if (Math.abs(dx) > 40) advance(dx < 0 ? 1 : -1);
+    touchStartX.current = null;
+    // Resume auto-advance after 8s
+    setTimeout(() => setPaused(false), 8000);
+  };
 
   const submitIdea = () => {
     const text = idea.trim();
@@ -126,172 +208,179 @@ function LandingPage() {
     }
   };
 
-  return (
-    <div className="min-h-dvh w-full" style={{ background: "var(--gradient-page)" }}>
-      <main className="mx-auto flex min-h-dvh w-full max-w-[520px] flex-col px-5 pb-56">
-        {/* ── Header ─────────────────────────────────────────────────────── */}
-        <header className="flex items-center justify-between pt-5">
-          <button
-            type="button"
-            aria-label="All tools"
-            onClick={() => setToolsOpen(true)}
-            className="rounded-xl p-1.5 text-foreground"
-          >
-            <LayoutGrid className="size-6" strokeWidth={1.8} />
-          </button>
-          <Link
-            to={user ? "/gallery" : "/auth"}
-            aria-label={user ? "Your gallery" : "Sign in"}
-            className="relative rounded-xl p-1.5 text-foreground"
-          >
-            <History className="size-6" strokeWidth={1.8} />
-            <span className="absolute right-0.5 top-0.5 size-2 rounded-full bg-dot" />
-          </Link>
-        </header>
+  const slide = SLIDES[idx]!;
 
-        {/* ── Hero ───────────────────────────────────────────────────────── */}
-        <div className="mt-8 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-          <Sparkles className="size-4 text-brand-ink" />
-          <span>Aurora · AI Creative Studio</span>
-        </div>
-        <h1 className="mt-3 text-[40px] font-extrabold leading-[1.06] tracking-tight text-foreground">
-          <EditableCopy copyKey="landing_capcut_headline" fallback="Film yourself" />{" "}
-          <span className="text-brand-ink">
-            <EditableCopy copyKey="landing_capcut_headline_accent" fallback="anywhere." />
-          </span>
-        </h1>
-        <p className="mt-4 text-[15.5px] leading-relaxed text-muted-foreground">
-          <EditableCopy
-            copyKey="landing_capcut_sub"
-            fallback="Record 30 seconds on your phone. Aurora turns it into cinematic music videos, performance shots, cover art and a month of content — no crew, no studio, no waiting."
+  return (
+    <div
+      className="relative h-dvh w-full overflow-hidden select-none"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* ── Slide backgrounds (pre-rendered, faded) ────────────────────────── */}
+      {SLIDES.map((s, i) => (
+        <div
+          key={s.id}
+          className="absolute inset-0 transition-opacity duration-700"
+          style={{ opacity: i === idx ? 1 : 0, zIndex: i === idx ? 1 : 0 }}
+        >
+          <img
+            src={s.img}
+            alt=""
+            aria-hidden
+            className="absolute inset-0 h-full w-full object-cover object-top"
+            loading={i === 0 ? "eager" : "lazy"}
           />
+          {/* Gradient: light at top for header, heavy at bottom for copy */}
+          <div className="absolute inset-0" style={{
+            background: "linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.05) 35%, rgba(0,0,0,0.05) 50%, rgba(0,0,0,0.75) 75%, rgba(0,0,0,0.92) 100%)"
+          }} />
+        </div>
+      ))}
+
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <header className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-5"
+        style={{ paddingTop: "calc(1.25rem + env(safe-area-inset-top))" }}>
+        <span className="font-serif italic text-lg font-semibold text-white/90 tracking-wide">Aurora</span>
+        <div className="flex items-center gap-2">
+          <Link to="/partners"
+            className="text-sm font-semibold text-white/80 no-underline hover:text-white transition-colors px-1">
+            Partners
+          </Link>
+          <Link
+            to={user ? "/home" : "/auth"}
+            onClick={() => void track("landing_header_cta")}
+            className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold text-white no-underline transition-all"
+            style={{ background: "var(--gradient-cta)" }}
+          >
+            <Plus className="size-3.5" strokeWidth={3} />
+            Open Studio
+          </Link>
+        </div>
+      </header>
+
+      {/* ── Slide content ──────────────────────────────────────────────────── */}
+      <div className="absolute inset-x-0 z-10 px-6"
+        style={{ bottom: "calc(9.5rem + env(safe-area-inset-bottom))" }}>
+
+        {/* Eyebrow + badge */}
+        <div className="flex items-center gap-2.5 mb-3">
+          <span className="inline-block size-2 shrink-0 rounded-full bg-[#e84855]" />
+          <span className="text-[11px] font-bold uppercase tracking-[0.13em] text-white/80 italic">
+            <EditableCopy copyKey={slide.eyebrowKey} fallback={slide.eyebrowDefault} />
+          </span>
+          {slide.badgeKey && (
+            <span className="rounded-full border border-white/30 bg-white/10 px-2 py-0.5 text-[10px] font-bold text-white/70 backdrop-blur-sm">
+              <EditableCopy copyKey={slide.badgeKey} fallback={slide.badgeDefault ?? ""} />
+            </span>
+          )}
+        </div>
+
+        {/* Headline */}
+        <h1 className="font-serif italic text-[32px] font-bold leading-[1.08] tracking-tight text-white">
+          <EditableCopy copyKey={slide.headlineKey} fallback={slide.headlineDefault} />
+        </h1>
+
+        {/* Body */}
+        <p className="mt-3 text-[14.5px] leading-relaxed font-semibold text-white/80">
+          <EditableCopy copyKey={slide.subKey} fallback={slide.subDefault} />
         </p>
 
-        {/* ── Reels strip: real Aurora output ────────────────────────────── */}
-        <section className="mt-7 rounded-3xl bg-card p-2.5 shadow-[var(--shadow-card)]">
-          <div className="grid grid-cols-4 gap-2">
-            {REELS.map((reel) => (
-              <Link
-                key={reel.src}
-                to="/home"
-                onClick={() => void track("landing_reel_click")}
-                className="relative block aspect-[9/16] overflow-hidden rounded-xl bg-secondary"
-              >
-                <img src={reel.src} alt={reel.alt} loading="lazy" className="size-full object-cover" />
-                {reel.duration ? (
-                  <span className="absolute bottom-1.5 right-1.5 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                    {reel.duration}
-                  </span>
-                ) : null}
-              </Link>
-            ))}
-          </div>
-          <Link
-            to="/tutorial"
-            onClick={() => void track("landing_recipe_click")}
-            className="mt-2.5 flex items-center justify-between rounded-2xl px-3 py-2.5 text-[15px] font-semibold text-foreground"
-          >
-            <span>See the recipe → see the result</span>
-            <ChevronRight className="size-5 text-muted-foreground" />
-          </Link>
-        </section>
-
-        {/* ── Idea chips → live tools ────────────────────────────────────── */}
-        <div className="mt-6 flex flex-wrap gap-2">
-          {CHIPS.map((chip) => (
-            <Link
-              key={chip.id}
-              to={chip.to}
-              search={chip.search}
-              onClick={() => void track("landing_chip_click", { id: chip.id })}
-              className="rounded-full border border-border bg-card/60 px-4 py-2 text-[13.5px] font-medium text-foreground no-underline"
-            >
-              {chip.label}
-            </Link>
-          ))}
-        </div>
-
-        {/* ── Primary CTA ────────────────────────────────────────────────── */}
+        {/* CTA text link */}
         <Link
-          to={user ? "/home" : "/auth"}
-          onClick={() => void track("landing_primary_cta_click")}
-          className="mt-7 flex items-center justify-center gap-2 rounded-2xl py-4 text-lg font-bold text-primary-foreground no-underline"
-          style={{ background: "var(--gradient-cta)" }}
+          to={slide.ctaTo as "/"}
+          onClick={() => void track("landing_slide_cta", { slide: slide.id })}
+          className="mt-3 inline-block text-[14px] font-bold text-[#6fa3ef] no-underline hover:text-white transition-colors"
         >
-          <Plus className="size-6 rounded-md bg-foreground/85 p-0.5 text-card" strokeWidth={3} />
-          {user ? "Open your studio" : "Start creating free"}
+          <EditableCopy copyKey={slide.ctaKey} fallback={slide.ctaDefault} />
         </Link>
 
-        {/* ── Footer ─────────────────────────────────────────────────────── */}
-        <footer className="mt-10 border-t border-border pt-6">
-          <nav className="flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-muted-foreground">
-            <Link to="/tutorial" className="no-underline hover:text-foreground">Tutorial</Link>
-            <Link to="/guides" className="no-underline hover:text-foreground">Guides</Link>
-            <Link to="/billing" className="no-underline hover:text-foreground">Pricing</Link>
-            <Link to="/contact" className="no-underline hover:text-foreground">Contact</Link>
-            <Link to="/privacy" className="no-underline hover:text-foreground">Privacy</Link>
-            <Link to="/terms" className="no-underline hover:text-foreground">Terms</Link>
-          </nav>
-          <p className="mt-4 text-[12px] text-muted-foreground/70">© 2026 Aurora. Made by artists, for artists.</p>
-        </footer>
-      </main>
+        {/* Primary button */}
+        <div className="mt-4">
+          <Link
+            to={user ? (slide.btnTo as "/") : "/auth"}
+            onClick={() => void track("landing_slide_btn", { slide: slide.id })}
+            className="inline-flex items-center gap-2 rounded-full px-6 py-3.5 text-base font-bold text-white no-underline shadow-lg transition-transform active:scale-[0.97]"
+            style={{ background: "linear-gradient(135deg, #e84855, #c03040)" }}
+          >
+            <Plus className="size-4" strokeWidth={3} />
+            {slide.btnLabel}
+          </Link>
+          <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">
+            Free to start · No card needed
+          </p>
+        </div>
 
-      {/* ── Sticky composer (landing has no bottom nav) ──────────────────── */}
-      <div className="fixed inset-x-0 bottom-0 z-40">
+        {/* Dot indicators */}
+        <div className="mt-5 flex items-center gap-2">
+          {SLIDES.map((s, i) => (
+            <button
+              key={s.id}
+              type="button"
+              aria-label={`Go to slide ${i + 1}`}
+              onClick={() => { setIdx(i); setPaused(true); setTimeout(() => setPaused(false), 8000); }}
+              className="transition-all duration-300"
+              style={{
+                height: 3,
+                width: i === idx ? 28 : 10,
+                borderRadius: 99,
+                background: i === idx ? "#fff" : "rgba(255,255,255,0.35)",
+              }}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* ── Sticky composer (pinned above bottom safe area) ─────────────────── */}
+      <div className="absolute inset-x-0 bottom-0 z-20">
         <div
-          className="mx-auto w-full max-w-[520px] rounded-t-3xl px-4 pt-3 backdrop-blur-xl"
+          className="px-4 pt-3 backdrop-blur-xl"
           style={{
-            background: "color-mix(in oklch, var(--background) 82%, transparent)",
-            boxShadow: "var(--shadow-float)",
+            background: "rgba(8,6,18,0.72)",
+            borderTop: "1px solid rgba(255,255,255,0.07)",
             paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))",
           }}
         >
           <div className="flex items-center gap-2">
             <Link
               to={user ? "/billing" : "/auth"}
-              className="flex items-center gap-1.5 rounded-full bg-card px-3.5 py-2 text-[13px] font-bold text-foreground shadow-[var(--shadow-card)] no-underline"
+              className="flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-2 text-[13px] font-bold text-white/90 shadow no-underline"
             >
-              <Sparkles className="size-4 text-brand-ink" />
+              <Sparkles className="size-4 text-[#a78bfa]" />
               {user && credits !== null ? `${credits} Aura` : "5 free Aura"}
             </Link>
-            <div className="flex items-center gap-1 rounded-full bg-card p-1 shadow-[var(--shadow-card)]">
+            <div className="flex items-center gap-1 rounded-full bg-white/10 p-1 shadow">
               <button
                 type="button"
                 onClick={() => setMode("image")}
                 aria-pressed={mode === "image"}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold ${
-                  mode === "image" ? "bg-brand text-primary-foreground" : "text-muted-foreground"
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-all ${
+                  mode === "image" ? "bg-[#7c3aed] text-white" : "text-white/60"
                 }`}
               >
-                <ImageIcon className="size-4" />
-                Image
+                <ImageIcon className="size-4" /> Image
               </button>
               <button
                 type="button"
                 onClick={() => setMode("video")}
                 aria-pressed={mode === "video"}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold ${
-                  mode === "video" ? "bg-brand text-primary-foreground" : "text-muted-foreground"
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-all ${
+                  mode === "video" ? "bg-[#7c3aed] text-white" : "text-white/60"
                 }`}
               >
-                <Video className="size-4" />
-                Video
+                <Video className="size-4" /> Video
               </button>
             </div>
           </div>
 
           <form
-            className="mt-2.5 flex items-center gap-2 rounded-2xl bg-card px-3 py-2 shadow-[var(--shadow-card)]"
-            onSubmit={(e) => {
-              e.preventDefault();
-              submitIdea();
-            }}
+            className="mt-2.5 flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-2 border border-white/10"
+            onSubmit={(e) => { e.preventDefault(); submitIdea(); }}
           >
             <button
               type="button"
-              aria-label="Open the studio to add reference photos"
+              aria-label="Open studio"
               onClick={() => void navigate({ to: "/studio" })}
-              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary text-foreground"
+              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-white"
             >
               <Plus className="size-5" />
             </button>
@@ -301,12 +390,12 @@ function LandingPage() {
               onChange={(e) => setIdea(e.target.value)}
               placeholder="Enter your ideas"
               aria-label="Describe your idea"
-              className="min-w-0 flex-1 bg-transparent text-[15px] text-foreground outline-none placeholder:text-muted-foreground"
+              className="min-w-0 flex-1 bg-transparent text-[15px] text-white outline-none placeholder:text-white/40"
             />
             <button
               type="submit"
               aria-label={mode === "video" ? "Create video" : "Create image"}
-              className="flex size-9 shrink-0 items-center justify-center rounded-full text-primary-foreground"
+              className="flex size-9 shrink-0 items-center justify-center rounded-full text-white"
               style={{ background: "var(--gradient-cta)" }}
             >
               <ArrowUp className="size-5" strokeWidth={2.4} />

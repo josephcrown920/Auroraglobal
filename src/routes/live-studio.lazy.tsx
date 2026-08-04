@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Sparkles, Loader2, ImagePlus, X, Download, Check, RefreshCw, Music2, Camera, Upload, Headphones } from "lucide-react";
+import { Sparkles, Loader2, ImagePlus, X, Download, Check, RefreshCw, Music2, Camera, Upload, Headphones, Tv2, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Link } from "@tanstack/react-router";
@@ -19,7 +19,7 @@ const IDENTITY = "IDENTITY LOCK: composite the REAL person from the uploaded ref
 
 type Scene = {
   id: string;
-  tab: "live" | "artist";
+  tab: "live" | "artist" | "tiktok-live";
   name: string;
   tagline: string;
   thumb: string;
@@ -141,6 +141,104 @@ const SCENES: Scene[] = [
     thumb: "/studio-refs/kexp-blue-studio.jpg",
     accentColor: "#8b5cf6",
     prompt: "See Colors Studio for the full cyclorama + color experience →",
+  },
+  // ── TikTok LIVE virtual backgrounds (16:9 landscape) ──────────────────────
+  {
+    id: "tl-neon-stage",
+    tab: "tiktok-live",
+    name: "Neon Arena Stage",
+    tagline: "Massive LED rig · crowd energy",
+    thumb: "/studio-refs/artist-shoot-production-set.png",
+    accentColor: "#ec4899",
+    prompt: [
+      "Cinematic wide-angle 16:9 landscape photograph of a massive sold-out arena concert stage — point of view from center stage looking out at the crowd.",
+      "Enormous custom LED video wall covering the entire back wall, animated with abstract violet and electric-pink light forms.",
+      "Overhead rig packed with moving-head beam lights, all firing upward in a radial burst pattern, thick atmospheric haze filling the air.",
+      "Sold-out crowd of thousands stretching to the horizon, rendered as a blur of raised phones and colored wristbands, warm amber and cool blue tones.",
+      "Foreground: polished black stage floor, no human figures. The composition leaves the center and foreground clear for a live virtual background.",
+      "Hyper-realistic photography, ultra-wide anamorphic lens, cinematic color grade, concert-grade production quality. NO TEXT, NO LOGOS.",
+    ].join(" "),
+  },
+  {
+    id: "tl-recording-studio",
+    tab: "tiktok-live",
+    name: "Recording Studio",
+    tagline: "Pro booth · warm low light",
+    thumb: "/studio-refs/kexp-purple-studio.jpg",
+    accentColor: "#a78bfa",
+    prompt: [
+      "Cinematic 16:9 landscape photograph of a world-class professional recording studio control room.",
+      "Massive SSL mixing console stretching across a floating island desk, hundreds of faders and knobs glowing amber.",
+      "Large studio monitor speakers on either side, towering rack of outboard gear lit by tiny LEDs, acoustic foam panels on the walls in dark charcoal.",
+      "Warm tungsten light from recessed ceiling coves, a soft accent light behind the console creating a gentle violet halo.",
+      "Through the thick glass window, a dimly lit live room is visible — drum kit, microphone stands, a vintage upright piano.",
+      "Foreground: clean wood floor, no human figures. Clear center space for a TikTok LIVE virtual background host.",
+      "Hyper-realistic photography, 35mm, f/2.0, shallow depth of field on the window glass. NO TEXT, NO LOGOS.",
+    ].join(" "),
+  },
+  {
+    id: "tl-rooftop-skyline",
+    tab: "tiktok-live",
+    name: "Rooftop Golden Hour",
+    tagline: "City skyline · sunset glow",
+    thumb: "/studio-refs/kexp-on-air-studio.png",
+    accentColor: "#f59e0b",
+    prompt: [
+      "Cinematic 16:9 landscape photograph of a luxury rooftop terrace in a major city at golden hour.",
+      "Low sun at 10-degree elevation casting long warm amber shadows, entire scene bathed in rich orange-gold light.",
+      "Background: dense city skyline of glass skyscrapers glowing with reflected sunset, a few buildings' windows lit individually.",
+      "Terrace foreground: smooth concrete deck, potted palm trees with backlighting, a low glass balustrade railing.",
+      "No people. Clean open center suitable for a TikTok LIVE virtual background with the host standing in front.",
+      "Hyper-realistic aerial photography, ultra-wide 16mm lens, cinematic golden-hour color grade. NO TEXT, NO LOGOS.",
+    ].join(" "),
+  },
+  {
+    id: "tl-penthouse",
+    tab: "tiktok-live",
+    name: "Luxury Penthouse",
+    tagline: "Floor-to-ceiling glass · night",
+    thumb: "/studio-refs/kexp-blue-studio.jpg",
+    accentColor: "#06b6d4",
+    prompt: [
+      "Cinematic 16:9 landscape photograph of an ultra-luxury penthouse interior at night.",
+      "Floor-to-ceiling glass walls spanning the entire back, revealing a city skyline with millions of lights 60 floors below.",
+      "Interior: floating marble island, bespoke furniture in ivory and champagne gold, candelabra with flickering warm light.",
+      "Ceiling: backlit coffered plaster ceiling in soft warm white. Side walls: book-matched Italian marble panels.",
+      "City lights outside provide a cool blue-teal ambient fill that contrasts the warm interior candle glow.",
+      "No people. Clear center space for a TikTok LIVE virtual background. Ultra-realistic architectural photography, tilt-shift lens. NO TEXT, NO LOGOS.",
+    ].join(" "),
+  },
+  {
+    id: "tl-underground-club",
+    tab: "tiktok-live",
+    name: "Underground Club",
+    tagline: "Dark concrete · neon haze",
+    thumb: "/studio-refs/kexp-purple-studio.jpg",
+    accentColor: "#7c3aed",
+    prompt: [
+      "Cinematic 16:9 landscape photograph of an underground nightclub at peak night.",
+      "Raw exposed concrete walls, low ceiling with exposed conduit, industrial pipe lighting.",
+      "DJ booth at the back: CDJs on a custom-lit plinth, a mesh of laser beams cutting through thick fog in cyan and violet.",
+      "Neon tube signs on the concrete walls in red and blue reading abstract shapes (no legible text).",
+      "Circular mirror ball overhead scattering white specks across the walls. Dark wood bar on the left with backlit shelves of bottles.",
+      "No people. Clear center floor area for a TikTok LIVE virtual background host. Hyper-realistic club photography. NO TEXT, NO LOGOS.",
+    ].join(" "),
+  },
+  {
+    id: "tl-tour-bus",
+    tab: "tiktok-live",
+    name: "Tour Bus Interior",
+    tagline: "Moving lights · road life",
+    thumb: "/studio-refs/artist-shoot-production-set.png",
+    accentColor: "#10b981",
+    prompt: [
+      "Cinematic 16:9 landscape photograph of the interior of a luxury artist tour bus in motion at night.",
+      "Long narrow lounge area: low leather bench seating in forest green, ambient strip LEDs along the ceiling in warm amber, flat-screen monitors on the walls.",
+      "Gold and chrome accents on the cabinet handles. Curtained bunk doors visible at the back.",
+      "Side windows show blurred freeway lights streaming past at highway speed, conveying motion.",
+      "A small studio section at front: keyboard on a fold-out surface, a notebook with scrawled lyrics, a half-drunk bottle of water.",
+      "No people. Clear center space for a TikTok LIVE virtual background host. Hyper-realistic interior photography, 24mm wide. NO TEXT, NO LOGOS.",
+    ].join(" "),
   },
 ];
 
@@ -349,7 +447,7 @@ function MasteringPanel() {
 
 function LiveStudioPage() {
   const { session } = useAuth();
-  const [tab, setTab] = useState<"live" | "artist" | "mastering">("live");
+  const [tab, setTab] = useState<"live" | "artist" | "tiktok-live" | "mastering">("live");
   const [sceneId, setSceneId] = useState("kexp-purple");
   const [refFile, setRefFile] = useState<File | null>(null);
   const [refPreview, setRefPreview] = useState<string | null>(null);
@@ -358,9 +456,10 @@ function LiveStudioPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const tabScenes = SCENES.filter(s => s.tab === tab);
+  const tabScenes = SCENES.filter(s => s.tab === (tab === "mastering" ? "live" : tab));
   const scene = SCENES.find(s => s.id === sceneId) ?? tabScenes[0];
   const isColorsLink = scene.id === "colored-backdrop";
+  const isTikTokLive = tab === "tiktok-live";
 
   const fetchGallery = useCallback(async () => {
     if (!session) return;
@@ -385,7 +484,7 @@ function LiveStudioPage() {
     return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
   }, [generations, fetchGallery]);
 
-  function switchTab(t: "live" | "artist" | "mastering") {
+  function switchTab(t: "live" | "artist" | "tiktok-live" | "mastering") {
     setTab(t);
     if (t !== "mastering") {
       const first = SCENES.find(s => s.tab === t);
@@ -406,15 +505,24 @@ function LiveStudioPage() {
 
   async function generate() {
     if (!session) { toast.error("Sign in to generate"); return; }
-    if (!refFile) { toast.error("Upload your reference photo first"); return; }
+    if (!isTikTokLive && !refFile) { toast.error("Upload your reference photo first"); return; }
     if (isColorsLink) return;
     setGenerating(true);
     try {
-      const imageUrl = await uploadRef(refFile);
+      let uploadedUrl: string | undefined;
+      if (!isTikTokLive && refFile) uploadedUrl = await uploadRef(refFile);
+      const body: Record<string, unknown> = {
+        kind: "image",
+        prompt: scene.prompt,
+        model: MODEL,
+        ...(isTikTokLive
+          ? { params: { aspect_ratio: "16:9" } }
+          : { imageUrls: [uploadedUrl!] }),
+      };
       const res = await fetch("/api/public/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ kind: "image", prompt: scene.prompt, imageUrls: [imageUrl], model: MODEL }),
+        body: JSON.stringify(body),
       });
       const data: unknown = await res.json();
       if (!res.ok) throw new Error((data as { error?: string })?.error ?? "Generation failed");
@@ -456,11 +564,11 @@ function LiveStudioPage() {
         </div>
 
         {/* Tab switcher */}
-        <div className="flex gap-1 mb-8 p-1 bg-card border border-border rounded-xl w-fit">
+        <div className="flex flex-wrap gap-1 mb-8 p-1 bg-card border border-border rounded-xl w-fit">
           <button
             onClick={() => switchTab("live")}
             className={cn(
-              "flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all",
+              "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all",
               tab === "live" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -469,16 +577,25 @@ function LiveStudioPage() {
           <button
             onClick={() => switchTab("artist")}
             className={cn(
-              "flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all",
+              "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all",
               tab === "artist" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
             )}
           >
             <Camera size={15} /> Artist Shoot
           </button>
           <button
+            onClick={() => switchTab("tiktok-live")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all",
+              tab === "tiktok-live" ? "bg-[#fe2c55] text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Tv2 size={15} /> TikTok LIVE
+          </button>
+          <button
             onClick={() => switchTab("mastering")}
             className={cn(
-              "flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all",
+              "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all",
               tab === "mastering" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -578,6 +695,48 @@ function LiveStudioPage() {
                     </Button>
                   </Link>
                 </div>
+              ) : isTikTokLive ? (
+                /* TikTok LIVE — no photo needed, just generate a 16:9 background */
+                <>
+                  <div className="rounded-xl border border-[#fe2c55]/30 bg-[#fe2c55]/5 p-3.5 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <Tv2 size={14} className="text-[#fe2c55]" />
+                      <span className="text-xs font-bold text-[#fe2c55] uppercase tracking-wide">16:9 Virtual Background</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      Generates a landscape background you can load directly into TikTok LIVE Studio as a virtual background scene.
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={() => void generate()}
+                    disabled={generating}
+                    className="w-full gap-2 h-12 text-base font-bold bg-[#fe2c55] hover:bg-[#e0253c] text-white border-0"
+                  >
+                    {generating
+                      ? <><Loader2 size={16} className="animate-spin" /> Rendering…</>
+                      : <><Sparkles size={16} /> Generate Background · 10 Aura</>}
+                  </Button>
+
+                  {/* How to use */}
+                  <div className="rounded-xl border border-border bg-card/50 p-4 space-y-2.5">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                      <Info size={12} /> How to use in TikTok LIVE
+                    </div>
+                    {[
+                      "Download the generated background",
+                      "Open TikTok LIVE Studio on desktop",
+                      "Click + Add source → Image",
+                      "Select your downloaded background",
+                      "Drag it below your camera layer",
+                    ].map((step, i) => (
+                      <div key={i} className="flex items-start gap-2.5">
+                        <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#fe2c55]/15 text-[9px] font-black text-[#fe2c55]">{i + 1}</span>
+                        <span className="text-[11px] text-muted-foreground leading-snug">{step}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
               ) : (
                 <>
                   {/* Photo upload */}
