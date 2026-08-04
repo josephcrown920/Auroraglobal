@@ -642,182 +642,213 @@ function LandingPage() {
       </section>
 
       {/* ── Pricing ──────────────────────────────────────────────────────── */}
-      <section id="pricing" className="border-t border-white/5 px-5 py-12">
-        <div className="mb-7">
-          <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#8b5cf6]">
-            Pricing
-          </span>
-          <h2 className="mt-2 text-3xl font-semibold leading-tight">
-            Pick your level.<br />
-            <span className="font-serif italic">Upgrade any time.</span>
-          </h2>
-          <p className="mt-2 max-w-[44ch] text-xs leading-relaxed text-zinc-400">
-            Start with Aura. Upgrade only when your creative output needs more room.
-          </p>
-        </div>
+      <section id="pricing" className="relative border-t border-white/5 px-5 py-20 overflow-hidden">
+        {/* Background glow */}
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,oklch(0.35_0.15_295/0.18)_0%,transparent_70%)]" />
 
-        {/* Subscription tiers */}
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 mb-6">
-          {/* Free */}
-          <div className="rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-6">
-            <div className="flex items-start justify-between gap-4 mb-5">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500 mb-1">Free</p>
-                <p className="text-3xl font-semibold text-zinc-100">$0</p>
-                <p className="text-sm text-zinc-500 mt-1">5 Aura on signup to try every tool</p>
-              </div>
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/5 ring-1 ring-white/10">
-                <Zap className="size-5 text-zinc-400" />
-              </span>
-            </div>
-            <ul className="flex flex-col gap-2 mb-6">
-              {[
-                "Image generation (all styles)",
-                "Aurora watermark on video exports",
-                "5 Aura to try every tool",
-                "Permanent gallery",
-                "Standard queue priority",
-              ].map((f) => (
-                <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-400">
-                  <Check className="size-4 shrink-0 mt-0.5 text-zinc-600" />
-                  {f}
-                </li>
-              ))}
-            </ul>
+        <div className="relative">
+          {/* Hook */}
+          <div className="mb-14 text-center">
+            <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#8b5cf6]">Pricing</span>
+            <h2 className="mt-4 text-4xl md:text-6xl font-extrabold leading-[1.05] tracking-tight">
+              A $50,000 shoot.<br />
+              <span className="font-serif italic font-normal">For $25 a month.</span>
+            </h2>
+            <p className="mt-5 max-w-[38ch] mx-auto text-base md:text-lg text-zinc-400 leading-relaxed">
+              No crew. No studio. No waiting weeks for edits. Aurora delivers cinematic content in seconds — start free, upgrade when you're ready.
+            </p>
             <Link
               to={ctaTo}
-              className="block w-full rounded-xl bg-white/8 py-3 text-center text-sm font-semibold text-zinc-200 ring-1 ring-white/10 transition-colors hover:bg-white/12 no-underline"
+              className="mt-8 inline-flex items-center gap-2 rounded-full bg-[#8b5cf6] px-8 py-4 text-base font-bold text-white shadow-[0_8px_32px_-4px_rgba(139,92,246,0.55)] transition-transform hover:scale-105 active:scale-95 no-underline"
             >
-              {user ? "You're on Free" : "Start free — no card needed"}
+              Start free — no card needed
+              <ArrowUpRight className="size-5" />
             </Link>
+            <p className="mt-3 text-xs text-zinc-600">5 Aura on signup · cancel any time</p>
           </div>
 
-          {/* Creator */}
-          <div className="rounded-2xl bg-zinc-900 ring-1 ring-white/15 p-6">
-            <div className="flex items-start justify-between gap-4 mb-5">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-400 mb-1">Creator</p>
-                <div className="flex items-baseline gap-1.5">
-                  <p className="text-3xl font-semibold text-zinc-100">$25</p>
-                  <p className="text-sm text-zinc-500">/ month</p>
+          {/* Subscription tiers */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 mb-8">
+            {/* Free */}
+            <div className="rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-6">
+              <div className="flex items-start justify-between gap-4 mb-5">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500 mb-1">Free</p>
+                  <p className="text-4xl font-extrabold text-zinc-100">$0</p>
+                  <p className="text-sm text-zinc-500 mt-1">5 Aura on signup — try every tool</p>
                 </div>
-                <p className="text-sm text-zinc-500 mt-1">1,000 Aura included monthly</p>
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/5 ring-1 ring-white/10">
+                  <Zap className="size-5 text-zinc-400" />
+                </span>
               </div>
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/8 ring-1 ring-white/15">
-                <Sparkles className="size-5 text-zinc-300" />
-              </span>
-            </div>
-            <ul className="flex flex-col gap-2 mb-6">
-              {[
-                "1,000 Aura / month included",
-                "No watermark — clean exports",
-                "Full video access (all models)",
-                "Standard queue priority",
-                "All 14 generation tools",
-                "Permanent gallery + Canvas",
-              ].map((f) => (
-                <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-300">
-                  <Check className="size-4 shrink-0 mt-0.5 text-zinc-400" />
-                  {f}
-                </li>
-              ))}
-            </ul>
-            <Link
-              to={user ? "/billing" : ctaTo}
-              className="block w-full rounded-xl bg-white/10 py-3 text-center text-sm font-semibold text-zinc-100 ring-1 ring-white/20 transition-colors hover:bg-white/15 no-underline"
-            >
-              {user ? "Upgrade to Creator" : "Get Creator — $25 / month"}
-            </Link>
-          </div>
-
-          {/* Pro */}
-          <div className="relative rounded-2xl bg-zinc-900 ring-2 ring-[#8b5cf6]/60 p-6 shadow-[0_0_40px_-10px] shadow-violet-500/30">
-            <div className="absolute -top-3 left-5">
-              <span className="rounded-full bg-[#8b5cf6] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white">
-                Most popular
-              </span>
-            </div>
-            <div className="flex items-start justify-between gap-4 mb-5">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#8b5cf6] mb-1">Pro</p>
-                <div className="flex items-baseline gap-1.5">
-                  <p className="text-3xl font-semibold text-zinc-100">$79</p>
-                  <p className="text-sm text-zinc-500">/ month</p>
-                </div>
-                <p className="text-sm text-zinc-500 mt-1">5,000 Aura included monthly</p>
-              </div>
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#8b5cf6]/15 ring-1 ring-[#8b5cf6]/30">
-                <Crown className="size-5 text-[#8b5cf6]" />
-              </span>
-            </div>
-            <ul className="flex flex-col gap-2 mb-6">
-              {[
-                "5,000 Aura / month included",
-                "Priority rendering — fastest queue",
-                "Highest-quality models unlocked",
-                "Full commercial use rights",
-                "Everything in Creator",
-                "Growth Tools — daily posts & rollout plans",
-              ].map((f) => (
-                <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-300">
-                  <Check className="size-4 shrink-0 mt-0.5 text-[#8b5cf6]" />
-                  {f}
-                </li>
-              ))}
-            </ul>
-            <Link
-              to={user ? "/billing" : ctaTo}
-              className="block w-full rounded-xl bg-[#8b5cf6] py-3 text-center text-sm font-semibold text-white shadow-[0_6px_20px_-4px_rgba(139,92,246,0.5)] transition-transform hover:scale-[1.01] active:scale-[0.99] no-underline"
-            >
-              {user ? "Upgrade to Pro" : "Get Pro — $79 / month"}
-            </Link>
-          </div>
-        </div>
-
-        {/* Credit packs */}
-        <div className="mb-4">
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500 mb-4">
-            Top-up credit packs · Buy any time
-          </p>
-          <div className="flex flex-col gap-3">
-            {([
-              { label: "Starter",  aura: 800,  usd: "$10",  per: "$0.013 / Aura", popular: false },
-              { label: "Creator",  aura: 2400, usd: "$30",  per: "$0.013 / Aura", popular: true },
-              { label: "Studio",   aura: 6400, usd: "$80",  per: "$0.013 / Aura", popular: false },
-            ]).map((p) => (
+              <ul className="flex flex-col gap-2.5 mb-7">
+                {[
+                  "Image generation (all styles)",
+                  "Aurora watermark on video exports",
+                  "5 Aura to try every tool",
+                  "Permanent gallery",
+                  "Standard queue priority",
+                ].map((f) => (
+                  <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-400">
+                    <Check className="size-4 shrink-0 mt-0.5 text-zinc-600" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
               <Link
-                key={p.label}
-                to={user ? "/billing" : ctaTo}
-                className={`group flex items-center justify-between rounded-xl px-5 py-4 ring-1 transition-all no-underline ${p.popular ? "bg-zinc-800 ring-white/15 hover:ring-[#8b5cf6]/40" : "bg-zinc-900 ring-white/8 hover:ring-white/15"}`}
+                to={ctaTo}
+                className="block w-full rounded-xl bg-white/8 py-3.5 text-center text-sm font-bold text-zinc-200 ring-1 ring-white/10 transition-colors hover:bg-white/12 no-underline"
               >
-                <div className="flex items-center gap-3">
-                  {p.popular && (
-                    <span className="rounded-full bg-[#8b5cf6]/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-[#8b5cf6]">
-                      Best value
-                    </span>
-                  )}
-                  <div>
-                    <p className="text-sm font-semibold text-zinc-100">{p.label} Pack</p>
-                    <p className="text-[11px] text-zinc-500">{p.aura} Aura · {p.per}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-base font-bold text-zinc-100">{p.usd}</span>
-                  <ArrowUpRight className="size-4 text-zinc-600 transition-colors group-hover:text-[#8b5cf6]" />
-                </div>
+                {user ? "You're on Free" : "Start free →"}
               </Link>
-            ))}
+            </div>
+
+            {/* Creator */}
+            <div className="rounded-2xl bg-zinc-900 ring-1 ring-white/15 p-6">
+              <div className="flex items-start justify-between gap-4 mb-5">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-400 mb-1">Creator</p>
+                  <div className="flex items-baseline gap-1.5">
+                    <p className="text-4xl font-extrabold text-zinc-100">$25</p>
+                    <p className="text-sm text-zinc-500">/ month</p>
+                  </div>
+                  <p className="text-sm text-zinc-500 mt-1">1,000 Aura included monthly</p>
+                </div>
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/8 ring-1 ring-white/15">
+                  <Sparkles className="size-5 text-zinc-300" />
+                </span>
+              </div>
+              <ul className="flex flex-col gap-2.5 mb-7">
+                {[
+                  "1,000 Aura / month included",
+                  "No watermark — clean exports",
+                  "Full video access (all models)",
+                  "Standard queue priority",
+                  "All 14 generation tools",
+                  "Permanent gallery + Canvas",
+                ].map((f) => (
+                  <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-300">
+                    <Check className="size-4 shrink-0 mt-0.5 text-zinc-400" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                to={user ? "/billing" : ctaTo}
+                className="block w-full rounded-xl bg-white/10 py-3.5 text-center text-sm font-bold text-zinc-100 ring-1 ring-white/20 transition-colors hover:bg-white/15 no-underline"
+              >
+                {user ? "Upgrade to Creator" : "Get Creator — $25 / mo →"}
+              </Link>
+            </div>
+
+            {/* Pro */}
+            <div className="relative rounded-2xl bg-zinc-900 ring-2 ring-[#8b5cf6]/70 p-6 shadow-[0_0_60px_-10px_rgba(139,92,246,0.4)]">
+              <div className="absolute -top-3.5 left-5">
+                <span className="rounded-full bg-[#8b5cf6] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white shadow-[0_4px_14px_-2px_rgba(139,92,246,0.6)]">
+                  Most popular
+                </span>
+              </div>
+              <div className="flex items-start justify-between gap-4 mb-5">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#8b5cf6] mb-1">Pro</p>
+                  <div className="flex items-baseline gap-1.5">
+                    <p className="text-4xl font-extrabold text-zinc-100">$79</p>
+                    <p className="text-sm text-zinc-500">/ month</p>
+                  </div>
+                  <p className="text-sm text-zinc-500 mt-1">5,000 Aura included monthly</p>
+                </div>
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#8b5cf6]/15 ring-1 ring-[#8b5cf6]/30">
+                  <Crown className="size-5 text-[#8b5cf6]" />
+                </span>
+              </div>
+              <ul className="flex flex-col gap-2.5 mb-7">
+                {[
+                  "5,000 Aura / month included",
+                  "Priority rendering — fastest queue",
+                  "Highest-quality models unlocked",
+                  "Full commercial use rights",
+                  "Everything in Creator",
+                  "Growth Tools — daily posts & rollout plans",
+                ].map((f) => (
+                  <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-300">
+                    <Check className="size-4 shrink-0 mt-0.5 text-[#8b5cf6]" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                to={user ? "/billing" : ctaTo}
+                className="block w-full rounded-xl bg-[#8b5cf6] py-3.5 text-center text-sm font-bold text-white shadow-[0_6px_24px_-4px_rgba(139,92,246,0.6)] transition-transform hover:scale-[1.02] active:scale-[0.98] no-underline"
+              >
+                {user ? "Upgrade to Pro" : "Get Pro — $79 / mo →"}
+              </Link>
+            </div>
+          </div>
+
+          {/* Credit packs */}
+          <div className="mb-4">
+            <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500 mb-4">
+              Top-up credit packs · Buy any time, no subscription needed
+            </p>
+            <div className="flex flex-col gap-2.5">
+              {([
+                { label: "Starter",  aura: 800,  usd: "$10",  per: "$0.013 / Aura", popular: false },
+                { label: "Creator",  aura: 2400, usd: "$30",  per: "$0.013 / Aura", popular: true },
+                { label: "Studio",   aura: 6400, usd: "$80",  per: "$0.013 / Aura", popular: false },
+              ]).map((p) => (
+                <Link
+                  key={p.label}
+                  to={user ? "/billing" : ctaTo}
+                  className={`group flex items-center justify-between rounded-xl px-5 py-4 ring-1 transition-all no-underline ${p.popular ? "bg-zinc-800 ring-white/15 hover:ring-[#8b5cf6]/50" : "bg-zinc-900 ring-white/8 hover:ring-white/15"}`}
+                >
+                  <div className="flex items-center gap-3">
+                    {p.popular && (
+                      <span className="rounded-full bg-[#8b5cf6]/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-[#8b5cf6]">
+                        Best value
+                      </span>
+                    )}
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-100">{p.label} Pack</p>
+                      <p className="text-[11px] text-zinc-500">{p.aura} Aura · {p.per}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-base font-bold text-zinc-100">{p.usd}</span>
+                    <ArrowUpRight className="size-4 text-zinc-600 transition-colors group-hover:text-[#8b5cf6]" />
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <p className="text-center text-[11px] text-zinc-600 leading-relaxed mb-14">
+            Just trying it out?{" "}
+            <Link to={user ? "/billing" : ctaTo} className="text-zinc-400 hover:text-[#8b5cf6] underline underline-offset-2 transition-colors">
+              Day passes from $2
+            </Link>
+            {" "}· 150 Aura · no commitment.
+          </p>
+
+          {/* Closing CTA block */}
+          <div className="rounded-3xl bg-gradient-to-br from-[#8b5cf6]/20 via-zinc-900 to-zinc-900 ring-1 ring-[#8b5cf6]/30 p-10 md:p-14 text-center shadow-[0_0_80px_-20px_rgba(139,92,246,0.35)]">
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#8b5cf6] mb-4">Start today</p>
+            <h3 className="text-3xl md:text-5xl font-extrabold leading-tight mb-4">
+              Your next release deserves<br />
+              <span className="font-serif italic font-normal">a $50K visual.</span>
+            </h3>
+            <p className="text-zinc-400 text-base md:text-lg max-w-[36ch] mx-auto mb-8 leading-relaxed">
+              Thousands of artists are already creating cinematic content in seconds. You're one click away.
+            </p>
+            <Link
+              to={ctaTo}
+              className="inline-flex items-center gap-2.5 rounded-full bg-[#8b5cf6] px-10 py-5 text-lg font-extrabold text-white shadow-[0_12px_40px_-6px_rgba(139,92,246,0.65)] transition-transform hover:scale-105 active:scale-95 no-underline"
+            >
+              {user ? "Open Studio →" : "Create your first shot — free"}
+              <ArrowUpRight className="size-5" />
+            </Link>
+            <p className="mt-4 text-xs text-zinc-600">No credit card · 5 free Aura · cancel any time</p>
           </div>
         </div>
-
-        {/* Day passes note */}
-        <p className="text-center text-[11px] text-zinc-600 leading-relaxed">
-          Just trying it out?{" "}
-          <Link to={user ? "/billing" : ctaTo} className="text-zinc-400 hover:text-[#8b5cf6] underline underline-offset-2 transition-colors">
-            Day passes from $2
-          </Link>
-          {" "}· 150 Aura · no commitment.
-        </p>
       </section>
 
       {/* ── Aurora Partners ─────────────────────────────────────────────── */}
