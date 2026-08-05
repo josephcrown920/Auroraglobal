@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { Lock, Mail, Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Loader2, Lock, Mail, ShieldCheck, UserPlus } from "lucide-react";
 
 export function Auth() {
+  const [mode, setMode] = useState<"sign_in" | "sign_up">("sign_in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -13,8 +14,15 @@ export function Auth() {
     e.preventDefault();
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      if (mode === "sign_in") {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        toast.success("Account created — check your email to confirm, then sign in.");
+        setMode("sign_in");
+      }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Authentication failed");
     } finally {
@@ -23,45 +31,81 @@ export function Auth() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: "24px" }}>
-      <div style={{ width: "100%", maxWidth: 400 }}>
-        <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 60, height: 60, borderRadius: 18, background: "linear-gradient(135deg, #e11d6a, #9b1239)", marginBottom: 16, boxShadow: "0 0 40px rgba(225,29,106,0.4)" }}>
-            <ShieldCheck size={28} color="white" />
+    <div className="flex min-h-screen items-center justify-center bg-[#050207] px-6 py-12">
+      {/* Ambient */}
+      <div className="pointer-events-none fixed inset-0">
+        <div className="absolute -top-40 right-0 h-[500px] w-[500px] rounded-full bg-rose-900/10 blur-[120px]" />
+        <div className="absolute bottom-0 left-0 h-[400px] w-[400px] rounded-full bg-violet-900/8 blur-[100px]" />
+      </div>
+
+      <div className="relative w-full max-w-[400px]">
+        {/* Logo */}
+        <div className="mb-10 text-center">
+          <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-rose-800 shadow-[0_0_40px_rgba(225,29,106,0.45)]">
+            <ShieldCheck size={28} className="text-white" />
           </div>
-          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", color: "var(--text)" }}>Adult School</h1>
-          <p style={{ margin: "6px 0 0", fontSize: 14, color: "var(--text-muted)" }}>Your content. Your control. Complete discretion.</p>
+          <h1 className="text-[28px] font-black tracking-tight text-white">Adult School</h1>
+          <p className="mt-1.5 text-[14px] text-white/40">Your content. Your control. Complete discretion.</p>
         </div>
 
-        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 20, padding: 32 }}>
-          <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-muted)" }}>Email</span>
-              <div style={{ position: "relative" }}>
-                <Mail size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
-                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" style={{ width: "100%", padding: "11px 12px 11px 36px", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text)", fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+        {/* Card */}
+        <div className="rounded-3xl border border-white/8 bg-white/[0.03] p-8 backdrop-blur-sm">
+          {/* Mode toggle */}
+          <div className="mb-6 grid grid-cols-2 gap-1.5 rounded-xl bg-white/5 p-1">
+            {(["sign_in", "sign_up"] as const).map(m => (
+              <button key={m} type="button" onClick={() => setMode(m)}
+                className={`rounded-lg py-2 text-[13px] font-bold capitalize transition-all ${mode === m ? "bg-rose-500/20 text-rose-300 shadow-sm" : "text-white/30 hover:text-white"}`}>
+                {m === "sign_in" ? "Sign in" : "Create account"}
+              </button>
+            ))}
+          </div>
+
+          <form onSubmit={submit} className="flex flex-col gap-4">
+            {/* Email */}
+            <div className="flex flex-col gap-2">
+              <label className="text-[12px] font-semibold uppercase tracking-wider text-white/40">Email</label>
+              <div className="relative">
+                <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
+                <input
+                  type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full rounded-xl border border-white/8 bg-white/4 py-3 pl-10 pr-4 text-[14px] text-white placeholder:text-white/20 outline-none focus:border-rose-500/40 focus:ring-1 focus:ring-rose-500/20 transition-all"
+                />
               </div>
-            </label>
-            <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-muted)" }}>Password</span>
-              <div style={{ position: "relative" }}>
-                <Lock size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
-                <input type={showPw ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" style={{ width: "100%", padding: "11px 40px 11px 36px", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text)", fontSize: 14, outline: "none", boxSizing: "border-box" }} />
-                <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: 0, display: "flex" }}>
+            </div>
+
+            {/* Password */}
+            <div className="flex flex-col gap-2">
+              <label className="text-[12px] font-semibold uppercase tracking-wider text-white/40">Password</label>
+              <div className="relative">
+                <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
+                <input
+                  type={showPw ? "text" : "password"} required value={password} onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full rounded-xl border border-white/8 bg-white/4 py-3 pl-10 pr-11 text-[14px] text-white placeholder:text-white/20 outline-none focus:border-rose-500/40 focus:ring-1 focus:ring-rose-500/20 transition-all"
+                />
+                <button type="button" onClick={() => setShowPw(v => !v)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white transition-colors">
                   {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
-            </label>
-            <button type="submit" disabled={loading} style={{ marginTop: 4, padding: "13px", background: "linear-gradient(135deg, #e11d6a, #9b1239)", border: "none", borderRadius: 10, color: "white", fontWeight: 700, fontSize: 15, cursor: loading ? "default" : "pointer", opacity: loading ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 0 28px rgba(225,29,106,0.35)" }}>
-              {loading ? <Loader2 size={16} className="animate-spin" /> : <Lock size={15} />}
-              Sign in securely
+            </div>
+
+            <button
+              type="submit" disabled={loading}
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-600 to-pink-600 py-3.5 text-[15px] font-black text-white shadow-[0_0_32px_rgba(225,29,106,0.35)] transition-all hover:shadow-[0_0_48px_rgba(225,29,106,0.5)] hover:scale-[1.01] disabled:opacity-60 disabled:scale-100"
+            >
+              {loading
+                ? <Loader2 size={16} className="animate-spin" />
+                : mode === "sign_in" ? <Lock size={15} /> : <UserPlus size={15} />}
+              {mode === "sign_in" ? "Sign in securely" : "Create account"}
             </button>
           </form>
-          <p style={{ textAlign: "center", marginTop: 18, marginBottom: 0, fontSize: 13, color: "var(--text-muted)" }}>Sign in with your Aurora account.</p>
         </div>
 
-        <p style={{ textAlign: "center", marginTop: 20, fontSize: 13, color: "var(--text-muted)" }}>
-          🔒 Zero public indexing · Private by default · Part of <a href="/" style={{ color: "#e11d6a", textDecoration: "none", fontWeight: 600 }}>Aurora</a>
+        <p className="mt-6 text-center text-[12px] text-white/25">
+          🔒 Zero public indexing · Private by default · Part of{" "}
+          <a href="/" className="text-rose-400 no-underline hover:text-rose-300 transition-colors font-semibold">Aurora</a>
         </p>
       </div>
     </div>
