@@ -45,7 +45,7 @@ function AdminPage() {
   });
 
 
-  const [tab, setTab] = useState<"gens" | "users" | "payments" | "earnings" | "workers" | "promos" | "images" | "copy" | "router">("gens");
+  const [tab, setTab] = useState<"gens" | "users" | "payments" | "earnings" | "workers" | "promos" | "images" | "copy" | "router" | "resources">("gens");
   const [grantUser, setGrantUser] = useState("");
   const [grantAmount, setGrantAmount] = useState(100);
 
@@ -186,9 +186,9 @@ function AdminPage() {
 
         {/* Tabs */}
         <div className="flex gap-2 border-b border-border overflow-x-auto">
-          {(["gens", "users", "payments", "earnings", "workers", "promos", "images", "copy", "router"] as const).map((t) => (
+          {(["gens", "users", "payments", "earnings", "workers", "promos", "images", "copy", "router", "resources"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 text-sm capitalize border-b-2 -mb-px transition-colors whitespace-nowrap ${tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-              {t === "gens" ? "Generations" : t === "workers" ? "GPU Workers" : t === "promos" ? "Promo Codes" : t === "images" ? "Site Images" : t === "copy" ? "Site Copy" : t === "router" ? "AI Router" : t}
+              {t === "gens" ? "Generations" : t === "workers" ? "GPU Workers" : t === "promos" ? "Promo Codes" : t === "images" ? "Site Images" : t === "copy" ? "Site Copy" : t === "router" ? "AI Router" : t === "resources" ? "Resources" : t}
             </button>
           ))}
         </div>
@@ -277,6 +277,7 @@ function AdminPage() {
         {tab === "images" && <ImagesPanel />}
         {tab === "copy" && <CopyPanel />}
         {tab === "router" && <RouterPanel />}
+        {tab === "resources" && <ResourcesPanel />}
       </div>
     </main>
   );
@@ -1815,6 +1816,86 @@ function Stat({ icon: Icon, label, value, sub }: { icon: React.ComponentType<{ c
       <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
       <p className="text-2xl font-semibold mt-1">{value}</p>
       {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
+    </div>
+  );
+}
+
+const RESOURCE_FILES = [
+  {
+    name: "Premium Video Agent",
+    desc: "Full source — premium video agent project",
+    size: "402 KB",
+    file: "/downloads/premium-video-agent.zip",
+    tag: "Source",
+  },
+  {
+    name: "TikTok + Shopify",
+    desc: "TikTok × Shopify integration workspace",
+    size: "192 KB",
+    file: "/downloads/tiktok-shopify.zip",
+    tag: "Integration",
+  },
+  {
+    name: "ComfyUI Manager",
+    desc: "ComfyUI Manager main branch — plugin manager for ComfyUI",
+    size: "1.8 MB",
+    file: "/downloads/comfyui-manager.zip",
+    tag: "Tool",
+  },
+  {
+    name: "Temu AI Course Creator",
+    desc: "AI-powered course creator project source",
+    size: "1.1 MB",
+    file: "/downloads/temu-ai-course-creator.zip",
+    tag: "Source",
+  },
+  {
+    name: "Cutlab Studio — Reusable Templates",
+    desc: "Cutlab reusable UI templates (latest snapshot)",
+    size: "743 KB",
+    file: "/downloads/cutlab-studio-templates.zip",
+    tag: "Templates",
+  },
+  {
+    name: "Cutlab Studio — Source",
+    desc: "Cutlab Studio full source code",
+    size: "729 KB",
+    file: "/downloads/cutlab-studio-source.zip",
+    tag: "Source",
+  },
+] as const;
+
+function ResourcesPanel() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold">Resource Downloads</h2>
+        <p className="text-sm text-muted-foreground mt-1">Uploaded project files and integrations available for download.</p>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {RESOURCE_FILES.map((r) => (
+          <a
+            key={r.file}
+            href={r.file}
+            download
+            className="group flex items-start justify-between gap-4 rounded-2xl border border-border bg-card/40 p-5 hover:border-primary/50 hover:bg-card transition-colors no-underline"
+          >
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border border-border text-muted-foreground">
+                  {r.tag}
+                </span>
+              </div>
+              <p className="font-semibold text-foreground truncate">{r.name}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{r.desc}</p>
+              <p className="text-[10px] text-muted-foreground/60 mt-2">{r.size}</p>
+            </div>
+            <span className="shrink-0 mt-1 flex size-9 items-center justify-center rounded-xl border border-border bg-background/60 group-hover:border-primary/50 group-hover:text-primary transition-colors text-muted-foreground">
+              ↓
+            </span>
+          </a>
+        ))}
+      </div>
     </div>
   );
 }
