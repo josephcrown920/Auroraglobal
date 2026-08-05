@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
 import {
   Camera, ChevronRight, Download, ImagePlus,
   Loader2, LogOut, Sparkles, X,
@@ -43,13 +44,17 @@ function download(url: string, name: string) {
   }).catch(() => window.open(url, "_blank"));
 }
 
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+/** Upload a file to the shared studio bucket and return its public https:// URL.
+ *  data: URLs are rejected by /api/public/generate's URL-guard; storage URLs work. */
+async function uploadRefPhoto(file: File): Promise<string> {
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `adult-studio/ref/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage
+    .from("studio")
+    .upload(path, file, { contentType: file.type, upsert: false });
+  if (error) throw new Error(`Upload failed: ${error.message}`);
+  const { data } = supabase.storage.from("studio").getPublicUrl(path);
+  return data.publicUrl;
 }
 
 function signOut() {
@@ -58,7 +63,8 @@ function signOut() {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export function AdultStudio() {
+interface AdultStudioProps { accessToken: string; }
+export function AdultStudio({ accessToken }: AdultStudioProps) {
   const [lookId, setLookId] = useState<LookId>("boudoir");
   const [customPrompt, setCustomPrompt] = useState("");
   const [refFiles, setRefFiles] = useState<File[]>([]);
@@ -94,7 +100,8 @@ export function AdultStudio() {
     }, ...prev]);
 
     try {
-      const imageUrls = await Promise.all(refFiles.map(fileToDataUrl));
+      // Upload ref photos to storage to get https:// URLs that pass URL-guard.
+      const imageUrls = await Promise.all(refFiles.map(uploadRefPhoto));
       const extra = customPrompt.trim() ? ` Additional details: ${customPrompt.trim()}.` : "";
       const prompt =
         "Use the uploaded face photo as strict identity reference — keep facial likeness, skin tone, " +
@@ -103,13 +110,17 @@ export function AdultStudio() {
 
       const res = await fetch(`/api/public/generate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({ kind: "image", prompt, imageUrls }),
       });
       const data: unknown = await res.json();
       if (!res.ok) throw new Error((data as { error?: string })?.error ?? "Generation failed");
 
-      const resultUrl = (data as { result_image_url?: string })?.result_image_url ?? null;
+      // The /api/public/generate endpoint returns `url` (plus metadata).
+      const resultUrl = (data as { url?: string })?.url ?? null;
       setGenerations(prev => prev.map(g => g.id === id
         ? { ...g, status: resultUrl ? "completed" : "failed", result_image_url: resultUrl,
             error: resultUrl ? null : "No image returned" }

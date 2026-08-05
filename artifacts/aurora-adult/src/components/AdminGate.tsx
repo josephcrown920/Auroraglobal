@@ -22,22 +22,26 @@ export function AdminGate({ onUnlocked }: Props) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    // Constant-time-ish delay to slow brute force
-    await new Promise(r => setTimeout(r, 400));
-    const expected = (import.meta.env as Record<string, string | undefined>).VITE_ADMIN_PASSCODE;
-    if (!expected) {
-      toast.error("Admin passcode not configured — set ADMIN_PASSCODE secret");
+    try {
+      // Validate passcode server-side so the secret is never sent to the client.
+      const res = await fetch("/api/admin/verify-passcode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ passcode }),
+      });
+      const data = (await res.json()) as { ok: boolean; error?: string };
+      if (!data.ok) {
+        toast.error(data.error ?? "Incorrect passcode");
+        setPasscode("");
+        return;
+      }
+      setAdminUnlocked();
+      onUnlocked();
+    } catch {
+      toast.error("Could not reach verification server — try again");
+    } finally {
       setBusy(false);
-      return;
     }
-    if (passcode !== expected) {
-      toast.error("Incorrect passcode");
-      setPasscode("");
-      setBusy(false);
-      return;
-    }
-    setAdminUnlocked();
-    onUnlocked();
   }
 
   return (

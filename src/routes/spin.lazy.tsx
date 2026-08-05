@@ -19,6 +19,8 @@ import {
   SPIN_PIECE_COST,
   SPIN_VIDEO_PIECE_COST,
   SPIN_VIDEO_DURATION_SECONDS,
+  SPIN_VIDEO_COST,
+  spinTotalCost,
   SPIN_TEMPLATES,
   type SpinMode,
   type SpinSpec,
@@ -80,6 +82,35 @@ function toVariant(v: {
   };
 }
 
+/**
+ * Video tile with eager poster frame + fade-in on first play.
+ * Shows a transparent placeholder while the video loads, then fades in on the
+ * `playing` event so there's never a black flash before the first frame.
+ * Follows the Colors Studio media rules: MP4s must be +faststart — provider
+ * URLs from the studio bucket already satisfy this.
+ */
+function SpinVideoTile({ src }: { src: string }) {
+  const [playing, setPlaying] = useState(false);
+  return (
+    <>
+      <video
+        src={src}
+        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${playing ? "opacity-100" : "opacity-0"}`}
+        muted
+        loop
+        playsInline
+        autoPlay
+        preload="metadata"
+        onPlaying={() => setPlaying(true)}
+      />
+      {!playing && (
+        <div className="absolute inset-0 grid place-items-center bg-white/5">
+          <Video className="size-5 text-primary/50" />
+        </div>
+      )}
+    </>
+  );
+}
 function SpinPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -101,6 +132,10 @@ function SpinPage() {
   const [busy, setBusy] = useState(false);
   const [planning, setPlanning] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // Per-variant video slider: 0–50 posts as short 5s i2v clips (budget
+  // seedance-2.0-fast). Separate from the premium Product Showcase Video Mode.
+  const [videoCount, setVideoCount] = useState(0);
 
   // Video Mode (Product Showcase only): the same avatar holds YOUR product and
   // SPEAKS a short script — 30 talking clips instead of 30 stills. Reset back
@@ -306,6 +341,7 @@ function SpinPage() {
             mode,
             script: mode === "video" ? script.trim() : undefined,
             productUrl: mode === "video" ? productUrl! : undefined,
+            videoCount: mode === "video" ? 0 : videoCount,
           },
         });
         setJobId(id);
@@ -317,7 +353,7 @@ function SpinPage() {
         setErr(e instanceof Error ? e.message : "Could not start Spin");
       }
     },
-    [avatarId, faceUrl, templateId, mode, script, productUrl, busy, planning, startFn, navigate, drive],
+    [avatarId, faceUrl, templateId, mode, script, productUrl, videoCount, busy, planning, startFn, navigate, drive],
   );
 
   // Resume an in-flight job from the URL (refresh / shared link).
@@ -355,11 +391,11 @@ function SpinPage() {
 
         <div className="mt-6 flex items-center gap-2">
           <span className="inline-flex items-center gap-2 rounded-md border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Flame className="size-3.5" /> TikTok30
+            <Flame className="size-3.5" /> TikTok50
           </span>
         </div>
         <h1 className="mt-3 text-4xl md:text-5xl font-extrabold tracking-tight">
-          One prompt. <span className="aurora-gradient-text">30 scroll-stopping posts.</span>
+          One prompt. <span className="aurora-gradient-text">{SPIN_COUNT} unique posts.</span>
         </h1>
         <p className="mt-3 max-w-2xl text-muted-foreground">
           Describe your idea once. Aurora writes a full viral campaign — every post a different location, outfit, angle,
@@ -371,14 +407,14 @@ function SpinPage() {
           <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             <Sparkles className="size-3.5" /> Pick a template
           </div>
-          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-6">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6">
             {templates.map((t) => (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => pickTemplate(t.id)}
                 disabled={active}
-                className={`group relative flex flex-col items-start justify-end overflow-hidden rounded-lg border text-left transition aspect-square ${
+                className={`group relative flex flex-col items-start justify-end gap-0.5 overflow-hidden rounded-xl border p-3 text-left transition aspect-[3/4] ${
                   templateId === t.id ? "border-primary" : "border-white/10 hover:border-white/25"
                 }`}
               >
@@ -393,17 +429,51 @@ function SpinPage() {
                   <div className="absolute inset-0 bg-white/5" />
                 )}
                 <div
-                  className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent ${
+                  className={`absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 ${
                     templateId === t.id ? "ring-2 ring-inset ring-primary" : ""
                   }`}
                 />
-                <div className="relative w-full p-1.5">
-                  <span className="block text-[10px] font-semibold text-white leading-tight truncate">{t.label}</span>
-                </div>
+                <span className="relative text-lg leading-none">{t.emoji}</span>
+                <span className="relative text-xs font-semibold text-white">{t.label}</span>
+                <span className="relative text-[10px] leading-tight text-white/70">{t.blurb}</span>
               </button>
             ))}
           </div>
         </div>
+
+        {/* Video ratio slider — 0 to 50 clips (budget i2v, 5 Aura each) */}
+        {mode !== "video" && (
+          <div className="mt-6 rounded-xl border border-white/10 bg-white/3 p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                <Video className="size-3.5" /> Videos in batch
+              </div>
+              <div className="flex items-center gap-3 text-xs">
+                <span className="tabular-nums text-foreground font-medium">
+                  {videoCount} clip{videoCount !== 1 ? "s" : ""}
+                </span>
+                <span className="text-muted-foreground">·</span>
+                <span className="tabular-nums text-muted-foreground">
+                  {SPIN_COUNT - videoCount} image{SPIN_COUNT - videoCount !== 1 ? "s" : ""}
+                </span>
+              </div>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={SPIN_COUNT}
+              step={1}
+              value={videoCount}
+              onChange={(e) => setVideoCount(Number(e.target.value))}
+              disabled={active}
+              className="w-full accent-primary disabled:opacity-50"
+            />
+            <p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
+              Selected posts render as 5-second identity-locked video clips (budget model · {SPIN_VIDEO_COST} Aura each).
+              The rest render as still images ({SPIN_PIECE_COST} Aura each).
+            </p>
+          </div>
+        )}
 
         {/* Video Mode (Product Showcase only) */}
         {templateId === "product_showcase" && (
@@ -588,7 +658,7 @@ function SpinPage() {
           <input
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="e.g. went viral in 30 days with zero budget — here's exactly what I did"
+            placeholder="e.g. day in my life as a Miami fitness creator"
             className="flex-1 rounded-xl aurora-glass px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
             disabled={active}
           />
@@ -600,7 +670,9 @@ function SpinPage() {
             {active ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
             {planning
               ? "Writing campaign…"
-              : `Spin ${SPIN_COUNT} ${mode === "video" ? "videos" : ""} · ${SPIN_COUNT * (mode === "video" ? SPIN_VIDEO_PIECE_COST : SPIN_PIECE_COST)} Aura`}
+              : mode === "video"
+                ? `Spin ${SPIN_COUNT} videos · ${SPIN_COUNT * SPIN_VIDEO_PIECE_COST} Aura`
+                : `Spin ${SPIN_COUNT} · ${spinTotalCost(SPIN_COUNT - videoCount, videoCount)} Aura`}
           </button>
         </form>
 
@@ -683,6 +755,7 @@ function SpinPage() {
                 {heygenMut.isPending ? "Generating…" : `Generate · ${HEYGEN_COST} Aura`}
               </button>
 
+              {/* result */}
               {heygenMut.isSuccess && (
                 <Link to="/gallery" className="mt-2 flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-4 py-2.5 text-sm font-semibold text-emerald-400 no-underline hover:bg-emerald-500/20 transition-colors">
                   <Check className="size-4" /> Ready — View in Gallery
@@ -718,6 +791,61 @@ function SpinPage() {
                 </Link>
               </div>
             )}
+
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6">
+              {(variants.length
+                ? variants
+                : Array.from({ length: SPIN_COUNT }).map((_, i) => ({
+                    id: String(i),
+                    idx: i,
+                    label: "Queued",
+                    status: "queued" as const,
+                    url: null,
+                    spec: null,
+                    // Placeholders reflect the expected mix from the slider.
+                    kind: (mode === "video" ? "video" : i < videoCount ? "video" : "image") as "image" | "video",
+                  }))
+              ).map((v) => (
+                <div key={v.id} className="group relative overflow-hidden rounded-xl aurora-glass aspect-[2/3]">
+                  {v.url ? (
+                    v.kind === "video" ? (
+                      <SpinVideoTile src={v.url} />
+                    ) : (
+                      <img src={v.url} alt={v.spec?.caption ?? v.label} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+                    )
+                  ) : (
+                    <div className="absolute inset-0 grid place-items-center">
+                      {v.status === "running" ? (
+                        <Loader2 className="size-5 animate-spin text-primary" />
+                      ) : v.status === "error" ? (
+                        <AlertCircle className="size-5 text-red-300/70" />
+                      ) : (
+                        <span className="size-2 rounded-full bg-white/30" />
+                      )}
+                    </div>
+                  )}
+                  {v.status === "done" && v.url && (
+                    <button
+                      type="button"
+                      onClick={() => downloadVariant(v.url!, v.idx, v.kind).catch(() => toast.error("Download failed"))}
+                      className="absolute right-2 top-2 rounded-full bg-black/60 p-1.5 opacity-0 backdrop-blur-sm transition group-hover:opacity-100"
+                      title="Download"
+                    >
+                      <Download className="size-3 text-white" />
+                    </button>
+                  )}
+                  <div className="absolute inset-x-0 bottom-0 flex flex-col gap-0.5 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-2">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="truncate text-[10px] font-semibold text-foreground">{v.label}</span>
+                      {v.status === "done" && <Check className="size-3 shrink-0 text-emerald-300" />}
+                    </div>
+                    {v.spec?.caption && (
+                      <span className="truncate text-[9px] leading-tight text-white/60">{v.spec.caption}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </section>
         )}
 

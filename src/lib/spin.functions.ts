@@ -18,6 +18,11 @@ import {
   SPIN_VIDEO_DURATION_SECONDS,
   SPIN_VIDEO_MODEL,
   SPIN_VIDEO_LIPSYNC_MODEL,
+  SPIN_VIDEO_COST,
+  SPIN_CLIP_MODEL,
+  SPIN_CLIP_DURATION,
+  spinTotalCost,
+  assignVideoSlots,
   VIRAL_SYSTEM_PROMPT,
   SpinPlanSchema,
   SPIN_TEMPLATES,
@@ -27,6 +32,7 @@ import {
   buildVariantVideoMotionPrompt,
   specLabel,
   type SpinSpec,
+  type SpinSpecWithVideo,
   type SpinTemplateId,
   type SpinMode,
 } from "./spin-engine";
@@ -201,6 +207,11 @@ const SpinInput = z.object({
   mode: z.enum(["photo", "video"]).optional().default("photo"),
   script: z.string().trim().min(1).max(600).optional(),
   productUrl: z.string().url().optional(),
+  // Per-variant video slider: 0–50 posts rendered as short i2v clips (budget
+  // seedance-2.0-fast, 5 Aura each) instead of stills. Orthogonal to `mode`
+  // (which controls the premium Product Showcase video pipeline). Only applies
+  // when mode === "photo" — ignored for the full video mode batch.
+  videoCount: z.number().int().min(0).max(SPIN_COUNT).default(0),
 });
 
 export const spinThirty = createServerFn({ method: "POST" })
@@ -278,8 +289,13 @@ export const spinThirty = createServerFn({ method: "POST" })
     // Admins bypass the charge entirely, consistent with all other charge points.
     // Video Mode pieces are priced through the real stacked engine (image +
     // premium video + premium lip-sync at 15s) — see SPIN_VIDEO_PIECE_COST.
+    // Slider-mode video pieces cost SPIN_VIDEO_COST each (budget i2v).
+    const effectiveVideoCount = mode === "video" ? 0 : Math.min(data.videoCount ?? 0, SPIN_COUNT);
     const costPerPiece = mode === "video" ? SPIN_VIDEO_PIECE_COST : COST_SPIN_PIECE;
-    const spinCost = SPIN_COUNT * costPerPiece;
+    const spinCost =
+      mode === "video"
+        ? SPIN_COUNT * costPerPiece
+        : spinTotalCost(SPIN_COUNT - effectiveVideoCount, effectiveVideoCount);
     const creditRef = crypto.randomUUID();
     const adminUser = await isAdmin(userId);
     if (!adminUser) {
@@ -323,6 +339,9 @@ export const spinThirty = createServerFn({ method: "POST" })
           (template?.requiresHeldObject
             ? "The reference photo shows the creator holding a specific product — every post must keep that exact same product visibly in her hand/frame, varying only outfit/location/angle/pose around it. "
             : "") +
+          (effectiveVideoCount > 0
+            ? `${effectiveVideoCount} of the ${SPIN_COUNT} posts will be rendered as short VIDEO CLIPS — prefer these content types for those slots: Talking-head hook, POV scenario, Behind-the-scenes, Story-style post. The remaining ${SPIN_COUNT - effectiveVideoCount} will be STILL IMAGES — prefer: Carousel cover, Caption hook visual, Meme edit. `
+            : "") +
           `Generate exactly ${SPIN_COUNT} unique posts with MAXIMUM variation as JSON.`,
         schema: SpinPlanSchema,
         category: "SOCIAL_CONTENT",
@@ -353,13 +372,18 @@ export const spinThirty = createServerFn({ method: "POST" })
       throw new Error(error?.message ?? "Failed to create spin job");
     }
 
-    const rows = specs.map((spec, idx) => ({
+    // Assign video slots for the slider feature (photo mode only).
+    // In video mode all variants are already "video" (premium pipeline).
+    const specsWithVideo: SpinSpecWithVideo[] =
+      mode === "video" ? specs : assignVideoSlots(specs, effectiveVideoCount);
+
+    const rows = specsWithVideo.map((spec, idx) => ({
       job_id: job.id,
       user_id: userId,
       idx,
       label: specLabel(spec),
       status: "queued" as const,
-      kind: mode === "video" ? "video" : "image",
+      kind: mode === "video" ? "video" : spec.isVideo ? "video" : "image",
       spec,
       prompt: buildVariantPrompt(spec, { base, triggerWord, avatarName, templateId }),
     }));
@@ -450,12 +474,11 @@ export async function advanceSpinQueueAdmin(
       }
     }
     const mode: SpinMode = job.mode ?? "photo";
-    const costPerPiece = mode === "video" ? SPIN_VIDEO_PIECE_COST : COST_SPIN_PIECE;
     const ctx: SpinJobCtx = { jobId: job.id, userId: job.user_id, mode, faceUrl, productUrl, audioUrl: job.audio_url ?? null };
 
     const { data: pending } = await db
       .from("spin_variants")
-      .select("id,idx,label,prompt,spec")
+      .select("id,idx,label,prompt,spec,kind")
       .eq("job_id", job.id)
       .eq("status", "queued")
       .order("idx", { ascending: true })
@@ -482,7 +505,7 @@ export async function advanceSpinQueueAdmin(
         pending.map((p: { id: string }) => p.id),
       )
       .eq("status", "queued")
-      .select("id,idx,label,prompt,spec");
+      .select("id,idx,label,prompt,spec,kind");
     const claimed = (claimedRows ?? []) as SpinPiece[];
     if (claimed.length === 0) continue;
     jobsAdvanced += 1;
@@ -490,6 +513,12 @@ export async function advanceSpinQueueAdmin(
     await Promise.allSettled(
       claimed.map(async (p) => {
         variantsProcessed += 1;
+        const variantCost =
+          mode === "video"
+            ? SPIN_VIDEO_PIECE_COST
+            : p.kind === "video"
+              ? SPIN_VIDEO_COST
+              : COST_SPIN_PIECE;
         try {
           const { publicUrl, provider, kind } = await renderSpinPiece(ctx, p);
 
@@ -508,8 +537,12 @@ export async function advanceSpinQueueAdmin(
               status: "succeeded",
               model: provider,
               input_images: faceUrl ? [faceUrl] : [],
-              result_image_url: publicUrl,
-              credits_cost: costPerPiece,
+              // Route to the correct URL column based on media type so the
+              // gallery renders images and plays videos correctly.
+              ...(kind === "video"
+                ? { result_video_url: publicUrl }
+                : { result_image_url: publicUrl }),
+              credits_cost: variantCost,
             } as never);
           }
         } catch (e) {
@@ -525,7 +558,7 @@ export async function advanceSpinQueueAdmin(
             if (!admin) {
               await supabaseAdmin.rpc("grant_credits", {
                 _user: job.user_id,
-                _amount: costPerPiece,
+                _amount: variantCost,
                 _reason: "refund_failed_generation",
                 _ref: p.id,
               });
@@ -555,15 +588,24 @@ type SpinJobCtx = {
   productUrl: string | null;
   audioUrl: string | null;
 };
-type SpinPiece = { id: string; idx: number; label: string; prompt: string | null; spec?: SpinSpec | null };
+type SpinPiece = {
+  id: string;
+  idx: number;
+  label: string;
+  prompt: string | null;
+  spec?: SpinSpec | null;
+  kind?: "image" | "video" | null;
+};
 
 async function renderSpinPiece(
   ctx: SpinJobCtx,
   piece: SpinPiece,
 ): Promise<{ publicUrl: string; provider: string; kind: "image" | "video" }> {
   const refImages = [ctx.faceUrl, ctx.productUrl].filter((u): u is string => !!u);
+  const variantKind = piece.kind ?? (ctx.mode === "video" ? "video" : "image");
 
-  if (ctx.mode !== "video") {
+  if (ctx.mode !== "video" && variantKind !== "video") {
+    // Standard photo mode — render as an identity-locked still.
     const out = await orchestrate({
       kind: "image",
       model: IMAGE_MODEL,
@@ -577,6 +619,38 @@ async function renderSpinPiece(
     const path = `${ctx.userId}/spin/${ctx.jobId}/${piece.idx}.${img.ext}`;
     const publicUrl = await uploadBytesToStudio(path, img.bytes, img.mime);
     return { publicUrl, provider: out.provider, kind: "image" };
+  }
+
+  if (ctx.mode !== "video" && variantKind === "video") {
+    // Slider-mode i2v: render the still first, then animate it as a short clip.
+    // No lipsync — this is the budget path (seedance-2.0-fast, 5 Aura).
+    const still = await orchestrate({
+      kind: "image",
+      model: IMAGE_MODEL,
+      prompt: piece.prompt || piece.label,
+      imageUrls: ctx.faceUrl ? [ctx.faceUrl] : undefined,
+      userId: ctx.userId,
+      refId: piece.id,
+    });
+    const clip = await orchestrate({
+      kind: "video",
+      model: SPIN_CLIP_MODEL,
+      prompt: piece.spec ? `${piece.spec.motion} ${piece.spec.scene}` : `Short ${SPIN_CLIP_DURATION}s clip: ${piece.label}`,
+      imageUrls: [still.url],
+      duration: SPIN_CLIP_DURATION,
+      userId: ctx.userId,
+      refId: piece.id,
+      // Seedance adapters gate on forSubscriber:true — set it so the pinned
+      // model is actually eligible. pinnedModelOnly prevents silent fallback
+      // to an unrelated video provider if Seedance is temporarily unavailable.
+      forSubscriber: true,
+      pinnedModelOnly: true,
+    });
+    const { bytes, mime } = await fetchToBytes(clip.url);
+    const ext = mime.includes("webm") ? "webm" : "mp4";
+    const path = `${ctx.userId}/spin/${ctx.jobId}/${piece.idx}.${ext}`;
+    const publicUrl = await uploadBytesToStudio(path, bytes, mime || "video/mp4");
+    return { publicUrl, provider: clip.provider, kind: "video" };
   }
 
   if (!ctx.audioUrl) throw new Error("video mode requires a shared script audio track");
@@ -672,7 +746,6 @@ export const tickSpinJob = createServerFn({ method: "POST" })
       }
     }
     const mode: SpinMode = (job.mode as SpinMode | null) ?? "photo";
-    const costPerPiece = mode === "video" ? SPIN_VIDEO_PIECE_COST : COST_SPIN_PIECE;
     const ctx: SpinJobCtx = {
       jobId: data.jobId,
       userId,
@@ -684,7 +757,7 @@ export const tickSpinJob = createServerFn({ method: "POST" })
 
     const { data: pending } = await db
       .from("spin_variants")
-      .select("id,idx,label,prompt,spec")
+      .select("id,idx,label,prompt,spec,kind")
       .eq("job_id", data.jobId)
       .eq("user_id", userId)
       .eq("status", "queued")
@@ -715,12 +788,20 @@ export const tickSpinJob = createServerFn({ method: "POST" })
         pending.map((p: { id: string }) => p.id),
       )
       .eq("status", "queued")
-      .select("id,idx,label,prompt,spec");
+      .select("id,idx,label,prompt,spec,kind");
     const claimed = (claimedRows ?? []) as SpinPiece[];
     if (claimed.length === 0) return { processed: 0, done: false };
 
     await Promise.allSettled(
       claimed.map(async (p) => {
+        // Per-variant cost: premium video mode = SPIN_VIDEO_PIECE_COST; slider
+        // video variant = SPIN_VIDEO_COST; image variant = COST_SPIN_PIECE.
+        const variantCost =
+          mode === "video"
+            ? SPIN_VIDEO_PIECE_COST
+            : p.kind === "video"
+              ? SPIN_VIDEO_COST
+              : COST_SPIN_PIECE;
         try {
           const { publicUrl, provider, kind } = await renderSpinPiece(ctx, p);
 
@@ -745,8 +826,12 @@ export const tickSpinJob = createServerFn({ method: "POST" })
               status: "succeeded",
               model: provider,
               input_images: faceUrl ? [faceUrl] : [],
-              result_image_url: publicUrl,
-              credits_cost: costPerPiece,
+              // Route to the correct URL column based on media type so the
+              // gallery renders images and plays videos correctly.
+              ...(kind === "video"
+                ? { result_video_url: publicUrl }
+                : { result_image_url: publicUrl }),
+              credits_cost: variantCost,
             } as never);
           }
         } catch (e) {
@@ -762,7 +847,7 @@ export const tickSpinJob = createServerFn({ method: "POST" })
           if (!adminUser && ((lost ?? []) as { id: string }[]).length > 0) {
             await supabaseAdmin.rpc("grant_credits", {
               _user: userId,
-              _amount: costPerPiece,
+              _amount: variantCost,
               _reason: "refund_failed_generation",
               _ref: p.id,
             });

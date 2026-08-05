@@ -20,22 +20,14 @@ const beautyTemplateImg        = "/josh/generated2/colors-sunset-orange.webp";
 // 30 posts per run — (10 Aura × 30 = 300 Aura upfront).
 // The engine is count-driven; the fallback axes have LCM(10,11)=110 ≥ 30 so
 // every (location, outfit) pair is still unique across the full batch.
-export const SPIN_COUNT = 30;
+export const SPIN_COUNT = 50;
 // 10 Aura per spin piece (2026-07-19 ×10 rebase) — the single client-safe
 // source for the per-piece charge. spin.functions.ts (server) and every cost
 // label import THIS constant so the disclosed price can never drift from what
 // is actually charged.
 export const SPIN_PIECE_COST = 10;
 
-// ─── Video mode (Product Showcase only) ──────────────────────────────────────
-// A person uploads a product photo + a short script and gets SPIN_COUNT
-// TALKING videos instead of stills: each one is the avatar holding the SAME
-// product in a different outfit/location/angle, speaking the SAME script.
-// This is a real multi-stage render per piece (styled still → image-to-video
-// → lip-sync), so it is priced through the SAME stacked engine every other
-// video/lipsync feature uses (src/lib/pricing.ts) — never a made-up number —
-// at the PREMIUM tier on purpose: this is the flagship, most expensive thing
-// Spin can produce, and the price must reflect that.
+export const SPIN_VIDEO_COST = 5;
 export type SpinMode = "photo" | "video";
 export const SPIN_VIDEO_DURATION_SECONDS = 15;
 // Forced models (not left to orchestrator default) so the price we quote is
@@ -418,6 +410,10 @@ export const SpinSpecSchema = z.object({
 });
 export type SpinSpec = z.infer<typeof SpinSpecSchema>;
 
+/** SpinSpec extended with the slider-mode video flag.
+ *  `isVideo` is set by assignVideoSlots() after LLM planning — never part of
+ *  the LLM output contract (SpinSpecSchema remains unchanged). */
+export type SpinSpecWithVideo = SpinSpec & { isVideo?: boolean };
 export const SpinPlanSchema = z.object({
   posts: z.array(SpinSpecSchema),
 });
@@ -667,4 +663,48 @@ export function buildVariantVideoMotionPrompt(
     "Ultra-realistic, cinematic, photorealistic, smooth natural motion, no warping or artifacts.",
     "[9:16 vertical aspect ratio]",
   ].join(" ");
+}
+
+export const SPIN_CLIP_MODEL = "seedance-2.0-fast";
+
+/**
+ * Total Aura cost for a mixed photo+video Spin batch.
+ * imageCount × SPIN_PIECE_COST + videoCount × SPIN_VIDEO_COST.
+ * Client-safe — imported by /spin for the live cost label.
+ */
+export function spinTotalCost(imageCount: number, videoCount: number): number {
+  return imageCount * SPIN_PIECE_COST + videoCount * SPIN_VIDEO_COST;
+}
+
+/** Content types that map well to short video clips (ordered by suitability). */
+const VIDEO_FRIENDLY_CONTENT_TYPES = [
+  "Talking-head hook",
+  "POV scenario",
+  "Behind-the-scenes",
+  "Story-style post",
+];
+
+export const SPIN_CLIP_DURATION = 5;
+
+/**
+ * Mark the first `videoCount` specs as `isVideo: true`, choosing the
+ * most video-friendly content types first (Talking-head > POV > BTS >
+ * Story-style > others). The returned array is a NEW array; original
+ * spec objects are not mutated.
+ */
+export function assignVideoSlots(
+  specs: SpinSpecWithVideo[],
+  videoCount: number,
+): SpinSpecWithVideo[] {
+  if (videoCount <= 0) return specs.map((s) => ({ ...s, isVideo: false }));
+  const count = Math.min(videoCount, specs.length);
+  // Sort by video-friendliness (lower index in VIDEO_FRIENDLY_CONTENT_TYPES = more friendly).
+  const ranked = specs
+    .map((spec, idx) => {
+      const rank = VIDEO_FRIENDLY_CONTENT_TYPES.indexOf(spec.contentType);
+      return { idx, rank: rank === -1 ? VIDEO_FRIENDLY_CONTENT_TYPES.length : rank };
+    })
+    .sort((a, b) => a.rank - b.rank || a.idx - b.idx);
+  const videoIndices = new Set(ranked.slice(0, count).map((x) => x.idx));
+  return specs.map((spec, idx) => ({ ...spec, isVideo: videoIndices.has(idx) }));
 }

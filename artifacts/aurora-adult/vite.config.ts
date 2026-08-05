@@ -22,6 +22,7 @@ export default defineConfig({
       "/api/public/generate": { target: auroraUrl, changeOrigin: true },
       "/api/public/watermark-image": { target: auroraUrl, changeOrigin: true },
       "/api/public/watermark-video": { target: auroraUrl, changeOrigin: true },
+      "/api/admin/verify-passcode": { target: auroraUrl, changeOrigin: true },
     },
   },
   preview: { port, host: "0.0.0.0", allowedHosts: true },
@@ -36,10 +37,7 @@ export default defineConfig({
       process.env.SUPABASE_PUBLISHABLE_KEY ??
       ""
     ),
-    // Admin passcode — used by AdminGate; sessionStorage-gated after first unlock.
-    // Reading from the same ADMIN_PASSCODE secret the main app uses.
-    "import.meta.env.VITE_ADMIN_PASSCODE": JSON.stringify(
-      process.env.VITE_ADMIN_PASSCODE ?? process.env.ADMIN_PASSCODE ?? ""
-    ),
+    // Note: ADMIN_PASSCODE is verified server-side only (/api/admin/verify-passcode).
+    // It must NOT be injected as a VITE_* variable or it leaks to the client bundle.
   },
 });
