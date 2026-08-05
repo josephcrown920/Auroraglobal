@@ -19,10 +19,11 @@ export default defineConfig({
     host: "0.0.0.0",
     allowedHosts: true,
     proxy: {
-      "/api/public/generate": { target: auroraUrl, changeOrigin: true },
+      // Dedicated no-user-auth endpoint for the adult school admin portal.
+      // Accepts base64 images + admin passcode; uploads server-side, bills admin user.
+      "/api/adult-admin/": { target: auroraUrl, changeOrigin: true },
       "/api/public/watermark-image": { target: auroraUrl, changeOrigin: true },
       "/api/public/watermark-video": { target: auroraUrl, changeOrigin: true },
-      "/api/admin/verify-passcode": { target: auroraUrl, changeOrigin: true },
     },
   },
   preview: { port, host: "0.0.0.0", allowedHosts: true },

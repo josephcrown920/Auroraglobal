@@ -96,6 +96,7 @@ import { Route as RTokenRouteImport } from './routes/r.$token'
 import { Route as ApiAdminRunSmokeStep14RouteImport } from './routes/api/admin/run-smoke-step14'
 import { Route as ApiAdminUploadSiteImageRouteImport } from './routes/api/admin/upload-site-image'
 import { Route as ApiAdminVerifyPasscodeRouteImport } from './routes/api/admin/verify-passcode'
+import { Route as ApiAdultAdminGenerateRouteImport } from './routes/api/adult-admin/generate'
 import { Route as ApiAudioMasterRouteImport } from './routes/api/audio/master'
 import { Route as ApiAudioUploadRouteImport } from './routes/api/audio/upload'
 import { Route as ApiPublicCheckApiBalancesRouteImport } from './routes/api/public/check-api-balances'
@@ -576,6 +577,11 @@ const ApiAdminVerifyPasscodeRoute = ApiAdminVerifyPasscodeRouteImport.update({
   path: '/api/admin/verify-passcode',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdultAdminGenerateRoute = ApiAdultAdminGenerateRouteImport.update({
+  id: '/api/adult-admin/generate',
+  path: '/api/adult-admin/generate',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAudioMasterRoute = ApiAudioMasterRouteImport.update({
   id: '/api/audio/master',
   path: '/api/audio/master',
@@ -808,6 +814,7 @@ export interface FileRoutesByFullPath {
   '/api/admin/run-smoke-step14': typeof ApiAdminRunSmokeStep14Route
   '/api/admin/upload-site-image': typeof ApiAdminUploadSiteImageRoute
   '/api/admin/verify-passcode': typeof ApiAdminVerifyPasscodeRoute
+  '/api/adult-admin/generate': typeof ApiAdultAdminGenerateRoute
   '/api/audio/master': typeof ApiAudioMasterRouteWithChildren
   '/api/audio/upload': typeof ApiAudioUploadRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
@@ -923,6 +930,7 @@ export interface FileRoutesByTo {
   '/api/admin/run-smoke-step14': typeof ApiAdminRunSmokeStep14Route
   '/api/admin/upload-site-image': typeof ApiAdminUploadSiteImageRoute
   '/api/admin/verify-passcode': typeof ApiAdminVerifyPasscodeRoute
+  '/api/adult-admin/generate': typeof ApiAdultAdminGenerateRoute
   '/api/audio/master': typeof ApiAudioMasterRouteWithChildren
   '/api/audio/upload': typeof ApiAudioUploadRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
@@ -1039,6 +1047,7 @@ export interface FileRoutesById {
   '/api/admin/run-smoke-step14': typeof ApiAdminRunSmokeStep14Route
   '/api/admin/upload-site-image': typeof ApiAdminUploadSiteImageRoute
   '/api/admin/verify-passcode': typeof ApiAdminVerifyPasscodeRoute
+  '/api/adult-admin/generate': typeof ApiAdultAdminGenerateRoute
   '/api/audio/master': typeof ApiAudioMasterRouteWithChildren
   '/api/audio/upload': typeof ApiAudioUploadRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
@@ -1156,6 +1165,7 @@ export interface FileRouteTypes {
     | '/api/admin/run-smoke-step14'
     | '/api/admin/upload-site-image'
     | '/api/admin/verify-passcode'
+    | '/api/adult-admin/generate'
     | '/api/audio/master'
     | '/api/audio/upload'
     | '/api/public/check-api-balances'
@@ -1271,6 +1281,7 @@ export interface FileRouteTypes {
     | '/api/admin/run-smoke-step14'
     | '/api/admin/upload-site-image'
     | '/api/admin/verify-passcode'
+    | '/api/adult-admin/generate'
     | '/api/audio/master'
     | '/api/audio/upload'
     | '/api/public/check-api-balances'
@@ -1386,6 +1397,7 @@ export interface FileRouteTypes {
     | '/api/admin/run-smoke-step14'
     | '/api/admin/upload-site-image'
     | '/api/admin/verify-passcode'
+    | '/api/adult-admin/generate'
     | '/api/audio/master'
     | '/api/audio/upload'
     | '/api/public/check-api-balances'
@@ -1493,6 +1505,7 @@ export interface RootRouteChildren {
   ApiAdminRunSmokeStep14Route: typeof ApiAdminRunSmokeStep14Route
   ApiAdminUploadSiteImageRoute: typeof ApiAdminUploadSiteImageRoute
   ApiAdminVerifyPasscodeRoute: typeof ApiAdminVerifyPasscodeRoute
+  ApiAdultAdminGenerateRoute: typeof ApiAdultAdminGenerateRoute
   ApiAudioMasterRoute: typeof ApiAudioMasterRouteWithChildren
   ApiAudioUploadRoute: typeof ApiAudioUploadRoute
   ApiPublicCheckApiBalancesRoute: typeof ApiPublicCheckApiBalancesRoute
@@ -2125,6 +2138,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminVerifyPasscodeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/adult-admin/generate': {
+      id: '/api/adult-admin/generate'
+      path: '/api/adult-admin/generate'
+      fullPath: '/api/adult-admin/generate'
+      preLoaderRoute: typeof ApiAdultAdminGenerateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/audio/master': {
       id: '/api/audio/master'
       path: '/api/audio/master'
@@ -2433,6 +2453,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminRunSmokeStep14Route: ApiAdminRunSmokeStep14Route,
   ApiAdminUploadSiteImageRoute: ApiAdminUploadSiteImageRoute,
   ApiAdminVerifyPasscodeRoute: ApiAdminVerifyPasscodeRoute,
+  ApiAdultAdminGenerateRoute: ApiAdultAdminGenerateRoute,
   ApiAudioMasterRoute: ApiAudioMasterRouteWithChildren,
   ApiAudioUploadRoute: ApiAudioUploadRoute,
   ApiPublicCheckApiBalancesRoute: ApiPublicCheckApiBalancesRoute,
