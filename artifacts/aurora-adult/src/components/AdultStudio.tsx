@@ -114,7 +114,7 @@ export function AdultStudio({ accessToken }: AdultStudioProps) {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({ kind: "image", prompt, imageUrls }),
+        body: JSON.stringify({ kind: "image", prompt, imageUrls, editStrict: true }),
       });
       const data: unknown = await res.json();
       if (!res.ok) throw new Error((data as { error?: string })?.error ?? "Generation failed");
