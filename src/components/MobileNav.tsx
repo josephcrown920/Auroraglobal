@@ -25,6 +25,7 @@ import {
   Camera,
   LayoutGrid,
   UserRound,
+  Radio,
   type LucideIcon,
 } from "lucide-react";
 
@@ -64,9 +65,11 @@ const STUDIO_FEATURES: Feature[] = [
 
 // ── Live content tools — visible to all users ─────────────────────────────
 const CONTENT_FEATURES: Feature[] = [
-  { to: "/spin",      label: "TikTok30",  icon: Flame,  previewImg: "/nav-previews/spin.jpg" },
-  { to: "/lipsync",   label: "Lip Sync",  icon: Mic,    previewImg: "/nav-previews/lipsync.jpg" },
-  { to: "/templates", label: "Templates", icon: Layers },
+  { to: "/tools",       label: "All Tools",        icon: LayoutGrid },
+  { to: "/tiktok-live", label: "TikTok LIVE Studio", icon: Radio },
+  { to: "/spin",        label: "TikTok30",          icon: Flame,  previewImg: "/nav-previews/spin.jpg" },
+  { to: "/lipsync",     label: "Lip Sync",          icon: Mic,    previewImg: "/nav-previews/lipsync.jpg" },
+  { to: "/templates",   label: "Templates",         icon: Layers },
 ];
 
 const ACCOUNT_FEATURES: Feature[] = [

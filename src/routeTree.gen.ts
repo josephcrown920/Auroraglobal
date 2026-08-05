@@ -19,6 +19,8 @@ import { Route as VideoAgentRouteImport } from './routes/video-agent'
 import { Route as UgcLineRouteImport } from './routes/ugc-line'
 import { Route as UgcRouteImport } from './routes/ugc'
 import { Route as TutorialRouteImport } from './routes/tutorial'
+import { Route as ToolsRouteImport } from './routes/tools'
+import { Route as TiktokLiveRouteImport } from './routes/tiktok-live'
 import { Route as TiktokRouteImport } from './routes/tiktok'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TemplatesRouteImport } from './routes/templates'
@@ -172,6 +174,16 @@ const TutorialRoute = TutorialRouteImport.update({
   path: '/tutorial',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/tutorial.lazy').then((d) => d.Route))
+const ToolsRoute = ToolsRouteImport.update({
+  id: '/tools',
+  path: '/tools',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/tools.lazy').then((d) => d.Route))
+const TiktokLiveRoute = TiktokLiveRouteImport.update({
+  id: '/tiktok-live',
+  path: '/tiktok-live',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/tiktok-live.lazy').then((d) => d.Route))
 const TiktokRoute = TiktokRouteImport.update({
   id: '/tiktok',
   path: '/tiktok',
@@ -757,6 +769,8 @@ export interface FileRoutesByFullPath {
   '/templates': typeof TemplatesRoute
   '/terms': typeof TermsRoute
   '/tiktok': typeof TiktokRoute
+  '/tiktok-live': typeof TiktokLiveRoute
+  '/tools': typeof ToolsRoute
   '/tutorial': typeof TutorialRoute
   '/ugc': typeof UgcRoute
   '/ugc-line': typeof UgcLineRoute
@@ -869,6 +883,8 @@ export interface FileRoutesByTo {
   '/templates': typeof TemplatesRoute
   '/terms': typeof TermsRoute
   '/tiktok': typeof TiktokRoute
+  '/tiktok-live': typeof TiktokLiveRoute
+  '/tools': typeof ToolsRoute
   '/tutorial': typeof TutorialRoute
   '/ugc': typeof UgcRoute
   '/ugc-line': typeof UgcLineRoute
@@ -982,6 +998,8 @@ export interface FileRoutesById {
   '/templates': typeof TemplatesRoute
   '/terms': typeof TermsRoute
   '/tiktok': typeof TiktokRoute
+  '/tiktok-live': typeof TiktokLiveRoute
+  '/tools': typeof ToolsRoute
   '/tutorial': typeof TutorialRoute
   '/ugc': typeof UgcRoute
   '/ugc-line': typeof UgcLineRoute
@@ -1096,6 +1114,8 @@ export interface FileRouteTypes {
     | '/templates'
     | '/terms'
     | '/tiktok'
+    | '/tiktok-live'
+    | '/tools'
     | '/tutorial'
     | '/ugc'
     | '/ugc-line'
@@ -1208,6 +1228,8 @@ export interface FileRouteTypes {
     | '/templates'
     | '/terms'
     | '/tiktok'
+    | '/tiktok-live'
+    | '/tools'
     | '/tutorial'
     | '/ugc'
     | '/ugc-line'
@@ -1320,6 +1342,8 @@ export interface FileRouteTypes {
     | '/templates'
     | '/terms'
     | '/tiktok'
+    | '/tiktok-live'
+    | '/tools'
     | '/tutorial'
     | '/ugc'
     | '/ugc-line'
@@ -1433,6 +1457,8 @@ export interface RootRouteChildren {
   TemplatesRoute: typeof TemplatesRoute
   TermsRoute: typeof TermsRoute
   TiktokRoute: typeof TiktokRoute
+  TiktokLiveRoute: typeof TiktokLiveRoute
+  ToolsRoute: typeof ToolsRoute
   TutorialRoute: typeof TutorialRoute
   UgcRoute: typeof UgcRoute
   UgcLineRoute: typeof UgcLineRoute
@@ -1545,6 +1571,20 @@ declare module '@tanstack/react-router' {
       path: '/tutorial'
       fullPath: '/tutorial'
       preLoaderRoute: typeof TutorialRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tools': {
+      id: '/tools'
+      path: '/tools'
+      fullPath: '/tools'
+      preLoaderRoute: typeof ToolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tiktok-live': {
+      id: '/tiktok-live'
+      path: '/tiktok-live'
+      fullPath: '/tiktok-live'
+      preLoaderRoute: typeof TiktokLiveRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tiktok': {
@@ -2349,6 +2389,8 @@ const rootRouteChildren: RootRouteChildren = {
   TemplatesRoute: TemplatesRoute,
   TermsRoute: TermsRoute,
   TiktokRoute: TiktokRoute,
+  TiktokLiveRoute: TiktokLiveRoute,
+  ToolsRoute: ToolsRoute,
   TutorialRoute: TutorialRoute,
   UgcRoute: UgcRoute,
   UgcLineRoute: UgcLineRoute,
