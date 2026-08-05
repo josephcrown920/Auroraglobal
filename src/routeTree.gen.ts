@@ -36,6 +36,7 @@ import { Route as ReshootRouteImport } from './routes/reshoot'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PhotoEditRouteImport } from './routes/photo-edit'
+import { Route as PerformRouteImport } from './routes/perform'
 import { Route as PartnersRouteImport } from './routes/partners'
 import { Route as OrchestrateRouteImport } from './routes/orchestrate'
 import { Route as NexusarbRouteImport } from './routes/nexusarb'
@@ -258,6 +259,11 @@ const PhotoEditRoute = PhotoEditRouteImport.update({
   path: '/photo-edit',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/photo-edit.lazy').then((d) => d.Route))
+const PerformRoute = PerformRouteImport.update({
+  id: '/perform',
+  path: '/perform',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PartnersRoute = PartnersRouteImport.update({
   id: '/partners',
   path: '/partners',
@@ -733,6 +739,7 @@ export interface FileRoutesByFullPath {
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
   '/partners': typeof PartnersRoute
+  '/perform': typeof PerformRoute
   '/photo-edit': typeof PhotoEditRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -844,6 +851,7 @@ export interface FileRoutesByTo {
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
   '/partners': typeof PartnersRoute
+  '/perform': typeof PerformRoute
   '/photo-edit': typeof PhotoEditRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -956,6 +964,7 @@ export interface FileRoutesById {
   '/nexusarb': typeof NexusarbRoute
   '/orchestrate': typeof OrchestrateRoute
   '/partners': typeof PartnersRoute
+  '/perform': typeof PerformRoute
   '/photo-edit': typeof PhotoEditRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -1069,6 +1078,7 @@ export interface FileRouteTypes {
     | '/nexusarb'
     | '/orchestrate'
     | '/partners'
+    | '/perform'
     | '/photo-edit'
     | '/privacy'
     | '/reset-password'
@@ -1180,6 +1190,7 @@ export interface FileRouteTypes {
     | '/nexusarb'
     | '/orchestrate'
     | '/partners'
+    | '/perform'
     | '/photo-edit'
     | '/privacy'
     | '/reset-password'
@@ -1291,6 +1302,7 @@ export interface FileRouteTypes {
     | '/nexusarb'
     | '/orchestrate'
     | '/partners'
+    | '/perform'
     | '/photo-edit'
     | '/privacy'
     | '/reset-password'
@@ -1403,6 +1415,7 @@ export interface RootRouteChildren {
   NexusarbRoute: typeof NexusarbRoute
   OrchestrateRoute: typeof OrchestrateRoute
   PartnersRoute: typeof PartnersRoute
+  PerformRoute: typeof PerformRoute
   PhotoEditRoute: typeof PhotoEditRoute
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -1651,6 +1664,13 @@ declare module '@tanstack/react-router' {
       path: '/photo-edit'
       fullPath: '/photo-edit'
       preLoaderRoute: typeof PhotoEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/perform': {
+      id: '/perform'
+      path: '/perform'
+      fullPath: '/perform'
+      preLoaderRoute: typeof PerformRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/partners': {
@@ -2311,6 +2331,7 @@ const rootRouteChildren: RootRouteChildren = {
   NexusarbRoute: NexusarbRoute,
   OrchestrateRoute: OrchestrateRoute,
   PartnersRoute: PartnersRoute,
+  PerformRoute: PerformRoute,
   PhotoEditRoute: PhotoEditRoute,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
