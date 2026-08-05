@@ -46,6 +46,10 @@ const Schema = z.object({
   // caller owns. Without it, video/lipsync requests are forced to a cheap
   // 480p/≤5s preview pass.
   confirmPreviewId: z.string().uuid().optional(),
+  // Strict identity-edit mode: restrict the model pool to edit-capable models
+  // that preserve facial likeness when imageUrls is supplied. Equivalent to
+  // the editStrict flag used by the Photo Edit and Split Reality tools.
+  editStrict: z.boolean().optional(),
 });
 
 async function authUserId(req: Request): Promise<string | null> {
@@ -218,6 +222,7 @@ export const Route = createFileRoute("/api/public/generate")({
             params: data.params,
             comfyWorkflow: data.comfyWorkflow,
             comfyInputs: data.comfyInputs,
+            editStrict: data.editStrict,
             cost,
             reason: previewPass ? `public_generate_${data.kind}_preview` : `public_generate_${data.kind}`,
             mode: previewPass ? "preview" : undefined,
