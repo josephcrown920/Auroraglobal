@@ -11,434 +11,136 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AccountRouteImport } from './routes/account'
-import { Route as AdminRouteImport } from './routes/admin'
-import { Route as AffiliateRouteImport } from './routes/affiliate'
-import { Route as AgentRouteImport } from './routes/agent'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AvatarRouteImport } from './routes/avatar'
-import { Route as BillingRouteImport } from './routes/billing'
-import { Route as CanvasRouteImport } from './routes/canvas'
-import { Route as ClipsRouteImport } from './routes/clips'
-import { Route as ColorsRouteImport } from './routes/colors'
-import { Route as ColorsShowRouteImport } from './routes/colors-show'
-import { Route as ComfyRouteImport } from './routes/comfy'
-import { Route as ConnectRouteImport } from './routes/connect'
-import { Route as ContactRouteImport } from './routes/contact'
-import { Route as ContentRouteImport } from './routes/content'
-import { Route as ContentMachineRouteImport } from './routes/content-machine'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as EditRouteImport } from './routes/edit'
-import { Route as EditorRouteImport } from './routes/editor'
-import { Route as GalleryRouteImport } from './routes/gallery'
-import { Route as GiftsRouteImport } from './routes/gifts'
-import { Route as GrowthRouteImport } from './routes/growth'
-import { Route as HeygenTemplatesRouteImport } from './routes/heygen-templates'
-import { Route as HomeRouteImport } from './routes/home'
-import { Route as KidsRouteImport } from './routes/kids'
-import { Route as LipsyncRouteImport } from './routes/lipsync'
-import { Route as LiveStudioRouteImport } from './routes/live-studio'
-import { Route as MarketplaceRouteImport } from './routes/marketplace'
-import { Route as MasteringRouteImport } from './routes/mastering'
-import { Route as MotionRouteImport } from './routes/motion'
-import { Route as MusicVideoRouteImport } from './routes/music-video'
-import { Route as NexusarbRouteImport } from './routes/nexusarb'
-import { Route as OrchestrateRouteImport } from './routes/orchestrate'
-import { Route as PartnersRouteImport } from './routes/partners'
-import { Route as PerformRouteImport } from './routes/perform'
-import { Route as PhotoEditRouteImport } from './routes/photo-edit'
-import { Route as PrivacyRouteImport } from './routes/privacy'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as ReshootRouteImport } from './routes/reshoot'
-import { Route as RoadmapRouteImport } from './routes/roadmap'
-import { Route as SceneBuilderRouteImport } from './routes/scene-builder'
-import { Route as SceneWeaverRouteImport } from './routes/scene-weaver'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as SpeechRouteImport } from './routes/speech'
-import { Route as SpinRouteImport } from './routes/spin'
-import { Route as SplitRealityRouteImport } from './routes/split-reality'
-import { Route as StoryboardRouteImport } from './routes/storyboard'
-import { Route as StudioRouteImport } from './routes/studio'
-import { Route as TemplatesRouteImport } from './routes/templates'
-import { Route as TermsRouteImport } from './routes/terms'
-import { Route as TiktokRouteImport } from './routes/tiktok'
-import { Route as TiktokLiveRouteImport } from './routes/tiktok-live'
-import { Route as ToolsRouteImport } from './routes/tools'
-import { Route as TutorialRouteImport } from './routes/tutorial'
-import { Route as UgcRouteImport } from './routes/ugc'
-import { Route as UgcLineRouteImport } from './routes/ugc-line'
-import { Route as VideoAgentRouteImport } from './routes/video-agent'
-import { Route as VideoAgentEditRouteImport } from './routes/video-agent-edit'
-import { Route as VideoAgentProcessRouteImport } from './routes/video-agent-process'
-import { Route as VideoEditorRouteImport } from './routes/video-editor'
 import { Route as WorkflowsRouteImport } from './routes/workflows'
-import { Route as AdminAssetsRouteImport } from './routes/admin.assets'
-import { Route as AdminComfyRouteImport } from './routes/admin.comfy'
-import { Route as AdminCostsRouteImport } from './routes/admin.costs'
-import { Route as AdminModelsRouteImport } from './routes/admin.models'
-import { Route as AdminOrchestrationRouteImport } from './routes/admin.orchestration'
-import { Route as AdminSiteImagesRouteImport } from './routes/admin.site-images'
-import { Route as AdminSmokeRouteImport } from './routes/admin.smoke'
-import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
-import { Route as AdminWorkflowsRouteImport } from './routes/admin.workflows'
-import { Route as ApiEstimateRouteImport } from './routes/api/estimate'
-import { Route as ApiHealthRouteImport } from './routes/api/health'
-import { Route as ApiMcpRouteImport } from './routes/api/mcp'
-import { Route as CliIndexRouteImport } from './routes/cli.index'
-import { Route as CliAuthorizeRouteImport } from './routes/cli.authorize'
-import { Route as CreatorDashboardRouteImport } from './routes/creator.dashboard'
+import { Route as VideoEditorRouteImport } from './routes/video-editor'
+import { Route as VideoAgentProcessRouteImport } from './routes/video-agent-process'
+import { Route as VideoAgentEditRouteImport } from './routes/video-agent-edit'
+import { Route as VideoAgentRouteImport } from './routes/video-agent'
+import { Route as UgcLineRouteImport } from './routes/ugc-line'
+import { Route as UgcRouteImport } from './routes/ugc'
+import { Route as TutorialRouteImport } from './routes/tutorial'
+import { Route as ToolsRouteImport } from './routes/tools'
+import { Route as TiktokLiveRouteImport } from './routes/tiktok-live'
+import { Route as TiktokRouteImport } from './routes/tiktok'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as TemplatesRouteImport } from './routes/templates'
+import { Route as StudioRouteImport } from './routes/studio'
+import { Route as StoryboardRouteImport } from './routes/storyboard'
+import { Route as SplitRealityRouteImport } from './routes/split-reality'
+import { Route as SpinRouteImport } from './routes/spin'
+import { Route as SpeechRouteImport } from './routes/speech'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SceneWeaverRouteImport } from './routes/scene-weaver'
+import { Route as SceneBuilderRouteImport } from './routes/scene-builder'
+import { Route as RoadmapRouteImport } from './routes/roadmap'
+import { Route as ReshootRouteImport } from './routes/reshoot'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as PhotoEditRouteImport } from './routes/photo-edit'
+import { Route as PerformRouteImport } from './routes/perform'
+import { Route as PartnersRouteImport } from './routes/partners'
+import { Route as OrchestrateRouteImport } from './routes/orchestrate'
+import { Route as NexusarbRouteImport } from './routes/nexusarb'
+import { Route as MusicVideoRouteImport } from './routes/music-video'
+import { Route as MotionRouteImport } from './routes/motion'
+import { Route as MasteringRouteImport } from './routes/mastering'
+import { Route as MarketplaceRouteImport } from './routes/marketplace'
+import { Route as LiveStudioRouteImport } from './routes/live-studio'
+import { Route as LipsyncRouteImport } from './routes/lipsync'
+import { Route as KidsRouteImport } from './routes/kids'
+import { Route as HomeRouteImport } from './routes/home'
+import { Route as HeygenTemplatesRouteImport } from './routes/heygen-templates'
+import { Route as GrowthRouteImport } from './routes/growth'
+import { Route as GiftsRouteImport } from './routes/gifts'
+import { Route as GalleryRouteImport } from './routes/gallery'
+import { Route as EditorRouteImport } from './routes/editor'
+import { Route as EditRouteImport } from './routes/edit'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ContentMachineRouteImport } from './routes/content-machine'
+import { Route as ContentRouteImport } from './routes/content'
+import { Route as ContactRouteImport } from './routes/contact'
+import { Route as ConnectRouteImport } from './routes/connect'
+import { Route as ComfyRouteImport } from './routes/comfy'
+import { Route as ColorsShowRouteImport } from './routes/colors-show'
+import { Route as ColorsRouteImport } from './routes/colors'
+import { Route as ClipsRouteImport } from './routes/clips'
+import { Route as CanvasRouteImport } from './routes/canvas'
+import { Route as BillingRouteImport } from './routes/billing'
+import { Route as AvatarRouteImport } from './routes/avatar'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AgentRouteImport } from './routes/agent'
+import { Route as AffiliateRouteImport } from './routes/affiliate'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AccountRouteImport } from './routes/account'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as GuidesIndexRouteImport } from './routes/guides.index'
-import { Route as GuidesSlugRouteImport } from './routes/guides.$slug'
-import { Route as LegalSlugRouteImport } from './routes/legal.$slug'
+import { Route as CliIndexRouteImport } from './routes/cli.index'
 import { Route as RTokenRouteImport } from './routes/r.$token'
-import { Route as ApiAdminRunSmokeStep14RouteImport } from './routes/api/admin/run-smoke-step14'
-import { Route as ApiAdminUploadSiteImageRouteImport } from './routes/api/admin/upload-site-image'
-import { Route as ApiAdminVerifyPasscodeRouteImport } from './routes/api/admin/verify-passcode'
-import { Route as ApiAudioMasterRouteImport } from './routes/api/audio/master'
-import { Route as ApiAudioUploadRouteImport } from './routes/api/audio/upload'
-import { Route as ApiPublicCheckApiBalancesRouteImport } from './routes/api/public/check-api-balances'
-import { Route as ApiPublicFreeMonthlyGrantRouteImport } from './routes/api/public/free-monthly-grant'
-import { Route as ApiPublicGenerateRouteImport } from './routes/api/public/generate'
-import { Route as ApiPublicLifecycleEmailsRouteImport } from './routes/api/public/lifecycle-emails'
-import { Route as ApiPublicModelWatchRouteImport } from './routes/api/public/model-watch'
-import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/public/paystack-webhook'
-import { Route as ApiPublicSiteCopyRouteImport } from './routes/api/public/site-copy'
-import { Route as ApiPublicSiteImagesRouteImport } from './routes/api/public/site-images'
-import { Route as ApiPublicUptimeMonitorRouteImport } from './routes/api/public/uptime-monitor'
-import { Route as ApiPublicWatermarkImageRouteImport } from './routes/api/public/watermark-image'
-import { Route as ApiPublicWatermarkVideoRouteImport } from './routes/api/public/watermark-video'
-import { Route as ApiUgcLineImagesRouteImport } from './routes/api/ugc-line/images'
-import { Route as ApiUgcLineScriptsRouteImport } from './routes/api/ugc-line/scripts'
-import { Route as ApiUgcLineVariationsRouteImport } from './routes/api/ugc-line/variations'
-import { Route as ApiVideoAgentGenerateFrameRouteImport } from './routes/api/video-agent/generate-frame'
+import { Route as LegalSlugRouteImport } from './routes/legal.$slug'
+import { Route as GuidesSlugRouteImport } from './routes/guides.$slug'
+import { Route as CreatorDashboardRouteImport } from './routes/creator.dashboard'
+import { Route as CliAuthorizeRouteImport } from './routes/cli.authorize'
+import { Route as ApiMcpRouteImport } from './routes/api/mcp'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiEstimateRouteImport } from './routes/api/estimate'
+import { Route as AdminWorkflowsRouteImport } from './routes/admin.workflows'
+import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
+import { Route as AdminSmokeRouteImport } from './routes/admin.smoke'
+import { Route as AdminSiteImagesRouteImport } from './routes/admin.site-images'
+import { Route as AdminOrchestrationRouteImport } from './routes/admin.orchestration'
+import { Route as AdminModelsRouteImport } from './routes/admin.models'
+import { Route as AdminCostsRouteImport } from './routes/admin.costs'
+import { Route as AdminComfyRouteImport } from './routes/admin.comfy'
+import { Route as AdminAssetsRouteImport } from './routes/admin.assets'
 import { Route as ApiVideoAgentGenerateScriptRouteImport } from './routes/api/video-agent/generate-script'
-import { Route as ApiPublicJobsTickRouteImport } from './routes/api/public/jobs/tick'
-import { Route as ApiPublicPaymentsSweepStuckRouteImport } from './routes/api/public/payments/sweep-stuck'
-import { Route as ApiPublicTiktokCallbackRouteImport } from './routes/api/public/tiktok/callback'
-import { Route as ApiPublicWorkersHealthRouteImport } from './routes/api/public/workers/health'
+import { Route as ApiVideoAgentGenerateFrameRouteImport } from './routes/api/video-agent/generate-frame'
+import { Route as ApiUgcLineVariationsRouteImport } from './routes/api/ugc-line/variations'
+import { Route as ApiUgcLineScriptsRouteImport } from './routes/api/ugc-line/scripts'
+import { Route as ApiUgcLineImagesRouteImport } from './routes/api/ugc-line/images'
+import { Route as ApiPublicWatermarkVideoRouteImport } from './routes/api/public/watermark-video'
+import { Route as ApiPublicWatermarkImageRouteImport } from './routes/api/public/watermark-image'
+import { Route as ApiPublicUptimeMonitorRouteImport } from './routes/api/public/uptime-monitor'
+import { Route as ApiPublicSiteImagesRouteImport } from './routes/api/public/site-images'
+import { Route as ApiPublicSiteCopyRouteImport } from './routes/api/public/site-copy'
+import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/public/paystack-webhook'
+import { Route as ApiPublicModelWatchRouteImport } from './routes/api/public/model-watch'
+import { Route as ApiPublicLifecycleEmailsRouteImport } from './routes/api/public/lifecycle-emails'
+import { Route as ApiPublicGenerateRouteImport } from './routes/api/public/generate'
+import { Route as ApiPublicFreeMonthlyGrantRouteImport } from './routes/api/public/free-monthly-grant'
+import { Route as ApiPublicCheckApiBalancesRouteImport } from './routes/api/public/check-api-balances'
+import { Route as ApiAudioUploadRouteImport } from './routes/api/audio/upload'
+import { Route as ApiAudioMasterRouteImport } from './routes/api/audio/master'
+import { Route as ApiAdminVerifyPasscodeRouteImport } from './routes/api/admin/verify-passcode'
+import { Route as ApiAdminUploadSiteImageRouteImport } from './routes/api/admin/upload-site-image'
+import { Route as ApiAdminRunSmokeStep14RouteImport } from './routes/api/admin/run-smoke-step14'
 import { Route as ApiPublicWorkersRegisterRouteImport } from './routes/api/public/workers/register'
-import { Route as ApiAudioMasterIdStatusRouteImport } from './routes/api/audio/master.$id.status'
-import { Route as ApiPublicCliDevicePollRouteImport } from './routes/api/public/cli/device/poll'
-import { Route as ApiPublicCliDeviceStartRouteImport } from './routes/api/public/cli/device/start'
+import { Route as ApiPublicWorkersHealthRouteImport } from './routes/api/public/workers/health'
+import { Route as ApiPublicTiktokCallbackRouteImport } from './routes/api/public/tiktok/callback'
+import { Route as ApiPublicPaymentsSweepStuckRouteImport } from './routes/api/public/payments/sweep-stuck'
+import { Route as ApiPublicJobsTickRouteImport } from './routes/api/public/jobs/tick'
 import { Route as ApiPublicWorkersFilesNameRouteImport } from './routes/api/public/workers/files/$name'
+import { Route as ApiPublicCliDeviceStartRouteImport } from './routes/api/public/cli/device/start'
+import { Route as ApiPublicCliDevicePollRouteImport } from './routes/api/public/cli/device/poll'
+import { Route as ApiAudioMasterIdStatusRouteImport } from './routes/api/audio/master.$id.status'
 
 const BeatReelLazyRouteImport = createFileRoute('/beat-reel')()
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AccountRoute = AccountRouteImport.update({
-  id: '/account',
-  path: '/account',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/account.lazy').then((d) => d.Route))
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/admin.lazy').then((d) => d.Route))
-const AffiliateRoute = AffiliateRouteImport.update({
-  id: '/affiliate',
-  path: '/affiliate',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AgentRoute = AgentRouteImport.update({
-  id: '/agent',
-  path: '/agent',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/auth.lazy').then((d) => d.Route))
-const AvatarRoute = AvatarRouteImport.update({
-  id: '/avatar',
-  path: '/avatar',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/avatar.lazy').then((d) => d.Route))
 const BeatReelLazyRoute = BeatReelLazyRouteImport.update({
   id: '/beat-reel',
   path: '/beat-reel',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/beat-reel.lazy').then((d) => d.Route))
-const BillingRoute = BillingRouteImport.update({
-  id: '/billing',
-  path: '/billing',
+const WorkflowsRoute = WorkflowsRouteImport.update({
+  id: '/workflows',
+  path: '/workflows',
   getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/billing.lazy').then((d) => d.Route))
-const CanvasRoute = CanvasRouteImport.update({
-  id: '/canvas',
-  path: '/canvas',
+} as any).lazy(() => import('./routes/workflows.lazy').then((d) => d.Route))
+const VideoEditorRoute = VideoEditorRouteImport.update({
+  id: '/video-editor',
+  path: '/video-editor',
   getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/canvas.lazy').then((d) => d.Route))
-const ClipsRoute = ClipsRouteImport.update({
-  id: '/clips',
-  path: '/clips',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/clips.lazy').then((d) => d.Route))
-const ColorsRoute = ColorsRouteImport.update({
-  id: '/colors',
-  path: '/colors',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/colors.lazy').then((d) => d.Route))
-const ColorsShowRoute = ColorsShowRouteImport.update({
-  id: '/colors-show',
-  path: '/colors-show',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/colors-show.lazy').then((d) => d.Route))
-const ComfyRoute = ComfyRouteImport.update({
-  id: '/comfy',
-  path: '/comfy',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/comfy.lazy').then((d) => d.Route))
-const ConnectRoute = ConnectRouteImport.update({
-  id: '/connect',
-  path: '/connect',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/connect.lazy').then((d) => d.Route))
-const ContactRoute = ContactRouteImport.update({
-  id: '/contact',
-  path: '/contact',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/contact.lazy').then((d) => d.Route))
-const ContentRoute = ContentRouteImport.update({
-  id: '/content',
-  path: '/content',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/content.lazy').then((d) => d.Route))
-const ContentMachineRoute = ContentMachineRouteImport.update({
-  id: '/content-machine',
-  path: '/content-machine',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() =>
-  import('./routes/content-machine.lazy').then((d) => d.Route),
-)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/dashboard.lazy').then((d) => d.Route))
-const EditRoute = EditRouteImport.update({
-  id: '/edit',
-  path: '/edit',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/edit.lazy').then((d) => d.Route))
-const EditorRoute = EditorRouteImport.update({
-  id: '/editor',
-  path: '/editor',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/editor.lazy').then((d) => d.Route))
-const GalleryRoute = GalleryRouteImport.update({
-  id: '/gallery',
-  path: '/gallery',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/gallery.lazy').then((d) => d.Route))
-const GiftsRoute = GiftsRouteImport.update({
-  id: '/gifts',
-  path: '/gifts',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/gifts.lazy').then((d) => d.Route))
-const GrowthRoute = GrowthRouteImport.update({
-  id: '/growth',
-  path: '/growth',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/growth.lazy').then((d) => d.Route))
-const HeygenTemplatesRoute = HeygenTemplatesRouteImport.update({
-  id: '/heygen-templates',
-  path: '/heygen-templates',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() =>
-  import('./routes/heygen-templates.lazy').then((d) => d.Route),
-)
-const HomeRoute = HomeRouteImport.update({
-  id: '/home',
-  path: '/home',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/home.lazy').then((d) => d.Route))
-const KidsRoute = KidsRouteImport.update({
-  id: '/kids',
-  path: '/kids',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/kids.lazy').then((d) => d.Route))
-const LipsyncRoute = LipsyncRouteImport.update({
-  id: '/lipsync',
-  path: '/lipsync',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/lipsync.lazy').then((d) => d.Route))
-const LiveStudioRoute = LiveStudioRouteImport.update({
-  id: '/live-studio',
-  path: '/live-studio',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/live-studio.lazy').then((d) => d.Route))
-const MarketplaceRoute = MarketplaceRouteImport.update({
-  id: '/marketplace',
-  path: '/marketplace',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/marketplace.lazy').then((d) => d.Route))
-const MasteringRoute = MasteringRouteImport.update({
-  id: '/mastering',
-  path: '/mastering',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/mastering.lazy').then((d) => d.Route))
-const MotionRoute = MotionRouteImport.update({
-  id: '/motion',
-  path: '/motion',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/motion.lazy').then((d) => d.Route))
-const MusicVideoRoute = MusicVideoRouteImport.update({
-  id: '/music-video',
-  path: '/music-video',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/music-video.lazy').then((d) => d.Route))
-const NexusarbRoute = NexusarbRouteImport.update({
-  id: '/nexusarb',
-  path: '/nexusarb',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/nexusarb.lazy').then((d) => d.Route))
-const OrchestrateRoute = OrchestrateRouteImport.update({
-  id: '/orchestrate',
-  path: '/orchestrate',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PartnersRoute = PartnersRouteImport.update({
-  id: '/partners',
-  path: '/partners',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/partners.lazy').then((d) => d.Route))
-const PerformRoute = PerformRouteImport.update({
-  id: '/perform',
-  path: '/perform',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PhotoEditRoute = PhotoEditRouteImport.update({
-  id: '/photo-edit',
-  path: '/photo-edit',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/photo-edit.lazy').then((d) => d.Route))
-const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() =>
-  import('./routes/reset-password.lazy').then((d) => d.Route),
-)
-const ReshootRoute = ReshootRouteImport.update({
-  id: '/reshoot',
-  path: '/reshoot',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/reshoot.lazy').then((d) => d.Route))
-const RoadmapRoute = RoadmapRouteImport.update({
-  id: '/roadmap',
-  path: '/roadmap',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/roadmap.lazy').then((d) => d.Route))
-const SceneBuilderRoute = SceneBuilderRouteImport.update({
-  id: '/scene-builder',
-  path: '/scene-builder',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/scene-builder.lazy').then((d) => d.Route))
-const SceneWeaverRoute = SceneWeaverRouteImport.update({
-  id: '/scene-weaver',
-  path: '/scene-weaver',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/scene-weaver.lazy').then((d) => d.Route))
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/settings.lazy').then((d) => d.Route))
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SpeechRoute = SpeechRouteImport.update({
-  id: '/speech',
-  path: '/speech',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/speech.lazy').then((d) => d.Route))
-const SpinRoute = SpinRouteImport.update({
-  id: '/spin',
-  path: '/spin',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/spin.lazy').then((d) => d.Route))
-const SplitRealityRoute = SplitRealityRouteImport.update({
-  id: '/split-reality',
-  path: '/split-reality',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/split-reality.lazy').then((d) => d.Route))
-const StoryboardRoute = StoryboardRouteImport.update({
-  id: '/storyboard',
-  path: '/storyboard',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/storyboard.lazy').then((d) => d.Route))
-const StudioRoute = StudioRouteImport.update({
-  id: '/studio',
-  path: '/studio',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/studio.lazy').then((d) => d.Route))
-const TemplatesRoute = TemplatesRouteImport.update({
-  id: '/templates',
-  path: '/templates',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/templates.lazy').then((d) => d.Route))
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TiktokRoute = TiktokRouteImport.update({
-  id: '/tiktok',
-  path: '/tiktok',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/tiktok.lazy').then((d) => d.Route))
-const TiktokLiveRoute = TiktokLiveRouteImport.update({
-  id: '/tiktok-live',
-  path: '/tiktok-live',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/tiktok-live.lazy').then((d) => d.Route))
-const ToolsRoute = ToolsRouteImport.update({
-  id: '/tools',
-  path: '/tools',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/tools.lazy').then((d) => d.Route))
-const TutorialRoute = TutorialRouteImport.update({
-  id: '/tutorial',
-  path: '/tutorial',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/tutorial.lazy').then((d) => d.Route))
-const UgcRoute = UgcRouteImport.update({
-  id: '/ugc',
-  path: '/ugc',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/ugc.lazy').then((d) => d.Route))
-const UgcLineRoute = UgcLineRouteImport.update({
-  id: '/ugc-line',
-  path: '/ugc-line',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/ugc-line.lazy').then((d) => d.Route))
-const VideoAgentRoute = VideoAgentRouteImport.update({
-  id: '/video-agent',
-  path: '/video-agent',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/video-agent.lazy').then((d) => d.Route))
-const VideoAgentEditRoute = VideoAgentEditRouteImport.update({
-  id: '/video-agent-edit',
-  path: '/video-agent-edit',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() =>
-  import('./routes/video-agent-edit.lazy').then((d) => d.Route),
-)
+} as any).lazy(() => import('./routes/video-editor.lazy').then((d) => d.Route))
 const VideoAgentProcessRoute = VideoAgentProcessRouteImport.update({
   id: '/video-agent-process',
   path: '/video-agent-process',
@@ -446,94 +148,339 @@ const VideoAgentProcessRoute = VideoAgentProcessRouteImport.update({
 } as any).lazy(() =>
   import('./routes/video-agent-process.lazy').then((d) => d.Route),
 )
-const VideoEditorRoute = VideoEditorRouteImport.update({
-  id: '/video-editor',
-  path: '/video-editor',
+const VideoAgentEditRoute = VideoAgentEditRouteImport.update({
+  id: '/video-agent-edit',
+  path: '/video-agent-edit',
   getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/video-editor.lazy').then((d) => d.Route))
-const WorkflowsRoute = WorkflowsRouteImport.update({
-  id: '/workflows',
-  path: '/workflows',
+} as any).lazy(() =>
+  import('./routes/video-agent-edit.lazy').then((d) => d.Route),
+)
+const VideoAgentRoute = VideoAgentRouteImport.update({
+  id: '/video-agent',
+  path: '/video-agent',
   getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/workflows.lazy').then((d) => d.Route))
-const AdminAssetsRoute = AdminAssetsRouteImport.update({
-  id: '/assets',
-  path: '/assets',
-  getParentRoute: () => AdminRoute,
-} as any).lazy(() => import('./routes/admin.assets.lazy').then((d) => d.Route))
-const AdminComfyRoute = AdminComfyRouteImport.update({
-  id: '/comfy',
-  path: '/comfy',
-  getParentRoute: () => AdminRoute,
-} as any).lazy(() => import('./routes/admin.comfy.lazy').then((d) => d.Route))
-const AdminCostsRoute = AdminCostsRouteImport.update({
-  id: '/costs',
-  path: '/costs',
-  getParentRoute: () => AdminRoute,
-} as any).lazy(() => import('./routes/admin.costs.lazy').then((d) => d.Route))
-const AdminModelsRoute = AdminModelsRouteImport.update({
-  id: '/models',
-  path: '/models',
-  getParentRoute: () => AdminRoute,
-} as any).lazy(() => import('./routes/admin.models.lazy').then((d) => d.Route))
-const AdminOrchestrationRoute = AdminOrchestrationRouteImport.update({
-  id: '/orchestration',
-  path: '/orchestration',
-  getParentRoute: () => AdminRoute,
-} as any).lazy(() =>
-  import('./routes/admin.orchestration.lazy').then((d) => d.Route),
-)
-const AdminSiteImagesRoute = AdminSiteImagesRouteImport.update({
-  id: '/site-images',
-  path: '/site-images',
-  getParentRoute: () => AdminRoute,
-} as any).lazy(() =>
-  import('./routes/admin.site-images.lazy').then((d) => d.Route),
-)
-const AdminSmokeRoute = AdminSmokeRouteImport.update({
-  id: '/smoke',
-  path: '/smoke',
-  getParentRoute: () => AdminRoute,
-} as any).lazy(() => import('./routes/admin.smoke.lazy').then((d) => d.Route))
-const AdminTemplatesRoute = AdminTemplatesRouteImport.update({
+} as any).lazy(() => import('./routes/video-agent.lazy').then((d) => d.Route))
+const UgcLineRoute = UgcLineRouteImport.update({
+  id: '/ugc-line',
+  path: '/ugc-line',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/ugc-line.lazy').then((d) => d.Route))
+const UgcRoute = UgcRouteImport.update({
+  id: '/ugc',
+  path: '/ugc',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/ugc.lazy').then((d) => d.Route))
+const TutorialRoute = TutorialRouteImport.update({
+  id: '/tutorial',
+  path: '/tutorial',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/tutorial.lazy').then((d) => d.Route))
+const ToolsRoute = ToolsRouteImport.update({
+  id: '/tools',
+  path: '/tools',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/tools.lazy').then((d) => d.Route))
+const TiktokLiveRoute = TiktokLiveRouteImport.update({
+  id: '/tiktok-live',
+  path: '/tiktok-live',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/tiktok-live.lazy').then((d) => d.Route))
+const TiktokRoute = TiktokRouteImport.update({
+  id: '/tiktok',
+  path: '/tiktok',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/tiktok.lazy').then((d) => d.Route))
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TemplatesRoute = TemplatesRouteImport.update({
   id: '/templates',
   path: '/templates',
-  getParentRoute: () => AdminRoute,
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/templates.lazy').then((d) => d.Route))
+const StudioRoute = StudioRouteImport.update({
+  id: '/studio',
+  path: '/studio',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/studio.lazy').then((d) => d.Route))
+const StoryboardRoute = StoryboardRouteImport.update({
+  id: '/storyboard',
+  path: '/storyboard',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/storyboard.lazy').then((d) => d.Route))
+const SplitRealityRoute = SplitRealityRouteImport.update({
+  id: '/split-reality',
+  path: '/split-reality',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/split-reality.lazy').then((d) => d.Route))
+const SpinRoute = SpinRouteImport.update({
+  id: '/spin',
+  path: '/spin',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/spin.lazy').then((d) => d.Route))
+const SpeechRoute = SpeechRouteImport.update({
+  id: '/speech',
+  path: '/speech',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/speech.lazy').then((d) => d.Route))
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/settings.lazy').then((d) => d.Route))
+const SceneWeaverRoute = SceneWeaverRouteImport.update({
+  id: '/scene-weaver',
+  path: '/scene-weaver',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/scene-weaver.lazy').then((d) => d.Route))
+const SceneBuilderRoute = SceneBuilderRouteImport.update({
+  id: '/scene-builder',
+  path: '/scene-builder',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/scene-builder.lazy').then((d) => d.Route))
+const RoadmapRoute = RoadmapRouteImport.update({
+  id: '/roadmap',
+  path: '/roadmap',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/roadmap.lazy').then((d) => d.Route))
+const ReshootRoute = ReshootRouteImport.update({
+  id: '/reshoot',
+  path: '/reshoot',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/reshoot.lazy').then((d) => d.Route))
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
 } as any).lazy(() =>
-  import('./routes/admin.templates.lazy').then((d) => d.Route),
+  import('./routes/reset-password.lazy').then((d) => d.Route),
 )
-const AdminWorkflowsRoute = AdminWorkflowsRouteImport.update({
-  id: '/workflows',
-  path: '/workflows',
-  getParentRoute: () => AdminRoute,
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PhotoEditRoute = PhotoEditRouteImport.update({
+  id: '/photo-edit',
+  path: '/photo-edit',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/photo-edit.lazy').then((d) => d.Route))
+const PerformRoute = PerformRouteImport.update({
+  id: '/perform',
+  path: '/perform',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PartnersRoute = PartnersRouteImport.update({
+  id: '/partners',
+  path: '/partners',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/partners.lazy').then((d) => d.Route))
+const OrchestrateRoute = OrchestrateRouteImport.update({
+  id: '/orchestrate',
+  path: '/orchestrate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NexusarbRoute = NexusarbRouteImport.update({
+  id: '/nexusarb',
+  path: '/nexusarb',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/nexusarb.lazy').then((d) => d.Route))
+const MusicVideoRoute = MusicVideoRouteImport.update({
+  id: '/music-video',
+  path: '/music-video',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/music-video.lazy').then((d) => d.Route))
+const MotionRoute = MotionRouteImport.update({
+  id: '/motion',
+  path: '/motion',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/motion.lazy').then((d) => d.Route))
+const MasteringRoute = MasteringRouteImport.update({
+  id: '/mastering',
+  path: '/mastering',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/mastering.lazy').then((d) => d.Route))
+const MarketplaceRoute = MarketplaceRouteImport.update({
+  id: '/marketplace',
+  path: '/marketplace',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/marketplace.lazy').then((d) => d.Route))
+const LiveStudioRoute = LiveStudioRouteImport.update({
+  id: '/live-studio',
+  path: '/live-studio',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/live-studio.lazy').then((d) => d.Route))
+const LipsyncRoute = LipsyncRouteImport.update({
+  id: '/lipsync',
+  path: '/lipsync',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/lipsync.lazy').then((d) => d.Route))
+const KidsRoute = KidsRouteImport.update({
+  id: '/kids',
+  path: '/kids',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/kids.lazy').then((d) => d.Route))
+const HomeRoute = HomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/home.lazy').then((d) => d.Route))
+const HeygenTemplatesRoute = HeygenTemplatesRouteImport.update({
+  id: '/heygen-templates',
+  path: '/heygen-templates',
+  getParentRoute: () => rootRouteImport,
 } as any).lazy(() =>
-  import('./routes/admin.workflows.lazy').then((d) => d.Route),
+  import('./routes/heygen-templates.lazy').then((d) => d.Route),
 )
-const ApiEstimateRoute = ApiEstimateRouteImport.update({
-  id: '/api/estimate',
-  path: '/api/estimate',
+const GrowthRoute = GrowthRouteImport.update({
+  id: '/growth',
+  path: '/growth',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/growth.lazy').then((d) => d.Route))
+const GiftsRoute = GiftsRouteImport.update({
+  id: '/gifts',
+  path: '/gifts',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/gifts.lazy').then((d) => d.Route))
+const GalleryRoute = GalleryRouteImport.update({
+  id: '/gallery',
+  path: '/gallery',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/gallery.lazy').then((d) => d.Route))
+const EditorRoute = EditorRouteImport.update({
+  id: '/editor',
+  path: '/editor',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/editor.lazy').then((d) => d.Route))
+const EditRoute = EditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/edit.lazy').then((d) => d.Route))
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/dashboard.lazy').then((d) => d.Route))
+const ContentMachineRoute = ContentMachineRouteImport.update({
+  id: '/content-machine',
+  path: '/content-machine',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/content-machine.lazy').then((d) => d.Route),
+)
+const ContentRoute = ContentRouteImport.update({
+  id: '/content',
+  path: '/content',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/content.lazy').then((d) => d.Route))
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/contact.lazy').then((d) => d.Route))
+const ConnectRoute = ConnectRouteImport.update({
+  id: '/connect',
+  path: '/connect',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/connect.lazy').then((d) => d.Route))
+const ComfyRoute = ComfyRouteImport.update({
+  id: '/comfy',
+  path: '/comfy',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/comfy.lazy').then((d) => d.Route))
+const ColorsShowRoute = ColorsShowRouteImport.update({
+  id: '/colors-show',
+  path: '/colors-show',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/colors-show.lazy').then((d) => d.Route))
+const ColorsRoute = ColorsRouteImport.update({
+  id: '/colors',
+  path: '/colors',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/colors.lazy').then((d) => d.Route))
+const ClipsRoute = ClipsRouteImport.update({
+  id: '/clips',
+  path: '/clips',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/clips.lazy').then((d) => d.Route))
+const CanvasRoute = CanvasRouteImport.update({
+  id: '/canvas',
+  path: '/canvas',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/canvas.lazy').then((d) => d.Route))
+const BillingRoute = BillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/billing.lazy').then((d) => d.Route))
+const AvatarRoute = AvatarRouteImport.update({
+  id: '/avatar',
+  path: '/avatar',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/avatar.lazy').then((d) => d.Route))
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/auth.lazy').then((d) => d.Route))
+const AgentRoute = AgentRouteImport.update({
+  id: '/agent',
+  path: '/agent',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiHealthRoute = ApiHealthRouteImport.update({
-  id: '/api/health',
-  path: '/api/health',
+const AffiliateRoute = AffiliateRouteImport.update({
+  id: '/affiliate',
+  path: '/affiliate',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiMcpRoute = ApiMcpRouteImport.update({
-  id: '/api/mcp',
-  path: '/api/mcp',
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/admin.lazy').then((d) => d.Route))
+const AccountRoute = AccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/account.lazy').then((d) => d.Route))
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GuidesIndexRoute = GuidesIndexRouteImport.update({
+  id: '/guides/',
+  path: '/guides/',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/guides.index.lazy').then((d) => d.Route))
 const CliIndexRoute = CliIndexRouteImport.update({
   id: '/cli/',
   path: '/cli/',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/cli.index.lazy').then((d) => d.Route))
-const CliAuthorizeRoute = CliAuthorizeRouteImport.update({
-  id: '/cli/authorize',
-  path: '/cli/authorize',
+const RTokenRoute = RTokenRouteImport.update({
+  id: '/r/$token',
+  path: '/r/$token',
   getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/cli.authorize.lazy').then((d) => d.Route))
+} as any).lazy(() => import('./routes/r.$token.lazy').then((d) => d.Route))
+const LegalSlugRoute = LegalSlugRouteImport.update({
+  id: '/legal/$slug',
+  path: '/legal/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/legal.$slug.lazy').then((d) => d.Route))
+const GuidesSlugRoute = GuidesSlugRouteImport.update({
+  id: '/guides/$slug',
+  path: '/guides/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/guides.$slug.lazy').then((d) => d.Route))
 const CreatorDashboardRoute = CreatorDashboardRouteImport.update({
   id: '/creator/dashboard',
   path: '/creator/dashboard',
@@ -541,77 +488,129 @@ const CreatorDashboardRoute = CreatorDashboardRouteImport.update({
 } as any).lazy(() =>
   import('./routes/creator.dashboard.lazy').then((d) => d.Route),
 )
-const GuidesIndexRoute = GuidesIndexRouteImport.update({
-  id: '/guides/',
-  path: '/guides/',
+const CliAuthorizeRoute = CliAuthorizeRouteImport.update({
+  id: '/cli/authorize',
+  path: '/cli/authorize',
   getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/guides.index.lazy').then((d) => d.Route))
-const GuidesSlugRoute = GuidesSlugRouteImport.update({
-  id: '/guides/$slug',
-  path: '/guides/$slug',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/guides.$slug.lazy').then((d) => d.Route))
-const LegalSlugRoute = LegalSlugRouteImport.update({
-  id: '/legal/$slug',
-  path: '/legal/$slug',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/legal.$slug.lazy').then((d) => d.Route))
-const RTokenRoute = RTokenRouteImport.update({
-  id: '/r/$token',
-  path: '/r/$token',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/r.$token.lazy').then((d) => d.Route))
-const ApiAdminRunSmokeStep14Route = ApiAdminRunSmokeStep14RouteImport.update({
-  id: '/api/admin/run-smoke-step14',
-  path: '/api/admin/run-smoke-step14',
+} as any).lazy(() => import('./routes/cli.authorize.lazy').then((d) => d.Route))
+const ApiMcpRoute = ApiMcpRouteImport.update({
+  id: '/api/mcp',
+  path: '/api/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAdminUploadSiteImageRoute = ApiAdminUploadSiteImageRouteImport.update({
-  id: '/api/admin/upload-site-image',
-  path: '/api/admin/upload-site-image',
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAdminVerifyPasscodeRoute = ApiAdminVerifyPasscodeRouteImport.update({
-  id: '/api/admin/verify-passcode',
-  path: '/api/admin/verify-passcode',
+const ApiEstimateRoute = ApiEstimateRouteImport.update({
+  id: '/api/estimate',
+  path: '/api/estimate',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAudioMasterRoute = ApiAudioMasterRouteImport.update({
-  id: '/api/audio/master',
-  path: '/api/audio/master',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAudioUploadRoute = ApiAudioUploadRouteImport.update({
-  id: '/api/audio/upload',
-  path: '/api/audio/upload',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicCheckApiBalancesRoute =
-  ApiPublicCheckApiBalancesRouteImport.update({
-    id: '/api/public/check-api-balances',
-    path: '/api/public/check-api-balances',
+const AdminWorkflowsRoute = AdminWorkflowsRouteImport.update({
+  id: '/workflows',
+  path: '/workflows',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() =>
+  import('./routes/admin.workflows.lazy').then((d) => d.Route),
+)
+const AdminTemplatesRoute = AdminTemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() =>
+  import('./routes/admin.templates.lazy').then((d) => d.Route),
+)
+const AdminSmokeRoute = AdminSmokeRouteImport.update({
+  id: '/smoke',
+  path: '/smoke',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin.smoke.lazy').then((d) => d.Route))
+const AdminSiteImagesRoute = AdminSiteImagesRouteImport.update({
+  id: '/site-images',
+  path: '/site-images',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() =>
+  import('./routes/admin.site-images.lazy').then((d) => d.Route),
+)
+const AdminOrchestrationRoute = AdminOrchestrationRouteImport.update({
+  id: '/orchestration',
+  path: '/orchestration',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() =>
+  import('./routes/admin.orchestration.lazy').then((d) => d.Route),
+)
+const AdminModelsRoute = AdminModelsRouteImport.update({
+  id: '/models',
+  path: '/models',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin.models.lazy').then((d) => d.Route))
+const AdminCostsRoute = AdminCostsRouteImport.update({
+  id: '/costs',
+  path: '/costs',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin.costs.lazy').then((d) => d.Route))
+const AdminComfyRoute = AdminComfyRouteImport.update({
+  id: '/comfy',
+  path: '/comfy',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin.comfy.lazy').then((d) => d.Route))
+const AdminAssetsRoute = AdminAssetsRouteImport.update({
+  id: '/assets',
+  path: '/assets',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin.assets.lazy').then((d) => d.Route))
+const ApiVideoAgentGenerateScriptRoute =
+  ApiVideoAgentGenerateScriptRouteImport.update({
+    id: '/api/video-agent/generate-script',
+    path: '/api/video-agent/generate-script',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicFreeMonthlyGrantRoute =
-  ApiPublicFreeMonthlyGrantRouteImport.update({
-    id: '/api/public/free-monthly-grant',
-    path: '/api/public/free-monthly-grant',
+const ApiVideoAgentGenerateFrameRoute =
+  ApiVideoAgentGenerateFrameRouteImport.update({
+    id: '/api/video-agent/generate-frame',
+    path: '/api/video-agent/generate-frame',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicGenerateRoute = ApiPublicGenerateRouteImport.update({
-  id: '/api/public/generate',
-  path: '/api/public/generate',
+const ApiUgcLineVariationsRoute = ApiUgcLineVariationsRouteImport.update({
+  id: '/api/ugc-line/variations',
+  path: '/api/ugc-line/variations',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicLifecycleEmailsRoute =
-  ApiPublicLifecycleEmailsRouteImport.update({
-    id: '/api/public/lifecycle-emails',
-    path: '/api/public/lifecycle-emails',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicModelWatchRoute = ApiPublicModelWatchRouteImport.update({
-  id: '/api/public/model-watch',
-  path: '/api/public/model-watch',
+const ApiUgcLineScriptsRoute = ApiUgcLineScriptsRouteImport.update({
+  id: '/api/ugc-line/scripts',
+  path: '/api/ugc-line/scripts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiUgcLineImagesRoute = ApiUgcLineImagesRouteImport.update({
+  id: '/api/ugc-line/images',
+  path: '/api/ugc-line/images',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicWatermarkVideoRoute = ApiPublicWatermarkVideoRouteImport.update({
+  id: '/api/public/watermark-video',
+  path: '/api/public/watermark-video',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicWatermarkImageRoute = ApiPublicWatermarkImageRouteImport.update({
+  id: '/api/public/watermark-image',
+  path: '/api/public/watermark-image',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicUptimeMonitorRoute = ApiPublicUptimeMonitorRouteImport.update({
+  id: '/api/public/uptime-monitor',
+  path: '/api/public/uptime-monitor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicSiteImagesRoute = ApiPublicSiteImagesRouteImport.update({
+  id: '/api/public/site-images',
+  path: '/api/public/site-images',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicSiteCopyRoute = ApiPublicSiteCopyRouteImport.update({
+  id: '/api/public/site-copy',
+  path: '/api/public/site-copy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicPaystackWebhookRoute =
@@ -620,77 +619,57 @@ const ApiPublicPaystackWebhookRoute =
     path: '/api/public/paystack-webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicSiteCopyRoute = ApiPublicSiteCopyRouteImport.update({
-  id: '/api/public/site-copy',
-  path: '/api/public/site-copy',
+const ApiPublicModelWatchRoute = ApiPublicModelWatchRouteImport.update({
+  id: '/api/public/model-watch',
+  path: '/api/public/model-watch',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicSiteImagesRoute = ApiPublicSiteImagesRouteImport.update({
-  id: '/api/public/site-images',
-  path: '/api/public/site-images',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicUptimeMonitorRoute = ApiPublicUptimeMonitorRouteImport.update({
-  id: '/api/public/uptime-monitor',
-  path: '/api/public/uptime-monitor',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicWatermarkImageRoute = ApiPublicWatermarkImageRouteImport.update({
-  id: '/api/public/watermark-image',
-  path: '/api/public/watermark-image',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicWatermarkVideoRoute = ApiPublicWatermarkVideoRouteImport.update({
-  id: '/api/public/watermark-video',
-  path: '/api/public/watermark-video',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiUgcLineImagesRoute = ApiUgcLineImagesRouteImport.update({
-  id: '/api/ugc-line/images',
-  path: '/api/ugc-line/images',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiUgcLineScriptsRoute = ApiUgcLineScriptsRouteImport.update({
-  id: '/api/ugc-line/scripts',
-  path: '/api/ugc-line/scripts',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiUgcLineVariationsRoute = ApiUgcLineVariationsRouteImport.update({
-  id: '/api/ugc-line/variations',
-  path: '/api/ugc-line/variations',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiVideoAgentGenerateFrameRoute =
-  ApiVideoAgentGenerateFrameRouteImport.update({
-    id: '/api/video-agent/generate-frame',
-    path: '/api/video-agent/generate-frame',
+const ApiPublicLifecycleEmailsRoute =
+  ApiPublicLifecycleEmailsRouteImport.update({
+    id: '/api/public/lifecycle-emails',
+    path: '/api/public/lifecycle-emails',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiVideoAgentGenerateScriptRoute =
-  ApiVideoAgentGenerateScriptRouteImport.update({
-    id: '/api/video-agent/generate-script',
-    path: '/api/video-agent/generate-script',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicJobsTickRoute = ApiPublicJobsTickRouteImport.update({
-  id: '/api/public/jobs/tick',
-  path: '/api/public/jobs/tick',
+const ApiPublicGenerateRoute = ApiPublicGenerateRouteImport.update({
+  id: '/api/public/generate',
+  path: '/api/public/generate',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicPaymentsSweepStuckRoute =
-  ApiPublicPaymentsSweepStuckRouteImport.update({
-    id: '/api/public/payments/sweep-stuck',
-    path: '/api/public/payments/sweep-stuck',
+const ApiPublicFreeMonthlyGrantRoute =
+  ApiPublicFreeMonthlyGrantRouteImport.update({
+    id: '/api/public/free-monthly-grant',
+    path: '/api/public/free-monthly-grant',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicTiktokCallbackRoute = ApiPublicTiktokCallbackRouteImport.update({
-  id: '/api/public/tiktok/callback',
-  path: '/api/public/tiktok/callback',
+const ApiPublicCheckApiBalancesRoute =
+  ApiPublicCheckApiBalancesRouteImport.update({
+    id: '/api/public/check-api-balances',
+    path: '/api/public/check-api-balances',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiAudioUploadRoute = ApiAudioUploadRouteImport.update({
+  id: '/api/audio/upload',
+  path: '/api/audio/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicWorkersHealthRoute = ApiPublicWorkersHealthRouteImport.update({
-  id: '/api/public/workers/health',
-  path: '/api/public/workers/health',
+const ApiAudioMasterRoute = ApiAudioMasterRouteImport.update({
+  id: '/api/audio/master',
+  path: '/api/audio/master',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminVerifyPasscodeRoute = ApiAdminVerifyPasscodeRouteImport.update({
+  id: '/api/admin/verify-passcode',
+  path: '/api/admin/verify-passcode',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminUploadSiteImageRoute = ApiAdminUploadSiteImageRouteImport.update({
+  id: '/api/admin/upload-site-image',
+  path: '/api/admin/upload-site-image',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminRunSmokeStep14Route = ApiAdminRunSmokeStep14RouteImport.update({
+  id: '/api/admin/run-smoke-step14',
+  path: '/api/admin/run-smoke-step14',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicWorkersRegisterRoute =
@@ -699,19 +678,25 @@ const ApiPublicWorkersRegisterRoute =
     path: '/api/public/workers/register',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiAudioMasterIdStatusRoute = ApiAudioMasterIdStatusRouteImport.update({
-  id: '/$id/status',
-  path: '/$id/status',
-  getParentRoute: () => ApiAudioMasterRoute,
-} as any)
-const ApiPublicCliDevicePollRoute = ApiPublicCliDevicePollRouteImport.update({
-  id: '/api/public/cli/device/poll',
-  path: '/api/public/cli/device/poll',
+const ApiPublicWorkersHealthRoute = ApiPublicWorkersHealthRouteImport.update({
+  id: '/api/public/workers/health',
+  path: '/api/public/workers/health',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicCliDeviceStartRoute = ApiPublicCliDeviceStartRouteImport.update({
-  id: '/api/public/cli/device/start',
-  path: '/api/public/cli/device/start',
+const ApiPublicTiktokCallbackRoute = ApiPublicTiktokCallbackRouteImport.update({
+  id: '/api/public/tiktok/callback',
+  path: '/api/public/tiktok/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicPaymentsSweepStuckRoute =
+  ApiPublicPaymentsSweepStuckRouteImport.update({
+    id: '/api/public/payments/sweep-stuck',
+    path: '/api/public/payments/sweep-stuck',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicJobsTickRoute = ApiPublicJobsTickRouteImport.update({
+  id: '/api/public/jobs/tick',
+  path: '/api/public/jobs/tick',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicWorkersFilesNameRoute =
@@ -720,6 +705,21 @@ const ApiPublicWorkersFilesNameRoute =
     path: '/api/public/workers/files/$name',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCliDeviceStartRoute = ApiPublicCliDeviceStartRouteImport.update({
+  id: '/api/public/cli/device/start',
+  path: '/api/public/cli/device/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicCliDevicePollRoute = ApiPublicCliDevicePollRouteImport.update({
+  id: '/api/public/cli/device/poll',
+  path: '/api/public/cli/device/poll',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAudioMasterIdStatusRoute = ApiAudioMasterIdStatusRouteImport.update({
+  id: '/$id/status',
+  path: '/$id/status',
+  getParentRoute: () => ApiAudioMasterRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -1523,445 +1523,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/account': {
-      id: '/account'
-      path: '/account'
-      fullPath: '/account'
-      preLoaderRoute: typeof AccountRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/affiliate': {
-      id: '/affiliate'
-      path: '/affiliate'
-      fullPath: '/affiliate'
-      preLoaderRoute: typeof AffiliateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/agent': {
-      id: '/agent'
-      path: '/agent'
-      fullPath: '/agent'
-      preLoaderRoute: typeof AgentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/avatar': {
-      id: '/avatar'
-      path: '/avatar'
-      fullPath: '/avatar'
-      preLoaderRoute: typeof AvatarRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/beat-reel': {
       id: '/beat-reel'
       path: '/beat-reel'
       fullPath: '/beat-reel'
       preLoaderRoute: typeof BeatReelLazyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/billing': {
-      id: '/billing'
-      path: '/billing'
-      fullPath: '/billing'
-      preLoaderRoute: typeof BillingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/canvas': {
-      id: '/canvas'
-      path: '/canvas'
-      fullPath: '/canvas'
-      preLoaderRoute: typeof CanvasRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/clips': {
-      id: '/clips'
-      path: '/clips'
-      fullPath: '/clips'
-      preLoaderRoute: typeof ClipsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/colors': {
-      id: '/colors'
-      path: '/colors'
-      fullPath: '/colors'
-      preLoaderRoute: typeof ColorsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/colors-show': {
-      id: '/colors-show'
-      path: '/colors-show'
-      fullPath: '/colors-show'
-      preLoaderRoute: typeof ColorsShowRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/comfy': {
-      id: '/comfy'
-      path: '/comfy'
-      fullPath: '/comfy'
-      preLoaderRoute: typeof ComfyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/connect': {
-      id: '/connect'
-      path: '/connect'
-      fullPath: '/connect'
-      preLoaderRoute: typeof ConnectRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/contact': {
-      id: '/contact'
-      path: '/contact'
-      fullPath: '/contact'
-      preLoaderRoute: typeof ContactRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/content': {
-      id: '/content'
-      path: '/content'
-      fullPath: '/content'
-      preLoaderRoute: typeof ContentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/content-machine': {
-      id: '/content-machine'
-      path: '/content-machine'
-      fullPath: '/content-machine'
-      preLoaderRoute: typeof ContentMachineRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/edit': {
-      id: '/edit'
-      path: '/edit'
-      fullPath: '/edit'
-      preLoaderRoute: typeof EditRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/editor': {
-      id: '/editor'
-      path: '/editor'
-      fullPath: '/editor'
-      preLoaderRoute: typeof EditorRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/gallery': {
-      id: '/gallery'
-      path: '/gallery'
-      fullPath: '/gallery'
-      preLoaderRoute: typeof GalleryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/gifts': {
-      id: '/gifts'
-      path: '/gifts'
-      fullPath: '/gifts'
-      preLoaderRoute: typeof GiftsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/growth': {
-      id: '/growth'
-      path: '/growth'
-      fullPath: '/growth'
-      preLoaderRoute: typeof GrowthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/heygen-templates': {
-      id: '/heygen-templates'
-      path: '/heygen-templates'
-      fullPath: '/heygen-templates'
-      preLoaderRoute: typeof HeygenTemplatesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/home': {
-      id: '/home'
-      path: '/home'
-      fullPath: '/home'
-      preLoaderRoute: typeof HomeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/kids': {
-      id: '/kids'
-      path: '/kids'
-      fullPath: '/kids'
-      preLoaderRoute: typeof KidsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lipsync': {
-      id: '/lipsync'
-      path: '/lipsync'
-      fullPath: '/lipsync'
-      preLoaderRoute: typeof LipsyncRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/live-studio': {
-      id: '/live-studio'
-      path: '/live-studio'
-      fullPath: '/live-studio'
-      preLoaderRoute: typeof LiveStudioRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/marketplace': {
-      id: '/marketplace'
-      path: '/marketplace'
-      fullPath: '/marketplace'
-      preLoaderRoute: typeof MarketplaceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mastering': {
-      id: '/mastering'
-      path: '/mastering'
-      fullPath: '/mastering'
-      preLoaderRoute: typeof MasteringRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/motion': {
-      id: '/motion'
-      path: '/motion'
-      fullPath: '/motion'
-      preLoaderRoute: typeof MotionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/music-video': {
-      id: '/music-video'
-      path: '/music-video'
-      fullPath: '/music-video'
-      preLoaderRoute: typeof MusicVideoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/nexusarb': {
-      id: '/nexusarb'
-      path: '/nexusarb'
-      fullPath: '/nexusarb'
-      preLoaderRoute: typeof NexusarbRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/orchestrate': {
-      id: '/orchestrate'
-      path: '/orchestrate'
-      fullPath: '/orchestrate'
-      preLoaderRoute: typeof OrchestrateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/partners': {
-      id: '/partners'
-      path: '/partners'
-      fullPath: '/partners'
-      preLoaderRoute: typeof PartnersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/perform': {
-      id: '/perform'
-      path: '/perform'
-      fullPath: '/perform'
-      preLoaderRoute: typeof PerformRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/photo-edit': {
-      id: '/photo-edit'
-      path: '/photo-edit'
-      fullPath: '/photo-edit'
-      preLoaderRoute: typeof PhotoEditRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reshoot': {
-      id: '/reshoot'
-      path: '/reshoot'
-      fullPath: '/reshoot'
-      preLoaderRoute: typeof ReshootRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/roadmap': {
-      id: '/roadmap'
-      path: '/roadmap'
-      fullPath: '/roadmap'
-      preLoaderRoute: typeof RoadmapRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/scene-builder': {
-      id: '/scene-builder'
-      path: '/scene-builder'
-      fullPath: '/scene-builder'
-      preLoaderRoute: typeof SceneBuilderRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/scene-weaver': {
-      id: '/scene-weaver'
-      path: '/scene-weaver'
-      fullPath: '/scene-weaver'
-      preLoaderRoute: typeof SceneWeaverRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/speech': {
-      id: '/speech'
-      path: '/speech'
-      fullPath: '/speech'
-      preLoaderRoute: typeof SpeechRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/spin': {
-      id: '/spin'
-      path: '/spin'
-      fullPath: '/spin'
-      preLoaderRoute: typeof SpinRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/split-reality': {
-      id: '/split-reality'
-      path: '/split-reality'
-      fullPath: '/split-reality'
-      preLoaderRoute: typeof SplitRealityRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/storyboard': {
-      id: '/storyboard'
-      path: '/storyboard'
-      fullPath: '/storyboard'
-      preLoaderRoute: typeof StoryboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/studio': {
-      id: '/studio'
-      path: '/studio'
-      fullPath: '/studio'
-      preLoaderRoute: typeof StudioRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/templates': {
-      id: '/templates'
-      path: '/templates'
-      fullPath: '/templates'
-      preLoaderRoute: typeof TemplatesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/tiktok': {
-      id: '/tiktok'
-      path: '/tiktok'
-      fullPath: '/tiktok'
-      preLoaderRoute: typeof TiktokRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/tiktok-live': {
-      id: '/tiktok-live'
-      path: '/tiktok-live'
-      fullPath: '/tiktok-live'
-      preLoaderRoute: typeof TiktokLiveRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/tools': {
-      id: '/tools'
-      path: '/tools'
-      fullPath: '/tools'
-      preLoaderRoute: typeof ToolsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/tutorial': {
-      id: '/tutorial'
-      path: '/tutorial'
-      fullPath: '/tutorial'
-      preLoaderRoute: typeof TutorialRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/ugc': {
-      id: '/ugc'
-      path: '/ugc'
-      fullPath: '/ugc'
-      preLoaderRoute: typeof UgcRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/ugc-line': {
-      id: '/ugc-line'
-      path: '/ugc-line'
-      fullPath: '/ugc-line'
-      preLoaderRoute: typeof UgcLineRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/video-agent': {
-      id: '/video-agent'
-      path: '/video-agent'
-      fullPath: '/video-agent'
-      preLoaderRoute: typeof VideoAgentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/video-agent-edit': {
-      id: '/video-agent-edit'
-      path: '/video-agent-edit'
-      fullPath: '/video-agent-edit'
-      preLoaderRoute: typeof VideoAgentEditRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/video-agent-process': {
-      id: '/video-agent-process'
-      path: '/video-agent-process'
-      fullPath: '/video-agent-process'
-      preLoaderRoute: typeof VideoAgentProcessRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/video-editor': {
-      id: '/video-editor'
-      path: '/video-editor'
-      fullPath: '/video-editor'
-      preLoaderRoute: typeof VideoEditorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/workflows': {
@@ -1971,109 +1537,438 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkflowsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/assets': {
-      id: '/admin/assets'
-      path: '/assets'
-      fullPath: '/admin/assets'
-      preLoaderRoute: typeof AdminAssetsRouteImport
-      parentRoute: typeof AdminRoute
+    '/video-editor': {
+      id: '/video-editor'
+      path: '/video-editor'
+      fullPath: '/video-editor'
+      preLoaderRoute: typeof VideoEditorRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/admin/comfy': {
-      id: '/admin/comfy'
-      path: '/comfy'
-      fullPath: '/admin/comfy'
-      preLoaderRoute: typeof AdminComfyRouteImport
-      parentRoute: typeof AdminRoute
+    '/video-agent-process': {
+      id: '/video-agent-process'
+      path: '/video-agent-process'
+      fullPath: '/video-agent-process'
+      preLoaderRoute: typeof VideoAgentProcessRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/admin/costs': {
-      id: '/admin/costs'
-      path: '/costs'
-      fullPath: '/admin/costs'
-      preLoaderRoute: typeof AdminCostsRouteImport
-      parentRoute: typeof AdminRoute
+    '/video-agent-edit': {
+      id: '/video-agent-edit'
+      path: '/video-agent-edit'
+      fullPath: '/video-agent-edit'
+      preLoaderRoute: typeof VideoAgentEditRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/admin/models': {
-      id: '/admin/models'
-      path: '/models'
-      fullPath: '/admin/models'
-      preLoaderRoute: typeof AdminModelsRouteImport
-      parentRoute: typeof AdminRoute
+    '/video-agent': {
+      id: '/video-agent'
+      path: '/video-agent'
+      fullPath: '/video-agent'
+      preLoaderRoute: typeof VideoAgentRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/admin/orchestration': {
-      id: '/admin/orchestration'
-      path: '/orchestration'
-      fullPath: '/admin/orchestration'
-      preLoaderRoute: typeof AdminOrchestrationRouteImport
-      parentRoute: typeof AdminRoute
+    '/ugc-line': {
+      id: '/ugc-line'
+      path: '/ugc-line'
+      fullPath: '/ugc-line'
+      preLoaderRoute: typeof UgcLineRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/admin/site-images': {
-      id: '/admin/site-images'
-      path: '/site-images'
-      fullPath: '/admin/site-images'
-      preLoaderRoute: typeof AdminSiteImagesRouteImport
-      parentRoute: typeof AdminRoute
+    '/ugc': {
+      id: '/ugc'
+      path: '/ugc'
+      fullPath: '/ugc'
+      preLoaderRoute: typeof UgcRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/admin/smoke': {
-      id: '/admin/smoke'
-      path: '/smoke'
-      fullPath: '/admin/smoke'
-      preLoaderRoute: typeof AdminSmokeRouteImport
-      parentRoute: typeof AdminRoute
+    '/tutorial': {
+      id: '/tutorial'
+      path: '/tutorial'
+      fullPath: '/tutorial'
+      preLoaderRoute: typeof TutorialRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/admin/templates': {
-      id: '/admin/templates'
+    '/tools': {
+      id: '/tools'
+      path: '/tools'
+      fullPath: '/tools'
+      preLoaderRoute: typeof ToolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tiktok-live': {
+      id: '/tiktok-live'
+      path: '/tiktok-live'
+      fullPath: '/tiktok-live'
+      preLoaderRoute: typeof TiktokLiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tiktok': {
+      id: '/tiktok'
+      path: '/tiktok'
+      fullPath: '/tiktok'
+      preLoaderRoute: typeof TiktokRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/templates': {
+      id: '/templates'
       path: '/templates'
-      fullPath: '/admin/templates'
-      preLoaderRoute: typeof AdminTemplatesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/workflows': {
-      id: '/admin/workflows'
-      path: '/workflows'
-      fullPath: '/admin/workflows'
-      preLoaderRoute: typeof AdminWorkflowsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/api/estimate': {
-      id: '/api/estimate'
-      path: '/api/estimate'
-      fullPath: '/api/estimate'
-      preLoaderRoute: typeof ApiEstimateRouteImport
+      fullPath: '/templates'
+      preLoaderRoute: typeof TemplatesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/health': {
-      id: '/api/health'
-      path: '/api/health'
-      fullPath: '/api/health'
-      preLoaderRoute: typeof ApiHealthRouteImport
+    '/studio': {
+      id: '/studio'
+      path: '/studio'
+      fullPath: '/studio'
+      preLoaderRoute: typeof StudioRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/mcp': {
-      id: '/api/mcp'
-      path: '/api/mcp'
-      fullPath: '/api/mcp'
-      preLoaderRoute: typeof ApiMcpRouteImport
+    '/storyboard': {
+      id: '/storyboard'
+      path: '/storyboard'
+      fullPath: '/storyboard'
+      preLoaderRoute: typeof StoryboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/cli/': {
-      id: '/cli/'
-      path: '/cli'
-      fullPath: '/cli/'
-      preLoaderRoute: typeof CliIndexRouteImport
+    '/split-reality': {
+      id: '/split-reality'
+      path: '/split-reality'
+      fullPath: '/split-reality'
+      preLoaderRoute: typeof SplitRealityRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/cli/authorize': {
-      id: '/cli/authorize'
-      path: '/cli/authorize'
-      fullPath: '/cli/authorize'
-      preLoaderRoute: typeof CliAuthorizeRouteImport
+    '/spin': {
+      id: '/spin'
+      path: '/spin'
+      fullPath: '/spin'
+      preLoaderRoute: typeof SpinRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/creator/dashboard': {
-      id: '/creator/dashboard'
-      path: '/creator/dashboard'
-      fullPath: '/creator/dashboard'
-      preLoaderRoute: typeof CreatorDashboardRouteImport
+    '/speech': {
+      id: '/speech'
+      path: '/speech'
+      fullPath: '/speech'
+      preLoaderRoute: typeof SpeechRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scene-weaver': {
+      id: '/scene-weaver'
+      path: '/scene-weaver'
+      fullPath: '/scene-weaver'
+      preLoaderRoute: typeof SceneWeaverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scene-builder': {
+      id: '/scene-builder'
+      path: '/scene-builder'
+      fullPath: '/scene-builder'
+      preLoaderRoute: typeof SceneBuilderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/roadmap': {
+      id: '/roadmap'
+      path: '/roadmap'
+      fullPath: '/roadmap'
+      preLoaderRoute: typeof RoadmapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reshoot': {
+      id: '/reshoot'
+      path: '/reshoot'
+      fullPath: '/reshoot'
+      preLoaderRoute: typeof ReshootRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/photo-edit': {
+      id: '/photo-edit'
+      path: '/photo-edit'
+      fullPath: '/photo-edit'
+      preLoaderRoute: typeof PhotoEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/perform': {
+      id: '/perform'
+      path: '/perform'
+      fullPath: '/perform'
+      preLoaderRoute: typeof PerformRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/partners': {
+      id: '/partners'
+      path: '/partners'
+      fullPath: '/partners'
+      preLoaderRoute: typeof PartnersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orchestrate': {
+      id: '/orchestrate'
+      path: '/orchestrate'
+      fullPath: '/orchestrate'
+      preLoaderRoute: typeof OrchestrateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nexusarb': {
+      id: '/nexusarb'
+      path: '/nexusarb'
+      fullPath: '/nexusarb'
+      preLoaderRoute: typeof NexusarbRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/music-video': {
+      id: '/music-video'
+      path: '/music-video'
+      fullPath: '/music-video'
+      preLoaderRoute: typeof MusicVideoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/motion': {
+      id: '/motion'
+      path: '/motion'
+      fullPath: '/motion'
+      preLoaderRoute: typeof MotionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mastering': {
+      id: '/mastering'
+      path: '/mastering'
+      fullPath: '/mastering'
+      preLoaderRoute: typeof MasteringRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/marketplace': {
+      id: '/marketplace'
+      path: '/marketplace'
+      fullPath: '/marketplace'
+      preLoaderRoute: typeof MarketplaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/live-studio': {
+      id: '/live-studio'
+      path: '/live-studio'
+      fullPath: '/live-studio'
+      preLoaderRoute: typeof LiveStudioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lipsync': {
+      id: '/lipsync'
+      path: '/lipsync'
+      fullPath: '/lipsync'
+      preLoaderRoute: typeof LipsyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kids': {
+      id: '/kids'
+      path: '/kids'
+      fullPath: '/kids'
+      preLoaderRoute: typeof KidsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/home': {
+      id: '/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof HomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/heygen-templates': {
+      id: '/heygen-templates'
+      path: '/heygen-templates'
+      fullPath: '/heygen-templates'
+      preLoaderRoute: typeof HeygenTemplatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/growth': {
+      id: '/growth'
+      path: '/growth'
+      fullPath: '/growth'
+      preLoaderRoute: typeof GrowthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gifts': {
+      id: '/gifts'
+      path: '/gifts'
+      fullPath: '/gifts'
+      preLoaderRoute: typeof GiftsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gallery': {
+      id: '/gallery'
+      path: '/gallery'
+      fullPath: '/gallery'
+      preLoaderRoute: typeof GalleryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/editor': {
+      id: '/editor'
+      path: '/editor'
+      fullPath: '/editor'
+      preLoaderRoute: typeof EditorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/edit': {
+      id: '/edit'
+      path: '/edit'
+      fullPath: '/edit'
+      preLoaderRoute: typeof EditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/content-machine': {
+      id: '/content-machine'
+      path: '/content-machine'
+      fullPath: '/content-machine'
+      preLoaderRoute: typeof ContentMachineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/content': {
+      id: '/content'
+      path: '/content'
+      fullPath: '/content'
+      preLoaderRoute: typeof ContentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connect': {
+      id: '/connect'
+      path: '/connect'
+      fullPath: '/connect'
+      preLoaderRoute: typeof ConnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/comfy': {
+      id: '/comfy'
+      path: '/comfy'
+      fullPath: '/comfy'
+      preLoaderRoute: typeof ComfyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/colors-show': {
+      id: '/colors-show'
+      path: '/colors-show'
+      fullPath: '/colors-show'
+      preLoaderRoute: typeof ColorsShowRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/colors': {
+      id: '/colors'
+      path: '/colors'
+      fullPath: '/colors'
+      preLoaderRoute: typeof ColorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clips': {
+      id: '/clips'
+      path: '/clips'
+      fullPath: '/clips'
+      preLoaderRoute: typeof ClipsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/canvas': {
+      id: '/canvas'
+      path: '/canvas'
+      fullPath: '/canvas'
+      preLoaderRoute: typeof CanvasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/billing': {
+      id: '/billing'
+      path: '/billing'
+      fullPath: '/billing'
+      preLoaderRoute: typeof BillingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/avatar': {
+      id: '/avatar'
+      path: '/avatar'
+      fullPath: '/avatar'
+      preLoaderRoute: typeof AvatarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agent': {
+      id: '/agent'
+      path: '/agent'
+      fullPath: '/agent'
+      preLoaderRoute: typeof AgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/affiliate': {
+      id: '/affiliate'
+      path: '/affiliate'
+      fullPath: '/affiliate'
+      preLoaderRoute: typeof AffiliateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account': {
+      id: '/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/guides/': {
@@ -2083,18 +1978,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GuidesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/guides/$slug': {
-      id: '/guides/$slug'
-      path: '/guides/$slug'
-      fullPath: '/guides/$slug'
-      preLoaderRoute: typeof GuidesSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/legal/$slug': {
-      id: '/legal/$slug'
-      path: '/legal/$slug'
-      fullPath: '/legal/$slug'
-      preLoaderRoute: typeof LegalSlugRouteImport
+    '/cli/': {
+      id: '/cli/'
+      path: '/cli'
+      fullPath: '/cli/'
+      preLoaderRoute: typeof CliIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/r/$token': {
@@ -2104,137 +1992,123 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/admin/run-smoke-step14': {
-      id: '/api/admin/run-smoke-step14'
-      path: '/api/admin/run-smoke-step14'
-      fullPath: '/api/admin/run-smoke-step14'
-      preLoaderRoute: typeof ApiAdminRunSmokeStep14RouteImport
+    '/legal/$slug': {
+      id: '/legal/$slug'
+      path: '/legal/$slug'
+      fullPath: '/legal/$slug'
+      preLoaderRoute: typeof LegalSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/admin/upload-site-image': {
-      id: '/api/admin/upload-site-image'
-      path: '/api/admin/upload-site-image'
-      fullPath: '/api/admin/upload-site-image'
-      preLoaderRoute: typeof ApiAdminUploadSiteImageRouteImport
+    '/guides/$slug': {
+      id: '/guides/$slug'
+      path: '/guides/$slug'
+      fullPath: '/guides/$slug'
+      preLoaderRoute: typeof GuidesSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/admin/verify-passcode': {
-      id: '/api/admin/verify-passcode'
-      path: '/api/admin/verify-passcode'
-      fullPath: '/api/admin/verify-passcode'
-      preLoaderRoute: typeof ApiAdminVerifyPasscodeRouteImport
+    '/creator/dashboard': {
+      id: '/creator/dashboard'
+      path: '/creator/dashboard'
+      fullPath: '/creator/dashboard'
+      preLoaderRoute: typeof CreatorDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/audio/master': {
-      id: '/api/audio/master'
-      path: '/api/audio/master'
-      fullPath: '/api/audio/master'
-      preLoaderRoute: typeof ApiAudioMasterRouteImport
+    '/cli/authorize': {
+      id: '/cli/authorize'
+      path: '/cli/authorize'
+      fullPath: '/cli/authorize'
+      preLoaderRoute: typeof CliAuthorizeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/audio/upload': {
-      id: '/api/audio/upload'
-      path: '/api/audio/upload'
-      fullPath: '/api/audio/upload'
-      preLoaderRoute: typeof ApiAudioUploadRouteImport
+    '/api/mcp': {
+      id: '/api/mcp'
+      path: '/api/mcp'
+      fullPath: '/api/mcp'
+      preLoaderRoute: typeof ApiMcpRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/check-api-balances': {
-      id: '/api/public/check-api-balances'
-      path: '/api/public/check-api-balances'
-      fullPath: '/api/public/check-api-balances'
-      preLoaderRoute: typeof ApiPublicCheckApiBalancesRouteImport
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/free-monthly-grant': {
-      id: '/api/public/free-monthly-grant'
-      path: '/api/public/free-monthly-grant'
-      fullPath: '/api/public/free-monthly-grant'
-      preLoaderRoute: typeof ApiPublicFreeMonthlyGrantRouteImport
+    '/api/estimate': {
+      id: '/api/estimate'
+      path: '/api/estimate'
+      fullPath: '/api/estimate'
+      preLoaderRoute: typeof ApiEstimateRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/generate': {
-      id: '/api/public/generate'
-      path: '/api/public/generate'
-      fullPath: '/api/public/generate'
-      preLoaderRoute: typeof ApiPublicGenerateRouteImport
-      parentRoute: typeof rootRouteImport
+    '/admin/workflows': {
+      id: '/admin/workflows'
+      path: '/workflows'
+      fullPath: '/admin/workflows'
+      preLoaderRoute: typeof AdminWorkflowsRouteImport
+      parentRoute: typeof AdminRoute
     }
-    '/api/public/lifecycle-emails': {
-      id: '/api/public/lifecycle-emails'
-      path: '/api/public/lifecycle-emails'
-      fullPath: '/api/public/lifecycle-emails'
-      preLoaderRoute: typeof ApiPublicLifecycleEmailsRouteImport
-      parentRoute: typeof rootRouteImport
+    '/admin/templates': {
+      id: '/admin/templates'
+      path: '/templates'
+      fullPath: '/admin/templates'
+      preLoaderRoute: typeof AdminTemplatesRouteImport
+      parentRoute: typeof AdminRoute
     }
-    '/api/public/model-watch': {
-      id: '/api/public/model-watch'
-      path: '/api/public/model-watch'
-      fullPath: '/api/public/model-watch'
-      preLoaderRoute: typeof ApiPublicModelWatchRouteImport
-      parentRoute: typeof rootRouteImport
+    '/admin/smoke': {
+      id: '/admin/smoke'
+      path: '/smoke'
+      fullPath: '/admin/smoke'
+      preLoaderRoute: typeof AdminSmokeRouteImport
+      parentRoute: typeof AdminRoute
     }
-    '/api/public/paystack-webhook': {
-      id: '/api/public/paystack-webhook'
-      path: '/api/public/paystack-webhook'
-      fullPath: '/api/public/paystack-webhook'
-      preLoaderRoute: typeof ApiPublicPaystackWebhookRouteImport
-      parentRoute: typeof rootRouteImport
+    '/admin/site-images': {
+      id: '/admin/site-images'
+      path: '/site-images'
+      fullPath: '/admin/site-images'
+      preLoaderRoute: typeof AdminSiteImagesRouteImport
+      parentRoute: typeof AdminRoute
     }
-    '/api/public/site-copy': {
-      id: '/api/public/site-copy'
-      path: '/api/public/site-copy'
-      fullPath: '/api/public/site-copy'
-      preLoaderRoute: typeof ApiPublicSiteCopyRouteImport
-      parentRoute: typeof rootRouteImport
+    '/admin/orchestration': {
+      id: '/admin/orchestration'
+      path: '/orchestration'
+      fullPath: '/admin/orchestration'
+      preLoaderRoute: typeof AdminOrchestrationRouteImport
+      parentRoute: typeof AdminRoute
     }
-    '/api/public/site-images': {
-      id: '/api/public/site-images'
-      path: '/api/public/site-images'
-      fullPath: '/api/public/site-images'
-      preLoaderRoute: typeof ApiPublicSiteImagesRouteImport
-      parentRoute: typeof rootRouteImport
+    '/admin/models': {
+      id: '/admin/models'
+      path: '/models'
+      fullPath: '/admin/models'
+      preLoaderRoute: typeof AdminModelsRouteImport
+      parentRoute: typeof AdminRoute
     }
-    '/api/public/uptime-monitor': {
-      id: '/api/public/uptime-monitor'
-      path: '/api/public/uptime-monitor'
-      fullPath: '/api/public/uptime-monitor'
-      preLoaderRoute: typeof ApiPublicUptimeMonitorRouteImport
-      parentRoute: typeof rootRouteImport
+    '/admin/costs': {
+      id: '/admin/costs'
+      path: '/costs'
+      fullPath: '/admin/costs'
+      preLoaderRoute: typeof AdminCostsRouteImport
+      parentRoute: typeof AdminRoute
     }
-    '/api/public/watermark-image': {
-      id: '/api/public/watermark-image'
-      path: '/api/public/watermark-image'
-      fullPath: '/api/public/watermark-image'
-      preLoaderRoute: typeof ApiPublicWatermarkImageRouteImport
-      parentRoute: typeof rootRouteImport
+    '/admin/comfy': {
+      id: '/admin/comfy'
+      path: '/comfy'
+      fullPath: '/admin/comfy'
+      preLoaderRoute: typeof AdminComfyRouteImport
+      parentRoute: typeof AdminRoute
     }
-    '/api/public/watermark-video': {
-      id: '/api/public/watermark-video'
-      path: '/api/public/watermark-video'
-      fullPath: '/api/public/watermark-video'
-      preLoaderRoute: typeof ApiPublicWatermarkVideoRouteImport
-      parentRoute: typeof rootRouteImport
+    '/admin/assets': {
+      id: '/admin/assets'
+      path: '/assets'
+      fullPath: '/admin/assets'
+      preLoaderRoute: typeof AdminAssetsRouteImport
+      parentRoute: typeof AdminRoute
     }
-    '/api/ugc-line/images': {
-      id: '/api/ugc-line/images'
-      path: '/api/ugc-line/images'
-      fullPath: '/api/ugc-line/images'
-      preLoaderRoute: typeof ApiUgcLineImagesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/ugc-line/scripts': {
-      id: '/api/ugc-line/scripts'
-      path: '/api/ugc-line/scripts'
-      fullPath: '/api/ugc-line/scripts'
-      preLoaderRoute: typeof ApiUgcLineScriptsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/ugc-line/variations': {
-      id: '/api/ugc-line/variations'
-      path: '/api/ugc-line/variations'
-      fullPath: '/api/ugc-line/variations'
-      preLoaderRoute: typeof ApiUgcLineVariationsRouteImport
+    '/api/video-agent/generate-script': {
+      id: '/api/video-agent/generate-script'
+      path: '/api/video-agent/generate-script'
+      fullPath: '/api/video-agent/generate-script'
+      preLoaderRoute: typeof ApiVideoAgentGenerateScriptRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/video-agent/generate-frame': {
@@ -2244,39 +2118,137 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiVideoAgentGenerateFrameRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/video-agent/generate-script': {
-      id: '/api/video-agent/generate-script'
-      path: '/api/video-agent/generate-script'
-      fullPath: '/api/video-agent/generate-script'
-      preLoaderRoute: typeof ApiVideoAgentGenerateScriptRouteImport
+    '/api/ugc-line/variations': {
+      id: '/api/ugc-line/variations'
+      path: '/api/ugc-line/variations'
+      fullPath: '/api/ugc-line/variations'
+      preLoaderRoute: typeof ApiUgcLineVariationsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/jobs/tick': {
-      id: '/api/public/jobs/tick'
-      path: '/api/public/jobs/tick'
-      fullPath: '/api/public/jobs/tick'
-      preLoaderRoute: typeof ApiPublicJobsTickRouteImport
+    '/api/ugc-line/scripts': {
+      id: '/api/ugc-line/scripts'
+      path: '/api/ugc-line/scripts'
+      fullPath: '/api/ugc-line/scripts'
+      preLoaderRoute: typeof ApiUgcLineScriptsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/payments/sweep-stuck': {
-      id: '/api/public/payments/sweep-stuck'
-      path: '/api/public/payments/sweep-stuck'
-      fullPath: '/api/public/payments/sweep-stuck'
-      preLoaderRoute: typeof ApiPublicPaymentsSweepStuckRouteImport
+    '/api/ugc-line/images': {
+      id: '/api/ugc-line/images'
+      path: '/api/ugc-line/images'
+      fullPath: '/api/ugc-line/images'
+      preLoaderRoute: typeof ApiUgcLineImagesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/tiktok/callback': {
-      id: '/api/public/tiktok/callback'
-      path: '/api/public/tiktok/callback'
-      fullPath: '/api/public/tiktok/callback'
-      preLoaderRoute: typeof ApiPublicTiktokCallbackRouteImport
+    '/api/public/watermark-video': {
+      id: '/api/public/watermark-video'
+      path: '/api/public/watermark-video'
+      fullPath: '/api/public/watermark-video'
+      preLoaderRoute: typeof ApiPublicWatermarkVideoRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/workers/health': {
-      id: '/api/public/workers/health'
-      path: '/api/public/workers/health'
-      fullPath: '/api/public/workers/health'
-      preLoaderRoute: typeof ApiPublicWorkersHealthRouteImport
+    '/api/public/watermark-image': {
+      id: '/api/public/watermark-image'
+      path: '/api/public/watermark-image'
+      fullPath: '/api/public/watermark-image'
+      preLoaderRoute: typeof ApiPublicWatermarkImageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/uptime-monitor': {
+      id: '/api/public/uptime-monitor'
+      path: '/api/public/uptime-monitor'
+      fullPath: '/api/public/uptime-monitor'
+      preLoaderRoute: typeof ApiPublicUptimeMonitorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/site-images': {
+      id: '/api/public/site-images'
+      path: '/api/public/site-images'
+      fullPath: '/api/public/site-images'
+      preLoaderRoute: typeof ApiPublicSiteImagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/site-copy': {
+      id: '/api/public/site-copy'
+      path: '/api/public/site-copy'
+      fullPath: '/api/public/site-copy'
+      preLoaderRoute: typeof ApiPublicSiteCopyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/paystack-webhook': {
+      id: '/api/public/paystack-webhook'
+      path: '/api/public/paystack-webhook'
+      fullPath: '/api/public/paystack-webhook'
+      preLoaderRoute: typeof ApiPublicPaystackWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/model-watch': {
+      id: '/api/public/model-watch'
+      path: '/api/public/model-watch'
+      fullPath: '/api/public/model-watch'
+      preLoaderRoute: typeof ApiPublicModelWatchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/lifecycle-emails': {
+      id: '/api/public/lifecycle-emails'
+      path: '/api/public/lifecycle-emails'
+      fullPath: '/api/public/lifecycle-emails'
+      preLoaderRoute: typeof ApiPublicLifecycleEmailsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/generate': {
+      id: '/api/public/generate'
+      path: '/api/public/generate'
+      fullPath: '/api/public/generate'
+      preLoaderRoute: typeof ApiPublicGenerateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/free-monthly-grant': {
+      id: '/api/public/free-monthly-grant'
+      path: '/api/public/free-monthly-grant'
+      fullPath: '/api/public/free-monthly-grant'
+      preLoaderRoute: typeof ApiPublicFreeMonthlyGrantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/check-api-balances': {
+      id: '/api/public/check-api-balances'
+      path: '/api/public/check-api-balances'
+      fullPath: '/api/public/check-api-balances'
+      preLoaderRoute: typeof ApiPublicCheckApiBalancesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/audio/upload': {
+      id: '/api/audio/upload'
+      path: '/api/audio/upload'
+      fullPath: '/api/audio/upload'
+      preLoaderRoute: typeof ApiAudioUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/audio/master': {
+      id: '/api/audio/master'
+      path: '/api/audio/master'
+      fullPath: '/api/audio/master'
+      preLoaderRoute: typeof ApiAudioMasterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/verify-passcode': {
+      id: '/api/admin/verify-passcode'
+      path: '/api/admin/verify-passcode'
+      fullPath: '/api/admin/verify-passcode'
+      preLoaderRoute: typeof ApiAdminVerifyPasscodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/upload-site-image': {
+      id: '/api/admin/upload-site-image'
+      path: '/api/admin/upload-site-image'
+      fullPath: '/api/admin/upload-site-image'
+      preLoaderRoute: typeof ApiAdminUploadSiteImageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/run-smoke-step14': {
+      id: '/api/admin/run-smoke-step14'
+      path: '/api/admin/run-smoke-step14'
+      fullPath: '/api/admin/run-smoke-step14'
+      preLoaderRoute: typeof ApiAdminRunSmokeStep14RouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/workers/register': {
@@ -2286,18 +2258,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWorkersRegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/audio/master/$id/status': {
-      id: '/api/audio/master/$id/status'
-      path: '/$id/status'
-      fullPath: '/api/audio/master/$id/status'
-      preLoaderRoute: typeof ApiAudioMasterIdStatusRouteImport
-      parentRoute: typeof ApiAudioMasterRoute
+    '/api/public/workers/health': {
+      id: '/api/public/workers/health'
+      path: '/api/public/workers/health'
+      fullPath: '/api/public/workers/health'
+      preLoaderRoute: typeof ApiPublicWorkersHealthRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/api/public/cli/device/poll': {
-      id: '/api/public/cli/device/poll'
-      path: '/api/public/cli/device/poll'
-      fullPath: '/api/public/cli/device/poll'
-      preLoaderRoute: typeof ApiPublicCliDevicePollRouteImport
+    '/api/public/tiktok/callback': {
+      id: '/api/public/tiktok/callback'
+      path: '/api/public/tiktok/callback'
+      fullPath: '/api/public/tiktok/callback'
+      preLoaderRoute: typeof ApiPublicTiktokCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/payments/sweep-stuck': {
+      id: '/api/public/payments/sweep-stuck'
+      path: '/api/public/payments/sweep-stuck'
+      fullPath: '/api/public/payments/sweep-stuck'
+      preLoaderRoute: typeof ApiPublicPaymentsSweepStuckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/jobs/tick': {
+      id: '/api/public/jobs/tick'
+      path: '/api/public/jobs/tick'
+      fullPath: '/api/public/jobs/tick'
+      preLoaderRoute: typeof ApiPublicJobsTickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/workers/files/$name': {
+      id: '/api/public/workers/files/$name'
+      path: '/api/public/workers/files/$name'
+      fullPath: '/api/public/workers/files/$name'
+      preLoaderRoute: typeof ApiPublicWorkersFilesNameRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/cli/device/start': {
@@ -2307,12 +2300,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCliDeviceStartRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/workers/files/$name': {
-      id: '/api/public/workers/files/$name'
-      path: '/api/public/workers/files/$name'
-      fullPath: '/api/public/workers/files/$name'
-      preLoaderRoute: typeof ApiPublicWorkersFilesNameRouteImport
+    '/api/public/cli/device/poll': {
+      id: '/api/public/cli/device/poll'
+      path: '/api/public/cli/device/poll'
+      fullPath: '/api/public/cli/device/poll'
+      preLoaderRoute: typeof ApiPublicCliDevicePollRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/audio/master/$id/status': {
+      id: '/api/audio/master/$id/status'
+      path: '/$id/status'
+      fullPath: '/api/audio/master/$id/status'
+      preLoaderRoute: typeof ApiAudioMasterIdStatusRouteImport
+      parentRoute: typeof ApiAudioMasterRoute
     }
   }
 }
