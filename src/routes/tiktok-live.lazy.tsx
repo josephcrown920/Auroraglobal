@@ -196,7 +196,7 @@ function TikTokLiveStudio() {
   return (
     <div className="min-h-screen bg-[#0d0d0d] text-white font-sans flex flex-col">
       {/* ── Top bar ─────────────────────────────────────────────────────── */}
-      <header className="flex h-12 shrink-0 items-center justify-between border-b border-white/8 px-4 bg-[#111]">
+      <header className="flex h-12 shrink-0 items-center justify-between border-b border-white/8 pl-20 pr-4 bg-[#111]">
         {/* Left: branding */}
         <div className="flex items-center gap-3">
           <Link to="/" className="flex items-center gap-2 no-underline">
@@ -575,6 +575,13 @@ function TikTokLiveStudio() {
               <div>
                 <p className="text-[11px] font-bold text-white">Lip Sync</p>
                 <p className="text-[10px] text-white/40">Sync your voice to video</p>
+              </div>
+              <ChevronRight className="size-3.5 text-white/30 group-hover:text-white transition-colors" />
+            </Link>
+            <Link to="/templates" className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2.5 no-underline hover:bg-white/8 transition-colors group">
+              <div>
+                <p className="text-[11px] font-bold text-white">Templates</p>
+                <p className="text-[10px] text-white/40">One-tap scene starters</p>
               </div>
               <ChevronRight className="size-3.5 text-white/30 group-hover:text-white transition-colors" />
             </Link>
