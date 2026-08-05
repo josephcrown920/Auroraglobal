@@ -1,15 +1,21 @@
+/// <reference types="vite/client" />
 import { useState } from "react";
 import { Eye, EyeOff, Loader2, Lock, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
-const SK = "aurora_adult_admin_unlocked";
+const SK = "aurora_adult_admin_token";
 
 export function isAdminUnlocked() {
-  try { return sessionStorage.getItem(SK) === "1"; } catch { return false; }
+  try { return !!sessionStorage.getItem(SK); } catch { return false; }
 }
 
-function setAdminUnlocked() {
-  try { sessionStorage.setItem(SK, "1"); } catch { /* private browsing */ }
+/** Returns the stored passcode token for use as a Bearer credential. */
+export function getAdminToken(): string {
+  try { return sessionStorage.getItem(SK) ?? ""; } catch { return ""; }
+}
+
+function storeAdminToken(passcode: string) {
+  try { sessionStorage.setItem(SK, passcode); } catch { /* private browsing */ }
 }
 
 interface Props { onUnlocked: () => void; }
@@ -22,26 +28,24 @@ export function AdminGate({ onUnlocked }: Props) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    try {
-      // Validate passcode server-side so the secret is never sent to the client.
-      const res = await fetch("/api/admin/verify-passcode", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passcode }),
-      });
-      const data = (await res.json()) as { ok: boolean; error?: string };
-      if (!data.ok) {
-        toast.error(data.error ?? "Incorrect passcode");
-        setPasscode("");
-        return;
-      }
-      setAdminUnlocked();
-      onUnlocked();
-    } catch {
-      toast.error("Could not reach verification server — try again");
-    } finally {
+    // Constant-time-ish delay to slow brute force
+    await new Promise(r => setTimeout(r, 400));
+    const env = import.meta.env as Record<string, string | undefined>;
+    const expected = env.VITE_ADMIN_PASSCODE;
+    if (!expected) {
+      toast.error("Admin passcode not configured — set ADMIN_PASSCODE secret");
       setBusy(false);
+      return;
     }
+    if (passcode !== expected) {
+      toast.error("Incorrect passcode");
+      setPasscode("");
+      setBusy(false);
+      return;
+    }
+    // Store the actual passcode value so AdultStudio can use it as a Bearer token
+    storeAdminToken(passcode);
+    onUnlocked();
   }
 
   return (
@@ -75,6 +79,7 @@ export function AdminGate({ onUnlocked }: Props) {
                 type={showPw ? "text" : "password"}
                 required
                 autoFocus
+                autoComplete="current-password"
                 value={passcode}
                 onChange={e => setPasscode(e.target.value)}
                 placeholder="••••••••"

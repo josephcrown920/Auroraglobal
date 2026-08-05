@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/lib/supabase";
+import { getAdminToken } from "@/components/AdminGate";
 import {
   Camera, ChevronRight, Download, ImagePlus,
   Loader2, LogOut, Sparkles, X,
@@ -44,27 +44,24 @@ function download(url: string, name: string) {
   }).catch(() => window.open(url, "_blank"));
 }
 
-/** Upload a file to the shared studio bucket and return its public https:// URL.
- *  data: URLs are rejected by /api/public/generate's URL-guard; storage URLs work. */
-async function uploadRefPhoto(file: File): Promise<string> {
-  const ext = file.name.split(".").pop() || "jpg";
-  const path = `adult-studio/ref/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage
-    .from("studio")
-    .upload(path, file, { contentType: file.type, upsert: false });
-  if (error) throw new Error(`Upload failed: ${error.message}`);
-  const { data } = supabase.storage.from("studio").getPublicUrl(path);
-  return data.publicUrl;
+/** Read a File as a base64 data-URL. Sent to /api/adult-admin/generate which
+ *  uploads server-side (bypassing the SSRF guard on the public generate endpoint). */
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 function signOut() {
-  try { sessionStorage.removeItem("aurora_adult_admin_unlocked"); } catch { /* */ }
+  try { sessionStorage.removeItem("aurora_adult_admin_token"); } catch { /* */ }
   window.location.reload();
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-interface AdultStudioProps { accessToken: string; }
-export function AdultStudio({ accessToken }: AdultStudioProps) {
+export function AdultStudio() {
   const [lookId, setLookId] = useState<LookId>("boudoir");
   const [customPrompt, setCustomPrompt] = useState("");
   const [refFiles, setRefFiles] = useState<File[]>([]);
@@ -100,21 +97,22 @@ export function AdultStudio({ accessToken }: AdultStudioProps) {
     }, ...prev]);
 
     try {
-      // Upload ref photos to storage to get https:// URLs that pass URL-guard.
-      const imageUrls = await Promise.all(refFiles.map(uploadRefPhoto));
+      // Convert ref photos to base64 — the admin endpoint uploads them server-side,
+      // bypassing the SSRF guard that blocks data: URLs on /api/public/generate.
+      const base64Images = await Promise.all(refFiles.map(fileToDataUrl));
       const extra = customPrompt.trim() ? ` Additional details: ${customPrompt.trim()}.` : "";
       const prompt =
         "Use the uploaded face photo as strict identity reference — keep facial likeness, skin tone, " +
         "and hairstyle EXACTLY the same. " + look.prompt + extra +
         " Hyper-realistic photography, ultra-HD 8K, lifelike skin texture, physically accurate lighting, no CGI.";
 
-      const res = await fetch(`/api/public/generate`, {
+      const res = await fetch(`/api/adult-admin/generate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${accessToken}`,
+          "Authorization": `Bearer ${getAdminToken()}`,
         },
-        body: JSON.stringify({ kind: "image", prompt, imageUrls, editStrict: true }),
+        body: JSON.stringify({ kind: "image", prompt, base64Images, editStrict: true }),
       });
       const data: unknown = await res.json();
       if (!res.ok) throw new Error((data as { error?: string })?.error ?? "Generation failed");
