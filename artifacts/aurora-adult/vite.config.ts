@@ -36,5 +36,10 @@ export default defineConfig({
       process.env.SUPABASE_PUBLISHABLE_KEY ??
       ""
     ),
+    // Admin passcode — used by AdminGate; sessionStorage-gated after first unlock.
+    // Reading from the same ADMIN_PASSCODE secret the main app uses.
+    "import.meta.env.VITE_ADMIN_PASSCODE": JSON.stringify(
+      process.env.VITE_ADMIN_PASSCODE ?? process.env.ADMIN_PASSCODE ?? ""
+    ),
   },
 });
