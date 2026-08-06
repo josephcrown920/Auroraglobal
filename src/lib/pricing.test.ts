@@ -10,6 +10,8 @@ import {
   LIPSYNC_ENGINE_MODEL,
   lipsyncEngineCost,
   XAI_UGC_RELIP_MODEL,
+  AURA_VALUE_SCENARIOS,
+  auraValueEstimate,
   tierForModel,
   type Feature,
   type LipsyncEngine,
@@ -155,6 +157,21 @@ describe("computeCost — rounding & stacking", () => {
   it("returns the breakdown in canonical feature order", () => {
     const q = computeCost({ features: ["motion", "video", "image"] });
     expect(q.breakdown.map((b) => b.feature)).toEqual(["image", "video", "motion"]);
+  });
+});
+
+describe("Aura value scenarios", () => {
+  it("prices a complete Perform Anywhere render as video plus motion", () => {
+    const performance = AURA_VALUE_SCENARIOS.find((scenario) => scenario.id === "performance")!;
+    const payablePerformanceShot = computeCost({
+      features: ["video", "motion"],
+      resolution: "720p",
+      durationSeconds: 5,
+    }).total;
+
+    expect(performance.cost()).toBe(payablePerformanceShot);
+    expect(auraValueEstimate(300, "performance")).toEqual({ cost: payablePerformanceShot, count: 0 });
+    expect(auraValueEstimate(400, "performance")).toEqual({ cost: payablePerformanceShot, count: 1 });
   });
 });
 

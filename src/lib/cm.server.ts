@@ -10,6 +10,7 @@ export {
   batchEstimate,
 } from "@/lib/cm";
 export type { CMProductCore, CMTemplateCore, BatchEstimate } from "@/lib/cm";
+import type { CMProductCore, CMTemplateCore } from "@/lib/cm";
 
 export type ContentMachinePayload = {
   productPrompt: string;

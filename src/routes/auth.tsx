@@ -1,6 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { safeAuthReturnPath } from "@/lib/auth-return-path";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { next?: string } => {
+    // Only retain an internal, path-relative return location. This keeps
+    // sign-in return links useful without turning the auth route into an
+    // open redirect.
+    return {
+      next: safeAuthReturnPath(search.next),
+    };
+  },
   head: () => ({
     meta: [
       { title: "Sign in — Aurora Performance Studio" },

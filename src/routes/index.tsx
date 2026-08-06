@@ -82,7 +82,7 @@ const HERO_SLIDES = [
     headline: "Turn a 30-Second Phone Recording Into a Cinematic Music Video.",
     sub: "Stop renting studios, hiring crews, and waiting weeks for edits. Record yourself for 30 seconds on your iPhone or any device with a clear camera. Aurora transforms your performance into cinematic music videos, performances, and visuals that look like they were directed by a major production team.",
     cta: "Perform Anywhere →",
-    ctaTo: "/perform",
+    ctaTo: "/motion",
   },
   {
     src: "/hero/hero-tiktok30.jpg",
@@ -116,14 +116,14 @@ const FEATURED_TOOLS = [
     desc: "Transfer your real 30-second performance into any AI scene.",
     to: "/motion",
     icon: Wand2,
-    price: "From 30 Aura",
+    price: "From 300 Aura",
   },
   {
     label: "Perform Anywhere",
-    desc: "Selfie + outfit + scene → cinematic performance video, anywhere.",
-    to: "/perform",
+    desc: "Phone performance + avatar + outfit + scene → cinematic video, anywhere.",
+    to: "/motion",
     icon: Film,
-    price: "From 20 Aura",
+    price: "From 400 Aura",
   },
   {
     label: "Colors Performance Sessions",
@@ -145,6 +145,13 @@ const FEATURED_TOOLS = [
     to: "/spin",
     icon: Flame,
     price: "85 Aura",
+  },
+  {
+    label: "Talking Avatar Studio",
+    desc: "Write the script, choose the face and voice, then generate a camera-ready avatar video.",
+    to: "/avatar",
+    icon: UserCircle2,
+    price: "From 100 Aura",
   },
 ];
 
@@ -323,6 +330,7 @@ function LandingPage() {
               </p>
               <Link
                 to={user ? slide.ctaTo : "/auth"}
+                search={user ? undefined : { next: slide.ctaTo }}
                 className="mt-6 inline-flex w-fit items-center gap-1.5 text-sm font-bold text-[#8b5cf6] hover:text-white transition-colors"
               >
                 <EditableCopy copyKey={`landing_hero_${i}_cta`} fallback={slide.cta} />
@@ -461,7 +469,7 @@ function LandingPage() {
         </div>
         <div className="mt-5 text-center">
           <Link
-            to="/studio"
+            to="/tools"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-500 hover:text-zinc-200 transition-colors no-underline"
           >
             See all tools <ArrowUpRight className="size-4" />

@@ -2,6 +2,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { CANONICAL_ORIGIN } from "@/lib/seo";
 
 export const Route = createFileRoute("/avatar")({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { tab?: "script" | "preview" | "avatars" | "shots" } => ({
+    tab:
+      search.tab === "script" ||
+      search.tab === "preview" ||
+      search.tab === "avatars" ||
+      search.tab === "shots"
+        ? search.tab
+        : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Talking Avatar Studio — Aurora" },

@@ -40,6 +40,8 @@ import { useBiometricSupport } from "@/hooks/use-biometric-support";
 function AuthPage() {
   const navigate = useNavigate();
   const { session, loading } = useAuth();
+  const search = Route.useSearch();
+  const returnTo = search.next ?? "/home";
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -81,8 +83,8 @@ function AuthPage() {
         trackSignUp(provider as "github" | "apple");
       }
     }
-    navigate({ to: "/home" });
-  }, [session, loading, navigate, recoveryMode]);
+    navigate({ to: returnTo as never });
+  }, [session, loading, navigate, recoveryMode, returnTo]);
 
   const handleForgotPassword = async () => {
     if (!email) {
@@ -115,7 +117,7 @@ function AuthPage() {
       if (error) throw error;
       toast.success("Password updated — you're signed in!");
       setRecoveryMode(false);
-      navigate({ to: "/home" });
+      navigate({ to: returnTo as never });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not update password");
     } finally {
@@ -132,7 +134,7 @@ function AuthPage() {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/home`,
+            emailRedirectTo: `${window.location.origin}/auth${search.next ? `?next=${encodeURIComponent(search.next)}` : ""}`,
             // persona is read back out of user_metadata when the profile row is
             // first created, so it survives the email-confirmation round trip.
             data: { display_name: displayName.trim() || email.split("@")[0], persona },
@@ -151,14 +153,14 @@ function AuthPage() {
           if (biometricSupported) {
             void offerPasskeyRegistration();
           }
-          navigate({ to: "/home" });
+          navigate({ to: returnTo as never });
         } else {
           setConfirmSent(true);
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate({ to: "/home" });
+        navigate({ to: returnTo as never });
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Auth failed");
@@ -181,7 +183,7 @@ function AuthPage() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/home`,
+          redirectTo: `${window.location.origin}/auth${search.next ? `?next=${encodeURIComponent(search.next)}` : ""}`,
           skipBrowserRedirect: isInFrame,
         },
       });
@@ -252,7 +254,7 @@ function AuthPage() {
       if (error) throw error;
 
       toast.success("Signed in with biometrics!");
-      navigate({ to: "/home" });
+      navigate({ to: returnTo as never });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       // User dismissed the native picker — stay silent

@@ -97,13 +97,18 @@ function AvatarStudioPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   // ── studio state ────────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<StudioTab>("script");
+  const search = Route.useSearch();
+  const [activeTab, setActiveTab] = useState<StudioTab>(search.tab ?? "script");
   const [script, setScript] = useState("");
   const [selectedId, setSelectedId] = useState("heygen-avatar-1");
   const [selectedVoice, setSelectedVoice] = useState<VoiceId>("m3Fp8hA8nS1Gc1Ne9FIf");
   const [cardStates, setCardStates] = useState<Record<string, CardState>>(
     Object.fromEntries(PLATFORM_TEMPLATES.map((t) => [t.id, { status: "idle" }])),
   );
+
+  useEffect(() => {
+    if (search.tab) setActiveTab(search.tab);
+  }, [search.tab]);
 
   // ── AI tools state ──────────────────────────────────────────────────────────
   const [showAI, setShowAI] = useState(false);
