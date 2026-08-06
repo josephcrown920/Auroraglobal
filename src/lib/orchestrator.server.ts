@@ -1130,11 +1130,17 @@ const BYTEPLUS_DEFAULTS: Record<string, BytePlusEntry> = {
   // returns false and orchestrate() throws (no other adapter maps this key),
   // it does not silently degrade to a different model.
   "fal-ai/seedream-5": { modelId: "seedream-5-0-260128", kind: "image" },
-  "seedance-2.0": { modelId: "seedance-1-0-pro-250528", kind: "video" },
+  // seedance-1-0-pro-250528 (May 2025) was the original slug; the real
+  // ByteDance "Seedance 2.0" branded checkpoint is dreamina-seedance-2-0-260128
+  // (Jan 2026, confirmed present in the ModelArk catalog 2026-08-06 with
+  // status='' / live; returns ModelNotOpen until the account activates it).
+  "seedance-2.0": { modelId: "dreamina-seedance-2-0-260128", kind: "video" },
   // The old seedance-1-0-lite-i2v/t2v (…-250428) family is fully retired on
   // ModelArk (confirmed live: InvalidEndpointOrModel.NotFound, not just
-  // unactivated) — seedance-1-0-pro-fast is the current "fast" tier replacement.
-  "seedance-2.0-fast": { modelId: "seedance-1-0-pro-fast-251015", kind: "video" },
+  // unactivated) — dreamina-seedance-2-0-fast-260128 is the current "fast"
+  // tier replacement (confirmed in catalog 2026-08-06, ModelNotOpen = slug
+  // correct, account activation pending).
+  "seedance-2.0-fast": { modelId: "dreamina-seedance-2-0-fast-260128", kind: "video" },
   // Newest confirmed-live Seedance tier (2026-07-05 catalog pull). Same
   // ByteDance-only caveat as seedream-5 above — no verified Replicate slug.
   "seedance-3.0": { modelId: "seedance-1-5-pro-251215", kind: "video" },
