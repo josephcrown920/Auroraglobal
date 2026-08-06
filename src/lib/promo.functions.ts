@@ -86,7 +86,7 @@ export const issuePromoCode = createServerFn({ method: "POST" })
     if (data.kind === "bonus" && !data.bonusCredits) throw new Error("bonusCredits required for bonus codes");
 
     const code = (data.code || genPromoCode()).toUpperCase();
-    const { data: row, error } = await (supabaseAdmin as any)
+    const { data: row, error } = await supabaseAdmin
       .from("promo_codes")
       .insert({
         code,
@@ -108,7 +108,7 @@ export const listPromoCodes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context.userId);
-    const { data, error } = await (supabaseAdmin as any)
+    const { data, error } = await supabaseAdmin
       .from("promo_codes")
       .select("*")
       .order("created_at", { ascending: false });
@@ -121,7 +121,7 @@ export const setPromoCodeActive = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid(), active: z.boolean() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { error } = await (supabaseAdmin as any).from("promo_codes").update({ active: data.active }).eq("id", data.id);
+    const { error } = await supabaseAdmin.from("promo_codes").update({ active: data.active }).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -138,7 +138,7 @@ export const redeemPromoCode = createServerFn({ method: "POST" })
     const { userId } = context;
     const code = data.code.trim().toUpperCase();
 
-    const { data: row, error: findErr } = await (supabaseAdmin as any)
+    const { data: row, error: findErr } = await supabaseAdmin
       .from("promo_codes")
       .select("*")
       .eq("code", code)
@@ -152,7 +152,7 @@ export const redeemPromoCode = createServerFn({ method: "POST" })
     const check = checkPromoRedeemable(row as PromoCodeRow);
     if (!check.ok) throw new Error(check.reason);
 
-    const { data: existing } = await (supabaseAdmin as any)
+    const { data: existing } = await supabaseAdmin
       .from("promo_code_redemptions")
       .select("id")
       .eq("promo_code_id", row.id)
@@ -160,14 +160,14 @@ export const redeemPromoCode = createServerFn({ method: "POST" })
       .maybeSingle();
     if (existing) throw new Error("You've already redeemed this code");
 
-    const { error: redeemErr } = await (supabaseAdmin as any)
+    const { error: redeemErr } = await supabaseAdmin
       .from("promo_code_redemptions")
       .insert({ promo_code_id: row.id, user_id: userId });
     if (redeemErr) throw new Error(redeemErr.message);
 
-    await (supabaseAdmin as any)
+    await supabaseAdmin
       .from("promo_codes")
-      .update({ redemption_count: row.redemption_count + 1 })
+      .update({ redemption_count: row.redemption_count + 1 } as never)
       .eq("id", row.id);
 
     await supabaseAdmin.rpc("grant_credits", {
@@ -196,7 +196,7 @@ export async function applyPromoAtCheckout(
   amountMinor: number,
 ): Promise<{ amountMinor: number; promoCodeId: string; percentOff: number }> {
   const normalized = code.trim().toUpperCase();
-  const { data: row, error: findErr } = await (supabaseAdmin as any)
+  const { data: row, error: findErr } = await supabaseAdmin
     .from("promo_codes")
     .select("*")
     .eq("code", normalized)
@@ -210,7 +210,7 @@ export async function applyPromoAtCheckout(
   const check = checkPromoRedeemable(row as PromoCodeRow);
   if (!check.ok) throw new Error(check.reason);
 
-  const { data: existing } = await (supabaseAdmin as any)
+  const { data: existing } = await supabaseAdmin
     .from("promo_code_redemptions")
     .select("id")
     .eq("promo_code_id", row.id)
@@ -218,14 +218,14 @@ export async function applyPromoAtCheckout(
     .maybeSingle();
   if (existing) throw new Error("You've already used this code");
 
-  const { error: redeemErr } = await (supabaseAdmin as any)
+  const { error: redeemErr } = await supabaseAdmin
     .from("promo_code_redemptions")
     .insert({ promo_code_id: row.id, user_id: userId });
   if (redeemErr) throw new Error(redeemErr.message);
 
-  await (supabaseAdmin as any)
+  await supabaseAdmin
     .from("promo_codes")
-    .update({ redemption_count: row.redemption_count + 1 })
+    .update({ redemption_count: row.redemption_count + 1 } as never)
     .eq("id", row.id);
 
   return {

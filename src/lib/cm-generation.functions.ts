@@ -25,12 +25,23 @@ import {
  * user_id (the same approach kids-generation.functions.ts / avatars.server.ts use).
  */
 
-type AnyTable = {
-  select: (cols?: string) => any;
-  insert: (row: Record<string, unknown> | Record<string, unknown>[]) => any;
-  update: (patch: Record<string, unknown>) => any;
-  delete: () => any;
-};
+type LooseResult = { data: unknown; error: { message: string } | null };
+interface AnyTable {
+  select(cols?: string): AnyTable;
+  insert(row: Record<string, unknown> | Record<string, unknown>[]): AnyTable;
+  update(patch: Record<string, unknown>): AnyTable;
+  delete(): AnyTable;
+  upsert(row: Record<string, unknown>, opts?: Record<string, unknown>): AnyTable;
+  eq(col: string, val: unknown): AnyTable;
+  neq(col: string, val: unknown): AnyTable;
+  in(col: string, vals: unknown[]): AnyTable;
+  or(filter: string): AnyTable;
+  order(col: string, opts?: Record<string, unknown>): AnyTable;
+  limit(n: number): AnyTable;
+  maybeSingle(): Promise<LooseResult>;
+  single(): Promise<LooseResult>;
+  then<T>(onfulfilled?: ((value: LooseResult) => T | PromiseLike<T>) | null): Promise<T>;
+}
 
 function db() {
   return supabaseAdmin as unknown as {
@@ -56,7 +67,7 @@ type ProductDTO = {
   createdAt: string | null;
 };
 
-function toProduct(r: any): ProductDTO {
+function toProduct(r: Record<string, unknown>): ProductDTO {
   return {
     id: r.id as string,
     name: (r.name as string) ?? "",
@@ -83,7 +94,7 @@ type TemplateDTO = {
   isSystem: boolean;
 };
 
-function toTemplate(r: any): TemplateDTO {
+function toTemplate(r: Record<string, unknown>): TemplateDTO {
   return {
     id: r.id as string,
     name: (r.name as string) ?? "",
@@ -144,7 +155,7 @@ export const saveProduct = createServerFn({ method: "POST" })
         .maybeSingle();
       if (error) throw new Error(error.message);
       if (!updated) throw new Error("Product not found");
-      return toProduct(updated);
+      return toProduct(updated as Record<string, unknown>);
     }
 
     const { data: created, error } = await db()
@@ -153,7 +164,7 @@ export const saveProduct = createServerFn({ method: "POST" })
       .select("*")
       .single();
     if (error) throw new Error(error.message);
-    return toProduct(created);
+    return toProduct(created as Record<string, unknown>);
   });
 
 export const listProducts = createServerFn({ method: "GET" })
@@ -166,7 +177,7 @@ export const listProducts = createServerFn({ method: "GET" })
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return ((data as any[]) ?? []).map(toProduct);
+    return ((data as Record<string, unknown>[]) ?? []).map(toProduct);
   });
 
 export const deleteProduct = createServerFn({ method: "POST" })
@@ -208,7 +219,7 @@ export const listTemplates = createServerFn({ method: "GET" })
       .order("is_system", { ascending: false })
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return ((data as any[]) ?? []).map(toTemplate);
+    return ((data as Record<string, unknown>[]) ?? []).map(toTemplate);
   });
 
 export const saveTemplate = createServerFn({ method: "POST" })
@@ -241,7 +252,7 @@ export const saveTemplate = createServerFn({ method: "POST" })
         .maybeSingle();
       if (error) throw new Error(error.message);
       if (!updated) throw new Error("Template not found");
-      return toTemplate(updated);
+      return toTemplate(updated as Record<string, unknown>);
     }
 
     const { data: created, error } = await db()
@@ -250,7 +261,7 @@ export const saveTemplate = createServerFn({ method: "POST" })
       .select("*")
       .single();
     if (error) throw new Error(error.message);
-    return toTemplate(created);
+    return toTemplate(created as Record<string, unknown>);
   });
 
 export const deleteTemplate = createServerFn({ method: "POST" })
@@ -292,7 +303,7 @@ export const startBatch = createServerFn({ method: "POST" })
       .maybeSingle();
     if (pErr) throw new Error(pErr.message);
     if (!productRow) throw new Error("Product not found");
-    const product = toProduct(productRow);
+    const product = toProduct(productRow as Record<string, unknown>);
 
     // 2. Load + authorize the templates (system or owned).
     const { data: tplRows, error: tErr } = await db()
@@ -301,7 +312,7 @@ export const startBatch = createServerFn({ method: "POST" })
       .in("id", templateIds)
       .or(`is_system.eq.true,user_id.eq.${userId}`);
     if (tErr) throw new Error(tErr.message);
-    const templates = ((tplRows as any[]) ?? []).map(toTemplate);
+    const templates = ((tplRows as Record<string, unknown>[]) ?? []).map(toTemplate);
     if (templates.length !== templateIds.length) {
       throw new Error("One or more templates were not found");
     }
@@ -331,8 +342,8 @@ export const startBatch = createServerFn({ method: "POST" })
       })
       .select("id")
       .single();
-    if (bErr || !batchRow?.id) throw new Error(bErr?.message ?? "Could not create batch");
-    const batchId = batchRow.id as string;
+    if (bErr || !(batchRow as { id?: string })?.id) throw new Error(bErr?.message ?? "Could not create batch");
+    const batchId = (batchRow as { id: string }).id;
 
     // 5. Reserve + enqueue one independent ugc_ad job per video. Stop immediately
     //    on the first insufficient-credits failure (partial batch is fine).
@@ -464,17 +475,19 @@ export const getBatchStatus = createServerFn({ method: "GET" })
       .eq("user_id", userId)
       .order("seq", { ascending: true });
     if (iErr) throw new Error(iErr.message);
-    const items = (itemRows as any[]) ?? [];
+    type BatchItemRow = { id: string; seq: number; template_name: string | null; generation_id: string | null };
+    type GenRow = { id: string; status: string | null; result_image_url: string | null; result_video_url: string | null; error: string | null };
+    const items = (itemRows as BatchItemRow[]) ?? [];
 
     const genIds = items.map((i) => i.generation_id).filter(Boolean) as string[];
-    const genMap = new Map<string, any>();
+    const genMap = new Map<string, GenRow>();
     if (genIds.length) {
       const { data: gens, error: gErr } = await db()
         .from("generations")
         .select("id, status, result_image_url, result_video_url, error")
         .in("id", genIds);
       if (gErr) throw new Error(gErr.message);
-      for (const g of (gens as any[]) ?? []) genMap.set(g.id as string, g);
+      for (const g of (gens as GenRow[]) ?? []) genMap.set(g.id, g);
     }
 
     const states: BatchItemState[] = items.map((i) => {
@@ -495,17 +508,18 @@ export const getBatchStatus = createServerFn({ method: "GET" })
     const failed = states.filter((s) => s.status === "failed").length;
     const processing = states.filter((s) => s.status === "processing").length;
 
+    const b = batch as Record<string, unknown>;
     return {
-      id: batch.id as string,
-      productName: (batch.product_name as string | null) ?? null,
-      status: (batch.status as string) ?? "queued",
-      note: (batch.note as string | null) ?? null,
-      totalItems: (batch.total_items as number) ?? states.length,
-      creditsReserved: (batch.credits_reserved as number) ?? 0,
+      id: b.id as string,
+      productName: (b.product_name as string | null) ?? null,
+      status: (b.status as string) ?? "queued",
+      note: (b.note as string | null) ?? null,
+      totalItems: (b.total_items as number) ?? states.length,
+      creditsReserved: (b.credits_reserved as number) ?? 0,
       creditsSpent: generated * COST_PER_VIDEO,
       counts: { generated, processing, failed, total: states.length },
       items: states,
-      createdAt: (batch.created_at as string | null) ?? null,
+      createdAt: (b.created_at as string | null) ?? null,
     };
   });
 
@@ -535,10 +549,12 @@ export const getContentMachineData = createServerFn({ method: "GET" })
       if (r.error) throw new Error(r.error.message);
     }
 
-    const products = ((productsRes.data as any[]) ?? []).map(toProduct);
-    const templates = ((templatesRes.data as any[]) ?? []).map(toTemplate);
-    const batchRows = (batchesRes.data as any[]) ?? [];
-    const items = (itemsRes.data as any[]) ?? [];
+    type CmBatchItem = { batch_id: string; generation_id: string | null; credits_reserved: number };
+    type CmGenStatusRow = { id: string; status: string | null };
+    const products = ((productsRes.data as Record<string, unknown>[]) ?? []).map(toProduct);
+    const templates = ((templatesRes.data as Record<string, unknown>[]) ?? []).map(toTemplate);
+    const batchRows = (batchesRes.data as Record<string, unknown>[]) ?? [];
+    const items = (itemsRes.data as CmBatchItem[]) ?? [];
 
     // Resolve generation status for every linked item in one query.
     const genIds = items.map((i) => i.generation_id).filter(Boolean) as string[];
@@ -549,19 +565,19 @@ export const getContentMachineData = createServerFn({ method: "GET" })
         .select("id, status")
         .in("id", genIds);
       if (gErr) throw new Error(gErr.message);
-      for (const g of (gens as any[]) ?? []) {
-        statusById.set(g.id as string, deriveStatus(g.status as string | null));
+      for (const g of (gens as CmGenStatusRow[]) ?? []) {
+        statusById.set(g.id, deriveStatus(g.status));
       }
     }
 
-    const itemsByBatch = new Map<string, any[]>();
+    const itemsByBatch = new Map<string, CmBatchItem[]>();
     for (const it of items) {
-      const arr = itemsByBatch.get(it.batch_id as string) ?? [];
+      const arr = itemsByBatch.get(it.batch_id) ?? [];
       arr.push(it);
-      itemsByBatch.set(it.batch_id as string, arr);
+      itemsByBatch.set(it.batch_id, arr);
     }
 
-    const countFor = (list: any[]) => {
+    const countFor = (list: CmBatchItem[]) => {
       let generated = 0,
         failed = 0,
         processing = 0;

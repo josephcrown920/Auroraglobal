@@ -57,7 +57,9 @@ export async function recordAffiliateCommission(opts: {
   // retries are idempotent at the event level so a missed increment here just
   // means total_earned_usd is slightly stale until a recalc runs).
   try {
-    await supabaseAdmin.rpc("increment_affiliate_earned" as any, {
+    // increment_affiliate_earned is not in the generated types yet; use a typed wrapper.
+    type LooseRpc = (fn: string, args: Record<string, unknown>) => Promise<unknown>;
+    await (supabaseAdmin.rpc as unknown as LooseRpc)("increment_affiliate_earned", {
       _code: code,
       _amount: commission,
     });

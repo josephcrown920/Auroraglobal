@@ -80,23 +80,23 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
             const expiresAt = nextPaymentDate ? new Date(nextPaymentDate).toISOString() : new Date(Date.now() + 32 * 24 * 60 * 60 * 1000).toISOString();
 
             // Activate Pro plan
-            await supabaseAdmin.rpc("activate_pro_subscription" as any, {
+            await supabaseAdmin.rpc("activate_pro_subscription", {
               _user: userId,
               _sub_code: subCode,
               _expires_at: expiresAt,
-            } as any);
+            });
 
             // Grant initial monthly Aura.  proMonthlyAuraRef uses subCode+YYYY-MM
             // so this ref matches the one charge.success will also produce — the
             // credit_ledger unique index deduplicates whichever fires second.
-            await supabaseAdmin.rpc("grant_monthly_aura" as any, {
+            await supabaseAdmin.rpc("grant_monthly_aura", {
               _user: userId,
               _amount: SUBSCRIPTION_TIERS.pro.monthly_aura,
               _ref: proMonthlyAuraRef(subCode),
-            } as any);
+            });
 
             // Upsert subscriptions row
-            await (supabaseAdmin as any).from("subscriptions").upsert({
+            await supabaseAdmin.from("subscriptions").upsert({
               user_id: userId,
               paystack_subscription_code: subCode,
               paystack_customer_code: customerCode,
@@ -118,7 +118,7 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
           const metadata = event.data.metadata ?? {};
 
           // Find the subscription row
-          const { data: sub } = await (supabaseAdmin as any)
+          const { data: sub } = await supabaseAdmin
             .from("subscriptions")
             .select("user_id, next_payment_date")
             .eq("paystack_subscription_code", subCode)
@@ -131,25 +131,25 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
             const newExpiry = new Date(Date.now() + 32 * 24 * 60 * 60 * 1000).toISOString();
 
             // Keep Pro active + update expiry
-            await supabaseAdmin.rpc("activate_pro_subscription" as any, {
+            await supabaseAdmin.rpc("activate_pro_subscription", {
               _user: userId,
               _sub_code: subCode,
               _expires_at: newExpiry,
-            } as any);
+            });
 
             // Grant monthly Aura — proMonthlyAuraRef uses subCode+YYYY-MM so:
             //  • Initial subscription: same ref as subscription.create → DB unique
             //    constraint deduplicates whichever fires second (no double grant).
             //  • Monthly renewals: new YYYY-MM key each month → new grant.
             //  • Duplicate webhook delivery of the same event → same key → no-op.
-            await supabaseAdmin.rpc("grant_monthly_aura" as any, {
+            await supabaseAdmin.rpc("grant_monthly_aura", {
               _user: userId,
               _amount: SUBSCRIPTION_TIERS.pro.monthly_aura,
               _ref: proMonthlyAuraRef(subCode),
-            } as any);
+            });
 
             // Update subscriptions table
-            await (supabaseAdmin as any)
+            await supabaseAdmin
               .from("subscriptions")
               .update({ status: "active", next_payment_date: newExpiry, updated_at: new Date().toISOString() })
               .eq("paystack_subscription_code", subCode);
@@ -162,7 +162,7 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
         if (event.event === "subscription.disable") {
           const subCode = event.data.subscription_code ?? "";
 
-          const { data: sub } = await (supabaseAdmin as any)
+          const { data: sub } = await supabaseAdmin
             .from("subscriptions")
             .select("user_id")
             .eq("paystack_subscription_code", subCode)
@@ -174,8 +174,8 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
             // This is the ONLY place that downgrades plan to free.
             // cancelProSubscription only marks cancellation_pending and never
             // calls this RPC, preserving Pro access until the period ends.
-            await supabaseAdmin.rpc("deactivate_pro_subscription" as any, { _user: userId } as any);
-            await (supabaseAdmin as any)
+            await supabaseAdmin.rpc("deactivate_pro_subscription", { _user: userId });
+            await supabaseAdmin
               .from("subscriptions")
               .update({ status: "cancelled", updated_at: new Date().toISOString() })
               .eq("paystack_subscription_code", subCode);

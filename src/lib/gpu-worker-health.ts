@@ -23,6 +23,12 @@ export interface WorkerHealthTarget {
   protocol?: string | null;
 }
 
+/** Full worker row as returned by the health-sweep select query. */
+type WorkerHealthRow = WorkerHealthTarget & {
+  id: string;
+  status: string;
+};
+
 /** Result of probing a worker's `/health` endpoint. */
 export interface WorkerProbeResult {
   /** Whether the worker is considered healthy/reachable. */
@@ -152,8 +158,17 @@ export function isWorkerHealthy(worker: WorkerStatus): boolean {
  * Called every 5 minutes.
  * Updates worker status and routes around unhealthy instances.
  */
+interface WorkerAdminClient {
+  from(table: string): {
+    select(cols: string): {
+      order(col: string, opts: { ascending: boolean }): Promise<{ data: WorkerHealthTarget[] | null; error: unknown }>;
+    };
+    update(patch: Record<string, unknown>): { eq(col: string, val: string): Promise<{ error: unknown }> };
+  };
+}
+
 export async function checkGPUWorkerHealth(
-  supabaseAdmin: any,
+  supabaseAdmin: WorkerAdminClient,
   fetchImpl: typeof fetch = fetch,
 ) {
   const { data: workers, error } = await supabaseAdmin
@@ -166,7 +181,7 @@ export async function checkGPUWorkerHealth(
     return;
   }
 
-  for (const worker of workers) {
+  for (const worker of workers as WorkerHealthRow[]) {
     // Respect intentional admin states — never auto-flip a draining/paused worker.
     if (worker.status === "draining" || worker.status === "paused") continue;
 

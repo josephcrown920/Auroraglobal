@@ -11,9 +11,9 @@ import { Link } from "@tanstack/react-router";
 import { RESHOOT_ANGLES, RESHOOT_MODEL, buildAnglePrompt } from "@/lib/reshoot-angles";
 import { listApprovedMarketplaceTemplates } from "@/lib/marketplace.functions";
 
-export type TemplateGraph = { name: string; nodes: Node<any>[]; edges: Edge[] };
+export type TemplateGraph = { name: string; nodes: Node<Record<string, unknown>>[]; edges: Edge[] };
 
-function mk(id: string, kind: string, x: number, y: number, extra: Record<string, unknown> = {}): Node<any> {
+function mk(id: string, kind: string, x: number, y: number, extra: Record<string, unknown> = {}): Node<Record<string, unknown>> {
   return { id, position: { x, y }, type: "aurora", data: { kind, ...extra } };
 }
 function ed(s: string, t: string): Edge {

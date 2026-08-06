@@ -59,16 +59,16 @@ async function callGenerate(
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${ctx.bearer}` },
     body: JSON.stringify(body),
   });
-  let json: any = null;
+  let json: Record<string, unknown> | null = null;
   try {
-    json = await res.json();
+    json = await res.json() as Record<string, unknown>;
   } catch {
     /* non-JSON error body */
   }
-  if (!res.ok || !json || json.ok === false) {
-    throw new Error((json && json.error) || `generate failed (HTTP ${res.status})`);
+  if (!res.ok || !json || json["ok"] === false) {
+    throw new Error((json?.["error"] as string | undefined) ?? `generate failed (HTTP ${res.status})`);
   }
-  return { url: json.url, provider: json.provider };
+  return { url: (json["url"] as string | undefined) ?? "", provider: (json["provider"] as string | undefined) ?? "" };
 }
 
 function clampDuration(d?: number): number {

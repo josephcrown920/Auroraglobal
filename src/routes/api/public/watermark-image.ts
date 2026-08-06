@@ -33,7 +33,7 @@ export const Route = createFileRoute("/api/public/watermark-image")({
 
         // Only serve via this endpoint for genuinely watermarked items.
         // Non-watermarked items are served directly; no redirect to avoid leaking raw URLs.
-        if (!(gen as any).is_watermarked) {
+        if (!gen.is_watermarked) {
           return new Response("Forbidden", { status: 403 });
         }
 

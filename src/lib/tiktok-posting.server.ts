@@ -14,6 +14,24 @@
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
+// tiktok_accounts has extra columns (access_token, refresh_token, oauth_state,
+// oauth_state_at) that are not yet in the generated Supabase types.
+// Use a loose-typed chain for writes that reference those columns.
+interface LooseTiktokChain {
+  select(cols: string): LooseTiktokChain;
+  insert(row: Record<string, unknown>): LooseTiktokChain;
+  update(patch: Record<string, unknown>): LooseTiktokChain;
+  upsert(row: Record<string, unknown>, opts?: { onConflict?: string }): LooseTiktokChain;
+  delete(): LooseTiktokChain;
+  eq(col: string, val: unknown): LooseTiktokChain;
+  neq(col: string, val: unknown): LooseTiktokChain;
+  maybeSingle(): Promise<{ data: unknown; error: { message: string } | null }>;
+  then<T>(onfulfilled?: ((value: { data: unknown; error: { message: string } | null }) => T | PromiseLike<T>) | null): Promise<T>;
+}
+function tiktokAccounts(): LooseTiktokChain {
+  return (supabaseAdmin as unknown as { from(t: string): LooseTiktokChain }).from("tiktok_accounts");
+}
+
 const TIKTOK_AUTH_BASE = "https://www.tiktok.com/v2/auth/authorize/";
 const TIKTOK_TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token/";
 const TIKTOK_USER_URL = "https://open.tiktokapis.com/v2/user/info/?fields=open_id,avatar_url,display_name,username";
@@ -42,19 +60,17 @@ export async function initiateTiktokOAuth(
   // Check if there is already a connected (non-pending) account.
   // If so, only update the oauth_state fields — preserve existing tokens so a
   // cancelled reconnect doesn't disconnect the user.
-  const { data: existing } = await supabaseAdmin
-    .from("tiktok_accounts" as any)
+  const { data: existing } = await tiktokAccounts()
     .select("open_id")
     .eq("user_id", userId)
     .maybeSingle();
 
   const existingConnected =
-    existing && (existing as unknown as { open_id: string }).open_id !== "pending";
+    existing && (existing as { open_id: string }).open_id !== "pending";
 
   if (existingConnected) {
     // Preserve the existing connected account; only write the new CSRF state.
-    await supabaseAdmin
-      .from("tiktok_accounts" as any)
+    await tiktokAccounts()
       .update({
         oauth_state: state,
         oauth_state_at: new Date().toISOString(),
@@ -62,8 +78,7 @@ export async function initiateTiktokOAuth(
       .eq("user_id", userId);
   } else {
     // No connected account yet — upsert a pending placeholder row.
-    await supabaseAdmin
-      .from("tiktok_accounts" as any)
+    await tiktokAccounts()
       .upsert(
         {
           user_id: userId,
@@ -98,8 +113,7 @@ export async function exchangeTiktokCode(
   if (!tiktokConfigured()) throw new Error("TikTok integration is not configured.");
 
   // Find the pending row by state.
-  const { data: pending } = await supabaseAdmin
-    .from("tiktok_accounts" as any)
+  const { data: pending } = await tiktokAccounts()
     .select("user_id, oauth_state_at")
     .eq("oauth_state", state)
     .maybeSingle();
@@ -107,10 +121,11 @@ export async function exchangeTiktokCode(
   if (!pending) throw new Error("Invalid or expired OAuth state.");
 
   // State is valid for 10 minutes.
-  const stateAge = Date.now() - new Date((pending as any).oauth_state_at).getTime();
+  const p = pending as { user_id: string; oauth_state_at: string };
+  const stateAge = Date.now() - new Date(p.oauth_state_at).getTime();
   if (stateAge > 10 * 60_000) throw new Error("OAuth state has expired. Please try connecting again.");
 
-  const userId = (pending as any).user_id as string;
+  const userId = p.user_id;
   const redirectUri = buildTiktokRedirectUri(origin);
 
   // Exchange code for tokens.
@@ -163,8 +178,7 @@ export async function exchangeTiktokCode(
   }
 
   // Persist the complete account row.
-  await supabaseAdmin
-    .from("tiktok_accounts" as any)
+  await tiktokAccounts()
     .update({
       open_id: openId,
       username,
@@ -185,8 +199,7 @@ export async function exchangeTiktokCode(
 
 /** Refresh the access token if it expires within the next 5 minutes. */
 export async function ensureFreshToken(userId: string): Promise<string> {
-  const { data: acc } = await supabaseAdmin
-    .from("tiktok_accounts" as any)
+  const { data: acc } = await tiktokAccounts()
     .select("access_token, refresh_token, token_expires_at, refresh_expires_at")
     .eq("user_id", userId)
     .neq("open_id", "pending")
@@ -232,8 +245,7 @@ export async function ensureFreshToken(userId: string): Promise<string> {
   const expiresIn: number = td.expires_in ?? 86400;
   const refreshExpiresIn: number = td.refresh_expires_in ?? 31536000;
 
-  await supabaseAdmin
-    .from("tiktok_accounts" as any)
+  await tiktokAccounts()
     .update({
       access_token: newAccess,
       refresh_token: newRefresh,

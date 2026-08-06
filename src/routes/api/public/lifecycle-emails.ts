@@ -58,13 +58,13 @@ async function collectReEngagementTargets(): Promise<string[]> {
     .limit(5000);
   const activeUserIds = new Set((recentGens ?? []).map((g) => g.user_id));
 
-  const { data: recentEmails } = await (supabaseAdmin as any)
+  const { data: recentEmails } = await supabaseAdmin
     .from("email_log")
     .select("user_id")
     .eq("template", "re_engagement")
     .gte("sent_at", daysAgoIso(RE_ENGAGEMENT_COOLDOWN_DAYS))
     .limit(5000);
-  const recentlyEmailed = new Set((recentEmails ?? []).map((e: { user_id: string }) => e.user_id));
+  const recentlyEmailed = new Set((recentEmails ?? []).map((e) => e.user_id).filter((id): id is string => id != null));
 
   return candidates
     .filter((p) => !activeUserIds.has(p.user_id) && !recentlyEmailed.has(p.user_id))
@@ -82,12 +82,12 @@ async function collectFirstPurchaseNudgeTargets(): Promise<string[]> {
     .limit(2000);
   if (!candidates || candidates.length === 0) return [];
 
-  const { data: alreadySent } = await (supabaseAdmin as any)
+  const { data: alreadySent } = await supabaseAdmin
     .from("email_log")
     .select("user_id")
     .eq("template", "first_purchase_nudge")
     .limit(5000);
-  const sentSet = new Set((alreadySent ?? []).map((e: { user_id: string }) => e.user_id));
+  const sentSet = new Set((alreadySent ?? []).map((e) => e.user_id).filter((id): id is string => id != null));
   return candidates.filter((p) => !sentSet.has(p.user_id)).map((p) => p.user_id);
 }
 
@@ -106,7 +106,7 @@ async function collectOnboardingAbandonedTargets(): Promise<string[]> {
   if (!startedEvents || startedEvents.length === 0) return [];
 
   const startedUserIds = [...new Set(startedEvents.map((e) => e.user_id as string))];
-  const { data: bonusGranted } = await (supabaseAdmin as any)
+  const { data: bonusGranted } = await supabaseAdmin
     .from("profiles")
     .select("user_id, email, onboarding_bonus_granted")
     .in("user_id", startedUserIds)
@@ -115,12 +115,12 @@ async function collectOnboardingAbandonedTargets(): Promise<string[]> {
     .filter((p) => !p.onboarding_bonus_granted);
   if (unfinished.length === 0) return [];
 
-  const { data: alreadySent } = await (supabaseAdmin as any)
+  const { data: alreadySent } = await supabaseAdmin
     .from("email_log")
     .select("user_id")
     .eq("template", "onboarding_resume")
     .limit(5000);
-  const sentSet = new Set((alreadySent ?? []).map((e: { user_id: string }) => e.user_id));
+  const sentSet = new Set((alreadySent ?? []).map((e) => e.user_id).filter((id): id is string => id != null));
   return unfinished.filter((p) => !sentSet.has(p.user_id)).map((p) => p.user_id);
 }
 
@@ -138,13 +138,13 @@ async function collectWeeklyDigestTargets(): Promise<string[]> {
 
   const activeSet = [...new Set(activeUsers.map((g) => g.user_id))];
 
-  const { data: recentlySent } = await (supabaseAdmin as any)
+  const { data: recentlySent } = await supabaseAdmin
     .from("email_log")
     .select("user_id")
     .eq("template", "weekly-digest")
     .gte("sent_at", cooldownAgo)
     .limit(5000);
-  const sentSet = new Set((recentlySent ?? []).map((e: { user_id: string }) => e.user_id));
+  const sentSet = new Set((recentlySent ?? []).map((e) => e.user_id).filter((id): id is string => id != null));
 
   return activeSet.filter((uid) => !sentSet.has(uid));
 }
@@ -163,13 +163,13 @@ async function collectDailyTipTargets(): Promise<string[]> {
     .limit(5000);
   if (!allUsers || allUsers.length === 0) return [];
 
-  const { data: recentlySent } = await (supabaseAdmin as any)
+  const { data: recentlySent } = await supabaseAdmin
     .from("email_log")
     .select("user_id")
     .eq("template", "daily_tip")
     .gte("sent_at", cooldownAgo)
     .limit(10000);
-  const sentSet = new Set((recentlySent ?? []).map((e: { user_id: string }) => e.user_id));
+  const sentSet = new Set((recentlySent ?? []).map((e) => e.user_id).filter((id): id is string => id != null));
 
   return allUsers
     .map((u) => u.user_id)

@@ -205,7 +205,7 @@ export async function callTool(name: string, args: unknown, ctx: ToolCtx, deps: 
 export const PROTOCOL_VERSION = "2024-11-05";
 export const SERVER_INFO = { name: "aurora-mcp", version: "1.0.0" };
 
-export type RpcMessage = { jsonrpc?: string; id?: string | number | null; method?: string; params?: any };
+export type RpcMessage = { jsonrpc?: string; id?: string | number | null; method?: string; params?: Record<string, unknown> };
 export type RpcAuth = { userId: string | null; bearer: string | null };
 
 function rpcResult(id: RpcMessage["id"], r: unknown) {

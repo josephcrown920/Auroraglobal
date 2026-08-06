@@ -145,7 +145,7 @@ export const testWebhook = createServerFn({ method: "POST" })
 export async function dispatchWebhookEvent(
   userId: string,
   eventType: "render_complete" | "share_created" | "low_credits",
-  payload: Record<string, any>
+  payload: Record<string, unknown>
 ) {
   const { data: webhooks } = await supabaseAdmin
     .from("user_webhooks")

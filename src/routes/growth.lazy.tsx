@@ -117,7 +117,7 @@ function HistoryPanel<TOutput>({
   tool: GrowthTool;
   isPro: boolean;
   onLoad: (output: TOutput) => void;
-  renderSummary: (input: any) => { title: string; subtitle?: string };
+  renderSummary: (input: Record<string, unknown>) => { title: string; subtitle?: string };
 }) {
   const [open, setOpen] = useState(false);
   const listFn = useServerFn(listGrowthToolRuns);
@@ -154,7 +154,7 @@ function HistoryPanel<TOutput>({
             <p className="px-4 py-3 text-xs text-muted-foreground">No past runs yet.</p>
           )}
           {runs.map((run) => {
-            const { title, subtitle } = renderSummary(run.input);
+            const { title, subtitle } = renderSummary(run.input as Record<string, unknown>);
             return (
               <button
                 key={run.id}
@@ -537,7 +537,7 @@ function DailyPostGenerator({ isPro }: { isPro: boolean }) {
         }}
         renderSummary={(input) => ({
           title: `${input.songTitle} — ${input.artistName}`,
-          subtitle: input.genre,
+          subtitle: input.genre as string | undefined,
         })}
       />
       {result && (
@@ -854,7 +854,7 @@ function RolloutPlanTool({ isPro }: { isPro: boolean }) {
         }}
         renderSummary={(input) => ({
           title: `${input.songTitle} — ${input.artistName}`,
-          subtitle: input.genre,
+          subtitle: input.genre as string | undefined,
         })}
       />
       {result && (
@@ -1094,7 +1094,7 @@ function SocialPackTool({ isPro }: { isPro: boolean }) {
         }}
         renderSummary={(input) => ({
           title: `${input.songTitle} — ${input.artistName}`,
-          subtitle: input.genre,
+          subtitle: input.genre as string | undefined,
         })}
       />
       {result && (

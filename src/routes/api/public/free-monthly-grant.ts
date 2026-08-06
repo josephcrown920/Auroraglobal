@@ -37,8 +37,8 @@ export const Route = createFileRoute("/api/public/free-monthly-grant")({
 
         // Month is always the current month — never caller-controlled.
         const { data, error } = await supabaseAdmin.rpc(
-          "grant_free_monthly_aura_all" as any,
-          {} as any,  // use the function's DEFAULT to_char(now(), 'YYYY-MM')
+          "grant_free_monthly_aura_all",
+          {},  // use the function's DEFAULT to_char(now(), 'YYYY-MM')
         );
 
         if (error) {

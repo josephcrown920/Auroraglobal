@@ -494,7 +494,7 @@ export const listGallery = createServerFn({ method: "GET" })
       // Sync fns finish as "complete"; async queue jobs (motion, performance_reskin,
       // tiktok_remix_child) finish as "succeeded" — include both so all gens land here.
       .in("status", ["complete", "succeeded"])
-      .eq("is_hidden" as any, showHidden);
+      .eq("is_hidden", showHidden);
     const { data: rows, error } = await (!showHidden
       ? query.order("is_favorite", { ascending: false }).order("created_at", { ascending: false })
       : query.order("created_at", { ascending: false })
@@ -506,9 +506,8 @@ export const listGallery = createServerFn({ method: "GET" })
     // Videos → signed watermark-video proxy (FFmpeg-composited AURORA overlay).
     // Raw provider URLs are never sent to Free clients.
     const { signWatermarkToken } = await import("@/lib/watermark-token.server");
-    // Cast to any[] — is_watermarked is in the DB but not in the generated types.ts;
-    // accessing it via the SelectQueryError type would require a full types regen.
-    const items = ((rows ?? []) as any[]).map((row: any) => {
+    // is_watermarked is in the generated types; rows is already correctly typed.
+    const items = (rows ?? []).map((row) => {
       const wm = row.is_watermarked as boolean | undefined;
       if (wm) {
         let watermark_display_url: string | null = null;
@@ -550,8 +549,8 @@ export const listGenerations = createServerFn({ method: "GET" })
     // Videos → signed watermark-video proxy (FFmpeg-composited AURORA overlay).
     // Raw provider URLs are never sent to Free clients.
     const { signWatermarkToken } = await import("@/lib/watermark-token.server");
-    // Cast to any[] — is_watermarked is in the DB but not in the generated types.ts.
-    const items = ((data ?? []) as any[]).map((row: any) => {
+    // is_watermarked is in the generated types; data is already correctly typed.
+    const items = (data ?? []).map((row) => {
       const wm = row.is_watermarked as boolean | undefined;
       if (wm) {
         let result_image_url: string | null = null;

@@ -75,7 +75,7 @@ function BillingPage() {
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    if ((search as any)?.subscribed === "1") {
+    if ((search as Record<string, string | undefined>)?.subscribed === "1") {
       toast.success("Welcome to Aurora Pro! Your plan is now active.");
       qc.invalidateQueries({ queryKey: ["profile"] });
       markFirstPurchaseComplete();
