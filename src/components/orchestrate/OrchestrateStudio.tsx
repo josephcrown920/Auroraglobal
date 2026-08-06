@@ -103,7 +103,13 @@ const MODELS: Record<Modality, ModelOption[]> = {
   audio: [{ key: "elevenlabs/tts", label: "ElevenLabs · Multilingual v2" }],
 };
 
-export function OrchestrateStudio() {
+export function OrchestrateStudio({
+  initialModel,
+  lockedModel = false,
+}: {
+  initialModel?: string;
+  lockedModel?: boolean;
+}) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const run = useServerFn(orchestrateGenerate);
@@ -121,9 +127,9 @@ export function OrchestrateStudio() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Delete failed"),
   });
 
-  const [modality, setModality] = useState<Modality>("image");
+  const [modality, setModality] = useState<Modality>(initialModel === VIDEO_AGENT_MODEL_KEY ? "video" : "image");
   const [prompt, setPrompt] = useState("");
-  const [model, setModel] = useState(MODELS.image[0].key);
+  const [model, setModel] = useState(initialModel ?? MODELS.image[0].key);
   const [imageUrl, setImageUrl] = useState("");
   // Optional uploaded start image (image-to-video): kept as a File until
   // generation time, then uploaded to the studio bucket for a signed URL —
@@ -515,6 +521,17 @@ export function OrchestrateStudio() {
             );
           })}
         </div>
+        {lockedModel && isVideoAgent && (
+          <div className="mb-6 rounded-xl border border-brand/30 bg-brand/10 px-4 py-3 text-sm text-neutral-200">
+            <span className="font-semibold text-brand">HeyGen Video Agent</span>
+            <span className="text-neutral-400">
+              {" "}creates a presenter-led video. It runs alongside, not inside, Aurora’s storyboard-based Video Agent.
+            </span>
+            <Link to="/video-agent" className="ml-2 font-medium text-brand underline underline-offset-4 hover:text-white">
+              Open Aurora Video Agent
+            </Link>
+          </div>
+        )}
 
         <div className="grid gap-6 md:grid-cols-[1fr_320px]">
           {/* Composer */}
@@ -590,7 +607,7 @@ export function OrchestrateStudio() {
             )}
 
             {/* Start image: only relevant for non-Video-Agent video models */}
-            {modality === "video" && !isVideoAgent && (
+            {modality === "video" && !isVideoAgent && !lockedModel && (
               <div className="mt-4">
                 <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-neutral-500">
                   Start image{" "}

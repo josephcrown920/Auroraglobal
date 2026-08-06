@@ -97,7 +97,8 @@ export const ARCHIVED_FEATURES: Feature[] = [
   { to: "/tiktok",          label: "TikTok Studio",    icon: Music2 },
   { to: "/avatar",          label: "Talking Avatars",  icon: UserCircle2 },
   { to: "/content-machine", label: "Content Machine",  icon: LayoutGrid },
-  { to: "/video-agent",     label: "Video Agent",      icon: Film },
+  { to: "/video-agent",     label: "Aurora Video Agent", icon: Film },
+  { to: "/agent",           label: "HeyGen Video Agent", icon: Film },
   // ── Legacy / dev tools ───────────────────────────────────────────────
   // moved to CONTENT_FEATURES (live nav)
   { to: "/colors-show",      label: "Colors Show Creator", icon: Film },
@@ -119,7 +120,7 @@ export const ARCHIVED_FEATURES: Feature[] = [
 const TAB_ITEMS = DESTINATIONS;
 
 const STUDIO_PATHS = ["/studio", "/colors", "/photo-edit", "/canvas", "/split-reality", "/scene-weaver", "/scene-builder", "/motion", "/storyboard", "/music-video", "/live-studio"];
-const CONTENT_PATHS = ["/content", "/ugc", "/ugc-line", "/spin", "/tiktok", "/lipsync", "/avatar", "/content-machine", "/video-agent"];
+const CONTENT_PATHS = ["/content", "/ugc", "/ugc-line", "/spin", "/tiktok", "/lipsync", "/avatar", "/content-machine", "/video-agent", "/agent"];
 const ACCOUNT_PATHS = ["/account", "/gallery", "/billing", "/creator/dashboard", "/settings", "/partners", "/admin"];
 
 function destinationIsActive(pathname: string, destination: string) {
