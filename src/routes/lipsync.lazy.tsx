@@ -30,66 +30,18 @@ function LipSyncStudioPage() {
   return (
     <div className="aurora-page-shell text-foreground">
       <span aria-hidden className="aurora-ambient" />
-      <section className="relative z-10 px-6 md:px-12 pt-24 pb-8 animate-fade-in">
+      <section className="relative z-10 px-6 md:px-12 pt-20 pb-4 animate-fade-in">
         <div className="max-w-5xl mx-auto">
           <span className="inline-flex items-center gap-1.5 text-xs uppercase tracking-[0.2em] text-primary border border-primary/30 bg-primary/10 px-3 py-1 rounded-full">
             <Mic2 className="size-3" /> Lip Sync Studio
           </span>
-          <h1 className="mt-4 text-4xl md:text-6xl font-semibold tracking-tight">
+          <h1 className="mt-3 text-3xl md:text-5xl font-semibold tracking-tight">
             Make any face <span className="aurora-gradient-text">sing your hook</span>.
           </h1>
-          <p className="mt-4 text-white/70 max-w-2xl">
-            Drop a performance clip + a vocal. Pick Studio (Sync 1.9) for film-grade
-            mouth shapes, Fast (Wav2Lip) for quick turnarounds, <strong className="text-white/90">xAI UGC</strong> to animate
-            a still photo into a walking talking-head video, or <strong className="text-white/90">HeyGen Photo</strong> to
-            bring a still photo to life singing your own audio.
-          </p>
-
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-3">
-            {[
-              { icon: Upload, t: "1. Upload source", d: "Video/image or selfie for UGC" },
-              { icon: Music2, t: "2. Add vocal", d: "MP3 / WAV stem" },
-              { icon: Wand2, t: "3. Run sync", d: `${computeCost({ features: ["lipsync"], model: LIPSYNC_ENGINE_MODEL["sync-v2"] }).total} Aura · ~45s` },
-            ].map((s, i) => (
-              <div
-                key={s.t}
-                className="aurora-glass rounded-2xl p-4 animate-fade-in"
-                style={{ animationDelay: `${i * 120}ms`, animationFillMode: "both" }}
-              >
-                <s.icon className="size-4 text-primary" />
-                <p className="mt-2 font-semibold text-sm">{s.t}</p>
-                <p className="text-xs text-white/60">{s.d}</p>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
-
-      {/* ── Inspiration gallery + waveform demo strip ────────────────────── */}
-      <LipsyncInspirationBlock />
 
       <LipSyncModeSwitcher />
-
-      <section className="relative z-10 px-6 md:px-12 pb-12">
-        <div className="max-w-5xl mx-auto flex flex-wrap gap-3">
-          <Link
-            to="/studio"
-            className="inline-flex items-center gap-2 rounded-full bg-[image:var(--gradient-hero)] text-white shadow-[var(--shadow-glow-soft)] px-5 py-2.5 text-sm font-semibold hover-scale"
-          >
-            Open full studio <ArrowRight className="size-4" />
-          </Link>
-          <Link
-            to="/clips"
-            className="inline-flex items-center gap-2 rounded-full aurora-glass px-5 py-2.5 text-sm hover-scale"
-          >
-            See clip gallery
-          </Link>
-        </div>
-      </section>
-
-      <div className="relative z-10 animate-fade-in" style={{ animationDelay: "200ms", animationFillMode: "both" }}>
-        <LipSyncDemo />
-      </div>
     </div>
   );
 }

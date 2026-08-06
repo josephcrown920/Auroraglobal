@@ -1,85 +1,15 @@
-// AI UGC Content Machine (Task #102) — shared, dependency-light helpers.
-//
-// The Content Machine reuses Aurora's existing UGC ad pipeline: a "batch" fans out
-// into N independent `ugc_ad` jobs (see runUGCAd in jobs.server.ts), each reserved
-// for a flat COST_UGC_AD via create_generation_and_reserve. Videos are FACELESS —
-// no avatar is attached, so the worker animates a product-only still.
-//
-// These functions are pure (no DB / no server imports) so the client route can
-// import the estimate for an instant, accurate preview and the unit tests can
-// exercise the payload builder directly. It deliberately does NOT import
-// ugc.server (which pulls server-only LLM code) — keeping it client-safe.
-
-/** Flat credits reserved per generated video — the SAME amount the batch reserves,
- *  so an up-front estimate can never disagree with what is actually charged.
- *
- *  DELIBERATELY decoupled from COST_UGC_AD (28): the avatar UGC ad price covers
- *  the xAI talking-head + mandatory voice-lock relip chain, which FACELESS
- *  Content Machine videos never run (no avatarImageUrl → no xAI fast path).
- *  cm.server.test.ts documents this decoupling. Doubled 8 → 16 in the
- *  2026-07-08 video repricing, in lockstep with the doubled video tiers. */
-export const COST_PER_VIDEO = 16;
-
-/** Hard cap on videos per batch — limits runaway reservations, queue pressure and
- *  the page's polling load. Enforced server-side in startBatch. */
-export const MAX_BATCH_VIDEOS = 12;
-
-/** Lucide icon names used by the seeded system templates (UI falls back to a
- *  default for anything outside this set). */
-export const TEMPLATE_ICONS = [
-  "Smartphone",
-  "Package",
-  "Coffee",
-  "Dumbbell",
-  "Sparkles",
-  "Camera",
-  "Sun",
-  "Film",
-  "Megaphone",
-  "ShoppingBag",
-] as const;
-
-export type CMProductCore = {
-  name: string;
-  description?: string | null;
-  brandVoice?: string | null;
-  audience?: string | null;
-  cta?: string | null;
-};
-
-export type CMTemplateCore = {
-  name: string;
-  sceneHint: string;
-  motionHint?: string | null;
-  scriptFormula?: string | null;
-  aspect?: string | null;
-  duration?: number | null;
-};
-
-/** Total videos a batch will produce (templates × videos-per-template). */
-export function batchItemCount(templateCount: number, countPerTemplate: number): number {
-  const t = Math.max(0, Math.floor(templateCount));
-  const c = Math.max(0, Math.floor(countPerTemplate));
-  return t * c;
-}
-
-export type BatchEstimate = {
-  totalItems: number;
-  creditsPerVideo: number;
-  totalCredits: number;
-  overCap: boolean;
-};
-
-/** Up-front credit estimate for a batch, using the flat per-video reservation. */
-export function batchEstimate(templateCount: number, countPerTemplate: number): BatchEstimate {
-  const totalItems = batchItemCount(templateCount, countPerTemplate);
-  return {
-    totalItems,
-    creditsPerVideo: COST_PER_VIDEO,
-    totalCredits: totalItems * COST_PER_VIDEO,
-    overCap: totalItems > MAX_BATCH_VIDEOS,
-  };
-}
+// AI UGC Content Machine — server-side file.
+// Pure constants/helpers live in cm.ts (no .server suffix) so the client
+// route can import them without hitting the stub guard.
+// This file re-exports them for server-side callers that already import here.
+export {
+  COST_PER_VIDEO,
+  MAX_BATCH_VIDEOS,
+  TEMPLATE_ICONS,
+  batchItemCount,
+  batchEstimate,
+} from "@/lib/cm";
+export type { CMProductCore, CMTemplateCore, BatchEstimate } from "@/lib/cm";
 
 export type ContentMachinePayload = {
   productPrompt: string;
