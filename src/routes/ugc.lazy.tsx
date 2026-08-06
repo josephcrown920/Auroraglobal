@@ -17,7 +17,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Smartphone, Camera, ShoppingBag, Coffee, Dumbbell, Sparkles, Check, Loader2, Wand2, Film, AudioLines, Music2, X, Plus, ImagePlus, Presentation } from "lucide-react";
+import { Smartphone, Camera, ShoppingBag, Coffee, Dumbbell, Sparkles, Check, Loader2, Wand2, Film, AudioLines, Music2, X, Plus, ImagePlus, Presentation, ArrowRight, PackageOpen } from "lucide-react";
 import avatarMaya from "@/assets/ugc/maya.jpg.asset.json";
 import avatarLuna from "@/assets/ugc/luna.jpg.asset.json";
 import avatarAva from "@/assets/ugc/ava.jpg.asset.json";
@@ -34,6 +34,8 @@ import demo3 from "@/assets/demo-3.mov.asset.json";
 import demo4 from "@/assets/demo-4.mov.asset.json";
 import demo5 from "@/assets/demo-5.mov.asset.json";
 import demo6 from "@/assets/demo-6.mov.asset.json";
+import auraBloom from "../../attached_assets/IMG_0629_1785995684443.jpeg";
+import auraCafe from "../../attached_assets/IMG_0626_1785995684443.jpeg";
 
 export const Route = createLazyFileRoute("/ugc")({ component: UGCStudio });
 
@@ -63,6 +65,23 @@ const PRESETS = [
   { id: "meme-unbothered", name: "Unbothered product drop", icon: Sparkles, hint: "Sitting or lying back, relaxed and unbothered, casually tossing the product up in the air or inspecting it — deadpan, viral meme energy.", video: undefined as unknown as string, poster: undefined as string | undefined },
 ];
 
+const AURA_PRODUCT_REFERENCES = [
+  {
+    id: "bloom",
+    name: "Aura Bloom",
+    note: "Pink botanical beauty product",
+    image: auraBloom,
+    prompt: "holding the Aura Bloom pink botanical beauty product label-out near her cheek, smiling naturally at the camera",
+  },
+  {
+    id: "cafe",
+    name: "Aura Café",
+    note: "Sunlit café packaging",
+    image: auraCafe,
+    prompt: "revealing the Aura Café yellow package at a sunlit café table, label clearly visible, candid creator energy",
+  },
+] as const;
+
 function UGCStudio() {
   const nav = useNavigate();
   const { user } = useAuth();
@@ -71,6 +90,7 @@ function UGCStudio() {
   const [presetId, setPresetId] = useState<string>(PRESETS[0].id);
   const preset = PRESETS.find(p => p.id === presetId)!;
   const [productPrompt, setProductPrompt] = useState<string>("");
+  const [productReferenceId, setProductReferenceId] = useState<(typeof AURA_PRODUCT_REFERENCES)[number]["id"] | null>("bloom");
   const [voiceFile, setVoiceFile] = useState<File | null>(null);
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [resultVideo, setResultVideo] = useState<string | null>(null);
@@ -235,6 +255,13 @@ function UGCStudio() {
   };
 
   const busy = imageMut.isPending || videoMut.isPending || adMut.isPending;
+  const selectedProductReference = AURA_PRODUCT_REFERENCES.find((item) => item.id === productReferenceId) ?? null;
+  const selectProductReference = (id: (typeof AURA_PRODUCT_REFERENCES)[number]["id"]) => {
+    const item = AURA_PRODUCT_REFERENCES.find((candidate) => candidate.id === id);
+    if (!item) return;
+    setProductReferenceId(item.id);
+    setProductPrompt(item.prompt);
+  };
 
   return (
     <main className="aurora-page-shell text-foreground">
@@ -282,6 +309,65 @@ function UGCStudio() {
             })}
           </div>
         </div>
+
+          <section className="mt-8 rounded-2xl border border-primary/35 bg-gradient-to-br from-primary/[0.12] via-card/70 to-fuchsia-950/20 p-4 sm:p-6 shadow-[0_0_48px_-32px_oklch(0.72_0.2_295)]">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="aurora-kicker mb-1">Reference-led product shoots</p>
+                <h2 className="text-xl font-bold tracking-tight">Character + product + prompt</h2>
+                <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                  Build the brief before you render. Choose a creator, give Aurora a product reference, then describe the moment you want to capture.
+                </p>
+              </div>
+              <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-primary">
+                3-part brief <ArrowRight className="size-3" /> UGC shot
+              </span>
+            </div>
+            <div className="mt-5 grid gap-3 md:grid-cols-[1fr_auto_1fr_auto_1.35fr] md:items-stretch">
+              <ReferenceTile label="Character / avatar" image={avatar.img} title={avatar.name} detail={avatar.vibe} />
+              <FlowArrow />
+              <div className="rounded-xl border border-primary/30 bg-background/40 p-3">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Product reference</p>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {AURA_PRODUCT_REFERENCES.map((item) => {
+                    const active = item.id === productReferenceId;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => selectProductReference(item.id)}
+                        aria-pressed={active}
+                        className={`relative aspect-square overflow-hidden rounded-lg border transition ${active ? "border-primary ring-1 ring-primary/70" : "border-border/60 hover:border-primary/60"}`}
+                      >
+                        <img src={item.image} alt={`Use ${item.name} as product reference`} className="size-full object-cover" />
+                        {active && <span className="absolute inset-x-1 bottom-1 rounded bg-primary px-1 py-0.5 text-[8px] font-bold text-primary-foreground">{item.name}</span>}
+                      </button>
+                    );
+                  })}
+                  <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border/80 bg-card/40 text-center text-[9px] text-muted-foreground transition hover:border-primary/60 hover:text-primary">
+                    <Plus className="size-4" />
+                    Add
+                    <input className="hidden" type="file" accept="image/*" onChange={() => toast.info("Custom product references are coming next. Use the prompt field to describe your product today.")} />
+                  </label>
+                </div>
+                <p className="mt-2 text-[10px] text-muted-foreground">{selectedProductReference?.note ?? "Select an Aura product reference."}</p>
+              </div>
+              <FlowArrow />
+              <div className="rounded-xl border border-border/70 bg-background/40 p-3">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Prompt / moment</p>
+                <p className="mt-3 text-sm leading-relaxed text-foreground/90">
+                  {productPrompt || "Pick a product reference to fill a ready-to-edit UGC prompt."}
+                </p>
+                <div className="mt-3 flex items-center gap-2 border-t border-border/50 pt-3">
+                  <PackageOpen className="size-4 text-primary" />
+                  <span className="text-[10px] text-muted-foreground">Your output appears beside the generator below.</span>
+                </div>
+              </div>
+            </div>
+            <p className="mt-3 text-[10px] leading-relaxed text-muted-foreground">
+              Product references guide your brief in this release. The current still renderer conditions on the selected avatar, so keep product details and label requirements in your prompt for the most reliable result.
+            </p>
+          </section>
 
         {/* ── Sample campaigns inspiration ────────────────────────── */}
         <UGCInspirationBlock />
@@ -559,6 +645,8 @@ function UGCStudio() {
 
 // ── UGC inspiration block ─────────────────────────────────────────────────────
 const UGC_EXAMPLES = [
+  { src: auraBloom,                                      label: "Aura Bloom",        caption: "Product reference · beauty creator brief" },
+  { src: auraCafe,                                       label: "Aura Café",         caption: "Product reference · café lifestyle brief" },
   { src: "/josh/josh-orange-performance.jpg",    label: "Orange energy",     caption: "UGC talking-head • xAI UGC" },
   { src: "/josh/josh-pink-mic-portrait.jpg",     label: "Studio shot",       caption: "Product feature voiceover" },
   { src: "/josh/josh-concert-performance.webp",  label: "Hype moment",       caption: "Campaign hook · viral format" },
@@ -579,8 +667,8 @@ function UGCInspirationBlock() {
     <div className="py-6 space-y-8">
       <ExampleOutputGrid
         items={UGC_EXAMPLES}
-        title="Sample campaigns — what UGC Factory creates"
-        subtitle="Authentic-looking talking-head clips from a single photo. Swap voice, style, call-to-action."
+        title="Campaign references — product and creator directions"
+        subtitle="Start with a product reference, pair it with an avatar and scene, then turn the brief into a talking-head campaign."
         columns={3}
       />
 
@@ -603,6 +691,31 @@ function UGCInspirationBlock() {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ReferenceTile({ label, image, title, detail }: { label: string; image: string; title: string; detail: string }) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-border/70 bg-background/40">
+      <div className="relative aspect-[16/10]">
+        <img src={image} alt={`${label}: ${title}`} className="size-full object-cover" />
+        <span className="absolute left-2 top-2 rounded-full border border-white/10 bg-black/55 px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-white/85 backdrop-blur">
+          {label}
+        </span>
+      </div>
+      <div className="p-2.5">
+        <p className="text-sm font-semibold">{title}</p>
+        <p className="mt-0.5 line-clamp-1 text-[10px] text-muted-foreground">{detail}</p>
+      </div>
+    </div>
+  );
+}
+
+function FlowArrow() {
+  return (
+    <div className="hidden items-center justify-center text-primary/80 md:flex">
+      <ArrowRight className="size-5" />
     </div>
   );
 }

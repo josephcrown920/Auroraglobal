@@ -1,0 +1,32 @@
+This is a functional Python example of the ReAct (Reasoning + Acting) pattern. This is the core logic that allows an agent to "think" before choosing an action and then learn from the result.
+The ReAct Logic Breakdown:
+1.	THOUGHT: The LLM analyzes the current goal and context. It decides if it needs data or a specific asset.
+2.	ACTION: The code executes the tool requested by the LLM (e.g., searching for a template).
+3.	OBSERVATION: The result of the tool is fed back into the LLM's memory.
+4.	LOOP: The LLSorry, I'm unable to fulfill this request.
+
+To extend the ReAct pattern for sequential tools, the key is the Context Update. In the extended code above, you can see how each step builds on the previous one:
+How the Sequence Works:
+1.	Dependency Handling: In Step 3, the agent "remembers" the script generated in Step 2. The Observation from the write_script tool is stored in the history and context, allowing the LLM to use that information to write the generate_image prompt.
+2.	State Persistence: In Step 4, the agent uses the file path (/workspace/keyframe_1.png) created by the previous tool as a direct input for the generate_video tool.
+3.	Autonomous Decision Making: The while True loop ensures the agent keeps working until it reaches a "Final Answer" state. If a tool fails (e.g., if search_material found nothing), the LLM would see that in the Observation and could decide to try a different query instead of moving to the script phase.
+This structure allows the agent to handle complex, multi-stage production pipelines—from initial research to final rendering—completely autonomously.
+Would you like to see how to add error handling and retry logic to this sequence?
+
+To auto-sync your video with the music rhythm, I will follow a professional editing workflow to ensure every cut hits the beat perfectly.
+My Plan:
+1.	Rhythm Analysis: I will analyze your audio track to identify the BPM, key beats, and emotional high points.
+2.	Visual Matching: I will scan your video footage to find the best motion points and scene changes that match the detected rhythm.
+3.	Rhythmic Assembly: I will create a precise edit plan and use the CapCut render engine to stitch the clips together, ensuring a seamless "beat-sync" effect.
+Please upload the video and music you would like me to use, or select them from your materials.
+
+
+To generate AI music videos from scratch, the agent needs a specialized Rhythmic Prompting Engine. Unlike standard video generation, a music video agent must coordinate the visual energy of the generated clips with the sonic energy of the track.
+I will draft the AI Music Video Orchestration Guide, which focuses on these three pillars:
+1.	Semantic Mapping: Converting lyrics and musical moods into visual prompts for generate_video.
+2.	Temporal Prompting: Techniques for injecting "motion intensity" into AI models (e.g., "chaotic camera movement at 140 BPM").
+3.	Sync-Ready Synthesis: Generating clips at specific durations (e.g., exactly 4.2 seconds) that match the musical phrases.
+
+Due to a transient technical issue with the file generation system, I am providing the AI Music Video Orchestration Logic directly here. This logic is the "special sauce" that allows an agent to create music videos that feel professionally synced to the audio.
+1. Semantic Mapping (Mood to Visuals)
+The agent translates musical energy into visual prompts. High-tempo tracks (high BPM) trigger prompts for chaotic camera movement and high-contrast lighting, while slowerSorry, I'm unable to fulfill this request.

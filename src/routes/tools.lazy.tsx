@@ -1,5 +1,6 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
+import { ArrowUpRight, Sparkles } from "lucide-react";
 
 export const Route = createLazyFileRoute("/tools")({ component: ToolsPage });
 
@@ -21,7 +22,7 @@ const TOOLS = [
     badge: null,
     badgeColor: "",
     desc: "Performance photo generation",
-    cost: "2 CR",
+    cost: "FROM 2 AURA",
     costColor: "bg-white/10 text-white",
     to: "/colors",
     img: "/hero/hero-colors.png",
@@ -32,7 +33,7 @@ const TOOLS = [
     badge: null,
     badgeColor: "",
     desc: "UGC campaign engine",
-    cost: "6 CR",
+    cost: "FROM 6 AURA",
     costColor: "bg-white/10 text-white",
     to: "/spin",
     img: "/hero/hero-tiktok30.jpg",
@@ -43,7 +44,7 @@ const TOOLS = [
     badge: null,
     badgeColor: "",
     desc: "AI video production assistant",
-    cost: "10 CR",
+    cost: "FROM 10 AURA",
     costColor: "bg-white/10 text-white",
     to: "/agent",
     img: "/hero/hero-1.png",
@@ -54,7 +55,7 @@ const TOOLS = [
     badge: "SUITE",
     badgeColor: "bg-violet-500/30 text-violet-300 border border-violet-500/40",
     desc: "Cinematic visual studio",
-    cost: "12 CR",
+    cost: "FROM 12 AURA",
     costColor: "bg-white/10 text-white",
     to: "/music-video",
     img: "/hero/hero-2.png",
@@ -65,7 +66,7 @@ const TOOLS = [
     badge: null,
     badgeColor: "",
     desc: "Audio-synced video",
-    cost: "8 CR",
+    cost: "FROM 8 AURA",
     costColor: "bg-white/10 text-white",
     to: "/lipsync",
     img: "/hero/hero-3.png",
@@ -88,7 +89,7 @@ function ToolsPage() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div className="relative min-h-screen bg-[#0a0a0a] text-white overflow-hidden font-sans">
+    <div className="relative min-h-screen overflow-hidden bg-[#090712] text-white font-sans">
       {/* Full-bleed background image that crossfades on hover */}
       <div className="pointer-events-none fixed inset-0 z-0">
         {TOOLS.map((t, i) => (
@@ -102,26 +103,26 @@ function ToolsPage() {
           />
         ))}
         {/* Always-on dark vignette */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0b0717]/80 via-[#0b0717]/55 to-[#08050e]/95" />
       </div>
 
       {/* Content */}
       <div ref={containerRef} className="relative z-10">
         {/* Header / hero text */}
         <header className="px-6 pt-14 pb-10 md:px-14 md:pt-20 md:pb-14">
-          <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#a3e635] mb-5">
-            Every Tool
+          <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.4em] text-violet-300 mb-5">
+            <Sparkles className="size-3" /> Aurora toolkit
           </p>
           <h1
             className="font-black uppercase leading-[0.88] tracking-[-0.02em] text-white"
             style={{ fontSize: "clamp(52px, 11vw, 128px)" }}
           >
-            CREATE<br />
-            SOMETHING<br />
-            NEW.
+            MAKE THE<br />
+            NEXT THING<br />
+            REAL.
           </h1>
           <p className="mt-5 text-xs font-bold uppercase tracking-[0.35em] text-white/40">
-            {TOOLS.length} Tools · Built for Artists
+             {TOOLS.length} Aurora tools · Built for creators
           </p>
         </header>
 
@@ -143,7 +144,7 @@ function ToolsPage() {
               {/* Name + badge */}
               <div className="flex flex-1 items-center gap-3 min-w-0">
                 <span
-                  className="font-black uppercase leading-none tracking-tight text-white transition-colors group-hover:text-[#a3e635]"
+                  className="font-black uppercase leading-none tracking-tight text-white transition-colors group-hover:text-violet-300"
                   style={{ fontSize: "clamp(18px, 3.5vw, 40px)" }}
                 >
                   {tool.name}
@@ -167,7 +168,7 @@ function ToolsPage() {
 
               {/* Open arrow */}
               <span className="shrink-0 ml-3 text-sm font-bold text-white/30 group-hover:text-white transition-colors">
-                OPEN →
+                <ArrowUpRight className="size-4" aria-label="Open tool" />
               </span>
             </Link>
           ))}
@@ -175,7 +176,7 @@ function ToolsPage() {
 
         {/* Bottom promo */}
         <section className="px-6 md:px-14 py-16 md:py-24 border-t border-white/10">
-          <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-[#a3e635] mb-6">
+          <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-violet-300 mb-6">
             · Perform Anywhere · Motion Control
           </p>
           <h2
@@ -183,7 +184,7 @@ function ToolsPage() {
             style={{ fontSize: "clamp(32px, 6vw, 72px)" }}
           >
             Film yourself anywhere.<br />
-            <span className="text-[#a3e635]">Aurora builds</span> the world.
+            <span className="text-violet-300">Aurora builds</span> the world.
           </h2>
           <p className="mt-6 max-w-[44ch] text-base text-white/50 leading-relaxed">
             Motion Control reads your real movement from a 30-second phone clip and transfers it into your AI-generated scene — style, motion, energy. No studio, no crew, no budget.
@@ -191,7 +192,7 @@ function ToolsPage() {
           <div className="mt-10 flex flex-wrap gap-4">
             <Link
               to="/motion"
-              className="inline-flex items-center gap-2 rounded-full bg-[#a3e635] px-7 py-3.5 text-sm font-black uppercase tracking-wide text-black no-underline hover:scale-105 active:scale-95 transition-transform"
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-7 py-3.5 text-sm font-black uppercase tracking-wide text-primary-foreground no-underline hover:scale-105 active:scale-95 transition-transform"
             >
               Try Perform Anywhere
             </Link>
