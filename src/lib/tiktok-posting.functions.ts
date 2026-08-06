@@ -24,7 +24,7 @@ export const getMyTiktokAccount = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { userId } = context;
     const { data } = await supabaseAdmin
-      .from("tiktok_accounts" as any)
+      .from("tiktok_accounts")
       .select("open_id, username, display_name, avatar_url, token_expires_at, refresh_expires_at, scope")
       .eq("user_id", userId)
       .neq("open_id", "pending")
@@ -72,7 +72,7 @@ export const disconnectTiktok = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { userId } = context;
     await supabaseAdmin
-      .from("tiktok_accounts" as any)
+      .from("tiktok_accounts")
       .delete()
       .eq("user_id", userId);
     return { ok: true };
@@ -100,7 +100,7 @@ export const postToTiktok = createServerFn({ method: "POST" })
 
     // Create a pending post row.
     const { data: postRow, error: insertErr } = await supabaseAdmin
-      .from("tiktok_posts" as any)
+      .from("tiktok_posts")
       .insert({
         user_id: userId,
         generation_id: data.generationId ?? null,
@@ -124,13 +124,13 @@ export const postToTiktok = createServerFn({ method: "POST" })
         privacyLevel: data.privacyLevel ?? "SELF_ONLY",
       });
       await supabaseAdmin
-        .from("tiktok_posts" as any)
+        .from("tiktok_posts")
         .update({ publish_id: publishId, status: "processing_upload" })
         .eq("id", postId);
     } catch (e) {
       errorMsg = e instanceof Error ? e.message : String(e);
       await supabaseAdmin
-        .from("tiktok_posts" as any)
+        .from("tiktok_posts")
         .update({ status: "failed", error_msg: errorMsg })
         .eq("id", postId);
       throw new Error(`TikTok post failed: ${errorMsg}`);
@@ -149,7 +149,7 @@ export const pollTiktokPostStatus = createServerFn({ method: "POST" })
     const { userId } = context;
 
     const { data: postRow } = await supabaseAdmin
-      .from("tiktok_posts" as any)
+      .from("tiktok_posts")
       .select("publish_id, status, error_msg")
       .eq("id", data.postId)
       .eq("user_id", userId)
@@ -179,7 +179,7 @@ export const pollTiktokPostStatus = createServerFn({ method: "POST" })
 
     const isTerminal = status === "publish_complete" || status === "failed" || status === "publish_from_creator_fail";
     await supabaseAdmin
-      .from("tiktok_posts" as any)
+      .from("tiktok_posts")
       .update({
         status,
         error_msg: failReason ?? null,
@@ -198,7 +198,7 @@ export const getTiktokPostForGeneration = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const { data: rows } = await supabaseAdmin
-      .from("tiktok_posts" as any)
+      .from("tiktok_posts")
       .select("id, status, error_msg, publish_id, posted_at")
       .eq("user_id", userId)
       .eq("generation_id", data.generationId)

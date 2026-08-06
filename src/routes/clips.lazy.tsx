@@ -162,8 +162,8 @@ function ClipsPage() {
               </thead>
               <tbody>
                 {DIFF_KEYS.map(({ key, label }) => {
-                  const lv = String((left as any)[key]);
-                  const rv = String((right as any)[key]);
+                  const lv = String((left as Record<string, unknown>)[key]);
+                  const rv = String((right as Record<string, unknown>)[key]);
                   const same = lv === rv;
                   return (
                     <tr key={key} className="border-b border-border/50">

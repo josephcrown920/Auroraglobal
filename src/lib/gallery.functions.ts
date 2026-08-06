@@ -17,7 +17,7 @@ export const hideGeneration = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { error } = await supabase
       .from("generations")
-      .update({ is_hidden: data.hidden } as any)
+      .update({ is_hidden: data.hidden } as never)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true as const };

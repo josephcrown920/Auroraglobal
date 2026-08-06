@@ -49,7 +49,7 @@ export const trackAffiliateClick = createServerFn({ method: "POST" })
  *  (credit_ledger_referral_ref_uniq) means "already granted" and rolls back
  *  the wallet increment inside the RPC's own transaction — a true no-op. */
 async function grantReferralAura(userId: string, reason: "referral_signup" | "referral_reward", refereeId: string) {
-  const { error } = await (supabaseAdmin.rpc as any)("grant_credits", {
+  const { error } = await supabaseAdmin.rpc("grant_credits", {
     _user: userId,
     _amount: REFERRAL_AURA_EACH,
     _reason: reason,

@@ -1309,7 +1309,7 @@ function CanvasPage() {
     if (!id) return;
     const g = getTemplateById(id);
     if (g) {
-      setNodes(g.nodes);
+      setNodes(g.nodes as Node<NodeData>[]);
       setEdges(g.edges);
       setCoachTplName(g.name);
       setLastTemplateId(id);
@@ -1400,7 +1400,7 @@ function CanvasPage() {
   const resetTemplate = useCallback(() => {
     const g = lastTemplateGraph ?? (lastTemplateId ? getTemplateById(lastTemplateId) : null);
     if (!g) { toast.error("Load a template first"); return; }
-    setNodes(g.nodes);
+    setNodes(g.nodes as Node<NodeData>[]);
     setEdges(g.edges);
     toast.success(`Reset "${g.name}"`);
   }, [lastTemplateId, lastTemplateGraph, setNodes, setEdges]);
@@ -1936,7 +1936,7 @@ function CanvasPage() {
         <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 rounded-full border border-white/10 bg-[oklch(0.13_0.02_295/0.85)] backdrop-blur-xl shadow-lg p-1.5">
           <TrendingTemplatesMenu
             onPick={(g: TemplateGraph & { id?: string }) => {
-              setNodes(g.nodes);
+              setNodes(g.nodes as Node<NodeData>[]);
               setEdges(g.edges);
               setCoachTplName(g.name);
               setLastTemplateGraph(g);
@@ -1949,7 +1949,7 @@ function CanvasPage() {
             onLoad={(id) => {
               const g = getTemplateById(id) ?? defaultGraphFor(id);
               if (g) {
-                setNodes(g.nodes);
+                setNodes(g.nodes as Node<NodeData>[]);
                 setEdges(g.edges);
                 setCoachTplName(g.name);
                 setLastTemplateGraph(g);
@@ -2022,7 +2022,7 @@ function CanvasPage() {
       <AuroraAgentPanel
         open={agentOpen}
         onClose={() => setAgentOpen(false)}
-        onSendToCanvas={(g) => { setNodes(g.nodes); setEdges(g.edges); setMarketplaceTemplateId(null); }}
+        onSendToCanvas={(g) => { setNodes(g.nodes as Node<NodeData>[]); setEdges(g.edges); setMarketplaceTemplateId(null); }}
       />
     </main>
   );

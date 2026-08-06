@@ -52,7 +52,7 @@ type Props = {
   open: boolean;
   onClose: () => void;
   /** Called when user clicks "Send to canvas" — produces a node graph of all shots. */
-  onSendToCanvas: (graph: { nodes: Node<any>[]; edges: Edge[] }) => void;
+  onSendToCanvas: (graph: { nodes: Node<Record<string, unknown>>[]; edges: Edge[] }) => void;
 };
 
 const SAMPLES = [
@@ -111,8 +111,8 @@ function SkillPulse({ label }: { label: string }) {
 
 // ─── planToGraph ─────────────────────────────────────────────────────────────
 
-function planToGraph(plan: AgentPlan): { nodes: Node<any>[]; edges: Edge[] } {
-  const nodes: Node<any>[] = [
+function planToGraph(plan: AgentPlan): { nodes: Node<Record<string, unknown>>[]; edges: Edge[] } {
+  const nodes: Node<Record<string, unknown>>[] = [
     { id: "in", position: { x: 40, y: 60 }, type: "aurora", data: { kind: "input" } },
   ];
   const edges: Edge[] = [];

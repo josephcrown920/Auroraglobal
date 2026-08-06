@@ -60,12 +60,28 @@ export { SPIN_COUNT };
 // The new spin columns (spec/prompt/kind/face_url/avatar_id) aren't in the
 // generated Supabase types yet, so use a narrow loose-typed handle — same
 // precedent as avatars.server.ts.
-type LooseTable = {
-  select: (cols?: string, opts?: { count?: "exact"; head?: boolean }) => any;
-  insert: (rows: unknown) => any;
-  update: (vals: unknown) => any;
-};
-type LooseClient = { from: (table: string) => LooseTable };
+type LooseResult = { data: unknown; count?: number | null; error: { message: string } | null };
+interface LooseChain {
+  select(cols?: string, opts?: { count?: "exact"; head?: boolean }): LooseChain;
+  insert(rows: unknown): LooseChain;
+  update(vals: unknown): LooseChain;
+  delete(): LooseChain;
+  upsert(rows: unknown, opts?: Record<string, unknown>): LooseChain;
+  eq(col: string, val: unknown): LooseChain;
+  neq(col: string, val: unknown): LooseChain;
+  in(col: string, vals: unknown[]): LooseChain;
+  not(col: string, op: string, val: unknown): LooseChain;
+  gte(col: string, val: unknown): LooseChain;
+  lt(col: string, val: unknown): LooseChain;
+  is(col: string, val: unknown): LooseChain;
+  or(filter: string): LooseChain;
+  order(col: string, opts?: { ascending?: boolean }): LooseChain;
+  limit(n: number): LooseChain;
+  maybeSingle(): Promise<LooseResult>;
+  single(): Promise<LooseResult>;
+  then<T>(onfulfilled?: ((value: LooseResult) => T | PromiseLike<T>) | null): Promise<T>;
+}
+type LooseClient = { from: (table: string) => LooseChain };
 
 // Same pattern as jobs.server.ts's private uploadBytesToStudio — used here only
 // to stash the ONE shared TTS audio track for a Video Mode batch. `orchestrate`
@@ -98,7 +114,7 @@ export async function runSmokeSpinOne(
   });
 
   // 1. Create a minimal spin_jobs row (no credit charge — caller is admin).
-  const { data: job } = await db
+  const { data: jobRaw } = await db
     .from("spin_jobs")
     .insert({
       user_id: userId,
@@ -114,10 +130,11 @@ export async function runSmokeSpinOne(
     })
     .select("id")
     .single();
+  const job = jobRaw as { id: string } | null;
   if (!job) throw new Error("smoke: failed to create spin job");
 
   // 2. Enqueue 1 variant (same columns spinThirty uses).
-  const { data: insertedRow } = await db
+  const { data: insertedRowRaw } = await db
     .from("spin_variants")
     .insert([{
       job_id: job.id,
@@ -131,20 +148,22 @@ export async function runSmokeSpinOne(
     }])
     .select("id")
     .single();
+  const insertedRow = insertedRowRaw as { id: string } | null;
   if (!insertedRow) throw new Error("smoke: failed to create spin variant");
 
   // 3. Claim the variant via the same CAS the tick functions use.
-  const { data: claimed } = await db
+  const { data: claimedRaw } = await db
     .from("spin_variants")
     .update({ status: "running" })
     .eq("id", insertedRow.id)
     .eq("status", "queued")
     .select("id,idx,label,prompt,spec");
-  if (!claimed || !(claimed as unknown[]).length) throw new Error("smoke: failed to claim spin variant");
+  const claimed0 = (claimedRaw ?? []) as SpinPiece[];
+  if (!claimed0.length) throw new Error("smoke: failed to claim spin variant");
 
   // 4. Render via the production renderSpinPiece function.
   const ctx: SpinJobCtx = {
-    jobId: job.id as string,
+    jobId: job.id,
     userId,
     mode: "photo",
     faceUrl,
@@ -152,7 +171,7 @@ export async function runSmokeSpinOne(
     audioUrl: null,
   };
   const piece: SpinPiece = {
-    id: insertedRow.id as string,
+    id: insertedRow.id,
     idx: 0,
     label: specLabel(spec),
     prompt,
@@ -351,7 +370,7 @@ export const spinThirty = createServerFn({ method: "POST" })
       specs = buildFallbackSpecs(base, SPIN_COUNT, templateId);
     }
 
-    const { data: job, error } = await db
+    const { data: jobRaw2, error } = await db
       .from("spin_jobs")
       .insert({
         user_id: userId,
@@ -367,6 +386,7 @@ export const spinThirty = createServerFn({ method: "POST" })
       })
       .select("id")
       .single();
+    const job = jobRaw2 as { id: string } | null;
     if (error || !job) {
       await refund();
       throw new Error(error?.message ?? "Failed to create spin job");
@@ -392,7 +412,7 @@ export const spinThirty = createServerFn({ method: "POST" })
       await refund();
       throw new Error(vErr.message);
     }
-    return { jobId: job.id as string };
+    return { jobId: job.id };
   });
 
 // ─── Poll ──────────────────────────────────────────────────────────────────
@@ -402,17 +422,20 @@ export const getSpinJob = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ jobId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const db = supabase as unknown as LooseClient;
-    const [{ data: job }, { data: variants }] = await Promise.all([
-      db.from("spin_jobs").select("*").eq("id", data.jobId).single(),
-      db
+    const [{ data: job }, { data: variantRows }] = await Promise.all([
+      supabase
+        .from("spin_jobs")
+        .select("id,status,user_id,mode,face_url,product_url,audio_url")
+        .eq("id", data.jobId)
+        .single(),
+      supabase
         .from("spin_variants")
         .select("id,idx,label,status,url,spec,kind")
         .eq("job_id", data.jobId)
         .order("idx", { ascending: true }),
     ]);
     if (!job) throw new Error("Job not found");
-    return { job, variants: variants ?? [] };
+    return { job, variants: variantRows ?? [] };
   });
 
 // ─── Cron-driven continuation (admin-scoped, no browser tab required) ───────
@@ -476,15 +499,16 @@ export async function advanceSpinQueueAdmin(
     const mode: SpinMode = job.mode ?? "photo";
     const ctx: SpinJobCtx = { jobId: job.id, userId: job.user_id, mode, faceUrl, productUrl, audioUrl: job.audio_url ?? null };
 
-    const { data: pending } = await db
+    const { data: pendingRaw } = await db
       .from("spin_variants")
       .select("id,idx,label,prompt,spec,kind")
       .eq("job_id", job.id)
       .eq("status", "queued")
       .order("idx", { ascending: true })
       .limit(batchPerJob);
+    const pending = (pendingRaw ?? []) as SpinPiece[];
 
-    if (!pending || pending.length === 0) {
+    if (pending.length === 0) {
       const { count: remaining } = await db
         .from("spin_variants")
         .select("id", { count: "exact", head: true })
@@ -502,7 +526,7 @@ export async function advanceSpinQueueAdmin(
       .update({ status: "running" })
       .in(
         "id",
-        pending.map((p: { id: string }) => p.id),
+        pending.map((p) => p.id),
       )
       .eq("status", "queued")
       .select("id,idx,label,prompt,spec,kind");
@@ -722,14 +746,16 @@ export const tickSpinJob = createServerFn({ method: "POST" })
 
     // Load the job for its face/product references, re-validating the stored
     // URLs (they round-trip through the DB before reaching a provider).
-    const { data: job } = await db
+    type SpinJobRow2 = { id: string; face_url: string | null; mode: string | null; product_url: string | null; audio_url: string | null };
+    const { data: jobRaw3 } = await db
       .from("spin_jobs")
       .select("id,face_url,mode,product_url,audio_url")
       .eq("id", data.jobId)
       .eq("user_id", userId)
       .single();
-    if (!job) throw new Error("Job not found");
-    let faceUrl: string | null = (job.face_url as string | null) ?? null;
+    const job3 = jobRaw3 as SpinJobRow2 | null;
+    if (!job3) throw new Error("Job not found");
+    let faceUrl: string | null = job3.face_url ?? null;
     if (faceUrl) {
       try {
         assertTrustedUrl(faceUrl);
@@ -737,7 +763,7 @@ export const tickSpinJob = createServerFn({ method: "POST" })
         faceUrl = null;
       }
     }
-    let productUrl: string | null = (job.product_url as string | null) ?? null;
+    let productUrl: string | null = job3.product_url ?? null;
     if (productUrl) {
       try {
         assertTrustedUrl(productUrl);
@@ -745,17 +771,17 @@ export const tickSpinJob = createServerFn({ method: "POST" })
         productUrl = null;
       }
     }
-    const mode: SpinMode = (job.mode as SpinMode | null) ?? "photo";
+    const mode: SpinMode = (job3.mode as SpinMode | null) ?? "photo";
     const ctx: SpinJobCtx = {
       jobId: data.jobId,
       userId,
       mode,
       faceUrl,
       productUrl,
-      audioUrl: (job.audio_url as string | null) ?? null,
+      audioUrl: job3.audio_url ?? null,
     };
 
-    const { data: pending } = await db
+    const { data: pendingRaw2 } = await db
       .from("spin_variants")
       .select("id,idx,label,prompt,spec,kind")
       .eq("job_id", data.jobId)
@@ -763,8 +789,9 @@ export const tickSpinJob = createServerFn({ method: "POST" })
       .eq("status", "queued")
       .order("idx", { ascending: true })
       .limit(data.batch);
+    const pending2 = (pendingRaw2 ?? []) as SpinPiece[];
 
-    if (!pending || pending.length === 0) {
+    if (pending2.length === 0) {
       const { count: remaining } = await db
         .from("spin_variants")
         .select("id", { count: "exact", head: true })
@@ -785,7 +812,7 @@ export const tickSpinJob = createServerFn({ method: "POST" })
       .update({ status: "running" })
       .in(
         "id",
-        pending.map((p: { id: string }) => p.id),
+        pending2.map((p) => p.id),
       )
       .eq("status", "queued")
       .select("id,idx,label,prompt,spec,kind");

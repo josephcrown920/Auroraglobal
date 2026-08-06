@@ -21,7 +21,7 @@ export const Route = createFileRoute("/api/public/workers/health")({
         }
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { checkGPUWorkerHealth } = await import("@/lib/gpu-worker-health");
-        await checkGPUWorkerHealth(supabaseAdmin);
+        await checkGPUWorkerHealth(supabaseAdmin as never);
         return new Response(JSON.stringify({ ok: true }), {
           status: 200,
           headers: { "Content-Type": "application/json" },

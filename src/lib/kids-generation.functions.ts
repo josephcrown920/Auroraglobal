@@ -69,16 +69,21 @@ function rpcClient() {
   };
 }
 
-type LooseTable = {
-  insert: (row: Record<string, unknown>) => {
-    select: (cols: string) => { single: () => Promise<{ data: any; error: { message: string } | null }> };
-  };
-  update: (patch: Record<string, unknown>) => {
-    eq: (c: string, v: string) => Promise<{ error: { message: string } | null }>;
-  };
-  select: (cols: string) => any;
-  delete: () => { eq: (c: string, v: string) => Promise<{ error: { message: string } | null }> };
-};
+type LooseKidsResult = { data: unknown; error: { message: string } | null };
+interface LooseTable {
+  select(cols: string): LooseTable;
+  insert(row: Record<string, unknown>): LooseTable;
+  update(patch: Record<string, unknown>): LooseTable;
+  delete(): LooseTable;
+  eq(col: string, val: unknown): LooseTable;
+  neq(col: string, val: unknown): LooseTable;
+  in(col: string, vals: unknown[]): LooseTable;
+  order(col: string, opts?: { ascending?: boolean }): LooseTable;
+  limit(n: number): LooseTable;
+  single(): Promise<LooseKidsResult>;
+  maybeSingle(): Promise<LooseKidsResult>;
+  then<T>(onfulfilled?: ((value: LooseKidsResult) => T | PromiseLike<T>) | null): Promise<T>;
+}
 function kidsTable(): LooseTable {
   return (supabaseAdmin as unknown as { from: (t: string) => LooseTable }).from("kids_stories");
 }
@@ -174,8 +179,9 @@ export const enqueueKidsStory = createServerFn({ method: "POST" })
       .insert({ user_id: userId, title, brief, scenes: data.script.scenes, status: "pending" })
       .select("id")
       .single();
-    if (insErr || !storyRow?.id) throw new Error(insErr?.message ?? "Could not create story");
-    const storyId = storyRow.id as string;
+    const storyRowTyped = storyRow as { id?: string } | null;
+    if (insErr || !storyRowTyped?.id) throw new Error(insErr?.message ?? "Could not create story");
+    const storyId = storyRowTyped.id;
 
     // 2. Reserve credits + enqueue the job. On failure, drop the orphan row.
     const payload = {
@@ -247,15 +253,16 @@ export const getKidsStoryStatus = createServerFn({ method: "GET" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!story) throw new Error("Story not found");
+    const s = story as Record<string, unknown>;
     return {
-      id: story.id as string,
-      title: (story.title as string | null) ?? null,
-      status: story.status as string,
-      scenes: ((story.scenes as KidsSceneState[] | null) ?? []) as KidsSceneState[],
-      posterUrl: (story.poster_url as string | null) ?? null,
-      videoUrl: (story.final_video_url as string | null) ?? null,
-      error: (story.error as string | null) ?? null,
-      generationId: (story.generation_id as string | null) ?? null,
+      id: s.id as string,
+      title: (s.title as string | null) ?? null,
+      status: s.status as string,
+      scenes: ((s.scenes as KidsSceneState[] | null) ?? []) as KidsSceneState[],
+      posterUrl: (s.poster_url as string | null) ?? null,
+      videoUrl: (s.final_video_url as string | null) ?? null,
+      error: (s.error as string | null) ?? null,
+      generationId: (s.generation_id as string | null) ?? null,
     };
   });
 
@@ -269,7 +276,7 @@ export const listKidsStories = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false })
       .limit(24);
     if (error) throw new Error(error.message);
-    return ((data as any[]) ?? []).map((s) => ({
+    return ((data as Record<string, unknown>[]) ?? []).map((s) => ({
       id: s.id as string,
       title: (s.title as string | null) ?? null,
       status: s.status as string,

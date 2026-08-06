@@ -45,7 +45,7 @@ async function assertAdmin(userId: string) {
 export const listMyMarketplaceTemplates = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await (supabaseAdmin as any)
+    const { data, error } = await supabaseAdmin
       .from("marketplace_templates")
       .select("*")
       .eq("creator_user_id", context.userId)
@@ -70,14 +70,14 @@ export const submitMarketplaceTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => SubmitTemplateSchema.parse(d))
   .handler(async ({ data, context }) => {
-    const { data: row, error } = await (supabaseAdmin as any)
+    const { data: row, error } = await supabaseAdmin
       .from("marketplace_templates")
       .insert({
         creator_user_id: context.userId,
         name: data.name,
         description: data.description,
         thumbnail_url: data.thumbnail_url ?? null,
-        graph_json: data.graph_json,
+        graph_json: data.graph_json as never,
         category: data.category,
         tags: data.tags,
         run_cost_aura: data.run_cost_aura,
@@ -111,9 +111,9 @@ export const updateMyMarketplaceTemplate = createServerFn({ method: "POST" })
     const update: Record<string, unknown> = { ...fields };
     if (resubmit) update.status = "pending";
 
-    const { error } = await (supabaseAdmin as any)
+    const { error } = await supabaseAdmin
       .from("marketplace_templates")
-      .update(update)
+      .update(update as never)
       .eq("id", id)
       .eq("creator_user_id", context.userId)
       .in("status", ["draft", "pending", "rejected"]);
@@ -126,7 +126,7 @@ export const updateMyMarketplaceTemplate = createServerFn({ method: "POST" })
 export const getCreatorEarnings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: templates, error: tErr } = await (supabaseAdmin as any)
+    const { data: templates, error: tErr } = await supabaseAdmin
       .from("marketplace_templates")
       .select("id, name, status, run_count, run_cost_aura, cut_pct, created_at")
       .eq("creator_user_id", context.userId)
@@ -135,7 +135,7 @@ export const getCreatorEarnings = createServerFn({ method: "GET" })
 
     // Aggregate totals from the full run history (all rows, not capped).
     // Supabase supports Postgres aggregate functions via .select().
-    const { data: agg, error: aggErr } = await (supabaseAdmin as any)
+    const { data: agg, error: aggErr } = await supabaseAdmin
       .from("marketplace_template_runs")
       .select("count:id.count(), total_earned:creator_cut_aura.sum()")
       .eq("creator_user_id", context.userId)
@@ -143,7 +143,7 @@ export const getCreatorEarnings = createServerFn({ method: "GET" })
     if (aggErr && aggErr.code !== "PGRST116") throw new Error(aggErr.message);
 
     // Recent runs list — capped for UI display only.
-    const { data: runs, error: rErr } = await (supabaseAdmin as any)
+    const { data: runs, error: rErr } = await supabaseAdmin
       .from("marketplace_template_runs")
       .select("template_id, aura_charged, creator_cut_aura, created_at")
       .eq("creator_user_id", context.userId)
@@ -184,7 +184,7 @@ export const getCreatorEarnings = createServerFn({ method: "GET" })
 
 export const listApprovedMarketplaceTemplates = createServerFn({ method: "GET" })
   .handler(async () => {
-    const { data, error } = await (supabaseAdmin as any)
+    const { data, error } = await supabaseAdmin
       .from("marketplace_templates")
       .select("id, creator_user_id, name, description, thumbnail_url, category, tags, run_cost_aura, run_count, cut_pct, created_at")
       .eq("status", "approved")
@@ -217,7 +217,7 @@ export const listApprovedMarketplaceTemplates = createServerFn({ method: "GET" }
 export const getMarketplaceTemplate = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
-    const { data: row, error } = await (supabaseAdmin as any)
+    const { data: row, error } = await supabaseAdmin
       .from("marketplace_templates")
       .select("*")
       .eq("id", data.id)
@@ -237,7 +237,7 @@ export const getMarketplaceTemplateForCanvas = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
-    const { data: tmpl, error } = await (supabaseAdmin as any)
+    const { data: tmpl, error } = await supabaseAdmin
       .from("marketplace_templates")
       .select("id, name, graph_json, run_cost_aura, cut_pct")
       .eq("id", data.id)
@@ -287,7 +287,7 @@ async function buildMarketplaceDeps(): Promise<MarketplaceChargeDeps> {
     rpc: (name, args) =>
       (supabaseAdmin as unknown as { rpc: MarketplaceChargeDeps["rpc"] }).rpc(name, args),
     getTemplate: async (id) => {
-      const { data, error } = await (supabaseAdmin as any)
+      const { data, error } = await supabaseAdmin
         .from("marketplace_templates")
         .select("id, creator_user_id, run_cost_aura, cut_pct, run_count")
         .eq("id", id)
@@ -298,7 +298,7 @@ async function buildMarketplaceDeps(): Promise<MarketplaceChargeDeps> {
     },
     updateRunCount: async (id, newCount) => {
       // Best-effort display counter — do not fail the committed charge on error.
-      await (supabaseAdmin as any)
+      await supabaseAdmin
         .from("marketplace_templates")
         .update({ run_count: newCount })
         .eq("id", id);
@@ -394,7 +394,7 @@ export const adminListMarketplaceTemplates = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context.userId);
-    const { data, error } = await (supabaseAdmin as any)
+    const { data, error } = await supabaseAdmin
       .from("marketplace_templates")
       .select("*")
       .order("created_at", { ascending: false });
@@ -437,9 +437,9 @@ export const adminReviewMarketplaceTemplate = createServerFn({ method: "POST" })
       data.action === "approve"
         ? { status: "approved", rejection_reason: null }
         : { status: "rejected", rejection_reason: data.rejection_reason ?? "Does not meet guidelines" };
-    const { error } = await (supabaseAdmin as any)
+    const { error } = await supabaseAdmin
       .from("marketplace_templates")
-      .update(update)
+      .update(update as never)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };

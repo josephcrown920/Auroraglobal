@@ -176,10 +176,10 @@ function GalleryPage() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1.5">
               {group.items.map((g) => {
             // watermark_display_url replaces result_image_url for free-tier items
-            const isWatermarked = !!(g as any).is_watermarked;
+            const isWatermarked = !!(g as { is_watermarked?: boolean }).is_watermarked;
             // Display URL: watermark proxy for Free images, raw URL for Pro images/videos.
             // result_video_url is null for watermarked items (server-side masked).
-            const displayImageUrl = (g as any).watermark_display_url ?? g.result_image_url;
+            const displayImageUrl = (g as { watermark_display_url?: string | null }).watermark_display_url ?? g.result_image_url;
             const displayVideoUrl = g.result_video_url; // null for watermarked
             const hasContent = displayImageUrl || displayVideoUrl || isWatermarked;
             if (!hasContent) return null;

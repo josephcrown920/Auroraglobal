@@ -1382,7 +1382,7 @@ function MotionStudio() {
                       toast.error(res.error ?? "Generation failed");
                     } else {
                       setShotResults((prev) => [
-                        { url: res.url, engine: shotEngine, kind: (res as any).mediaKind ?? (shotEngine === "kling" ? "video" : "image") },
+                        { url: res.url, engine: shotEngine, kind: ((res as { mediaKind?: string }).mediaKind ?? (shotEngine === "kling" ? "video" : "image")) as "video" | "image" },
                         ...prev,
                       ]);
                       toast.success("Shot ready!");
@@ -1459,7 +1459,7 @@ function MotionStudio() {
                     if (!res.ok) {
                       toast.error(res.error ?? "Generation failed");
                     } else {
-                      setShotResults((prev) => [{ url: res.url, engine: "kling", kind: (res as any).mediaKind ?? "video" }, ...prev]);
+                      setShotResults((prev) => [{ url: res.url, engine: "kling", kind: ((res as { mediaKind?: string }).mediaKind ?? "video") as "video" | "image" }, ...prev]);
                       toast.success("Live avatar ready!");
                     }
                   } catch {

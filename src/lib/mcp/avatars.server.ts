@@ -12,12 +12,19 @@ import type { Avatar } from "./types";
 
 // The generated Supabase types don't include `avatars` yet (added by migration,
 // types regenerate later). Use a narrow loose-typed handle for this one table.
-type LooseClient = {
-  from: (table: string) => {
-    select: (cols: string) => any;
-    insert: (row: Record<string, unknown>) => any;
-  };
-};
+type LooseResult = { data: unknown; error: { message: string } | null };
+interface LooseChain {
+  select(cols: string): LooseChain;
+  insert(row: Record<string, unknown>): LooseChain;
+  eq(col: string, val: unknown): LooseChain;
+  ilike(col: string, val: string): LooseChain;
+  order(col: string, opts?: { ascending?: boolean }): LooseChain;
+  limit(n: number): LooseChain;
+  single(): Promise<LooseResult>;
+  maybeSingle(): Promise<LooseResult>;
+  then<T>(onfulfilled?: ((value: LooseResult) => T | PromiseLike<T>) | null): Promise<T>;
+}
+type LooseClient = { from: (table: string) => LooseChain };
 function db(): LooseClient {
   return supabaseAdmin as unknown as LooseClient;
 }

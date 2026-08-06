@@ -102,12 +102,15 @@ export const Route = createFileRoute("/api/public/check-api-balances")({
         if (alerts.length > 0) {
           console.warn("[api-balance-check] LOW BALANCE ALERTS:", alerts.join(" | "));
           // Write alert to DB for admin panel visibility
-          await supabaseAdmin.from("api_balance_alerts" as any).insert({
+          // api_balance_alerts is not yet in the generated types; bypass via loose cast.
+          type AlertTable = { insert(row: Record<string, unknown>): Promise<unknown> };
+          type AlertSupa = { from(t: string): AlertTable };
+          await (supabaseAdmin as unknown as AlertSupa).from("api_balance_alerts").insert({
             alerts,
             openrouter_usd: openrouter.credits_usd,
             api_budget_pool_usd: poolUsd,
             created_at: new Date().toISOString(),
-          }).then(() => {});
+          });
         }
 
         const result = {

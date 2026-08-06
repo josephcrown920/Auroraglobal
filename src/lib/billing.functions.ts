@@ -15,16 +15,29 @@ export const getMyProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { data } = await (supabase.from("profiles") as any)
+    // `persona` was added by a migration but is not yet in the generated types.
+    // Use an explicit return-type cast via `unknown` rather than `any`.
+    type ProfileRow = {
+      credits: number;
+      plan: string;
+      lifetime_credits_purchased: number;
+      email: string | null;
+      display_name: string | null;
+      subscription_expires_at: string | null;
+      daily_spend_limit: number | null;
+      persona: string | null;
+    };
+    const { data } = (await supabase
+      .from("profiles")
       .select(
         "credits, plan, lifetime_credits_purchased, email, display_name, subscription_expires_at, daily_spend_limit, persona",
       )
       .eq("user_id", userId)
-      .maybeSingle();
+      .maybeSingle()) as unknown as { data: ProfileRow | null; error: unknown };
     const { data: rolesData } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const isAdmin = (rolesData ?? []).some((r) => r.role === "admin");
     // Fetch subscription status so UI can show cancellation_pending correctly.
-    const { data: subData } = await (supabase as any)
+    const { data: subData } = await supabase
       .from("subscriptions")
       .select("status, next_payment_date")
       .eq("user_id", userId)
@@ -57,11 +70,11 @@ export const getMyProfile = createServerFn({ method: "GET" })
         .select()
         .maybeSingle();
       const month = new Date().toISOString().slice(0, 7); // e.g. "2026-07"
-      await supabaseAdmin.rpc("grant_monthly_aura" as any, {
+      await supabaseAdmin.rpc("grant_monthly_aura", {
         _user: userId,
         _amount: freeAmount,
         _ref: deterministicUuid(`free:${userId}:${month}`),
-      } as any);
+      });
       return {
         credits: freeAmount,
         plan: "free" as string,
@@ -118,7 +131,7 @@ export const setDailySpendLimit = createServerFn({ method: "POST" })
     const { userId } = context;
     const { error } = await supabaseAdmin
       .from("profiles")
-      .update({ daily_spend_limit: data.limit } as any)
+      .update({ daily_spend_limit: data.limit })
       .eq("user_id", userId);
     if (error) throw new Error(error.message);
     return { daily_spend_limit: data.limit };
@@ -133,10 +146,10 @@ export const claimOnboardingBonus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId } = context;
-    const { data: granted, error } = await supabaseAdmin.rpc("claim_onboarding_bonus" as any, {
+    const { data: granted, error } = await supabaseAdmin.rpc("claim_onboarding_bonus", {
       _user: userId,
       _amount: ONBOARDING_BONUS_AURA,
-    } as any);
+    });
     if (error) throw new Error(error.message);
     return { granted: Boolean(granted), amount: ONBOARDING_BONUS_AURA };
   });
@@ -219,7 +232,7 @@ export const createPaystackCheckout = createServerFn({ method: "POST" })
       credits_granted: plan.credits,
       status: "pending",
       ...(appliedPromoCodeId ? { promo_code_id: appliedPromoCodeId, discount_percent_off: appliedPercentOff } : {}),
-    } as any);
+    } as never);
     return { authorizationUrl: json.data.authorization_url, reference: json.data.reference };
   });
 
@@ -269,7 +282,7 @@ export const getPaymentStatusByReference = createServerFn({ method: "GET" })
 
 /** Get or create the Aurora Pro Paystack plan, caching the plan_code. */
 async function getOrCreateProPlan(key: string): Promise<string> {
-  const { data: setting } = await (supabaseAdmin as any)
+  const { data: setting } = await supabaseAdmin
     .from("app_settings")
     .select("value")
     .eq("key", "paystack_pro_plan_code")
@@ -293,9 +306,9 @@ async function getOrCreateProPlan(key: string): Promise<string> {
   const json = await res.json() as { status: boolean; data: { plan_code: string } };
   if (!json.status) throw new Error("Failed to create Paystack Pro plan");
   const planCode = json.data.plan_code;
-  await (supabaseAdmin as any)
+  await supabaseAdmin
     .from("app_settings")
-    .upsert({ key: "paystack_pro_plan_code", value: { code: planCode } });
+    .upsert({ key: "paystack_pro_plan_code", value: { code: planCode } as never });
   return planCode;
 }
 
@@ -354,7 +367,7 @@ export const cancelProSubscription = createServerFn({ method: "POST" })
     const key = process.env.PAYSTACK_SECRET_KEY;
     if (!key) throw new Error("Paystack not configured");
 
-    const { data: sub } = await (supabaseAdmin as any)
+    const { data: sub } = await supabaseAdmin
       .from("subscriptions")
       .select("paystack_subscription_code, paystack_email_token")
       .eq("user_id", userId)
@@ -378,7 +391,7 @@ export const cancelProSubscription = createServerFn({ method: "POST" })
     // Mark as cancellation_pending — Pro access stays active until Paystack fires
     // subscription.disable (end of billing period). deactivate_pro_subscription is
     // called ONLY from the webhook, never here, to preserve billing-period access.
-    await (supabaseAdmin as any)
+    await supabaseAdmin
       .from("subscriptions")
       .update({ status: "cancellation_pending", updated_at: new Date().toISOString() })
       .eq("user_id", userId)
