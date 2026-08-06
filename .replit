@@ -168,6 +168,7 @@ INFERENCE_SH_APP_LIPSYNC = "bytedance/omnihuman-1-5"
 INFERENCE_SH_APP_MOTION = "google/veo-3-1-fast"
 INFERENCE_SH_APP_TTS = "infsh/kokoro-tts"
 INFERENCE_SH_APP_VIDEO = "google/veo-3-1-fast"
+VITE_ADMIN_PASSCODE = "muddyman"
 
 [objectStorage]
 defaultBucketID = "replit-objstore-92420312-7368-4c29-8394-f3bd7ba1e2dd"

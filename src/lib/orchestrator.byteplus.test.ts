@@ -214,7 +214,7 @@ describe("orchestrate — ByteDance direct preference for Seed models", () => {
     const res = await orchestrate(req);
 
     expect(res.provider).toBe("byteplus");
-    expect(res.endpoint).toBe("byteplus:seedance-1-0-pro-250528");
+    expect(res.endpoint).toBe("byteplus:dreamina-seedance-2-0-260128");
     expect(res.url).toBe("https://byteplus/vid.mp4");
     expect(replicateHit).toBe(false);
   });
