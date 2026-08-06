@@ -141,30 +141,26 @@ function AdminPage() {
             <span className="text-sm font-medium uppercase tracking-wider text-amber-400">Feature Vault</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">archived · hidden from nav</span>
           </div>
-          <p className="text-xs text-muted-foreground">These features are live but hidden from the main sidebar. Click any to open it, or add it back to the nav in the codebase.</p>
+          <p className="text-xs text-muted-foreground">Open a creation workspace that is ready to use now. Operational dashboards remain in the admin navigation above.</p>
           <div className="grid grid-cols-3 gap-2">
             {([
-              { to: "/templates",        label: "Templates" },
-              { to: "/colors-show",      label: "Colors Show Creator" },
-              { to: "/editor",           label: "Playground" },
-              { to: "/heygen-templates", label: "HeyGen Templates" },
-              { to: "/growth",           label: "Growth Tools" },
-              { to: "/guides",           label: "Viral Guides" },
-              { to: "/dashboard",        label: "Dashboard" },
-              { to: "/marketplace",      label: "Marketplace" },
-              { to: "/roadmap",          label: "Roadmap" },
-              { to: "/workflows",        label: "Workflows" },
+              { to: "/motion",           label: "Perform Anywhere" },
+              { to: "/colors",           label: "Colors Studio" },
+              { to: "/avatar",           label: "Avatar Studio" },
+              { to: "/avatar", search: { tab: "script" }, label: "AI Scripts" },
+              { to: "/avatar", search: { tab: "avatars" }, label: "My Avatars" },
+              { to: "/avatar", search: { tab: "shots" }, label: "Avatar Shots" },
               { to: "/content-machine",  label: "Content Machine" },
               { to: "/tiktok",           label: "TikTok Studio" },
-              { to: "/clips",            label: "Clips" },
               { to: "/edit",             label: "AutoCut" },
-              { to: "/cli",              label: "CLI" },
-              { to: "/gifts",            label: "Gifts" },
-              { to: "/nexusarb",         label: "NexusARB (Sim)" },
+              { to: "/lipsync",          label: "Lip Sync Studio" },
+              { to: "/music-video",      label: "Music Video Studio" },
+              { to: "/spin",             label: "TikTok30 Factory" },
             ] as const).map((f) => (
               <Link
                 key={f.to}
                 to={f.to}
+                search={"search" in f ? f.search : undefined}
                 className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-card/40 hover:border-primary/50 hover:bg-card transition-colors text-sm text-muted-foreground hover:text-foreground no-underline"
               >
                 <span className="size-1.5 rounded-full bg-amber-400/60 shrink-0" />

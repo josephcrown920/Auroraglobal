@@ -9,10 +9,10 @@ const TOOLS = [
     name: "PERFORM ANYWHERE",
     badge: "FLAGSHIP",
     badgeColor: "bg-[#a3e635] text-black",
-    desc: "AI live performance engine",
-    cost: "FREE",
+    desc: "Phone performance → cinematic scene",
+    cost: "FROM 400 AURA",
     costColor: "bg-[#a3e635] text-black",
-    to: "/live-studio",
+    to: "/motion",
     img: "/hero/hero-perform-anywhere.png",
   },
   {
@@ -75,10 +75,10 @@ const TOOLS = [
     name: "MOTION CONTROL",
     badge: "FLAGSHIP",
     badgeColor: "bg-[#a3e635] text-black",
-    desc: "Kinetic visual generation",
-    cost: "10 CR",
+    desc: "Motion transfer and performance reskin",
+    cost: "FROM 300 AURA",
     costColor: "bg-white/10 text-white",
-    to: "/music-video",
+    to: "/motion",
     img: "/hero/hero-4.png",
   },
 ] as const;
@@ -190,7 +190,7 @@ function ToolsPage() {
           </p>
           <div className="mt-10 flex flex-wrap gap-4">
             <Link
-              to="/live-studio"
+              to="/motion"
               className="inline-flex items-center gap-2 rounded-full bg-[#a3e635] px-7 py-3.5 text-sm font-black uppercase tracking-wide text-black no-underline hover:scale-105 active:scale-95 transition-transform"
             >
               Try Perform Anywhere

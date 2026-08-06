@@ -1,5 +1,5 @@
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -21,15 +21,22 @@ import { AuthRedirect } from "@/components/AuthRedirect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getAutoReloadSettings, saveAutoReloadSettings } from "@/hooks/use-auto-reload";
+import { AURA_VALUE_SCENARIOS, auraValueEstimate } from "@/lib/pricing";
 
 export const Route = createLazyFileRoute("/billing")({ component: BillingPage });
 
 const AURA_EXAMPLES = [
-  { icon: Image,  label: "1 AI image",       aura: "~10 Aura",  color: "text-brand" },
-  { icon: Mic2,   label: "1 lip-sync video",  aura: "~30 Aura",  color: "text-emerald-400" },
-  { icon: Film,   label: "1 performance clip", aura: "~100 Aura", color: "text-cyan-400" },
-  { icon: TrendingUp, label: "30-post Spin pack", aura: "~300 Aura", color: "text-amber-400" },
-];
+  { icon: Image, scenario: "image", color: "text-brand" },
+  { icon: Film, scenario: "video", color: "text-cyan-400" },
+  { icon: Mic2, scenario: "lipsync", color: "text-emerald-400" },
+  { icon: TrendingUp, scenario: "performance", color: "text-amber-400" },
+] as const;
+
+const PLAN_CONTEXT: Record<"starter" | "creator" | "studio", { name: string; bestFor: string }> = {
+  starter: { name: "Starter", bestFor: "Trying your first visual run" },
+  creator: { name: "Creator", bestFor: "Building a release week" },
+  studio: { name: "Studio", bestFor: "Making a complete campaign" },
+};
 
 function BillingPage() {
   const { user, loading } = useAuth();
@@ -92,6 +99,13 @@ function BillingPage() {
   const isCancellationPending = profile?.subscription_status === "cancellation_pending";
   const tier = SUBSCRIPTION_TIERS[isPro ? "pro" : "free"];
   const credits = profile?.credits ?? 0;
+  const balanceEstimates = useMemo(
+    () => AURA_EXAMPLES.map((example) => {
+      const scenario = AURA_VALUE_SCENARIOS.find((item) => item.id === example.scenario)!;
+      return { ...example, ...scenario, ...auraValueEstimate(credits, example.scenario) };
+    }),
+    [credits],
+  );
 
   useEffect(() => {
     if (profile && dailyLimitInput === "") {
@@ -208,12 +222,12 @@ function BillingPage() {
               <div className="w-full mt-4 pt-5 border-t border-white/10">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 mb-3">What does your Aura buy?</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {AURA_EXAMPLES.map(({ icon: Icon, label, aura, color }) => (
+                  {balanceEstimates.map(({ icon: Icon, label, cost, color }) => (
                     <div key={label} className="flex items-center gap-2.5 rounded-xl bg-white/5 border border-white/8 px-3 py-2">
                       <Icon className={`size-4 shrink-0 ${color}`} />
                       <div className="text-left">
                         <p className="text-xs font-semibold text-white/80">{label}</p>
-                        <p className="text-[10px] text-white/40">{aura}</p>
+                        <p className="text-[10px] text-white/40">{cost} Aura each at 720p / 5s</p>
                       </div>
                     </div>
                   ))}
@@ -339,7 +353,7 @@ function BillingPage() {
             </h2>
           </div>
           <p className="text-sm text-muted-foreground mb-5">
-            One-time credit packs. Never expire. Use across every tool — images, videos, lip-sync, Spin.
+            One-time Aura packs that never expire. “Up to” estimates use 720p / 5-second defaults; premium models, longer clips and add-ons cost more.
           </p>
 
           {/* Promo code */}
@@ -358,10 +372,15 @@ function BillingPage() {
             )}
           </div>
 
-          <div className="grid sm:grid-cols-3 gap-3">
-            {(["starter", "creator", "studio"] as const).map((key, i) => {
+          <div className="grid gap-4 md:grid-cols-3">
+            {(["starter", "creator", "studio"] as const).map((key) => {
               const p = PLANS[key];
               const isCreator = key === "creator";
+              const estimates = AURA_VALUE_SCENARIOS.map((scenario) => ({
+                ...scenario,
+                ...auraValueEstimate(p.credits, scenario.id),
+              }));
+              const performance = estimates.find((estimate) => estimate.id === "performance")!;
               return (
                 <div
                   key={key}
@@ -378,16 +397,36 @@ function BillingPage() {
                       </span>
                     </div>
                   )}
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <Star className={`size-3.5 ${isCreator ? "text-primary" : "text-amber-400"}`} />
-                      <span className="font-bold text-sm">{p.credits} Aura</span>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold text-sm">{PLAN_CONTEXT[key].name}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{PLAN_CONTEXT[key].bestFor}</span>
                     </div>
-                    <div className="text-2xl font-black">{region === "USD" ? `$${p.usd}` : p.prices[region].display}</div>
+                    <div className="flex items-end gap-2">
+                      <div className="text-3xl font-black">{region === "USD" ? `$${p.usd}` : p.prices[region].display}</div>
+                      <span className="pb-1 text-sm font-semibold text-primary">{p.credits.toLocaleString()} Aura</span>
+                    </div>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      {region === "USD" ? `$${(p.usd / p.credits).toFixed(4)} / Aura` : perCreditDisplay(key, region)} · {i === 0 ? "~80 images" : i === 1 ? "~240 images or 24 videos" : "~640 images or 64 videos"}
+                      {region === "USD" ? `$${(p.usd / p.credits).toFixed(4)} / Aura` : perCreditDisplay(key, region)}
                     </p>
                   </div>
+                  <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/8 bg-black/20 p-3 text-xs">
+                    {estimates.map((estimate) => (
+                      <div key={estimate.id}>
+                        <p className="font-bold text-white">Up to {estimate.count}</p>
+                        <p className="text-white/45">{estimate.shortLabel}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {performance.count === 0 ? (
+                    <p className="text-xs leading-relaxed text-amber-300/90">
+                      This pack does not cover a complete 5-second Perform Anywhere render. Choose Creator or Studio for performance work.
+                    </p>
+                  ) : (
+                    <p className="text-xs leading-relaxed text-emerald-300/90">
+                      Covers up to {performance.count} complete 5-second Perform Anywhere {performance.count === 1 ? "render" : "renders"} at the representative setting.
+                    </p>
+                  )}
                   <Button
                     size="sm"
                     variant={isCreator ? "premium" : "outline"}
@@ -396,7 +435,7 @@ function BillingPage() {
                     disabled={packMut.isPending || previewing}
                   >
                     {packMut.isPending ? <Loader2 className="size-3 animate-spin" /> : (
-                      <><CreditCard className="size-3 mr-1" /> Buy {p.credits} Aura</>
+                      <><CreditCard className="size-3 mr-1" /> Get {PLAN_CONTEXT[key].name} Aura</>
                     )}
                   </Button>
                 </div>
@@ -429,9 +468,13 @@ function BillingPage() {
                     <div className="text-xl font-black">{region === "USD" ? `$${p.usd}` : p.prices[region].display}</div>
                     <p className="text-[13px] font-semibold text-foreground/80 mt-0.5">{p.credits} Aura</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {key === "day1"
-                        ? "~15 images or 1 short video — auto-limits 150 Aura/day"
-                        : "Spread across 2 days — auto-limits 130 Aura/day"}
+                      {(() => {
+                        const images = auraValueEstimate(p.credits, "image").count;
+                        const videos = auraValueEstimate(p.credits, "video").count;
+                        return key === "day1"
+                          ? `Up to ${images} images or ${videos} short video — auto-limits 150 Aura/day`
+                          : `Up to ${images} images or ${videos} short videos — auto-limits 130 Aura/day`;
+                      })()}
                     </p>
                   </div>
                   <Button

@@ -320,6 +320,58 @@ export function computeCost(input: {
   return { total, breakdown, resolution, durationSeconds };
 }
 
+/**
+ * Representative, client-safe purchase scenarios used to explain Aura packs.
+ * These are deliberately modest defaults (720p / 5 seconds) rather than a
+ * promise about a premium model, longer duration, or stacked workflow.
+ */
+export const AURA_VALUE_SCENARIOS = [
+  {
+    id: "image",
+    label: "AI images",
+    shortLabel: "images",
+    cost: () => computeCost({ features: ["image"], resolution: "720p" }).total,
+  },
+  {
+    id: "video",
+    label: "5-second videos",
+    shortLabel: "short videos",
+    cost: () => computeCost({ features: ["video"], resolution: "720p", durationSeconds: 5 }).total,
+  },
+  {
+    id: "lipsync",
+    label: "lip-sync clips",
+    shortLabel: "lip-sync clips",
+    cost: () => computeCost({ features: ["lipsync"], resolution: "720p", durationSeconds: 5 }).total,
+  },
+  {
+    id: "performance",
+    label: "Perform Anywhere renders",
+    shortLabel: "performance render",
+    // A complete Performance Shot makes a video and applies motion transfer.
+    // This must mirror the /motion full-render reservation, not motion-only.
+    cost: () =>
+      computeCost({
+        features: ["video", "motion"],
+        resolution: "720p",
+        durationSeconds: 5,
+      }).total,
+  },
+] as const;
+
+export type AuraValueScenarioId = (typeof AURA_VALUE_SCENARIOS)[number]["id"];
+
+/** Returns the maximum number of a representative scenario a balance can fund. */
+export function auraValueEstimate(
+  balance: number,
+  scenario: AuraValueScenarioId,
+): { cost: number; count: number } {
+  const target = AURA_VALUE_SCENARIOS.find((item) => item.id === scenario);
+  if (!target) throw new Error(`Unknown Aura value scenario: ${scenario}`);
+  const cost = target.cost();
+  return { cost, count: Math.max(0, Math.floor(balance / cost)) };
+}
+
 export type DetectInput = {
   /** The chosen primary modality. Manual selection IS the override for the primary. */
   kind: Feature;
