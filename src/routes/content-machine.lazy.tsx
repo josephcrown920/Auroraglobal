@@ -13,7 +13,7 @@ import {
   startBatch,
   getBatchStatus,
 } from "@/lib/cm-generation.functions";
-import { COST_PER_VIDEO, MAX_BATCH_VIDEOS, batchEstimate } from "@/lib/cm.server";
+import { COST_PER_VIDEO, MAX_BATCH_VIDEOS, batchEstimate } from "@/lib/cm";
 import { generateProductDemo, getGenerationStatus } from "@/lib/ugc-generation.functions";
 import { COST_PRODUCT_DEMO } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
