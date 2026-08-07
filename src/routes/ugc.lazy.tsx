@@ -37,6 +37,7 @@ import demo6 from "@/assets/demo-6.mov.asset.json";
 import auraBloom from "../../attached_assets/IMG_0629_1785995684443.jpeg";
 import auraCafe from "../../attached_assets/IMG_0626_1785995684443.jpeg";
 import { EditableCopy } from "@/components/EditableCopy";
+import { useSiteCopyValue } from "@/components/landing/SiteCopyProvider";
 
 export const Route = createLazyFileRoute("/ugc")({ component: UGCStudio });
 
@@ -263,6 +264,9 @@ function UGCStudio() {
     setProductReferenceId(item.id);
     setProductPrompt(item.prompt);
   };
+  const ugcGenerateShotCta = useSiteCopyValue("ugc_generate_shot_cta") ?? "Generate UGC shot";
+  const ugcAnimateCta = useSiteCopyValue("ugc_animate_cta") ?? "Animate";
+  const ugcTalkingAdCta = useSiteCopyValue("ugc_talking_ad_cta") ?? "Generate talking ad";
 
   return (
     <main className="aurora-page-shell text-foreground">
@@ -472,21 +476,21 @@ function UGCStudio() {
               ) : (
                 <>
                   <Button onClick={() => imageMut.mutate()} disabled={busy} variant="premium" className="w-full sm:w-auto">
-                     {imageMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting…</> : <><Wand2 className="size-4 mr-2" /> Generate UGC shot · 10 Aura</>}
+                     {imageMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Shooting…</> : <><Wand2 className="size-4 mr-2" /> {ugcGenerateShotCta} · 10 Aura</>}
                   </Button>
                   <Button onClick={() => videoMut.mutate()} disabled={busy || !resultImage} variant="outline" className="w-full sm:w-auto">
-                     {videoMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Animating…</> : <><Film className="size-4 mr-2" /> Animate · {computeCost({ features: ["video"], model: "seedance-2.0-fast", resolution: "720p", durationSeconds: 5 }).total} Aura</>}
+                     {videoMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Animating…</> : <><Film className="size-4 mr-2" /> {ugcAnimateCta} · {computeCost({ features: ["video"], model: "seedance-2.0-fast", resolution: "720p", durationSeconds: 5 }).total} Aura</>}
                   </Button>
                   <Button onClick={() => adMut.mutate()} disabled={busy} variant="secondary" className="w-full sm:w-auto">
-                     {adMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Producing ad…</> : <><AudioLines className="size-4 mr-2" /> Generate talking ad · {COST_UGC_AD} Aura</>}
+                     {adMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Producing ad…</> : <><AudioLines className="size-4 mr-2" /> {ugcTalkingAdCta} · {COST_UGC_AD} Aura</>}
                   </Button>
                 </>
               )}
             </div>
-            <div className="sr-only" aria-hidden="true">
-              <EditableCopy copyKey="ugc_generate_shot_cta" fallback="Generate UGC shot" />
-              <EditableCopy copyKey="ugc_animate_cta" fallback="Animate" />
-              <EditableCopy copyKey="ugc_talking_ad_cta" fallback="Generate talking ad" />
+            <div className="flex items-center gap-1">
+              <EditableCopy copyKey="ugc_generate_shot_cta" fallback="Generate UGC shot" editorOnly />
+              <EditableCopy copyKey="ugc_animate_cta" fallback="Animate" editorOnly />
+              <EditableCopy copyKey="ugc_talking_ad_cta" fallback="Generate talking ad" editorOnly />
             </div>
             {user && (
               <div className="flex flex-wrap items-center gap-2">

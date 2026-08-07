@@ -29,9 +29,11 @@ interface EditableCopyProps {
   className?: string;
   /** Override the wrapper element type. Defaults to "span". */
   as?: ElementType;
+  /** Render only the admin pencil, for copy that already lives inside a button or link. */
+  editorOnly?: boolean;
 }
 
-export function EditableCopy({ copyKey, fallback, className, as: Tag = "span" }: EditableCopyProps) {
+export function EditableCopy({ copyKey, fallback, className, as: Tag = "span", editorOnly = false }: EditableCopyProps) {
   const { copy, isAdmin, updateLocalCopy, deleteLocalCopy } = useSiteCopy();
   const value = copy[copyKey] ?? fallback;
   const hasOverride = copyKey in copy;
@@ -82,12 +84,13 @@ export function EditableCopy({ copyKey, fallback, className, as: Tag = "span" }:
 
   // Non-admin: plain text, no overhead
   if (!isAdmin) {
+    if (editorOnly) return null;
     return <Tag className={className}>{value}</Tag>;
   }
 
   return (
     <Tag className={cn("group relative inline-flex items-baseline gap-0.5", className)}>
-      <span>{value}</span>
+      {!editorOnly && <span>{value}</span>}
       {hasOverride && (
         <span
           title="Custom copy active"
