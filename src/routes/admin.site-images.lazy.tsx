@@ -5,10 +5,11 @@ import { useState } from "react";
 import { getSiteImages, adminUpdateSiteImage, adminResetSiteImage, type SiteImageRow } from "@/lib/site-images.functions";
 import { SITE_IMAGE_DEFAULTS, SITE_IMAGES_REFRESH_EVENT } from "@/components/landing/SiteImagesProvider";
 import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
+import { LandingLivePreview } from "@/components/admin/LandingLivePreview";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Image, ArrowLeft, ExternalLink, RotateCcw, Upload, Loader2 } from "lucide-react";
+import { Image, ArrowLeft, ExternalLink, RotateCcw, Upload, Loader2, X } from "lucide-react";
 
 export const Route = createLazyFileRoute("/admin/site-images")({ component: SiteImagesAdminPage });
 
@@ -42,9 +43,36 @@ function ImagesGrid() {
   });
 
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
+  // Bumped after every successful change so the live preview drawer reloads.
+  const [previewVersion, setPreviewVersion] = useState(0);
+  // A picked-but-not-yet-published photo, staged for the confirm dialog.
+  const [pending, setPending] = useState<{
+    key: string; label: string; file: File; objectUrl: string; currentUrl: string;
+  } | null>(null);
 
   function dispatchRefresh() {
     window.dispatchEvent(new CustomEvent(SITE_IMAGES_REFRESH_EVENT));
+    setPreviewVersion((v) => v + 1);
+  }
+
+  function stagePick(img: SiteImageRow, file: File) {
+    setPending((prev) => {
+      if (prev) URL.revokeObjectURL(prev.objectUrl);
+      return {
+        key: img.key,
+        label: img.label,
+        file,
+        objectUrl: URL.createObjectURL(file),
+        currentUrl: img.url,
+      };
+    });
+  }
+
+  function discardPending() {
+    setPending((prev) => {
+      if (prev) URL.revokeObjectURL(prev.objectUrl);
+      return null;
+    });
   }
 
   async function handleUpload(key: string, file: File) {
@@ -189,7 +217,7 @@ function ImagesGrid() {
                       isUp={!!isUp}
                       isCustom={isCustom}
                       hasImage={hasImage}
-                      onUpload={(file) => void handleUpload(img.key, file)}
+                      onUpload={(file) => stagePick(img, file)}
                       onReset={() => resetMut.mutate(img.key)}
                       resetting={resetMut.isPending && resetMut.variables === img.key}
                     />
@@ -200,6 +228,66 @@ function ImagesGrid() {
           );
         })}
       </div>
+
+      {/* Confirm-before-publish dialog */}
+      {pending && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6" onClick={discardPending}>
+          <div
+            className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Publish this photo?</h3>
+              <button type="button" onClick={discardPending} className="rounded-md p-1 text-muted-foreground hover:text-foreground">
+                <X className="size-4" />
+              </button>
+            </div>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Slot: <span className="font-medium text-foreground">{pending.label}</span>
+            </p>
+            <div className="mb-4 grid grid-cols-2 gap-3">
+              <div>
+                <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Current</p>
+                <div className="aspect-[3/4] overflow-hidden rounded-lg border border-border bg-zinc-900">
+                  {pending.currentUrl ? (
+                    <img src={pending.currentUrl} alt="Current" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-[10px] text-muted-foreground/50">empty</div>
+                  )}
+                </div>
+              </div>
+              <div>
+                <p className="mb-1.5 text-[10px] uppercase tracking-wider text-primary">New</p>
+                <div className="aspect-[3/4] overflow-hidden rounded-lg border border-primary/40 bg-zinc-900">
+                  <img src={pending.objectUrl} alt="New" className="h-full w-full object-cover" />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={discardPending}
+                className="flex-1 rounded-xl border border-border py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const p = pending;
+                  discardPending();
+                  if (p) void handleUpload(p.key, p.file);
+                }}
+                className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-transform hover:scale-[1.01]"
+              >
+                Publish — goes live now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <LandingLivePreview version={previewVersion} />
     </div>
   );
 }

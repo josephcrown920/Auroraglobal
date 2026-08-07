@@ -1,18 +1,15 @@
 import { useState } from "react";
 import { Landing } from "@/components/Landing";
-import { AdminGate, isAdminUnlocked } from "@/components/AdminGate";
 import { AdultStudio } from "@/components/AdultStudio";
 
-type View = "landing" | "gate" | "studio";
-
-function initialView(): View {
-  return isAdminUnlocked() ? "studio" : "landing";
-}
+// The admin passcode gate was removed by owner request — Landing goes straight
+// into the Studio. API calls authenticate via getAdminToken(), which falls back
+// to the build-time passcode (see AdminGate.tsx).
+type View = "landing" | "studio";
 
 export default function App() {
-  const [view, setView] = useState<View>(initialView);
+  const [view, setView] = useState<View>("landing");
 
-  if (view === "landing") return <Landing onEnter={() => setView("gate")} />;
-  if (view === "gate")    return <AdminGate onUnlocked={() => setView("studio")} />;
+  if (view === "landing") return <Landing onEnter={() => setView("studio")} />;
   return <AdultStudio />;
 }

@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
+import { LandingLivePreview } from "@/components/admin/LandingLivePreview";
 
 
 export const Route = createLazyFileRoute("/admin")({ component: AdminPage });
@@ -1594,6 +1595,8 @@ function CopyPanel() {
   const [resetting, setResetting]   = useState<string | null>(null);
   const [expandedHistory, setExpandedHistory] = useState<Record<string, boolean>>({});
   const [restoring, setRestoring] = useState<number | null>(null);
+  // Bumped after every successful save so the live preview drawer reloads.
+  const [previewVersion, setPreviewVersion] = useState(0);
 
   function toggleHistory(key: string) {
     setExpandedHistory((current) => ({ ...current, [key]: !current[key] }));
@@ -1612,6 +1615,7 @@ function CopyPanel() {
       await qc.invalidateQueries({ queryKey: ["admin-site-copy"] });
       toast.success("Copy saved");
       setEditingKey(null);
+      setPreviewVersion((v) => v + 1);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save");
     } finally {
@@ -1625,6 +1629,7 @@ function CopyPanel() {
       await deleteFn({ data: { key } });
       await qc.invalidateQueries({ queryKey: ["admin-site-copy"] });
       toast.success("Reset to default");
+      setPreviewVersion((v) => v + 1);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to reset");
     } finally {
@@ -1641,6 +1646,7 @@ function CopyPanel() {
         qc.invalidateQueries({ queryKey: ["admin-site-copy-history", key] }),
       ]);
       toast.success("Previous copy restored");
+      setPreviewVersion((v) => v + 1);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to restore copy");
     } finally {
@@ -1791,6 +1797,8 @@ function CopyPanel() {
           </div>
         </section>
       ))}
+
+      <LandingLivePreview version={previewVersion} />
     </div>
   );
 }
