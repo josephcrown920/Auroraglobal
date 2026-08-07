@@ -60,6 +60,7 @@ import { ConnectReplicateBanner } from "@/components/ConnectReplicateBanner";
 import { ExampleChips } from "@/components/onboarding/ExampleChips";
 import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
 import { STUDIO_EXAMPLE_PRESETS } from "@/lib/example-presets";
+import { useSiteImage } from "@/components/landing/SiteImagesProvider";
 import { hasDismissedTour, markFirstGenComplete, hasCompletedFirstGen, isFirstPageVisit, markPageVisited, markFirstPurchaseComplete } from "@/lib/first-run";
 import { loadStudioSession, saveStudioSession } from "@/lib/studio-session";
 import { HiggsHero, StepGuide, HiggsDivider, type GuideStep } from "@/components/studio/HiggsLayout";
@@ -149,7 +150,25 @@ function StudioPage() {
   const [sessionRestored, setSessionRestored] = useState(false);
   const [onboardOpen, setOnboardOpen] = useState(false);
   const [showTour, setShowTour] = useState(false);
-  const [activeExampleId, setActiveExampleId] = useState(STUDIO_EXAMPLE_PRESETS[0].id);
+  const goldenHourExampleUrl = useSiteImage("studio-example-golden-hour-perf");
+  const tokyoRainExampleUrl = useSiteImage("studio-example-tokyo-rain");
+  const editorialExampleUrl = useSiteImage("studio-example-editorial-split");
+  const concertStageExampleUrl = useSiteImage("studio-example-concert-stage");
+  const goldLuxuryExampleUrl = useSiteImage("studio-example-gold-luxury");
+  const studioExamplePresets = useMemo(() => {
+    const urls = {
+      "golden-hour-perf": goldenHourExampleUrl,
+      "tokyo-rain": tokyoRainExampleUrl,
+      "editorial-split": editorialExampleUrl,
+      "concert-stage": concertStageExampleUrl,
+      "gold-luxury": goldLuxuryExampleUrl,
+    };
+    return STUDIO_EXAMPLE_PRESETS.map((preset) => ({
+      ...preset,
+      imageUrl: urls[preset.id as keyof typeof urls] ?? preset.imageUrl,
+    }));
+  }, [goldenHourExampleUrl, tokyoRainExampleUrl, editorialExampleUrl, concertStageExampleUrl, goldLuxuryExampleUrl]);
+  const [activeExampleId, setActiveExampleId] = useState(studioExamplePresets[0].id);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth" });
@@ -236,10 +255,10 @@ function StudioPage() {
     if (hasCompletedFirstGen()) return;
     if (!isFirstPageVisit("studio")) return;
     markPageVisited("studio");
-    const p = STUDIO_EXAMPLE_PRESETS[0];
+    const p = studioExamplePresets[0];
     if (!incomingIdea && p.prompt) setPrompt(p.prompt);
     setActiveExampleId(p.id);
-  }, [incomingIdea]);
+  }, [incomingIdea, studioExamplePresets]);
 
   // ── Session restore ────────────────────────────────────────────────────────
   // On mount, restore the last saved session for returning users.
@@ -828,7 +847,7 @@ function StudioPage() {
             />
             <div className="px-10 xl:px-14 pb-10">
               <div className="flex gap-3 overflow-x-auto scrollbar-none pb-2">
-                {STUDIO_EXAMPLE_PRESETS.filter((p) => !!p.imageUrl).slice(0, 8).map((preset) => (
+                {studioExamplePresets.filter((p) => !!p.imageUrl).slice(0, 8).map((preset) => (
                   <button
                     key={preset.id}
                     type="button"
@@ -913,9 +932,9 @@ function StudioPage() {
           {/* Quick-start examples */}
           <div className="mb-6">
             <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 mb-2">Quick start</p>
-            <ExampleChips presets={STUDIO_EXAMPLE_PRESETS} activeId={activeExampleId}
+            <ExampleChips presets={studioExamplePresets} activeId={activeExampleId}
               onSelect={(preset) => { if (preset.prompt) setPrompt(preset.prompt); setActiveExampleId(preset.id); }}
-              onGenerate={() => { const preset = STUDIO_EXAMPLE_PRESETS.find((p) => p.id === activeExampleId); mut.mutate({ promptOverride: preset?.prompt ?? prompt }); setSettingsOpen(false); }}
+              onGenerate={() => { const preset = studioExamplePresets.find((p) => p.id === activeExampleId); mut.mutate({ promptOverride: preset?.prompt ?? prompt }); setSettingsOpen(false); }}
               label="Quick start:" />
           </div>
 
