@@ -137,9 +137,9 @@ export async function runHealthCheck(): Promise<Record<string, unknown>> {
 
     let alertSentAt = prev.alert_sent_at;
     let recoverySentAt = prev.recovery_sent_at;
-    let consecutiveErrors = degraded ? prev.consecutive_errors + 1 : 0;
-    let consecutiveOk = degraded ? 0 : prev.consecutive_ok + 1;
-    let lastOkAt = degraded ? prev.last_ok_at : nowIso;
+    const consecutiveErrors = degraded ? prev.consecutive_errors + 1 : 0;
+    const consecutiveOk = degraded ? 0 : prev.consecutive_ok + 1;
+    const lastOkAt = degraded ? prev.last_ok_at : nowIso;
 
     let lastErrorSummary = prev.last_error_summary;
     if (degraded) {

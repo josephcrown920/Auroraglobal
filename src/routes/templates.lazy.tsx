@@ -48,7 +48,7 @@ function TemplatesPage() {
       style={{ background: "var(--gradient-page)" }}
     >
       {/* ── Top bar ─────────────────────────────────────────────────────── */}
-      <header className="flex items-center justify-between px-4 pb-2 pt-3">
+      <header className="flex items-center justify-between pl-24 pr-4 pb-2 pt-3">
         <Link
           to="/"
           aria-label="Back home"

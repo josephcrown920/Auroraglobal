@@ -219,7 +219,7 @@ function MusicVideoPage() {
     <main className="aurora-page-shell text-foreground">
       <span aria-hidden className="aurora-ambient" />
 
-      <header className="relative z-10 flex items-center justify-between px-6 py-4 border-b border-border bg-card/40 backdrop-blur-xl">
+      <header className="relative z-10 flex items-center justify-between pl-24 pr-6 py-4 border-b border-border bg-card/40 backdrop-blur-xl">
         <Link to="/studio" className="flex items-center gap-2 font-semibold tracking-tight no-underline">
           <ArrowLeft className="size-4 text-muted-foreground" />
           <span

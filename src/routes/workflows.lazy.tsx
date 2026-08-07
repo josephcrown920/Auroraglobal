@@ -36,7 +36,7 @@ function WorkflowsPage() {
   return (
     <main className="aurora-page-shell text-foreground">
       <span aria-hidden className="aurora-ambient" />
-      <header className="relative z-10 border-b border-border/40 bg-background/70 backdrop-blur-xl px-6 py-4 flex items-center justify-between">
+      <header className="relative z-10 border-b border-border/40 bg-background/70 backdrop-blur-xl pl-24 pr-6 py-4 flex items-center justify-between">
         <Link to="/" className="font-semibold text-foreground no-underline">Aurora</Link>
         <nav className="flex gap-4 text-sm">
           <Link to="/studio" className="text-foreground/70 no-underline">Studio</Link>
