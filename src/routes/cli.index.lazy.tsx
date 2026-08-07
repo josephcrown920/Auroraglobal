@@ -23,6 +23,7 @@ type Cmd = { cmd: string; desc: string; cost?: string };
 const COMMANDS: Cmd[] = [
   { cmd: "aurora login", desc: "Start the device-code sign-in flow and link the CLI to your account." },
   { cmd: "aurora whoami", desc: "Show the signed-in account, current plan and remaining Aura." },
+  { cmd: "aurora estimate --kind video --seconds 5", desc: "Preview the live, server-confirmed Aura cost. No generation starts.", cost: "Free preview" },
   { cmd: 'aurora generate --prompt "neon street" --out shot.png', desc: "Render a still image with Nano Banana Pro and save it to disk.", cost: "10 Aura" },
   { cmd: 'aurora video --prompt "slow dolly through fog"', desc: "Generate a 5-second cinematic clip with Seedance 2.0.", cost: "100 Aura" },
   { cmd: "aurora lipsync --audio vo.mp3 --image face.png", desc: "Align an audio track to mouth shapes with Sync 1.9.", cost: "60 Aura" },
