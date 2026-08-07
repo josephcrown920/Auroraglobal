@@ -182,3 +182,8 @@ export function getProviderRegistry(): Map<string, RouterProvider> {
 export function resetProviderRegistry(): void {
   _registry = null;
 }
+
+/** Test-only registry seam. Keeps router tests deterministic without real provider credentials. */
+export function setProviderRegistryForTest(registry: Map<string, RouterProvider>): void {
+  _registry = registry;
+}
