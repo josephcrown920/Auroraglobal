@@ -48,6 +48,28 @@ export const SITE_COPY_DEFAULTS: Record<string, string> = {
   home_artist_tab_sub:      "Press shots · Music videos · Live visuals",
   home_creator_tab_sub:     "UGC ads · Short-form · Avatars",
   home_composer_placeholder: "Describe what you want to make…",
+
+  // ── Studio ────────────────────────────────────────────────────────────────
+  studio_hero_kicker:      "Aurora Studio",
+  studio_hero_headline:    "MAKE VIDEOS IN ONE CLICK",
+  studio_hero_description: "From a selfie to a cinematic AI video. Upload your photo, describe your vision, and watch it come to life.",
+  studio_empty_state:      "Upload your photo above, then hit Generate",
+  studio_gallery_label:    "STYLE GALLERY",
+
+  // ── Music Video ────────────────────────────────────────────────────────────
+  music_video_header_title: "Music Video Studio",
+  music_video_mode_heading: "What to create",
+  music_video_generate_cta: "Generate",
+
+  // ── UGC ───────────────────────────────────────────────────────────────────
+  ugc_hero_kicker:         "UGC Factory",
+  ugc_hero_headline:       "Pick an avatar. Ship UGC.",
+  ugc_hero_description:    "Six on-brand AI creators, ready to film. Choose a face, pick a scene, and Aurora generates a native TikTok-style ad with your product in hand.",
+  ugc_avatar_heading:      "1. Choose your avatar",
+  ugc_prompt_heading:      "3. Describe the product / action",
+  ugc_generate_shot_cta:   "Generate UGC shot",
+  ugc_animate_cta:         "Animate",
+  ugc_talking_ad_cta:      "Generate talking ad",
 };
 
 export const SITE_COPY_LABELS: Record<string, string> = {
@@ -75,6 +97,22 @@ export const SITE_COPY_LABELS: Record<string, string> = {
   home_artist_tab_sub:      "Home — Artist tab subtitle",
   home_creator_tab_sub:     "Home — Creator tab subtitle",
   home_composer_placeholder: "Home — composer placeholder text",
+  studio_hero_kicker:       "Studio — hero kicker",
+  studio_hero_headline:     "Studio — hero headline",
+  studio_hero_description:  "Studio — hero description",
+  studio_empty_state:       "Studio — empty canvas message",
+  studio_gallery_label:     "Studio — gallery label",
+  music_video_header_title: "Music Video — page title",
+  music_video_mode_heading: "Music Video — mode heading",
+  music_video_generate_cta: "Music Video — generate button",
+  ugc_hero_kicker:          "UGC — hero kicker",
+  ugc_hero_headline:        "UGC — hero headline",
+  ugc_hero_description:     "UGC — hero description",
+  ugc_avatar_heading:       "UGC — avatar section heading",
+  ugc_prompt_heading:       "UGC — prompt section heading",
+  ugc_generate_shot_cta:    "UGC — generate shot button",
+  ugc_animate_cta:          "UGC — animate button",
+  ugc_talking_ad_cta:       "UGC — talking ad button",
 };
 
 export const SITE_COPY_SECTIONS: Record<string, string> = {
@@ -102,4 +140,20 @@ export const SITE_COPY_SECTIONS: Record<string, string> = {
   home_artist_tab_sub:      "Home dashboard",
   home_creator_tab_sub:     "Home dashboard",
   home_composer_placeholder: "Home dashboard",
+  studio_hero_kicker:       "Studio",
+  studio_hero_headline:     "Studio",
+  studio_hero_description:  "Studio",
+  studio_empty_state:       "Studio",
+  studio_gallery_label:     "Studio",
+  music_video_header_title: "Music Video",
+  music_video_mode_heading: "Music Video",
+  music_video_generate_cta: "Music Video",
+  ugc_hero_kicker:          "UGC",
+  ugc_hero_headline:        "UGC",
+  ugc_hero_description:     "UGC",
+  ugc_avatar_heading:       "UGC",
+  ugc_prompt_heading:       "UGC",
+  ugc_generate_shot_cta:    "UGC",
+  ugc_animate_cta:          "UGC",
+  ugc_talking_ad_cta:       "UGC",
 };

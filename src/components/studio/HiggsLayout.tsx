@@ -42,14 +42,16 @@ export function HiggsHero({
   lines,
   bracketWord,
   description,
+  headline,
   children,
 }: {
-  kicker?: string;
+  kicker?: ReactNode;
   /** Each string is one line; include bracketWord verbatim for accent highlighting */
   lines: string[];
   /** The word to wrap in [brackets] and tint with violet */
   bracketWord?: string;
-  description?: string;
+  description?: ReactNode;
+  headline?: ReactNode;
   children?: ReactNode;
 }) {
   return (
@@ -63,7 +65,7 @@ export function HiggsHero({
         className="font-display font-black leading-[0.9] tracking-tight text-white mb-5 uppercase"
         style={{ fontSize: "clamp(2.2rem, 3.5vw, 3.4rem)" }}
       >
-        {lines.map((line, i) => {
+        {headline ?? lines.map((line, i) => {
           if (!bracketWord || !line.includes(bracketWord)) {
             return (
               <span key={i} className="block">
@@ -176,7 +178,7 @@ export function FanPhotos({
 /**
  * HiggsDivider — thin horizontal rule with label.
  */
-export function HiggsDivider({ label }: { label: string }) {
+export function HiggsDivider({ label }: { label: ReactNode }) {
   return (
     <div className="px-10 xl:px-14 pb-5 flex items-center gap-4">
       <div className="h-px flex-1 bg-white/8" />

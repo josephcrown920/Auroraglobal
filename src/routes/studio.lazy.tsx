@@ -63,6 +63,7 @@ import { STUDIO_EXAMPLE_PRESETS } from "@/lib/example-presets";
 import { hasDismissedTour, markFirstGenComplete, hasCompletedFirstGen, isFirstPageVisit, markPageVisited, markFirstPurchaseComplete } from "@/lib/first-run";
 import { loadStudioSession, saveStudioSession } from "@/lib/studio-session";
 import { HiggsHero, StepGuide, HiggsDivider, type GuideStep } from "@/components/studio/HiggsLayout";
+import { EditableCopy } from "@/components/EditableCopy";
 
 export const Route = createLazyFileRoute("/studio")({ component: StudioPage });
 
@@ -620,7 +621,12 @@ function StudioPage() {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center min-h-[40vw] gap-2 px-4 text-center">
-              <p className="text-xs text-zinc-600">Upload your photo above, then hit Generate</p>
+              <EditableCopy
+                as="p"
+                copyKey="studio_empty_state"
+                fallback="Upload your photo above, then hit Generate"
+                className="text-xs text-zinc-600"
+              />
             </div>
           )}
         </div>
@@ -779,10 +785,30 @@ function StudioPage() {
         ) : (
           <>
             <HiggsHero
-              kicker="Aurora Studio"
+              kicker={
+                <EditableCopy
+                  copyKey="studio_hero_kicker"
+                  fallback="Aurora Studio"
+                  className="text-violet-400/70"
+                />
+              }
               lines={["MAKE VIDEOS IN", "ONE CLICK"]}
               bracketWord="ONE CLICK"
-              description="From a selfie to a cinematic AI video. Upload your photo, describe your vision, and watch it come to life."
+              description={
+                <EditableCopy
+                  copyKey="studio_hero_description"
+                  fallback="From a selfie to a cinematic AI video. Upload your photo, describe your vision, and watch it come to life."
+                  className="text-zinc-400"
+                />
+              }
+              headline={
+                <EditableCopy
+                  as="span"
+                  copyKey="studio_hero_headline"
+                  fallback="MAKE VIDEOS IN ONE CLICK"
+                  className="block"
+                />
+              }
             />
             <StepGuide
               steps={[
@@ -791,7 +817,15 @@ function StudioPage() {
                 { icon: <Film className="size-4" />, title: "GET YOUR VIDEO", description: "Photo → cinematic still → animated clip, all in one session" },
               ] as GuideStep[]}
             />
-            <HiggsDivider label="STYLE GALLERY" />
+            <HiggsDivider
+              label={
+                <EditableCopy
+                  copyKey="studio_gallery_label"
+                  fallback="STYLE GALLERY"
+                  className="text-zinc-600"
+                />
+              }
+            />
             <div className="px-10 xl:px-14 pb-10">
               <div className="flex gap-3 overflow-x-auto scrollbar-none pb-2">
                 {STUDIO_EXAMPLE_PRESETS.filter((p) => !!p.imageUrl).slice(0, 8).map((preset) => (
