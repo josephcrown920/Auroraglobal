@@ -11,7 +11,7 @@
  * element (h1, h2, p, etc.) without changing the DOM structure.
  */
 
-import { useState, type ElementType } from "react";
+import { useEffect, useState, type ElementType } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Pencil, Loader2, RotateCcw } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -31,23 +31,41 @@ interface EditableCopyProps {
   as?: ElementType;
   /** Render only the admin pencil, for copy that already lives inside a button or link. */
   editorOnly?: boolean;
+  /** Tailwind classes used to render an optional live preview inside the editor. */
+  previewClassName?: string;
 }
 
-export function EditableCopy({ copyKey, fallback, className, as: Tag = "span", editorOnly = false }: EditableCopyProps) {
+export function EditableCopy({
+  copyKey,
+  fallback,
+  className,
+  as: Tag = "span",
+  editorOnly = false,
+  previewClassName,
+}: EditableCopyProps) {
   const { copy, isAdmin, updateLocalCopy, deleteLocalCopy } = useSiteCopy();
   const value = copy[copyKey] ?? fallback;
   const hasOverride = copyKey in copy;
 
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
+  const [previewValue, setPreviewValue] = useState(value);
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
 
   const setFn = useServerFn(adminSetSiteCopy);
   const deleteFn = useServerFn(adminDeleteSiteCopy);
 
+  useEffect(() => {
+    if (!previewClassName) return;
+    const timer = window.setTimeout(() => setPreviewValue(draft), 150);
+    return () => window.clearTimeout(timer);
+  }, [draft, previewClassName]);
+
   function openPopover() {
-    setDraft(copy[copyKey] ?? fallback);
+    const currentValue = copy[copyKey] ?? fallback;
+    setDraft(currentValue);
+    setPreviewValue(currentValue);
     setOpen(true);
   }
 
@@ -124,6 +142,17 @@ export function EditableCopy({ copyKey, fallback, className, as: Tag = "span", e
             className="text-sm resize-none"
             autoFocus
           />
+           {previewClassName && (
+             <div className="space-y-1.5 rounded-md border border-border bg-background/60 p-2.5">
+               <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Preview</p>
+               <div
+                 aria-live="polite"
+                 className={cn("min-h-10 whitespace-pre-wrap break-words", previewClassName)}
+               >
+                 {previewValue || "\u00a0"}
+               </div>
+             </div>
+           )}
           {hasOverride && (
             <div className="rounded-md bg-muted/50 px-2.5 py-1.5">
               <p className="text-[10px] text-muted-foreground">
