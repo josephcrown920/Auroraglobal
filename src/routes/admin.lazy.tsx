@@ -6,14 +6,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { adminOverview, adminGrantCredits, adminEarnings, adminWithdrawalSummary, adminRecordWithdrawal, adminCheckWithdrawalAmount, adminUpdateWithdrawal, adminDeleteWithdrawal } from "@/lib/admin.functions";
 import { getSiteImages, adminUpdateSiteImage, adminResetSiteImage, type SiteImageRow } from "@/lib/site-images.functions";
-import { getSiteCopy, adminSetSiteCopy, adminDeleteSiteCopy, type SiteCopyRow } from "@/lib/site-copy.functions";
+import { getSiteCopy, getSiteCopyHistory, adminSetSiteCopy, adminDeleteSiteCopy, type SiteCopyRow, type SiteCopyHistoryRow } from "@/lib/site-copy.functions";
 import { getRouterHealth, getRouterLogs, type RouterHealthRow, type RouterLogRow } from "@/lib/ai-router.functions";
 import { SITE_COPY_DEFAULTS, SITE_COPY_LABELS, SITE_COPY_SECTIONS } from "@/lib/site-copy-defaults";
 import { listWorkers, upsertWorker, deleteWorker, pingWorker, setWorkerStatus, getFreeGpuMode, setFreeGpuMode, approveWorker, rejectWorker } from "@/lib/workers.functions";
 import { issuePromoCode, listPromoCodes, setPromoCodeActive, type PromoCodeRow } from "@/lib/promo.functions";
 import { PROFIT_SPLIT_PCT } from "@/lib/profit-split";
 import { ModelBadge } from "@/components/ModelBadge";
-import { Shield, Sparkles, Loader2, Users, DollarSign, ImagePlay, Coins, ArrowRight, Server, Trash2, Activity, TrendingUp, Gift, Pause, Play, Zap, Store, Wallet, Tag, Copy, BookOpen, Image, CheckCircle, XCircle, Clock, Radar } from "lucide-react";
+import { Shield, Sparkles, Loader2, Users, DollarSign, ImagePlay, Coins, ArrowRight, Server, Trash2, Activity, TrendingUp, Gift, Pause, Play, Zap, Store, Wallet, Tag, Copy, BookOpen, Image, CheckCircle, XCircle, Clock, Radar, ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Button } from "@/components/ui/button";
@@ -1496,6 +1496,7 @@ function ImagesPanel() {
 // ── Site Copy panel ──────────────────────────────────────────────────────────
 function CopyPanel() {
   const getCopyFn     = useServerFn(getSiteCopy);
+  const getHistoryFn  = useServerFn(getSiteCopyHistory);
   const setFn         = useServerFn(adminSetSiteCopy);
   const deleteFn      = useServerFn(adminDeleteSiteCopy);
   const qc            = useQueryClient();
@@ -1526,6 +1527,12 @@ function CopyPanel() {
   const [draft, setDraft]           = useState("");
   const [saving, setSaving]         = useState(false);
   const [resetting, setResetting]   = useState<string | null>(null);
+  const [expandedHistory, setExpandedHistory] = useState<Record<string, boolean>>({});
+  const [restoring, setRestoring] = useState<number | null>(null);
+
+  function toggleHistory(key: string) {
+    setExpandedHistory((current) => ({ ...current, [key]: !current[key] }));
+  }
 
   function startEdit(key: string) {
     const current = overrideMap[key]?.value ?? SITE_COPY_DEFAULTS[key] ?? "";
@@ -1557,6 +1564,22 @@ function CopyPanel() {
       toast.error(e instanceof Error ? e.message : "Failed to reset");
     } finally {
       setResetting(null);
+    }
+  }
+
+  async function handleRestore(key: string, history: SiteCopyHistoryRow) {
+    setRestoring(history.id);
+    try {
+      await setFn({ data: { key, value: history.value } });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["admin-site-copy"] }),
+        qc.invalidateQueries({ queryKey: ["admin-site-copy-history", key] }),
+      ]);
+      toast.success("Previous copy restored");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to restore copy");
+    } finally {
+      setRestoring(null);
     }
   }
 
@@ -1594,8 +1617,10 @@ function CopyPanel() {
                   const isBusy     = saving && isEditing;
                   const isResetting = resetting === key;
                   const displayed  = override?.value ?? SITE_COPY_DEFAULTS[key] ?? "";
+                  const isHistoryOpen = !!expandedHistory[key];
 
                   return (
+                    <>
                     <tr key={key} className="border-t border-border hover:bg-card/20">
                       <td className="p-3 align-top">
                         <div className="font-medium text-sm flex items-center gap-1.5">
@@ -1651,7 +1676,17 @@ function CopyPanel() {
                             </Button>
                           </div>
                         ) : (
-                          <div className="flex gap-1 justify-end">
+                            <div className="flex gap-1 justify-end">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-xs text-muted-foreground"
+                                onClick={() => toggleHistory(key)}
+                                title="Show previous values"
+                              >
+                                {isHistoryOpen ? <ChevronDown className="size-3 mr-1" /> : <ChevronRight className="size-3 mr-1" />}
+                                History
+                              </Button>
                             {isCustom && (
                               <Button
                                 size="sm"
@@ -1676,6 +1711,16 @@ function CopyPanel() {
                         )}
                       </td>
                     </tr>
+                    {isHistoryOpen && (
+                      <HistoryRow
+                        key={`${key}-history`}
+                        copyKey={key}
+                        getHistoryFn={getHistoryFn}
+                        onRestore={handleRestore}
+                        restoringId={restoring}
+                      />
+                    )}
+                    </>
                   );
                 })}
               </tbody>
