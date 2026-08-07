@@ -397,3 +397,10 @@ uri = "file://attached_assets/aurora_hook_base_cut.mp4"
 type = "video"
 title = "Aurora hook base cut"
 description = "24.3-second 1080×1920 portrait music-video edit using the 10 uploaded performance images and the uploaded hook audio. This is the pre-lip-sync cut, ready for the Vast.ai animation pass."
+
+[[outputs]]
+id = "L6YQPSkrfSU7cJqOItQZx"
+uri = "file://public/Aurora-Site-Layout-Map.pdf"
+type = "pdf"
+title = "Aurora Site Layout Map"
+description = "One-page A4 reference of Aurora's public, creator, admin, and separate adult-product routes."
