@@ -435,7 +435,7 @@ function AuthPage() {
         {/* Embedded/in-app browser: passkeys are blocked by the platform, so
             instead of a Face ID button that can only fail, explain the fix.
             Password + GitHub/Apple sign-in below still work here. */}
-        {biometricSupported && embeddedBrowser && mode === "signin" && (
+        {embeddedBrowser && mode === "signin" && (
           <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3">
             <Fingerprint className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
             <p className="text-xs leading-snug text-muted-foreground">
