@@ -28,7 +28,7 @@ const DEFAULT_ITEMS: Omit<SiteMapItem, "id" | "archived_at" | "updated_at">[] = 
   { title: "Studio", path: "/studio", kind: "internal", description: "Signed-in creation workspace.", flow_order: 40 },
   { title: "Perform Anywhere", path: "/motion", kind: "internal", description: "Performance Builder workspace.", flow_order: 50 },
   { title: "Talking Avatar Studio", path: "/avatar", kind: "internal", description: "Photo avatar and script tools.", flow_order: 60 },
-  { title: "Video Agent", path: "/agent", kind: "internal", description: "Prime Director assistant workspace.", flow_order: 70 },
+  { title: "Aurora Video Agent", path: "/video-agent", kind: "internal", description: "Creator video planning and production workspace.", flow_order: 70 },
   { title: "Admin Overview", path: "/admin", kind: "admin", description: "Operator dashboard and controls.", flow_order: 80 },
   { title: "Site Images", path: "/admin/site-images", kind: "admin", description: "Landing image swap controls.", flow_order: 90 },
   { title: "Adult Center", path: "/aurora-adult/", kind: "admin", description: "Separate 18+ artifact; retains its own gate.", flow_order: 100 },

@@ -2,7 +2,7 @@ import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, Archive, ExternalLink, FilePenLine, LayoutList, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Archive, Download, ExternalLink, FilePenLine, LayoutList, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import { useAuth } from "@/hooks/use-auth";
@@ -96,14 +96,23 @@ function SiteMapManager() {
   return (
     <main className="min-h-screen bg-background">
       <header className="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
           <div className="flex items-center gap-3">
             <Link to="/admin" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-3.5" /> Admin</Link>
             <span className="text-muted-foreground/40">/</span>
             <LayoutList className="size-4 text-primary" />
             <span className="font-semibold">Site Map</span>
           </div>
-          <span className="text-xs text-muted-foreground">{items.length} catalogued routes</span>
+          <div className="flex items-center gap-3">
+            <a
+              href="/Aurora-Site-Layout-Map.pdf"
+              download
+              className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+            >
+              <Download className="size-3.5" /> Download PDF
+            </a>
+            <span className="text-xs text-muted-foreground">{items.length} catalogued routes</span>
+          </div>
         </div>
       </header>
 
