@@ -48,6 +48,7 @@ import {
 import { useBeatDetect } from "@/hooks/use-beat-detect";
 import { cn, AUDIO_ACCEPT } from "@/lib/utils";
 import { EditableCopy } from "@/components/EditableCopy";
+import { useSiteCopyValue } from "@/components/landing/SiteCopyProvider";
 
 export const Route = createLazyFileRoute("/music-video")({ component: MusicVideoPage });
 
@@ -55,6 +56,8 @@ const IMAGE_COST = 1;
 
 function MusicVideoPage() {
   const { user, loading } = useAuth();
+  const musicVideoHeaderTitle = useSiteCopyValue("music_video_header_title") ?? "Music Video Studio";
+  const musicVideoGenerateCta = useSiteCopyValue("music_video_generate_cta") ?? "Generate";
   const navigate = useNavigate();
   const qc = useQueryClient();
 
@@ -207,7 +210,6 @@ function MusicVideoPage() {
   const recentResults = (history?.items ?? [])
     .filter((i) => i.status === "complete" && (i.result_video_url ?? i.result_image_url))
     .slice(0, 6);
-
   const styleEntries = Object.entries(MUSIC_VIDEO_STYLES) as [
     MusicVideoStyle,
     (typeof MUSIC_VIDEO_STYLES)[MusicVideoStyle],
@@ -226,8 +228,13 @@ function MusicVideoPage() {
           >
             <Music2 className="size-4 text-primary-foreground" />
           </span>
-          <span>Music Video Studio</span>
+          <span>{musicVideoHeaderTitle}</span>
         </Link>
+        <EditableCopy
+          copyKey="music_video_header_title"
+          fallback="Music Video Studio"
+          editorOnly
+        />
         <div className="flex items-center gap-4 text-sm">
           <Link to="/motion" className="text-muted-foreground hover:text-foreground no-underline">
             Motion
@@ -588,7 +595,7 @@ function MusicVideoPage() {
                 <Loader2 className="size-5 mr-2 animate-spin" /> Generating…
               </>
             ) : (
-              <><Wand2 className="size-5 mr-2" /> Generate · {displayCost} Aura</>
+              <><Wand2 className="size-5 mr-2" /> {musicVideoGenerateCta} · {displayCost} Aura</>
             )}
           </Button>
         )}
@@ -601,7 +608,7 @@ function MusicVideoPage() {
         <EditableCopy
           copyKey="music_video_generate_cta"
           fallback="Generate"
-          className="sr-only"
+          editorOnly
         />
 
         {/* Gallery redirect */}
