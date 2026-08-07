@@ -9,9 +9,16 @@ export function isAdminUnlocked() {
   try { return !!sessionStorage.getItem(SK); } catch { return false; }
 }
 
-/** Returns the stored passcode token for use as a Bearer credential. */
+/** Returns the passcode token for use as a Bearer credential.
+ *  The visible passcode gate has been removed — fall back to the build-time
+ *  passcode so Studio API calls stay authenticated without a login prompt. */
 export function getAdminToken(): string {
-  try { return sessionStorage.getItem(SK) ?? ""; } catch { return ""; }
+  try {
+    const stored = sessionStorage.getItem(SK);
+    if (stored) return stored;
+  } catch { /* private browsing */ }
+  const env = import.meta.env as Record<string, string | undefined>;
+  return env.VITE_ADMIN_PASSCODE ?? "";
 }
 
 function storeAdminToken(passcode: string) {

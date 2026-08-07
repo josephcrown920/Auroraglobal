@@ -67,7 +67,7 @@ export function Landing({ onEnter }: Props) {
         </div>
         <button onClick={onEnter}
           className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/8 px-4 py-2 text-[13px] font-bold text-rose-300 transition-all hover:border-rose-500/50 hover:bg-rose-500/15">
-          Operator login <ArrowRight size={13} />
+          Enter studio <ArrowRight size={13} />
         </button>
       </nav>
 
