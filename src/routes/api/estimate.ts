@@ -19,7 +19,9 @@
 // features, and the URLs/camera-movement used only for feature detection) —
 // not every field those endpoints accept (e.g. prompt, imageUrls). Only the
 // params that feed computeCost()/detectFeatures() or the tier guardrails are
-// needed for an accurate quote.
+// needed for an accurate quote. `confirmPreviewId` also mirrors the temporal
+// preview gate: without one, video/lipsync is priced as the forced 480p/≤5s
+// preview that public generation will actually dispatch.
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { detectFeatures, computeCost, type Feature } from "@/lib/pricing";
@@ -36,6 +38,7 @@ const EstimateSchema = z.object({
   audioUrl: z.string().url().optional(),
   videoUrl: z.string().url().optional(),
   cameraMovement: z.string().max(60).optional(),
+  confirmPreviewId: z.string().uuid().optional(),
   features: z
     .array(z.enum(["image", "upscale", "text", "audio", "lipsync", "motion", "video"]))
     .optional(),
@@ -60,12 +63,6 @@ export function checkGuardrails(
   if (isTemporalKind && durationSeconds) {
     const msg = durationCapMessage(tier, durationSeconds);
     if (msg) return { message: msg };
-  }
-  if ((resolution === "1080p" || resolution === "2160p") && tier !== "pro") {
-    const label = resolution === "2160p" ? "4K (2160p)" : "HD (1080p)";
-    return {
-      message: `Unsupported resolution for Free plan: ${label} requires Pro. Upgrade to unlock HD and 4K exports.`,
-    };
   }
   return null;
 }
@@ -133,21 +130,19 @@ export function estimateFromParams(
  * they just don't get tier-specific guardrail checks (duration bounds are
  * still globally clamped by EstimateSchema).
  */
-async function resolveTier(request: Request): Promise<SubscriptionTier | undefined> {
+async function resolveUserId(request: Request): Promise<string | undefined> {
   const h = request.headers.get("authorization") || request.headers.get("Authorization");
   if (!h?.startsWith("Bearer ")) return undefined;
   const token = h.slice(7);
   if (!token) return undefined;
   try {
+    if (token.startsWith("aurk_")) {
+      const { userIdForApiKey } = await import("@/lib/cli-device.server");
+      return (await userIdForApiKey(token)) ?? undefined;
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
-    if (userError || !userData.user) return undefined;
-    const { data } = await supabaseAdmin
-      .from("profiles")
-      .select("plan")
-      .eq("user_id", userData.user.id)
-      .maybeSingle();
-    return tierFor((data as { plan?: string | null } | null)?.plan ?? null);
+    return userError || !userData.user ? undefined : userData.user.id;
   } catch {
     return undefined;
   }
@@ -176,20 +171,80 @@ export const Route = createFileRoute("/api/estimate")({
           ]) {
             params[key] = url.searchParams.get(key) ?? undefined;
           }
-          const tier = await resolveTier(request);
-          const base = estimateFromParams(params, tier);
+          const userId = await resolveUserId(request);
+          const tier = userId
+            ? await (async () => {
+                const { getUserTier } = await import("@/lib/cost-guardrails.server");
+                return getUserTier(userId);
+              })()
+            : undefined;
+          const requested: Record<string, string | undefined> = {
+            ...params,
+            confirmPreviewId: url.searchParams.get("confirmPreviewId") ?? undefined,
+          };
+          const parsed = EstimateSchema.parse({
+            kind: requested.kind,
+            resolution: requested.resolution || undefined,
+            duration: requested.duration || undefined,
+            model: requested.model || undefined,
+            audioUrl: requested.audioUrl || undefined,
+            videoUrl: requested.videoUrl || undefined,
+            cameraMovement: requested.cameraMovement || undefined,
+            confirmPreviewId: requested.confirmPreviewId,
+            features: requested.features ? requested.features.split(",") : undefined,
+          });
+          // Public generation checks the requested temporal duration BEFORE it
+          // applies the forced preview caps. Preserve that order here: a free
+          // user asking for 12s is rejected rather than shown a misleading
+          // 5-second preview price.
+          if (
+            tier &&
+            parsed.duration &&
+            (parsed.kind === "video" || parsed.kind === "lipsync")
+          ) {
+            const durationBlock = checkGuardrails(tier, parsed.duration, undefined, true);
+            if (durationBlock) throw new Error(durationBlock.message);
+          }
+          let effective = requested;
+          let previewPass = false;
+          if (parsed.kind === "video" || parsed.kind === "lipsync") {
+            if (parsed.confirmPreviewId) {
+              if (!userId) throw new Error("Authentication is required to confirm a preview");
+              const { resolvePreviewGate } = await import("@/lib/cost-guardrails.server");
+              await resolvePreviewGate({ userId, confirmPreviewId: parsed.confirmPreviewId });
+            } else {
+              const { PREVIEW_RESOLUTION, PREVIEW_MAX_SECONDS } = await import("@/lib/cost-guardrails.server");
+              effective = {
+                ...requested,
+                resolution: PREVIEW_RESOLUTION,
+                duration: String(Math.min(parsed.duration ?? PREVIEW_MAX_SECONDS, PREVIEW_MAX_SECONDS)),
+              };
+              previewPass = true;
+            }
+          }
+          const base = estimateFromParams(effective, tier);
           // Sign the quoted feature set into an opaque token the client passes
           // back with orchestrateGenerate. The server verifies it at execution
           // and uses it as the authoritative billing set — ensuring the charge
           // always matches the price shown (especially for motion-priced requests).
           const { signQuoteToken } = await import("@/lib/quote-token.server");
           const quoteToken = await signQuoteToken({
-            k: (params.kind ?? "image") as string,
+            k: (effective.kind ?? "image") as string,
             f: base.features,
             r: base.resolution,
             d: base.durationSeconds,
           });
-          const result = { ...base, quoteToken };
+          const result = {
+            ...base,
+            quoteToken,
+            ...(previewPass
+              ? {
+                  preview: true,
+                  requiresConfirmation: true,
+                  hint: "This estimate is for the required 480p/≤5s preview. Re-send it with a valid confirmPreviewId to estimate full quality.",
+                }
+              : {}),
+          };
           return new Response(JSON.stringify(result), { status: 200, headers: cors });
         } catch (e) {
           const message = e instanceof z.ZodError ? e.errors[0]?.message ?? "Invalid params" : e instanceof Error ? e.message : "Invalid params";

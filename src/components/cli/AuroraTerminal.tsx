@@ -14,13 +14,13 @@ function runCommand(raw: string): Line[] {
   if (head === "help") {
     out.push({
       kind: "out",
-      text: 'commands: login · whoami · generate --prompt "..." --out file.png · video --prompt "..." · lipsync --audio a.mp3 --image i.png · clear',
+      text: 'commands: login · whoami · estimate --kind video --seconds 5 · generate --prompt "..." [--dry-run] · video · lipsync · clear',
     });
     return out;
   }
   if (head === "clear") return [];
   const isAurora = head === "aurora";
-  if (!isAurora && !["login", "whoami", "generate", "video", "lipsync"].includes(head)) {
+  if (!isAurora && !["login", "whoami", "estimate", "generate", "video", "lipsync"].includes(head)) {
     out.push({ kind: "err", text: `command not found: ${head}` });
     return out;
   }
@@ -35,6 +35,9 @@ function runCommand(raw: string): Line[] {
     out.push({ kind: "ok", text: "✓ Signed in as you@studio" });
   } else if (sub === "whoami") {
     out.push({ kind: "ok", text: "✓ you@studio · 2,500 Aura · plan: Creator" });
+  } else if (sub === "estimate") {
+    out.push({ kind: "out", text: "Example: aurora estimate calls /api/estimate without rendering." });
+    out.push({ kind: "ok", text: "✓ Sample estimate: 100 Aura · no generation started" });
   } else if (sub === "generate") {
     const m = tail.match(/--prompt\s+"([^"]+)"/);
     const o = tail.match(/--out\s+(\S+)/);

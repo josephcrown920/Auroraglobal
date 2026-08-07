@@ -29,6 +29,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const commands = {
   login: 'Save API key to ~/.aurora/config.json',
   generate: 'Generate an image from a prompt',
+  estimate: 'Preview the server-confirmed Aura cost without generating',
   whoami: 'Show active account',
   logout: 'Forget stored API key',
   version: 'Print CLI version',
@@ -49,6 +50,11 @@ if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') {
   console.log('  --api-key KEY              Override AURORA_API_KEY env var');
   console.log('  --prompt TEXT              Prompt for `generate`');
   console.log('  --out FILE                 Output file for `generate` (default shot.png)');
+  console.log('  --dry-run                  Preview the price instead of generating');
+  console.log('\nEstimate options:');
+  console.log('  aurora estimate --kind KIND [--resolution 720p] [--seconds 5] [--model MODEL]');
+  console.log('                  [--audio-url URL] [--video-url URL] [--motion PRESET]');
+  console.log('                  [--features image,video,motion] [--confirm-preview-id UUID]');
   console.log('\nEnv: AURORA_API_KEY, AURORA_API_BASE');
   process.exit(0);
 }
@@ -116,6 +122,67 @@ if (cmd === 'whoami') {
   process.exit(0);
 }
 
+function valueFor(flag) {
+  const index = args.indexOf(flag);
+  return index === -1 ? undefined : args[index + 1];
+}
+
+function estimateParams(kind) {
+  const params = new URLSearchParams({ kind });
+  const resolution = valueFor('--resolution');
+  const duration = valueFor('--seconds') || valueFor('--duration');
+  const model = valueFor('--model');
+  const audioUrl = valueFor('--audio-url');
+  const videoUrl = valueFor('--video-url');
+  const cameraMovement = valueFor('--motion');
+  const features = valueFor('--features');
+  const confirmPreviewId = valueFor('--confirm-preview-id');
+  if (resolution) params.set('resolution', resolution);
+  if (duration) params.set('duration', duration);
+  if (model) params.set('model', model);
+  if (audioUrl) params.set('audioUrl', audioUrl);
+  if (videoUrl) params.set('videoUrl', videoUrl);
+  if (cameraMovement) params.set('cameraMovement', cameraMovement);
+  if (features) params.set('features', features);
+  if (confirmPreviewId) params.set('confirmPreviewId', confirmPreviewId);
+  return params;
+}
+
+async function printEstimate(kind) {
+  const apiKey = getApiKey();
+  const headers = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
+  const res = await fetch(`${API_BASE}/api/estimate?${estimateParams(kind)}`, { headers });
+  const text = await res.text();
+  let json;
+  try { json = JSON.parse(text); } catch { json = { error: text }; }
+  if (!res.ok) throw new Error(`${res.status} ${json.error || 'estimate failed'}`);
+  console.log(`\n  Live estimate: ${json.credits} Aura`);
+  if (json.resolution || json.durationSeconds) {
+    console.log(`  Render settings: ${[json.resolution, json.durationSeconds && `${json.durationSeconds}s`].filter(Boolean).join(' · ')}`);
+  }
+  if (json.features?.length) console.log(`  Billable features: ${json.features.join(', ')}`);
+  if (json.blocked?.message) console.log(`  Note: ${json.blocked.message}`);
+  if (json.preview) {
+    console.log('  This is the required preview pass. Use --confirm-preview-id after it succeeds to estimate full quality.');
+  }
+  console.log('  No generation started. No Aura was reserved.\n');
+}
+
+if (cmd === 'estimate') {
+  const kind = valueFor('--kind');
+  if (!kind) {
+    console.error('✗ --kind is required (image, video, lipsync, upscale, text, audio, or motion)');
+    process.exit(1);
+  }
+  try {
+    await printEstimate(kind);
+    process.exit(0);
+  } catch (e) {
+    console.error('✗ Estimate failed:', e.message);
+    process.exit(1);
+  }
+}
+
 if (cmd === 'generate') {
   const apiKey = getApiKey();
   if (!apiKey) {
@@ -130,6 +197,15 @@ if (cmd === 'generate') {
   const prompt = args[promptIdx + 1];
   const outIdx = args.indexOf('--out');
   const out = outIdx !== -1 ? args[outIdx + 1] : 'shot.png';
+  if (args.includes('--dry-run')) {
+    try {
+      await printEstimate('image');
+      process.exit(0);
+    } catch (e) {
+      console.error('✗ Estimate failed:', e.message);
+      process.exit(1);
+    }
+  }
   console.log(`\n  Generating: "${prompt}"`);
   try {
     const res = await fetch(`${API_BASE}/api/public/generate`, {

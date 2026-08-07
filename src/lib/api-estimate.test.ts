@@ -98,14 +98,29 @@ describe("estimateFromParams", () => {
     expect(result.blocked).toBeNull();
   });
 
-  it("blocks a Free-tier quote for HD resolution", () => {
+  it("does not invent an HD entitlement block because public generation does not enforce one", () => {
     const result = estimateFromParams({ kind: "video", resolution: "1080p" }, "free");
-    expect(result.blocked?.message).toMatch(/Unsupported resolution/);
+    expect(result.blocked).toBeNull();
   });
 
-  it("allows a Pro-tier quote for HD resolution", () => {
-    const result = estimateFromParams({ kind: "video", resolution: "1080p" }, "pro");
-    expect(result.blocked).toBeNull();
+  it("quotes the forced 480p/≤5s temporal preview inputs exactly", () => {
+    const result = estimateFromParams({
+      kind: "video",
+      resolution: "480p",
+      duration: "5",
+      model: "seedance-2.0",
+    });
+    expect(result.resolution).toBe("480p");
+    expect(result.durationSeconds).toBe(5);
+  });
+
+  it("applies the public-generation duration cap before a temporal request can be preview-capped", () => {
+    // /api/public/generate checks duration against the caller's plan before it
+    // forces unconfirmed renders down to 480p/≤5s. Keep the pure guardrail
+    // contract explicit so an estimate cannot accidentally advertise a preview
+    // for a request the paid endpoint will reject first.
+    const result = checkGuardrails("free", 12, undefined, true);
+    expect(result?.message).toMatch(/Unsupported duration/);
   });
 
   it("does not apply the duration cap to non-temporal kinds (e.g. lipsync has its own model-based cost, not the video cap)", () => {
