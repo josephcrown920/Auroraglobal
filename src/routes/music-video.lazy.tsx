@@ -47,6 +47,7 @@ import {
 } from "@/lib/music-video-prompts";
 import { useBeatDetect } from "@/hooks/use-beat-detect";
 import { cn, AUDIO_ACCEPT } from "@/lib/utils";
+import { EditableCopy } from "@/components/EditableCopy";
 
 export const Route = createLazyFileRoute("/music-video")({ component: MusicVideoPage });
 
@@ -225,7 +226,7 @@ function MusicVideoPage() {
           >
             <Music2 className="size-4 text-primary-foreground" />
           </span>
-          Music Video Studio
+          <span>Music Video Studio</span>
         </Link>
         <div className="flex items-center gap-4 text-sm">
           <Link to="/motion" className="text-muted-foreground hover:text-foreground no-underline">
@@ -270,9 +271,12 @@ function MusicVideoPage() {
 
         {/* Mode tabs */}
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            What to create
-          </h2>
+          <EditableCopy
+            as="h2"
+            copyKey="music_video_mode_heading"
+            fallback="What to create"
+            className="text-sm font-semibold uppercase tracking-wider text-muted-foreground"
+          />
           <div className="grid grid-cols-3 gap-2">
             {MUSIC_VIDEO_MODES.map((m) => (
               <button
@@ -584,9 +588,7 @@ function MusicVideoPage() {
                 <Loader2 className="size-5 mr-2 animate-spin" /> Generating…
               </>
             ) : (
-              <>
-                <Wand2 className="size-5 mr-2" /> Generate · {displayCost} Aura
-              </>
+              <><Wand2 className="size-5 mr-2" /> Generate · {displayCost} Aura</>
             )}
           </Button>
         )}
@@ -596,6 +598,11 @@ function MusicVideoPage() {
             ↑ Upload a reference image to enable video generation
           </p>
         )}
+        <EditableCopy
+          copyKey="music_video_generate_cta"
+          fallback="Generate"
+          className="sr-only"
+        />
 
         {/* Gallery redirect */}
         <Link
