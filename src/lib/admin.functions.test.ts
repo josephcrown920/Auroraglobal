@@ -1,6 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import { computeProfitSplit, PROFIT_SPLIT_PCT } from "./profit-split";
-import { reconcileEarningsTotals, computeWithdrawalSummaryTotals, type EarningsPaymentRow } from "./admin.functions";
+import {
+  reconcileEarningsTotals,
+  computeWithdrawalSummaryTotals,
+  sumProfitFromPaymentRows,
+  type EarningsPaymentRow,
+} from "./admin.functions";
 
 // reconcileEarningsTotals is the pure aggregation core behind the adminEarnings
 // dashboard. It must reconcile totals against the underlying `payments` rows —
@@ -123,6 +128,65 @@ describe("reconcileEarningsTotals", () => {
   it("keeps the fallback split percentage consistent with PROFIT_SPLIT_PCT", () => {
     const totals = reconcileEarningsTotals([row({ amount_kobo: 10_000, credits_granted: 1 })]);
     expect(totals.profitMinor).toBe(Math.round(10_000 * (PROFIT_SPLIT_PCT / 100)));
+  });
+});
+
+// sumProfitFromPaymentRows is the per-row aggregation core of
+// computeAllTimeProfitMinor — the paginated DB scanner that drives the
+// all-time profit figure used by adminWithdrawalSummary. Extracting it as a
+// pure helper means the USD-filter + legacy-fallback math can be verified
+// without a live Supabase round-trip.
+describe("sumProfitFromPaymentRows", () => {
+  it("uses persisted profit_amount_minor for modern rows", () => {
+    const result = sumProfitFromPaymentRows([
+      { amount_kobo: 1000, currency: "USD", profit_amount_minor: 600 },
+      { amount_kobo: 2000, currency: "USD", profit_amount_minor: 1200 },
+    ]);
+    expect(result).toBe(1800);
+  });
+
+  it("falls back to computeProfitSplit for legacy rows (profit_amount_minor null)", () => {
+    const amount = 5000;
+    const result = sumProfitFromPaymentRows([
+      { amount_kobo: amount, currency: "USD", profit_amount_minor: null },
+    ]);
+    expect(result).toBe(computeProfitSplit(amount).profit_minor);
+  });
+
+  it("handles a mix of modern and legacy rows correctly", () => {
+    const legacyAmount = 3333;
+    const legacyProfit = computeProfitSplit(legacyAmount).profit_minor;
+    const result = sumProfitFromPaymentRows([
+      { amount_kobo: 1000, currency: "USD", profit_amount_minor: 600 },
+      { amount_kobo: legacyAmount, currency: "USD", profit_amount_minor: null },
+    ]);
+    expect(result).toBe(600 + legacyProfit);
+  });
+
+  it("skips non-USD rows entirely", () => {
+    const result = sumProfitFromPaymentRows([
+      { amount_kobo: 1000, currency: "USD", profit_amount_minor: 600 },
+      { amount_kobo: 500_000, currency: "NGN", profit_amount_minor: 300_000 },
+    ]);
+    expect(result).toBe(600);
+  });
+
+  it("returns zero for an empty page", () => {
+    expect(sumProfitFromPaymentRows([])).toBe(0);
+  });
+
+  it("accumulates correctly across multiple pages of rows (simulated fan-out)", () => {
+    // Simulates computeAllTimeProfitMinor summing across two DB pages.
+    const page1 = [
+      { amount_kobo: 1000, currency: "USD", profit_amount_minor: 600 },
+      { amount_kobo: 2000, currency: "USD", profit_amount_minor: 1200 },
+    ];
+    const page2 = [
+      { amount_kobo: 500, currency: "USD", profit_amount_minor: null }, // legacy
+    ];
+    const total =
+      sumProfitFromPaymentRows(page1) + sumProfitFromPaymentRows(page2);
+    expect(total).toBe(600 + 1200 + computeProfitSplit(500).profit_minor);
   });
 });
 

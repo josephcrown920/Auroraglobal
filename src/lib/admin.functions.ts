@@ -384,6 +384,21 @@ const withdrawalsTable = supabaseAdmin as unknown as {
 
 const PAGE_SIZE = 1000;
 
+// Pure per-row profit aggregation extracted from computeAllTimeProfitMinor so
+// the core math can be unit-tested without a live Supabase round-trip. USD-only
+// (non-USD rows are skipped); falls back to computeProfitSplit for legacy rows
+// that predate the persisted profit_amount_minor column.
+export function sumProfitFromPaymentRows(
+  rows: Array<{ amount_kobo: number; currency: string; profit_amount_minor: number | null }>,
+): number {
+  let profitMinor = 0;
+  for (const p of rows) {
+    if (p.currency !== "USD") continue;
+    profitMinor += p.profit_amount_minor ?? computeProfitSplit(p.amount_kobo).profit_minor;
+  }
+  return profitMinor;
+}
+
 // All-time profit total, independent of the Earnings range selector — a
 // withdrawal is recorded against the whole accumulated pool, not a slice of
 // it, so "remaining to withdraw" must reconcile against every payment ever
@@ -404,10 +419,7 @@ export async function computeAllTimeProfitMinor(): Promise<number> {
       .range(from, from + PAGE_SIZE - 1);
     if (error) throw new Error(error.message);
     const rows = data ?? [];
-    for (const p of rows) {
-      if (p.currency !== "USD") continue;
-      profitMinor += p.profit_amount_minor ?? computeProfitSplit(p.amount_kobo).profit_minor;
-    }
+    profitMinor += sumProfitFromPaymentRows(rows);
     if (rows.length < PAGE_SIZE) break;
     from += PAGE_SIZE;
   }
