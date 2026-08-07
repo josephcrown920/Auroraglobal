@@ -221,6 +221,15 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
         free: false,
         notes: "final fallback only",
       },
+      {
+        id: "ffmpeg-free-video",
+        name: "ffmpeg (free)",
+        kind: "video",
+        envKey: "",
+        configured: true,
+        free: true,
+        notes: "always-on last resort — Pollinations image → Ken Burns MP4; no API key or credits needed",
+      },
       // lipsync
       {
         id: "sync",
