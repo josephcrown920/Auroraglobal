@@ -6,6 +6,9 @@ import { classifyRequest } from "./ai-router/classifier";
 import { resetHealthMap } from "./ai-router/health";
 import { resetProviderRegistry, setProviderRegistryForTest, type RouterProvider } from "./ai-router/providers";
 import { ChatTurnSchema } from "./agent.schema";
+import { chatWithAuroraAgentCore } from "./agent.functions";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
 const ChatResultSchema = z.object({
   reply: z.string(),
@@ -21,6 +24,34 @@ function provider(name: string): RouterProvider {
     enabled: true,
     model: `${name}-test-model`,
     make: () => ((model: string) => ({ model }) as never) as never,
+  };
+}
+
+function chatContext() {
+  const inserts: unknown[][] = [];
+  const memory = {
+    select: () => memory,
+    eq: () => memory,
+    maybeSingle: async () => ({ data: { memory: "I make moody performance videos.", structured_memory: null } }),
+  };
+  const history = {
+    select: () => history,
+    eq: () => history,
+    order: () => history,
+    limit: async () => ({ data: [{ role: "user", content: "I want something intimate." }], error: null }),
+    insert: async (rows: unknown[]) => {
+      inserts.push(rows);
+      return { error: null };
+    },
+  };
+  return {
+    context: {
+      userId: "test-user",
+      supabase: {
+        from: (table: string) => (table === "agent_user_memory" ? memory : history),
+      } as unknown as SupabaseClient<Database>,
+    },
+    inserts,
   };
 }
 
@@ -76,7 +107,8 @@ describe("Aurora chat router integration", () => {
     ]));
 
     const generated = mock(async ({ model }: { model: { model: string } }) => {
-      if (model.model === "gemini-test-model") throw new Error("first provider unavailable");
+      if (model.model === "gemini-test-model")
+        throw new Error("first provider unavailable");
       return {
         experimental_output: {
           reply: "The fallback director is ready.",
@@ -101,6 +133,68 @@ describe("Aurora chat router integration", () => {
     expect(result.provider).toBe("grok");
     expect(result.fallbackCount).toBe(1);
     expect(ChatResultSchema.parse(result.output).reply).toBe("The fallback director is ready.");
+    expect(generated).toHaveBeenCalledTimes(3);
+  });
+
+  it("runs the real chat server-function core with authenticated context, router classification, and persistence", async () => {
+    setProviderRegistryForTest(new Map([["claude", provider("claude")]]));
+    const generated = mock(async () => ({
+      experimental_output: {
+        reply: "Open on a close, intimate performance and build outward from there.",
+        plan: null,
+        memoryUpdate: null,
+        skillCall: null,
+      },
+    }));
+    mock.module("ai", () => ({
+      generateText: generated,
+      Output: { object: ({ schema }: { schema: unknown }) => schema },
+    }));
+    const { context, inserts } = chatContext();
+
+    const result = await chatWithAuroraAgentCore(context, {
+      message: "Help me shape a cinematic music video treatment.",
+    });
+
+    expect(result).toEqual({
+      reply: "Open on a close, intimate performance and build outward from there.",
+      plan: null,
+      memoryUpdated: false,
+      skillInvoked: null,
+    });
+    expect(generated).toHaveBeenCalled();
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0]).toEqual([
+      { user_id: "test-user", role: "user", content: "Help me shape a cinematic music video treatment." },
+      expect.objectContaining({ user_id: "test-user", role: "assistant", content: result.reply }),
+    ]);
+  });
+
+  it("keeps the real chat server-function core available when its first provider fails", async () => {
+    setProviderRegistryForTest(new Map([
+      ["claude", provider("claude")],
+      ["gemini", provider("gemini")],
+    ]));
+    const generated = mock(async ({ model }: { model: { model: string } }) => {
+      if (model.model === "claude-test-model") throw new Error("first provider unavailable");
+      return {
+        experimental_output: {
+          reply: "The fallback director is ready.",
+          plan: null,
+          memoryUpdate: null,
+          skillCall: null,
+        },
+      };
+    });
+    mock.module("ai", () => ({
+      generateText: generated,
+      Output: { object: ({ schema }: { schema: unknown }) => schema },
+    }));
+    const { context } = chatContext();
+
+    const result = await chatWithAuroraAgentCore(context, { message: "Where do I begin?" });
+
+    expect(result.reply).toBe("The fallback director is ready.");
     expect(generated).toHaveBeenCalledTimes(3);
   });
 });

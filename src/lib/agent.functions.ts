@@ -19,6 +19,8 @@ import {
 } from "@/lib/agent.schema";
 import { refinePlan } from "@/lib/agent-loop.server";
 import type { Json } from "@/integrations/supabase/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
 // Re-export shared types so existing consumers (e.g. AuroraAgentPanel) keep
 // importing them from this module.
@@ -250,12 +252,28 @@ export type AgentChatMessage = {
 const CHAT_CONTEXT_MESSAGES = 20;
 const CHAT_CONTEXT_CHARS = 1000;
 
-export const chatWithAuroraAgent = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) =>
-    z.object({ message: z.string().min(1).max(4000), cinematicMode: z.boolean().optional() }).parse(d),
-  )
-  .handler(async ({ data, context }) => {
+type AgentChatContext = {
+  userId: string;
+  supabase: SupabaseClient<Database>;
+};
+
+type AgentChatDeps = {
+  generate: typeof routedGenerate;
+  loadSkills: () => Promise<typeof import("@/lib/agent-skills.server")>;
+};
+
+const defaultAgentChatDeps: AgentChatDeps = {
+  generate: routedGenerate,
+  loadSkills: () => import("@/lib/agent-skills.server"),
+};
+
+// This is the production chat path, separated from the Start transport wrapper
+// so tests can invoke the exact handler behavior with an authenticated context.
+export async function chatWithAuroraAgentCore(
+  context: AgentChatContext,
+  data: { message: string; cinematicMode?: boolean },
+  deps: AgentChatDeps = defaultAgentChatDeps,
+) {
     // Load permanent memory + recent transcript (RLS scopes both to the caller).
     const [{ data: memRow }, { data: recent, error: histErr }] = await Promise.all([
       context.supabase
@@ -281,14 +299,14 @@ export const chatWithAuroraAgent = createServerFn({ method: "POST" })
     const memory = (freeText + structuredBlock).trim();
     const transcript = (recent ?? [])
       .reverse()
-      .map((m) => ({
+      .map((m: { role: string; content: string }) => ({
         role: (m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
         content: m.content.length > CHAT_CONTEXT_CHARS ? `${m.content.slice(0, CHAT_CONTEXT_CHARS)}…` : m.content,
       }));
 
     let turn: AgentChatTurn;
     try {
-      const { output } = await routedGenerate({
+      const { output } = await deps.generate({
         system: CHAT_DIRECTOR_SYSTEM,
         prompt: buildChatPrompt({ memory, transcript, message: data.message, cinematicMode: data.cinematicMode }),
         schema: ChatTurnSchema,
@@ -310,7 +328,7 @@ export const chatWithAuroraAgent = createServerFn({ method: "POST" })
       const { skill, args } = turn.skillCall;
       const t0 = Date.now();
       try {
-        const { dispatchSkill, SKILL_REGISTRY } = await import("@/lib/agent-skills.server");
+        const { dispatchSkill, SKILL_REGISTRY } = await deps.loadSkills();
         const skillResult = await dispatchSkill(skill, args, { userId: context.userId, supabase: context.supabase });
         const durationMs = Date.now() - t0;
         const skillInfo = SKILL_REGISTRY[skill];
@@ -324,7 +342,7 @@ export const chatWithAuroraAgent = createServerFn({ method: "POST" })
         if (skillResult.ok) {
           // Second LLM pass: inject skill result and compose the real reply.
           try {
-            const { output: turn2 } = await routedGenerate({
+            const { output: turn2 } = await deps.generate({
               system: CHAT_DIRECTOR_SYSTEM,
               prompt: buildChatPromptWithSkill({
                 memory,
@@ -381,7 +399,14 @@ export const chatWithAuroraAgent = createServerFn({ method: "POST" })
       memoryUpdated: !!(turn.memoryUpdate && turn.memoryUpdate.trim()),
       skillInvoked: skillMeta,
     };
-  });
+}
+
+const chatInputSchema = z.object({ message: z.string().min(1).max(4000), cinematicMode: z.boolean().optional() });
+
+export const chatWithAuroraAgent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => chatInputSchema.parse(d))
+  .handler(async ({ data, context }) => chatWithAuroraAgentCore(context, data));
 
 export const listAgentChat = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
