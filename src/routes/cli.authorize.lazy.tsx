@@ -65,7 +65,7 @@ function AuthorizePage() {
 
   return (
     <main className="min-h-screen bg-background">
-      <header className="border-b border-border/40 px-6 py-4 flex items-center justify-between">
+      <header className="border-b border-border/40 pl-24 pr-6 py-4 flex items-center justify-between">
         <Link to="/" className="font-semibold no-underline text-foreground flex items-center gap-2">
           <Sparkles className="size-4 text-primary" /> Aurora
         </Link>

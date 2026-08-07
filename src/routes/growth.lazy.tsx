@@ -1291,7 +1291,7 @@ function GrowthPage() {
       <span aria-hidden className="aurora-ambient" />
 
       {/* Header */}
-      <header className="relative z-10 flex items-center justify-between border-b border-border bg-background/80 px-5 py-4 backdrop-blur-xl">
+      <header className="relative z-10 flex items-center justify-between border-b border-border bg-background/80 pl-24 pr-5 py-4 backdrop-blur-xl">
         <Link
           to="/"
           className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground no-underline"
