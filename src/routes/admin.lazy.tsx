@@ -1620,8 +1620,15 @@ function CopyPanel() {
                   const isHistoryOpen = !!expandedHistory[key];
 
                   return (
-                    <>
-                    <tr key={key} className="border-t border-border hover:bg-card/20">
+                    <HistoryGroup
+                      key={key}
+                      copyKey={key}
+                      getHistoryFn={getHistoryFn}
+                      isHistoryOpen={isHistoryOpen}
+                      onRestore={handleRestore}
+                      restoringId={restoring}
+                    >
+                    <tr className="border-t border-border hover:bg-card/20">
                       <td className="p-3 align-top">
                         <div className="font-medium text-sm flex items-center gap-1.5">
                           {isCustom && (
@@ -1711,16 +1718,7 @@ function CopyPanel() {
                         )}
                       </td>
                     </tr>
-                    {isHistoryOpen && (
-                      <HistoryRow
-                        key={`${key}-history`}
-                        copyKey={key}
-                        getHistoryFn={getHistoryFn}
-                        onRestore={handleRestore}
-                        restoringId={restoring}
-                      />
-                    )}
-                    </>
+                    </HistoryGroup>
                   );
                 })}
               </tbody>
@@ -1729,6 +1727,68 @@ function CopyPanel() {
         </section>
       ))}
     </div>
+  );
+}
+
+function HistoryGroup({
+  copyKey,
+  getHistoryFn,
+  isHistoryOpen,
+  onRestore,
+  restoringId,
+  children,
+}: {
+  copyKey: string;
+  getHistoryFn: ReturnType<typeof useServerFn<typeof getSiteCopyHistory>>;
+  isHistoryOpen: boolean;
+  onRestore: (key: string, history: SiteCopyHistoryRow) => Promise<void>;
+  restoringId: number | null;
+  children: React.ReactNode;
+}) {
+  const { data: history, isLoading, isError } = useQuery({
+    queryKey: ["admin-site-copy-history", copyKey],
+    queryFn: () => getHistoryFn({ data: { key: copyKey } }),
+    enabled: isHistoryOpen,
+  });
+
+  return (
+    <>
+      {children}
+      {isHistoryOpen && (
+        <tr className="border-t border-border bg-muted/20">
+          <td colSpan={4} className="p-3">
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Previous values</p>
+              {isLoading && <p className="text-xs text-muted-foreground">Loading history…</p>}
+              {isError && <p className="text-xs text-destructive">Couldn&apos;t load this copy history.</p>}
+              {!isLoading && !isError && (history ?? []).length === 0 && (
+                <p className="text-xs text-muted-foreground">No previous values yet.</p>
+              )}
+              {(history ?? []).map((entry) => (
+                <div key={entry.id} className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border bg-background/50 p-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="whitespace-pre-wrap text-sm text-foreground">{entry.value}</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {new Date(entry.changed_at).toLocaleString()}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 shrink-0 px-2 text-xs"
+                    onClick={() => void onRestore(copyKey, entry)}
+                    disabled={restoringId !== null}
+                  >
+                    {restoringId === entry.id ? <Loader2 className="mr-1 size-3 animate-spin" /> : <RotateCcw className="mr-1 size-3" />}
+                    Restore
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
