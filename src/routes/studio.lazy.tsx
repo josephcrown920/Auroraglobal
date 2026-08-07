@@ -59,7 +59,6 @@ import { ShareMenu } from "@/components/share/ShareMenu";
 import { ConnectReplicateBanner } from "@/components/ConnectReplicateBanner";
 import { ExampleChips } from "@/components/onboarding/ExampleChips";
 import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
-import { TutorialOnboarding as SnipTutorialCards } from "@/components/onboarding/TutorialOnboarding";
 import { STUDIO_EXAMPLE_PRESETS } from "@/lib/example-presets";
 import { hasDismissedTour, markFirstGenComplete, hasCompletedFirstGen, isFirstPageVisit, markPageVisited, markFirstPurchaseComplete } from "@/lib/first-run";
 import { loadStudioSession, saveStudioSession } from "@/lib/studio-session";
@@ -559,8 +558,7 @@ function StudioPage() {
           onBonusGranted={() => qc.invalidateQueries({ queryKey: ["profile"] })}
         />
       )}
-      <WelcomeTour show={showTour} onDismiss={() => setShowTour(false)} />
-      <SnipTutorialCards show={showTour} />
+      <WelcomeTour show={showTour} variant="studio" onDismiss={() => setShowTour(false)} />
 
       {/* ── Left sidebar ─────────────────────────────────────────── */}
       <div className="flex flex-col w-full lg:w-[300px] lg:shrink-0 lg:h-full lg:border-r lg:border-white/8">

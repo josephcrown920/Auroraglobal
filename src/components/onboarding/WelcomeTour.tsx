@@ -3,23 +3,44 @@ import { X, Sparkles, Zap, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { hasDismissedTour, hasCompletedFirstGen, markTourDismissed } from "@/lib/first-run";
 
-const STEPS = [
+const STUDIO_STEPS = [
   {
     icon: Sparkles,
-    title: "Pick your style",
-    body: "Tap one of the example chips above — it loads a proven prompt so you start with something great.",
+    title: "Add your references",
+    body: "Use the settings button beside the prompt bar to add your selfie, outfit, scene, or prop references.",
     color: "text-primary",
   },
   {
     icon: Zap,
-    title: "Hit Generate",
-    body: "One tap sends your job to the AI. No settings to dig through first.",
+    title: "Describe the shot",
+    body: "Write your idea in the bottom prompt bar, then tap the purple Generate button when it looks right.",
     color: "text-amber-400",
   },
   {
     icon: Eye,
-    title: "Your result appears here",
-    body: "Results land below in seconds. Download, remix, or keep going.",
+    title: "Watch the canvas",
+    body: "Your finished shot appears in the canvas. From there you can open the gallery, animate it, or make another angle.",
+    color: "text-emerald-400",
+  },
+] as const;
+
+const GENERIC_STEPS = [
+  {
+    icon: Sparkles,
+    title: "Start with an idea",
+    body: "Use the examples or enter your own direction to get started quickly.",
+    color: "text-primary",
+  },
+  {
+    icon: Zap,
+    title: "Choose your settings",
+    body: "Pick the inputs and options that fit what you want to create.",
+    color: "text-amber-400",
+  },
+  {
+    icon: Eye,
+    title: "Review your result",
+    body: "When it is ready, preview the result, download it, or create another version.",
     color: "text-emerald-400",
   },
 ] as const;
@@ -27,12 +48,14 @@ const STEPS = [
 type Props = {
   show: boolean;
   onDismiss?: () => void;
+  variant?: "studio" | "generic";
 };
 
-export function WelcomeTour({ show, onDismiss }: Props) {
+export function WelcomeTour({ show, onDismiss, variant = "generic" }: Props) {
   const [step, setStep] = useState(0);
   const [visible, setVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const steps = variant === "studio" ? STUDIO_STEPS : GENERIC_STEPS;
 
   useEffect(() => {
     if (!show) return;
@@ -52,7 +75,7 @@ export function WelcomeTour({ show, onDismiss }: Props) {
   };
 
   const next = () => {
-    if (step < STEPS.length - 1) {
+    if (step < steps.length - 1) {
       setStep((s) => s + 1);
     } else {
       dismiss();
@@ -61,13 +84,13 @@ export function WelcomeTour({ show, onDismiss }: Props) {
 
   if (!mounted) return null;
 
-  const current = STEPS[step];
+  const current = steps[step];
   const Icon = current.icon;
 
   return (
     <div
       className={cn(
-        "fixed bottom-56 left-0 right-0 z-50 px-4 transition-all duration-400",
+        "fixed bottom-60 left-0 right-0 z-50 px-4 transition-all duration-400",
         visible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0",
       )}
     >
@@ -99,7 +122,7 @@ export function WelcomeTour({ show, onDismiss }: Props) {
 
         <div className="mt-3 flex items-center justify-between">
           <div className="flex gap-1.5">
-            {STEPS.map((_, i) => (
+            {steps.map((_, i) => (
               <div
                 key={i}
                 className={cn(
@@ -114,7 +137,7 @@ export function WelcomeTour({ show, onDismiss }: Props) {
             onClick={next}
             className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
           >
-            {step < STEPS.length - 1 ? "Next →" : "Got it ✓"}
+            {step < steps.length - 1 ? "Next →" : "Got it ✓"}
           </button>
         </div>
       </div>
