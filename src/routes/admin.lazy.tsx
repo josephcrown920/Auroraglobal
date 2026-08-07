@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { adminOverview, adminGrantCredits, adminEarnings, adminWithdrawalSummary, adminRecordWithdrawal, adminCheckWithdrawalAmount, adminUpdateWithdrawal, adminDeleteWithdrawal } from "@/lib/admin.functions";
+import { getGenerationHealth, type GenerationHealthRow } from "@/lib/generation-health.functions";
 import { getSiteImages, adminUpdateSiteImage, adminResetSiteImage, type SiteImageRow } from "@/lib/site-images.functions";
 import { getSiteCopy, getSiteCopyHistory, adminSetSiteCopy, adminDeleteSiteCopy, type SiteCopyRow, type SiteCopyHistoryRow } from "@/lib/site-copy.functions";
 import { getRouterHealth, getRouterLogs, type RouterHealthRow, type RouterLogRow } from "@/lib/ai-router.functions";
@@ -36,12 +37,20 @@ function AdminPage() {
 
   const overviewFn = useServerFn(adminOverview);
   const grantFn = useServerFn(adminGrantCredits);
+  const genHealthFn = useServerFn(getGenerationHealth);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin-overview"],
     queryFn: () => overviewFn(),
     enabled: !!user && unlocked,
     refetchInterval: 30_000,
+  });
+
+  const { data: genHealth } = useQuery({
+    queryKey: ["admin-gen-health"],
+    queryFn: () => genHealthFn(),
+    enabled: !!user && unlocked,
+    refetchInterval: 60_000,
   });
 
 
@@ -124,6 +133,8 @@ function AdminPage() {
           queue={data?.queue ?? null}
           stuckReservations={data?.stuckReservations ?? null}
         />
+
+        <GenerationHealthBanner rows={genHealth ?? []} />
 
         {/* Grant credits */}
         <section className="rounded-2xl border border-border bg-card/40 p-5 space-y-3">
@@ -753,6 +764,59 @@ function SchedulerBanner({
           next scheduler tick will reconcile {stuckCount === 1 ? "it" : "them"} automatically.
         </p>
       )}
+    </section>
+  );
+}
+
+// ─── Generation Health Banner ─────────────────────────────────────────────────
+// Shows a red alert panel when any monitored generation kind (image / video /
+// lipsync / audio / motion) is currently degraded according to the last
+// provider-health-check cron run.  Disappears when all kinds are healthy or
+// the cron hasn't run yet (no data = no false alarm).
+function GenerationHealthBanner({ rows }: { rows: GenerationHealthRow[] }) {
+  // A kind is "alerting" when an alert has been sent but no recovery yet.
+  const degraded = rows.filter(
+    (r) =>
+      r.alert_sent_at !== null &&
+      (r.recovery_sent_at === null || r.alert_sent_at > r.recovery_sent_at),
+  );
+
+  if (degraded.length === 0) return null;
+
+  return (
+    <section className="rounded-2xl border border-red-500/50 bg-red-500/10 p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <XCircle className="size-5 text-red-400 shrink-0" />
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-red-400">
+          Generation outage detected
+        </h2>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        The automated health monitor has detected that one or more generation kinds are failing.
+        An alert email has been sent. Check provider_logs or the Orchestration panel to
+        investigate.
+      </p>
+      <div className="flex flex-wrap gap-3">
+        {degraded.map((r) => (
+          <div
+            key={r.kind}
+            className="rounded-lg border border-red-500/30 bg-red-500/15 px-4 py-2 text-xs space-y-1"
+          >
+            <div className="font-semibold text-red-300 uppercase tracking-wide">{r.kind}</div>
+            {r.last_error_summary && (
+              <div className="text-red-400/80 break-all">{r.last_error_summary}</div>
+            )}
+            {r.alert_sent_at && (
+              <div className="text-muted-foreground">
+                Alerted: {new Date(r.alert_sent_at).toLocaleString()}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        This banner clears automatically after the next successful check confirms recovery.
+      </p>
     </section>
   );
 }
