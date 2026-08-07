@@ -21,7 +21,7 @@ function AppleIcon({ className }: { className?: string }) {
     </svg>
   );
 }
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { trackSignUp } from "@/lib/gtm";
 import {
@@ -35,7 +35,7 @@ export const Route = createLazyFileRoute("/auth")({
   component: AuthPage,
 });
 
-import { useBiometricSupport } from "@/hooks/use-biometric-support";
+import { useBiometricSupport, useEmbeddedBrowser } from "@/hooks/use-biometric-support";
 
 function AuthPage() {
   const navigate = useNavigate();
@@ -59,7 +59,10 @@ function AuthPage() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [recoveryBusy, setRecoveryBusy] = useState(false);
   const biometricSupported = useBiometricSupport();
-  const abortRef = useRef<AbortController | null>(null);
+  const embeddedBrowser = useEmbeddedBrowser();
+  // Passkeys only work in a real browser tab — in-app/embedded webviews deny
+  // the Face ID prompt before we can authenticate.
+  const canUsePasskeys = biometricSupported && !embeddedBrowser;
 
   // Detect Supabase password-recovery links (#...type=recovery) so we show
   // the "set a new password" form instead of bouncing to the studio.
@@ -150,7 +153,7 @@ function AuthPage() {
         if (data.session) {
           toast.success(`Welcome, ${name}!`);
           // After signup, offer to register a passkey
-          if (biometricSupported) {
+          if (canUsePasskeys) {
             void offerPasskeyRegistration();
           }
           navigate({ to: returnTo as never });
@@ -235,7 +238,6 @@ function AuthPage() {
   // Sign in using a passkey (Face ID / fingerprint)
   const handleBiometricSignIn = async () => {
     setBioBusy(true);
-    abortRef.current = new AbortController();
     try {
       const { startAuthentication } = await import("@simplewebauthn/browser");
       const { options, challengeId } = await beginPasskeyAuthentication({
@@ -257,14 +259,24 @@ function AuthPage() {
       navigate({ to: returnTo as never });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      // User dismissed the native picker — stay silent
+      const errName = err instanceof Error ? err.name : "";
+      // The browser/platform denied, dismissed, or aborted the Face ID
+      // prompt. This is ALSO what embedded/in-app browsers throw when they
+      // block WebAuthn, so never fail silently — tell the user how to fix it.
       if (
-        msg.includes("cancelled") ||
-        msg.includes("cancel") ||
+        errName === "NotAllowedError" ||
+        errName === "AbortError" ||
         msg.includes("abort") ||
         msg.toLowerCase().includes("notallowed") ||
-        msg.includes("NotAllowedError")
+        msg.includes("not allowed") ||
+        msg.includes("cancelled") ||
+        msg.includes("cancel") ||
+        msg.includes("timed out")
       ) {
+        toast.info(
+          "Face ID was cancelled or blocked by this browser. If you opened Aurora inside another app, open this page in Safari (or Chrome) and try again — or sign in with your password below.",
+          { duration: 8000 },
+        );
         return;
       }
       // No passkey registered yet for this device
@@ -420,8 +432,22 @@ function AuthPage() {
           {mode === "signup" ? "Built by pro artists, for creators ready to scale." : "Sign in to continue."}
         </p>
 
+        {/* Embedded/in-app browser: passkeys are blocked by the platform, so
+            instead of a Face ID button that can only fail, explain the fix.
+            Password + GitHub/Apple sign-in below still work here. */}
+        {biometricSupported && embeddedBrowser && mode === "signin" && (
+          <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3">
+            <Fingerprint className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <p className="text-xs leading-snug text-muted-foreground">
+              Face ID sign-in doesn't work inside this app's browser. Open this
+              page in <span className="font-semibold text-foreground">Safari</span>{" "}
+              (or Chrome) to use Face ID — or sign in with your password below.
+            </p>
+          </div>
+        )}
+
         {/* Biometric sign-in button — visible when browser supports it */}
-        {biometricSupported && mode === "signin" && (
+        {canUsePasskeys && mode === "signin" && (
           <Button
             type="button"
             onClick={handleBiometricSignIn}
@@ -527,7 +553,7 @@ function AuthPage() {
         </form>
 
         {/* After signup: prompt to add biometrics */}
-        {biometricSupported && mode === "signup" && (
+        {canUsePasskeys && mode === "signup" && (
           <p className="mt-3 text-[11px] text-center text-muted-foreground">
             After you create your account, we'll ask if you want to enable Face ID / fingerprint sign-in.
           </p>

@@ -10,6 +10,7 @@ import {
   LayoutGrid,
   Plus,
   Sparkles,
+  Terminal,
   Video,
 } from "lucide-react";
 
@@ -116,12 +117,22 @@ function HomePage() {
           >
             <LayoutGrid className="size-6" strokeWidth={1.8} />
           </button>
-          <Link to="/gallery" aria-label="Your gallery" className="relative rounded-xl p-1.5 text-foreground">
-            <History className="size-6" strokeWidth={1.8} />
-            {reels.length > 0 ? (
-              <span className="absolute right-0.5 top-0.5 size-2 rounded-full bg-dot" />
-            ) : null}
-          </Link>
+          <div className="flex items-center gap-1">
+            <Link
+              to="/cli"
+              aria-label="Aurora CLI & MCP setup"
+              title="Aurora CLI & MCP"
+              className="rounded-xl p-1.5 text-foreground"
+            >
+              <Terminal className="size-6" strokeWidth={1.8} />
+            </Link>
+            <Link to="/gallery" aria-label="Your gallery" className="relative rounded-xl p-1.5 text-foreground">
+              <History className="size-6" strokeWidth={1.8} />
+              {reels.length > 0 ? (
+                <span className="absolute right-0.5 top-0.5 size-2 rounded-full bg-dot" />
+              ) : null}
+            </Link>
+          </div>
         </header>
 
         {/* ── Hero ───────────────────────────────────────────────────────── */}
