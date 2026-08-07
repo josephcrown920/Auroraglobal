@@ -8,6 +8,10 @@
 //   - gpuWorker   → admin-registered HTTP workers (RunPod / vast / salad / self-hosted)
 
 import { createHmac } from "node:crypto";
+import { execSync } from "node:child_process";
+import * as nodefs from "node:fs";
+import * as nodepath from "node:path";
+import * as nodeos from "node:os";
 import OpenAI from "openai";
 import { GoogleGenAI, Modality } from "@google/genai";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -237,7 +241,8 @@ type ProviderAdapter = {
     | "ltx"
     | "inferencesh"
     | "hf-video"
-    | "runware";
+    | "runware"
+    | "ffmpeg-free";
   supports: (req: GenerateRequest) => boolean;
   estimateCost: (req: GenerateRequest) => number;
   run: (req: GenerateRequest) => Promise<{ url: string; endpoint: string; text?: string }>;
@@ -2394,7 +2399,7 @@ const xaiDirect: ProviderAdapter = {
     };
     if (r.imageUrls?.[0]) body.image = { url: r.imageUrls[0] };
 
-    const create = await fetch(`${XAI_VIDEO_BASE}/video/generations`, {
+    const create = await fetch(`${XAI_VIDEO_BASE}/videos/generations`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       body: JSON.stringify(body),
@@ -2408,7 +2413,7 @@ const xaiDirect: ProviderAdapter = {
     const deadline = Date.now() + 15 * 60_000; // 15-min ceiling
     while (Date.now() < deadline) {
       await new Promise((s) => setTimeout(s, 5_000));
-      const poll = await fetch(`${XAI_VIDEO_BASE}/video/generations/${requestId}`, {
+      const poll = await fetch(`${XAI_VIDEO_BASE}/videos/generations/${requestId}`, {
         headers: { Authorization: `Bearer ${key}` },
       });
       if (!poll.ok) {
@@ -2598,6 +2603,72 @@ const hfVideo: ProviderAdapter = {
   },
 };
 
+// ─── ffmpeg free video (last-resort, no external API, no credits needed) ─────
+// When ALL AI video providers fail (quota/balance exhausted), generates a
+// real MP4 by animating a Pollinations image (free, no key) with a Ken Burns
+// zoom-in effect via local ffmpeg. Ensures video requests always produce a
+// playable result instead of "provider unavailable." Quality: animated still
+// image — not generative AI motion. Cost $0 (server CPU + Supabase storage).
+// Placed LAST in the video PRIORITY chain so it never preempts a working
+// AI provider.
+const ffmpegFreeVideo: ProviderAdapter = {
+  name: "ffmpeg-free",
+  supports: (r) => r.kind === "video" && !r.selfHostedOnly,
+  estimateCost: () => 0,
+  async run(r) {
+    const tmpDir = nodefs.mkdtempSync(nodepath.join(nodeos.tmpdir(), "aurora-vid-"));
+    try {
+      // Get image: prefer supplied reference image, else generate via Pollinations.
+      let imageData: Buffer;
+      const refUrl = r.imageUrls?.[0];
+      if (refUrl && isTrustedUrl(refUrl)) {
+        const res = await fetch(refUrl, { signal: AbortSignal.timeout(20_000) });
+        if (!res.ok) throw new Error(`ffmpeg-free: reference image fetch ${res.status}`);
+        imageData = Buffer.from(await res.arrayBuffer());
+      } else {
+        // Pollinations: free image generation, no API key needed.
+        const prompt = encodeURIComponent((r.prompt ?? "abstract colorful art").slice(0, 400));
+        const polUrl = `https://image.pollinations.ai/prompt/${prompt}?width=1280&height=720&nologo=true`;
+        const res = await fetch(polUrl, { signal: AbortSignal.timeout(30_000) });
+        if (!res.ok) throw new Error(`ffmpeg-free: Pollinations ${res.status}`);
+        imageData = Buffer.from(await res.arrayBuffer());
+      }
+
+      const imgPath = nodepath.join(tmpDir, "frame.jpg");
+      const outPath = nodepath.join(tmpDir, "out.mp4");
+      nodefs.writeFileSync(imgPath, imageData);
+
+      const duration = Math.min(8, Math.max(3, r.duration ?? 5));
+      const fps = 25;
+      const frames = duration * fps;
+      // Ken Burns zoom-in: 0% → 25% zoom over the full duration.
+      // zoompan filter: z starts at 1.0 and increments by 0.002 per frame,
+      // capped at 1.25. x/y keep the zoom centred on the image.
+      execSync(
+        [
+          "ffmpeg -y",
+          `-loop 1 -i "${imgPath}"`,
+          `-vf "scale=1280:720,zoompan=z='min(zoom+0.002,1.25)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=1280x720:fps=${fps}"`,
+          `-c:v libx264 -t ${duration} -pix_fmt yuv420p -preset ultrafast -movflags +faststart`,
+          `"${outPath}"`,
+        ].join(" "),
+        { timeout: 90_000, stdio: "pipe" },
+      );
+
+      const videoBuf = nodefs.readFileSync(outPath);
+      const storagePath = `ffmpeg-free/${r.userId ?? "anon"}/${Date.now()}.mp4`;
+      const { error } = await supabaseAdmin.storage
+        .from("studio")
+        .upload(storagePath, videoBuf, { contentType: "video/mp4", upsert: false });
+      if (error) throw new Error(`ffmpeg-free upload: ${error.message}`);
+      const { data } = supabaseAdmin.storage.from("studio").getPublicUrl(storagePath);
+      return { url: data.publicUrl, endpoint: "ffmpeg-free:zoompan" };
+    } finally {
+      try { nodefs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* cleanup best-effort */ }
+    }
+  },
+};
+
 // ─── Priority chain per kind ─────────────────────────────────────────────────
 // GPU-FIRST for every modality: the self-hosted gpuWorker pool is always
 // tried first, full stop. When no eligible worker is up (offline, stale
@@ -2644,6 +2715,7 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
     runway,
     inferenceshCloud, // inference.sh cloud: key-gated fallback after fal
     hfVideo,
+    ffmpegFreeVideo,  // free last resort: Pollinations image → ffmpeg Ken Burns MP4
   ],
   lipsync: [gpuWorker, sync, heygen, heygenPhotoVideo, heygenAvatarTemplate, replicate, inferenceshCloud, falFallback],
   // GPU-first: a worker advertising "upscale" is tried before Replicate.
@@ -2993,6 +3065,11 @@ function isFreeAdapter(a: ProviderAdapter, r: GenerateRequest): boolean {
   // genuinely open providers (e.g. Pollinations). Keep hf-video blocked so
   // free mode always fails fast to the "start your GPU" message for video.
   if (a.name === "hf-video") return false;
+  // ffmpeg-free is a server-CPU/storage adapter — not a GPU worker, but also
+  // not the kind of "free hosted" that should satisfy free-GPU-only mode.
+  // Keep it blocked so free-GPU-only users still see the "start your worker"
+  // message rather than silently getting an animated still instead of AI video.
+  if (a.name === "ffmpeg-free") return false;
   return a === gpuWorker || a.estimateCost(r) === 0;
 }
 
@@ -3011,7 +3088,11 @@ export async function assertFreeModeServable(kind: GenerateKind): Promise<void> 
   // Exclude hf-video: it's an external API and must not count as a "free" path
   // in free-GPU-only mode — video should fail fast to the GPU prompt when offline.
   const hasFreeHosted = PRIORITY[kind].some(
-    (a) => a !== gpuWorker && a.name !== "hf-video" && a.estimateCost(probe) === 0,
+    (a) =>
+      a !== gpuWorker &&
+      a.name !== "hf-video" &&
+      a.name !== "ffmpeg-free" &&
+      a.estimateCost(probe) === 0,
   );
   if (hasFreeHosted) return;
   // Otherwise the only free path is the self-hosted GPU pool — require one online.
