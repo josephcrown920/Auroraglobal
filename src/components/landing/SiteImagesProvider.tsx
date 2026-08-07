@@ -2,7 +2,12 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 
 export type SiteImageKey =
   | "hero_1" | "hero_2" | "hero_3" | "hero_4" | "hero_5" | "hero_6"
-  | "creator_1" | "creator_2" | "creator_3" | "creator_4" | "creator_5" | "creator_6";
+  | "creator_1" | "creator_2" | "creator_3" | "creator_4" | "creator_5" | "creator_6"
+  | "studio-example-golden-hour-perf"
+  | "studio-example-tokyo-rain"
+  | "studio-example-editorial-split"
+  | "studio-example-concert-stage"
+  | "studio-example-gold-luxury";
 
 export const SITE_IMAGE_DEFAULTS: Record<SiteImageKey, { url: string; label: string; section: string }> = {
   hero_1:    { url: "/gallery/josh-pink-mic.png",          label: "Concert Wash",       section: "hero" },
@@ -17,6 +22,11 @@ export const SITE_IMAGE_DEFAULTS: Record<SiteImageKey, { url: string; label: str
   creator_4: { url: "/gallery/josh-pink-mic.png",          label: "Neon Temptation",     section: "creator" },
   creator_5: { url: "/gallery/ski-selfie.jpg",             label: "Luxury Suite",        section: "creator" },
   creator_6: { url: "/gallery/ichroma-cover.webp",         label: "Private Collection",  section: "creator" },
+  "studio-example-golden-hour-perf": { url: "/sample-photos/fire-street.png", label: "Golden Hour", section: "studio_examples" },
+  "studio-example-tokyo-rain": { url: "/demo-tokyo-rain-1.png", label: "Tokyo Rain", section: "studio_examples" },
+  "studio-example-editorial-split": { url: "/sample-photos/red-dreads-chain.png", label: "Editorial", section: "studio_examples" },
+  "studio-example-concert-stage": { url: "/__l5e/assets-v1/b7648a1b-297a-48cd-be0f-2effe57dc46f/josh-stage-shades.jpg", label: "Stage", section: "studio_examples" },
+  "studio-example-gold-luxury": { url: "/sample-photos/balloon-josh.png", label: "Gold Luxury", section: "studio_examples" },
 };
 
 function buildDefaults(): Record<SiteImageKey, string> {

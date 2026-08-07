@@ -19,6 +19,7 @@ const SECTION_LABELS: Record<string, string> = {
   tiktok:      "TikTok Section — Poster Images",
   process:     "Process Step Images",
   gallery:     "Gallery Marquee Rows",
+  studio_examples: "Studio Example Strip",
 };
 
 function SiteImagesAdminPage() {
@@ -109,7 +110,7 @@ function ImagesGrid() {
   });
 
   // Group by section, preserving order
-  const sectionOrder = ["hero_slides", "hero", "creator", "tiktok", "process", "gallery"];
+  const sectionOrder = ["hero_slides", "hero", "creator", "studio_examples", "tiktok", "process", "gallery"];
   const grouped = new Map<string, SiteImageRow[]>();
   for (const row of rows) {
     const sec = row.section;
