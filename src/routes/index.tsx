@@ -2,10 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { CANONICAL_ORIGIN } from "@/lib/seo";
 import { Plus, Play, ArrowUpRight, ChevronDown, Sparkles, Palette, Film, Wand2, Mic, Music2, Brush, Megaphone, UserCircle2, Workflow, Layers, Flame, Clapperboard, Check, Zap, Crown, Download } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { useState, useEffect, useRef, type ReactNode } from "react";
+import { useCallback, useState, useEffect, useRef, type ReactNode } from "react";
 import { track } from "@/lib/tracking";
 import { ViralEngine } from "@/components/landing/ViralEngine";
 import { BalloonLipsync } from "@/components/landing/BalloonLipsync";
+import { IntroAnimation } from "@/components/landing/IntroAnimation";
 import { AdminLandingEditor } from "@/components/AdminLandingEditor";
 import { EditableCopy } from "@/components/EditableCopy";
 import { SUBSCRIPTION_PLANS } from "@/lib/subscription-plans";
@@ -210,6 +211,18 @@ const FAQS = [
   },
 ];
 
+const INTRO_SEEN_KEY = "aurora_intro_seen";
+
+function shouldShowIntro() {
+  if (typeof window === "undefined") return false;
+
+  try {
+    return window.localStorage.getItem(INTRO_SEEN_KEY) !== "1";
+  } catch {
+    return true;
+  }
+}
+
 function usePwaInstall() {
   const promptRef = useRef<Event & { prompt: () => Promise<void> } | null>(null);
   const [canInstall, setCanInstall] = useState(false);
@@ -239,15 +252,36 @@ function LandingPage() {
   const ctaTo = user ? "/home" : "/auth";
   const { canInstall, install } = usePwaInstall();
 
+  const [introVisible, setIntroVisible] = useState(shouldShowIntro);
   const [slideIdx, setSlideIdx] = useState(0);
   const [demoOpen, setDemoOpen] = useState(false);
   useEffect(() => {
+    if (introVisible) return;
     const t = setInterval(() => setSlideIdx((i) => (i + 1) % HERO_SLIDES.length), 5000);
     return () => clearInterval(t);
+  }, [introVisible]);
+
+  useEffect(() => {
+    if (!introVisible) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [introVisible]);
+
+  const handleIntroDone = useCallback(() => {
+    try {
+      window.localStorage.setItem(INTRO_SEEN_KEY, "1");
+    } catch {
+      // The overlay still closes when storage is unavailable.
+    }
+    setIntroVisible(false);
   }, []);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-display antialiased selection:bg-[#8b5cf6] selection:text-white">
+      {introVisible && <IntroAnimation onDone={handleIntroDone} />}
 
       {/* ── Nav ─────────────────────────────────────────────────────────── */}
       <nav className="absolute top-0 left-0 right-0 z-40 w-full">
