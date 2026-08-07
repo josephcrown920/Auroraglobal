@@ -27,7 +27,10 @@
 set -euo pipefail
 
 OWNER="josephcrown920"
-REPOS=("aurora-charm-forge-87e3e757" "Auroraglobal")
+# aurora-charm-forge-87e3e757 removed 2026-08-07: that legacy mirror is ARCHIVED
+# on GitHub (read-only), so every push to it 403s and marked the whole sync
+# FAILED even when Auroraglobal succeeded. Auroraglobal is the only live mirror.
+REPOS=("Auroraglobal")
 BRANCH="Main"
 LIMIT=104857600  # 100 MiB
 
