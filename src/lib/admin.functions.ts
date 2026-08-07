@@ -525,10 +525,10 @@ export const adminCheckWithdrawalAmount = createServerFn({ method: "POST" })
     return { exceedsRemaining: data.amountUsd > remainingUsd, remainingUsd };
   });
 
-// Edits a previously recorded payout (amount/date/note). Owner-only, same as
+// Updates a previously recorded payout (amount/date/note). Owner-only, same as
 // recording — a mistaken entry (wrong amount, wrong date) should never
 // require a manual DB edit to correct.
-export const adminEditWithdrawal = createServerFn({ method: "POST" })
+export const adminUpdateWithdrawal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
     z
