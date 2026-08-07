@@ -145,6 +145,7 @@ function StudioPage() {
   );
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sessionRestored, setSessionRestored] = useState(false);
   const [onboardOpen, setOnboardOpen] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [activeExampleId, setActiveExampleId] = useState(STUDIO_EXAMPLE_PRESETS[0].id);
@@ -235,24 +236,25 @@ function StudioPage() {
     if (!isFirstPageVisit("studio")) return;
     markPageVisited("studio");
     const p = STUDIO_EXAMPLE_PRESETS[0];
-    if (p.prompt) setPrompt(p.prompt);
+    if (!incomingIdea && p.prompt) setPrompt(p.prompt);
     setActiveExampleId(p.id);
-  }, []);
+  }, [incomingIdea]);
 
   // ── Session restore ────────────────────────────────────────────────────────
   // On mount, restore the last saved session for returning users.
   // incomingIdea from the URL always takes precedence over the saved prompt.
   // This runs AFTER the first-visit auto-prefill so it wins for returning users.
   useEffect(() => {
-    const saved = loadStudioSession();
+    if (!user) return;
+    const saved = loadStudioSession(user.id);
     if (!saved) return;
     if (!incomingIdea && saved.prompt) setPrompt(saved.prompt);
-    if (saved.model) setModel(saved.model);
-    if (saved.videoModel) setVideoModel(saved.videoModel);
+    if (saved.model && MODELS.some((candidate) => candidate.value === saved.model)) setModel(saved.model);
+    if (saved.videoModel && VIDEO_MODEL_LIST.some((candidate) => candidate.value === saved.videoModel)) setVideoModel(saved.videoModel);
     if (saved.cameraMovement) setCameraMovement(saved.cameraMovement);
     if (saved.videoPrompt) setVideoPrompt(saved.videoPrompt);
-    if (saved.lipsyncModel) setLipsyncModel(saved.lipsyncModel as "fal-ai/sync-lipsync/v2" | "fal-ai/wav2lip" | "latentsync");
-    if (saved.videoResolution) setVideoResolution(saved.videoResolution as Resolution);
+    if (saved.lipsyncModel === "fal-ai/sync-lipsync/v2" || saved.lipsyncModel === "fal-ai/wav2lip" || saved.lipsyncModel === "latentsync") setLipsyncModel(saved.lipsyncModel);
+    if (saved.videoResolution === "480p" || saved.videoResolution === "720p" || saved.videoResolution === "1080p" || saved.videoResolution === "2160p") setVideoResolution(saved.videoResolution);
     if (saved.activePreset !== undefined) setActivePreset(saved.activePreset ?? null);
     if (saved.selfie !== undefined) setSelfie(saved.selfie ?? null);
     if (saved.outfit !== undefined) setOutfit(saved.outfit ?? null);
@@ -261,23 +263,24 @@ function StudioPage() {
     if (saved.motion !== undefined) setMotion(saved.motion ?? null);
     if (saved.endFrameUrl !== undefined) setEndFrameUrl(saved.endFrameUrl ?? null);
     if (saved.audioUrl !== undefined) setAudioUrl(saved.audioUrl ?? null);
+    setSessionRestored(true);
     toast.info("Session restored", { duration: 2500, id: "studio-session-restore" });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only restore; incomingIdea is stable from the URL
-  }, []);
+  }, [user, incomingIdea]);
 
   // ── Session save (debounced 600 ms) ───────────────────────────────────────
   // Persists the user's current settings to localStorage so they can resume
   // exactly where they left off after a page reload or browser restart.
   useEffect(() => {
+    if (!user) return;
     const t = setTimeout(() => {
-      saveStudioSession({
+      saveStudioSession(user.id, {
         prompt, model, videoModel, cameraMovement, videoPrompt,
         lipsyncModel, videoResolution, activePreset,
         selfie, outfit, scene, prop, motion, endFrameUrl, audioUrl,
       });
     }, 600);
     return () => clearTimeout(t);
-  }, [prompt, model, videoModel, cameraMovement, videoPrompt, lipsyncModel, videoResolution, activePreset, selfie, outfit, scene, prop, motion, endFrameUrl, audioUrl]);
+  }, [user, prompt, model, videoModel, cameraMovement, videoPrompt, lipsyncModel, videoResolution, activePreset, selfie, outfit, scene, prop, motion, endFrameUrl, audioUrl]);
 
   const genFn = usePerformanceShotJobFn();
   const listFn = useServerFn(listGenerations);
@@ -570,6 +573,11 @@ function StudioPage() {
           <span className="text-sm font-semibold tracking-tight">Aurora Studio</span>
         </div>
         <div className="flex items-center gap-3">
+          {sessionRestored && (
+            <span role="status" className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-medium text-emerald-400/90">
+              <Check className="size-3" /> Last session restored
+            </span>
+          )}
           <LowCreditBanner credits={profile?.credits} />
           <div className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs">
             <Coins className="size-3 text-[#8b5cf6]" />
