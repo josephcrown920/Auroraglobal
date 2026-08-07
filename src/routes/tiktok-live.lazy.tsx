@@ -179,6 +179,31 @@ function TikTokLiveStudio() {
     toast.success("Link copied!");
   };
 
+  const downloadScene = async (scene: GeneratedScene) => {
+    try {
+      const response = await fetch(scene.imageUrl);
+      if (!response.ok) throw new Error(`Download failed (${response.status})`);
+
+      const blob = await response.blob();
+      const extension = blob.type === "image/jpeg" ? "jpg" : "png";
+      const filename = `${scene.label
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "aurora-live-background"}-1280x720.${extension}`;
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+      toast.success("OBS-ready background saved");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not download this background");
+    }
+  };
+
   // Resolve current background
   const currentBg = (() => {
     const gen = generatedScenes.find((s) => s.id === activeScene);
@@ -192,6 +217,7 @@ function TikTokLiveStudio() {
     if (gen) return gen.label;
     return SCENE_PRESETS.find((s) => s.id === activeScene)?.label ?? "Scene";
   })();
+  const currentGeneratedScene = generatedScenes.find((scene) => scene.id === activeScene);
 
   return (
     <div className="min-h-screen bg-[#0d0d0d] text-white font-sans flex flex-col">
@@ -312,10 +338,20 @@ function TikTokLiveStudio() {
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); setGeneratedScenes((p) => p.filter((s) => s.id !== scene.id)); if (activeScene === scene.id) setActiveScene("stage"); }}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                     className="opacity-0 group-hover:opacity-100 transition-opacity"
+                     aria-label={`Remove ${scene.label}`}
                   >
                     <X className="size-3 text-white/40 hover:text-red-400" />
                   </button>
+                   <button
+                     type="button"
+                     onClick={(e) => { e.stopPropagation(); void downloadScene(scene); }}
+                     className="opacity-0 group-hover:opacity-100 transition-opacity"
+                     title="Download 1280×720 OBS background"
+                     aria-label={`Download ${scene.label} for OBS`}
+                   >
+                     <Download className="size-3 text-violet-300 hover:text-white" />
+                   </button>
                 </div>
               ))}
 
@@ -424,6 +460,17 @@ function TikTokLiveStudio() {
                 </span>
               )}
             </div>
+             {currentGeneratedScene && (
+               <button
+                 type="button"
+                 onClick={() => void downloadScene(currentGeneratedScene)}
+                 className="absolute bottom-4 right-4 flex items-center gap-1.5 rounded-md bg-violet-600 px-3 py-1.5 text-[11px] font-bold text-white shadow-lg shadow-black/30 transition-colors hover:bg-violet-500"
+                 title="Save this 1280×720 background for OBS or TikTok LIVE Studio"
+               >
+                 <Download className="size-3.5" />
+                 Save OBS background
+               </button>
+             )}
 
             {/* Maximize */}
             <button type="button" className="absolute right-4 top-4 flex size-7 items-center justify-center rounded-md bg-black/40 text-white/60 hover:text-white transition-colors backdrop-blur-sm">
