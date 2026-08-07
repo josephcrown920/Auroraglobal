@@ -98,6 +98,7 @@ function AdminPage() {
           <Link to="/admin/templates" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"><Store className="size-3.5" /> Templates</Link>
           <Link to="/admin/models" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"><Radar className="size-3.5" /> Model Watch</Link>
           <Link to="/admin/workflows" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"><BookOpen className="size-3.5" /> Guides</Link>
+           <Link to="/admin/site-map" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"><BookOpen className="size-3.5" /> Site map</Link>
           <Link to="/admin/smoke" className="text-sm text-muted-foreground hover:text-foreground">Smoke test</Link>
           <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">My dashboard</Link>
           <Link to="/studio" className="text-sm text-muted-foreground hover:text-foreground">Studio</Link>
