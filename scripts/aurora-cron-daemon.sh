@@ -20,7 +20,8 @@ TICK_INTERVAL=60       # seconds between job-queue ticks
 HEALTH_INTERVAL=300      # seconds between worker health checks
 BALANCE_INTERVAL=21600   # seconds between API balance checks (6 hours)
 SWEEP_INTERVAL=21600     # seconds between stuck-payment sweeps (6 hours)
-MODELWATCH_INTERVAL=21600 # seconds between new-AI-model catalog scans (6 hours)
+MODELWATCH_INTERVAL=21600  # seconds between new-AI-model catalog scans (6 hours)
+GENHEALTH_INTERVAL=900     # seconds between generation health checks (15 min)
 
 # ── Auth key ────────────────────────────────────────────────────────────────
 APIKEY="${SUPABASE_PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-${CRON_SECRET:-}}}"
@@ -49,6 +50,7 @@ last_health=0
 last_balance=0
 last_sweep=0
 last_modelwatch=0
+last_genhealth=0
 
 while true; do
   now=$(date +%s)
@@ -130,6 +132,23 @@ while true; do
       echo "[$ts][payments-sweep] WARN — $resp (rc=$rc)"
     fi
     last_sweep=$now
+  fi
+
+  # Generation health check (every 15 min) — alerts when image/video/lipsync
+  # error rate crosses the threshold or a kind produces zero successes.
+  if [ $((now - last_genhealth)) -ge $GENHEALTH_INTERVAL ]; then
+    resp=$(curl -sf "$APP/api/public/provider-health-check" \
+      -X POST \
+      -H "apikey: $APIKEY" \
+      -H "content-type: application/json" \
+      --max-time 30 2>&1) && rc=0 || rc=$?
+    ts=$(date -u +"%H:%M:%S")
+    if [ $rc -eq 0 ]; then
+      echo "[$ts][gen-health] OK — $resp"
+    else
+      echo "[$ts][gen-health] WARN — $resp (rc=$rc)"
+    fi
+    last_genhealth=$now
   fi
 
   # Model watch — new-AI-model discovery scan (every 6 hours).
