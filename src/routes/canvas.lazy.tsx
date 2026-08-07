@@ -876,7 +876,7 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
       data-done={data.status === "done" ? "1" : "0"}
       data-error={data.status === "error" ? "1" : "0"}
     >
-      <div className="rounded-[13px] overflow-hidden">
+      <div className="overflow-hidden rounded-[16px] border border-white/10 bg-[rgba(18,17,26,0.92)] shadow-[0_22px_70px_-36px_rgba(0,0,0,0.95)] backdrop-blur-xl transition-shadow duration-300 group-hover:border-violet-300/30 group-hover:shadow-[0_24px_80px_-34px_rgba(139,92,246,0.45)]">
         {showTarget && (
           <Handle
             type="target"
@@ -892,7 +892,7 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
           />
         )}
 
-        <div className="px-3 py-2 border-b border-white/[0.08] flex items-center justify-between text-[13px] bg-white/[0.03]">
+        <div className="flex items-center justify-between border-b border-white/[0.08] bg-white/[0.035] px-3 py-2 text-[13px]">
           <span className="uppercase tracking-[0.15em] flex items-center gap-1.5 text-white/75">
             <span className={`size-5 rounded-md grid place-items-center bg-gradient-to-br ${km.accent} text-white shadow-[0_0_8px_currentColor]`}>
               <Icon className="size-3" />

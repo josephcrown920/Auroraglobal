@@ -19,15 +19,16 @@ export function StoryboardGallery({
   showHero = true,
 }: Props) {
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100">
-      <div className="mx-auto max-w-6xl px-5 py-12 sm:py-16">
+    <main className="relative min-h-screen overflow-hidden bg-[#0a0910] text-zinc-100">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_72%_8%,rgba(139,92,246,0.14),transparent_24rem),radial-gradient(circle_at_16%_30%,rgba(255,255,255,0.04),transparent_22rem)]" />
+      <div className="relative mx-auto max-w-6xl px-5 py-12 sm:py-16">
         {showHero && (
           <section className="grid gap-8">
             <div className="grid gap-5">
-              <span className="text-xs font-bold uppercase tracking-[0.25em] text-primary">
-                Storyboard · {data.length} generated frames
+              <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-violet-300">
+                Director&apos;s board · {data.length} generated frames
               </span>
-              <h1 className="text-[clamp(28px,4.5vw,52px)] font-semibold leading-[1.05]">
+              <h1 className="max-w-4xl text-[clamp(2.3rem,5.4vw,4.5rem)] font-semibold leading-[0.94] tracking-[-0.04em]">
                 {title}
               </h1>
               <p className="max-w-[65ch] text-base leading-relaxed text-zinc-400">{subtitle}</p>
@@ -40,7 +41,7 @@ export function StoryboardGallery({
                 { label: "Mix", value: "Performance, fashion, city narrative" },
                 { label: "Use", value: "Sequence planning, lookbook, shot-list kickoff" },
               ].map((s) => (
-                <div key={s.label} className="rounded-2xl border border-white/5 bg-zinc-900/60 p-4">
+                <div key={s.label} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 shadow-[0_18px_50px_-32px_rgba(0,0,0,0.9)] backdrop-blur-sm">
                   <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
                     {s.label}
                   </span>
@@ -62,21 +63,21 @@ export function StoryboardGallery({
             </p>
           </div>
 
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {data.map((shot) => (
               <article
                 key={shot.id}
-                className="overflow-hidden rounded-2xl border border-white/5 bg-zinc-900/70 transition-transform hover:-translate-y-1"
+                className="group overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035] shadow-[0_20px_60px_-34px_rgba(0,0,0,0.95)] transition-all duration-300 hover:-translate-y-1 hover:border-violet-300/35 hover:shadow-[0_24px_70px_-34px_rgba(139,92,246,0.45)]"
               >
                 <img
-                  className="block aspect-[4/5] w-full object-cover"
+                  className="block aspect-[4/5] w-full object-cover transition-transform duration-500 group-hover:scale-[1.025]"
                   src={shot.image}
                   alt={shot.alt}
                   loading="lazy"
                 />
-                <div className="grid gap-3 p-5">
+                   <div className="grid gap-3 p-5">
                   <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.15em]">
-                    <span className="text-primary">Shot {shot.id}</span>
+                     <span className="text-violet-300">Shot {shot.id}</span>
                     <span className="text-zinc-500">{shot.type}</span>
                   </div>
                   <div className="grid gap-2">
@@ -87,7 +88,7 @@ export function StoryboardGallery({
                     {[shot.frame, shot.wardrobe, shot.mood].map((p) => (
                       <span
                         key={p}
-                        className="rounded-full bg-zinc-800/80 px-2.5 py-1 text-[11px] text-zinc-300"
+                         className="rounded-full bg-white/[0.07] px-2.5 py-1 text-[11px] text-zinc-300 ring-1 ring-white/[0.06]"
                       >
                         {p}
                       </span>
