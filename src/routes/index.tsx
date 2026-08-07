@@ -321,7 +321,7 @@ function LandingPage() {
                 )}
               </p>
               <h1 className="text-[2.9rem] font-semibold leading-[0.93] tracking-tight text-white">
-                <span className="font-serif italic">
+                <span className="bg-gradient-to-r from-violet-200 via-violet-400 to-fuchsia-300 bg-clip-text font-sans font-semibold text-transparent">
                   <EditableCopy copyKey={`landing_hero_${i}_headline`} fallback={slide.headline} />
                 </span>
               </h1>
@@ -454,7 +454,7 @@ function LandingPage() {
           <h2 className="mt-2 text-3xl font-semibold leading-tight">
             <EditableCopy copyKey="landing_tools_heading" fallback="The full studio." />
             <br />
-            <span className="font-serif italic">
+            <span className="bg-gradient-to-r from-violet-200 via-violet-400 to-fuchsia-300 bg-clip-text font-sans font-semibold text-transparent">
               <EditableCopy copyKey="landing_tools_subheading" fallback="Pay only for what you make." />
             </span>
           </h2>
@@ -531,7 +531,7 @@ function LandingPage() {
               Motion generation
             </span>
             <h2 className="mt-3 text-3xl font-semibold leading-tight">
-              From still to <span className="font-serif italic">cinema</span>.
+              From still to <span className="bg-gradient-to-r from-violet-200 via-violet-400 to-fuchsia-300 bg-clip-text font-sans font-semibold text-transparent">cinema</span>.
             </h2>
           </div>
           <Link
@@ -608,7 +608,7 @@ function LandingPage() {
           </span>
           <h2 className="mt-2 text-3xl font-semibold leading-tight">
             Make the next release feel{" "}
-            <span className="font-serif italic">impossible to ignore.</span>
+            <span className="bg-gradient-to-r from-violet-200 via-violet-400 to-fuchsia-300 bg-clip-text font-sans font-semibold text-transparent">impossible to ignore.</span>
           </h2>
         </div>
 
@@ -635,7 +635,7 @@ function LandingPage() {
         <h2 className="mt-3 text-4xl font-semibold leading-tight mb-5">
           Most musicians never get to
           <br />
-          <span className="font-serif italic">direct their own music video.</span>
+          <span className="bg-gradient-to-r from-violet-200 via-violet-400 to-fuchsia-300 bg-clip-text font-sans font-semibold text-transparent">direct their own music video.</span>
         </h2>
         <p className="text-zinc-400 text-base leading-relaxed max-w-[38ch] mb-8">
           With Aurora they step into the director&apos;s chair, choose Hollywood-grade cinematic looks, and shape unlimited endings. Because artists deserve the ending they want.
@@ -660,7 +660,7 @@ function LandingPage() {
             <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#8b5cf6]">Pricing</span>
             <h2 className="mt-4 text-4xl md:text-6xl font-extrabold leading-[1.05] tracking-tight">
               A $50,000 shoot.<br />
-              <span className="font-serif italic font-normal">For $25 a month.</span>
+              <span className="bg-gradient-to-r from-violet-200 via-violet-400 to-fuchsia-300 bg-clip-text font-sans text-transparent">For $25 a month.</span>
             </h2>
             <p className="mt-5 max-w-[38ch] mx-auto text-base md:text-lg text-zinc-400 leading-relaxed">
               No crew. No studio. No waiting weeks for edits. Aurora delivers cinematic content in seconds — start free, upgrade when you're ready.
@@ -842,7 +842,7 @@ function LandingPage() {
             <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#8b5cf6] mb-4">Start today</p>
             <h3 className="text-3xl md:text-5xl font-extrabold leading-tight mb-4">
               Your next release deserves<br />
-              <span className="font-serif italic font-normal">a $50K visual.</span>
+              <span className="bg-gradient-to-r from-violet-200 via-violet-400 to-fuchsia-300 bg-clip-text font-sans text-transparent">a $50K visual.</span>
             </h3>
             <p className="text-zinc-400 text-base md:text-lg max-w-[36ch] mx-auto mb-8 leading-relaxed">
               Thousands of artists are already creating cinematic content in seconds. You're one click away.
@@ -867,7 +867,7 @@ function LandingPage() {
           </span>
           <h2 className="mt-3 text-4xl font-semibold leading-tight">
             Earn while you{" "}
-            <span className="font-serif italic">grow the movement.</span>
+            <span className="bg-gradient-to-r from-violet-200 via-violet-400 to-fuchsia-300 bg-clip-text font-sans font-semibold text-transparent">grow the movement.</span>
           </h2>
           <p className="mt-3 text-sm text-zinc-400 max-w-[38ch] leading-relaxed">
             Bring artists into Aurora and earn recurring revenue for every creator who signs up through your link.
@@ -901,7 +901,7 @@ function LandingPage() {
             Questions
           </span>
           <h2 className="mt-3 text-4xl font-semibold tracking-tight">
-            Answered <span className="font-serif italic">honestly.</span>
+            Answered <span className="bg-gradient-to-r from-violet-200 via-violet-400 to-fuchsia-300 bg-clip-text font-sans font-semibold text-transparent">honestly.</span>
           </h2>
         </div>
         <div className="divide-y divide-white/5 border-y border-white/5">
