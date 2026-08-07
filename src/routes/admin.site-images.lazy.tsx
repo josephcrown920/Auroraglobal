@@ -1,7 +1,7 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getSiteImages, adminUpdateSiteImage, adminResetSiteImage, type SiteImageRow } from "@/lib/site-images.functions";
 import { SITE_IMAGE_DEFAULTS, SITE_IMAGES_REFRESH_EVENT } from "@/components/landing/SiteImagesProvider";
 import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
@@ -74,6 +74,17 @@ function ImagesGrid() {
       return null;
     });
   }
+
+  // Release a staged photo's temporary object URL if the page unmounts
+  // while the confirm dialog is still open.
+  useEffect(() => {
+    return () => {
+      setPending((prev) => {
+        if (prev) URL.revokeObjectURL(prev.objectUrl);
+        return null;
+      });
+    };
+  }, []);
 
   async function handleUpload(key: string, file: File) {
     setUploading((p) => ({ ...p, [key]: true }));
