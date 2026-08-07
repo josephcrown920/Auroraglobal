@@ -123,9 +123,16 @@ const FEATURED_TOOLS = [
   {
     label: "Perform Anywhere",
     desc: "Phone performance + avatar + outfit + scene → cinematic video, anywhere.",
-    to: "/motion",
+    to: "/perform",
     icon: Film,
     price: "From 400 Aura",
+  },
+  {
+    label: "Aurora Video Agent",
+    desc: "Plan, storyboard, edit, and render a complete cinematic video.",
+    to: "/video-agent",
+    icon: Clapperboard,
+    price: "From 24 Aura",
   },
   {
     label: "Colors Performance Sessions",

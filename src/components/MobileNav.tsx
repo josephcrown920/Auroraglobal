@@ -66,6 +66,7 @@ const STUDIO_FEATURES: Feature[] = [
 // ── Live content tools — visible to all users ─────────────────────────────
 const CONTENT_FEATURES: Feature[] = [
   { to: "/tools",       label: "All Tools",        icon: LayoutGrid },
+  { to: "/video-agent", label: "Aurora Video Agent", icon: Film, previewImg: "/landing/step-reference.jpg" },
   { to: "/tiktok-live", label: "TikTok LIVE Studio", icon: Radio },
   { to: "/spin",        label: "TikTok30",          icon: Flame,  previewImg: "/nav-previews/spin.jpg" },
   { to: "/lipsync",     label: "Lip Sync",          icon: Mic,    previewImg: "/nav-previews/lipsync.jpg" },
@@ -97,7 +98,6 @@ export const ARCHIVED_FEATURES: Feature[] = [
   { to: "/tiktok",          label: "TikTok Studio",    icon: Music2 },
   { to: "/avatar",          label: "Talking Avatars",  icon: UserCircle2 },
   { to: "/content-machine", label: "Content Machine",  icon: LayoutGrid },
-  { to: "/video-agent",     label: "Aurora Video Agent", icon: Film },
   { to: "/agent",           label: "HeyGen Video Agent", icon: Film },
   // ── Legacy / dev tools ───────────────────────────────────────────────
   // moved to CONTENT_FEATURES (live nav)
