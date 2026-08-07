@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { adminOverview, adminGrantCredits, adminEarnings, adminWithdrawalSummary, adminRecordWithdrawal, adminCheckWithdrawalAmount, adminEditWithdrawal, adminDeleteWithdrawal } from "@/lib/admin.functions";
+import { adminOverview, adminGrantCredits, adminEarnings, adminWithdrawalSummary, adminRecordWithdrawal, adminCheckWithdrawalAmount, adminUpdateWithdrawal, adminDeleteWithdrawal } from "@/lib/admin.functions";
 import { getSiteImages, adminUpdateSiteImage, adminResetSiteImage, type SiteImageRow } from "@/lib/site-images.functions";
 import { getSiteCopy, adminSetSiteCopy, adminDeleteSiteCopy, type SiteCopyRow } from "@/lib/site-copy.functions";
 import { getRouterHealth, getRouterLogs, type RouterHealthRow, type RouterLogRow } from "@/lib/ai-router.functions";
@@ -439,7 +439,7 @@ function WithdrawalsPanel() {
   const summaryFn = useServerFn(adminWithdrawalSummary);
   const recordFn = useServerFn(adminRecordWithdrawal);
   const checkFn = useServerFn(adminCheckWithdrawalAmount);
-  const editFn = useServerFn(adminEditWithdrawal);
+  const updateFn = useServerFn(adminUpdateWithdrawal);
   const deleteFn = useServerFn(adminDeleteWithdrawal);
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
@@ -459,8 +459,17 @@ function WithdrawalsPanel() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState("");
   const [editNote, setEditNote] = useState("");
+  const [editDate, setEditDate] = useState("");
 
   const toIsoAtNoon = (dateStr: string) => new Date(`${dateStr}T12:00:00`).toISOString();
+  const toDateInputValue = (isoDate: string) => {
+    const date = new Date(isoDate);
+    if (Number.isNaN(date.getTime())) return todayLocal();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
 
   const recordMut = useMutation({
     mutationFn: async () => {
@@ -499,7 +508,15 @@ function WithdrawalsPanel() {
     mutationFn: async (id: string) => {
       const amountUsd = parseFloat(editAmount);
       if (!Number.isFinite(amountUsd) || amountUsd <= 0) throw new Error("Enter a valid amount");
-      return editFn({ data: { id, amountUsd, note: editNote.trim() || undefined } });
+      if (!editDate) throw new Error("Choose a payout date");
+      return updateFn({
+        data: {
+          id,
+          amountUsd,
+          note: editNote.trim() || undefined,
+          withdrawnAt: toIsoAtNoon(editDate),
+        },
+      });
     },
     onSuccess: () => {
       toast.success("Payout updated");
@@ -589,7 +606,16 @@ function WithdrawalsPanel() {
             {(data?.withdrawals ?? []).map((w) =>
               editingId === w.id ? (
                 <tr key={w.id} className="border-t border-border bg-card/30">
-                  <td className="p-3 text-xs text-muted-foreground">{new Date(w.withdrawnAt).toLocaleString()}</td>
+                  <td className="p-3">
+                    <Input
+                      type="date"
+                      value={editDate}
+                      max={todayLocal()}
+                      onChange={(e) => setEditDate(e.target.value)}
+                      className="w-40"
+                      aria-label="Payout date"
+                    />
+                  </td>
                   <td className="p-3 text-right">
                     <Input
                       type="number"
@@ -630,6 +656,7 @@ function WithdrawalsPanel() {
                         setEditingId(w.id);
                         setEditAmount(String(w.amountUsd));
                         setEditNote(w.note ?? "");
+                        setEditDate(toDateInputValue(w.withdrawnAt));
                       }}
                     >
                       Edit
