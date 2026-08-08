@@ -1,0 +1,19 @@
+{
+  "type": "video",
+  "model": "wan-2.2-i2v",
+  "prompt": "Natural, cinematic motion: a slow camera push-in, subtle hair and fabric movement, soft studio lighting, realistic motion, no cuts.",
+  "aspect_ratio": "1:1",
+  "seed": 424242,
+  "medias": [
+    {
+      "role": "input_image",
+      "prompt_id": "<completed-text-to-image-prompt-id>",
+      "output_index": 0
+    }
+  ],
+  "params": {
+    "duration": 5
+  },
+  "client_os": "linux",
+  "description": "Reusable Aurora starter image-to-video request. Replace the prompt_id placeholder with a completed text-to-image job ID, then submit through Comfy Cloud partner_generate after confirming spend."
+}
