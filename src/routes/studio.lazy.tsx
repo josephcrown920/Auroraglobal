@@ -60,6 +60,7 @@ import { ConnectReplicateBanner } from "@/components/ConnectReplicateBanner";
 import { ExampleChips } from "@/components/onboarding/ExampleChips";
 import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
 import { STUDIO_EXAMPLE_PRESETS } from "@/lib/example-presets";
+import { MEDIA_ASSETS } from "@/lib/mediaAssets";
 import { useSiteImage } from "@/components/landing/SiteImagesProvider";
 import { hasDismissedTour, markFirstGenComplete, hasCompletedFirstGen, isFirstPageVisit, markPageVisited, markFirstPurchaseComplete } from "@/lib/first-run";
 import { loadStudioSession, saveStudioSession } from "@/lib/studio-session";
@@ -94,6 +95,24 @@ const PRESETS = [
   { label: "Urban Cut", prompt: "Cinematic luxury fashion showcase of the subject styled like a runway model — but anywhere: a sleek modern interior or a moody downtown street. Full-body editorial pose with confident runway energy, the designer outfit as the hero of the frame. Dramatic directional key light with soft rim separation, polished reflective floor, anamorphic 50mm look, shallow depth of field, high-fashion color grade, ultra-realistic skin texture with natural pores, sharp clothing detail, 4K photoreal quality. Preserve exact facial likeness, beard, hairstyle, skin tone, and the outfit from the reference." },
   { label: "Get Ready With Me", prompt: "Intimate 'get ready with me' scene of the subject in front of a large vanity mirror mid-styling — outfit selection and finishing touches, building to the finished look. Warm soft vanity lighting with natural window fill, cozy bedroom / dressing-room setting, candid handheld editorial feel, shallow depth of field, ultra-realistic skin texture with natural pores, sharp clothing detail, 4K photoreal quality. Preserve exact facial likeness, beard, hairstyle, skin tone, and the outfit from the reference." },
 ];
+
+// Higgsfield-style card art for each preset — real photography from the shared
+// MEDIA_ASSETS catalogue (same source as home/gallery cards; no new assets).
+const PRESET_IMAGES: Record<string, string> = {
+  "Editorial Cover": MEDIA_ASSETS.editorial,
+  "Neon Street": MEDIA_ASSETS["music-video"],
+  "Urban Rooftop": MEDIA_ASSETS.performance,
+  "Urban Alley": MEDIA_ASSETS.motion,
+  "Urban Subway": MEDIA_ASSETS.scene,
+  "Urban Crosswalk": MEDIA_ASSETS.tiktok,
+  "Colors — Wide (Hot Pink)": MEDIA_ASSETS.colors,
+  "Colors — Close-up (Hot Pink)": MEDIA_ASSETS.colors,
+  "Colors — Wide (Royal Blue)": MEDIA_ASSETS.colors,
+  "Colors — Close-up (Sunset Orange)": MEDIA_ASSETS.colors,
+  "Music Video Scene": MEDIA_ASSETS["music-video"],
+  "Urban Cut": MEDIA_ASSETS.photo,
+  "Get Ready With Me": MEDIA_ASSETS.grwm,
+};
 
 const REANGLES = [
   { label: "Side profile", prompt: "super close up, from the side front angle of the subject, keep bokeh depth of field, preserve identity, outfit, and environment exactly" },
@@ -919,13 +938,35 @@ function StudioPage() {
           {/* Presets */}
           <div className="space-y-2 mb-6">
             <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Presets</p>
-            <div className="flex flex-wrap gap-2">
-              {PRESETS.map((p) => (
-                <button key={p.label} type="button" onClick={() => { setPrompt(p.prompt); setActivePreset(p.label); setSettingsOpen(false); }}
-                  className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${activePreset === p.label ? "border-[#8b5cf6]/60 bg-[#8b5cf6]/10 text-[#8b5cf6]" : "border-white/8 bg-white/4 hover:bg-white/8"}`}>
-                  {p.label}
-                </button>
-              ))}
+            <div className="grid grid-cols-2 gap-2">
+              {PRESETS.map((p) => {
+                const active = activePreset === p.label;
+                return (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => { setPrompt(p.prompt); setActivePreset(p.label); setSettingsOpen(false); }}
+                    className={`relative overflow-hidden rounded-xl border text-left transition-colors ${active ? "border-[#8b5cf6]/70 ring-1 ring-[#8b5cf6]/40" : "border-white/8 hover:border-white/25"}`}
+                  >
+                    <img
+                      src={PRESET_IMAGES[p.label] ?? MEDIA_ASSETS.custom}
+                      alt=""
+                      aria-hidden
+                      loading="lazy"
+                      draggable={false}
+                      className="block w-full aspect-[4/3] object-cover"
+                    />
+                    <span className="absolute inset-x-0 bottom-0 flex items-end bg-gradient-to-t from-black/85 via-black/40 to-transparent px-2 pb-1.5 pt-6">
+                      <span className="text-[11px] font-bold leading-tight text-white">{p.label}</span>
+                    </span>
+                    {active && (
+                      <span className="absolute top-1.5 right-1.5 flex size-4 items-center justify-center rounded-full bg-[#8b5cf6] text-white">
+                        <Check className="size-3" />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
