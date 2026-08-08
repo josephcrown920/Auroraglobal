@@ -38,6 +38,37 @@
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
+/* ── "Liquid" button feel ──────────────────────────────────────────────────
+ * A soft, fresh press: on hover a faint top-highlight rises inside the button
+ * (like light on water); on press it dips slightly. Purely additive — sits on
+ * top of each variant's own background, never overrides colour, and respects
+ * reduced-motion. Applied via the base class in components/ui/button.tsx.
+ */
+.btn-liquid {
+  position: relative;
+  isolation: isolate;
+}
+.btn-liquid::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  /* Above the button's own background paint (a negative z-index sheen would be
+     hidden behind opaque variant backgrounds); alpha kept low so the wash over
+     label text is imperceptible. */
+  z-index: 1;
+  background: linear-gradient(180deg, oklch(1 0 0 / 0.14) 0%, oklch(1 0 0 / 0.03) 45%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.btn-liquid:hover::after { opacity: 1; }
+.btn-liquid:active::after { opacity: 0.55; }
+@media (prefers-reduced-motion: reduce) {
+  .btn-liquid { transition: none !important; }
+  .btn-liquid:active { transform: none !important; }
+}
+
 /*
  * Design system definition.
  *

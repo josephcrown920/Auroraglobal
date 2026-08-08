@@ -58,15 +58,19 @@ const DESTINATIONS: Feature[] = [
 const STUDIO_FEATURES: Feature[] = [
   { to: "/studio",        label: "Image & Video Studio", icon: Sparkles,    previewImg: "/nav-previews/studio.jpg" },
   { to: "/colors",        label: "Colors Studio",        icon: Palette,     previewImg: "/nav-previews/colors.jpg" },
-  { to: "/scene-builder", label: "Directors ROOM",       icon: Layers,      previewImg: "/nav-previews/scene-builder.jpg" },
+  { to: "/director-room", label: "Director Room",        icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg", badge: "$20k Look" },
+  { to: "/scene-builder", label: "Scene Builder",        icon: Layers,      previewImg: "/nav-previews/scene-builder.jpg" },
+  { to: "/likeness",      label: "Likeness Shoot",       icon: Camera,      previewImg: "/nav-previews/avatar.jpg", badge: "New" },
   { to: "/motion",        label: "Motion Control",       icon: Wand2,       previewImg: "/nav-previews/perform-anywhere.jpg" },
   { to: "/music-video",   label: "Lyric Video",          icon: Film,        previewImg: "/nav-previews/music-video.jpg" },
+  { to: "/puremix",       label: "PureMix",              icon: Music2,      previewImg: "/nav-previews/music-video.jpg", badge: "New" },
 ];
 
 // ── Live content tools — visible to all users ─────────────────────────────
 const CONTENT_FEATURES: Feature[] = [
   { to: "/tools",       label: "All Tools",        icon: LayoutGrid },
   { to: "/video-agent", label: "Aurora Video Agent", icon: Film, previewImg: "/landing/step-reference.jpg" },
+  { to: "/agent",       label: "AI Creative Agent", icon: Sparkles, badge: "New" },
   { to: "/tiktok-live", label: "TikTok LIVE Studio", icon: Radio },
   { to: "/spin",        label: "TikTok30",          icon: Flame,  previewImg: "/nav-previews/spin.jpg" },
   { to: "/lipsync",     label: "Lip Sync",          icon: Mic,    previewImg: "/nav-previews/lipsync.jpg" },
@@ -75,6 +79,7 @@ const CONTENT_FEATURES: Feature[] = [
 
 const ACCOUNT_FEATURES: Feature[] = [
   { to: "/gallery", label: "Gallery", icon: Images },
+  { to: "/jobs",    label: "Job Queue", icon: Layers },
   { to: "/billing", label: "Plan & Billing", icon: CreditCard },
   { to: "/creator/dashboard", label: "Creator Hub", icon: TrendingUp },
   { to: "/settings", label: "Settings", icon: UserRound },
@@ -98,7 +103,6 @@ export const ARCHIVED_FEATURES: Feature[] = [
   { to: "/tiktok",          label: "TikTok Studio",    icon: Music2 },
   { to: "/avatar",          label: "Talking Avatars",  icon: UserCircle2 },
   { to: "/content-machine", label: "Content Machine",  icon: LayoutGrid },
-  { to: "/agent",           label: "HeyGen Video Agent", icon: Film },
   // ── Legacy / dev tools ───────────────────────────────────────────────
   // moved to CONTENT_FEATURES (live nav)
   { to: "/colors-show",      label: "Colors Show Creator", icon: Film },

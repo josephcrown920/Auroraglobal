@@ -25,6 +25,7 @@ import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { useEffect } from "react";
 import { captureRefFromUrl } from "@/lib/referral";
 import { ReferralAttacher } from "@/components/ReferralAttacher";
+import { DesignSkinApplier } from "@/components/DesignSkinApplier";
 import { ThemeProvider } from "@/lib/theme-context";
 import { initCrashReporting } from "@/lib/crash-reporting";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -324,6 +325,7 @@ function RootComponent() {
             </SiteCopyProvider>
           </SiteImagesProvider>
           <Toaster />
+          <DesignSkinApplier />
           {!isVideoAgent && !isFullScreenEditor && <AuroraChatbot />}
           <AdminHotkey />
           <ReferralAttacher />
