@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Github, MailCheck, Fingerprint, Loader2, Eye, EyeOff, KeyRound, Mic2, Clapperboard } from "lucide-react";
+import { Github, MailCheck, Fingerprint, Loader2, Eye, EyeOff, KeyRound, Mic2, Clapperboard, Sparkles } from "lucide-react";
 
 /** Asked once, on the signup form. Decides which side of the studio opens by
  *  default and how tools are ranked. Stored on profiles.persona. */
@@ -314,9 +314,9 @@ function AuthPage() {
 
   if (recoveryMode) {
     return (
-      <main className="min-h-screen flex items-center justify-center px-4 bg-zinc-950 relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 65% 25%, oklch(0.58 0.22 295 / 0.10), transparent 55%), radial-gradient(ellipse at 20% 80%, oklch(0.085 0.022 272 / 0.6), transparent 50%)" }} />
-        <div className="relative w-full max-w-md rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-8">
+      <main className="min-h-screen flex items-center justify-center px-4 bg-[var(--gradient-soft)] relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none" style={{ background: "var(--gradient-stage)" }} />
+        <div className="relative w-full max-w-md rounded-3xl bg-card/80 backdrop-blur-xl border border-border p-8 shadow-[var(--shadow-glow)]">
           <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/25">
             <KeyRound className="size-7 text-primary" />
           </div>
@@ -349,7 +349,7 @@ function AuthPage() {
                 </button>
               </div>
             </div>
-            <Button type="submit" disabled={recoveryBusy} className="w-full h-11 rounded-xl text-base font-semibold bg-brand text-white hover:bg-brand/90 border-0">
+            <Button type="submit" disabled={recoveryBusy} className="w-full h-11 rounded-xl text-base font-semibold text-white border-0 hover:opacity-90" style={{ background: "var(--gradient-hero)" }}>
               {recoveryBusy ? "Saving…" : "Save new password"}
             </Button>
           </form>
@@ -360,9 +360,9 @@ function AuthPage() {
 
   if (confirmSent) {
     return (
-      <main className="min-h-screen flex items-center justify-center px-4 bg-zinc-950 relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 65% 25%, oklch(0.58 0.22 295 / 0.10), transparent 55%), radial-gradient(ellipse at 20% 80%, oklch(0.085 0.022 272 / 0.6), transparent 50%)" }} />
-        <div className="relative w-full max-w-md rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-8 text-center">
+      <main className="min-h-screen flex items-center justify-center px-4 bg-[var(--gradient-soft)] relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none" style={{ background: "var(--gradient-stage)" }} />
+        <div className="relative w-full max-w-md rounded-3xl bg-card/80 backdrop-blur-xl border border-border p-8 text-center shadow-[var(--shadow-glow)]">
           <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/25">
             <MailCheck className="size-7 text-primary" />
           </div>
@@ -388,25 +388,25 @@ function AuthPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 bg-zinc-950 relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 65% 25%, oklch(0.58 0.22 295 / 0.10), transparent 55%), radial-gradient(ellipse at 20% 80%, oklch(0.085 0.022 272 / 0.6), transparent 50%)" }} />
-      <div className="relative w-full max-w-md rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-8">
+    <main className="min-h-screen flex items-center justify-center px-4 bg-[var(--gradient-soft)] relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none" style={{ background: "var(--gradient-stage)" }} />
+      <div className="relative w-full max-w-md rounded-3xl bg-card/80 backdrop-blur-xl border border-border p-8 shadow-[var(--shadow-glow)]">
         <Link to="/" className="inline-flex flex-col gap-0.5 mb-5 group">
           <span className="inline-flex items-center gap-2">
-            <span className="inline-block size-1.5 rounded-full bg-brand" />
-            <span className="text-xs font-bold uppercase tracking-widest text-zinc-300 group-hover:text-white transition-colors">Aurora Performance Studio</span>
+            <Sparkles className="size-4 text-primary" />
+            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">Aurora Performance Studio</span>
           </span>
-          <span className="text-[10px] font-medium tracking-[0.15em] uppercase text-zinc-500 pl-3.5">For Artists &amp; Creators</span>
+          <span className="text-[10px] font-medium tracking-[0.15em] uppercase text-muted-foreground/60 pl-6">For Artists &amp; Creators</span>
         </Link>
 
         {/* Mode tab switcher */}
-        <div className="flex rounded-xl bg-zinc-800/70 p-1 mb-6">
+        <div className="flex rounded-xl bg-white/[0.05] border border-white/5 p-1 mb-6">
           <button
             type="button"
             onClick={() => setMode("signin")}
             className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
               mode === "signin"
-                ? "bg-zinc-700 text-foreground shadow"
+                ? "bg-white/[0.1] text-foreground shadow"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -417,7 +417,7 @@ function AuthPage() {
             onClick={() => setMode("signup")}
             className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
               mode === "signup"
-                ? "bg-zinc-700 text-foreground shadow"
+                ? "bg-white/[0.1] text-foreground shadow"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -425,7 +425,7 @@ function AuthPage() {
           </button>
         </div>
 
-        <h1 className="text-2xl font-semibold tracking-tight mb-1">
+        <h1 className="text-3xl font-semibold tracking-tight mb-1">
           {mode === "signup" ? "Join the studio" : "Welcome back"}
         </h1>
         <p className="text-sm text-muted-foreground mb-6">
@@ -540,7 +540,8 @@ function AuthPage() {
           <Button
             type="submit"
             disabled={busy || (mode === "signup" && !persona)}
-            className="w-full h-11 rounded-xl text-base font-semibold bg-brand text-white hover:bg-brand/90 border-0"
+            className="w-full h-11 rounded-xl text-base font-semibold text-white border-0 hover:opacity-90"
+            style={{ background: "var(--gradient-hero)" }}
           >
             {busy
               ? "Working…"
