@@ -649,3 +649,88 @@ export const adminModelWatchScanNow = createServerFn({ method: "POST" })
     await assertAdmin(context.userId);
     return await runModelWatchScan();
   });
+
+// ─── Credit ledger search ─────────────────────────────────────────────────────
+// Used by /admin/ledger to search top-ups and debits by user, payment ref,
+// reason string, and date range. Returns up to `limit` rows (default 500)
+// plus a `truncated` flag so the UI can warn if the result set was capped.
+
+export const adminSearchLedger = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        userQuery: z.string().default(""),
+        refId:     z.string().default(""),
+        reason:    z.string().default(""),
+        fromDate:  z.string().default(""),
+        toDate:    z.string().default(""),
+        limit:     z.number().int().min(1).max(2000).default(500),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+
+    // ── Resolve optional user filter to a set of user_ids ────────────────
+    let userIds: string[] | null = null;
+    if (data.userQuery.trim()) {
+      const q = data.userQuery.trim();
+      const { data: profiles } = await supabaseAdmin
+        .from("profiles")
+        .select("user_id")
+        .or(
+          `email.ilike.%${q}%,display_name.ilike.%${q}%,user_id.eq.${q}`,
+        )
+        .limit(200);
+      userIds = (profiles ?? []).map((p: { user_id: string }) => p.user_id);
+      // If the query looks like a bare UUID try an exact match as well
+      if (userIds.length === 0) return { rows: [], truncated: false };
+    }
+
+    // ── Build ledger query ────────────────────────────────────────────────
+    let q = supabaseAdmin
+      .from("credit_ledger")
+      .select("id, user_id, delta, reason, ref_id, created_at")
+      .order("created_at", { ascending: false })
+      .limit(data.limit + 1); // fetch one extra to detect truncation
+
+    if (userIds !== null) q = q.in("user_id", userIds);
+    if (data.refId.trim())   q = q.ilike("ref_id", `%${data.refId.trim()}%`);
+    if (data.reason.trim())  q = q.ilike("reason", `%${data.reason.trim()}%`);
+    if (data.fromDate)       q = q.gte("created_at", data.fromDate);
+    if (data.toDate)         q = q.lte("created_at", data.toDate);
+
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+
+    const truncated = (rows?.length ?? 0) > data.limit;
+    const ledgerRows = (rows ?? []).slice(0, data.limit);
+
+    // ── Enrich with profile email / display_name ──────────────────────────
+    const uniqueUserIds = [...new Set(ledgerRows.map((r: { user_id: string }) => r.user_id))];
+    const profileMap = new Map<string, { email: string | null; display_name: string | null }>();
+    if (uniqueUserIds.length > 0) {
+      const { data: profs } = await supabaseAdmin
+        .from("profiles")
+        .select("user_id, email, display_name")
+        .in("user_id", uniqueUserIds);
+      for (const p of profs ?? []) {
+        profileMap.set(p.user_id, { email: p.email, display_name: p.display_name });
+      }
+    }
+
+    return {
+      truncated,
+      rows: ledgerRows.map((r: { id: string; user_id: string; delta: number; reason: string | null; ref_id: string | null; created_at: string }) => ({
+        id:          r.id,
+        user_id:     r.user_id,
+        delta:       r.delta,
+        reason:      r.reason,
+        ref_id:      r.ref_id,
+        created_at:  r.created_at,
+        email:       profileMap.get(r.user_id)?.email ?? null,
+        displayName: profileMap.get(r.user_id)?.display_name ?? null,
+      })),
+    };
+  });
