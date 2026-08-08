@@ -614,7 +614,18 @@ const heygenTemplate: ProviderAdapter = {
 };
 
 // ─── Fal (LAST fallback — user prefers other providers) ──────────────────────
-const FAL_MAP: Record<string, { path: string; kind: GenerateKind; cost: number }> = {
+const FAL_MAP: Record<
+  string,
+  {
+    path: string;
+    kind: GenerateKind;
+    cost: number;
+    /** Alternate path for prompt-only requests (no reference image). */
+    textPath?: string;
+    /** Optional input builder (mirrors REPLICATE_MAP.build); generic body otherwise. */
+    build?: (r: GenerateRequest) => Record<string, unknown>;
+  }
+> = {
   "fal-fallback/kling-video": {
     path: "fal-ai/kling-video/v1/standard/image-to-video",
     kind: "video",
@@ -627,6 +638,27 @@ const FAL_MAP: Record<string, { path: string; kind: GenerateKind; cost: number }
   // Motion sentinel (image-to-video): same model, separate key so FALLBACK_MODELS
   // for "motion" has its own unambiguous candidate.
   "fal/ltx-motion": { path: "fal-ai/ltx-video/image-to-video", kind: "motion", cost: 0.06 },
+  // Seedance 2.5 (Dreamina) — REAL fal-hosted route, verified in the fal
+  // catalog 2026-08-08 (bytedance/seedance-2.5/{image,text}-to-video).
+  // ~$0.473/s at 720p → ≈$2.37 per 5s reference clip ("max" pricing tier).
+  // ⚠️ SUBSCRIPTION-ONLY, enforced in falFallback.supports() — same rule as
+  // Seedance on Replicate/BytePlus. BytePlus direct (BYTEPLUS_MAP, ~$1.16)
+  // stays in the chain after fal and takes over once Ark-activated.
+  "seedance-2.5": {
+    path: "bytedance/seedance-2.5/image-to-video",
+    textPath: "bytedance/seedance-2.5/text-to-video",
+    kind: "video",
+    cost: 2.37,
+    build: (r) => ({
+      prompt: r.prompt ?? "",
+      ...(r.imageUrls?.[0] ? { image_url: r.imageUrls[0] } : {}),
+      resolution: "720p",
+      // duration MUST be explicit: fal's default is "auto", which lets the
+      // model run to its native 30s — a silent ~6× cost overrun per clip.
+      // The schema wants a string enum ("4".."30"), not a number.
+      duration: String(Math.min(30, Math.max(4, Math.round(r.duration ?? 5)))),
+    }),
+  },
 };
 // Identity-locked Gemini-image family → fal's *-edit endpoints, which take
 // image_urls[] (plural) and preserve the reference face. Without these entries
@@ -656,9 +688,13 @@ const falFallback: ProviderAdapter = {
     if (r.kind === "video") {
       // Drop requests pinned to another provider's model.
       if (r.model && !r.model.startsWith("fal/") && !FAL_MAP[r.model]) return false;
+      // ⚠️  SUBSCRIPTION-ONLY: Seedance on fal is a paid ByteDance model —
+      // same rule as the Replicate/BytePlus adapters. Never free-tier.
+      if (r.model?.startsWith("seedance") && r.forSubscriber !== true) return false;
       return true;
     }
     if (r.kind === "motion") {
+      if (r.model?.startsWith("seedance") && r.forSubscriber !== true) return false;
       // Motion requires an explicit fal/ sentinel — no keyless motion fallback.
       return !!r.model && (r.model.startsWith("fal/") || !!FAL_MAP[r.model]);
     }
@@ -702,14 +738,24 @@ const falFallback: ProviderAdapter = {
           : r.kind === "lipsync"
             ? "fal-ai/sync-lipsync"
             : null;
-    const path = (r.model && FAL_MAP[r.model]?.path) || fallback;
+    const mapped = r.model ? FAL_MAP[r.model] : undefined;
+    // Prompt-only request against a model that has a dedicated t2v path →
+    // use it (the i2v path 422s without image_url).
+    const path =
+      (mapped && (!r.imageUrls?.[0] && mapped.textPath ? mapped.textPath : mapped.path)) ||
+      fallback;
     if (!path) throw new Error(`Fal: no path for kind ${r.kind}`);
-    const input: Record<string, unknown> = {};
-    if (r.prompt) input.prompt = r.prompt;
-    if (r.imageUrls?.[0]) input.image_url = r.imageUrls[0];
-    if (r.videoUrl) input.video_url = r.videoUrl;
-    if (r.audioUrl) input.audio_url = r.audioUrl;
-    if (r.duration) input.duration = r.duration;
+    let input: Record<string, unknown>;
+    if (mapped?.build) {
+      input = mapped.build(r);
+    } else {
+      input = {};
+      if (r.prompt) input.prompt = r.prompt;
+      if (r.imageUrls?.[0]) input.image_url = r.imageUrls[0];
+      if (r.videoUrl) input.video_url = r.videoUrl;
+      if (r.audioUrl) input.audio_url = r.audioUrl;
+      if (r.duration) input.duration = r.duration;
+    }
     const res = await fetch(`https://fal.run/${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Key ${key}` },
@@ -1154,8 +1200,10 @@ const BYTEPLUS_DEFAULTS: Record<string, BytePlusEntry> = {
   // ("Your account … has not activated the model — activate in the Ark
   // Console"), NOT InvalidEndpointOrModel.NotFound (dead slug). Until the
   // account activates it, byteplus.run() fails and orchestrate() falls
-  // through to the video fallback chain like any provider error. Same
-  // ByteDance-only caveat as seedance-3.0 — no Replicate/fal slug exists.
+  // through to the video fallback chain like any provider error. Unlike
+  // seedance-3.0, a REAL fal route now exists too (FAL_MAP "seedance-2.5",
+  // verified 2026-08-08) and fal sits before byteplus in the video chain —
+  // this Ark route is the cheaper fallback once activated.
   "seedance-2.5": { modelId: "dreamina-seedance-2-5-260628", kind: "video" },
 };
 const BYTEPLUS_MAP: Record<string, BytePlusEntry> = (() => {
