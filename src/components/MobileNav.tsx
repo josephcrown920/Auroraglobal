@@ -61,6 +61,7 @@ const STUDIO_FEATURES: Feature[] = [
   { to: "/director-room",    label: "Director Room",     icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg", badge: "$20k Look" },
   { to: "/directors-board",  label: "Directors Board",   icon: Layers,      previewImg: "/nav-previews/scene-builder.jpg", badge: "New" },
   { to: "/scene-builder",    label: "Scene Builder",     icon: Layers,      previewImg: "/nav-previews/scene-builder.jpg" },
+  { to: "/eromify",       label: "Eromify · Adult School", icon: Camera,     previewImg: "/sample-photos/model-yuki-1.jpg", badge: "18+" },
   { to: "/likeness",      label: "Likeness Shoot",       icon: Camera,      previewImg: "/nav-previews/avatar.jpg", badge: "New" },
   { to: "/motion",        label: "Motion Control",       icon: Wand2,       previewImg: "/nav-previews/perform-anywhere.jpg" },
   { to: "/music-video",   label: "Lyric Video",          icon: Film,        previewImg: "/nav-previews/music-video.jpg" },

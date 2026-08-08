@@ -57,6 +57,7 @@ import { Route as HeygenTemplatesRouteImport } from './routes/heygen-templates'
 import { Route as GrowthRouteImport } from './routes/growth'
 import { Route as GiftsRouteImport } from './routes/gifts'
 import { Route as GalleryRouteImport } from './routes/gallery'
+import { Route as EromifyRouteImport } from './routes/eromify'
 import { Route as EditorRouteImport } from './routes/editor'
 import { Route as EditRouteImport } from './routes/edit'
 import { Route as DirectorsBoardRouteImport } from './routes/directors-board'
@@ -392,6 +393,11 @@ const GalleryRoute = GalleryRouteImport.update({
   path: '/gallery',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/gallery.lazy').then((d) => d.Route))
+const EromifyRoute = EromifyRouteImport.update({
+  id: '/eromify',
+  path: '/eromify',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/eromify.lazy').then((d) => d.Route))
 const EditorRoute = EditorRouteImport.update({
   id: '/editor',
   path: '/editor',
@@ -888,6 +894,7 @@ export interface FileRoutesByFullPath {
   '/directors-board': typeof DirectorsBoardRoute
   '/edit': typeof EditRoute
   '/editor': typeof EditorRoute
+  '/eromify': typeof EromifyRoute
   '/gallery': typeof GalleryRoute
   '/gifts': typeof GiftsRoute
   '/growth': typeof GrowthRoute
@@ -1026,6 +1033,7 @@ export interface FileRoutesByTo {
   '/directors-board': typeof DirectorsBoardRoute
   '/edit': typeof EditRoute
   '/editor': typeof EditorRoute
+  '/eromify': typeof EromifyRoute
   '/gallery': typeof GalleryRoute
   '/gifts': typeof GiftsRoute
   '/growth': typeof GrowthRoute
@@ -1165,6 +1173,7 @@ export interface FileRoutesById {
   '/directors-board': typeof DirectorsBoardRoute
   '/edit': typeof EditRoute
   '/editor': typeof EditorRoute
+  '/eromify': typeof EromifyRoute
   '/gallery': typeof GalleryRoute
   '/gifts': typeof GiftsRoute
   '/growth': typeof GrowthRoute
@@ -1305,6 +1314,7 @@ export interface FileRouteTypes {
     | '/directors-board'
     | '/edit'
     | '/editor'
+    | '/eromify'
     | '/gallery'
     | '/gifts'
     | '/growth'
@@ -1443,6 +1453,7 @@ export interface FileRouteTypes {
     | '/directors-board'
     | '/edit'
     | '/editor'
+    | '/eromify'
     | '/gallery'
     | '/gifts'
     | '/growth'
@@ -1581,6 +1592,7 @@ export interface FileRouteTypes {
     | '/directors-board'
     | '/edit'
     | '/editor'
+    | '/eromify'
     | '/gallery'
     | '/gifts'
     | '/growth'
@@ -1720,6 +1732,7 @@ export interface RootRouteChildren {
   DirectorsBoardRoute: typeof DirectorsBoardRoute
   EditRoute: typeof EditRoute
   EditorRoute: typeof EditorRoute
+  EromifyRoute: typeof EromifyRoute
   GalleryRoute: typeof GalleryRoute
   GiftsRoute: typeof GiftsRoute
   GrowthRoute: typeof GrowthRoute
@@ -2152,6 +2165,13 @@ declare module '@tanstack/react-router' {
       path: '/gallery'
       fullPath: '/gallery'
       preLoaderRoute: typeof GalleryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/eromify': {
+      id: '/eromify'
+      path: '/eromify'
+      fullPath: '/eromify'
+      preLoaderRoute: typeof EromifyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/editor': {
@@ -2847,6 +2867,7 @@ const rootRouteChildren: RootRouteChildren = {
   DirectorsBoardRoute: DirectorsBoardRoute,
   EditRoute: EditRoute,
   EditorRoute: EditorRoute,
+  EromifyRoute: EromifyRoute,
   GalleryRoute: GalleryRoute,
   GiftsRoute: GiftsRoute,
   GrowthRoute: GrowthRoute,
