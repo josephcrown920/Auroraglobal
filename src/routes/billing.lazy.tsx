@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { getMyProfile, createPaystackCheckout, createProSubscriptionCheckout, cancelProSubscription, setDailySpendLimit } from "@/lib/billing.functions";
+import { createCryptoCheckout } from "@/lib/crypto-checkout.functions";
 import { amIAdmin } from "@/lib/admin.functions";
 import { markFirstPurchaseComplete } from "@/lib/first-run";
 import { redeemPromoCode } from "@/lib/promo.functions";
@@ -44,6 +45,7 @@ function BillingPage() {
   const qc = useQueryClient();
   const profileFn = useServerFn(getMyProfile);
   const checkoutFn = useServerFn(createPaystackCheckout);
+  const cryptoFn = useServerFn(createCryptoCheckout);
   const proCheckoutFn = useServerFn(createProSubscriptionCheckout);
   const cancelFn = useServerFn(cancelProSubscription);
   const redeemFn = useServerFn(redeemPromoCode);
@@ -126,6 +128,13 @@ function BillingPage() {
       checkoutFn({ data: { plan, ...(promoCode.trim() ? { promoCode: promoCode.trim() } : {}) } }),
     onSuccess: ({ authorizationUrl }) => { window.location.href = authorizationUrl; },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Checkout failed"),
+  });
+
+  const cryptoMut = useMutation({
+    mutationFn: (plan: "day1" | "day2" | "starter" | "creator" | "studio") =>
+      cryptoFn({ data: { plan, ...(promoCode.trim() ? { promoCode: promoCode.trim() } : {}) } }),
+    onSuccess: ({ authorizationUrl }) => { window.location.href = authorizationUrl; },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Crypto checkout failed"),
   });
 
   const redeemMut = useMutation({
@@ -432,11 +441,21 @@ function BillingPage() {
                     variant={isCreator ? "premium" : "outline"}
                     className="w-full"
                     onClick={() => packMut.mutate(key)}
-                    disabled={packMut.isPending || previewing}
+                    disabled={packMut.isPending || cryptoMut.isPending || previewing}
                   >
                     {packMut.isPending ? <Loader2 className="size-3 animate-spin" /> : (
                       <><CreditCard className="size-3 mr-1" /> Get {PLAN_CONTEXT[key].name} Aura</>
                     )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="w-full text-xs text-muted-foreground hover:text-amber-300"
+                    onClick={() => cryptoMut.mutate(key)}
+                    disabled={packMut.isPending || cryptoMut.isPending || previewing}
+                    title="Pay with BTC, ETH, USDT, USDC and more"
+                  >
+                    {cryptoMut.isPending ? <Loader2 className="size-3 animate-spin" /> : <>₿ Pay with crypto</>}
                   </Button>
                 </div>
               );
