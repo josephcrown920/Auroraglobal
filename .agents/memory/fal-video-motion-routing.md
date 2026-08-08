@@ -26,3 +26,10 @@ Both are in `VIDEO_MODEL_TIERS` (pricing.ts) and `MODEL_REGISTRY` (orchestrator.
 FAL_KEY can deplete silently — fal.ai returns HTTP 403 with `{"detail":"User is locked. Reason: Exhausted balance..."}`. Check dashboard at fal.ai/dashboard/billing before relying on it as first-priority.
 
 **How to apply:** Any new fal video/motion sentinel added to FALLBACK_MODELS must also go into FAL_MAP (path), VIDEO_MODEL_TIERS (pricing.ts), and MODEL_REGISTRY (orchestrator.server.ts). Missing any one of these causes a pricing test failure or a "no path for kind" throw.
+
+## Seedance 2.5 on fal (added 2026-08-08)
+- fal hosts `bytedance/seedance-2.5/{image-to-video,text-to-video,reference-to-video}` — ~$0.473/s at 720p (≈$2.37 per 5s clip), ~$0.2205/s at 480p.
+- **Duration trap:** fal's `duration` input is a STRING enum "4".."30" defaulting to `"auto"`, which lets the model run to its native 30s ≈ $14/clip. Every dispatch MUST send an explicit clamped duration string.
+- Seedance is subscription-only on EVERY adapter — replicate, byteplus, AND falFallback all gate `model.startsWith("seedance") && forSubscriber !== true` in supports(). Adding a new seedance route means adding the gate there too.
+- FAL_MAP entries now support optional `textPath` (prompt-only requests) and `build(r)` (custom input body, mirrors REPLICATE_MAP).
+- Fal cost drives pricing: seedance-2.5 needed a new "max" ModelTier (600 Aura video) because ultra's pool ($2.26) < 2.37×1.15 margin-guard requirement.
