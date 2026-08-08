@@ -7,7 +7,8 @@ export type SiteImageKey =
   | "studio-example-tokyo-rain"
   | "studio-example-editorial-split"
   | "studio-example-concert-stage"
-  | "studio-example-gold-luxury";
+  | "studio-example-gold-luxury"
+  | "studio-example-yuki-editorial";
 
 export const SITE_IMAGE_DEFAULTS: Record<SiteImageKey, { url: string; label: string; section: string }> = {
   hero_1:    { url: "/gallery/josh-pink-mic.png",          label: "Concert Wash",       section: "hero" },
@@ -27,6 +28,7 @@ export const SITE_IMAGE_DEFAULTS: Record<SiteImageKey, { url: string; label: str
   "studio-example-editorial-split": { url: "/sample-photos/red-dreads-chain.png", label: "Editorial", section: "studio_examples" },
   "studio-example-concert-stage": { url: "/__l5e/assets-v1/b7648a1b-297a-48cd-be0f-2effe57dc46f/josh-stage-shades.jpg", label: "Stage", section: "studio_examples" },
   "studio-example-gold-luxury": { url: "/sample-photos/balloon-josh.png", label: "Gold Luxury", section: "studio_examples" },
+  "studio-example-yuki-editorial": { url: "/sample-photos/model-yuki-1.jpg", label: "Yuki · Editorial", section: "studio_examples" },
 };
 
 function buildDefaults(): Record<SiteImageKey, string> {

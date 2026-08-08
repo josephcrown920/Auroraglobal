@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { getAdminToken } from "@/components/AdminGate";
 import {
   Camera, ChevronRight, Download, ImagePlus,
-  Loader2, LogOut, Sparkles, X,
+  Loader2, LogOut, Sparkles, X, UserCircle2,
 } from "lucide-react";
 
 type JobStatus = "processing" | "completed" | "failed";
@@ -15,6 +15,22 @@ interface Generation {
   created_at: string;
   error: string | null;
 }
+
+// ── Preset models (operator-curated) ──────────────────────────────────────────
+// Vite serves public/ files at BASE_URL + filename (e.g. /aurora-adult/models/…)
+const BASE = import.meta.env.BASE_URL ?? "/aurora-adult/";
+
+const PRESET_MODELS = [
+  {
+    id: "yuki",
+    name: "Yuki",
+    tag: "Featured",
+    photos: [
+      { url: `${BASE}models/model-yuki-1.jpg`, label: "Face" },
+      { url: `${BASE}models/model-yuki-2.jpg`, label: "Alt" },
+    ],
+  },
+] as const;
 
 // ── Looks ─────────────────────────────────────────────────────────────────────
 const LOOKS = [
@@ -44,14 +60,23 @@ function download(url: string, name: string) {
   }).catch(() => window.open(url, "_blank"));
 }
 
-/** Read a File as a base64 data-URL. Sent to /api/adult-admin/generate which
- *  uploads server-side (bypassing the SSRF guard on the public generate endpoint). */
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
     reader.onerror = reject;
     reader.readAsDataURL(file);
+  });
+}
+
+async function urlToDataUrl(url: string): Promise<string> {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
   });
 }
 
@@ -66,6 +91,7 @@ export function AdultStudio() {
   const [customPrompt, setCustomPrompt] = useState("");
   const [refFiles, setRefFiles] = useState<File[]>([]);
   const [refPreviews, setRefPreviews] = useState<string[]>([]);
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [generations, setGenerations] = useState<Generation[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -73,8 +99,18 @@ export function AdultStudio() {
   const look = LOOKS.find(l => l.id === lookId) ?? LOOKS[0];
   const activeCount = generations.filter(g => g.status === "processing").length;
 
+  const hasIdentity = selectedPreset !== null || refFiles.length > 0;
+
+  function pickPreset(id: string) {
+    setSelectedPreset(prev => prev === id ? null : id);
+    // Clear manual uploads when selecting a preset
+    setRefFiles([]);
+    setRefPreviews([]);
+  }
+
   function addFiles(files: FileList | null) {
     if (!files) return;
+    setSelectedPreset(null); // clear preset when uploading manually
     const next = [...refFiles, ...Array.from(files)].slice(0, 2);
     setRefFiles(next);
     setRefPreviews(next.map(f => URL.createObjectURL(f)));
@@ -87,7 +123,7 @@ export function AdultStudio() {
   }
 
   async function generate() {
-    if (refFiles.length === 0) { toast.error("Upload at least one face photo first"); return; }
+    if (!hasIdentity) { toast.error("Select a model or upload a face photo first"); return; }
     setGenerating(true);
 
     const id = `gen-${Date.now()}`;
@@ -97,9 +133,15 @@ export function AdultStudio() {
     }, ...prev]);
 
     try {
-      // Convert ref photos to base64 — the admin endpoint uploads them server-side,
-      // bypassing the SSRF guard that blocks data: URLs on /api/public/generate.
-      const base64Images = await Promise.all(refFiles.map(fileToDataUrl));
+      let base64Images: string[];
+
+      if (selectedPreset) {
+        const preset = PRESET_MODELS.find(p => p.id === selectedPreset)!;
+        base64Images = await Promise.all(preset.photos.map(p => urlToDataUrl(p.url)));
+      } else {
+        base64Images = await Promise.all(refFiles.map(fileToDataUrl));
+      }
+
       const extra = customPrompt.trim() ? ` Additional details: ${customPrompt.trim()}.` : "";
       const prompt =
         "Use the uploaded face photo as strict identity reference — keep facial likeness, skin tone, " +
@@ -117,7 +159,6 @@ export function AdultStudio() {
       const data: unknown = await res.json();
       if (!res.ok) throw new Error((data as { error?: string })?.error ?? "Generation failed");
 
-      // The /api/public/generate endpoint returns `url` (plus metadata).
       const resultUrl = (data as { url?: string })?.url ?? null;
       setGenerations(prev => prev.map(g => g.id === id
         ? { ...g, status: resultUrl ? "completed" : "failed", result_image_url: resultUrl,
@@ -172,6 +213,54 @@ export function AdultStudio() {
         {/* ── LEFT: Controls ──────────────────────────────────────────────── */}
         <aside className="flex w-[340px] shrink-0 flex-col gap-5 overflow-y-auto border-r border-white/6 p-5">
 
+          {/* ── Preset Models ─────────────────────────────────────────────── */}
+          <div>
+            <div className="mb-2.5 flex items-center gap-2">
+              <UserCircle2 size={12} className="text-rose-400" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/35">Preset Models</span>
+            </div>
+            <div className="flex flex-col gap-2">
+              {PRESET_MODELS.map(model => (
+                <button
+                  key={model.id}
+                  onClick={() => pickPreset(model.id)}
+                  className={`group flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-all ${
+                    selectedPreset === model.id
+                      ? "border-rose-500/60 bg-rose-500/12 shadow-[0_0_16px_rgba(225,29,106,0.2)]"
+                      : "border-white/6 bg-white/[0.02] hover:border-rose-500/30 hover:bg-white/[0.04]"
+                  }`}
+                >
+                  {/* Thumbnails */}
+                  <div className="flex gap-1 shrink-0">
+                    {model.photos.map((p, i) => (
+                      <div key={i} className="size-10 overflow-hidden rounded-lg border border-white/10">
+                        <img src={p.url} alt={p.label} className="size-full object-cover object-top" />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[13px] font-bold text-white">{model.name}</span>
+                      <span className="rounded bg-rose-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-rose-400">
+                        {model.tag}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-white/30">
+                      {selectedPreset === model.id ? "✓ Selected — ready to generate" : "Tap to use as identity"}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-px bg-white/6" />
+            <span className="text-[10px] text-white/20 uppercase tracking-wider">or upload yours</span>
+            <div className="flex-1 h-px bg-white/6" />
+          </div>
+
           {/* Look picker */}
           <div>
             <div className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.15em] text-white/35">Look</div>
@@ -204,49 +293,51 @@ export function AdultStudio() {
             />
           </div>
 
-          {/* Reference photos */}
-          <div>
-            <div className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.15em] text-white/35">
-              Reference photos
-            </div>
-            <input ref={fileRef} type="file" accept="image/*" multiple onChange={e => addFiles(e.target.files)} className="hidden" />
+          {/* Reference photos (manual upload) */}
+          {selectedPreset === null && (
+            <div>
+              <div className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.15em] text-white/35">
+                Reference photos
+              </div>
+              <input ref={fileRef} type="file" accept="image/*" multiple onChange={e => addFiles(e.target.files)} className="hidden" />
 
-            <div className="flex flex-wrap gap-2.5">
-              {refPreviews.map((p, i) => (
-                <div key={i} className="group relative size-20 overflow-hidden rounded-xl border border-white/10">
-                  <img src={p} alt="" className="size-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                  <div className="absolute bottom-1 left-1 rounded bg-black/70 px-1 py-0.5 text-[7px] font-black uppercase tracking-widest text-white/70">
-                    {i === 0 ? "Face" : "Outfit"}
+              <div className="flex flex-wrap gap-2.5">
+                {refPreviews.map((p, i) => (
+                  <div key={i} className="group relative size-20 overflow-hidden rounded-xl border border-white/10">
+                    <img src={p} alt="" className="size-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    <div className="absolute bottom-1 left-1 rounded bg-black/70 px-1 py-0.5 text-[7px] font-black uppercase tracking-widest text-white/70">
+                      {i === 0 ? "Face" : "Outfit"}
+                    </div>
+                    <button onClick={() => removeFile(i)}
+                      className="absolute right-1 top-1 flex size-4 items-center justify-center rounded bg-black/70 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                      <X size={9} />
+                    </button>
                   </div>
-                  <button onClick={() => removeFile(i)}
-                    className="absolute right-1 top-1 flex size-4 items-center justify-center rounded bg-black/70 text-white opacity-0 transition-opacity group-hover:opacity-100">
-                    <X size={9} />
-                  </button>
-                </div>
-              ))}
+                ))}
 
-              {refFiles.length < 2 && (
-                <button onClick={() => fileRef.current?.click()}
-                  className="flex size-20 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-white/10 text-white/25 transition-colors hover:border-rose-500/40 hover:text-rose-400">
-                  <ImagePlus size={18} />
-                  <span className="text-[9px] font-semibold">Add</span>
-                </button>
+                {refFiles.length < 2 && (
+                  <button onClick={() => fileRef.current?.click()}
+                    className="flex size-20 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-white/10 text-white/25 transition-colors hover:border-rose-500/40 hover:text-rose-400">
+                    <ImagePlus size={18} />
+                    <span className="text-[9px] font-semibold">Add</span>
+                  </button>
+                )}
+              </div>
+
+              {refFiles.length === 0 && (
+                <p className="mt-2 text-[11px] leading-relaxed text-white/25">
+                  Photo 1 → face (identity lock) · Photo 2 optional → outfit ref
+                </p>
               )}
             </div>
-
-            {refFiles.length === 0 && (
-              <p className="mt-2 text-[11px] leading-relaxed text-white/25">
-                Photo 1 → face (identity lock) · Photo 2 optional → outfit ref
-              </p>
-            )}
-          </div>
+          )}
 
           {/* Generate CTA */}
           <button
             onClick={generate}
-            disabled={generating || refFiles.length === 0}
-            className={`mt-auto flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-[14px] font-black tracking-tight transition-all ${generating || refFiles.length === 0
+            disabled={generating || !hasIdentity}
+            className={`mt-auto flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-[14px] font-black tracking-tight transition-all ${generating || !hasIdentity
               ? "cursor-not-allowed border border-white/8 bg-white/4 text-white/25"
               : "bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-[0_0_32px_rgba(225,29,106,0.35)] hover:shadow-[0_0_48px_rgba(225,29,106,0.5)] hover:scale-[1.01] active:scale-[0.99]"}`}
           >
@@ -275,7 +366,7 @@ export function AdultStudio() {
             <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
               <Camera size={44} className="text-white/8" />
               <p className="text-[13px] text-white/25">
-                Choose a look, upload a face photo,<br />then hit Generate.
+                Pick a preset model or upload a face photo,<br />choose a look, then hit Generate.
               </p>
               <ChevronRight size={18} className="rotate-180 text-white/15" />
             </div>

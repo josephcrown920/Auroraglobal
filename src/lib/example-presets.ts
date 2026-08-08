@@ -38,6 +38,15 @@ export const STUDIO_EXAMPLE_PRESETS: ToolPreset[] = [
       "Cinematic editorial portrait of the subject in a professional studio — dramatic split lighting: warm key at 2700K from 45° left, cold blue-white fill at 5600K from the opposite side, creating vivid tonal separation across the face. 85mm f/1.8 lens, razor-sharp on the eyes, creamy bokeh fall-off on the seamless charcoal paper backdrop with a deep violet gradient glow. Subject at 30° angle to camera, direct confident eye contact. Ultra-photorealistic: natural skin pores, micro-texture, individual hair strands, precise fabric weave. Sony VENICE 2 sensor — 15-stop dynamic range, clinical sharpness, no digital smoothing. Deep navy + violet color palette, high-fashion composition, magazine-quality framing. Perfect anatomy and natural proportions — no distortion, no warping, no artifacts. Preserve exact facial likeness, skin tone, hairstyle, and outfit.",
   },
   {
+    id: "yuki-editorial",
+    label: "Yuki",
+    emoji: "🌸",
+    hint: "Featured model — editorial identity lock",
+    imageUrl: "/sample-photos/model-yuki-1.jpg",
+    prompt:
+      "Ultra-cinematic editorial portrait — subject in a luxury fashion editorial. Dramatic side lighting with warm champagne key and deep shadow. Silk garments with fabric micro-texture visible. 85mm f/1.4, ultra-sharp eyes, creamy bokeh background. Preserve exact facial likeness, skin tone, dark hair. ARRI Alexa 35 color science, high-fashion magazine cover framing, 8K ultra-HD.",
+  },
+  {
     id: "concert-stage",
     label: "Stage",
     emoji: "🎤",
