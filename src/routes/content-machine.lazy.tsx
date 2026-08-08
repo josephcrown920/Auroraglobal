@@ -629,10 +629,10 @@ function ContentMachinePage() {
                     <div
                       key={p.id}
                       className={cn(
-                        "rounded-xl border px-3.5 py-3 transition-colors",
+                        "rounded-xl border px-3.5 py-3 transition-colors bg-zinc-900",
                         activeSel
-                          ? "border-primary/60 bg-primary/10 ring-1 ring-primary/30"
-                          : "border-border bg-card/30 hover:border-primary/40",
+                          ? "border-primary/60"
+                          : "border-white/8 hover:border-white/25",
                       )}
                     >
                       <button onClick={() => setSelectedProductId(p.id)} className="flex w-full items-start gap-3 text-left">
@@ -731,10 +731,10 @@ function ContentMachinePage() {
                   <div
                     key={t.id}
                     className={cn(
-                      "relative rounded-xl border p-3 transition-colors",
+                      "relative rounded-xl border p-3 transition-colors bg-zinc-900",
                       sel
-                        ? "border-primary/60 bg-primary/10 ring-1 ring-primary/30"
-                        : "border-border bg-card/30 hover:border-primary/40",
+                        ? "border-primary/60"
+                        : "border-white/8 hover:border-white/25",
                     )}
                   >
                     <button onClick={() => toggleTemplate(t.id)} className="block w-full text-left">
