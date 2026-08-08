@@ -149,10 +149,13 @@ export const VIDEO_MODEL_LIST: ModelMeta[] = [
   },
   {
     value: "seedance-2.5",
-    // BytePlus-direct only. `endpoint` is a display label (must stay UNIQUE —
-    // it feeds the ALL[m.endpoint] index); real routing keys off `value` via
-    // BYTEPLUS_DEFAULTS → ModelArk slug dreamina-seedance-2-5-260628.
-    endpoint: "byteplus/dreamina-seedance-2-5-260628",
+    // Two real routes (routing keys off `value`, endpoint is display/index —
+    // must stay UNIQUE for the ALL[m.endpoint] index):
+    //   1. fal.ai bytedance/seedance-2.5/{image,text}-to-video (FAL_MAP) —
+    //      verified in the fal catalog 2026-08-08, tried first in the chain.
+    //   2. BytePlus/ModelArk dreamina-seedance-2-5-260628 (BYTEPLUS_MAP) —
+    //      cheaper direct route, still needs Ark Console activation.
+    endpoint: "bytedance/seedance-2.5/image-to-video",
     label: "Seedance 2.5",
     short: "Seedance 2.5",
     group: "Replicate",
@@ -160,13 +163,14 @@ export const VIDEO_MODEL_LIST: ModelMeta[] = [
     color: "text-fuchsia-400",
     bg: "bg-fuchsia-500/15 border-fuchsia-500/30",
     tagline: "ByteDance's newest · 30s scenes with native audio",
-    // "preview" (same pattern as kling-3.0-omni): fully wired end-to-end, and
-    // a 2026-08-04 live probe confirmed the ModelArk slug is REAL (error was
-    // ModelNotOpen "activate in Ark Console" — NOT InvalidEndpointOrModel
-    // .NotFound, which is what a dead slug returns). The BytePlus account has
-    // not activated the model yet, so a render cannot complete. Promote to
-    // "live" after Ark Console activation + one verified render (the
-    // model-watch cron probes this slug and emails when it flips callable).
+    // "preview" (same pattern as kling-3.0-omni): fully wired end-to-end on
+    // BOTH routes, but neither can complete a render today —
+    //   • fal route: FAL_KEY balance is $0 (403 "Exhausted balance")
+    //   • BytePlus route: ModelNotOpen — needs Ark Console activation
+    //     (2026-08-04 probe confirmed the slug itself is real)
+    // Promote to "live" after topping up fal.ai OR activating in Ark Console,
+    // plus one verified render (the model-watch cron probes the Ark slug and
+    // emails when it flips callable).
     status: "preview",
     category: "video",
   },

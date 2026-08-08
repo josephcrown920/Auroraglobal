@@ -100,17 +100,21 @@ export const PRICING = {
 //   Standard     20         6     video ≤ $0.94 / lipsync ≤ $0.28  (Kling direct, wav2lip)
 //   Premium      32         9     video ≤ $1.50 / lipsync ≤ $0.42  (Wan, Runway, Veo Fast, Sora, Sync.so, Fal)
 //   Ultra        48        10     video ≤ $2.26 / lipsync ≤ $0.47  (Seedance Pro, Kling Omni, Veo 3, HeyGen)
+//   Max          60        12     video ≤ $2.82 / lipsync ≤ $0.56  (Seedance 2.5 via fal — ~$2.37 per 720p·5s)
 //
 // 2026-07-08 repricing (owner request): video tiers and the motion-control base
 // were DOUBLED (video 5/10/16/24 → 10/20/32/48, motion 15 → 30) — the old
 // prices were leaving margin on the table, especially motion control.
-export type ModelTier = "budget" | "standard" | "premium" | "ultra";
+export type ModelTier = "budget" | "standard" | "premium" | "ultra" | "max";
 
 export const VIDEO_TIER_AURA: Record<ModelTier, number> = {
   budget: 100,
   standard: 200,
   premium: 320,
   ultra: 480,
+  // "max" exists for flagship models whose real provider cost exceeds the
+  // ultra pool ($2.26) — first occupant: Seedance 2.5 via fal (~$2.37/clip).
+  max: 600,
 };
 
 export const LIPSYNC_TIER_AURA: Record<ModelTier, number> = {
@@ -118,6 +122,7 @@ export const LIPSYNC_TIER_AURA: Record<ModelTier, number> = {
   standard: 60,
   premium: 90,
   ultra: 100,
+  max: 120, // no lip-sync model uses "max" yet; key exists for Record completeness
 };
 
 // Model → tier. Derived from the server MODEL_REGISTRY per-model `cost` (USD per
@@ -148,7 +153,11 @@ export const VIDEO_MODEL_TIERS: Record<string, ModelTier> = {
   "veo-2": "premium", // $0.35 — Gemini Veo 2 direct API
   "veo-3": "ultra", // $0.75
   "seedance-3.0": "ultra", // $0.75 (seedance-1-5-pro, ByteDance-direct only)
-  "seedance-2.5": "ultra", // ~$0.69–$1.16 per 720p·5s (dreamina-seedance-2-5-260628, ByteDance-direct; $6.40–$10.70/M tokens)
+  // Seedance 2.5 — priced for the most expensive live route: fal.ai
+  // (bytedance/seedance-2.5/*, ~$2.37 per 720p·5s), which exceeds the ultra
+  // pool. BytePlus-direct is cheaper (~$0.69–$1.16) but still Ark-locked;
+  // if fal is ever dropped in favour of BytePlus-only, retune this to ultra.
+  "seedance-2.5": "max",
   "xai/grok-imagine-video-1.5": "standard", // ~$0.24 (8s @ $0.03/s)
   "heygen/video-agent": "ultra", // $1.50 — needs the ultra pool ($2.26) to clear the retry buffer
   "heygen/template": "ultra", // $1.50 — Aurora Template render, same HeyGen credit burn as video-agent

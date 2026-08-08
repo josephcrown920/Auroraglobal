@@ -58,8 +58,8 @@ describe("diffCatalog", () => {
 });
 
 describe("seedance-2.5 registration", () => {
-  it("is priced in the ultra video tier (never free)", () => {
-    expect(VIDEO_MODEL_TIERS["seedance-2.5"]).toBe("ultra");
+  it("is priced in the max video tier (never free — fal route ≈$2.37/clip exceeds ultra's pool)", () => {
+    expect(VIDEO_MODEL_TIERS["seedance-2.5"]).toBe("max");
   });
 
   it("is selectable in VIDEO_MODEL_LIST with preview status and a unique endpoint", () => {
