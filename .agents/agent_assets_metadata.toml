@@ -404,3 +404,10 @@ uri = "file://public/Aurora-Site-Layout-Map.pdf"
 type = "pdf"
 title = "Aurora Site Layout Map"
 description = "One-page A4 reference of Aurora's public, creator, admin, and separate adult-product routes."
+
+[[outputs]]
+id = "zdopqpqkJmtRS0UCPQ26A"
+uri = "file://generated/output.png"
+type = "image"
+title = "Comfy Cloud starter still"
+description = "1024×1024 Flux Schnell portrait rendered through Comfy Cloud from the reusable workflow."
