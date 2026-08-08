@@ -59,6 +59,7 @@ import { Route as GiftsRouteImport } from './routes/gifts'
 import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as EditorRouteImport } from './routes/editor'
 import { Route as EditRouteImport } from './routes/edit'
+import { Route as DirectorsBoardRouteImport } from './routes/directors-board'
 import { Route as DirectorRoomRouteImport } from './routes/director-room'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ContentMachineRouteImport } from './routes/content-machine'
@@ -122,6 +123,9 @@ import { Route as ApiPublicLifecycleEmailsRouteImport } from './routes/api/publi
 import { Route as ApiPublicGenerateRouteImport } from './routes/api/public/generate'
 import { Route as ApiPublicFreeMonthlyGrantRouteImport } from './routes/api/public/free-monthly-grant'
 import { Route as ApiPublicCheckApiBalancesRouteImport } from './routes/api/public/check-api-balances'
+import { Route as ApiDirectorsBoardGenerateImageRouteImport } from './routes/api/directors-board/generate-image'
+import { Route as ApiDirectorsBoardChatRouteImport } from './routes/api/directors-board/chat'
+import { Route as ApiDirectorsBoardBrainRouteImport } from './routes/api/directors-board/brain'
 import { Route as ApiAudioUploadRouteImport } from './routes/api/audio/upload'
 import { Route as ApiAudioMasterRouteImport } from './routes/api/audio/master'
 import { Route as ApiAdultAdminGenerateRouteImport } from './routes/api/adult-admin/generate'
@@ -135,6 +139,9 @@ import { Route as ApiPublicWorkersHealthRouteImport } from './routes/api/public/
 import { Route as ApiPublicTiktokCallbackRouteImport } from './routes/api/public/tiktok/callback'
 import { Route as ApiPublicPaymentsSweepStuckRouteImport } from './routes/api/public/payments/sweep-stuck'
 import { Route as ApiPublicJobsTickRouteImport } from './routes/api/public/jobs/tick'
+import { Route as ApiPublicGpuRegisterRouteImport } from './routes/api/public/gpu/register'
+import { Route as ApiPublicGpuCompleteRouteImport } from './routes/api/public/gpu/complete'
+import { Route as ApiPublicGpuClaimRouteImport } from './routes/api/public/gpu/claim'
 import { Route as ApiPublicWorkersFilesNameRouteImport } from './routes/api/public/workers/files/$name'
 import { Route as ApiPublicCliDeviceStartRouteImport } from './routes/api/public/cli/device/start'
 import { Route as ApiPublicCliDevicePollRouteImport } from './routes/api/public/cli/device/poll'
@@ -395,6 +402,11 @@ const EditRoute = EditRouteImport.update({
   path: '/edit',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/edit.lazy').then((d) => d.Route))
+const DirectorsBoardRoute = DirectorsBoardRouteImport.update({
+  id: '/directors-board',
+  path: '/directors-board',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DirectorRoomRoute = DirectorRoomRouteImport.update({
   id: '/director-room',
   path: '/director-room',
@@ -732,6 +744,22 @@ const ApiPublicCheckApiBalancesRoute =
     path: '/api/public/check-api-balances',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiDirectorsBoardGenerateImageRoute =
+  ApiDirectorsBoardGenerateImageRouteImport.update({
+    id: '/api/directors-board/generate-image',
+    path: '/api/directors-board/generate-image',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiDirectorsBoardChatRoute = ApiDirectorsBoardChatRouteImport.update({
+  id: '/api/directors-board/chat',
+  path: '/api/directors-board/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDirectorsBoardBrainRoute = ApiDirectorsBoardBrainRouteImport.update({
+  id: '/api/directors-board/brain',
+  path: '/api/directors-board/brain',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAudioUploadRoute = ApiAudioUploadRouteImport.update({
   id: '/api/audio/upload',
   path: '/api/audio/upload',
@@ -800,6 +828,21 @@ const ApiPublicJobsTickRoute = ApiPublicJobsTickRouteImport.update({
   path: '/api/public/jobs/tick',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicGpuRegisterRoute = ApiPublicGpuRegisterRouteImport.update({
+  id: '/api/public/gpu/register',
+  path: '/api/public/gpu/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicGpuCompleteRoute = ApiPublicGpuCompleteRouteImport.update({
+  id: '/api/public/gpu/complete',
+  path: '/api/public/gpu/complete',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicGpuClaimRoute = ApiPublicGpuClaimRouteImport.update({
+  id: '/api/public/gpu/claim',
+  path: '/api/public/gpu/claim',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicWorkersFilesNameRoute =
   ApiPublicWorkersFilesNameRouteImport.update({
     id: '/api/public/workers/files/$name',
@@ -842,6 +885,7 @@ export interface FileRoutesByFullPath {
   '/content-machine': typeof ContentMachineRoute
   '/dashboard': typeof DashboardRoute
   '/director-room': typeof DirectorRoomRoute
+  '/directors-board': typeof DirectorsBoardRoute
   '/edit': typeof EditRoute
   '/editor': typeof EditorRoute
   '/gallery': typeof GalleryRoute
@@ -920,6 +964,9 @@ export interface FileRoutesByFullPath {
   '/api/adult-admin/generate': typeof ApiAdultAdminGenerateRoute
   '/api/audio/master': typeof ApiAudioMasterRouteWithChildren
   '/api/audio/upload': typeof ApiAudioUploadRoute
+  '/api/directors-board/brain': typeof ApiDirectorsBoardBrainRoute
+  '/api/directors-board/chat': typeof ApiDirectorsBoardChatRoute
+  '/api/directors-board/generate-image': typeof ApiDirectorsBoardGenerateImageRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
@@ -942,6 +989,9 @@ export interface FileRoutesByFullPath {
   '/api/video-agent/generate-frame': typeof ApiVideoAgentGenerateFrameRoute
   '/api/video-agent/generate-script': typeof ApiVideoAgentGenerateScriptRoute
   '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
+  '/api/public/gpu/claim': typeof ApiPublicGpuClaimRoute
+  '/api/public/gpu/complete': typeof ApiPublicGpuCompleteRoute
+  '/api/public/gpu/register': typeof ApiPublicGpuRegisterRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
@@ -973,6 +1023,7 @@ export interface FileRoutesByTo {
   '/content-machine': typeof ContentMachineRoute
   '/dashboard': typeof DashboardRoute
   '/director-room': typeof DirectorRoomRoute
+  '/directors-board': typeof DirectorsBoardRoute
   '/edit': typeof EditRoute
   '/editor': typeof EditorRoute
   '/gallery': typeof GalleryRoute
@@ -1051,6 +1102,9 @@ export interface FileRoutesByTo {
   '/api/adult-admin/generate': typeof ApiAdultAdminGenerateRoute
   '/api/audio/master': typeof ApiAudioMasterRouteWithChildren
   '/api/audio/upload': typeof ApiAudioUploadRoute
+  '/api/directors-board/brain': typeof ApiDirectorsBoardBrainRoute
+  '/api/directors-board/chat': typeof ApiDirectorsBoardChatRoute
+  '/api/directors-board/generate-image': typeof ApiDirectorsBoardGenerateImageRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
@@ -1073,6 +1127,9 @@ export interface FileRoutesByTo {
   '/api/video-agent/generate-frame': typeof ApiVideoAgentGenerateFrameRoute
   '/api/video-agent/generate-script': typeof ApiVideoAgentGenerateScriptRoute
   '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
+  '/api/public/gpu/claim': typeof ApiPublicGpuClaimRoute
+  '/api/public/gpu/complete': typeof ApiPublicGpuCompleteRoute
+  '/api/public/gpu/register': typeof ApiPublicGpuRegisterRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
@@ -1105,6 +1162,7 @@ export interface FileRoutesById {
   '/content-machine': typeof ContentMachineRoute
   '/dashboard': typeof DashboardRoute
   '/director-room': typeof DirectorRoomRoute
+  '/directors-board': typeof DirectorsBoardRoute
   '/edit': typeof EditRoute
   '/editor': typeof EditorRoute
   '/gallery': typeof GalleryRoute
@@ -1183,6 +1241,9 @@ export interface FileRoutesById {
   '/api/adult-admin/generate': typeof ApiAdultAdminGenerateRoute
   '/api/audio/master': typeof ApiAudioMasterRouteWithChildren
   '/api/audio/upload': typeof ApiAudioUploadRoute
+  '/api/directors-board/brain': typeof ApiDirectorsBoardBrainRoute
+  '/api/directors-board/chat': typeof ApiDirectorsBoardChatRoute
+  '/api/directors-board/generate-image': typeof ApiDirectorsBoardGenerateImageRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
@@ -1205,6 +1266,9 @@ export interface FileRoutesById {
   '/api/video-agent/generate-frame': typeof ApiVideoAgentGenerateFrameRoute
   '/api/video-agent/generate-script': typeof ApiVideoAgentGenerateScriptRoute
   '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
+  '/api/public/gpu/claim': typeof ApiPublicGpuClaimRoute
+  '/api/public/gpu/complete': typeof ApiPublicGpuCompleteRoute
+  '/api/public/gpu/register': typeof ApiPublicGpuRegisterRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
@@ -1238,6 +1302,7 @@ export interface FileRouteTypes {
     | '/content-machine'
     | '/dashboard'
     | '/director-room'
+    | '/directors-board'
     | '/edit'
     | '/editor'
     | '/gallery'
@@ -1316,6 +1381,9 @@ export interface FileRouteTypes {
     | '/api/adult-admin/generate'
     | '/api/audio/master'
     | '/api/audio/upload'
+    | '/api/directors-board/brain'
+    | '/api/directors-board/chat'
+    | '/api/directors-board/generate-image'
     | '/api/public/check-api-balances'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
@@ -1338,6 +1406,9 @@ export interface FileRouteTypes {
     | '/api/video-agent/generate-frame'
     | '/api/video-agent/generate-script'
     | '/api/video-agent/submit'
+    | '/api/public/gpu/claim'
+    | '/api/public/gpu/complete'
+    | '/api/public/gpu/register'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
     | '/api/public/tiktok/callback'
@@ -1369,6 +1440,7 @@ export interface FileRouteTypes {
     | '/content-machine'
     | '/dashboard'
     | '/director-room'
+    | '/directors-board'
     | '/edit'
     | '/editor'
     | '/gallery'
@@ -1447,6 +1519,9 @@ export interface FileRouteTypes {
     | '/api/adult-admin/generate'
     | '/api/audio/master'
     | '/api/audio/upload'
+    | '/api/directors-board/brain'
+    | '/api/directors-board/chat'
+    | '/api/directors-board/generate-image'
     | '/api/public/check-api-balances'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
@@ -1469,6 +1544,9 @@ export interface FileRouteTypes {
     | '/api/video-agent/generate-frame'
     | '/api/video-agent/generate-script'
     | '/api/video-agent/submit'
+    | '/api/public/gpu/claim'
+    | '/api/public/gpu/complete'
+    | '/api/public/gpu/register'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
     | '/api/public/tiktok/callback'
@@ -1500,6 +1578,7 @@ export interface FileRouteTypes {
     | '/content-machine'
     | '/dashboard'
     | '/director-room'
+    | '/directors-board'
     | '/edit'
     | '/editor'
     | '/gallery'
@@ -1578,6 +1657,9 @@ export interface FileRouteTypes {
     | '/api/adult-admin/generate'
     | '/api/audio/master'
     | '/api/audio/upload'
+    | '/api/directors-board/brain'
+    | '/api/directors-board/chat'
+    | '/api/directors-board/generate-image'
     | '/api/public/check-api-balances'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
@@ -1600,6 +1682,9 @@ export interface FileRouteTypes {
     | '/api/video-agent/generate-frame'
     | '/api/video-agent/generate-script'
     | '/api/video-agent/submit'
+    | '/api/public/gpu/claim'
+    | '/api/public/gpu/complete'
+    | '/api/public/gpu/register'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
     | '/api/public/tiktok/callback'
@@ -1632,6 +1717,7 @@ export interface RootRouteChildren {
   ContentMachineRoute: typeof ContentMachineRoute
   DashboardRoute: typeof DashboardRoute
   DirectorRoomRoute: typeof DirectorRoomRoute
+  DirectorsBoardRoute: typeof DirectorsBoardRoute
   EditRoute: typeof EditRoute
   EditorRoute: typeof EditorRoute
   GalleryRoute: typeof GalleryRoute
@@ -1698,6 +1784,9 @@ export interface RootRouteChildren {
   ApiAdultAdminGenerateRoute: typeof ApiAdultAdminGenerateRoute
   ApiAudioMasterRoute: typeof ApiAudioMasterRouteWithChildren
   ApiAudioUploadRoute: typeof ApiAudioUploadRoute
+  ApiDirectorsBoardBrainRoute: typeof ApiDirectorsBoardBrainRoute
+  ApiDirectorsBoardChatRoute: typeof ApiDirectorsBoardChatRoute
+  ApiDirectorsBoardGenerateImageRoute: typeof ApiDirectorsBoardGenerateImageRoute
   ApiPublicCheckApiBalancesRoute: typeof ApiPublicCheckApiBalancesRoute
   ApiPublicFreeMonthlyGrantRoute: typeof ApiPublicFreeMonthlyGrantRoute
   ApiPublicGenerateRoute: typeof ApiPublicGenerateRoute
@@ -1720,6 +1809,9 @@ export interface RootRouteChildren {
   ApiVideoAgentGenerateFrameRoute: typeof ApiVideoAgentGenerateFrameRoute
   ApiVideoAgentGenerateScriptRoute: typeof ApiVideoAgentGenerateScriptRoute
   ApiVideoAgentSubmitRoute: typeof ApiVideoAgentSubmitRoute
+  ApiPublicGpuClaimRoute: typeof ApiPublicGpuClaimRoute
+  ApiPublicGpuCompleteRoute: typeof ApiPublicGpuCompleteRoute
+  ApiPublicGpuRegisterRoute: typeof ApiPublicGpuRegisterRoute
   ApiPublicJobsTickRoute: typeof ApiPublicJobsTickRoute
   ApiPublicPaymentsSweepStuckRoute: typeof ApiPublicPaymentsSweepStuckRoute
   ApiPublicTiktokCallbackRoute: typeof ApiPublicTiktokCallbackRoute
@@ -2074,6 +2166,13 @@ declare module '@tanstack/react-router' {
       path: '/edit'
       fullPath: '/edit'
       preLoaderRoute: typeof EditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/directors-board': {
+      id: '/directors-board'
+      path: '/directors-board'
+      fullPath: '/directors-board'
+      preLoaderRoute: typeof DirectorsBoardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/director-room': {
@@ -2517,6 +2616,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCheckApiBalancesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/directors-board/generate-image': {
+      id: '/api/directors-board/generate-image'
+      path: '/api/directors-board/generate-image'
+      fullPath: '/api/directors-board/generate-image'
+      preLoaderRoute: typeof ApiDirectorsBoardGenerateImageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/directors-board/chat': {
+      id: '/api/directors-board/chat'
+      path: '/api/directors-board/chat'
+      fullPath: '/api/directors-board/chat'
+      preLoaderRoute: typeof ApiDirectorsBoardChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/directors-board/brain': {
+      id: '/api/directors-board/brain'
+      path: '/api/directors-board/brain'
+      fullPath: '/api/directors-board/brain'
+      preLoaderRoute: typeof ApiDirectorsBoardBrainRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/audio/upload': {
       id: '/api/audio/upload'
       path: '/api/audio/upload'
@@ -2606,6 +2726,27 @@ declare module '@tanstack/react-router' {
       path: '/api/public/jobs/tick'
       fullPath: '/api/public/jobs/tick'
       preLoaderRoute: typeof ApiPublicJobsTickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/gpu/register': {
+      id: '/api/public/gpu/register'
+      path: '/api/public/gpu/register'
+      fullPath: '/api/public/gpu/register'
+      preLoaderRoute: typeof ApiPublicGpuRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/gpu/complete': {
+      id: '/api/public/gpu/complete'
+      path: '/api/public/gpu/complete'
+      fullPath: '/api/public/gpu/complete'
+      preLoaderRoute: typeof ApiPublicGpuCompleteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/gpu/claim': {
+      id: '/api/public/gpu/claim'
+      path: '/api/public/gpu/claim'
+      fullPath: '/api/public/gpu/claim'
+      preLoaderRoute: typeof ApiPublicGpuClaimRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/workers/files/$name': {
@@ -2703,6 +2844,7 @@ const rootRouteChildren: RootRouteChildren = {
   ContentMachineRoute: ContentMachineRoute,
   DashboardRoute: DashboardRoute,
   DirectorRoomRoute: DirectorRoomRoute,
+  DirectorsBoardRoute: DirectorsBoardRoute,
   EditRoute: EditRoute,
   EditorRoute: EditorRoute,
   GalleryRoute: GalleryRoute,
@@ -2769,6 +2911,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdultAdminGenerateRoute: ApiAdultAdminGenerateRoute,
   ApiAudioMasterRoute: ApiAudioMasterRouteWithChildren,
   ApiAudioUploadRoute: ApiAudioUploadRoute,
+  ApiDirectorsBoardBrainRoute: ApiDirectorsBoardBrainRoute,
+  ApiDirectorsBoardChatRoute: ApiDirectorsBoardChatRoute,
+  ApiDirectorsBoardGenerateImageRoute: ApiDirectorsBoardGenerateImageRoute,
   ApiPublicCheckApiBalancesRoute: ApiPublicCheckApiBalancesRoute,
   ApiPublicFreeMonthlyGrantRoute: ApiPublicFreeMonthlyGrantRoute,
   ApiPublicGenerateRoute: ApiPublicGenerateRoute,
@@ -2791,6 +2936,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiVideoAgentGenerateFrameRoute: ApiVideoAgentGenerateFrameRoute,
   ApiVideoAgentGenerateScriptRoute: ApiVideoAgentGenerateScriptRoute,
   ApiVideoAgentSubmitRoute: ApiVideoAgentSubmitRoute,
+  ApiPublicGpuClaimRoute: ApiPublicGpuClaimRoute,
+  ApiPublicGpuCompleteRoute: ApiPublicGpuCompleteRoute,
+  ApiPublicGpuRegisterRoute: ApiPublicGpuRegisterRoute,
   ApiPublicJobsTickRoute: ApiPublicJobsTickRoute,
   ApiPublicPaymentsSweepStuckRoute: ApiPublicPaymentsSweepStuckRoute,
   ApiPublicTiktokCallbackRoute: ApiPublicTiktokCallbackRoute,
