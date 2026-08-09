@@ -418,3 +418,10 @@ uri = "file://generated/wan_i2v_portrait.mp4"
 type = "video"
 title = "Wan 2.1 image-to-video render"
 description = "5-second 480x480 video animated from the Flux still on Comfy Cloud (open-source Wan 2.1 i2v — no partner credits charged)."
+
+[[outputs]]
+id = "mJxeLP3-VSb8rMBz8x56P"
+uri = "file://generated/aurora-comfyui-gpu-stack.zip"
+type = "unspecified"
+title = "Aurora ComfyUI GPU Stack"
+description = "Runnable Core Engine app plus Aurora Kaggle and Colab ComfyUI worker notebooks, launchers, hybrid inference notebook, and setup documentation for image, video, motion, and lip-sync workflows."
