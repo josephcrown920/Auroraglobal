@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { orchestrationHealth, providerCredits } from "@/lib/orchestration.functions";
+import { getGenerationHealth, type GenerationHealthRow } from "@/lib/generation-health.functions";
 import type { ProviderCreditRow } from "@/lib/orchestration.functions";
 import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import {
@@ -168,6 +169,63 @@ function formatAge(secs: number): string {
   return `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`;
 }
 
+function isAlerting(r: GenerationHealthRow): boolean {
+  // Alert has been sent and no recovery since.
+  if (!r.alert_sent_at) return false;
+  if (!r.recovery_sent_at) return true;
+  return new Date(r.alert_sent_at).getTime() > new Date(r.recovery_sent_at).getTime();
+}
+
+function GenHealthCard({ r }: { r: GenerationHealthRow }) {
+  const alerting = isAlerting(r);
+  const degraded = !alerting && r.consecutive_errors > 0;
+  const border = alerting
+    ? "border-destructive/40 bg-destructive/5"
+    : degraded
+      ? "border-amber-500/30 bg-amber-500/5"
+      : "border-border bg-card/40";
+  const statusLabel = alerting ? "ALERTING" : degraded ? "DEGRADED" : "HEALTHY";
+  const statusClass = alerting
+    ? "text-destructive"
+    : degraded
+      ? "text-amber-400"
+      : "text-emerald-400";
+  const dot = alerting
+    ? "bg-red-500 animate-pulse"
+    : degraded
+      ? "bg-amber-400 animate-pulse"
+      : "bg-emerald-400";
+  return (
+    <div className={`rounded-lg border p-3.5 flex flex-col gap-1.5 ${border}`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-semibold capitalize">{r.kind}</span>
+        <span className="flex items-center gap-1.5">
+          <span className={`size-2 rounded-full ${dot}`} />
+          <span className={`text-xs font-medium ${statusClass}`}>{statusLabel}</span>
+        </span>
+      </div>
+      <div className="text-xs text-muted-foreground tabular-nums">
+        last ok: {r.last_ok_at ? timeAgo(r.last_ok_at) : "never"}
+      </div>
+      <div className="text-xs text-muted-foreground tabular-nums">
+        <span className={r.consecutive_errors > 0 ? (alerting ? "text-destructive" : "text-amber-400") : ""}>
+          {r.consecutive_errors} consecutive error{r.consecutive_errors === 1 ? "" : "s"}
+        </span>
+        <span className="text-emerald-400"> · {r.consecutive_ok} ok</span>
+        {r.last_check_at && <span> · checked {timeAgo(r.last_check_at)}</span>}
+      </div>
+      {r.last_error_summary && (
+        <div
+          className="text-xs text-muted-foreground/80 truncate"
+          title={r.last_error_summary}
+        >
+          last error: {r.last_error_summary}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OrchestrationDashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -183,6 +241,14 @@ function OrchestrationDashboard() {
     queryFn: () => healthFn(),
     enabled: !!user && unlocked,
     refetchInterval: 15_000,
+  });
+
+  const genHealthFn = useServerFn(getGenerationHealth);
+  const { data: genHealth, isLoading: genHealthLoading, error: genHealthError } = useQuery({
+    queryKey: ["generation-health"],
+    queryFn: () => genHealthFn(),
+    enabled: !!user && unlocked,
+    refetchInterval: 60_000,
   });
 
   const creditsFn = useServerFn(providerCredits);
@@ -248,6 +314,41 @@ function OrchestrationDashboard() {
             {error instanceof Error ? error.message : "Failed"}
           </div>
         )}
+
+        {/* Generation health per kind — independent of the orchestration-health query,
+            so it stays visible even when that request fails */}
+        <div className="rounded-xl border border-border bg-card/40 mb-8 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-sm font-semibold flex items-center gap-2">
+              <AlertTriangle className="size-4 text-primary" /> Generation health
+            </span>
+            <span className="text-xs text-muted-foreground">
+              per-kind provider checks · refreshes every 60s
+            </span>
+          </div>
+          {genHealthLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" /> Loading generation health…
+            </div>
+          )}
+          {genHealthError && (
+            <div className="text-sm text-destructive">
+              {genHealthError instanceof Error ? genHealthError.message : "Failed to load generation health"}
+            </div>
+          )}
+          {genHealth && genHealth.length === 0 && (
+            <div className="text-sm text-muted-foreground">
+              No health checks recorded yet — the provider-health cron hasn't run.
+            </div>
+          )}
+          {genHealth && genHealth.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {genHealth.map((r) => (
+                <GenHealthCard key={r.kind} r={r} />
+              ))}
+            </div>
+          )}
+        </div>
 
         {data && (
           <>
