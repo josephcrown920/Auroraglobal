@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getAutoReloadSettings, saveAutoReloadSettings } from "@/hooks/use-auto-reload";
 import { AURA_VALUE_SCENARIOS, auraValueEstimate } from "@/lib/pricing";
+import { shouldConfirmPackPurchase } from "@/lib/billing-pack-confirm";
 
 export const Route = createLazyFileRoute("/billing")({ component: BillingPage });
 
@@ -55,6 +56,8 @@ function BillingPage() {
   const [promoCode, setPromoCode] = useState("");
   const [redeemCode, setRedeemCode] = useState("");
   const [dailyLimitInput, setDailyLimitInput] = useState("");
+  // Pack key currently awaiting the "won't fund a performance render" confirmation.
+  const [confirmPack, setConfirmPack] = useState<"starter" | "creator" | "studio" | null>(null);
   const [autoReload, setAutoReload] = useState(() => getAutoReloadSettings());
 
   // ── Owner-only region preview ─────────────────────────────────────────────
@@ -436,14 +439,41 @@ function BillingPage() {
                       Covers up to {performance.count} complete 5-second Perform Anywhere {performance.count === 1 ? "render" : "renders"} at the representative setting.
                     </p>
                   )}
+                  {confirmPack === key && (
+                    <div className="rounded-xl border border-amber-400/40 bg-amber-400/10 p-3 text-xs leading-relaxed text-amber-200">
+                      <p className="font-semibold mb-1.5">Just so you know</p>
+                      <p className="text-amber-200/90">
+                        This pack won&apos;t fund a full Perform Anywhere render — continue?
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmPack(null)}
+                        className="mt-2 text-[11px] font-semibold text-amber-300/80 underline underline-offset-2 hover:text-amber-200"
+                      >
+                        Never mind
+                      </button>
+                    </div>
+                  )}
                   <Button
                     size="sm"
                     variant={isCreator ? "premium" : "outline"}
                     className="w-full"
-                    onClick={() => packMut.mutate(key)}
+                    onClick={() => {
+                      // Packs that can't cover a performance render get one
+                      // inline confirmation step before checkout — it never
+                      // blocks the purchase, it only makes the warning seen.
+                      if (shouldConfirmPackPurchase({ performanceCount: performance.count, confirmedKey: confirmPack, key })) {
+                        setConfirmPack(key);
+                        return;
+                      }
+                      setConfirmPack(null);
+                      packMut.mutate(key);
+                    }}
                     disabled={packMut.isPending || cryptoMut.isPending || previewing}
                   >
-                    {packMut.isPending ? <Loader2 className="size-3 animate-spin" /> : (
+                    {packMut.isPending ? <Loader2 className="size-3 animate-spin" /> : confirmPack === key ? (
+                      <><CreditCard className="size-3 mr-1" /> Continue anyway — Get {PLAN_CONTEXT[key].name} Aura</>
+                    ) : (
                       <><CreditCard className="size-3 mr-1" /> Get {PLAN_CONTEXT[key].name} Aura</>
                     )}
                   </Button>
@@ -451,11 +481,18 @@ function BillingPage() {
                     size="sm"
                     variant="ghost"
                     className="w-full text-xs text-muted-foreground hover:text-amber-300"
-                    onClick={() => cryptoMut.mutate(key)}
+                    onClick={() => {
+                      if (shouldConfirmPackPurchase({ performanceCount: performance.count, confirmedKey: confirmPack, key })) {
+                        setConfirmPack(key);
+                        return;
+                      }
+                      setConfirmPack(null);
+                      cryptoMut.mutate(key);
+                    }}
                     disabled={packMut.isPending || cryptoMut.isPending || previewing}
                     title="Pay with BTC, ETH, USDT, USDC and more"
                   >
-                    {cryptoMut.isPending ? <Loader2 className="size-3 animate-spin" /> : <>₿ Pay with crypto</>}
+                    {cryptoMut.isPending ? <Loader2 className="size-3 animate-spin" /> : confirmPack === key ? <>₿ Continue anyway — pay with crypto</> : <>₿ Pay with crypto</>}
                   </Button>
                 </div>
               );
