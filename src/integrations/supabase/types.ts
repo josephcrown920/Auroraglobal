@@ -901,6 +901,42 @@ export type Database = {
         };
         Relationships: [];
       };
+      generation_health_state: {
+        Row: {
+          alert_sent_at: string | null;
+          consecutive_errors: number;
+          consecutive_ok: number;
+          kind: string;
+          last_check_at: string | null;
+          last_error_summary: string | null;
+          last_ok_at: string | null;
+          recovery_sent_at: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          alert_sent_at?: string | null;
+          consecutive_errors?: number;
+          consecutive_ok?: number;
+          kind: string;
+          last_check_at?: string | null;
+          last_error_summary?: string | null;
+          last_ok_at?: string | null;
+          recovery_sent_at?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          alert_sent_at?: string | null;
+          consecutive_errors?: number;
+          consecutive_ok?: number;
+          kind?: string;
+          last_check_at?: string | null;
+          last_error_summary?: string | null;
+          last_ok_at?: string | null;
+          recovery_sent_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       gpu_workers: {
         Row: {
           auth_token: string | null

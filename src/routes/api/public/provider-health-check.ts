@@ -69,9 +69,7 @@ export async function runHealthCheck(
   const nowIso = now.toISOString();
 
   if (!opts?.bypassMaintenanceLock) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const lockDb = supabaseAdmin as any;
-    const { data: lock } = await lockDb
+    const { data: lock } = await supabaseAdmin
       .from("generation_health_state")
       .select("kind, updated_at")
       .eq("kind", MAINTENANCE_KIND)
@@ -87,9 +85,7 @@ export async function runHealthCheck(
   const cutoffDark   = new Date(now.getTime() - WINDOW_DARK_H   * 3600_000).toISOString();
 
   // Fetch all logs in the longer window (covers both checks)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabaseAdmin as any;
-  const { data: logs, error: logsError } = await db
+  const { data: logs, error: logsError } = await supabaseAdmin
     .from("provider_logs")
     .select("kind, status, created_at")
     .in("kind", MONITORED_KINDS)
@@ -124,7 +120,7 @@ export async function runHealthCheck(
   }
 
   // ── 2. Load current alert state from DB ──────────────────────────────────
-  const { data: stateRows } = await db
+  const { data: stateRows } = await supabaseAdmin
     .from("generation_health_state")
     .select("*")
     .in("kind", MONITORED_KINDS);
@@ -207,7 +203,7 @@ export async function runHealthCheck(
         : "ok";
 
     // Upsert state
-    await db.from("generation_health_state").upsert({
+    await supabaseAdmin.from("generation_health_state").upsert({
       kind,
       consecutive_ok: consecutiveOk,
       consecutive_errors: consecutiveErrors,

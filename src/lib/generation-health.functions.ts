@@ -29,9 +29,7 @@ export const getGenerationHealth = createServerFn({ method: "GET" })
     // Admin-only: only the admin UI calls this, and the admin gate is enforced
     // client-side (unlocked state) + supabase session. No additional role
     // check needed for a read-only monitoring query.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = supabaseAdmin as any;
-    const { data, error } = await db
+    const { data, error } = await supabaseAdmin
       .from("generation_health_state")
       .select("*")
       // Exclude internal sentinel rows (e.g. "__maintenance__" smoke-test lock).
@@ -39,5 +37,5 @@ export const getGenerationHealth = createServerFn({ method: "GET" })
       .order("kind");
 
     if (error) throw new Error(error.message);
-    return (data ?? []) as unknown as GenerationHealthRow[];
+    return (data ?? []) as GenerationHealthRow[];
   });
