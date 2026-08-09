@@ -707,6 +707,14 @@ def register_with_aurora() -> bool:
     domain = os.environ.get("NGROK_STATIC_DOMAIN", "").strip()
     aurora_url = os.environ.get("AURORA_URL", "").strip().rstrip("/")
     register_key = os.environ.get("AURORA_REGISTER_SECRET", "").strip()
+    legacy_key = os.environ.get("AURORA_REGISTER_KEY", "").strip()
+    if legacy_key:
+        print("\n" + "!" * 80, flush=True)
+        print("[register] WARNING: retired AURORA_REGISTER_KEY is still configured.", flush=True)
+        print("[register] Rename it to AURORA_REGISTER_SECRET and replace it with a NEW", flush=True)
+        print("[register] private operator secret. Do NOT reuse the Supabase anon/publishable", flush=True)
+        print("[register] key or any old AURORA_REGISTER_KEY value.", flush=True)
+        print("!" * 80 + "\n", flush=True)
     if not (domain and aurora_url and register_key):
         print(
             "[register] skipped — set NGROK_STATIC_DOMAIN, AURORA_URL and "

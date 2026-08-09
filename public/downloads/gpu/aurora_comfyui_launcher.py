@@ -51,6 +51,7 @@ CONFIG_KEYS = [
     "NGROK_STATIC_DOMAIN",
     "AURORA_URL",
     "AURORA_REGISTER_SECRET",
+    "AURORA_REGISTER_KEY",  # retired name; loaded only so we can explain the migration
     "AURORA_WORKER_NAME",
     "AURORA_CAPABILITIES",
 ]
@@ -328,6 +329,15 @@ def warn_if_register_secrets_missing():
     add the URL by hand in Admin -> Workers), but they should know that before
     waiting through ComfyUI install + model downloads, not after.
     """
+    legacy_key = os.environ.get("AURORA_REGISTER_KEY", "").strip()
+    if legacy_key:
+        print("\n" + "!" * 80, flush=True)
+        print("[bootstrap] WARNING: this worker still has the retired AURORA_REGISTER_KEY", flush=True)
+        print("[bootstrap] configured. Rename it to AURORA_REGISTER_SECRET and replace it", flush=True)
+        print("[bootstrap] with a NEW private operator secret. Do NOT reuse the Supabase", flush=True)
+        print("[bootstrap] anon/publishable key or the old AURORA_REGISTER_KEY value.", flush=True)
+        print("!" * 80 + "\n", flush=True)
+
     missing = [(k, hint) for k, hint in _REQUIRED_FOR_REGISTER if not os.environ.get(k, "").strip()]
     if not missing:
         print("[bootstrap] all auto-register secrets present — will self-register after setup.", flush=True)
