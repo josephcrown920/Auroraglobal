@@ -7,6 +7,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 // @ts-nocheck — live DB tables aren't yet in generated Supabase types
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { UntypedDb } from "@/integrations/supabase/untyped";
+
+const adminDb = supabaseAdmin as unknown as UntypedDb;
 
 export type PipelineJob = {
   id: string;
@@ -57,13 +60,13 @@ export const listPipelineJobs = createServerFn({ method: "GET" })
     const uid = context.userId;
 
     const [locksRes, gensRes, adsRes, jobsRes] = await Promise.all([
-      (supabaseAdmin as any)
+      adminDb
         .from("likeness_locks")
         .select("id, name, created_at")
         .eq("user_id", uid)
         .order("created_at", { ascending: false })
         .limit(20),
-      (supabaseAdmin as any)
+      adminDb
         .from("generations")
         .select("id, prompt, status, error, result_image_url, result_video_url, created_at, model")
         .eq("user_id", uid)
@@ -73,13 +76,13 @@ export const listPipelineJobs = createServerFn({ method: "GET" })
         )
         .order("created_at", { ascending: false })
         .limit(60),
-      (supabaseAdmin as any)
+      adminDb
         .from("ad_variations")
         .select("id, kind, aspect, text_value, url, status, error, created_at, batch_id")
         .eq("user_id", uid)
         .order("created_at", { ascending: false })
         .limit(60),
-      (supabaseAdmin as any)
+      adminDb
         .from("jobs")
         .select("id, kind, status, error, created_at, finished_at")
         .eq("user_id", uid)
@@ -150,12 +153,13 @@ export const listPipelineJobs = createServerFn({ method: "GET" })
     jobs.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 
     // ── Batch aggregation: group ad_variations rows by batch_id ───────────
-    const byBatch = new Map<string, any[]>();
+    type AdRow = { batch_id?: string | null; status: string; created_at: string; kind?: string | null; aspect?: string | null; url?: string | null };
+    const byBatch = new Map<string, AdRow[]>();
     for (const r of adsRes.data ?? []) {
-      const bid = (r as any).batch_id;
+      const bid = (r as AdRow).batch_id;
       if (!bid) continue;
       const arr = byBatch.get(bid) ?? [];
-      arr.push(r);
+      arr.push(r as AdRow);
       byBatch.set(bid, arr);
     }
     const batches: PipelineBatch[] = [];

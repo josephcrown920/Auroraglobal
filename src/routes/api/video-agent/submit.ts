@@ -5,6 +5,7 @@
 // The reservationRef must be forwarded to /api/video-agent/finalize once
 // polling confirms the video is completed.
 import { createFileRoute } from "@tanstack/react-router";
+import type { UntypedDb } from "@/integrations/supabase/untyped";
 import { z } from "zod";
 
 const CORS = {
@@ -138,7 +139,7 @@ export const Route = createFileRoute("/api/video-agent/submit")({
         // trusting the client. If this insert fails we release the reservation
         // and fail loudly — an untracked videoId could never be finalized and
         // would strand the user's credits.
-        const { error: subErr } = await (supabaseAdmin as any)
+        const { error: subErr } = await (supabaseAdmin as unknown as UntypedDb)
           .from("video_agent_submissions")
           .insert({
             video_id: videoId,

@@ -4,6 +4,7 @@
 // in a single Postgres transaction (finalize_sync_render).
 // Body: { videoId, url, prompt, reservationRef, cost, orientation }
 import { createFileRoute } from "@tanstack/react-router";
+import type { UntypedDb } from "@/integrations/supabase/untyped";
 import { z } from "zod";
 
 const CORS = {
@@ -72,7 +73,7 @@ export const Route = createFileRoute("/api/video-agent/finalize")({
         // Server-side provenance: the submission row binds videoId → user →
         // reservation → cost. No row = not this user's video (or never
         // submitted through us) — refuse.
-        const { data: submission } = await (supabaseAdmin as any)
+        const { data: submission } = await (supabaseAdmin as unknown as UntypedDb)
           .from("video_agent_submissions")
           .select("video_id, reservation_ref, prompt, cost, finalized_at, generation_id")
           .eq("video_id", videoId)
@@ -121,7 +122,7 @@ export const Route = createFileRoute("/api/video-agent/finalize")({
 
         // CAS the finalized flag so a concurrent double-finalize can't commit
         // the reservation twice.
-        const { data: claimed } = await (supabaseAdmin as any)
+        const { data: claimed } = await (supabaseAdmin as unknown as UntypedDb)
           .from("video_agent_submissions")
           .update({ finalized_at: new Date().toISOString() })
           .eq("video_id", videoId)
@@ -165,7 +166,7 @@ export const Route = createFileRoute("/api/video-agent/finalize")({
           );
         }
 
-        await (supabaseAdmin as any)
+        await (supabaseAdmin as unknown as UntypedDb)
           .from("video_agent_submissions")
           .update({ generation_id: genId })
           .eq("video_id", videoId)

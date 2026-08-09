@@ -12,6 +12,9 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 // @ts-nocheck
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { UntypedDb } from "@/integrations/supabase/untyped";
+
+const adminDb = supabaseAdmin as unknown as UntypedDb;
 import { orchestrate } from "@/lib/orchestrator.server";
 import { assertOwnedReferenceImage } from "@/lib/url-guard";
 import { LIKENESS_MODEL, LIKENESS_COST_PER_IMAGE } from "@/lib/likeness-shoot";
@@ -87,7 +90,7 @@ export const generateAdVariations = createServerFn({ method: "POST" })
     // images. Checked up-front so nothing foreign ever reaches a provider.
     await Promise.all(data.sourceUrls.map((u) => assertOwnedReferenceImage(u, uid)));
     if (data.likenessId) {
-      const { data: lk } = await (supabaseAdmin as any)
+      const { data: lk } = await adminDb
         .from("likeness_locks")
         .select("id")
         .eq("id", data.likenessId)
@@ -142,7 +145,7 @@ export const generateAdVariations = createServerFn({ method: "POST" })
       });
     }
     if (textRows.length > 0) {
-      await (supabaseAdmin as any).from("ad_variations").insert(textRows);
+      await adminDb.from("ad_variations").insert(textRows);
     }
 
     // 2) Aspect renders — re-render each source shot at each requested aspect
@@ -207,7 +210,7 @@ export const generateAdVariations = createServerFn({ method: "POST" })
         }
       });
       if (rowsToInsert.length > 0) {
-        const { data: inserted } = await (supabaseAdmin as any)
+        const { data: inserted } = await adminDb
           .from("ad_variations")
           .insert(rowsToInsert)
           .select("*");
@@ -216,7 +219,7 @@ export const generateAdVariations = createServerFn({ method: "POST" })
     }
 
     // 3) Return the whole batch fresh for the UI.
-    const { data: fullBatch } = await (supabaseAdmin as any)
+    const { data: fullBatch } = await adminDb
       .from("ad_variations")
       .select("*")
       .eq("batch_id", batchId)
@@ -247,7 +250,7 @@ export const generateAdVariations = createServerFn({ method: "POST" })
 export const listAdVariationBatches = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data } = await (supabaseAdmin as any)
+    const { data } = await adminDb
       .from("ad_variations")
       .select("*")
       .eq("user_id", context.userId)

@@ -1,6 +1,7 @@
 // POST /api/public/gpu/complete
 // Called by a GPU worker when a render_job finishes (or fails).
 import { createFileRoute } from "@tanstack/react-router";
+import type { UntypedDb } from "@/integrations/supabase/untyped";
 import { z } from "zod";
 
 const Body = z.object({
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/api/public/gpu/complete")({
           return Response.json({ error: "Invalid body" }, { status: 400, headers: cors });
         }
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const db = supabaseAdmin as unknown as { from: (t: string) => any };
+        const db = supabaseAdmin as unknown as UntypedDb;
         const failed = Boolean(parsed.data.error) || !parsed.data.output_url;
         const { data, error } = await db.from("render_jobs")
           .update({

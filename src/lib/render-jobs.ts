@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { UntypedDb } from "@/integrations/supabase/untyped";
 
 export const RENDER_MODELS = [
   { id: "seedance-2.5", label: "Seedance 2.5 (GPU worker)" },
@@ -18,9 +19,7 @@ export type RenderJob = {
 };
 
 // The generated Supabase types are refreshed separately; cast at the boundary.
-const db = supabase as unknown as {
-  from: (t: string) => any;
-};
+const db = supabase as unknown as UntypedDb;
 
 export async function queueRenderJob(input: {
   boardId: string;

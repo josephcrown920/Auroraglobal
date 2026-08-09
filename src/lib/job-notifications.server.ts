@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment -- generated Supabase types lag the live schema; tracked separately
 // @ts-nocheck — stale Supabase types
 // Standalone job-status email sender for orchestration runs and ad renders.
 // Keeps its own tiny template so we don't have to extend the main registry
@@ -79,7 +80,7 @@ export async function sendJobStatusEmail(input: JobStatusEmailInput): Promise<vo
       .maybeSingle();
     const to = profile?.email as string | undefined;
     // Respect the per-user opt-out flag when present; default is ON.
-    if (profile && (profile as any).notify_job_status === false) return;
+    if (profile && profile.notify_job_status === false) return;
     if (!to) return;
 
     const subject = subjectFor(input);

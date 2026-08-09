@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment -- generated Supabase types lag the live schema; tracked separately
 // @ts-nocheck — stale Supabase types: live DB missing tables/columns from local migrations
 // Crypto checkout via NOWPayments (hosted invoice supports BTC, ETH, USDT,
 // USDC, SOL, LTC, TRX, and 100+ other coins). Requires:
@@ -74,7 +75,7 @@ export const createCryptoCheckout = createServerFn({ method: "POST" })
       ...(appliedPromoCodeId
         ? { promo_code_id: appliedPromoCodeId, discount_percent_off: appliedPercentOff }
         : {}),
-    } as any);
+    });
 
     const ipnCallback = origin ? `${origin}/api/public/nowpayments-webhook` : undefined;
     const successUrl = origin ? `${origin}/studio?paid=1&ref=${encodeURIComponent(reference)}` : undefined;

@@ -1,6 +1,7 @@
 // POST /api/public/gpu/claim
 // GPU workers call this to claim the next queued render_job.
 import { createFileRoute } from "@tanstack/react-router";
+import type { UntypedDb } from "@/integrations/supabase/untyped";
 import { z } from "zod";
 
 const Body = z.object({
@@ -24,7 +25,7 @@ export const Route = createFileRoute("/api/public/gpu/claim")({
           return Response.json({ error: "Invalid body" }, { status: 400, headers: cors });
         }
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const db = supabaseAdmin as unknown as { from: (t: string) => any };
+        const db = supabaseAdmin as unknown as UntypedDb;
 
         // Update heartbeat
         await db.from("gpu_workers")
