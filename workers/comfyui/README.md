@@ -25,10 +25,19 @@ a class.
 
 ## A · Free-GPU launcher (Kaggle / Colab) — zero-touch
 
-`aurora_comfyui_launcher.py` installs ComfyUI + the node packs + weights, starts it on
+`aurora_comfyui_launcher.py` installs ComfyUI (current master, 0.31+) + the node packs +
+weights + `comfy-cli` (for on-demand `comfy node install <pack>` inside the session), starts it on
 `:8188`, health-gates on `/system_stats`, opens a **stable ngrok tunnel**, and
 **auto-registers** as `protocol=comfyui` — advertising only the caps its VRAM,
 installed models, **and loaded custom nodes** can actually serve. Restarting just re-runs the cell; the same static
+
+> **Optional — broad node set:** set `AURORA_INSTALL_ALL_NODES=1` before launch to also install a
+> curated "everything" pack list (ComfyUI-Manager, LTX-Video, WanVideoWrapper, controlnet_aux,
+> Impact-Pack, KJNodes, essentials, rgthree, WAS suite, IPAdapter+, Frame-Interpolation, …).
+> ComfyUI-Manager + comfy-cli then cover any remaining registry pack on demand. Capability
+> advertisement still fails closed on `/object_info`, so extra packs never over-advertise.
+> Reference blueprints from current ComfyUI (Flux.2, Z-Image, LTX-2.3, Wan 2.2) live in
+> `workers/comfyui/blueprints/`.
 domain re-registers the same row (Aurora de-dupes on the normalized URL).
 
 ### Secrets / env
