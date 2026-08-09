@@ -11,6 +11,7 @@ import { getSiteCopy, getSiteCopyHistory, adminSetSiteCopy, adminDeleteSiteCopy,
 import { getRouterHealth, getRouterLogs, type RouterHealthRow, type RouterLogRow } from "@/lib/ai-router.functions";
 import { SITE_COPY_DEFAULTS, SITE_COPY_LABELS, SITE_COPY_SECTIONS } from "@/lib/site-copy-defaults";
 import { listWorkers, upsertWorker, deleteWorker, pingWorker, setWorkerStatus, getFreeGpuMode, setFreeGpuMode, approveWorker, rejectWorker } from "@/lib/workers.functions";
+import { shouldShowRegisterSecretWarning } from "@/lib/worker-register-warning";
 import { issuePromoCode, listPromoCodes, setPromoCodeActive, type PromoCodeRow } from "@/lib/promo.functions";
 import { PROFIT_SPLIT_PCT } from "@/lib/profit-split";
 import { ModelBadge } from "@/components/ModelBadge";
@@ -1361,6 +1362,19 @@ function WorkersPanel() {
           bad <code>AURORA_REGISTER_SECRET</code> or misconfigured URL shows up here even when no
           worker row was ever created.
         </p>
+        {shouldShowRegisterSecretWarning(
+          data?.registerSecretConfigured,
+          (data?.registerAttempts ?? []) as Record<string, unknown>[],
+        ) && (
+          <div className="mb-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
+            <p className="font-medium">Worker auto-registration is disabled on the server.</p>
+            <p className="mt-1 text-xs text-amber-100/80">
+              Set <code>AURORA_REGISTER_SECRET</code> in Aurora’s environment to a new private
+              operator secret, then set that same value on each worker. Do not reuse the retired
+              <code className="ml-1">AURORA_REGISTER_KEY</code> or the Supabase anon/publishable key.
+            </p>
+          </div>
+        )}
         <div className="rounded-xl border border-border overflow-hidden">
           <table className="w-full text-xs">
             <thead className="bg-card/60 uppercase text-muted-foreground">

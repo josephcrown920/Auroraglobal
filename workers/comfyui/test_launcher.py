@@ -14,6 +14,8 @@ import os
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import aurora_comfyui_launcher as launcher  # noqa: E402
@@ -160,6 +162,44 @@ class GraphLauncherContractTests(unittest.TestCase):
                 classes,
                 f"{cap}: launcher's required node classes drifted from the default graph",
             )
+
+
+class LegacyRegisterKeyWarningTests(unittest.TestCase):
+    def test_legacy_key_warning_names_the_replacement_and_requires_new_secret(self):
+        original_legacy = os.environ.get("AURORA_REGISTER_KEY")
+        original_secret = os.environ.get("AURORA_REGISTER_SECRET")
+        try:
+            os.environ["AURORA_REGISTER_KEY"] = "old-public-key"
+            os.environ.pop("AURORA_REGISTER_SECRET", None)
+            output = StringIO()
+            with redirect_stdout(output):
+                launcher.warn_if_register_secrets_missing()
+            text = output.getvalue()
+            self.assertIn("retired AURORA_REGISTER_KEY", text)
+            self.assertIn("AURORA_REGISTER_SECRET", text)
+            self.assertIn("NEW private operator secret", text)
+        finally:
+            if original_legacy is None:
+                os.environ.pop("AURORA_REGISTER_KEY", None)
+            else:
+                os.environ["AURORA_REGISTER_KEY"] = original_legacy
+            if original_secret is None:
+                os.environ.pop("AURORA_REGISTER_SECRET", None)
+            else:
+                os.environ["AURORA_REGISTER_SECRET"] = original_secret
+
+    def test_public_download_launcher_carries_the_same_legacy_key_warning(self):
+        """The advertised download at public/downloads/gpu/ must not drift:
+        operators who fetch that copy need the same migration warning."""
+        download = os.path.join(
+            os.path.dirname(__file__), "..", "..",
+            "public", "downloads", "gpu", "aurora_comfyui_launcher.py",
+        )
+        with open(download) as fh:
+            src = fh.read()
+        self.assertIn('"AURORA_REGISTER_KEY"', src)
+        self.assertIn("retired AURORA_REGISTER_KEY", src)
+        self.assertIn("NEW private operator secret", src)
 
 
 if __name__ == "__main__":

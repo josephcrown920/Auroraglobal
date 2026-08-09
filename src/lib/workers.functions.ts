@@ -32,7 +32,12 @@ export const listWorkers = createServerFn({ method: "GET" })
     // Never ship the per-worker auth_token (RunPod API key / bearer) to the client;
     // expose only whether one is set so the admin UI can show "configured".
     const workers = (data ?? []).map(({ auth_token, ...w }) => ({ ...w, has_auth_token: !!auth_token }));
-    return { workers, jobs: jobs ?? [], registerAttempts: registerAttempts ?? [] };
+    // Non-sensitive boolean only (never the value): lets the admin Workers
+    // panel warn that auto-registration is disabled BEFORE any worker even
+    // attempts to register — otherwise the misconfiguration is invisible
+    // until a failed attempt lands in the audit table.
+    const registerSecretConfigured = !!process.env.AURORA_REGISTER_SECRET?.trim();
+    return { workers, jobs: jobs ?? [], registerAttempts: registerAttempts ?? [], registerSecretConfigured };
   });
 
 export const upsertWorker = createServerFn({ method: "POST" })
