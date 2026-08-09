@@ -19,6 +19,8 @@ type Tile = {
   title: string;
   cta: string;
   to: string;
+  /** Optional search params for tab deep-linking (e.g. /avatar?tab=avatars). */
+  search?: Record<string, string>;
   icon: LucideIcon;
   /** Tailwind gradient classes for the tile background. */
   gradient: string;
@@ -47,6 +49,7 @@ const TILES: readonly Tile[] = [
     title: "Create an Avatar",
     cta: "Go to Avatars →",
     to: "/avatar",
+    search: { tab: "avatars" },
     icon: UserSquare2,
     gradient: "from-lime-300 via-emerald-400 to-emerald-600",
   },
@@ -111,6 +114,7 @@ function TileCard({ tile }: { tile: Tile }) {
   return (
     <Link
       to={tile.to}
+      search={tile.search}
       className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${tile.gradient} p-5 text-white shadow-lg ring-1 ring-white/10 transition-transform hover:scale-[1.015] hover:shadow-xl`}
       style={{ minHeight: 168 }}
     >
