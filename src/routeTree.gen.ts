@@ -98,6 +98,7 @@ import { Route as AdminSiteImagesRouteImport } from './routes/admin.site-images'
 import { Route as AdminOrchestrationRouteImport } from './routes/admin.orchestration'
 import { Route as AdminModelsRouteImport } from './routes/admin.models'
 import { Route as AdminLedgerRouteImport } from './routes/admin.ledger'
+import { Route as AdminGpuRouteImport } from './routes/admin.gpu'
 import { Route as AdminDesignRouteImport } from './routes/admin.design'
 import { Route as AdminCostsRouteImport } from './routes/admin.costs'
 import { Route as AdminComfyRouteImport } from './routes/admin.comfy'
@@ -612,6 +613,11 @@ const AdminLedgerRoute = AdminLedgerRouteImport.update({
   path: '/ledger',
   getParentRoute: () => AdminRoute,
 } as any).lazy(() => import('./routes/admin.ledger.lazy').then((d) => d.Route))
+const AdminGpuRoute = AdminGpuRouteImport.update({
+  id: '/gpu',
+  path: '/gpu',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin.gpu.lazy').then((d) => d.Route))
 const AdminDesignRoute = AdminDesignRouteImport.update({
   id: '/design',
   path: '/design',
@@ -946,6 +952,7 @@ export interface FileRoutesByFullPath {
   '/admin/comfy': typeof AdminComfyRoute
   '/admin/costs': typeof AdminCostsRoute
   '/admin/design': typeof AdminDesignRoute
+  '/admin/gpu': typeof AdminGpuRoute
   '/admin/ledger': typeof AdminLedgerRoute
   '/admin/models': typeof AdminModelsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
@@ -1085,6 +1092,7 @@ export interface FileRoutesByTo {
   '/admin/comfy': typeof AdminComfyRoute
   '/admin/costs': typeof AdminCostsRoute
   '/admin/design': typeof AdminDesignRoute
+  '/admin/gpu': typeof AdminGpuRoute
   '/admin/ledger': typeof AdminLedgerRoute
   '/admin/models': typeof AdminModelsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
@@ -1225,6 +1233,7 @@ export interface FileRoutesById {
   '/admin/comfy': typeof AdminComfyRoute
   '/admin/costs': typeof AdminCostsRoute
   '/admin/design': typeof AdminDesignRoute
+  '/admin/gpu': typeof AdminGpuRoute
   '/admin/ledger': typeof AdminLedgerRoute
   '/admin/models': typeof AdminModelsRoute
   '/admin/orchestration': typeof AdminOrchestrationRoute
@@ -1366,6 +1375,7 @@ export interface FileRouteTypes {
     | '/admin/comfy'
     | '/admin/costs'
     | '/admin/design'
+    | '/admin/gpu'
     | '/admin/ledger'
     | '/admin/models'
     | '/admin/orchestration'
@@ -1505,6 +1515,7 @@ export interface FileRouteTypes {
     | '/admin/comfy'
     | '/admin/costs'
     | '/admin/design'
+    | '/admin/gpu'
     | '/admin/ledger'
     | '/admin/models'
     | '/admin/orchestration'
@@ -1644,6 +1655,7 @@ export interface FileRouteTypes {
     | '/admin/comfy'
     | '/admin/costs'
     | '/admin/design'
+    | '/admin/gpu'
     | '/admin/ledger'
     | '/admin/models'
     | '/admin/orchestration'
@@ -2454,6 +2466,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLedgerRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/gpu': {
+      id: '/admin/gpu'
+      path: '/gpu'
+      fullPath: '/admin/gpu'
+      preLoaderRoute: typeof AdminGpuRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/design': {
       id: '/admin/design'
       path: '/design'
@@ -2805,6 +2824,7 @@ interface AdminRouteChildren {
   AdminComfyRoute: typeof AdminComfyRoute
   AdminCostsRoute: typeof AdminCostsRoute
   AdminDesignRoute: typeof AdminDesignRoute
+  AdminGpuRoute: typeof AdminGpuRoute
   AdminLedgerRoute: typeof AdminLedgerRoute
   AdminModelsRoute: typeof AdminModelsRoute
   AdminOrchestrationRoute: typeof AdminOrchestrationRoute
@@ -2820,6 +2840,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminComfyRoute: AdminComfyRoute,
   AdminCostsRoute: AdminCostsRoute,
   AdminDesignRoute: AdminDesignRoute,
+  AdminGpuRoute: AdminGpuRoute,
   AdminLedgerRoute: AdminLedgerRoute,
   AdminModelsRoute: AdminModelsRoute,
   AdminOrchestrationRoute: AdminOrchestrationRoute,

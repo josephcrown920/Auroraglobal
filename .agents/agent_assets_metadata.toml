@@ -425,3 +425,10 @@ uri = "file://generated/aurora-comfyui-gpu-stack.zip"
 type = "unspecified"
 title = "Aurora ComfyUI GPU Stack"
 description = "Runnable Core Engine app plus Aurora Kaggle and Colab ComfyUI worker notebooks, launchers, hybrid inference notebook, and setup documentation for image, video, motion, and lip-sync workflows."
+
+[[outputs]]
+id = "bFRsF5xEj0sYi09z8XCr1"
+uri = "file://generated/aurora-comfy-full.zip"
+type = "unspecified"
+title = "Aurora Comfy Full Bundle"
+description = "Full Core Engine app source, ComfyUI Manager, Kaggle/Colab/ComfyUI worker launchers and notebooks, plus the latest Aurora fixes: Studio backend client, comfy server functions, /comfy Studio panel, ComfyUI admin, the new Admin GPU launch page, and Supabase migrations."
