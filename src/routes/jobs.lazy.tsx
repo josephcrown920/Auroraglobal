@@ -156,7 +156,7 @@ function JobsPage() {
           window.localStorage.getItem("aurora:jobs:notified") ?? "[]",
         ) as string[];
         seen.forEach((k) => notifiedRef.current.add(k));
-      } catch {}
+      } catch { /* localStorage unavailable — non-fatal */ }
     }
     for (const b of batches) {
       if (b.status === "processing") continue;
@@ -181,7 +181,7 @@ function JobsPage() {
         "aurora:jobs:notified",
         JSON.stringify(Array.from(notifiedRef.current).slice(-200)),
       );
-    } catch {}
+    } catch { /* localStorage unavailable — non-fatal */ }
   }, [batches]);
   const counts = {
     total: jobs.length,

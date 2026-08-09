@@ -2,6 +2,7 @@
 // Polls HeyGen's v2 videos API and returns a normalised status payload.
 // Bearer token auth. CORS-open for the standalone Video Agent SPA.
 import { createFileRoute } from "@tanstack/react-router";
+import type { UntypedDb } from "@/integrations/supabase/untyped";
 
 const CORS = {
   "Content-Type": "application/json",
@@ -48,7 +49,7 @@ export const Route = createFileRoute("/api/video-agent/status/$videoId")({
         // HeyGen key is account-global, so without this check any authenticated
         // caller could read another user's video URL by guessing/leaking an id.
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data: submission } = await (supabaseAdmin as any)
+        const { data: submission } = await (supabaseAdmin as unknown as UntypedDb)
           .from("video_agent_submissions")
           .select("video_id")
           .eq("video_id", videoId)

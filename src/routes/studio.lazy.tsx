@@ -495,12 +495,13 @@ function StudioPage() {
   }, [user]);
 
   const demoMut = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (args?: { promptOverride?: string }) => {
       if (!demoUrl) throw new Error("Demo selfie not ready yet — try again in a second");
-      return genFn({ data: { prompt: PRESETS[3].prompt, imageUrls: [demoUrl], motionVideoUrl: null, model } });
+      return genFn({ data: { prompt: args?.promptOverride ?? PRESETS[3].prompt, imageUrls: [demoUrl], motionVideoUrl: null, model } });
     },
     onSuccess: () => {
-      toast.success("Demo shot ready");
+      markFirstGenComplete();
+      toast.success("Demo shot ready — made with our sample face");
       qc.invalidateQueries({ queryKey: ["gens"] });
       qc.invalidateQueries({ queryKey: ["profile"] });
     },
@@ -555,6 +556,23 @@ function StudioPage() {
       done: "Shot ready",
     },
   });
+
+  const demoProgress = useGenerationProgress({
+    isPending: demoMut.isPending,
+    isError: demoMut.isError,
+    isSuccess: demoMut.isSuccess,
+    estimatedMs: 18_000,
+    persistKey: "aurora.progress.studio.demo",
+    labels: {
+      queued: "Demo queued…",
+      processing: "Demo shot — lighting the stage…",
+      finalizing: "Demo shot — finishing up…",
+      done: "Demo shot ready",
+    },
+  });
+
+  // Progress state for whichever image generation (normal or demo) is active.
+  const activeImageProgress = demoMut.isPending ? demoProgress : imageProgress;
 
   const videoProgress = useGenerationProgress({
     isPending: videoMut.isPending,
@@ -640,22 +658,26 @@ function StudioPage() {
 
         {/* Canvas — result at top */}
         <div className="relative bg-zinc-900">
-          {mut.isPending ? (
+          {mut.isPending || demoMut.isPending ? (
             <div className="flex flex-col items-center justify-center gap-6 px-8 py-16 min-h-[56vw]">
               <div className="size-14 rounded-full flex items-center justify-center bg-[#8b5cf6]/10 ring-1 ring-[#8b5cf6]/30">
                 <Loader2 className="size-6 animate-spin text-[#8b5cf6]" />
               </div>
               <div className="w-full max-w-xs space-y-2 text-center">
-                <p className="text-sm text-zinc-300">{imageProgress.label || "Lighting the stage…"}</p>
-                <GenerationProgress visible progress={imageProgress.progress} />
+                <p className="text-sm text-zinc-300">{activeImageProgress.label || (demoMut.isPending ? "Demo shot — lighting the stage…" : "Lighting the stage…")}</p>
+                <GenerationProgress visible progress={activeImageProgress.progress} />
               </div>
             </div>
-          ) : mut.isSuccess ? (
+          ) : mut.isSuccess || demoMut.isSuccess ? (
             <div className="flex flex-col items-center justify-center min-h-[40vw] gap-3 px-4 text-center">
               <Link to="/gallery" className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-4 py-2.5 text-sm font-semibold text-emerald-400 no-underline hover:bg-emerald-500/20 transition-colors">
-                <Check className="size-4" /> Shot ready — View in Gallery
+                <Check className="size-4" /> {demoMut.isSuccess && !mut.isSuccess ? "Demo shot ready — View in Gallery" : "Shot ready — View in Gallery"}
               </Link>
-              <p className="text-xs text-zinc-600">Your generation is saved to your gallery</p>
+              <p className="text-xs text-zinc-600">
+                {demoMut.isSuccess && !mut.isSuccess
+                  ? "This demo used our sample face — upload your own selfie to star in the next one"
+                  : "Your generation is saved to your gallery"}
+              </p>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center min-h-[40vw] gap-2 px-4 text-center">
@@ -782,7 +804,7 @@ function StudioPage() {
           />
           <button
             type="button"
-            disabled={mut.isPending}
+            disabled={mut.isPending || demoMut.isPending}
             onClick={() => mut.mutate(undefined)}
             className="shrink-0 flex size-10 items-center justify-center rounded-xl bg-[#8b5cf6] hover:bg-[#8b5cf6]/80 disabled:opacity-50 transition-colors shadow-[0_0_20px_-4px_rgba(139,92,246,0.6)]"
             aria-label="Generate"
@@ -801,23 +823,27 @@ function StudioPage() {
 
       {/* ── Right panel: hero / canvas — desktop only ───────────────── */}
       <div className="hidden lg:flex lg:flex-1 lg:flex-col lg:h-full lg:overflow-y-auto bg-zinc-900/40 scrollbar-none">
-        {mut.isPending ? (
+        {mut.isPending || demoMut.isPending ? (
           <div className="flex flex-1 h-full items-center justify-center p-8">
             <div className="flex flex-col items-center gap-6 text-center">
               <div className="size-16 rounded-full flex items-center justify-center bg-violet-500/10 ring-1 ring-violet-500/30">
                 <Loader2 className="size-7 animate-spin text-violet-400" />
               </div>
-              <p className="text-sm text-zinc-400">{imageProgress.label || "Lighting the stage…"}</p>
-              <div className="w-64"><GenerationProgress visible progress={imageProgress.progress} /></div>
+              <p className="text-sm text-zinc-400">{activeImageProgress.label || (demoMut.isPending ? "Demo shot — lighting the stage…" : "Lighting the stage…")}</p>
+              <div className="w-64"><GenerationProgress visible progress={activeImageProgress.progress} /></div>
             </div>
           </div>
-        ) : mut.isSuccess ? (
+        ) : mut.isSuccess || demoMut.isSuccess ? (
           <div className="flex flex-1 h-full items-center justify-center p-8">
             <div className="flex flex-col items-center gap-4 text-center">
               <Link to="/gallery" className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-4 py-2.5 text-sm font-semibold text-emerald-400 no-underline hover:bg-emerald-500/20 transition-colors">
-                <Check className="size-4" /> Shot ready — View in Gallery
+                <Check className="size-4" /> {demoMut.isSuccess && !mut.isSuccess ? "Demo shot ready — View in Gallery" : "Shot ready — View in Gallery"}
               </Link>
-              <p className="text-xs text-zinc-600">Your generation is saved to your gallery</p>
+              <p className="text-xs text-zinc-600">
+                {demoMut.isSuccess && !mut.isSuccess
+                  ? "This demo used our sample face — upload your own selfie to star in the next one"
+                  : "Your generation is saved to your gallery"}
+              </p>
             </div>
           </div>
         ) : (
@@ -884,6 +910,23 @@ function StudioPage() {
                     </div>
                   </button>
                 ))}
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  disabled={demoMut.isPending || mut.isPending || !demoUrl}
+                  onClick={() => {
+                    const preset = studioExamplePresets.find((p) => p.id === activeExampleId);
+                    demoMut.mutate({ promptOverride: preset?.prompt });
+                  }}
+                  className="inline-flex items-center gap-2 rounded-full border border-violet-500/50 bg-violet-500/10 px-4 py-2 text-xs font-semibold text-violet-300 hover:bg-violet-500/20 transition-colors disabled:opacity-50"
+                >
+                  {demoMut.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Zap className="size-3.5" />}
+                  Try with demo selfie →
+                </button>
+                <span className="text-[11px] text-zinc-600">
+                  Runs the selected style with our sample face — no upload needed
+                </span>
               </div>
             </div>
           </>
@@ -975,12 +1018,13 @@ function StudioPage() {
             <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 mb-2">Quick start</p>
             <ExampleChips presets={studioExamplePresets} activeId={activeExampleId}
               onSelect={(preset) => { if (preset.prompt) setPrompt(preset.prompt); setActiveExampleId(preset.id); }}
-              onGenerate={() => { const preset = studioExamplePresets.find((p) => p.id === activeExampleId); mut.mutate({ promptOverride: preset?.prompt ?? prompt }); setSettingsOpen(false); }}
+              generateDisabled={mut.isPending || demoMut.isPending}
+              onGenerate={() => { if (mut.isPending || demoMut.isPending) return; const preset = studioExamplePresets.find((p) => p.id === activeExampleId); mut.mutate({ promptOverride: preset?.prompt ?? prompt }); setSettingsOpen(false); }}
               label="Quick start:" />
           </div>
 
           {/* Demo shot */}
-          <Button disabled={demoMut.isPending || !demoUrl} onClick={() => { demoMut.mutate(); setSettingsOpen(false); }} variant="outline" className="w-full mb-6">
+          <Button disabled={demoMut.isPending || mut.isPending || !demoUrl} onClick={() => { demoMut.mutate(undefined); setSettingsOpen(false); }} variant="outline" className="w-full mb-6">
             {demoMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" />Running demo…</> : <><Zap className="size-4 mr-2" />Try a demo (no upload needed)</>}
           </Button>
 

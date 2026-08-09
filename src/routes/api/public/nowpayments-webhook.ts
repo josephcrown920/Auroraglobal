@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment -- generated Supabase types lag the live schema; tracked separately
 // @ts-nocheck — stale Supabase types
 // NOWPayments IPN receiver. External callers under /api/public/* bypass
 // Lovable auth, so we verify HMAC-SHA512 with the store's IPN secret before
