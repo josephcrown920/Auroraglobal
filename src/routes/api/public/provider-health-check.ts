@@ -55,9 +55,32 @@ export const Route = createFileRoute("/api/public/provider-health-check")({
 
 // ─── Core logic (exported for direct testing) ─────────────────────────────────
 
-export async function runHealthCheck(): Promise<Record<string, unknown>> {
+// Maintenance lock: while a smoke test is manipulating generation_health_state,
+// it writes a `__maintenance__` sentinel row. Regular (cron) runs skip entirely
+// while the sentinel is fresh, so the smoke run and the cron never interleave.
+// Stale sentinels (crashed smoke run) expire automatically.
+export const MAINTENANCE_KIND = "__maintenance__";
+const MAINTENANCE_TTL_MS = 5 * 60_000;
+
+export async function runHealthCheck(
+  opts?: { bypassMaintenanceLock?: boolean },
+): Promise<Record<string, unknown>> {
   const now = new Date();
   const nowIso = now.toISOString();
+
+  if (!opts?.bypassMaintenanceLock) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const lockDb = supabaseAdmin as any;
+    const { data: lock } = await lockDb
+      .from("generation_health_state")
+      .select("kind, updated_at")
+      .eq("kind", MAINTENANCE_KIND)
+      .maybeSingle();
+    if (lock && Date.now() - new Date(lock.updated_at).getTime() < MAINTENANCE_TTL_MS) {
+      console.log("[provider-health-check] skipped — maintenance lock held");
+      return { ok: true, skipped: "maintenance_lock", checked_at: nowIso };
+    }
+  }
 
   // ── 1. Query provider_logs error rates per kind ──────────────────────────
   const cutoffRecent = new Date(now.getTime() - WINDOW_RECENT_H * 3600_000).toISOString();

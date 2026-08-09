@@ -34,6 +34,8 @@ export const getGenerationHealth = createServerFn({ method: "GET" })
     const { data, error } = await db
       .from("generation_health_state")
       .select("*")
+      // Exclude internal sentinel rows (e.g. "__maintenance__" smoke-test lock).
+      .not("kind", "like", "\\_\\_%")
       .order("kind");
 
     if (error) throw new Error(error.message);
