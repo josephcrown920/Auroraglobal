@@ -1,5 +1,5 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   listComfyTemplates,
@@ -9,6 +9,9 @@ import {
   getComfyRun,
   listComfyRuns,
   comfyReachability,
+  comfyStudioStatus,
+  startStudioRun,
+  pollStudioRun,
 } from "@/lib/comfy.functions";
 import { pollComfyRunUntilDone } from "@/lib/use-job-polling";
 import { useAuth } from "@/hooks/use-auth";
@@ -28,6 +31,9 @@ import {
   ChevronDown,
   Globe,
   Server,
+  Zap,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 
 type DeclaredInput = {
@@ -428,6 +434,7 @@ function ComfyPage() {
                 )}
               </div>
             </div>
+            <StudioPanel onRunDone={refreshRuns} />
             <ComfyEditorPanel reach={reach} />
           </>
         )}
@@ -435,6 +442,373 @@ function ComfyPage() {
       <SiteFooter tone="light" />
     </main>
   );
+}
+
+// ─── ComfyUI Studio (external service) ────────────────────────────────────────
+
+type StudioWorkflowParam = {
+  key: string;
+  label: string;
+  type: "text" | "number" | "file" | "select" | "slider";
+  required?: boolean;
+  defaultValue?: unknown;
+  options?: string[];
+  min?: number;
+  max?: number;
+  accept?: string;
+};
+
+type StudioWorkflow = {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  params: StudioWorkflowParam[];
+};
+
+type StudioStatusInfo = {
+  connected: boolean;
+  gpuName?: string;
+  gpuVram?: string;
+  queueRemaining?: number;
+  error?: string;
+};
+
+function StudioPanel({ onRunDone }: { onRunDone: () => void }) {
+  const statusFn = useServerFn(comfyStudioStatus);
+  const startFn = useServerFn(startStudioRun);
+  const pollFn = useServerFn(pollStudioRun);
+
+  const [state, setState] = useState<
+    | { kind: "loading" }
+    | { kind: "hidden" } // COMFY_STUDIO_URL not configured
+    | { kind: "error"; message: string }
+    | { kind: "ready"; status: StudioStatusInfo | null; workflows: StudioWorkflow[] }
+  >({ kind: "loading" });
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [values, setValues] = useState<Record<string, unknown>>({});
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<
+    { ok: true; url?: string; outputKind?: string } | { ok: false; error: string } | null
+  >(null);
+  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    statusFn({})
+      .then((r) => {
+        if (!r.configured) {
+          setState({ kind: "hidden" });
+        } else if ("error" in r && r.error) {
+          setState({ kind: "error", message: r.error });
+        } else {
+          setState({
+            kind: "ready",
+            status: (r.status ?? null) as StudioStatusInfo | null,
+            workflows: (r.workflows ?? []) as StudioWorkflow[],
+          });
+        }
+      })
+      .catch(() => setState({ kind: "hidden" }));
+    return () => {
+      if (pollTimer.current) clearInterval(pollTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- statusFn is stable; fetch once on mount
+  }, []);
+
+  if (state.kind === "hidden") return null;
+
+  const workflows = state.kind === "ready" ? state.workflows : [];
+  const selected = workflows.find((w) => w.id === selectedId) ?? null;
+
+  const selectWorkflow = (w: StudioWorkflow) => {
+    setSelectedId(w.id);
+    const seed: Record<string, unknown> = {};
+    for (const p of w.params ?? []) {
+      if (p.defaultValue !== undefined) seed[p.key] = p.defaultValue;
+    }
+    setValues(seed);
+    setResult(null);
+  };
+
+  const doStudioRun = async () => {
+    if (!selected) return;
+    setRunning(true);
+    setResult(null);
+    try {
+      const r = (await startFn({
+        data: { workflowId: selected.id, params: values, workflowName: selected.name },
+      })) as { ok: true; run: { id: string } } | { ok: false; error: string };
+      if (!r.ok) {
+        setResult(r);
+        toast.error(r.error);
+        onRunDone();
+        return;
+      }
+      onRunDone();
+      // Poll every 5 s until the run is terminal.
+      const runId = r.run.id;
+      const final = await new Promise<{ status: string; output_url: string | null; output_kind: string | null; error: string | null }>(
+        (resolve, reject) => {
+          let tries = 0;
+          pollTimer.current = setInterval(async () => {
+            tries += 1;
+            if (tries > 240) {
+              // ~20 minutes cap
+              if (pollTimer.current) clearInterval(pollTimer.current);
+              reject(new Error("Timed out waiting for the Studio job"));
+              return;
+            }
+            try {
+              const pr = (await pollFn({ data: { id: runId } })) as {
+                run: { status: string; output_url: string | null; output_kind: string | null; error: string | null };
+              };
+              if (pr.run.status === "succeeded" || pr.run.status === "failed") {
+                if (pollTimer.current) clearInterval(pollTimer.current);
+                resolve(pr.run);
+              }
+            } catch {
+              // transient poll failure — keep trying
+            }
+          }, 5000);
+        },
+      );
+      if (final.status === "succeeded") {
+        setResult({ ok: true, url: final.output_url ?? undefined, outputKind: final.output_kind ?? undefined });
+        toast.success("Studio run complete");
+      } else {
+        setResult({ ok: false, error: final.error ?? "Studio run failed" });
+        toast.error(final.error ?? "Studio run failed");
+      }
+      onRunDone();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Studio run failed";
+      setResult({ ok: false, error: msg });
+      toast.error(msg);
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <section className="mt-10">
+      <h2 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-3 flex items-center gap-2">
+        <Zap className="h-3.5 w-3.5" /> ComfyUI Studio
+      </h2>
+
+      {state.kind === "loading" && (
+        <p className="text-sm text-muted-foreground inline-flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" /> Checking Studio…
+        </p>
+      )}
+
+      {state.kind === "error" && (
+        <div className="rounded-xl border border-dashed border-border bg-card p-5 text-sm flex items-start gap-3">
+          <WifiOff className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-medium text-foreground">Studio is configured but unreachable.</p>
+            <p className="text-muted-foreground mt-1">{state.message}</p>
+            <p className="text-muted-foreground mt-1">
+              Check that the Studio deployment is running and public (or has an access token configured).
+            </p>
+          </div>
+        </div>
+      )}
+
+      {state.kind === "ready" && (
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          {/* Status bar */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5 border-b border-border text-xs text-muted-foreground">
+            {state.status?.connected ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Wifi className="h-3.5 w-3.5 text-emerald-500" /> ComfyUI connected
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5">
+                <WifiOff className="h-3.5 w-3.5 text-amber-500" />
+                ComfyUI not connected {state.status?.error ? `— ${state.status.error}` : "(jobs will stay pending)"}
+              </span>
+            )}
+            {state.status?.gpuName && <span>GPU: {state.status.gpuName}</span>}
+            {state.status?.gpuVram && <span>VRAM: {state.status.gpuVram}</span>}
+            {typeof state.status?.queueRemaining === "number" && <span>Queue: {state.status.queueRemaining}</span>}
+          </div>
+
+          <div className="grid lg:grid-cols-[280px_1fr] gap-0">
+            {/* Workflow list */}
+            <aside className="border-b lg:border-b-0 lg:border-r border-border p-4 space-y-2">
+              {workflows.length === 0 && (
+                <p className="text-sm text-muted-foreground">The Studio has no workflow templates yet.</p>
+              )}
+              {workflows.map((w) => (
+                <button
+                  key={w.id}
+                  onClick={() => selectWorkflow(w)}
+                  className={`w-full text-left rounded-lg border px-3 py-2.5 transition-colors ${
+                    selectedId === w.id ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/40"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm truncate">{w.name}</span>
+                    {w.category && (
+                      <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">
+                        {w.category}
+                      </span>
+                    )}
+                  </div>
+                  {w.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{w.description}</p>}
+                </button>
+              ))}
+            </aside>
+
+            {/* Run panel */}
+            <div className="p-5">
+              {!selected ? (
+                <p className="text-sm text-muted-foreground">Select a Studio workflow to configure and run it.</p>
+              ) : (
+                <>
+                  <h3 className="text-base font-semibold mb-3">{selected.name}</h3>
+                  <div className="space-y-4">
+                    {(selected.params ?? []).map((p) => (
+                      <StudioField key={p.key} param={p} value={values[p.key]} onChange={(v) => setValues((prev) => ({ ...prev, [p.key]: v }))} />
+                    ))}
+                    {(selected.params?.length ?? 0) === 0 && (
+                      <p className="text-sm text-muted-foreground">This workflow has no parameters — it runs as-is.</p>
+                    )}
+                  </div>
+                  <div className="mt-5 flex items-center gap-3">
+                    <Button onClick={doStudioRun} disabled={running}>
+                      {running ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" /> Running on Studio…
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-4 w-4 mr-1" /> Run on Studio
+                        </>
+                      )}
+                    </Button>
+                    {running && (
+                      <span className="text-xs text-muted-foreground">Polling the Studio every 5 s for the result…</span>
+                    )}
+                  </div>
+
+                  {result && (
+                    <div className="mt-6 border-t border-border pt-5">
+                      {result.ok ? (
+                        <div>
+                          <p className="text-sm font-medium text-emerald-500 mb-3">Output</p>
+                          {result.outputKind === "video" ? (
+                            <video src={result.url} controls className="max-h-[420px] rounded-lg border border-border" />
+                          ) : result.url ? (
+                            <img src={result.url} alt="Studio output" className="max-h-[420px] rounded-lg border border-border" />
+                          ) : (
+                            <p className="text-sm text-muted-foreground">Job finished but returned no output file.</p>
+                          )}
+                          {result.url && (
+                            <a
+                              href={result.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-2 text-primary inline-flex items-center gap-1 text-xs"
+                            >
+                              Open <ExternalLink className="h-3 w-3" />
+                            </a>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+                          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                          <span className="text-foreground/80">{result.error}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function StudioField({
+  param,
+  value,
+  onChange,
+}: {
+  param: StudioWorkflowParam;
+  value: unknown;
+  onChange: (v: unknown) => void;
+}) {
+  const label = (
+    <label className="block text-sm font-medium mb-1.5">
+      {param.label}
+      {param.required && <span className="text-red-500"> *</span>}
+    </label>
+  );
+  switch (param.type) {
+    case "text":
+      return (
+        <div>
+          {label}
+          <textarea
+            className={FIELD_CLASS}
+            rows={3}
+            value={(value as string) ?? ""}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        </div>
+      );
+    case "file":
+      return (
+        <div>
+          {label}
+          <input
+            className={FIELD_CLASS}
+            type="url"
+            placeholder="https://… (URL of the file)"
+            value={(value as string) ?? ""}
+            onChange={(e) => onChange(e.target.value)}
+          />
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Paste a public URL for this input{param.accept ? ` (${param.accept})` : ""}.
+          </p>
+        </div>
+      );
+    case "number":
+    case "slider":
+      return (
+        <div>
+          {label}
+          <input
+            className={FIELD_CLASS}
+            type="number"
+            min={param.min}
+            max={param.max}
+            value={value === undefined || value === null ? "" : (value as number)}
+            onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))}
+          />
+        </div>
+      );
+    case "select":
+      return (
+        <div>
+          {label}
+          <select className={FIELD_CLASS} value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value)}>
+            <option value="">Select…</option>
+            {(param.options ?? []).map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+          </select>
+        </div>
+      );
+    default:
+      return null;
+  }
 }
 
 function StatusDot({ status }: { status: string }) {

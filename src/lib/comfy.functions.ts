@@ -29,6 +29,16 @@ import {
   type DeclaredInput,
   type ComfyWorkerLite,
 } from "./comfy-core";
+import {
+  hasStudio,
+  getStudioBase,
+  getStudioStatus,
+  getStudioWorkflows,
+  submitStudioJob,
+  refreshStudioJob,
+  getStudioJob,
+  type StudioJob,
+} from "./comfy-studio.server";
 
 // The generated Supabase types don't include `comfy_workflows`/`comfy_runs` yet
 // (added by migration, types regenerate later). Use a loose-typed handle, same as
@@ -372,4 +382,168 @@ export const comfyReachability = createServerFn({ method: "GET" })
       editorAllowed,
       editorUrl: editorAllowed ? editorUrl : null,
     };
+  });
+
+// ─── ComfyUI Studio (external REST service) ───────────────────────────────────
+//
+// The user's own ComfyUI Studio is a separate service (a Replit project) that
+// proxies / orchestrates a ComfyUI server. Aurora talks to it over plain HTTP
+// via COMFY_STUDIO_URL. These functions sit alongside the gpu_workers path and
+// are ONLY active when COMFY_STUDIO_URL is configured.
+
+/**
+ * Health + workflow list from the Studio service. Returns { configured: false }
+ * when COMFY_STUDIO_URL is not set, so the UI can gracefully hide the section.
+ */
+export const comfyStudioStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    if (!hasStudio()) return { configured: false as const };
+    try {
+      const [status, workflows] = await Promise.all([
+        getStudioStatus(),
+        getStudioWorkflows(),
+      ]);
+      return { configured: true as const, status, workflows, studioUrl: getStudioBase() };
+    } catch (e) {
+      return {
+        configured: true as const,
+        error: e instanceof Error ? e.message : "Studio unreachable",
+        status: null,
+        workflows: [],
+        studioUrl: getStudioBase(),
+      };
+    }
+  });
+
+/**
+ * Submit a job to the Studio service and record it in comfy_runs with
+ * source='studio' and the Studio job ID in external_run_id.
+ */
+export const startStudioRun = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        workflowId: z.string().min(1),
+        params: z.record(z.unknown()).default({}),
+        workflowName: z.string().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const userId = context.userId;
+    if (!hasStudio()) throw new Error("ComfyUI Studio is not configured (set COMFY_STUDIO_URL)");
+
+    // Create the run row first so the user sees it immediately in Recent runs.
+    const { data: runRow, error: rErr } = await db()
+      .from("comfy_runs")
+      .insert({
+        user_id: userId,
+        status: "running",
+        progress_pct: 10,
+        input_values: data.params,
+        source: "studio",
+      })
+      .select("*")
+      .single();
+    if (rErr) throw new Error(rErr.message);
+
+    // Submit to the Studio.
+    let job: StudioJob;
+    try {
+      job = await submitStudioJob(data.workflowId, data.params);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Studio submission failed";
+      await db()
+        .from("comfy_runs")
+        .update({ status: "failed", error: msg, updated_at: new Date().toISOString() })
+        .eq("id", runRow.id);
+      return { ok: false as const, run: { ...runRow, status: "failed", error: msg }, error: msg };
+    }
+
+    // Store the Studio job ID so pollStudioRun can refresh it.
+    const { data: updatedRun } = await db()
+      .from("comfy_runs")
+      .update({ external_run_id: job.id, updated_at: new Date().toISOString() })
+      .eq("id", runRow.id)
+      .select("*")
+      .single();
+
+    return { ok: true as const, run: updatedRun ?? runRow, studioJobId: job.id };
+  });
+
+/**
+ * Refresh a Studio run: calls POST /api/jobs/{id}/refresh on the Studio, reads
+ * the updated status, and writes it back to comfy_runs. Returns the updated row.
+ * Client should call this every ~5 s while run.status === 'running'.
+ */
+export const pollStudioRun = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const userId = context.userId;
+    const { data: run, error } = await db()
+      .from("comfy_runs")
+      .select("*")
+      .eq("id", data.id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!run) throw new Error("Run not found");
+
+    const externalId = run.external_run_id as string | null;
+    if (!externalId) throw new Error("Not a Studio run (no external_run_id)");
+
+    // Already terminal — skip the network round-trip.
+    if (run.status === "succeeded" || run.status === "failed") return { run };
+
+    // Ask Studio to re-poll ComfyUI, then read the canonical status.
+    let job: StudioJob;
+    try {
+      job = await refreshStudioJob(externalId);
+    } catch {
+      // refresh failed — fall back to a plain GET so we don't lose status.
+      try {
+        job = await getStudioJob(externalId);
+      } catch {
+        // Network error — leave run as-is and let the client retry.
+        return { run };
+      }
+    }
+
+    let newStatus = run.status as string;
+    let outputUrl: string | undefined;
+    let outputKind: string | undefined;
+    let errorMsg: string | undefined;
+
+    if (job.status === "completed") {
+      newStatus = "succeeded";
+      const first = job.outputs?.[0];
+      if (first) {
+        outputUrl = `${getStudioBase()}${first.comfyUrl}`;
+        outputKind = /video/i.test(first.type ?? "") ? "video" : "image";
+      }
+    } else if (job.status === "failed") {
+      newStatus = "failed";
+      errorMsg = job.error ?? "Studio job failed";
+    } else if (job.status === "pending" || job.status === "running") {
+      newStatus = "running";
+    }
+
+    const patch: Record<string, unknown> = {
+      status: newStatus,
+      updated_at: new Date().toISOString(),
+      ...(outputUrl ? { output_url: outputUrl, output_kind: outputKind } : {}),
+      ...(errorMsg ? { error: errorMsg } : {}),
+    };
+
+    const { data: updated } = await db()
+      .from("comfy_runs")
+      .update(patch)
+      .eq("id", data.id)
+      .select("*")
+      .single();
+
+    return { run: updated ?? { ...run, ...patch } };
   });
