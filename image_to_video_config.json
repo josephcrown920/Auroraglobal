@@ -1,19 +1,16 @@
 {
-  "type": "video",
-  "model": "wan-2.2-i2v",
-  "prompt": "Natural, cinematic motion: a slow camera push-in, subtle hair and fabric movement, soft studio lighting, realistic motion, no cuts.",
-  "aspect_ratio": "1:1",
-  "seed": 424242,
-  "medias": [
-    {
-      "role": "input_image",
-      "prompt_id": "<completed-text-to-image-prompt-id>",
-      "output_index": 0
-    }
-  ],
-  "params": {
-    "duration": 5
-  },
-  "client_os": "linux",
-  "description": "Reusable Aurora starter image-to-video request. Replace the prompt_id placeholder with a completed text-to-image job ID, then submit through Comfy Cloud partner_generate after confirming spend."
+  "note": "Comfy Cloud partner video models are text-to-video only (no image input). Image-to-video runs as an open-source Wan 2.1 workflow graph via submit_workflow — see the working example below. Chain a still by calling use_previous_output(prompt_id) and putting the returned filename into the LoadImage node.",
+  "working_example": {
+    "still_prompt_id": "723b32cb-078a-4914-be25-bdf884fc7d3d",
+    "video_prompt_id": "7703566e-6106-4717-9f6e-2cea56db8bad",
+    "output_file": "generated/wan_i2v_portrait.mp4",
+    "model": "wan2.1_i2v_480p_14B_fp16.safetensors",
+    "companions": {
+      "clip": "umt5_xxl_fp8_e4m3fn_scaled.safetensors (type: wan)",
+      "vae": "wan_2.1_vae.safetensors",
+      "clip_vision": "clip_vision_h.safetensors"
+    },
+    "settings": { "steps": 20, "cfg": 6, "sampler": "uni_pc", "scheduler": "simple", "size": "480x480", "length_frames": 81, "fps": 16, "duration_sec": 5 },
+    "partner_credits_charged": 0
+  }
 }

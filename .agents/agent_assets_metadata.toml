@@ -411,3 +411,10 @@ uri = "file://generated/output.png"
 type = "image"
 title = "Comfy Cloud starter still"
 description = "1024×1024 Flux Schnell portrait rendered through Comfy Cloud from the reusable workflow."
+
+[[outputs]]
+id = "BpQmaBonzQFjjlJrEq2xH"
+uri = "file://generated/wan_i2v_portrait.mp4"
+type = "video"
+title = "Wan 2.1 image-to-video render"
+description = "5-second 480x480 video animated from the Flux still on Comfy Cloud (open-source Wan 2.1 i2v — no partner credits charged)."
