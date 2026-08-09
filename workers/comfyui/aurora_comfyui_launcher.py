@@ -30,6 +30,10 @@ Secrets / env it reads (Kaggle Secrets, Colab userdata, or plain env vars):
                         <20 GB → "image,lipsync"; ≥20 GB → "image,video,lipsync,motion".
                         A cap is only ADVERTISED if its model weights are actually
                         present after setup — Aurora never routes a job we can't run.
+  AURORA_INSTALL_ALL_NODES  (optional) "1" to also install the broad curated
+                        custom-node set (Manager, LTX, Wan, ControlNet aux, Impact,
+                        KJNodes, essentials, rgthree, WAS, IPAdapter+, frame
+                        interpolation, …) plus comfy-cli for on-demand installs.
 """
 
 import json
@@ -54,6 +58,7 @@ CONFIG_KEYS = [
     "AURORA_REGISTER_KEY",  # retired name; loaded only so we can explain the migration
     "AURORA_WORKER_NAME",
     "AURORA_CAPABILITIES",
+    "AURORA_INSTALL_ALL_NODES",
 ]
 
 # Custom-node packs that provide the class names our default graphs reference.
@@ -73,7 +78,7 @@ CAP_NODE_PACKS = {
     ],
     "motion": [
         "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite",
-        "https://github.com/AIWarper/ComfyUI-MimicMotionWrapper",  # MimicMotionSampler
+        "https://github.com/kijai/ComfyUI-MimicMotionWrapper",  # MimicMotionSampler
         "https://github.com/sipherxyz/comfyui-art-venture",
     ],
 }
@@ -188,10 +193,80 @@ def requested_caps() -> list[str]:
 
 
 def install_comfyui():
-    sh("pip install -q requests pyngrok 'huggingface_hub[cli]'")
+    # comfy-cli gives `comfy node install <pack>` (ComfyUI registry) on top of the
+    # raw git-clone path below — used by the ALL_NODES option and handy for manual
+    # node management inside the session.
+    sh("pip install -q requests pyngrok 'huggingface_hub[cli]' comfy-cli")
     if not os.path.isdir(COMFY_DIR):
         sh(f"git clone --depth 1 https://github.com/comfyanonymous/ComfyUI '{COMFY_DIR}'")
     sh("pip install -q -r requirements.txt", cwd=COMFY_DIR)
+    # manager_requirements.txt exists on current ComfyUI (0.31+) — needed when the
+    # built-in Manager is enabled; harmless no-op on older checkouts.
+    if os.path.exists(os.path.join(COMFY_DIR, "manager_requirements.txt")):
+        sh("pip install -q -r manager_requirements.txt", cwd=COMFY_DIR, check=False)
+
+
+# Broad, curated "everything" node set for AURORA_INSTALL_ALL_NODES=1: the packs
+# behind Aurora's default graphs PLUS the most-used community packs (video, editing,
+# control, utility). Installing the literal full registry (thousands of packs) is
+# infeasible on a free session — ComfyUI-Manager is included so any remaining pack
+# can be installed on demand from the UI/API.
+ALL_NODE_PACKS = [
+    "https://github.com/Comfy-Org/ComfyUI-Manager",
+    "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite",
+    "https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved",
+    "https://github.com/sipherxyz/comfyui-art-venture",
+    "https://github.com/ShmuelRonen/ComfyUI-LatentSyncWrapper",
+    "https://github.com/kijai/ComfyUI-MimicMotionWrapper",
+    "https://github.com/Lightricks/ComfyUI-LTXVideo",
+    "https://github.com/kijai/ComfyUI-WanVideoWrapper",
+    "https://github.com/kijai/ComfyUI-KJNodes",
+    "https://github.com/Fannovel16/comfyui_controlnet_aux",
+    "https://github.com/ltdrdata/ComfyUI-Impact-Pack",
+    "https://github.com/cubiq/ComfyUI_essentials",
+    "https://github.com/rgthree/rgthree-comfy",
+    "https://github.com/WASasquatch/was-node-suite-comfyui",
+    "https://github.com/Fannovel16/ComfyUI-Frame-Interpolation",
+    "https://github.com/cubiq/ComfyUI_IPAdapter_plus",
+]
+
+
+def clone_node_pack(repo: str, nodes_dir: str) -> bool:
+    """Best-effort clone+deps for one custom-node pack (never aborts the boot).
+
+    Returns True if the pack directory exists after the attempt; failures are
+    printed loudly so a dead repo URL is visible in the session log instead of
+    silently shrinking the installed set.
+    """
+    name = repo.rstrip("/").split("/")[-1]
+    dest = os.path.join(nodes_dir, name)
+    if os.path.isdir(dest):
+        return True
+    sh(f"git clone --depth 1 {repo} '{dest}'", check=False)
+    if not os.path.isdir(dest):
+        print(f"[nodes] WARNING: failed to clone {repo} — pack '{name}' NOT installed", flush=True)
+        return False
+    req = os.path.join(dest, "requirements.txt")
+    if os.path.exists(req):
+        sh(f"pip install -q -r '{req}'", check=False)
+    return True
+
+
+def install_all_node_packs():
+    """AURORA_INSTALL_ALL_NODES=1 — install the broad curated pack set.
+
+    Additive on top of the per-capability packs; capability advertisement still
+    fails closed on /object_info, so a pack that fails to import never causes a
+    cap to be advertised that the graphs can't actually serve.
+    """
+    nodes_dir = os.path.join(COMFY_DIR, "custom_nodes")
+    os.makedirs(nodes_dir, exist_ok=True)
+    print(f"[nodes] ALL_NODES mode: installing {len(ALL_NODE_PACKS)} packs…", flush=True)
+    failed = [repo for repo in ALL_NODE_PACKS if not clone_node_pack(repo, nodes_dir)]
+    if failed:
+        print(f"[nodes] ALL_NODES: {len(failed)} pack(s) FAILED to install: {failed}", flush=True)
+    else:
+        print("[nodes] ALL_NODES: all packs installed.", flush=True)
 
 
 def install_node_packs(caps: list[str]):
@@ -203,15 +278,8 @@ def install_node_packs(caps: list[str]):
             if repo in seen:
                 continue
             seen.add(repo)
-            name = repo.rstrip("/").split("/")[-1]
-            dest = os.path.join(nodes_dir, name)
-            if os.path.isdir(dest):
-                continue
             # Best-effort: a flaky third-party clone must not abort the whole boot.
-            sh(f"git clone --depth 1 {repo} '{dest}'", check=False)
-            req = os.path.join(dest, "requirements.txt")
-            if os.path.exists(req):
-                sh(f"pip install -q -r '{req}'", check=False)
+            clone_node_pack(repo, nodes_dir)
 
 
 def download_models(caps: list[str]):
@@ -395,6 +463,8 @@ def main():
     print(f"[boot] requested caps: {caps}", flush=True)
     install_comfyui()
     install_node_packs(caps)
+    if os.environ.get("AURORA_INSTALL_ALL_NODES", "").strip() in ("1", "true", "yes"):
+        install_all_node_packs()
     download_models(caps)
 
     proc = start_comfyui()

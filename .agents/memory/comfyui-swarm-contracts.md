@@ -32,3 +32,7 @@ description: Filename/node-class contract between the ComfyUI launcher and the d
 - **How to apply:** any existing custom (RunPod/VM) worker config must be updated to
   send the new secret; `/api/public/workers/health` (probes already-known workers,
   no new capability grant) intentionally stayed on the public anon key.
+
+## 2026-08-09 additions
+- "Install all nodes" on free-GPU sessions = curated broad pack set + ComfyUI-Manager/comfy-cli for on-demand installs; the literal full registry is infeasible/unsafe. Capability advertisement still fails closed on /object_info, and pack-clone failures must be printed loudly (a dead repo URL otherwise silently shrinks the set — AIWarper's MimicMotion wrapper died; kijai's is the live one).
+- The worker launcher exists in two byte-identical copies (repo + public download); always sync both.
