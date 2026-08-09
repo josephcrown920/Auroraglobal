@@ -117,4 +117,5 @@
 - [Partial .replit [[ports]] block](replit-ports-partial-list.md) — an incomplete [[ports]] list → DIDNT_OPEN_A_PORT though the server binds fine; complete the list, deleting it gets auto-reverted.
 - [Local migrations != live schema](supabase-migrations-not-applied-live.md) — check schema_migrations before blaming code for a missing table; and every new public table ships anon-writable until RLS+revoke.
 - [Aurora admin auth duality](aurora-admin-auth-duality.md) — /api/admin/* must accept BOTH the passcode header and a verified Supabase bearer; owner-only products gate visibility, not the shared generate endpoint.
+- [Comfy Cloud MCP i2v](comfy-cloud-mcp-i2v.md) — partner video models are t2v-only (no media roles); i2v = use_previous_output + open-source Wan 2.1 graph, 0 partner credits.
 - [Aurora geo/PPP billing state](aurora-geo-billing.md) — geo pricing designed but OFF (detectCurrency pinned USD, everyone pays USD); /billing has an admin-only region preview; live payments table was EMPTY 2026-08-04.
