@@ -25,6 +25,8 @@ The OAuth connection token may lack the **`workflow` scope** — GitHub rejects 
 
 **origin/Main is a STALE, DIVERGED lineage — never `git pull` it.** The workspace and GitHub origin/Main forked long ago. origin/Main is *behind* the workspace. Reconcile only by making GitHub match the workspace (push from clean clone), never by pulling. Pulling starts a destructive conflicted merge.
 
+**Stale `.git/*.lock` files (index.lock, refs/heads/*.lock, refs/remotes/*.lock) block fetch/push for whole sessions.** Left behind by killed platform git ops. Safe cleanup: `find .git -name "*.lock" -mmin +2 -delete` (age filter avoids racing a live op), then retry — this alone unblocked a push that had failed across sessions.
+
 **Auth caveat:** GitHub can show "UNAUTHENTICATED — Failed to authenticate with the remote" when no GitHub connection exists (`listConnections('github')` empty) and `GITHUB_TOKEN` secret is unset. Any sync/push is blocked until the user reconnects GitHub or sets the token.
 
 **Main-agent bash now HARD-BLOCKS destructive git** ("not allowed in the main agent"): `filter-branch`, `push --force`/`-f`, `gc --prune`, `reflog expire`, `reset`, `update-ref -d`, `remote set-url`. It does NOT block a plain non-force `git push` (creating/fast-forwarding a branch is fine). So split the work: do the history rewrite in the **code_execution sandbox** (its spawned `git` is not intercepted), do the auth'd push from **bash** (only place `GITHUB_TOKEN` exists).
