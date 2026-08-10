@@ -95,7 +95,7 @@
     "zod": "^3.24.2"
   },
   "overrides": {
-    "@tanstack/router-core": "1.171.20",
+    "@tanstack/router-core": "1.171.19",
     "minimatch@3": {
       "brace-expansion": "1.1.18"
     },

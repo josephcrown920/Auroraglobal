@@ -1,0 +1,19 @@
+kind = "design-system"
+previewPath = "/aurora-ds/"
+title = "Aurora Design System"
+description = "Aurora's shared visual language: deep navy-dark and light themes, violet primary accent, Plus Jakarta Sans UI font, glass-morphism surfaces, and liquid button feel. Consumed by Aurora Studio, Adult School, and all Aurora artifacts."
+version = "1.0.0"
+id = "artifacts/aurora-ds"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/aurora-ds/" ]
+localPort = 18593
+
+[services.development]
+run = "bash /home/runner/workspace/artifacts/aurora-ds/start-dev.sh"
+
+[services.env]
+PORT = "18593"
+BASE_PATH = "/aurora-ds/"

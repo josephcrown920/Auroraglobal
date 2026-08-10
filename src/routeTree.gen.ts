@@ -135,12 +135,14 @@ import { Route as ApiVideoAgentGenerateRouteImport } from './routes/api/video-ag
 import { Route as ApiVideoAgentGenerateFrameRouteImport } from './routes/api/video-agent/generate-frame'
 import { Route as ApiVideoAgentGenerateScriptRouteImport } from './routes/api/video-agent/generate-script'
 import { Route as ApiVideoAgentSubmitRouteImport } from './routes/api/video-agent/submit'
+import { Route as ApiPublicCliVastRouteImport } from './routes/api/public/cli/vast'
 import { Route as ApiPublicGpuClaimRouteImport } from './routes/api/public/gpu/claim'
 import { Route as ApiPublicGpuCompleteRouteImport } from './routes/api/public/gpu/complete'
 import { Route as ApiPublicGpuRegisterRouteImport } from './routes/api/public/gpu/register'
 import { Route as ApiPublicJobsTickRouteImport } from './routes/api/public/jobs/tick'
 import { Route as ApiPublicPaymentsSweepStuckRouteImport } from './routes/api/public/payments/sweep-stuck'
 import { Route as ApiPublicTiktokCallbackRouteImport } from './routes/api/public/tiktok/callback'
+import { Route as ApiPublicVastExpireRouteImport } from './routes/api/public/vast/expire'
 import { Route as ApiPublicWorkersHealthRouteImport } from './routes/api/public/workers/health'
 import { Route as ApiPublicWorkersRegisterRouteImport } from './routes/api/public/workers/register'
 import { Route as ApiVideoAgentStatusVideoIdRouteImport } from './routes/api/video-agent/status.$videoId'
@@ -807,6 +809,11 @@ const ApiVideoAgentSubmitRoute = ApiVideoAgentSubmitRouteImport.update({
   path: '/api/video-agent/submit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCliVastRoute = ApiPublicCliVastRouteImport.update({
+  id: '/api/public/cli/vast',
+  path: '/api/public/cli/vast',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicGpuClaimRoute = ApiPublicGpuClaimRouteImport.update({
   id: '/api/public/gpu/claim',
   path: '/api/public/gpu/claim',
@@ -836,6 +843,11 @@ const ApiPublicPaymentsSweepStuckRoute =
 const ApiPublicTiktokCallbackRoute = ApiPublicTiktokCallbackRouteImport.update({
   id: '/api/public/tiktok/callback',
   path: '/api/public/tiktok/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicVastExpireRoute = ApiPublicVastExpireRouteImport.update({
+  id: '/api/public/vast/expire',
+  path: '/api/public/vast/expire',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicWorkersHealthRoute = ApiPublicWorkersHealthRouteImport.update({
@@ -1003,12 +1015,14 @@ export interface FileRoutesByFullPath {
   '/api/video-agent/generate-frame': typeof ApiVideoAgentGenerateFrameRoute
   '/api/video-agent/generate-script': typeof ApiVideoAgentGenerateScriptRoute
   '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
+  '/api/public/cli/vast': typeof ApiPublicCliVastRoute
   '/api/public/gpu/claim': typeof ApiPublicGpuClaimRoute
   '/api/public/gpu/complete': typeof ApiPublicGpuCompleteRoute
   '/api/public/gpu/register': typeof ApiPublicGpuRegisterRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
+  '/api/public/vast/expire': typeof ApiPublicVastExpireRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
   '/api/video-agent/status/$videoId': typeof ApiVideoAgentStatusVideoIdRoute
@@ -1143,12 +1157,14 @@ export interface FileRoutesByTo {
   '/api/video-agent/generate-frame': typeof ApiVideoAgentGenerateFrameRoute
   '/api/video-agent/generate-script': typeof ApiVideoAgentGenerateScriptRoute
   '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
+  '/api/public/cli/vast': typeof ApiPublicCliVastRoute
   '/api/public/gpu/claim': typeof ApiPublicGpuClaimRoute
   '/api/public/gpu/complete': typeof ApiPublicGpuCompleteRoute
   '/api/public/gpu/register': typeof ApiPublicGpuRegisterRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
+  '/api/public/vast/expire': typeof ApiPublicVastExpireRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
   '/api/video-agent/status/$videoId': typeof ApiVideoAgentStatusVideoIdRoute
@@ -1284,12 +1300,14 @@ export interface FileRoutesById {
   '/api/video-agent/generate-frame': typeof ApiVideoAgentGenerateFrameRoute
   '/api/video-agent/generate-script': typeof ApiVideoAgentGenerateScriptRoute
   '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
+  '/api/public/cli/vast': typeof ApiPublicCliVastRoute
   '/api/public/gpu/claim': typeof ApiPublicGpuClaimRoute
   '/api/public/gpu/complete': typeof ApiPublicGpuCompleteRoute
   '/api/public/gpu/register': typeof ApiPublicGpuRegisterRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
+  '/api/public/vast/expire': typeof ApiPublicVastExpireRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
   '/api/video-agent/status/$videoId': typeof ApiVideoAgentStatusVideoIdRoute
@@ -1426,12 +1444,14 @@ export interface FileRouteTypes {
     | '/api/video-agent/generate-frame'
     | '/api/video-agent/generate-script'
     | '/api/video-agent/submit'
+    | '/api/public/cli/vast'
     | '/api/public/gpu/claim'
     | '/api/public/gpu/complete'
     | '/api/public/gpu/register'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
     | '/api/public/tiktok/callback'
+    | '/api/public/vast/expire'
     | '/api/public/workers/health'
     | '/api/public/workers/register'
     | '/api/video-agent/status/$videoId'
@@ -1566,12 +1586,14 @@ export interface FileRouteTypes {
     | '/api/video-agent/generate-frame'
     | '/api/video-agent/generate-script'
     | '/api/video-agent/submit'
+    | '/api/public/cli/vast'
     | '/api/public/gpu/claim'
     | '/api/public/gpu/complete'
     | '/api/public/gpu/register'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
     | '/api/public/tiktok/callback'
+    | '/api/public/vast/expire'
     | '/api/public/workers/health'
     | '/api/public/workers/register'
     | '/api/video-agent/status/$videoId'
@@ -1706,12 +1728,14 @@ export interface FileRouteTypes {
     | '/api/video-agent/generate-frame'
     | '/api/video-agent/generate-script'
     | '/api/video-agent/submit'
+    | '/api/public/cli/vast'
     | '/api/public/gpu/claim'
     | '/api/public/gpu/complete'
     | '/api/public/gpu/register'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
     | '/api/public/tiktok/callback'
+    | '/api/public/vast/expire'
     | '/api/public/workers/health'
     | '/api/public/workers/register'
     | '/api/video-agent/status/$videoId'
@@ -1834,12 +1858,14 @@ export interface RootRouteChildren {
   ApiVideoAgentGenerateFrameRoute: typeof ApiVideoAgentGenerateFrameRoute
   ApiVideoAgentGenerateScriptRoute: typeof ApiVideoAgentGenerateScriptRoute
   ApiVideoAgentSubmitRoute: typeof ApiVideoAgentSubmitRoute
+  ApiPublicCliVastRoute: typeof ApiPublicCliVastRoute
   ApiPublicGpuClaimRoute: typeof ApiPublicGpuClaimRoute
   ApiPublicGpuCompleteRoute: typeof ApiPublicGpuCompleteRoute
   ApiPublicGpuRegisterRoute: typeof ApiPublicGpuRegisterRoute
   ApiPublicJobsTickRoute: typeof ApiPublicJobsTickRoute
   ApiPublicPaymentsSweepStuckRoute: typeof ApiPublicPaymentsSweepStuckRoute
   ApiPublicTiktokCallbackRoute: typeof ApiPublicTiktokCallbackRoute
+  ApiPublicVastExpireRoute: typeof ApiPublicVastExpireRoute
   ApiPublicWorkersHealthRoute: typeof ApiPublicWorkersHealthRoute
   ApiPublicWorkersRegisterRoute: typeof ApiPublicWorkersRegisterRoute
   ApiVideoAgentStatusVideoIdRoute: typeof ApiVideoAgentStatusVideoIdRoute
@@ -2725,6 +2751,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiVideoAgentSubmitRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cli/vast': {
+      id: '/api/public/cli/vast'
+      path: '/api/public/cli/vast'
+      fullPath: '/api/public/cli/vast'
+      preLoaderRoute: typeof ApiPublicCliVastRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/gpu/claim': {
       id: '/api/public/gpu/claim'
       path: '/api/public/gpu/claim'
@@ -2765,6 +2798,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/tiktok/callback'
       fullPath: '/api/public/tiktok/callback'
       preLoaderRoute: typeof ApiPublicTiktokCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/vast/expire': {
+      id: '/api/public/vast/expire'
+      path: '/api/public/vast/expire'
+      fullPath: '/api/public/vast/expire'
+      preLoaderRoute: typeof ApiPublicVastExpireRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/workers/health': {
@@ -2978,12 +3018,14 @@ const rootRouteChildren: RootRouteChildren = {
   ApiVideoAgentGenerateFrameRoute: ApiVideoAgentGenerateFrameRoute,
   ApiVideoAgentGenerateScriptRoute: ApiVideoAgentGenerateScriptRoute,
   ApiVideoAgentSubmitRoute: ApiVideoAgentSubmitRoute,
+  ApiPublicCliVastRoute: ApiPublicCliVastRoute,
   ApiPublicGpuClaimRoute: ApiPublicGpuClaimRoute,
   ApiPublicGpuCompleteRoute: ApiPublicGpuCompleteRoute,
   ApiPublicGpuRegisterRoute: ApiPublicGpuRegisterRoute,
   ApiPublicJobsTickRoute: ApiPublicJobsTickRoute,
   ApiPublicPaymentsSweepStuckRoute: ApiPublicPaymentsSweepStuckRoute,
   ApiPublicTiktokCallbackRoute: ApiPublicTiktokCallbackRoute,
+  ApiPublicVastExpireRoute: ApiPublicVastExpireRoute,
   ApiPublicWorkersHealthRoute: ApiPublicWorkersHealthRoute,
   ApiPublicWorkersRegisterRoute: ApiPublicWorkersRegisterRoute,
   ApiVideoAgentStatusVideoIdRoute: ApiVideoAgentStatusVideoIdRoute,

@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { orchestrationHealth, providerCredits } from "@/lib/orchestration.functions";
+import { listVastManaged } from "@/lib/vast.functions";
 import { getGenerationHealth, type GenerationHealthRow } from "@/lib/generation-health.functions";
 import type { ProviderCreditRow } from "@/lib/orchestration.functions";
 import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
@@ -247,6 +248,14 @@ function OrchestrationDashboard() {
   const { data: genHealth, isLoading: genHealthLoading, error: genHealthError } = useQuery({
     queryKey: ["generation-health"],
     queryFn: () => genHealthFn(),
+    enabled: !!user && unlocked,
+    refetchInterval: 60_000,
+  });
+
+  const vastFn = useServerFn(listVastManaged);
+  const { data: vastData } = useQuery({
+    queryKey: ["vast-managed"],
+    queryFn: () => vastFn(),
     enabled: !!user && unlocked,
     refetchInterval: 60_000,
   });
@@ -632,6 +641,47 @@ function OrchestrationDashboard() {
               </div>
               <div className="px-5 py-2.5 border-t border-border text-[13px] text-muted-foreground">
                 Standalone HTTP-out inference layer (Colab · RunPod · HF Spaces · Vast.ai · ComfyUI).
+              </div>
+            </div>
+
+            {/* Aurora-managed Vast instances */}
+            <div className="rounded-xl border border-border bg-card/40 overflow-hidden">
+              <div className="px-5 py-3 border-b border-border flex items-center justify-between">
+                <span className="text-sm font-semibold">Managed Vast.ai instances</span>
+                <span className="text-[13px] text-muted-foreground">
+                  {vastData?.configured ? "$0.35/hr ceiling · 1h auto-destroy" : "VASTAI_API_KEY not configured"}
+                </span>
+              </div>
+              <div className="divide-y divide-border/50 max-h-[320px] overflow-auto">
+                {(vastData?.instances ?? []).length === 0 && (
+                  <div className="px-5 py-6 text-sm text-muted-foreground text-center">
+                    No Aurora-managed instances. Rent one from the CLI: <code className="text-xs">aurora vast search</code>
+                  </div>
+                )}
+                {(vastData?.instances ?? []).map((r) => {
+                  const active = r.state === "renting" || r.state === "running" || r.state === "stopped";
+                  const minsLeft = Math.max(0, Math.round((new Date(r.destroy_deadline).getTime() - Date.now()) / 60000));
+                  return (
+                    <div key={r.id} className="px-5 py-2.5 flex items-center gap-3 text-xs">
+                      <span
+                        className={
+                          "size-1.5 rounded-full shrink-0 " +
+                          (r.state === "running" ? "bg-emerald-400" : active ? "bg-amber-400" : "bg-muted-foreground/40")
+                        }
+                      />
+                      <span className="w-24 shrink-0 font-medium truncate">#{r.vast_instance_id}</span>
+                      <span className="w-24 shrink-0 text-muted-foreground truncate">{r.gpu_name ?? "—"}</span>
+                      <span className="w-20 shrink-0 tabular-nums text-muted-foreground">${Number(r.hourly_usd).toFixed(3)}/hr</span>
+                      <span className="w-20 shrink-0 truncate">{r.state}{r.adopted ? " · adopted" : ""}</span>
+                      <span className="flex-1 truncate text-muted-foreground">
+                        {r.worker ? `worker: ${r.worker.name} (${r.worker.status})` : r.endpoint_url ?? "no endpoint yet"}
+                      </span>
+                      <span className={"w-28 shrink-0 text-right tabular-nums " + (active ? (minsLeft <= 10 ? "text-amber-400" : "text-muted-foreground") : "text-muted-foreground/50")}>
+                        {active ? `destroys in ${minsLeft}m` : r.destroyed_at ? new Date(r.destroyed_at).toLocaleTimeString() : "—"}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
