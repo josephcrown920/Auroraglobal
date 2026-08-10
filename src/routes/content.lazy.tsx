@@ -8,6 +8,7 @@ import {
   Megaphone,
   Mic2,
   ScanFace,
+  Wand2,
 } from "lucide-react";
 
 export const Route = createLazyFileRoute("/content")({ component: ContentHubPage });
@@ -18,42 +19,42 @@ const MODES = [
     label: "UGC Ads",
     description: "Turn a product or idea into a natural creator-style ad.",
     icon: Megaphone,
-    accent: "from-red-500/25 to-orange-500/10",
   },
   {
     to: "/spin",
     label: "TikTok30",
     description: "Make a batch of short-form hooks and posts from one concept.",
     icon: Flame,
-    accent: "from-amber-500/25 to-red-500/10",
+  },
+  {
+    to: "/agent",
+    label: "Video Agent",
+    description: "Describe the video you want — the agent plans, shoots, and cuts it.",
+    icon: Wand2,
   },
   {
     to: "/ugc-line",
     label: "Content Line",
     description: "Build a repeatable content system around your product.",
     icon: Layers3,
-    accent: "from-violet-500/25 to-blue-500/10",
   },
   {
     to: "/avatar",
     label: "Talking Avatars",
     description: "Create presenter videos with a face, voice, and script.",
     icon: ScanFace,
-    accent: "from-cyan-500/25 to-blue-500/10",
   },
   {
     to: "/lipsync",
     label: "Lip Sync",
     description: "Give a still or performance clip a matching vocal track.",
     icon: Mic2,
-    accent: "from-emerald-500/25 to-cyan-500/10",
   },
   {
     to: "/tiktok",
     label: "TikTok Studio",
     description: "Remix an existing video into platform-ready cuts.",
     icon: Clapperboard,
-    accent: "from-pink-500/25 to-purple-500/10",
   },
 ] as const;
 
@@ -101,10 +102,10 @@ function ContentHubPage() {
               <Link
                 key={mode.to}
                 to={mode.to}
-                className={`group rounded-2xl border border-border bg-gradient-to-br ${mode.accent} p-5 no-underline transition hover:-translate-y-0.5 hover:border-primary/40`}
+                className="group rounded-2xl border border-white/8 bg-card/60 p-5 no-underline shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] backdrop-blur transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/5"
               >
                 <div className="flex items-start justify-between gap-4">
-                  <span className="flex size-10 items-center justify-center rounded-xl bg-background/50 text-foreground">
+                  <span className="flex size-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
                     <Icon className="size-5" />
                   </span>
                   <ArrowRight className="size-4 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-foreground" />

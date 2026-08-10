@@ -41,8 +41,9 @@ function AuthPage() {
   const navigate = useNavigate();
   const { session, loading } = useAuth();
   const search = Route.useSearch();
-  const returnTo = search.next ?? "/home";
   const [mode, setMode] = useState<"signin" | "signup">("signin");
+  // New signups land in Studio (the product); returning sign-ins land on Home.
+  const returnTo = search.next ?? (mode === "signup" ? "/studio" : "/home");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -137,7 +138,7 @@ function AuthPage() {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth${search.next ? `?next=${encodeURIComponent(search.next)}` : ""}`,
+            emailRedirectTo: `${window.location.origin}/auth?next=${encodeURIComponent(search.next ?? "/studio")}`,
             // persona is read back out of user_metadata when the profile row is
             // first created, so it survives the email-confirmation round trip.
             data: { display_name: displayName.trim() || email.split("@")[0], persona },
@@ -186,7 +187,7 @@ function AuthPage() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/auth${search.next ? `?next=${encodeURIComponent(search.next)}` : ""}`,
+          redirectTo: `${window.location.origin}/auth?next=${encodeURIComponent(search.next ?? (mode === "signup" ? "/studio" : "/home"))}`,
           skipBrowserRedirect: isInFrame,
         },
       });
