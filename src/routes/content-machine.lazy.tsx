@@ -355,7 +355,7 @@ function PipelineGraph({
       <div className="flex items-stretch gap-1 overflow-x-auto pb-1">
         {stages.map((s, i) => (
           <div key={s.label} className="flex items-center gap-1 shrink-0">
-            <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-card/40 px-3 py-2.5 w-[88px]">
+            <div className="flex flex-col items-center gap-1.5 rounded-xl border border-white/8 bg-zinc-900 px-3 py-2.5 w-[88px]">
               <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <s.icon className="size-4" />
               </span>
@@ -372,7 +372,7 @@ function PipelineGraph({
           { k: "Generating", v: processing, cls: "text-primary" },
           { k: "Failed", v: failed, cls: "text-destructive" },
         ].map((c) => (
-          <div key={c.k} className="rounded-lg border border-border bg-card/30 py-2">
+          <div key={c.k} className="rounded-lg border border-white/8 bg-zinc-900 py-2">
             <div className={cn("text-lg font-semibold tabular-nums", c.cls)}>{c.v}</div>
             <div className="aurora-kicker">{c.k}</div>
           </div>
@@ -858,7 +858,7 @@ function ContentMachinePage() {
               )}
               <div className="grid grid-cols-2 gap-3">
                 {active.items.map((it) => (
-                  <div key={it.id} className="rounded-xl border border-border bg-card/30 overflow-hidden">
+                  <div key={it.id} className="rounded-xl border border-white/8 bg-zinc-900 overflow-hidden">
                     <div className="relative aspect-[9/16] bg-background/60 flex items-center justify-center">
                       {it.status === "succeeded" && it.videoUrl ? (
                         <video src={it.videoUrl} poster={it.imageUrl ?? undefined} controls playsInline className="size-full object-cover" />
@@ -925,7 +925,7 @@ function ContentMachinePage() {
                 { k: "Failed", v: analytics?.failed ?? 0 },
                 { k: "Aura spent", v: analytics?.creditsSpent ?? 0 },
               ].map((c) => (
-                <div key={c.k} className="rounded-xl border border-border bg-card/30 px-3 py-3">
+                <div key={c.k} className="rounded-xl border border-white/8 bg-zinc-900 px-3 py-3">
                   <div className="text-xl font-semibold tabular-nums">{c.v}</div>
                   <div className="aurora-kicker mt-0.5">{c.k}</div>
                 </div>
