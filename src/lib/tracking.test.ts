@@ -79,6 +79,10 @@ function makeLocalStorage(initial: Record<string, string> = {}) {
     removeItem: (k: string) => {
       delete store[k];
     },
+    /** Simulate a full storage wipe (private-browsing clear-data, competing script, etc.) */
+    clear: () => {
+      for (const k of Object.keys(store)) delete store[k];
+    },
   };
 }
 
@@ -273,5 +277,132 @@ describe("track() — analytics fires when consent is present", () => {
     // No setupEnv — window is undefined, track() should return immediately.
     await track("ssr_event");
     expect(insertCalls).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Mid-session localStorage eviction — the primary regression this task covers.
+//
+// hasAnalyticsConsent() reads from localStorage on EVERY call (no in-memory
+// cache). If storage is wiped mid-session — private-browsing "clear data",
+// a competing script calling localStorage.clear(), or the browser evicting
+// storage under quota pressure — a regulated-region visitor's previously
+// granted consent record disappears. The next track() call must re-evaluate
+// consent, find nothing in storage, and block analytics (opt-in required).
+//
+// Non-regulated visitors are unaffected because the implied-consent path
+// returns true regardless of what's stored.
+// ---------------------------------------------------------------------------
+
+describe("track() — mid-session localStorage eviction", () => {
+  beforeEach(() => {
+    insertCalls.length = 0;
+  });
+  afterEach(teardownEnv);
+
+  it("blocks analytics for an EU visitor after localStorage is cleared mid-session", async () => {
+    // 1. EU locale: opt-in consent is required.
+    setupEnv({
+      language: "fr-FR",
+      timezone: "Europe/Paris",
+      storedConsent: validConsentRecord("accepted"),
+    });
+
+    // 2. Consent is present → track() should fire normally.
+    await track("initial_event");
+    expect(insertCalls).toHaveLength(1);
+    insertCalls.length = 0; // reset spy
+
+    // 3. Simulate a mid-session full storage wipe (e.g. private-browsing
+    //    "clear data" or a competing script calling localStorage.clear()).
+    (globalThis.localStorage as ReturnType<typeof makeLocalStorage>).clear();
+
+    // 4. After eviction the consent record is gone. For an EU visitor this
+    //    means the opt-in gate is back to "not answered" → analytics must be
+    //    blocked immediately, without a page reload.
+    await track("post_eviction_event");
+    expect(insertCalls).toHaveLength(0);
+  });
+
+  it("blocks analytics for a UK visitor after localStorage is cleared mid-session", async () => {
+    setupEnv({
+      language: "en-GB",
+      timezone: "Europe/London",
+      storedConsent: validConsentRecord("accepted"),
+    });
+
+    await track("initial_event");
+    expect(insertCalls).toHaveLength(1);
+    insertCalls.length = 0;
+
+    (globalThis.localStorage as ReturnType<typeof makeLocalStorage>).clear();
+
+    await track("post_eviction_event");
+    expect(insertCalls).toHaveLength(0);
+  });
+
+  it("blocks analytics for a Canadian visitor after localStorage is cleared mid-session", async () => {
+    setupEnv({
+      language: "en-CA",
+      timezone: "America/Toronto",
+      storedConsent: validConsentRecord("accepted"),
+    });
+
+    await track("initial_event");
+    expect(insertCalls).toHaveLength(1);
+    insertCalls.length = 0;
+
+    (globalThis.localStorage as ReturnType<typeof makeLocalStorage>).clear();
+
+    await track("post_eviction_event");
+    expect(insertCalls).toHaveLength(0);
+  });
+
+  it("continues to allow analytics for a US visitor after localStorage is cleared (implied consent, opt-out model)", async () => {
+    // Non-regulated region: evicting storage does not require the visitor to
+    // re-opt-in; the implied-consent path stays open.
+    setupEnv({
+      language: "en-US",
+      timezone: "America/New_York",
+      storedConsent: validConsentRecord("accepted"),
+    });
+
+    await track("initial_event");
+    expect(insertCalls).toHaveLength(1);
+    insertCalls.length = 0;
+
+    (globalThis.localStorage as ReturnType<typeof makeLocalStorage>).clear();
+
+    // hasAnalyticsConsent() → status=null, isRegulatedRegion()=false → returns true.
+    await track("post_eviction_event");
+    expect(insertCalls).toHaveLength(1);
+  });
+
+  it("does not write a session ID to the (now-empty) store for an EU visitor post-eviction", async () => {
+    setupEnv({
+      language: "de-DE",
+      timezone: "Europe/Berlin",
+      storedConsent: validConsentRecord("accepted"),
+    });
+
+    await track("initial_event");
+    insertCalls.length = 0;
+
+    const ls = globalThis.localStorage as ReturnType<typeof makeLocalStorage>;
+    ls.clear();
+
+    // Spy on writes after the eviction.
+    const writtenKeys: string[] = [];
+    const origSetItem = ls.setItem.bind(ls);
+    ls.setItem = (k: string, v: string) => {
+      writtenKeys.push(k);
+      origSetItem(k, v);
+    };
+
+    await track("post_eviction_event");
+
+    // No insert and no session-id write should have occurred.
+    expect(insertCalls).toHaveLength(0);
+    expect(writtenKeys.some((k) => k.includes("session"))).toBe(false);
   });
 });
