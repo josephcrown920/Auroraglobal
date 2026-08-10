@@ -102,7 +102,7 @@ async function uploadBytesToStudio(path: string, bytes: Uint8Array | Buffer, con
 export async function runSmokeSpinOne(
   userId: string,
   faceUrl: string,
-): Promise<{ url: string; provider: string }> {
+): Promise<{ url: string; provider: string; jobId: string; variantId: string }> {
   const db = supabaseAdmin as unknown as LooseClient;
   const base = "smoke test: confident creator lifestyle post";
   const spec = buildFallbackSpecs(base, 1, "default")[0];
@@ -186,7 +186,7 @@ export async function runSmokeSpinOne(
     .eq("status", "running");
   await db.from("spin_jobs").update({ status: "done" }).eq("id", job.id);
 
-  return { url: publicUrl, provider };
+  return { url: publicUrl, provider, jobId: job.id, variantId: insertedRow.id };
 }
 
 // ─── Avatar options for the identity picker ──────────────────────────────────

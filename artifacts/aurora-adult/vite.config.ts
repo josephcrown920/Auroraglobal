@@ -38,8 +38,5 @@ export default defineConfig({
       process.env.SUPABASE_PUBLISHABLE_KEY ??
       ""
     ),
-    // Passcode is also verified server-side on every generate call (Bearer header).
-    // Exposing it in the client bundle is acceptable: this app is operator-only.
-    "import.meta.env.VITE_ADMIN_PASSCODE": JSON.stringify(process.env.ADMIN_PASSCODE ?? ""),
   },
 });
