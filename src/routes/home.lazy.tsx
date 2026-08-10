@@ -16,12 +16,14 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
+import { usePersona, type Persona } from "@/hooks/use-persona";
 import { listGenerations } from "@/lib/studio.functions";
 import { getMyProfile } from "@/lib/billing.functions";
 import { AuroraToolsSheet } from "@/components/AuroraToolsSheet";
 import { EditableCopy } from "@/components/EditableCopy";
 import { useSiteCopyValue } from "@/components/landing/SiteCopyProvider";
 import { INSPIRATION_IMAGES } from "@/lib/mediaAssets";
+import { PersonaGate } from "@/components/PersonaGate";
 
 export const Route = createLazyFileRoute("/home")({ component: HomePage });
 
@@ -33,7 +35,7 @@ const FALLBACK_REELS: { src: string; label: string }[] = [
   { src: INSPIRATION_IMAGES.a5, label: "Editorial look" },
 ];
 
-// Idea starters
+// Idea starters — shared across both modes
 const IDEA_CHIPS = [
   { id: "performance", label: "Performance shot", prompt: "Ultra-realistic live performance shot, professional stage lighting, magazine quality" },
   { id: "music-video", label: "Music video still", prompt: "Cinematic music video still, dramatic lighting, music artist style" },
@@ -41,7 +43,6 @@ const IDEA_CHIPS = [
   { id: "editorial", label: "Editorial look", prompt: "High fashion editorial photograph, magazine style, artistic composition" },
 ] as const;
 
-// Numbered tool list — the premium feature index shown on home.
 type ToolRow = {
   idx: string;
   name: string;
@@ -53,9 +54,10 @@ type ToolRow = {
   starred?: boolean;
 };
 
-const TOOL_ROWS: ToolRow[] = [
-  { idx: "00", name: "AURORA STUDIO", badge: "FLAGSHIP", description: "Image & video generation", price: "FREE", to: "/studio", previewImg: "/nav-previews/studio.jpg", starred: true },
-  { idx: "01", name: "COLORS", description: "Performance photo shoot", price: "2 CR", to: "/colors", previewImg: "/nav-previews/colors.jpg", starred: true },
+// ── Artist tool list — matches the "firstphoto" reference design ──────────────
+const ARTIST_TOOL_ROWS: ToolRow[] = [
+  { idx: "00", name: "PERFORM ANYWHERE", badge: "FLAGSHIP", description: "AI live performance engine", price: "FREE", to: "/motion", previewImg: "/nav-previews/perform-anywhere.jpg", starred: true },
+  { idx: "01", name: "COLORS", description: "Performance photo generation", price: "2 CR", to: "/colors", previewImg: "/nav-previews/colors.jpg", starred: true },
   { idx: "02", name: "TIKTOK30", description: "UGC campaign engine", price: "6 CR", to: "/spin", previewImg: "/nav-previews/spin.jpg", starred: true },
   { idx: "03", name: "VIDEO AGENT", description: "AI video production assistant", price: "10 CR", to: "/video-agent", previewImg: "/nav-previews/video-agent.jpg" },
   { idx: "04", name: "DIRECTOR'S ROOM", badge: "SUITE", description: "Cinematic visual studio", price: "12 CR", to: "/scene-builder", previewImg: "/nav-previews/scene-builder.jpg" },
@@ -63,6 +65,32 @@ const TOOL_ROWS: ToolRow[] = [
   { idx: "06", name: "MOTION CONTROL", badge: "FLAGSHIP", description: "Kinetic visual generation", price: "10 CR", to: "/motion", previewImg: "/nav-previews/motion.jpg" },
 ];
 
+// ── Creator tool list — content / UGC / short-form focused ───────────────────
+const CREATOR_TOOL_ROWS: ToolRow[] = [
+  { idx: "00", name: "UGC ADS", badge: "FLAGSHIP", description: "AI-generated ad creatives", price: "FREE", to: "/ugc", previewImg: "/nav-previews/studio.jpg", starred: true },
+  { idx: "01", name: "TIKTOK30", description: "UGC campaign engine", price: "6 CR", to: "/spin", previewImg: "/nav-previews/spin.jpg", starred: true },
+  { idx: "02", name: "LIP SYNC", description: "Audio-synced video", price: "8 CR", to: "/lipsync", previewImg: "/nav-previews/lipsync.jpg", starred: true },
+  { idx: "03", name: "VIDEO AGENT", description: "AI video production assistant", price: "10 CR", to: "/video-agent", previewImg: "/nav-previews/video-agent.jpg" },
+  { idx: "04", name: "AI CREATIVE AGENT", badge: "NEW", description: "Automated creative workflows", price: "12 CR", to: "/agent", previewImg: "/nav-previews/canvas.jpg" },
+  { idx: "05", name: "CONTENT MACHINE", description: "Bulk content generation", price: "8 CR", to: "/content-machine", previewImg: "/nav-previews/studio.jpg" },
+  { idx: "06", name: "TALKING AVATARS", description: "Personalized avatar videos", price: "10 CR", to: "/avatar", previewImg: "/nav-previews/lipsync.jpg" },
+];
+
+// ── Shared heading configs per persona ───────────────────────────────────────
+const PERSONA_CONFIG = {
+  artist: {
+    kicker: "Every tool",
+    lines: ["CREATE", "SOMETHING", "NEW."],
+    sub: (n: number) => `${n} tools · Built for artists`,
+  },
+  creator: {
+    kicker: "Every tool",
+    lines: ["CREATE.", "SELL.", "REPEAT."],
+    sub: (n: number) => `${n} tools · Built for creators`,
+  },
+} as const;
+
+// ── ToolRowItem ───────────────────────────────────────────────────────────────
 function ToolRowItem({ row }: { row: ToolRow }) {
   const [hovered, setHovered] = useState(false);
   return (
@@ -73,23 +101,19 @@ function ToolRowItem({ row }: { row: ToolRow }) {
       className="relative flex items-center gap-3 border-b border-white/8 px-1 py-4 no-underline transition-colors duration-150 active:bg-white/5"
       style={hovered ? { background: "oklch(0.60 0.27 295 / 0.07)" } : undefined}
     >
-      {/* Background preview image that fades in on hover */}
+      {/* Hover preview image */}
       {row.previewImg && (
         <span
           aria-hidden
           className="pointer-events-none absolute inset-0 overflow-hidden rounded-xl"
           style={{ opacity: hovered ? 0.18 : 0, transition: "opacity 0.25s ease" }}
         >
-          <img
-            src={row.previewImg}
-            alt=""
-            className="h-full w-full object-cover object-top"
-          />
+          <img src={row.previewImg} alt="" className="h-full w-full object-cover object-top" />
           <span className="absolute inset-0" style={{ background: "linear-gradient(90deg, oklch(0.09 0.022 272 / 0.7) 0%, transparent 60%)" }} />
         </span>
       )}
 
-      {/* Index number */}
+      {/* Index */}
       <span className="relative shrink-0 w-6 text-[11px] font-bold tabular-nums text-muted-foreground/50 leading-none pt-0.5">
         {row.idx}
       </span>
@@ -135,7 +159,7 @@ function ToolRowItem({ row }: { row: ToolRow }) {
   );
 }
 
-/** Two-card "Ads" section — Meta + TikTok, AdSkull-style with Aurora violet. */
+/** Two-card "Ads" section — Meta + TikTok. */
 function AdsSection() {
   return (
     <section className="mt-8">
@@ -143,7 +167,6 @@ function AdsSection() {
         Ad Creative Studio
       </p>
       <div className="grid grid-cols-2 gap-3">
-        {/* Meta Ads */}
         <Link
           to="/ugc"
           className="group flex flex-col gap-3 rounded-2xl border p-4 no-underline transition"
@@ -167,7 +190,6 @@ function AdsSection() {
           </span>
         </Link>
 
-        {/* TikTok Ads */}
         <Link
           to="/spin"
           className="group flex flex-col gap-3 rounded-2xl border p-4 no-underline transition"
@@ -195,15 +217,73 @@ function AdsSection() {
   );
 }
 
+// ── PersonaToggle ─────────────────────────────────────────────────────────────
+interface PersonaToggleProps {
+  persona: Persona;
+  onChange: (p: Persona) => void;
+}
+
+function PersonaToggle({ persona, onChange }: PersonaToggleProps) {
+  return (
+    <div
+      className="relative flex items-center rounded-full p-1"
+      style={{
+        background: "oklch(0.13 0.025 280)",
+        border: "1px solid oklch(0.60 0.27 295 / 0.18)",
+      }}
+      role="tablist"
+      aria-label="Switch between Artist and Creator modes"
+    >
+      {/* Sliding pill */}
+      <span
+        aria-hidden
+        className="absolute rounded-full"
+        style={{
+          top: 4,
+          bottom: 4,
+          width: "calc(50% - 4px)",
+          left: persona === "artist" ? 4 : "calc(50%)",
+          background: "oklch(0.60 0.27 295 / 0.22)",
+          border: "1px solid oklch(0.60 0.27 295 / 0.40)",
+          transition: "left 0.38s cubic-bezier(0.34, 1.25, 0.64, 1)",
+        }}
+      />
+      {(["artist", "creator"] as const).map((p) => (
+        <button
+          key={p}
+          type="button"
+          role="tab"
+          aria-selected={persona === p}
+          onClick={() => onChange(p)}
+          className="relative z-10 flex-1 rounded-full py-2 text-[12px] font-bold uppercase tracking-wider transition-colors duration-200"
+          style={{
+            color:
+              persona === p
+                ? "oklch(0.85 0.16 305)"
+                : "oklch(0.55 0.06 270)",
+          }}
+        >
+          {p === "artist" ? "🎤 Artist" : "📲 Creator"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Main home component ───────────────────────────────────────────────────────
 function HomePage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const { persona, setPersona } = usePersona();
 
   const [mounted, setMounted] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [mode, setMode] = useState<"image" | "video">("image");
   const [idea, setIdea] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Tracks whether we're mid-slide so the content cross-fades cleanly
+  const [sliding, setSliding] = useState(false);
 
   useEffect(() => setMounted(true), []);
   useEffect(() => {
@@ -250,11 +330,28 @@ function HomePage() {
     }
   };
 
+  const handlePersonaSwitch = (p: Persona) => {
+    if (p === persona) return;
+    setSliding(true);
+    setTimeout(() => {
+      setPersona(p);
+      setSliding(false);
+    }, 220);
+  };
+
   if (!mounted || loading || !user) {
     return (
       <div className="min-h-dvh w-full" style={{ background: "var(--gradient-page)" }} />
     );
   }
+
+  // Show full-screen persona selector on first visit
+  if (persona === null) {
+    return <PersonaGate onSelect={setPersona} />;
+  }
+
+  const activeRows = persona === "artist" ? ARTIST_TOOL_ROWS : CREATOR_TOOL_ROWS;
+  const cfg = PERSONA_CONFIG[persona];
 
   return (
     <div className="min-h-dvh w-full" style={{ background: "var(--gradient-page)" }}>
@@ -284,39 +381,51 @@ function HomePage() {
           </div>
         </header>
 
-        {/* ── Hero — "CREATE SOMETHING NEW." ─────────────────────────────── */}
-        <div className="mt-8">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/50">
-            Every tool
-          </p>
-          <h1
-            className="mt-1 text-[42px] font-black leading-[0.92] tracking-tighter"
-            style={{
-              background: "var(--gradient-text)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-            }}
-          >
-            <EditableCopy copyKey="home_headline_l1" fallback="CREATE" />
-            <br />
-            <EditableCopy copyKey="home_headline_l2" fallback="SOMETHING" />
-            <br />
-            <EditableCopy copyKey="home_headline_l3" fallback="NEW." />
-          </h1>
-          <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground/50">
-            {TOOL_ROWS.length} tools · Built for artists
-          </p>
+        {/* ── Persona toggle (Artist ↔ Creator) ──────────────────────────── */}
+        <div className="mt-5">
+          <PersonaToggle persona={persona} onChange={handlePersonaSwitch} />
         </div>
 
-        {/* ── Numbered tool list ──────────────────────────────────────────── */}
-        <section className="mt-6" aria-label="Available tools">
-          {TOOL_ROWS.map((row) => (
-            <ToolRowItem key={row.to} row={row} />
-          ))}
-        </section>
+        {/* ── Sliding content area ────────────────────────────────────────── */}
+        {/*
+          Both panels live in a 200%-wide flex row.
+          artist = translateX(0), creator = translateX(-50%).
+          The spring cubic-bezier gives a subtle overshoot — memorable but not jarring.
+        */}
+        <div className="mt-6 overflow-hidden">
+          <div
+            style={{
+              display: "flex",
+              width: "200%",
+              transform: persona === "artist" ? "translateX(0%)" : "translateX(-50%)",
+              transition: "transform 0.45s cubic-bezier(0.34, 1.15, 0.64, 1)",
+              opacity: sliding ? 0.6 : 1,
+              willChange: "transform",
+            }}
+          >
+            {/* ── PANEL A: Artist ─────────────────────────────────────────── */}
+            <div style={{ width: "50%", flexShrink: 0, paddingRight: "0" }}>
+              <PanelContent
+                cfg={PERSONA_CONFIG.artist}
+                rows={ARTIST_TOOL_ROWS}
+                reels={reels}
+                persona="artist"
+              />
+            </div>
 
-        {/* ── Idea chips ─────────────────────────────────────────────────── */}
+            {/* ── PANEL B: Creator ────────────────────────────────────────── */}
+            <div style={{ width: "50%", flexShrink: 0 }}>
+              <PanelContent
+                cfg={PERSONA_CONFIG.creator}
+                rows={CREATOR_TOOL_ROWS}
+                reels={reels}
+                persona="creator"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ── Idea chips (shared) ─────────────────────────────────────────── */}
         <div className="mt-6 flex flex-wrap gap-2">
           {IDEA_CHIPS.map((chip) => (
             <button
@@ -333,8 +442,8 @@ function HomePage() {
           ))}
         </div>
 
-        {/* ── Ads section (Meta + TikTok) ─────────────────────────────────── */}
-        <AdsSection />
+        {/* ── Ads section (shown for creators; hidden for artists) ─────────── */}
+        {persona === "creator" && <AdsSection />}
 
         {/* ── Latest renders strip ────────────────────────────────────────── */}
         <section className="mt-8 rounded-3xl bg-card p-2.5 shadow-[var(--shadow-card)]">
@@ -386,7 +495,7 @@ function HomePage() {
         </section>
       </main>
 
-      {/* ── Sticky composer (sits above the bottom nav) ──────────────────── */}
+      {/* ── Sticky composer (shared, above bottom nav) ────────────────────── */}
       <div
         className="fixed inset-x-0 z-40"
         style={{ bottom: "calc(64px + env(safe-area-inset-bottom))" }}
@@ -466,5 +575,52 @@ function HomePage() {
 
       <AuroraToolsSheet open={toolsOpen} onClose={() => setToolsOpen(false)} />
     </div>
+  );
+}
+
+// ── Shared panel body (heading + tool list) ───────────────────────────────────
+interface PanelContentProps {
+  cfg: typeof PERSONA_CONFIG[Persona];
+  rows: ToolRow[];
+  reels: { id: string }[];
+  persona: Persona;
+}
+
+function PanelContent({ cfg, rows }: PanelContentProps) {
+  return (
+    <>
+      {/* Hero heading */}
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/50">
+          {cfg.kicker}
+        </p>
+        <h1
+          className="mt-1 text-[40px] font-black leading-[0.92] tracking-tighter"
+          style={{
+            background: "var(--gradient-text)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+          }}
+        >
+          {cfg.lines.map((line, i) => (
+            <span key={i}>
+              {line}
+              {i < cfg.lines.length - 1 && <br />}
+            </span>
+          ))}
+        </h1>
+        <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground/50">
+          {cfg.sub(rows.length)}
+        </p>
+      </div>
+
+      {/* Numbered tool list */}
+      <section className="mt-6" aria-label="Available tools">
+        {rows.map((row) => (
+          <ToolRowItem key={row.to + row.idx} row={row} />
+        ))}
+      </section>
+    </>
   );
 }
