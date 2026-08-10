@@ -78,8 +78,16 @@ export const Route = createFileRoute("/")({
 
 const HERO_SLIDES = [
   {
+    src: "/__l5e/assets-v1/490d1b91-843f-48f7-994e-9775c5664cc0/josh-blue-portrait.png",
+    eyebrow: "By Artists, for Artists",
+    headline: "Direct Your Visual Identity.",
+    sub: "The AI performance studio built by artists, for artists. Drop your references, direct the shoot in plain language, and ship studio-grade covers, promo, and cinematic visuals in seconds — not weeks.",
+    cta: "Start creating →",
+    ctaTo: "/studio",
+  },
+  {
     src: "/hero/hero-perform-anywhere.png",
-    eyebrow: "PERFORM ANYWHERE",
+    eyebrow: "Perform Anywhere",
     badge: "★ Pro",
     headline: "Turn a 30-Second Phone Recording Into a Cinematic Music Video.",
     sub: "Stop renting studios, hiring crews, and waiting weeks for edits. Record yourself for 30 seconds on your iPhone or any device with a clear camera. Aurora transforms your performance into cinematic music videos, performances, and visuals that look like they were directed by a major production team.",
@@ -370,15 +378,17 @@ function LandingPage() {
                 i === slideIdx ? "opacity-100" : "opacity-0 absolute inset-0 pointer-events-none"
               }`}
             >
-              <p className="mb-2 flex items-center gap-2 font-sans text-sm font-bold uppercase tracking-[0.18em] text-amber-300">
-                <span className="inline-block size-1.5 rounded-full bg-[#8b5cf6]" />
-                <EditableCopy copyKey={`landing_hero_${i}_eyebrow`} fallback={slide.eyebrow} />
+              <div className="mb-5 flex items-center gap-3 drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)]">
+                <span className="inline-block size-1.5 shrink-0 rounded-full bg-primary animate-pulse" />
+                <span className="font-serif italic text-2xl font-semibold text-white/90 normal-case tracking-normal leading-tight">
+                  <EditableCopy copyKey={`landing_hero_${i}_eyebrow`} fallback={slide.eyebrow} />
+                </span>
                 {"badge" in slide && slide.badge && (
-                  <span className="ml-1 inline-flex items-center rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300 not-italic">
+                  <span className="inline-flex items-center rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300 not-italic">
                     <EditableCopy copyKey={`landing_hero_${i}_badge`} fallback={slide.badge} />
                   </span>
                 )}
-              </p>
+              </div>
               <h1 className="text-[2.45rem] font-semibold leading-[0.97] tracking-tight text-white sm:text-[2.7rem]">
                 <span className="bg-gradient-to-r from-violet-200 via-violet-400 to-fuchsia-300 bg-clip-text font-sans font-semibold text-transparent">
                   <EditableCopy
