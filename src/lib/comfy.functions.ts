@@ -419,6 +419,28 @@ export const comfyStudioStatus = createServerFn({ method: "GET" })
 /**
  * Submit a job to the Studio service and record it in comfy_runs with
  * source='studio' and the Studio job ID in external_run_id.
+ *
+ * ── PRICING DECISION (recorded explicitly per task #616) ──────────────────
+ * Studio runs are intentionally FREE (0 Aura). Rationale:
+ *
+ *   • COMFY_STUDIO_URL is an OPERATOR-configured self-hosted service — the
+ *     operator pays for the compute themselves (their own Replit project,
+ *     cloud VM, or local machine). Reserving Aura credits on top would
+ *     double-charge the operator for their own GPU.
+ *
+ *   • Contrast with startComfyRun (the gpu_workers path): those workers are
+ *     registered by the operator but Aurora dispatches jobs to them; the
+ *     Aura charge covers provider cost and margins correctly there.
+ *
+ *   • Studio access requires COMFY_STUDIO_URL to be set in the Aurora
+ *     environment, which is an operator action — regular users cannot
+ *     self-configure a Studio backend, so the free-render risk is bounded
+ *     to operators, not the general user population.
+ *
+ * If Aurora ever hosts a shared multi-tenant Studio service, re-evaluate:
+ * add a flat `COST_STUDIO_RUN` constant in pricing.ts and route it through
+ * create_generation_and_reserve the same way startComfyRun does.
+ * ──────────────────────────────────────────────────────────────────────────
  */
 export const startStudioRun = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -434,6 +456,8 @@ export const startStudioRun = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const userId = context.userId;
     if (!hasStudio()) throw new Error("ComfyUI Studio is not configured (set COMFY_STUDIO_URL)");
+
+    // No Aura reservation: Studio runs are free — see pricing decision above.
 
     // Create the run row first so the user sees it immediately in Recent runs.
     const { data: runRow, error: rErr } = await db()
