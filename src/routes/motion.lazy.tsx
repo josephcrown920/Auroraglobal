@@ -18,7 +18,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { UploadSlot } from "@/components/studio/UploadSlot";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, ArrowLeft, Loader2, Film, Wand2, Camera, Clapperboard, Users, WifiOff, Music2, Download, Zap } from "lucide-react";
+import { Sparkles, ArrowLeft, Loader2, Film, Wand2, Camera, Clapperboard, Users, WifiOff, Music2, Download, Zap, ChevronRight, BookOpen } from "lucide-react";
 import { saveAssetToDisk } from "@/lib/save";
 import { PageSpinner } from "@/components/PageSpinner";
 import { AuthRedirect } from "@/components/AuthRedirect";
@@ -125,7 +125,7 @@ function MotionStudio() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const [mode, setMode] = useState<Mode>("reskin");
+  const [mode, setMode] = useState<Mode>("transfer");
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
 
   // Pose → Video (existing two-step flow)
@@ -720,40 +720,89 @@ function MotionStudio() {
       <span aria-hidden className="aurora-ambient" />
       <WelcomeTour show={showTour} onDismiss={() => setShowTour(false)} />
       {/* ── Left sidebar ─────────────────────────────────────────────── */}
-      <div className="flex flex-col w-full lg:w-[340px] lg:shrink-0 lg:h-full lg:overflow-y-auto lg:border-r lg:border-white/8 scrollbar-none">
-      <header className="relative z-10 flex items-center justify-between pl-24 pr-6 md:pr-10 py-4 border-b border-border bg-card/40 backdrop-blur-xl">
-        <Link to="/studio" className="flex items-center gap-2 font-semibold tracking-tight no-underline">
-          <ArrowLeft className="size-4 text-muted-foreground" />
-          <span className="size-8 rounded-xl flex items-center justify-center shadow-[var(--shadow-glow-soft)]" style={{ background: "var(--gradient-hero)" }}>
-            <Film className="size-4 text-primary-foreground" />
-          </span>
-          Perform Anywhere
-        </Link>
-        <div className="flex items-center gap-3 text-sm">
-          <Link to="/colors" className="text-muted-foreground hover:text-foreground">Colors Studio</Link>
-          <Link to="/studio" className="text-muted-foreground hover:text-foreground">Full Studio</Link>
-          <Link to="/lipsync" className="text-muted-foreground hover:text-foreground">Lip Sync</Link>
+      <div className="flex flex-col w-full lg:w-[300px] lg:shrink-0 lg:h-full lg:overflow-y-auto lg:border-r lg:border-white/8 scrollbar-none">
+
+        {/* ── Feature card ──────────────────────────────────────────── */}
+        <div
+          className="relative overflow-hidden m-3 mb-0 rounded-2xl flex-shrink-0"
+          style={{ minHeight: 144, background: "#111" }}
+        >
+          <img
+            src="/josh/josh-concert-performance.webp"
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ opacity: 0.55 }}
+          />
+          <div
+            className="absolute inset-0"
+            style={{ background: "linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.25) 65%, transparent 100%)" }}
+          />
+          <div className="relative flex flex-col p-3.5" style={{ minHeight: 144 }}>
+            <div className="flex items-center justify-between">
+              <Link
+                to="/studio"
+                className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium text-white/60 no-underline hover:text-white/90 transition-colors"
+                style={{ background: "rgba(0,0,0,0.5)" }}
+              >
+                <ArrowLeft className="size-3" /> Studio
+              </Link>
+              <button
+                type="button"
+                className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium text-white/60 hover:text-white/90 transition-colors"
+                style={{ background: "rgba(0,0,0,0.5)" }}
+              >
+                <BookOpen className="size-3" /> How it works
+              </button>
+            </div>
+            <div className="mt-auto pt-8">
+              <div className="font-black text-xl uppercase tracking-tight leading-tight" style={{ color: "#CCFF00" }}>
+                MOTION CONTROL
+              </div>
+              <div className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>
+                Control motion with video references
+              </div>
+            </div>
+          </div>
         </div>
-      </header>
-      <ConnectReplicateBanner />
 
-      <div className="relative z-10 max-w-7xl mx-auto p-5 md:p-10 space-y-6">
+        <ConnectReplicateBanner />
 
-        {/* ── Example outputs + onboarding guide — mobile only ──────── */}
-        <div className="lg:hidden space-y-6">
+        {/* ── Mode strip ────────────────────────────────────────────── */}
+        <div className="px-3 pt-2 pb-0 flex-shrink-0">
+          <div className="flex gap-0.5 overflow-x-auto scrollbar-none">
+            {([
+              { m: "reskin"       as Mode, label: "Performance Shot", Icon: Users        },
+              { m: "pose"         as Mode, label: "Pose → Video",     Icon: Wand2        },
+              { m: "transfer"     as Mode, label: "Motion Transfer",  Icon: Clapperboard },
+              { m: "avatar-shots" as Mode, label: "Avatar Shots",     Icon: Sparkles     },
+              { m: "live-avatar"  as Mode, label: "Live Avatar",      Icon: Film         },
+              { m: "music-video"  as Mode, label: "Music Video",      Icon: Music2       },
+            ]).map(({ m, label, Icon }) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                className={cn(
+                  "flex items-center gap-1 shrink-0 text-[10px] font-semibold px-2 py-1.5 rounded-lg transition-colors whitespace-nowrap",
+                  mode === m
+                    ? "bg-primary/15 text-white border border-primary/40"
+                    : "bg-transparent text-zinc-500 border border-transparent hover:text-zinc-300",
+                )}
+              >
+                <Icon className="size-3" /> {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Mobile: inspiration ───────────────────────────────────── */}
+        <div className="lg:hidden p-4 space-y-6">
           <MotionInspirationBlock />
           <PerformAnywhereGuide />
         </div>
 
-        {/* ── Mode tabs ─────────────────────────────────────────────── */}
-        <div className="grid grid-cols-3 gap-2">
-          {tabBtn("reskin", "Performance Shot", Users)}
-          {tabBtn("pose", "Pose → Video", Wand2)}
-          {tabBtn("transfer", "Motion Transfer", Clapperboard)}
-          {tabBtn("avatar-shots", "Avatar Shots", Sparkles)}
-          {tabBtn("live-avatar", "Live Avatar", Film)}
-          {tabBtn("music-video", "Music Video", Music2)}
-        </div>
+        {/* ── Mode panels ───────────────────────────────────────────── */}
+        <div className="p-3 space-y-4 flex-1 overflow-y-auto scrollbar-none">
 
         {/* ── Performance Shot (wizard) ──────────────────────────────── */}
         {mode === "reskin" && (
@@ -1225,96 +1274,198 @@ function MotionStudio() {
           </div>
         )}
 
-        {/* ── Motion Transfer ─────────────────────────────────────────── */}
+        {/* ── Motion Transfer — primary Higgsfield-style panel ──────── */}
         {mode === "transfer" && (
-          <div className="grid lg:grid-cols-[1fr_1fr] gap-8">
-            <section className="space-y-5">
-              <div>
-                <h1 className="text-2xl font-semibold tracking-tight">Motion Transfer</h1>
-                <p className="text-muted-foreground text-sm mt-1">Drive a still image with the motion of any video (MimicMotion).</p>
-              </div>
-              {!motionOnline && (
-                <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
-                  <WifiOff className="size-4 text-amber-400 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="font-medium text-amber-300">No motion GPU worker online</p>
-                    <p className="text-xs text-amber-300/70 mt-0.5">Motion Transfer runs on a self-hosted GPU (MimicMotion). Register a RunPod or Colab worker with the <strong>motion</strong> capability in the admin panel to enable this.</p>
-                  </div>
+          <div className="space-y-2.5">
+
+            {/* Offline banner */}
+            {!motionOnline && (
+              <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-3 text-sm">
+                <WifiOff className="size-4 text-amber-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-medium text-amber-300">No motion worker online</p>
+                  <p className="text-[11px] text-amber-300/70 mt-0.5">Register a GPU worker with the <strong>motion</strong> capability in the admin panel to enable this.</p>
                 </div>
+              </div>
+            )}
+
+            {/* ── Upload card 1: motion reference video ──────────────── */}
+            <div
+              className={cn(
+                "relative rounded-2xl overflow-hidden border transition-all",
+                mtVideo ? "border-primary/40 bg-zinc-900/80" : "border-white/10 bg-zinc-900/50",
               )}
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Reference + driving video</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <UploadSlot userId={user.id} label="Subject" hint="Still image" value={mtImage} onChange={setMtImage} />
-                  <UploadSlot userId={user.id} kind="video" accept="video/*" label="Driving video" hint="Motion source" value={mtVideo} onChange={setMtVideo} />
+            >
+              {mtVideo ? (
+                <>
+                  <AutoplayVideo src={mtVideo} className="w-full h-28 object-cover" loop playsInline muted />
+                  <button
+                    type="button"
+                    onClick={() => setMtVideo(null)}
+                    className="absolute top-2 right-2 size-6 rounded-full flex items-center justify-center text-[11px] font-bold text-white/70 hover:text-white transition-colors"
+                    style={{ background: "rgba(0,0,0,0.65)" }}
+                    aria-label="Remove video"
+                  >
+                    ✕
+                  </button>
+                  <div className="px-3.5 py-2.5 border-t border-white/5">
+                    <div className="text-xs font-semibold text-white/80">Motion video added ✓</div>
+                    <div className="text-[10px] text-zinc-500 mt-0.5">Video duration: 3–30 seconds</div>
+                  </div>
+                </>
+              ) : (
+                <UploadSlot
+                  userId={user.id}
+                  label="Add motion to copy"
+                  hint="Video duration: 3–30 seconds"
+                  value={mtVideo}
+                  onChange={setMtVideo}
+                  kind="video"
+                  accept="video/*"
+                />
+              )}
+            </div>
+
+            {/* ── Upload card 2: character image ─────────────────────── */}
+            <div
+              className={cn(
+                "relative rounded-2xl overflow-hidden border transition-all",
+                mtImage ? "border-primary/40 bg-zinc-900/80" : "border-white/10 bg-zinc-900/50",
+              )}
+            >
+              {mtImage ? (
+                <>
+                  <img src={mtImage} alt="Character" className="w-full h-28 object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setMtImage(null)}
+                    className="absolute top-2 right-2 size-6 rounded-full flex items-center justify-center text-[11px] font-bold text-white/70 hover:text-white transition-colors"
+                    style={{ background: "rgba(0,0,0,0.65)" }}
+                    aria-label="Remove image"
+                  >
+                    ✕
+                  </button>
+                  <div className="px-3.5 py-2.5 border-t border-white/5">
+                    <div className="text-xs font-semibold text-white/80">Character added ✓</div>
+                    <div className="text-[10px] text-zinc-500 mt-0.5">Image with visible face and body</div>
+                  </div>
+                </>
+              ) : (
+                <UploadSlot
+                  userId={user.id}
+                  label="Add your character"
+                  hint="Image with visible face and body"
+                  value={mtImage}
+                  onChange={setMtImage}
+                  kind="image"
+                  accept="image/*"
+                />
+              )}
+            </div>
+
+            {/* ── Second image swap (deep-link handoff) ──────────────── */}
+            {mtImage2 && mtImage2 !== mtImage && (
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-primary/20 bg-primary/5">
+                <img src={mtImage2} alt="Second shot" className="w-10 h-14 object-cover rounded-lg shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-white/70">Second shot available</p>
+                  <p className="text-[11px] text-white/40 mt-0.5">Swap to animate this one instead</p>
                 </div>
-                {mtImage2 && mtImage2 !== mtImage && (
-                  <div className="flex items-center gap-3 p-3 rounded-xl border border-primary/20 bg-primary/5 mt-2">
-                    <img src={mtImage2} alt="Second shot" className="w-12 h-16 object-cover rounded-lg shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-white/70">Second shot available</p>
-                      <p className="text-xs text-white/40 mt-0.5">Tap to animate this one instead</p>
-                    </div>
-                    <button
-                      onClick={() => { const tmp = mtImage2; setMtImage2(mtImage ?? null); setMtImage(tmp); }}
-                      className="shrink-0 px-3 py-1.5 rounded-lg border border-primary/40 bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors"
-                    >
-                      Swap
-                    </button>
-                  </div>
-                )}
+                <button
+                  type="button"
+                  onClick={() => { const tmp = mtImage2; setMtImage2(mtImage ?? null); setMtImage(tmp); }}
+                  className="shrink-0 px-2.5 py-1.5 rounded-lg border border-primary/40 bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors"
+                >
+                  Swap
+                </button>
               </div>
-              {motionControls(mtMotion, setMtMotion, mtCamera, setMtCamera)}
-              <div className="space-y-2">
-                <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Style prompt (optional)</label>
-                <Textarea rows={2} value={mtPrompt} onChange={(e) => setMtPrompt(e.target.value)} placeholder="cinematic lighting, 4K…" className="resize-none bg-card/60 text-sm" />
+            )}
+
+            {/* ── Model + Quality rows ───────────────────────────────── */}
+            <div className="rounded-xl border border-white/10 bg-zinc-900/40 overflow-hidden divide-y divide-white/5">
+              {/* Model */}
+              <div className="flex items-center justify-between px-3.5 py-3">
+                <span className="text-xs text-zinc-500 font-medium">Model</span>
+                <Select value={videoModel} onValueChange={setVideoModel}>
+                  <SelectTrigger className="h-auto border-none bg-transparent shadow-none px-0 py-0 text-sm text-white/80 font-normal w-auto gap-1.5 focus:ring-0 [&>svg]:hidden">
+                    <SelectValue />
+                    <ChevronRight className="size-3.5 text-zinc-500 shrink-0" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VIDEO_MODEL_LIST.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>
+                        <div className="flex flex-col">
+                          <span>{m.label}</span>
+                          {m.tagline && <span className="text-[10px] text-muted-foreground">{m.tagline}</span>}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <Button
-                disabled={transferMut.isPending || !mtImage || !mtVideo || !motionOnline}
-                onClick={() => transferMut.mutate()}
-                variant="premium"
-                className="w-full h-12"
+              {/* Quality */}
+              <div className="flex items-center justify-between px-3.5 py-3">
+                <span className="text-xs text-zinc-500 font-medium">Quality</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const opts = ["480p", "720p", "1080p"] as Resolution[];
+                    const idx = opts.indexOf(videoResolution);
+                    setVideoResolution(opts[(idx + 1) % opts.length]);
+                  }}
+                  className="flex items-center gap-1.5 text-sm text-white/80 hover:text-white transition-colors"
+                >
+                  {videoResolution} <ChevronRight className="size-3.5 text-zinc-500" />
+                </button>
+              </div>
+            </div>
+
+            {/* ── Advanced options (collapsed) ───────────────────────── */}
+            <details className="group">
+              <summary className="cursor-pointer flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-zinc-500 hover:text-zinc-300 transition-colors list-none py-1 select-none">
+                <ChevronRight className="size-3 transition-transform duration-200 group-open:rotate-90" />
+                Advanced options
+              </summary>
+              <div className="mt-2.5 space-y-3 pt-2.5 border-t border-white/5">
+                {motionControls(mtMotion, setMtMotion, mtCamera, setMtCamera)}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Style prompt <span className="normal-case font-normal opacity-60">(optional)</span></label>
+                  <Textarea rows={2} value={mtPrompt} onChange={(e) => setMtPrompt(e.target.value)} placeholder="cinematic lighting, 4K…" className="resize-none bg-card/60 text-sm" />
+                </div>
+              </div>
+            </details>
+
+            {/* ── Progress + errors ──────────────────────────────────── */}
+            <GenerationProgress visible={transferProgress.isActive} progress={transferProgress.progress} label={transferProgress.label} />
+            <GenerationErrorCard visible={transferMut.isError} error={mtError} onRetry={() => transferMut.mutate()} />
+
+            {/* ── Generate button (lime) ─────────────────────────────── */}
+            <button
+              type="button"
+              disabled={transferMut.isPending || !mtImage || !mtVideo || !motionOnline}
+              onClick={() => transferMut.mutate()}
+              className="w-full h-14 rounded-2xl font-black text-[15px] flex items-center justify-center gap-2.5 transition-opacity disabled:opacity-35 disabled:cursor-not-allowed"
+              style={{ background: "linear-gradient(135deg, #CCFF00 0%, #AAFF00 100%)", color: "#0A0A0A" }}
+            >
+              {transferMut.isPending ? (
+                <><Loader2 className="size-5 animate-spin" style={{ color: "#0A0A0A" }} /> Queuing…</>
+              ) : !motionOnline ? (
+                <><WifiOff className="size-5" /> No motion worker</>
+              ) : (
+                <><Sparkles className="size-5" style={{ color: "#0A0A0A" }} /> Generate · {transferPreviewId ? computeCost({ features: ["motion"] }).total : Math.max(1, Math.ceil(computeCost({ features: ["motion"] }).total * 0.5))} Aura</>
+              )}
+            </button>
+
+            {transferMut.isSuccess && (
+              <Link
+                to="/gallery"
+                className="flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-4 py-2.5 text-sm font-semibold text-emerald-400 no-underline hover:bg-emerald-500/20 transition-colors"
               >
-                {transferMut.isPending ? (
-                  <><Loader2 className="size-4 mr-2 animate-spin" /> Queuing…</>
-                ) : !motionOnline ? (
-                  <><WifiOff className="size-4 mr-2" /> No motion worker online</>
-                ) : transferPreviewId ? (
-                  <><Clapperboard className="size-4 mr-2" /> Render full clip · {computeCost({ features: ["motion"] }).total} Aura</>
-                ) : (
-                  <><Clapperboard className="size-4 mr-2" /> Preview motion · {Math.max(1, Math.ceil(computeCost({ features: ["motion"] }).total * 0.5))} Aura</>
-                )}
-              </Button>
-              <GenerationProgress visible={transferProgress.isActive} progress={transferProgress.progress} label={transferProgress.label} />
-              <GenerationErrorCard visible={transferMut.isError} error={mtError} onRetry={() => transferMut.mutate()} />
-              <p className="text-xs text-muted-foreground">First render is a short discounted preview — review it in Gallery, then render the full clip. Runs on a self-hosted GPU backend.</p>
-            </section>
-            <aside ref={transferAsideRef} className="space-y-4">
-              <div className={cn(
-                "rounded-3xl overflow-hidden border bg-card/60 backdrop-blur-xl aspect-[4/5] relative transition-colors duration-500",
-                transferProgress.isActive ? "border-primary/50" : "border-border",
-              )}>
-                {transferProgress.isActive ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-muted-foreground">
-                    <div className="size-14 rounded-full flex items-center justify-center" style={{ background: "var(--gradient-hero)" }}>
-                      <Loader2 className="size-6 animate-spin text-primary-foreground" />
-                    </div>
-                    <GenerationProgress visible progress={transferProgress.progress} label={transferProgress.label} />
-                  </div>
-                ) : transferMut.isSuccess ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-8 text-center">
-                    <Link to="/gallery" className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-4 py-2.5 text-sm font-semibold text-emerald-400 no-underline hover:bg-emerald-500/20 transition-colors">
-                      <Check className="size-4" /> Queued — View in Gallery
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground p-8 text-center">
-                    <Clapperboard className="size-10 text-primary/40" />
-                    <p className="text-sm">Queued jobs render on a GPU backend — check your Gallery for results.</p>
-                  </div>
-                )}
-              </div>
-            </aside>
+                <Check className="size-4" /> Queued — View in Gallery
+              </Link>
+            )}
+
+            <p className="text-[11px] text-zinc-600 pb-1">First render is a short discounted preview — review in Gallery, then render the full clip. Runs on a self-hosted GPU backend.</p>
           </div>
         )}
 
@@ -1684,7 +1835,7 @@ function MotionStudio() {
           </div>
         )}
 
-      </div>
+        </div>{/* ← end mode panels */}
       </div>{/* ← end left sidebar */}
 
       {/* ── Right panel: hero + inspiration — desktop only ─────────── */}
