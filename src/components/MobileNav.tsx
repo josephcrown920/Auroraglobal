@@ -26,6 +26,7 @@ import {
   LayoutGrid,
   UserRound,
   Radio,
+  Star,
   type LucideIcon,
 } from "lucide-react";
 
@@ -41,42 +42,34 @@ type Feature = {
   icon: LucideIcon;
   badge?: string;
   previewImg?: string;
+  starred?: boolean;
 };
 
-// ── Five destinations ─────────────────────────────────────────────────────────
-// Specialist tools remain available as modes from these destinations, but they
-// no longer compete with Create, Studio, Content, Gallery, and Account.
-const DESTINATIONS: Feature[] = [
-  { to: "/home", label: "Create", icon: Sparkles },
-  { to: "/studio", label: "Studio", icon: Palette },
-  { to: "/content", label: "Content", icon: LayoutGrid },
-  { to: "/gallery", label: "Gallery", icon: Images },
-  { to: "/account", label: "Account", icon: UserRound },
-];
 
 // ── Live studio tools — visible to all users ──────────────────────────────
 const STUDIO_FEATURES: Feature[] = [
-  { to: "/studio",        label: "Image & Video Studio", icon: Sparkles,    previewImg: "/nav-previews/studio.jpg" },
-  { to: "/colors",        label: "Colors Studio",        icon: Palette,     previewImg: "/nav-previews/colors.jpg" },
-  { to: "/director-room",    label: "Director Room",     icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg", badge: "$20k Look" },
-  { to: "/directors-board",  label: "Directors Board",   icon: Layers,      previewImg: "/nav-previews/scene-builder.jpg", badge: "New" },
-  { to: "/scene-builder",    label: "Scene Builder",     icon: Layers,      previewImg: "/nav-previews/scene-builder.jpg" },
-  { to: "/eromify",       label: "Eromify · Adult School", icon: Camera,     previewImg: "/sample-photos/model-yuki-1.jpg", badge: "18+" },
-  { to: "/likeness",      label: "Likeness Shoot",       icon: Camera,      previewImg: "/nav-previews/avatar.jpg", badge: "New" },
-  { to: "/motion",        label: "Motion Control",       icon: Wand2,       previewImg: "/nav-previews/perform-anywhere.jpg" },
-  { to: "/music-video",   label: "Lyric Video",          icon: Film,        previewImg: "/nav-previews/music-video.jpg" },
-  { to: "/puremix",       label: "PureMix",              icon: Music2,      previewImg: "/nav-previews/music-video.jpg", badge: "New" },
+  { to: "/canvas",          label: "Infinity Canvas",       icon: Workflow,     previewImg: "/nav-previews/canvas.jpg",           starred: true },
+  { to: "/studio",          label: "Image & Video Studio",  icon: Sparkles,     previewImg: "/nav-previews/studio.jpg",           starred: true },
+  { to: "/colors",          label: "Colors Studio",         icon: Palette,      previewImg: "/nav-previews/colors.jpg",           starred: true },
+  { to: "/likeness",        label: "Locked Likeness Shoot", icon: Camera,       previewImg: "/nav-previews/avatar.jpg",           badge: "New", starred: true },
+  { to: "/director-room",   label: "Director Room",         icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg",      badge: "$20k Look" },
+  { to: "/directors-board", label: "Directors Board",       icon: Layers,       previewImg: "/nav-previews/scene-builder.jpg",    badge: "New" },
+  { to: "/scene-builder",   label: "Scene Builder",         icon: Layers,       previewImg: "/nav-previews/scene-builder.jpg" },
+  { to: "/eromify",         label: "Eromify · Adult School",icon: Camera,       previewImg: "/sample-photos/model-yuki-1.jpg",    badge: "18+" },
+  { to: "/motion",          label: "Motion Control",        icon: Wand2,        previewImg: "/nav-previews/perform-anywhere.jpg" },
+  { to: "/music-video",     label: "Lyric Video",           icon: Film,         previewImg: "/nav-previews/music-video.jpg" },
+  { to: "/puremix",         label: "PureMix",               icon: Music2,       previewImg: "/nav-previews/music-video.jpg",      badge: "New" },
 ];
 
 // ── Live content tools — visible to all users ─────────────────────────────
 const CONTENT_FEATURES: Feature[] = [
-  { to: "/tools",       label: "All Tools",        icon: LayoutGrid },
-  { to: "/video-agent", label: "Aurora Video Agent", icon: Film, previewImg: "/landing/step-reference.jpg" },
-  { to: "/agent",       label: "AI Creative Agent", icon: Sparkles, badge: "New" },
+  { to: "/video-agent", label: "Aurora Video Agent", icon: Film,      previewImg: "/landing/step-reference.jpg", starred: true },
+  { to: "/spin",        label: "TikTok30",           icon: Flame,     previewImg: "/nav-previews/spin.jpg",      starred: true, badge: "Premium" },
+  { to: "/agent",       label: "AI Creative Agent",  icon: Sparkles,  badge: "New" },
   { to: "/tiktok-live", label: "TikTok LIVE Studio", icon: Radio },
-  { to: "/spin",        label: "TikTok30",          icon: Flame,  previewImg: "/nav-previews/spin.jpg" },
-  { to: "/lipsync",     label: "Lip Sync",          icon: Mic,    previewImg: "/nav-previews/lipsync.jpg" },
-  { to: "/templates",   label: "Templates",         icon: Layers },
+  { to: "/lipsync",     label: "Lip Sync",           icon: Mic,       previewImg: "/nav-previews/lipsync.jpg" },
+  { to: "/tools",       label: "All Tools",          icon: LayoutGrid },
+  { to: "/templates",   label: "Templates",          icon: Layers },
 ];
 
 const ACCOUNT_FEATURES: Feature[] = [
@@ -123,18 +116,13 @@ export const ARCHIVED_FEATURES: Feature[] = [
   { to: "/nexusarb",         label: "NexusARB (Sim)",   icon: Sparkles },
 ];
 
-const TAB_ITEMS = DESTINATIONS;
+// Bottom tab — flagship trio with premium badge treatment.
+const TAB_ITEMS: (Feature & { premium?: boolean })[] = [
+  { to: "/canvas",       label: "Infinity Canvas", icon: Workflow, premium: true },
+  { to: "/video-agent",  label: "Video Agent",     icon: Film,     premium: true },
+  { to: "/spin",         label: "TikTok30",        icon: Flame,    premium: true },
+];
 
-const STUDIO_PATHS = ["/studio", "/colors", "/photo-edit", "/canvas", "/split-reality", "/scene-weaver", "/scene-builder", "/motion", "/storyboard", "/music-video", "/live-studio"];
-const CONTENT_PATHS = ["/content", "/ugc", "/ugc-line", "/spin", "/tiktok", "/lipsync", "/avatar", "/content-machine", "/video-agent", "/agent"];
-const ACCOUNT_PATHS = ["/account", "/gallery", "/billing", "/creator/dashboard", "/settings", "/partners", "/admin"];
-
-function destinationIsActive(pathname: string, destination: string) {
-  if (destination === "/studio") return STUDIO_PATHS.some((path) => isActive(pathname, path));
-  if (destination === "/content") return CONTENT_PATHS.some((path) => isActive(pathname, path));
-  if (destination === "/account") return ACCOUNT_PATHS.some((path) => isActive(pathname, path));
-  return isActive(pathname, destination);
-}
 
 function isActive(pathname: string, to: string) {
   return pathname === to || pathname.startsWith(`${to}/`);
@@ -172,7 +160,21 @@ function LiveNavItem({ f, active, onClick }: { f: Feature; active: boolean; onCl
       >
         <f.icon className="size-3.5" />
       </span>
-      <span className="font-medium flex-1 min-w-0">{f.label}</span>
+      <span
+        className={cn(
+          "font-medium flex-1 min-w-0 inline-flex items-center gap-1.5",
+          !active &&
+            "bg-gradient-to-r from-[#f6d365] via-[#fbbf24] to-[#b8860b] bg-clip-text text-transparent font-semibold tracking-wide drop-shadow-[0_0_8px_rgba(251,191,36,0.35)]",
+        )}
+      >
+        {f.label}
+        {f.starred && (
+          <Star
+            className="size-3.5 shrink-0 fill-[#fbbf24] text-[#fbbf24] drop-shadow-[0_0_6px_rgba(251,191,36,0.7)]"
+            aria-label="Featured"
+          />
+        )}
+      </span>
 
       {/* Preview thumbnail — only for features with a previewImg */}
       {f.previewImg && (
@@ -236,19 +238,21 @@ export function MobileNav() {
         }
       `}</style>
 
-      {isCanvas && (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          aria-label="Open navigation menu"
-          className="phone-edge-left fixed top-3 z-[60] flex items-center gap-1.5 rounded-full aurora-glass-strong px-3.5 py-2 text-xs font-medium shadow-[var(--shadow-soft)] transition-[filter,color] hover:brightness-110 text-foreground"
-        >
-          <Menu className="size-4" />
-          Menu
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label="Open navigation menu"
+        style={{ top: isCanvas ? "0.75rem" : "calc(env(safe-area-inset-top, 0px) + 4.25rem)" }}
+        className={cn(
+          "phone-edge-left fixed z-[60] flex items-center gap-1.5 rounded-full aurora-glass-strong px-3.5 py-2 text-xs font-medium shadow-[var(--shadow-soft)] transition-[filter,color] hover:brightness-110",
+          open ? "text-primary" : "text-foreground",
+        )}
+      >
+        <Menu className="size-4" />
+        Menu
+      </button>
 
       {!isCanvas && !isLanding && (
         <>
@@ -272,22 +276,17 @@ export function MobileNav() {
               style={{ background: "linear-gradient(90deg, transparent 0%, oklch(0.60 0.27 295 / 0.5) 50%, transparent 100%)" }}
             />
 
-            <ul className="grid grid-cols-5">
+            <ul className="grid grid-cols-3">
               {TAB_ITEMS.map((t) => {
-                const active = destinationIsActive(pathname, t.to);
-                const isCreate = t.to === "/home";
+                const active = isActive(pathname, t.to);
                 return (
                   <li key={t.to}>
                     <Link
                       to={t.to}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "relative flex h-16 flex-col items-center justify-center gap-1 text-[10px] font-semibold no-underline transition-colors duration-200",
-                        active
-                          ? "text-primary"
-                          : isCreate
-                          ? "text-primary/60 hover:text-primary"
-                          : "text-muted-foreground/70 hover:text-foreground",
+                        "relative flex h-16 flex-col items-center justify-center gap-1 px-2 text-[10px] font-semibold no-underline transition-colors duration-200",
+                        active ? "text-primary" : "text-muted-foreground/70 hover:text-foreground",
                       )}
                       style={active ? { textShadow: "0 0 12px oklch(0.60 0.27 295 / 0.6)" } : undefined}
                     >
@@ -300,31 +299,40 @@ export function MobileNav() {
                         />
                       )}
 
-                      {/* Icon wrapper — Create tab always shows tinted pill */}
+                      {/* Premium badge */}
+                      {t.premium && (
+                        <span
+                          aria-hidden
+                          className="absolute right-1.5 top-1 rounded-full px-1.5 py-[1px] text-[8px] font-bold uppercase tracking-wider"
+                          style={{
+                            background: "linear-gradient(90deg, oklch(0.78 0.16 85), oklch(0.72 0.18 55))",
+                            color: "oklch(0.15 0.02 60)",
+                            letterSpacing: "0.08em",
+                          }}
+                        >
+                          Premium
+                        </span>
+                      )}
+
+                      {/* Icon wrapper — glass pill when active */}
                       <span
                         className={cn(
                           "relative flex items-center justify-center rounded-xl transition-all duration-300",
                           active
                             ? "tab-active-glow size-9 bg-[oklch(0.60_0.27_295/0.15)] ring-1 ring-[oklch(0.60_0.27_295/0.25)]"
-                            : isCreate
-                            ? "size-9 bg-[oklch(0.60_0.27_295/0.09)] ring-1 ring-[oklch(0.60_0.27_295/0.18)]"
                             : "size-8",
                         )}
                       >
-                        <t.icon
-                          className={cn(
-                            "transition-all duration-200",
-                            active ? "size-[18px]" : isCreate ? "size-[17px]" : "size-5",
-                          )}
-                        />
+                        <t.icon className={cn("transition-all duration-200", active ? "size-[18px]" : "size-5")} />
                       </span>
 
-                      <span className="tracking-wide truncate max-w-[72px] text-center">{t.label}</span>
+                      <span className="tracking-wide text-center leading-tight whitespace-nowrap overflow-hidden text-ellipsis max-w-full">
+                        {t.label}
+                      </span>
                     </Link>
                   </li>
                 );
               })}
-
             </ul>
           </nav>
         </>
@@ -348,12 +356,17 @@ export function MobileNav() {
             />
             <SheetTitle className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/25">
-                  <span className="inline-block size-3 rounded-full bg-primary" />
-                </span>
+                <div className="relative shrink-0">
+                  <img
+                    src="/__l5e/assets-v1/d0d72e6b-2edd-4740-af3e-48e27934cef8/aurora-logo.png"
+                    alt=""
+                    className="size-10 rounded-2xl object-contain shadow-[var(--shadow-glow-soft)]"
+                  />
+                  <span aria-hidden className="absolute inset-0 rounded-2xl ring-1 ring-white/10" />
+                </div>
                 <span className="flex flex-col leading-tight">
-                  <span className="font-serif italic text-base font-semibold text-foreground">Aurora</span>
-                  <span className="text-[11px] text-muted-foreground font-normal">AI Creative Studio</span>
+                  <span className="text-[13px] font-bold tracking-tight text-foreground uppercase">AURORA PERFORMANCE STUDIO</span>
+                  <span className="text-[10px] text-muted-foreground font-normal uppercase tracking-widest">Creative Studio</span>
                 </span>
               </div>
               <WhatsNew />
@@ -363,13 +376,13 @@ export function MobileNav() {
           {/* ── Nav body ────────────────────────────────────────────────── */}
           <nav aria-label="All features" className="relative flex flex-1 flex-col gap-3 overflow-y-auto p-3 pb-4">
 
-            <NavSection label="Studio modes">
+            <NavSection label="Artists">
               {STUDIO_FEATURES.map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
             </NavSection>
 
-            <NavSection label="Content modes">
+            <NavSection label="Creators">
               {CONTENT_FEATURES.map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
