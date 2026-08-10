@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach, afterEach } from "bun:test";
 import {
   isRegulatedRegion,
   hasAnalyticsConsent,
+  shouldShowConsentBanner,
   setConsentStatus,
   clearConsentStatus,
   getConsentStatus,
@@ -346,5 +347,100 @@ describe("consent status persistence round-trip", () => {
     setConsentStatus("accepted");
     clearConsentStatus();
     expect(getConsentStatus()).toBe(null);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// shouldShowConsentBanner()
+//
+// The banner must re-appear for regulated-region visitors whenever the stored
+// consent record is absent OR carries a stale version string — the latter is
+// the mechanism that forces re-consent after a CONSENT_VERSION bump. It must
+// NOT appear for non-regulated visitors (US etc.) regardless of storage state,
+// because they were never required to answer in the first place.
+// ---------------------------------------------------------------------------
+
+describe("shouldShowConsentBanner — version bump re-surfaces banner for EU visitors", () => {
+  afterEach(teardownEnv);
+
+  it("shows the banner for an EU visitor whose stored record has a stale version (version bump scenario)", () => {
+    // Simulate a visitor who accepted consent under an old version string.
+    // After the CONSENT_VERSION constant is bumped in code, readConsent()
+    // rejects the record (version mismatch → returns null), so
+    // shouldShowConsentBanner() must fall through to isRegulatedRegion() and
+    // return true — without the user having to clear cookies themselves.
+    const staleRecord = JSON.stringify({ status: "accepted", version: "2020-01-01", ts: 0 });
+    setupEnv({ language: "fr-FR", timezone: "Europe/Paris", storedConsent: staleRecord });
+    expect(shouldShowConsentBanner()).toBe(true);
+  });
+
+  it("does NOT show the banner for an EU visitor whose stored record matches the current version", () => {
+    const currentRecord = JSON.stringify({ status: "accepted", version: CONSENT_VERSION, ts: Date.now() });
+    setupEnv({ language: "de-DE", timezone: "Europe/Berlin", storedConsent: currentRecord });
+    expect(shouldShowConsentBanner()).toBe(false);
+  });
+
+  it("does NOT show the banner for an EU visitor who declined under the current version", () => {
+    const currentRecord = JSON.stringify({ status: "declined", version: CONSENT_VERSION, ts: Date.now() });
+    setupEnv({ language: "en-GB", timezone: "Europe/London", storedConsent: currentRecord });
+    expect(shouldShowConsentBanner()).toBe(false);
+  });
+
+  it("shows the banner for a UK visitor whose stored 'declined' record has a stale version", () => {
+    const staleRecord = JSON.stringify({ status: "declined", version: "2019-06-01", ts: 0 });
+    setupEnv({ language: "en-GB", timezone: "Europe/London", storedConsent: staleRecord });
+    expect(shouldShowConsentBanner()).toBe(true);
+  });
+
+  it("shows the banner for a Canadian visitor (timezone-only detection) with a stale version", () => {
+    const staleRecord = JSON.stringify({ status: "accepted", version: "2021-03-15", ts: 0 });
+    setupEnv({ language: "en", timezone: "America/Toronto", storedConsent: staleRecord });
+    expect(shouldShowConsentBanner()).toBe(true);
+  });
+});
+
+describe("shouldShowConsentBanner — first-time regulated-region visitor", () => {
+  afterEach(teardownEnv);
+
+  it("shows the banner for an EU visitor with no stored record", () => {
+    setupEnv({ language: "fr-FR", timezone: "Europe/Paris", storedConsent: null });
+    expect(shouldShowConsentBanner()).toBe(true);
+  });
+
+  it("shows the banner for a UK visitor with no stored record", () => {
+    setupEnv({ language: "en-GB", timezone: "Europe/London", storedConsent: null });
+    expect(shouldShowConsentBanner()).toBe(true);
+  });
+
+  it("shows the banner for a Canadian visitor (locale) with no stored record", () => {
+    setupEnv({ language: "en-CA", timezone: "America/New_York", storedConsent: null });
+    expect(shouldShowConsentBanner()).toBe(true);
+  });
+});
+
+describe("shouldShowConsentBanner — non-regulated visitors are never shown the banner", () => {
+  afterEach(teardownEnv);
+
+  it("does NOT show the banner for a US visitor with no stored record (implied consent, no opt-in required)", () => {
+    setupEnv({ language: "en-US", timezone: "America/New_York", storedConsent: null });
+    expect(shouldShowConsentBanner()).toBe(false);
+  });
+
+  it("does NOT show the banner for an Australian visitor with no stored record", () => {
+    setupEnv({ language: "en-AU", timezone: "Australia/Sydney", storedConsent: null });
+    expect(shouldShowConsentBanner()).toBe(false);
+  });
+
+  it("does NOT show the banner for a US visitor even when their stored record has a stale version", () => {
+    // Non-regulated visitors were never required to answer; a version bump must
+    // not retroactively force them through a consent dialog.
+    const staleRecord = JSON.stringify({ status: "accepted", version: "2019-01-01", ts: 0 });
+    setupEnv({ language: "en-US", timezone: "America/Chicago", storedConsent: staleRecord });
+    expect(shouldShowConsentBanner()).toBe(false);
+  });
+
+  it("does NOT show the banner in an SSR context (no window)", () => {
+    // No setupEnv — window is absent.
+    expect(shouldShowConsentBanner()).toBe(false);
   });
 });
