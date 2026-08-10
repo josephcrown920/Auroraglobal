@@ -6,6 +6,7 @@ import { useCallback, useState, useEffect, useRef, type ReactNode } from "react"
 import { track } from "@/lib/tracking";
 import { ViralEngine } from "@/components/landing/ViralEngine";
 import { BalloonLipsync } from "@/components/landing/BalloonLipsync";
+import { AppScreenshotsSection } from "@/components/landing/AppScreenshotsSection";
 import { IntroAnimation } from "@/components/landing/IntroAnimation";
 import { AdminLandingEditor } from "@/components/AdminLandingEditor";
 import { EditableCopy } from "@/components/EditableCopy";
@@ -550,6 +551,9 @@ function LandingPage() {
         </div>
       </section>
 
+
+      {/* ── App Screenshots — "Inside Aurora" ────────────────────────── */}
+      <AppScreenshotsSection />
 
       {/* ── Viral Engine ─────────────────────────────────────────────── */}
       <ViralEngine />
