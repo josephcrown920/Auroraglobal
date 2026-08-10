@@ -26,6 +26,7 @@ export interface WorkerHealthTarget {
 /** Full worker row as returned by the health-sweep select query. */
 type WorkerHealthRow = WorkerHealthTarget & {
   id: string;
+  name: string;
   status: string;
 };
 
@@ -167,10 +168,17 @@ interface WorkerAdminClient {
   };
 }
 
+export type AutoPausedWorker = { id: string; name: string; endpoint_url: string; error: string | null };
+
+/**
+ * Probe every active/pending_approval worker and flip status based on /health.
+ * Returns the list of workers that were newly auto-paused this sweep so the
+ * caller can emit an operator email alert.
+ */
 export async function checkGPUWorkerHealth(
   supabaseAdmin: WorkerAdminClient,
   fetchImpl: typeof fetch = fetch,
-) {
+): Promise<{ autoPaused: AutoPausedWorker[] }> {
   const { data: workers, error } = await supabaseAdmin
     .from("gpu_workers")
     .select("id, name, status, endpoint_url, auth_token, protocol")
@@ -178,8 +186,10 @@ export async function checkGPUWorkerHealth(
 
   if (error || !workers) {
     console.error("Failed to fetch worker list:", error);
-    return;
+    return { autoPaused: [] };
   }
+
+  const autoPaused: AutoPausedWorker[] = [];
 
   for (const worker of workers as WorkerHealthRow[]) {
     // Respect intentional admin states — never auto-flip a draining/paused worker.
@@ -206,9 +216,27 @@ export async function checkGPUWorkerHealth(
     // dispatch-time staleness checks see it as live.
     if (result.ok) patch.last_heartbeat = new Date().toISOString();
 
-    await supabaseAdmin
+    const { error: updateErr } = await supabaseAdmin
       .from("gpu_workers")
       .update(patch)
       .eq("id", worker.id);
+
+    // Track workers that JUST became paused this sweep for email alerting —
+    // but only if the status update actually succeeded; otherwise the email
+    // would falsely claim routing was halted while the row still says active.
+    if (updateErr) {
+      console.error(`[worker-health] failed to update worker ${worker.id}:`, (updateErr as { message?: string }).message ?? updateErr);
+      continue;
+    }
+    if (!result.ok && worker.status !== "paused") {
+      autoPaused.push({
+        id: worker.id,
+        name: worker.name,
+        endpoint_url: worker.endpoint_url,
+        error: result.error ?? result.detail ?? null,
+      });
+    }
   }
+
+  return { autoPaused };
 }
