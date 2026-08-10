@@ -24,12 +24,17 @@ After the override was added, `@tanstack/react-router` drifted behind at 1.168.2
 2. `grep -c handleHashScroll node_modules/@tanstack/react-router/dist/esm/Transitioner.js` → must be 0 (if > 0, react-router is behind core again)
 3. Run prod-build before marking a TanStack version bump complete.
 
-## Current pinned versions (July 2026)
+## Current pinned versions (August 2026)
 
-- override `@tanstack/router-core`: `1.171.15`
-- `@tanstack/react-router`: `^1.170.18` (installed 1.170.18)
-- `@tanstack/react-start`: `^1.168.28` (installed 1.168.32, latest)
-- `@tanstack/router-plugin`: `^1.168.23` (installed 1.168.23, latest)
+- override `@tanstack/router-core`: `1.171.19`
+- `@tanstack/react-router`: `^1.170.18` (installed 1.170.23)
+- `@tanstack/react-start`: `^1.168.28` (installed 1.168.40)
+- `@tanstack/router-plugin`: `^1.168.23` (installed 1.168.27)
+
+**IMPORTANT:** Never pin the override to a version released < 24 hours before publishing.
+Bun (the deployer's package installer) enforces a minimum-release-age of 86400 seconds
+and will block freshly published versions even if they work locally. Pin to an already-stable
+version — typically the one all sub-packages naturally resolve to.
 
 **Why:** Rollup resolves bare specifiers to root node_modules at bundle time, not the nested copy. So the root must match whatever the SSR bundle needs, and react-router must be >= the version that stopped importing removed exports.
 

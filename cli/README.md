@@ -93,6 +93,48 @@ curl -sX POST "$BASE/api/public/generate" \
   -d '{"kind":"video","prompt":"neon street scene","resolution":"720p","duration":5,"model":"seedance-2.0"}'
 ```
 
+## Vast.ai GPU lifecycle (owner only)
+
+Admins can rent, monitor, and destroy Aurora-managed Vast.ai GPU workers
+straight from the CLI. Guardrails are enforced server-side and cannot be
+bypassed by the CLI:
+
+- **Price ceiling:** never rents above **$0.35/hour**.
+- **Runtime cap:** every managed instance is **auto-destroyed after 1 hour**
+  by the Aurora cron, even if you forget about it.
+- **Explicit confirmation:** renting requires a confirm token from
+  `aurora vast search` *and* an interactive "yes" — no single-command billing.
+- **Scope:** `stop`/`destroy` only work on instances Aurora created or that
+  you explicitly adopted. Manually rented boxes are never touched.
+- No SSH keys or Vast passwords are ever stored; provisioning uses the
+  standard worker bootstrap + self-registration (first time = pending
+  approval in Admin → Workers).
+
+```bash
+# 1. Find offers under the ceiling (each line includes a ready-to-run command)
+aurora vast search --min-vram 16
+
+# 2. Rent one (prompts for confirmation; billing starts on YOUR Vast account)
+aurora vast up --offer 12345 --price 0.2000 --token <token-from-search>
+
+# 3. Watch bootstrap → registration → approval
+aurora vast status
+
+# Adopt an instance you already rented manually so Aurora manages its lifetime
+aurora vast adopt --instance 9001234
+
+# Stop (still accrues storage cost) or destroy (ends billing)
+aurora vast stop --instance 9001234
+aurora vast destroy --instance 9001234
+```
+
+Requires: admin account, `VASTAI_API_KEY` set in Aurora's server secrets.
+**Important:** Vast requires Two-Factor Authentication for instance operations —
+enable 2FA on the Vast account, then regenerate the API key (a key created
+before 2FA can search offers but cannot rent/stop/destroy).
+Managed instances also appear in **Admin → Orchestration → Managed Vast.ai
+instances** with their destroy deadlines.
+
 ## Get an API key
 
 Open [your dashboard](https://aurora-sparkle-charm.lovable.app/dashboard) and copy your key, or just run `aurora login` and approve in the browser.

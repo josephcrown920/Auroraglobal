@@ -119,6 +119,16 @@ before launching. If you forgot, destroy and re-launch — Vast.ai only injects
 Alternatively set `NGROK_AUTHTOKEN` (+ `NGROK_STATIC_DOMAIN`) and the launcher
 falls back to an ngrok tunnel automatically.
 
+**Prefer the CLI (managed lifecycle)**
+
+Instead of renting through the Vast.ai console by hand, admins can use
+`aurora vast search` / `aurora vast up` from the Aurora CLI. Aurora then rents
+the instance itself (max $0.35/hr), injects this launcher as the on-start
+script, tracks it in Admin → Orchestration, and **auto-destroys it after
+1 hour** so a forgotten instance can't keep billing. Already-rented instances
+can be brought under the same management with `aurora vast adopt`. See
+`cli/README.md` → "Vast.ai GPU lifecycle".
+
 **Results upload**
 
 Defaults to `catbox.moe` (no account, permanent public links).
