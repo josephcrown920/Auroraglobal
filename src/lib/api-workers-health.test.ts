@@ -16,6 +16,7 @@ mock.module("@/lib/gpu-worker-health", () => ({
   ...realGpuWorkerHealth,
   checkGPUWorkerHealth: mock(async (admin: unknown) => {
     checkCalls.push(admin);
+    return { autoPaused: [] };
   }),
 }));
 
@@ -73,7 +74,7 @@ describe("POST /api/public/workers/health", () => {
   it("returns 200 and runs the sweep for the correct apikey header", async () => {
     const res = await post({ apikey: "test-anon-key" });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
+    expect(await res.json()).toEqual({ ok: true, autoPaused: 0 });
     expect(checkCalls).toHaveLength(1);
   });
 

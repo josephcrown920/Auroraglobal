@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { probeWorkerHealth } from "@/lib/gpu-worker-health";
+import { computeWorkerAlerts, type WorkerAlert } from "@/lib/worker-registration-alerts.server";
 import {
   isFreeGpuOnlyMode,
   setFreeGpuOnlyMode,
@@ -28,7 +29,7 @@ export const listWorkers = createServerFn({ method: "GET" })
       .from("worker_register_attempts")
       .select("*")
       .order("created_at", { ascending: false })
-      .limit(15);
+      .limit(50); // wider window so alert computation can look back ATTEMPT_WINDOW_HOURS
     // Never ship the per-worker auth_token (RunPod API key / bearer) to the client;
     // expose only whether one is set so the admin UI can show "configured".
     const workers = (data ?? []).map(({ auth_token, ...w }) => ({ ...w, has_auth_token: !!auth_token }));
@@ -37,7 +38,14 @@ export const listWorkers = createServerFn({ method: "GET" })
     // attempts to register — otherwise the misconfiguration is invisible
     // until a failed attempt lands in the audit table.
     const registerSecretConfigured = !!process.env.AURORA_REGISTER_SECRET?.trim();
-    return { workers, jobs: jobs ?? [], registerAttempts: registerAttempts ?? [], registerSecretConfigured };
+    // Compute structured operator alerts from the current DB snapshot.
+    // These surface missing registrations, auth failures, stale pending rows,
+    // and unreachable endpoints without requiring manual DB queries.
+    const alerts: WorkerAlert[] = computeWorkerAlerts(
+      workers as Record<string, unknown>[],
+      (registerAttempts ?? []) as Record<string, unknown>[],
+    );
+    return { workers, jobs: jobs ?? [], registerAttempts: registerAttempts ?? [], registerSecretConfigured, alerts };
   });
 
 export const upsertWorker = createServerFn({ method: "POST" })

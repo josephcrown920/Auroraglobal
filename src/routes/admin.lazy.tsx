@@ -15,7 +15,8 @@ import { shouldShowRegisterSecretWarning } from "@/lib/worker-register-warning";
 import { issuePromoCode, listPromoCodes, setPromoCodeActive, type PromoCodeRow } from "@/lib/promo.functions";
 import { PROFIT_SPLIT_PCT } from "@/lib/profit-split";
 import { ModelBadge } from "@/components/ModelBadge";
-import { Shield, Sparkles, Loader2, Users, DollarSign, ImagePlay, Coins, ArrowRight, Server, Trash2, Activity, TrendingUp, Gift, Pause, Play, Zap, Store, Wallet, Tag, Copy, BookOpen, Image, CheckCircle, XCircle, Clock, Radar, ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
+import { Shield, Sparkles, Loader2, Users, DollarSign, ImagePlay, Coins, ArrowRight, Server, Trash2, Activity, TrendingUp, Gift, Pause, Play, Zap, Store, Wallet, Tag, Copy, BookOpen, Image, CheckCircle, XCircle, Clock, Radar, ChevronDown, ChevronRight, RotateCcw, AlertTriangle, AlertCircle } from "lucide-react";
+import type { WorkerAlert } from "@/lib/worker-registration-alerts.server";
 import { supabase } from "@/integrations/supabase/client";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Button } from "@/components/ui/button";
@@ -1191,6 +1192,70 @@ function WorkersPanel() {
               </div>
             ))}
           </div>
+        );
+      })()}
+
+      {/* ── Worker alerts ─────────────────────────────────────────────────── */}
+      {(() => {
+        const workerAlerts: WorkerAlert[] = data?.alerts ?? [];
+        if (workerAlerts.length === 0) return null;
+        const errors = workerAlerts.filter(a => a.severity === "error");
+        const warnings = workerAlerts.filter(a => a.severity === "warning");
+        return (
+          <section className="rounded-2xl border border-rose-500/30 bg-rose-500/[0.04] p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="size-4 text-rose-400" />
+              <h2 className="text-sm font-medium uppercase tracking-wider text-rose-400">Worker Alerts</h2>
+              {errors.length > 0 && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                  {errors.length} error{errors.length === 1 ? "" : "s"}
+                </span>
+              )}
+              {warnings.length > 0 && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  {warnings.length} warning{warnings.length === 1 ? "" : "s"}
+                </span>
+              )}
+            </div>
+            <div className="space-y-2">
+              {workerAlerts.map((alert, i) => {
+                const isError = alert.severity === "error";
+                const kindLabel: Record<string, string> = {
+                  auth_failure: "Auth Failure",
+                  never_registered: "Never Registered",
+                  pending_stale: "Pending Too Long",
+                  unreachable: "Unreachable",
+                };
+                return (
+                  <div
+                    key={i}
+                    className={`rounded-xl border p-4 space-y-1 ${isError ? "border-rose-500/25 bg-rose-500/[0.06]" : "border-amber-500/25 bg-amber-500/[0.05]"}`}
+                  >
+                    <div className="flex items-start gap-2">
+                      {isError
+                        ? <AlertCircle className="size-4 text-rose-400 shrink-0 mt-0.5" />
+                        : <AlertTriangle className="size-4 text-amber-400 shrink-0 mt-0.5" />}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${isError ? "bg-rose-500/20 text-rose-300" : "bg-amber-500/20 text-amber-300"}`}>
+                            {kindLabel[alert.kind] ?? alert.kind}
+                          </span>
+                          <p className={`text-sm font-medium ${isError ? "text-rose-200" : "text-amber-200"}`}>{alert.title}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{alert.detail}</p>
+                        <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1.5 text-[11px] text-muted-foreground">
+                          {alert.endpoint && <span>Endpoint: <code className="text-foreground/70">{alert.endpoint}</code></span>}
+                          {alert.attemptCount !== undefined && <span>{alert.attemptCount} failed attempt{alert.attemptCount === 1 ? "" : "s"}</span>}
+                          {alert.lastAttemptAt && <span>Last attempt: {new Date(alert.lastAttemptAt).toLocaleString()}</span>}
+                          {alert.pendingSince && <span>Pending since: {new Date(alert.pendingSince).toLocaleString()}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
         );
       })()}
 
