@@ -66,6 +66,7 @@ import { hasDismissedTour, markFirstGenComplete, hasCompletedFirstGen, isFirstPa
 import { loadStudioSession, saveStudioSession } from "@/lib/studio-session";
 import { HiggsHero, StepGuide, HiggsDivider, type GuideStep } from "@/components/studio/HiggsLayout";
 import { EditableCopy } from "@/components/EditableCopy";
+import { ExampleOutputGrid } from "@/components/studio/ExampleOutputGrid";
 
 export const Route = createLazyFileRoute("/studio")({ component: StudioPage });
 
@@ -680,13 +681,36 @@ function StudioPage() {
               </p>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center min-h-[40vw] gap-2 px-4 text-center">
+            <div className="flex flex-col justify-center min-h-[40vw] gap-4 px-4 py-8">
               <EditableCopy
                 as="p"
                 copyKey="studio_empty_state"
                 fallback="Upload your photo above, then hit Generate"
-                className="text-xs text-zinc-600"
+                className="text-xs text-zinc-600 text-center"
               />
+              <ExampleOutputGrid
+                title="Made in Studio"
+                subtitle="Real Aurora renders — tap a style chip above to start with one of these looks."
+                columns={2}
+                items={STUDIO_EXAMPLE_PRESETS.filter((p) => p.imageUrl).slice(0, 4).map((p) => ({
+                  src: p.imageUrl!,
+                  label: p.label,
+                  caption: p.hint,
+                }))}
+              />
+              <Link
+                to="/agent"
+                className="group flex items-center gap-3 rounded-2xl border border-[#8b5cf6]/25 bg-[#8b5cf6]/8 px-4 py-3 no-underline transition hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/12"
+              >
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#8b5cf6]/20 text-[#a78bfa]">
+                  <Film className="size-4" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-zinc-100">Want a full video instead?</span>
+                  <span className="block text-xs text-zinc-500">The Video Agent plans, shoots, and cuts it for you.</span>
+                </span>
+                <Sparkles className="size-4 shrink-0 text-[#a78bfa] transition group-hover:scale-110" />
+              </Link>
             </div>
           )}
         </div>

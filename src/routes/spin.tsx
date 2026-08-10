@@ -3,7 +3,7 @@ import { SPIN_COUNT } from "@/lib/spin-engine";
 import { CANONICAL_ORIGIN } from "@/lib/seo";
 
 export const Route = createFileRoute("/spin")({
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { prompt?: string; jobId?: string } => ({
     prompt: typeof search.prompt === "string" ? search.prompt : undefined,
     jobId: typeof search.jobId === "string" ? search.jobId : undefined,
   }),
