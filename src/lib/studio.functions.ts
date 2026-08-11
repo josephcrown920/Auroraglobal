@@ -94,7 +94,33 @@ type EnqueueShotDeps = {
   assertOwned: (url: string, userId: string) => Promise<void>;
   reserve: typeof reserveGenerationJob;
   track: typeof trackServer;
+  // Optional so unit-test stubs that omit it don't crash — production default
+  // always supplies it.
+  markDemo?: (generationId: string) => Promise<void>;
 };
+
+// The bundled demo selfie is uploaded (client-side) to the caller's own studio
+// folder at exactly this path; matching on it lets us persistently label
+// gallery items made with the sample face. Exported for unit tests.
+export function isDemoSelfieUrl(url: string, userId: string): boolean {
+  try {
+    const pathname = decodeURIComponent(new URL(url).pathname);
+    return pathname.endsWith(`/${userId}/demo/selfie.jpg`);
+  } catch {
+    return false;
+  }
+}
+
+// Persist the "demo" marker on the generation row so the gallery can badge it
+// forever — the row is freshly created with tags='{}' so a plain set is safe.
+async function tagGenerationDemo(generationId: string): Promise<void> {
+  const { error } = await supabaseAdmin
+    .from("generations")
+    .update({ tags: ["demo"] })
+    .eq("id", generationId);
+  // Non-fatal: the render must not fail because a cosmetic label didn't stick.
+  if (error) console.error("demo tag write failed", error.message);
+}
 
 // Internal canonical dispatch — shared by the generatePerformanceShot handler
 // AND runSmokeStudioChain so the two can NEVER drift on critical params.
@@ -108,6 +134,7 @@ export async function _enqueuePerformanceShot(
     assertOwned: assertOwnedReferenceImage,
     reserve: reserveGenerationJob,
     track: trackServer,
+    markDemo: tagGenerationDemo,
   },
 ): Promise<{ jobId: string; generationId: string }> {
   // Ownership guard: each reference image must belong to the caller.
@@ -122,6 +149,11 @@ export async function _enqueuePerformanceShot(
     model: data.model,
     motionVideoUrl: data.motionVideoUrl ?? null,
   });
+  // Persistently label generations made with the bundled sample face so the
+  // gallery can badge them (covers demoMut AND runRecipe — both route here).
+  if (data.imageUrls.some((u) => isDemoSelfieUrl(u, userId))) {
+    await deps.markDemo?.(out.generationId);
+  }
   await deps.track("performance_shot_enqueued", userId, { jobId: out.jobId });
   return out;
 }

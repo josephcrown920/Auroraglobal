@@ -306,11 +306,19 @@ function GalleryPage() {
                     <Trash2 className="size-3" />
                   </button>
                 </div>
-                <div className="absolute top-2 left-2 flex flex-col gap-1.5">
+                <div className="absolute top-2 left-2 flex flex-col gap-1.5 items-start">
                   {g.is_favorite && (
                     <div className="size-7 rounded-full bg-amber-500/40 border border-amber-400 backdrop-blur-md flex items-center justify-center">
                       <Star className="size-3.5 fill-current text-amber-100" />
                     </div>
+                  )}
+                  {(g.tags as string[] | null)?.includes("demo") && (
+                    <span
+                      className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold tracking-wide uppercase bg-violet-500/40 border border-violet-400 text-violet-100 backdrop-blur-md"
+                      title="Made with our sample face — upload a selfie to star in your own"
+                    >
+                      Demo
+                    </span>
                   )}
                 </div>
                 <div className="p-2 space-y-1">

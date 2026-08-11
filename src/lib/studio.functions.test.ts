@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { _enqueuePerformanceShot, COST_IMAGE } from "./studio.functions";
+import { _enqueuePerformanceShot, COST_IMAGE, isDemoSelfieUrl } from "./studio.functions";
 
 // The reference-image ownership guard was moved INTO _enqueuePerformanceShot so
 // that every caller — the generatePerformanceShot server fn, runSmokeStudioChain,
@@ -101,5 +101,60 @@ describe("_enqueuePerformanceShot — ownership guard (applies to EVERY caller)"
     );
     expect(seen).toHaveLength(0);
     expect(reserveCalls).toHaveLength(1);
+  });
+});
+
+describe("demo-selfie labelling — persists a 'demo' marker for gallery badges", () => {
+  it("isDemoSelfieUrl matches only the caller's own demo path", () => {
+    expect(isDemoSelfieUrl(`${STUDIO}user-1/demo/selfie.jpg`, "user-1")).toBe(true);
+    // URL-encoded path segments still match after decoding
+    expect(isDemoSelfieUrl(`${STUDIO}user-1%2Fdemo%2Fselfie.jpg`, "user-1")).toBe(true);
+    // Someone else's demo path is NOT the caller's demo
+    expect(isDemoSelfieUrl(`${STUDIO}user-2/demo/selfie.jpg`, "user-1")).toBe(false);
+    // A regular selfie upload is not a demo
+    expect(isDemoSelfieUrl(`${STUDIO}user-1/uploads/selfie.jpg`, "user-1")).toBe(false);
+    // Garbage input never throws
+    expect(isDemoSelfieUrl("not a url", "user-1")).toBe(false);
+  });
+
+  it("marks the generation as demo when the demo selfie is a reference", async () => {
+    const demoMarked: string[] = [];
+    const { deps, reserveCalls } = makeDeps({
+      markDemo: async (generationId: string) => {
+        demoMarked.push(generationId);
+      },
+    });
+    await _enqueuePerformanceShot(
+      "user-1",
+      {
+        prompt: "demo shot",
+        imageUrls: [`${STUDIO}user-1/demo/selfie.jpg`],
+        model: "google/nano-banana",
+        motionVideoUrl: null,
+      },
+      deps,
+    );
+    expect(reserveCalls).toHaveLength(1);
+    expect(demoMarked).toEqual(["gen-1"]);
+  });
+
+  it("does NOT mark normal uploads as demo", async () => {
+    const demoMarked: string[] = [];
+    const { deps } = makeDeps({
+      markDemo: async (generationId: string) => {
+        demoMarked.push(generationId);
+      },
+    });
+    await _enqueuePerformanceShot(
+      "user-1",
+      {
+        prompt: "own selfie shot",
+        imageUrls: [`${STUDIO}user-1/uploads/face.jpg`],
+        model: "google/nano-banana",
+        motionVideoUrl: null,
+      },
+      deps,
+    );
+    expect(demoMarked).toHaveLength(0);
   });
 });

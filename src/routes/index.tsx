@@ -94,21 +94,23 @@ const HERO_SLIDES = [
     eyebrow: "Flagship Feature",
     badge: "★ Pro",
     headline: "Perform Anywhere.",
-    sub: "Turn a phone recording into a cinematic music video. No crew. No studio. Just you.",
+    sub: "Stop renting studios, hiring crews, and waiting weeks for edits. Record yourself for 30 seconds on your iPhone — Aurora transforms your performance into cinematic music videos and visuals that look like they were directed by a major production team.",
     cta: "Try Perform Anywhere →",
     ctaTo: "/motion",
   },
   {
     src: "/hero/hero-2.png",
-    eyebrow: "Go Viral",
+    eyebrow: "TikTok 30",
+    badge: "★ Pro",
     headline: "Go Viral On TikTok In 30 Seconds.",
-    sub: "TikTok30 generates 30 campaign-ready posts from a single idea. Post daily. Grow fast.",
-    cta: "Launch TikTok30 Free →",
+    sub: "Turn one idea into an entire month of scroll-stopping content. Aurora creates 30 unique TikToks, lyric videos, teasers, cover reveals, reels, and promo posts ready to publish.",
+    cta: "TikTok 30 →",
     ctaTo: "/spin",
   },
   {
     src: "/hero/hero-colors.png",
     eyebrow: "Colors Studio",
+    badge: "★ Pro",
     headline: "One Performance. Unlimited Visual Worlds.",
     sub: "Record one 30-second performance. Aurora rebuilds it into endless cinematic stages, lighting styles, outfits, moods and color worlds ready for every release.",
     cta: "Explore Colors Studio →",
@@ -117,6 +119,7 @@ const HERO_SLIDES = [
   {
     src: "/hero/hero-7.png",
     eyebrow: "Press Ready",
+    badge: "★ Pro",
     headline: "Look Like The Biggest Artist In Your City.",
     sub: "Create magazine-quality press photos, tour posters, album covers, and promotional visuals in minutes—not weeks.",
     cta: "Create Press Photos →",
@@ -373,13 +376,31 @@ function LandingPage() {
           <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/25 to-transparent" />
         </div>
 
-        {/* Text content — transitions with each slide */}
+        {/* Text content — all slides absolutely stacked; active one fades in */}
         <div className="relative z-10 max-w-sm">
+          {/* Spacer that keeps the container tall enough for the longest slide */}
+          <div aria-hidden className="invisible pointer-events-none select-none">
+            <div className="mb-5 flex items-center gap-3">
+              <span className="size-1.5" />
+              <span className="font-serif italic text-2xl font-semibold leading-tight">Flagship Feature</span>
+              <span className="px-2 py-0.5 text-[10px]">★ Pro</span>
+            </div>
+            <div className="text-[2.45rem] font-semibold leading-[0.97] tracking-tight sm:text-[2.7rem]">
+              Go Viral On TikTok In 30 Seconds.
+            </div>
+            <p className="mt-5 text-base leading-relaxed">
+              Turn one idea into an entire month of scroll-stopping content. Aurora creates 30 unique
+              TikToks, lyric videos, teasers, cover reveals, reels, and promo posts ready to publish.
+            </p>
+            <span className="mt-6 inline-flex text-sm font-bold">TikTok 30 →</span>
+          </div>
+
+          {/* All slides — absolutely positioned so they don't affect layout height */}
           {HERO_SLIDES.map((slide, i) => (
             <div
               key={slide.src}
-              className={`transition-opacity duration-700 ${
-                i === slideIdx ? "opacity-100" : "opacity-0 absolute inset-0 pointer-events-none"
+              className={`absolute inset-0 transition-opacity duration-700 ${
+                i === slideIdx ? "opacity-100" : "opacity-0 pointer-events-none"
               }`}
             >
               <div className="mb-5 flex items-center gap-3 drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)]">
@@ -414,6 +435,8 @@ function LandingPage() {
               </Link>
             </div>
           ))}
+
+          {/* Buttons always visible below the slide text area */}
           <div className="mt-8 flex flex-col gap-3">
             <Link
               to={ctaTo}
