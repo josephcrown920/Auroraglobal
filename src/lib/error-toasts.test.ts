@@ -182,14 +182,14 @@ describe("handlePaymentError", () => {
     expect(toastError).toHaveBeenCalledWith("Card expired. Try a different card.");
   });
 
-  test("a 3d Secure failure (lowercase substring match) shows the 3D Secure message", () => {
+  test("a lowercase '3d secure' failure shows the 3D Secure message", () => {
     handlePaymentError(new Error("3d secure authentication failed."));
     expect(toastError).toHaveBeenCalledWith("3D Secure verification failed. Try a different card.");
   });
 
-  test("an uppercase '3D Secure' message is NOT matched by the case-sensitive check and passes through verbatim", () => {
+  test("an uppercase '3D Secure' failure also shows the 3D Secure message (case-insensitive)", () => {
     handlePaymentError(new Error("3D Secure authentication failed."));
-    expect(toastError).toHaveBeenCalledWith("3D Secure authentication failed.");
+    expect(toastError).toHaveBeenCalledWith("3D Secure verification failed. Try a different card.");
   });
 
   test("an unrecognized Error message passes through verbatim", () => {

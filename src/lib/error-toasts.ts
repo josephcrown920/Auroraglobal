@@ -169,7 +169,7 @@ export function handlePaymentError(error: unknown) {
     toast.error("Card declined. Check your payment method.");
   } else if (msg.includes("expired")) {
     toast.error("Card expired. Try a different card.");
-  } else if (msg.includes("3d")) {
+  } else if (msg.toLowerCase().includes("3d")) {
     toast.error("3D Secure verification failed. Try a different card.");
   } else {
     toast.error(msg);
