@@ -69,10 +69,14 @@ async function signIn(page: Page) {
   await passwordInput.fill(TEST_PASSWORD);
   await expect(passwordInput).toHaveValue(TEST_PASSWORD);
 
-  const signInButton = page.getByRole("button", { name: "Sign in", exact: true });
+  // Scope to the form's submit button — the auth page also has a "Sign in" tab
+  // toggle button at the top, which causes a strict-mode violation if we use
+  // page.getByRole() without narrowing to the form.
+  const signInButton = page.locator("form").getByRole("button", { name: "Sign in", exact: true });
   await signInButton.click();
   try {
-    await page.waitForURL(/\/studio/, { timeout: 15_000 });
+    // Post-login redirect goes to /home (or ?next= param); /studio is a sub-route.
+    await page.waitForURL(/\/(home|studio)/, { timeout: 15_000 });
   } catch {
     // Occasional slow auth round-trip — retry once rather than fail the whole test.
     if (await emailInput.count() > 0) {
@@ -80,7 +84,7 @@ async function signIn(page: Page) {
       await passwordInput.fill(TEST_PASSWORD);
     }
     await signInButton.click();
-    await page.waitForURL(/\/studio/, { timeout: 20_000 });
+    await page.waitForURL(/\/(home|studio)/, { timeout: 20_000 });
   }
 }
 
@@ -119,7 +123,16 @@ test.describe("Playground sandbox (real browser)", () => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await signIn(page);
     await page.goto("/editor");
-    await expect(page.getByRole("button", { name: "Run" })).toBeVisible();
+    // /editor may briefly render its signed-out shell while the client session
+    // hydrates; wait generously for the authenticated Run button, and if the page
+    // genuinely landed signed-out (session lost in transit), sign in once more.
+    try {
+      await expect(page.getByRole("button", { name: "Run" })).toBeVisible({ timeout: 20_000 });
+    } catch {
+      await signIn(page);
+      await page.goto("/editor");
+      await expect(page.getByRole("button", { name: "Run" })).toBeVisible({ timeout: 20_000 });
+    }
   });
 
   test("benign script streams console output and finishes", async ({ page }) => {

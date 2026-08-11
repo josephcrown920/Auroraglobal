@@ -44,6 +44,10 @@ args = "prod-build"
 task = "workflow.run"
 args = "tutorial-pdf"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "test:e2e"
+
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
@@ -143,6 +147,17 @@ args = "bash scripts/check-tutorial-pdf-fresh.sh"
 
 [workflows.workflow.metadata]
 isValidation = true
+
+[[workflows.workflow]]
+name = "test:e2e"
+author = "agent"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx playwright install chromium 2>/dev/null; npm run test:e2e"
 
 [agent]
 stack = "PNPM_WORKSPACE"

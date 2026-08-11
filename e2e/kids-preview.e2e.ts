@@ -71,10 +71,14 @@ async function signIn(page: Page) {
   await passwordInput.fill(TEST_PASSWORD);
   await expect(passwordInput).toHaveValue(TEST_PASSWORD);
 
-  const signInButton = page.getByRole("button", { name: "Sign in", exact: true });
+  // Scope to the form's submit button — the auth page also has a "Sign in" tab
+  // toggle button at the top, which causes a strict-mode violation if we use
+  // page.getByRole() without narrowing to the form.
+  const signInButton = page.locator("form").getByRole("button", { name: "Sign in", exact: true });
   await signInButton.click();
   try {
-    await page.waitForURL(/\/studio/, { timeout: 15_000 });
+    // Post-login redirect goes to /home (or ?next= param); /studio is a sub-route.
+    await page.waitForURL(/\/(home|studio)/, { timeout: 15_000 });
   } catch {
     // Occasional slow auth round-trip — retry once rather than fail the whole test.
     if ((await emailInput.count()) > 0) {
@@ -82,7 +86,7 @@ async function signIn(page: Page) {
       await passwordInput.fill(TEST_PASSWORD);
     }
     await signInButton.click();
-    await page.waitForURL(/\/studio/, { timeout: 20_000 });
+    await page.waitForURL(/\/(home|studio)/, { timeout: 20_000 });
   }
 }
 
@@ -129,10 +133,14 @@ test.describe("Kids Story Studio cartoon previews", () => {
       .toBeGreaterThanOrEqual(2);
   });
 
-  test("reduced motion shows only the poster image, never a <video>", async ({ browser }) => {
-    const context = await browser.newContext({ reducedMotion: "reduce" });
-    const page = await context.newPage();
-    try {
+  // Use the built-in page fixture + page.emulateMedia rather than a manual
+  // browser.newContext({ reducedMotion }) — the manual context pattern produced
+  // corrupt trace artifacts under trace: "retain-on-failure", and the context-level
+  // reducedMotion option is not honored by this Chrome-for-Testing build (verified:
+  // matchMedia still reported no-preference). page.emulateMedia works reliably.
+  test.describe("reduced motion", () => {
+    test("shows only the poster image, never a <video>", async ({ page }) => {
+      await page.emulateMedia({ reducedMotion: "reduce" });
       await signIn(page);
       await page.goto("/kids");
       await page.waitForLoadState("networkidle");
@@ -159,8 +167,6 @@ test.describe("Kids Story Studio cartoon previews", () => {
       await expect(page.locator("video")).toHaveCount(0);
       await expect(characterPoster).toBeVisible();
       await expect(showcasePoster).toBeVisible();
-    } finally {
-      await context.close();
-    }
+    });
   });
 });

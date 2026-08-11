@@ -123,3 +123,4 @@
 - [Aurora geo/PPP billing state](aurora-geo-billing.md) — geo pricing designed but OFF (detectCurrency pinned USD, everyone pays USD); /billing has an admin-only region preview; live payments table was EMPTY 2026-08-04.
 - [Previs Pro plate surfaces](previs-pro-surfaces.md) — free Pollinations plates vs paid "Upgrade plate" via reserveOrchestrateRecord; prompts read from stored state; chat plans have NO agent_sessions row.
 - [Design-system artifact dev runner](aurora-ds-dev-runner.md) — this repo is flat npm/bun, pnpm is NOT installed; artifact scaffolds defaulting to `pnpm --filter` must be switched to a per-artifact start-dev.sh (npm install + node vite) via verifyAndReplaceArtifactToml.
+- [Playwright e2e validation quirks](playwright-e2e-validation.md) — test.use reducedMotion ignored (use emulateMedia); manual newContext corrupts traces; webServer runs under /bin/sh (wrap bash -c); login lands on /home.

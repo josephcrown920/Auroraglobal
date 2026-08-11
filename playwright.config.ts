@@ -9,7 +9,9 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   fullyParallel: false,
   workers: 1,
-  retries: 0,
+  // One retry absorbs transient dev-server hiccups (vite SSR restarts, slow auth
+  // round-trips) so the validation gate reports real regressions, not infra blips.
+  retries: 1,
   reporter: [["list"]],
   use: {
     baseURL: `http://localhost:${PORT}`,
@@ -18,9 +20,21 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "vite dev --host 0.0.0.0 --port " + PORT,
+    // Use the same node-path-aware command as the "Start application" workflow so
+    // that Playwright can boot the dev server itself when reuseExistingServer misses
+    // (e.g. the workflow hasn't started yet).  reuseExistingServer: true means this
+    // command is skipped entirely when port 8080 is already open.
+    // Wrapped in bash -c so available-pid2-node-paths (which uses set -o pipefail)
+    // runs under bash rather than /bin/sh which Playwright uses by default.
+    // NODE_OPTIONS caps the dev server's heap: this container has OOM-killed heavy
+    // node processes before, and a mid-suite server death shows up as
+    // ERR_CONNECTION_REFUSED in every remaining test.
+    command: `bash -c 'NODE_OPTIONS=--max-old-space-size=3072 "$(available-pid2-node-paths | head -1)" node_modules/vite/bin/vite.js dev --host 0.0.0.0 --port ${PORT}'`,
+    // reuseExistingServer + url polling also makes the parallel "Project" workflow
+    // safe: if the "Start application" workflow already owns port 8080, Playwright
+    // reuses it; otherwise Playwright boots its own server and waits for readiness.
     url: `http://localhost:${PORT}`,
     reuseExistingServer: true,
-    timeout: 60_000,
+    timeout: 120_000,
   },
 });

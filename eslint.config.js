@@ -23,6 +23,11 @@ export default tseslint.config(
       ".tanstack",
       "public",
       "screenshots",
+      // Playwright deletes/recreates these while tests run; since lint and
+      // test:e2e validations run in parallel, ESLint must never scan them or
+      // its directory walk can crash on the vanishing folder (ENOENT).
+      "test-results",
+      "playwright-report",
       "supabase",
       "workers",
       "scripts",
