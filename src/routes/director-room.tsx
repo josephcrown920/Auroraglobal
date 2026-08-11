@@ -4,13 +4,13 @@ import { Clapperboard, Film, Sparkles, Wand2, Users } from "lucide-react";
 export const Route = createFileRoute("/director-room")({
   head: () => ({
     meta: [
-      { title: "Director Room — Shoot a $20,000 Music Video for a Fraction" },
+      { title: "Director's Chair — Shoot a $20,000 Music Video for a Fraction" },
       {
         name: "description",
         content:
-          "Aurora Director Room: plan, cast, storyboard, and shoot cinematic music videos with AI. Get a $20,000-look shoot for a fraction of the cost.",
+          "Aurora Director's Chair: plan, cast, storyboard, and shoot cinematic music videos with AI. Get a $20,000-look shoot for a fraction of the cost.",
       },
-      { property: "og:title", content: "Aurora Director Room" },
+      { property: "og:title", content: "Aurora Director's Chair" },
       {
         property: "og:description",
         content:
@@ -48,7 +48,7 @@ function DirectorRoom() {
     <main className="mx-auto max-w-5xl px-4 py-10 flex flex-col gap-8">
       <header className="flex flex-col gap-3">
         <span className="text-xs font-semibold uppercase tracking-widest text-primary">
-          Director Room
+          Director's Chair
         </span>
         <h1 className="text-4xl md:text-5xl font-bold leading-tight">
           Shoot a{" "}

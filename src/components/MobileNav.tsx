@@ -46,30 +46,38 @@ type Feature = {
 };
 
 
-// ── Live studio tools — visible to all users ──────────────────────────────
-const STUDIO_FEATURES: Feature[] = [
-  { to: "/canvas",          label: "Infinity Canvas",       icon: Workflow,     previewImg: "/nav-previews/canvas.jpg",           starred: true },
-  { to: "/studio",          label: "Image & Video Studio",  icon: Sparkles,     previewImg: "/nav-previews/studio.jpg",           starred: true },
-  { to: "/colors",          label: "Colors Studio",         icon: Palette,      previewImg: "/nav-previews/colors.jpg",           starred: true },
-  { to: "/likeness",        label: "Locked Likeness Shoot", icon: Camera,       previewImg: "/nav-previews/avatar.jpg",           badge: "New", starred: true },
-  { to: "/director-room",   label: "Director Room",         icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg",      badge: "$20k Look" },
-  { to: "/directors-board", label: "Directors Board",       icon: Layers,       previewImg: "/nav-previews/scene-builder.jpg",    badge: "New" },
-  { to: "/scene-builder",   label: "Scene Builder",         icon: Layers,       previewImg: "/nav-previews/scene-builder.jpg" },
-  { to: "/eromify",         label: "Eromify · Adult School",icon: Camera,       previewImg: "/sample-photos/model-yuki-1.jpg",    badge: "18+" },
-  { to: "/motion",          label: "Motion Control",        icon: Wand2,        previewImg: "/nav-previews/perform-anywhere.jpg" },
-  { to: "/music-video",     label: "Lyric Video",           icon: Film,         previewImg: "/nav-previews/music-video.jpg" },
-  { to: "/puremix",         label: "PureMix",               icon: Music2,       previewImg: "/nav-previews/music-video.jpg",      badge: "New" },
+// ── Core — the heart of Aurora, always first (owner-picked flagship set) ──
+const CORE_FEATURES: Feature[] = [
+  { to: "/video-agent",   label: "Aurora Video Agent", icon: Film,         previewImg: "/landing/step-reference.jpg",       starred: true },
+  { to: "/spin",          label: "TikTok30",           icon: Flame,        previewImg: "/nav-previews/spin.jpg",            starred: true, badge: "Premium" },
+  { to: "/canvas",        label: "Infinity Canvas",    icon: Workflow,     previewImg: "/nav-previews/canvas.jpg",          starred: true },
+  { to: "/motion",        label: "Perform Anywhere",   icon: Wand2,        previewImg: "/nav-previews/perform-anywhere.jpg", starred: true },
+  { to: "/lipsync",       label: "Lip Sync",           icon: Mic,          previewImg: "/nav-previews/lipsync.jpg",         starred: true },
+  { to: "/director-room", label: "Director's Chair",   icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg",     starred: true, badge: "$20k Look" },
+  { to: "/colors",        label: "Colors Studio",      icon: Palette,      previewImg: "/nav-previews/colors.jpg",          starred: true },
 ];
 
-// ── Live content tools — visible to all users ─────────────────────────────
-const CONTENT_FEATURES: Feature[] = [
-  { to: "/video-agent", label: "Aurora Video Agent", icon: Film,      previewImg: "/landing/step-reference.jpg", starred: true },
-  { to: "/spin",        label: "TikTok30",           icon: Flame,     previewImg: "/nav-previews/spin.jpg",      starred: true, badge: "Premium" },
-  { to: "/agent",       label: "AI Creative Agent",  icon: Sparkles,  badge: "New" },
-  { to: "/tiktok-live", label: "TikTok LIVE Studio", icon: Radio },
-  { to: "/lipsync",     label: "Lip Sync",           icon: Mic,       previewImg: "/nav-previews/lipsync.jpg" },
-  { to: "/tools",       label: "All Tools",          icon: LayoutGrid },
-  { to: "/templates",   label: "Templates",          icon: Layers },
+// ── Studio — image & scene tools ──────────────────────────────────────────
+const STUDIO_FEATURES: Feature[] = [
+  { to: "/studio",          label: "Image & Video Studio",  icon: Sparkles, previewImg: "/nav-previews/studio.jpg" },
+  { to: "/likeness",        label: "Locked Likeness Shoot", icon: Camera,   previewImg: "/nav-previews/avatar.jpg",        badge: "New" },
+  { to: "/directors-board", label: "Directors Board",       icon: Layers,   previewImg: "/nav-previews/scene-builder.jpg", badge: "New" },
+  { to: "/scene-builder",   label: "Scene Builder",         icon: Layers,   previewImg: "/nav-previews/scene-builder.jpg" },
+  { to: "/agent",           label: "AI Creative Agent",     icon: Sparkles, badge: "New" },
+];
+
+// ── Music & audio ──────────────────────────────────────────────────────────
+const MUSIC_FEATURES: Feature[] = [
+  { to: "/music-video", label: "Lyric Video", icon: Film,   previewImg: "/nav-previews/music-video.jpg" },
+  { to: "/puremix",     label: "PureMix",     icon: Music2, previewImg: "/nav-previews/music-video.jpg", badge: "New" },
+];
+
+// ── More — everything else that's live ────────────────────────────────────
+const MORE_FEATURES: Feature[] = [
+  { to: "/tiktok-live", label: "TikTok LIVE Studio",     icon: Radio },
+  { to: "/templates",   label: "Templates",              icon: Layers },
+  { to: "/eromify",     label: "Eromify · Adult School", icon: Camera, previewImg: "/sample-photos/model-yuki-1.jpg", badge: "18+" },
+  { to: "/tools",       label: "All Tools",              icon: LayoutGrid },
 ];
 
 const ACCOUNT_FEATURES: Feature[] = [
@@ -376,14 +384,26 @@ export function MobileNav() {
           {/* ── Nav body ────────────────────────────────────────────────── */}
           <nav aria-label="All features" className="relative flex flex-1 flex-col gap-3 overflow-y-auto p-3 pb-4">
 
-            <NavSection label="Artists">
+            <NavSection label="Start Here">
+              {CORE_FEATURES.map((f) => (
+                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
+              ))}
+            </NavSection>
+
+            <NavSection label="Studio">
               {STUDIO_FEATURES.map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
             </NavSection>
 
-            <NavSection label="Creators">
-              {CONTENT_FEATURES.map((f) => (
+            <NavSection label="Music & Audio">
+              {MUSIC_FEATURES.map((f) => (
+                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
+              ))}
+            </NavSection>
+
+            <NavSection label="More">
+              {MORE_FEATURES.map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
             </NavSection>
