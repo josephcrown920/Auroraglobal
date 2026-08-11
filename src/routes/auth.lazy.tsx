@@ -43,7 +43,7 @@ function AuthPage() {
   const search = Route.useSearch();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   // New signups land in Studio (the product); returning sign-ins land on Home.
-  const returnTo = search.next ?? (mode === "signup" ? "/studio" : "/home");
+  const returnTo = search.next ?? "/studio";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -187,7 +187,7 @@ function AuthPage() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/auth?next=${encodeURIComponent(search.next ?? (mode === "signup" ? "/studio" : "/home"))}`,
+          redirectTo: `${window.location.origin}/auth?next=${encodeURIComponent(search.next ?? "/studio")}`,
           skipBrowserRedirect: isInFrame,
         },
       });

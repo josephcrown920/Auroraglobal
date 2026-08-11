@@ -65,6 +65,7 @@ import { useSiteImage } from "@/components/landing/SiteImagesProvider";
 import { hasDismissedTour, markFirstGenComplete, hasCompletedFirstGen, isFirstPageVisit, markPageVisited, markFirstPurchaseComplete } from "@/lib/first-run";
 import { loadStudioSession, saveStudioSession } from "@/lib/studio-session";
 import { HiggsHero, StepGuide, HiggsDivider, type GuideStep } from "@/components/studio/HiggsLayout";
+import { StudioHeroComposer, type ComposerMode } from "@/components/studio/StudioHeroComposer";
 import { EditableCopy } from "@/components/EditableCopy";
 import { ExampleOutputGrid } from "@/components/studio/ExampleOutputGrid";
 
@@ -167,6 +168,8 @@ function StudioPage() {
   );
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Hero composer — Image/Video entry surface at the top of the page.
+  const [composerMode, setComposerMode] = useState<ComposerMode>("image");
   const [sessionRestored, setSessionRestored] = useState(false);
   const [onboardOpen, setOnboardOpen] = useState(false);
   const [showTour, setShowTour] = useState(false);
@@ -656,6 +659,33 @@ function StudioPage() {
 
       {/* ── Main scroll area (leave room for sticky prompt bar) ──── */}
       <div className="flex-1 overflow-y-auto pb-36 lg:pb-24 space-y-0">
+
+        {/* ── Hero composer — the signed-in front door ──────────── */}
+        <StudioHeroComposer
+          prompt={composerMode === "image" ? prompt : videoPrompt}
+          onPromptChange={composerMode === "image" ? setPrompt : setVideoPrompt}
+          mode={composerMode}
+          onModeChange={setComposerMode}
+          imageModels={MODELS.map((m) => ({ value: m.value, label: m.label }))}
+          videoModels={VIDEO_MODEL_LIST.map((m) => ({ value: m.value, label: m.label }))}
+          imageModel={model}
+          onImageModelChange={setModel}
+          videoModel={videoModel}
+          onVideoModelChange={setVideoModel}
+          costLabel={composerMode === "image" ? "10 Aura" : `${videoCost} Aura`}
+          busy={composerMode === "image" ? mut.isPending || demoMut.isPending : videoMut.isPending}
+          hasReferences={!!(selfie || outfit || scene || prop || motion)}
+          onOpenReferences={() => setSettingsOpen(true)}
+          onGenerate={() => {
+            if (composerMode === "image") {
+              if (!mut.isPending && !demoMut.isPending) mut.mutate(undefined);
+            } else {
+              // Video needs a base image; the mutation surfaces a clear error
+              // ("Generate a base shot first") if none exists yet.
+              if (!videoMut.isPending) videoMut.mutate();
+            }
+          }}
+        />
 
         {/* Canvas — result at top */}
         <div className="relative bg-zinc-900">
