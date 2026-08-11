@@ -208,10 +208,10 @@ function ToolsPage() {
               Try Perform Anywhere
             </Link>
             <Link
-              to="/home"
+              to="/studio"
               className="inline-flex items-center gap-2 rounded-full border border-white/20 px-7 py-3.5 text-sm font-bold text-white no-underline hover:border-white/40 transition-colors"
             >
-              ← Back to home
+              ← Back to Studio
             </Link>
           </div>
         </section>

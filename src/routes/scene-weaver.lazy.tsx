@@ -400,7 +400,7 @@ function SceneWeaverPage() {
       <header className="border-b border-white/8 bg-black/20">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4">
           <div className="flex items-center gap-3">
-            <Link to="/home" className="rounded-lg p-2 text-white/50 hover:bg-white/8 hover:text-white"><ArrowLeft className="size-4" /></Link>
+            <Link to="/studio" className="rounded-lg p-2 text-white/50 hover:bg-white/8 hover:text-white"><ArrowLeft className="size-4" /></Link>
             <div><div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.22em]"><span className="size-2 rounded-full bg-primary" />Scene Weaver</div><p className="mt-1 text-xs text-white/40">Keep the scene. Change the angle.</p></div>
           </div>
           <div className="flex gap-2">
