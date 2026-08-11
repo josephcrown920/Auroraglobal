@@ -642,6 +642,84 @@ describe("editStrict (photo editor)", () => {
   });
 });
 
+// ─── Kling Omni routing lock (Task #244 regression guard) ─────────────────────
+// Two invariants must hold forever:
+//  1. getCandidateModels lists kling-3.0-omni as the first candidate when it is
+//     explicitly requested, so the Replicate adapter can pick it up.
+//  2. klingDirect.supports() rejects kling-3.0-omni even with KLING creds +
+//     forSubscriber:true — the JWT adapter always calls "kling-v1", which would
+//     silently downgrade quality/pricing instead of using the verified
+//     kwaivgi/kling-v2.1-master Replicate slug.
+
+describe("kling-3.0-omni routing (regression guard)", () => {
+  beforeEach(() => {
+    for (const k of ENV_KEYS) delete process.env[k];
+    for (const p of PROVIDER_NAMES) markSuccess(p);
+    getReplicateKeyImpl = () => undefined;
+    replicateRunImpl = async () => {
+      throw new Error("replicateRun not configured");
+    };
+  });
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    restoreClock();
+  });
+
+  it("getCandidateModels places kling-3.0-omni first when explicitly requested", () => {
+    // Regression: a future edit to getCandidateModels (e.g. adding a hard
+    // exclusion list) must not silently drop kling-3.0-omni from the candidate
+    // set, or the Replicate adapter would never receive the request.
+    const candidates = getCandidateModels({
+      kind: "video",
+      prompt: "cinematic storm",
+      model: "kling-3.0-omni",
+      forSubscriber: true,
+    });
+    expect(candidates[0]).toBe("kling-3.0-omni");
+  });
+
+  it("klingDirect does NOT serve kling-3.0-omni even with Kling creds — falls through to Replicate (kwaivgi/kling-v2.1-master)", async () => {
+    // Regression: if someone removes the `r.model !== "kling-3.0-omni"` guard
+    // from klingDirect.supports(), it would silently call Kling's "kling-v1"
+    // API model instead of the Replicate kwaivgi/kling-v2.1-master slug.
+    installFakeClock();
+    process.env.KLING_ACCESS_KEY = "test-access-key";
+    process.env.KLING_SECRET_KEY = "test-secret-key";
+    getReplicateKeyImpl = () => "rep-test-key";
+
+    let replicateSlug = "";
+    replicateRunImpl = async (slug) => {
+      replicateSlug = slug;
+      if (slug === "kwaivgi/kling-v2.1-master") {
+        return { output: "https://replicate.delivery/kling-omni.mp4" };
+      }
+      throw new Error(`unexpected Replicate slug: ${slug}`);
+    };
+
+    const { calls } = installFetch(({ url }) => {
+      // If klingDirect fires, it hits api.klingai.com — that must never happen.
+      if (url.includes("api.klingai.com")) {
+        throw new Error("klingDirect must NOT be called for kling-3.0-omni — regression detected");
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    const res = await orchestrate({
+      kind: "video",
+      prompt: "cinematic storm over the ocean",
+      model: "kling-3.0-omni",
+      forSubscriber: true,
+    });
+
+    // The request must have been served by Replicate, not by Kling's JWT adapter.
+    expect(res.provider).toBe("replicate");
+    expect(res.url).toBe("https://replicate.delivery/kling-omni.mp4");
+    expect(replicateSlug).toBe("kwaivgi/kling-v2.1-master");
+    // Belt-and-suspenders: Kling's API endpoint was never contacted.
+    expect(calls.some((c) => c.url.includes("api.klingai.com"))).toBe(false);
+  });
+});
+
 afterAll(() => {
   for (const k of ENV_KEYS) {
     if (savedEnv[k] === undefined) delete process.env[k];
