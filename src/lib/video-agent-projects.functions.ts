@@ -213,6 +213,71 @@ export const updateVideoAgentProject = createServerFn({ method: "POST" })
     return mapVideoAgentProject(row);
   });
 
+// ─── Previs Pro: upgrade one scene's plate to a premium paid render ──────────
+// The storyboard frames are free Pollinations sketches. "Upgrade plate" takes a
+// single scene's visual description and re-renders it through the real paid
+// image pipeline (canonical reserveOrchestrateRecord flow) for a hero-quality
+// previsualization plate. The scene description is read from STORED project
+// state (never a client body) so a crafted request cannot inject a prompt.
+export const PREVIS_PLATE_COST = computeCost({ features: ["image"] }).total;
+
+const previsStyleHints: Record<z.infer<typeof StyleSchema>, string> = {
+  cinematic: "cinematic anamorphic, 35mm film grain, hyper-realistic",
+  minimal: "clean minimal, soft light, hyper-realistic",
+  vibrant: "vibrant, bold, energetic, hyper-realistic",
+  documentary: "natural light, candid, hyper-realistic",
+};
+
+export const upgradeVideoAgentPlate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ id: z.string().uuid(), sceneId: z.string().min(1).max(100) }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const project = await fetchOwnedProject(data.id, context.userId);
+    if (project.status === "queued" || project.status === "processing") {
+      throw new Error("The storyboard is locked while a render is in progress");
+    }
+    const scenes = parseScenes(project.scenes);
+    const scene = scenes.find((s) => s.id === data.sceneId);
+    if (!scene) throw new Error("Scene not found in this project");
+    if (!scene.description.trim()) throw new Error("Add a visual description before upgrading the plate");
+
+    const styleHint = previsStyleHints[project.style] ?? previsStyleHints.cinematic;
+    const prompt = `${scene.description}. Style: ${styleHint}. Cinematic keyframe.`;
+
+    const { reserveOrchestrateRecord } = await import("./generate-core.server");
+    let outcome;
+    try {
+      outcome = await reserveOrchestrateRecord({
+        userId: context.userId,
+        kind: "image",
+        prompt,
+        cost: PREVIS_PLATE_COST,
+        reason: "video_agent_previs_plate",
+        mode: "preview",
+      });
+    } catch (err) {
+      throw new Error(err instanceof Error ? err.message : "Plate upgrade failed");
+    }
+    if (!outcome.ok) {
+      if (outcome.insufficient) throw new Error("Not enough Aura to upgrade this plate");
+      throw new Error(outcome.error);
+    }
+
+    // Persist the upgraded frame onto the scene so it survives reloads and feeds
+    // the real render. Only mutate this one scene's frame; leave the rest intact.
+    const nextScenes = scenes.map((s) => (s.id === data.sceneId ? { ...s, frame: outcome!.url, frameStatus: "done" as const } : s));
+    await projectTable()
+      .update({ scenes: nextScenes })
+      .eq("id", project.id)
+      .eq("user_id", context.userId)
+      .select("id")
+      .single();
+
+    return { sceneId: data.sceneId, url: outcome.url, generationId: outcome.generationId, provider: outcome.provider, cost: PREVIS_PLATE_COST };
+  });
+
 export const enqueueVideoAgentRender = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))

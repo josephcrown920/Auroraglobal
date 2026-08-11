@@ -7,6 +7,9 @@ import { track } from "@/lib/tracking";
 import { ViralEngine } from "@/components/landing/ViralEngine";
 import { BalloonLipsync } from "@/components/landing/BalloonLipsync";
 import { AppScreenshotsSection } from "@/components/landing/AppScreenshotsSection";
+import { CliSection } from "@/components/landing/CliSection";
+import { ViralPresetsSection } from "@/components/landing/ViralPresetsSection";
+import { UGCAdsSection } from "@/components/landing/UGCAdsSection";
 import { IntroAnimation } from "@/components/landing/IntroAnimation";
 import { AdminLandingEditor } from "@/components/AdminLandingEditor";
 import { EditableCopy } from "@/components/EditableCopy";
@@ -87,7 +90,7 @@ const HERO_SLIDES = [
     ctaTo: "/studio",
   },
   {
-    src: "/hero/hero-1.png",
+    src: "/hero/hero-perform-anywhere.png",
     eyebrow: "Flagship Feature",
     badge: "★ Pro",
     headline: "Perform Anywhere.",
@@ -552,14 +555,85 @@ function LandingPage() {
       </section>
 
 
+      {/* ── Viral Presets ────────────────────────────────────────────── */}
+      <ViralPresetsSection />
+
       {/* ── App Screenshots — "Inside Aurora" ────────────────────────── */}
       <AppScreenshotsSection />
+
+      {/* ── UGC Ads ──────────────────────────────────────────────────── */}
+      <UGCAdsSection />
 
       {/* ── Viral Engine ─────────────────────────────────────────────── */}
       <ViralEngine />
 
       {/* ── Every Face Sings (lip-sync demo) ─────────────────────────── */}
       <BalloonLipsync />
+
+      {/* ── CLI — whole studio from your terminal ────────────────────── */}
+      <CliSection />
+
+      {/* ── Playground teaser ────────────────────────────────────────── */}
+      <section className="relative z-10 px-5 py-16 border-t border-white/5">
+        <div className="rounded-3xl border border-white/8 bg-zinc-900/60 overflow-hidden">
+          {/* faint grid overlay */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 opacity-[0.04]"
+            style={{
+              backgroundImage: "linear-gradient(white 1px,transparent 1px),linear-gradient(90deg,white 1px,transparent 1px)",
+              backgroundSize: "32px 32px",
+            }}
+          />
+          <div className="relative px-6 py-10 flex flex-col gap-6">
+            <div>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-400/25 bg-violet-400/[0.06] px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-violet-300">
+                {"</>"}  Playground
+              </span>
+              <h2 className="mt-4 text-3xl font-bold tracking-tight text-white">
+                Script the studio{" "}
+                <span className="bg-gradient-to-r from-violet-200 via-fuchsia-200 to-violet-400 bg-clip-text text-transparent">
+                  with code.
+                </span>
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-zinc-400 max-w-[44ch]">
+                Write small scripts against the pre-authenticated <code className="rounded bg-white/[0.06] px-1.5 py-0.5 text-violet-300">aurora</code> client — batches, pipelines, experiments. Runs are sandboxed in your browser and spend your real Aura.
+              </p>
+            </div>
+
+            <ul className="flex flex-wrap gap-2">
+              {["Sandboxed in-browser", "Spends real Aura", "Same models as Studio"].map((f) => (
+                <li key={f} className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-zinc-300">
+                  <span className="size-1.5 rounded-full bg-violet-400 shrink-0" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+
+            {/* Code preview */}
+            <div className="rounded-2xl border border-white/10 bg-[#0d0d14] overflow-hidden">
+              <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-white/6 bg-white/[0.02]">
+                <span className="size-2.5 rounded-full bg-red-500/70" />
+                <span className="size-2.5 rounded-full bg-yellow-500/70" />
+                <span className="size-2.5 rounded-full bg-green-500/70" />
+                <span className="ml-3 text-[10px] text-zinc-600 font-mono">script.js</span>
+              </div>
+              <pre className="px-5 py-4 text-[12px] leading-relaxed font-mono text-zinc-400 overflow-x-auto whitespace-pre-wrap">
+                <span className="text-zinc-600">{"// Scripts run sandboxed — real Aura, real models."}{"\n"}</span>
+                <span className="text-zinc-500">{"const "}</span><span className="text-violet-300">{"res"}</span><span className="text-zinc-500">{" = await "}</span><span className="text-cyan-300">{"aurora"}</span><span className="text-zinc-400">{"."}</span><span className="text-emerald-300">{"image"}</span><span className="text-zinc-400">{"("}</span><span className="text-amber-300">{'"a tiny astronaut sticker"'}</span><span className="text-zinc-400">{")"}{"\n"}</span>
+                <span className="text-cyan-300">{"aurora"}</span><span className="text-zinc-400">{"."}</span><span className="text-emerald-300">{"show"}</span><span className="text-zinc-400">{"(res.url, "}</span><span className="text-amber-300">{'"Tiny astronaut"'}</span><span className="text-zinc-400">{")"}</span>
+              </pre>
+            </div>
+
+            <Link
+              to="/editor"
+              className="self-start inline-flex items-center gap-2 rounded-full bg-violet-600 px-6 py-3 text-sm font-bold text-white shadow-[0_6px_24px_-4px_rgba(139,92,246,0.55)] transition-transform hover:scale-[1.02] active:scale-95 no-underline"
+            >
+              Open Playground <ArrowUpRight className="size-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {/* ── Gallery ─────────────────────────────────────────────────────── */}
       <section id="gallery" className="bg-zinc-900/30 py-20 border-y border-white/5 overflow-hidden">
@@ -1056,12 +1130,17 @@ function LandingPage() {
             links={[
               { label: "Motion", to: "/motion" },
               { label: "Colors", to: "/colors" },
+              { label: "Lip Sync", to: "/lipsync" },
+              { label: "TikTok30", to: "/spin" },
               { label: "Gallery", to: "/gallery" },
             ]}
           />
           <FooterCol
-            title="Legal"
+            title="Develop"
             links={[
+              { label: "Playground", to: "/editor" },
+              { label: "CLI", to: "/cli" },
+              { label: "MCP", to: "/studio" },
               { label: "Privacy", to: "/" },
               { label: "Terms", to: "/" },
             ]}

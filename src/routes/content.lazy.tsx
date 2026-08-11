@@ -1,60 +1,23 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
-import {
-  ArrowRight,
-  Camera,
-  Clapperboard,
-  Flame,
-  Layers3,
-  Megaphone,
-  Mic2,
-  ScanFace,
-  Wand2,
-} from "lucide-react";
+import { ArrowRight, Camera } from "lucide-react";
 
 export const Route = createLazyFileRoute("/content")({ component: ContentHubPage });
 
-const MODES = [
+const CONTENT_REFERENCES = [
   {
-    to: "/ugc",
-    label: "UGC Ads",
-    description: "Turn a product or idea into a natural creator-style ad.",
-    icon: Megaphone,
+    src: "/content/aurora-tools.jpeg",
+    alt: "Aurora tools directory with Perform Anywhere, Colors, TikTok30, Video Agent, Director's Room, Lip Sync, and Motion Control",
+    label: "Every tool, built for artists",
   },
   {
-    to: "/spin",
-    label: "TikTok30",
-    description: "Make a batch of short-form hooks and posts from one concept.",
-    icon: Flame,
+    src: "/content/aurora-seedream.jpeg",
+    alt: "Aurora creation screen with four visual references and a Seedream 5.0 Lite generate control",
+    label: "Start creating from an idea",
   },
   {
-    to: "/agent",
-    label: "Video Agent",
-    description: "Describe the video you want — the agent plans, shoots, and cuts it.",
-    icon: Wand2,
-  },
-  {
-    to: "/ugc-line",
-    label: "Content Line",
-    description: "Build a repeatable content system around your product.",
-    icon: Layers3,
-  },
-  {
-    to: "/avatar",
-    label: "Talking Avatars",
-    description: "Create presenter videos with a face, voice, and script.",
-    icon: ScanFace,
-  },
-  {
-    to: "/lipsync",
-    label: "Lip Sync",
-    description: "Give a still or performance clip a matching vocal track.",
-    icon: Mic2,
-  },
-  {
-    to: "/tiktok",
-    label: "TikTok Studio",
-    description: "Remix an existing video into platform-ready cuts.",
-    icon: Clapperboard,
+    src: "/content/aurora-create.jpeg",
+    alt: "Aurora AI image and video creation screen with image and video modes",
+    label: "Create images and videos in seconds",
   },
 ] as const;
 
@@ -65,11 +28,9 @@ function ContentHubPage() {
       <div className="relative z-10 mx-auto max-w-5xl px-4 pb-28 pt-8 sm:px-8 sm:pt-12">
         <header className="mb-8 max-w-2xl">
           <p className="aurora-kicker">Content</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-            What are you making today?
-          </h1>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Create something new.</h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
-            Pick the outcome first. Aurora will take you to the right workflow.
+            Explore Aurora’s creative tools and turn your next idea into a finished visual.
           </p>
         </header>
 
@@ -95,26 +56,24 @@ function ContentHubPage() {
           </div>
         </section>
 
-        <div className="aurora-hub-grid grid gap-3">
-          {MODES.map((mode) => {
-            const Icon = mode.icon;
-            return (
-              <Link
-                key={mode.to}
-                to={mode.to}
-                className="group rounded-2xl border border-white/8 bg-card/60 p-5 no-underline shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] backdrop-blur transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/5"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <span className="flex size-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
-                    <Icon className="size-5" />
-                  </span>
-                  <ArrowRight className="size-4 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-foreground" />
-                </div>
-                <h2 className="mt-7 font-semibold text-foreground">{mode.label}</h2>
-                <p className="mt-1 text-sm leading-5 text-muted-foreground">{mode.description}</p>
-              </Link>
-            );
-          })}
+        <div className="grid gap-5">
+          {CONTENT_REFERENCES.map((reference) => (
+            <Link
+              key={reference.src}
+              to="/studio"
+              className="group relative block overflow-hidden rounded-3xl border border-white/10 bg-card/60 no-underline shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset] transition hover:-translate-y-0.5 hover:border-primary/40"
+            >
+              <img
+                src={reference.src}
+                alt={reference.alt}
+                className="block w-full object-cover transition duration-500 group-hover:scale-[1.01]"
+              />
+              <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-4 bg-gradient-to-t from-black/85 via-black/55 to-transparent px-5 pb-5 pt-16">
+                <span className="text-sm font-medium text-white">{reference.label}</span>
+                <ArrowRight className="size-4 shrink-0 text-white transition group-hover:translate-x-1" />
+              </div>
+            </Link>
+          ))}
         </div>
 
         <p className="mt-8 text-center text-xs text-muted-foreground">

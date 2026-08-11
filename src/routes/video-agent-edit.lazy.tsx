@@ -15,7 +15,9 @@ import {
   getVideoAgentProject,
   updateVideoAgentProject,
   enqueueVideoAgentRender,
+  upgradeVideoAgentPlate,
   VIDEO_AGENT_RENDER_COST,
+  PREVIS_PLATE_COST,
   type VideoAgentProjectDto,
 } from "@/lib/video-agent-projects.functions";
 import { vaUid } from "@/lib/video-agent-shared";
@@ -56,6 +58,7 @@ function VideoEditor() {
   const getProject = useServerFn(getVideoAgentProject);
   const updateProject = useServerFn(updateVideoAgentProject);
   const enqueueRender = useServerFn(enqueueVideoAgentRender);
+  const upgradePlate = useServerFn(upgradeVideoAgentPlate);
 
   const [draft, setDraft] = useState<Draft | null>(null);
   const [selectedIdx, setSelectedIdx] = useState(0);
@@ -64,6 +67,7 @@ function VideoEditor() {
   const [rendering, setRendering] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [regenId, setRegenId] = useState<string | null>(null);
+  const [upgradeId, setUpgradeId] = useState<string | null>(null);
   const dirtyRef = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -209,6 +213,36 @@ function VideoEditor() {
       }
     } finally {
       setRegenId(null);
+    }
+  }
+
+  async function upgradePlateNow(scene: SceneDraft) {
+    if (renderActive || upgradeId) return;
+    if (!scene.description.trim()) return toast.error("Add a visual description first");
+    // Flush any pending edits so the server upgrades the current description.
+    if (draft && dirtyRef.current) {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      const saved = await persistDraft(draft).catch(() => null);
+      if (!saved) return toast.error("Fix the storyboard before upgrading");
+    }
+    setUpgradeId(scene.id);
+    updateScene(scene.id, { frameStatus: "loading" });
+    try {
+      const res = await upgradePlate({ data: { id, sceneId: scene.id } });
+      updateScene(scene.id, { frame: res.url, frameStatus: "done" });
+      dirtyRef.current = false;
+      await projectQuery.refetch();
+      toast.success(`Premium plate rendered — ${res.cost} Aura`);
+    } catch (err) {
+      const msg = (err as Error).message;
+      updateScene(scene.id, { frameStatus: "error" });
+      if (/aura|credit/i.test(msg)) {
+        toast.error(msg, { action: { label: "Top up", onClick: () => void navigate({ to: "/billing" }) } });
+      } else {
+        toast.error(msg);
+      }
+    } finally {
+      setUpgradeId(null);
     }
   }
 
@@ -548,16 +582,31 @@ function VideoEditor() {
                   disabled={renderActive}
                   className="h-20 resize-none glass text-sm"
                 />
-                <Button size="sm" variant="secondary" className="mt-2 w-full gap-1.5 text-xs"
-                  onClick={() => void regenFrame(selectedScene)}
-                  disabled={regenId === selectedScene.id || renderActive}>
-                  {regenId === selectedScene.id ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Wand2 className="h-3.5 w-3.5" />
-                  )}
-                  Regenerate frame
-                </Button>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <Button size="sm" variant="secondary" className="w-full gap-1.5 text-xs"
+                    onClick={() => void regenFrame(selectedScene)}
+                    disabled={regenId === selectedScene.id || renderActive || upgradeId === selectedScene.id}>
+                    {regenId === selectedScene.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Wand2 className="h-3.5 w-3.5" />
+                    )}
+                    Free plate
+                  </Button>
+                  <Button size="sm" className="w-full gap-1.5 text-xs"
+                    onClick={() => void upgradePlateNow(selectedScene)}
+                    disabled={upgradeId === selectedScene.id || renderActive || regenId === selectedScene.id}>
+                    {upgradeId === selectedScene.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5" />
+                    )}
+                    Upgrade · {PREVIS_PLATE_COST}✦
+                  </Button>
+                </div>
+                <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
+                  Previs Pro — free plates are instant sketches. Upgrade renders a hero-quality plate through the paid pipeline.
+                </p>
               </div>
             </div>
 

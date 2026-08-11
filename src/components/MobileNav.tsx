@@ -76,8 +76,18 @@ const MUSIC_FEATURES: Feature[] = [
 const MORE_FEATURES: Feature[] = [
   { to: "/tiktok-live", label: "TikTok LIVE Studio",     icon: Radio },
   { to: "/templates",   label: "Templates",              icon: Layers },
-  { to: "/eromify",     label: "Eromify · Adult School", icon: Camera, previewImg: "/sample-photos/model-yuki-1.jpg", badge: "18+" },
+  { to: "/eromify",     label: "Adult School",           icon: Camera, previewImg: "/sample-photos/model-yuki-1.jpg", badge: "18+" },
   { to: "/tools",       label: "All Tools",              icon: LayoutGrid },
+];
+
+// ── Content creation tools — promoted from archived ────────────────────────
+const CONTENT_FEATURES: Feature[] = [
+  { to: "/ugc",             label: "UGC Ads",        icon: Megaphone },
+  { to: "/ugc-line",        label: "Content Line",   icon: Layers },
+  { to: "/tiktok",          label: "TikTok Studio",  icon: Music2 },
+  { to: "/avatar",          label: "Talking Avatars",icon: UserCircle2 },
+  { to: "/content-machine", label: "Content Machine",icon: LayoutGrid },
+  { to: "/edit",            label: "AutoCut",        icon: Clapperboard },
 ];
 
 const ACCOUNT_FEATURES: Feature[] = [
@@ -100,14 +110,7 @@ export const ARCHIVED_FEATURES: Feature[] = [
   { to: "/live-studio",     label: "Live Studios",     icon: Music2 },
   { to: "/scene-weaver",    label: "Scene Weaver",     icon: Camera },
   { to: "/storyboard",      label: "Storyboard",       icon: Clapperboard },
-  // ── Content tools (coming soon) ──────────────────────────────────────
-  { to: "/ugc",             label: "UGC Ads",          icon: Megaphone },
-  { to: "/ugc-line",        label: "Content Line",     icon: Layers },
-  { to: "/tiktok",          label: "TikTok Studio",    icon: Music2 },
-  { to: "/avatar",          label: "Talking Avatars",  icon: UserCircle2 },
-  { to: "/content-machine", label: "Content Machine",  icon: LayoutGrid },
   // ── Legacy / dev tools ───────────────────────────────────────────────
-  // moved to CONTENT_FEATURES (live nav)
   { to: "/colors-show",      label: "Colors Show Creator", icon: Film },
   { to: "/editor",           label: "Playground",       icon: Sparkles },
   { to: "/heygen-templates", label: "HeyGen Templates", icon: Film },
@@ -118,7 +121,6 @@ export const ARCHIVED_FEATURES: Feature[] = [
   { to: "/roadmap",          label: "Roadmap",          icon: Sparkles },
   { to: "/workflows",        label: "Workflows",        icon: Sparkles },
   { to: "/clips",            label: "Clips",            icon: Sparkles },
-  { to: "/edit",             label: "AutoCut",          icon: Sparkles },
   { to: "/cli",              label: "CLI",              icon: Sparkles },
   { to: "/gifts",            label: "Gifts",            icon: Sparkles },
   { to: "/nexusarb",         label: "NexusARB (Sim)",   icon: Sparkles },
@@ -262,7 +264,7 @@ export function MobileNav() {
         Menu
       </button>
 
-      {!isCanvas && !isLanding && (
+      {!isCanvas && (
         <>
           <div aria-hidden style={{ height: "calc(4rem + env(safe-area-inset-bottom))" }} />
             <nav
@@ -398,6 +400,12 @@ export function MobileNav() {
 
             <NavSection label="Music & Audio">
               {MUSIC_FEATURES.map((f) => (
+                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
+              ))}
+            </NavSection>
+
+            <NavSection label="Content">
+              {CONTENT_FEATURES.map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
             </NavSection>

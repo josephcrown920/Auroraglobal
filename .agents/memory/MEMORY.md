@@ -121,4 +121,5 @@
 - [Comfy Cloud MCP i2v](comfy-cloud-mcp-i2v.md) — partner video models are t2v-only (no media roles); i2v = use_previous_output + open-source Wan 2.1 graph, 0 partner credits.
 - [Vast.ai API contract quirks](vast-api-contract.md) — search=POST /bundles/, offer-by-id=ask_contract_id, env=Docker-flag string, `price` is bid-only (not on-demand cap), instance ops need a post-2FA key.
 - [Aurora geo/PPP billing state](aurora-geo-billing.md) — geo pricing designed but OFF (detectCurrency pinned USD, everyone pays USD); /billing has an admin-only region preview; live payments table was EMPTY 2026-08-04.
+- [Previs Pro plate surfaces](previs-pro-surfaces.md) — free Pollinations plates vs paid "Upgrade plate" via reserveOrchestrateRecord; prompts read from stored state; chat plans have NO agent_sessions row.
 - [Design-system artifact dev runner](aurora-ds-dev-runner.md) — this repo is flat npm/bun, pnpm is NOT installed; artifact scaffolds defaulting to `pnpm --filter` must be switched to a per-artifact start-dev.sh (npm install + node vite) via verifyAndReplaceArtifactToml.

@@ -272,6 +272,30 @@ const makeSteps = (): AgentStep[] =>
 // ── Cinematic Plan shot card ──────────────────────────────────────────────
 function ShotCard({ shot, index }: { shot: VideoShot; index: number }) {
   const [expanded, setExpanded] = useState(false);
+  const [plate, setPlate] = useState<string | null>(null);
+  const [plateStatus, setPlateStatus] = useState<"idle" | "loading" | "error">("idle");
+
+  // Previs Pro (free tier): turn this shot's engineered prompt into a visible
+  // plate via the open-access Pollinations keyframe engine — $0, no account
+  // needed. Premium plates live in the session-backed storyboard editor.
+  const renderPlate = async () => {
+    if (plateStatus === "loading" || !shot.prompt?.trim()) return;
+    setPlateStatus("loading");
+    try {
+      const res = await fetch("/api/video-agent/generate-frame", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: shot.prompt }),
+      });
+      if (!res.ok) throw new Error(`Previs failed (${res.status})`);
+      const { url } = (await res.json()) as { url: string };
+      setPlate(url);
+      setPlateStatus("idle");
+    } catch {
+      setPlateStatus("error");
+    }
+  };
+
   const purposeColor: Record<string, string> = {
     establishing: "text-sky-400",
     context: "text-blue-400",
@@ -310,6 +334,32 @@ function ShotCard({ shot, index }: { shot: VideoShot; index: number }) {
       </button>
       {expanded && (
         <div className="border-t border-line/50 px-4 pb-4 pt-3 space-y-3">
+          {/* Previs Pro — free preview plate */}
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <p className="text-xs uppercase tracking-widest text-ink-dim/60">Previs Plate</p>
+              <button
+                onClick={() => void renderPlate()}
+                disabled={plateStatus === "loading" || !shot.prompt?.trim()}
+                className="flex items-center gap-1.5 rounded-sm border border-prime/40 bg-prime/5 px-2 py-1 text-xs font-bold uppercase tracking-widest text-prime transition-colors hover:bg-prime/10 disabled:opacity-40"
+              >
+                {plateStatus === "loading" ? (
+                  <><Loader2 className="size-3 animate-spin" /> Rendering…</>
+                ) : (
+                  <><Eye className="size-3" /> {plate ? "Re-render" : "Previsualize"} · Free</>
+                )}
+              </button>
+            </div>
+            {plate ? (
+              <img src={plate} alt={shot.action} className="w-full rounded-sm border border-line/50 bg-black object-cover" />
+            ) : plateStatus === "error" ? (
+              <p className="rounded-sm border border-rec/30 bg-rec/5 px-3 py-2 text-xs text-rec">Previs failed — try again.</p>
+            ) : (
+              <p className="rounded-sm border border-line/40 px-3 py-2 text-xs text-ink-dim/50">
+                Render a free preview plate from this shot's prompt.
+              </p>
+            )}
+          </div>
           {shot.lighting && (
             <div>
               <p className="text-xs uppercase tracking-widest text-ink-dim/60 mb-1">Lighting</p>

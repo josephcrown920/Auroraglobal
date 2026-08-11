@@ -157,9 +157,9 @@ function AdminPage() {
         <section className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 space-y-3">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium uppercase tracking-wider text-amber-400">Feature Vault</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">archived · hidden from nav</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">live in nav</span>
           </div>
-          <p className="text-xs text-muted-foreground">Open a creation workspace that is ready to use now. Operational dashboards remain in the admin navigation above.</p>
+          <p className="text-xs text-muted-foreground">All creation workspaces are now in the main navigation. Shortcuts remain here for quick admin access.</p>
           <div className="grid grid-cols-3 gap-2">
             {([
               { to: "/motion",           label: "Perform Anywhere" },

@@ -483,6 +483,104 @@ export const deleteAgentMemory = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+// ─── Previs Pro: render a preview plate for a plan shot ──────────────────────
+// Previsualization turns a shot's engineered prompt into a VISIBLE still plate
+// the director can review before committing to the expensive motion render.
+//
+// Two tiers (Hybrid model):
+//   • quality:"free"    — free Pollinations keyframe (the same $0 sketch engine
+//     the Video Agent storyboard uses). Charges nothing, records nothing.
+//   • quality:"premium" — "Upgrade plate": re-render the SAME shot prompt through
+//     the real paid image pipeline (reserveOrchestrateRecord, kind:"image"),
+//     charged through the canonical pricing/reservation flow and recorded in
+//     `generations` linked to session_id + agent_shot_id.
+//
+// The shot prompt is ALWAYS read from STORED session state (never a client body)
+// so a crafted request cannot inject an arbitrary prompt or spend under another
+// user's session. RLS on context.supabase scopes the lookup to the caller.
+
+const COST_IMAGE_PREVIS = computeCost({ features: ["image"] }).total;
+
+/** Free previsualization plate URL from the open-access Pollinations engine. */
+function pollinationsPlateUrl(prompt: string): string {
+  const encoded = encodeURIComponent(prompt.slice(0, 500));
+  const seed = Math.floor(Math.random() * 999999);
+  return `https://image.pollinations.ai/prompt/${encoded}?width=896&height=504&nologo=true&enhance=false&seed=${seed}`;
+}
+
+export type PrevisPlateResult =
+  | { ok: true; shotId: string; quality: "free" | "premium"; url: string; generationId: string | null; provider: string | null }
+  | { ok: false; error: string; insufficient?: boolean };
+
+export const renderPrevisPlate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        sessionId: z.string().uuid(),
+        shotId: z.string().min(1).max(40),
+        quality: z.enum(["free", "premium"]).default("free"),
+        model: z.string().max(120).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }): Promise<PrevisPlateResult> => {
+    // Read the OWNED session + shot prompt from stored state (IDOR / injection
+    // hardening — never trust a client-supplied prompt). RLS is a second fence.
+    const { data: session, error } = await context.supabase
+      .from("agent_sessions")
+      .select("id, plan")
+      .eq("id", data.sessionId)
+      .single();
+    if (error || !session) return { ok: false, error: "Session not found" };
+
+    const plan = session.plan as unknown as AgentPlan | null;
+    const shot = plan?.shots?.find((s) => s.id === data.shotId);
+    if (!shot) return { ok: false, error: `Shot ${data.shotId} is not part of this plan` };
+    if (!shot.prompt?.trim()) return { ok: false, error: `Shot ${data.shotId} has no prompt to previsualize` };
+
+    // Free tier: no charge, no generations row — just a Pollinations sketch.
+    if (data.quality === "free") {
+      return {
+        ok: true,
+        shotId: shot.id,
+        quality: "free",
+        url: pollinationsPlateUrl(shot.prompt),
+        generationId: null,
+        provider: "pollinations",
+      };
+    }
+
+    // Premium ("Upgrade plate"): real paid image pipeline, canonical reservation.
+    const { reserveOrchestrateRecord } = await import("@/lib/generate-core.server");
+    let outcome;
+    try {
+      outcome = await reserveOrchestrateRecord({
+        userId: context.userId,
+        kind: "image",
+        prompt: shot.prompt,
+        model: data.model,
+        cost: COST_IMAGE_PREVIS,
+        reason: "agent_previs_plate",
+        mode: "preview",
+        sessionId: data.sessionId,
+        agentShotId: shot.id,
+      });
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : "Previs render failed" };
+    }
+    if (!outcome.ok) return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
+
+    return {
+      ok: true,
+      shotId: shot.id,
+      quality: "premium",
+      url: outcome.url,
+      generationId: outcome.generationId,
+      provider: outcome.provider,
+    };
+  });
+
 // ─── Render one approved shot through the EXISTING pipeline (orchestrate) ─────
 export const renderAgentShot = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
