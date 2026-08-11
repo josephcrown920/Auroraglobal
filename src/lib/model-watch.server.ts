@@ -85,8 +85,21 @@ export type ModelWatchScanResult = {
 export const ARK_ANTICIPATED: { modelId: string; title: string; auroraKey: string }[] = [
   { modelId: "dreamina-seedance-2-5-260628", title: "Seedance 2.5", auroraKey: "seedance-2.5" },
   { modelId: "seedance-1-5-pro-251215", title: "Seedance 1.5 Pro", auroraKey: "seedance-3.0" },
-  { modelId: "seedance-1-0-pro-250528", title: "Seedance 1.0 Pro", auroraKey: "seedance-2.0" },
-  { modelId: "seedance-1-0-pro-fast-251015", title: "Seedance 1.0 Pro Fast", auroraKey: "seedance-2.0-fast" },
+  // 2026-08-10: retargeted from the legacy seedance-1-0-pro(-fast) slugs to the
+  // dreamina 2.0 checkpoints BYTEPLUS_DEFAULTS actually dispatches — an
+  // "activated" flip must mean the slug THE APP CALLS is serviceable. (The old
+  // 1-0-pro slugs still exist on ModelArk, also ModelNotOpen, but activating
+  // them wouldn't help Aurora.)
+  { modelId: "dreamina-seedance-2-0-260128", title: "Seedance 2.0", auroraKey: "seedance-2.0" },
+  { modelId: "dreamina-seedance-2-0-fast-260128", title: "Seedance 2.0 Fast", auroraKey: "seedance-2.0-fast" },
+  // ByteDance campaign (2026-08-07 14:00 → 2026-09-07 14:00): "Seedance 2.0
+  // mini" billed at 40% of list (~$0.03/s @720p promo, ~$0.075/s full) and
+  // "Seedance 2.0 Lite" at 75% (~$0.089/s promo, ~$0.119/s full). Mini is NOT
+  // yet in the ap-southeast catalog (2026-08-10 probe: 40 stem/suffix variants
+  // all NotFound) — this dated suffix is a best guess following the 2.0 family
+  // pattern; the probe alerts if/when it appears. No Aurora key is wired yet
+  // (auroraKey is prospective — add BYTEPLUS_DEFAULTS + tiers when it opens).
+  { modelId: "dreamina-seedance-2-0-mini-260128", title: "Seedance 2.0 Mini", auroraKey: "seedance-2.0-mini" },
 ];
 
 // ─── Pure helpers (exported for tests) ───────────────────────────────────────

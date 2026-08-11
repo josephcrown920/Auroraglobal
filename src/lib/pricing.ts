@@ -137,6 +137,11 @@ export const LIPSYNC_TIER_AURA: Record<ModelTier, number> = {
 // $0.047, see POOL_PER_AURA in pricing.test.ts) still comfortably covers the
 // model's real USD cost × 1.15 (retry/fallback buffer).
 export const VIDEO_MODEL_TIERS: Record<string, ModelTier> = {
+  // budget is correct for the LIVE route (Replicate seedance-1-lite ~$0.05).
+  // ⚠️ If BytePlus-direct is ever activated for this key, its full list price
+  // (~$0.119/s ≈ $0.59 per 720p·5s — ByteDance campaign discounts until
+  // 2026-09-07 don't count; tier off full list) exceeds the budget pool →
+  // move to "standard" before flipping the route (see BYTEPLUS_DEFAULTS note).
   "seedance-2.0-fast": "budget", // $0.05
   "kling-v1": "standard", // $0.30
   "veo-3-fast": "premium", // $0.40

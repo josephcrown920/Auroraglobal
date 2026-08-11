@@ -314,6 +314,14 @@ async function runMediaJob(
     params: req.params,
     comfyWorkflow: req.comfyWorkflow,
     comfyInputs: req.comfyInputs,
+    // Routing flags MUST survive the queue round-trip. Payloads are written
+    // server-side at reservation time (the enqueuing server fn verifies
+    // subscription before setting forSubscriber) — dropping them here would
+    // fail every subscriber-gated adapter (e.g. pinned Seedance motion) and
+    // silently serve a fallback the user didn't ask for.
+    forSubscriber: req.forSubscriber === true,
+    pinnedModelOnly: req.pinnedModelOnly === true,
+    selfHostedOnly: req.selfHostedOnly === true,
     userId: job.user_id,
     refId: job.id,
   });

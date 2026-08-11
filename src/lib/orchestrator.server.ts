@@ -1145,7 +1145,15 @@ const replicate: ProviderAdapter = {
     // Must not serve free-tier requests even as a BytePlus fallback.
     if (r.model.startsWith("seedance") && r.forSubscriber !== true) return false;
     const m = REPLICATE_MAP[r.model];
-    return !!m && m.kind === r.kind;
+    if (!m) return false;
+    // Seedance-only motion→video equivalence (mirrors the byteplus adapter):
+    // a pinned subscriber kind-"motion" request runs the same i2v build as
+    // video. Deliberately NARROW — widening this to every video mapping would
+    // silently change which adapter serves e.g. a "veo-2" motion candidate.
+    // !videoUrl: driving-video transfer stays self-hosted (see byteplus note).
+    if (r.kind === "motion" && r.model.startsWith("seedance"))
+      return !r.videoUrl && m.kind === "video";
+    return m.kind === r.kind;
   },
   estimateCost: (r) => (r.model && REPLICATE_MAP[r.model]?.cost) || 0.1,
   async run(r) {
@@ -1191,6 +1199,14 @@ const BYTEPLUS_DEFAULTS: Record<string, BytePlusEntry> = {
   // unactivated) — dreamina-seedance-2-0-fast-260128 is the current "fast"
   // tier replacement (confirmed in catalog 2026-08-06, ModelNotOpen = slug
   // correct, account activation pending).
+  // ⚠️ Pricing note (2026-08-10): ByteDance runs a campaign 2026-08-07 →
+  // 2026-09-07 discounting "Seedance 2.0 mini" (40% of list, ~$0.03/s @720p)
+  // and "Seedance 2.0 Lite" (75% of list, ~$0.089/s @720p). Full list for the
+  // Lite tier is ~$0.119/s ≈ $0.59 per 720p·5s — ABOVE the budget Aura pool
+  // ($0.47) that seedance-2.0-fast sits in today (its live route is Replicate
+  // seedance-1-lite at ~$0.05/clip). If this Ark slug is ever activated and
+  // becomes the serving route, retier seedance-2.0-fast to "standard" in
+  // pricing.ts FIRST — tier off FULL list price, never the promo rate.
   "seedance-2.0-fast": { modelId: "dreamina-seedance-2-0-fast-260128", kind: "video" },
   // Newest confirmed-live Seedance tier (2026-07-05 catalog pull). Same
   // ByteDance-only caveat as seedream-5 above — no verified Replicate slug.
@@ -1236,14 +1252,23 @@ const byteplus: ProviderAdapter = {
   name: "byteplus",
   supports: (r) => {
     if (!getBytePlusKey()) return false;
-    if (r.kind !== "image" && r.kind !== "video") return false;
+    if (r.kind !== "image" && r.kind !== "video" && r.kind !== "motion") return false;
     // ⚠️  SUBSCRIPTION-ONLY: Seedance video is a paid ByteDance provider.
-    // forSubscriber MUST be true for video requests — free-tier users must
-    // never trigger Seedance charges. Image (Seedream) is unaffected.
-    if (r.kind === "video" && r.forSubscriber !== true) return false;
+    // forSubscriber MUST be true for video/motion requests — free-tier users
+    // must never trigger Seedance charges. Image (Seedream) is unaffected.
+    if ((r.kind === "video" || r.kind === "motion") && r.forSubscriber !== true) return false;
     if (!r.model) return false;
     const m = BYTEPLUS_MAP[r.model];
-    return !!m && m.kind === r.kind;
+    if (!m) return false;
+    // Motion (animate-still i2v) rides the video mapping: a Seedance video
+    // checkpoint serves a kind-"motion" request as image+prompt i2v. Pinned-
+    // only by construction — BYTEPLUS_MAP gates on the explicit model key and
+    // no seedance key appears in FALLBACK_MODELS.motion. Driving-video motion
+    // TRANSFER is refused (!videoUrl): Seedance cannot consume a driving video,
+    // and silently discarding it would be a semantic downgrade — those requests
+    // stay on the self-hosted MimicMotion path.
+    if (r.kind === "motion") return !r.videoUrl && m.kind === "video";
+    return m.kind === r.kind;
   },
   // Bill the same provider cost as the Replicate route for the model so margins
   // and logs stay consistent; direct is typically cheaper, so this is a safe
@@ -2768,9 +2793,12 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   lipsync: [gpuWorker, sync, heygen, heygenPhotoVideo, heygenAvatarTemplate, replicate, inferenceshCloud, falFallback],
   // GPU-first: a worker advertising "upscale" is tried before Replicate.
   upscale: [gpuWorker, replicate, falFallback],
-  // Motion transfer: GPU/ComfyUI workers first (MimicMotion), then fal LTX I2V
-  // (key-gated fal/ltx-motion sentinel), then xAI image-to-video and Gemini Veo 2.
-  motion: [gpuWorker, falFallback, inferenceshCloud, xaiDirect, geminiVideo],
+  // Motion transfer: GPU/ComfyUI workers first (MimicMotion), then the pinned-
+  // only Seedance branch (byteplus direct before Replicate — both hard-gated on
+  // an explicit seedance model key + forSubscriber, so unpinned/free-tier
+  // requests fall straight through), then fal LTX I2V (key-gated fal/ltx-motion
+  // sentinel), then xAI image-to-video and Gemini Veo 2.
+  motion: [gpuWorker, byteplus, replicate, falFallback, inferenceshCloud, xaiDirect, geminiVideo],
   // GPU-first, then Replit-billed (gpt-5-nano, gemini-2.5-flash), then the
   // rest of the external text chain.
   text: [
@@ -2997,6 +3025,14 @@ export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   upscale: [],
   // motion sentinels: fal LTX I2V first (key-gated, cheap), then inference.sh Veo,
   // then xAI + Gemini Veo 2.
+  // Seedance (2.0 "Lite" = seedance-2.0-fast, 2.0 full, 2.5) is a PINNED-ONLY
+  // motion branch — same rule as the video chain above: subscription-only paid
+  // providers never auto-fire as fallbacks. A subscriber request pinned to a
+  // seedance key routes BytePlus-direct first (once Ark-activated), then
+  // Replicate (seedance-1-lite, live today), then falls through to these
+  // sentinels — free-tier/pinless motion never touches Seedance. When ByteDance
+  // ships "Seedance 2.0 mini" (model-watch alerts), register it and it slots
+  // into this branch the same way.
   motion: ["fal/ltx-motion", "inferencesh/veo-3-1-fast", "xai/grok-imagine-video-1.5", "veo-2"],
   // Replit-billed models first (gpt-5-nano, then gemini-2.5-flash), then the
   // existing free/keyed chain unchanged: Pollinations → Groq → Gemini → Claude
