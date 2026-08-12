@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -342,7 +343,7 @@ function LipSyncForm() {
 
         {!user && (
           <div className="mb-5 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs text-amber-100">
-            You need to <Link to="/auth" className="underline font-semibold">sign in</Link> to upload clips and run a render.
+            You need to <Link to="/auth" search={authNextSearch()} className="underline font-semibold">sign in</Link> to upload clips and run a render.
           </div>
         )}
 
@@ -725,7 +726,7 @@ function BatchLipSyncForm() {
 
         {!user && (
           <div className="mb-5 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs text-amber-100">
-            You need to <Link to="/auth" className="underline font-semibold">sign in</Link> to upload photos and run a batch.
+            You need to <Link to="/auth" search={authNextSearch()} className="underline font-semibold">sign in</Link> to upload photos and run a batch.
           </div>
         )}
 

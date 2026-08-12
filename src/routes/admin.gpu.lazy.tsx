@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -81,7 +82,7 @@ function AdminGpuPage() {
   const [unlocked, setUnlocked] = useAdminAutoUnlock(!!user);
 
   useEffect(() => {
-    if (!loading && !user) navigate({ to: "/auth" });
+    if (!loading && !user) navigate({ to: "/auth", search: authNextSearch() });
   }, [user, loading, navigate]);
 
   const workersFn = useServerFn(listWorkers);

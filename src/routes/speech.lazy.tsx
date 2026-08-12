@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useNavigate } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
@@ -42,7 +43,7 @@ function SpeechPage() {
   const genFn = useServerFn(generateSpeech);
 
   useEffect(() => {
-    if (!loading && !user) navigate({ to: "/auth" });
+    if (!loading && !user) navigate({ to: "/auth", search: authNextSearch() });
   }, [user, loading, navigate]);
 
   useEffect(() => {

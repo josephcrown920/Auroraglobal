@@ -5,6 +5,8 @@ import {
   CATEGORY_ORDER,
   TEMPLATE_DEFAULTS,
   SPIN_PIECE_COUNT,
+  VIRAL_PRESET_TAGS,
+  getStudioTemplate,
   templateCost,
   type StudioTemplate,
 } from "./template-studio";
@@ -109,6 +111,36 @@ describe("template-studio manifest", () => {
     expect(studio.length).toBeGreaterThan(0);
     for (const t of studio) {
       expect(templateCost(t)).toBe(expectedStudioCost(t));
+    }
+  });
+
+  it("every advertised Viral Preset tag resolves to a real, runnable template", () => {
+    // The landing page's tag cloud reads from VIRAL_PRESET_TAGS — this guard
+    // means the site can never advertise a preset that doesn't exist.
+    expect(VIRAL_PRESET_TAGS.length).toBeGreaterThanOrEqual(30);
+    const tags = VIRAL_PRESET_TAGS.map((p) => p.tag);
+    expect(new Set(tags).size).toBe(tags.length); // no duplicate tag names
+    for (const { tag, templateId } of VIRAL_PRESET_TAGS) {
+      const t = getStudioTemplate(templateId);
+      expect(t, `tag "${tag}" points at missing template "${templateId}"`).toBeDefined();
+      // Runnable = declares kinds + a dispatch backend (already enforced per
+      // template above, but assert here so a bad mapping fails with the tag name).
+      expect(t!.kinds.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("studio templates use only camera movements the pipeline understands", () => {
+    // CAMERA_HINTS keys in studio.functions.ts — client-safe mirror for the test.
+    const validMovements = [
+      "static", "zoom_in", "zoom_out", "pan_left", "pan_right",
+      "tilt_up", "tilt_down", "orbit_cw", "orbit_ccw", "push_in", "pull_out",
+    ];
+    for (const t of STUDIO_TEMPLATES) {
+      if (t.cameraMovement) {
+        expect(validMovements, `template "${t.id}" has unknown cameraMovement`).toContain(
+          t.cameraMovement,
+        );
+      }
     }
   });
 });

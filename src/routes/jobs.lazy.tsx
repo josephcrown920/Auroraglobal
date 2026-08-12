@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -131,7 +132,7 @@ function JobsPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   useEffect(() => {
-    if (!loading && !user) navigate({ to: "/auth" });
+    if (!loading && !user) navigate({ to: "/auth", search: authNextSearch() });
   }, [user, loading, navigate]);
 
   const listFn = useServerFn(listPipelineJobs);

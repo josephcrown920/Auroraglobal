@@ -1,4 +1,5 @@
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { parseAuthReturnPath } from "@/lib/auth-return-path";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +22,7 @@ function AppleIcon({ className }: { className?: string }) {
     </svg>
   );
 }
-import { useState, useEffect } from "react";
+import {useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { trackSignUp } from "@/lib/gtm";
 import {
@@ -44,6 +45,12 @@ function AuthPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   // New signups land in Studio (the product); returning sign-ins land on Home.
   const returnTo = search.next ?? "/studio";
+  // TanStack Router treats `to` as a pathname only — query/hash must be passed
+  // separately or a deep link like /video-agent-edit?id=… fails to match.
+  const navigateToReturnPath = useCallback(() => {
+    const parsed = parseAuthReturnPath(returnTo);
+    void navigate({ to: parsed.pathname, search: parsed.search, hash: parsed.hash } as never);
+  }, [navigate, returnTo]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -87,8 +94,8 @@ function AuthPage() {
         trackSignUp(provider as "github" | "apple");
       }
     }
-    navigate({ to: returnTo as never });
-  }, [session, loading, navigate, recoveryMode, returnTo]);
+    navigateToReturnPath();
+  }, [session, loading, recoveryMode, navigateToReturnPath]);
 
   const handleForgotPassword = async () => {
     if (!email) {
@@ -121,7 +128,7 @@ function AuthPage() {
       if (error) throw error;
       toast.success("Password updated — you're signed in!");
       setRecoveryMode(false);
-      navigate({ to: returnTo as never });
+      navigateToReturnPath();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not update password");
     } finally {
@@ -157,14 +164,14 @@ function AuthPage() {
           if (canUsePasskeys) {
             void offerPasskeyRegistration();
           }
-          navigate({ to: returnTo as never });
+          navigateToReturnPath();
         } else {
           setConfirmSent(true);
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate({ to: returnTo as never });
+        navigateToReturnPath();
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Auth failed");
@@ -257,7 +264,7 @@ function AuthPage() {
       if (error) throw error;
 
       toast.success("Signed in with biometrics!");
-      navigate({ to: returnTo as never });
+      navigateToReturnPath();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const errName = err instanceof Error ? err.name : "";

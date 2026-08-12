@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -58,7 +59,7 @@ function PartnersPage() {
           <div className="mt-10 rounded-2xl aurora-glass-strong p-6 text-center">
             <h2 className="text-xl font-semibold">Apply in under 60 seconds.</h2>
             <p className="mt-2 text-sm text-muted-foreground">Create a free account and your personal referral link is ready instantly.</p>
-            <Link to="/auth" className="mt-5 inline-flex items-center gap-2 rounded-full bg-emerald-300 px-8 py-3 text-sm font-bold text-emerald-950 no-underline hover:opacity-95">
+            <Link to="/auth" search={authNextSearch()} className="mt-5 inline-flex items-center gap-2 rounded-full bg-emerald-300 px-8 py-3 text-sm font-bold text-emerald-950 no-underline hover:opacity-95">
               Become a Partner
             </Link>
           </div>

@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -25,8 +26,7 @@ function AuthorizePage() {
 
   useEffect(() => {
     if (!loading && !user) {
-      const here = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/cli/authorize";
-      navigate({ to: "/auth", search: { next: here } as never });
+      navigate({ to: "/auth", search: authNextSearch() ?? { next: "/cli/authorize" } });
     }
   }, [user, loading, navigate]);
 

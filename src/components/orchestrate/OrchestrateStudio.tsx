@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
@@ -973,7 +974,7 @@ export function OrchestrateStudio({
             {!user && (
               <p className="mt-3 text-center text-xs text-neutral-500">
                 You need to{" "}
-                <Link to="/auth" className="underline">
+                <Link to="/auth" search={authNextSearch()} className="underline">
                   sign in
                 </Link>{" "}
                 to run the router.

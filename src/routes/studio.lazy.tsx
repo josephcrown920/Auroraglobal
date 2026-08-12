@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, useNavigate, Link, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -196,7 +197,7 @@ function StudioPage() {
   const [activeExampleId, setActiveExampleId] = useState(studioExamplePresets[0].id);
 
   useEffect(() => {
-    if (!loading && !user) navigate({ to: "/auth" });
+    if (!loading && !user) navigate({ to: "/auth", search: authNextSearch() });
   }, [user, loading, navigate]);
 
   // Paystack redirects back here with ?paid=1 after a credit-pack checkout —

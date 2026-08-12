@@ -92,6 +92,7 @@ import { Route as AdminOrchestrationRouteImport } from './routes/admin.orchestra
 import { Route as AdminSiteImagesRouteImport } from './routes/admin.site-images'
 import { Route as AdminSiteMapRouteImport } from './routes/admin.site-map'
 import { Route as AdminSmokeRouteImport } from './routes/admin.smoke'
+import { Route as AdminSocialStudioRouteImport } from './routes/admin.social-studio'
 import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
 import { Route as AdminWorkflowsRouteImport } from './routes/admin.workflows'
 import { Route as ApiEstimateRouteImport } from './routes/api/estimate'
@@ -585,6 +586,13 @@ const AdminSmokeRoute = AdminSmokeRouteImport.update({
   path: '/smoke',
   getParentRoute: () => AdminRoute,
 } as any).lazy(() => import('./routes/admin.smoke.lazy').then((d) => d.Route))
+const AdminSocialStudioRoute = AdminSocialStudioRouteImport.update({
+  id: '/social-studio',
+  path: '/social-studio',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() =>
+  import('./routes/admin.social-studio.lazy').then((d) => d.Route),
+)
 const AdminTemplatesRoute = AdminTemplatesRouteImport.update({
   id: '/templates',
   path: '/templates',
@@ -999,6 +1007,7 @@ export interface FileRoutesByFullPath {
   '/admin/site-images': typeof AdminSiteImagesRoute
   '/admin/site-map': typeof AdminSiteMapRoute
   '/admin/smoke': typeof AdminSmokeRoute
+  '/admin/social-studio': typeof AdminSocialStudioRoute
   '/admin/templates': typeof AdminTemplatesRoute
   '/admin/workflows': typeof AdminWorkflowsRoute
   '/api/estimate': typeof ApiEstimateRoute
@@ -1145,6 +1154,7 @@ export interface FileRoutesByTo {
   '/admin/site-images': typeof AdminSiteImagesRoute
   '/admin/site-map': typeof AdminSiteMapRoute
   '/admin/smoke': typeof AdminSmokeRoute
+  '/admin/social-studio': typeof AdminSocialStudioRoute
   '/admin/templates': typeof AdminTemplatesRoute
   '/admin/workflows': typeof AdminWorkflowsRoute
   '/api/estimate': typeof ApiEstimateRoute
@@ -1292,6 +1302,7 @@ export interface FileRoutesById {
   '/admin/site-images': typeof AdminSiteImagesRoute
   '/admin/site-map': typeof AdminSiteMapRoute
   '/admin/smoke': typeof AdminSmokeRoute
+  '/admin/social-studio': typeof AdminSocialStudioRoute
   '/admin/templates': typeof AdminTemplatesRoute
   '/admin/workflows': typeof AdminWorkflowsRoute
   '/api/estimate': typeof ApiEstimateRoute
@@ -1440,6 +1451,7 @@ export interface FileRouteTypes {
     | '/admin/site-images'
     | '/admin/site-map'
     | '/admin/smoke'
+    | '/admin/social-studio'
     | '/admin/templates'
     | '/admin/workflows'
     | '/api/estimate'
@@ -1586,6 +1598,7 @@ export interface FileRouteTypes {
     | '/admin/site-images'
     | '/admin/site-map'
     | '/admin/smoke'
+    | '/admin/social-studio'
     | '/admin/templates'
     | '/admin/workflows'
     | '/api/estimate'
@@ -1732,6 +1745,7 @@ export interface FileRouteTypes {
     | '/admin/site-images'
     | '/admin/site-map'
     | '/admin/smoke'
+    | '/admin/social-studio'
     | '/admin/templates'
     | '/admin/workflows'
     | '/api/estimate'
@@ -2505,6 +2519,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSmokeRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/social-studio': {
+      id: '/admin/social-studio'
+      path: '/social-studio'
+      fullPath: '/admin/social-studio'
+      preLoaderRoute: typeof AdminSocialStudioRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/templates': {
       id: '/admin/templates'
       path: '/templates'
@@ -2954,6 +2975,7 @@ interface AdminRouteChildren {
   AdminSiteImagesRoute: typeof AdminSiteImagesRoute
   AdminSiteMapRoute: typeof AdminSiteMapRoute
   AdminSmokeRoute: typeof AdminSmokeRoute
+  AdminSocialStudioRoute: typeof AdminSocialStudioRoute
   AdminTemplatesRoute: typeof AdminTemplatesRoute
   AdminWorkflowsRoute: typeof AdminWorkflowsRoute
 }
@@ -2970,6 +2992,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminSiteImagesRoute: AdminSiteImagesRoute,
   AdminSiteMapRoute: AdminSiteMapRoute,
   AdminSmokeRoute: AdminSmokeRoute,
+  AdminSocialStudioRoute: AdminSocialStudioRoute,
   AdminTemplatesRoute: AdminTemplatesRoute,
   AdminWorkflowsRoute: AdminWorkflowsRoute,
 }

@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -598,7 +599,7 @@ function HeyGenTemplatesPage() {
             <p className="text-sm text-muted-foreground mb-4">
               Sign in to save and generate from HeyGen templates.
             </p>
-            <Link to="/auth">
+            <Link to="/auth" search={authNextSearch()}>
               <Button>Sign in</Button>
             </Link>
           </div>

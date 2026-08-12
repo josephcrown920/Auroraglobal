@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -215,7 +216,7 @@ function EditorPage() {
               </button>
             ) : (
               <Link
-                to="/auth"
+                to="/auth" search={authNextSearch()}
                 className="inline-flex items-center gap-2 rounded-full bg-cyan-300 px-5 py-2 text-sm font-bold text-cyan-950 no-underline transition hover:opacity-95"
               >
                 {loading ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}

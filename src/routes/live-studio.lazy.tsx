@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -541,7 +542,7 @@ function LiveStudioPage() {
           <div className="text-4xl">🎙</div>
           <h1 className="text-2xl font-bold">Live Performance Studios</h1>
           <p className="text-muted-foreground">Sign in to start generating performance photos</p>
-          <Link to="/auth"><Button className="aurora-button-primary">Sign in</Button></Link>
+          <Link to="/auth" search={authNextSearch()}><Button className="aurora-button-primary">Sign in</Button></Link>
         </div>
       </div>
     );

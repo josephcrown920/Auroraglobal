@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useEffect, useState } from "react";
@@ -33,7 +34,7 @@ function GalleryPage() {
   const [captioning, setCaptioning] = useState<{ id: string; url: string } | null>(null);
 
   useEffect(() => {
-    if (!loading && !user) navigate({ to: "/auth" });
+    if (!loading && !user) navigate({ to: "/auth", search: authNextSearch() });
   }, [user, loading, navigate]);
 
   const showHidden = filter === "hidden";

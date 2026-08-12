@@ -28,7 +28,12 @@ import { AUDIO_ACCEPT } from "./utils";
 const JOSH_LOOPING_OFFICERS_THUMB = "/josh-officers-bg.webp";
 
 import stillNeon from "@/assets/josh/generated/still-01-neon-closeup.jpg";
+import stillStreetGolden from "@/assets/josh/generated/still-02-street-golden.jpg";
+import clipStreetGolden from "@/assets/josh/generated/clip-02-street-golden.mp4";
 import stillStage from "@/assets/josh/generated/still-03-stage-mic.jpg";
+import stillCafeSelfie from "@/assets/josh/generated/still-04-cafe-selfie.jpg";
+import stillStudioGel from "@/assets/josh/generated/still-05-studio-gel.jpg";
+import clipStudioGel from "@/assets/josh/generated/clip-05-studio-gel.mp4";
 import stillRooftopSunset from "@/assets/josh/generated/still-06-rooftop-sunset.jpg";
 import stillAlley from "@/assets/josh/generated/still-08-alley-mural.jpg";
 import stillCarGolden from "@/assets/josh/generated/still-11-car-golden.jpg";
@@ -47,6 +52,10 @@ import kidsBedtimeClip from "@/assets/kids/showcase-bedtime.mp4";
 // .asset.json imports expose { url }
 import productLipstick from "@/assets/ugc/product-lipstick-car.jpg.asset.json";
 import productLifestyleCafe from "@/assets/generated_thumbs/product-lifestyle-cafe-table.png";
+import thumbEditorialCover from "@/assets/generated_thumbs/editorial-cover.jpg";
+import thumbNeonStreet from "@/assets/generated_thumbs/neon-street.jpg";
+import thumbUrbanAlley from "@/assets/generated_thumbs/urban-alley.jpg";
+import thumbUrbanSubway from "@/assets/generated_thumbs/urban-subway.jpg";
 import ugcCarProductHold from "@/assets/ugc/ugc-car-product-hold.webp.asset.json";
 import ugcHomeSelfie from "@/assets/ugc/ugc-home-selfie.webp.asset.json";
 
@@ -275,7 +284,176 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
     cameraMovement: "orbit_ccw",
   },
 
+  {
+    id: "editorial-cover",
+    title: "Editorial Cover",
+    category: "Motion",
+    blurb: "Turn your photo into a glossy magazine-cover moment.",
+    thumbnail: thumbEditorialCover,
+    kinds: ["image"],
+    dispatch: "studio",
+    inputs: [IMG("Your photo", "A clear front-facing or ¾ portrait")],
+    imagePrompt: `High-fashion magazine cover photograph of the subject, vertical 9:16. Seamless studio backdrop, dramatic editorial lighting with a strong key and soft fill, confident direct gaze into camera, glossy high-end retouching, clean negative space at the top of the frame for a masthead. Shot on medium format, razor sharp. ${IDENTITY} No text, no letters, no watermark.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+  },
+  {
+    id: "neon-street",
+    title: "Neon Street",
+    category: "Motion",
+    blurb: "Walk through rain-slicked neon like a movie still come alive.",
+    thumbnail: thumbNeonStreet,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [IMG("Your photo")],
+    imagePrompt: `Cinematic vertical 9:16 night photograph of the subject walking toward camera down a rain-slicked city street glowing with pink and cyan neon storefront signs, reflections in the wet asphalt, atmospheric haze, shallow depth of field, 35mm anamorphic film-still aesthetic. ${IDENTITY} Photorealistic, 4K.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "The subject walks slowly toward camera with confident stride, neon signs flickering and reflecting in the wet street, light rain drifting through the glow, cinematic slow pull-out keeping the subject centered.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "pull_out",
+  },
+  {
+    id: "rooftop-golden-hour",
+    title: "Rooftop Golden",
+    category: "Motion",
+    blurb: "A warm rooftop golden-hour portrait with drifting skyline light.",
+    thumbnail: stillRooftopSunset,
+    thumbnailVideo: clipRooftopSunset,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [IMG("Your photo")],
+    imagePrompt: `Vertical 9:16 golden-hour portrait of the subject standing at the edge of a city rooftop, sun low on the horizon behind the skyline, warm amber rim light wrapping the face, gentle lens flare, relaxed confident pose. ${IDENTITY} Photorealistic, 4K.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "Golden sunlight shimmering, clouds drifting slowly behind the skyline, hair moving gently in the rooftop breeze, subtle natural micro-expressions, slow cinematic zoom in.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "zoom_in",
+  },
+  {
+    id: "urban-alley",
+    title: "Urban Alley",
+    category: "Motion",
+    blurb: "A gritty alley editorial with a shaft of sunlight cutting through.",
+    thumbnail: thumbUrbanAlley,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [IMG("Your photo")],
+    imagePrompt: `Vertical 9:16 cinematic photograph of the subject leaning against a brick wall in a narrow urban alley, fire escapes overhead, a diagonal shaft of sunlight cutting through with visible dust in the beam, gritty street-fashion editorial styling, shallow depth of field. ${IDENTITY} Photorealistic, 4K.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "Dust particles drifting through the sunbeam, the subject shifts weight and glances toward camera, fabric moving naturally, slow smooth pan from left to right across the alley.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "pan_right",
+  },
+  {
+    id: "urban-subway",
+    title: "Urban Subway",
+    category: "Motion",
+    blurb: "A moody subway-platform scene as a train streaks past behind you.",
+    thumbnail: thumbUrbanSubway,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [IMG("Your photo")],
+    imagePrompt: `Vertical 9:16 cinematic photograph of the subject standing on an empty subway platform at night, warm tungsten platform lights against cool fluorescent tunnel glow, a motion-blurred train streaking past behind, moody cinematic colour grade, film-still aesthetic. ${IDENTITY} Photorealistic, 4K.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "The train rushes past behind the subject in a continuous motion blur, wind from the train tugging at clothes and hair, the subject holds a calm steady gaze into camera, locked-off static frame.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "static",
+  },
+  {
+    id: "colors-wide",
+    title: "Colors Wide",
+    category: "Motion",
+    blurb: "A full-body performance on a bold single-colour cyclorama set.",
+    thumbnail: "/josh/generated2/colors-royal-blue.webp",
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [
+      IMG("Your photo"),
+      TXT("Set colour", false, "e.g. royal blue, hot pink, neon green — default royal blue"),
+    ],
+    imagePrompt: `Wide full-body vertical 9:16 photograph of the subject performing on a seamless single-colour cyclorama studio set (royal blue unless another colour is specified), the floor and infinity wall the same saturated colour, two hard rim lights, bold fashion-forward pose with strong silhouette. ${IDENTITY} Photorealistic, 4K, COLORS-show performance aesthetic.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "The subject performs with confident energy — rhythmic body movement, sharp poses hitting on the beat, coloured light pulsing subtly on the cyclorama, slow cinematic orbit clockwise around the performer.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "orbit_cw",
+  },
+  {
+    id: "colors-closeup",
+    title: "Colors Close-Up",
+    category: "Motion",
+    blurb: "A tight, intense performance close-up drenched in one colour.",
+    thumbnail: "/josh/generated2/colors-neon-green.webp",
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [
+      IMG("Your photo"),
+      TXT("Set colour", false, "e.g. neon green, crimson, violet — default neon green"),
+    ],
+    imagePrompt: `Tight vertical 9:16 close-up portrait of the subject on a seamless single-colour studio set (neon green unless another colour is specified), the coloured backdrop filling the entire frame behind, face lit with a crisp key light and a coloured edge light, intense direct gaze, sweat-sheen skin texture. ${IDENTITY} Photorealistic, 4K, COLORS-show performance aesthetic.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "Intense close-up performance energy — the subject delivers to camera with sharp head movements and expressive eyes, coloured light breathing gently on the backdrop, slow confident push-in toward the face.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "push_in",
+  },
+  {
+    id: "music-video-scene",
+    title: "Music Video Scene",
+    category: "Motion",
+    blurb: "A gel-lit studio set piece straight out of a big-budget video.",
+    thumbnail: stillStudioGel,
+    thumbnailVideo: clipStudioGel,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [IMG("Your photo")],
+    imagePrompt: `Cinematic vertical 9:16 music-video still of the subject on a professional studio set washed in saturated magenta and amber gel lighting, atmospheric haze catching the beams, strong backlight silhouette edge, high-budget production design. ${IDENTITY} Photorealistic, 4K.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "The subject performs with charismatic energy, gel lights sweeping slowly across the set, haze drifting through the beams, cinematic counter-clockwise orbit around the performer.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "orbit_ccw",
+  },
+  {
+    id: "urban-cut",
+    title: "Urban Cut",
+    category: "Motion",
+    blurb: "A punchy golden-hour street clip cut for the feed.",
+    thumbnail: stillStreetGolden,
+    thumbnailVideo: clipStreetGolden,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [IMG("Your photo")],
+    imagePrompt: `Vertical 9:16 golden-hour street photograph of the subject mid-stride crossing an urban street, low sun flaring between buildings, long shadows on the asphalt, candid street-style editorial energy, shallow depth of field. ${IDENTITY} Photorealistic, 4K.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "Fast confident push-in toward the subject as they walk, sun flare pulsing between buildings, coat and hair moving with the stride, punchy music-video pacing.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "push_in",
+  },
+
   // ───────────── UGC/Ad ─────────────
+  {
+    id: "grwm-reel",
+    title: "Get Ready With Me",
+    category: "UGC/Ad",
+    blurb: "Your selfie + your routine → a native GRWM talking reel.",
+    thumbnail: stillCafeSelfie,
+    kinds: ["ugc_ad"],
+    dispatch: "ugc",
+    ugcAspect: "9:16",
+    durationSeconds: 10,
+    inputs: [
+      IMG("Your photo / selfie", "A clear front-facing photo — natural light works best"),
+      TXT(
+        "What's the occasion + one hook line?",
+        true,
+        "e.g. getting ready for a first date — I almost cancelled, but this look changed my mind",
+      ),
+    ],
+  },
   {
     id: "ugc-talking-ad",
     title: "UGC Talking Ad",
@@ -546,6 +724,46 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
     autocutStyle: "tiktok_hook",
     inputs: [],
   },
+];
+
+/**
+ * Landing "Viral Presets" tag → manifest template id. The single source of
+ * truth for the ViralPresetsSection tag cloud: every advertised name MUST
+ * resolve to a runnable template here (enforced by template-studio.test.ts),
+ * so the landing page can never advertise a preset that doesn't exist.
+ */
+export const VIRAL_PRESET_TAGS: ReadonlyArray<{ tag: string; templateId: string }> = [
+  { tag: "Concert Lip-sync", templateId: "concert-lipsync" },
+  { tag: "Music Video Mini", templateId: "music-video-mini" },
+  { tag: "Cinematic Selfie Reel", templateId: "cinematic-reel" },
+  { tag: "Golden Hour Orbit", templateId: "rooftop-golden" },
+  { tag: "Neon Night Move", templateId: "neon-night-move" },
+  { tag: "UGC Talking Ad", templateId: "ugc-talking-ad" },
+  { tag: "Product Lifestyle Ad", templateId: "product-lifestyle" },
+  { tag: "App Hero", templateId: "app-hero" },
+  { tag: "Product Promo", templateId: "product-promo-video" },
+  { tag: "Creator Walk & Talk", templateId: "ugc-creator-walk" },
+  { tag: "Virtual Try-On", templateId: "fashion-tryon" },
+  { tag: "Beat-Drop Reel", templateId: "beat-reel" },
+  { tag: "Viral Spin", templateId: "viral-spin" },
+  { tag: "Trend Remix", templateId: "trend-remix-spin" },
+  { tag: "Storybook Character", templateId: "kids-storybook" },
+  { tag: "Bedtime Reel", templateId: "kids-bedtime" },
+  { tag: "Looping Officers", templateId: "looping-officers" },
+  { tag: "AutoCut Hype", templateId: "autocut-hype" },
+  { tag: "AutoCut Cinematic", templateId: "autocut-cinematic" },
+  { tag: "Talking Head", templateId: "autocut-talking-head" },
+  { tag: "TikTok Hook", templateId: "autocut-tiktok-hook" },
+  { tag: "Editorial Cover", templateId: "editorial-cover" },
+  { tag: "Neon Street", templateId: "neon-street" },
+  { tag: "Rooftop Golden", templateId: "rooftop-golden-hour" },
+  { tag: "Urban Alley", templateId: "urban-alley" },
+  { tag: "Urban Subway", templateId: "urban-subway" },
+  { tag: "Colors Wide", templateId: "colors-wide" },
+  { tag: "Colors Close-Up", templateId: "colors-closeup" },
+  { tag: "Music Video Scene", templateId: "music-video-scene" },
+  { tag: "Urban Cut", templateId: "urban-cut" },
+  { tag: "Get Ready With Me", templateId: "grwm-reel" },
 ];
 
 // Category display order for the gallery.

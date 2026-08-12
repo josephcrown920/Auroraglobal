@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
@@ -287,7 +288,7 @@ function HomePage() {
 
   useEffect(() => setMounted(true), []);
   useEffect(() => {
-    if (!loading && !user) void navigate({ to: "/auth" });
+    if (!loading && !user) void navigate({ to: "/auth", search: authNextSearch() });
   }, [loading, user, navigate]);
 
   const profileFn = useServerFn(getMyProfile);

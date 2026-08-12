@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useEffect, useMemo, useState } from "react";
@@ -36,7 +37,7 @@ function AdminPage() {
   const [unlocked, setUnlocked] = useAdminAutoUnlock(!!user);
 
   useEffect(() => {
-    if (!loading && !user) navigate({ to: "/auth" });
+    if (!loading && !user) navigate({ to: "/auth", search: authNextSearch() });
   }, [user, loading, navigate]);
 
   const overviewFn = useServerFn(adminOverview);
@@ -185,6 +186,7 @@ function AdminPage() {
               { to: "/lipsync",          label: "Lip Sync Studio" },
               { to: "/music-video",      label: "Music Video Studio" },
               { to: "/spin",             label: "TikTok30 Factory" },
+              { to: "/admin/social-studio", label: "Social Studio" },
             ] as const).map((f) => (
               <Link
                 key={f.to}

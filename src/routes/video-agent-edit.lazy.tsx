@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -73,7 +74,7 @@ function VideoEditor() {
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !user) void navigate({ to: "/auth" });
+    if (!authLoading && !user) void navigate({ to: "/auth", search: authNextSearch() });
   }, [authLoading, user, navigate]);
 
   const projectQuery = useQuery({

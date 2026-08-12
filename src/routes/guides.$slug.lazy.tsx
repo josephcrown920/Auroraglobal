@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -279,7 +280,7 @@ function GuideRunner() {
 
   const requireAuth = (): boolean => {
     if (user) return true;
-    navigate({ to: "/auth" });
+    navigate({ to: "/auth", search: authNextSearch() });
     return false;
   };
 
@@ -477,7 +478,7 @@ function GuideRunner() {
               ) : (
                 <button
                   type="button"
-                  onClick={() => navigate({ to: "/auth" })}
+                  onClick={() => navigate({ to: "/auth", search: authNextSearch() })}
                   className="w-full rounded-xl border border-dashed border-border bg-card/30 px-4 py-3 text-sm text-muted-foreground hover:border-primary/40"
                 >
                   Sign in to upload reference images

@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -38,7 +39,7 @@ export function PricingSection() {
     if (!user) {
       try { localStorage.setItem("aurora_intent_plan", plan); } catch { /* storage unavailable — ignore */ }
       toast.info("Sign in first to complete checkout.");
-      navigate({ to: "/auth" });
+      navigate({ to: "/auth", search: authNextSearch() });
       return;
     }
     setLoadingPlan(plan);

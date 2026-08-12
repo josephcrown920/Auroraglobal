@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
@@ -152,7 +153,7 @@ function VideoAgentHome() {
   const [creativeStarter, setCreativeStarter] = useState<(typeof CREATIVE_STARTERS)[number]["id"]>("product");
 
   useEffect(() => {
-    if (!authLoading && !user) void navigate({ to: "/auth" });
+    if (!authLoading && !user) void navigate({ to: "/auth", search: authNextSearch() });
   }, [authLoading, user, navigate]);
 
   const projectsQuery = useQuery({

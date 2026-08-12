@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -241,7 +242,7 @@ function TiktokRemixPage() {
       <div className="mx-auto max-w-2xl px-6 py-24 text-center">
         <h1 className="text-3xl font-bold text-foreground">Urban Cuts</h1>
         <p className="mt-3 text-muted-foreground">Sign in to upload a video and spin up 10 variants.</p>
-        <Link to="/auth" className="mt-6 inline-flex items-center rounded-full bg-white px-5 py-2.5 text-sm font-bold text-black no-underline">Sign in</Link>
+        <Link to="/auth" search={authNextSearch()} className="mt-6 inline-flex items-center rounded-full bg-white px-5 py-2.5 text-sm font-bold text-black no-underline">Sign in</Link>
       </div>
     );
   }

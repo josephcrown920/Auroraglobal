@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -107,7 +108,7 @@ function SceneWeaverPage() {
   const suggestFn = useServerFn(suggestGrade);
 
   useEffect(() => {
-    if (!loading && !user) void navigate({ to: "/auth" });
+    if (!loading && !user) void navigate({ to: "/auth", search: authNextSearch() });
   }, [loading, user, navigate]);
 
   const active = items.find((item) => item.id === activeId) ?? null;

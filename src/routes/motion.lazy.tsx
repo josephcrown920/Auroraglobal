@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -237,7 +238,7 @@ function MotionStudio() {
   const [animateHdDialogOpen, setAnimateHdDialogOpen] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) navigate({ to: "/auth" });
+    if (!loading && !user) navigate({ to: "/auth", search: authNextSearch() });
   }, [user, loading, navigate]);
 
   // ── Avatar Shots state ────────────────────────────────────────────────────

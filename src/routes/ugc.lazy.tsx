@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useState } from "react";
@@ -472,7 +473,7 @@ function UGCStudio() {
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
               {!user ? (
-                <Button onClick={() => nav({ to: "/auth" })} variant="premium" className="w-full sm:w-auto">Sign in to generate</Button>
+                <Button onClick={() => nav({ to: "/auth", search: authNextSearch() })} variant="premium" className="w-full sm:w-auto">Sign in to generate</Button>
               ) : (
                 <>
                   <Button onClick={() => imageMut.mutate()} disabled={busy} variant="premium" className="w-full sm:w-auto">
@@ -647,7 +648,7 @@ function UGCStudio() {
                 </div>
 
                 {!user ? (
-                  <Button onClick={() => nav({ to: "/auth" })} variant="premium" className="w-full sm:w-auto">Sign in to generate</Button>
+                  <Button onClick={() => nav({ to: "/auth", search: authNextSearch() })} variant="premium" className="w-full sm:w-auto">Sign in to generate</Button>
                 ) : (
                   <Button onClick={() => demoMut.mutate()} disabled={demoMut.isPending} variant="premium" className="w-full sm:w-auto">
                     {demoMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Producing demo…</> : <><Presentation className="size-4 mr-2" /> Generate product demo · {COST_PRODUCT_DEMO} Aura</>}

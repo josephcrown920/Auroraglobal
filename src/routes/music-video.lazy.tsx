@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -105,7 +106,7 @@ function MusicVideoPage() {
   );
 
   useEffect(() => {
-    if (!loading && !user) void navigate({ to: "/auth" });
+    if (!loading && !user) void navigate({ to: "/auth", search: authNextSearch() });
   }, [user, loading, navigate]);
 
   useEffect(() => {

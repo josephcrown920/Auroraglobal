@@ -5,88 +5,37 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { track } from "@/lib/tracking";
-
-const PRESET_TAGS = [
-  "Concert Lip-sync",
-  "Music Video Mini",
-  "Cinematic Selfie Reel",
-  "Golden Hour Orbit",
-  "Neon Night Move",
-  "UGC Talking Ad",
-  "Product Lifestyle Ad",
-  "App Hero",
-  "Product Promo",
-  "Creator Walk & Talk",
-  "Virtual Try-On",
-  "Beat-Drop Reel",
-  "Viral Spin",
-  "Trend Remix",
-  "Storybook Character",
-  "Bedtime Reel",
-  "Looping Officers",
-  "AutoCut Hype",
-  "AutoCut Cinematic",
-  "Talking Head",
-  "TikTok Hook",
-  "Editorial Cover",
-  "Neon Street",
-  "Rooftop Golden",
-  "Urban Alley",
-  "Urban Subway",
-  "Colors Wide",
-  "Colors Close-Up",
-  "Music Video Scene",
-  "Urban Cut",
-  "Get Ready With Me",
-];
+import { VIRAL_PRESET_TAGS } from "@/lib/template-studio";
 
 const PREVIEW_VIDEOS = [
   { src: "/viral-presets/preview-1.mp4", label: "Performance reel" },
   { src: "/viral-presets/preview-2.mp4", label: "Cinematic edit" },
 ];
 
+function TagRow({ presets }: { presets: ReadonlyArray<{ tag: string; templateId: string }> }) {
+  return (
+    <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 mb-1.5 last:mb-0">
+      {presets.map(({ tag, templateId }) => (
+        <Link
+          key={tag}
+          to="/templates"
+          search={{ open: templateId }}
+          onClick={() => void track("viral_preset_tag_click", { tag, templateId })}
+          className="text-[13px] font-semibold uppercase tracking-[0.08em] text-white/55 hover:text-[#f0d060] transition-colors no-underline whitespace-nowrap"
+        >
+          {tag}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
 function TagCloud() {
   return (
     <div className="relative px-5 py-4 overflow-hidden">
-      {/* Row 1 */}
-      <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 mb-1.5">
-        {PRESET_TAGS.slice(0, 11).map((t) => (
-          <Link
-            key={t}
-            to="/templates"
-            onClick={() => void track("viral_preset_tag_click", { tag: t })}
-            className="text-[13px] font-semibold uppercase tracking-[0.08em] text-white/55 hover:text-[#f0d060] transition-colors no-underline whitespace-nowrap"
-          >
-            {t}
-          </Link>
-        ))}
-      </div>
-      {/* Row 2 */}
-      <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 mb-1.5">
-        {PRESET_TAGS.slice(11, 22).map((t) => (
-          <Link
-            key={t}
-            to="/templates"
-            onClick={() => void track("viral_preset_tag_click", { tag: t })}
-            className="text-[13px] font-semibold uppercase tracking-[0.08em] text-white/55 hover:text-[#f0d060] transition-colors no-underline whitespace-nowrap"
-          >
-            {t}
-          </Link>
-        ))}
-      </div>
-      {/* Row 3 */}
-      <div className="flex flex-wrap justify-center gap-x-6 gap-y-1">
-        {PRESET_TAGS.slice(22).map((t) => (
-          <Link
-            key={t}
-            to="/templates"
-            onClick={() => void track("viral_preset_tag_click", { tag: t })}
-            className="text-[13px] font-semibold uppercase tracking-[0.08em] text-white/55 hover:text-[#f0d060] transition-colors no-underline whitespace-nowrap"
-          >
-            {t}
-          </Link>
-        ))}
-      </div>
+      <TagRow presets={VIRAL_PRESET_TAGS.slice(0, 11)} />
+      <TagRow presets={VIRAL_PRESET_TAGS.slice(11, 22)} />
+      <TagRow presets={VIRAL_PRESET_TAGS.slice(22)} />
     </div>
   );
 }

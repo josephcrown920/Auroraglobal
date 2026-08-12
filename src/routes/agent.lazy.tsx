@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { useEffect, useRef, useState } from "react";
 import { createLazyFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -993,7 +994,7 @@ function AgentPage() {
     if (!trimmed || isLoading) return;
     if (!user) {
       toast.error("Sign in to chat with the agent", {
-        action: { label: "Sign in", onClick: () => void navigate({ to: "/auth" }) },
+        action: { label: "Sign in", onClick: () => void navigate({ to: "/auth", search: authNextSearch() }) },
       });
       return;
     }

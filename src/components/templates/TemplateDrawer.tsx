@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -83,7 +84,7 @@ export function TemplateDrawer({
 
   async function uploadFile(kind: "image" | "image2" | "audio", file: File) {
     if (!user) {
-      navigate({ to: "/auth" });
+      navigate({ to: "/auth", search: authNextSearch() });
       return;
     }
     setError(null);
@@ -162,7 +163,7 @@ export function TemplateDrawer({
     }
 
     if (!user) {
-      navigate({ to: "/auth" });
+      navigate({ to: "/auth", search: authNextSearch() });
       return;
     }
     if (!image) {

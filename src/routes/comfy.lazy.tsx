@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -237,7 +238,7 @@ function ComfyPage() {
           <div className="rounded-xl border border-border bg-card p-8 text-center">
             <p className="text-muted-foreground text-sm">
               Please{" "}
-              <Link to="/auth" className="text-primary">
+              <Link to="/auth" search={authNextSearch()} className="text-primary">
                 sign in
               </Link>{" "}
               to save and run ComfyUI workflows.

@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -274,7 +275,7 @@ function TikTokLiveStudio() {
             </button>
           ) : (
             <Link
-              to="/auth"
+              to="/auth" search={authNextSearch()}
               className="flex items-center gap-1.5 rounded-md bg-[#fe2c55] px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-white no-underline hover:bg-[#e6284d] transition-colors"
             >
               Sign in to go LIVE

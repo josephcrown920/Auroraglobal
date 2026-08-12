@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -309,7 +310,7 @@ function VideoEditorPage() {
         <span aria-hidden className="aurora-ambient" />
         <Film className="relative z-10 size-12 text-primary" />
         <p className="relative z-10 text-lg font-semibold">Sign in to use the AI Video Editor</p>
-        <Link to="/auth" className="relative z-10">
+        <Link to="/auth" search={authNextSearch()} className="relative z-10">
           <Button>Sign in</Button>
         </Link>
       </main>

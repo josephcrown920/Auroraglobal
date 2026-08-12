@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -92,7 +93,7 @@ function MarketplacePage() {
             </Link>
           )}
           {!user && (
-            <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground no-underline">
+            <Link to="/auth" search={authNextSearch()} className="text-sm text-muted-foreground hover:text-foreground no-underline">
               Sign in
             </Link>
           )}
@@ -171,7 +172,7 @@ function MarketplacePage() {
               template={t}
               onUse={() => {
                 if (!user) {
-                  navigate({ to: "/auth" });
+                  navigate({ to: "/auth", search: authNextSearch() });
                   return;
                 }
                 setConfirming(t);

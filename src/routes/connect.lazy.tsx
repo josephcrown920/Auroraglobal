@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowRight, Asterisk, Check, Copy, KeyRound, Plug, MessageSquare, Star, Film, Heart, Play, TrendingUp, Music2 } from "lucide-react";
@@ -120,7 +121,7 @@ function ConnectPage() {
             {user ? (
               <Link to="/dashboard" className="rounded-full border border-border px-3 py-1.5 text-foreground/90 no-underline hover:bg-white/5">Dashboard</Link>
             ) : (
-              <Link to="/auth" className="rounded-full border border-border px-3 py-1.5 text-foreground/90 no-underline hover:bg-white/5">Sign in</Link>
+              <Link to="/auth" search={authNextSearch()} className="rounded-full border border-border px-3 py-1.5 text-foreground/90 no-underline hover:bg-white/5">Sign in</Link>
             )}
           </nav>
         </div>
@@ -165,6 +166,7 @@ function ConnectPage() {
           <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
             <Link
               to={user ? "/dashboard" : "/auth"}
+              search={user ? undefined : authNextSearch()}
               onClick={() => void track("connect_hero_cta")}
               className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold text-primary-foreground no-underline shadow-[var(--shadow-glow)] hover:opacity-90"
               style={{ background: "var(--gradient-hero)" }}
@@ -322,7 +324,7 @@ function ConnectPage() {
                   Sign in to create a personal API key for Claude Desktop and Cursor.
                 </p>
                 <Link
-                  to="/auth"
+                  to="/auth" search={authNextSearch()}
                   className="mt-4 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold text-primary-foreground no-underline hover:opacity-90"
                   style={{ background: "var(--gradient-hero)" }}
                 >

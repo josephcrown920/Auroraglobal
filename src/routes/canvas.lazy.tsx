@@ -1,3 +1,4 @@
+import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { PageSpinner } from "@/components/PageSpinner";
 import { AuthRedirect } from "@/components/AuthRedirect";
@@ -1271,7 +1272,7 @@ function ExportShareDock({ nodes, edges }: { nodes: Node<NodeData>[]; edges: Edg
 function CanvasPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  useEffect(() => { if (!loading && !user) navigate({ to: "/auth" }); }, [user, loading, navigate]);
+  useEffect(() => { if (!loading && !user) navigate({ to: "/auth", search: authNextSearch() }); }, [user, loading, navigate]);
 
   // Deep-link: /canvas?template=<id> or ?marketplaceTemplateId=<uuid> auto-loads once.
   // Marketplace templates are fetched server-side (no graph JSON in URL) and charged

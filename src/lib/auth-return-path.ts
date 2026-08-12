@@ -1,3 +1,38 @@
+/**
+ * Search params for a sign-in redirect that returns the user to the page they
+ * were on — including query string and hash (e.g. /video-agent-edit?id=…).
+ * Client-only: returns undefined during SSR, when the location fails the
+ * open-redirect validation, or on "/" (where the default destination is right).
+ */
+export function authNextSearch(): { next: string } | undefined {
+  if (typeof window === "undefined") return undefined;
+  const next = safeAuthReturnPath(
+    `${window.location.pathname}${window.location.search}${window.location.hash}`,
+  );
+  return next && next !== "/" ? { next } : undefined;
+}
+
+/**
+ * Split a validated internal return path into the pieces TanStack Router's
+ * navigate() expects. Router `to` is a pathname only — query and hash must be
+ * passed separately or they get glued onto the pathname and fail to match.
+ */
+export function parseAuthReturnPath(value: string): {
+  pathname: string;
+  search: Record<string, string | string[]>;
+  hash: string;
+} {
+  const url = new URL(value, "http://internal.invalid");
+  const search: Record<string, string | string[]> = {};
+  url.searchParams.forEach((v, k) => {
+    const existing = search[k];
+    if (existing === undefined) search[k] = v;
+    else if (Array.isArray(existing)) existing.push(v);
+    else search[k] = [existing, v];
+  });
+  return { pathname: url.pathname, search, hash: url.hash.replace(/^#/, "") };
+}
+
 export function safeAuthReturnPath(value: unknown): string | undefined {
   if (typeof value !== "string" || !value.startsWith("/")) {
     return undefined;
