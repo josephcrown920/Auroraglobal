@@ -34,3 +34,13 @@ spend; a forged/expired ticket must fail loudly, never silently up/downgrade.
   confirmation" (terminal) or the button re-fails forever until reload.
 - Tickets are multi-use within the 24h window; acceptable because every full
   render still pays full price.
+- `resolvePreviewGate`/`validateConfirmedPreview` are pure READS — presenting a
+  ticket never consumes it. So quote/estimate endpoints can (and should) accept
+  `confirmPreviewId` to price the FULL render; without it they return the
+  preview-capped price, which the UI then mislabels as the full-quality cost.
+- Guard ORDER is not uniform across entry paths: orchestrateGenerate asserts
+  the requested duration BEFORE the preview gate (over-cap blocks even the
+  preview), but studio's video enqueue caps to preview length first, so an
+  over-cap request via direct server-fn call slips into a 5s preview. Align
+  new paths to guard-first, and don't promise "duration always blocks" for
+  paths that cap first.

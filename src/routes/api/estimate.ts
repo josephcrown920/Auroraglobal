@@ -25,7 +25,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { detectFeatures, computeCost, type Feature } from "@/lib/pricing";
-import { durationCapMessage, tierFor, type SubscriptionTier } from "@/lib/billing.plans";
+import {
+  DURATION_CAPPED_KINDS,
+  DURATION_CAPS,
+  durationCapMessage,
+  evaluatePlanLimits,
+  tierFor,
+  type PlanLimitWarning,
+  type SubscriptionTier,
+} from "@/lib/billing.plans";
 
 // Duration bounds MUST match the executable charge paths (OrchestrateSchema in
 // orchestration.functions.ts, Schema in api/public/generate.ts) — a quote for a
@@ -45,6 +53,20 @@ const EstimateSchema = z.object({
 });
 
 export type EstimateBlock = { message: string } | null;
+
+/**
+ * Plan-limit metadata included in every tier-resolved response so the UI can
+ * show the user's actual limits (and the unlocking plan) BEFORE they click
+ * generate — not just after a rejection. Pure and exported for unit tests.
+ */
+export function planLimitsFor(tier: SubscriptionTier) {
+  return {
+    tier,
+    maxDurationSeconds: DURATION_CAPS[tier],
+    hdAllowed: tier === "pro",
+    upgradeTier: tier === "free" ? ("pro" as const) : null,
+  };
+}
 
 /**
  * Tier-aware guardrail check mirroring assertDurationCap/assertHdEntitlement
@@ -200,10 +222,34 @@ export const Route = createFileRoute("/api/estimate")({
           if (
             tier &&
             parsed.duration &&
-            (parsed.kind === "video" || parsed.kind === "lipsync")
+            // Every duration-capped kind (video, motion, lipsync — the same
+            // set the charge paths enforce), not just the preview-gated two:
+            // a 200 quote for a 12s motion render the charge path rejects
+            // would advertise an impossible price.
+            DURATION_CAPPED_KINDS.has(parsed.kind)
           ) {
             const durationBlock = checkGuardrails(tier, parsed.duration, undefined, true);
-            if (durationBlock) throw new Error(durationBlock.message);
+            if (durationBlock) {
+              // Structured 400 (not a bare {error}) so the UI can tell the
+              // user WHICH plan limit blocked the quote and what plan lifts
+              // it. Still a 400 with no quote/quoteToken: a price for a
+              // length the render path would reject is worse than no price.
+              return new Response(
+                JSON.stringify({
+                  error: durationBlock.message,
+                  blocked: durationBlock,
+                  warnings: evaluatePlanLimits({
+                    tier,
+                    kind: parsed.kind,
+                    durationSeconds: parsed.duration,
+                    resolution: parsed.resolution,
+                    nextRenderIsPreview: false,
+                  }),
+                  limits: planLimitsFor(tier),
+                }),
+                { status: 400, headers: cors },
+              );
+            }
           }
           let effective = requested;
           let previewPass = false;
@@ -234,9 +280,25 @@ export const Route = createFileRoute("/api/estimate")({
             r: base.resolution,
             d: base.durationSeconds,
           });
+          // Plan-limit warnings computed from the ORIGINAL requested params
+          // (not the preview-capped effective ones) so a Free user asking for
+          // 1080p is warned about the full-quality render even though this
+          // quote prices the forced 480p preview. Empty when unauthenticated
+          // (tier unknown) — mirrors the `blocked` behavior.
+          const warnings: PlanLimitWarning[] = tier
+            ? evaluatePlanLimits({
+                tier,
+                kind: parsed.kind,
+                durationSeconds: parsed.duration,
+                resolution: parsed.resolution,
+                nextRenderIsPreview: previewPass,
+              })
+            : [];
           const result = {
             ...base,
             quoteToken,
+            warnings,
+            limits: tier ? planLimitsFor(tier) : null,
             ...(previewPass
               ? {
                   preview: true,

@@ -3,7 +3,7 @@
 // plan-lookup + cap validation here. The only server-side dependency is a single
 // Supabase profile read; all other helpers are pure functions.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { tierFor, durationCapMessage, type SubscriptionTier } from "./billing.plans";
+import { tierFor, durationCapMessage, hdEntitlementMessage, type SubscriptionTier } from "./billing.plans";
 
 // ─── User-tier lookup ─────────────────────────────────────────────────────────
 
@@ -116,11 +116,11 @@ export async function assertHdEntitlement(
   if (previewPass) return; // always capped at 480p by the preview gate
   if (resolution !== "1080p" && resolution !== "2160p") return;
   const tier = await getUserTier(userId);
-  if (tier === "pro") return;
-  const label = resolution === "2160p" ? "4K (2160p)" : "HD (1080p)";
-  throw new Error(
-    `Unsupported resolution for Free plan: ${label} requires Pro. Upgrade to unlock HD and 4K exports.`,
-  );
+  // Single-source message: billing.plans.hdEntitlementMessage is shared with
+  // the pre-click warning UI and /api/estimate, so the warning users see
+  // before generating matches this throw byte-for-byte.
+  const msg = hdEntitlementMessage(tier, resolution);
+  if (msg) throw new Error(msg);
 }
 
 // ─── Daily spend cap ──────────────────────────────────────────────────────────

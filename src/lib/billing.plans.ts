@@ -189,6 +189,106 @@ export function durationCapMessage(
   return `Unsupported duration for your ${tierLabel} plan: ${durationSeconds}s exceeds the ${cap}s limit.${upgradeHint}`;
 }
 
+// ─── HD / 4K entitlement ──────────────────────────────────────────────────────
+
+/**
+ * Single source of truth for the HD/4K entitlement message. The server guard
+ * (assertHdEntitlement in cost-guardrails.server.ts) throws EXACTLY this
+ * string, and the pre-click warning UI + GET /api/estimate render it — so the
+ * warning a user sees before generating can never drift from what the charge
+ * path would actually throw.
+ * Returns null when the resolution is allowed on this tier (or isn't HD/4K).
+ */
+export function hdEntitlementMessage(
+  tier: SubscriptionTier,
+  resolution: string | null | undefined,
+): string | null {
+  if (resolution !== "1080p" && resolution !== "2160p") return null;
+  if (tier === "pro") return null;
+  const label = resolution === "2160p" ? "4K (2160p)" : "HD (1080p)";
+  return `Unsupported resolution for Free plan: ${label} requires Pro. Upgrade to unlock HD and 4K exports.`;
+}
+
+// ─── Pre-click plan-limit warnings ────────────────────────────────────────────
+
+/**
+ * Kinds whose duration is subject to the per-tier cap — mirrors the charge
+ * paths: orchestrateGenerate asserts video/motion, api/public/generate and
+ * the estimate route also assert lipsync.
+ */
+export const DURATION_CAPPED_KINDS = new Set(["video", "motion", "lipsync"]);
+
+export type PlanLimitWarning = {
+  code: "duration_cap" | "hd_entitlement";
+  /** The exact message the server guard would throw for this selection. */
+  message: string;
+  /** Human label of the current plan's limit, e.g. "10s" or "720p". */
+  limitLabel: string;
+  /** Human label of the over-limit selection, e.g. "12s" or "HD (1080p)". */
+  requestedLabel: string;
+  /** Tier that lifts this limit; null when no plan unlocks it. */
+  upgradeTier: SubscriptionTier | null;
+  /**
+   * true  → the very next render attempt would be rejected server-side.
+   * false → the next attempt is a forced 480p preview pass (exempt from the
+   *         HD guard), but the later full-quality render at this selection
+   *         would be rejected.
+   */
+  blocksNextRender: boolean;
+};
+
+/**
+ * Pure, client-safe evaluation of plan-tier limits for a prospective render.
+ * Used by the pre-generate warning UI (instant, no round trip) and by
+ * GET /api/estimate (authoritative, tier resolved from the auth token). All
+ * three surfaces — client warning, estimate endpoint, and the server guards
+ * in cost-guardrails.server.ts — share durationCapMessage/hdEntitlementMessage
+ * above, so they always agree byte-for-byte.
+ */
+export function evaluatePlanLimits(args: {
+  tier: SubscriptionTier;
+  kind: string;
+  durationSeconds?: number | null;
+  resolution?: string | null;
+  /** True when the flow's next submit is a forced 480p preview pass. */
+  nextRenderIsPreview?: boolean;
+}): PlanLimitWarning[] {
+  const warnings: PlanLimitWarning[] = [];
+  if (
+    DURATION_CAPPED_KINDS.has(args.kind) &&
+    typeof args.durationSeconds === "number" &&
+    args.durationSeconds > 0
+  ) {
+    const msg = durationCapMessage(args.tier, args.durationSeconds);
+    if (msg) {
+      warnings.push({
+        code: "duration_cap",
+        message: msg,
+        limitLabel: `${DURATION_CAPS[args.tier]}s`,
+        requestedLabel: `${args.durationSeconds}s`,
+        upgradeTier: args.tier === "free" ? "pro" : null,
+        // The duration cap is asserted BEFORE the preview gate on every charge
+        // path, so even a cheap preview click at an over-cap length is rejected.
+        blocksNextRender: true,
+      });
+    }
+  }
+  const hdMsg = hdEntitlementMessage(args.tier, args.resolution);
+  if (hdMsg) {
+    warnings.push({
+      code: "hd_entitlement",
+      message: hdMsg,
+      limitLabel: "720p",
+      requestedLabel: args.resolution === "2160p" ? "4K (2160p)" : "HD (1080p)",
+      upgradeTier: "pro",
+      // Preview passes are forced to 480p and exempt from the HD guard; only
+      // the full-quality render is blocked.
+      blocksNextRender: !args.nextRenderIsPreview,
+    });
+  }
+  return warnings;
+}
+
 // ─── Heavy-queue classification ───────────────────────────────────────────────
 export const HEAVY_JOB_KINDS = new Set<string>(["lipsync"]);
 

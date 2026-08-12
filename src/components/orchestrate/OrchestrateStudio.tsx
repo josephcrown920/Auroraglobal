@@ -23,6 +23,7 @@ import {
   ArrowRight,
   Wand2,
   Trash2,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
@@ -34,6 +35,8 @@ import { detectFeatures, computeCost, type Feature, type Resolution } from "@/li
 import { VIDEO_AGENT_MODEL_KEY, VIDEO_AGENT_HELPER_TEXT } from "@/lib/video-agent-prompt";
 import { enhanceVideoAgentPrompt } from "@/lib/video-agent.functions";
 import { ResolutionPicker } from "@/components/ResolutionPicker";
+import { PlanLimitNotice } from "@/components/PlanLimitNotice";
+import { DURATION_CAPS, evaluatePlanLimits, type PlanLimitWarning } from "@/lib/billing.plans";
 import { useGenerationProgress } from "@/hooks/use-generation-progress";
 import { GenerationProgress } from "@/components/ui/GenerationProgress";
 import { GenerationErrorCard } from "@/components/ui/GenerationErrorCard";
@@ -213,8 +216,9 @@ export function OrchestrateStudio({
   // from GET /api/estimate so the displayed price can never disagree with
   // what the server will actually charge.
   const [serverEstimate, setServerEstimate] = useState<{
-    credits: number;
+    credits: number | null;
     blocked: { message: string } | null;
+    warnings?: PlanLimitWarning[];
     quoteToken?: string;
   } | null>(null);
   const [estimateLoading, setEstimateLoading] = useState(false);
@@ -225,10 +229,21 @@ export function OrchestrateStudio({
     }
     let cancelled = false;
     setEstimateLoading(true);
+    // Clear the previous estimate SYNCHRONOUSLY when any quote input changes:
+    // the old response carries a signed quoteToken (and price) for the OLD
+    // resolution/duration — submitting it against the new selection could
+    // charge parameters the displayed price never described.
+    setServerEstimate(null);
     const params = new URLSearchParams({ kind: modality });
     if (effectiveModel) params.set("model", effectiveModel);
     if (usesResolution) params.set("resolution", resolution);
     if (usesDuration) params.set("duration", String(duration));
+    // Present the preview ticket so the server prices the FULL-QUALITY render.
+    // Without it the estimate route applies the mandatory preview cap and
+    // would return the 480p/≤5s preview price here — understating what the
+    // confirmed render will actually charge. (resolvePreviewGate is a pure
+    // read: presenting the ticket for a quote does not consume it.)
+    if (previewTicket) params.set("confirmPreviewId", previewTicket);
     (async () => {
       // Pass the caller's auth token so the server can apply the same
       // tier-aware guardrails (duration cap, HD entitlement) that
@@ -240,11 +255,35 @@ export function OrchestrateStudio({
       const res = await fetch(`/api/estimate?${params.toString()}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        const errMsg = typeof body?.error === "string" ? body.error : "";
+        // A rejected/expired preview ticket is terminal — restart the preview
+        // flow (same recovery as doGenerate's catch) instead of pinning a
+        // disabled button to a stale ticket.
+        if (errMsg.includes("Unsupported preview confirmation")) {
+          if (!cancelled) {
+            setAwaitingFullRender(false);
+            setPreviewTicket(null);
+          }
+          return null;
+        }
+        // Structured 400 (e.g. duration over the plan cap): surface the exact
+        // blocker instead of silently falling back to the client-side price —
+        // otherwise the user clicks into a guaranteed server-side rejection.
+        if (body && (body.blocked || body.error)) {
+          return {
+            credits: null,
+            blocked: body.blocked ?? { message: errMsg || "This request isn't allowed on your plan." },
+            warnings: Array.isArray(body.warnings) ? (body.warnings as PlanLimitWarning[]) : [],
+          };
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
+      return body;
     })()
-      .then((data: { credits: number; blocked: { message: string } | null; quoteToken?: string }) => {
-        if (!cancelled) setServerEstimate(data);
+      .then((data: { credits: number | null; blocked: { message: string } | null; warnings?: PlanLimitWarning[]; quoteToken?: string } | null) => {
+        if (!cancelled && data) setServerEstimate(data);
       })
       .catch(() => {
         // Non-fatal: keep showing the client-computed number if the round-trip fails.
@@ -256,7 +295,7 @@ export function OrchestrateStudio({
     return () => {
       cancelled = true;
     };
-  }, [awaitingFullRender, modality, effectiveModel, resolution, duration, usesResolution, usesDuration]);
+  }, [awaitingFullRender, modality, effectiveModel, resolution, duration, usesResolution, usesDuration, previewTicket]);
   // Prefer the server-confirmed number once it lands; it's what will actually be charged.
   const displayCost = serverEstimate?.credits ?? cost;
 
@@ -350,6 +389,28 @@ export function OrchestrateStudio({
   const isPreviewPass = modality === "video" && !awaitingFullRender && !isVideoAgent;
 
   const isHdResolution = resolution === "1080p" || resolution === "2160p";
+
+  // Pre-click plan-limit warnings: instant and client-side, built from the
+  // same shared helpers (billing.plans) the server guards throw with. A
+  // duration over the plan cap blocks even the preview click (the guard runs
+  // before the preview gate); HD/4K on Free only blocks the full-quality pass.
+  const planTier = isPro ? ("pro" as const) : ("free" as const);
+  const planWarnings = evaluatePlanLimits({
+    tier: planTier,
+    kind: modality,
+    durationSeconds: usesDuration ? duration : undefined,
+    resolution: usesResolution ? resolution : undefined,
+    nextRenderIsPreview: isPreviewPass,
+  });
+  // Server-confirmed warnings the client-side pass missed (e.g. the profile
+  // query still loading, or an admin whose plan isn't actually pro) — deduped
+  // by code so the same limit never renders twice.
+  const serverOnlyWarnings = (serverEstimate?.warnings ?? []).filter(
+    (sw) => !planWarnings.some((pw) => pw.code === sw.code),
+  );
+  const planBlocked =
+    planWarnings.some((w) => w.blocksNextRender) ||
+    serverOnlyWarnings.some((w) => w.blocksNextRender);
 
   // Enhance the user's raw idea into a polished first-person spoken script via
   // an LLM pass. The enhanced result replaces the textarea content so the user
@@ -706,20 +767,36 @@ export function OrchestrateStudio({
                       Length
                     </label>
                     <div className="flex gap-2">
-                      {DURATIONS.map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => setDuration(s)}
-                          className={`flex-1 rounded-lg border px-2 py-2 text-xs transition ${
-                            duration === s
-                              ? "border-brand/60 bg-brand/10 text-brand"
-                              : "border-neutral-800 text-neutral-400 hover:border-neutral-700"
-                          }`}
-                        >
-                          {s}s
-                        </button>
-                      ))}
+                      {DURATIONS.map((s) => {
+                        // Lengths beyond the plan's duration cap are locked with
+                        // a Pro badge (same convention as the resolution picker)
+                        // instead of failing at generate time.
+                        const overCap = s > DURATION_CAPS[planTier];
+                        return (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() => {
+                              if (!overCap) setDuration(s);
+                            }}
+                            className={`relative flex-1 rounded-lg border px-2 py-2 text-xs transition ${
+                              duration === s && !overCap
+                                ? "border-brand/60 bg-brand/10 text-brand"
+                                : overCap
+                                  ? "cursor-default select-none border-neutral-800 text-neutral-600 opacity-60"
+                                  : "border-neutral-800 text-neutral-400 hover:border-neutral-700"
+                            }`}
+                          >
+                            {s}s
+                            {overCap && (
+                              <span className="absolute -top-2 right-1 flex items-center gap-0.5 rounded-full bg-neutral-800 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-neutral-400">
+                                <Lock className="h-2.5 w-2.5" />
+                                {planTier === "free" ? "Pro" : ""}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -767,19 +844,35 @@ export function OrchestrateStudio({
               )}
             </div>
 
-            {/* The server round-trip can reject a request the client-side preview
-                didn't know to block (plan duration cap, HD/4K entitlement) — surface
-                that here and disable the render button so the user can't click into
-                a guaranteed server-side rejection. */}
-            {awaitingFullRender && serverEstimate?.blocked && (
-              <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-400">
-                {serverEstimate.blocked.message}
-              </div>
-            )}
+            {/* Pre-click plan-limit warnings: shown BEFORE the user clicks into a
+                server-side rejection (duration cap, HD/4K entitlement), with the
+                actual limit and the plan that lifts it. Client-side warnings are
+                instant; server-confirmed extras cover anything the client missed. */}
+            <PlanLimitNotice warnings={planWarnings} className="mt-3" />
+            <PlanLimitNotice warnings={serverOnlyWarnings} className="mt-3" />
+            {/* Server-round-trip blocker (e.g. duration cap caught at the estimate
+                step) — kept for cases the structured warnings don't already cover,
+                such as a tier mismatch between client state and the real profile. */}
+            {awaitingFullRender &&
+              serverEstimate?.blocked &&
+              !planWarnings.some((w) => w.code === "duration_cap") &&
+              !serverOnlyWarnings.some((w) => w.code === "duration_cap") && (
+                <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-400">
+                  {serverEstimate.blocked.message}
+                </div>
+              )}
 
             <button
               onClick={onGenerate}
-              disabled={busy || !!(awaitingFullRender && serverEstimate?.blocked)}
+              disabled={
+                busy ||
+                planBlocked ||
+                // While the full-render quote is refreshing there is no valid
+                // price/quoteToken for the CURRENT selection — hold the button
+                // rather than submit against a stale or unknown quote.
+                (awaitingFullRender && estimateLoading) ||
+                !!(awaitingFullRender && serverEstimate?.blocked)
+              }
               className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand/90 disabled:opacity-60"
             >
               {busy ? (

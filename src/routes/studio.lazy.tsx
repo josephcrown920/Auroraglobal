@@ -34,9 +34,10 @@ import { GenerationProgress } from "@/components/ui/GenerationProgress";
 import { BlurredPreview } from "@/components/ui/BlurredPreview";
 import { getMyProfile, createPaystackCheckout, getPaymentByReference, getPaymentStatusByReference } from "@/lib/billing.functions";
 import { trackPurchase, trackGenerationCompleted } from "@/lib/gtm";
-import { PLANS } from "@/lib/billing.plans";
+import { PLANS, evaluatePlanLimits } from "@/lib/billing.plans";
 import { computeCost, type Resolution } from "@/lib/pricing";
 import { ResolutionPicker } from "@/components/ResolutionPicker";
+import { PlanLimitNotice } from "@/components/PlanLimitNotice";
 import { detectCurrency } from "@/lib/geo.functions";
 import demoSelfie from "@/assets/demo-selfie.jpg";
 import { RECIPES } from "@/lib/tutorials";
@@ -347,6 +348,20 @@ function StudioPage() {
   });
 
   useAutoReloadPrompt(profile?.credits);
+
+  // Pre-click plan-limit warnings for the video flow. Uses the same shared
+  // helpers the server guard throws with, so the warning text matches the
+  // rejection a Free user would otherwise hit only AFTER paying for a preview
+  // (e.g. a persisted 1080p selection from a lapsed Pro plan). The preview
+  // pass itself is exempt (forced 480p) — only the full render is gated.
+  const videoPlanWarnings = evaluatePlanLimits({
+    tier: profile?.is_pro || profile?.isAdmin ? "pro" : "free",
+    kind: "video",
+    durationSeconds: 5,
+    resolution: videoResolution,
+    nextRenderIsPreview: !videoPreviewId,
+  });
+  const videoPlanBlocked = videoPlanWarnings.some((w) => w.blocksNextRender);
 
   const { data: history } = useQuery({
     queryKey: ["gens", user?.id],
@@ -1135,11 +1150,12 @@ function StudioPage() {
                 </div>
               )}
               <ResolutionPicker resolution={videoResolution} onChange={setVideoResolution} isPro={!!(profile?.is_pro || profile?.isAdmin)} features={["video"]} durationSeconds={5} model={videoModel} />
+              <PlanLimitNotice warnings={videoPlanWarnings} />
               <div className="flex items-center justify-between text-xs text-zinc-500 rounded-xl border border-white/8 bg-white/3 px-3 py-2">
                 <span className="inline-flex items-center gap-1.5"><Zap className="size-3.5 text-[#8b5cf6]" />Cost: <span className="text-zinc-200 font-medium">{videoCost} Aura</span><span className="opacity-40">·</span>ETA: ~60–180s</span>
                 <span>{getModelMeta(videoModel).short}</span>
               </div>
-              <Button disabled={videoMut.isPending} onClick={() => { const isHd = videoResolution === "1080p" || videoResolution === "2160p"; if (videoPreviewId && isHd) setVideoHdDialogOpen(true); else videoMut.mutate(); }} variant="secondary" className="w-full">
+              <Button disabled={videoMut.isPending || videoPlanBlocked} onClick={() => { const isHd = videoResolution === "1080p" || videoResolution === "2160p"; if (videoPreviewId && isHd) setVideoHdDialogOpen(true); else videoMut.mutate(); }} variant="secondary" className="w-full">
                 {videoMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" />{videoPreviewId ? "Rendering…" : "Rendering preview…"}</> : videoPreviewId ? <><Film className="size-4 mr-2" />Render full · {videoCost} Aura</> : <><Film className="size-4 mr-2" />Preview · {videoPreviewCost} Aura</>}
               </Button>
             </div>

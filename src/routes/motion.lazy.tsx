@@ -33,6 +33,8 @@ import { checkWorkerCapability } from "@/lib/workers.functions";
 import { VIDEO_MODEL_LIST } from "@/lib/models";
 import { computeCost, type Resolution } from "@/lib/pricing";
 import { ResolutionPicker } from "@/components/ResolutionPicker";
+import { PlanLimitNotice } from "@/components/PlanLimitNotice";
+import { evaluatePlanLimits } from "@/lib/billing.plans";
 import { getMyProfile } from "@/lib/billing.functions";
 import {
   Select,
@@ -299,6 +301,19 @@ function MotionStudio() {
     staleTime: 30_000,
   });
   const isPro = !!(profile?.is_pro || profile?.isAdmin);
+
+  // Pre-click plan-limit warnings for the Animate flow (HD/4K on Free) —
+  // same shared helpers the server guard throws with, so the warning matches
+  // the rejection a full-quality render would otherwise hit after the user
+  // already paid for a preview. The preview pass itself runs at 480p (exempt).
+  const animatePlanWarnings = evaluatePlanLimits({
+    tier: isPro ? "pro" : "free",
+    kind: "video",
+    durationSeconds: 5,
+    resolution: videoResolution,
+    nextRenderIsPreview: !animatePreviewId,
+  });
+  const animatePlanBlocked = animatePlanWarnings.some((w) => w.blocksNextRender);
 
   const { data: motionWorker } = useQuery({
     queryKey: ["worker-capability", "motion"],
@@ -1143,6 +1158,8 @@ function MotionStudio() {
                 model={videoModel}
               />
 
+              <PlanLimitNotice warnings={animatePlanWarnings} />
+
               <div className="grid grid-cols-2 gap-2">
                 {stepBadge("1. Stage pose (image)", imgState as "idle" | "running" | "ok" | "error", imageError)}
                 {stepBadge("2. Animate (video)", vidState as "idle" | "running" | "ok" | "error", videoError)}
@@ -1175,7 +1192,7 @@ function MotionStudio() {
                   {stageMut.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Staging…</> : <><Wand2 className="size-4 mr-2" /> {imageError ? "Retry pose" : stagedImage ? "Re-stage" : "Stage pose · 10 Aura"}</>}
                 </Button>
                 <Button
-                  disabled={animateMut.isPending || (!stagedImage && !startFrame)}
+                  disabled={animateMut.isPending || animatePlanBlocked || (!stagedImage && !startFrame)}
                   onClick={() => {
                     const isHd = videoResolution === "1080p" || videoResolution === "2160p";
                     if (animatePreviewId && isHd) {
@@ -1409,7 +1426,10 @@ function MotionStudio() {
                 <button
                   type="button"
                   onClick={() => {
-                    const opts = ["480p", "720p", "1080p"] as Resolution[];
+                    // HD is Pro-gated (same lock as the ResolutionPicker): don't
+                    // cycle a Free user into a resolution their plan can't render.
+                    // A stale 1080p selection also recovers here: indexOf → -1 → 480p.
+                    const opts = (isPro ? ["480p", "720p", "1080p"] : ["480p", "720p"]) as Resolution[];
                     const idx = opts.indexOf(videoResolution);
                     setVideoResolution(opts[(idx + 1) % opts.length]);
                   }}
