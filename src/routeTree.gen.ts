@@ -263,12 +263,14 @@ const DirectorRoomRoute = DirectorRoomRouteImport.update({
   id: '/director-room',
   path: '/director-room',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/director-room.lazy').then((d) => d.Route))
 const DirectorsBoardRoute = DirectorsBoardRouteImport.update({
   id: '/directors-board',
   path: '/directors-board',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() =>
+  import('./routes/directors-board.lazy').then((d) => d.Route),
+)
 const EditRoute = EditRouteImport.update({
   id: '/edit',
   path: '/edit',

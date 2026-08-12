@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { StudioPage } from "@/features/storyboard/studio/StudioPage";
 
 export const Route = createFileRoute("/directors-board")({
   ssr: false,
@@ -21,5 +20,4 @@ export const Route = createFileRoute("/directors-board")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: StudioPage,
 });

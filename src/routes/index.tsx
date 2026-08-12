@@ -2,18 +2,37 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { CANONICAL_ORIGIN } from "@/lib/seo";
 import { Plus, Play, ArrowUpRight, ChevronDown, Sparkles, Palette, Film, Wand2, Mic, Music2, Brush, Megaphone, UserCircle2, Workflow, Layers, Flame, Clapperboard, Check, Zap, Crown, Download } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { useCallback, useState, useEffect, useRef, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useState, useEffect, useRef, type ReactNode } from "react";
 import { track } from "@/lib/tracking";
-import { ViralEngine } from "@/components/landing/ViralEngine";
-import { BalloonLipsync } from "@/components/landing/BalloonLipsync";
-import { AppScreenshotsSection } from "@/components/landing/AppScreenshotsSection";
-import { CliSection } from "@/components/landing/CliSection";
-import { ViralPresetsSection } from "@/components/landing/ViralPresetsSection";
-import { UGCAdsSection } from "@/components/landing/UGCAdsSection";
-import { IntroAnimation } from "@/components/landing/IntroAnimation";
-import { AdminLandingEditor } from "@/components/AdminLandingEditor";
 import { EditableCopy } from "@/components/EditableCopy";
 import { SUBSCRIPTION_PLANS } from "@/lib/subscription-plans";
+
+// Below-fold sections — lazy-loaded so the landing page hero ships without
+// pulling in framer-motion, spin-engine, server-fn hooks, and media assets.
+const ViralEngine = lazy(() =>
+  import("@/components/landing/ViralEngine").then((m) => ({ default: m.ViralEngine })),
+);
+const BalloonLipsync = lazy(() =>
+  import("@/components/landing/BalloonLipsync").then((m) => ({ default: m.BalloonLipsync })),
+);
+const AppScreenshotsSection = lazy(() =>
+  import("@/components/landing/AppScreenshotsSection").then((m) => ({ default: m.AppScreenshotsSection })),
+);
+const CliSection = lazy(() =>
+  import("@/components/landing/CliSection").then((m) => ({ default: m.CliSection })),
+);
+const ViralPresetsSection = lazy(() =>
+  import("@/components/landing/ViralPresetsSection").then((m) => ({ default: m.ViralPresetsSection })),
+);
+const UGCAdsSection = lazy(() =>
+  import("@/components/landing/UGCAdsSection").then((m) => ({ default: m.UGCAdsSection })),
+);
+const IntroAnimation = lazy(() =>
+  import("@/components/landing/IntroAnimation").then((m) => ({ default: m.IntroAnimation })),
+);
+const AdminLandingEditor = lazy(() =>
+  import("@/components/AdminLandingEditor").then((m) => ({ default: m.AdminLandingEditor })),
+);
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -303,7 +322,7 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-display antialiased selection:bg-[#8b5cf6] selection:text-white">
-      {introVisible && <IntroAnimation onDone={handleIntroDone} />}
+      <Suspense fallback={null}>{introVisible && <IntroAnimation onDone={handleIntroDone} />}</Suspense>
 
       {/* ── Nav ─────────────────────────────────────────────────────────── */}
       <nav className="absolute top-0 left-0 right-0 z-40 w-full">
@@ -579,22 +598,22 @@ function LandingPage() {
 
 
       {/* ── Viral Presets ────────────────────────────────────────────── */}
-      <ViralPresetsSection />
+      <Suspense fallback={null}><ViralPresetsSection /></Suspense>
 
       {/* ── App Screenshots — "Inside Aurora" ────────────────────────── */}
-      <AppScreenshotsSection />
+      <Suspense fallback={null}><AppScreenshotsSection /></Suspense>
 
       {/* ── UGC Ads ──────────────────────────────────────────────────── */}
-      <UGCAdsSection />
+      <Suspense fallback={null}><UGCAdsSection /></Suspense>
 
       {/* ── Viral Engine ─────────────────────────────────────────────── */}
-      <ViralEngine />
+      <Suspense fallback={null}><ViralEngine /></Suspense>
 
       {/* ── Every Face Sings (lip-sync demo) ─────────────────────────── */}
-      <BalloonLipsync />
+      <Suspense fallback={null}><BalloonLipsync /></Suspense>
 
       {/* ── CLI — whole studio from your terminal ────────────────────── */}
-      <CliSection />
+      <Suspense fallback={null}><CliSection /></Suspense>
 
       {/* ── Playground teaser ────────────────────────────────────────── */}
       <section className="relative z-10 px-5 py-16 border-t border-white/5">
@@ -1174,7 +1193,7 @@ function LandingPage() {
         </div>
       </footer>
 
-      <AdminLandingEditor />
+      <Suspense fallback={null}><AdminLandingEditor /></Suspense>
       <div className="h-24" aria-hidden />
     </div>
   );

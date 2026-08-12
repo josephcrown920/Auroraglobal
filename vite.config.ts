@@ -264,6 +264,13 @@ export default defineConfig({
       rollupOptions: {
         output: {
           manualChunks(id: string) {
+            // Move eagerly-imported route metadata files (loaders, beforeLoad,
+            // validateSearch) out of the generic "index" entry chunk into a
+            // dedicated "routes-meta" sync chunk so the landing-page entry is
+            // smaller.  The actual component code lives in the per-route async
+            // *.lazy.tsx chunks — those are NOT grouped here so each route
+            // remains independently loadable on first navigation.
+            if (id.includes("src/routes/") && !id.includes(".lazy.")) return "routes-meta";
             if (!id.includes("node_modules")) return undefined;
             if (id.includes("monaco-editor") || id.includes("@monaco-editor")) return "vendor-monaco";
             if (id.includes("recharts") || id.includes("d3-")) return "vendor-charts";
