@@ -1,7 +1,8 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { SUBSCRIPTION_TIERS } from "@/lib/billing.plans";
 import { computeProfitSplit } from "@/lib/profit-split";
 import { z } from "zod";
 
@@ -117,6 +118,168 @@ async function findOrRecoverPayment(
 }
 
 const DEFAULT_RETRY_DELAYS_MS = [200, 500, 1000, 2000];
+
+type SubscriptionCustomer = {
+  customer_code?: string;
+  email?: string;
+};
+
+type SubscriptionPlan = {
+  plan_code?: string;
+};
+
+export type PaystackSubscriptionCreateData = {
+  amount?: number;
+  subscription_code?: string;
+  customer?: SubscriptionCustomer;
+  plan?: SubscriptionPlan;
+  next_payment_date?: string;
+  email_token?: string;
+};
+
+export type PaystackSubscriptionRenewalData = {
+  subscription_code?: string;
+  metadata?: {
+    user_id?: string;
+  };
+};
+
+export type PaystackSubscriptionDisableData = {
+  subscription_code?: string;
+};
+
+/**
+ * Derive a stable, deterministic UUID from an arbitrary string input.
+ * Using this for monthly grants makes both subscription.create and the first
+ * charge.success idempotent, while allowing each later month to grant once.
+ */
+function deterministicUuid(input: string): string {
+  const hash = createHash("md5").update(input).digest("hex");
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
+}
+
+function proMonthlyAuraRef(subCode: string): string {
+  const month = new Date().toISOString().slice(0, 7);
+  return deterministicUuid(`${subCode}:${month}`);
+}
+
+function fallbackSubscriptionExpiry(): string {
+  return new Date(Date.now() + 32 * 24 * 60 * 60 * 1000).toISOString();
+}
+
+/**
+ * Activate a Pro subscription after Paystack's subscription.create event.
+ *
+ * Keep subscription business logic here rather than in the HTTP route. This
+ * function is intentionally exported so the webhook behavior can be tested
+ * without constructing a request or reproducing the route's Supabase calls.
+ */
+export async function processSubscriptionCreate(data: PaystackSubscriptionCreateData) {
+  const subCode = data.subscription_code ?? "";
+  const customerEmail = data.customer?.email ?? "";
+  const emailToken = data.email_token ?? "";
+  const customerCode = data.customer?.customer_code ?? "";
+  const planCode = data.plan?.plan_code ?? "";
+  const nextPaymentDate = data.next_payment_date ?? null;
+
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("user_id")
+    .eq("email", customerEmail)
+    .maybeSingle();
+  const userId = profile?.user_id ?? null;
+
+  if (!userId || !subCode) return { status: "ignored" as const };
+
+  await supabaseAdmin.rpc("activate_pro_subscription", {
+    _user: userId,
+    _sub_code: subCode,
+    _expires_at: nextPaymentDate ? new Date(nextPaymentDate).toISOString() : fallbackSubscriptionExpiry(),
+  });
+
+  await supabaseAdmin.rpc("grant_monthly_aura", {
+    _user: userId,
+    _amount: SUBSCRIPTION_TIERS.pro.monthly_aura,
+    _ref: proMonthlyAuraRef(subCode),
+  });
+
+  await supabaseAdmin.from("subscriptions").upsert({
+    user_id: userId,
+    paystack_subscription_code: subCode,
+    paystack_customer_code: customerCode,
+    paystack_email_token: emailToken,
+    plan_code: planCode,
+    status: "active",
+    next_payment_date: nextPaymentDate,
+    amount_minor: data.amount ?? SUBSCRIPTION_TIERS.pro.price_amount_minor,
+    currency: "USD",
+  }, { onConflict: "paystack_subscription_code" });
+
+  return { status: "success" as const, userId, subscriptionCode: subCode };
+}
+
+/**
+ * Keep a Pro subscription active and grant its monthly Aura on renewal.
+ */
+export async function processSubscriptionRenewal(data: PaystackSubscriptionRenewalData) {
+  const subCode = data.subscription_code ?? "";
+  if (!subCode) return { status: "ignored" as const };
+
+  const { data: sub } = await supabaseAdmin
+    .from("subscriptions")
+    .select("user_id, next_payment_date")
+    .eq("paystack_subscription_code", subCode)
+    .maybeSingle();
+  const userId: string | null = sub?.user_id ?? data.metadata?.user_id ?? null;
+
+  if (!userId) return { status: "ignored" as const };
+
+  const newExpiry = fallbackSubscriptionExpiry();
+
+  await supabaseAdmin.rpc("activate_pro_subscription", {
+    _user: userId,
+    _sub_code: subCode,
+    _expires_at: newExpiry,
+  });
+
+  await supabaseAdmin.rpc("grant_monthly_aura", {
+    _user: userId,
+    _amount: SUBSCRIPTION_TIERS.pro.monthly_aura,
+    _ref: proMonthlyAuraRef(subCode),
+  });
+
+  await supabaseAdmin
+    .from("subscriptions")
+    .update({ status: "active", next_payment_date: newExpiry, updated_at: new Date().toISOString() })
+    .eq("paystack_subscription_code", subCode);
+
+  return { status: "success" as const, userId, subscriptionCode: subCode };
+}
+
+/**
+ * End Pro access only after Paystack confirms the subscription is disabled.
+ */
+export async function processSubscriptionDisable(data: PaystackSubscriptionDisableData) {
+  const subCode = data.subscription_code ?? "";
+  if (!subCode) return { status: "ignored" as const };
+
+  const { data: sub } = await supabaseAdmin
+    .from("subscriptions")
+    .select("user_id")
+    .eq("paystack_subscription_code", subCode)
+    .maybeSingle();
+  const userId: string | null = sub?.user_id ?? null;
+
+  if (!userId) return { status: "ignored" as const };
+
+  await supabaseAdmin.rpc("deactivate_pro_subscription", { _user: userId });
+  await supabaseAdmin
+    .from("subscriptions")
+    .update({ status: "cancelled", updated_at: new Date().toISOString() })
+    .eq("paystack_subscription_code", subCode);
+
+  return { status: "success" as const, userId, subscriptionCode: subCode };
+}
 
 /**
  * Process a successful payment charge event.
