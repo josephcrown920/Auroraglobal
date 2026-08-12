@@ -826,6 +826,61 @@ describe("queue lanes", () => {
     const results = await processBatch("w1", 2);
     expect(results.filter((r) => r.processed)).toHaveLength(1);
   });
+
+  it("standard jobs are not delayed by a queued heavy job — both get served in one batch", async () => {
+    // Scenario: one standard image job and one heavy lipsync job are both queued.
+    // With a 3-slot batch (slots 0,1 = mixed; slot 2 = heavy-only), both lanes
+    // should be served: the standard job wins a mixed slot, the lipsync wins the
+    // heavy-only slot, and no standard job ever has to wait behind lipsync.
+    //
+    // The mock is lane-aware: a mixed-lane call returns the standard job (the
+    // standard worker always prefers standard first), and the heavy-only call
+    // returns the lipsync job. Both are processed and neither blocks the other.
+    const standardJob = job({ id: "std", kind: "image", payload: { kind: "image", prompt: "photo" } });
+    const heavyJob = job({ id: "lsync", kind: "lipsync", payload: { kind: "lipsync", prompt: "lip" } });
+
+    // Simulate the DB queue: mixed-lane slots get the standard job, the heavy-only
+    // slot gets the lipsync job.  claimQueue acts as a FIFO consumed by each slot's
+    // claim_next_job_v2 call in processBatch — two mixed slots + one heavy-only slot.
+    claimQueue = [standardJob, heavyJob];
+
+    const results = await processBatch("w1", 3);
+
+    const processed = results.filter((r) => r.processed);
+    expect(processed).toHaveLength(2);
+    expect(processed.map((r) => r.jobId).sort()).toEqual(["lsync", "std"].sort());
+
+    // Verify slot assignments: slots 0,1 requested mixed lanes; slot 2 heavy-only.
+    const claims = calls.rpc.filter((r) => r.name === "claim_next_job_v2");
+    expect(claims[0].args._lanes).toEqual(["standard", "heavy"]);
+    expect(claims[1].args._lanes).toEqual(["standard", "heavy"]);
+    expect(claims[2].args._lanes).toEqual(["heavy"]);
+  });
+
+  it("a flood of standard jobs never fully starves the heavy lane in multi-slot batches", async () => {
+    // Even when standard work fills every mixed slot, the final slot is heavy-only
+    // so lipsync/4K renders always get at least one slot per tick.
+    const standardJobs = [
+      job({ id: "s1" }), job({ id: "s2" }), job({ id: "s3" }), job({ id: "s4" }),
+    ];
+    const heavyJob = job({ id: "h1", kind: "lipsync", payload: { kind: "lipsync" } });
+
+    // 5-slot batch: slots 0-3 = mixed (all claim standard jobs), slot 4 = heavy-only.
+    claimQueue = [...standardJobs, heavyJob];
+    const results = await processBatch("w1", 5);
+
+    const processed = results.filter((r) => r.processed);
+    expect(processed).toHaveLength(5);
+
+    const claims = calls.rpc.filter((r) => r.name === "claim_next_job_v2");
+    // First 4 slots: mixed lanes — standard jobs drain these.
+    for (let i = 0; i < 4; i++) {
+      expect(claims[i].args._lanes).toEqual(["standard", "heavy"]);
+    }
+    // Final slot: heavy-only — the lipsync job gets served here.
+    expect(claims[4].args._lanes).toEqual(["heavy"]);
+    expect(processed.find((r) => r.jobId === "h1")).toBeDefined();
+  });
 });
 
 describe("classifyJobError", () => {
