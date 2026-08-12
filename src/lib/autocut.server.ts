@@ -259,6 +259,32 @@ async function downloadToFile(url: string, destPath: string): Promise<void> {
   await writeFile(destPath, buf);
 }
 
+// ─── Aspect-ratio canvas resolution ──────────────────────────────────────────
+// Supported aspect ratios and their canvas dimensions (all even-pixel, yuv420p-
+// safe). Keep in lockstep with ASSEMBLE_CANVAS in aurora_worker.py.
+const ASSEMBLE_CANVAS: Record<string, { w: number; h: number }> = {
+  "9:16": { w: 720,  h: 1280 }, // portrait  (default)
+  "16:9": { w: 1280, h: 720  }, // landscape
+  "1:1":  { w: 720,  h: 720  }, // square
+};
+
+/**
+ * Resolve canvas dimensions for the requested aspect ratio.
+ * Throws with a clear message (matched by TERMINAL_ERROR_RE) when an
+ * unsupported ratio is supplied so the job fails explicitly rather than
+ * silently outputting the wrong shape.
+ */
+export function resolveAssembleCanvas(aspect?: string | null): { w: number; h: number } {
+  const ratio = aspect ?? "9:16";
+  const canvas = ASSEMBLE_CANVAS[ratio];
+  if (!canvas) {
+    throw new Error(
+      `AutoCut: unsupported aspect ratio "${ratio}" [requires one of ${Object.keys(ASSEMBLE_CANVAS).join(", ")}]`,
+    );
+  }
+  return canvas;
+}
+
 export type LocalAssembleParams = {
   clips: string[];
   /** AutoCut style id (hype/cinematic/talking_head/tiktok_hook) — drives per-clip
@@ -269,6 +295,10 @@ export type LocalAssembleParams = {
   musicUrl?: string | null;
   musicVolume?: number;
   maxDurationSec?: number;
+  /** Output aspect ratio: "9:16" (default/portrait), "16:9" (landscape), or
+   * "1:1" (square). Unsupported values throw explicitly so the job fails
+   * visibly rather than silently outputting the wrong shape. */
+  aspect?: string | null;
 };
 
 /** Sequentially crossfades `scenes` (each pre-normalized to the same canvas/fps)
@@ -326,6 +356,9 @@ export async function runLocalFfmpegAssemble(params: LocalAssembleParams): Promi
   }
 
   const cutRule = getStyleCutRule(params.style);
+  // Resolve output canvas — throws explicitly for unsupported ratios so the
+  // job fails visibly rather than silently producing the wrong aspect ratio.
+  const { w: canvasW, h: canvasH } = resolveAssembleCanvas(params.aspect);
 
   const dir = await mkdtemp(join(tmpdir(), "aurora-assemble-"));
   try {
@@ -340,8 +373,8 @@ export async function runLocalFfmpegAssemble(params: LocalAssembleParams): Promi
       const withAudio = await hasAudioStream(clipIn);
       const sceneOut = join(dir, `scene${i}_${randomUUID().slice(0, 8)}.mp4`);
       const vf =
-        `scale=${ASSEMBLE_W}:${ASSEMBLE_H}:force_original_aspect_ratio=decrease,` +
-        `pad=${ASSEMBLE_W}:${ASSEMBLE_H}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${ASSEMBLE_FPS},` +
+        `scale=${canvasW}:${canvasH}:force_original_aspect_ratio=decrease,` +
+        `pad=${canvasW}:${canvasH}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${ASSEMBLE_FPS},` +
         `tpad=stop_mode=clone:stop_duration=${dur.toFixed(3)},format=yuv420p`;
 
       const args = ["-y", "-i", clipIn];

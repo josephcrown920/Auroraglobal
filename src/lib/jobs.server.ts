@@ -1308,6 +1308,7 @@ async function runAutocut(job: JobRow, orch: Orchestrate, workerId: string): Pro
       musicUrl,
       musicVolume: 0.15,
       maxDurationSec: 60,
+      aspect: p.aspect ?? "9:16",
     });
     const url = await uploadAutocutResult(job.user_id, job.id, bytes);
 

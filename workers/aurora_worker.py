@@ -330,10 +330,32 @@ def run_image(prompt: str, params: dict[str, Any]) -> str:
 
 
 # ── Final assembly (ffmpeg only — no model weights) ───────────────────────────
-ASSEMBLE_W = int(os.environ.get("AURORA_ASSEMBLE_W", "720"))
-ASSEMBLE_H = int(os.environ.get("AURORA_ASSEMBLE_H", "1280"))
 ASSEMBLE_FPS = int(os.environ.get("AURORA_ASSEMBLE_FPS", "24"))
 ASSEMBLE_MAX_SCENES = int(os.environ.get("AURORA_ASSEMBLE_MAX_SCENES", "12"))
+
+# Supported aspect ratios and their canvas dimensions (all even-pixel,
+# yuv420p-safe). Keep in lockstep with ASSEMBLE_CANVAS / resolveAssembleCanvas
+# in src/lib/autocut.server.ts.
+ASSEMBLE_CANVAS: dict[str, tuple[int, int]] = {
+    "9:16": (720,  1280),  # portrait  (default)
+    "16:9": (1280, 720),   # landscape
+    "1:1":  (720,  720),   # square
+}
+
+
+def _resolve_assemble_canvas(aspect: str | None) -> tuple[int, int]:
+    """Return (width, height) for the requested aspect ratio.
+    Raises ValueError with a clear message (matched by TERMINAL_ERROR_RE on the
+    Aurora server) when an unsupported ratio is requested."""
+    ratio = aspect or "9:16"
+    canvas = ASSEMBLE_CANVAS.get(ratio)
+    if canvas is None:
+        supported = ", ".join(ASSEMBLE_CANVAS)
+        raise ValueError(
+            f"AutoCut: unsupported aspect ratio \"{ratio}\" "
+            f"[requires one of {supported}]"
+        )
+    return canvas
 
 # AutoCut style id -> per-clip duration bounds + transition. Mirrors
 # CUT_RATE_BOUNDS / getStyleCutRule() in src/lib/autocut.server.ts (that file
@@ -406,6 +428,7 @@ def run_assemble(params: dict[str, Any]) -> str:
     narrations = params.get("narrations") or []
     durations = params.get("durations") or []
     style = params.get("style")
+    aspect = params.get("aspect")  # "9:16" | "16:9" | "1:1" | None → default 9:16
     music_url = params.get("music_url")
     music_volume = float(params.get("music_volume", 0.18))
     max_duration = float(params.get("max_duration", 60.0))
@@ -417,6 +440,11 @@ def run_assemble(params: dict[str, Any]) -> str:
     for u in clips:
         if not isinstance(u, str) or not u.startswith(("http://", "https://")):
             raise ValueError("assemble: every clip must be an http(s) url")
+
+    # Resolve output canvas — raises ValueError (matched by TERMINAL_ERROR_RE)
+    # for unsupported ratios so the job fails visibly rather than silently
+    # producing the wrong aspect ratio.
+    assemble_w, assemble_h = _resolve_assemble_canvas(aspect)
 
     cut_rule = STYLE_CUT_RULES.get(style, DEFAULT_CUT_RULE) if style else DEFAULT_CUT_RULE
 
@@ -440,8 +468,8 @@ def run_assemble(params: dict[str, Any]) -> str:
         # Over-pad (clone last frame) then hard-trim to `dur`: longer clips are
         # trimmed, shorter clips freeze on their final frame.
         vf = (
-            f"scale={ASSEMBLE_W}:{ASSEMBLE_H}:force_original_aspect_ratio=decrease,"
-            f"pad={ASSEMBLE_W}:{ASSEMBLE_H}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={ASSEMBLE_FPS},"
+            f"scale={assemble_w}:{assemble_h}:force_original_aspect_ratio=decrease,"
+            f"pad={assemble_w}:{assemble_h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={ASSEMBLE_FPS},"
             f"tpad=stop_mode=clone:stop_duration={dur:.3f},format=yuv420p"
         )
         cmd = ["ffmpeg", "-y", "-i", clip]
