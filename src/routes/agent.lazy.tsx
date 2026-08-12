@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
+import { createLazyFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -90,6 +90,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  MoreHorizontal,
+  ExternalLink,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -926,6 +928,16 @@ function AgentPage() {
   const [activeTab, setActiveTab] = useState<"Workspace" | "Script" | "Dailies" | "Timeline" | "HeyGen">("Workspace");
   const [leftOpen,  setLeftOpen]  = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
+  const [moreToolsOpen, setMoreToolsOpen] = useState(false);
+
+  // Collapse both side panels by default on small screens so the chat gets
+  // the full width (runs client-side only — avoids an SSR hydration mismatch).
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setLeftOpen(false);
+      setRightOpen(false);
+    }
+  }, []);
 
   // Autonomous agent run state
   const [agentStatus,  setAgentStatus]  = useState<AgentStatus>("idle");
@@ -1140,26 +1152,35 @@ function AgentPage() {
             </span>
           </div>
 
-          {/* tool nav */}
+          {/* tool nav — decluttered: pinned skills only; everything else in "More tools" */}
           <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
-            <SidebarSection title="Avatar Videos">
-              {AVATAR_TOOLS.map((t) => <SidebarItem key={t.label} icon={t.icon} label={t.label} onClick={() => launch(t.prompt)} />)}
-            </SidebarSection>
-            <SidebarSection title="Cinematic Craft">
-              {CINEMATIC_TOOLS.map((t) => <SidebarItem key={t.label} icon={t.icon} label={t.label} onClick={() => launch(t.prompt)} accent />)}
-            </SidebarSection>
-            <SidebarSection title="Director Style">
-              {DIRECTOR_STYLES.map((t) => <SidebarItem key={t.label} icon={t.icon} label={t.label} onClick={() => launch(t.prompt)} />)}
-            </SidebarSection>
-            <SidebarSection title="AI Tools">
-              {AI_TOOLS.map((t) => <SidebarItem key={t.label} icon={t.icon} label={t.label} onClick={() => launch(t.prompt)} accent />)}
-            </SidebarSection>
-            <SidebarSection title="Scene Assets">
-              {SCENE_TOOLS.map((t) => <SidebarItem key={t.label} icon={t.icon} label={t.label} onClick={() => launch(t.prompt)} />)}
-            </SidebarSection>
-            <SidebarSection title="Aurora Skills" defaultOpen>
-              {AURORA_SKILL_TOOLS.map((t) => <SidebarItem key={t.label} icon={t.icon} label={t.label} onClick={() => launch(t.prompt)} accent />)}
-            </SidebarSection>
+            {/* Quick links to dedicated surfaces (used to be the Avatar Videos section) */}
+            <div className="mb-3 space-y-0.5">
+              <p className="px-3 pb-1 text-xs font-bold uppercase tracking-[0.25em] text-ink-dim">Studios</p>
+              <Link to="/avatar" className="group flex w-full items-center gap-2 rounded-sm border border-transparent px-3 py-1.5 text-left text-[12px] font-medium text-ink no-underline transition-colors hover:border-prime/30 hover:bg-panel-2">
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-sm border border-line bg-panel-2 text-ink-dim group-hover:text-ink"><UserSquare2 className="size-3" /></span>
+                <span className="truncate">Talking Avatars</span>
+                <ExternalLink className="ml-auto size-3 text-ink-dim/50" />
+              </Link>
+              <Link to="/video-agent" className="group flex w-full items-center gap-2 rounded-sm border border-transparent px-3 py-1.5 text-left text-[12px] font-medium text-ink no-underline transition-colors hover:border-prime/30 hover:bg-panel-2">
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-sm border border-line bg-panel-2 text-ink-dim group-hover:text-ink"><Clapperboard className="size-3" /></span>
+                <span className="truncate">Video Agent</span>
+                <ExternalLink className="ml-auto size-3 text-ink-dim/50" />
+              </Link>
+            </div>
+
+            {/* Pinned Aurora skills — the agent's real capabilities */}
+            <p className="px-3 pb-1 text-xs font-bold uppercase tracking-[0.25em] text-ink-dim">Aurora Skills</p>
+            {AURORA_SKILL_TOOLS.map((t) => <SidebarItem key={t.label} icon={t.icon} label={t.label} onClick={() => launch(t.prompt)} accent />)}
+
+            {/* Everything else lives behind one overflow control */}
+            <button
+              onClick={() => setMoreToolsOpen(true)}
+              className="group mt-3 flex w-full items-center gap-2 rounded-sm border border-line/60 px-3 py-2 text-left text-[12px] font-semibold text-ink-dim transition-colors hover:border-prime/40 hover:text-ink"
+            >
+              <span className="flex size-5 shrink-0 items-center justify-center rounded-sm border border-line bg-panel-2 text-ink-dim group-hover:text-ink"><MoreHorizontal className="size-3" /></span>
+              <span className="truncate">More tools…</span>
+            </button>
           </nav>
 
           {/* footer */}
@@ -1195,6 +1216,56 @@ function AgentPage() {
       >
         {leftOpen ? <ChevronLeft className="size-3" /> : <ChevronRight className="size-3" />}
       </button>
+
+      {/* ── MORE TOOLS OVERLAY ─────────────────────────────────────────────── */}
+      {moreToolsOpen && (
+        <div
+          className="absolute inset-0 z-40 flex items-end justify-center bg-canvas/70 backdrop-blur-sm md:items-center"
+          onClick={() => setMoreToolsOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="More tools"
+        >
+          <div
+            className="flex max-h-[85%] w-full max-w-2xl flex-col overflow-hidden rounded-t-md border border-line bg-panel shadow-2xl md:rounded-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-line px-5 py-3">
+              <span className="text-[13px] font-black uppercase tracking-widest text-ink">More tools</span>
+              <button
+                onClick={() => setMoreToolsOpen(false)}
+                className="flex size-7 items-center justify-center rounded-sm border border-line text-ink-dim transition-colors hover:text-ink"
+                aria-label="Close"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
+              {([
+                ["Avatar Videos", AVATAR_TOOLS],
+                ["Cinematic Craft", CINEMATIC_TOOLS],
+                ["Director Style", DIRECTOR_STYLES],
+                ["AI Tools", AI_TOOLS],
+                ["Scene Assets", SCENE_TOOLS],
+              ] as const).map(([title, tools]) => (
+                <div key={title}>
+                  <p className="mb-1.5 px-1 text-xs font-bold uppercase tracking-[0.25em] text-ink-dim">{title}</p>
+                  <div className="grid grid-cols-1 gap-0.5 sm:grid-cols-2">
+                    {tools.map((t) => (
+                      <SidebarItem
+                        key={t.label}
+                        icon={t.icon}
+                        label={t.label}
+                        onClick={() => { setMoreToolsOpen(false); launch(t.prompt); }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── CENTER ──────────────────────────────────────────────────────────── */}
       <main className="flex min-w-0 flex-1 flex-col" style={{ zIndex: 5 }}>
@@ -1545,33 +1616,6 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
     >
       {children}
     </button>
-  );
-}
-
-function SidebarSection({
-  title,
-  children,
-  defaultOpen = false,
-}: {
-  title: string;
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="mb-2">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-3 py-1.5 text-xs font-bold uppercase tracking-[0.25em] text-ink-dim transition-colors hover:text-ink"
-        aria-expanded={open}
-      >
-        <span>{title}</span>
-        <ChevronDown
-          className={"size-3 transition-transform " + (open ? "rotate-180" : "")}
-        />
-      </button>
-      {open && <div className="mt-1 space-y-0.5">{children}</div>}
-    </div>
   );
 }
 
