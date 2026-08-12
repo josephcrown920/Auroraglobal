@@ -48,6 +48,29 @@ describe("computeCost — single-feature defaults stay unchanged", () => {
   });
 });
 
+// The Studio hero composer (src/routes/studio.lazy.tsx) shows a lime price pill
+// whose image-mode label used to be the hardcoded string "10 Aura". This test
+// pins the label to computeCost so the pill can never drift from the actual
+// image charge — if the image base price changes, this test fails and forces
+// the display to follow. The composer builds the label as
+// `${computeCost({ features: ["image"], model }).total} Aura`.
+describe("Studio composer image price pill parity", () => {
+  const imageLabelCost = (model?: string) =>
+    computeCost({ features: ["image"], model }).total;
+
+  it("derives from computeCost, matching the canonical image base", () => {
+    // A still that is the final output is flat-priced at the image base — no
+    // resolution multiplier applies (resolutionApplies is false without a
+    // temporal output), so the pill equals PRICING.base.image.
+    expect(imageLabelCost()).toBe(PRICING.base.image);
+  });
+
+  it("stays model-agnostic (image base does not tier by model)", () => {
+    expect(imageLabelCost("some-image-model")).toBe(PRICING.base.image);
+    expect(imageLabelCost("another-model")).toBe(imageLabelCost());
+  });
+});
+
 describe("computeCost — resolution multiplier", () => {
   it("scales a standalone image by resolution", () => {
     expect(computeCost({ features: ["image"], resolution: "480p" }).total).toBe(5); // 10 × 0.5

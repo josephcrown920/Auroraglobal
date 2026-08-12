@@ -169,6 +169,13 @@ function StudioPage() {
     () => computeCost({ features: ["lipsync"], model: lipsyncModel }).total,
     [lipsyncModel],
   );
+  // Image render is flat-priced (base only — resolution does not apply to a
+  // still that is the final output). Derive it from computeCost so the pill
+  // never drifts from the actual charge, per the pricing single-source rule.
+  const imageCost = useMemo(
+    () => computeCost({ features: ["image"], model }).total,
+    [model],
+  );
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Hero composer — Image/Video entry surface at the top of the page.
@@ -699,7 +706,7 @@ function StudioPage() {
           onImageModelChange={setModel}
           videoModel={videoModel}
           onVideoModelChange={setVideoModel}
-          costLabel={composerMode === "image" ? "10 Aura" : `${videoCost} Aura`}
+          costLabel={composerMode === "image" ? `${imageCost} Aura` : `${videoCost} Aura`}
           busy={composerMode === "image" ? mut.isPending || demoMut.isPending : videoMut.isPending}
           hasReferences={!!(selfie || outfit || scene || prop || motion)}
           onOpenReferences={() => setSettingsOpen(true)}
@@ -899,7 +906,7 @@ function StudioPage() {
           </button>
         </div>
         <div className="flex items-center justify-between mt-1.5 px-1">
-          <span className="text-[10px] text-zinc-600">{getModelMeta(model)?.label ?? model} · 10 Aura</span>
+          <span className="text-[10px] text-zinc-600">{getModelMeta(model)?.label ?? model} · {imageCost} Aura</span>
           <button type="button" onClick={() => setSettingsOpen(true)} className="text-[10px] text-zinc-600 hover:text-zinc-300 transition-colors">
             {selfie || outfit ? "✓ refs set" : "Add references"}
           </button>
