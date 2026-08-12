@@ -1,57 +1,111 @@
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export type Database = {
   public: {
     Tables: {
+      ad_variations: {
+        Row: {
+          aspect: string | null
+          batch_id: string
+          created_at: string
+          error: string | null
+          id: string
+          kind: string
+          likeness_id: string | null
+          meta: Json
+          source_generation_id: string | null
+          status: string
+          text_value: string | null
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          aspect?: string | null
+          batch_id: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          kind: string
+          likeness_id?: string | null
+          meta?: Json
+          source_generation_id?: string | null
+          status?: string
+          text_value?: string | null
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          aspect?: string | null
+          batch_id?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          kind?: string
+          likeness_id?: string | null
+          meta?: Json
+          source_generation_id?: string | null
+          status?: string
+          text_value?: string | null
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       affiliate_events: {
         Row: {
-          amount_usd: number | null;
-          code: string;
-          created_at: string;
-          id: string;
-          kind: string;
-          ref_id: string | null;
-          user_id: string | null;
-        };
+          amount_usd: number | null
+          code: string
+          created_at: string
+          id: string
+          kind: string
+          ref_id: string | null
+          user_id: string | null
+        }
         Insert: {
-          amount_usd?: number | null;
-          code: string;
-          created_at?: string;
-          id?: string;
-          kind: string;
-          ref_id?: string | null;
-          user_id?: string | null;
-        };
+          amount_usd?: number | null
+          code: string
+          created_at?: string
+          id?: string
+          kind: string
+          ref_id?: string | null
+          user_id?: string | null
+        }
         Update: {
-          amount_usd?: number | null;
-          code?: string;
-          created_at?: string;
-          id?: string;
-          kind?: string;
-          ref_id?: string | null;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
+          amount_usd?: number | null
+          code?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          ref_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       affiliates: {
         Row: {
-          code: string;
-          commission_pct: number;
-          created_at: string;
-          id: string;
-          payout_email: string | null;
-          total_earned_usd: number;
-          user_id: string;
-        };
+          code: string
+          commission_pct: number
+          created_at: string
+          id: string
+          payout_email: string | null
+          total_earned_usd: number
+          user_id: string
+        }
         Insert: {
-          code: string;
-          commission_pct?: number;
-          created_at?: string;
-          id?: string;
-          payout_email?: string | null;
-          total_earned_usd?: number;
-          user_id: string;
-        };
+          code: string
+          commission_pct?: number
+          created_at?: string
+          id?: string
+          payout_email?: string | null
+          total_earned_usd?: number
+          user_id: string
+        }
         Update: {
           code?: string
           commission_pct?: number
@@ -153,27 +207,63 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_router_logs: {
+        Row: {
+          category: string
+          created_at: string
+          estimated_cost: number
+          failure_reason: string | null
+          fallback_count: number
+          id: string
+          latency_ms: number
+          provider_used: string
+          success: boolean
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          estimated_cost?: number
+          failure_reason?: string | null
+          fallback_count?: number
+          id?: string
+          latency_ms?: number
+          provider_used: string
+          success: boolean
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          estimated_cost?: number
+          failure_reason?: string | null
+          fallback_count?: number
+          id?: string
+          latency_ms?: number
+          provider_used?: string
+          success?: boolean
+        }
+        Relationships: []
+      }
       api_keys: {
         Row: {
-          created_at: string;
-          id: string;
-          key_hash: string;
-          key_prefix: string;
-          last_used_at: string | null;
-          name: string;
-          revoked_at: string | null;
-          user_id: string;
-        };
+          created_at: string
+          id: string
+          key_hash: string
+          key_prefix: string
+          last_used_at: string | null
+          name: string
+          revoked_at: string | null
+          user_id: string
+        }
         Insert: {
-          created_at?: string;
-          id?: string;
-          key_hash: string;
-          key_prefix: string;
-          last_used_at?: string | null;
-          name?: string;
-          revoked_at?: string | null;
-          user_id: string;
-        };
+          created_at?: string
+          id?: string
+          key_hash: string
+          key_prefix: string
+          last_used_at?: string | null
+          name?: string
+          revoked_at?: string | null
+          user_id: string
+        }
         Update: {
           created_at?: string
           id?: string
@@ -201,6 +291,39 @@ export type Database = {
           key?: string
           updated_at?: string
           value?: Json
+        }
+        Relationships: []
+      }
+      aurora_templates: {
+        Row: {
+          character_variable_key: string
+          created_at: string
+          fixed_variables: Json
+          heygen_template_id: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          character_variable_key: string
+          created_at?: string
+          fixed_variables?: Json
+          heygen_template_id: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          character_variable_key?: string
+          created_at?: string
+          fixed_variables?: Json
+          heygen_template_id?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -258,27 +381,196 @@ export type Database = {
         }
         Relationships: []
       }
+      board_items: {
+        Row: {
+          board_id: string
+          created_at: string
+          height: number | null
+          id: string
+          image_url: string | null
+          metadata: Json
+          node_id: string | null
+          prompt: string | null
+          source_url: string | null
+          type: string
+          user_id: string
+          video_url: string | null
+          width: number | null
+          x: number
+          y: number
+          z_index: number
+        }
+        Insert: {
+          board_id: string
+          created_at?: string
+          height?: number | null
+          id?: string
+          image_url?: string | null
+          metadata?: Json
+          node_id?: string | null
+          prompt?: string | null
+          source_url?: string | null
+          type?: string
+          user_id: string
+          video_url?: string | null
+          width?: number | null
+          x?: number
+          y?: number
+          z_index?: number
+        }
+        Update: {
+          board_id?: string
+          created_at?: string
+          height?: number | null
+          id?: string
+          image_url?: string | null
+          metadata?: Json
+          node_id?: string | null
+          prompt?: string | null
+          source_url?: string | null
+          type?: string
+          user_id?: string
+          video_url?: string | null
+          width?: number | null
+          x?: number
+          y?: number
+          z_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "board_items_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "boards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      boards: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          thumbnail: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          thumbnail?: string | null
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          thumbnail?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      character_profiles: {
+        Row: {
+          created_at: string
+          id: string
+          identity_prompt: string
+          name: string
+          reference_image_url: string | null
+          updated_at: string
+          user_id: string
+          voice_notes: string | null
+          wardrobe_notes: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          identity_prompt?: string
+          name: string
+          reference_image_url?: string | null
+          updated_at?: string
+          user_id: string
+          voice_notes?: string | null
+          wardrobe_notes?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          identity_prompt?: string
+          name?: string
+          reference_image_url?: string | null
+          updated_at?: string
+          user_id?: string
+          voice_notes?: string | null
+          wardrobe_notes?: string | null
+        }
+        Relationships: []
+      }
+      chat_threads: {
+        Row: {
+          board_id: string | null
+          created_at: string
+          id: string
+          messages: Json
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          board_id?: string | null
+          created_at?: string
+          id?: string
+          messages?: Json
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          board_id?: string | null
+          created_at?: string
+          id?: string
+          messages?: Json
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_threads_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "boards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cli_device_codes: {
         Row: {
-          api_key_plain: string | null;
-          created_at: string;
-          device_code: string;
-          expires_at: string;
-          id: string;
-          status: string;
-          user_code: string;
-          user_id: string | null;
-        };
+          api_key_plain: string | null
+          created_at: string
+          device_code: string
+          expires_at: string
+          id: string
+          status: string
+          user_code: string
+          user_id: string | null
+        }
         Insert: {
-          api_key_plain?: string | null;
-          created_at?: string;
-          device_code: string;
-          expires_at?: string;
-          id?: string;
-          status?: string;
-          user_code: string;
-          user_id?: string | null;
-        };
+          api_key_plain?: string | null
+          created_at?: string
+          device_code: string
+          expires_at?: string
+          id?: string
+          status?: string
+          user_code: string
+          user_id?: string | null
+        }
         Update: {
           api_key_plain?: string | null
           created_at?: string
@@ -506,6 +798,7 @@ export type Database = {
         Row: {
           created_at: string
           error: string | null
+          external_run_id: string | null
           generation_id: string | null
           id: string
           input_values: Json
@@ -523,6 +816,7 @@ export type Database = {
         Insert: {
           created_at?: string
           error?: string | null
+          external_run_id?: string | null
           generation_id?: string | null
           id?: string
           input_values?: Json
@@ -540,6 +834,7 @@ export type Database = {
         Update: {
           created_at?: string
           error?: string | null
+          external_run_id?: string | null
           generation_id?: string | null
           id?: string
           input_values?: Json
@@ -649,124 +944,202 @@ export type Database = {
       }
       contact_messages: {
         Row: {
-          created_at: string;
-          email: string;
-          id: string;
-          message: string;
-          name: string | null;
-          status: string;
-          topic: string;
-          user_id: string | null;
-        };
+          created_at: string
+          email: string
+          id: string
+          message: string
+          name: string | null
+          status: string
+          topic: string
+          user_id: string | null
+        }
         Insert: {
-          created_at?: string;
-          email: string;
-          id?: string;
-          message: string;
-          name?: string | null;
-          status?: string;
-          topic?: string;
-          user_id?: string | null;
-        };
+          created_at?: string
+          email: string
+          id?: string
+          message: string
+          name?: string | null
+          status?: string
+          topic?: string
+          user_id?: string | null
+        }
         Update: {
-          created_at?: string;
-          email?: string;
-          id?: string;
-          message?: string;
-          name?: string | null;
-          status?: string;
-          topic?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string
+          name?: string | null
+          status?: string
+          topic?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       credit_ledger: {
         Row: {
-          created_at: string;
-          delta: number;
-          id: string;
-          reason: string;
-          ref_id: string | null;
-          user_id: string;
-        };
+          created_at: string
+          delta: number
+          id: string
+          reason: string
+          ref_id: string | null
+          user_id: string
+        }
         Insert: {
-          created_at?: string;
-          delta: number;
-          id?: string;
-          reason: string;
-          ref_id?: string | null;
-          user_id: string;
-        };
+          created_at?: string
+          delta: number
+          id?: string
+          reason: string
+          ref_id?: string | null
+          user_id: string
+        }
         Update: {
-          created_at?: string;
-          delta?: number;
-          id?: string;
-          reason?: string;
-          ref_id?: string | null;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          delta?: number
+          id?: string
+          reason?: string
+          ref_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      edit_sessions: {
+        Row: {
+          chat_history: Json
+          clip_list: Json
+          created_at: string
+          id: string
+          music_track_id: string | null
+          result_url: string | null
+          status: string
+          style: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chat_history?: Json
+          clip_list?: Json
+          created_at?: string
+          id?: string
+          music_track_id?: string | null
+          result_url?: string | null
+          status?: string
+          style?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chat_history?: Json
+          clip_list?: Json
+          created_at?: string
+          id?: string
+          music_track_id?: string | null
+          result_url?: string | null
+          status?: string
+          style?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       email_log: {
         Row: {
-          error: string | null;
-          id: string;
-          sent_at: string;
-          status: string;
-          template: string;
-          to_email: string;
-          user_id: string | null;
-        };
+          error: string | null
+          id: string
+          sent_at: string
+          status: string
+          template: string
+          to_email: string
+          user_id: string | null
+        }
         Insert: {
-          error?: string | null;
-          id?: string;
-          sent_at?: string;
-          status?: string;
-          template: string;
-          to_email: string;
-          user_id?: string | null;
-        };
+          error?: string | null
+          id?: string
+          sent_at?: string
+          status?: string
+          template: string
+          to_email: string
+          user_id?: string | null
+        }
         Update: {
-          error?: string | null;
-          id?: string;
-          sent_at?: string;
-          status?: string;
-          template?: string;
-          to_email?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
+          error?: string | null
+          id?: string
+          sent_at?: string
+          status?: string
+          template?: string
+          to_email?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       events: {
         Row: {
-          created_at: string;
-          id: string;
-          name: string;
-          path: string | null;
-          payload: Json | null;
-          session_id: string | null;
-          user_id: string | null;
-        };
+          created_at: string
+          id: string
+          name: string
+          path: string | null
+          payload: Json | null
+          session_id: string | null
+          user_id: string | null
+        }
         Insert: {
-          created_at?: string;
-          id?: string;
-          name: string;
-          path?: string | null;
-          payload?: Json | null;
-          session_id?: string | null;
-          user_id?: string | null;
-        };
+          created_at?: string
+          id?: string
+          name: string
+          path?: string | null
+          payload?: Json | null
+          session_id?: string | null
+          user_id?: string | null
+        }
         Update: {
-          created_at?: string;
-          id?: string;
-          name?: string;
-          path?: string | null;
-          payload?: Json | null;
-          session_id?: string | null;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          id?: string
+          name?: string
+          path?: string | null
+          payload?: Json | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      generation_health_state: {
+        Row: {
+          alert_sent_at: string | null
+          consecutive_errors: number
+          consecutive_ok: number
+          kind: string
+          last_check_at: string | null
+          last_error_summary: string | null
+          last_ok_at: string | null
+          recovery_sent_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          alert_sent_at?: string | null
+          consecutive_errors?: number
+          consecutive_ok?: number
+          kind: string
+          last_check_at?: string | null
+          last_error_summary?: string | null
+          last_ok_at?: string | null
+          recovery_sent_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alert_sent_at?: string | null
+          consecutive_errors?: number
+          consecutive_ok?: number
+          kind?: string
+          last_check_at?: string | null
+          last_error_summary?: string | null
+          last_ok_at?: string | null
+          recovery_sent_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       generations: {
         Row: {
           agent_shot_id: string | null
@@ -864,79 +1237,43 @@ export type Database = {
       }
       gift_cards: {
         Row: {
-          amount_usd: number;
-          code: string;
-          created_at: string;
-          created_by: string;
-          credits: number;
-          design: string;
-          id: string;
-          note: string | null;
-          redeemed_at: string | null;
-          redeemed_by: string | null;
-        };
+          amount_usd: number
+          code: string
+          created_at: string
+          created_by: string
+          credits: number
+          design: string
+          id: string
+          note: string | null
+          redeemed_at: string | null
+          redeemed_by: string | null
+        }
         Insert: {
-          amount_usd?: number;
-          code: string;
-          created_at?: string;
-          created_by: string;
-          credits: number;
-          design?: string;
-          id?: string;
-          note?: string | null;
-          redeemed_at?: string | null;
-          redeemed_by?: string | null;
-        };
+          amount_usd?: number
+          code: string
+          created_at?: string
+          created_by: string
+          credits: number
+          design?: string
+          id?: string
+          note?: string | null
+          redeemed_at?: string | null
+          redeemed_by?: string | null
+        }
         Update: {
-          amount_usd?: number;
-          code?: string;
-          created_at?: string;
-          created_by?: string;
-          credits?: number;
-          design?: string;
-          id?: string;
-          note?: string | null;
-          redeemed_at?: string | null;
-          redeemed_by?: string | null;
-        };
-        Relationships: [];
-      };
-      generation_health_state: {
-        Row: {
-          alert_sent_at: string | null;
-          consecutive_errors: number;
-          consecutive_ok: number;
-          kind: string;
-          last_check_at: string | null;
-          last_error_summary: string | null;
-          last_ok_at: string | null;
-          recovery_sent_at: string | null;
-          updated_at: string;
-        };
-        Insert: {
-          alert_sent_at?: string | null;
-          consecutive_errors?: number;
-          consecutive_ok?: number;
-          kind: string;
-          last_check_at?: string | null;
-          last_error_summary?: string | null;
-          last_ok_at?: string | null;
-          recovery_sent_at?: string | null;
-          updated_at?: string;
-        };
-        Update: {
-          alert_sent_at?: string | null;
-          consecutive_errors?: number;
-          consecutive_ok?: number;
-          kind?: string;
-          last_check_at?: string | null;
-          last_error_summary?: string | null;
-          last_ok_at?: string | null;
-          recovery_sent_at?: string | null;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
+          amount_usd?: number
+          code?: string
+          created_at?: string
+          created_by?: string
+          credits?: number
+          design?: string
+          id?: string
+          note?: string | null
+          redeemed_at?: string | null
+          redeemed_by?: string | null
+        }
+        Relationships: []
+      }
       gpu_workers: {
         Row: {
           auth_token: string | null
@@ -1227,61 +1564,94 @@ export type Database = {
       }
       leads: {
         Row: {
-          created_at: string;
-          email: string;
-          id: string;
-          ref_code: string | null;
-          source: string;
-          user_agent: string | null;
-        };
+          created_at: string
+          email: string
+          id: string
+          ref_code: string | null
+          source: string
+          user_agent: string | null
+        }
         Insert: {
-          created_at?: string;
-          email: string;
-          id?: string;
-          ref_code?: string | null;
-          source?: string;
-          user_agent?: string | null;
-        };
+          created_at?: string
+          email: string
+          id?: string
+          ref_code?: string | null
+          source?: string
+          user_agent?: string | null
+        }
         Update: {
-          created_at?: string;
-          email?: string;
-          id?: string;
-          ref_code?: string | null;
-          source?: string;
-          user_agent?: string | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          email?: string
+          id?: string
+          ref_code?: string | null
+          source?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       legal_acceptances: {
         Row: {
-          accepted_at: string;
-          document: string;
-          id: string;
-          ip: string | null;
-          user_agent: string | null;
-          user_id: string;
-          version: string;
-        };
+          accepted_at: string
+          document: string
+          id: string
+          ip: string | null
+          user_agent: string | null
+          user_id: string
+          version: string
+        }
         Insert: {
-          accepted_at?: string;
-          document: string;
-          id?: string;
-          ip?: string | null;
-          user_agent?: string | null;
-          user_id: string;
-          version: string;
-        };
+          accepted_at?: string
+          document: string
+          id?: string
+          ip?: string | null
+          user_agent?: string | null
+          user_id: string
+          version: string
+        }
         Update: {
-          accepted_at?: string;
-          document?: string;
-          id?: string;
-          ip?: string | null;
-          user_agent?: string | null;
-          user_id?: string;
-          version?: string;
-        };
-        Relationships: [];
-      };
+          accepted_at?: string
+          document?: string
+          id?: string
+          ip?: string | null
+          user_agent?: string | null
+          user_id?: string
+          version?: string
+        }
+        Relationships: []
+      }
+      likeness_locks: {
+        Row: {
+          created_at: string
+          extra_paths: string[]
+          id: string
+          locked_at: string
+          name: string
+          primary_path: string
+          spec: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          extra_paths?: string[]
+          id?: string
+          locked_at?: string
+          name: string
+          primary_path: string
+          spec?: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          extra_paths?: string[]
+          id?: string
+          locked_at?: string
+          name?: string
+          primary_path?: string
+          spec?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       lipsync_jobs: {
         Row: {
           audio_url: string
@@ -1419,6 +1789,48 @@ export type Database = {
         }
         Relationships: []
       }
+      model_watch: {
+        Row: {
+          availability: string | null
+          category: string | null
+          first_seen: string
+          id: string
+          last_checked: string
+          meta: Json
+          model_id: string
+          provider: string
+          status: string
+          title: string | null
+          watch_kind: string
+        }
+        Insert: {
+          availability?: string | null
+          category?: string | null
+          first_seen?: string
+          id?: string
+          last_checked?: string
+          meta?: Json
+          model_id: string
+          provider: string
+          status?: string
+          title?: string | null
+          watch_kind?: string
+        }
+        Update: {
+          availability?: string | null
+          category?: string | null
+          first_seen?: string
+          id?: string
+          last_checked?: string
+          meta?: Json
+          model_id?: string
+          provider?: string
+          status?: string
+          title?: string | null
+          watch_kind?: string
+        }
+        Relationships: []
+      }
       owner_withdrawals: {
         Row: {
           amount_minor: number
@@ -1523,6 +1935,7 @@ export type Database = {
           lifetime_credits_purchased: number
           onboarding_bonus_granted: boolean
           paystack_subscription_code: string | null
+          persona: string | null
           plan: string
           referred_by_code: string | null
           subscription_expires_at: string | null
@@ -1540,6 +1953,7 @@ export type Database = {
           lifetime_credits_purchased?: number
           onboarding_bonus_granted?: boolean
           paystack_subscription_code?: string | null
+          persona?: string | null
           plan?: string
           referred_by_code?: string | null
           subscription_expires_at?: string | null
@@ -1557,6 +1971,7 @@ export type Database = {
           lifetime_credits_purchased?: number
           onboarding_bonus_granted?: boolean
           paystack_subscription_code?: string | null
+          persona?: string | null
           plan?: string
           referred_by_code?: string | null
           subscription_expires_at?: string | null
@@ -1644,31 +2059,31 @@ export type Database = {
       }
       provider_logs: {
         Row: {
-          cost_usd: number | null;
-          created_at: string;
-          endpoint: string;
-          error: string | null;
-          id: string;
-          kind: string;
-          latency_ms: number | null;
-          provider: string;
-          ref_id: string | null;
-          status: string;
-          user_id: string | null;
-        };
+          cost_usd: number | null
+          created_at: string
+          endpoint: string
+          error: string | null
+          id: string
+          kind: string
+          latency_ms: number | null
+          provider: string
+          ref_id: string | null
+          status: string
+          user_id: string | null
+        }
         Insert: {
-          cost_usd?: number | null;
-          created_at?: string;
-          endpoint: string;
-          error?: string | null;
-          id?: string;
-          kind: string;
-          latency_ms?: number | null;
-          provider: string;
-          ref_id?: string | null;
-          status: string;
-          user_id?: string | null;
-        };
+          cost_usd?: number | null
+          created_at?: string
+          endpoint: string
+          error?: string | null
+          id?: string
+          kind: string
+          latency_ms?: number | null
+          provider: string
+          ref_id?: string | null
+          status: string
+          user_id?: string | null
+        }
         Update: {
           cost_usd?: number | null
           created_at?: string
@@ -1681,6 +2096,72 @@ export type Database = {
           ref_id?: string | null
           status?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      rebase_events: {
+        Row: {
+          applied_at: string
+          key: string
+        }
+        Insert: {
+          applied_at?: string
+          key: string
+        }
+        Update: {
+          applied_at?: string
+          key?: string
+        }
+        Relationships: []
+      }
+      render_jobs: {
+        Row: {
+          board_id: string
+          created_at: string
+          error: string | null
+          id: string
+          input_image_url: string | null
+          kind: string
+          model: string
+          output_url: string | null
+          params: Json
+          prompt: string
+          shot_id: string
+          status: string
+          updated_at: string
+          worker_id: string | null
+        }
+        Insert: {
+          board_id: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          input_image_url?: string | null
+          kind?: string
+          model: string
+          output_url?: string | null
+          params?: Json
+          prompt: string
+          shot_id: string
+          status?: string
+          updated_at?: string
+          worker_id?: string | null
+        }
+        Update: {
+          board_id?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          input_image_url?: string | null
+          kind?: string
+          model?: string
+          output_url?: string | null
+          params?: Json
+          prompt?: string
+          shot_id?: string
+          status?: string
+          updated_at?: string
+          worker_id?: string | null
         }
         Relationships: []
       }
@@ -1708,83 +2189,176 @@ export type Database = {
         }
         Relationships: []
       }
+      site_content: {
+        Row: {
+          key: string
+          kind: string
+          updated_at: string
+          updated_by: string | null
+          value: string
+        }
+        Insert: {
+          key: string
+          kind?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: string
+        }
+        Update: {
+          key?: string
+          kind?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: string
+        }
+        Relationships: []
+      }
+      site_copy: {
+        Row: {
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
+      site_copy_history: {
+        Row: {
+          changed_at: string
+          changed_by: string
+          id: number
+          key: string
+          value: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by: string
+          id?: number
+          key: string
+          value: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string
+          id?: number
+          key?: string
+          value?: string
+        }
+        Relationships: []
+      }
+      site_images: {
+        Row: {
+          default_url: string
+          key: string
+          label: string
+          section: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          default_url?: string
+          key: string
+          label?: string
+          section?: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          default_url?: string
+          key?: string
+          label?: string
+          section?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
       smoke_checks: {
         Row: {
-          cost_usd: number | null;
-          created_at: string;
-          error: string | null;
-          id: string;
-          latency_ms: number | null;
-          name: string;
-          output_url: string | null;
-          raw: Json | null;
-          run_id: string;
-          status: string;
-          step: number;
-        };
+          cost_usd: number | null
+          created_at: string
+          error: string | null
+          id: string
+          latency_ms: number | null
+          name: string
+          output_url: string | null
+          raw: Json | null
+          run_id: string
+          status: string
+          step: number
+        }
         Insert: {
-          cost_usd?: number | null;
-          created_at?: string;
-          error?: string | null;
-          id?: string;
-          latency_ms?: number | null;
-          name: string;
-          output_url?: string | null;
-          raw?: Json | null;
-          run_id: string;
-          status?: string;
-          step: number;
-        };
+          cost_usd?: number | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          latency_ms?: number | null
+          name: string
+          output_url?: string | null
+          raw?: Json | null
+          run_id: string
+          status?: string
+          step: number
+        }
         Update: {
-          cost_usd?: number | null;
-          created_at?: string;
-          error?: string | null;
-          id?: string;
-          latency_ms?: number | null;
-          name?: string;
-          output_url?: string | null;
-          raw?: Json | null;
-          run_id?: string;
-          status?: string;
-          step?: number;
-        };
+          cost_usd?: number | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          latency_ms?: number | null
+          name?: string
+          output_url?: string | null
+          raw?: Json | null
+          run_id?: string
+          status?: string
+          step?: number
+        }
         Relationships: [
           {
-            foreignKeyName: "smoke_checks_run_id_fkey";
-            columns: ["run_id"];
-            isOneToOne: false;
-            referencedRelation: "smoke_runs";
-            referencedColumns: ["id"];
+            foreignKeyName: "smoke_checks_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "smoke_runs"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       smoke_runs: {
         Row: {
-          finished_at: string | null;
-          id: string;
-          started_at: string;
-          summary: Json | null;
-          total_cost_usd: number | null;
-          triggered_by: string;
-        };
+          finished_at: string | null
+          id: string
+          started_at: string
+          summary: Json | null
+          total_cost_usd: number | null
+          triggered_by: string
+        }
         Insert: {
-          finished_at?: string | null;
-          id?: string;
-          started_at?: string;
-          summary?: Json | null;
-          total_cost_usd?: number | null;
-          triggered_by: string;
-        };
+          finished_at?: string | null
+          id?: string
+          started_at?: string
+          summary?: Json | null
+          total_cost_usd?: number | null
+          triggered_by: string
+        }
         Update: {
-          finished_at?: string | null;
-          id?: string;
-          started_at?: string;
-          summary?: Json | null;
-          total_cost_usd?: number | null;
-          triggered_by?: string;
-        };
-        Relationships: [];
-      };
+          finished_at?: string | null
+          id?: string
+          started_at?: string
+          summary?: Json | null
+          total_cost_usd?: number | null
+          triggered_by?: string
+        }
+        Relationships: []
+      }
       spin_jobs: {
         Row: {
           audio_url: string | null
@@ -1881,13 +2455,43 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "spin_variants_job_id_fkey";
-            columns: ["job_id"];
-            isOneToOne: false;
-            referencedRelation: "spin_jobs";
-            referencedColumns: ["id"];
+            foreignKeyName: "spin_variants_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "spin_jobs"
+            referencedColumns: ["id"]
           },
         ]
+      }
+      storyboards: {
+        Row: {
+          concept: string
+          created_at: string
+          id: string
+          shots: Json
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          concept?: string
+          created_at?: string
+          id?: string
+          shots?: Json
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          concept?: string
+          created_at?: string
+          id?: string
+          shots?: Json
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       subscriptions: {
         Row: {
@@ -1934,149 +2538,632 @@ export type Database = {
         }
         Relationships: []
       }
-      tiktok_remixes: {
+      tiktok_accounts: {
         Row: {
-          child_generation_ids: Json;
-          child_job_ids: Json;
-          created_at: string;
-          error: string | null;
-          highlights: Json;
-          id: string;
-          prompt: string | null;
-          source_generation_id: string | null;
-          source_video_url: string;
-          status: string;
-          target_count: number;
-          updated_at: string;
-          user_id: string;
-        };
+          access_token: string
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          oauth_state: string | null
+          oauth_state_at: string | null
+          open_id: string
+          refresh_expires_at: string
+          refresh_token: string
+          scope: string | null
+          token_expires_at: string
+          updated_at: string
+          user_id: string
+          username: string | null
+        }
         Insert: {
-          child_generation_ids?: Json;
-          child_job_ids?: Json;
-          created_at?: string;
-          error?: string | null;
-          highlights?: Json;
-          id?: string;
-          prompt?: string | null;
-          source_generation_id?: string | null;
-          source_video_url: string;
-          status?: string;
-          target_count?: number;
-          updated_at?: string;
-          user_id: string;
-        };
+          access_token: string
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          oauth_state?: string | null
+          oauth_state_at?: string | null
+          open_id: string
+          refresh_expires_at: string
+          refresh_token: string
+          scope?: string | null
+          token_expires_at: string
+          updated_at?: string
+          user_id: string
+          username?: string | null
+        }
         Update: {
-          child_generation_ids?: Json;
-          child_job_ids?: Json;
-          created_at?: string;
-          error?: string | null;
-          highlights?: Json;
-          id?: string;
-          prompt?: string | null;
-          source_generation_id?: string | null;
-          source_video_url?: string;
-          status?: string;
-          target_count?: number;
-          updated_at?: string;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
-      user_roles: {
-        Row: {
-          created_at: string;
-          id: string;
-          role: Database["public"]["Enums"]["app_role"];
-          user_id: string;
-        };
-        Insert: {
-          created_at?: string;
-          id?: string;
-          role: Database["public"]["Enums"]["app_role"];
-          user_id: string;
-        };
-        Update: {
-          created_at?: string;
-          id?: string;
-          role?: Database["public"]["Enums"]["app_role"];
-          user_id?: string;
-        };
-        Relationships: [];
-      };
-      user_webhooks: {
-        Row: {
-          active: boolean;
-          created_at: string;
-          events: string[];
-          id: string;
-          secret: string;
-          url: string;
-          user_id: string;
-        };
-        Insert: {
-          active?: boolean;
-          created_at?: string;
-          events?: string[];
-          id?: string;
-          secret: string;
-          url: string;
-          user_id: string;
-        };
-        Update: {
-          active?: boolean;
-          created_at?: string;
-          events?: string[];
-          id?: string;
-          secret?: string;
-          url?: string;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
-      worker_jobs: {
-        Row: {
-          cost_usd: number | null;
-          created_at: string;
-          error: string | null;
-          id: string;
-          kind: string;
-          latency_ms: number | null;
-          ref_id: string | null;
-          status: string;
-          user_id: string | null;
-          worker_id: string | null;
-        };
-        Insert: {
-          cost_usd?: number | null;
-          created_at?: string;
-          error?: string | null;
-          id?: string;
-          kind: string;
-          latency_ms?: number | null;
-          ref_id?: string | null;
-          status?: string;
-          user_id?: string | null;
-          worker_id?: string | null;
-        };
-        Update: {
-          cost_usd?: number | null;
-          created_at?: string;
-          error?: string | null;
-          id?: string;
-          kind?: string;
-          latency_ms?: number | null;
-          ref_id?: string | null;
-          status?: string;
-          user_id?: string | null;
-          worker_id?: string | null;
-        };
+          access_token?: string
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          oauth_state?: string | null
+          oauth_state_at?: string | null
+          open_id?: string
+          refresh_expires_at?: string
+          refresh_token?: string
+          scope?: string | null
+          token_expires_at?: string
+          updated_at?: string
+          user_id?: string
+          username?: string | null
+        }
         Relationships: [
           {
-            foreignKeyName: "worker_jobs_worker_id_fkey";
-            columns: ["worker_id"];
-            isOneToOne: false;
-            referencedRelation: "gpu_workers";
-            referencedColumns: ["id"];
+            foreignKeyName: "tiktok_accounts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      tiktok_posts: {
+        Row: {
+          created_at: string
+          error_msg: string | null
+          generation_id: string | null
+          id: string
+          posted_at: string | null
+          publish_id: string | null
+          status: string
+          title: string | null
+          updated_at: string
+          user_id: string
+          video_url: string
+        }
+        Insert: {
+          created_at?: string
+          error_msg?: string | null
+          generation_id?: string | null
+          id?: string
+          posted_at?: string | null
+          publish_id?: string | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+          video_url: string
+        }
+        Update: {
+          created_at?: string
+          error_msg?: string | null
+          generation_id?: string | null
+          id?: string
+          posted_at?: string | null
+          publish_id?: string | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+          video_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tiktok_posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      tiktok_remixes: {
+        Row: {
+          child_generation_ids: Json
+          child_job_ids: Json
+          created_at: string
+          error: string | null
+          highlights: Json
+          id: string
+          prompt: string | null
+          source_generation_id: string | null
+          source_video_url: string
+          status: string
+          target_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          child_generation_ids?: Json
+          child_job_ids?: Json
+          created_at?: string
+          error?: string | null
+          highlights?: Json
+          id?: string
+          prompt?: string | null
+          source_generation_id?: string | null
+          source_video_url: string
+          status?: string
+          target_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          child_generation_ids?: Json
+          child_job_ids?: Json
+          created_at?: string
+          error?: string | null
+          highlights?: Json
+          id?: string
+          prompt?: string | null
+          source_generation_id?: string | null
+          source_video_url?: string
+          status?: string
+          target_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      uptime_monitor_state: {
+        Row: {
+          alert_sent_at: string | null
+          consecutive_failures: number
+          id: string
+          last_check_at: string | null
+          last_error: string | null
+          last_ok_at: string | null
+          recovery_sent_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          alert_sent_at?: string | null
+          consecutive_failures?: number
+          id?: string
+          last_check_at?: string | null
+          last_error?: string | null
+          last_ok_at?: string | null
+          recovery_sent_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alert_sent_at?: string | null
+          consecutive_failures?: number
+          id?: string
+          last_check_at?: string | null
+          last_error?: string | null
+          last_ok_at?: string | null
+          recovery_sent_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_avatar_shots: {
+        Row: {
+          created_at: string
+          engine: string
+          id: string
+          kind: string
+          prompt: string
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          engine: string
+          id?: string
+          kind: string
+          prompt?: string
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          engine?: string
+          id?: string
+          kind?: string
+          prompt?: string
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_passkeys: {
+        Row: {
+          counter: number
+          created_at: string
+          credential_id: string
+          device_name: string | null
+          id: string
+          last_used_at: string | null
+          public_key: string
+          transports: string[]
+          user_id: string
+        }
+        Insert: {
+          counter?: number
+          created_at?: string
+          credential_id: string
+          device_name?: string | null
+          id?: string
+          last_used_at?: string | null
+          public_key: string
+          transports?: string[]
+          user_id: string
+        }
+        Update: {
+          counter?: number
+          created_at?: string
+          credential_id?: string
+          device_name?: string | null
+          id?: string
+          last_used_at?: string | null
+          public_key?: string
+          transports?: string[]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_photo_avatars: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_webhooks: {
+        Row: {
+          active: boolean
+          created_at: string
+          events: string[]
+          id: string
+          secret: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          events?: string[]
+          id?: string
+          secret: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          events?: string[]
+          id?: string
+          secret?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      vast_managed_instances: {
+        Row: {
+          adopted: boolean
+          created_at: string
+          created_by: string
+          destroy_deadline: string
+          destroyed_at: string | null
+          endpoint_url: string | null
+          failure_reason: string | null
+          gpu_name: string | null
+          hourly_usd: number
+          id: string
+          label: string
+          state: string
+          updated_at: string
+          vast_instance_id: number
+          worker_id: string | null
+        }
+        Insert: {
+          adopted?: boolean
+          created_at?: string
+          created_by: string
+          destroy_deadline: string
+          destroyed_at?: string | null
+          endpoint_url?: string | null
+          failure_reason?: string | null
+          gpu_name?: string | null
+          hourly_usd: number
+          id?: string
+          label?: string
+          state?: string
+          updated_at?: string
+          vast_instance_id: number
+          worker_id?: string | null
+        }
+        Update: {
+          adopted?: boolean
+          created_at?: string
+          created_by?: string
+          destroy_deadline?: string
+          destroyed_at?: string | null
+          endpoint_url?: string | null
+          failure_reason?: string | null
+          gpu_name?: string | null
+          hourly_usd?: number
+          id?: string
+          label?: string
+          state?: string
+          updated_at?: string
+          vast_instance_id?: number
+          worker_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vast_managed_instances_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "gpu_workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_agent_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      video_agent_projects: {
+        Row: {
+          created_at: string
+          error: string | null
+          export_url: string | null
+          generation_id: string | null
+          id: string
+          job_id: string | null
+          prompt: string
+          scenes: Json
+          status: string
+          status_message: string
+          style: string
+          target_duration: number
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          voice: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          export_url?: string | null
+          generation_id?: string | null
+          id?: string
+          job_id?: string | null
+          prompt: string
+          scenes?: Json
+          status?: string
+          status_message?: string
+          style?: string
+          target_duration?: number
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          user_id: string
+          voice?: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          export_url?: string | null
+          generation_id?: string | null
+          id?: string
+          job_id?: string | null
+          prompt?: string
+          scenes?: Json
+          status?: string
+          status_message?: string
+          style?: string
+          target_duration?: number
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          voice?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_agent_projects_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_agent_projects_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_agent_submissions: {
+        Row: {
+          cost: number
+          created_at: string
+          finalized_at: string | null
+          generation_id: string | null
+          orientation: string
+          prompt: string
+          reservation_ref: string
+          user_id: string
+          video_id: string
+        }
+        Insert: {
+          cost: number
+          created_at?: string
+          finalized_at?: string | null
+          generation_id?: string | null
+          orientation?: string
+          prompt: string
+          reservation_ref: string
+          user_id: string
+          video_id: string
+        }
+        Update: {
+          cost?: number
+          created_at?: string
+          finalized_at?: string | null
+          generation_id?: string | null
+          orientation?: string
+          prompt?: string
+          reservation_ref?: string
+          user_id?: string
+          video_id?: string
+        }
+        Relationships: []
+      }
+      wardrobe_items: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label?: string
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      webauthn_challenges: {
+        Row: {
+          challenge: string
+          expires_at: string
+          id: string
+          used: boolean
+          user_id: string | null
+        }
+        Insert: {
+          challenge: string
+          expires_at?: string
+          id?: string
+          used?: boolean
+          user_id?: string | null
+        }
+        Update: {
+          challenge?: string
+          expires_at?: string
+          id?: string
+          used?: boolean
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      worker_jobs: {
+        Row: {
+          cost_usd: number | null
+          created_at: string
+          error: string | null
+          id: string
+          kind: string
+          latency_ms: number | null
+          ref_id: string | null
+          status: string
+          user_id: string | null
+          worker_id: string | null
+        }
+        Insert: {
+          cost_usd?: number | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          kind: string
+          latency_ms?: number | null
+          ref_id?: string | null
+          status?: string
+          user_id?: string | null
+          worker_id?: string | null
+        }
+        Update: {
+          cost_usd?: number | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          kind?: string
+          latency_ms?: number | null
+          ref_id?: string | null
+          status?: string
+          user_id?: string | null
+          worker_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worker_jobs_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "gpu_workers"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2115,25 +3202,25 @@ export type Database = {
       }
       workflows: {
         Row: {
-          created_at: string;
-          description: string | null;
-          graph: Json;
-          id: string;
-          is_public: boolean;
-          name: string;
-          updated_at: string;
-          user_id: string;
-        };
+          created_at: string
+          description: string | null
+          graph: Json
+          id: string
+          is_public: boolean
+          name: string
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          created_at?: string;
-          description?: string | null;
-          graph?: Json;
-          id?: string;
-          is_public?: boolean;
-          name: string;
-          updated_at?: string;
-          user_id: string;
-        };
+          created_at?: string
+          description?: string | null
+          graph?: Json
+          id?: string
+          is_public?: boolean
+          name: string
+          updated_at?: string
+          user_id: string
+        }
         Update: {
           created_at?: string
           description?: string | null
@@ -2146,164 +3233,17 @@ export type Database = {
         }
         Relationships: []
       }
-      tiktok_accounts: {
-        Row: {
-          id: string
-          user_id: string
-          open_id: string
-          username: string | null
-          display_name: string | null
-          avatar_url: string | null
-          access_token: string
-          refresh_token: string
-          token_expires_at: string
-          refresh_expires_at: string
-          scope: string | null
-          oauth_state: string | null
-          oauth_state_at: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          open_id: string
-          username?: string | null
-          display_name?: string | null
-          avatar_url?: string | null
-          access_token: string
-          refresh_token: string
-          token_expires_at: string
-          refresh_expires_at: string
-          scope?: string | null
-          oauth_state?: string | null
-          oauth_state_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          open_id?: string
-          username?: string | null
-          display_name?: string | null
-          avatar_url?: string | null
-          access_token?: string
-          refresh_token?: string
-          token_expires_at?: string
-          refresh_expires_at?: string
-          scope?: string | null
-          oauth_state?: string | null
-          oauth_state_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tiktok_accounts_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "profiles"
-            referencedColumns: ["user_id"]
-          },
-        ]
-      }
-      tiktok_posts: {
-        Row: {
-          id: string
-          user_id: string
-          generation_id: string | null
-          video_url: string
-          title: string | null
-          publish_id: string | null
-          status: string
-          error_msg: string | null
-          posted_at: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          generation_id?: string | null
-          video_url: string
-          title?: string | null
-          publish_id?: string | null
-          status?: string
-          error_msg?: string | null
-          posted_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          generation_id?: string | null
-          video_url?: string
-          title?: string | null
-          publish_id?: string | null
-          status?: string
-          error_msg?: string | null
-          posted_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tiktok_posts_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["user_id"]
-          },
-        ]
-      }
-      video_agent_messages: {
-        Row: {
-          id: string
-          user_id: string
-          role: string
-          content: string
-          metadata: Json
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          role: string
-          content: string
-          metadata?: Json
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          role?: string
-          content?: string
-          metadata?: Json
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "video_agent_messages_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
-      [_ in never]: never;
-    };
+      [_ in never]: never
+    }
     Functions: {
       activate_pro_subscription: {
         Args: { _expires_at: string; _sub_code: string; _user: string }
         Returns: undefined
       }
       claim_next_job: {
-        Args: { _worker: string };
+        Args: { _worker: string }
         Returns: {
           attempts: number
           created_at: string
@@ -2373,17 +3313,17 @@ export type Database = {
         Returns: boolean
       }
       commit_reservation: {
-        Args: { _amount: number; _reason: string; _ref: string; _user: string };
-        Returns: undefined;
-      };
+        Args: { _amount: number; _reason: string; _ref: string; _user: string }
+        Returns: undefined
+      }
       create_generation_and_reserve: {
         Args: {
-          _amount: number;
-          _kind: string;
-          _payload: Json;
-          _prompt: string;
-          _user: string;
-        };
+          _amount: number
+          _kind: string
+          _payload: Json
+          _prompt: string
+          _user: string
+        }
         Returns: {
           generation_id: string
           job_id: string
@@ -2407,6 +3347,42 @@ export type Database = {
           _result_image_url: string
           _result_video_url: string
           _worker: string
+        }
+        Returns: string
+      }
+      finalize_marketplace_run: {
+        Args: {
+          _amount: number
+          _aura_charged: number
+          _creator_cut_aura: number
+          _creator_ref: string
+          _creator_user_id: string
+          _platform_cut_aura: number
+          _reason: string
+          _ref: string
+          _runner_user_id: string
+          _template_id: string
+        }
+        Returns: undefined
+      }
+      finalize_sync_render: {
+        Args: {
+          _agent_shot_id: string
+          _amount: number
+          _audio_url: string
+          _credits_cost: number
+          _input_images: Json
+          _kind: string
+          _mode: string
+          _model: string
+          _prompt: string
+          _reason: string
+          _ref: string
+          _result_image_url: string
+          _result_text: string
+          _result_video_url: string
+          _session_id: string
+          _user_id: string
         }
         Returns: string
       }
@@ -2455,128 +3431,130 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user";
-    };
+      app_role: "admin" | "user"
+    }
     CompositeTypes: {
-      [_ in never]: never;
-    };
-  };
-};
+      [_ in never]: never
+    }
+  }
+}
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">];
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
+    schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
+  schema: keyof DatabaseWithoutInternals
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
       DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R;
+      Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R;
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
       }
       ? R
       : never
-    : never;
+    : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
+    schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
+  schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I;
+      Insert: infer I
     }
     ? I
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
     ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I;
+        Insert: infer I
       }
       ? I
       : never
-    : never;
+    : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
+    schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
+  schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U;
+      Update: infer U
     }
     ? U
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
     ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U;
+        Update: infer U
       }
       ? U
       : never
-    : never;
+    : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
+    schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
+  schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never;
+    : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
+    schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
+  schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never;
+    : never
 
 export const Constants = {
   public: {

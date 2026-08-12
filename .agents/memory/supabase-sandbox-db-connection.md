@@ -18,5 +18,7 @@ Live Supabase project ref for this repo is `tpzmvbczwahxajujvnrq` (matches `SUPA
 
 **Finding the password:** `SUPABASE_DB_PASSWORD` (and `SUPABASE_SERVICE_ROLE_KEY`) are readable directly in the **bash shell** env (`echo`/`${!v}`), even though `viewEnvVars` lists them under neither secrets nor envVars and the code_execution sandbox has no `process.env`. App secrets like `PAYSTACK_SECRET_KEY`/`ADMIN_USERNAME` are NOT present in the dev shell.
 
+**Generating DB types:** `npx supabase@<pinned> gen types typescript --db-url <pooler URL, port 6543>` works; the `--project-id` path always fails (needs `SUPABASE_ACCESS_TOKEN`, not available here). Drift check + regen lives at `scripts/check-supabase-types.sh` (validation name `supabase-types`).
+
 **Why:** avoids repeated dead-ends against the direct host / the garbage `SUPABASE_DB_URL` secret.
 **How to apply:** any time you run SQL or apply migrations against the LIVE DB from this sandbox.

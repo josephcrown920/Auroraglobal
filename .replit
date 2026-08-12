@@ -48,6 +48,10 @@ args = "tutorial-pdf"
 task = "workflow.run"
 args = "test:e2e"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "supabase-types"
+
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
@@ -158,6 +162,17 @@ isValidation = true
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npx playwright install chromium 2>/dev/null; npm run test:e2e"
+
+[[workflows.workflow]]
+name = "supabase-types"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bash scripts/check-supabase-types.sh"
+
+[workflows.workflow.metadata]
+isValidation = true
 
 [agent]
 stack = "PNPM_WORKSPACE"
