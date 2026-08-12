@@ -3392,6 +3392,7 @@ export type Database = {
         Args: { _amount: number; _reason: string; _ref: string; _user: string }
         Returns: undefined
       }
+      grant_free_daily_aura_all: { Args: { _day?: string }; Returns: number }
       grant_free_monthly_aura_all: {
         Args: { _month?: string }
         Returns: number

@@ -9,6 +9,9 @@
 #   GET  /api/public/check-api-balances  every 6 h    — logs provider credit balance
 #   POST /api/public/payments/sweep-stuck every 6 h   — alerts on stuck pending payments
 #                                                        (Paystack retries exhausted)
+#   POST /api/public/free-daily-grant    once per UTC day — +4 Aura to every user
+#                                                        (idempotent; retried each
+#                                                        tick until it succeeds)
 #
 # Auth: SUPABASE_PUBLISHABLE_KEY (already in env).
 # App:  localhost:8080 (same container as this daemon).
@@ -52,6 +55,7 @@ last_sweep=0
 last_modelwatch=0
 last_genhealth=0
 last_vast=0
+last_grant_day=""
 
 while true; do
   now=$(date +%s)
@@ -133,6 +137,25 @@ while true; do
       echo "[$ts][payments-sweep] WARN — $resp (rc=$rc)"
     fi
     last_sweep=$now
+  fi
+
+  # Daily Aura grant (once per UTC calendar day) — +4 Aura to every user.
+  # The endpoint is idempotent (unique daily ledger ref), so we only mark the
+  # day done on success; failures retry on the next 60 s tick.
+  today=$(date -u +%F)
+  if [ "$today" != "$last_grant_day" ]; then
+    resp=$(curl -sf "$APP/api/public/free-daily-grant" \
+      -X POST \
+      -H "apikey: $APIKEY" \
+      -H "content-type: application/json" \
+      --max-time 60 2>&1) && rc=0 || rc=$?
+    ts=$(date -u +"%H:%M:%S")
+    if [ $rc -eq 0 ]; then
+      echo "[$ts][daily-grant] OK — $resp"
+      last_grant_day=$today
+    else
+      echo "[$ts][daily-grant] WARN — $resp (rc=$rc)"
+    fi
   fi
 
   # Generation health check (every 15 min) — alerts when image/video/lipsync

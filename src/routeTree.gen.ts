@@ -116,6 +116,7 @@ import { Route as ApiDirectorsBoardChatRouteImport } from './routes/api/director
 import { Route as ApiDirectorsBoardGenerateImageRouteImport } from './routes/api/directors-board/generate-image'
 import { Route as ApiPublicCheckApiBalancesRouteImport } from './routes/api/public/check-api-balances'
 import { Route as ApiPublicFaststartVideoRouteImport } from './routes/api/public/faststart-video'
+import { Route as ApiPublicFreeDailyGrantRouteImport } from './routes/api/public/free-daily-grant'
 import { Route as ApiPublicFreeMonthlyGrantRouteImport } from './routes/api/public/free-monthly-grant'
 import { Route as ApiPublicGenerateRouteImport } from './routes/api/public/generate'
 import { Route as ApiPublicLifecycleEmailsRouteImport } from './routes/api/public/lifecycle-emails'
@@ -709,6 +710,11 @@ const ApiPublicFaststartVideoRoute = ApiPublicFaststartVideoRouteImport.update({
   path: '/api/public/faststart-video',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicFreeDailyGrantRoute = ApiPublicFreeDailyGrantRouteImport.update({
+  id: '/api/public/free-daily-grant',
+  path: '/api/public/free-daily-grant',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicFreeMonthlyGrantRoute =
   ApiPublicFreeMonthlyGrantRouteImport.update({
     id: '/api/public/free-monthly-grant',
@@ -1008,6 +1014,7 @@ export interface FileRoutesByFullPath {
   '/api/directors-board/generate-image': typeof ApiDirectorsBoardGenerateImageRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/faststart-video': typeof ApiPublicFaststartVideoRoute
+  '/api/public/free-daily-grant': typeof ApiPublicFreeDailyGrantRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
@@ -1152,6 +1159,7 @@ export interface FileRoutesByTo {
   '/api/directors-board/generate-image': typeof ApiDirectorsBoardGenerateImageRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/faststart-video': typeof ApiPublicFaststartVideoRoute
+  '/api/public/free-daily-grant': typeof ApiPublicFreeDailyGrantRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
@@ -1297,6 +1305,7 @@ export interface FileRoutesById {
   '/api/directors-board/generate-image': typeof ApiDirectorsBoardGenerateImageRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/faststart-video': typeof ApiPublicFaststartVideoRoute
+  '/api/public/free-daily-grant': typeof ApiPublicFreeDailyGrantRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
@@ -1443,6 +1452,7 @@ export interface FileRouteTypes {
     | '/api/directors-board/generate-image'
     | '/api/public/check-api-balances'
     | '/api/public/faststart-video'
+    | '/api/public/free-daily-grant'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
     | '/api/public/lifecycle-emails'
@@ -1587,6 +1597,7 @@ export interface FileRouteTypes {
     | '/api/directors-board/generate-image'
     | '/api/public/check-api-balances'
     | '/api/public/faststart-video'
+    | '/api/public/free-daily-grant'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
     | '/api/public/lifecycle-emails'
@@ -1731,6 +1742,7 @@ export interface FileRouteTypes {
     | '/api/directors-board/generate-image'
     | '/api/public/check-api-balances'
     | '/api/public/faststart-video'
+    | '/api/public/free-daily-grant'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
     | '/api/public/lifecycle-emails'
@@ -1863,6 +1875,7 @@ export interface RootRouteChildren {
   ApiDirectorsBoardGenerateImageRoute: typeof ApiDirectorsBoardGenerateImageRoute
   ApiPublicCheckApiBalancesRoute: typeof ApiPublicCheckApiBalancesRoute
   ApiPublicFaststartVideoRoute: typeof ApiPublicFaststartVideoRoute
+  ApiPublicFreeDailyGrantRoute: typeof ApiPublicFreeDailyGrantRoute
   ApiPublicFreeMonthlyGrantRoute: typeof ApiPublicFreeMonthlyGrantRoute
   ApiPublicGenerateRoute: typeof ApiPublicGenerateRoute
   ApiPublicLifecycleEmailsRoute: typeof ApiPublicLifecycleEmailsRoute
@@ -2644,6 +2657,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicFaststartVideoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/free-daily-grant': {
+      id: '/api/public/free-daily-grant'
+      path: '/api/public/free-daily-grant'
+      fullPath: '/api/public/free-daily-grant'
+      preLoaderRoute: typeof ApiPublicFreeDailyGrantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/free-monthly-grant': {
       id: '/api/public/free-monthly-grant'
       path: '/api/public/free-monthly-grant'
@@ -3039,6 +3059,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDirectorsBoardGenerateImageRoute: ApiDirectorsBoardGenerateImageRoute,
   ApiPublicCheckApiBalancesRoute: ApiPublicCheckApiBalancesRoute,
   ApiPublicFaststartVideoRoute: ApiPublicFaststartVideoRoute,
+  ApiPublicFreeDailyGrantRoute: ApiPublicFreeDailyGrantRoute,
   ApiPublicFreeMonthlyGrantRoute: ApiPublicFreeMonthlyGrantRoute,
   ApiPublicGenerateRoute: ApiPublicGenerateRoute,
   ApiPublicLifecycleEmailsRoute: ApiPublicLifecycleEmailsRoute,
