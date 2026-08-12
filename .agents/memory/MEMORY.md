@@ -131,3 +131,4 @@
 - [Docker daemon availability](docker-daemon-availability.md) — docker build WORKS in this container; validate Dockerfiles cheaply via `--target <stage>` builds from each supported context.
 - [Job progress semantics](job-progress-semantics.md) — provider pct bands 5–90 (seams 2/92), worker POSTs are job-absolute; processing+locked_by fences; claim stamps pct 2 to reset; reporter throttled/monotonic.
 - [Static public/ file shadows a dynamic route](static-public-file-shadows-route.md) — a same-path file in public/ (sitemap.xml etc.) silently wins over a TanStack server route; check/delete it before debugging the handler.
+- [Dev-only artifacts 500 on live site](artifact-missing-prod-service.md) — an artifact with no [services.production] block returns bare "Internal Server Error" for its path in prod (dev is fine); add a static-serve prod section built via replit-node.sh.

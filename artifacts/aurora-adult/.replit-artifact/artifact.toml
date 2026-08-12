@@ -16,6 +16,15 @@ localPort = 8085
 [services.development]
 run = "bash /home/runner/workspace/artifacts/aurora-adult/start-dev.sh"
 
+[services.production]
+serve = "static"
+build = [ "bash", "/home/runner/workspace/artifacts/aurora-adult/build-prod.sh" ]
+publicDir = "artifacts/aurora-adult/dist"
+
+[[services.production.rewrites]]
+from = "/aurora-adult/*"
+to = "/aurora-adult/index.html"
+
 [services.env]
 BASE_PATH = "/aurora-adult/"
 PORT = "8085"
