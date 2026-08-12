@@ -1,5 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Flame, Mic2, Scissors, Code2, Sparkles, Image } from "lucide-react";
+import { useFeatureVisibility } from "@/components/FeatureVisibilityProvider";
+import { featureKeyForRoute } from "@/lib/feature-visibility";
 
 type Screen = {
   src: string;
@@ -63,6 +65,10 @@ const SCREENS: Screen[] = [
 ];
 
 export function AppScreenshotsSection() {
+  const { showFeature } = useFeatureVisibility();
+  // Artist-only mode: drop screenshot cards whose destination route is gated
+  // (e.g. TikTok30 → /spin) for regular users; admins still see them.
+  const screens = SCREENS.filter((s) => showFeature(featureKeyForRoute(s.to)));
   return (
     <section className="relative z-10 border-y border-white/8 bg-[#070612] px-5 py-16">
       {/* Subtle violet radial glow */}
@@ -93,7 +99,7 @@ export function AppScreenshotsSection() {
 
         {/* Compact 2-column screenshot grid */}
         <div className="grid grid-cols-2 gap-2.5">
-          {SCREENS.map((screen) => {
+          {screens.map((screen) => {
             const aspectClass =
               screen.aspect === "landscape" ? "aspect-[4/3]" : "aspect-[9/16]";
 

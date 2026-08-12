@@ -1,4 +1,5 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
+import { FeatureGuard } from "@/components/FeatureVisibilityProvider";
 import { ArrowLeft } from "lucide-react";
 import NexusArbEngine from "@/components/nexusarb/NexusArbEngine";
 
@@ -9,7 +10,16 @@ import NexusArbEngine from "@/components/nexusarb/NexusArbEngine";
  * engine with only a slim "back to Aurora" bar and a prominent
  * simulation/educational label. It uses no Aurora auth, credits, or media.
  */
-export const Route = createLazyFileRoute("/nexusarb")({ component: NexusArbPage });
+// Artist-only mode: this feature is hidden from regular users by default.
+// Admins always pass; regular users are redirected to /studio unless the
+// owner has toggled the feature visible (see feature-visibility registry).
+export const Route = createLazyFileRoute("/nexusarb")({
+  component: () => (
+    <FeatureGuard feature="nexusarb">
+      <NexusArbPage />
+    </FeatureGuard>
+  ),
+});
 
 function NexusArbPage() {
   return (

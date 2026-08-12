@@ -4,6 +4,7 @@ import { Landing } from "@/components/Landing";
 import { Auth } from "@/components/Auth";
 import { ModelGrid } from "@/components/ModelGrid";
 import { ModelStudio } from "@/components/ModelStudio";
+import { FeatureVisibilityGate } from "@/components/FeatureVisibilityGate";
 import { supabase } from "@/lib/supabase";
 import type { Model } from "@/lib/models";
 
@@ -12,6 +13,14 @@ import type { Model } from "@/lib/models";
 //   - Each creator's gallery/generation history is PRIVATE — rows in
 //     `generations` are scoped to their user_id by Supabase RLS.
 export default function App() {
+  return (
+    <FeatureVisibilityGate>
+      <AdultSchoolApp />
+    </FeatureVisibilityGate>
+  );
+}
+
+function AdultSchoolApp() {
   const [entered, setEntered] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [sessionLoaded, setSessionLoaded] = useState(false);

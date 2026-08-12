@@ -130,3 +130,4 @@
 - [Supabase function privileges](supabase-function-privileges.md) — every new public fn ships anon-EXECUTABLE by default (credit RPCs need same-migration REVOKE); date-keyed dedup must pin `AT TIME ZONE 'utc'`.
 - [Docker daemon availability](docker-daemon-availability.md) — docker build WORKS in this container; validate Dockerfiles cheaply via `--target <stage>` builds from each supported context.
 - [Job progress semantics](job-progress-semantics.md) — provider pct bands 5–90 (seams 2/92), worker POSTs are job-absolute; processing+locked_by fences; claim stamps pct 2 to reset; reporter throttled/monotonic.
+- [Static public/ file shadows a dynamic route](static-public-file-shadows-route.md) — a same-path file in public/ (sitemap.xml etc.) silently wins over a TanStack server route; check/delete it before debugging the handler.

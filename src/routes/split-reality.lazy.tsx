@@ -1,5 +1,6 @@
 import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { FeatureGuard } from "@/components/FeatureVisibilityProvider";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation } from "@tanstack/react-query";
@@ -23,7 +24,16 @@ import { saveAssetToDisk } from "@/lib/save";
 import { publishGeneration } from "@/lib/share.functions";
 import { ShareMenu } from "@/components/share/ShareMenu";
 
-export const Route = createLazyFileRoute("/split-reality")({ component: SplitRealityPage });
+// Artist-only mode: this feature is hidden from regular users by default.
+// Admins always pass; regular users are redirected to /studio unless the
+// owner has toggled the feature visible (see feature-visibility registry).
+export const Route = createLazyFileRoute("/split-reality")({
+  component: () => (
+    <FeatureGuard feature="split-reality">
+      <SplitRealityPage />
+    </FeatureGuard>
+  ),
+});
 
 /** Compact uploader, styled to match the Colors page. */
 function MiniUpload({

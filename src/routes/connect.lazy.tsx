@@ -1,5 +1,6 @@
 import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
+import { useFeatureVisibility } from "@/components/FeatureVisibilityProvider";
 import { useEffect, useState } from "react";
 import { ArrowRight, Asterisk, Check, Copy, KeyRound, Plug, MessageSquare, Star, Film, Heart, Play, TrendingUp, Music2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -88,6 +89,7 @@ function ConnectorMark({ className = "size-6" }: { className?: string }) {
 
 function ConnectPage() {
   const { user } = useAuth();
+  const { showFeature } = useFeatureVisibility();
   const [mcpUrl, setMcpUrl] = useState("https://your-domain/api/mcp");
   const [copied, setCopied] = useState(false);
 
@@ -116,7 +118,7 @@ function ConnectPage() {
             <ConnectorMark className="size-4" /> Aurora
           </Link>
           <nav className="flex items-center gap-2 md:gap-3 text-sm">
-            <Link to="/ugc" className="hidden sm:inline-flex rounded-full px-3 py-1.5 text-muted-foreground no-underline hover:bg-white/5 hover:text-foreground">UGC</Link>
+            {showFeature("ugc") && <Link to="/ugc" className="hidden sm:inline-flex rounded-full px-3 py-1.5 text-muted-foreground no-underline hover:bg-white/5 hover:text-foreground">UGC</Link>}
             <Link to="/studio" className="hidden sm:inline-flex rounded-full px-3 py-1.5 text-muted-foreground no-underline hover:bg-white/5 hover:text-foreground">Studio</Link>
             {user ? (
               <Link to="/dashboard" className="rounded-full border border-border px-3 py-1.5 text-foreground/90 no-underline hover:bg-white/5">Dashboard</Link>

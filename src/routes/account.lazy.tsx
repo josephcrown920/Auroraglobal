@@ -9,6 +9,8 @@ import {
   TrendingUp,
   UserRound,
 } from "lucide-react";
+import { HiddenBadge, useFeatureVisibility } from "@/components/FeatureVisibilityProvider";
+import { featureKeyForRoute } from "@/lib/feature-visibility";
 
 export const Route = createLazyFileRoute("/account")({ component: AccountHubPage });
 
@@ -46,6 +48,10 @@ const ACCOUNT_MODES = [
 ] as const;
 
 function AccountHubPage() {
+  const { showFeature, isHiddenFromUsers, isAdmin } = useFeatureVisibility();
+  // Artist-only mode: drop cards whose destination feature is gated (e.g.
+  // Creator Hub) for regular users; admins keep them with a "Hidden" badge.
+  const modes = ACCOUNT_MODES.filter((m) => showFeature(featureKeyForRoute(m.to)));
   return (
     <main className="aurora-page-shell aurora-content-shell min-h-screen text-foreground">
       <span aria-hidden className="aurora-ambient" />
@@ -79,7 +85,7 @@ function AccountHubPage() {
         </section>
 
         <div className="aurora-hub-grid grid gap-3">
-          {ACCOUNT_MODES.map((mode) => {
+          {modes.map((mode) => {
             const Icon = mode.icon;
             return (
               <Link
@@ -93,7 +99,10 @@ function AccountHubPage() {
                   </span>
                   <ArrowRight className="size-4 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-foreground" />
                 </div>
-                <h2 className="mt-6 font-semibold text-foreground">{mode.label}</h2>
+                <h2 className="mt-6 font-semibold text-foreground">
+                  {mode.label}
+                  <HiddenBadge show={isAdmin && isHiddenFromUsers(featureKeyForRoute(mode.to))} />
+                </h2>
                 <p className="mt-1 text-sm leading-5 text-muted-foreground">{mode.description}</p>
               </Link>
             );

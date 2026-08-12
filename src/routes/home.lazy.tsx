@@ -25,6 +25,8 @@ import { EditableCopy } from "@/components/EditableCopy";
 import { useSiteCopyValue } from "@/components/landing/SiteCopyProvider";
 import { INSPIRATION_IMAGES } from "@/lib/mediaAssets";
 import { PersonaGate } from "@/components/PersonaGate";
+import { useFeatureVisibility } from "@/components/FeatureVisibilityProvider";
+import { featureKeyForRoute } from "@/lib/feature-visibility";
 
 export const Route = createLazyFileRoute("/home")({ component: HomePage });
 
@@ -165,14 +167,16 @@ function ToolRowItem({ row }: { row: ToolRow }) {
   );
 }
 
-/** Two-card "Ads" section — Meta + TikTok. */
-function AdsSection() {
+/** Two-card "Ads" section — Meta + TikTok. Cards drop out individually when
+ *  their backing feature (UGC / Spin) is hidden in artist-only mode. */
+function AdsSection({ showUgc, showSpin }: { showUgc: boolean; showSpin: boolean }) {
   return (
     <section className="mt-8">
       <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">
         Ad Creative Studio
       </p>
-      <div className="grid grid-cols-2 gap-3">
+      <div className={showUgc && showSpin ? "grid grid-cols-2 gap-3" : "grid grid-cols-1 gap-3"}>
+        {showUgc && (
         <Link
           to="/ugc"
           className="group flex flex-col gap-3 rounded-2xl border p-4 no-underline transition"
@@ -195,7 +199,9 @@ function AdsSection() {
             Start creating <ArrowRight className="size-3.5" />
           </span>
         </Link>
+        )}
 
+        {showSpin && (
         <Link
           to="/spin"
           className="group flex flex-col gap-3 rounded-2xl border p-4 no-underline transition"
@@ -218,6 +224,7 @@ function AdsSection() {
             Start creating <ArrowRight className="size-3.5" />
           </span>
         </Link>
+        )}
       </div>
     </section>
   );
@@ -281,6 +288,13 @@ function HomePage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { persona, setPersona } = usePersona();
+  const { showFeature } = useFeatureVisibility();
+
+  // Artist-only gating: drop tool rows whose backing feature is hidden for
+  // this viewer (admins keep everything).
+  const artistRows = ARTIST_TOOL_ROWS.filter((r) => showFeature(featureKeyForRoute(r.to)));
+  const creatorRows = CREATOR_TOOL_ROWS.filter((r) => showFeature(featureKeyForRoute(r.to)));
+  const showAds = showFeature("ugc") || showFeature("spin");
 
   const [mounted, setMounted] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -413,7 +427,7 @@ function HomePage() {
             <div style={{ width: "50%", flexShrink: 0, paddingRight: "0" }}>
               <PanelContent
                 cfg={PERSONA_CONFIG.artist}
-                rows={ARTIST_TOOL_ROWS}
+                rows={artistRows}
                 reels={reels}
                 persona="artist"
               />
@@ -423,7 +437,7 @@ function HomePage() {
             <div style={{ width: "50%", flexShrink: 0 }}>
               <PanelContent
                 cfg={PERSONA_CONFIG.creator}
-                rows={CREATOR_TOOL_ROWS}
+                rows={creatorRows}
                 reels={reels}
                 persona="creator"
               />
@@ -448,8 +462,9 @@ function HomePage() {
           ))}
         </div>
 
-        {/* ── Ads section (shown for creators; hidden for artists) ─────────── */}
-        {persona === "creator" && <AdsSection />}
+        {/* ── Ads section (shown for creators; hidden for artists and when
+             the UGC/Spin features are hidden in artist-only mode) ─────────── */}
+        {persona === "creator" && showAds && <AdsSection showUgc={showFeature("ugc")} showSpin={showFeature("spin")} />}
 
         {/* ── Latest renders strip ────────────────────────────────────────── */}
         <section className="mt-8 rounded-3xl bg-card p-2.5 shadow-[var(--shadow-card)]">

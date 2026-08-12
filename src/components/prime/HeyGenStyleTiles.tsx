@@ -4,6 +4,8 @@
 // motion clip, and use motion control to transfer the pose onto your identity.
 import { Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
+import { useFeatureVisibility } from "@/components/FeatureVisibilityProvider";
+import { featureKeyForRoute } from "@/lib/feature-visibility";
 import {
   UserSquare2,
   Video,
@@ -92,6 +94,10 @@ const TILES: readonly Tile[] = [
 ];
 
 export function HeyGenStyleTiles() {
+  const { showFeature } = useFeatureVisibility();
+  // Artist-only mode: drop tiles whose destination feature is gated (e.g.
+  // "Create an Avatar" → /avatar) for regular users; admins keep them.
+  const tiles = TILES.filter((t) => showFeature(featureKeyForRoute(t.to)));
   return (
     <section aria-label="Video Agent features" className="mt-2">
       <div className="mb-3 flex items-baseline justify-between">
@@ -101,7 +107,7 @@ export function HeyGenStyleTiles() {
         </span>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {TILES.map((t) => (
+        {tiles.map((t) => (
           <TileCard key={t.title} tile={t} />
         ))}
       </div>

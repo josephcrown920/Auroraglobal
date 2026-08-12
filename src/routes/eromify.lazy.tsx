@@ -4,9 +4,19 @@
  * Links into the aurora-adult artifact at /aurora-adult/.
  */
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
+import { FeatureGuard } from "@/components/FeatureVisibilityProvider";
 import { ArrowRight, Sparkles, Lock, EyeOff, ShieldCheck } from "lucide-react";
 
-export const Route = createLazyFileRoute("/eromify")({ component: EromifyPage });
+// Artist-only mode: this feature is hidden from regular users by default.
+// Admins always pass; regular users are redirected to /studio unless the
+// owner has toggled the feature visible (see feature-visibility registry).
+export const Route = createLazyFileRoute("/eromify")({
+  component: () => (
+    <FeatureGuard feature="adult-school">
+      <EromifyPage />
+    </FeatureGuard>
+  ),
+});
 
 const ADULT_URL = "/aurora-adult/";
 

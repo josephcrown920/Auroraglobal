@@ -1,4 +1,5 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
+import { FeatureGuard } from "@/components/FeatureVisibilityProvider";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -28,7 +29,16 @@ import {
   type SpinTemplateId,
 } from "@/lib/spin-engine";
 
-export const Route = createLazyFileRoute("/spin")({ component: SpinPage });
+// Artist-only mode: this feature is hidden from regular users by default.
+// Admins always pass; regular users are redirected to /studio unless the
+// owner has toggled the feature visible (see feature-visibility registry).
+export const Route = createLazyFileRoute("/spin")({
+  component: () => (
+    <FeatureGuard feature="spin">
+      <SpinPage />
+    </FeatureGuard>
+  ),
+});
 
 type Variant = {
   id: string;

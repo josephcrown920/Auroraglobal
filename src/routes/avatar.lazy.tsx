@@ -1,5 +1,6 @@
 import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
+import { FeatureGuard } from "@/components/FeatureVisibilityProvider";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -54,7 +55,16 @@ import {
   ImagePlus,
 } from "lucide-react";
 
-export const Route = createLazyFileRoute("/avatar")({ component: AvatarStudioPage });
+// Artist-only mode: this feature is hidden from regular users by default.
+// Admins always pass; regular users are redirected to /studio unless the
+// owner has toggled the feature visible (see feature-visibility registry).
+export const Route = createLazyFileRoute("/avatar")({
+  component: () => (
+    <FeatureGuard feature="talking-avatars">
+      <AvatarStudioPage />
+    </FeatureGuard>
+  ),
+});
 
 // ─── constants ────────────────────────────────────────────────────────────────
 

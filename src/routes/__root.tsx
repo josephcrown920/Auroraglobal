@@ -20,6 +20,7 @@ import { AuroraChatbot } from "@/components/AuroraChatbot";
 import { AdminHotkey } from "@/components/AdminHotkey";
 import { SiteImagesProvider } from "@/components/landing/SiteImagesProvider";
 import { SiteCopyProvider } from "@/components/landing/SiteCopyProvider";
+import { FeatureVisibilityProvider } from "@/components/FeatureVisibilityProvider";
 import { MobileNav } from "@/components/MobileNav";
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { useEffect } from "react";
@@ -328,20 +329,22 @@ function RootComponent() {
     <ErrorBoundary>
       <ThemeProvider>
         <QueryClientProvider client={queryClient}>
-          <SiteImagesProvider>
-            <SiteCopyProvider>
-              <div className="relative min-h-screen w-full overflow-x-hidden bg-background">
-                <Outlet />
-              </div>
-            </SiteCopyProvider>
-          </SiteImagesProvider>
-          <Toaster />
-          <DesignSkinApplier />
-          {!isVideoAgent && !isPrimeAgent && !isFullScreenEditor && <AuroraChatbot />}
-          <AdminHotkey />
-          <ReferralAttacher />
-          {!isVideoAgent && !isFullScreenEditor && <MobileNav />}
-          <CookieConsentBanner />
+          <FeatureVisibilityProvider>
+            <SiteImagesProvider>
+              <SiteCopyProvider>
+                <div className="relative min-h-screen w-full overflow-x-hidden bg-background">
+                  <Outlet />
+                </div>
+              </SiteCopyProvider>
+            </SiteImagesProvider>
+            <Toaster />
+            <DesignSkinApplier />
+            {!isVideoAgent && !isPrimeAgent && !isFullScreenEditor && <AuroraChatbot />}
+            <AdminHotkey />
+            <ReferralAttacher />
+            {!isVideoAgent && !isFullScreenEditor && <MobileNav />}
+            <CookieConsentBanner />
+          </FeatureVisibilityProvider>
         </QueryClientProvider>
       </ThemeProvider>
     </ErrorBoundary>

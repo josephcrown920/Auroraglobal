@@ -5,7 +5,9 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { track } from "@/lib/tracking";
-import { VIRAL_PRESET_TAGS } from "@/lib/template-studio";
+import { VIRAL_PRESET_TAGS, getStudioTemplate } from "@/lib/template-studio";
+import { useFeatureVisibility } from "@/components/FeatureVisibilityProvider";
+import { featureKeyForTemplate } from "@/lib/feature-visibility";
 
 const PREVIEW_VIDEOS = [
   { src: "/viral-presets/preview-1.mp4", label: "Performance reel" },
@@ -31,11 +33,19 @@ function TagRow({ presets }: { presets: ReadonlyArray<{ tag: string; templateId:
 }
 
 function TagCloud() {
+  const { showFeature } = useFeatureVisibility();
+  // Artist-only gating: drop preset tags whose backing template belongs to a
+  // hidden feature (UGC/Spin/Kids/GRWM) for regular users.
+  const tags = VIRAL_PRESET_TAGS.filter(({ templateId }) => {
+    const t = getStudioTemplate(templateId);
+    return !t || showFeature(featureKeyForTemplate(t));
+  });
+  const third = Math.ceil(tags.length / 3);
   return (
     <div className="relative px-5 py-4 overflow-hidden">
-      <TagRow presets={VIRAL_PRESET_TAGS.slice(0, 11)} />
-      <TagRow presets={VIRAL_PRESET_TAGS.slice(11, 22)} />
-      <TagRow presets={VIRAL_PRESET_TAGS.slice(22)} />
+      <TagRow presets={tags.slice(0, third)} />
+      <TagRow presets={tags.slice(third, third * 2)} />
+      <TagRow presets={tags.slice(third * 2)} />
     </div>
   );
 }

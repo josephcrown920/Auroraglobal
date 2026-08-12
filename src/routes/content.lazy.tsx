@@ -1,7 +1,17 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
+import { FeatureGuard } from "@/components/FeatureVisibilityProvider";
 import { ArrowRight, Camera } from "lucide-react";
 
-export const Route = createLazyFileRoute("/content")({ component: ContentHubPage });
+// Artist-only mode: this feature is hidden from regular users by default.
+// Admins always pass; regular users are redirected to /studio unless the
+// owner has toggled the feature visible (see feature-visibility registry).
+export const Route = createLazyFileRoute("/content")({
+  component: () => (
+    <FeatureGuard feature="content-funnel">
+      <ContentHubPage />
+    </FeatureGuard>
+  ),
+});
 
 const CONTENT_REFERENCES = [
   {

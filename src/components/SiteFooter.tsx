@@ -2,8 +2,10 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Sparkles } from "lucide-react";
 import { useRef } from "react";
 import { openConsentManager } from "@/lib/consent";
+import { useFeatureVisibility } from "@/components/FeatureVisibilityProvider";
 
 export function SiteFooter({ tone = "dark" }: { tone?: "dark" | "light" }) {
+  const { showFeature } = useFeatureVisibility();
   const muted = tone === "dark" ? "text-white/50 hover:text-white" : "text-muted-foreground hover:text-foreground";
   const border = tone === "dark" ? "border-white/10" : "border-border";
   const dim = tone === "dark" ? "text-white/40" : "text-muted-foreground";
@@ -32,7 +34,7 @@ export function SiteFooter({ tone = "dark" }: { tone?: "dark" | "light" }) {
         <nav className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-2 text-sm">
           <Link to="/studio" className={`no-underline ${muted}`}>Image &amp; Video</Link>
           <Link to="/canvas" className={`no-underline ${muted}`}>Canvas</Link>
-          <Link to="/ugc" className={`no-underline ${muted}`}>UGC Ads Factory</Link>
+          {showFeature("ugc") && <Link to="/ugc" className={`no-underline ${muted}`}>UGC Ads Factory</Link>}
           <Link to="/motion" className={`no-underline ${muted}`}>Perform Anywhere</Link>
           <Link to="/lipsync" className={`no-underline ${muted}`}>Lip Sync</Link>
           <Link to="/colors" className={`no-underline ${muted}`}>Colors Studio</Link>

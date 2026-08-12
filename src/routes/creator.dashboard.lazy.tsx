@@ -1,5 +1,6 @@
 import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { FeatureGuard } from "@/components/FeatureVisibilityProvider";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -31,7 +32,16 @@ import {
   Eye,
 } from "lucide-react";
 
-export const Route = createLazyFileRoute("/creator/dashboard")({ component: CreatorDashboardPage });
+// Artist-only mode: this feature is hidden from regular users by default.
+// Admins always pass; regular users are redirected to /studio unless the
+// owner has toggled the feature visible (see feature-visibility registry).
+export const Route = createLazyFileRoute("/creator/dashboard")({
+  component: () => (
+    <FeatureGuard feature="creator-hub">
+      <CreatorDashboardPage />
+    </FeatureGuard>
+  ),
+});
 
 const STATUS_CHIP: Record<string, { label: string; icon: typeof Clock; className: string }> = {
   draft:    { label: "Draft",    icon: PenLine,      className: "bg-muted text-muted-foreground" },

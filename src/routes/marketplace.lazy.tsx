@@ -1,5 +1,6 @@
 import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useFeatureVisibility } from "@/components/FeatureVisibilityProvider";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
@@ -28,6 +29,7 @@ const CATEGORIES = ["All", "Portrait & Colors", "Music & Lip-sync", "Cinema", "P
 
 function MarketplacePage() {
   const { user } = useAuth();
+  const { showFeature } = useFeatureVisibility();
   const navigate = useNavigate();
 
   const profileFn = useServerFn(getMyProfile);
@@ -84,7 +86,7 @@ function MarketplacePage() {
           <ArrowLeft className="size-4" /> Home
         </Link>
         <div className="flex items-center gap-3">
-          {user && (
+          {user && showFeature("creator-hub") && (
             <Link
               to="/creator/dashboard"
               className="flex items-center gap-1.5 text-sm font-medium text-primary no-underline hover:brightness-110"
@@ -155,7 +157,7 @@ function MarketplacePage() {
                 ? "No approved templates yet. Be the first to submit one!"
                 : "No templates match your search."}
             </p>
-            {user && (
+            {user && showFeature("creator-hub") && (
               <Link to="/creator/dashboard">
                 <Button size="sm" variant="outline" className="gap-1.5">
                   <Upload className="size-3.5" /> Submit a template

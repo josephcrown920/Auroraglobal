@@ -4,6 +4,8 @@ import { useMemo } from "react";
 
 import { STUDIO_TEMPLATES, SPIN_PIECE_COUNT, templateCost } from "@/lib/template-studio";
 import { spinTotalCost } from "@/lib/spin-engine";
+import { useFeatureVisibility } from "@/components/FeatureVisibilityProvider";
+import { featureKeyForTemplate } from "@/lib/feature-visibility";
 
 /**
  * Discovery sections for the signed-in front door (/studio):
@@ -16,12 +18,18 @@ import { spinTotalCost } from "@/lib/spin-engine";
  */
 
 export function AdCreativeSection() {
+  const { showFeature } = useFeatureVisibility();
+  const showUgc = showFeature("ugc");
+  const showSpin = showFeature("spin");
+  // Artist-only mode hides both ad tools; the whole section drops out.
+  if (!showUgc && !showSpin) return null;
   return (
     <section className="border-t border-white/5 px-4 py-6">
       <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-zinc-600">
         Ad Creative Studio
       </p>
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className={showUgc && showSpin ? "grid grid-cols-2 gap-2.5" : "grid grid-cols-1 gap-2.5"}>
+        {showUgc && (
         <Link
           to="/ugc"
           className="group flex flex-col gap-3 rounded-2xl border border-[#8b5cf6]/20 bg-[#8b5cf6]/6 p-4 no-underline transition hover:border-[#8b5cf6]/40 hover:bg-[#8b5cf6]/10"
@@ -39,7 +47,9 @@ export function AdCreativeSection() {
             Start creating <ArrowRight className="size-3.5" />
           </span>
         </Link>
+        )}
 
+        {showSpin && (
         <Link
           to="/spin"
           className="group flex flex-col gap-3 rounded-2xl border border-[#8b5cf6]/15 bg-white/4 p-4 no-underline transition hover:border-[#8b5cf6]/40 hover:bg-[#8b5cf6]/8"
@@ -57,23 +67,27 @@ export function AdCreativeSection() {
             Start creating <ArrowRight className="size-3.5" />
           </span>
         </Link>
+        )}
       </div>
     </section>
   );
 }
 
 export function ViralTemplatesStrip() {
+  const { showFeature } = useFeatureVisibility();
   // One representative per category keeps the strip short and diverse.
+  // Artist-only gating first: hidden features' templates never become picks.
   const picks = useMemo(() => {
     const seen = new Set<string>();
     const out: typeof STUDIO_TEMPLATES = [];
     for (const t of STUDIO_TEMPLATES) {
+      if (!showFeature(featureKeyForTemplate(t))) continue;
       if (seen.has(t.category)) continue;
       seen.add(t.category);
       out.push(t);
     }
     return out;
-  }, []);
+  }, [showFeature]);
 
   return (
     <section className="border-t border-white/5 py-6">

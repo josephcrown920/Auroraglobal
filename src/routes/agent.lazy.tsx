@@ -1,6 +1,7 @@
 import { authNextSearch } from "@/lib/auth-return-path";
 import { useEffect, useRef, useState } from "react";
 import { createLazyFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { useFeatureVisibility } from "@/components/FeatureVisibilityProvider";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -893,6 +894,7 @@ function HeyGenPanel() {
 
 function AgentPage() {
   const { user, loading } = useAuth();
+  const { showFeature }   = useFeatureVisibility();
   const navigate          = useNavigate();
   const qc                = useQueryClient();
 
@@ -1158,11 +1160,13 @@ function AgentPage() {
             {/* Quick links to dedicated surfaces (used to be the Avatar Videos section) */}
             <div className="mb-3 space-y-0.5">
               <p className="px-3 pb-1 text-xs font-bold uppercase tracking-[0.25em] text-ink-dim">Studios</p>
-              <Link to="/avatar" className="group flex w-full items-center gap-2 rounded-sm border border-transparent px-3 py-1.5 text-left text-[12px] font-medium text-ink no-underline transition-colors hover:border-prime/30 hover:bg-panel-2">
-                <span className="flex size-5 shrink-0 items-center justify-center rounded-sm border border-line bg-panel-2 text-ink-dim group-hover:text-ink"><UserSquare2 className="size-3" /></span>
-                <span className="truncate">Talking Avatars</span>
-                <ExternalLink className="ml-auto size-3 text-ink-dim/50" />
-              </Link>
+              {showFeature("talking-avatars") && (
+                <Link to="/avatar" className="group flex w-full items-center gap-2 rounded-sm border border-transparent px-3 py-1.5 text-left text-[12px] font-medium text-ink no-underline transition-colors hover:border-prime/30 hover:bg-panel-2">
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-sm border border-line bg-panel-2 text-ink-dim group-hover:text-ink"><UserSquare2 className="size-3" /></span>
+                  <span className="truncate">Talking Avatars</span>
+                  <ExternalLink className="ml-auto size-3 text-ink-dim/50" />
+                </Link>
+              )}
               <Link to="/video-agent" className="group flex w-full items-center gap-2 rounded-sm border border-transparent px-3 py-1.5 text-left text-[12px] font-medium text-ink no-underline transition-colors hover:border-prime/30 hover:bg-panel-2">
                 <span className="flex size-5 shrink-0 items-center justify-center rounded-sm border border-line bg-panel-2 text-ink-dim group-hover:text-ink"><Clapperboard className="size-3" /></span>
                 <span className="truncate">Video Agent</span>

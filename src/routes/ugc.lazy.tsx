@@ -1,5 +1,6 @@
 import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { FeatureGuard } from "@/components/FeatureVisibilityProvider";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useState } from "react";
 import { ExampleOutputGrid } from "@/components/studio/ExampleOutputGrid";
@@ -40,7 +41,16 @@ import auraCafe from "../../attached_assets/IMG_0626_1785995684443.jpeg";
 import { EditableCopy } from "@/components/EditableCopy";
 import { useSiteCopyValue } from "@/components/landing/SiteCopyProvider";
 
-export const Route = createLazyFileRoute("/ugc")({ component: UGCStudio });
+// Artist-only mode: this feature is hidden from regular users by default.
+// Admins always pass; regular users are redirected to /studio unless the
+// owner has toggled the feature visible (see feature-visibility registry).
+export const Route = createLazyFileRoute("/ugc")({
+  component: () => (
+    <FeatureGuard feature="ugc">
+      <UGCStudio />
+    </FeatureGuard>
+  ),
+});
 
 const AVATARS = [
   { id: "maya",    name: "Maya",    vibe: "Soft-glam beauty reviewer", img: avatarMaya.url },

@@ -12,6 +12,8 @@ import {
 } from "@/lib/template-studio";
 import { TemplateCard } from "@/components/templates/TemplateCard";
 import { TemplateDrawer } from "@/components/templates/TemplateDrawer";
+import { useFeatureVisibility } from "@/components/FeatureVisibilityProvider";
+import { featureKeyForTemplate } from "@/lib/feature-visibility";
 
 export const Route = createLazyFileRoute("/templates")({ component: TemplatesPage });
 
@@ -29,8 +31,14 @@ function TemplatesPage() {
   });
   const isPro = !!(profile?.is_pro || profile?.isAdmin);
 
+  const { showFeature } = useFeatureVisibility();
+
   const activeCategory = (search.category as TemplateCategory | undefined) ?? null;
-  const selected = search.open ? getStudioTemplate(search.open) : undefined;
+  // Deep links to a gated template (e.g. old Viral Preset tags) fall back to
+  // the closed state for regular users instead of opening a hidden drawer.
+  const selectedRaw = search.open ? getStudioTemplate(search.open) : undefined;
+  const selected =
+    selectedRaw && showFeature(featureKeyForTemplate(selectedRaw)) ? selectedRaw : undefined;
 
   const setCategory = (cat: TemplateCategory | null) =>
     navigate({ search: (prev) => ({ ...prev, category: cat ?? undefined }), replace: true });
@@ -38,9 +46,15 @@ function TemplatesPage() {
   const closeDrawer = () =>
     navigate({ search: (prev) => ({ ...prev, open: undefined }), replace: true });
 
+  // Artist-only gating: drop templates whose backing feature is hidden for
+  // this viewer, then drop any category chip left with zero templates.
+  const visibleTemplates = STUDIO_TEMPLATES.filter((t) => showFeature(featureKeyForTemplate(t)));
+  const visibleCategories = CATEGORY_ORDER.filter((c) =>
+    visibleTemplates.some((t) => t.category === c),
+  );
   const shownCategories = activeCategory
-    ? CATEGORY_ORDER.filter((c) => c === activeCategory)
-    : CATEGORY_ORDER;
+    ? visibleCategories.filter((c) => c === activeCategory)
+    : visibleCategories;
 
   return (
     <main
@@ -80,7 +94,7 @@ function TemplatesPage() {
           <Chip active={!activeCategory} onClick={() => setCategory(null)}>
             All
           </Chip>
-          {CATEGORY_ORDER.map((cat) => (
+          {visibleCategories.map((cat) => (
             <Chip key={cat} active={activeCategory === cat} onClick={() => setCategory(cat)}>
               {cat}
             </Chip>
@@ -109,7 +123,7 @@ function TemplatesPage() {
         {/* Grouped strips */}
         <div className="space-y-7">
           {shownCategories.map((cat) => {
-            const items = STUDIO_TEMPLATES.filter((t) => t.category === cat);
+            const items = visibleTemplates.filter((t) => t.category === cat);
             if (items.length === 0) return null;
             return (
               <div key={cat}>

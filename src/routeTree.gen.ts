@@ -105,6 +105,7 @@ import { Route as GuidesIndexRouteImport } from './routes/guides.index'
 import { Route as GuidesSlugRouteImport } from './routes/guides.$slug'
 import { Route as LegalSlugRouteImport } from './routes/legal.$slug'
 import { Route as RTokenRouteImport } from './routes/r.$token'
+import { Route as ApiAdminFeatureVisibilityRouteImport } from './routes/api/admin/feature-visibility'
 import { Route as ApiAdminRunSmokeStep14RouteImport } from './routes/api/admin/run-smoke-step14'
 import { Route as ApiAdminUploadImageRouteImport } from './routes/api/admin/upload-image'
 import { Route as ApiAdminUploadSiteImageRouteImport } from './routes/api/admin/upload-site-image'
@@ -117,6 +118,7 @@ import { Route as ApiDirectorsBoardChatRouteImport } from './routes/api/director
 import { Route as ApiDirectorsBoardGenerateImageRouteImport } from './routes/api/directors-board/generate-image'
 import { Route as ApiPublicCheckApiBalancesRouteImport } from './routes/api/public/check-api-balances'
 import { Route as ApiPublicFaststartVideoRouteImport } from './routes/api/public/faststart-video'
+import { Route as ApiPublicFeatureVisibilityRouteImport } from './routes/api/public/feature-visibility'
 import { Route as ApiPublicFreeDailyGrantRouteImport } from './routes/api/public/free-daily-grant'
 import { Route as ApiPublicFreeMonthlyGrantRouteImport } from './routes/api/public/free-monthly-grant'
 import { Route as ApiPublicGenerateRouteImport } from './routes/api/public/generate'
@@ -659,6 +661,12 @@ const RTokenRoute = RTokenRouteImport.update({
   path: '/r/$token',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/r.$token.lazy').then((d) => d.Route))
+const ApiAdminFeatureVisibilityRoute =
+  ApiAdminFeatureVisibilityRouteImport.update({
+    id: '/api/admin/feature-visibility',
+    path: '/api/admin/feature-visibility',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiAdminRunSmokeStep14Route = ApiAdminRunSmokeStep14RouteImport.update({
   id: '/api/admin/run-smoke-step14',
   path: '/api/admin/run-smoke-step14',
@@ -721,6 +729,12 @@ const ApiPublicFaststartVideoRoute = ApiPublicFaststartVideoRouteImport.update({
   path: '/api/public/faststart-video',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicFeatureVisibilityRoute =
+  ApiPublicFeatureVisibilityRouteImport.update({
+    id: '/api/public/feature-visibility',
+    path: '/api/public/feature-visibility',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicFreeDailyGrantRoute = ApiPublicFreeDailyGrantRouteImport.update({
   id: '/api/public/free-daily-grant',
   path: '/api/public/free-daily-grant',
@@ -1020,6 +1034,7 @@ export interface FileRoutesByFullPath {
   '/r/$token': typeof RTokenRoute
   '/cli/': typeof CliIndexRoute
   '/guides/': typeof GuidesIndexRoute
+  '/api/admin/feature-visibility': typeof ApiAdminFeatureVisibilityRoute
   '/api/admin/run-smoke-step14': typeof ApiAdminRunSmokeStep14Route
   '/api/admin/upload-image': typeof ApiAdminUploadImageRoute
   '/api/admin/upload-site-image': typeof ApiAdminUploadSiteImageRoute
@@ -1032,6 +1047,7 @@ export interface FileRoutesByFullPath {
   '/api/directors-board/generate-image': typeof ApiDirectorsBoardGenerateImageRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/faststart-video': typeof ApiPublicFaststartVideoRoute
+  '/api/public/feature-visibility': typeof ApiPublicFeatureVisibilityRoute
   '/api/public/free-daily-grant': typeof ApiPublicFreeDailyGrantRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
@@ -1167,6 +1183,7 @@ export interface FileRoutesByTo {
   '/r/$token': typeof RTokenRoute
   '/cli': typeof CliIndexRoute
   '/guides': typeof GuidesIndexRoute
+  '/api/admin/feature-visibility': typeof ApiAdminFeatureVisibilityRoute
   '/api/admin/run-smoke-step14': typeof ApiAdminRunSmokeStep14Route
   '/api/admin/upload-image': typeof ApiAdminUploadImageRoute
   '/api/admin/upload-site-image': typeof ApiAdminUploadSiteImageRoute
@@ -1179,6 +1196,7 @@ export interface FileRoutesByTo {
   '/api/directors-board/generate-image': typeof ApiDirectorsBoardGenerateImageRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/faststart-video': typeof ApiPublicFaststartVideoRoute
+  '/api/public/feature-visibility': typeof ApiPublicFeatureVisibilityRoute
   '/api/public/free-daily-grant': typeof ApiPublicFreeDailyGrantRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
@@ -1315,6 +1333,7 @@ export interface FileRoutesById {
   '/r/$token': typeof RTokenRoute
   '/cli/': typeof CliIndexRoute
   '/guides/': typeof GuidesIndexRoute
+  '/api/admin/feature-visibility': typeof ApiAdminFeatureVisibilityRoute
   '/api/admin/run-smoke-step14': typeof ApiAdminRunSmokeStep14Route
   '/api/admin/upload-image': typeof ApiAdminUploadImageRoute
   '/api/admin/upload-site-image': typeof ApiAdminUploadSiteImageRoute
@@ -1327,6 +1346,7 @@ export interface FileRoutesById {
   '/api/directors-board/generate-image': typeof ApiDirectorsBoardGenerateImageRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/faststart-video': typeof ApiPublicFaststartVideoRoute
+  '/api/public/feature-visibility': typeof ApiPublicFeatureVisibilityRoute
   '/api/public/free-daily-grant': typeof ApiPublicFreeDailyGrantRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
@@ -1464,6 +1484,7 @@ export interface FileRouteTypes {
     | '/r/$token'
     | '/cli/'
     | '/guides/'
+    | '/api/admin/feature-visibility'
     | '/api/admin/run-smoke-step14'
     | '/api/admin/upload-image'
     | '/api/admin/upload-site-image'
@@ -1476,6 +1497,7 @@ export interface FileRouteTypes {
     | '/api/directors-board/generate-image'
     | '/api/public/check-api-balances'
     | '/api/public/faststart-video'
+    | '/api/public/feature-visibility'
     | '/api/public/free-daily-grant'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
@@ -1611,6 +1633,7 @@ export interface FileRouteTypes {
     | '/r/$token'
     | '/cli'
     | '/guides'
+    | '/api/admin/feature-visibility'
     | '/api/admin/run-smoke-step14'
     | '/api/admin/upload-image'
     | '/api/admin/upload-site-image'
@@ -1623,6 +1646,7 @@ export interface FileRouteTypes {
     | '/api/directors-board/generate-image'
     | '/api/public/check-api-balances'
     | '/api/public/faststart-video'
+    | '/api/public/feature-visibility'
     | '/api/public/free-daily-grant'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
@@ -1758,6 +1782,7 @@ export interface FileRouteTypes {
     | '/r/$token'
     | '/cli/'
     | '/guides/'
+    | '/api/admin/feature-visibility'
     | '/api/admin/run-smoke-step14'
     | '/api/admin/upload-image'
     | '/api/admin/upload-site-image'
@@ -1770,6 +1795,7 @@ export interface FileRouteTypes {
     | '/api/directors-board/generate-image'
     | '/api/public/check-api-balances'
     | '/api/public/faststart-video'
+    | '/api/public/feature-visibility'
     | '/api/public/free-daily-grant'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
@@ -1892,6 +1918,7 @@ export interface RootRouteChildren {
   RTokenRoute: typeof RTokenRoute
   CliIndexRoute: typeof CliIndexRoute
   GuidesIndexRoute: typeof GuidesIndexRoute
+  ApiAdminFeatureVisibilityRoute: typeof ApiAdminFeatureVisibilityRoute
   ApiAdminRunSmokeStep14Route: typeof ApiAdminRunSmokeStep14Route
   ApiAdminUploadImageRoute: typeof ApiAdminUploadImageRoute
   ApiAdminUploadSiteImageRoute: typeof ApiAdminUploadSiteImageRoute
@@ -1904,6 +1931,7 @@ export interface RootRouteChildren {
   ApiDirectorsBoardGenerateImageRoute: typeof ApiDirectorsBoardGenerateImageRoute
   ApiPublicCheckApiBalancesRoute: typeof ApiPublicCheckApiBalancesRoute
   ApiPublicFaststartVideoRoute: typeof ApiPublicFaststartVideoRoute
+  ApiPublicFeatureVisibilityRoute: typeof ApiPublicFeatureVisibilityRoute
   ApiPublicFreeDailyGrantRoute: typeof ApiPublicFreeDailyGrantRoute
   ApiPublicFreeMonthlyGrantRoute: typeof ApiPublicFreeMonthlyGrantRoute
   ApiPublicGenerateRoute: typeof ApiPublicGenerateRoute
@@ -2610,6 +2638,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/feature-visibility': {
+      id: '/api/admin/feature-visibility'
+      path: '/api/admin/feature-visibility'
+      fullPath: '/api/admin/feature-visibility'
+      preLoaderRoute: typeof ApiAdminFeatureVisibilityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/admin/run-smoke-step14': {
       id: '/api/admin/run-smoke-step14'
       path: '/api/admin/run-smoke-step14'
@@ -2692,6 +2727,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/faststart-video'
       fullPath: '/api/public/faststart-video'
       preLoaderRoute: typeof ApiPublicFaststartVideoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/feature-visibility': {
+      id: '/api/public/feature-visibility'
+      path: '/api/public/feature-visibility'
+      fullPath: '/api/public/feature-visibility'
+      preLoaderRoute: typeof ApiPublicFeatureVisibilityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/free-daily-grant': {
@@ -3093,6 +3135,7 @@ const rootRouteChildren: RootRouteChildren = {
   RTokenRoute: RTokenRoute,
   CliIndexRoute: CliIndexRoute,
   GuidesIndexRoute: GuidesIndexRoute,
+  ApiAdminFeatureVisibilityRoute: ApiAdminFeatureVisibilityRoute,
   ApiAdminRunSmokeStep14Route: ApiAdminRunSmokeStep14Route,
   ApiAdminUploadImageRoute: ApiAdminUploadImageRoute,
   ApiAdminUploadSiteImageRoute: ApiAdminUploadSiteImageRoute,
@@ -3105,6 +3148,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDirectorsBoardGenerateImageRoute: ApiDirectorsBoardGenerateImageRoute,
   ApiPublicCheckApiBalancesRoute: ApiPublicCheckApiBalancesRoute,
   ApiPublicFaststartVideoRoute: ApiPublicFaststartVideoRoute,
+  ApiPublicFeatureVisibilityRoute: ApiPublicFeatureVisibilityRoute,
   ApiPublicFreeDailyGrantRoute: ApiPublicFreeDailyGrantRoute,
   ApiPublicFreeMonthlyGrantRoute: ApiPublicFreeMonthlyGrantRoute,
   ApiPublicGenerateRoute: ApiPublicGenerateRoute,

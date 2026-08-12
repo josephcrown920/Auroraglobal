@@ -35,6 +35,8 @@ import { cn } from "@/lib/utils";
 
 import { useTheme } from "@/lib/theme-context";
 import { WhatsNew } from "@/components/WhatsNew";
+import { HiddenBadge, useFeatureVisibility } from "@/components/FeatureVisibilityProvider";
+import { featureKeyForRoute } from "@/lib/feature-visibility";
 
 type Feature = {
   to: string;
@@ -149,7 +151,7 @@ function NavSection({ label, children }: { label: string; children: React.ReactN
   );
 }
 
-function LiveNavItem({ f, active, onClick }: { f: Feature; active: boolean; onClick: () => void }) {
+function LiveNavItem({ f, active, onClick, hiddenBadge }: { f: Feature; active: boolean; onClick: () => void; hiddenBadge?: boolean }) {
   return (
     <Link
       to={f.to}
@@ -184,6 +186,7 @@ function LiveNavItem({ f, active, onClick }: { f: Feature; active: boolean; onCl
             aria-label="Featured"
           />
         )}
+        <HiddenBadge show={!!hiddenBadge} />
       </span>
 
       {/* Preview thumbnail — only for features with a previewImg */}
@@ -210,6 +213,13 @@ export function MobileNav() {
   const [open, setOpen] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const { theme, toggle } = useTheme();
+  const { showFeature, isHiddenFromUsers } = useFeatureVisibility();
+
+  // Artist-only gating: drop nav items whose feature is hidden for this
+  // viewer. Admins keep every item (with a "Hidden" badge on gated ones).
+  const visible = (items: Feature[]) => items.filter((f) => showFeature(featureKeyForRoute(f.to)));
+  const gatedBadge = (f: Feature) => isHiddenFromUsers(featureKeyForRoute(f.to));
+  const visibleTabs = TAB_ITEMS.filter((t) => showFeature(featureKeyForRoute(t.to)));
 
   const isCanvas  = isActive(pathname, "/canvas");
   const isLanding = pathname === "/";
@@ -286,8 +296,8 @@ export function MobileNav() {
               style={{ background: "linear-gradient(90deg, transparent 0%, oklch(0.60 0.27 295 / 0.5) 50%, transparent 100%)" }}
             />
 
-            <ul className="grid grid-cols-3">
-              {TAB_ITEMS.map((t) => {
+            <ul className={visibleTabs.length === 2 ? "grid grid-cols-2" : "grid grid-cols-3"}>
+              {visibleTabs.map((t) => {
                 const active = isActive(pathname, t.to);
                 return (
                   <li key={t.to}>
@@ -404,21 +414,23 @@ export function MobileNav() {
               ))}
             </NavSection>
 
-            <NavSection label="Content">
-              {CONTENT_FEATURES.map((f) => (
-                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
-              ))}
-            </NavSection>
+            {visible(CONTENT_FEATURES).length > 0 && (
+              <NavSection label="Content">
+                {visible(CONTENT_FEATURES).map((f) => (
+                  <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} hiddenBadge={gatedBadge(f)} />
+                ))}
+              </NavSection>
+            )}
 
             <NavSection label="More">
-              {MORE_FEATURES.map((f) => (
-                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
+              {visible(MORE_FEATURES).map((f) => (
+                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} hiddenBadge={gatedBadge(f)} />
               ))}
             </NavSection>
 
             <NavSection label="Account">
-              {ACCOUNT_FEATURES.map((f) => (
-                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
+              {visible(ACCOUNT_FEATURES).map((f) => (
+                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} hiddenBadge={gatedBadge(f)} />
               ))}
             </NavSection>
           </nav>

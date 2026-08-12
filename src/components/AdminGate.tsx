@@ -13,6 +13,17 @@ export function hasAdminToken() {
 }
 
 /**
+ * Raw stored token for callers that need to VALIDATE it server-side (e.g.
+ * FeatureVisibilityProvider replays it as x-aurora-admin and only trusts a
+ * 200). Presence alone must never be treated as admin status — anyone can
+ * write an arbitrary value into sessionStorage.
+ */
+export function getAdminToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try { return sessionStorage.getItem(KEY); } catch { return null; }
+}
+
+/**
  * Shared unlock state for every /admin* page. Skips the passcode prompt
  * entirely for accounts that already hold the "admin" role in Supabase
  * (checked server-side via amIAdmin — never trusted from the client), so

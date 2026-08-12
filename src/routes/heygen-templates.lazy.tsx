@@ -1,5 +1,6 @@
 import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
+import { FeatureGuard } from "@/components/FeatureVisibilityProvider";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useRef } from "react";
@@ -42,7 +43,16 @@ import {
 import { computeCost } from "@/lib/pricing";
 import { AURORA_TEMPLATE_MODEL } from "@/lib/aurora-templates.functions";
 
-export const Route = createLazyFileRoute("/heygen-templates")({ component: HeyGenTemplatesPage });
+// Artist-only mode: this feature is hidden from regular users by default.
+// Admins always pass; regular users are redirected to /studio unless the
+// owner has toggled the feature visible (see feature-visibility registry).
+export const Route = createLazyFileRoute("/heygen-templates")({
+  component: () => (
+    <FeatureGuard feature="heygen-templates">
+      <HeyGenTemplatesPage />
+    </FeatureGuard>
+  ),
+});
 
 const TEMPLATE_COST = computeCost({ features: ["video"], model: AURORA_TEMPLATE_MODEL }).total;
 

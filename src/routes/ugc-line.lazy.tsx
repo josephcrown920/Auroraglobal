@@ -1,4 +1,5 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
+import { FeatureGuard } from "@/components/FeatureVisibilityProvider";
 import { useState, useRef, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -30,7 +31,16 @@ import {
 import { cn } from "@/lib/utils";
 import { SiteFooter } from "@/components/SiteFooter";
 
-export const Route = createLazyFileRoute("/ugc-line")({ component: ContentLine });
+// Artist-only mode: this feature is hidden from regular users by default.
+// Admins always pass; regular users are redirected to /studio unless the
+// owner has toggled the feature visible (see feature-visibility registry).
+export const Route = createLazyFileRoute("/ugc-line")({
+  component: () => (
+    <FeatureGuard feature="content-line">
+      <ContentLine />
+    </FeatureGuard>
+  ),
+});
 
 // ─── Arc position pill colours ───────────────────────────────────────────────
 const ARC_COLOURS: Record<string, string> = {

@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
+import { FEATURE_VISIBILITY_REFRESH_EVENT } from "@/components/FeatureVisibilityProvider";
 import { LandingLivePreview } from "@/components/admin/LandingLivePreview";
 
 
@@ -67,7 +68,7 @@ function AdminPage() {
   });
 
 
-  const [tab, setTab] = useState<"gens" | "users" | "payments" | "earnings" | "workers" | "promos" | "images" | "copy" | "router" | "resources">("gens");
+  const [tab, setTab] = useState<"gens" | "users" | "payments" | "earnings" | "workers" | "promos" | "features" | "images" | "copy" | "router" | "resources">("gens");
   const [grantUser, setGrantUser] = useState("");
   const [grantAmount, setGrantAmount] = useState(100);
 
@@ -213,9 +214,9 @@ function AdminPage() {
 
         {/* Tabs */}
         <div className="flex gap-2 border-b border-border overflow-x-auto">
-          {(["gens", "users", "payments", "earnings", "workers", "promos", "images", "copy", "router", "resources"] as const).map((t) => (
+          {(["gens", "users", "payments", "earnings", "workers", "promos", "features", "images", "copy", "router", "resources"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 text-sm capitalize border-b-2 -mb-px transition-colors whitespace-nowrap ${tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-              {t === "gens" ? "Generations" : t === "workers" ? "GPU Workers" : t === "promos" ? "Promo Codes" : t === "images" ? "Site Images" : t === "copy" ? "Site Copy" : t === "router" ? "AI Router" : t === "resources" ? "Resources" : t}
+              {t === "gens" ? "Generations" : t === "workers" ? "GPU Workers" : t === "promos" ? "Promo Codes" : t === "features" ? "Features" : t === "images" ? "Site Images" : t === "copy" ? "Site Copy" : t === "router" ? "AI Router" : t === "resources" ? "Resources" : t}
             </button>
           ))}
         </div>
@@ -301,6 +302,7 @@ function AdminPage() {
         {tab === "earnings" && <EarningsPanel />}
         {tab === "workers" && <WorkersPanel />}
         {tab === "promos" && <PromosPanel />}
+        {tab === "features" && <FeaturesPanel />}
         {tab === "images" && <ImagesPanel />}
         {tab === "copy" && <CopyPanel />}
         {tab === "router" && <RouterPanel />}
@@ -2244,6 +2246,145 @@ const RESOURCE_FILES = [
     tag: "Source",
   },
 ] as const;
+
+// ── Features panel — artist-only mode visibility toggles ────────────────────
+type FeatureVisibilityRow = {
+  key: string;
+  label: string;
+  description: string;
+  defaultHidden: boolean;
+  override: boolean | null;
+  visible: boolean;
+};
+
+/** Auth headers for /api/admin/feature-visibility — Supabase bearer when the
+ *  admin role unlocked the page, else the sessionStorage passcode. */
+async function featureAdminHeaders(): Promise<Record<string, string>> {
+  const { data: session } = await supabase.auth.getSession();
+  const bearerToken = session.session?.access_token ?? "";
+  if (bearerToken) return { Authorization: `Bearer ${bearerToken}` };
+  return { "x-aurora-admin": sessionStorage.getItem("aurora_admin_token") ?? "" };
+}
+
+async function featureAdminCall(body?: Record<string, unknown>): Promise<{ features: FeatureVisibilityRow[] }> {
+  const headers = await featureAdminHeaders();
+  const res = await fetch("/api/admin/feature-visibility", {
+    method: body ? "POST" : "GET",
+    headers: body ? { ...headers, "Content-Type": "application/json" } : headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const json = (await res.json()) as { error?: string; features?: FeatureVisibilityRow[] };
+  if (!res.ok || !json.features) throw new Error(json.error ?? "Request failed");
+  return { features: json.features };
+}
+
+function FeaturesPanel() {
+  const qc = useQueryClient();
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["admin-feature-visibility"],
+    queryFn: () => featureAdminCall(),
+  });
+
+  const applyResult = (result: { features: FeatureVisibilityRow[] }) => {
+    qc.setQueryData(["admin-feature-visibility"], result);
+    // Nudge the app-wide provider so navigation/landing surfaces update immediately.
+    window.dispatchEvent(new Event(FEATURE_VISIBILITY_REFRESH_EVENT));
+  };
+
+  const toggleMut = useMutation({
+    mutationFn: (input: { key: string; visible: boolean }) => featureAdminCall(input),
+    onSuccess: (result, input) => {
+      applyResult(result);
+      toast.success(`${input.visible ? "Now visible to" : "Now hidden from"} regular users`);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Update failed"),
+  });
+
+  const resetMut = useMutation({
+    mutationFn: () => featureAdminCall({ reset: true }),
+    onSuccess: (result) => {
+      applyResult(result);
+      toast.success("Feature visibility reset to artist-only defaults");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Reset failed"),
+  });
+
+  const features = data?.features ?? [];
+  const hiddenCount = features.filter((f) => !f.visible).length;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">Feature Visibility</h2>
+          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
+            Aurora runs artist-only by default: the features below are hidden from regular users
+            but stay fully working for you. Toggle any feature back on — changes apply immediately,
+            no redeploy. Hidden pages redirect regular users to the Studio; you always keep access.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => resetMut.mutate()}
+          disabled={resetMut.isPending}
+        >
+          {resetMut.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
+          Reset to defaults
+        </Button>
+      </div>
+
+      {isLoading && <div className="text-sm text-muted-foreground">Loading…</div>}
+      {error && <div className="text-sm text-red-400">{error instanceof Error ? error.message : "Failed to load"}</div>}
+
+      {!isLoading && !error && (
+        <>
+          <p className="text-xs text-muted-foreground">
+            {hiddenCount} of {features.length} features hidden from regular users
+          </p>
+          <div className="grid gap-2">
+            {features.map((f) => (
+              <div
+                key={f.key}
+                className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-card/40 px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-sm text-foreground">{f.label}</p>
+                    {!f.visible && (
+                      <span className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                        Hidden
+                      </span>
+                    )}
+                    {f.override !== null && (
+                      <span className="rounded-full border border-border bg-background/60 px-2 py-0.5 text-[10px] text-muted-foreground">
+                        overridden
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-xs text-muted-foreground truncate">{f.description}</p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={f.visible}
+                  aria-label={`${f.label} — ${f.visible ? "visible to" : "hidden from"} regular users`}
+                  disabled={toggleMut.isPending}
+                  onClick={() => toggleMut.mutate({ key: f.key, visible: !f.visible })}
+                  className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${f.visible ? "bg-primary" : "bg-border"} ${toggleMut.isPending ? "opacity-60" : ""}`}
+                >
+                  <span
+                    className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition-transform ${f.visible ? "translate-x-[22px]" : "translate-x-0.5"}`}
+                  />
+                </button>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 function ResourcesPanel() {
   return (

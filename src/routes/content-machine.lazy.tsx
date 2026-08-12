@@ -1,5 +1,6 @@
 import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { FeatureGuard } from "@/components/FeatureVisibilityProvider";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -52,7 +53,16 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { saveAssetToDisk } from "@/lib/save";
 
-export const Route = createLazyFileRoute("/content-machine")({ component: ContentMachinePage });
+// Artist-only mode: this feature is hidden from regular users by default.
+// Admins always pass; regular users are redirected to /studio unless the
+// owner has toggled the feature visible (see feature-visibility registry).
+export const Route = createLazyFileRoute("/content-machine")({
+  component: () => (
+    <FeatureGuard feature="content-machine">
+      <ContentMachinePage />
+    </FeatureGuard>
+  ),
+});
 
 // ─── Small shared bits ────────────────────────────────────────────────────────
 

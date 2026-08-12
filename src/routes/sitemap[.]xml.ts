@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
+import { featureKeyForRoute } from "@/lib/feature-visibility";
+import { getEffectiveHiddenKeys } from "@/lib/feature-visibility.server";
 
 const BASE_URL = "https://auroraperformancestudio.com";
 
@@ -44,7 +46,14 @@ export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
       GET: async () => {
-        const urls = ENTRIES.map((e) =>
+        // Artist-only mode: keep hidden features out of the public sitemap.
+        // Fail-safe — a store error falls back to the seeded hidden defaults.
+        const hidden = new Set(await getEffectiveHiddenKeys());
+        const entries = ENTRIES.filter((e) => {
+          const key = featureKeyForRoute(e.path);
+          return !key || !hidden.has(key);
+        });
+        const urls = entries.map((e) =>
           [
             `  <url>`,
             `    <loc>${BASE_URL}${e.path}</loc>`,

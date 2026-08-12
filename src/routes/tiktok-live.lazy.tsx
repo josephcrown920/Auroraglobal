@@ -1,5 +1,6 @@
 import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
+import { useFeatureVisibility } from "@/components/FeatureVisibilityProvider";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation } from "@tanstack/react-query";
@@ -91,6 +92,7 @@ interface GeneratedScene {
 // ─── Component ───────────────────────────────────────────────────────────────
 function TikTokLiveStudio() {
   const { user } = useAuth();
+  const { showFeature } = useFeatureVisibility();
   const generateFn = useServerFn(orchestrateGenerate);
 
   const [activeScene, setActiveScene] = useState<SceneId | string>("stage");
@@ -530,14 +532,16 @@ function TikTokLiveStudio() {
             </div>
 
             <div className="flex items-center gap-2">
-              <Link
-                to="/spin"
-                search={{ prompt: undefined, jobId: undefined }}
-                className="flex items-center gap-1.5 rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-[11px] font-semibold text-violet-300 no-underline hover:bg-violet-500/20 transition-colors"
-              >
-                <Film className="size-3.5" />
-                TikTok30 Posts
-              </Link>
+              {showFeature("spin") && (
+                <Link
+                  to="/spin"
+                  search={{ prompt: undefined, jobId: undefined }}
+                  className="flex items-center gap-1.5 rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-[11px] font-semibold text-violet-300 no-underline hover:bg-violet-500/20 transition-colors"
+                >
+                  <Film className="size-3.5" />
+                  TikTok30 Posts
+                </Link>
+              )}
               <a
                 href="https://www.tiktok.com/live-studio/download"
                 target="_blank"
@@ -612,6 +616,7 @@ function TikTokLiveStudio() {
           {/* Aurora CTA */}
           <div className="border-t border-white/8 p-3 space-y-2">
             <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Aurora tools</p>
+            {showFeature("spin") && (
             <Link to="/spin" search={{ prompt: undefined, jobId: undefined }} className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2.5 no-underline hover:bg-white/8 transition-colors group">
               <div>
                 <p className="text-[11px] font-bold text-white">TikTok30</p>
@@ -619,6 +624,7 @@ function TikTokLiveStudio() {
               </div>
               <ChevronRight className="size-3.5 text-white/30 group-hover:text-white transition-colors" />
             </Link>
+            )}
             <Link to="/lipsync" className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2.5 no-underline hover:bg-white/8 transition-colors group">
               <div>
                 <p className="text-[11px] font-bold text-white">Lip Sync</p>

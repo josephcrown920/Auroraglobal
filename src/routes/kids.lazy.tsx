@@ -1,5 +1,6 @@
 import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { FeatureGuard } from "@/components/FeatureVisibilityProvider";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -36,7 +37,16 @@ import { CartoonPreview } from "@/components/kids/CartoonPreview";
 import { KidsShowcaseCarousel } from "@/components/kids/ShowcaseCarousel";
 import { KIDS_CHARACTER_PREVIEWS } from "@/lib/kids-previews";
 
-export const Route = createLazyFileRoute("/kids")({ component: KidsPage });
+// Artist-only mode: this feature is hidden from regular users by default.
+// Admins always pass; regular users are redirected to /studio unless the
+// owner has toggled the feature visible (see feature-visibility registry).
+export const Route = createLazyFileRoute("/kids")({
+  component: () => (
+    <FeatureGuard feature="kids">
+      <KidsPage />
+    </FeatureGuard>
+  ),
+});
 
 const TERMINAL = new Set(["succeeded", "failed"]);
 

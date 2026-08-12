@@ -1,6 +1,8 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { ArrowUpRight, Sparkles } from "lucide-react";
+import { useFeatureVisibility } from "@/components/FeatureVisibilityProvider";
+import { featureKeyForRoute } from "@/lib/feature-visibility";
 
 export const Route = createLazyFileRoute("/tools")({ component: ToolsPage });
 
@@ -98,12 +100,17 @@ const TOOLS = [
 function ToolsPage() {
   const [hovered, setHovered] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { showFeature } = useFeatureVisibility();
+
+  // Artist-only gating: drop directory rows whose backing feature is hidden
+  // for this viewer (admins keep everything).
+  const tools = TOOLS.filter((t) => showFeature(featureKeyForRoute(t.to)));
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#090712] text-white font-sans">
       {/* Full-bleed background image that crossfades on hover */}
       <div className="pointer-events-none fixed inset-0 z-0">
-        {TOOLS.map((t, i) => (
+        {tools.map((t, i) => (
           <div
             key={t.num}
             className="absolute inset-0 bg-cover bg-center transition-opacity duration-500"
@@ -133,13 +140,13 @@ function ToolsPage() {
             REAL.
           </h1>
           <p className="mt-5 text-xs font-bold uppercase tracking-[0.35em] text-white/40">
-             {TOOLS.length} Aurora tools · Built for creators
+             {tools.length} Aurora tools · Built for creators
           </p>
         </header>
 
         {/* Tool list */}
         <div className="border-t border-white/10">
-          {TOOLS.map((tool, i) => (
+          {tools.map((tool, i) => (
             <Link
               key={tool.num}
               to={tool.to}

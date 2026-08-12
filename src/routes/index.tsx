@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CANONICAL_ORIGIN } from "@/lib/seo";
-import { Plus, Play, ArrowUpRight, ChevronDown, Sparkles, Palette, Film, Wand2, Mic, Music2, Brush, Megaphone, UserCircle2, Workflow, Layers, Flame, Clapperboard, Check, Zap, Crown, Download } from "lucide-react";
+import { Plus, Play, ArrowUpRight, ChevronDown, Sparkles, Palette, Film, Wand2, Mic, Music2, Brush, Megaphone, UserCircle2, Workflow, Layers, Flame, Clapperboard, Check, Zap, Crown, Download, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { HiddenBadge, useFeatureVisibility } from "@/components/FeatureVisibilityProvider";
+import { featureKeyForRoute, type FeatureKey } from "@/lib/feature-visibility";
 import { lazy, Suspense, useCallback, useState, useEffect, useRef, type ReactNode } from "react";
 import { track } from "@/lib/tracking";
 import { EditableCopy } from "@/components/EditableCopy";
@@ -146,7 +148,15 @@ const HERO_SLIDES = [
   },
 ];
 
-const FEATURED_TOOLS = [
+const FEATURED_TOOLS: ReadonlyArray<{
+  label: string;
+  desc: string;
+  to: string;
+  icon: LucideIcon;
+  price: string;
+  /** Gateable feature backing this tile (artist-only mode hides it). */
+  feature?: FeatureKey;
+}> = [
   {
     label: "Motion Control",
     desc: "Transfer your real 30-second performance into any AI scene.",
@@ -181,6 +191,7 @@ const FEATURED_TOOLS = [
     to: "/studio",
     icon: UserCircle2,
     price: "From 5 Aura",
+    feature: "grwm",
   },
   {
     label: "TikTok30 UGC Factory",
@@ -188,6 +199,7 @@ const FEATURED_TOOLS = [
     to: "/spin",
     icon: Flame,
     price: "85 Aura",
+    feature: "spin",
   },
   {
     label: "Talking Avatar Studio",
@@ -195,6 +207,7 @@ const FEATURED_TOOLS = [
     to: "/avatar",
     icon: UserCircle2,
     price: "From 100 Aura",
+    feature: "talking-avatars",
   },
 ];
 
@@ -292,15 +305,28 @@ function LandingPage() {
   const { user } = useAuth();
   const ctaTo = user ? "/studio" : "/auth";
   const { canInstall, install } = usePwaInstall();
+  const { showFeature } = useFeatureVisibility();
+
+  // Artist-only gating: drop hero slides / tool tiles / directory rows whose
+  // backing feature is hidden for this viewer (admins keep everything).
+  const heroSlides = HERO_SLIDES.filter((s) => showFeature(featureKeyForRoute(s.ctaTo)));
+  const featuredTools = FEATURED_TOOLS.filter((t) => showFeature(t.feature ?? featureKeyForRoute(t.to)));
+  const toolDirectory = TOOL_DIRECTORY.filter((t) => showFeature(featureKeyForRoute(t.to)));
 
   const [introVisible, setIntroVisible] = useState(shouldShowIntro);
   const [slideIdx, setSlideIdx] = useState(0);
   const [demoOpen, setDemoOpen] = useState(false);
+  const slideCount = heroSlides.length;
   useEffect(() => {
-    if (introVisible) return;
-    const t = setInterval(() => setSlideIdx((i) => (i + 1) % HERO_SLIDES.length), 5000);
+    if (introVisible || slideCount === 0) return;
+    const t = setInterval(() => setSlideIdx((i) => (i + 1) % slideCount), 5000);
     return () => clearInterval(t);
-  }, [introVisible]);
+  }, [introVisible, slideCount]);
+  // Keep the index in range when the slide list shrinks after the live
+  // visibility state arrives.
+  useEffect(() => {
+    if (slideCount > 0 && slideIdx >= slideCount) setSlideIdx(0);
+  }, [slideCount, slideIdx]);
 
   useEffect(() => {
     if (!introVisible) return;
@@ -377,7 +403,7 @@ function LandingPage() {
       <header className="relative -mt-14 flex min-h-screen flex-col justify-end overflow-hidden pb-20 px-5">
         {/* Slideshow */}
         <div className="absolute inset-0 z-0">
-          {HERO_SLIDES.map((slide, i) => (
+          {heroSlides.map((slide, i) => (
             <img
               key={slide.src}
               src={slide.src}
@@ -415,7 +441,7 @@ function LandingPage() {
           </div>
 
           {/* All slides — absolutely positioned so they don't affect layout height */}
-          {HERO_SLIDES.map((slide, i) => (
+          {heroSlides.map((slide, i) => (
             <div
               key={slide.src}
               className={`absolute inset-0 transition-opacity duration-700 ${
@@ -472,7 +498,7 @@ function LandingPage() {
 
         {/* Carousel dot indicators */}
         <div className="absolute bottom-8 right-5 z-10 flex items-center gap-1.5">
-          {HERO_SLIDES.map((_, i) => (
+          {heroSlides.map((_, i) => (
             <button
               key={i}
               type="button"
@@ -582,7 +608,7 @@ function LandingPage() {
           </p>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURED_TOOLS.map((tool) => (
+          {featuredTools.map((tool) => (
             <FeaturedToolRow key={tool.label} tool={tool} />
           ))}
         </div>
@@ -603,11 +629,11 @@ function LandingPage() {
       {/* ── App Screenshots — "Inside Aurora" ────────────────────────── */}
       <Suspense fallback={null}><AppScreenshotsSection /></Suspense>
 
-      {/* ── UGC Ads ──────────────────────────────────────────────────── */}
-      <Suspense fallback={null}><UGCAdsSection /></Suspense>
+      {/* ── UGC Ads (gateable — hidden in artist-only mode) ──────────── */}
+      {showFeature("ugc") && <Suspense fallback={null}><UGCAdsSection /></Suspense>}
 
-      {/* ── Viral Engine ─────────────────────────────────────────────── */}
-      <Suspense fallback={null}><ViralEngine /></Suspense>
+      {/* ── Viral Engine (TikTok30/Spin — gateable) ──────────────────── */}
+      {showFeature("spin") && <Suspense fallback={null}><ViralEngine /></Suspense>}
 
       {/* ── Every Face Sings (lip-sync demo) ─────────────────────────── */}
       <Suspense fallback={null}><BalloonLipsync /></Suspense>
@@ -734,7 +760,7 @@ function LandingPage() {
           </div>
 
           <div className="border-t border-white/10">
-            {TOOL_DIRECTORY.map((tool) => (
+            {toolDirectory.map((tool) => (
               <Link
                 key={tool.name}
                 to={tool.to}
@@ -1173,7 +1199,7 @@ function LandingPage() {
               { label: "Motion", to: "/motion" },
               { label: "Colors", to: "/colors" },
               { label: "Lip Sync", to: "/lipsync" },
-              { label: "TikTok30", to: "/spin" },
+              ...(showFeature("spin") ? [{ label: "TikTok30", to: "/spin" }] : []),
               { label: "Gallery", to: "/gallery" },
             ]}
           />
@@ -1199,8 +1225,9 @@ function LandingPage() {
   );
 }
 
-function FeaturedToolRow({ tool }: { tool: typeof FEATURED_TOOLS[number] }) {
+function FeaturedToolRow({ tool }: { tool: (typeof FEATURED_TOOLS)[number] }) {
   const Icon = tool.icon;
+  const { isHiddenFromUsers } = useFeatureVisibility();
   return (
     <Link
       to={tool.to}
@@ -1212,7 +1239,7 @@ function FeaturedToolRow({ tool }: { tool: typeof FEATURED_TOOLS[number] }) {
           <Icon className="size-4 text-zinc-200" />
         </span>
         <div className="mt-auto pt-6">
-          <p className="text-sm font-semibold leading-tight text-zinc-100">{tool.label}</p>
+          <p className="text-sm font-semibold leading-tight text-zinc-100">{tool.label}<HiddenBadge show={isHiddenFromUsers(tool.feature ?? featureKeyForRoute(tool.to))} /></p>
           <p className="mt-1 text-[11px] leading-snug text-zinc-500">{tool.desc}</p>
         </div>
         <div className="mt-3 flex items-center justify-between border-t border-white/7 pt-3">

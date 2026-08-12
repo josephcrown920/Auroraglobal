@@ -17,6 +17,8 @@ import {
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { HiddenBadge, useFeatureVisibility } from "@/components/FeatureVisibilityProvider";
+import { featureKeyForRoute } from "@/lib/feature-visibility";
 
 /** Only live, working Aurora routes may appear in the sheet. */
 type ToolPath =
@@ -76,7 +78,7 @@ const SECTIONS: { title: string; tools: Tool[] }[] = [
   },
 ];
 
-function ToolTile({ tool, onClose }: { tool: Tool; onClose: () => void }) {
+function ToolTile({ tool, onClose, hiddenBadge }: { tool: Tool; onClose: () => void; hiddenBadge?: boolean }) {
   const Icon = tool.icon;
   return (
     <Link
@@ -95,6 +97,7 @@ function ToolTile({ tool, onClose }: { tool: Tool; onClose: () => void }) {
       <span className="flex items-start justify-center gap-1 text-[13px] font-medium leading-tight text-foreground">
         {tool.dot ? <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-dot" /> : null}
         {tool.label}
+        <HiddenBadge show={!!hiddenBadge} />
       </span>
     </Link>
   );
@@ -103,6 +106,7 @@ function ToolTile({ tool, onClose }: { tool: Tool; onClose: () => void }) {
 const FOCUSABLE = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export function AuroraToolsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { showFeature, isHiddenFromUsers } = useFeatureVisibility();
   const containerRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
@@ -169,16 +173,25 @@ export function AuroraToolsSheet({ open, onClose }: { open: boolean; onClose: ()
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 pb-40">
-          {SECTIONS.map((section) => (
-            <section key={section.title} className="mt-7">
-              <h3 className="mb-3 text-lg font-bold text-foreground">{section.title}</h3>
-              <div className="grid grid-cols-4 gap-x-3 gap-y-5">
-                {section.tools.map((tool) => (
-                  <ToolTile key={`${section.title}-${tool.label}`} tool={tool} onClose={onClose} />
-                ))}
-              </div>
-            </section>
-          ))}
+          {SECTIONS.map((section) => {
+            const tools = section.tools.filter((tool) => showFeature(featureKeyForRoute(tool.to)));
+            if (tools.length === 0) return null;
+            return (
+              <section key={section.title} className="mt-7">
+                <h3 className="mb-3 text-lg font-bold text-foreground">{section.title}</h3>
+                <div className="grid grid-cols-4 gap-x-3 gap-y-5">
+                  {tools.map((tool) => (
+                    <ToolTile
+                      key={`${section.title}-${tool.label}`}
+                      tool={tool}
+                      onClose={onClose}
+                      hiddenBadge={isHiddenFromUsers(featureKeyForRoute(tool.to))}
+                    />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
         </div>
 
         <div className="pointer-events-none absolute inset-x-0 bottom-0 p-5 pb-8">

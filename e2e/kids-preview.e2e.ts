@@ -48,10 +48,24 @@ test.beforeAll(async () => {
     throw new Error(`Failed to provision e2e test user: ${error?.message}`);
   }
   testUserId = data.user.id;
+
+  // Artist-only mode hides Kids Story Studio from regular users (the /kids
+  // FeatureGuard redirects them to /studio), so this preview test signs in
+  // as an ADMIN — per-user role grant, so global visibility state stays
+  // untouched for everyone else while the previews are exercised.
+  const { error: roleErr } = await admin
+    .from("user_roles")
+    .insert({ user_id: testUserId, role: "admin" });
+  if (roleErr) {
+    throw new Error(`Failed to grant admin role to e2e test user: ${roleErr.message}`);
+  }
 });
 
 test.afterAll(async () => {
   if (testUserId) {
+    // Supabase query builders report failures via `{ error }`, not a rejected
+    // promise — best-effort cleanup, ignore the result either way.
+    await admin.from("user_roles").delete().eq("user_id", testUserId);
     await admin.auth.admin.deleteUser(testUserId).catch(() => {});
   }
 });
