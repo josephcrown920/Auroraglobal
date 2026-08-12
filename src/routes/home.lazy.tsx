@@ -60,10 +60,13 @@ const ARTIST_TOOL_ROWS: ToolRow[] = [
   { idx: "00", name: "PERFORM ANYWHERE", badge: "FLAGSHIP", description: "AI live performance engine", price: "FREE", to: "/motion", previewImg: "/nav-previews/perform-anywhere.jpg", starred: true },
   { idx: "01", name: "COLORS", description: "Performance photo generation", price: "2 CR", to: "/colors", previewImg: "/nav-previews/colors.jpg", starred: true },
   { idx: "02", name: "TIKTOK30", description: "UGC campaign engine", price: "6 CR", to: "/spin", previewImg: "/nav-previews/spin.jpg", starred: true },
-  { idx: "03", name: "VIDEO AGENT", description: "AI video production assistant", price: "10 CR", to: "/video-agent", previewImg: "/nav-previews/video-agent.jpg" },
-  { idx: "04", name: "DIRECTOR'S ROOM", badge: "SUITE", description: "Cinematic visual studio", price: "12 CR", to: "/scene-builder", previewImg: "/nav-previews/scene-builder.jpg" },
-  { idx: "05", name: "LIP SYNC", description: "Audio-synced video", price: "8 CR", to: "/lipsync", previewImg: "/nav-previews/lipsync.jpg" },
-  { idx: "06", name: "MOTION CONTROL", badge: "FLAGSHIP", description: "Kinetic visual generation", price: "10 CR", to: "/motion", previewImg: "/nav-previews/motion.jpg" },
+  { idx: "03", name: "INFINITY CANVAS", badge: "FLAGSHIP", description: "Infinite visual ideation workspace", price: "FREE", to: "/canvas", previewImg: "/nav-previews/canvas.jpg", starred: true },
+  { idx: "04", name: "VIDEO AGENT", description: "AI video production assistant", price: "10 CR", to: "/video-agent", previewImg: "/nav-previews/video-agent.jpg" },
+  { idx: "05", name: "LOCKED LIKENESS", badge: "NEW", description: "Identity-locked shoot direction", price: "10 CR", to: "/likeness", previewImg: "/nav-previews/avatar.jpg" },
+  { idx: "06", name: "AI CREATIVE AGENT", badge: "NEW", description: "Automated creative workflows", price: "12 CR", to: "/agent", previewImg: "/nav-previews/canvas.jpg" },
+  { idx: "07", name: "DIRECTOR'S ROOM", badge: "SUITE", description: "Cinematic visual studio", price: "12 CR", to: "/scene-builder", previewImg: "/nav-previews/scene-builder.jpg" },
+  { idx: "08", name: "LIP SYNC", description: "Audio-synced video", price: "8 CR", to: "/lipsync", previewImg: "/nav-previews/lipsync.jpg" },
+  { idx: "09", name: "MOTION CONTROL", badge: "FLAGSHIP", description: "Kinetic visual generation", price: "10 CR", to: "/motion", previewImg: "/nav-previews/motion.jpg" },
 ];
 
 // ── Creator tool list — content / UGC / short-form focused ───────────────────
@@ -72,9 +75,11 @@ const CREATOR_TOOL_ROWS: ToolRow[] = [
   { idx: "01", name: "TIKTOK30", description: "UGC campaign engine", price: "6 CR", to: "/spin", previewImg: "/nav-previews/spin.jpg", starred: true },
   { idx: "02", name: "LIP SYNC", description: "Audio-synced video", price: "8 CR", to: "/lipsync", previewImg: "/nav-previews/lipsync.jpg", starred: true },
   { idx: "03", name: "VIDEO AGENT", description: "AI video production assistant", price: "10 CR", to: "/video-agent", previewImg: "/nav-previews/video-agent.jpg" },
-  { idx: "04", name: "AI CREATIVE AGENT", badge: "NEW", description: "Automated creative workflows", price: "12 CR", to: "/agent", previewImg: "/nav-previews/canvas.jpg" },
-  { idx: "05", name: "CONTENT MACHINE", description: "Bulk content generation", price: "8 CR", to: "/content-machine", previewImg: "/nav-previews/studio.jpg" },
-  { idx: "06", name: "TALKING AVATARS", description: "Personalized avatar videos", price: "10 CR", to: "/avatar", previewImg: "/nav-previews/lipsync.jpg" },
+  { idx: "04", name: "INFINITY CANVAS", badge: "FLAGSHIP", description: "Infinite visual ideation workspace", price: "FREE", to: "/canvas", previewImg: "/nav-previews/canvas.jpg", starred: true },
+  { idx: "05", name: "LOCKED LIKENESS", badge: "NEW", description: "Identity-locked shoot direction", price: "10 CR", to: "/likeness", previewImg: "/nav-previews/avatar.jpg" },
+  { idx: "06", name: "AI CREATIVE AGENT", badge: "NEW", description: "Automated creative workflows", price: "12 CR", to: "/agent", previewImg: "/nav-previews/canvas.jpg" },
+  { idx: "07", name: "CONTENT MACHINE", description: "Bulk content generation", price: "8 CR", to: "/content-machine", previewImg: "/nav-previews/studio.jpg" },
+  { idx: "08", name: "TALKING AVATARS", description: "Personalized avatar videos", price: "10 CR", to: "/avatar", previewImg: "/nav-previews/lipsync.jpg" },
 ];
 
 // ── Shared heading configs per persona ───────────────────────────────────────
