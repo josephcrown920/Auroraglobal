@@ -729,7 +729,7 @@ function StudioPage() {
                 }))}
               />
               <Link
-                to="/agent"
+                to="/video-agent"
                 className="group flex items-center gap-3 rounded-2xl border border-[#8b5cf6]/25 bg-[#8b5cf6]/8 px-4 py-3 no-underline transition hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/12"
               >
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#8b5cf6]/20 text-[#a78bfa]">
