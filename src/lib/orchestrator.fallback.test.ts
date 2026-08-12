@@ -591,12 +591,14 @@ describe("editStrict (photo editor)", () => {
     expect(c).toEqual(["xai/grok-imagine-video-1.5"]);
   });
 
-  it("every edit-capable model has a real edit route (fal edit, gemini direct, or replicate nano-banana-pro)", () => {
+  it("every edit-capable model has a real edit route (fal edit, gemini direct, replicate nano-banana-pro, or the Replit Gemini proxy)", () => {
     for (const m of EDIT_CAPABLE_IMAGE_MODELS) {
       const routable =
         Boolean(FAL_IDENTITY_EDITS[m]) ||
         Boolean(GEMINI_DIRECT_SLUGS[m]) ||
-        m === "google/nano-banana-pro";
+        m === "google/nano-banana-pro" ||
+        // Replit-billed Gemini image proxy inlines imageUrls as inline_data.
+        m === "replit/gemini-2.5-flash-image";
       expect(routable).toBe(true);
     }
   });

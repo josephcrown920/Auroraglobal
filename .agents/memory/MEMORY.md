@@ -79,6 +79,7 @@
 - [Studio bucket cross-origin download](studio-bucket-cross-origin-download.md) — `<a download>` on a public studio-bucket URL silently fails (cross-origin); fetch→Blob→objectURL anchor to actually save the file.
 - [Manual auth.users inserts](supabase-manual-auth-user-inserts.md) — direct SQL insert into auth.users 500s at login unless nullable token columns (confirmation_token etc.) are '' not NULL.
 - [Spin pricing & ViralEngine grid](spin-pricing-and-viral-grid.md) — pre-render pricing must call templateCost() not a hardcoded number; landing mockup grids: tile count/aspect drives height more than frame width.
+- [Spin batch smoke verification](spin-batch-smoke-verification.md) — QA user is admin (charges no-op unless role dropped); SPIN_COUNT=50 now; cron finishes batches if the driver dies; fund smokes from spinTotalCost.
 - [Spin template card avatar identities](spin-template-card-identities.md) — per-template identity + candid-UGC style contract for the 6 Spin picker cards; generateImage is text-only, no image conditioning.
 - [Cookie consent region heuristic](cookie-consent-region-heuristic.md) — no real IP-geo backend; EU/UK/CA detection is locale-region + timezone client heuristic, deliberately conservative toward showing the banner.
 - [AutoCut local ffmpeg assemble fallback](autocut-local-ffmpeg-assemble.md) — AutoCut no longer needs an online self-hosted GPU worker; falls back to running ffmpeg assemble in-process (container already ships ffmpeg).

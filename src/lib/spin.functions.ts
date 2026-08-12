@@ -629,12 +629,16 @@ async function renderSpinPiece(
   const variantKind = piece.kind ?? (ctx.mode === "video" ? "video" : "image");
 
   if (ctx.mode !== "video" && variantKind !== "video") {
-    // Standard photo mode — render as an identity-locked still.
+    // Standard photo mode — render as an identity-locked still. editStrict
+    // constrains fallback to edit-capable models only: a text-to-image
+    // fallback (seedream/pollinations/t2i GPU pool) would ignore the face
+    // reference and silently ship a stranger. Failing is better.
     const out = await orchestrate({
       kind: "image",
       model: IMAGE_MODEL,
       prompt: piece.prompt || piece.label,
       imageUrls: refImages.length ? refImages : undefined,
+      editStrict: refImages.length > 0,
       userId: ctx.userId,
       refId: piece.id,
     });
@@ -653,6 +657,7 @@ async function renderSpinPiece(
       model: IMAGE_MODEL,
       prompt: piece.prompt || piece.label,
       imageUrls: ctx.faceUrl ? [ctx.faceUrl] : undefined,
+      editStrict: !!ctx.faceUrl,
       userId: ctx.userId,
       refId: piece.id,
     });
@@ -685,6 +690,7 @@ async function renderSpinPiece(
     model: IMAGE_MODEL,
     prompt: piece.prompt || piece.label,
     imageUrls: refImages.length ? refImages : undefined,
+    editStrict: refImages.length > 0,
     userId: ctx.userId,
     refId: piece.id,
   });

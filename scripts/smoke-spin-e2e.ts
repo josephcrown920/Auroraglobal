@@ -22,29 +22,40 @@
  *   5. RENDER        — one real render through runSmokeSpinOne (direct
  *                      invocation; documented as a lower-level check, it does
  *                      NOT cover auth/billing — steps 2-4 do).
- *   6. FULL BATCH    — with CONFIRM_SPEND=1, submits a real 30-post spinThirty
- *                      batch over HTTP with an owned reference (real charge,
- *                      real providers), then drives it to a TERMINAL state by
- *                      polling tickSpinJob/getSpinJob over HTTP and asserts
- *                      all 30 variants completed with result URLs.
+ *   6. FULL BATCH    — with CONFIRM_SPEND=1, submits a real SPIN_COUNT-post
+ *                      spinThirty batch over HTTP with an owned reference
+ *                      (real charge, real providers; the QA user's admin role
+ *                      is dropped for the run so the charge is real), then
+ *                      drives it to a TERMINAL state by polling
+ *                      tickSpinJob/getSpinJob over HTTP and asserts every
+ *                      variant completed with a result URL.
+ *   7. IDENTITY      — STRICT evidence per variant: exactly one successful
+ *                      provider_logs record from an identity-capable provider
+ *                      (query errors / missing / ambiguous / unknown provider
+ *                      all fail), and every result image must download
+ *                      non-empty to /tmp/spin-e2e-images for visual face
+ *                      comparison before cleanup deletes the originals.
  *
  * Cleanup (finally block, including failure paths):
  *   - every spin_jobs / spin_variants row created by this run is deleted;
  *   - every storage object generated for those jobs (<user>/spin/<jobId>/*)
  *     and the temporary reference upload are removed;
+ *   - the QA user's admin role (if dropped) is restored;
  *   - the QA user's profile is restored to its EXACT pre-run state: balance
  *     restored when a profile existed, the profile row deleted when the run
  *     created it.
  *
  * Run:
  *   bun run scripts/smoke-spin-e2e.ts                 # steps 1-5, no charge
- *   CONFIRM_SPEND=1 bun run scripts/smoke-spin-e2e.ts # + real 30-post batch
+ *   CONFIRM_SPEND=1 bun run scripts/smoke-spin-e2e.ts # + real full batch
  */
 
-import { readFileSync } from "node:fs";
+import { readFileSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { supabaseAdmin } from "../src/integrations/supabase/client.server";
 import { runSmokeSpinOne } from "../src/lib/spin.functions";
 import { isFreeGpuOnlyMode } from "../src/lib/app-settings.server";
+import { SPIN_COUNT, spinTotalCost } from "../src/lib/spin-engine";
+import { FAL_IDENTITY_EDITS, GEMINI_DIRECT_SLUGS } from "../src/lib/orchestrator.server";
 import { getTestSession, getCredits, setCredits } from "./lib/get-test-session";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -53,8 +64,36 @@ const BASE = process.env.SMOKE_BASE_URL ?? "http://localhost:8080";
 const SERVER_FN_BASE = `${BASE}/_serverFn/`;
 // Public repo photo used as the identity anchor — no personal data.
 const REF_PHOTO_PATH = "public/josh/josh-pink-mic-portrait.jpg";
-// Enough for a full photo batch (30 × SPIN_PIECE_COST) with headroom.
-const CREDITS_FOR_BATCH = 400;
+// Enough for a full photo batch (SPIN_COUNT × SPIN_PIECE_COST) with headroom —
+// derived from the real pricing engine so a SPIN_COUNT or cost bump can never
+// silently underfund the smoke batch again.
+const CREDITS_FOR_BATCH = spinTotalCost(SPIN_COUNT, 0) + 100;
+
+// Identity-edit evidence is validated at the ENDPOINT level, not just the
+// provider name — a provider like "replicate" serves both edit-capable
+// (nano-banana image_input) and text-to-image (seedream) models, so the
+// provider name alone can't prove the face reference was honored. The
+// endpoint strings each adapter logs are:
+//   replit-gemini-image:<model>   Replit Gemini proxy — inlines refs as inline_data
+//   gemini:<model>                own-key Gemini — inline_data refs
+//   fal:<path>/edit               fal identity-edit endpoints (image_urls[])
+//   replicate:google/nano-banana* image_input-driven Replicate models
+// Derived from the router's own routing maps so a route change breaks the
+// smoke loudly instead of silently loosening the check.
+function isIdentityEditEndpoint(provider: string, endpoint: string): boolean {
+  switch (provider) {
+    case "replit-gemini-image":
+      return endpoint.startsWith("replit-gemini-image:gemini-");
+    case "gemini":
+      return endpoint.startsWith("gemini:gemini-") && Object.values(GEMINI_DIRECT_SLUGS).some((m) => endpoint === `gemini:${m}`);
+    case "fal":
+      return Object.values(FAL_IDENTITY_EDITS).some((p) => endpoint === `fal:${p}`);
+    case "replicate":
+      return endpoint === "replicate:google/nano-banana" || endpoint === "replicate:google/nano-banana-pro";
+    default:
+      return false;
+  }
+}
 
 function fail(msg: string): never {
   throw new Error(msg);
@@ -119,7 +158,16 @@ async function callServerFn(
     }
   }
 
-  const res = await fetch(url, { method: opts.method, headers, body });
+  // Bounded: a dev-server request that never returns must surface as an
+  // error (retried by the poll loop) rather than hanging the smoke forever —
+  // a real run once stalled indefinitely on a single getSpinJob fetch while
+  // the batch itself finished fine in the background.
+  const res = await fetch(url, {
+    method: opts.method,
+    headers,
+    body,
+    signal: AbortSignal.timeout(120_000),
+  });
   const contentType = res.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) {
     fail(`unexpected server-fn response: ${res.status} ${contentType}`);
@@ -168,6 +216,31 @@ async function main() {
   const profileExisted = originalCredits !== null;
   let refPath: string | null = null;
   const createdJobIds: string[] = [];
+
+  // The QA user may carry the admin role (used by other smokes). spinThirty
+  // bypasses the credit charge for admins, which would turn the paid-batch
+  // assertions of step 6 into no-ops — so drop the role for the duration of
+  // the run and restore it in the finally block.
+  let removedAdminRole = false;
+  {
+    const { data: adminRows, error: roleErr } = await supabaseAdmin
+      .from("user_roles")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("role", "admin");
+    if (roleErr) fail(`read user_roles: ${roleErr.message}`);
+    if ((adminRows ?? []).length > 0) {
+      const { error: delRoleErr } = await supabaseAdmin
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userId)
+        .eq("role", "admin");
+      if (delRoleErr) fail(`remove admin role: ${delRoleErr.message}`);
+      removedAdminRole = true;
+      console.log("  [1 session] QA user had the admin role — removed for this run (restored at cleanup)");
+    }
+  }
+
   try {
     // ── 2. Auth negative: no bearer → middleware must reject ───────────────
     console.log("\n  [2 auth-negative] getSpinOptions over HTTP without auth…");
@@ -243,7 +316,7 @@ async function main() {
 
     // ── 6. Full 30-post batch over HTTP (real charge) ──────────────────────
     if (process.env.CONFIRM_SPEND === "1") {
-      console.log("\n  [6 batch] submitting REAL 30-post spinThirty batch over HTTP…");
+      console.log(`\n  [6 batch] submitting REAL ${SPIN_COUNT}-post spinThirty batch over HTTP…`);
       await setCredits(userId, CREDITS_FOR_BATCH);
       const submitted = (await callServerFn(fnIds.spinThirty!, {
         method: "POST",
@@ -306,12 +379,103 @@ async function main() {
       const doneWithUrl = terminal.variants.filter(
         (v) => v.status === "done" && !!v.url && v.url.startsWith("https://"),
       ).length;
-      if (terminal.variants.length !== 30 || doneWithUrl !== 30) {
+      if (terminal.variants.length !== SPIN_COUNT || doneWithUrl !== SPIN_COUNT) {
         fail(
-          `batch terminal but incomplete: status=${terminal.status} variants=${terminal.variants.length} doneWithUrl=${doneWithUrl}/30`,
+          `batch terminal but incomplete: status=${terminal.status} variants=${terminal.variants.length} doneWithUrl=${doneWithUrl}/${SPIN_COUNT}`,
         );
       }
-      console.log("  [6 batch] ✓ terminal state reached; all 30 variants done with result URLs");
+      console.log(`  [6 batch] ✓ terminal state reached; all ${SPIN_COUNT} variants done with result URLs`);
+
+      // ── 7. Identity evidence: providers + local copies ────────────────────
+      // (a) Which provider actually served each piece — identity-blind
+      //     fallbacks (Pollinations/Runware, or the ComfyUI t2i pool) would
+      //     break the same-face guarantee even though the render "succeeded".
+      //     provider_logs.ref_id = variant id. This check is STRICT: a query
+      //     error, a missing log, an unknown provider, or ambiguous evidence
+      //     (≠ exactly one successful record) all FAIL the smoke — absence of
+      //     evidence is never treated as proof of identity preservation.
+      const { data: variantRows, error: variantErr } = await supabaseAdmin
+        .from("spin_variants")
+        .select("id,idx,url,status")
+        .eq("job_id", jobId)
+        .order("idx", { ascending: true });
+      if (variantErr) fail(`identity evidence: spin_variants query failed: ${variantErr.message}`);
+      if ((variantRows ?? []).length !== SPIN_COUNT) {
+        fail(
+          `identity evidence: expected ${SPIN_COUNT} variant rows, got ${(variantRows ?? []).length}`,
+        );
+      }
+      const variants = variantRows!;
+      const variantIds = variants.map((v) => v.id);
+      const { data: plogs, error: plogErr } = await supabaseAdmin
+        .from("provider_logs")
+        .select("ref_id,provider,endpoint,status,kind")
+        .in("ref_id", variantIds);
+      if (plogErr) fail(`identity evidence: provider_logs query failed: ${plogErr.message}`);
+      const okByVariant = new Map<string, { provider: string; endpoint: string }[]>();
+      for (const row of plogs ?? []) {
+        if (!row.ref_id || row.status !== "ok") continue;
+        const arr = okByVariant.get(row.ref_id) ?? [];
+        arr.push({ provider: row.provider, endpoint: row.endpoint });
+        okByVariant.set(row.ref_id, arr);
+      }
+      const bad: string[] = [];
+      for (const v of variants) {
+        const winners = okByVariant.get(v.id) ?? [];
+        if (winners.length === 0) {
+          bad.push(`variant ${v.idx}: NO successful provider log`);
+          continue;
+        }
+        if (winners.length > 1) {
+          bad.push(
+            `variant ${v.idx}: ambiguous — ${winners.length} ok logs (${winners.map((w) => w.endpoint).join(", ")})`,
+          );
+          continue;
+        }
+        const winner = winners[0];
+        if (!isIdentityEditEndpoint(winner.provider, winner.endpoint)) {
+          bad.push(
+            `variant ${v.idx}: served by non-identity-edit route "${winner.provider}" endpoint="${winner.endpoint}"`,
+          );
+          continue;
+        }
+        console.log(`  [7 identity] variant ${String(v.idx).padStart(2)} endpoint=${winner.endpoint} ✓`);
+      }
+      if (bad.length > 0) {
+        fail(
+          `identity evidence FAILED for ${bad.length}/${SPIN_COUNT} variant(s):\n    ${bad.join("\n    ")}`,
+        );
+      }
+      console.log(
+        `  [7 identity] ✓ every one of the ${SPIN_COUNT} pieces has exactly one successful log from an identity-edit route`,
+      );
+
+      // (b) Download every result locally BEFORE cleanup deletes the storage
+      //     objects, so the faces can be visually compared side-by-side.
+      //     STRICT: all SPIN_COUNT files must be written or the smoke fails —
+      //     the visual-comparison artifact is part of the verification. The
+      //     directory is per-run (jobId-suffixed) so stale artifacts from an
+      //     earlier run can never be mixed into a review.
+      const outDir = `/tmp/spin-e2e-images-${jobId.slice(0, 8)}`;
+      rmSync(outDir, { recursive: true, force: true });
+      mkdirSync(outDir, { recursive: true });
+      let downloaded = 0;
+      for (const v of variants) {
+        if (!v.url) fail(`identity evidence: variant ${v.idx} has no result URL`);
+        const res = await fetch(v.url);
+        if (!res.ok) fail(`identity evidence: download failed for variant ${v.idx}: HTTP ${res.status}`);
+        const buf = Buffer.from(await res.arrayBuffer());
+        if (buf.byteLength === 0) fail(`identity evidence: variant ${v.idx} downloaded 0 bytes`);
+        const ext = (res.headers.get("content-type") ?? "").includes("png") ? "png" : "jpg";
+        writeFileSync(`${outDir}/variant-${String(v.idx).padStart(2, "0")}.${ext}`, buf);
+        downloaded++;
+      }
+      if (downloaded !== SPIN_COUNT) {
+        fail(`identity evidence: only ${downloaded}/${SPIN_COUNT} result images downloaded`);
+      }
+      console.log(
+        `  [7 identity] ✓ all ${SPIN_COUNT} result images saved to ${outDir} for visual face comparison`,
+      );
     } else {
       console.log("\n  (Skipped step 6 real batch — re-run with CONFIRM_SPEND=1 to include it.)");
     }
@@ -356,6 +520,14 @@ async function main() {
     // 3. Restore the profile to its EXACT pre-run state — balance when it
     //    existed, full row deletion when this run created it (setCredits
     //    upserts, so a paid run against a profile-less QA user creates one).
+    // 0. Restore the admin role if this run removed it.
+    if (removedAdminRole) {
+      const { error: roleRestoreErr } = await supabaseAdmin
+        .from("user_roles")
+        .insert({ user_id: userId, role: "admin" });
+      if (roleRestoreErr) console.error(`  WARNING: admin role restore failed: ${roleRestoreErr.message}`);
+      else console.log("  cleanup: QA user's admin role restored");
+    }
     if (profileExisted) {
       await setCredits(userId, originalCredits!);
       console.log(`  cleanup: credit balance restored to ${originalCredits}`);

@@ -3090,6 +3090,11 @@ export const EDIT_CAPABLE_IMAGE_MODELS: ReadonlySet<string> = new Set([
   ...Object.keys(GEMINI_DIRECT_SLUGS),
   // Replicate-only (no fal edit endpoint), but image_input-driven all the same.
   "google/nano-banana-pro",
+  // Replit-billed Gemini image proxy: same gemini-2.5-flash-image model as
+  // google/nano-banana, and its adapter inlines every imageUrls ref as
+  // inline_data — a true edit route. (replit/gpt-image-1 is NOT here: the
+  // images.generate path has no reference-image input.)
+  "replit/gemini-2.5-flash-image",
 ]);
 
 export function getCandidateModels(req: GenerateRequest): string[] {
