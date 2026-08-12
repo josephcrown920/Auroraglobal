@@ -61,7 +61,8 @@
           "photosPermission": "Allow Aurora Studio to access your photos to use as reference images for AI generation.",
           "cameraPermission": "Allow Aurora Studio to use your camera to capture photos for AI generation."
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,

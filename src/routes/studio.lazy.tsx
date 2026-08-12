@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { UploadSlot } from "@/components/studio/UploadSlot";
 import { WardrobePicker } from "@/components/studio/WardrobePicker";
+import { AdCreativeSection, ViralTemplatesStrip } from "@/components/studio/DiscoverSections";
 import { AUDIO_ACCEPT } from "@/lib/utils";
 import { BringItToLifePreview } from "@/components/studio/BringItToLifePreview";
 import { Button } from "@/components/ui/button";
@@ -773,6 +774,11 @@ function StudioPage() {
         )}
 
 
+        {/* Ad Creative Studio — Meta + TikTok entry cards */}
+        <AdCreativeSection />
+
+        {/* Viral Templates — one-tap template strip from the manifest */}
+        <ViralTemplatesStrip />
 
         {/* Buy Aura */}
         <div className="relative overflow-hidden border-t border-[#8b5cf6]/15 bg-gradient-to-b from-zinc-950 to-zinc-900">

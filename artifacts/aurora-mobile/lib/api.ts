@@ -1,3 +1,9 @@
+import {
+  GALLERY_SUCCESS_STATUSES,
+  mapGalleryRow,
+  type GalleryRow,
+  type Generation,
+} from "@/lib/gallery-mapping";
 import { supabase } from "@/lib/supabase";
 
 const SUPABASE_PUBLISHABLE_KEY =
@@ -28,15 +34,7 @@ export interface GenerateParams {
   referenceImageUrl?: string;
 }
 
-export interface Generation {
-  id: string;
-  created_at: string;
-  output_url: string | null;
-  prompt: string | null;
-  kind: string;
-  status: "ok" | "error" | "processing";
-  error_message?: string | null;
-}
+export type { Generation } from "@/lib/gallery-mapping";
 
 export async function generateContent(params: GenerateParams): Promise<Generation> {
   const headers = await getAuthHeaders();
@@ -73,16 +71,22 @@ export async function getGallery(limit = 40): Promise<Generation[]> {
   } = await supabase.auth.getUser();
   if (!user) return [];
 
+  // The live schema stores results split by medium (result_video_url /
+  // motion_video_url / result_image_url) — there is no output_url column.
+  // Success statuses are "complete" (sync paths) and "succeeded" (async
+  // queue jobs); see gallery-mapping.ts.
   const { data, error } = await supabase
     .from("generations")
-    .select("id, created_at, output_url, prompt, kind, status")
+    .select(
+      "id, created_at, result_video_url, motion_video_url, result_image_url, prompt, kind, status",
+    )
     .eq("user_id", user.id)
-    .in("status", ["ok"])
+    .in("status", [...GALLERY_SUCCESS_STATUSES])
     .order("created_at", { ascending: false })
     .limit(limit);
 
   if (error) throw error;
-  return (data ?? []) as Generation[];
+  return (data ?? []).map((row) => mapGalleryRow(row as GalleryRow));
 }
 
 export interface UserProfile {
@@ -113,6 +117,31 @@ export interface CreditTransaction {
   amount: number;
   description: string;
   balance_after: number;
+}
+
+export interface VideoSource {
+  uri: string;
+  headers: Record<string, string>;
+}
+
+/**
+ * Playback source for a generated video, routed through the backend
+ * faststart proxy. iOS AVPlayer needs the MP4 moov atom at the front of the
+ * file (+faststart); provider URLs often have it last, which renders as a
+ * black frame. The proxy checks box order and remuxes only when needed.
+ */
+export async function getVideoSource(generationId: string): Promise<VideoSource> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) throw new Error("Not authenticated");
+  return {
+    uri: `${getApiBase()}/api/public/faststart-video?id=${encodeURIComponent(generationId)}`,
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+    },
+  };
 }
 
 export async function getCreditTransactions(limit = 20): Promise<CreditTransaction[]> {
