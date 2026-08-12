@@ -2,6 +2,18 @@ import { Component } from "react";
 import type { ReactNode, ErrorInfo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+const BTN: React.CSSProperties = {
+  marginTop: 8,
+  padding: "9px 22px",
+  borderRadius: 8,
+  border: "1px solid var(--border, #374151)",
+  background: "transparent",
+  color: "var(--text, #f1f5f9)",
+  cursor: "pointer",
+  fontSize: 13,
+  fontWeight: 600,
+};
+
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
@@ -63,22 +75,14 @@ export class ErrorBoundary extends Component<Props, State> {
           <div style={{ fontSize: 13, maxWidth: 480, textAlign: "center" }}>
             {this.state.message || "An unexpected error occurred. Refresh the page to try again."}
           </div>
-          <button
-            onClick={() => window.location.reload()}
-            style={{
-              marginTop: 8,
-              padding: "9px 22px",
-              borderRadius: 8,
-              border: "1px solid var(--border, #374151)",
-              background: "transparent",
-              color: "var(--text, #f1f5f9)",
-              cursor: "pointer",
-              fontSize: 13,
-              fontWeight: 600,
-            }}
-          >
-            Reload page
-          </button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+            <button onClick={() => { window.location.href = "/"; }} style={BTN}>
+              ← Back to home
+            </button>
+            <button onClick={() => window.location.reload()} style={BTN}>
+              Reload page
+            </button>
+          </div>
         </div>
       );
     }
