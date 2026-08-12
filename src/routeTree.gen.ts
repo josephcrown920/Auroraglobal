@@ -122,6 +122,7 @@ import { Route as ApiPublicFeatureVisibilityRouteImport } from './routes/api/pub
 import { Route as ApiPublicFreeDailyGrantRouteImport } from './routes/api/public/free-daily-grant'
 import { Route as ApiPublicFreeMonthlyGrantRouteImport } from './routes/api/public/free-monthly-grant'
 import { Route as ApiPublicGenerateRouteImport } from './routes/api/public/generate'
+import { Route as ApiPublicGithubSyncMonitorRouteImport } from './routes/api/public/github-sync-monitor'
 import { Route as ApiPublicLifecycleEmailsRouteImport } from './routes/api/public/lifecycle-emails'
 import { Route as ApiPublicModelWatchRouteImport } from './routes/api/public/model-watch'
 import { Route as ApiPublicNowpaymentsWebhookRouteImport } from './routes/api/public/nowpayments-webhook'
@@ -751,6 +752,12 @@ const ApiPublicGenerateRoute = ApiPublicGenerateRouteImport.update({
   path: '/api/public/generate',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicGithubSyncMonitorRoute =
+  ApiPublicGithubSyncMonitorRouteImport.update({
+    id: '/api/public/github-sync-monitor',
+    path: '/api/public/github-sync-monitor',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicLifecycleEmailsRoute =
   ApiPublicLifecycleEmailsRouteImport.update({
     id: '/api/public/lifecycle-emails',
@@ -1051,6 +1058,7 @@ export interface FileRoutesByFullPath {
   '/api/public/free-daily-grant': typeof ApiPublicFreeDailyGrantRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
+  '/api/public/github-sync-monitor': typeof ApiPublicGithubSyncMonitorRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
   '/api/public/model-watch': typeof ApiPublicModelWatchRoute
   '/api/public/nowpayments-webhook': typeof ApiPublicNowpaymentsWebhookRoute
@@ -1200,6 +1208,7 @@ export interface FileRoutesByTo {
   '/api/public/free-daily-grant': typeof ApiPublicFreeDailyGrantRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
+  '/api/public/github-sync-monitor': typeof ApiPublicGithubSyncMonitorRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
   '/api/public/model-watch': typeof ApiPublicModelWatchRoute
   '/api/public/nowpayments-webhook': typeof ApiPublicNowpaymentsWebhookRoute
@@ -1350,6 +1359,7 @@ export interface FileRoutesById {
   '/api/public/free-daily-grant': typeof ApiPublicFreeDailyGrantRoute
   '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
   '/api/public/generate': typeof ApiPublicGenerateRoute
+  '/api/public/github-sync-monitor': typeof ApiPublicGithubSyncMonitorRoute
   '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
   '/api/public/model-watch': typeof ApiPublicModelWatchRoute
   '/api/public/nowpayments-webhook': typeof ApiPublicNowpaymentsWebhookRoute
@@ -1501,6 +1511,7 @@ export interface FileRouteTypes {
     | '/api/public/free-daily-grant'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
+    | '/api/public/github-sync-monitor'
     | '/api/public/lifecycle-emails'
     | '/api/public/model-watch'
     | '/api/public/nowpayments-webhook'
@@ -1650,6 +1661,7 @@ export interface FileRouteTypes {
     | '/api/public/free-daily-grant'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
+    | '/api/public/github-sync-monitor'
     | '/api/public/lifecycle-emails'
     | '/api/public/model-watch'
     | '/api/public/nowpayments-webhook'
@@ -1799,6 +1811,7 @@ export interface FileRouteTypes {
     | '/api/public/free-daily-grant'
     | '/api/public/free-monthly-grant'
     | '/api/public/generate'
+    | '/api/public/github-sync-monitor'
     | '/api/public/lifecycle-emails'
     | '/api/public/model-watch'
     | '/api/public/nowpayments-webhook'
@@ -1935,6 +1948,7 @@ export interface RootRouteChildren {
   ApiPublicFreeDailyGrantRoute: typeof ApiPublicFreeDailyGrantRoute
   ApiPublicFreeMonthlyGrantRoute: typeof ApiPublicFreeMonthlyGrantRoute
   ApiPublicGenerateRoute: typeof ApiPublicGenerateRoute
+  ApiPublicGithubSyncMonitorRoute: typeof ApiPublicGithubSyncMonitorRoute
   ApiPublicLifecycleEmailsRoute: typeof ApiPublicLifecycleEmailsRoute
   ApiPublicModelWatchRoute: typeof ApiPublicModelWatchRoute
   ApiPublicNowpaymentsWebhookRoute: typeof ApiPublicNowpaymentsWebhookRoute
@@ -2757,6 +2771,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicGenerateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/github-sync-monitor': {
+      id: '/api/public/github-sync-monitor'
+      path: '/api/public/github-sync-monitor'
+      fullPath: '/api/public/github-sync-monitor'
+      preLoaderRoute: typeof ApiPublicGithubSyncMonitorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/lifecycle-emails': {
       id: '/api/public/lifecycle-emails'
       path: '/api/public/lifecycle-emails'
@@ -3152,6 +3173,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicFreeDailyGrantRoute: ApiPublicFreeDailyGrantRoute,
   ApiPublicFreeMonthlyGrantRoute: ApiPublicFreeMonthlyGrantRoute,
   ApiPublicGenerateRoute: ApiPublicGenerateRoute,
+  ApiPublicGithubSyncMonitorRoute: ApiPublicGithubSyncMonitorRoute,
   ApiPublicLifecycleEmailsRoute: ApiPublicLifecycleEmailsRoute,
   ApiPublicModelWatchRoute: ApiPublicModelWatchRoute,
   ApiPublicNowpaymentsWebhookRoute: ApiPublicNowpaymentsWebhookRoute,

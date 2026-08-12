@@ -36,6 +36,18 @@ fi
 echo "[cron] starting — tick every ${TICK_INTERVAL}s, health every ${HEALTH_INTERVAL}s"
 echo "[cron] app: $APP"
 
+# ── GitHub sync daemon (companion process) ──────────────────────────────────
+# The workspace is at its managed-workflow limit, so the github-sync daemon
+# rides along inside this long-lived cron workflow instead of owning its own.
+# The daemon self-guards: non-main REPL_IDs idle forever (it never pushes from
+# task-agent clones), so launching it unconditionally here is safe everywhere.
+# It dies with this workflow (child process) and is relaunched on cron restart.
+GH_SYNC_SCRIPT="$(dirname "$0")/github-sync-daemon.sh"
+if [ -f "$GH_SYNC_SCRIPT" ] && ! pgrep -f "github-sync-daemon.sh" >/dev/null 2>&1; then
+  bash "$GH_SYNC_SCRIPT" &
+  echo "[cron] launched github-sync daemon (pid $!)"
+fi
+
 # ── Wait for app to be ready ────────────────────────────────────────────────
 for i in $(seq 1 60); do
   if curl -sf "$APP/api/public/workers/health" -o /dev/null \
@@ -55,6 +67,7 @@ last_sweep=0
 last_modelwatch=0
 last_genhealth=0
 last_vast=0
+last_ghsync=0
 last_grant_day=""
 
 while true; do
@@ -173,6 +186,26 @@ while true; do
       echo "[$ts][gen-health] WARN — $resp (rc=$rc)"
     fi
     last_genhealth=$now
+  fi
+
+  # GitHub sync monitor (every 5 min, piggybacks on the health cadence).
+  # Reads the github-sync daemon's local status file and emails the operator
+  # (via Resend) once the sync has been broken for over an hour; sends a
+  # recovery email when it comes back. Dedup state: uptime_monitor_state
+  # row id='github_sync'.
+  if [ $((now - last_ghsync)) -ge $HEALTH_INTERVAL ]; then
+    resp=$(curl -sf "$APP/api/public/github-sync-monitor" \
+      -X POST \
+      -H "apikey: $APIKEY" \
+      -H "content-type: application/json" \
+      --max-time 30 2>&1) && rc=0 || rc=$?
+    ts=$(date -u +"%H:%M:%S")
+    if [ $rc -eq 0 ]; then
+      echo "[$ts][gh-sync] OK — $resp"
+    else
+      echo "[$ts][gh-sync] WARN — $resp (rc=$rc)"
+    fi
+    last_ghsync=$now
   fi
 
   # Vast managed-instance expiry (every 5 min, piggybacks on the health cadence).
