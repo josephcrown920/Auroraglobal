@@ -478,6 +478,17 @@ export async function generateDailyPostImageCore(
   return { ok: true as const, url: outcome.url, generationId: outcome.generationId, cost };
 }
 
+// ─── Batch stagger ───────────────────────────────────────────────────────────
+// The client fires up to 7 generateDailyPostImage requests simultaneously (one
+// per day). Without staggering, all 7 hit the same provider at the same
+// millisecond, triggering simultaneous 429s at every tier of the fallback chain.
+// A small per-day delay (day 1 → 0 ms, day 2 → 200 ms, …, day 7 → 1200 ms)
+// staggers the fan-out so that earlier calls can register a rate-limit failure
+// in the shared global health tracker BEFORE later calls snapshot provider
+// health — effectively deprioritizing the over-loaded provider for the rest of
+// the batch without any extra coordination layer.
+const BATCH_STAGGER_MS = 200;
+
 export const generateDailyPostImage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
@@ -489,6 +500,13 @@ export const generateDailyPostImage = createServerFn({ method: "POST" })
     }).parse,
   )
   .handler(async ({ data, context }) => {
+    // Stagger parallel calls so each lands BATCH_STAGGER_MS after the previous.
+    // day=1 fires immediately; day=2 waits 200 ms; …; day=7 waits 1 200 ms.
+    // This gives earlier requests time to mark a rate-limited provider unhealthy
+    // before later requests snapshot provider health in the orchestrator.
+    if (data.day > 1) {
+      await new Promise((r) => setTimeout(r, (data.day - 1) * BATCH_STAGGER_MS));
+    }
     const result = await generateDailyPostImageCore(
       {
         admin: supabaseAdmin,
