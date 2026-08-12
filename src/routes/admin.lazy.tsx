@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { adminOverview, adminGrantCredits, adminEarnings, adminWithdrawalSummary, adminRecordWithdrawal, adminCheckWithdrawalAmount, adminUpdateWithdrawal, adminDeleteWithdrawal } from "@/lib/admin.functions";
 import { getGenerationHealth, type GenerationHealthRow } from "@/lib/generation-health.functions";
+import { getGitHubSyncHealth, type GitHubSyncHealth } from "@/lib/github-sync-health.functions";
 import { getSiteImages, adminUpdateSiteImage, adminResetSiteImage, type SiteImageRow } from "@/lib/site-images.functions";
 import { getSiteCopy, getSiteCopyHistory, adminSetSiteCopy, adminDeleteSiteCopy, type SiteCopyRow, type SiteCopyHistoryRow } from "@/lib/site-copy.functions";
 import { getRouterHealth, getRouterLogs, type RouterHealthRow, type RouterLogRow } from "@/lib/ai-router.functions";
@@ -41,6 +42,7 @@ function AdminPage() {
   const overviewFn = useServerFn(adminOverview);
   const grantFn = useServerFn(adminGrantCredits);
   const genHealthFn = useServerFn(getGenerationHealth);
+  const ghSyncHealthFn = useServerFn(getGitHubSyncHealth);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin-overview"],
@@ -52,6 +54,13 @@ function AdminPage() {
   const { data: genHealth } = useQuery({
     queryKey: ["admin-gen-health"],
     queryFn: () => genHealthFn(),
+    enabled: !!user && unlocked,
+    refetchInterval: 60_000,
+  });
+
+  const { data: ghSyncHealth } = useQuery({
+    queryKey: ["admin-gh-sync-health"],
+    queryFn: () => ghSyncHealthFn(),
     enabled: !!user && unlocked,
     refetchInterval: 60_000,
   });
@@ -141,6 +150,8 @@ function AdminPage() {
         />
 
         <GenerationHealthBanner rows={genHealth ?? []} />
+
+        <GitHubSyncBanner health={ghSyncHealth ?? null} />
 
         {/* Grant credits */}
         <section className="rounded-2xl border border-border bg-card/40 p-5 space-y-3">
@@ -823,6 +834,90 @@ function GenerationHealthBanner({ rows }: { rows: GenerationHealthRow[] }) {
       <p className="text-[11px] text-muted-foreground">
         This banner clears automatically after the next successful check confirms recovery.
       </p>
+    </section>
+  );
+}
+
+// ─── GitHub Sync Health Banner ────────────────────────────────────────────────
+// Surfaces when the github-sync daemon has stopped heartbeating, is failing
+// pushes, or the GITHUB_TOKEN is missing/invalid.  Only visible to admins and
+// only shown when there is something worth acting on.
+function GitHubSyncBanner({ health }: { health: GitHubSyncHealth | null }) {
+  if (!health) return null;
+
+  const { daemon_stalled, failure_reason, consecutive_failures, seconds_since_check, seconds_since_success, auth_backoff_seconds } = health;
+
+  // Nothing to report when daemon is ticking and last cycle succeeded
+  if (!daemon_stalled && failure_reason === null && consecutive_failures === 0) return null;
+
+  const isAuthIssue = failure_reason === "token_invalid" || failure_reason === "token_unset";
+  const isPushFail  = failure_reason === "push_failed";
+
+  function fmtAge(secs: number | null): string {
+    if (secs === null) return "never";
+    if (secs < 60) return `${secs}s ago`;
+    if (secs < 3600) return `${Math.round(secs / 60)}m ago`;
+    return `${Math.round(secs / 3600)}h ago`;
+  }
+
+  const borderCls = daemon_stalled || isAuthIssue
+    ? "border-red-500/40 bg-red-500/10"
+    : "border-amber-500/40 bg-amber-500/10";
+  const labelCls = daemon_stalled || isAuthIssue ? "text-red-400" : "text-amber-500";
+  const Icon = daemon_stalled || isAuthIssue ? XCircle : AlertTriangle;
+
+  let statusLine: string;
+  if (daemon_stalled) {
+    statusLine = seconds_since_check !== null
+      ? `Stalled · last heartbeat ${fmtAge(seconds_since_check)}`
+      : "Never started — workflow may not be running";
+  } else if (failure_reason === "token_unset") {
+    statusLine = "GITHUB_TOKEN is not set";
+  } else if (failure_reason === "token_invalid") {
+    statusLine = `Token invalid/expired · backoff ${auth_backoff_seconds}s`;
+  } else {
+    statusLine = `Push failing · ${consecutive_failures} consecutive failure${consecutive_failures === 1 ? "" : "s"}`;
+  }
+
+  return (
+    <section className={`rounded-2xl border p-5 space-y-2 ${borderCls}`}>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+          <Icon className={`size-4 ${labelCls}`} /> GitHub sync
+        </h2>
+        <span className={`text-xs ${labelCls}`}>{statusLine}</span>
+      </div>
+
+      {daemon_stalled && (
+        <p className="text-xs text-red-400">
+          The github-sync workflow is not heartbeating. Restart it from the Replit workflow panel, or
+          check that the workflow is configured and that the container hasn't restarted without it.
+        </p>
+      )}
+
+      {!daemon_stalled && isAuthIssue && (
+        <p className="text-xs text-red-400">
+          {failure_reason === "token_unset"
+            ? "Set the GITHUB_TOKEN secret (needs repo + workflow scopes). The daemon will pick it up automatically on the next cycle."
+            : "The GITHUB_TOKEN appears to be invalid or expired. Regenerate a Personal Access Token with repo + workflow scopes and update the secret."}
+        </p>
+      )}
+
+      {!daemon_stalled && isPushFail && (
+        <p className="text-xs text-amber-500">
+          The push to GitHub is failing for a non-auth reason (e.g. an oversized blob in the tip
+          tree, network error, or branch-protection mismatch). Check the github-sync workflow logs for
+          details.
+        </p>
+      )}
+
+      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground mt-1">
+        <span>Last heartbeat: <b className="text-foreground">{fmtAge(seconds_since_check)}</b></span>
+        <span>Last push: <b className="text-foreground">{fmtAge(seconds_since_success)}</b></span>
+        {consecutive_failures > 0 && (
+          <span>Failures: <b className="text-red-400">{consecutive_failures}</b></span>
+        )}
+      </div>
     </section>
   );
 }
