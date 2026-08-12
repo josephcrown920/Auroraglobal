@@ -47,14 +47,15 @@ type Feature = {
 
 
 // ── Core — the heart of Aurora, always first (owner-picked flagship set) ──
+// Note: Video Agent, TikTok30, and Infinity Canvas are pinned in the bottom
+// tab bar (TAB_ITEMS) — keep them OUT of CORE_FEATURES to avoid showing the
+// same entry twice (once in this menu, once in the tab).
 const CORE_FEATURES: Feature[] = [
-  { to: "/video-agent",   label: "Aurora Video Agent", icon: Film,         previewImg: "/landing/step-reference.jpg",       starred: true },
-  { to: "/spin",          label: "TikTok30",           icon: Flame,        previewImg: "/nav-previews/spin.jpg",            starred: true, badge: "Premium" },
-  { to: "/canvas",        label: "Infinity Canvas",    icon: Workflow,     previewImg: "/nav-previews/canvas.jpg",          starred: true },
   { to: "/motion",        label: "Perform Anywhere",   icon: Wand2,        previewImg: "/nav-previews/perform-anywhere.jpg", starred: true },
+  { to: "/colors",        label: "Colors Studio",      icon: Palette,      previewImg: "/nav-previews/colors.jpg",          starred: true },
   { to: "/lipsync",       label: "Lip Sync",           icon: Mic,          previewImg: "/nav-previews/lipsync.jpg",         starred: true },
   { to: "/director-room", label: "Director's Chair",   icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg",     starred: true, badge: "$20k Look" },
-  { to: "/colors",        label: "Colors Studio",      icon: Palette,      previewImg: "/nav-previews/colors.jpg",          starred: true },
+  { to: "/video-agent",   label: "Video Agent",        icon: Film,         previewImg: "/landing/step-reference.jpg",       starred: true },
 ];
 
 // ── Studio — image & scene tools ──────────────────────────────────────────

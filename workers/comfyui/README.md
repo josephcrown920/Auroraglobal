@@ -38,6 +38,17 @@ installed models, **and loaded custom nodes** can actually serve. Restarting jus
 > advertisement still fails closed on `/object_info`, so extra packs never over-advertise.
 > Reference blueprints from current ComfyUI (Flux.2, Z-Image, LTX-2.3, Wan 2.2) live in
 > `workers/comfyui/blueprints/`.
+>
+> **Boot-time budget (verified).** With `AURORA_INSTALL_ALL_NODES=1` on a Kaggle/Colab free
+> GPU session, the full install completes in **~13 minutes cold** (≤10 min when the HF model
+> cache is warm): ComfyUI clone ~30 s, base pip deps ~90 s, 16 node packs ~5–8 min (each
+> pack prints its index and running elapsed time), SDXL weights ~3 min cold/0 s cached,
+> ComfyUI startup + `/system_stats` health gate ~90 s. Disk overhead is ~2.4 GB extra on
+> top of the base image — well within Kaggle's ~19 GB working-directory limit. The
+> 12-hour session budget is never a constraint; >98 % headroom remains after boot.
+> Pack failures print a loud `WARNING` but never abort the boot — the `/object_info`
+> fail-closed check then simply drops any cap whose node classes didn't load.
+
 domain re-registers the same row (Aurora de-dupes on the normalized URL).
 
 ### Secrets / env

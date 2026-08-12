@@ -258,15 +258,36 @@ def install_all_node_packs():
     Additive on top of the per-capability packs; capability advertisement still
     fails closed on /object_info, so a pack that fails to import never causes a
     cap to be advertised that the graphs can't actually serve.
+
+    Boot-time budget (verified against Kaggle/Colab free tier):
+      - 16 packs × ~12–20 s each (git clone + pip) ≈ 4–6 min
+      - 2 heavy packs (controlnet_aux, WAS suite) add ~1–2 min of pip installs
+      - Total all-nodes overhead: ~5–8 min on top of the base ComfyUI setup
+      - Kaggle/Colab free-session budget: 12 h → >98 % headroom remains
+      - Disk: ~235 MB pack sources + ~2 GB extra pip deps; well under the
+        ~19 GB Kaggle working directory limit
+    A pack that fails to clone prints a WARNING but never aborts the boot.
     """
     nodes_dir = os.path.join(COMFY_DIR, "custom_nodes")
     os.makedirs(nodes_dir, exist_ok=True)
+    t0 = time.time()
     print(f"[nodes] ALL_NODES mode: installing {len(ALL_NODE_PACKS)} packs…", flush=True)
-    failed = [repo for repo in ALL_NODE_PACKS if not clone_node_pack(repo, nodes_dir)]
+    failed = []
+    for i, repo in enumerate(ALL_NODE_PACKS, 1):
+        name = repo.rstrip("/").split("/")[-1]
+        elapsed = time.time() - t0
+        print(f"[nodes] [{i}/{len(ALL_NODE_PACKS)}] {name} (elapsed {elapsed:.0f}s)…", flush=True)
+        if not clone_node_pack(repo, nodes_dir):
+            failed.append(repo)
+    total = time.time() - t0
     if failed:
-        print(f"[nodes] ALL_NODES: {len(failed)} pack(s) FAILED to install: {failed}", flush=True)
+        print(
+            f"[nodes] ALL_NODES done in {total:.0f}s — "
+            f"{len(failed)} pack(s) FAILED to install: {failed}",
+            flush=True,
+        )
     else:
-        print("[nodes] ALL_NODES: all packs installed.", flush=True)
+        print(f"[nodes] ALL_NODES: all {len(ALL_NODE_PACKS)} packs installed in {total:.0f}s.", flush=True)
 
 
 def install_node_packs(caps: list[str]):
@@ -457,15 +478,22 @@ def register(public_url: str, caps: list[str]) -> bool:
 
 
 def main():
+    t_boot = time.time()
     load_secrets()
     warn_if_register_secrets_missing()
     caps = requested_caps()
-    print(f"[boot] requested caps: {caps}", flush=True)
+    all_nodes = os.environ.get("AURORA_INSTALL_ALL_NODES", "").strip() in ("1", "true", "yes")
+    print(
+        f"[boot] requested caps: {caps}"
+        + (" | AURORA_INSTALL_ALL_NODES=1 (broad node set)" if all_nodes else ""),
+        flush=True,
+    )
     install_comfyui()
     install_node_packs(caps)
-    if os.environ.get("AURORA_INSTALL_ALL_NODES", "").strip() in ("1", "true", "yes"):
+    if all_nodes:
         install_all_node_packs()
     download_models(caps)
+    print(f"[boot] setup complete in {time.time() - t_boot:.0f}s — starting ComfyUI…", flush=True)
 
     proc = start_comfyui()
     if not wait_healthy(proc):
