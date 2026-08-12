@@ -123,6 +123,27 @@ export const setMyPersona = createServerFn({ method: "POST" })
     return { persona: data.persona };
   });
 
+/** Returns how many Aura credits the caller has net-spent today (UTC midnight
+ * to now), using the same reserve:/release: ledger filter as assertDailyBudget.
+ * Returns 0 when no ledger rows exist (fresh account or new day). */
+export const getDailySpend = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId } = context;
+    const dayStartUtc = new Date();
+    dayStartUtc.setUTCHours(0, 0, 0, 0);
+    const { data } = await supabaseAdmin
+      .from("credit_ledger")
+      .select("delta, reason")
+      .eq("user_id", userId)
+      .gte("created_at", dayStartUtc.toISOString());
+    const rows = (data as { delta: number; reason: string }[] | null) ?? [];
+    const spentToday = rows
+      .filter((r) => r.reason.startsWith("reserve:") || r.reason.startsWith("release:"))
+      .reduce((sum, r) => sum - r.delta, 0);
+    return { spentToday: Math.max(0, Math.round(spentToday)) };
+  });
+
 /** Set or clear the caller's personal daily Aura cap. Enforced for real inside
  * the reserve_credits() RPC; this just persists the setting. `null` clears it
  * (no limit). */

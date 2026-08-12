@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { getMyProfile, createPaystackCheckout, createProSubscriptionCheckout, cancelProSubscription, setDailySpendLimit, getCryptoEnabled } from "@/lib/billing.functions";
+import { getMyProfile, createPaystackCheckout, createProSubscriptionCheckout, cancelProSubscription, setDailySpendLimit, getCryptoEnabled, getDailySpend } from "@/lib/billing.functions";
 import { createCryptoCheckout } from "@/lib/crypto-checkout.functions";
 import { amIAdmin } from "@/lib/admin.functions";
 import { markFirstPurchaseComplete } from "@/lib/first-run";
@@ -52,6 +52,7 @@ function BillingPage() {
   const cancelFn = useServerFn(cancelProSubscription);
   const redeemFn = useServerFn(redeemPromoCode);
   const setLimitFn = useServerFn(setDailySpendLimit);
+  const getDailySpendFn = useServerFn(getDailySpend);
 
   const [cancelConfirm, setCancelConfirm] = useState(false);
   const [promoCode, setPromoCode] = useState("");
@@ -112,6 +113,17 @@ function BillingPage() {
     queryFn: () => profileFn(),
     enabled: !!user,
   });
+
+  const { data: dailySpendData } = useQuery({
+    queryKey: ["daily-spend", user?.id],
+    queryFn: () => getDailySpendFn(),
+    enabled: !!user,
+    // Refetch when the billing page is refocused, as the user may have
+    // generated content in another tab since they opened this page.
+    refetchOnWindowFocus: true,
+    staleTime: 60_000,
+  });
+  const spentToday = dailySpendData?.spentToday ?? 0;
 
   const isPro = profile?.plan === "pro";
   const isCancellationPending = profile?.subscription_status === "cancellation_pending";
@@ -679,6 +691,33 @@ function BillingPage() {
           <p className="text-sm text-muted-foreground mb-3">
             Cap how much Aura you can spend per day — useful for budgeting across a week or month.
           </p>
+
+          {/* Today's spend progress (shown when a limit is set) */}
+          {!!(profile as { daily_spend_limit?: number | null } | undefined)?.daily_spend_limit && (() => {
+            const limit = (profile as { daily_spend_limit: number }).daily_spend_limit;
+            const pct = Math.min(100, Math.round((spentToday / limit) * 100));
+            const atLimit = spentToday >= limit;
+            return (
+              <div className="mb-4 max-w-md space-y-1.5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Today's spend</span>
+                  <span className={`font-semibold tabular-nums ${atLimit ? "text-destructive" : "text-foreground"}`}>
+                    {spentToday} / {limit} Aura
+                  </span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${atLimit ? "bg-destructive" : "bg-primary"}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                {atLimit && (
+                  <p className="text-xs text-destructive">Daily limit reached — resets at UTC midnight.</p>
+                )}
+              </div>
+            );
+          })()}
+
           <form
             className="flex flex-wrap gap-2 max-w-md"
             onSubmit={(e) => {
@@ -713,6 +752,13 @@ function BillingPage() {
               </Button>
             )}
           </form>
+
+          {/* Today's spend shown even without a limit — gives the user awareness */}
+          {!(profile as { daily_spend_limit?: number | null } | undefined)?.daily_spend_limit && spentToday > 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              You've spent <span className="font-semibold text-foreground">{spentToday} Aura</span> today (UTC). Set a limit above to cap daily usage.
+            </p>
+          )}
         </section>
 
         {/* ── Pro subscription management ── */}
