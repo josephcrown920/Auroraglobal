@@ -336,7 +336,7 @@ function StudioPage() {
   const publishFn = useServerFn(publishGeneration);
   const detectCurrencyFn = useServerFn(detectCurrency);
   const { data: geo } = useQuery({ queryKey: ["geo-currency"], queryFn: () => detectCurrencyFn(), staleTime: 60 * 60 * 1000 });
-  const currency = geo?.currency ?? "USD";
+  const currency = geo?.currency ?? "NGN";
 
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],

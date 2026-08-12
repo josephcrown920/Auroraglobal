@@ -4,12 +4,20 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getRequest } from "@tanstack/react-start/server";
 import { createHash } from "crypto";
 import { z } from "zod";
-import { PLANS, SUBSCRIPTION_TIERS } from "./billing.plans";
+import { PLANS, SUBSCRIPTION_TIERS, PRO_GEO_PRICES } from "./billing.plans";
 import { applyPromoAtCheckout } from "./promo.functions";
 // Stable MD5-based UUID matching the SQL expression in grant_free_monthly_aura_all().
 // Lives in a .server module: exporting it from here would keep the node "crypto"
 // import in the client bundle and break the production build.
 import { deterministicUuid } from "./deterministic-uuid.server";
+
+/** Exposes whether the crypto (NowPayments) checkout is configured on this
+ * deployment. Called once on billing page load so the client can hide the
+ * "Pay with crypto" button entirely rather than letting it error at runtime. */
+export const getCryptoEnabled = createServerFn({ method: "GET" })
+  .handler(async () => {
+    return { enabled: !!process.env.NOWPAYMENTS_API_KEY };
+  });
 
 export const getMyProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -169,8 +177,11 @@ export const createPaystackCheckout = createServerFn({ method: "POST" })
     if (!key) throw new Error("Paystack not configured");
     const plan = PLANS[data.plan];
 
-    const currency = (data.currency ?? "USD") as import("./billing.plans").Currency;
-    const price = plan.prices[currency] ?? plan.prices["USD"];
+    // Default to NGN — Aurora's Paystack account is a Nigerian merchant account
+    // that only accepts NGN. USD will fail with "Currency not supported by merchant"
+    // unless the Paystack account has been approved for multi-currency.
+    const currency = (data.currency ?? "NGN") as import("./billing.plans").Currency;
+    const price = plan.prices[currency] ?? plan.prices["NGN"];
 
     let amountMinor: number = price.amount_minor;
     let appliedPromoCodeId: string | null = null;
@@ -291,15 +302,16 @@ async function getOrCreateProPlan(key: string): Promise<string> {
     return (setting.value as { code: string }).code;
   }
 
-  const tier = SUBSCRIPTION_TIERS.pro;
+  // NGN merchant account: amount must be in kobo at the NGN Pro price
+  // (PRO_GEO_PRICES.NGN), NOT the USD price_amount_minor — 15_00 kobo = ₦15!
   const res = await fetch("https://api.paystack.co/plan", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       name: "Aurora Pro",
       interval: "monthly",
-      amount: tier.price_amount_minor,
-      currency: "USD",
+      amount: PRO_GEO_PRICES.NGN.amount_minor,
+      currency: "NGN",
       description: "Aurora Pro — no watermark, priority queue, 2,000 Aura/month",
     }),
   });
@@ -346,8 +358,8 @@ export const createProSubscriptionCheckout = createServerFn({ method: "POST" })
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         email,
-        amount: SUBSCRIPTION_TIERS.pro.price_amount_minor,
-        currency: "USD",
+        amount: PRO_GEO_PRICES.NGN.amount_minor,
+        currency: "NGN",
         reference,
         plan: planCode,
         ...(callback_url ? { callback_url } : {}),

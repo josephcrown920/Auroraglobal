@@ -49,6 +49,7 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
             reference?: string;
             status?: string;
             amount?: number;
+            currency?: string;
             subscription_code?: string;
             customer?: { customer_code?: string; email?: string };
             plan?: { plan_code?: string };
@@ -105,7 +106,9 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
               status: "active",
               next_payment_date: nextPaymentDate,
               amount_minor: d.amount ?? SUBSCRIPTION_TIERS.pro.price_amount_minor,
-              currency: "USD",
+              // Record the actual charge currency — the merchant account is
+              // NGN, so hardcoding USD here would misreport every real charge.
+              currency: d.currency ?? "NGN",
             }, { onConflict: "paystack_subscription_code" });
           }
 

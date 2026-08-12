@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { getMyProfile, createPaystackCheckout, createProSubscriptionCheckout, cancelProSubscription, setDailySpendLimit } from "@/lib/billing.functions";
+import { getMyProfile, createPaystackCheckout, createProSubscriptionCheckout, cancelProSubscription, setDailySpendLimit, getCryptoEnabled } from "@/lib/billing.functions";
 import { createCryptoCheckout } from "@/lib/crypto-checkout.functions";
 import { amIAdmin } from "@/lib/admin.functions";
 import { markFirstPurchaseComplete } from "@/lib/first-run";
@@ -61,10 +61,19 @@ function BillingPage() {
   const [autoReload, setAutoReload] = useState(() => getAutoReloadSettings());
 
   // ── Owner-only region preview ─────────────────────────────────────────────
-  // Live billing is USD-only for everyone today (geo/PPP tables exist in
-  // billing.plans.ts but detectCurrency is pinned to USD). This lets the
-  // owner SEE each region's intended PPP price table without affecting what
-  // real users see or pay. Display-only: buy buttons lock while previewing.
+  // Live billing is NGN-only for everyone today (the Paystack merchant account
+  // is Nigerian; detectCurrency is pinned to NGN). This lets the owner SEE
+  // each region's intended PPP price table without affecting what real users
+  // see or pay. Display-only: buy buttons lock while previewing.
+  const cryptoEnabledFn = useServerFn(getCryptoEnabled);
+  const cryptoEnabledQ = useQuery({
+    queryKey: ["crypto-enabled"],
+    queryFn: () => cryptoEnabledFn(),
+    staleTime: Infinity,
+    retry: false,
+  });
+  const cryptoEnabled = cryptoEnabledQ.data?.enabled === true;
+
   const amIAdminFn = useServerFn(amIAdmin);
   const adminQ = useQuery({
     queryKey: ["am-i-admin", user?.id],
@@ -74,9 +83,12 @@ function BillingPage() {
     retry: false,
   });
   const isAdmin = adminQ.data?.isAdmin === true;
-  const [previewRegion, setPreviewRegion] = useState<Currency>("USD");
-  const region: Currency = isAdmin ? previewRegion : "USD";
-  const previewing = region !== "USD";
+  // Live billing runs in NGN — the Paystack merchant account is Nigerian and
+  // rejects USD ("Currency not supported by merchant"). Display must match the
+  // charged currency, so NGN is the real region; admins can preview others.
+  const [previewRegion, setPreviewRegion] = useState<Currency>("NGN");
+  const region: Currency = isAdmin ? previewRegion : "NGN";
+  const previewing = region !== "NGN";
   const proPriceLabel =
     region === "USD" ? "$15 / month" : `${PRO_GEO_PRICES[region].display.replace("/mo", "")} / month`;
 
@@ -299,8 +311,8 @@ function BillingPage() {
               </div>
               <p className="text-[11px] text-muted-foreground mt-2.5 leading-relaxed">
                 {previewing
-                  ? `Previewing the ${REGIONS[region].name} (${region}) price table. These regional prices are defined but NOT live — every real checkout charges USD today. Buy buttons are disabled while previewing.`
-                  : "Only you can see this. International (USD) is what every visitor sees today — regional prices exist in the price tables but geo pricing is currently switched off."}
+                  ? `Previewing the ${REGIONS[region].name} (${region}) price table. These regional prices are defined but NOT live — every real checkout charges NGN today. Buy buttons are disabled while previewing.`
+                  : "Only you can see this. Nigeria (NGN) is what every visitor sees today — the Paystack merchant account only accepts NGN, so other regional prices are display-only until multi-currency is approved."}
               </p>
             </div>
           </section>
@@ -477,23 +489,25 @@ function BillingPage() {
                       <><CreditCard className="size-3 mr-1" /> Get {PLAN_CONTEXT[key].name} Aura</>
                     )}
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="w-full text-xs text-muted-foreground hover:text-amber-300"
-                    onClick={() => {
-                      if (shouldConfirmPackPurchase({ performanceCount: performance.count, confirmedKey: confirmPack, key })) {
-                        setConfirmPack(key);
-                        return;
-                      }
-                      setConfirmPack(null);
-                      cryptoMut.mutate(key);
-                    }}
-                    disabled={packMut.isPending || cryptoMut.isPending || previewing}
-                    title="Pay with BTC, ETH, USDT, USDC and more"
-                  >
-                    {cryptoMut.isPending ? <Loader2 className="size-3 animate-spin" /> : confirmPack === key ? <>₿ Continue anyway — pay with crypto</> : <>₿ Pay with crypto</>}
-                  </Button>
+                  {cryptoEnabled && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="w-full text-xs text-muted-foreground hover:text-amber-300"
+                      onClick={() => {
+                        if (shouldConfirmPackPurchase({ performanceCount: performance.count, confirmedKey: confirmPack, key })) {
+                          setConfirmPack(key);
+                          return;
+                        }
+                        setConfirmPack(null);
+                        cryptoMut.mutate(key);
+                      }}
+                      disabled={packMut.isPending || cryptoMut.isPending || previewing}
+                      title="Pay with BTC, ETH, USDT, USDC and more"
+                    >
+                      {cryptoMut.isPending ? <Loader2 className="size-3 animate-spin" /> : confirmPack === key ? <>₿ Continue anyway — pay with crypto</> : <>₿ Pay with crypto</>}
+                    </Button>
+                  )}
                 </div>
               );
             })}
