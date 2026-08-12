@@ -25,6 +25,17 @@ mkdir -p "$HF_HOME"
 
 pip install -q "huggingface_hub[cli]"
 
+# Gated weights (e.g. Stable-Video-Diffusion for motion) need Hugging Face
+# auth. Docker/CI builds pass HF_TOKEN as a build arg; skip silently when it
+# is unset — a lipsync-only install touches no gated repos and works
+# anonymously. An invalid token fails LOUDLY here (set -e) instead of as a
+# confusing 401 mid-download.
+if [ -n "${HF_TOKEN:-}" ]; then
+  echo "==> HF_TOKEN provided — logging in to Hugging Face"
+  huggingface-cli login --token "$HF_TOKEN"
+  _HF_LOGIN_BY_SETUP=1
+fi
+
 have_task() { case ",$TASKS," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
 disk_free_gb() { df -Pk "$ROOT" | awk 'NR==2 {printf "%d", $4 / 1024 / 1024}'; }
 vram_gb() {
@@ -76,8 +87,8 @@ if have_task motion; then
     echo "       On a 16 GB card (Kaggle/Colab free) run lipsync only: AURORA_TASKS=lipsync." >&2
     exit 1
   fi
-  if [ "$DISK" -lt 25 ]; then
-    echo "ERROR: motion needs ~25 GB free disk; only ${DISK} GB available (try AURORA_TASKS=lipsync)." >&2
+  if [ "$DISK" -lt 30 ]; then
+    echo "ERROR: motion needs ~30 GB free disk (MimicMotion ckpt + gated SVD prefetch); only ${DISK} GB available (try AURORA_TASKS=lipsync)." >&2
     exit 1
   fi
   echo "==> MimicMotion (motion)"
@@ -85,9 +96,22 @@ if have_task motion; then
     git clone --depth 1 https://github.com/Tencent/MimicMotion.git
   fi
   ( cd MimicMotion && pip install -r requirements.txt && mkdir -p models )
-  # Official MimicMotion 1-1 checkpoint (the SVD base model is pulled at runtime).
+  # Official MimicMotion 1-1 checkpoint.
   huggingface-cli download tencent/MimicMotion MimicMotion_1-1.pth \
     --local-dir MimicMotion/models
+  # Prefetch the gated SVD base model into the HF cache now, so runtime needs
+  # no Hugging Face auth at all (MIMICMOTION_BASE resolves from this cache).
+  # Both fp16 and fp32 component weights are pulled — the loader picks the
+  # variant at runtime, and a cache miss would force an authed re-download.
+  if [ -n "${HF_TOKEN:-}" ] || huggingface-cli whoami >/dev/null 2>&1; then
+    echo "==> Prefetching gated SVD base model (stabilityai/stable-video-diffusion-img2vid-xt-1-1)"
+    huggingface-cli download stabilityai/stable-video-diffusion-img2vid-xt-1-1 \
+      --include "unet/*" "vae/*" "image_encoder/*" "feature_extractor/*" "scheduler/*" "*.json"
+  else
+    echo "WARNING: no Hugging Face auth — skipping the gated SVD prefetch." >&2
+    echo "         motion jobs will lazy-download SVD at runtime, which then requires" >&2
+    echo "         HF auth (set HF_TOKEN in the runtime env) and a slow first job." >&2
+  fi
 fi
 
 if have_task image; then
@@ -114,6 +138,17 @@ AutoPipelineForText2Image.from_pretrained('${_IMG_MODEL}', torch_dtype=torch.flo
 print('[image] SDXL-Turbo cached.')
 " || echo "[image] WARNING: pre-fetch failed — weights will download on first request."
   fi
+fi
+
+# Never let the HF token persist into a Docker image layer: if THIS script
+# performed the login (Docker/CI build), remove the credential now that all
+# gated downloads are done. A bare-metal user's own pre-existing login is
+# left untouched. Running inside one RUN instruction means the token file
+# never appears in any committed layer.
+if [ -n "${_HF_LOGIN_BY_SETUP:-}" ]; then
+  huggingface-cli logout >/dev/null 2>&1 || true
+  rm -f "$HF_HOME/token" "$HF_HOME/stored_tokens"
+  echo "==> Hugging Face token removed (weights stay cached; token never enters an image layer)"
 fi
 
 echo "==> Done. Installed tasks: [$TASKS]. Before starting the worker, export:"

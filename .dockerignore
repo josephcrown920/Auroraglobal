@@ -1,0 +1,6 @@
+# Docker builds from the repo root only ever target the self-hosted worker
+# image (workers/runpod/Dockerfile). Keep the build context lean so RunPod's
+# GitHub builder never uploads the web app, node_modules, or git history.
+*
+!workers
+workers/__pycache__
