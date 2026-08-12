@@ -1,7 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  featureVisibilityLoader,
+  featureVisibilityRobotsMeta,
+} from "@/lib/feature-visibility-seo.functions";
 
 export const Route = createFileRoute("/kids")({
-  head: () => ({
+  loader: featureVisibilityLoader("kids"),
+  head: ({ loaderData }) => ({
     meta: [
       { title: "Faceless Kids Story Studio — Aurora" },
       {
@@ -16,6 +21,7 @@ export const Route = createFileRoute("/kids")({
           "A guided studio that writes, illustrates, animates and narrates a short kids story, then stitches it into a single ready-to-share video.",
       },
       { property: "og:url", content: "https://auroraperformancestudio.com/kids" },
+      featureVisibilityRobotsMeta(loaderData),
     ],
     links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/kids" }],
   }),

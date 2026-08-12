@@ -1,7 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  featureVisibilityLoader,
+  featureVisibilityRobotsMeta,
+} from "@/lib/feature-visibility-seo.functions";
 
 export const Route = createFileRoute("/nexusarb")({
-  head: () => ({
+  loader: featureVisibilityLoader("nexusarb"),
+  head: ({ loaderData }) => ({
     meta: [
       { title: "NexusARB — Trading Simulation (Educational) · Aurora" },
       {
@@ -9,7 +14,7 @@ export const Route = createFileRoute("/nexusarb")({
         content:
           "NexusARB is a paper-trading simulation that monitors 30+ crypto, forex and commodity pairs with live crypto prices and technical indicators. Educational use only — no real trades or withdrawals.",
       },
-      { name: "robots", content: "noindex,nofollow" },
+      featureVisibilityRobotsMeta(loaderData),
     ],
   }),
 });

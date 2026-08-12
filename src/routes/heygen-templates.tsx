@@ -1,7 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  featureVisibilityLoader,
+  featureVisibilityRobotsMeta,
+} from "@/lib/feature-visibility-seo.functions";
 
 export const Route = createFileRoute("/heygen-templates")({
-  head: () => ({
+  loader: featureVisibilityLoader("heygen-templates"),
+  head: ({ loaderData }) => ({
     meta: [
       { title: "HeyGen Templates — Aurora" },
       {
@@ -9,6 +14,7 @@ export const Route = createFileRoute("/heygen-templates")({
         content:
           "Paste any HeyGen template ID and generate the same video with your own avatar or photo — one scene, infinite characters.",
       },
+      featureVisibilityRobotsMeta(loaderData),
     ],
   }),
 });

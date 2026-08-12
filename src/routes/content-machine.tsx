@@ -1,7 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  featureVisibilityLoader,
+  featureVisibilityRobotsMeta,
+} from "@/lib/feature-visibility-seo.functions";
 
 export const Route = createFileRoute("/content-machine")({
-  head: () => ({
+  loader: featureVisibilityLoader("content-machine"),
+  head: ({ loaderData }) => ({
     meta: [
       { title: "Content Machine — Aurora" },
       {
@@ -16,6 +21,7 @@ export const Route = createFileRoute("/content-machine")({
           "Turn one product into a wall of faceless short-form videos. Reusable templates, batch generation and real per-batch analytics.",
       },
       { property: "og:url", content: "https://auroraperformancestudio.com/content-machine" },
+      featureVisibilityRobotsMeta(loaderData),
     ],
     links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/content-machine" }],
   }),

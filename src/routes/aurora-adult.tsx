@@ -10,8 +10,16 @@
 import { useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { FeatureGuard } from "@/components/FeatureVisibilityProvider";
+import {
+  featureVisibilityLoader,
+  featureVisibilityRobotsMeta,
+} from "@/lib/feature-visibility-seo.functions";
 
 export const Route = createFileRoute("/aurora-adult")({
+  loader: featureVisibilityLoader("adult-school"),
+  head: ({ loaderData }) => ({
+    meta: [featureVisibilityRobotsMeta(loaderData)],
+  }),
   component: AuroraAdultEntry,
 });
 

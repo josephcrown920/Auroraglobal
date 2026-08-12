@@ -1,7 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  featureVisibilityLoader,
+  featureVisibilityRobotsMeta,
+} from "@/lib/feature-visibility-seo.functions";
 
 export const Route = createFileRoute("/split-reality")({
-  head: () => ({
+  loader: featureVisibilityLoader("split-reality"),
+  head: ({ loaderData }) => ({
     meta: [
       { title: "Split Reality — Aurora" },
       {
@@ -19,6 +24,7 @@ export const Route = createFileRoute("/split-reality")({
         property: "og:url",
         content: "https://auroraperformancestudio.com/split-reality",
       },
+      featureVisibilityRobotsMeta(loaderData),
     ],
     links: [
       {
