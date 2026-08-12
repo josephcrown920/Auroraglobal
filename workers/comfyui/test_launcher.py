@@ -164,6 +164,63 @@ class GraphLauncherContractTests(unittest.TestCase):
             )
 
 
+class AllNodePacksLockTests(unittest.TestCase):
+    """Deterministic lock on the AURORA_INSTALL_ALL_NODES curated set.
+
+    The boot-time/disk budget documented in README.md was computed for EXACTLY
+    this set; an accidental addition/removal must fail this test (and the
+    launcher's own module-level guard) instead of silently drifting the budget.
+    """
+
+    # The intended curated set, spelled out in full — not derived from the
+    # launcher list — so an edit to ALL_NODE_PACKS cannot self-validate.
+    EXPECTED_PACKS = [
+        "https://github.com/Comfy-Org/ComfyUI-Manager",
+        "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite",
+        "https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved",
+        "https://github.com/sipherxyz/comfyui-art-venture",
+        "https://github.com/ShmuelRonen/ComfyUI-LatentSyncWrapper",
+        "https://github.com/kijai/ComfyUI-MimicMotionWrapper",
+        "https://github.com/Lightricks/ComfyUI-LTXVideo",
+        "https://github.com/kijai/ComfyUI-WanVideoWrapper",
+        "https://github.com/kijai/ComfyUI-KJNodes",
+        "https://github.com/Fannovel16/comfyui_controlnet_aux",
+        "https://github.com/ltdrdata/ComfyUI-Impact-Pack",
+        "https://github.com/cubiq/ComfyUI_essentials",
+        "https://github.com/rgthree/rgthree-comfy",
+        "https://github.com/WASasquatch/was-node-suite-comfyui",
+        "https://github.com/Fannovel16/ComfyUI-Frame-Interpolation",
+        "https://github.com/cubiq/ComfyUI_IPAdapter_plus",
+    ]
+
+    def test_all_node_packs_is_exactly_the_curated_16(self):
+        self.assertEqual(launcher.ALL_NODE_PACKS, self.EXPECTED_PACKS)
+        self.assertEqual(len(launcher.ALL_NODE_PACKS), launcher.EXPECTED_ALL_NODE_PACK_COUNT)
+        self.assertEqual(launcher.EXPECTED_ALL_NODE_PACK_COUNT, 16)
+
+    def test_all_node_packs_has_no_duplicates(self):
+        self.assertEqual(len(set(launcher.ALL_NODE_PACKS)), len(launcher.ALL_NODE_PACKS))
+
+    def test_every_capability_pack_is_in_the_all_nodes_set(self):
+        """ALL_NODES mode is additive but must still cover every per-capability
+        pack, or an all-nodes worker could serve FEWER caps than a targeted one."""
+        for cap, repos in launcher.CAP_NODE_PACKS.items():
+            for repo in repos:
+                self.assertIn(
+                    repo, launcher.ALL_NODE_PACKS,
+                    f"{cap}: {repo} missing from ALL_NODE_PACKS",
+                )
+
+    def test_public_download_launcher_is_byte_identical(self):
+        download = os.path.join(
+            os.path.dirname(__file__), "..", "..",
+            "public", "downloads", "gpu", "aurora_comfyui_launcher.py",
+        )
+        source = os.path.join(os.path.dirname(__file__), "aurora_comfyui_launcher.py")
+        with open(source, "rb") as a, open(download, "rb") as b:
+            self.assertEqual(a.read(), b.read(), "public download copy drifted from workers/comfyui source")
+
+
 class LegacyRegisterKeyWarningTests(unittest.TestCase):
     def test_legacy_key_warning_names_the_replacement_and_requires_new_secret(self):
         original_legacy = os.environ.get("AURORA_REGISTER_KEY")

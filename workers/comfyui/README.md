@@ -39,13 +39,18 @@ installed models, **and loaded custom nodes** can actually serve. Restarting jus
 > Reference blueprints from current ComfyUI (Flux.2, Z-Image, LTX-2.3, Wan 2.2) live in
 > `workers/comfyui/blueprints/`.
 >
-> **Boot-time budget (verified).** With `AURORA_INSTALL_ALL_NODES=1` on a Kaggle/Colab free
-> GPU session, the full install completes in **~13 minutes cold** (≤10 min when the HF model
-> cache is warm): ComfyUI clone ~30 s, base pip deps ~90 s, 16 node packs ~5–8 min (each
-> pack prints its index and running elapsed time), SDXL weights ~3 min cold/0 s cached,
-> ComfyUI startup + `/system_stats` health gate ~90 s. Disk overhead is ~2.4 GB extra on
-> top of the base image — well within Kaggle's ~19 GB working-directory limit. The
-> 12-hour session budget is never a constraint; >98 % headroom remains after boot.
+> **Boot-time budget (estimated — instrumented for live confirmation).** With
+> `AURORA_INSTALL_ALL_NODES=1` on a Kaggle/Colab free GPU session, the full install is
+> **estimated at ~13 minutes cold** (≤10 min when the HF model cache is warm): ComfyUI
+> clone ~30 s, base pip deps ~90 s, 16 node packs ~5–8 min, SDXL weights ~3 min cold/0 s
+> cached, ComfyUI startup + `/system_stats` health gate ~90 s. These figures come from
+> per-step dry-run measurements, not yet a full live session; the launcher now prints a
+> per-pack completion duration (`[nodes] [i/16] <pack> done in Ns`) and an end-to-end
+> summary after the health gate (`[boot] healthy: setup Xs + startup/health Ys = Zs total`),
+> so the first real session log will confirm or correct the budget. The curated set is
+> locked to exactly 16 packs by a module-level guard and `test_launcher.py`. Disk overhead
+> is ~2.4 GB extra on top of the base image — well within Kaggle's ~19 GB working-directory
+> limit. The 12-hour session budget is never a constraint; >98 % headroom remains after boot.
 > Pack failures print a loud `WARNING` but never abort the boot — the `/object_info`
 > fail-closed check then simply drops any cap whose node classes didn't load.
 

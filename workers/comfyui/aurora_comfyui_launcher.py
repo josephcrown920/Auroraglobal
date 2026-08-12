@@ -230,6 +230,20 @@ ALL_NODE_PACKS = [
     "https://github.com/cubiq/ComfyUI_IPAdapter_plus",
 ]
 
+# Deterministic lock on the curated set: the boot-time budget documented in
+# README.md was computed for EXACTLY this many packs. An accidental addition or
+# removal must fail loudly here (and in the repo test suite, which parses this
+# file) instead of silently drifting the budget.
+EXPECTED_ALL_NODE_PACK_COUNT = 16
+if len(ALL_NODE_PACKS) != EXPECTED_ALL_NODE_PACK_COUNT:
+    raise SystemExit(
+        f"[nodes] ALL_NODE_PACKS has {len(ALL_NODE_PACKS)} entries, expected "
+        f"{EXPECTED_ALL_NODE_PACK_COUNT} — update EXPECTED_ALL_NODE_PACK_COUNT and "
+        "the README boot-time budget together."
+    )
+if len(set(ALL_NODE_PACKS)) != len(ALL_NODE_PACKS):
+    raise SystemExit("[nodes] ALL_NODE_PACKS contains duplicate repo URLs.")
+
 
 def clone_node_pack(repo: str, nodes_dir: str) -> bool:
     """Best-effort clone+deps for one custom-node pack (never aborts the boot).
@@ -259,7 +273,8 @@ def install_all_node_packs():
     fails closed on /object_info, so a pack that fails to import never causes a
     cap to be advertised that the graphs can't actually serve.
 
-    Boot-time budget (verified against Kaggle/Colab free tier):
+    Boot-time budget (estimated from per-step dry runs; a live session log
+    confirms via the per-pack + end-to-end timing printed below):
       - 16 packs × ~12–20 s each (git clone + pip) ≈ 4–6 min
       - 2 heavy packs (controlnet_aux, WAS suite) add ~1–2 min of pip installs
       - Total all-nodes overhead: ~5–8 min on top of the base ComfyUI setup
@@ -275,9 +290,18 @@ def install_all_node_packs():
     failed = []
     for i, repo in enumerate(ALL_NODE_PACKS, 1):
         name = repo.rstrip("/").split("/")[-1]
-        elapsed = time.time() - t0
-        print(f"[nodes] [{i}/{len(ALL_NODE_PACKS)}] {name} (elapsed {elapsed:.0f}s)…", flush=True)
-        if not clone_node_pack(repo, nodes_dir):
+        print(f"[nodes] [{i}/{len(ALL_NODE_PACKS)}] {name}…", flush=True)
+        t_pack = time.time()
+        ok = clone_node_pack(repo, nodes_dir)
+        # Per-pack completion duration + status: a real session log shows exactly
+        # which pack is eating the boot budget (clone vs pip-heavy packs).
+        print(
+            f"[nodes] [{i}/{len(ALL_NODE_PACKS)}] {name} "
+            f"{'done' if ok else 'FAILED'} in {time.time() - t_pack:.0f}s "
+            f"(elapsed {time.time() - t0:.0f}s)",
+            flush=True,
+        )
+        if not ok:
             failed.append(repo)
     total = time.time() - t0
     if failed:
@@ -493,12 +517,22 @@ def main():
     if all_nodes:
         install_all_node_packs()
     download_models(caps)
-    print(f"[boot] setup complete in {time.time() - t_boot:.0f}s — starting ComfyUI…", flush=True)
+    t_setup = time.time() - t_boot
+    print(f"[boot] setup phase complete in {t_setup:.0f}s — starting ComfyUI…", flush=True)
 
+    t_start = time.time()
     proc = start_comfyui()
     if not wait_healthy(proc):
         proc.terminate()
         raise SystemExit("[serve] ComfyUI never became healthy on /system_stats — not registering.")
+    t_startup = time.time() - t_start
+    # End-to-end boot timing THROUGH the health gate: the documented cold-boot
+    # budget includes ComfyUI startup + /system_stats, not just installs.
+    print(
+        f"[boot] healthy: setup {t_setup:.0f}s + startup/health {t_startup:.0f}s "
+        f"= {time.time() - t_boot:.0f}s total",
+        flush=True,
+    )
 
     # Advertise only caps ComfyUI can truly serve: weights on disk AND the graph's
     # custom nodes actually loaded (checked against /object_info). Fail closed.
