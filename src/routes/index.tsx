@@ -29,6 +29,10 @@ const ViralPresetsSection = lazy(() =>
 const UGCAdsSection = lazy(() =>
   import("@/components/landing/UGCAdsSection").then((m) => ({ default: m.UGCAdsSection })),
 );
+
+const ModelSpotlight = lazy(() =>
+  import("@/components/landing/ModelSpotlight").then((m) => ({ default: m.ModelSpotlight })),
+);
 const IntroAnimation = lazy(() =>
   import("@/components/landing/IntroAnimation").then((m) => ({ default: m.IntroAnimation })),
 );
@@ -622,6 +626,8 @@ function LandingPage() {
         </div>
       </section>
 
+      {/* ── Frontier Model Spotlight ───────────────────────────────────── */}
+      <Suspense fallback={null}><ModelSpotlight /></Suspense>
 
       {/* ── Viral Presets ────────────────────────────────────────────── */}
       <Suspense fallback={null}><ViralPresetsSection /></Suspense>
@@ -723,6 +729,7 @@ function LandingPage() {
             { src: "/landing-client-2.png",   alt: "Editorial shoot",           tag: <EditableCopy copyKey="landing_marquee_r1_2_tag" fallback="Editorial" /> },
             { src: "/landing-client-4.png",   alt: "Backstage promo",           tag: <EditableCopy copyKey="landing_marquee_r1_3_tag" fallback="Promo"     /> },
             { src: "/landing-photo-3.jpeg",   alt: "Album artwork",             tag: <EditableCopy copyKey="landing_marquee_r1_4_tag" fallback="Cover art" /> },
+            { src: "/spotlight/ski-selfie.jpeg", alt: "Ski day reference",      tag: <EditableCopy copyKey="landing_marquee_r1_5_tag" fallback="Ski day"   /> },
           ]}
           direction="left"
           duration={38}
@@ -887,6 +894,9 @@ function LandingPage() {
           ))}
         </div>
       </section>
+
+      {/* ── Featured Artist ─────────────────────────────────────────────── */}
+      <Suspense fallback={null}><FeaturedArtist /></Suspense>
 
       {/* ── Complete Artist ──────────────────────────────────────────────── */}
       <section className="py-20 px-5 border-b border-white/5">
@@ -1413,3 +1423,7 @@ function FooterCol({
     </div>
   );
 }
+
+const FeaturedArtist = lazy(() =>
+  import("@/components/landing/FeaturedArtist").then((m) => ({ default: m.FeaturedArtist })),
+);
