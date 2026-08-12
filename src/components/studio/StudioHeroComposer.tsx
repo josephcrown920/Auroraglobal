@@ -42,8 +42,8 @@ type Props = {
 };
 
 /** Full-screen creation hero — the first thing a signed-in user sees.
- *  Owner-approved direction: the "CREATE SOMETHING NEW." slide (black,
- *  acid-lime accents, outlined display word) over an Aurora render collage,
+ *  Owner-approved direction: the "CREATE SOMETHING NEW." slide (charcoal,
+ *  violet brand accents, outlined display word) over an Aurora render collage,
  *  with the big Image/Video prompt composer front and center.
  *  All generation state lives in StudioPage; this is purely the entry surface. */
 export function StudioHeroComposer(p: Props) {
@@ -74,7 +74,7 @@ export function StudioHeroComposer(p: Props) {
       {/* ── Content ──────────────────────────────────────────────── */}
       <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center px-4 pb-10 pt-12 text-center">
         <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] tracking-widest text-zinc-300 uppercase backdrop-blur">
-          <span className="rounded bg-[#a3e635] px-1.5 py-px text-[9px] font-bold uppercase text-black">New</span>
+          <span className="rounded bg-brand px-1.5 py-px text-[9px] font-bold uppercase text-white">New</span>
           Seedance video · coming soon
         </span>
 
@@ -89,7 +89,7 @@ export function StudioHeroComposer(p: Props) {
             Something
           </span>
           <br />
-          New<span className="text-[#a3e635]">.</span>
+          New<span className="text-brand">.</span>
         </h1>
         <p className="mt-4 w-full text-left text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
           Images · Video · Built for artists
@@ -111,7 +111,7 @@ export function StudioHeroComposer(p: Props) {
               className={cn(
                 "inline-flex flex-1 items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold transition-colors",
                 p.mode === t.key
-                  ? "bg-white/12 text-white shadow-[0_0_16px_-6px_rgba(163,230,53,0.5)]"
+                  ? "bg-white/12 text-white shadow-[0_0_16px_-6px_rgba(139,92,246,0.6)]"
                   : "text-zinc-400 hover:text-zinc-200",
               )}
             >
@@ -125,7 +125,7 @@ export function StudioHeroComposer(p: Props) {
         <div
           className={cn(
             "mt-4 w-full rounded-2xl border bg-zinc-900/70 p-3 text-left backdrop-blur-xl transition-colors",
-            focused ? "border-[#a3e635]/50" : "border-white/10",
+            focused ? "border-brand/50" : "border-white/10",
           )}
         >
           <div className="flex gap-3">
@@ -136,7 +136,7 @@ export function StudioHeroComposer(p: Props) {
               className={cn(
                 "flex size-16 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-dashed transition-colors",
                 p.hasReferences
-                  ? "border-[#a3e635]/50 bg-[#a3e635]/10 text-[#a3e635]"
+                  ? "border-brand/50 bg-brand/10 text-brand"
                   : "border-white/15 bg-white/5 text-zinc-500 hover:border-white/30 hover:text-zinc-300",
               )}
             >
@@ -171,7 +171,7 @@ export function StudioHeroComposer(p: Props) {
               </SelectContent>
             </Select>
 
-            <span className="rounded-full bg-[#a3e635] px-3 py-1.5 text-[11px] font-bold uppercase tabular-nums text-black">
+            <span className="rounded-full bg-brand px-3 py-1.5 text-[11px] font-bold uppercase tabular-nums text-white">
               {p.costLabel}
             </span>
 

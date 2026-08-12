@@ -293,6 +293,9 @@ function RootComponent() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isIsolated = pathname === "/nexusarb" || pathname.startsWith("/nexusarb/");
   const isVideoAgent = pathname === "/video-agent" || pathname.startsWith("/video-agent/");
+  // /agent is the Aurora Prime director workspace — it IS the agent chat, so the
+  // floating Aurora Prime bubble would put two agents on the same page.
+  const isPrimeAgent = pathname === "/agent" || pathname.startsWith("/agent/");
   // /edit is a full-screen CapCut-style editor: it owns the whole viewport
   // (h-dvh stage + timeline + tool dock), so the tab bar and chat bubble
   // would overlap its dock — hide them there, like on the video agent.
@@ -326,7 +329,7 @@ function RootComponent() {
           </SiteImagesProvider>
           <Toaster />
           <DesignSkinApplier />
-          {!isVideoAgent && !isFullScreenEditor && <AuroraChatbot />}
+          {!isVideoAgent && !isPrimeAgent && !isFullScreenEditor && <AuroraChatbot />}
           <AdminHotkey />
           <ReferralAttacher />
           {!isVideoAgent && !isFullScreenEditor && <MobileNav />}
