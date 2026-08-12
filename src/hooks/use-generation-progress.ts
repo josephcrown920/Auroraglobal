@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type GenerationState =
   | "idle"
@@ -55,6 +55,31 @@ const JOB_STATUS_STATE: Record<NonNullable<BackendJobStatus>, GenerationState> =
 };
 
 /**
+ * Map a real server-reported progress stage (task #284) to a friendly label.
+ * Known machine codes get fixed copy; `generating` deliberately returns null
+ * (the page's own processing label is richer than a generic "Generating…");
+ * unknown strings are worker-reported free text (e.g. "running lip sync") and
+ * are sentence-cased verbatim.
+ */
+function stageLabel(stage: string | null | undefined): string | null {
+  if (!stage) return null;
+  const s = stage.trim();
+  if (!s) return null;
+  switch (s) {
+    case "starting":
+      return "Starting up…";
+    case "generating":
+      return null;
+    case "uploading":
+      return "Saving your render…";
+    case "finalizing":
+      return "Almost there…";
+    default:
+      return s.charAt(0).toUpperCase() + s.slice(1) + "…";
+  }
+}
+
+/**
  * Read previously persisted generation state from localStorage.
  * Returns `{ startedAt, estimatedMs }` or null if absent/stale.
  */
@@ -77,6 +102,36 @@ function readPersisted(
   }
 }
 
+/**
+ * How far the synthetic ticker may drift past the last REAL server-reported
+ * percent before it holds for the next report. Keeps the bar feeling alive
+ * between throttled progress writes without letting the timer outrun reality.
+ */
+const SERVER_PCT_HEADROOM = 6;
+
+/**
+ * One synthetic ticker step, extracted pure so the ceiling guarantee is unit
+ * testable: once a REAL server percent is known, the timer-driven fill may
+ * never advance the bar past `realPct + SERVER_PCT_HEADROOM` (hard-capped at
+ * 95). A job genuinely stalled at 8% therefore tops out at 14% on screen — it
+ * can no longer coast to the synthetic 95% cap on elapsed time alone. With no
+ * real percent (null), the original estimate-paced fill toward 95 is
+ * unchanged. Display stays monotonic: if the bar already sits above the
+ * ceiling (late first report), it holds rather than yanking backwards.
+ */
+export function nextSyntheticProgress(
+  prev: number,
+  stepsTo95: number,
+  realPct: number | null,
+  rand: number = Math.random(),
+): number {
+  const cap = realPct !== null ? Math.min(95, realPct + SERVER_PCT_HEADROOM) : 95;
+  if (prev >= cap) return prev;
+  const fraction = prev / 95;
+  const delta = ((1 - fraction) * 90) / stepsTo95 + rand * 0.5;
+  return Math.min(cap, prev + delta);
+}
+
 interface UseGenerationProgressOptions {
   /**
    * For blocking mutations: pass TanStack Query mutation booleans directly.
@@ -93,6 +148,20 @@ interface UseGenerationProgressOptions {
    * progress values and GenerationState labels.
    */
   jobStatus?: BackendJobStatus;
+
+  /**
+   * REAL server-side progress for the in-flight job (task #284): the job
+   * row's `progress_pct` / `progress_stage` as surfaced by getJobStatus /
+   * listJobsForUser polling. When `pct` is present during an active job
+   * state it takes over the bar in BOTH directions: it replaces the synthetic
+   * status floors as the target AND caps the synthetic ticker at
+   * `pct + SERVER_PCT_HEADROOM`, so a slow real job can no longer coast to a
+   * timer-driven 95%. Display stays monotonic — the bar never moves
+   * backwards; when `stage` is present it can override the label. Absent →
+   * the existing synthetic behavior is unchanged, so mutation-only flows
+   * keep working.
+   */
+  realProgress?: { pct?: number | null; stage?: string | null };
 
   /** Custom labels per state. Falls back to PHASE_LABELS defaults. */
   labels?: Partial<Record<GenerationState, string>>;
@@ -125,7 +194,8 @@ interface UseGenerationProgressOptions {
  *
  * Supports two modes:
  *  1. Blocking mutations: drives progress with a synthetic ticker while isPending.
- *  2. Async GPU jobs: drives progress from real backend status via jobStatus prop.
+ *  2. Async GPU jobs: drives progress from real backend status via jobStatus prop,
+ *     optionally refined by REAL server-reported percent/stage via realProgress.
  *
  * Cross-navigation persistence: when persistKey is set, writes startedAt to
  * localStorage on start, restores progress on remount (calculating elapsed %),
@@ -139,11 +209,20 @@ export function useGenerationProgress(
     isError = false,
     isSuccess = false,
     jobStatus,
+    realProgress,
     labels = {},
     estimatedMs = 15_000,
     persistKey,
     asyncEnqueue = false,
   } = opts;
+
+  // Real server-reported percent, clamped to the visible 1–99 band (0 would
+  // read as "not started" and 100 is owned by terminal status).
+  const realPct =
+    typeof realProgress?.pct === "number" && Number.isFinite(realProgress.pct)
+      ? Math.min(99, Math.max(1, Math.round(realProgress.pct)))
+      : null;
+  const realStage = realProgress?.stage ?? null;
 
   // --- Restore persisted state on first mount ---------------------------------
   const restoredRef = useRef<{ progress: number; state: GenerationState } | null>(null);
@@ -168,6 +247,12 @@ export function useGenerationProgress(
 
   const tickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevPendingRef = useRef(isPending);
+
+  // The mutation-mode interval is created once per run; reading realPct via a
+  // ref (updated every render) lets the SAME interval honor later server
+  // reports without tearing the ticker down on every poll.
+  const realPctRef = useRef<number | null>(realPct);
+  realPctRef.current = realPct;
 
   const clearTicker = () => {
     if (tickerRef.current !== null) {
@@ -237,9 +322,12 @@ export function useGenerationProgress(
       return;
     }
 
-    // For queued/processing/finalizing: set a floor, then let the ticker
-    // fill in the gap smoothly so the bar never appears frozen.
-    setProgress((prev) => Math.max(prev, targetProgress));
+    // For queued/processing/finalizing: set a floor, then let the ticker fill
+    // in the gap smoothly so the bar never appears frozen. When the server
+    // reports a REAL percent (task #284) it replaces the synthetic status
+    // floor entirely — a truthful 8% beats a made-up 55% — while Math.max
+    // keeps the displayed bar monotonic if the floor was already higher.
+    setProgress((prev) => Math.max(prev, realPct ?? targetProgress));
 
     // Persist start time when work begins (jobStatus mode) so cross-navigation
     // restoration works even when the hook is driven by real backend status.
@@ -257,9 +345,15 @@ export function useGenerationProgress(
       }
     }
 
-    // Keep ticking if we're mid-flight so the bar doesn't stall
+    // Keep ticking if we're mid-flight so the bar doesn't stall. With a real
+    // percent the ticker only drifts a few points past the last report (the
+    // next report re-anchors it); without one it fills to the finalizing floor
+    // as before.
     if (mappedState === "processing" && tickerRef.current === null) {
-      const fillTo = JOB_STATUS_PROGRESS.finalizing; // 88
+      const fillTo =
+        realPct !== null
+          ? Math.min(realPct + 6, 97)
+          : JOB_STATUS_PROGRESS.finalizing; // 88
       tickerRef.current = setInterval(() => {
         setProgress((prev) => {
           if (prev >= fillTo) {
@@ -272,8 +366,20 @@ export function useGenerationProgress(
     }
 
     return clearTicker;
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- setProgress/setPhase are stable useState setters and excluded from deps intentionally
-  }, [jobStatus, persistKey, estimatedMs]);
+  }, [jobStatus, persistKey, estimatedMs, realPct]);
+
+  // --- Real percent floor for mutation-driven flows ----------------------------
+  // The jobStatus effect above already anchors to realPct; this covers flows
+  // driven by mutation booleans (the wrapped enqueue+poll fns), where the
+  // synthetic ticker owns the bar. A real server percent only ever RAISES the
+  // displayed value — never yanks it backwards — and only while the wrapped
+  // call is actually in flight (stale updates after settle are ignored).
+  useEffect(() => {
+    if (realPct === null) return;
+    if (jobStatus !== undefined && jobStatus !== null) return;
+    if (!isPending) return;
+    setProgress((prev) => Math.max(prev, realPct));
+  }, [realPct, isPending, jobStatus]);
 
   // --- Synthetic ticker for blocking mutations --------------------------------
   useEffect(() => {
@@ -313,10 +419,7 @@ export function useGenerationProgress(
             setState("finalizing");
             return prev;
           }
-          const fraction = prev / 95;
-          const delta =
-            ((1 - fraction) * 90) / stepsTo95 + Math.random() * 0.5;
-          const next = Math.min(95, prev + delta);
+          const next = nextSyntheticProgress(prev, stepsTo95, realPctRef.current);
           if (next > 30) setState("processing");
           return next;
         });
@@ -358,15 +461,20 @@ export function useGenerationProgress(
         setProgress(0);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- setState/setPhase setters are stable and intentionally excluded; listed deps cover all reactive inputs
   }, [isPending, isError, isSuccess, estimatedMs, persistKey, asyncEnqueue, jobStatus]);
 
   const resolvedLabels = { ...PHASE_LABELS, ...labels };
 
+  // A real worker/server stage refines the label only while a job is actually
+  // in flight — terminal and idle states keep their own copy.
+  const activeJobState =
+    state === "queued" || state === "processing" || state === "finalizing";
+  const realStageLabel = activeJobState ? stageLabel(realStage) : null;
+
   return {
     state,
     progress: Math.round(progress),
-    label: resolvedLabels[state] ?? "",
+    label: realStageLabel ?? resolvedLabels[state] ?? "",
     isActive: state !== "idle",
   };
 }

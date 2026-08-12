@@ -64,6 +64,10 @@ mock.module("./replicate.server", () => ({
 }));
 mock.module("./sync.server", () => ({ syncLipsync: async () => "https://x" }));
 mock.module("./hf.server", () => ({
+  // Must cover every hf.server export that top-level imports of the
+  // jobs/orchestrator graph touch — an incomplete stub leaks process-wide
+  // (Bun mock.module) and breaks OTHER suites' imports at link time.
+  hfTextToSpeech: async () => ({ bytes: new Uint8Array(), contentType: "audio/flac" }),
   hfTextToImage: async () => ({ bytes: Buffer.from(""), contentType: "image/png" }),
   HF_ROUTER_BASE: "https://router.huggingface.co/v1",
 }));

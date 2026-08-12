@@ -327,10 +327,16 @@ function StudioPage() {
     return () => clearTimeout(t);
   }, [user, prompt, model, videoModel, cameraMovement, videoPrompt, lipsyncModel, videoResolution, activePreset, selfie, outfit, scene, prop, motion, endFrameUrl, audioUrl]);
 
-  const genFn = usePerformanceShotJobFn();
+  // Real server-side progress (task #284): each wrapped enqueue+poll fn
+  // pushes {status, pct, stage} from the job row on every poll; the progress
+  // hooks below consume it as realProgress.
+  const [imageJobProg, setImageJobProg] = useState<{ pct: number | null; stage: string | null } | null>(null);
+  const [videoJobProg, setVideoJobProg] = useState<{ pct: number | null; stage: string | null } | null>(null);
+  const [lipsyncJobProg, setLipsyncJobProg] = useState<{ pct: number | null; stage: string | null } | null>(null);
+  const genFn = usePerformanceShotJobFn({ onProgress: (u) => setImageJobProg({ pct: u.pct, stage: u.stage }) });
   const listFn = useServerFn(listGenerations);
-  const videoFn = useVideoFromImageJobFn();
-  const lipSyncFn = useLipSyncJobFn();
+  const videoFn = useVideoFromImageJobFn({ onProgress: (u) => setVideoJobProg({ pct: u.pct, stage: u.stage }) });
+  const lipSyncFn = useLipSyncJobFn({ onProgress: (u) => setLipsyncJobProg({ pct: u.pct, stage: u.stage }) });
   const profileFn = useServerFn(getMyProfile);
   const checkoutFn = useServerFn(createPaystackCheckout);
   const paymentByRefFn = useServerFn(getPaymentByReference);
@@ -567,6 +573,7 @@ function StudioPage() {
     isPending: mut.isPending,
     isError: mut.isError,
     isSuccess: mut.isSuccess,
+    realProgress: imageJobProg ?? undefined,
     estimatedMs: 18_000,
     persistKey: "aurora.progress.studio.image",
     labels: {
@@ -581,6 +588,7 @@ function StudioPage() {
     isPending: demoMut.isPending,
     isError: demoMut.isError,
     isSuccess: demoMut.isSuccess,
+    realProgress: imageJobProg ?? undefined,
     estimatedMs: 18_000,
     persistKey: "aurora.progress.studio.demo",
     labels: {
@@ -598,6 +606,7 @@ function StudioPage() {
     isPending: videoMut.isPending,
     isError: videoMut.isError,
     isSuccess: videoMut.isSuccess,
+    realProgress: videoJobProg ?? undefined,
     estimatedMs: 45_000,
     persistKey: "aurora.progress.studio.video",
     labels: {
@@ -612,6 +621,7 @@ function StudioPage() {
     isPending: lipSyncMut.isPending,
     isError: lipSyncMut.isError,
     isSuccess: lipSyncMut.isSuccess,
+    realProgress: lipsyncJobProg ?? undefined,
     estimatedMs: 50_000,
     persistKey: "aurora.progress.studio.lipsync",
     labels: {

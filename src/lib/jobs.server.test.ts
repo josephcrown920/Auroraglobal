@@ -371,7 +371,9 @@ describe("processOneJob", () => {
     const r = await processOneJob("w1");
     expect(r.status).toBe("retry");
     expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeUndefined();
-    const jobUpd = calls.updates.find((u) => u.table === "jobs");
+    // Progress writes (task #284) also hit the jobs table now — assert on the
+    // update that actually carries the status transition.
+    const jobUpd = calls.updates.find((u) => u.table === "jobs" && "status" in u.patch);
     expect(jobUpd?.patch.status).toBe("queued");
     expect(jobUpd?.patch.scheduled_at).toBeDefined();
   });
@@ -386,7 +388,9 @@ describe("processOneJob", () => {
     const r = await processOneJob("w1");
     expect(r.status).toBe("retry");
     expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeUndefined();
-    const jobUpd = calls.updates.find((u) => u.table === "jobs");
+    // Progress writes (task #284) also hit the jobs table now — assert on the
+    // update that actually carries the status transition.
+    const jobUpd = calls.updates.find((u) => u.table === "jobs" && "status" in u.patch);
     expect(jobUpd?.patch.status).toBe("queued");
     const gen = calls.updates.find((u) => u.table === "generations");
     expect(gen?.patch).toMatchObject({ status: "retrying" });
@@ -995,5 +999,94 @@ describe("recordSchedulerHeartbeat", () => {
     await recordSchedulerHeartbeat("jobs_tick", false, "boom");
     const up = calls.upserts.find((u) => u.table === "scheduler_heartbeats");
     expect(up?.row).toMatchObject({ name: "jobs_tick", last_error: "boom" });
+  });
+});
+
+// task #284 — real progress must flow through the DI'd orchestrate call.
+// This test exists because the wiring was once built and then NOT passed into
+// orch(): everything compiled, coarse seams still wrote, and provider progress
+// silently vanished.
+describe("processOneJob progress wiring", () => {
+  it("passes onProgress to orchestrate and lands banded provider pct on the jobs row", async () => {
+    orchestrateImpl = async (req) => {
+      const r = req as { onProgress?: (u: { pct?: number; stage?: string }) => void };
+      if (typeof r.onProgress !== "function") throw new Error("onProgress missing from orchestrate request");
+      r.onProgress({ pct: 50 });
+      return { url: "https://out/img.png", provider: "pollinations", endpoint: "pollinations:flux", latencyMs: 1, costUsd: 0 };
+    };
+    claimQueue = [job()];
+    const r = await processOneJob("w1");
+    expect(r.processed).toBe(true);
+    await Bun.sleep(5); // reporter writes are fire-and-forget
+    const prog = calls.updates.filter((u) => u.table === "jobs" && "progress_pct" in u.patch);
+    expect(prog.some((u) => u.patch.progress_pct === 2)).toBe(true); // claim seam (also resets stale pct)
+    expect(prog.some((u) => u.patch.progress_pct === 48)).toBe(true); // 5 + 50*0.85 = 47.5 → 48
+    expect(prog.some((u) => u.patch.progress_pct === 92)).toBe(true); // upload seam
+  });
+
+  it("tiktok_remix_child threads onProgress and lands banded provider pct", async () => {
+    orchestrateImpl = async (req) => {
+      const r = req as { onProgress?: (u: { pct?: number; stage?: string }) => void };
+      if (typeof r.onProgress !== "function")
+        throw new Error("onProgress missing from tiktok child orchestrate request");
+      r.onProgress({ pct: 100 });
+      return { url: "https://out/clip.mp4", provider: "fal", endpoint: "fal:seedance", latencyMs: 1, costUsd: 0 };
+    };
+    claimQueue = [job({
+      kind: "tiktok_remix_child",
+      payload: { sourceVideoUrl: "https://in/src.mp4", prompt: "remix", remixId: "r1", index: 0 },
+    })];
+    const r = await processOneJob("w1");
+    expect(r.processed).toBe(true);
+    await Bun.sleep(5);
+    const prog = calls.updates.filter((u) => u.table === "jobs" && "progress_pct" in u.patch);
+    expect(prog.some((u) => u.patch.progress_pct === 90)).toBe(true); // 5 + 100*0.85 = 90
+  });
+
+  it("performance_reskin threads onProgress into every stage with ascending bands and labels", async () => {
+    const seen: Array<{ kind?: string; hasCb: boolean }> = [];
+    orchestrateImpl = async (req) => {
+      const r = req as {
+        kind?: string;
+        onProgress?: (u: { pct?: number; stage?: string }) => void;
+      };
+      seen.push({ kind: r.kind, hasCb: typeof r.onProgress === "function" });
+      if (typeof r.onProgress !== "function")
+        throw new Error(`onProgress missing for reskin stage ${r.kind}`);
+      // The motion stage reports a mid-render provider percent under a
+      // free-text stage (stage changes bypass the reporter throttle, so this
+      // write is deterministic in-test): 50% of the 32–72 band → 52.
+      if (r.kind === "motion") r.onProgress({ pct: 50, stage: "rendering frames" });
+      else r.onProgress({ pct: 100, stage: "generating" });
+      const url =
+        r.kind === "image" ? "https://out/still.png"
+        : r.kind === "motion" ? "https://out/motion.mp4"
+        : "https://out/final.mp4";
+      return { url, provider: "replicate", endpoint: `replicate:${r.kind}`, latencyMs: 1, costUsd: 0 };
+    };
+    claimQueue = [job({
+      kind: "performance_reskin",
+      payload: {
+        performanceVideoUrl: "https://in/perf.mp4",
+        avatarImageUrl: "https://in/avatar.png",
+        audioUrl: "https://in/track.mp3",
+      },
+    })];
+    const r = await processOneJob("w1");
+    expect(r.processed).toBe(true);
+    await Bun.sleep(5);
+    expect(seen.map((s) => s.kind)).toEqual(["image", "motion", "lipsync"]);
+    expect(seen.every((s) => s.hasCb)).toBe(true);
+    const prog = calls.updates.filter((u) => u.table === "jobs" && "progress_pct" in u.patch);
+    const pcts = prog.map((u) => u.patch.progress_pct as number);
+    expect(pcts).toContain(5); // still stage start
+    expect(pcts).toContain(32); // motion stage start (carries prior high-water)
+    expect(pcts).toContain(52); // provider-derived mid-motion percent, banded
+    expect(pcts).toContain(74); // relip stage start
+    const stages = prog.map((u) => u.patch.progress_stage).filter(Boolean);
+    expect(stages).toContain("styling avatar");
+    expect(stages).toContain("animating performance");
+    expect(stages).toContain("rendering frames"); // provider free text passes through
+    expect(stages).toContain("syncing lips");
   });
 });

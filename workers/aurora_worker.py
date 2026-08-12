@@ -642,28 +642,66 @@ def run_lyric_video(audio_url: str | None, segments: list[dict[str, Any]], param
 
 
 # ── Core dispatch (shared by every entrypoint) ────────────────────────────────
+def report_progress(job: dict[str, Any], pct: int | None = None, stage: str | None = None) -> None:
+    """Best-effort real-progress callback to Aurora (task #284).
+
+    Aurora includes `job_id` in the dispatch body for queue-backed jobs and
+    exposes POST /api/public/workers/progress authenticated with the SAME
+    AURORA_REGISTER_SECRET used for self-registration — no new secret to
+    provision. Silently does nothing when job_id / AURORA_URL / secret are
+    absent (e.g. a direct RunPod smoke test) and NEVER raises: progress is
+    cosmetic, a render must not fail because a status ping did.
+    """
+    job_id = job.get("job_id")
+    aurora_url = os.environ.get("AURORA_URL", "").strip().rstrip("/")
+    register_key = os.environ.get("AURORA_REGISTER_SECRET", "").strip()
+    if not (job_id and aurora_url and register_key):
+        return
+    body: dict[str, Any] = {"job_id": job_id}
+    if pct is not None:
+        body["pct"] = max(0, min(100, int(pct)))
+    if stage:
+        body["stage"] = str(stage)[:120]
+    try:
+        requests.post(
+            f"{aurora_url}/api/public/workers/progress",
+            json=body,
+            headers={"apikey": register_key, "content-type": "application/json"},
+            timeout=5,
+        )
+    except Exception:
+        pass  # cosmetic — never let a progress ping break the job
+
+
 def process_job(job: dict[str, Any]) -> dict[str, str]:
     kind = (job.get("kind") or "").lower()
     params = job.get("params") or {}
     image_urls = job.get("image_urls") or []
 
+    report_progress(job, pct=5, stage="preparing inputs")
     if kind == "lipsync":
         face = job.get("video_url") or (image_urls[0] if image_urls else None)
+        report_progress(job, pct=15, stage="running lip sync")
         out = run_latentsync(face, job.get("audio_url"), params)
     elif kind == "motion":
         ref = image_urls[0] if image_urls else None
+        report_progress(job, pct=15, stage="running motion transfer")
         out = run_mimicmotion(ref, job.get("video_url"), params)
     elif kind == "assemble":
+        report_progress(job, pct=15, stage="assembling video")
         out = run_assemble(params)
     elif kind == "lyric_video":
+        report_progress(job, pct=15, stage="rendering lyric video")
         out = run_lyric_video(job.get("audio_url"), job.get("segments") or [], params)
     elif kind == "image":
+        report_progress(job, pct=15, stage="rendering image")
         out = run_image(job.get("prompt") or "", params)
     else:
         raise ValueError(
             f"unsupported kind {kind!r}; this worker serves: lipsync, motion, assemble, lyric_video, image"
         )
 
+    report_progress(job, pct=85, stage="uploading result")
     return {"url": _upload(out)}
 
 

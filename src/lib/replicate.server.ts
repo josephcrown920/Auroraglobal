@@ -30,7 +30,45 @@ type PollResp = {
   status: "starting" | "processing" | "succeeded" | "failed" | "canceled";
   output: unknown;
   error?: string | null;
+  /** Cumulative provider log tail — replicateProgressPct() mines it for real percent. */
+  logs?: string | null;
 };
+
+/**
+ * Extract a real 0-100 progress percent from a Replicate prediction's `logs`.
+ * Replicate models commonly stream either explicit percents ("37%") or a step
+ * counter ("27/50" diffusion steps / frames). The LAST such marker wins (logs
+ * are cumulative). Returns null when no usable marker exists — callers must
+ * treat that as "no signal", never as 0 (a bar snapping back to 0 mid-render
+ * reads as a failure to the user).
+ */
+export function replicateProgressPct(logs: string | null | undefined): number | null {
+  if (!logs) return null;
+  let pct: number | null = null;
+  // Explicit percents: "37%" / "37.5%" — take the last one.
+  const pctMatches = logs.match(/(\d{1,3}(?:\.\d+)?)%/g);
+  if (pctMatches && pctMatches.length > 0) {
+    const last = Number(pctMatches[pctMatches.length - 1].replace("%", ""));
+    if (Number.isFinite(last)) pct = last;
+  }
+  if (pct === null) {
+    // Step counters: "27/50". Ignore tiny denominators (< 5) — "1/2" style
+    // fragments are usually flags or dates, not step counters.
+    const stepMatches = logs.match(/\b(\d{1,5})\s*\/\s*(\d{1,5})\b/g);
+    if (stepMatches && stepMatches.length > 0) {
+      const m = stepMatches[stepMatches.length - 1].match(/(\d{1,5})\s*\/\s*(\d{1,5})/);
+      if (m) {
+        const num = Number(m[1]);
+        const den = Number(m[2]);
+        if (Number.isFinite(num) && Number.isFinite(den) && den >= 5 && num <= den) {
+          pct = (num / den) * 100;
+        }
+      }
+    }
+  }
+  if (pct === null) return null;
+  return Math.max(0, Math.min(100, Math.round(pct)));
+}
 
 /**
  * Replicate API error. Carries the HTTP status and, when the provider asks the
@@ -76,6 +114,7 @@ export async function replicateRun(
   model: string,
   input: Record<string, unknown>,
   timeoutMs = 600_000,
+  opts?: { onPoll?: (p: PollResp) => void },
 ): Promise<PollResp> {
   const create = await fetch(`${REPLICATE_API}/models/${model}/predictions`, {
     method: "POST",
@@ -107,6 +146,11 @@ export async function replicateRun(
       });
     }
     const j = (await poll.json()) as PollResp;
+    try {
+      opts?.onPoll?.(j);
+    } catch {
+      // Progress observers are cosmetic — never let one break the render poll.
+    }
     if (j.status === "succeeded") return j;
     if (j.status === "failed" || j.status === "canceled") {
       throw new Error(`Replicate ${j.status}: ${j.error ?? "no error"}`);

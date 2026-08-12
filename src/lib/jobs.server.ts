@@ -270,15 +270,151 @@ async function finishJob(
   return Array.isArray(data) && data.length > 0;
 }
 
+// ─── Real progress reporting (task #284) ────────────────────────────────────
+// Progress is a cosmetic UI signal, never part of the credit-safety
+// invariants: writes are fenced on status='processing' so a late report can
+// never scribble on a finalized/requeued row, and every failure is swallowed
+// after logging so the render path is untouchable by a status ping.
+
+/**
+ * Write real progress onto a `processing` job row. Fenced on
+ * status='processing' — after finalize/requeue the update matches no row and
+ * returns false (harmless no-op; also covers sync-path refIds that aren't
+ * jobs rows). `pct` is clamped to 0–99: 100 is implied by terminal status,
+ * and writing it early would show "done" for an unfinished render.
+ * Never throws.
+ */
+export async function reportJobProgress(
+  jobId: string,
+  u: { pct?: number | null; stage?: string | null },
+  opts?: {
+    /**
+     * When provided, the write is additionally fenced on `locked_by` so a
+     * swept-and-reclaimed job can never receive progress from the OLD claim
+     * holder. In-process writers (queue runner) always pass their workerId;
+     * the worker HTTP callback route cannot (GPU workers don't know the
+     * runner's lease), so its writes stay status-fenced only — bounded blast
+     * radius: progress fields are cosmetic and never gate finalization.
+     */
+    lockedBy?: string;
+  },
+): Promise<boolean> {
+  const patch: Record<string, unknown> = { progress_updated_at: new Date().toISOString() };
+  if (typeof u.pct === "number" && Number.isFinite(u.pct)) {
+    patch.progress_pct = Math.max(0, Math.min(99, Math.round(u.pct)));
+  }
+  if (typeof u.stage === "string" && u.stage.trim()) {
+    patch.progress_stage = u.stage.trim().slice(0, 120);
+  }
+  if (!("progress_pct" in patch) && !("progress_stage" in patch)) return false;
+  try {
+    let q = supabaseAdmin
+      .from("jobs")
+      .update(patch as never)
+      .eq("id", jobId)
+      .eq("status", "processing");
+    if (opts?.lockedBy) q = q.eq("locked_by", opts.lockedBy);
+    const { data, error } = await q.select("id");
+    if (error) {
+      console.error("[jobs] progress write failed", jobId, error.message);
+      return false;
+    }
+    return Array.isArray(data) && data.length > 0;
+  } catch (e) {
+    console.error("[jobs] progress write threw", jobId, e);
+    return false;
+  }
+}
+
+/**
+ * Build a throttled, monotonic progress emitter for one job — the callback
+ * shape `GenerateRequest.onProgress` expects. Throttling (default 2s) keeps a
+ * chatty provider poll from hammering the DB; stage CHANGES bypass the
+ * throttle so state transitions are never lost. Percent is monotonic within a
+ * job run, so multi-candidate fallback (a second provider restarting its own
+ * counter) never makes the user's bar move backwards.
+ *
+ * `write`/`now` are dependency-injectable for tests (never mock.module a
+ * shared module — Bun leaks the stub across suites); production callers use
+ * the defaults.
+ */
+export function makeJobProgressReporter(
+  jobId: string,
+  opts?: {
+    write?: (jobId: string, u: { pct?: number | null; stage?: string | null }) => Promise<boolean>;
+    now?: () => number;
+    minIntervalMs?: number;
+    lockedBy?: string;
+  },
+): (u: { pct?: number; stage?: string }) => void {
+  const write =
+    opts?.write ??
+    ((id: string, u2: { pct?: number | null; stage?: string | null }) =>
+      reportJobProgress(id, u2, { lockedBy: opts?.lockedBy }));
+  const now = opts?.now ?? Date.now;
+  const minInterval = opts?.minIntervalMs ?? 2_000;
+  let lastWriteAt = Number.NEGATIVE_INFINITY;
+  let lastPct = -1;
+  let lastStage: string | undefined;
+  return (u) => {
+    const pct =
+      typeof u.pct === "number" && Number.isFinite(u.pct)
+        ? Math.max(0, Math.min(99, Math.round(u.pct)))
+        : undefined;
+    const stageChanged = !!u.stage && u.stage !== lastStage;
+    const effPct = pct !== undefined ? Math.max(pct, lastPct) : undefined; // monotonic
+    const pctAdvanced = effPct !== undefined && effPct > lastPct;
+    if (!stageChanged && !pctAdvanced) return;
+    const t = now();
+    if (!stageChanged && t - lastWriteAt < minInterval) return;
+    lastWriteAt = t;
+    if (effPct !== undefined) lastPct = effPct;
+    if (u.stage) lastStage = u.stage;
+    void write(jobId, { pct: effPct, stage: u.stage }).catch((e) =>
+      console.error("[jobs] progress reporter write failed", jobId, e instanceof Error ? e.message : e),
+    );
+  };
+}
+
 // ─── Dispatch ───────────────────────────────────────────────────────────────
 // kind == "image" | "video" | "lipsync" | "upscale" → run orchestrator
 // kind == "tiktok_remix_child" → run a single TikTok variant (image-to-video)
 
 const MEDIA_KINDS = new Set<GenerateKind>(["image", "video", "lipsync", "upscale", "motion"]);
 
+/**
+ * Wrap a job progress reporter as a `GenerateRequest.onProgress` observer that
+ * bands a provider-phase percent (0–100 of the model's own render loop) into
+ * the [lo, hi] window of the job's overall bar. Single-stage runners use the
+ * standard 5–90 window (claim/upload seams own the head and tail); multi-stage
+ * runners give each stage its own ascending band so the bar keeps moving
+ * truthfully across stages — the reporter's monotonic guard makes the
+ * boundaries safe. `stageName` (when set) replaces the orchestrator's generic
+ * per-attempt "generating" stage so users can see WHICH stage is running;
+ * provider/worker free-text stages pass through untouched.
+ */
+function bandedProgressObserver(
+  report: ReturnType<typeof makeJobProgressReporter>,
+  lo: number,
+  hi: number,
+  stageName?: string,
+): (u: { pct?: number; stage?: string }) => void {
+  const span = (hi - lo) / 100;
+  return (u) => {
+    const stage = u.stage === "generating" && stageName ? stageName : u.stage;
+    report({
+      ...(typeof u.pct === "number" && Number.isFinite(u.pct)
+        ? { pct: lo + u.pct * span }
+        : {}),
+      ...(stage ? { stage } : {}),
+    });
+  };
+}
+
 async function runMediaJob(
   job: JobRow,
   orch: Orchestrate,
+  workerId?: string,
 ): Promise<{ url: string; provider: string; endpoint: string }> {
   const req = job.payload as Partial<GenerateRequest> & { previewOnly?: boolean };
   const kind = (req.kind ?? job.kind) as GenerateKind;
@@ -302,6 +438,15 @@ async function runMediaJob(
   const effDuration = previewOnly ? Math.min(requestedDuration ?? 5, 5) : req.duration;
   const effResolution = previewOnly ? ("480p" as const) : req.resolution;
 
+  // Real progress (task #284): thread an in-process observer into orchestrate.
+  // A provider-phase percent (0-100 of the model's own render loop) is banded
+  // into 5–90 of the job's overall bar — the head is claim/start and the tail
+  // is upload/finalize, both written by processOneJob's stage seams. Worker
+  // POSTs (self-hosted path) arrive via /api/public/workers/progress instead
+  // and already carry job-absolute percents.
+  const report = makeJobProgressReporter(job.id, { lockedBy: workerId });
+  const onProgress = bandedProgressObserver(report, 5, 90);
+
   const result = await orch({
     kind,
     prompt: req.prompt,
@@ -324,11 +469,13 @@ async function runMediaJob(
     selfHostedOnly: req.selfHostedOnly === true,
     userId: job.user_id,
     refId: job.id,
+    // In-process only — JSON.stringify drops functions from worker payloads.
+    onProgress,
   });
   return { url: result.url, provider: result.provider, endpoint: result.endpoint };
 }
 
-async function runTiktokRemixChild(job: JobRow, orch: Orchestrate) {
+async function runTiktokRemixChild(job: JobRow, orch: Orchestrate, workerId?: string) {
   const p = job.payload as {
     sourceVideoUrl: string;
     sourceImageUrl?: string;
@@ -337,6 +484,9 @@ async function runTiktokRemixChild(job: JobRow, orch: Orchestrate) {
     remixId: string;
     index: number;
   };
+  // Real progress: single video stage, so provider percents band into the
+  // standard 5–90 window exactly like runMediaJob.
+  const report = makeJobProgressReporter(job.id, { lockedBy: workerId });
   const result = await orch({
     kind: "video",
     prompt: p.prompt,
@@ -347,6 +497,8 @@ async function runTiktokRemixChild(job: JobRow, orch: Orchestrate) {
     forSubscriber: true,
     userId: job.user_id,
     refId: job.id,
+    // In-process only — JSON.stringify drops functions from worker payloads.
+    onProgress: bandedProgressObserver(report, 5, 90),
   });
 
   // Append to parent remix.child_generation_ids
@@ -373,7 +525,7 @@ async function runTiktokRemixChild(job: JobRow, orch: Orchestrate) {
 //   2. drive that still with the performance video — `motion` (MimicMotion)
 //   3. (optional) relip to a supplied audio track — `lipsync`
 // Stages 2 and 3 are video-producing; the final clip is what we save.
-async function runPerformanceReskin(job: JobRow, orch: Orchestrate) {
+async function runPerformanceReskin(job: JobRow, orch: Orchestrate, workerId?: string) {
   const p = job.payload as {
     performanceVideoUrl: string;
     avatarImageUrl: string;
@@ -387,8 +539,20 @@ async function runPerformanceReskin(job: JobRow, orch: Orchestrate) {
     throw new Error("performance_reskin requires performanceVideoUrl and avatarImageUrl");
   }
 
+  // Real progress: three sequential stages share the 5–90 provider window via
+  // ascending bands (still 5–30, motion 32–72, relip 74–90; motion stretches
+  // to 90 when there is no relip stage). Stage-start reports carry a friendly
+  // label; the observer maps the orchestrator's generic "generating" stage to
+  // that label so mid-stage updates keep it.
+  const report = makeJobProgressReporter(job.id, { lockedBy: workerId });
+  const hasRelip = !!p.audioUrl;
+  const BAND_STILL: [number, number] = [5, 30];
+  const BAND_MOTION: [number, number] = [32, hasRelip ? 72 : 90];
+  const BAND_RELIP: [number, number] = [74, 90];
+
   // Stage 1 — styled avatar still. Outfit/location are STRUCTURED inputs folded
   // into the image prompt here (not motion params).
+  report({ pct: BAND_STILL[0], stage: "styling avatar" });
   const styleSegs = [
     p.prompt?.trim() || "full-body portrait of the same person, photorealistic",
     p.outfit ? `wearing ${p.outfit}` : null,
@@ -401,9 +565,11 @@ async function runPerformanceReskin(job: JobRow, orch: Orchestrate) {
     imageUrls: [p.avatarImageUrl],
     userId: job.user_id,
     refId: job.id,
+    onProgress: bandedProgressObserver(report, BAND_STILL[0], BAND_STILL[1], "styling avatar"),
   });
 
   // Stage 2 — drive the styled still with the performance video (MimicMotion).
+  report({ pct: BAND_MOTION[0], stage: "animating performance" });
   const motion = await orch({
     ...buildMimicMotionRequest({
       imageUrl: still.url,
@@ -413,18 +579,21 @@ async function runPerformanceReskin(job: JobRow, orch: Orchestrate) {
     }),
     userId: job.user_id,
     refId: job.id,
+    onProgress: bandedProgressObserver(report, BAND_MOTION[0], BAND_MOTION[1], "animating performance"),
   });
 
   // Stage 3 — optional lip-sync to a supplied audio track. When no audio is
   // given we rely on the motion worker to preserve the source performance audio.
   let final = motion;
   if (p.audioUrl) {
+    report({ pct: BAND_RELIP[0], stage: "syncing lips" });
     final = await orch({
       kind: "lipsync",
       videoUrl: motion.url,
       audioUrl: p.audioUrl,
       userId: job.user_id,
       refId: job.id,
+      onProgress: bandedProgressObserver(report, BAND_RELIP[0], BAND_RELIP[1], "syncing lips"),
     });
   }
 
@@ -1348,13 +1517,19 @@ export async function processOneJob(
   const job = await claimNext(workerId, lanes);
   if (!job) return { processed: false };
 
+  // Real progress (task #284): stamp the bar's floor the moment the claim
+  // wins. This also RESETS stale progress from a prior attempt — a requeued
+  // job would otherwise show the old attempt's high-water percent while
+  // re-rendering from zero. reportJobProgress never throws.
+  await reportJobProgress(job.id, { pct: 2, stage: "starting" }, { lockedBy: workerId });
+
   const orch = deps.orchestrate;
   try {
     let out: JobOutput;
     if (job.kind === "tiktok_remix_child") {
-      out = await runTiktokRemixChild(job, orch);
+      out = await runTiktokRemixChild(job, orch, workerId);
     } else if (job.kind === "performance_reskin") {
-      out = await runPerformanceReskin(job, orch);
+      out = await runPerformanceReskin(job, orch, workerId);
     } else if (job.kind === "ugc_ad") {
       out = await runUGCAd(job, orch);
     } else if (job.kind === "product_demo") {
@@ -1368,8 +1543,11 @@ export async function processOneJob(
     } else if (job.kind === "video_agent_render") {
       out = await runVideoAgentRender(job, orch, workerId);
     } else {
-      out = await runMediaJob(job, orch);
+      out = await runMediaJob(job, orch, workerId);
     }
+
+    // Real progress: render finished, entering the upload/persist tail.
+    await reportJobProgress(job.id, { pct: 92, stage: "uploading" }, { lockedBy: workerId });
 
     // Persist provider URLs into our own storage (compresses + re-hosts) before
     // writing to the generations row. Falls back to the raw provider URL on

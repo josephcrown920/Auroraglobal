@@ -138,7 +138,7 @@ export const enqueueGenerationJob = createServerFn({ method: "POST" })
 export async function listJobsForUser(userId: string) {
   const { data, error } = await supabaseAdmin
     .from("jobs")
-    .select("id, kind, status, attempts, error, generation_id, parent_job_id, created_at, finished_at, result")
+    .select("id, kind, status, attempts, error, generation_id, parent_job_id, created_at, finished_at, result, progress_pct, progress_stage")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -163,7 +163,7 @@ export const getJobStatus = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: job, error } = await supabaseAdmin
       .from("jobs")
-      .select("id, kind, status, error, generation_id")
+      .select("id, kind, status, error, generation_id, progress_pct, progress_stage")
       .eq("id", data.jobId)
       .eq("user_id", context.userId)
       .maybeSingle();

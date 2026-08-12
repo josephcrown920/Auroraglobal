@@ -147,6 +147,7 @@ import { Route as ApiPublicPaymentsSweepStuckRouteImport } from './routes/api/pu
 import { Route as ApiPublicTiktokCallbackRouteImport } from './routes/api/public/tiktok/callback'
 import { Route as ApiPublicVastExpireRouteImport } from './routes/api/public/vast/expire'
 import { Route as ApiPublicWorkersHealthRouteImport } from './routes/api/public/workers/health'
+import { Route as ApiPublicWorkersProgressRouteImport } from './routes/api/public/workers/progress'
 import { Route as ApiPublicWorkersRegisterRouteImport } from './routes/api/public/workers/register'
 import { Route as ApiVideoAgentStatusVideoIdRouteImport } from './routes/api/video-agent/status.$videoId'
 import { Route as ApiAudioMasterIdStatusRouteImport } from './routes/api/audio/master.$id.status'
@@ -873,6 +874,12 @@ const ApiPublicWorkersHealthRoute = ApiPublicWorkersHealthRouteImport.update({
   path: '/api/public/workers/health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWorkersProgressRoute =
+  ApiPublicWorkersProgressRouteImport.update({
+    id: '/api/public/workers/progress',
+    path: '/api/public/workers/progress',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicWorkersRegisterRoute =
   ApiPublicWorkersRegisterRouteImport.update({
     id: '/api/public/workers/register',
@@ -1045,6 +1052,7 @@ export interface FileRoutesByFullPath {
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/vast/expire': typeof ApiPublicVastExpireRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
+  '/api/public/workers/progress': typeof ApiPublicWorkersProgressRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
   '/api/video-agent/status/$videoId': typeof ApiVideoAgentStatusVideoIdRoute
   '/api/audio/master/$id/status': typeof ApiAudioMasterIdStatusRoute
@@ -1190,6 +1198,7 @@ export interface FileRoutesByTo {
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/vast/expire': typeof ApiPublicVastExpireRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
+  '/api/public/workers/progress': typeof ApiPublicWorkersProgressRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
   '/api/video-agent/status/$videoId': typeof ApiVideoAgentStatusVideoIdRoute
   '/api/audio/master/$id/status': typeof ApiAudioMasterIdStatusRoute
@@ -1336,6 +1345,7 @@ export interface FileRoutesById {
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/vast/expire': typeof ApiPublicVastExpireRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
+  '/api/public/workers/progress': typeof ApiPublicWorkersProgressRoute
   '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
   '/api/video-agent/status/$videoId': typeof ApiVideoAgentStatusVideoIdRoute
   '/api/audio/master/$id/status': typeof ApiAudioMasterIdStatusRoute
@@ -1483,6 +1493,7 @@ export interface FileRouteTypes {
     | '/api/public/tiktok/callback'
     | '/api/public/vast/expire'
     | '/api/public/workers/health'
+    | '/api/public/workers/progress'
     | '/api/public/workers/register'
     | '/api/video-agent/status/$videoId'
     | '/api/audio/master/$id/status'
@@ -1628,6 +1639,7 @@ export interface FileRouteTypes {
     | '/api/public/tiktok/callback'
     | '/api/public/vast/expire'
     | '/api/public/workers/health'
+    | '/api/public/workers/progress'
     | '/api/public/workers/register'
     | '/api/video-agent/status/$videoId'
     | '/api/audio/master/$id/status'
@@ -1773,6 +1785,7 @@ export interface FileRouteTypes {
     | '/api/public/tiktok/callback'
     | '/api/public/vast/expire'
     | '/api/public/workers/health'
+    | '/api/public/workers/progress'
     | '/api/public/workers/register'
     | '/api/video-agent/status/$videoId'
     | '/api/audio/master/$id/status'
@@ -1906,6 +1919,7 @@ export interface RootRouteChildren {
   ApiPublicTiktokCallbackRoute: typeof ApiPublicTiktokCallbackRoute
   ApiPublicVastExpireRoute: typeof ApiPublicVastExpireRoute
   ApiPublicWorkersHealthRoute: typeof ApiPublicWorkersHealthRoute
+  ApiPublicWorkersProgressRoute: typeof ApiPublicWorkersProgressRoute
   ApiPublicWorkersRegisterRoute: typeof ApiPublicWorkersRegisterRoute
   ApiVideoAgentStatusVideoIdRoute: typeof ApiVideoAgentStatusVideoIdRoute
   ApiPublicCliDevicePollRoute: typeof ApiPublicCliDevicePollRoute
@@ -2874,6 +2888,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWorkersHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/workers/progress': {
+      id: '/api/public/workers/progress'
+      path: '/api/public/workers/progress'
+      fullPath: '/api/public/workers/progress'
+      preLoaderRoute: typeof ApiPublicWorkersProgressRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/workers/register': {
       id: '/api/public/workers/register'
       path: '/api/public/workers/register'
@@ -3090,6 +3111,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicTiktokCallbackRoute: ApiPublicTiktokCallbackRoute,
   ApiPublicVastExpireRoute: ApiPublicVastExpireRoute,
   ApiPublicWorkersHealthRoute: ApiPublicWorkersHealthRoute,
+  ApiPublicWorkersProgressRoute: ApiPublicWorkersProgressRoute,
   ApiPublicWorkersRegisterRoute: ApiPublicWorkersRegisterRoute,
   ApiVideoAgentStatusVideoIdRoute: ApiVideoAgentStatusVideoIdRoute,
   ApiPublicCliDevicePollRoute: ApiPublicCliDevicePollRoute,

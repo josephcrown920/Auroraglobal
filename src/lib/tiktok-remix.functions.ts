@@ -375,13 +375,13 @@ export const getTiktokRemix = createServerFn({ method: "GET" })
       : [];
 
     type GenSummary = { id: string; status: string; result_video_url: string | null; prompt: string; error: string | null };
-    type JobSummary = { id: string; status: string; attempts: number; error: string | null; generation_id: string | null; result: Record<string, unknown> | null };
+    type JobSummary = { id: string; status: string; attempts: number; error: string | null; generation_id: string | null; result: Record<string, unknown> | null; progress_pct: number | null; progress_stage: string | null };
     const [gensRes, jobsRes] = await Promise.all([
       childIds.length
         ? supabaseAdmin.from("generations").select("id, status, result_video_url, prompt, error").in("id", childIds)
         : Promise.resolve({ data: [] as GenSummary[], error: null }),
       jobIds.length
-        ? supabaseAdmin.from("jobs").select("id, status, attempts, error, generation_id, result").in("id", jobIds)
+        ? supabaseAdmin.from("jobs").select("id, status, attempts, error, generation_id, result, progress_pct, progress_stage").in("id", jobIds)
         : Promise.resolve({ data: [] as JobSummary[], error: null }),
     ]);
 
@@ -392,7 +392,7 @@ export const getTiktokRemix = createServerFn({ method: "GET" })
       status: string; prompt: string | null; error: string | null;
       child_generation_ids: string[]; child_job_ids: string[]; created_at: string; updated_at: string;
     };
-    type JobSer = { id: string; status: string; attempts: number; error: string | null; generation_id: string | null; result: Record<string, string> | null };
+    type JobSer = { id: string; status: string; attempts: number; error: string | null; generation_id: string | null; result: Record<string, string> | null; progress_pct: number | null; progress_stage: string | null };
     const payload = JSON.parse(JSON.stringify({
       remix,
       generations: gensRes.data ?? [],

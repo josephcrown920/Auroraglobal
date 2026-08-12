@@ -51,13 +51,17 @@ function TiktokJobCard({
   jobStatus,
   label,
   onRetry,
+  realProgress,
 }: {
   jobStatus: BackendJobStatus;
   label: string;
   onRetry?: () => void;
+  /** Real server-reported progress from the job row (task #284). */
+  realProgress?: { pct?: number | null; stage?: string | null };
 }) {
   const prog = useGenerationProgress({
     jobStatus,
+    realProgress,
     estimatedMs: 90_000,
     labels: {
       queued: "Waiting in queue…",
@@ -225,6 +229,11 @@ function TiktokRemixPage() {
 
   const childGens = detail.data?.generations ?? [];
   const childJobs = detail.data?.jobs ?? [];
+  // Real progress for a generation card comes from its linked job row (task #284).
+  const jobProgressFor = (genId: string) => {
+    const j = childJobs.find((x) => x.generation_id === genId);
+    return j ? { pct: j.progress_pct, stage: j.progress_stage } : undefined;
+  };
   const completed = useMemo(() => childGens.filter((g) => g.status === "succeeded").length, [childGens]);
 
   if (!user) {
@@ -430,6 +439,7 @@ function TiktokRemixPage() {
               <TiktokJobCard
                 key={j.id}
                 jobStatus={normalizeJobStatus(j.status)}
+                realProgress={{ pct: j.progress_pct, stage: j.progress_stage }}
                 label={j.status}
                 onRetry={j.status === "failed" || j.status === "error" ? () => retryMut.mutate(j.id) : undefined}
               />
@@ -449,6 +459,7 @@ function TiktokRemixPage() {
                 ) : (
                   <TiktokJobCard
                     jobStatus={normalizeJobStatus(g.status)}
+                    realProgress={jobProgressFor(g.id)}
                     label={g.status}
                     onRetry={
                       g.status === "failed"

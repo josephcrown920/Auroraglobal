@@ -1441,6 +1441,9 @@ export type Database = {
           parent_job_id: string | null
           payload: Json
           priority: number
+          progress_pct: number | null
+          progress_stage: string | null
+          progress_updated_at: string | null
           queue: string
           result: Json | null
           scheduled_at: string
@@ -1465,6 +1468,9 @@ export type Database = {
           parent_job_id?: string | null
           payload?: Json
           priority?: number
+          progress_pct?: number | null
+          progress_stage?: string | null
+          progress_updated_at?: string | null
           queue?: string
           result?: Json | null
           scheduled_at?: string
@@ -1489,6 +1495,9 @@ export type Database = {
           parent_job_id?: string | null
           payload?: Json
           priority?: number
+          progress_pct?: number | null
+          progress_stage?: string | null
+          progress_updated_at?: string | null
           queue?: string
           result?: Json | null
           scheduled_at?: string
@@ -3260,6 +3269,9 @@ export type Database = {
           parent_job_id: string | null
           payload: Json
           priority: number
+          progress_pct: number | null
+          progress_stage: string | null
+          progress_updated_at: string | null
           queue: string
           result: Json | null
           scheduled_at: string
@@ -3293,6 +3305,9 @@ export type Database = {
           parent_job_id: string | null
           payload: Json
           priority: number
+          progress_pct: number | null
+          progress_stage: string | null
+          progress_updated_at: string | null
           queue: string
           result: Json | null
           scheduled_at: string

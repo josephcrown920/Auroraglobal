@@ -29,6 +29,7 @@ import {
   listGenerations,
 } from "@/lib/studio.functions";
 import { usePerformanceShotJobFn, useVideoFromImageJobFn } from "@/lib/use-job-polling";
+import { getJobStatus } from "@/lib/jobs.functions";
 import { checkWorkerCapability } from "@/lib/workers.functions";
 import { VIDEO_MODEL_LIST } from "@/lib/models";
 import { computeCost, type Resolution } from "@/lib/pricing";
@@ -217,6 +218,10 @@ function MotionStudio() {
   const reskinSubmittedAtRef = useRef<number | null>(null);
   const [transferGenId, setTransferGenId] = useState<string | null>(null);
   const [reskinGenId, setReskinGenId] = useState<string | null>(null);
+  // Jobs-row ids for the in-flight transfer/reskin — real progress
+  // (progress_pct/progress_stage) lives on the jobs row, not the generation.
+  const [transferJobId, setTransferJobId] = useState<string | null>(null);
+  const [reskinJobId, setReskinJobId] = useState<string | null>(null);
 
   // Refs for aside DOM elements (scroll-into-view on completion)
   const transferAsideRef = useRef<HTMLElement>(null);
@@ -284,8 +289,11 @@ function MotionStudio() {
     return () => { audio.removeEventListener("loadedmetadata", onLoaded); audio.removeEventListener("error", onError); };
   }, [lyricAudioUrl]);
 
-  const genFn = usePerformanceShotJobFn();
-  const videoFn = useVideoFromImageJobFn();
+  // Real server-side progress (task #284) for the wrapped enqueue+poll flows.
+  const [poseJobProg, setPoseJobProg] = useState<{ pct: number | null; stage: string | null } | null>(null);
+  const [animateJobProg, setAnimateJobProg] = useState<{ pct: number | null; stage: string | null } | null>(null);
+  const genFn = usePerformanceShotJobFn({ onProgress: (u) => setPoseJobProg({ pct: u.pct, stage: u.stage }) });
+  const videoFn = useVideoFromImageJobFn({ onProgress: (u) => setAnimateJobProg({ pct: u.pct, stage: u.stage }) });
   const shotFn = useServerFn(generateAvatarShot);
   const lyricVideoFn = useServerFn(generateLyricVideoFromSong);
   const motionFn = useServerFn(generateMimicMotion);
@@ -428,10 +436,11 @@ function MotionStudio() {
         },
       });
     },
-    onMutate: () => setMtError(null),
-    onSuccess: (out: { generationId?: string; preview?: boolean } | void) => {
+    onMutate: () => { setMtError(null); setTransferJobId(null); },
+    onSuccess: (out: { generationId?: string; jobId?: string; preview?: boolean } | void) => {
       transferSubmittedAtRef.current = Date.now();
       if (out && typeof out === "object" && out.generationId) setTransferGenId(out.generationId);
+      if (out && typeof out === "object" && out.jobId) setTransferJobId(out.jobId);
       if (out && typeof out === "object" && out.preview) {
         setTransferPreviewId(out.generationId ?? null);
         toast.success("Preview queued — review it in Gallery, then render the full clip");
@@ -467,10 +476,11 @@ function MotionStudio() {
         },
       });
     },
-    onMutate: () => setRsError(null),
-    onSuccess: (out: { generationId?: string; preview?: boolean } | void) => {
+    onMutate: () => { setRsError(null); setReskinJobId(null); },
+    onSuccess: (out: { generationId?: string; jobId?: string; preview?: boolean } | void) => {
       reskinSubmittedAtRef.current = Date.now();
       if (out && typeof out === "object" && out.generationId) setReskinGenId(out.generationId);
+      if (out && typeof out === "object" && out.jobId) setReskinJobId(out.jobId);
       if (out && typeof out === "object" && out.preview) {
         setReskinPreviewId(out.generationId ?? null);
         toast.success("Preview queued — review it in Gallery, then render the full clip");
@@ -490,6 +500,7 @@ function MotionStudio() {
   });
 
   const stageProgress = useGenerationProgress({
+    realProgress: poseJobProg ?? undefined,
     isPending: stageMut.isPending,
     isError: stageMut.isError,
     isSuccess: stageMut.isSuccess,
@@ -504,6 +515,7 @@ function MotionStudio() {
   });
 
   const animateProgress = useGenerationProgress({
+    realProgress: animateJobProg ?? undefined,
     isPending: animateMut.isPending,
     isError: animateMut.isError,
     isSuccess: animateMut.isSuccess,
@@ -552,6 +564,28 @@ function MotionStudio() {
     return "queued";
   }, [history, reskinMut.isError, reskinGenId]);
 
+  // Real server-side progress (task #284): while a transfer/reskin job is in
+  // flight, poll its jobs row directly — progress_pct/progress_stage are
+  // written by the queue runner and by self-hosted workers via the progress
+  // callback route. History rows (generations) don't carry these fields.
+  const jobStatusFn = useServerFn(getJobStatus);
+  const transferActive =
+    transferJobStatus === "queued" || transferJobStatus === "processing" || transferJobStatus === "finalizing";
+  const { data: transferJobRow } = useQuery({
+    queryKey: ["job-progress", transferJobId],
+    queryFn: () => jobStatusFn({ data: { jobId: transferJobId! } }),
+    enabled: !!transferJobId && transferActive,
+    refetchInterval: 3_500,
+  });
+  const reskinActive =
+    reskinJobStatus === "queued" || reskinJobStatus === "processing" || reskinJobStatus === "finalizing";
+  const { data: reskinJobRow } = useQuery({
+    queryKey: ["job-progress", reskinJobId],
+    queryFn: () => jobStatusFn({ data: { jobId: reskinJobId! } }),
+    enabled: !!reskinJobId && reskinActive,
+    refetchInterval: 3_500,
+  });
+
   // Fire a toast + scroll the result panel into view the moment a job completes.
   useEffect(() => {
     const prev = prevTransferStatusRef.current;
@@ -584,6 +618,9 @@ function MotionStudio() {
     isError: transferMut.isError,
     isSuccess: transferMut.isSuccess,
     jobStatus: transferJobStatus,
+    realProgress: transferJobRow?.job
+      ? { pct: transferJobRow.job.progress_pct, stage: transferJobRow.job.progress_stage }
+      : undefined,
     estimatedMs: 60_000,
     persistKey: "aurora.progress.motion.transfer",
     asyncEnqueue: true,
@@ -600,6 +637,9 @@ function MotionStudio() {
     isError: reskinMut.isError,
     isSuccess: reskinMut.isSuccess,
     jobStatus: reskinJobStatus,
+    realProgress: reskinJobRow?.job
+      ? { pct: reskinJobRow.job.progress_pct, stage: reskinJobRow.job.progress_stage }
+      : undefined,
     estimatedMs: 60_000,
     persistKey: "aurora.progress.motion.reskin",
     asyncEnqueue: true,

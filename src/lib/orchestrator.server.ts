@@ -16,7 +16,7 @@ import OpenAI from "openai";
 import { GoogleGenAI, Modality } from "@google/genai";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { isFreeGpuOnlyMode } from "./app-settings.server";
-import { replicateRun, pickReplicateUrl, getReplicateKey } from "./replicate.server";
+import { replicateRun, pickReplicateUrl, getReplicateKey, replicateProgressPct } from "./replicate.server";
 import { bytePlusImage, bytePlusVideo, getBytePlusKey } from "./byteplus.server";
 import { syncLipsync } from "./sync.server";
 import { isTrustedUrl } from "./url-guard";
@@ -151,6 +151,16 @@ export type GenerateRequest = {
    * confirming an active paid subscription — never assumed to be true.
    */
   forSubscriber?: boolean;
+  /**
+   * In-process progress observer (task #284). NEVER serialized: job payloads
+   * are JSON.stringify'd and functions are silently dropped, so this only
+   * exists when attached in the same process — e.g. the queue runner wiring
+   * real provider progress onto the job row. Adapters with a real signal call
+   * it with `pct` (0-100 of the provider's own render phase) and/or a short
+   * machine `stage` string. Observers must never throw into the render path;
+   * emit sites guard with try/catch anyway.
+   */
+  onProgress?: (u: { pct?: number; stage?: string }) => void;
 };
 
 export type GenerateResult = {
@@ -1188,7 +1198,14 @@ const replicate: ProviderAdapter = {
     const m = r.model ? REPLICATE_MAP[r.model] : null;
     if (!m) throw new Error(`No Replicate mapping for model: ${r.model}`);
     const input = m.build(r);
-    const result = await replicateRun(m.slug, input, 600_000);
+    // Real progress (task #284): mine each poll's cumulative logs for a
+    // percent / step-counter marker and forward it to the in-process observer.
+    const result = await replicateRun(m.slug, input, 600_000, {
+      onPoll: (p) => {
+        const pct = replicateProgressPct(p.logs);
+        if (pct !== null) r.onProgress?.({ pct });
+      },
+    });
     const url = pickReplicateUrl(result.output);
     return { url, endpoint: `replicate:${m.slug}` };
   },
@@ -2176,6 +2193,11 @@ function workerInput(r: GenerateRequest): Record<string, unknown> {
   return {
     kind: r.kind,
     prompt: r.prompt,
+    // Queue-backed dispatches carry the jobs row id as refId; putting it on
+    // the wire lets the worker POST real progress back to
+    // /api/public/workers/progress (task #284). Sync-path refIds that aren't
+    // jobs rows are harmless — the progress write is fenced and no-ops.
+    ...(r.refId ? { job_id: r.refId } : {}),
     image_urls: r.imageUrls,
     audio_url: r.audioUrl,
     video_url: r.videoUrl,
@@ -3272,6 +3294,14 @@ export async function orchestrate(rawReq: GenerateRequest): Promise<GenerateResu
 
     for (const adapter of adapters) {
       triedAny = true;
+      // Real progress (task #284): a provider attempt is starting. Machine
+      // stage code only — NEVER the adapter/provider name (the string reaches
+      // the user's progress bar, and providers are an internal detail).
+      try {
+        r.onProgress?.({ stage: "generating" });
+      } catch {
+        // Observers are cosmetic; never let one break the dispatch loop.
+      }
       const start = Date.now();
       try {
         const { url, endpoint, text } = await withRetry(() => adapter.run(r), 2);
