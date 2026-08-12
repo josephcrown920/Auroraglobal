@@ -30,11 +30,11 @@ import clipCourt from "@/assets/josh/generated/clip-13-court-ball.mp4";
 
 const HANDLE = "@aurora.music";
 
-const STATS = [
-  { label: "Streams generated", value: "120M+", icon: <Eye className="size-4" /> },
-  { label: "Music videos this month", value: "240+", icon: <Play className="size-4" /> },
-  { label: "Songs gone viral", value: "38", icon: <TrendingUp className="size-4" /> },
-  { label: "#AuroraMusic", value: "Trending", icon: <Heart className="size-4" /> },
+const FEATURES = [
+  { label: "Identity-locked across every look", icon: <Eye className="size-4" /> },
+  { label: "New video per single, no crew needed", icon: <Play className="size-4" /> },
+  { label: "Afrobeats · Trap · Drill · Pop", icon: <TrendingUp className="size-4" /> },
+  { label: "Drop your song — get the visual", icon: <Heart className="size-4" /> },
 ];
 
 type Clip = {
@@ -97,16 +97,15 @@ const CLIPS: Clip[] = [
 export function TikTokSection() {
   return (
     <section className="relative z-10 mx-4 md:mx-12 my-16">
-      {/* Neon cyan→magenta gradient frame — the signature TikTok duo-tone — so this
-          slab reads as a distinct "screen" and pops against the muted cards around it. */}
-      <div className="relative rounded-[32px] bg-gradient-to-br from-[#25F4EE] via-fuchsia-500 to-[#FE2C55] p-[2px] shadow-[0_0_90px_-25px_rgba(254,44,85,0.7)]">
-        <div className="relative overflow-hidden rounded-[30px] bg-[#050507]">
-          {/* Bold dual-tone split glow — cyan corner vs. magenta corner. */}
+      {/* Aurora-branded card — dark surface with a faint violet border. */}
+      <div className="relative rounded-[32px] border border-white/10 bg-[#050507] shadow-[0_0_80px_-30px_rgba(139,92,246,0.45)]">
+        <div className="relative overflow-hidden rounded-[32px]">
+          {/* Subtle violet corner glows — on-brand, not TikTok duo-tone. */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
               background:
-                "radial-gradient(circle at 0% 0%, rgba(37,244,238,0.28), transparent 42%), radial-gradient(circle at 100% 100%, rgba(254,44,85,0.34), transparent 42%)",
+                "radial-gradient(circle at 0% 0%, rgba(139,92,246,0.18), transparent 42%), radial-gradient(circle at 100% 100%, rgba(139,92,246,0.12), transparent 42%)",
             }}
           />
           {/* Faint scanlines give it a screen-like, in-app texture. */}
@@ -119,7 +118,7 @@ export function TikTokSection() {
 
           {/* Top ticker strip — live dot + scrolling marquee = unmistakably TikTok. */}
           <div className="relative flex items-center gap-3 border-b border-white/10 bg-black/50 px-4 py-2">
-            <span className="flex shrink-0 items-center gap-1.5 rounded-md bg-[#FE2C55] px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-white">
+            <span className="flex shrink-0 items-center gap-1.5 rounded-md bg-[#8b5cf6] px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-white">
               <span
                 className="size-1.5 rounded-full bg-white"
                 style={{ animation: "mc-pulse 1.2s ease-in-out infinite" }}
@@ -131,7 +130,7 @@ export function TikTokSection() {
               {[0, 1, 2, 3, 4].map((b) => (
                 <span
                   key={b}
-                  className="w-0.5 origin-bottom rounded-full bg-[#25F4EE]"
+                  className="w-0.5 origin-bottom rounded-full bg-[#8b5cf6]"
                   style={{
                     height: "12px",
                     animation: `mc-bar ${0.5 + b * 0.12}s ease-in-out ${b * 0.07}s infinite alternate`,
@@ -148,9 +147,9 @@ export function TikTokSection() {
                   <span key={dup} className="flex gap-8">
                     <span>For You · {HANDLE}</span>
                     <span>Original sound — your track</span>
-                    <span>240+ music videos this month</span>
+                    <span>Identity-locked across every look</span>
                     <span>Afrobeats · Trap · Drill</span>
-                    <span>#AuroraMusic trending</span>
+                    <span>#AuroraMusic</span>
                   </span>
                 ))}
               </div>
@@ -161,7 +160,7 @@ export function TikTokSection() {
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
               <div className="max-w-2xl">
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-2 rounded-md border border-pink-300/20 bg-pink-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-pink-200">
+                  <span className="inline-flex items-center gap-2 rounded-md border border-[#8b5cf6]/25 bg-[#8b5cf6]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-[#c4b5fd]">
                     <Flame className="size-3.5" /> On TikTok
                   </span>
                   <span className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-white/70">
@@ -170,7 +169,7 @@ export function TikTokSection() {
                 </div>
                 <h2 className="mt-5 text-4xl font-extrabold tracking-tight text-white md:text-6xl">
                   Aurora is the{" "}
-                  <span className="bg-gradient-to-r from-[#25F4EE] via-white to-[#FE2C55] bg-clip-text text-transparent">
+                  <span className="bg-gradient-to-r from-[#c4b5fd] via-white to-[#8b5cf6] bg-clip-text text-transparent">
                     For You page.
                   </span>
                 </h2>
@@ -192,20 +191,15 @@ export function TikTokSection() {
               </a>
             </div>
 
-            {/* Stats strip */}
+            {/* Feature-badge row */}
             <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3">
-              {STATS.map((s) => (
+              {FEATURES.map((f) => (
                 <div
-                  key={s.label}
-                  className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3"
+                  key={f.label}
+                  className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 flex items-start gap-2.5"
                 >
-                  <div className="flex items-center gap-2 text-pink-200">
-                    {s.icon}
-                    <span className="text-[11px] uppercase tracking-widest text-white/55">
-                      {s.label}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-2xl font-extrabold text-white">{s.value}</p>
+                  <span className="mt-0.5 shrink-0 text-[#8b5cf6]">{f.icon}</span>
+                  <span className="text-[12px] leading-snug text-white/70">{f.label}</span>
                 </div>
               ))}
             </div>
@@ -266,10 +260,10 @@ export function TikTokSection() {
             {/* One primary CTA */}
             <div className="mt-10">
               <Link
-                to="/tiktok"
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#25F4EE] to-[#FE2C55] px-6 py-3 text-sm font-bold text-white no-underline shadow-lg shadow-fuchsia-500/30 hover:opacity-95"
+                to="/lipsync"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#8b5cf6] px-6 py-3 text-sm font-bold text-white no-underline shadow-lg shadow-[#8b5cf6]/30 hover:bg-[#7c3aed] transition-colors"
               >
-                Turn one song into a week of music videos <ArrowRight className="size-4" />
+                Lip-sync your track <ArrowRight className="size-4" />
               </Link>
             </div>
           </div>

@@ -11,13 +11,13 @@ const lipsyncDemoVideo = "/videos/face-sings-hero.mp4";
 type Cue = { t: number; text: string };
 
 const DEFAULT_LYRICS: Cue[] = [
-  { t: 0.0,  text: "To the feds, I just duck and roll, or slide and jump, like the C.O.D." },
-  { t: 4.0,  text: "They've got loaded guns, and I ain't on the run, but the feds, they gon' see you," },
-  { t: 8.0,  text: "act like they lost their memory or somethin', talkin' 'bout, ain't you the one?" },
-  { t: 13.0, text: "Ay, ay, and I'm still the one, I'm finna rule my gun, ay," },
-  { t: 17.0, text: "I never fuck no thot, thot, thot, thot, thot." },
-  { t: 21.0, text: "Let's have some fun." },
-  { t: 22.0, text: "No, Diddy, come chill with me, get litty." },
+  { t: 0.0,  text: "Lights up, the stage is calling me tonight" },
+  { t: 4.0,  text: "Every note I sing becomes a satellite" },
+  { t: 8.0,  text: "Watch the crowd ignite, we're burning bright" },
+  { t: 13.0, text: "Turn it up, the whole room feels alive" },
+  { t: 17.0, text: "Every face sings when the music arrives" },
+  { t: 21.0, text: "Let the rhythm take us higher, higher" },
+  { t: 25.0, text: "We were made to shine right through the fire" },
 ];
 
 export function BalloonLipsync() {
@@ -342,7 +342,7 @@ export function BalloonLipsync() {
             {/* Lyrics list */}
             <div className="rounded-2xl border border-white/8 bg-white/3 backdrop-blur p-5">
               <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/35 mb-4">
-                Lyrics · NBA Josh — unreleased
+                Lyrics · Aurora demo track
               </p>
               <ol className="space-y-2">
                 {lyrics.map((l, i) => (
