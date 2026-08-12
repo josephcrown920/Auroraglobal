@@ -137,6 +137,13 @@ export type GenerateRequest = {
    */
   segments?: Array<{ start: number; end: number; text: string }>;
   /**
+   * Aspect ratio for image/video generation. Supported values depend on the
+   * provider; the adapters normalise to their own enum when a value is present.
+   * Defaults: "16:9" for video, "1:1" for image.
+   * Supported: "1:1" | "16:9" | "9:16" | "4:3" | "3:4" | "21:9"
+   */
+  aspectRatio?: string;
+  /**
    * Set to `true` ONLY for requests from verified paying subscribers.
    * Expensive providers (Kling) check this flag and refuse to run without it,
    * so smoke tests, internal tooling, and free-tier users can never trigger
@@ -289,7 +296,7 @@ const klingDirect: ProviderAdapter = {
       model_name: "kling-v1",
       prompt: r.prompt ?? "",
       duration: String(r.duration ?? 5),
-      aspect_ratio: "16:9",
+      aspect_ratio: r.aspectRatio ?? "16:9",
       mode: "std",
     };
     if (isImg2Vid) body.image = r.imageUrls![0];
@@ -755,6 +762,7 @@ const falFallback: ProviderAdapter = {
       if (r.videoUrl) input.video_url = r.videoUrl;
       if (r.audioUrl) input.audio_url = r.audioUrl;
       if (r.duration) input.duration = r.duration;
+      if (r.aspectRatio) input.aspect_ratio = r.aspectRatio;
     }
     const res = await fetch(`https://fal.run/${path}`, {
       method: "POST",
@@ -884,7 +892,12 @@ const geminiDirect: ProviderAdapter = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts }],
-          generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
+          generationConfig: {
+            responseModalities: ["IMAGE", "TEXT"],
+            // Forward the user's chosen ratio. Gemini flash-image supports
+            // "1:1", "16:9", "9:16" — the same set the picker restricts to.
+            ...(r.aspectRatio ? { aspectRatio: r.aspectRatio } : {}),
+          },
         }),
       },
     );
@@ -948,7 +961,7 @@ const geminiVideo: ProviderAdapter = {
         body: JSON.stringify({
           instances: [instance],
           parameters: {
-            aspectRatio: "16:9",
+            aspectRatio: r.aspectRatio ?? "16:9",
             sampleCount: 1,
             // veo-3.1-fast-generate-preview accepts only 4 or 8 (not 5-7 — 5 returns
             // INVALID_ARGUMENT despite the docs claiming 4-8 inclusive).
@@ -1008,6 +1021,7 @@ const REPLICATE_MAP: Record<string, ReplicateEntry> = {
     build: (r) => ({
       prompt: r.prompt ?? "",
       ...(r.imageUrls?.length ? { image_input: r.imageUrls } : {}),
+      ...(r.aspectRatio ? { aspect_ratio: r.aspectRatio } : {}),
     }),
   },
   "fal-ai/seedream-4": {
@@ -1017,6 +1031,7 @@ const REPLICATE_MAP: Record<string, ReplicateEntry> = {
     build: (r) => ({
       prompt: r.prompt ?? "",
       ...(r.imageUrls?.length ? { image_input: r.imageUrls } : {}),
+      ...(r.aspectRatio ? { aspect_ratio: r.aspectRatio } : {}),
     }),
   },
   "fal-ai/seedream-4.5": {
@@ -1026,6 +1041,7 @@ const REPLICATE_MAP: Record<string, ReplicateEntry> = {
     build: (r) => ({
       prompt: r.prompt ?? "",
       ...(r.imageUrls?.length ? { image_input: r.imageUrls } : {}),
+      ...(r.aspectRatio ? { aspect_ratio: r.aspectRatio } : {}),
     }),
   },
   // ── video (image-to-video) ──
@@ -1037,6 +1053,7 @@ const REPLICATE_MAP: Record<string, ReplicateEntry> = {
       prompt: r.prompt ?? "",
       ...(firstImg(r) ? { image: firstImg(r) } : {}),
       duration: durInt(r.duration),
+      ...(r.aspectRatio ? { aspect_ratio: r.aspectRatio } : {}),
     }),
   },
   "seedance-2.0-fast": {
@@ -1047,6 +1064,7 @@ const REPLICATE_MAP: Record<string, ReplicateEntry> = {
       prompt: r.prompt ?? "",
       ...(firstImg(r) ? { image: firstImg(r) } : {}),
       duration: durInt(r.duration),
+      ...(r.aspectRatio ? { aspect_ratio: r.aspectRatio } : {}),
     }),
   },
   "kling-3.0": {
@@ -1057,6 +1075,7 @@ const REPLICATE_MAP: Record<string, ReplicateEntry> = {
       prompt: r.prompt ?? "",
       ...(firstImg(r) ? { start_image: firstImg(r) } : {}),
       duration: durEnum(r.duration),
+      aspect_ratio: r.aspectRatio ?? "16:9",
       ...(r.imageUrls?.[1] ? { end_image: r.imageUrls[1] } : {}),
     }),
   },
@@ -1068,6 +1087,7 @@ const REPLICATE_MAP: Record<string, ReplicateEntry> = {
       prompt: r.prompt ?? "",
       ...(firstImg(r) ? { start_image: firstImg(r) } : {}),
       duration: durEnum(r.duration),
+      aspect_ratio: r.aspectRatio ?? "16:9",
       ...(r.imageUrls?.[1] ? { end_image: r.imageUrls[1] } : {}),
     }),
   },
@@ -1075,13 +1095,21 @@ const REPLICATE_MAP: Record<string, ReplicateEntry> = {
     slug: "google/veo-3-fast",
     kind: "video",
     cost: 0.4,
-    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { image: firstImg(r) } : {}) }),
+    build: (r) => ({
+      prompt: r.prompt ?? "",
+      ...(firstImg(r) ? { image: firstImg(r) } : {}),
+      ...(r.aspectRatio ? { aspect_ratio: r.aspectRatio } : {}),
+    }),
   },
   "veo-3": {
     slug: "google/veo-3",
     kind: "video",
     cost: 0.75,
-    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { image: firstImg(r) } : {}) }),
+    build: (r) => ({
+      prompt: r.prompt ?? "",
+      ...(firstImg(r) ? { image: firstImg(r) } : {}),
+      ...(r.aspectRatio ? { aspect_ratio: r.aspectRatio } : {}),
+    }),
   },
   "sora-2": {
     slug: "openai/sora-2",
@@ -1279,10 +1307,20 @@ const byteplus: ProviderAdapter = {
     const m = r.model ? BYTEPLUS_MAP[r.model] : null;
     if (!m) throw new Error(`No BytePlus mapping for model: ${r.model}`);
     if (m.kind === "image") {
+      // Map our canonical aspect-ratio token to the WxH size the BytePlus
+      // images/generations endpoint accepts (Seedream uses "NxN" not "16:9").
+      const aspectToSize: Record<string, string> = {
+        "1:1": "2048x2048",
+        "16:9": "2048x1152",
+        "9:16": "1152x2048",
+      };
       const url = await bytePlusImage({
         model: m.modelId,
         prompt: r.prompt ?? "",
         imageUrls: r.imageUrls,
+        ...(r.aspectRatio && aspectToSize[r.aspectRatio]
+          ? { size: aspectToSize[r.aspectRatio] }
+          : {}),
       });
       return { url, endpoint: `byteplus:${m.modelId}` };
     }
@@ -1292,6 +1330,7 @@ const byteplus: ProviderAdapter = {
       imageUrls: r.imageUrls,
       duration: r.duration,
       resolution: r.resolution,
+      aspectRatio: r.aspectRatio,
     });
     return { url, endpoint: `byteplus:${m.modelId}` };
   },
@@ -1595,14 +1634,21 @@ const runware: ProviderAdapter = {
   async run(r) {
     const key = process.env.RUNWARE_API_KEY!;
     const m = r.model ? FREE_IMAGE_MODELS[r.model] : null;
+    // Map aspect ratio to pixel dimensions; Runware uses explicit width/height.
+    const runwareDims: Record<string, { width: number; height: number }> = {
+      "1:1": { width: 1024, height: 1024 },
+      "16:9": { width: 1344, height: 768 },
+      "9:16": { width: 768, height: 1344 },
+    };
+    const dims = (r.aspectRatio ? runwareDims[r.aspectRatio] : undefined) ?? { width: 1024, height: 1024 };
     const body = [
       {
         taskType: "imageInference",
         taskUUID: crypto.randomUUID(),
         positivePrompt: r.prompt ?? "",
         model: m?.model ?? "runware:100@1",
-        width: 1024,
-        height: 1024,
+        width: dims.width,
+        height: dims.height,
         numberResults: 1,
       },
     ];
@@ -1735,7 +1781,9 @@ const runway: ProviderAdapter = {
         promptImage: img,
         promptText: r.prompt ?? "",
         duration: r.duration ?? 5,
-        ratio: "1280:720",
+        // Runway accepts "WxH" ratio strings. Map our 3 supported ratios;
+        // default to landscape 1280:720 for any unrecognised value.
+        ratio: r.aspectRatio === "9:16" ? "720:1280" : r.aspectRatio === "1:1" ? "1080:1080" : "1280:720",
       }),
     });
     if (!create.ok)
@@ -2469,6 +2517,8 @@ const xaiDirect: ProviderAdapter = {
       prompt: r.prompt ?? "",
       duration: Math.min(15, Math.max(3, r.duration ?? 8)),
       resolution: r.resolution ?? "720p",
+      // xAI video API accepts "aspect_ratio" (e.g. "16:9", "9:16", "1:1").
+      aspect_ratio: r.aspectRatio ?? "16:9",
     };
     if (r.imageUrls?.[0]) body.image = { url: r.imageUrls[0] };
 

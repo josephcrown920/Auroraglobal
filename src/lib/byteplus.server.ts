@@ -110,6 +110,8 @@ type BytePlusVideoOpts = {
   imageUrls?: string[];
   duration?: number;
   resolution?: "480p" | "720p" | "1080p" | "2160p";
+  /** Aspect ratio forwarded as a --aspect_ratio flag (e.g. "16:9", "9:16", "1:1"). */
+  aspectRatio?: string;
   timeoutMs?: number;
   pollIntervalMs?: number;
 };
@@ -120,6 +122,7 @@ export async function bytePlusVideo(opts: BytePlusVideoOpts): Promise<string> {
   if (opts.resolution) flags.push(`--resolution ${opts.resolution}`);
   if (opts.duration)
     flags.push(`--duration ${Math.max(3, Math.min(12, Math.round(opts.duration)))}`);
+  if (opts.aspectRatio) flags.push(`--aspect_ratio ${opts.aspectRatio}`);
   const text = `${opts.prompt ?? ""} ${flags.join(" ")}`.trim();
 
   const content: Array<Record<string, unknown>> = [];

@@ -60,6 +60,8 @@ export type RenderInput = {
   agentShotId?: string;
   /** Caption segments for `caption_burn` requests. */
   segments?: Array<{ start: number; end: number; text: string }>;
+  /** Aspect ratio forwarded to the provider (e.g. "16:9", "9:16", "1:1"). */
+  aspectRatio?: string;
 };
 
 export type RenderOutcome =
@@ -119,6 +121,7 @@ export async function reserveOrchestrateRecord(
       comfyWorkflow: input.comfyWorkflow,
       comfyInputs: input.comfyInputs,
       segments: input.segments,
+      aspectRatio: input.aspectRatio,
       userId: input.userId,
     });
 

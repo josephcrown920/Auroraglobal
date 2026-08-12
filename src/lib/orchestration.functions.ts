@@ -830,6 +830,9 @@ const OrchestrateSchema = z.object({
   // this token because it fetches a server-side estimate before the full-quality
   // render step.
   quoteToken: z.string().optional(),
+  // Aspect ratio for image/video generation. Restricted to values all primary
+  // providers (Kling, Gemini Veo, Replicate Seedance/Kling, BytePlus) support.
+  aspectRatio: z.enum(["1:1", "16:9", "9:16"]).optional(),
 });
 
 // ─── AI Router: price quote (compute-only, no credits reserved) ───────────────
@@ -987,6 +990,7 @@ export const orchestrateGenerate = createServerFn({ method: "POST" })
               ...(data.orientation ? { orientation: data.orientation } : {}),
             }
           : undefined,
+      aspectRatio: data.aspectRatio,
       cost,
       reason: previewOnly ? `orchestrate_${kind}_preview` : `orchestrate_${kind}`,
       mode: previewOnly ? "preview" : undefined,

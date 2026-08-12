@@ -142,6 +142,10 @@ export function OrchestrateStudio({
   const [voiceId, setVoiceId] = useState(VOICE_OPTIONS[0].id);
   const [resolution, setResolution] = useState<Resolution>("720p");
   const [duration, setDuration] = useState(5);
+  // Default: 1:1 for image, 16:9 for video (matches provider defaults).
+  const [aspectRatio, setAspectRatio] = useState<string>(
+    initialModel === VIDEO_AGENT_MODEL_KEY ? "16:9" : "1:1",
+  );
   const [busy, setBusy] = useState(false);
   const [awaitingFullRender, setAwaitingFullRender] = useState(false);
   // Preview-confirm ticket: the preview's generation id, required by the
@@ -155,6 +159,9 @@ export function OrchestrateStudio({
     text: string | null;
     provider: string;
     latencyMs: number;
+    /** Aspect ratio that was selected when this generation completed. Preserved
+     *  so the preview frame matches the output even if the picker changes later. */
+    aspectRatio: string;
   } | null>(null);
 
   // Synthetic mutation-like state so useGenerationProgress can track the async fn
@@ -340,6 +347,8 @@ export function OrchestrateStudio({
     setResult(null);
     setAwaitingFullRender(false);
     setPreviewTicket(null);
+    // Reset aspect ratio to the sensible default for the new modality.
+    setAspectRatio(m === "image" ? "1:1" : "16:9");
   };
 
   const onStartImage = (f: File | null) => {
@@ -490,6 +499,10 @@ export function OrchestrateStudio({
           ...(modality === "audio" && voiceId.trim() ? { voiceId: voiceId.trim() } : {}),
           // Portrait orientation for HeyGen avatar videos (720×1280 vs default 1280×720).
           ...(isVideoAgent ? { orientation: vaPortrait ? "portrait" : "landscape" } as const : {}),
+          // Aspect ratio for image/video (Kling, Gemini Veo, etc.)
+          ...((modality === "image" || modality === "video") && !isVideoAgent
+            ? { aspectRatio }
+            : {}),
         },
       });
       if (!res.ok) {
@@ -505,6 +518,7 @@ export function OrchestrateStudio({
         text: res.text,
         provider: res.provider,
         latencyMs: res.latencyMs,
+        aspectRatio,
       });
       setPendingState("success");
       if (isPreviewPass) {
@@ -803,6 +817,34 @@ export function OrchestrateStudio({
               </div>
             )}
 
+            {/* Aspect ratio picker — image and non-agent video */}
+            {(modality === "image" || modality === "video") && !isVideoAgent && (
+              <div className="mt-4">
+                <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  Aspect ratio
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {(modality === "image"
+                    ? (["1:1", "16:9", "9:16"] as const)
+                    : (["16:9", "9:16", "1:1"] as const)
+                  ).map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setAspectRatio(r)}
+                      className={`rounded-lg border px-3 py-1.5 text-xs transition ${
+                        aspectRatio === r
+                          ? "border-brand/60 bg-brand/10 text-brand"
+                          : "border-neutral-800 text-neutral-400 hover:border-neutral-700"
+                      }`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Itemized cost preview — same pricing module the server charges with */}
             <div className="mt-4 rounded-xl border border-neutral-800 bg-neutral-950 p-3">
               <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-neutral-500">
@@ -962,10 +1004,17 @@ export function OrchestrateStudio({
                   </span>
                 </div>
                 {result.kind === "image" && (
-                  <BlurredPreview src={result.url} alt="Generated image" aspectRatio="1/1" className="rounded-lg border-0" />
+                  <BlurredPreview
+                    src={result.url}
+                    alt="Generated image"
+                    aspectRatio={result.aspectRatio.replace(":", "/")}
+                    className="rounded-lg border-0"
+                  />
                 )}
                 {result.kind === "video" && (
-                  <video src={result.url} controls className="w-full rounded-lg" />
+                  <div style={{ aspectRatio: result.aspectRatio.replace(":", "/") }} className="w-full overflow-hidden rounded-lg">
+                    <video src={result.url} controls className="h-full w-full object-contain" />
+                  </div>
                 )}
                 {result.kind === "audio" && <audio src={result.url} controls className="w-full" />}
                 {result.kind === "text" && (
