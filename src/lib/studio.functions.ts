@@ -8,7 +8,10 @@ import { compressImageBytes } from "./compress.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertTrustedUrl, assertOwnedReferenceImage } from "./url-guard";
 import { buildMimicMotionRequest, MOTION_TYPES, CAMERA_MOVEMENTS } from "./motion-workflows.server";
-import { computeCost } from "./pricing";
+import { computeCost, TEMPLATE_VIDEO_PRESET_FEE } from "./pricing";
+// Client-safe manifest (no *.server imports) — used to derive the video preset
+// fee from the template id the drawer sends, never from a client-sent amount.
+import { getStudioTemplate } from "./template-studio";
 import { isAdmin } from "./admin.server";
 import {
   resolvePreviewGate,
@@ -189,6 +192,13 @@ const VideoSchema = z.object({
    * owns. Without it the render is forced to a cheap 480p/≤5s preview.
    */
   confirmPreviewId: z.string().uuid().optional().nullable(),
+  /**
+   * Template Studio provenance: the drawer sends the manifest template id when
+   * a run is a one-tap video preset. The server derives the preset fee from
+   * the manifest (getStudioTemplate) — no fee value ever crosses the wire, so
+   * a client can neither forge a discount nor be overcharged.
+   */
+  templateId: z.string().max(100).optional().nullable(),
 }).refine(
   (data) => {
     // End-frame interpolation is a Kling-only feature.
@@ -249,14 +259,27 @@ async function _enqueueVideoFromImage(
   // Free GPU only mode: video has no $0 hosted fallback, so fail before charging
   // credits if no free worker is online (no paid provider can ever be reached).
   await assertFreeModeServable("video");
+  // Template Studio preset fee (owner-set 2026-08-13): running a curated video
+  // preset costs a flat premium on top of the metered stage cost. Derived
+  // SERVER-SIDE from the manifest — the client only names the template, so the
+  // reserved amount always matches what templateCost() displayed on the card.
+  let presetFee = 0;
+  if (data.templateId) {
+    const preset = getStudioTemplate(data.templateId);
+    if (!preset) throw new Error(`Unknown template "${data.templateId}"`);
+    if (preset.dispatch === "studio" && preset.kinds.includes("video")) {
+      presetFee = TEMPLATE_VIDEO_PRESET_FEE;
+    }
+  }
   // Model-tiered: premium video models cost more Aura so the render stays
   // profitable. Same computeCost the UI previews → preview == charge == refund.
-  const videoCost = computeCost({
-    features: ["video"],
-    model: data.modelKey,
-    durationSeconds: effDuration,
-    resolution: effResolution,
-  }).total;
+  const videoCost =
+    computeCost({
+      features: ["video"],
+      model: data.modelKey,
+      durationSeconds: effDuration,
+      resolution: effResolution,
+    }).total + presetFee;
   const out = await reserveGenerationJob(userId, "video", fullPrompt, videoCost, {
     kind: "video",
     model: data.modelKey,

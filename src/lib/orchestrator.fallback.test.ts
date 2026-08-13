@@ -73,6 +73,11 @@ mock.module("./replicate.server", () => ({
   pickReplicateUrl: (output: unknown) =>
     typeof output === "string" ? output : ((output as { url?: string })?.url ?? ""),
   fetchToBytes: async () => ({ bytes: Buffer.from(""), mime: "application/octet-stream" }),
+  // Progress parser (task #284) — orchestrator.server imports it at top level,
+  // so the stub MUST export it or this suite crashes at import time whenever it
+  // runs before any file that loads the real module (Bun mock.module is
+  // process-global; incomplete stubs are order-dependent breakage).
+  replicateProgressPct: () => null,
 }));
 mock.module("./sync.server", () => ({
   syncLipsync: (opts: { videoUrl: string; audioUrl: string; model?: string }) =>
@@ -99,6 +104,7 @@ const {
   FAL_IDENTITY_EDITS,
   getCandidateModels,
   EDIT_CAPABLE_IMAGE_MODELS,
+  NO_VIDEO_PROVIDER_MSG,
 } = await import("./orchestrator.server");
 
 // ─── fetch + clock helpers (same pattern as orchestrator.server.test.ts) ───────
@@ -174,6 +180,11 @@ const ENV_KEYS = [
   // inference.sh cloud adapter — must be cleared so it doesn't bleed through
   // from the Replit secret into tests that expect only specific providers.
   "INFERENCE_SH_API_KEY",
+  // Video-chain adapters (task #305 exhaustion tests): neither key exists in
+  // this workspace today, but scrub them so the "chain fully unconfigured"
+  // scenarios can never be leaked into by a future secret.
+  "LTX_API_KEY",
+  "RUNWAY_API_KEY",
 ] as const;
 const PROVIDER_NAMES = [
   "lovable",
@@ -345,6 +356,82 @@ describe("orchestrate fallback", () => {
     markFailure("runpod");
     const req: GenerateRequest = { kind: "audio", model: "elevenlabs/tts" };
     await expect(orchestrate(req)).rejects.toThrow(/No provider available for audio/);
+  });
+
+  // ─── Video chain exhaustion (task #305) ──────────────────────────────────────
+  // /orchestrate video must fail LOUDLY with one stable message when every
+  // candidate is exhausted — never a misleading raw last-provider error, and
+  // never the old silent Ken Burns soft-landing (ffmpeg-free is now gated on
+  // the explicit "ffmpeg-free-video" model pick).
+
+  it("unpinned video with nothing configured throws the stable no-video-provider error — and never soft-lands on ffmpeg-free", async () => {
+    const { calls } = installFetch(() => {
+      throw new Error("unexpected fetch — no hosted provider should be attempted");
+    });
+    const req: GenerateRequest = { kind: "video", prompt: "a fast car" };
+    // GPU pool is healthy but empty (supabase stub) → attempted + silently
+    // skipped; every hosted adapter lacks its key → chain exhausted.
+    await expect(orchestrate(req)).rejects.toThrow(
+      /No video provider available right now — try again or switch model/,
+    );
+    // Before the ffmpeg-free model gate, this request "succeeded" with a Ken
+    // Burns pan over a Pollinations still. Prove no image fetch was even tried.
+    expect(calls.some((c) => c.url.includes("pollinations"))).toBe(false);
+  });
+
+  it("unpinned video with the chain unconfigured AND the pool cooled keeps terminal-classifiable reasons in the suffix", async () => {
+    markFailure("runpod"); // cool the GPU pool → nothing at all can be tried
+    const req: GenerateRequest = { kind: "video", prompt: "a fast car" };
+    const err = await orchestrate(req).then(
+      () => null,
+      (e: Error) => e,
+    );
+    expect(err).not.toBeNull();
+    expect(err!.message.startsWith(NO_VIDEO_PROVIDER_MSG)).toBe(true);
+    // "missing config/key" must survive in the suffix: the job queue's
+    // classifyJobError treats this config-gap as terminal (refund) as before.
+    expect(err!.message).toContain("missing config/key");
+  });
+
+  it("unpinned video where a provider was tried and failed wraps the raw error under the stable message", async () => {
+    markFailure("runpod"); // keep the pool out so the last error is the provider's
+    process.env.XAI_API_KEY = "xk";
+    installFetch(() => fakeResponse({ ok: false, status: 400, text: "synthetic provider outage" }));
+    const req: GenerateRequest = {
+      kind: "video",
+      prompt: "a fast car",
+      model: "xai/grok-imagine-video-1.5",
+    };
+    const err = await orchestrate(req).then(
+      () => null,
+      (e: Error) => e,
+    );
+    expect(err).not.toBeNull();
+    expect(err!.message.startsWith(NO_VIDEO_PROVIDER_MSG)).toBe(true);
+    // Raw last-provider error preserved as a suffix: ops logs stay diagnosable
+    // and the job queue's terminal/transient classification sees the same tokens.
+    expect(err!.message).toContain("(last:");
+    expect(err!.message).toContain("400");
+  });
+
+  it("pinned video keeps the raw provider error — the wrap is for the fallback chain only", async () => {
+    process.env.XAI_API_KEY = "xk";
+    installFetch(() => fakeResponse({ ok: false, status: 400, text: "synthetic provider outage" }));
+    const req: GenerateRequest = {
+      kind: "video",
+      prompt: "a fast car",
+      model: "xai/grok-imagine-video-1.5",
+      pinnedModelOnly: true,
+    };
+    const err = await orchestrate(req).then(
+      () => null,
+      (e: Error) => e,
+    );
+    expect(err).not.toBeNull();
+    // The user chose THIS model: a rate-limit/outage on it must surface as
+    // such (accurate retry advice), not as "no video provider available".
+    expect(err!.message).not.toContain("No video provider available");
+    expect(err!.message).toContain("400");
   });
 
   it("aborts immediately on a FATAL request error without burning later fallbacks", async () => {

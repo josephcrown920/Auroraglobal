@@ -2758,7 +2758,14 @@ const hfVideo: ProviderAdapter = {
 // AI provider.
 const ffmpegFreeVideo: ProviderAdapter = {
   name: "ffmpeg-free",
-  supports: (r) => r.kind === "video" && !r.selfHostedOnly,
+  // EXPLICIT-ONLY (task #305): "ffmpeg-free-video" is the catalog id offered in
+  // the /orchestrate model picker. Without the model gate this adapter was a
+  // silent catch-all — any video request whose hosted providers all failed
+  // "succeeded" with a Ken Burns pan over a Pollinations still, a misleading
+  // non-AI-video result the free-GPU-only mode already refuses to serve
+  // (see isFreeAdapter). Users can still pick it deliberately; the router
+  // never falls back to it on its own.
+  supports: (r) => r.kind === "video" && !r.selfHostedOnly && r.model === "ffmpeg-free-video",
   estimateCost: () => 0,
   async run(r) {
     const tmpDir = nodefs.mkdtempSync(nodepath.join(nodeos.tmpdir(), "aurora-vid-"));
@@ -2860,7 +2867,7 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
     runway,
     inferenceshCloud, // inference.sh cloud: key-gated fallback after fal
     hfVideo,
-    ffmpegFreeVideo,  // free last resort: Pollinations image → ffmpeg Ken Burns MP4
+    ffmpegFreeVideo,  // EXPLICIT pick only ("ffmpeg-free-video"): Pollinations image → ffmpeg Ken Burns MP4 — never an automatic fallback
   ],
   lipsync: [gpuWorker, sync, heygen, heygenPhotoVideo, heygenAvatarTemplate, replicate, inferenceshCloud, falFallback],
   // GPU-first: a worker advertising "upscale" is tried before Replicate.
@@ -3217,6 +3224,19 @@ const GPU_UNAVAILABLE_RE = /^(No GPU workers available|All GPU workers failed)$/
 export const FREE_MODE_NO_WORKER_MSG =
   "Your free GPU isn't running right now — start your Colab/Kaggle worker and try again. (Free GPU only mode is on, so paid providers are disabled.)";
 
+// ─── Video chain exhaustion (task #305) ──────────────────────────────────────
+// When an UNPINNED video request exhausts every candidate model, the user must
+// see one stable "no video provider" error — not whichever raw provider error
+// happened to come last (a stray 429 would render as "busy, wait a moment",
+// implying a retry of the same dead chain will work). Pinned and self-hosted
+// requests keep their raw errors: those surfaces have their own accurate
+// messaging (rate-limit on the deliberately chosen model, "start your worker").
+// The suffixes appended at the throw sites preserve the underlying error tokens
+// so the job queue's terminal/transient classification and ops logs behave
+// exactly as before.
+export const NO_VIDEO_PROVIDER_MSG =
+  "No video provider available right now — try again or switch model.";
+
 function isFreeAdapter(a: ProviderAdapter, r: GenerateRequest): boolean {
   // The self-hosted pool runs on the owner's own hardware — always free of
   // external billing — and a $0 estimate marks a genuinely free hosted provider.
@@ -3375,6 +3395,12 @@ export async function orchestrate(rawReq: GenerateRequest): Promise<GenerateResu
     throw new Error(FREE_MODE_NO_WORKER_MSG);
   }
 
+  // Unpinned, non-self-hosted video: the /orchestrate fallback chain itself is
+  // exhausted — surface the stable user-facing error (task #305) instead of an
+  // arbitrary last provider error or a raw reasons dump.
+  const videoChainExhausted =
+    req.kind === "video" && !req.selfHostedOnly && !req.pinnedModelOnly;
+
   if (!triedAny) {
     const all = PRIORITY[req.kind];
     const reasons = all
@@ -3385,7 +3411,19 @@ export async function orchestrate(rawReq: GenerateRequest): Promise<GenerateResu
         return `${a.name}: ok`;
       })
       .join("; ");
+    if (videoChainExhausted) {
+      // Keep the reasons suffix: it carries "missing config/key", which the job
+      // queue's classifyJobError treats as terminal (refund) exactly as before.
+      throw new Error(`${NO_VIDEO_PROVIDER_MSG} — ${reasons}`);
+    }
     throw new Error(`No provider available for ${req.kind} → ${reasons}`);
+  }
+  if (videoChainExhausted) {
+    // Keep the last raw provider error as a suffix: ops logs stay diagnosable
+    // and the job queue's terminal/transient classification sees the same
+    // tokens (5xx → retry, 400/403 → terminal) it did when this threw lastErr.
+    const last = lastErr ? ` (last: ${lastErr.message.slice(0, 300)})` : "";
+    throw new Error(`${NO_VIDEO_PROVIDER_MSG}${last}`);
   }
   throw lastErr ?? new Error("All providers failed");
 }

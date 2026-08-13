@@ -9,6 +9,7 @@ export type GenErrorKind =
   | "insufficient_aura"
   | "daily_limit_reached"
   | "no_workers"
+  | "no_video_provider"
   | "out_of_credit"
   | "rate_limited"
   | "timeout"
@@ -39,6 +40,14 @@ export function classifyGenerationError(error: unknown): GenErrorKind {
   // The customer's own Aura balance (internal), not a provider issue.
   if (msg.includes("insufficient credits") || msg.includes("not enough aura")) {
     return "insufficient_aura";
+  }
+  // The orchestrator exhausted EVERY video candidate (task #305). Checked
+  // before the credit/rate-limit/no-workers buckets on purpose: the message
+  // carries the last raw provider error as a suffix (e.g. "(last: … 429 …)" or
+  // "(last: No GPU workers available)"), and retrying the same dead chain —
+  // what those messages suggest — won't help. Distinct advice: switch model.
+  if (msg.includes("no video provider available")) {
+    return "no_video_provider";
   }
   // Self-hosted-only features (lip-sync / motion) with no worker online.
   if (msg.includes("no gpu worker") || msg.includes("all gpu workers failed")) {
@@ -119,6 +128,7 @@ const GEN_MESSAGES: Record<Exclude<GenErrorKind, "unknown">, string> = {
   insufficient_aura: "Not enough Aura. Top up to generate.",
   daily_limit_reached: "You've hit your daily Aura limit for today.",
   no_workers: "This feature needs a GPU worker online. Try again once a worker is connected.",
+  no_video_provider: "No video provider available right now — try again or switch model.",
   out_of_credit: "The AI service is busy right now. Please wait a moment and try again.",
   rate_limited: "The image/video service is busy right now. Please wait a moment and try again.",
   timeout: "Generation took too long. Try a simpler prompt.",
@@ -156,6 +166,16 @@ export function handleGenerationError(error: unknown) {
     // account needs funding. The customer just sees a "busy, try again" message.
     console.error(
       "[PROVIDER] Generation provider returned an out-of-credit / low-balance throttle — top up the provider account.",
+      rawMessage(error),
+    );
+  }
+  if (kind === "no_video_provider") {
+    // Operational signal for the owner: the entire video fallback chain failed
+    // or is unconfigured. The raw message (incl. the last provider error, which
+    // may itself be a balance/quota issue) goes to the console; the customer
+    // sees only the stable "switch model" message.
+    console.error(
+      "[PROVIDER] Video chain exhausted — no provider could serve this request.",
       rawMessage(error),
     );
   }

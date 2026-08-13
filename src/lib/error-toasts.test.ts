@@ -106,6 +106,29 @@ describe("classifyGenerationError — provider dumps", () => {
     expect(classifyGenerationError(new Error("All providers failed"))).toBe("provider");
   });
 
+  test("video chain exhaustion maps to no_video_provider — suffix tokens must not drag it into other buckets (task #305)", () => {
+    const base = "No video provider available right now — try again or switch model.";
+    expect(classifyGenerationError(new Error(base))).toBe("no_video_provider");
+    // The server preserves the last raw provider error as a suffix. Its
+    // rate-limit / balance / GPU tokens must NOT reclassify the message:
+    // "wait and retry the same chain" (their advice) is exactly wrong here.
+    expect(
+      classifyGenerationError(new Error(`${base} (last: Fal 429: rate limit exceeded)`)),
+    ).toBe("no_video_provider");
+    expect(
+      classifyGenerationError(new Error(`${base} (last: No GPU workers available)`)),
+    ).toBe("no_video_provider");
+    expect(
+      classifyGenerationError(
+        new Error(
+          `${base} — runpod: cooling down after recent failure; fal: missing config/key for model "?"`,
+        ),
+      ),
+    ).toBe("no_video_provider");
+    // The generic non-video exhaustion strings stay in the provider bucket
+    // (asserted above) — only the video-specific message gets the new kind.
+  });
+
   test("owner misconfiguration errors map to provider, not leaked verbatim", () => {
     expect(classifyGenerationError(new Error("No Replicate mapping for kind lipsync"))).toBe("provider");
     expect(classifyGenerationError(new Error("No text model mapping configured"))).toBe("provider");

@@ -18,7 +18,7 @@
 // (SPIN_PIECE_COUNT × SPIN_PIECE_COST). This file is intentionally client-safe
 // and never imports a *.server module.
 
-import { computeCost, COST_UGC_AD, COST_AUTOCUT, type Resolution } from "./pricing";
+import { computeCost, COST_UGC_AD, COST_AUTOCUT, TEMPLATE_VIDEO_PRESET_FEE, type Resolution } from "./pricing";
 // SPIN_PIECE_COST intentionally not imported here: spin dispatch templates
 // navigate to /spin (no credit charge in the drawer) so templateCost returns 0.
 import { AUDIO_ACCEPT } from "./utils";
@@ -988,6 +988,10 @@ export function getStudioTemplate(id: string): StudioTemplate | undefined {
  *    The video stage is quoted at the FORCED PREVIEW PASS (480p, ≤5s) because the
  *    drawer never sends a confirmPreviewId — quoting the manifest's nominal
  *    resolution/duration here would overstate the real reservation.
+ *    Video presets additionally carry TEMPLATE_VIDEO_PRESET_FEE (owner-set,
+ *    2026-08-13): the drawer sends template.id and _enqueueVideoFromImage
+ *    derives the SAME fee from this manifest server-side, so the sticker and
+ *    the reservation cannot disagree.
  *  - ugc:  the flat COST_UGC_AD reserved by generateUGCAd.
  *  - spin: SPIN_PIECE_COUNT × SPIN_PIECE_COST — spinThirty charges the whole
  *    batch upfront (10 Aura per piece; failed pieces auto-refund their Aura).
@@ -1019,15 +1023,18 @@ export function templateCost(t: StudioTemplate): number {
     } else if (kind === "video") {
       // Drawer submits without confirmPreviewId → generateVideoFromImage forces
       // the preview pass. Quote exactly that charge, never the nominal 720p run.
-      total += computeCost({
-        features: ["video"],
-        model: t.videoModel ?? TEMPLATE_DEFAULTS.videoModel,
-        durationSeconds: Math.min(
-          t.durationSeconds ?? TEMPLATE_DEFAULTS.durationSeconds,
-          TEMPLATE_VIDEO_PREVIEW_MAX_SECONDS,
-        ),
-        resolution: TEMPLATE_VIDEO_PREVIEW_RESOLUTION,
-      }).total;
+      // The preset fee is genuinely reserved server-side (drawer passes
+      // template.id), so displaying it here keeps sticker == charge.
+      total +=
+        computeCost({
+          features: ["video"],
+          model: t.videoModel ?? TEMPLATE_DEFAULTS.videoModel,
+          durationSeconds: Math.min(
+            t.durationSeconds ?? TEMPLATE_DEFAULTS.durationSeconds,
+            TEMPLATE_VIDEO_PREVIEW_MAX_SECONDS,
+          ),
+          resolution: TEMPLATE_VIDEO_PREVIEW_RESOLUTION,
+        }).total + TEMPLATE_VIDEO_PRESET_FEE;
     } else if (kind === "lipsync") {
       total += computeCost({
         features: ["lipsync"],

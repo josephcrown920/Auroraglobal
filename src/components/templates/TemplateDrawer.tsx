@@ -225,6 +225,9 @@ export function TemplateDrawer({
             modelKey: template.videoModel ?? TEMPLATE_DEFAULTS.videoModel,
             cameraMovement: template.cameraMovement ?? "static",
             endFrameUrl: null,
+            // Preset provenance: the server derives the preset fee from the
+            // manifest for this id — keeps the card's sticker == the charge.
+            templateId: template.id,
           },
         });
 

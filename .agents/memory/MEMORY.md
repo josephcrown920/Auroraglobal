@@ -133,3 +133,4 @@
 - [Job progress semantics](job-progress-semantics.md) — provider pct bands 5–90 (seams 2/92), worker POSTs are job-absolute; processing+locked_by fences; claim stamps pct 2 to reset; reporter throttled/monotonic.
 - [Static public/ file shadows a dynamic route](static-public-file-shadows-route.md) — a same-path file in public/ (sitemap.xml etc.) silently wins over a TanStack server route; check/delete it before debugging the handler.
 - [Dev-only artifacts 500 on live site](artifact-missing-prod-service.md) — an artifact with no [services.production] block returns bare "Internal Server Error" for its path in prod (dev is fine); add a static-serve prod section built via replit-node.sh.
+- [Video chain exhaustion](video-chain-exhaustion.md) — unpinned video exhaustion = stable wrap msg (suffix keeps classify tokens); ffmpeg-free serves explicit pick only; toast bucket ordered before no_workers/429.

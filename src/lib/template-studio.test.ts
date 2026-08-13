@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { computeCost, COST_UGC_AD, COST_AUTOCUT } from "./pricing";
+import { computeCost, COST_UGC_AD, COST_AUTOCUT, TEMPLATE_VIDEO_PRESET_FEE } from "./pricing";
 import {
   STUDIO_TEMPLATES,
   CATEGORY_ORDER,
@@ -28,15 +28,18 @@ function expectedStudioCost(t: StudioTemplate): number {
       // The drawer never sends confirmPreviewId, so the video stage is ALWAYS the
       // forced preview pass — derive from the CANONICAL server gate constants so
       // this test fails if templateCost's client-safe mirrors ever drift.
-      total += computeCost({
-        features: ["video"],
-        model: t.videoModel ?? TEMPLATE_DEFAULTS.videoModel,
-        durationSeconds: Math.min(
-          t.durationSeconds ?? TEMPLATE_DEFAULTS.durationSeconds,
-          PREVIEW_MAX_SECONDS,
-        ),
-        resolution: PREVIEW_RESOLUTION,
-      }).total;
+      // The drawer also always sends template.id, so _enqueueVideoFromImage adds
+      // the manifest-derived preset fee to the reservation — mirror it here.
+      total +=
+        computeCost({
+          features: ["video"],
+          model: t.videoModel ?? TEMPLATE_DEFAULTS.videoModel,
+          durationSeconds: Math.min(
+            t.durationSeconds ?? TEMPLATE_DEFAULTS.durationSeconds,
+            PREVIEW_MAX_SECONDS,
+          ),
+          resolution: PREVIEW_RESOLUTION,
+        }).total + TEMPLATE_VIDEO_PRESET_FEE;
     } else if (k === "lipsync") {
       total += computeCost({
         features: ["lipsync"],
@@ -127,6 +130,22 @@ describe("template-studio manifest", () => {
     for (const t of studio) {
       expect(templateCost(t)).toBe(expectedStudioCost(t));
     }
+  });
+
+  it("a default video preset run quotes the owner-approved 110 Aura sticker (metered preview + preset fee)", () => {
+    // Owner decision 2026-08-13: video preset runs cost 110 Aura — the metered
+    // image + forced-preview video stages (60) plus the flat 50 Aura preset fee,
+    // genuinely reserved server-side. If base pricing changes, this number is a
+    // deliberate product decision to revisit, not a constant to silently bump.
+    const t = {
+      id: "sticker-check",
+      title: "sticker",
+      category: "Viral",
+      kinds: ["image", "video"],
+      dispatch: "studio",
+    } as unknown as StudioTemplate;
+    expect(TEMPLATE_VIDEO_PRESET_FEE).toBe(50);
+    expect(templateCost(t)).toBe(110);
   });
 
   it("every advertised Viral Preset tag resolves to a real, runnable template", () => {

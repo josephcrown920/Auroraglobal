@@ -421,6 +421,15 @@ export type DetectInput = {
 /** AutoCut: multi-clip assembly job. */
 export const COST_AUTOCUT = 80;
 
+/** Template Studio video preset fee (owner-set 2026-08-13): running a curated
+ *  one-tap VIDEO preset costs this flat premium on top of the metered stage
+ *  costs, restoring the 110 Aura sticker (60 metered preview + 50 fee) as a
+ *  genuinely-charged price. Charged only when the drawer names a
+ *  studio-dispatch template whose kinds include "video" — the server derives
+ *  the fee from the manifest (never from a client-sent amount), and
+ *  templateCost() adds the same constant so sticker == reservation. */
+export const TEMPLATE_VIDEO_PRESET_FEE = 50;
+
 /** Talking UGC ad: xAI fast path (image→video + mandatory relip to voice track).
  *  Tracks the underlying xAI video (standard, 200) + relip (premium lip-sync,
  *  90) stack — kept slightly below the raw sum as a bundle. */

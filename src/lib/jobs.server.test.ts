@@ -917,6 +917,23 @@ describe("classifyJobError", () => {
       expect(classifyJobError(m)).toBe("terminal");
     }
   });
+
+  it("video-chain-exhaustion errors classify by their preserved suffix (task #305)", () => {
+    // Config gap (nothing could even be tried): the reasons suffix carries
+    // "missing config/key" → terminal, so the reservation refunds as before.
+    expect(
+      classifyJobError(
+        'No video provider available right now — try again or switch model. — runpod: cooling down after recent failure; fal: missing config/key for model "?"',
+      ),
+    ).toBe("terminal");
+    // Transient outage: the last raw error is a 5xx → retry later, exactly as
+    // when orchestrate() threw the bare lastErr.
+    expect(
+      classifyJobError(
+        "No video provider available right now — try again or switch model. (last: Fal 503: upstream capacity)",
+      ),
+    ).toBe("transient");
+  });
 });
 
 describe("nextRetryAt", () => {
