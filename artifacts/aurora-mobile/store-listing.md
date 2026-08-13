@@ -179,7 +179,7 @@ Suggested screenshot sequence:
 
 ---
 
-## Submission Readiness Status (updated 2026-07-22)
+## Submission Readiness Status (updated 2026-08-13)
 
 | Item | Status |
 |---|---|
@@ -193,11 +193,14 @@ Suggested screenshot sequence:
 | EAS CLI authenticated (EXPO_TOKEN) | ✅ Account `nbajosh` / org `nbajoshs-organization` |
 | **Android production AAB** | ✅ Build `1c5efc61` finished 2026-07-21 — ready to submit |
 | `eas.json` production profiles | ✅ Android AAB + iOS store distribution + submit config |
-| Screenshots | ⬜ Capture on a real device — see `store/submission-guide.md` for resolutions |
+| `.gitignore` excludes service account key | ✅ `google-play-service-account.json` excluded |
+| Google Play Developer account | ⬜ **Required first** — $25 one-time fee at play.google.com/console/signup |
+| Screenshots (5 screens, 1080×1920) | ⬜ Capture on a real device — see `store/submission-guide.md` for resolutions |
 | `google-play-service-account.json` | ⬜ Create from Google Play Console → `artifacts/aurora-mobile/google-play-service-account.json` |
+| **Android Play Store submission** | ⬜ Run `eas submit --platform android --id 1c5efc61-5ec9-47d8-a26b-26a079732e63` after service account key |
+| Pre-launch report checks | ⬜ Review in Play Console after internal track upload — see submission guide |
 | Apple `ascAppId` + `appleTeamId` in `eas.json` | ⬜ Fill in from App Store Connect + developer.apple.com |
 | iOS production build | ⬜ Run `eas build --platform ios --profile production` after Apple credentials |
-| Android Play Store submission | ⬜ Run `eas submit --platform android --id 1c5efc61-5ec9-47d8-a26b-26a079732e63` after service account key |
 | iOS App Store submission | ⬜ Run `eas submit --platform ios --latest` after iOS build |
 
 ---
