@@ -65,7 +65,7 @@ const STUDIO_FEATURES: Feature[] = [
   { to: "/likeness",        label: "Locked Likeness Shoot", icon: Camera,   previewImg: "/nav-previews/avatar.jpg",        badge: "New" },
   { to: "/directors-board", label: "Directors Board",       icon: Layers,   previewImg: "/nav-previews/scene-builder.jpg", badge: "New" },
   { to: "/scene-builder",   label: "Scene Builder",         icon: Layers,   previewImg: "/nav-previews/scene-builder.jpg" },
-  { to: "/agent",           label: "AI Creative Agent",     icon: Sparkles, badge: "New" },
+  { to: "/agent",           label: "Video Agent",           icon: Film,     badge: "New" },
 ];
 
 // ── Music & audio ──────────────────────────────────────────────────────────
