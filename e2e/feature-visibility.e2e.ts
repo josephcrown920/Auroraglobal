@@ -5,15 +5,20 @@
  *
  *  1. Admin opens /admin → Features tab → TikTok30 (Spin) toggle is OFF (hidden).
  *  2. Admin flips the toggle → toast "Now visible to regular users" appears,
- *     switch reflects the new state (aria-checked=true), and the landing page's
- *     ViralEngine section becomes visible without a manual reload (the
- *     FEATURE_VISIBILITY_REFRESH_EVENT propagation is what we're proving).
- *  3. A regular (non-admin) user visiting /spin while it is HIDDEN is redirected
- *     to /studio (FeatureGuard does this).
- *  4. After the admin makes it visible, the same user can load /spin without
- *     being redirected.
- *  5. Admin resets to defaults → toast "…reset to artist-only defaults" appears,
- *     switch goes back to OFF, and /spin redirects the regular user again.
+ *     switch reflects the new state (aria-checked=true), and the
+ *     FEATURE_VISIBILITY_REFRESH_EVENT is dispatched (send side of the
+ *     no-reload refresh mechanism).
+ *  3. Receive side: an ANONYMOUS visitor with the landing page already mounted
+ *     sees the ViralEngine section appear when the refresh event fires after
+ *     the flip — with zero document reloads (proven via a window marker).
+ *     Admins can't prove this (showFeature() returns true for admins always),
+ *     which is why this scenario signs out first.
+ *  4. A regular (non-admin) user visiting /spin while it is HIDDEN is redirected
+ *     to /studio (FeatureGuard does this); after the admin makes it visible, the
+ *     same user can load /spin without being redirected; after reset they are
+ *     redirected again.
+ *  5. Admin resets to defaults in the browser → toast "…reset to artist-only
+ *     defaults" appears and the switch goes back to OFF.
  *
  * Two Supabase users are provisioned:
  *   • adminUser  — granted the `admin` role so they can unlock /admin.
@@ -126,6 +131,12 @@ async function getAccessToken(page: Page): Promise<string | null> {
 
 const API_BASE = `http://localhost:${process.env.PORT ?? "8080"}`;
 
+/** Must match FEATURE_VISIBILITY_REFRESH_EVENT in
+ *  src/components/FeatureVisibilityProvider.tsx. Hardcoded (e2e files do not
+ *  resolve the app's "@/" alias); if the constant is ever renamed both
+ *  event-driven tests below fail loudly, pointing straight here. */
+const REFRESH_EVENT = "aurora:feature-visibility-refresh";
+
 /** POST to the admin feature-visibility API with a bearer token. */
 async function featureVisibilityPost(
   page: Page,
@@ -159,27 +170,51 @@ test.beforeAll(async () => {
   if (adminErr || !adminData.user) throw new Error(`Failed to create admin user: ${adminErr?.message}`);
   adminUserId = adminData.user.id;
 
-  const { error: roleErr } = await adminClient
-    .from("user_roles")
-    .insert({ user_id: adminUserId, role: "admin" });
-  if (roleErr) throw new Error(`Failed to grant admin role: ${roleErr.message}`);
+  try {
+    const { error: roleErr } = await adminClient
+      .from("user_roles")
+      .insert({ user_id: adminUserId, role: "admin" });
+    if (roleErr) throw new Error(`Failed to grant admin role: ${roleErr.message}`);
 
-  // Create regular user
-  regularEmail = `feat-regular-e2e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@aurora-sandbox-qa.com`;
-  const { data: regData, error: regErr } = await adminClient.auth.admin.createUser({
-    email: regularEmail,
-    password: TEST_PASSWORD,
-    email_confirm: true,
-    user_metadata: { display_name: "Feat Regular E2E" },
-  });
-  if (regErr || !regData.user) throw new Error(`Failed to create regular user: ${regErr?.message}`);
-  regularUserId = regData.user.id;
+    // Create regular user
+    regularEmail = `feat-regular-e2e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@aurora-sandbox-qa.com`;
+    const { data: regData, error: regErr } = await adminClient.auth.admin.createUser({
+      email: regularEmail,
+      password: TEST_PASSWORD,
+      email_confirm: true,
+      user_metadata: { display_name: "Feat Regular E2E" },
+    });
+    if (regErr || !regData.user) throw new Error(`Failed to create regular user: ${regErr?.message}`);
+    regularUserId = regData.user.id;
+  } catch (err) {
+    // Partial provisioning: remove whatever was created so a failed setup
+    // never leaks users/roles into the shared environment.
+    await adminClient.from("user_roles").delete().eq("user_id", adminUserId);
+    await adminClient.auth.admin.deleteUser(adminUserId).catch(() => {});
+    throw err;
+  }
 });
 
 test.afterAll(async () => {
-  // Best-effort cleanup — do not throw if already gone
+  // Best-effort cleanup — do not throw if already gone.
+  // NOTE: supabase-js query builders are thenables without .catch(); await them
+  // directly (they resolve { error } rather than throwing).
+
+  // Feature visibility is SHARED persistent state. Tests flip spin visible
+  // mid-flow; if a run aborts there, regular users would keep seeing it.
+  // Mirror resetFeatureVisibility() (writeOverrides({}) upsert) exactly so
+  // teardown always restores artist-only defaults, whatever state we died in.
+  await adminClient.from("app_settings").upsert(
+    {
+      key: "feature_visibility",
+      value: {},
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "key" },
+  );
+
   if (adminUserId) {
-    await adminClient.from("user_roles").delete().eq("user_id", adminUserId).catch(() => {});
+    await adminClient.from("user_roles").delete().eq("user_id", adminUserId);
     await adminClient.auth.admin.deleteUser(adminUserId).catch(() => {});
   }
   if (regularUserId) {
@@ -194,46 +229,12 @@ test.describe("Feature visibility — admin Features panel", () => {
     // Sign in as admin to get a bearer token, then reset feature state via API
     // so every test starts from the artist-only defaults (spin = hidden).
     await signIn(page, adminEmail);
-    const session = await page.evaluate(async () => {
-      // The app stores the Supabase session in localStorage. We pull the access
-      // token directly so we can call the reset API without a browser round-trip.
-      const keys = Object.keys(localStorage).filter(
-        (k) => k.startsWith("sb-") || k.includes("supabase"),
-      );
-      for (const k of keys) {
-        try {
-          const parsed = JSON.parse(localStorage.getItem(k) ?? "");
-          const token =
-            parsed?.access_token ??
-            parsed?.currentSession?.access_token ??
-            parsed?.session?.access_token;
-          if (token) return token as string;
-        } catch {
-          /* skip */
-        }
-      }
-      return null as string | null;
-    });
-
-    if (session) {
-      // Reset via API with the real bearer token
-      const port = process.env.PORT ?? "8080";
-      const res = await page.request.post(
-        `http://localhost:${port}/api/admin/feature-visibility`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session}`,
-          },
-          data: { reset: true },
-        },
-      );
-      // 200 = ok; any other status means reset failed — log but don't throw so
-      // tests can still tell us what went wrong.
-      if (!res.ok()) {
-        console.warn(`beforeEach reset returned HTTP ${res.status()}`);
-      }
+    const token = await getAccessToken(page);
+    if (!token) {
+      throw new Error("beforeEach: could not extract Supabase access token after admin sign-in");
     }
+    // Fail loudly — a silent failed reset would make every assertion below lie.
+    await featureVisibilityPost(page, token, { reset: true });
     // Leave admin signed in for the actual test body.
   });
 
@@ -254,7 +255,7 @@ test.describe("Feature visibility — admin Features panel", () => {
     await expect(spinSwitch).toHaveAttribute("aria-checked", "false");
   });
 
-  test("admin flips TikTok30 visible → toast appears, toggle turns ON, landing ViralEngine becomes visible", async ({ page }) => {
+  test("admin flips TikTok30 visible → toast appears, toggle turns ON, refresh event fires", async ({ page }) => {
     await page.goto("/admin");
     await page.waitForLoadState("networkidle");
 
@@ -268,6 +269,16 @@ test.describe("Feature visibility — admin Features panel", () => {
     });
     await spinSwitch.waitFor({ state: "visible", timeout: 10_000 });
     await expect(spinSwitch).toHaveAttribute("aria-checked", "false");
+
+    // Install a listener BEFORE the flip so we can prove the admin panel
+    // dispatches the refresh event (the send side of the live-update contract).
+    await page.evaluate((evt) => {
+      (window as unknown as Record<string, unknown>).__featRefreshCount = 0;
+      window.addEventListener(evt, () => {
+        const w = window as unknown as Record<string, number>;
+        w.__featRefreshCount = (w.__featRefreshCount ?? 0) + 1;
+      });
+    }, REFRESH_EVENT);
 
     // Flip it visible
     await spinSwitch.click();
@@ -283,19 +294,63 @@ test.describe("Feature visibility — admin Features panel", () => {
       page.getByRole("switch", { name: /TikTok30/i }),
     ).toHaveAttribute("aria-checked", "true", { timeout: 8_000 });
 
-    // Navigate to the landing page (same tab — FeatureVisibilityProvider
-    // received the FEATURE_VISIBILITY_REFRESH_EVENT from the admin panel,
-    // and /api/public/feature-visibility will return the updated state on reload).
+    // The refresh event must have fired at least once (this is what lets an
+    // already-mounted landing page update without a reload).
+    await expect
+      .poll(
+        () =>
+          page.evaluate(
+            () => (window as unknown as Record<string, number>).__featRefreshCount,
+          ),
+        { timeout: 5_000 },
+      )
+      .toBeGreaterThan(0);
+  });
+
+  test("already-mounted landing reveals the TikTok30 section via the refresh event with zero reloads", async ({
+    page,
+  }) => {
+    // Capture the admin token first, then become an anonymous visitor —
+    // showFeature() returns true unconditionally for admins, so only a
+    // non-admin viewer can prove the section actually toggles.
+    const adminToken = await getAccessToken(page);
+    if (!adminToken) throw new Error("could not extract admin access token");
+    await signOut(page);
+
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    // The ViralEngine section is rendered when showFeature("spin") is true.
-    // It contains the heading text from ViralEngine.tsx.
-    const viralSection = page.locator("section, div").filter({
-      hasText: /TikTok|Viral|Spin/i,
-    }).first();
-    await viralSection.waitFor({ state: "visible", timeout: 12_000 });
-    await expect(viralSection).toBeVisible();
+    // Spin is hidden (beforeEach reset) → ViralEngine must be absent.
+    // NOTE: "Go viral on TikTok" is NOT unique — HeroContactForm (ungated)
+    // renders it too. "See your 50 posts." exists only in ViralEngine.tsx.
+    const viralHeading = page.getByText("See your 50 posts.");
+    await expect(viralHeading).toHaveCount(0);
+
+    // Marker proves no document reload happens from here on.
+    await page.evaluate(() => {
+      (window as unknown as Record<string, unknown>).__noReloadMarker = true;
+    });
+
+    // Admin flips spin visible via the API (explicit bearer token, so the
+    // anonymous browser session is irrelevant).
+    await featureVisibilityPost(page, adminToken, { key: "spin", visible: true });
+
+    // Fire the same event the admin panel dispatches after a successful
+    // mutation. FeatureVisibilityProvider listens for it and refetches.
+    await page.evaluate((evt) => {
+      window.dispatchEvent(new Event(evt));
+    }, REFRESH_EVENT);
+
+    // The lazily-loaded ViralEngine section must appear — no navigation,
+    // no reload, purely the provider refetch + conditional render.
+    await expect(viralHeading).toBeVisible({ timeout: 15_000 });
+
+    // And the marker must have survived (i.e. genuinely zero reloads).
+    expect(
+      await page.evaluate(
+        () => (window as unknown as Record<string, unknown>).__noReloadMarker,
+      ),
+    ).toBe(true);
   });
 
   test("regular user visiting /spin while hidden is redirected to /studio", async ({ page }) => {
@@ -311,10 +366,47 @@ test.describe("Feature visibility — admin Features panel", () => {
 
   test("regular user can load /spin after admin makes it visible, then is redirected again after reset", async ({
     page,
-    context,
   }) => {
-    // Step 1: admin makes spin visible
-    // (admin is already signed in from beforeEach — page is on /admin or /)
+    // Multi-phase test (two sign-ins + three navigations) — needs more headroom
+    // than the default 60s. A second page in the same context CANNOT be used for
+    // the regular user (context pages share localStorage → the admin session
+    // would leak into the "regular" tab and /auth would redirect away).
+    test.setTimeout(120_000);
+
+    // Step 1: capture the admin bearer token, then flip spin visible via the
+    // admin API. page.request sends the token explicitly, so these calls keep
+    // working even after the browser tab signs out of the admin account.
+    // (The browser toggle flow itself is covered by the previous tests.)
+    const adminToken = await getAccessToken(page);
+    if (!adminToken) throw new Error("could not extract admin access token");
+    await featureVisibilityPost(page, adminToken, { key: "spin", visible: true });
+
+    // Step 2: become the regular user in the same tab and verify /spin loads
+    await signOut(page);
+    await signIn(page, regularEmail);
+    await page.goto("/spin");
+    await page.waitForLoadState("networkidle");
+
+    // Should NOT redirect — we must still be on /spin after hydration settles
+    await expect(page).toHaveURL(/\/spin/, { timeout: 15_000 });
+
+    // Step 3: reset to defaults via API (admin token still valid) → hidden again
+    await featureVisibilityPost(page, adminToken, { reset: true });
+
+    // Step 4: regular user navigates to /spin again → redirected to /studio
+    await page.goto("/spin");
+    await page.waitForURL(/\/studio/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/studio/);
+  });
+
+  test("admin Reset to defaults button hides TikTok30 again with a confirmation toast", async ({
+    page,
+  }) => {
+    // Make spin visible first (via API) so the reset actually changes state.
+    const adminToken = await getAccessToken(page);
+    if (!adminToken) throw new Error("could not extract admin access token");
+    await featureVisibilityPost(page, adminToken, { key: "spin", visible: true });
+
     await page.goto("/admin");
     await page.waitForLoadState("networkidle");
 
@@ -322,50 +414,20 @@ test.describe("Feature visibility — admin Features panel", () => {
     await featuresTab.waitFor({ state: "visible", timeout: 15_000 });
     await featuresTab.click();
 
+    // Switch should show ON (visible) after the API flip
     const spinSwitch = page.getByRole("switch", { name: /TikTok30/i });
     await spinSwitch.waitFor({ state: "visible", timeout: 10_000 });
+    await expect(spinSwitch).toHaveAttribute("aria-checked", "true");
 
-    // Only flip if currently hidden
-    const isHidden = (await spinSwitch.getAttribute("aria-checked")) === "false";
-    if (isHidden) {
-      await spinSwitch.click();
-      await expect(page.getByText(/now visible to regular users/i)).toBeVisible({
-        timeout: 8_000,
-      });
-      await expect(spinSwitch).toHaveAttribute("aria-checked", "true", {
-        timeout: 8_000,
-      });
-    }
-
-    // Step 2: open a second page as the regular user and verify /spin loads
-    const regularPage = await context.newPage();
-    await signIn(regularPage, regularEmail);
-    await regularPage.goto("/spin");
-    await regularPage.waitForLoadState("networkidle");
-
-    // Should NOT redirect — spin content should be visible
-    await expect(regularPage).toHaveURL(/\/spin/, { timeout: 15_000 });
-
-    // Step 3: admin resets to defaults → spin hidden again
-    await page.bringToFront();
+    // Click "Reset to defaults" → toast + switch OFF
     const resetBtn = page.getByRole("button", { name: /reset to defaults/i });
     await resetBtn.waitFor({ state: "visible" });
     await resetBtn.click();
     await expect(
       page.getByText(/reset to artist-only defaults/i),
     ).toBeVisible({ timeout: 8_000 });
-
-    // Switch should be OFF again
     await expect(spinSwitch).toHaveAttribute("aria-checked", "false", {
       timeout: 8_000,
     });
-
-    // Step 4: regular user navigates to /spin again → redirected to /studio
-    await regularPage.bringToFront();
-    await regularPage.goto("/spin");
-    await regularPage.waitForURL(/\/studio/, { timeout: 15_000 });
-    await expect(regularPage).toHaveURL(/\/studio/);
-
-    await regularPage.close();
   });
 });

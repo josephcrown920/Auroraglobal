@@ -58,12 +58,29 @@ import thumbUrbanAlley from "@/assets/generated_thumbs/urban-alley.jpg";
 import thumbUrbanSubway from "@/assets/generated_thumbs/urban-subway.jpg";
 import ugcCarProductHold from "@/assets/ugc/ugc-car-product-hold.webp.asset.json";
 import ugcHomeSelfie from "@/assets/ugc/ugc-home-selfie.webp.asset.json";
+import thumbViralBulletTime from "@/assets/generated_thumbs/viral-bullet-time.jpg";
+import thumbViralMoonwalk from "@/assets/generated_thumbs/viral-moonwalk.jpg";
+import thumbViralEarthZoom from "@/assets/generated_thumbs/viral-earth-zoom.jpg";
+import thumbViralColdVision from "@/assets/generated_thumbs/viral-cold-vision.jpg";
+import thumbViralBrokenMirror from "@/assets/generated_thumbs/viral-broken-mirror.jpg";
+import thumbViralFragments from "@/assets/generated_thumbs/viral-fragments.jpg";
+import thumbViralPalette from "@/assets/generated_thumbs/viral-palette.jpg";
+import thumbViralInkRiot from "@/assets/generated_thumbs/viral-ink-riot.jpg";
+import thumbViralFallenAngel from "@/assets/generated_thumbs/viral-fallen-angel.jpg";
+import thumbViralAgamemnon from "@/assets/generated_thumbs/viral-agamemnon.jpg";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export type TemplateInputKind = "image" | "audio" | "text";
 
-/** The six spec categories, in display order. */
-export type TemplateCategory = "Lip-sync" | "Motion" | "UGC/Ad" | "Spin" | "Kids" | "Editing";
+/** The seven spec categories, in display order. */
+export type TemplateCategory =
+  | "Viral"
+  | "Lip-sync"
+  | "Motion"
+  | "UGC/Ad"
+  | "Spin"
+  | "Kids"
+  | "Editing";
 
 /**
  * Orchestrator kinds a template routes through. `image` / `video` / `lipsync`
@@ -161,6 +178,14 @@ export { COST_UGC_AD, COST_AUTOCUT };
 // Batch size for the Spin experience — every "1 → N" label reads from this.
 export const SPIN_PIECE_COUNT = 50; // === SPIN_COUNT in spin-engine.ts
 
+// The template drawer submits the studio video stage WITHOUT a confirmPreviewId,
+// so the preview-confirm gate (cost-guardrails.server.ts) always forces the cheap
+// preview pass — 480p, capped at 5s — and charges exactly that. Client-safe
+// mirrors of PREVIEW_RESOLUTION / PREVIEW_MAX_SECONDS (this module must never
+// import a *.server file); parity is asserted in template-studio.test.ts.
+export const TEMPLATE_VIDEO_PREVIEW_RESOLUTION: Resolution = "480p";
+export const TEMPLATE_VIDEO_PREVIEW_MAX_SECONDS = 5;
+
 const IDENTITY =
   "Preserve the exact facial likeness, skin tone, hair and identity from the uploaded reference photo with no drift.";
 
@@ -188,6 +213,179 @@ const TXT = (label: string, required: boolean, hint?: string): TemplateInput => 
 
 // ── Manifest ─────────────────────────────────────────────────────────────────
 export const STUDIO_TEMPLATES: StudioTemplate[] = [
+  // ───────────── Viral ─────────────
+  // One-tap viral effect presets: your photo → an identity-locked styled still →
+  // a short animated clip. Same studio chain as Motion, bolder looks.
+  {
+    id: "bullet-time",
+    title: "Bullet Time",
+    category: "Viral",
+    blurb: "Time freezes around you while the camera keeps circling.",
+    thumbnail: thumbViralBulletTime,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [IMG("Your photo", "A clear photo of you — face visible")],
+    imagePrompt: `Cinematic vertical 9:16 film still inside a retro 1950s American diner: the subject sits in a red vinyl booth mid-gesture while everything around them is frozen in a single instant — a waitress frozen mid-stride carrying a plate, a splash of spilled milkshake hanging in the air, checkered floor, chrome stools, warm neon window light. Crystal-sharp frozen-moment realism. ${IDENTITY} Photorealistic, 4K. No text, no watermark.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "Bullet-time effect: the entire scene stays perfectly frozen — the waitress mid-stride, the milkshake splash suspended in the air — while the camera sweeps in a smooth continuous arc around the subject, who slowly turns their head to follow the camera with a calm confident gaze.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "orbit_cw",
+  },
+  {
+    id: "moonwalk",
+    title: "Moonwalk",
+    category: "Viral",
+    blurb: "Stroll across a handcrafted moon among hanging golden stars.",
+    thumbnail: thumbViralMoonwalk,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [IMG("Your photo")],
+    imagePrompt: `Whimsical vertical 9:16 theatrical stage photograph: the subject wearing a delicate golden crown walks along the top of a giant handcrafted paper-mâché moon, surrounded by golden foil stars hanging from visible strings, dreamy deep-blue velvet curtain backdrop, soft warm stage spotlight, surreal storybook set design, gentle film grain. ${IDENTITY} No text, no watermark.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "The subject strolls dreamily along the curve of the handcrafted moon, arms relaxed, while golden stars sway gently on their strings and the spotlight shimmers, whimsical and surreal, slow steady camera drift.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "push_in",
+  },
+  {
+    id: "earth-zoom",
+    title: "Earth Zoom",
+    category: "Viral",
+    blurb: "One continuous shot: from your face to Earth orbit.",
+    thumbnail: thumbViralEarthZoom,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [IMG("Your photo")],
+    imagePrompt: `Vertical 9:16 dramatic aerial photograph looking down at the subject standing alone in the middle of a city rooftop, arms slightly out, the city grid spreading in every direction below, late-afternoon sun casting long shadows, epic scale, satellite-view energy. ${IDENTITY} Photorealistic, 4K. No text, no watermark.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "Iconic earth-zoom effect: the camera rockets straight up and away from the subject in one continuous accelerating pull-back — rooftop, city blocks, coastline, cloud layer — until the curved horizon and glowing atmosphere of Earth fill the frame, the subject a vanishing dot at the center.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "pull_out",
+  },
+  {
+    id: "cold-vision",
+    title: "Cold Vision",
+    category: "Viral",
+    blurb: "Cold neon shadow lighting — an electric x-ray glow.",
+    thumbnail: thumbViralColdVision,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [IMG("Your photo")],
+    imagePrompt: `Vertical 9:16 striking inverted-negative portrait of the subject against a pure black void: their figure glows in cold icy blue-white like a thermal x-ray photograph, edges burning with electric neon rim light, deep shadows carved across the face, ghostly high-contrast film-negative aesthetic, ultra sharp. ${IDENTITY} No text, no watermark.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "The cold blue-white glow pulses slowly across the subject's figure like a heartbeat of light, wisps of electric aura drifting off the shoulders, the subject shifts pose slightly and stares into camera, hypnotic and icy, locked-off frame.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "static",
+  },
+  {
+    id: "broken-mirror",
+    title: "Broken Mirror",
+    category: "Viral",
+    blurb: "Your moment shattered into a hundred reflecting angles.",
+    thumbnail: thumbViralBrokenMirror,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [
+      IMG("Your photo"),
+      TXT("Backdrop", false, "e.g. a blood-red backdrop behind the shards — default deep black"),
+    ],
+    imagePrompt: `Vertical 9:16 cinematic portrait of the subject seen through a shattered mirror: the frame fractured into sharp triangular shards, each shard reflecting the subject's face and surroundings from a slightly different angle, deep dark cracks between the shards catching thin edges of light, dramatic moody lighting. ${IDENTITY} Photorealistic, 4K. No text, no watermark.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "The mirror shards shift subtly in parallax as light sweeps across their edges, each fragment's reflection moving a beat out of sync with the others, the subject slowly raises their gaze into camera, tense and cinematic.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "orbit_ccw",
+  },
+  {
+    id: "fragments",
+    title: "Fragments",
+    category: "Viral",
+    blurb: "Layered abstract fragments weaving through your shot.",
+    thumbnail: thumbViralFragments,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [
+      IMG("Your photo"),
+      TXT("Fragment colours", false, "e.g. red and cream fragments — default black & white"),
+    ],
+    imagePrompt: `Vertical 9:16 bold graphic collage: a high-contrast black-and-white photograph of the subject in an energetic pose, overlaid with large abstract camouflage-blob cutout shapes weaving in FRONT of and BEHIND the subject in layered depth, paper-collage texture, loud editorial zine design, punchy and rhythmic. ${IDENTITY} No text, no watermark.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "The abstract fragment layers drift and slide in opposing directions with parallax depth, weaving in front of and behind the subject like moving paper cutouts, while the subject moves with confident energy, snappy stop-motion collage feel.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "static",
+  },
+  {
+    id: "palette",
+    title: "Palette",
+    category: "Viral",
+    blurb: "Become a living oil painting, stroke by stroke.",
+    thumbnail: thumbViralPalette,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [
+      IMG("Your photo"),
+      TXT("Paint style", false, "e.g. spray-paint mural style — default thick oil impasto"),
+    ],
+    imagePrompt: `Vertical 9:16 portrait of the subject rendered as a thick impasto oil painting: heavy sculpted brush strokes with visible ridges of paint, rich layered texture, warm gallery light raking across the canvas surface, painterly masterpiece energy while the likeness stays unmistakable. ${IDENTITY} No text, no watermark.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "The painting comes alive: brush strokes ripple and re-paint themselves stroke by stroke across the moving subject, paint texture shimmering in the raking light, a low-frame-rate hand-painted animation feel, mesmerizing and tactile.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "push_in",
+  },
+  {
+    id: "ink-riot",
+    title: "Ink Riot",
+    category: "Viral",
+    blurb: "Black-and-white you, exploding through red ink.",
+    thumbnail: thumbViralInkRiot,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [IMG("Your photo")],
+    imagePrompt: `Vertical 9:16 high-contrast black-and-white photograph of the subject in explosive motion, set against a deep blood-red backdrop of a rough-painted city skyline, black ink splatters and aggressive brush strokes bursting around the figure, gritty street-art collage, raw kinetic energy. ${IDENTITY} No text, no watermark.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "Ink splatters bloom and drip in real time around the subject as they move with explosive energy, red backdrop pulsing, black strokes slashing in and dissolving, aggressive music-video rhythm.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "push_in",
+  },
+  {
+    id: "fallen-angel",
+    title: "Fallen Angel",
+    category: "Viral",
+    blurb: "Renaissance wings, dusk ocean, cinematic melancholy.",
+    thumbnail: thumbViralFallenAngel,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [IMG("Your photo")],
+    imagePrompt: `Vertical 9:16 renaissance-painting-style photograph of the subject with large white feathered angel wings, draped flowing white fabric, standing on dark rocks at the edge of a moody dusk ocean, painterly golden-hour light breaking through heavy clouds, melancholic and breathtaking, old-master composition. ${IDENTITY} No text, no watermark.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "The great white wings unfurl slowly and settle, feathers trembling in the sea wind, waves rolling in behind, fabric and hair drifting, the subject lifts their eyes toward the light, solemn and cinematic.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "push_in",
+  },
+  {
+    id: "agamemnon",
+    title: "Agamemnon",
+    category: "Viral",
+    blurb: "Your premiere-night close-up in a packed theater.",
+    thumbnail: thumbViralAgamemnon,
+    kinds: ["image", "video"],
+    dispatch: "studio",
+    inputs: [IMG("Your photo")],
+    imagePrompt: `Vertical 9:16 cinematic film still of the subject seated in the middle of a packed movie-theater audience at a premiere, lit by the flickering glow of the screen, a warm projector beam cutting through drifting dust overhead, surrounding crowd softly out of focus, the subject looking straight into camera like the hero of the night. ${IDENTITY} Photorealistic, 4K. No text, no watermark.`,
+    imageModel: TEMPLATE_DEFAULTS.imageModel,
+    videoPrompt:
+      "The projector light flickers across the subject's face as they break into a slow knowing grin, the crowd around them reacting in soft-focus excitement, dust drifting through the beam, slow cinematic push toward the subject.",
+    videoModel: TEMPLATE_DEFAULTS.videoModel,
+    cameraMovement: "push_in",
+  },
+
   // ───────────── Lip-sync ─────────────
   {
     id: "concert-lipsync",
@@ -733,6 +931,16 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
  * so the landing page can never advertise a preset that doesn't exist.
  */
 export const VIRAL_PRESET_TAGS: ReadonlyArray<{ tag: string; templateId: string }> = [
+  { tag: "Bullet Time", templateId: "bullet-time" },
+  { tag: "Moonwalk", templateId: "moonwalk" },
+  { tag: "Earth Zoom", templateId: "earth-zoom" },
+  { tag: "Cold Vision", templateId: "cold-vision" },
+  { tag: "Broken Mirror", templateId: "broken-mirror" },
+  { tag: "Fragments", templateId: "fragments" },
+  { tag: "Palette", templateId: "palette" },
+  { tag: "Ink Riot", templateId: "ink-riot" },
+  { tag: "Fallen Angel", templateId: "fallen-angel" },
+  { tag: "Agamemnon", templateId: "agamemnon" },
   { tag: "Concert Lip-sync", templateId: "concert-lipsync" },
   { tag: "Music Video Mini", templateId: "music-video-mini" },
   { tag: "Cinematic Selfie Reel", templateId: "cinematic-reel" },
@@ -766,8 +974,8 @@ export const VIRAL_PRESET_TAGS: ReadonlyArray<{ tag: string; templateId: string 
   { tag: "Get Ready With Me", templateId: "grwm-reel" },
 ];
 
-// Category display order for the gallery.
-export const CATEGORY_ORDER: TemplateCategory[] = ["Lip-sync", "Motion", "UGC/Ad", "Spin", "Kids", "Editing"];
+// Category display order for the gallery. Viral leads — it's the discovery hook.
+export const CATEGORY_ORDER: TemplateCategory[] = ["Viral", "Lip-sync", "Motion", "UGC/Ad", "Spin", "Kids", "Editing"];
 
 export function getStudioTemplate(id: string): StudioTemplate | undefined {
   return STUDIO_TEMPLATES.find((t) => t.id === id);
@@ -777,6 +985,9 @@ export function getStudioTemplate(id: string): StudioTemplate | undefined {
  * Total Aura for a template.
  *  - studio: the SUM of each orchestrator kind's `computeCost`, matching exactly
  *    what generatePerformanceShot / generateVideoFromImage / lipSyncVideo charge.
+ *    The video stage is quoted at the FORCED PREVIEW PASS (480p, ≤5s) because the
+ *    drawer never sends a confirmPreviewId — quoting the manifest's nominal
+ *    resolution/duration here would overstate the real reservation.
  *  - ugc:  the flat COST_UGC_AD reserved by generateUGCAd.
  *  - spin: SPIN_PIECE_COUNT × SPIN_PIECE_COST — spinThirty charges the whole
  *    batch upfront (10 Aura per piece; failed pieces auto-refund their Aura).
@@ -806,11 +1017,16 @@ export function templateCost(t: StudioTemplate): number {
     if (kind === "image") {
       total += computeCost({ features: ["image"] }).total;
     } else if (kind === "video") {
+      // Drawer submits without confirmPreviewId → generateVideoFromImage forces
+      // the preview pass. Quote exactly that charge, never the nominal 720p run.
       total += computeCost({
         features: ["video"],
         model: t.videoModel ?? TEMPLATE_DEFAULTS.videoModel,
-        durationSeconds: t.durationSeconds ?? TEMPLATE_DEFAULTS.durationSeconds,
-        resolution: t.resolution ?? TEMPLATE_DEFAULTS.resolution,
+        durationSeconds: Math.min(
+          t.durationSeconds ?? TEMPLATE_DEFAULTS.durationSeconds,
+          TEMPLATE_VIDEO_PREVIEW_MAX_SECONDS,
+        ),
+        resolution: TEMPLATE_VIDEO_PREVIEW_RESOLUTION,
       }).total;
     } else if (kind === "lipsync") {
       total += computeCost({

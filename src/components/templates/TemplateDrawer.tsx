@@ -423,6 +423,12 @@ export function TemplateDrawer({
                     </span>
                   )}
                 </div>
+                {template.dispatch === "studio" && template.kinds.includes("video") && (
+                  <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground/80">
+                    The video renders as a fast 480p preview — the price above is exactly
+                    what&apos;s charged.
+                  </p>
+                )}
               </div>
 
               {error && (

@@ -6,6 +6,8 @@ import {
   TEMPLATE_DEFAULTS,
   SPIN_PIECE_COUNT,
   VIRAL_PRESET_TAGS,
+  TEMPLATE_VIDEO_PREVIEW_RESOLUTION,
+  TEMPLATE_VIDEO_PREVIEW_MAX_SECONDS,
   getStudioTemplate,
   templateCost,
   type StudioTemplate,
@@ -13,6 +15,7 @@ import {
 import { COST_UGC_AD as SERVER_COST_UGC_AD } from "./ugc.server";
 import { COST_AUTOCUT as SERVER_COST_AUTOCUT } from "./autocut.server";
 import { SPIN_COUNT, SPIN_PIECE_COST } from "./spin-engine";
+import { PREVIEW_RESOLUTION, PREVIEW_MAX_SECONDS } from "./cost-guardrails.server";
 
 // Re-derive a studio template's cost straight from pricing.ts so the test fails
 // if templateCost() ever drifts from what the pipeline actually charges.
@@ -22,11 +25,17 @@ function expectedStudioCost(t: StudioTemplate): number {
     if (k === "image") {
       total += computeCost({ features: ["image"] }).total;
     } else if (k === "video") {
+      // The drawer never sends confirmPreviewId, so the video stage is ALWAYS the
+      // forced preview pass — derive from the CANONICAL server gate constants so
+      // this test fails if templateCost's client-safe mirrors ever drift.
       total += computeCost({
         features: ["video"],
         model: t.videoModel ?? TEMPLATE_DEFAULTS.videoModel,
-        durationSeconds: t.durationSeconds ?? TEMPLATE_DEFAULTS.durationSeconds,
-        resolution: t.resolution ?? TEMPLATE_DEFAULTS.resolution,
+        durationSeconds: Math.min(
+          t.durationSeconds ?? TEMPLATE_DEFAULTS.durationSeconds,
+          PREVIEW_MAX_SECONDS,
+        ),
+        resolution: PREVIEW_RESOLUTION,
       }).total;
     } else if (k === "lipsync") {
       total += computeCost({
@@ -39,8 +48,10 @@ function expectedStudioCost(t: StudioTemplate): number {
 }
 
 describe("template-studio manifest", () => {
-  it("uses exactly the six spec categories", () => {
-    expect(CATEGORY_ORDER).toEqual(["Lip-sync", "Motion", "UGC/Ad", "Spin", "Kids", "Editing"]);
+  it("uses exactly the seven spec categories", () => {
+    expect(CATEGORY_ORDER).toEqual([
+      "Viral", "Lip-sync", "Motion", "UGC/Ad", "Spin", "Kids", "Editing",
+    ]);
     // Every category is populated, and no template escapes the taxonomy.
     for (const cat of CATEGORY_ORDER) {
       expect(STUDIO_TEMPLATES.some((t) => t.category === cat)).toBe(true);
@@ -70,6 +81,10 @@ describe("template-studio manifest", () => {
     expect(SERVER_COST_AUTOCUT).toBe(COST_AUTOCUT);
     // Spin batch count must match so SPIN_PIECE_COUNT labels agree with spinThirty.
     expect(SPIN_PIECE_COUNT).toBe(SPIN_COUNT);
+    // templateCost's client-safe preview mirrors must equal the server gate
+    // constants that actually force the drawer's video stage down to a preview.
+    expect(TEMPLATE_VIDEO_PREVIEW_RESOLUTION).toBe(PREVIEW_RESOLUTION);
+    expect(TEMPLATE_VIDEO_PREVIEW_MAX_SECONDS).toBe(PREVIEW_MAX_SECONDS);
   });
 
   it("dispatch-flat costs match their backend charge", () => {
