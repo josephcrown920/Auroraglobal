@@ -13,7 +13,7 @@ import { reserveOrchestrateRecord } from "@/lib/generate-core.server";
 import { computeCost } from "@/lib/pricing";
 import { hfTextToSpeech } from "@/lib/hf.server";
 import { UGC_TTS_MODEL } from "@/lib/ugc.server";
-import { PLATFORM_TEMPLATES } from "@/lib/platform-templates";
+import { PLATFORM_TEMPLATES, type PlatformTemplate } from "@/lib/platform-templates";
 import { assertTrustedUrl } from "@/lib/url-guard";
 
 export const PLATFORM_VIDEO_MODEL = "sync/lipsync-2";
@@ -190,6 +190,123 @@ export const generateAvatarShot = createServerFn({ method: "POST" })
     }),
   );
 
+// ── Two-phase template generation core ───────────────────────────────────────
+// Dependency-injectable so unit tests can prove the credit contract without a
+// live database, HF, or provider calls (see platform-template.functions.test.ts).
+//
+// CREDIT CONTRACT (must never regress):
+//   Phase 1 (TTS) and phase 2 (audio upload) run BEFORE any credit reservation.
+//   If either fails, ZERO credit RPCs may have fired — the user is never charged
+//   for a render that could not start. Only phase 3 (reserve → orchestrate →
+//   commit/release inside reserveOrchestrateRecord) touches credits.
+
+export type PlatformTemplateDeps = {
+  /** Template catalog lookup (default: PLATFORM_TEMPLATES). */
+  findTemplate: (id: string) => PlatformTemplate | undefined;
+  /** Sign a studio-bucket asset path for the provider (default: signPath). */
+  signAsset: (path: string, expiresIn?: number) => Promise<string>;
+  /** Phase 1 — narration TTS. Throws on synthesis failure. */
+  tts: typeof hfTextToSpeech;
+  /** Phase 2 — upload synthesized audio to studio storage. Throws on failure. */
+  uploadAudio: (userId: string, bytes: ArrayBuffer, contentType: string) => Promise<string>;
+  /** Phase 3 — the paid render (reserve → orchestrate → commit/release). */
+  reserve: typeof reserveOrchestrateRecord;
+};
+
+const DEFAULT_TEMPLATE_DEPS: PlatformTemplateDeps = {
+  findTemplate: (id) => PLATFORM_TEMPLATES.find((t) => t.id === id),
+  signAsset: signPath,
+  tts: (model, script) => hfTextToSpeech(model, script),
+  uploadAudio: uploadAudioToStudio,
+  reserve: reserveOrchestrateRecord,
+};
+
+export async function _generateFromPlatformTemplateCore(
+  userId: string,
+  data: { templateId: string; script: string; voiceId?: string },
+  deps: PlatformTemplateDeps = DEFAULT_TEMPLATE_DEPS,
+): Promise<TemplateGenerateResult> {
+  const template = deps.findTemplate(data.templateId);
+  if (!template) throw new Error("Unknown template");
+
+  // ── HeyGen avatar: no TTS needed — HeyGen handles speech internally ─────
+  if (template.kind === "heygen-avatar") {
+    if (!template.avatarId) throw new Error("Template missing avatarId");
+    const outcome = await deps.reserve({
+      userId,
+      kind: "lipsync",
+      cost: PLATFORM_AVATAR_COST,
+      reason: "platform_template_avatar",
+      prompt: data.script,
+      model: PLATFORM_AVATAR_MODEL,
+      pinnedModelOnly: true,
+      params: {
+        avatarId: template.avatarId,
+        voiceId: data.voiceId ?? template.voiceId ?? "m3Fp8hA8nS1Gc1Ne9FIf",
+      },
+    });
+    if (!outcome.ok)
+      return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
+    return { ok: true, generationId: outcome.generationId, url: outcome.url };
+  }
+
+  // ── Live (KlingAI): text-to-video, no TTS/lipsync needed ─────────────────
+  if (template.kind === "live") {
+    const outcome = await deps.reserve({
+      userId,
+      kind: "video",
+      cost: LIVE_AVATAR_COST,
+      reason: "platform_template_live",
+      prompt: data.script,
+      model: LIVE_AVATAR_MODEL,
+    });
+    if (!outcome.ok)
+      return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
+    return { ok: true, generationId: outcome.generationId, url: outcome.url };
+  }
+
+  // ── Photo / video: TTS first, then sign asset URL ────────────────────────
+  // Credits are deliberately NOT reserved yet — a TTS or upload failure here
+  // must leave the user's balance untouched.
+  if (!template.storagePath) throw new Error("Template missing storagePath");
+  const assetUrl = await deps.signAsset(template.storagePath, 3600);
+  const tts = await deps.tts(UGC_TTS_MODEL, data.script);
+  const audioUrl = await deps.uploadAudio(userId, tts.bytes, tts.contentType);
+
+  if (template.kind === "photo") {
+    const outcome = await deps.reserve({
+      userId,
+      kind: "lipsync",
+      cost: PLATFORM_PHOTO_COST,
+      reason: "platform_template_photo",
+      prompt: data.script.slice(0, 200),
+      model: PLATFORM_PHOTO_MODEL,
+      pinnedModelOnly: true,
+      imageUrls: [assetUrl],
+      audioUrl,
+    });
+    if (!outcome.ok)
+      return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
+    return { ok: true, generationId: outcome.generationId, url: outcome.url };
+  }
+
+  // kind === "video"
+  const outcome = await deps.reserve({
+    userId,
+    kind: "lipsync",
+    cost: PLATFORM_VIDEO_COST,
+    reason: "platform_template_video",
+    prompt: data.script.slice(0, 200),
+    model: PLATFORM_VIDEO_MODEL,
+    pinnedModelOnly: true,
+    videoUrl: assetUrl,
+    audioUrl,
+  });
+  if (!outcome.ok)
+    return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
+  return { ok: true, generationId: outcome.generationId, url: outcome.url };
+}
+
 export const generateFromPlatformTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
@@ -201,85 +318,10 @@ export const generateFromPlatformTemplate = createServerFn({ method: "POST" })
       })
       .parse(d),
   )
-  .handler(async ({ context, data }): Promise<TemplateGenerateResult> => {
-    const template = PLATFORM_TEMPLATES.find((t) => t.id === data.templateId);
-    if (!template) throw new Error("Unknown template");
-
-    // ── HeyGen avatar: no TTS needed — HeyGen handles speech internally ─────
-    if (template.kind === "heygen-avatar") {
-      if (!template.avatarId) throw new Error("Template missing avatarId");
-      const outcome = await reserveOrchestrateRecord({
-        userId: context.userId,
-        kind: "lipsync",
-        cost: PLATFORM_AVATAR_COST,
-        reason: "platform_template_avatar",
-        prompt: data.script,
-        model: PLATFORM_AVATAR_MODEL,
-        pinnedModelOnly: true,
-        params: {
-          avatarId: template.avatarId,
-          voiceId: data.voiceId ?? template.voiceId ?? "m3Fp8hA8nS1Gc1Ne9FIf",
-        },
-      });
-      if (!outcome.ok)
-        return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
-      return { ok: true, generationId: outcome.generationId, url: outcome.url };
-    }
-
-    // ── Live (KlingAI): text-to-video, no TTS/lipsync needed ─────────────────
-    if (template.kind === "live") {
-      const outcome = await reserveOrchestrateRecord({
-        userId: context.userId,
-        kind: "video",
-        cost: LIVE_AVATAR_COST,
-        reason: "platform_template_live",
-        prompt: data.script,
-        model: LIVE_AVATAR_MODEL,
-      });
-      if (!outcome.ok)
-        return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
-      return { ok: true, generationId: outcome.generationId, url: outcome.url };
-    }
-
-    // ── Photo / video: TTS first, then sign asset URL ────────────────────────
-    if (!template.storagePath) throw new Error("Template missing storagePath");
-    const assetUrl = await signPath(template.storagePath, 3600);
-    const tts = await hfTextToSpeech(UGC_TTS_MODEL, data.script);
-    const audioUrl = await uploadAudioToStudio(context.userId, tts.bytes, tts.contentType);
-
-    if (template.kind === "photo") {
-      const outcome = await reserveOrchestrateRecord({
-        userId: context.userId,
-        kind: "lipsync",
-        cost: PLATFORM_PHOTO_COST,
-        reason: "platform_template_photo",
-        prompt: data.script.slice(0, 200),
-        model: PLATFORM_PHOTO_MODEL,
-        pinnedModelOnly: true,
-        imageUrls: [assetUrl],
-        audioUrl,
-      });
-      if (!outcome.ok)
-        return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
-      return { ok: true, generationId: outcome.generationId, url: outcome.url };
-    }
-
-    // kind === "video"
-    const outcome = await reserveOrchestrateRecord({
-      userId: context.userId,
-      kind: "lipsync",
-      cost: PLATFORM_VIDEO_COST,
-      reason: "platform_template_video",
-      prompt: data.script.slice(0, 200),
-      model: PLATFORM_VIDEO_MODEL,
-      pinnedModelOnly: true,
-      videoUrl: assetUrl,
-      audioUrl,
-    });
-    if (!outcome.ok)
-      return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
-    return { ok: true, generationId: outcome.generationId, url: outcome.url };
-  });
+  .handler(
+    async ({ context, data }): Promise<TemplateGenerateResult> =>
+      _generateFromPlatformTemplateCore(context.userId, data),
+  );
 
 // ── Saved Avatar Shots ────────────────────────────────────────────────────────
 // Generated shot results are downloaded from the provider CDN and re-uploaded

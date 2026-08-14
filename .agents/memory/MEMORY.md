@@ -135,3 +135,4 @@
 - [Dev-only artifacts 500 on live site](artifact-missing-prod-service.md) — an artifact with no [services.production] block returns bare "Internal Server Error" for its path in prod (dev is fine); add a static-serve prod section built via replit-node.sh.
 - [Video chain exhaustion](video-chain-exhaustion.md) — unpinned video exhaustion = stable wrap msg (suffix keeps classify tokens); ffmpeg-free serves explicit pick only; toast bucket ordered before no_workers/429.
 - [Perform Anywhere product framing](perform-anywhere-product.md) — Perform Anywhere = film-yourself clip reskin (hero everywhere); camera-move Motion Control belongs to Director's Room; public /api/public/perform shares _enqueuePerformanceReskin.
+- [Python installs — pip wrapper works, uv add does not](python-pip-vs-uv-in-this-repo.md) — uv targets the read-only nix-store site-packages (no pyvenv.cfg in .pythonlibs); plain `pip install` lands in .pythonlibs correctly.
