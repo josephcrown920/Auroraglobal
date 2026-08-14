@@ -22,12 +22,15 @@ import { useColors } from "@/hooks/useColors";
 export default function AuthScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { signIn } = useAuth();
+  const { signIn, signUp } = useAuth();
 
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [showPass, setShowPass] = useState(false);
 
   const handleSubmit = async () => {
@@ -36,9 +39,17 @@ export default function AuthScreen() {
       return;
     }
     setError(null);
+    setNotice(null);
     setLoading(true);
     try {
-      await signIn(email.trim(), password);
+      if (mode === "signup") {
+        await signUp(email.trim(), password, name.trim() || undefined);
+        setNotice(
+          "Account created. If email confirmation is required, check your inbox before signing in.",
+        );
+      } else {
+        await signIn(email.trim(), password);
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
       const msg = e?.message ?? "Something went wrong";
@@ -86,7 +97,51 @@ export default function AuthScreen() {
 
           <Animated.View entering={FadeInDown.duration(500).delay(100)} style={styles.card}>
             <View style={[styles.cardInner, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              {/* Mode tabs */}
+              <View style={[styles.tabs, { backgroundColor: colors.muted }]}>
+                {(["signin", "signup"] as const).map((m) => {
+                  const active = mode === m;
+                  return (
+                    <Pressable
+                      key={m}
+                      onPress={() => {
+                        setMode(m);
+                        setError(null);
+                        setNotice(null);
+                      }}
+                      style={[
+                        styles.tab,
+                        active && { backgroundColor: colors.card, borderRadius: 7 },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.tabText,
+                          { color: active ? colors.foreground : colors.mutedForeground },
+                        ]}
+                      >
+                        {m === "signin" ? "Sign In" : "Create Account"}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
               <View style={styles.fields}>
+                {mode === "signup" && (
+                  <View style={[styles.inputWrap, { backgroundColor: colors.input, borderColor: colors.border }]}>
+                    <Feather name="user" size={16} color={colors.mutedForeground} />
+                    <TextInput
+                      style={[styles.input, { color: colors.foreground }]}
+                      placeholder="Name (optional)"
+                      placeholderTextColor={colors.mutedForeground}
+                      value={name}
+                      onChangeText={setName}
+                      autoCapitalize="words"
+                      returnKeyType="next"
+                    />
+                  </View>
+                )}
                 <View style={[styles.inputWrap, { backgroundColor: colors.input, borderColor: colors.border }]}>
                   <Feather name="mail" size={16} color={colors.mutedForeground} />
                   <TextInput
@@ -126,6 +181,13 @@ export default function AuthScreen() {
                 </View>
               ) : null}
 
+              {notice ? (
+                <View style={[styles.errorBox, { backgroundColor: "rgba(168,85,247,0.12)", borderColor: "rgba(168,85,247,0.3)" }]}>
+                  <Feather name="check-circle" size={14} color={colors.primary} />
+                  <Text style={[styles.errorText, { color: colors.foreground }]}>{notice}</Text>
+                </View>
+              ) : null}
+
               <Pressable
                 onPress={handleSubmit}
                 disabled={loading}
@@ -138,13 +200,15 @@ export default function AuthScreen() {
                   <ActivityIndicator color={colors.primaryForeground} />
                 ) : (
                   <Text style={[styles.submitText, { color: colors.primaryForeground }]}>
-                    Sign In
+                    {mode === "signin" ? "Sign In" : "Create Account"}
                   </Text>
                 )}
               </Pressable>
 
               <Text style={[styles.legal, { color: colors.mutedForeground }]}>
-                Sign in with your Aurora account.
+                {mode === "signin"
+                  ? "Sign in with your Aurora account."
+                  : "New accounts start with free Aura to try generation."}
               </Text>
             </View>
           </Animated.View>

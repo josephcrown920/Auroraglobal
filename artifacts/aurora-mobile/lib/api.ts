@@ -9,6 +9,12 @@ import { supabase } from "@/lib/supabase";
 const SUPABASE_PUBLISHABLE_KEY =
   "sb_publishable_SGO6FEm9zbgYEOsFqlSX8Q_dFVMJf4x";
 
+// Client-side price hints. The server (src/lib/pricing.ts) is the source of
+// truth and does the real charge — these only drive UI copy and the
+// "not enough Aura" pre-check, so keep them at the known base rates.
+export const IMAGE_COST = 10;
+export const VIDEO_COST_FROM = 100;
+
 function getApiBase(): string {
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
   if (domain) return `https://${domain}`;
@@ -27,16 +33,124 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   };
 }
 
-export interface GenerateParams {
-  kind: "image" | "video" | "ugc";
-  prompt: string;
-  presetId?: string;
-  referenceImageUrl?: string;
-}
-
 export type { Generation } from "@/lib/gallery-mapping";
 
-export async function generateContent(params: GenerateParams): Promise<Generation> {
+// ─── Reference image upload ───────────────────────────────────────────────────
+// Mirrors the web UploadSlot flow: upload into the user's own folder in the
+// `studio` bucket, then hand the backend a 1h signed URL (a *.supabase.co
+// host, which passes the server's SSRF allowlist and ownership guard).
+
+/** Minimal base64 → ArrayBuffer decoder (no atob dependency on Hermes). */
+function base64ToArrayBuffer(b64: string): ArrayBuffer {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  const clean = b64.replace(/[^A-Za-z0-9+/]/g, "");
+  const len = Math.floor((clean.length * 3) / 4);
+  const bytes = new Uint8Array(len);
+  let p = 0;
+  for (let i = 0; i + 3 < clean.length || (i < clean.length && clean.length % 4 !== 1); i += 4) {
+    const e1 = chars.indexOf(clean[i]);
+    const e2 = chars.indexOf(clean[i + 1] ?? "A");
+    const e3 = clean[i + 2] !== undefined ? chars.indexOf(clean[i + 2]) : -1;
+    const e4 = clean[i + 3] !== undefined ? chars.indexOf(clean[i + 3]) : -1;
+    bytes[p++] = (e1 << 2) | (e2 >> 4);
+    if (e3 >= 0 && p < len) bytes[p++] = ((e2 & 15) << 4) | (e3 >> 2);
+    if (e4 >= 0 && p < len) bytes[p++] = ((e3 & 3) << 6) | e4;
+  }
+  return bytes.buffer;
+}
+
+function randomId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}${Math.random()
+    .toString(36)
+    .slice(2, 10)}`;
+}
+
+/**
+ * Upload a picked photo to the user's studio folder and return a signed URL
+ * the generate endpoint will accept. Pass the ImagePicker asset's base64
+ * (request it with `base64: true`); falls back to fetching the local URI.
+ */
+export async function uploadReferenceImage(
+  localUri: string,
+  base64?: string | null,
+): Promise<string> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  let bytes: ArrayBuffer;
+  if (base64) {
+    bytes = base64ToArrayBuffer(base64);
+  } else {
+    const res = await fetch(localUri);
+    bytes = await res.arrayBuffer();
+  }
+
+  const rawExt = localUri.split("?")[0].split(".").pop()?.toLowerCase() ?? "jpg";
+  const ext = ["jpg", "jpeg", "png", "webp"].includes(rawExt) ? rawExt : "jpg";
+  const contentType =
+    ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+
+  const path = `${user.id}/uploads/${randomId()}.${ext}`;
+  const { error } = await supabase.storage.from("studio").upload(path, bytes, {
+    contentType,
+    upsert: false,
+  });
+  if (error) throw error;
+
+  const { data: signed, error: signErr } = await supabase.storage
+    .from("studio")
+    .createSignedUrl(path, 60 * 60);
+  if (signErr || !signed?.signedUrl) {
+    throw signErr ?? new Error("Could not sign upload URL");
+  }
+  return signed.signedUrl;
+}
+
+// ─── Generation ───────────────────────────────────────────────────────────────
+
+export type MotionPreset =
+  | "orbit"
+  | "push-in"
+  | "pull-out"
+  | "pan-left"
+  | "pan-right"
+  | "tilt-up"
+  | "tilt-down"
+  | "static"
+  | "handheld";
+
+export interface GenerateParams {
+  kind: "image" | "video";
+  prompt: string;
+  /** Signed studio-bucket URLs (see uploadReferenceImage). */
+  imageUrls?: string[];
+  /** Video only: 3–15s (server enforces Free=10s cap). */
+  duration?: number;
+  resolution?: "480p" | "720p" | "1080p";
+  motion?: MotionPreset;
+  /**
+   * Video only: id of a succeeded preview generation. Without it the server
+   * forces a cheap 480p/≤5s preview pass and returns previewGenerationId —
+   * pass that back here to render at full quality.
+   */
+  confirmPreviewId?: string;
+}
+
+export interface GenerateResult {
+  ok: boolean;
+  /** Result media URL (image or video). */
+  url: string | null;
+  creditsCost?: number;
+  provider?: string;
+  /** True when the server rendered a preview pass instead of full quality. */
+  preview?: boolean;
+  /** Pass back as confirmPreviewId to render this at full quality. */
+  previewGenerationId?: string;
+}
+
+export async function generateContent(params: GenerateParams): Promise<GenerateResult> {
   const headers = await getAuthHeaders();
   const base = getApiBase();
 
@@ -44,8 +158,11 @@ export async function generateContent(params: GenerateParams): Promise<Generatio
     kind: params.kind,
     prompt: params.prompt,
   };
-  if (params.presetId) body.preset_id = params.presetId;
-  if (params.referenceImageUrl) body.reference_image_url = params.referenceImageUrl;
+  if (params.imageUrls?.length) body.imageUrls = params.imageUrls;
+  if (params.duration) body.duration = params.duration;
+  if (params.resolution) body.resolution = params.resolution;
+  if (params.motion) body.motion = params.motion;
+  if (params.confirmPreviewId) body.confirmPreviewId = params.confirmPreviewId;
 
   const res = await fetch(`${base}/api/public/generate`, {
     method: "POST",
@@ -53,17 +170,29 @@ export async function generateContent(params: GenerateParams): Promise<Generatio
     body: JSON.stringify(body),
   });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
-    const msg = err.error || err.message || `HTTP ${res.status}`;
-    if (msg.includes("credit") || msg.includes("balance")) {
+  const json = await res.json().catch(() => null);
+  if (!res.ok || !json || json.ok === false || json.error) {
+    const msg: string = json?.error || json?.message || `HTTP ${res.status}`;
+    if (
+      res.status === 402 ||
+      /credit|balance|insufficient|aura/i.test(msg)
+    ) {
       throw new Error("out_of_credits");
     }
     throw new Error(msg);
   }
 
-  return res.json();
+  return {
+    ok: true,
+    url: json.url ?? null,
+    creditsCost: json.creditsCost,
+    provider: json.provider,
+    preview: json.preview === true,
+    previewGenerationId: json.previewGenerationId,
+  };
 }
+
+// ─── Gallery / profile / ledger ──────────────────────────────────────────────
 
 export async function getGallery(limit = 40): Promise<Generation[]> {
   const {

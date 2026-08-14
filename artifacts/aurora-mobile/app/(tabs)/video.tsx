@@ -1,10 +1,15 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import { useVideoPlayer, VideoView } from "expo-video";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -17,39 +22,57 @@ import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
-import { getUserProfile } from "@/lib/api";
+import {
+  generateContent,
+  getUserProfile,
+  uploadReferenceImage,
+  VIDEO_COST_FROM,
+  type MotionPreset,
+} from "@/lib/api";
 
-const ENGINES = [
-  { id: "seedance", label: "Seedance 2.0", icon: "aperture", desc: "Hyper-real motion · identity-preserving", badge: "BEST" },
-  { id: "kling",    label: "Kling 3.0",    icon: "film",     desc: "Cinematic · 5s / 10s clips",            badge: null },
-  { id: "heygen",   label: "HeyGen Avatar", icon: "user",    desc: "Talking-head · lip-sync built-in",       badge: null },
-] as const;
-type EngineId = (typeof ENGINES)[number]["id"];
+const DURATIONS = [5, 8, 10] as const;
 
-const DURATIONS = ["5s", "10s", "15s", "30s"] as const;
+const MOTIONS: { id: MotionPreset; label: string; icon: string }[] = [
+  { id: "push-in", label: "Push in", icon: "zoom-in" },
+  { id: "orbit", label: "Orbit", icon: "rotate-cw" },
+  { id: "pan-left", label: "Pan left", icon: "arrow-left" },
+  { id: "pan-right", label: "Pan right", icon: "arrow-right" },
+  { id: "handheld", label: "Handheld", icon: "move" },
+  { id: "static", label: "Static", icon: "square" },
+];
 
-const STYLES = [
-  { id: "direct",    label: "Direct-to-camera", icon: "camera" },
-  { id: "cinematic", label: "Cinematic",         icon: "video" },
-  { id: "ugc",       label: "UGC / Creator",     icon: "trending-up" },
-  { id: "product",   label: "Product showcase",  icon: "package" },
-] as const;
+function ResultVideo({ uri }: { uri: string }) {
+  const player = useVideoPlayer({ uri }, (p) => {
+    p.loop = true;
+    p.play();
+  });
+  return (
+    <VideoView
+      player={player}
+      style={styles.resultVideo}
+      contentFit="contain"
+      nativeControls
+    />
+  );
+}
 
 export default function VideoScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const [engine,   setEngine]   = useState<EngineId>("seedance");
-  const [duration, setDuration] = useState<string>("10s");
-  const [style,    setStyle]    = useState<string>("cinematic");
-  const [prompt,   setPrompt]   = useState("");
-  const [loading,  setLoading]  = useState(false);
-  const [result,   setResult]   = useState<string | null>(null);
-  const [error,    setError]    = useState<string | null>(null);
+  const [duration, setDuration] = useState<number>(5);
+  const [motion, setMotion] = useState<MotionPreset | null>("push-in");
+  const [prompt, setPrompt] = useState("");
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [photoB64, setPhotoB64] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "preview" | "final">("idle");
+  const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [isPreview, setIsPreview] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { data: profile } = useQuery({
     queryKey: ["profile"],
@@ -58,18 +81,87 @@ export default function VideoScreen() {
   });
   const credits = profile?.credits_balance ?? 0;
 
-  async function handleGenerate() {
-    if (!prompt.trim()) { setError("Enter a video idea or script."); return; }
-    setLoading(true); setError(null); setResult(null);
+  const pickPhoto = async () => {
+    if (photo) {
+      setPhoto(null);
+      setPhotoB64(null);
+      Haptics.selectionAsync();
+      return;
+    }
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission needed", "Allow photo access to animate a photo.");
+      return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: "images",
+      quality: 0.85,
+      base64: true,
+    });
+    if (!res.canceled && res.assets[0]) {
+      setPhoto(res.assets[0].uri);
+      setPhotoB64(res.assets[0].base64 ?? null);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  async function runGeneration(confirmId?: string) {
+    if (!prompt.trim() && !photo) {
+      setError("Describe your video or attach a photo to animate.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setPhase(confirmId ? "final" : "preview");
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      // Placeholder — real integration wires to /api/ugc-line/videos or /api/orchestrate
-      await new Promise((r) => setTimeout(r, 1200));
-      setError("Video generation from mobile is coming soon — use Aurora web for now.");
+      let imageUrls: string[] | undefined;
+      if (photo) {
+        const signed = await uploadReferenceImage(photo, photoB64);
+        imageUrls = [signed];
+      }
+      const res = await generateContent({
+        kind: "video",
+        prompt: prompt.trim() || "Cinematic shot, natural motion",
+        imageUrls,
+        duration,
+        motion: motion ?? undefined,
+        confirmPreviewId: confirmId,
+      });
+      if (res.url) {
+        setResultUrl(res.url);
+        setIsPreview(res.preview === true);
+        setPreviewId(res.previewGenerationId ?? null);
+        queryClient.invalidateQueries({ queryKey: ["gallery"] });
+        queryClient.invalidateQueries({ queryKey: ["profile"] });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        setError("No video returned — try again.");
+      }
+    } catch (e: any) {
+      const msg = e?.message ?? "Generation failed";
+      setError(
+        msg === "out_of_credits"
+          ? "Not enough Aura — top up from the Account tab."
+          : msg,
+      );
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
+      setPhase("idle");
     }
   }
+
+  const closeResult = () => {
+    setResultUrl(null);
+    setIsPreview(false);
+  };
+
+  const renderFull = () => {
+    if (!previewId) return;
+    closeResult();
+    runGeneration(previewId);
+  };
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -89,7 +181,9 @@ export default function VideoScreen() {
           <View style={styles.headerRow}>
             <View>
               <Text style={[styles.title, { color: colors.foreground }]}>Video</Text>
-              <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>AI video generation</Text>
+              <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+                Text or photo → AI video
+              </Text>
             </View>
             <View style={[styles.creditBadge, { backgroundColor: colors.muted, borderColor: colors.border }]}>
               <Feather name="zap" size={13} color={colors.primary} />
@@ -97,50 +191,51 @@ export default function VideoScreen() {
             </View>
           </View>
 
-          {/* Engine picker */}
-          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Engine</Text>
-          <View style={styles.engineList}>
-            {ENGINES.map((e) => {
-              const active = engine === e.id;
-              return (
-                <Pressable
-                  key={e.id}
-                  onPress={() => { setEngine(e.id); Haptics.selectionAsync(); }}
-                  style={[
-                    styles.engineCard,
-                    {
-                      backgroundColor: active ? `${colors.primary}1a` : colors.card,
-                      borderColor: active ? colors.primary : colors.border,
-                      borderRadius: colors.radius,
-                    },
-                  ]}
-                >
-                  <View style={styles.engineTop}>
-                    <View style={[styles.engineIcon, { backgroundColor: active ? `${colors.primary}22` : colors.muted }]}>
-                      <Feather name={e.icon as any} size={16} color={active ? colors.primary : colors.mutedForeground} />
-                    </View>
-                    {e.badge && (
-                      <View style={[styles.badge, { backgroundColor: colors.primary }]}>
-                        <Text style={styles.badgeText}>{e.badge}</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={[styles.engineLabel, { color: active ? colors.primary : colors.foreground }]}>{e.label}</Text>
-                  <Text style={[styles.engineDesc, { color: colors.mutedForeground }]} numberOfLines={2}>{e.desc}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          {/* Photo to animate */}
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+            Photo (optional)
+          </Text>
+          <Pressable
+            onPress={pickPhoto}
+            style={[
+              styles.photoSlot,
+              {
+                backgroundColor: colors.card,
+                borderColor: photo ? colors.primary : colors.border,
+                borderRadius: colors.radius,
+              },
+            ]}
+          >
+            {photo ? (
+              <>
+                <Image source={{ uri: photo }} style={styles.photoPreview} contentFit="cover" />
+                <View style={styles.photoRemove}>
+                  <Feather name="x" size={14} color="#fff" />
+                  <Text style={styles.photoRemoveText}>Remove</Text>
+                </View>
+              </>
+            ) : (
+              <View style={styles.photoEmpty}>
+                <Feather name="image" size={20} color={colors.mutedForeground} />
+                <Text style={[styles.photoEmptyText, { color: colors.mutedForeground }]}>
+                  Animate a photo — tap to attach
+                </Text>
+              </View>
+            )}
+          </Pressable>
 
-          {/* Style */}
-          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Style</Text>
+          {/* Camera motion */}
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Camera</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillRow}>
-            {STYLES.map((s) => {
-              const active = style === s.id;
+            {MOTIONS.map((m) => {
+              const active = motion === m.id;
               return (
                 <Pressable
-                  key={s.id}
-                  onPress={() => { setStyle(s.id); Haptics.selectionAsync(); }}
+                  key={m.id}
+                  onPress={() => {
+                    setMotion(active ? null : m.id);
+                    Haptics.selectionAsync();
+                  }}
                   style={[
                     styles.pill,
                     {
@@ -150,8 +245,8 @@ export default function VideoScreen() {
                     },
                   ]}
                 >
-                  <Feather name={s.icon as any} size={13} color={active ? colors.primaryForeground : colors.mutedForeground} />
-                  <Text style={[styles.pillText, { color: active ? colors.primaryForeground : colors.foreground }]}>{s.label}</Text>
+                  <Feather name={m.icon as any} size={13} color={active ? colors.primaryForeground : colors.mutedForeground} />
+                  <Text style={[styles.pillText, { color: active ? colors.primaryForeground : colors.foreground }]}>{m.label}</Text>
                 </Pressable>
               );
             })}
@@ -175,18 +270,18 @@ export default function VideoScreen() {
                     },
                   ]}
                 >
-                  <Text style={[styles.durationText, { color: active ? colors.primaryForeground : colors.mutedForeground }]}>{d}</Text>
+                  <Text style={[styles.durationText, { color: active ? colors.primaryForeground : colors.mutedForeground }]}>{d}s</Text>
                 </Pressable>
               );
             })}
           </View>
 
           {/* Prompt */}
-          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Script / Idea</Text>
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Scene</Text>
           <View style={[styles.promptWrap, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
             <TextInput
               style={[styles.promptInput, { color: colors.foreground }]}
-              placeholder="Describe your video idea, scene, or paste a script…"
+              placeholder="Describe the scene, mood, and action…"
               placeholderTextColor={colors.mutedForeground}
               value={prompt}
               onChangeText={setPrompt}
@@ -208,11 +303,11 @@ export default function VideoScreen() {
 
           {/* Generate */}
           <Pressable
-            onPress={handleGenerate}
-            disabled={loading || !prompt.trim()}
+            onPress={() => runGeneration()}
+            disabled={loading || (!prompt.trim() && !photo)}
             style={({ pressed }) => [
               styles.generateBtn,
-              { borderRadius: colors.radius, opacity: (!prompt.trim() || loading) ? 0.5 : pressed ? 0.9 : 1 },
+              { borderRadius: colors.radius, opacity: ((!prompt.trim() && !photo) || loading) ? 0.5 : pressed ? 0.9 : 1 },
             ]}
           >
             <LinearGradient
@@ -226,20 +321,68 @@ export default function VideoScreen() {
                 <Feather name="play-circle" size={20} color={colors.primaryForeground} />
               )}
               <Text style={[styles.generateText, { color: colors.primaryForeground }]}>
-                {loading ? "Generating…" : `Generate with ${ENGINES.find(e=>e.id===engine)?.label}`}
+                {loading
+                  ? phase === "final"
+                    ? "Rendering full quality…"
+                    : "Rendering preview…"
+                  : "Generate preview"}
               </Text>
             </LinearGradient>
           </Pressable>
 
-          {/* Coming soon note */}
-          <View style={[styles.comingSoon, { backgroundColor: colors.muted, borderColor: colors.border, borderRadius: colors.radius }]}>
+          <View style={[styles.noteBox, { backgroundColor: colors.muted, borderColor: colors.border, borderRadius: colors.radius }]}>
             <Feather name="info" size={14} color={colors.primary} />
-            <Text style={[styles.comingSoonText, { color: colors.mutedForeground }]}>
-              Full video rendering is active on Aurora web. Mobile playback and download coming soon.
+            <Text style={[styles.noteText, { color: colors.mutedForeground }]}>
+              You first get a fast low-cost preview. Like it? Confirm to render the
+              full-quality clip (from {VIDEO_COST_FROM} Aura). Videos take a minute
+              or two — keep the app open.
             </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ── Result modal ── */}
+      <Modal visible={!!resultUrl} transparent animationType="slide" onRequestClose={closeResult}>
+        <View style={styles.resultOverlay}>
+          <View style={[styles.resultCard, { backgroundColor: colors.card, paddingBottom: insets.bottom + 20 }]}>
+            <View style={styles.resultHeader}>
+              <Text style={[styles.resultTitle, { color: colors.foreground }]}>
+                {isPreview ? "Preview ready" : "Your video is ready ✦"}
+              </Text>
+              <Pressable onPress={closeResult} hitSlop={12}>
+                <Feather name="x" size={22} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+            {resultUrl && <ResultVideo uri={resultUrl} />}
+            <Text style={[styles.resultHint, { color: colors.mutedForeground }]}>
+              {isPreview
+                ? "This is a fast 480p preview. Render full quality?"
+                : "Saved to your Gallery tab"}
+            </Text>
+            {isPreview && previewId ? (
+              <Pressable
+                onPress={renderFull}
+                style={[styles.doneBtn, { backgroundColor: colors.primary, borderRadius: 14 }]}
+              >
+                <Text style={styles.doneBtnText}>Render full quality</Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              onPress={closeResult}
+              style={[
+                styles.doneBtn,
+                isPreview
+                  ? { backgroundColor: colors.muted, borderRadius: 14 }
+                  : { backgroundColor: colors.primary, borderRadius: 14 },
+              ]}
+            >
+              <Text style={[styles.doneBtnText, isPreview && { color: colors.foreground }]}>
+                {isPreview ? "Keep preview" : "Done"}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -254,14 +397,23 @@ const styles = StyleSheet.create({
   creditBadge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
   creditText: { fontSize: 14, fontWeight: "700", fontFamily: "Inter_700Bold" },
   sectionLabel: { fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5, marginTop: 12, marginBottom: 6, fontFamily: "Inter_600SemiBold" },
-  engineList: { flexDirection: "row", gap: 10 },
-  engineCard: { flex: 1, padding: 12, borderWidth: 1, gap: 8 },
-  engineTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  engineIcon: { width: 34, height: 34, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  badge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  badgeText: { fontSize: 9, fontWeight: "800", color: "#fff" },
-  engineLabel: { fontSize: 12, fontWeight: "700", fontFamily: "Inter_700Bold" },
-  engineDesc: { fontSize: 10, fontFamily: "Inter_400Regular", lineHeight: 14 },
+  photoSlot: { borderWidth: 1, overflow: "hidden", height: 120 },
+  photoPreview: { width: "100%", height: "100%" },
+  photoRemove: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  photoRemoveText: { color: "#fff", fontSize: 11, fontWeight: "600" },
+  photoEmpty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
+  photoEmptyText: { fontSize: 13, fontFamily: "Inter_400Regular" },
   pillRow: { gap: 8, paddingVertical: 4 },
   pill: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1 },
   pillText: { fontSize: 13, fontWeight: "500", fontFamily: "Inter_500Medium" },
@@ -275,6 +427,14 @@ const styles = StyleSheet.create({
   generateBtn: { marginTop: 8, overflow: "hidden" },
   generateInner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 17 },
   generateText: { fontSize: 16, fontWeight: "700", fontFamily: "Inter_700Bold" },
-  comingSoon: { flexDirection: "row", alignItems: "flex-start", gap: 10, padding: 14, borderWidth: 1, marginTop: 4 },
-  comingSoonText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  noteBox: { flexDirection: "row", alignItems: "flex-start", gap: 10, padding: 14, borderWidth: 1, marginTop: 4 },
+  noteText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  resultOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.88)", justifyContent: "flex-end" },
+  resultCard: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 22, gap: 14 },
+  resultHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  resultTitle: { fontSize: 17, fontWeight: "700", fontFamily: "Inter_700Bold" },
+  resultVideo: { width: "100%", height: 320, borderRadius: 12, overflow: "hidden", backgroundColor: "#000" },
+  resultHint: { fontSize: 13, textAlign: "center", fontFamily: "Inter_400Regular" },
+  doneBtn: { paddingVertical: 15, alignItems: "center" },
+  doneBtnText: { fontSize: 16, fontWeight: "700", color: "#fff", fontFamily: "Inter_700Bold" },
 });

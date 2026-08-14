@@ -10,7 +10,7 @@ export interface StylePreset {
   label: string;
   icon: string;
   prompt: string;
-  kind: "image" | "video" | "ugc";
+  kind: "image" | "video";
   description: string;
 }
 
@@ -43,7 +43,7 @@ export const PRESETS: StylePreset[] = [
     id: "ugc",
     label: "UGC Ad",
     icon: "video",
-    kind: "ugc",
+    kind: "image",
     prompt: "Authentic UGC-style content creator advertisement, natural lighting, candid feel",
     description: "TikTok-style content",
   },

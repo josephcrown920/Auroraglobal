@@ -129,7 +129,7 @@ export default function CreditsScreen() {
                 </View>
               </View>
               <Text style={[styles.balanceHint, { color: colors.mutedForeground }]}>
-                Each generation uses 2 credits
+                Images from 10 Aura · videos from 100 Aura
               </Text>
             </LinearGradient>
 

@@ -35,10 +35,17 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
-import { generateContent, getUserProfile, getGallery, Generation } from "@/lib/api";
+import {
+  generateContent,
+  getUserProfile,
+  getGallery,
+  uploadReferenceImage,
+  Generation,
+  IMAGE_COST,
+} from "@/lib/api";
 import { PRESETS, StylePreset } from "@/components/StylePicker";
 
-const CREDIT_COST = 2;
+const CREDIT_COST = IMAGE_COST;
 
 // ─── Inspiration cards shown when gallery is sparse ───────────────────────────
 const INSPIRATIONS = [
@@ -218,6 +225,7 @@ export default function HomeScreen() {
   const [selectedPreset, setSelectedPreset] = useState<StylePreset>(PRESETS[0]);
   const [prompt, setPrompt] = useState("");
   const [photo, setPhoto] = useState<string | null>(null);
+  const [photoB64, setPhotoB64] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
@@ -307,6 +315,13 @@ export default function HomeScreen() {
   };
 
   const pickPhoto = async () => {
+    if (photo) {
+      // Tap again to remove the attached reference.
+      setPhoto(null);
+      setPhotoB64(null);
+      Haptics.selectionAsync();
+      return;
+    }
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
       Alert.alert("Permission needed", "Allow photo access to attach a reference image.");
@@ -317,9 +332,11 @@ export default function HomeScreen() {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
+      base64: true,
     });
     if (!res.canceled && res.assets[0]) {
       setPhoto(res.assets[0].uri);
+      setPhotoB64(res.assets[0].base64 ?? null);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
@@ -328,7 +345,7 @@ export default function HomeScreen() {
     if (credits < CREDIT_COST) {
       Alert.alert(
         "Not enough Aura",
-        `You need ${CREDIT_COST} Aura to generate. Top up in the Credits tab.`,
+        `You need at least ${CREDIT_COST} Aura to generate. Top up from the Account tab.`,
         [{ text: "OK" }]
       );
       return;
@@ -345,14 +362,21 @@ export default function HomeScreen() {
     inputRef.current?.blur();
 
     try {
+      // Local photo → signed studio-bucket URL the backend accepts.
+      let imageUrls: string[] | undefined;
+      if (photo) {
+        const signedUrl = await uploadReferenceImage(photo, photoB64);
+        imageUrls = [signedUrl];
+      }
+
       const gen = await generateContent({
         kind: selectedPreset.kind,
         prompt: finalPrompt,
-        referenceImageUrl: photo ?? undefined,
+        imageUrls,
       });
 
-      if (gen.output_url) {
-        setResult(gen.output_url);
+      if (gen.url) {
+        setResult(gen.url);
         queryClient.invalidateQueries({ queryKey: ["gallery"] });
         queryClient.invalidateQueries({ queryKey: ["profile"] });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
