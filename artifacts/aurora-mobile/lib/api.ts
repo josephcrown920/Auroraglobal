@@ -14,6 +14,10 @@ const SUPABASE_PUBLISHABLE_KEY =
 // "not enough Aura" pre-check, so keep them at the known base rates.
 export const IMAGE_COST = 10;
 export const VIDEO_COST_FROM = 100;
+// Performance Shot (clip reskin): computeCost({features:["video","motion"]})
+// = 400 full, preview = ceil(full × 0.5) = 200.
+export const RESKIN_COST = 400;
+export const RESKIN_PREVIEW_COST = 200;
 
 function getApiBase(): string {
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
@@ -91,6 +95,55 @@ export async function uploadReferenceImage(
   const ext = ["jpg", "jpeg", "png", "webp"].includes(rawExt) ? rawExt : "jpg";
   const contentType =
     ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+
+  const path = `${user.id}/uploads/${randomId()}.${ext}`;
+  const { error } = await supabase.storage.from("studio").upload(path, bytes, {
+    contentType,
+    upsert: false,
+  });
+  if (error) throw error;
+
+  const { data: signed, error: signErr } = await supabase.storage
+    .from("studio")
+    .createSignedUrl(path, 60 * 60);
+  if (signErr || !signed?.signedUrl) {
+    throw signErr ?? new Error("Could not sign upload URL");
+  }
+  return signed.signedUrl;
+}
+
+/**
+ * Upload a picked performance clip to the user's studio folder and return a
+ * signed URL the perform endpoint accepts. Keep clips short (≤ 30s) — the
+ * cap here only guards against runaway memory on device.
+ */
+export async function uploadReferenceVideo(
+  localUri: string,
+  fileSizeBytes?: number | null,
+): Promise<string> {
+  if (fileSizeBytes && fileSizeBytes > 80 * 1024 * 1024) {
+    throw new Error("Clip too large — keep it under 30 seconds.");
+  }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const res = await fetch(localUri);
+  const bytes = await res.arrayBuffer();
+  // Authoritative cap — picker metadata (fileSize) is optional and absent on some platforms.
+  if (bytes.byteLength > 80 * 1024 * 1024) {
+    throw new Error("Clip too large — keep it under 30 seconds.");
+  }
+
+  const rawExt = localUri.split("?")[0].split(".").pop()?.toLowerCase() ?? "mp4";
+  const ext = ["mp4", "mov", "webm", "m4v"].includes(rawExt) ? rawExt : "mp4";
+  const contentType =
+    ext === "mov"
+      ? "video/quicktime"
+      : ext === "webm"
+        ? "video/webm"
+        : "video/mp4";
 
   const path = `${user.id}/uploads/${randomId()}.${ext}`;
   const { error } = await supabase.storage.from("studio").upload(path, bytes, {
@@ -189,6 +242,94 @@ export async function generateContent(params: GenerateParams): Promise<GenerateR
     provider: json.provider,
     preview: json.preview === true,
     previewGenerationId: json.previewGenerationId,
+  };
+}
+
+// ─── Perform Anywhere (Performance Shot reskin) ──────────────────────────────
+
+export interface ReskinParams {
+  /** Signed studio-bucket URL of the phone performance clip. */
+  performanceVideoUrl: string;
+  /** Signed studio-bucket URL of the identity photo (your character). */
+  avatarImageUrl: string;
+  /** New scene / location description. */
+  location?: string;
+  /** New outfit description. */
+  outfit?: string;
+  /** Extra creative direction. */
+  prompt?: string;
+  /** Succeeded preview generation id — unlocks the full-quality render. */
+  confirmPreviewId?: string;
+}
+
+export interface ReskinResult {
+  jobId: string;
+  generationId: string;
+  /** True when this run is the capped preview pass. */
+  preview: boolean;
+}
+
+/**
+ * Enqueue a Performance Shot: Aurora swaps the performer from your clip into
+ * a new scene/outfit using your character photo. Async — poll the returned
+ * generationId via getGenerationStatus until it succeeds.
+ * Throws "motion_offline" when no motion-capable backend is connected.
+ */
+export async function generatePerformanceReskin(params: ReskinParams): Promise<ReskinResult> {
+  const headers = await getAuthHeaders();
+  const body: Record<string, unknown> = {
+    performanceVideoUrl: params.performanceVideoUrl,
+    avatarImageUrl: params.avatarImageUrl,
+  };
+  if (params.location) body.location = params.location;
+  if (params.outfit) body.outfit = params.outfit;
+  if (params.prompt) body.prompt = params.prompt;
+  if (params.confirmPreviewId) body.confirmPreviewId = params.confirmPreviewId;
+
+  const res = await fetch(`${getApiBase()}/api/public/perform`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok || !json || json.ok === false || json.error) {
+    const msg: string = json?.error || `HTTP ${res.status}`;
+    if (json?.code === "no_motion_backend" || res.status === 503) {
+      throw new Error("motion_offline");
+    }
+    if (res.status === 402 || /credit|balance|insufficient|aura/i.test(msg)) {
+      throw new Error("out_of_credits");
+    }
+    throw new Error(msg);
+  }
+  return {
+    jobId: json.jobId,
+    generationId: json.generationId,
+    preview: json.preview === true,
+  };
+}
+
+export interface GenerationStatus {
+  status: string;
+  videoUrl: string | null;
+}
+
+/** Poll a queued generation (own rows only — RLS enforced). */
+export async function getGenerationStatus(generationId: string): Promise<GenerationStatus> {
+  const { data, error } = await supabase
+    .from("generations")
+    .select("status, motion_video_url, result_video_url")
+    .eq("id", generationId)
+    .single();
+  if (error) throw error;
+  const row = data as {
+    status: string;
+    motion_video_url: string | null;
+    result_video_url: string | null;
+  };
+  return {
+    status: row.status,
+    videoUrl: row.motion_video_url ?? row.result_video_url ?? null,
   };
 }
 

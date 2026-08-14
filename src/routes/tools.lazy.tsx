@@ -89,10 +89,10 @@ const TOOLS = [
     name: "MOTION CONTROL",
     badge: "FLAGSHIP",
     badgeColor: "bg-[#a3e635] text-black",
-    desc: "Motion transfer and performance reskin",
+    desc: "Cinematic camera moves and motion edits in the Director's Room",
     cost: "FROM 300 AURA",
     costColor: "bg-white/10 text-white",
-    to: "/motion",
+    to: "/director-room",
     img: "/hero/hero-4.png",
   },
 ] as const;

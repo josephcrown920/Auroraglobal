@@ -29,7 +29,7 @@ export const COST_IMAGE = computeCost({ features: ["image"] }).total;
 
 // Shown when no GPU worker advertises the "motion" capability. Surfaced verbatim
 // to the UI / MCP caller; credits are never reserved when this fires.
-const NO_MOTION_BACKEND_MSG =
+export const NO_MOTION_BACKEND_MSG =
   "No motion-capable GPU backend is connected yet. Connect a GPU worker with the \"motion\" capability to enable MimicMotion and Performance Shots.";
 
 async function trackServer(name: string, userId: string | null, payload?: Record<string, unknown>) {
@@ -722,7 +722,7 @@ const MotionTransferSchema = z.object({
   confirmPreviewId: z.string().uuid().optional().nullable(),
 });
 
-const PerformanceReskinSchema = z.object({
+export const PerformanceReskinSchema = z.object({
   performanceVideoUrl: z.string().url(),
   avatarImageUrl: z.string().url(),
   outfit: z.string().max(400).optional(),
@@ -833,42 +833,52 @@ export const generateMimicMotion = createServerFn({ method: "POST" })
     return { ...out, preview: gated.previewPass };
   });
 
+/**
+ * Shared enqueue core for the Performance Shot (video-driven avatar reskin).
+ * Called by BOTH the web server fn below and the public mobile endpoint
+ * (/api/public/perform) so guards, preview gate, and pricing never drift
+ * between surfaces.
+ */
+export async function _enqueuePerformanceReskin(
+  userId: string,
+  data: z.infer<typeof PerformanceReskinSchema>,
+): Promise<{ jobId: string; generationId: string; preview: boolean }> {
+  assertTrustedUrl(data.performanceVideoUrl);
+  await assertOwnedReferenceImage(data.avatarImageUrl, userId);
+  if (data.audioUrl) assertTrustedUrl(data.audioUrl);
+
+  if (!(await hasActiveWorkerForKind("motion"))) {
+    throw new Error(NO_MOTION_BACKEND_MSG);
+  }
+
+  // Preview-confirm gate: unconfirmed runs get a capped frame budget and
+  // preview pricing; the preview's id is the ticket for the full render.
+  const gated = await gateMotionEnqueue(userId, data.confirmPreviewId, data.params);
+
+  const payload = {
+    performanceVideoUrl: data.performanceVideoUrl,
+    avatarImageUrl: data.avatarImageUrl,
+    outfit: data.outfit,
+    location: data.location,
+    audioUrl: data.audioUrl,
+    prompt: data.prompt,
+    params: gated.params,
+    ...(gated.previewPass ? { previewOnly: true } : {}),
+  };
+  const fullCost = computeCost({ features: ["video", "motion"] }).total;
+  const out = await reserveGenerationJob(
+    userId,
+    "performance_reskin",
+    data.prompt ?? "Performance reskin",
+    gated.previewPass ? Math.max(1, Math.ceil(fullCost * 0.5)) : fullCost,
+    payload as Record<string, unknown>,
+  );
+  if (gated.previewPass) await markGenerationPreview(out.generationId);
+  await trackServer("performance_reskin_enqueued", userId, { jobId: out.jobId });
+  return { ...out, preview: gated.previewPass };
+}
+
 export const generatePerformanceReskin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => PerformanceReskinSchema.parse(input))
-  .handler(async ({ data, context }) => {
-    const { userId } = context;
-    assertTrustedUrl(data.performanceVideoUrl);
-    await assertOwnedReferenceImage(data.avatarImageUrl, userId);
-    if (data.audioUrl) assertTrustedUrl(data.audioUrl);
-
-    if (!(await hasActiveWorkerForKind("motion"))) {
-      throw new Error(NO_MOTION_BACKEND_MSG);
-    }
-
-    // Preview-confirm gate: unconfirmed runs get a capped frame budget and
-    // preview pricing; the preview's id is the ticket for the full render.
-    const gated = await gateMotionEnqueue(userId, data.confirmPreviewId, data.params);
-
-    const payload = {
-      performanceVideoUrl: data.performanceVideoUrl,
-      avatarImageUrl: data.avatarImageUrl,
-      outfit: data.outfit,
-      location: data.location,
-      audioUrl: data.audioUrl,
-      prompt: data.prompt,
-      params: gated.params,
-      ...(gated.previewPass ? { previewOnly: true } : {}),
-    };
-    const fullCost = computeCost({ features: ["video", "motion"] }).total;
-    const out = await reserveGenerationJob(
-      userId,
-      "performance_reskin",
-      data.prompt ?? "Performance reskin",
-      gated.previewPass ? Math.max(1, Math.ceil(fullCost * 0.5)) : fullCost,
-      payload as Record<string, unknown>,
-    );
-    if (gated.previewPass) await markGenerationPreview(out.generationId);
-    await trackServer("performance_reskin_enqueued", userId, { jobId: out.jobId });
-    return { ...out, preview: gated.previewPass };
-  });
+  .handler(async ({ data, context }) => _enqueuePerformanceReskin(context.userId, data));

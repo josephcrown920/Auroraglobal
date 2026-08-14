@@ -134,3 +134,4 @@
 - [Static public/ file shadows a dynamic route](static-public-file-shadows-route.md) — a same-path file in public/ (sitemap.xml etc.) silently wins over a TanStack server route; check/delete it before debugging the handler.
 - [Dev-only artifacts 500 on live site](artifact-missing-prod-service.md) — an artifact with no [services.production] block returns bare "Internal Server Error" for its path in prod (dev is fine); add a static-serve prod section built via replit-node.sh.
 - [Video chain exhaustion](video-chain-exhaustion.md) — unpinned video exhaustion = stable wrap msg (suffix keeps classify tokens); ffmpeg-free serves explicit pick only; toast bucket ordered before no_workers/429.
+- [Perform Anywhere product framing](perform-anywhere-product.md) — Perform Anywhere = film-yourself clip reskin (hero everywhere); camera-move Motion Control belongs to Director's Room; public /api/public/perform shares _enqueuePerformanceReskin.

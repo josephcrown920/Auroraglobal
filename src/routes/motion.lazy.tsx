@@ -812,10 +812,10 @@ function MotionStudio() {
             </div>
             <div className="mt-auto pt-8">
               <div className="font-black text-xl uppercase tracking-tight leading-tight" style={{ color: "#CCFF00" }}>
-                MOTION CONTROL
+                PERFORM ANYWHERE
               </div>
               <div className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>
-                Control motion with video references
+                Place yourself inside any scene — no studio, no crew
               </div>
             </div>
           </div>

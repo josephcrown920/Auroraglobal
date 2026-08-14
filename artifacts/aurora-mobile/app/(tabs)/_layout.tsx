@@ -49,6 +49,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="perform"
+        options={{
+          title: "Perform",
+          tabBarIcon: ({ color, size }) => <Feather name="activity" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="canvas"
         options={{
           title: "Canvas",

@@ -127,6 +127,7 @@ import { Route as ApiPublicLifecycleEmailsRouteImport } from './routes/api/publi
 import { Route as ApiPublicModelWatchRouteImport } from './routes/api/public/model-watch'
 import { Route as ApiPublicNowpaymentsWebhookRouteImport } from './routes/api/public/nowpayments-webhook'
 import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/public/paystack-webhook'
+import { Route as ApiPublicPerformRouteImport } from './routes/api/public/perform'
 import { Route as ApiPublicProviderHealthCheckRouteImport } from './routes/api/public/provider-health-check'
 import { Route as ApiPublicSiteCopyRouteImport } from './routes/api/public/site-copy'
 import { Route as ApiPublicSiteImagesRouteImport } from './routes/api/public/site-images'
@@ -781,6 +782,11 @@ const ApiPublicPaystackWebhookRoute =
     path: '/api/public/paystack-webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicPerformRoute = ApiPublicPerformRouteImport.update({
+  id: '/api/public/perform',
+  path: '/api/public/perform',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicProviderHealthCheckRoute =
   ApiPublicProviderHealthCheckRouteImport.update({
     id: '/api/public/provider-health-check',
@@ -1063,6 +1069,7 @@ export interface FileRoutesByFullPath {
   '/api/public/model-watch': typeof ApiPublicModelWatchRoute
   '/api/public/nowpayments-webhook': typeof ApiPublicNowpaymentsWebhookRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
+  '/api/public/perform': typeof ApiPublicPerformRoute
   '/api/public/provider-health-check': typeof ApiPublicProviderHealthCheckRoute
   '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
@@ -1213,6 +1220,7 @@ export interface FileRoutesByTo {
   '/api/public/model-watch': typeof ApiPublicModelWatchRoute
   '/api/public/nowpayments-webhook': typeof ApiPublicNowpaymentsWebhookRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
+  '/api/public/perform': typeof ApiPublicPerformRoute
   '/api/public/provider-health-check': typeof ApiPublicProviderHealthCheckRoute
   '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
@@ -1364,6 +1372,7 @@ export interface FileRoutesById {
   '/api/public/model-watch': typeof ApiPublicModelWatchRoute
   '/api/public/nowpayments-webhook': typeof ApiPublicNowpaymentsWebhookRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
+  '/api/public/perform': typeof ApiPublicPerformRoute
   '/api/public/provider-health-check': typeof ApiPublicProviderHealthCheckRoute
   '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
@@ -1516,6 +1525,7 @@ export interface FileRouteTypes {
     | '/api/public/model-watch'
     | '/api/public/nowpayments-webhook'
     | '/api/public/paystack-webhook'
+    | '/api/public/perform'
     | '/api/public/provider-health-check'
     | '/api/public/site-copy'
     | '/api/public/site-images'
@@ -1666,6 +1676,7 @@ export interface FileRouteTypes {
     | '/api/public/model-watch'
     | '/api/public/nowpayments-webhook'
     | '/api/public/paystack-webhook'
+    | '/api/public/perform'
     | '/api/public/provider-health-check'
     | '/api/public/site-copy'
     | '/api/public/site-images'
@@ -1816,6 +1827,7 @@ export interface FileRouteTypes {
     | '/api/public/model-watch'
     | '/api/public/nowpayments-webhook'
     | '/api/public/paystack-webhook'
+    | '/api/public/perform'
     | '/api/public/provider-health-check'
     | '/api/public/site-copy'
     | '/api/public/site-images'
@@ -1953,6 +1965,7 @@ export interface RootRouteChildren {
   ApiPublicModelWatchRoute: typeof ApiPublicModelWatchRoute
   ApiPublicNowpaymentsWebhookRoute: typeof ApiPublicNowpaymentsWebhookRoute
   ApiPublicPaystackWebhookRoute: typeof ApiPublicPaystackWebhookRoute
+  ApiPublicPerformRoute: typeof ApiPublicPerformRoute
   ApiPublicProviderHealthCheckRoute: typeof ApiPublicProviderHealthCheckRoute
   ApiPublicSiteCopyRoute: typeof ApiPublicSiteCopyRoute
   ApiPublicSiteImagesRoute: typeof ApiPublicSiteImagesRoute
@@ -2806,6 +2819,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPaystackWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/perform': {
+      id: '/api/public/perform'
+      path: '/api/public/perform'
+      fullPath: '/api/public/perform'
+      preLoaderRoute: typeof ApiPublicPerformRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/provider-health-check': {
       id: '/api/public/provider-health-check'
       path: '/api/public/provider-health-check'
@@ -3178,6 +3198,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicModelWatchRoute: ApiPublicModelWatchRoute,
   ApiPublicNowpaymentsWebhookRoute: ApiPublicNowpaymentsWebhookRoute,
   ApiPublicPaystackWebhookRoute: ApiPublicPaystackWebhookRoute,
+  ApiPublicPerformRoute: ApiPublicPerformRoute,
   ApiPublicProviderHealthCheckRoute: ApiPublicProviderHealthCheckRoute,
   ApiPublicSiteCopyRoute: ApiPublicSiteCopyRoute,
   ApiPublicSiteImagesRoute: ApiPublicSiteImagesRoute,
