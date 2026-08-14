@@ -24,6 +24,8 @@ import { computeCost } from "@/lib/pricing";
 const COST_MCP_MOTION = computeCost({ features: ["motion"] }).total;
 const COST_MCP_PERFORMANCE_RESKIN = computeCost({ features: ["video", "motion"] }).total;
 import { enqueueJobForUser, listJobsForUser, cancelJobForUser } from "@/lib/jobs.functions";
+import { getEffectiveHiddenKeys } from "@/lib/feature-visibility.server";
+import type { FeatureKey } from "@/lib/feature-visibility";
 import type { ToolResult, Avatar } from "./types";
 
 export type ToolCtx = { userId: string; bearer: string; origin: string };
@@ -143,6 +145,13 @@ export interface ToolDeps {
     audioUrl: string;
     engine: string;
   }) => Promise<Record<string, unknown>>;
+  /**
+   * Effective hidden feature keys for regular users (feature visibility gate —
+   * used by the MCP protocol layer to filter tools/list and gate tools/call).
+   * Optional: when a test omits it, the handler falls back to the seeded
+   * artist-only defaults (fail-safe toward hidden, never toward visible).
+   */
+  hiddenFeatureKeys?: () => Promise<FeatureKey[]>;
 }
 
 export const defaultToolDeps: ToolDeps = {
@@ -180,6 +189,7 @@ export const defaultToolDeps: ToolDeps = {
       input as Parameters<typeof runBatchLipsyncJob>[0],
     )) as Record<string, unknown>;
   },
+  hiddenFeatureKeys: getEffectiveHiddenKeys,
 };
 
 // ─── Identity lock (exported for unit tests) ──────────────────────────────────

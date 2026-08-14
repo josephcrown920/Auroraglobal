@@ -121,11 +121,16 @@ describe("handleRpcMessage", () => {
     expect(r.result).toEqual({});
   });
 
-  it("tools/list is open (no auth) and lists all 14 tools", async () => {
+  it("tools/list is open (no auth) but shows the owner-filtered view", async () => {
+    // Unauthenticated discovery must not leak owner-hidden features: ugc and
+    // content-machine are artist-only defaults, so their tools are filtered out.
     const r = (await handleRpcMessage({ id: 3, method: "tools/list" }, NO_AUTH, ORIGIN)) as {
-      result: { tools: unknown[] };
+      result: { tools: { name: string }[] };
     };
-    expect(r.result.tools).toHaveLength(14);
+    const names = r.result.tools.map((t) => t.name);
+    expect(names).toHaveLength(TOOL_NAMES.length - 2);
+    expect(names).not.toContain("aurora_generate_ugc_ad");
+    expect(names).not.toContain("aurora_generate_campaign");
   });
 
   it("tools/call without a bearer is rejected with JSON-RPC -32001", async () => {
@@ -170,6 +175,117 @@ describe("handleRpcMessage", () => {
 
   it("notifications/initialized produces no response", async () => {
     expect(await handleRpcMessage({ method: "notifications/initialized" }, NO_AUTH, ORIGIN)).toBeNull();
+  });
+
+  describe("feature-visibility gating", () => {
+    const ADMIN = { userId: "admin1", bearer: "aurk_admin", isAdmin: true };
+    const depsHiding = (keys: string[]) => ({
+      ...fakeDeps(),
+      hiddenFeatureKeys: async () => keys,
+    });
+
+    it("tools/list hides gated tools for a regular authed caller but shows them to admins", async () => {
+      const hidden = depsHiding(["ugc", "content-machine"]);
+      const regular = (await handleRpcMessage({ id: 10, method: "tools/list" }, AUTH, ORIGIN, hidden)) as {
+        result: { tools: { name: string }[] };
+      };
+      const names = regular.result.tools.map((t) => t.name);
+      expect(names).not.toContain("aurora_generate_ugc_ad");
+      expect(names).not.toContain("aurora_generate_campaign");
+      expect(names).toContain("aurora_generate_video");
+
+      const admin = (await handleRpcMessage({ id: 11, method: "tools/list" }, ADMIN, ORIGIN, hidden)) as {
+        result: { tools: { name: string }[] };
+      };
+      expect(admin.result.tools).toHaveLength(TOOL_NAMES.length);
+    });
+
+    it("tools/list shows gated tools again when the owner resurfaces the feature", async () => {
+      const visible = depsHiding([]);
+      const r = (await handleRpcMessage({ id: 12, method: "tools/list" }, AUTH, ORIGIN, visible)) as {
+        result: { tools: { name: string }[] };
+      };
+      expect(r.result.tools).toHaveLength(TOOL_NAMES.length);
+    });
+
+    it("tools/call on a hidden-feature tool fails EXPLICITLY and never dispatches", async () => {
+      let dispatched = false;
+      const deps = {
+        ...fakeDeps(),
+        hiddenFeatureKeys: async () => ["ugc"],
+        getAvatarByName: async () => {
+          dispatched = true;
+          return null;
+        },
+      };
+      const r = (await handleRpcMessage(
+        { id: 13, method: "tools/call", params: { name: "aurora_generate_ugc_ad", arguments: { avatar_name: "x", product: "tea" } } },
+        AUTH,
+        ORIGIN,
+        deps,
+      )) as { result: { isError?: boolean; content: { text: string }[] } };
+      expect(r.result.isError).toBe(true);
+      const payload = JSON.parse(r.result.content[0].text);
+      expect(payload.error).toMatch(/Feature unavailable/);
+      expect(payload.feature).toBe("ugc");
+      expect(dispatched).toBe(false); // explicit refusal BEFORE any dispatch/charge
+    });
+
+    it("tools/call on a hidden-feature tool still dispatches for an admin", async () => {
+      const deps = depsHiding(["ugc"]);
+      const r = (await handleRpcMessage(
+        { id: 14, method: "tools/call", params: { name: "aurora_generate_ugc_ad", arguments: { avatar_name: "x", product: "tea" } } },
+        ADMIN,
+        ORIGIN,
+        deps,
+      )) as { result: { isError?: boolean; content: { text: string }[] } };
+      // Gate passed → dispatch ran → avatar lookup is the tool's first step and
+      // fakeDeps returns null, so the error is the tool's own, not the gate's.
+      expect(JSON.parse(r.result.content[0].text).error).toMatch(/not found/);
+    });
+
+    it("tools/call refuses aurora_generate_campaign the same way (second mapped path)", async () => {
+      const r = (await handleRpcMessage(
+        { id: 16, method: "tools/call", params: { name: "aurora_generate_campaign", arguments: { avatar_name: "x", prompt_template: "p", count: 2 } } },
+        AUTH,
+        ORIGIN,
+        depsHiding(["content-machine"]),
+      )) as { result: { isError?: boolean; content: { text: string }[] } };
+      expect(r.result.isError).toBe(true);
+      const payload = JSON.parse(r.result.content[0].text);
+      expect(payload.error).toMatch(/Feature unavailable/);
+      expect(payload.feature).toBe("content-machine");
+    });
+
+    it("a throwing or missing visibility resolver fails CLOSED (seeded hidden defaults)", async () => {
+      // Resolver throws → seeded artist-only defaults apply → ugc stays hidden.
+      const throwing = { ...fakeDeps(), hiddenFeatureKeys: async () => { throw new Error("db down"); } };
+      const r1 = (await handleRpcMessage({ id: 17, method: "tools/list" }, AUTH, ORIGIN, throwing)) as {
+        result: { tools: { name: string }[] };
+      };
+      expect(r1.result.tools.map((t) => t.name)).not.toContain("aurora_generate_ugc_ad");
+      // Resolver missing entirely (old-style deps) → same fail-safe defaults.
+      const r2 = (await handleRpcMessage({ id: 18, method: "tools/list" }, AUTH, ORIGIN, fakeDeps())) as {
+        result: { tools: { name: string }[] };
+      };
+      expect(r2.result.tools.map((t) => t.name)).not.toContain("aurora_generate_campaign");
+      // But a throw can never block an ADMIN — isAdmin short-circuits first.
+      const r3 = (await handleRpcMessage({ id: 19, method: "tools/list" }, ADMIN, ORIGIN, throwing)) as {
+        result: { tools: { name: string }[] };
+      };
+      expect(r3.result.tools).toHaveLength(TOOL_NAMES.length);
+    });
+
+    it("tools/call on a non-gated tool is unaffected by hidden keys", async () => {
+      const r = (await handleRpcMessage(
+        { id: 15, method: "tools/call", params: { name: "aurora_list_avatars", arguments: {} } },
+        AUTH,
+        ORIGIN,
+        depsHiding(["ugc", "content-machine"]),
+      )) as { result: { isError?: boolean; content: { text: string }[] } };
+      expect(r.result.isError).toBeFalsy();
+      expect(JSON.parse(r.result.content[0].text)).toEqual({ avatars: [], total: 0 });
+    });
   });
 
   it("an unknown method WITH an id returns -32601; without an id is a silent notification", async () => {

@@ -5,13 +5,15 @@
 // is open; tools/call requires a Bearer token (Supabase JWT or aurk_ API key),
 // the same auth used by /api/public/generate. The JSON-RPC message handler lives
 // in src/lib/mcp/server.server.ts so it can be unit-tested without route plumbing.
+// tools/list + tools/call are filtered by the owner's feature-visibility state
+// for non-admin callers, so external tools match what users can actually see.
 //
 // Configure in a Bearer-token MCP client (e.g. Claude Desktop / Cursor) as a
 // remote/HTTP MCP server pointing at https://<your-domain>/api/mcp with an
 // Authorization: Bearer <token> header.
 
 import { createFileRoute } from "@tanstack/react-router";
-import { handleRpcMessage, SERVER_INFO, type RpcMessage } from "@/lib/mcp/server.server";
+import { handleRpcMessage, SERVER_INFO, type RpcMessage, type RpcAuth } from "@/lib/mcp/server.server";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -32,18 +34,31 @@ function resolveSelfOrigin(request: Request): string {
   return new URL(request.url).origin;
 }
 
-async function authUserId(req: Request): Promise<{ userId: string | null; bearer: string | null }> {
+// Feature-visibility admin bypass: an admin's tools/list + tools/call ignore the
+// owner-hidden feature set (backends stay functional for admins by design).
+// Fail CLOSED — a broken role lookup must never expose a hidden feature.
+async function isAdminUser(userId: string): Promise<boolean> {
+  try {
+    const { isAdmin } = await import("@/lib/admin.server");
+    return await isAdmin(userId);
+  } catch {
+    return false;
+  }
+}
+
+async function authUserId(req: Request): Promise<RpcAuth> {
   const h = req.headers.get("authorization") || req.headers.get("Authorization");
   if (!h?.startsWith("Bearer ")) return { userId: null, bearer: null };
   const token = h.slice(7);
   if (token.startsWith("aurk_")) {
     const { userIdForApiKey } = await import("@/lib/cli-device.server");
-    return { userId: await userIdForApiKey(token), bearer: token };
+    const userId = await userIdForApiKey(token);
+    return { userId, bearer: token, isAdmin: userId ? await isAdminUser(userId) : false };
   }
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) return { userId: null, bearer: token };
-  return { userId: data.user.id, bearer: token };
+  if (error || !data.user) return { userId: null, bearer: token, isAdmin: false };
+  return { userId: data.user.id, bearer: token, isAdmin: await isAdminUser(data.user.id) };
 }
 
 export const Route = createFileRoute("/api/mcp")({

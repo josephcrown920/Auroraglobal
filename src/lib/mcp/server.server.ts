@@ -5,6 +5,7 @@
 
 import { z } from "zod";
 import type { ToolResult } from "./types";
+import { defaultHiddenKeys, type FeatureKey } from "../feature-visibility";
 import {
   generateVideoSchema, generateVideoTool,
   bulkGenerateSchema, bulkGenerateTool,
@@ -30,6 +31,19 @@ interface ToolDef {
   description: string;
   schema: z.ZodObject<z.ZodRawShape>;
 }
+
+/**
+ * Which gateable feature (feature-visibility.ts) backs an MCP tool. Tools not
+ * listed here serve core, always-visible functionality and are never filtered.
+ * The mapping is deliberately conservative: a tool is gated only when its
+ * ENTIRE purpose is a feature the owner can hide. (Kids/Spin/GRWM etc. have no
+ * MCP tools; template catalogs are never served over the API at all.)
+ */
+export const TOOL_FEATURE: Readonly<Record<string, FeatureKey>> = {
+  aurora_generate_ugc_ad: "ugc",
+  // Coordinated multi-set campaign = the Content Machine feature.
+  aurora_generate_campaign: "content-machine",
+};
 
 const TOOLS: ToolDef[] = [
   {
@@ -153,9 +167,15 @@ export function zodToJsonSchema(schema: z.ZodObject<z.ZodRawShape>): Record<stri
   return { type: "object", properties, ...(required.length ? { required } : {}) };
 }
 
-export function listTools(): { tools: Array<{ name: string; description: string; inputSchema: Record<string, unknown> }> } {
+export function listTools(
+  hidden: readonly FeatureKey[] = [],
+): { tools: Array<{ name: string; description: string; inputSchema: Record<string, unknown> }> } {
+  const hiddenSet = new Set<FeatureKey>(hidden);
   return {
-    tools: TOOLS.map((t) => ({
+    tools: TOOLS.filter((t) => {
+      const feature = TOOL_FEATURE[t.name];
+      return !feature || !hiddenSet.has(feature);
+    }).map((t) => ({
       name: t.name,
       description: t.description,
       inputSchema: zodToJsonSchema(t.schema),
@@ -206,7 +226,23 @@ export const PROTOCOL_VERSION = "2024-11-05";
 export const SERVER_INFO = { name: "aurora-mcp", version: "1.0.0" };
 
 export type RpcMessage = { jsonrpc?: string; id?: string | number | null; method?: string; params?: Record<string, unknown> };
-export type RpcAuth = { userId: string | null; bearer: string | null };
+export type RpcAuth = { userId: string | null; bearer: string | null; isAdmin?: boolean };
+
+/**
+ * Effective hidden feature keys for this caller. Admins/owner always see and
+ * can invoke everything (backends stay functional for admins by design).
+ * Fail-safe: a missing/throwing resolver falls back to the seeded artist-only
+ * defaults — never to "everything visible".
+ */
+async function hiddenKeysFor(auth: RpcAuth, deps: ToolDeps): Promise<readonly FeatureKey[]> {
+  if (auth.isAdmin) return [];
+  const resolve = deps.hiddenFeatureKeys ?? (async () => defaultHiddenKeys());
+  try {
+    return await resolve();
+  } catch {
+    return defaultHiddenKeys();
+  }
+}
 
 function rpcResult(id: RpcMessage["id"], r: unknown) {
   return { jsonrpc: "2.0", id, result: r };
@@ -235,13 +271,31 @@ export async function handleRpcMessage(
     case "ping":
       return rpcResult(id, {});
     case "tools/list":
-      return rpcResult(id, listTools());
+      // Discovery is open, but the listing mirrors what a REGULAR user can see:
+      // tools backed by owner-hidden features are filtered unless the caller is
+      // authenticated as admin.
+      return rpcResult(id, listTools(await hiddenKeysFor(auth, deps)));
     case "tools/call": {
       if (!auth.userId || !auth.bearer) {
         return rpcError(id, -32001, "Unauthorized: provide Authorization: Bearer <Supabase JWT or aurk_ API key>");
       }
       const name = params?.name as string;
       const args = params?.arguments ?? {};
+      // Direct-invocation gate: even if a client cached an older tools/list,
+      // a hidden feature must fail EXPLICITLY for non-admins — never run.
+      const gatedFeature = TOOL_FEATURE[name];
+      if (gatedFeature && (await hiddenKeysFor(auth, deps)).includes(gatedFeature)) {
+        return rpcResult(id, {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              error: `Feature unavailable: "${gatedFeature}" is hidden by the site owner.`,
+              feature: gatedFeature,
+            }),
+          }],
+          isError: true,
+        });
+      }
       try {
         const toolResult = await callTool(name, args, { userId: auth.userId, bearer: auth.bearer, origin }, deps);
         return rpcResult(id, toolResult);

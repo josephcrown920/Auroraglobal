@@ -80,8 +80,8 @@ and tracked with `aurora_get_job_status`.
 | `aurora_bulk_generate` | queued | 1 / image | Batch up to 50 persona images, auto-varying location/outfit/mood/lighting. Returns job IDs. |
 | `aurora_animate_from_driving_video` | queued | 5 | MimicMotion / pose transfer onto a still. Needs a `motion`-capable GPU worker. |
 | `aurora_performance_reskin` | queued | 8 | Reskin a real performance video onto an avatar (+ optional lip-sync). Needs a `motion` worker. |
-| `aurora_generate_ugc_ad` | queued | 8 | Talking UGC ad for a persona: script → voice → still → i2v → lip-sync. Returns a job ID. |
-| `aurora_generate_campaign` | queued | 6 / set | N matched image+video sets from one prompt template. Returns job IDs. |
+| `aurora_generate_ugc_ad` | queued | 8 | Talking UGC ad for a persona: script → voice → still → i2v → lip-sync. Returns a job ID. *(Hidden with the "UGC Ads" feature — see below.)* |
+| `aurora_generate_campaign` | queued | 6 / set | N matched image+video sets from one prompt template. Returns job IDs. *(Hidden with the "Content Machine" feature — see below.)* |
 | `aurora_submit_job` | queued | 1–5 (½ for previews) | Queue one image/video/lipsync/upscale job — the same queue the in-app editor and CLI use. |
 | `aurora_list_jobs` | — | 0 | Recent jobs (last 50), optionally filtered by status. |
 | `aurora_cancel_job` | — | 0 (refunds) | Cancel a still-`queued` job and release its reserved Aura. |
@@ -92,6 +92,13 @@ and tracked with `aurora_get_job_status`.
 The motion/reskin tools fail loudly (no credits reserved) when no `motion`-capable
 GPU worker is connected. Identity is locked across shots: persona-driven tools
 pass the avatar's reference image to the model, never the trigger word alone.
+
+**Feature visibility:** tools backed by an owner-hidden feature
+(`aurora_generate_ugc_ad` → UGC Ads, `aurora_generate_campaign` → Content Machine;
+see `TOOL_FEATURE` in `server.server.ts`) are omitted from `tools/list` and reject
+`tools/call` with an explicit `Feature unavailable` error for non-admin callers.
+Admins always see and can invoke the full manifest; when the owner resurfaces a
+feature in the admin Features panel its tools reappear automatically.
 
 `aurora_submit_job` shares its enqueue core (`enqueueJobForUser` in
 `src/lib/jobs.functions.ts`) with the in-app editor, so billing rules are
@@ -123,7 +130,8 @@ curl -s -X POST $BASE -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"verify","version":"1"}}}'
 # → result.serverInfo.name == "aurora-mcp"
 
-# 2. Manifest (open) — expect 13 aurora_* tools
+# 2. Manifest (open) — expect 12 aurora_* tools by default (owner-hidden
+#    features are filtered; admins see all 14)
 curl -s -X POST $BASE -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
 
