@@ -5,7 +5,7 @@
 **Package Name:** com.aurorastudio.app
 **Category:** Photography
 **Content Rating:** Everyone
-**Price:** Free (in-app purchases)
+**Price:** Free (no in-app purchase products in v1)
 
 ---
 
@@ -50,7 +50,7 @@ AI-powered creative studio for generating stunning performance photos & videos.
 
 ### Credits
 
-Aurora uses a simple credit system. Each generation costs 2 credits. Credits can be purchased at auroraperformancestudio.com — your balance syncs instantly to the app.
+Aurora uses a simple credit system. Each generation costs 2 credits, and your balance syncs instantly across your devices.
 
 Credits never expire.
 
@@ -66,7 +66,7 @@ Capture screenshots at 1080×1920 (portrait) showing:
 1. Studio screen with style picker and generate button
 2. Gallery screen with generated content grid
 3. A generated performance shot result
-4. Credits screen with balance and top-up options
+4. Credits screen with balance and history
 5. Auth/sign-in screen
 
 ---
@@ -100,7 +100,7 @@ support@auroraperformancestudio.com
 **Primary Category:** Photo & Video
 **Secondary Category:** Entertainment
 **Content Rating:** 17+ (for apps with infrequent mild adult themes via Adult School)
-**Price:** Free (in-app purchases)
+**Price:** Free (no in-app purchase products in v1)
 **Privacy Policy URL:** https://auroraperformancestudio.com/privacy
 **Support URL:** https://auroraperformancestudio.com
 **Contact Email:** support@auroraperformancestudio.com

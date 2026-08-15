@@ -40,3 +40,7 @@ yarn-error.*
 
 # Play Store
 google-play-service-account.json
+
+# Local copies of store binaries (never commit)
+store/builds/
+*.aab

@@ -37,6 +37,29 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   };
 }
 
+/**
+ * Permanently delete the signed-in user's account (server wipes profile,
+ * credits, generations, uploads + the auth user). Required by App Store
+ * 5.1.1(v) and Play's account-deletion policy. Caller signs out afterwards.
+ */
+export async function deleteAccount(): Promise<void> {
+  const res = await fetch(`${getApiBase()}/api/public/account-delete`, {
+    method: "POST",
+    headers: await getAuthHeaders(),
+    body: JSON.stringify({ confirm: "DELETE" }),
+  });
+  if (!res.ok) {
+    let msg = `Account deletion failed (HTTP ${res.status})`;
+    try {
+      const j = (await res.json()) as { error?: string };
+      if (j?.error) msg = j.error;
+    } catch {
+      // keep the default message
+    }
+    throw new Error(msg);
+  }
+}
+
 export type { Generation } from "@/lib/gallery-mapping";
 
 // ─── Reference image upload ───────────────────────────────────────────────────

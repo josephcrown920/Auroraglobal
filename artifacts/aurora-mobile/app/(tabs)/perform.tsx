@@ -178,7 +178,7 @@ export default function PerformScreen() {
 
   function friendly(e: unknown): string {
     const msg = e instanceof Error ? e.message : "Something went wrong";
-    if (msg === "out_of_credits") return "Not enough Aura — top up from the Account tab.";
+    if (msg === "out_of_credits") return "Not enough Aura for this Performance Shot.";
     if (msg === "motion_offline")
       return "The Perform engine is offline right now. Try \"From a photo\" — it works instantly.";
     if (/no .*worker|no active worker|not available/i.test(msg))

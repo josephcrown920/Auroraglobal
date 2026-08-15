@@ -55,13 +55,9 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => <Feather name="activity" size={size} color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="canvas"
-        options={{
-          title: "Canvas",
-          tabBarIcon: ({ color, size }) => <Feather name="layers" size={size} color={color} />,
-        }}
-      />
+      {/* Canvas is a "coming soon" surface — hidden from the store build's
+          tab bar (visible placeholders fail app review). Still routable. */}
+      <Tabs.Screen name="canvas" options={{ href: null }} />
       <Tabs.Screen
         name="gallery"
         options={{

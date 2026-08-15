@@ -142,7 +142,7 @@ export default function VideoScreen() {
       const msg = e?.message ?? "Generation failed";
       setError(
         msg === "out_of_credits"
-          ? "Not enough Aura — top up from the Account tab."
+          ? "Not enough Aura for this render."
           : msg,
       );
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

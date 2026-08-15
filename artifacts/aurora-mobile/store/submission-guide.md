@@ -1,6 +1,6 @@
 # Aurora Studio — Store Submission Guide
 
-> Last updated: 2026-08-13
+> Last updated: 2026-08-15
 
 ## Current Status
 
@@ -17,11 +17,15 @@
 | EAS project linked | ✅ | ID `9927fad2-c399-4ae3-8727-614a2c751184` (`@nbajoshs-organization/aurora-performance-studio`) |
 | EXPO_TOKEN authenticated | ✅ | Account: `nbajosh` / org: `nbajoshs-organization` |
 | **Android production AAB** | ✅ | Build `1c5efc61-5ec9-47d8-a26b-26a079732e63` finished 2026-07-21 |
-| `.gitignore` excludes service account key | ✅ | `google-play-service-account.json` is excluded |
-| Google Play Developer account | ⬜ | **Required first** — $25 one-time at play.google.com/console/signup |
-| Screenshots (device resolution) | ⬜ | Capture on real device — see resolutions below |
-| `google-play-service-account.json` | ⬜ | Create from Google Play Console — needed to `eas submit` Android |
-| Android Play Store submission | ⬜ | Run `eas submit` after adding service account key |
+| **Local AAB copy (never expires)** | ✅ | `store/builds/aurora-studio-v1.0.0-vc1-1c5efc61.aab` (65.5 MB, gitignored). sha256 `63688d070518e62c5bed6663ae123ab8328357c4b1de0658d4643324064c981f`. The EAS download link expires **2026-08-20** — after that, use this local copy. ⚠️ vc1 predates the store-policy fixes below — fine for a first internal-track smoke, but upload **vc2** for anything reviewers see. |
+| **Store-policy compliance fixes (2026-08-15)** | ✅ | Purchase links AND all "top up" copy removed (Play/Apple digital-goods rule), in-app **account deletion** added (endpoint verified end-to-end incl. every storage namespace), unfinished Canvas tab hidden, `android.versionCode` → **2**. Ships in the vc2 build. |
+| **Web account-deletion page** | ✅ | `/delete-account` — required by Play's account-deletion policy (web resource usable without reinstalling). Goes live with the next web publish. Use `https://auroraperformancestudio.com/delete-account` as the **deletion URL in the Play Data safety form**. Privacy policy updated to disclose it + retention. |
+| **vc2 Android production AAB — UPLOAD THIS** | ✅ | `store/builds/aurora-studio-v1.0.0-vc2-70a20985.aab` (66.9 MB, gitignored) — EAS build `70a20985-edf7-4ebc-92fe-a215b9fc8d31`, finished 2026-08-15, versionCode 2. sha256 `f60c0ec1f6fc5980809c31ae5a9cd64694cc3c9f442a9400e8b527387e2eeb0f`. EAS download link expires ~2026-09-14; the local copy does not. |
+| `.gitignore` excludes store binaries + service key | ✅ | `store/builds/`, `*.aab`, `google-play-service-account.json` |
+| Google Play Developer account | ⬜ | **Required first** — $25 one-time at play.google.com/console/signup (identity verification can take ~48h) |
+| Android Play Store submission (internal track) | ⬜ | Manual upload in Play Console — see Step 3 |
+| Screenshots (device resolution) | ⬜ | NOT needed for internal testing; required before the store listing / production |
+| `google-play-service-account.json` | ⬜ optional | Only for automated future submissions via the Play Developer API — not needed for the manual upload |
 | Pre-launch report checks | ⬜ | Review in Play Console after internal track upload |
 | iOS Apple Developer credentials | ⬜ | Needs Apple Developer account ($99/yr) |
 | `eas.json` Apple IDs filled in | ⬜ | Replace `FILL_IN_FROM_APP_STORE_CONNECT` placeholders |
@@ -51,34 +55,32 @@ If you haven't already:
 
 ---
 
-## Step 3 — Submit the Ready Android Build
+## Step 3 — Upload the Ready Android Build (manual — primary path)
 
-The Android AAB (build `1c5efc61`) is already finished. To upload it to the Play Store internal track:
+The signed AAB is already built and saved in this workspace. Per Replit's mobile publishing docs, the first Android release is a **manual upload in Play Console** — no service account or CLI needed.
 
-### 3a. Create Google Play service account key
+### 3a. Download the AAB to your computer
 
-1. In Play Console → **Setup → API access**
-2. Click **Link to a Google Cloud project** (or create one)
-3. Under **Service accounts**, click **Create new service account**
-4. In Google Cloud Console, give it the **Service Account** → **Release Manager** role
-5. Back in Play Console, grant the service account access
-6. In Cloud Console → IAM → Service Accounts → your account → **Keys → Add Key → JSON**
-7. Save the downloaded JSON file as:
-   ```
-   artifacts/aurora-mobile/google-play-service-account.json
-   ```
-   > ⚠️ This file is in `.gitignore` — never commit it.
+Use the **vc2** file in `artifacts/aurora-mobile/store/builds/` (named `...-vc2-70a20985.aab` once the build lands) → right-click → **Download**. It contains the store-policy fixes; the older `...-vc1-1c5efc61.aab` predates them and should only be used if you need to smoke-test before vc2 finishes.
 
-### 3b. Submit the Android build
+### 3b. Create the app record in Play Console
 
-```bash
-cd artifacts/aurora-mobile
-EXPO_TOKEN=$EXPO_TOKEN npx eas submit \
-  --platform android \
-  --id 1c5efc61-5ec9-47d8-a26b-26a079732e63
-```
+1. [Play Console](https://play.google.com/console) → **Create app**
+2. App name: **Aurora Studio** · Default language: English (US) · Type: **App** · Price: **Free**
+3. Accept the declarations and create.
 
-This uploads the AAB to the **internal testing** track in draft state.
+### 3c. Upload to the internal testing track
+
+1. **Testing → Internal testing → Create new release**
+2. On first upload, accept **Play App Signing** (Google manages the signing key — recommended, keep the default)
+3. Drop in the `.aab` file → let it process → **Next → Save and publish** to internal testing
+4. **Testers** tab → create an email list with your Gmail address(es) → save → copy the **opt-in link** → open it on an Android phone → install
+
+Internal testing needs no screenshots and no full store listing — those come later, before production.
+
+### 3d. (Optional, later) Automated submissions
+
+For future releases you can automate uploads with a Google Play service account key (Play Console → Setup → API access → create service account with Release Manager role → JSON key saved as `artifacts/aurora-mobile/google-play-service-account.json`, gitignored — never commit it, never paste it into chat). The agent can then submit new builds through the Play Developer API. Not required for this first release.
 
 ---
 
@@ -134,7 +136,7 @@ Copy content from `store-listing.md` into Play Console:
 4. Expected rating: **Everyone**
 
 ### Pricing & distribution
-- **Free** (in-app purchases via Paystack)
+- **Free** — do **not** declare in-app purchases: v1 ships no in-app purchase products. (Google Play forbids selling digital credits in-app through non-Play checkout; if credits later ship via Google Play Billing, update this declaration.)
 - All countries (or restrict as needed)
 - Check "Contains ads": No
 
@@ -153,7 +155,7 @@ Capture using Expo Go on a real Android device, or Android Studio AVD:
 1. **Studio screen** — style picker + generate button (most important)
 2. **A generated result** — performance shot in gallery
 3. **Gallery grid** — showing multiple past generations
-4. **Credits screen** — balance and top-up
+4. **Credits screen** — balance and history
 5. **Sign-in screen**
 
 ### How to take screenshots:
@@ -232,7 +234,9 @@ EXPO_TOKEN=$EXPO_TOKEN npx eas submit \
 | EAS Project ID | `9927fad2-c399-4ae3-8727-614a2c751184` |
 | Android package | `com.aurorastudio.app` |
 | iOS bundle ID | `com.aurorastudio.app` |
-| Android build (ready) | `1c5efc61-5ec9-47d8-a26b-26a079732e63` (finished 2026-07-21) |
+| Android build (ready, vc2) | `70a20985-edf7-4ebc-92fe-a215b9fc8d31` (finished 2026-08-15, versionCode 2 — the one to upload) |
+| Android build (superseded, vc1) | `1c5efc61-5ec9-47d8-a26b-26a079732e63` (2026-07-21, predates policy fixes) |
+| Play Data safety — deletion URL | `https://auroraperformancestudio.com/delete-account` (live after next web publish) |
 | Privacy policy | https://auroraperformancestudio.com/privacy |
 | Terms of service | https://auroraperformancestudio.com/terms |
 | Support URL | https://auroraperformancestudio.com |

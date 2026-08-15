@@ -123,6 +123,7 @@ export const LEGAL: Record<LegalDoc["slug"], LegalDoc> = {
         heading: "Your rights",
         body: [
           "You can export your data, delete any generation, delete your account, or request human review of an automated decision. Contact us and we will respond within 30 days.",
+          "Account deletion is self-service: in the mobile app under Account → Delete Account, or on the web at auroraperformancestudio.com/delete-account. Deletion is immediate and permanent — it removes your sign-in, all creations and uploads, your generation history, and any remaining Aura balance.",
           "Depending on where you live, you may have additional rights under GDPR, UK GDPR, CCPA/CPRA or similar laws.",
         ],
       },
@@ -131,6 +132,7 @@ export const LEGAL: Record<LegalDoc["slug"], LegalDoc> = {
         body: [
           "Generations and uploads are kept until you delete them or delete your account. Backups roll off within 30 days.",
           "Payment records are retained for 7 years for tax compliance.",
+          "After account deletion we retain two narrow records where the law requires it: payment records (financial regulations) and your acceptance of our terms (including the IP address and browser signature captured at acceptance, as evidence of consent). Neither contains media or creative content.",
           "Email logs are kept for 90 days then purged.",
         ],
       },

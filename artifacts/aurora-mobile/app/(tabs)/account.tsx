@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as WebBrowser from "expo-web-browser";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -16,7 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
-import { getUserProfile } from "@/lib/api";
+import { deleteAccount, getUserProfile } from "@/lib/api";
 
 const APP_VERSION = "1.0.0";
 
@@ -72,6 +72,10 @@ export default function AccountScreen() {
   const insets = useSafeAreaInsets();
   const { user, signOut } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  // Ref guard: state updates lag Alert callbacks, so a queued second Alert
+  // could otherwise start a concurrent deletion request.
+  const deletingRef = useRef(false);
 
   const { data: profile } = useQuery({
     queryKey: ["profile"],
@@ -106,6 +110,41 @@ export default function AccountScreen() {
   const openWeb = async (path: string) => {
     const base = getApiBase();
     await WebBrowser.openBrowserAsync(`${base}${path}`);
+  };
+
+  // In-app account deletion — required by App Store 5.1.1(v) and Google
+  // Play's account-deletion policy for any app with sign-up.
+  const handleDeleteAccount = () => {
+    if (deleting) return;
+    Alert.alert(
+      "Delete Account?",
+      "This permanently deletes your account, remaining Aura, and all your creations. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete Forever",
+          style: "destructive",
+          onPress: async () => {
+            if (deletingRef.current) return;
+            deletingRef.current = true;
+            setDeleting(true);
+            try {
+              await deleteAccount();
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              await signOut();
+            } catch (e: any) {
+              Alert.alert(
+                "Could not delete account",
+                e?.message ?? "Please try again or contact support@auroraperformancestudio.com",
+              );
+            } finally {
+              deletingRef.current = false;
+              setDeleting(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -147,11 +186,6 @@ export default function AccountScreen() {
               icon="globe"
               label="Open Web App"
               onPress={() => openWeb("/")}
-            />
-            <SettingRow
-              icon="credit-card"
-              label="Billing & Credits"
-              onPress={() => openWeb("/billing")}
             />
           </View>
         </View>
@@ -208,6 +242,21 @@ export default function AccountScreen() {
             )}
           </Pressable>
         </View>
+
+        <View style={styles.section}>
+          <View style={[styles.group, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <SettingRow
+              icon="trash-2"
+              label={deleting ? "Deleting Account…" : "Delete Account"}
+              destructive
+              chevron={false}
+              onPress={handleDeleteAccount}
+            />
+          </View>
+          <Text style={[styles.deleteHint, { color: colors.mutedForeground }]}>
+            Permanently removes your account, remaining Aura, and all creations.
+          </Text>
+        </View>
       </ScrollView>
     </View>
   );
@@ -262,4 +311,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   signOutText: { fontSize: 15, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
+  deleteHint: { fontSize: 12, marginTop: 8, paddingHorizontal: 4, fontFamily: "Inter_400Regular" },
 });

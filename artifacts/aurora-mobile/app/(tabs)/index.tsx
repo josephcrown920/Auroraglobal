@@ -345,7 +345,7 @@ export default function HomeScreen() {
     if (credits < CREDIT_COST) {
       Alert.alert(
         "Not enough Aura",
-        `You need at least ${CREDIT_COST} Aura to generate. Top up from the Account tab.`,
+        `You need at least ${CREDIT_COST} Aura to generate.`,
         [{ text: "OK" }]
       );
       return;
@@ -386,7 +386,7 @@ export default function HomeScreen() {
     } catch (e: any) {
       const msg = e?.message ?? "Generation failed";
       if (msg === "out_of_credits") {
-        setGenError("Out of Aura — top up in the Credits tab.");
+        setGenError("Out of Aura for this generation.");
       } else {
         setGenError(msg);
       }

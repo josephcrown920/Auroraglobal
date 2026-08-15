@@ -30,6 +30,7 @@ import { Route as ContactRouteImport } from './routes/contact'
 import { Route as ContentRouteImport } from './routes/content'
 import { Route as ContentMachineRouteImport } from './routes/content-machine'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as DeleteAccountRouteImport } from './routes/delete-account'
 import { Route as DirectorRoomRouteImport } from './routes/director-room'
 import { Route as DirectorsBoardRouteImport } from './routes/directors-board'
 import { Route as EditRouteImport } from './routes/edit'
@@ -116,6 +117,7 @@ import { Route as ApiAudioUploadRouteImport } from './routes/api/audio/upload'
 import { Route as ApiDirectorsBoardBrainRouteImport } from './routes/api/directors-board/brain'
 import { Route as ApiDirectorsBoardChatRouteImport } from './routes/api/directors-board/chat'
 import { Route as ApiDirectorsBoardGenerateImageRouteImport } from './routes/api/directors-board/generate-image'
+import { Route as ApiPublicAccountDeleteRouteImport } from './routes/api/public/account-delete'
 import { Route as ApiPublicCheckApiBalancesRouteImport } from './routes/api/public/check-api-balances'
 import { Route as ApiPublicFaststartVideoRouteImport } from './routes/api/public/faststart-video'
 import { Route as ApiPublicFeatureVisibilityRouteImport } from './routes/api/public/feature-visibility'
@@ -264,6 +266,11 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/dashboard.lazy').then((d) => d.Route))
+const DeleteAccountRoute = DeleteAccountRouteImport.update({
+  id: '/delete-account',
+  path: '/delete-account',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DirectorRoomRoute = DirectorRoomRouteImport.update({
   id: '/director-room',
   path: '/director-room',
@@ -720,6 +727,11 @@ const ApiDirectorsBoardGenerateImageRoute =
     path: '/api/directors-board/generate-image',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicAccountDeleteRoute = ApiPublicAccountDeleteRouteImport.update({
+  id: '/api/public/account-delete',
+  path: '/api/public/account-delete',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCheckApiBalancesRoute =
   ApiPublicCheckApiBalancesRouteImport.update({
     id: '/api/public/check-api-balances',
@@ -971,6 +983,7 @@ export interface FileRoutesByFullPath {
   '/content': typeof ContentRoute
   '/content-machine': typeof ContentMachineRoute
   '/dashboard': typeof DashboardRoute
+  '/delete-account': typeof DeleteAccountRoute
   '/director-room': typeof DirectorRoomRoute
   '/directors-board': typeof DirectorsBoardRoute
   '/edit': typeof EditRoute
@@ -1058,6 +1071,7 @@ export interface FileRoutesByFullPath {
   '/api/directors-board/brain': typeof ApiDirectorsBoardBrainRoute
   '/api/directors-board/chat': typeof ApiDirectorsBoardChatRoute
   '/api/directors-board/generate-image': typeof ApiDirectorsBoardGenerateImageRoute
+  '/api/public/account-delete': typeof ApiPublicAccountDeleteRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/faststart-video': typeof ApiPublicFaststartVideoRoute
   '/api/public/feature-visibility': typeof ApiPublicFeatureVisibilityRoute
@@ -1122,6 +1136,7 @@ export interface FileRoutesByTo {
   '/content': typeof ContentRoute
   '/content-machine': typeof ContentMachineRoute
   '/dashboard': typeof DashboardRoute
+  '/delete-account': typeof DeleteAccountRoute
   '/director-room': typeof DirectorRoomRoute
   '/directors-board': typeof DirectorsBoardRoute
   '/edit': typeof EditRoute
@@ -1209,6 +1224,7 @@ export interface FileRoutesByTo {
   '/api/directors-board/brain': typeof ApiDirectorsBoardBrainRoute
   '/api/directors-board/chat': typeof ApiDirectorsBoardChatRoute
   '/api/directors-board/generate-image': typeof ApiDirectorsBoardGenerateImageRoute
+  '/api/public/account-delete': typeof ApiPublicAccountDeleteRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/faststart-video': typeof ApiPublicFaststartVideoRoute
   '/api/public/feature-visibility': typeof ApiPublicFeatureVisibilityRoute
@@ -1274,6 +1290,7 @@ export interface FileRoutesById {
   '/content': typeof ContentRoute
   '/content-machine': typeof ContentMachineRoute
   '/dashboard': typeof DashboardRoute
+  '/delete-account': typeof DeleteAccountRoute
   '/director-room': typeof DirectorRoomRoute
   '/directors-board': typeof DirectorsBoardRoute
   '/edit': typeof EditRoute
@@ -1361,6 +1378,7 @@ export interface FileRoutesById {
   '/api/directors-board/brain': typeof ApiDirectorsBoardBrainRoute
   '/api/directors-board/chat': typeof ApiDirectorsBoardChatRoute
   '/api/directors-board/generate-image': typeof ApiDirectorsBoardGenerateImageRoute
+  '/api/public/account-delete': typeof ApiPublicAccountDeleteRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
   '/api/public/faststart-video': typeof ApiPublicFaststartVideoRoute
   '/api/public/feature-visibility': typeof ApiPublicFeatureVisibilityRoute
@@ -1427,6 +1445,7 @@ export interface FileRouteTypes {
     | '/content'
     | '/content-machine'
     | '/dashboard'
+    | '/delete-account'
     | '/director-room'
     | '/directors-board'
     | '/edit'
@@ -1514,6 +1533,7 @@ export interface FileRouteTypes {
     | '/api/directors-board/brain'
     | '/api/directors-board/chat'
     | '/api/directors-board/generate-image'
+    | '/api/public/account-delete'
     | '/api/public/check-api-balances'
     | '/api/public/faststart-video'
     | '/api/public/feature-visibility'
@@ -1578,6 +1598,7 @@ export interface FileRouteTypes {
     | '/content'
     | '/content-machine'
     | '/dashboard'
+    | '/delete-account'
     | '/director-room'
     | '/directors-board'
     | '/edit'
@@ -1665,6 +1686,7 @@ export interface FileRouteTypes {
     | '/api/directors-board/brain'
     | '/api/directors-board/chat'
     | '/api/directors-board/generate-image'
+    | '/api/public/account-delete'
     | '/api/public/check-api-balances'
     | '/api/public/faststart-video'
     | '/api/public/feature-visibility'
@@ -1729,6 +1751,7 @@ export interface FileRouteTypes {
     | '/content'
     | '/content-machine'
     | '/dashboard'
+    | '/delete-account'
     | '/director-room'
     | '/directors-board'
     | '/edit'
@@ -1816,6 +1839,7 @@ export interface FileRouteTypes {
     | '/api/directors-board/brain'
     | '/api/directors-board/chat'
     | '/api/directors-board/generate-image'
+    | '/api/public/account-delete'
     | '/api/public/check-api-balances'
     | '/api/public/faststart-video'
     | '/api/public/feature-visibility'
@@ -1881,6 +1905,7 @@ export interface RootRouteChildren {
   ContentRoute: typeof ContentRoute
   ContentMachineRoute: typeof ContentMachineRoute
   DashboardRoute: typeof DashboardRoute
+  DeleteAccountRoute: typeof DeleteAccountRoute
   DirectorRoomRoute: typeof DirectorRoomRoute
   DirectorsBoardRoute: typeof DirectorsBoardRoute
   EditRoute: typeof EditRoute
@@ -1954,6 +1979,7 @@ export interface RootRouteChildren {
   ApiDirectorsBoardBrainRoute: typeof ApiDirectorsBoardBrainRoute
   ApiDirectorsBoardChatRoute: typeof ApiDirectorsBoardChatRoute
   ApiDirectorsBoardGenerateImageRoute: typeof ApiDirectorsBoardGenerateImageRoute
+  ApiPublicAccountDeleteRoute: typeof ApiPublicAccountDeleteRoute
   ApiPublicCheckApiBalancesRoute: typeof ApiPublicCheckApiBalancesRoute
   ApiPublicFaststartVideoRoute: typeof ApiPublicFaststartVideoRoute
   ApiPublicFeatureVisibilityRoute: typeof ApiPublicFeatureVisibilityRoute
@@ -2138,6 +2164,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/delete-account': {
+      id: '/delete-account'
+      path: '/delete-account'
+      fullPath: '/delete-account'
+      preLoaderRoute: typeof DeleteAccountRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/director-room': {
@@ -2742,6 +2775,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDirectorsBoardGenerateImageRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/account-delete': {
+      id: '/api/public/account-delete'
+      path: '/api/public/account-delete'
+      fullPath: '/api/public/account-delete'
+      preLoaderRoute: typeof ApiPublicAccountDeleteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/check-api-balances': {
       id: '/api/public/check-api-balances'
       path: '/api/public/check-api-balances'
@@ -3114,6 +3154,7 @@ const rootRouteChildren: RootRouteChildren = {
   ContentRoute: ContentRoute,
   ContentMachineRoute: ContentMachineRoute,
   DashboardRoute: DashboardRoute,
+  DeleteAccountRoute: DeleteAccountRoute,
   DirectorRoomRoute: DirectorRoomRoute,
   DirectorsBoardRoute: DirectorsBoardRoute,
   EditRoute: EditRoute,
@@ -3187,6 +3228,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDirectorsBoardBrainRoute: ApiDirectorsBoardBrainRoute,
   ApiDirectorsBoardChatRoute: ApiDirectorsBoardChatRoute,
   ApiDirectorsBoardGenerateImageRoute: ApiDirectorsBoardGenerateImageRoute,
+  ApiPublicAccountDeleteRoute: ApiPublicAccountDeleteRoute,
   ApiPublicCheckApiBalancesRoute: ApiPublicCheckApiBalancesRoute,
   ApiPublicFaststartVideoRoute: ApiPublicFaststartVideoRoute,
   ApiPublicFeatureVisibilityRoute: ApiPublicFeatureVisibilityRoute,

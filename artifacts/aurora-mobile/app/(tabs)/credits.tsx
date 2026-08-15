@@ -1,11 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import * as WebBrowser from "expo-web-browser";
 import React from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -17,12 +15,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
 import { getCreditTransactions, getUserProfile, CreditTransaction } from "@/lib/api";
 
-function getApiBase(): string {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}`;
-  return "https://auroraperformancestudio.com";
-}
-
+// Store-policy note: this screen intentionally has NO purchase button or
+// payment link. Credits are consumed in-app only; purchasing lives on the
+// web app and must never be linked from the mobile build (Play/App Store
+// reject digital-goods purchases outside their billing systems).
 export default function CreditsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -40,15 +36,6 @@ export default function CreditsScreen() {
   });
 
   const credits = profile?.credits_balance ?? 0;
-
-  const openBilling = async () => {
-    const base = getApiBase();
-    await WebBrowser.openBrowserAsync(`${base}/billing`);
-    setTimeout(() => {
-      refetchProfile();
-      refetchTxns();
-    }, 2000);
-  };
 
   const renderTxn = ({ item }: { item: CreditTransaction }) => {
     const isCredit = item.amount > 0;
@@ -133,26 +120,6 @@ export default function CreditsScreen() {
               </Text>
             </LinearGradient>
 
-            <Pressable
-              onPress={openBilling}
-              style={({ pressed }) => [
-                styles.addBtn,
-                {
-                  backgroundColor: colors.primary,
-                  borderRadius: colors.radius,
-                  opacity: pressed ? 0.85 : 1,
-                },
-              ]}
-            >
-              <Feather name="plus-circle" size={18} color={colors.primaryForeground} />
-              <Text style={[styles.addBtnText, { color: colors.primaryForeground }]}>
-                Add Credits on Web
-              </Text>
-            </Pressable>
-            <Text style={[styles.addHint, { color: colors.mutedForeground }]}>
-              Opens auroraperformancestudio.com in your browser
-            </Text>
-
             {(txns?.length ?? 0) > 0 && (
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>History</Text>
             )}
@@ -182,17 +149,6 @@ const styles = StyleSheet.create({
   balanceLabel: { fontSize: 12, fontFamily: "Inter_400Regular", marginBottom: 4 },
   balanceValue: { fontSize: 40, fontWeight: "800", fontFamily: "Inter_700Bold" },
   balanceHint: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  addBtn: {
-    marginHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    paddingVertical: 14,
-    marginBottom: 8,
-  },
-  addBtnText: { fontSize: 15, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
-  addHint: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center", marginBottom: 28 },
   sectionTitle: { fontSize: 18, fontWeight: "700", paddingHorizontal: 20, marginBottom: 14, fontFamily: "Inter_700Bold" },
   txnRow: {
     flexDirection: "row",
