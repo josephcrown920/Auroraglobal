@@ -26,3 +26,5 @@ deviates from the shared Python reference (`workers/aurora_worker.py
 run_assemble`, built for kids-story) which always silences original clip
 audio — AutoCut preserves a clip's own audio track when present (probed via
 ffprobe) since it's editing the user's real footage, not narrated stills.
+
+**Proving the music mix:** assemble SILENT source clips (no audio stream) with a real musicUrl, then assert ffmpeg volumedetect mean_volume > -60 dB — any audible output can only be the looped/ducked music (pure silence ≈ -91 dB). "Output has an audio stream" alone proves nothing (scene normalization always adds AAC). All 24 MUSIC_TRACKS MP3s exist in the studio bucket since 2026-08 (music path fully live).
