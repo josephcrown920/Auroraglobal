@@ -226,6 +226,7 @@ export default function HomeScreen() {
   const [prompt, setPrompt] = useState("");
   const [photo, setPhoto] = useState<string | null>(null);
   const [photoB64, setPhotoB64] = useState<string | null>(null);
+  const [photoMime, setPhotoMime] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
@@ -319,6 +320,7 @@ export default function HomeScreen() {
       // Tap again to remove the attached reference.
       setPhoto(null);
       setPhotoB64(null);
+      setPhotoMime(null);
       Haptics.selectionAsync();
       return;
     }
@@ -337,6 +339,7 @@ export default function HomeScreen() {
     if (!res.canceled && res.assets[0]) {
       setPhoto(res.assets[0].uri);
       setPhotoB64(res.assets[0].base64 ?? null);
+      setPhotoMime(res.assets[0].mimeType ?? null);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
@@ -365,7 +368,7 @@ export default function HomeScreen() {
       // Local photo → signed studio-bucket URL the backend accepts.
       let imageUrls: string[] | undefined;
       if (photo) {
-        const signedUrl = await uploadReferenceImage(photo, photoB64);
+        const signedUrl = await uploadReferenceImage(photo, photoB64, photoMime);
         imageUrls = [signedUrl];
       }
 
@@ -575,6 +578,7 @@ export default function HomeScreen() {
             {/* Photo attach button */}
             <Pressable
               onPress={pickPhoto}
+              accessibilityLabel={photo ? "Remove reference image" : "Add reference image"}
               style={[
                 styles.attachBtn,
                 {

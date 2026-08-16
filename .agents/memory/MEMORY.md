@@ -137,3 +137,4 @@
 - [Perform Anywhere product framing](perform-anywhere-product.md) — Perform Anywhere = film-yourself clip reskin (hero everywhere); camera-move Motion Control belongs to Director's Room; public /api/public/perform shares _enqueuePerformanceReskin.
 - [Python installs — pip wrapper works, uv add does not](python-pip-vs-uv-in-this-repo.md) — uv targets the read-only nix-store site-packages (no pyvenv.cfg in .pythonlibs); plain `pip install` lands in .pythonlibs correctly.
 - [Play Store Android submission](play-store-android-submission.md) — manual Console AAB upload is the sanctioned path; stash EAS AABs locally (30-day expiry); never declare off-Play credit purchases.
+- [Mobile reference upload](mobile-reference-upload.md) — no upload endpoint: supabase-js direct to studio/<uid>/uploads + signed URL sent as imageUrls; generate API silently strips unknown body fields — verify names against the server schema.

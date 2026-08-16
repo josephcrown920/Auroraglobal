@@ -4,6 +4,11 @@ import {
   type GalleryRow,
   type Generation,
 } from "@/lib/gallery-mapping";
+import {
+  base64ToBytes,
+  inferImageMeta,
+  referenceUploadPath,
+} from "@/lib/reference-image";
 import { supabase } from "@/lib/supabase";
 
 const SUPABASE_PUBLISHABLE_KEY =
@@ -67,39 +72,20 @@ export type { Generation } from "@/lib/gallery-mapping";
 // `studio` bucket, then hand the backend a 1h signed URL (a *.supabase.co
 // host, which passes the server's SSRF allowlist and ownership guard).
 
-/** Minimal base64 → ArrayBuffer decoder (no atob dependency on Hermes). */
-function base64ToArrayBuffer(b64: string): ArrayBuffer {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-  const clean = b64.replace(/[^A-Za-z0-9+/]/g, "");
-  const len = Math.floor((clean.length * 3) / 4);
-  const bytes = new Uint8Array(len);
-  let p = 0;
-  for (let i = 0; i + 3 < clean.length || (i < clean.length && clean.length % 4 !== 1); i += 4) {
-    const e1 = chars.indexOf(clean[i]);
-    const e2 = chars.indexOf(clean[i + 1] ?? "A");
-    const e3 = clean[i + 2] !== undefined ? chars.indexOf(clean[i + 2]) : -1;
-    const e4 = clean[i + 3] !== undefined ? chars.indexOf(clean[i + 3]) : -1;
-    bytes[p++] = (e1 << 2) | (e2 >> 4);
-    if (e3 >= 0 && p < len) bytes[p++] = ((e2 & 15) << 4) | (e3 >> 2);
-    if (e4 >= 0 && p < len) bytes[p++] = ((e3 & 3) << 6) | e4;
-  }
-  return bytes.buffer;
-}
-
-function randomId(): string {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}${Math.random()
-    .toString(36)
-    .slice(2, 10)}`;
-}
-
 /**
  * Upload a picked photo to the user's studio folder and return a signed URL
  * the generate endpoint will accept. Pass the ImagePicker asset's base64
  * (request it with `base64: true`); falls back to fetching the local URI.
+ * Pass the asset's `mimeType` when available so HEIC/PNG picks keep the
+ * right content type (the URI alone often has no useful extension).
+ *
+ * Decoding is strict (lib/reference-image.ts): malformed base64 throws
+ * instead of silently uploading a truncated image.
  */
 export async function uploadReferenceImage(
   localUri: string,
   base64?: string | null,
+  mimeType?: string | null,
 ): Promise<string> {
   const {
     data: { user },
@@ -108,20 +94,21 @@ export async function uploadReferenceImage(
 
   let bytes: ArrayBuffer;
   if (base64) {
-    bytes = base64ToArrayBuffer(base64);
+    // Fresh exact-size Uint8Array → its .buffer is safe to hand to storage.
+    bytes = base64ToBytes(base64).buffer as ArrayBuffer;
   } else {
     const res = await fetch(localUri);
     bytes = await res.arrayBuffer();
   }
+  if (bytes.byteLength === 0) {
+    throw new Error("Picked image is empty — try choosing it again.");
+  }
 
-  const rawExt = localUri.split("?")[0].split(".").pop()?.toLowerCase() ?? "jpg";
-  const ext = ["jpg", "jpeg", "png", "webp"].includes(rawExt) ? rawExt : "jpg";
-  const contentType =
-    ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+  const meta = inferImageMeta(mimeType, localUri);
 
-  const path = `${user.id}/uploads/${randomId()}.${ext}`;
+  const path = referenceUploadPath(user.id, meta.ext);
   const { error } = await supabase.storage.from("studio").upload(path, bytes, {
-    contentType,
+    contentType: meta.contentType,
     upsert: false,
   });
   if (error) throw error;
@@ -168,7 +155,7 @@ export async function uploadReferenceVideo(
         ? "video/webm"
         : "video/mp4";
 
-  const path = `${user.id}/uploads/${randomId()}.${ext}`;
+  const path = referenceUploadPath(user.id, ext);
   const { error } = await supabase.storage.from("studio").upload(path, bytes, {
     contentType,
     upsert: false,
