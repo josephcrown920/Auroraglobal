@@ -193,10 +193,9 @@ Suggested screenshot sequence:
 | EAS CLI authenticated (EXPO_TOKEN) | ✅ Account `nbajosh` / org `nbajoshs-organization` |
 | **Android production AAB (vc2)** | ✅ Saved under `store/builds/` (versionCode 2, includes the 2026-08-15 policy fixes) — supersedes build `1c5efc61` (vc1, 2026-07-21) |
 | `eas.json` production profiles | ✅ Android AAB + iOS store distribution |
-| Service-account key | ✅ Not needed — Android v1 is a **manual Play Console upload**; a key is only for optional future Play-API automation (keep it gitignored if ever created) |
 | Google Play Developer account | ⬜ **Required first** — $25 one-time fee at play.google.com/console/signup |
 | Screenshots (5 screens, 1080×1920) | ⬜ Capture on a real device — see `store/submission-guide.md` for resolutions |
-| **Android Play Store submission** | ⬜ **Manual upload** of the vc2 AAB in Play Console → Testing → Internal testing (full steps in `store/submission-guide.md`) — do NOT use `eas submit` |
+| **Android Play Store submission** | ⬜ **Manual upload** of the vc2 AAB in Play Console → Testing → Internal testing (full steps in `store/submission-guide.md`) — the browser upload is the only submission path |
 | Pre-launch report checks | ⬜ Review in Play Console after internal track upload — see submission guide |
 | iOS (build + submission) | ⬜ Deferred to the Apple App Store follow-up task — not part of the Android v1 release |
 
@@ -239,8 +238,8 @@ npx eas build --platform ios --profile preview
 Use the AAB already saved under `store/builds/` (or download a fresh build with
 `npx eas build:download --platform android --id <BUILD_ID>`), then upload it by
 hand in **Play Console → Testing → Internal testing → Create release**.
-Do NOT use `eas submit` — the manual upload is the sanctioned path for this
-app; `store/submission-guide.md` has the full walkthrough.
+The manual browser upload is the only sanctioned submission path for this app;
+`store/submission-guide.md` has the full walkthrough.
 
 ### App Store Connect submission:
 
