@@ -30,7 +30,7 @@
 | iOS Apple Developer credentials | ⬜ | Needs Apple Developer account ($99/yr) |
 | `eas.json` Apple IDs filled in | ⬜ | Replace `FILL_IN_FROM_APP_STORE_CONNECT` placeholders |
 | iOS production build | ⬜ | Run after Apple credentials are set up |
-| iOS App Store submission | ⬜ | Run `eas submit` after iOS build + credentials |
+| iOS App Store submission | ⬜ | Deferred to the Apple App Store follow-up task — not part of this Android release |
 
 ---
 
@@ -218,11 +218,9 @@ EAS manages certificates and provisioning profiles automatically. The build take
 
 ### 8c. Submit to TestFlight
 
-```bash
-EXPO_TOKEN=$EXPO_TOKEN npx eas submit \
-  --platform ios \
-  --latest
-```
+Deferred to the Apple App Store follow-up task. When that task runs it will
+follow Replit's documented Apple flow — nothing in section 8 should be
+executed as part of the Android v1 release.
 
 ---
 
@@ -257,4 +255,4 @@ EXPO_TOKEN=$EXPO_TOKEN npx eas build \
   --profile production
 ```
 
-The new build ID will appear in the EAS dashboard and in the CLI output. Use that ID with `eas submit`.
+The new build ID will appear in the EAS dashboard and in the CLI output. Download that build (`npx eas build:download --platform android --id <BUILD_ID>`), save it under `store/builds/`, and upload it **manually in Play Console** (bump `versionCode` first) — never `eas submit`.

@@ -36,7 +36,7 @@ AI-powered creative studio for generating stunning performance photos & videos.
 ✓ Sign in with email — no social login required
 ✓ Personal gallery of all your AI generations
 ✓ Share creations instantly to social media
-✓ Transparent credit system — pay only for what you use
+✓ Transparent credit system — every generation shows its cost up front
 ✓ Reference photo support for identity-consistent results
 ✓ Dark, premium UI designed for creative professionals
 
@@ -50,7 +50,7 @@ AI-powered creative studio for generating stunning performance photos & videos.
 
 ### Credits
 
-Aurora uses a simple credit system. Each generation costs 2 credits, and your balance syncs instantly across your devices.
+Aurora uses a simple credit system (Aura). Every generation shows its cost before you run it, and your balance syncs instantly across your devices.
 
 Credits never expire.
 
@@ -142,7 +142,7 @@ AI photos,performance,UGC,music video,lip sync,creator,studio,selfie,artist
 3. Hit Generate — results ready in under 60 seconds
 
 **Aurora credits (Aura):**
-Your free starter credits never expire. Top up anytime to keep creating — no subscription required.
+Your free starter credits never expire, and your balance syncs instantly across your devices — no subscription required.
 
 **Built for creators:**
 Whether you're a musician releasing your next single, an influencer building your brand, or a performer who wants pro-grade photos without a photographer, Aurora delivers studio results from your phone.
@@ -191,17 +191,14 @@ Suggested screenshot sequence:
 | Store copy (Play + App Store) | ✅ Done (this file) |
 | EAS project linked (`@nbajoshs-organization/aurora-performance-studio`) | ✅ ID `9927fad2-c399-4ae3-8727-614a2c751184` in `app.json` |
 | EAS CLI authenticated (EXPO_TOKEN) | ✅ Account `nbajosh` / org `nbajoshs-organization` |
-| **Android production AAB** | ✅ Build `1c5efc61` finished 2026-07-21 — ready to submit |
-| `eas.json` production profiles | ✅ Android AAB + iOS store distribution + submit config |
-| `.gitignore` excludes service account key | ✅ `google-play-service-account.json` excluded |
+| **Android production AAB (vc2)** | ✅ Saved under `store/builds/` (versionCode 2, includes the 2026-08-15 policy fixes) — supersedes build `1c5efc61` (vc1, 2026-07-21) |
+| `eas.json` production profiles | ✅ Android AAB + iOS store distribution |
+| Service-account key | ✅ Not needed — Android v1 is a **manual Play Console upload**; a key is only for optional future Play-API automation (keep it gitignored if ever created) |
 | Google Play Developer account | ⬜ **Required first** — $25 one-time fee at play.google.com/console/signup |
 | Screenshots (5 screens, 1080×1920) | ⬜ Capture on a real device — see `store/submission-guide.md` for resolutions |
-| `google-play-service-account.json` | ⬜ Create from Google Play Console → `artifacts/aurora-mobile/google-play-service-account.json` |
-| **Android Play Store submission** | ⬜ Run `eas submit --platform android --id 1c5efc61-5ec9-47d8-a26b-26a079732e63` after service account key |
+| **Android Play Store submission** | ⬜ **Manual upload** of the vc2 AAB in Play Console → Testing → Internal testing (full steps in `store/submission-guide.md`) — do NOT use `eas submit` |
 | Pre-launch report checks | ⬜ Review in Play Console after internal track upload — see submission guide |
-| Apple `ascAppId` + `appleTeamId` in `eas.json` | ⬜ Fill in from App Store Connect + developer.apple.com |
-| iOS production build | ⬜ Run `eas build --platform ios --profile production` after Apple credentials |
-| iOS App Store submission | ⬜ Run `eas submit --platform ios --latest` after iOS build |
+| iOS (build + submission) | ⬜ Deferred to the Apple App Store follow-up task — not part of the Android v1 release |
 
 ---
 
@@ -236,15 +233,16 @@ npx eas build --platform ios --profile preview
 3. EAS project ID is set (run `npx eas init` if not set)
 4. `buildNumber` in `app.json` `ios` section is incremented for each iOS release
 5. `versionCode` in `app.json` `android` section is incremented for each Android release
-6. `google-play-service-account.json` in `artifacts/aurora-mobile/` for Android submit
-7. Apple Developer account credentials (ascAppId + appleTeamId) filled in `eas.json`
 
-### Play Store internal track submission:
-```bash
-npx eas submit --platform android
-```
+### Play Store internal track submission (Android v1 — manual upload):
+
+Use the AAB already saved under `store/builds/` (or download a fresh build with
+`npx eas build:download --platform android --id <BUILD_ID>`), then upload it by
+hand in **Play Console → Testing → Internal testing → Create release**.
+Do NOT use `eas submit` — the manual upload is the sanctioned path for this
+app; `store/submission-guide.md` has the full walkthrough.
 
 ### App Store Connect submission:
-```bash
-npx eas submit --platform ios
-```
+
+Deferred to the Apple App Store follow-up task — not part of the Android v1
+release.

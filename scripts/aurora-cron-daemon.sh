@@ -12,6 +12,9 @@
 #   POST /api/public/free-daily-grant    once per UTC day — +4 Aura to every user
 #                                                        (idempotent; retried each
 #                                                        tick until it succeeds)
+#   POST /api/public/deletion-sweep      every 1 h    — retries failed account-
+#                                                        deletion final sweeps
+#                                                        until the purge completes
 #
 # Auth: SUPABASE_PUBLISHABLE_KEY (already in env).
 # App:  localhost:8080 (same container as this daemon).
@@ -23,6 +26,7 @@ TICK_INTERVAL=60       # seconds between job-queue ticks
 HEALTH_INTERVAL=300      # seconds between worker health checks
 BALANCE_INTERVAL=21600   # seconds between API balance checks (6 hours)
 SWEEP_INTERVAL=21600     # seconds between stuck-payment sweeps (6 hours)
+DELSWEEP_INTERVAL=3600   # seconds between account-deletion sweep retries (1 hour)
 MODELWATCH_INTERVAL=21600  # seconds between new-AI-model catalog scans (6 hours)
 GENHEALTH_INTERVAL=900     # seconds between generation health checks (15 min)
 
@@ -64,6 +68,7 @@ done
 last_health=0
 last_balance=0
 last_sweep=0
+last_delsweep=0
 last_modelwatch=0
 last_genhealth=0
 last_vast=0
@@ -114,6 +119,25 @@ while true; do
       echo "[$ts][health] WARN — $resp (rc=$rc)"
     fi
     last_health=$now
+  fi
+
+  # Account-deletion sweep retry (every hour). Drains account_deletion_sweeps:
+  # deletions whose post-auth final cleanup failed get their storage+row purge
+  # re-run until it succeeds (the login is already gone, so only this daemon
+  # can finish the job).
+  if [ $((now - last_delsweep)) -ge $DELSWEEP_INTERVAL ]; then
+    resp=$(curl -sf "$APP/api/public/deletion-sweep" \
+      -X POST \
+      -H "apikey: $APIKEY" \
+      -H "content-type: application/json" \
+      --max-time 55 2>&1) && rc=0 || rc=$?
+    ts=$(date -u +"%H:%M:%S")
+    if [ $rc -eq 0 ]; then
+      echo "[$ts][deletion-sweep] OK — $resp"
+    else
+      echo "[$ts][deletion-sweep] WARN — $resp (rc=$rc)"
+    fi
+    last_delsweep=$now
   fi
 
   # API provider balance check (every 6 hours)

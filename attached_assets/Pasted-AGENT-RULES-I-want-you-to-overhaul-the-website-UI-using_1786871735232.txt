@@ -1,0 +1,734 @@
+AGENT RULES
+
+
+
+
+
+I want you to overhaul the website UI using a STRICT VISUAL-FIRST PRODUCT DESIGN SYSTEM.
+
+The website must NOT rely on text alone to explain features.
+
+CORE RULE
+
+Every important feature, capability, tool, workflow, section, or product benefit must have a visual demonstration.
+
+For EVERY feature:
+
+1. Put the visual ABOVE the feature title and description.
+2. Use at least ONE real demo image OR demo video.
+3. Prefer TWO visual assets when appropriate:
+    * one primary demo video
+    * one supporting demo image/screenshot
+4. The visual should actually demonstrate what the feature does.
+5. Text should explain the visual, NOT replace it.
+
+Think like a premium AI creative product such as a modern video-generation, design, or creative-production platform.
+
+DO NOT build pages consisting of:
+
+* heading
+* paragraph
+* heading
+* paragraph
+* icon
+* paragraph
+
+Instead build:
+
+* visual demonstration
+* feature title
+* short explanation
+* optional CTA/action
+
+FEATURE CARD DESIGN
+
+Every feature card should follow this structure:
+
+[DEMO VIDEO / IMAGE]
+[Feature title]
+[1–2 sentence explanation]
+[Optional action / CTA]
+
+The visual should be the largest element in the card.
+
+Use rounded corners, clean cropping, subtle borders, depth, and polished spacing.
+
+The media should feel like an actual product demonstration rather than decorative stock photography.
+
+VIDEO BEHAVIOR
+
+When a demo video is available:
+
+* autoplay
+* muted
+* loop
+* playsInline
+* no intrusive controls
+* use a poster image
+* pause when appropriate to save resources
+* lazy-load videos below the fold
+* preload only what is necessary
+* make videos responsive
+* preserve aspect ratio
+* use object-fit: cover where appropriate
+
+Short 3–5 second looping demonstrations are ideal for feature cards.
+
+Videos should show an actual interaction, transformation, workflow, animation, generation result, before/after, UI interaction, or product outcome.
+
+DO NOT use a random cinematic video that has nothing to do with the feature.
+
+IMAGE FALLBACK
+
+If a real demo video does not exist, use a high-quality demo image, product screenshot, generated visual, before/after image, or interface preview.
+
+Never leave a feature as text-only simply because a video is unavailable.
+
+MEDIA HIERARCHY
+
+Use this priority:
+
+1. Real product demo video
+2. Short looping generated demo video
+3. Product/interface demonstration
+4. Before/after visual
+5. High-quality feature image
+6. Screenshot/mockup
+
+Avoid generic stock imagery unless it genuinely demonstrates the feature.
+
+EVERY PAGE
+
+Audit EVERY page of the website.
+
+Do not only modify the homepage.
+
+For each page identify:
+
+* hero
+* major features
+* secondary features
+* workflows
+* tools
+* benefits
+* integrations
+* use cases
+* product capabilities
+* CTAs
+
+Every meaningful feature needs a visual demonstration.
+
+If a page has 6 meaningful features, I expect approximately 6 visual feature demonstrations.
+
+FEATURE GRID
+
+Use visual feature cards where appropriate.
+
+Example:
+
+┌─────────────────────────────┐
+│                             │
+│       DEMO VIDEO            │
+│                             │
+├─────────────────────────────┤
+│ AI Video Generation         │
+│ Turn an image into…       │
+│                             │
+│ Learn more →                │
+└─────────────────────────────┘
+
+Another possible layout:
+
+┌──────────────────┐ ┌──────────────────┐
+│                  │ │                  │
+│   DEMO VIDEO     │ │   DEMO IMAGE     │
+│                  │ │                  │
+├──────────────────┤ ├──────────────────┤
+│ Feature A        │ │ Feature B        │
+│ Short explanation│ │ Short explanation│
+└──────────────────┘ └──────────────────┘
+
+VISUAL STORYTELLING
+
+The user should be able to understand what the product does by scrolling through the page WITHOUT reading every paragraph.
+
+Someone should be able to look at the page and immediately understand:
+
+* what the product does
+* what each feature does
+* what the workflow looks like
+* what the result looks like
+* why the feature is useful
+
+The website should feel like a product demonstration, not a documentation page.
+
+DO NOT
+
+Do NOT:
+
+* use text-only feature cards
+* put an icon where a demo should be
+* use giant paragraphs to explain simple features
+* place all media only in the hero
+* repeat the same image for every feature
+* use irrelevant stock photos
+* create fake placeholder boxes saying “Demo”
+* leave empty media containers
+* hide the important visual underneath several paragraphs
+* redesign unrelated functionality unnecessarily
+* scatter changes across random parts of the application
+
+RESPONSIVE DESIGN
+
+The visual-first system must work on:
+
+* desktop
+* tablet
+* mobile
+
+On mobile, stack media above the feature content.
+
+Videos must remain properly cropped and readable without destroying important content.
+
+PERFORMANCE
+
+Because this will contain many videos:
+
+* lazy-load below-the-fold media
+* use poster images
+* compress videos appropriately
+* use modern video formats where supported
+* avoid loading every video simultaneously
+* pause videos outside the viewport when practical
+* avoid enormous source files
+
+IMPLEMENTATION PROCESS
+
+Before changing code:
+
+1. Inspect the entire existing application.
+2. Identify every page.
+3. Identify every meaningful feature on each page.
+4. Identify existing images/videos that can be reused.
+5. Identify features that currently have no visual demonstration.
+6. Create a media plan for those features.
+7. Then implement the UI systematically.
+
+Do not randomly modify components without understanding where they are used.
+
+The final result should feel cohesive across the entire application.
+
+The visual language should be inspired by premium AI creative products: strong typography, cinematic demonstrations, interactive previews, polished cards, clear hierarchy, and minimal unnecessary text.
+
+MOST IMPORTANT:
+
+If I see a feature card containing only an icon + heading + paragraph, consider that feature incomplete.
+
+Every meaningful feature needs a visual demonstration ABOVE its text.
+
+
+You are NOT allowed to produce a basic SaaS dashboard or generic AI landing page.
+
+The goal is a PREMIUM, VISUAL, MOTION-RICH creative product interface.
+
+The interface should feel intentionally designed, not assembled from default components.
+
+1. MOTION IS PART OF THE DESIGN
+
+Use motion throughout the website to communicate hierarchy, interaction, and product behavior.
+
+Do not add random animations just for decoration.
+
+Use purposeful motion such as:
+
+* scroll-triggered reveals
+* staggered card entrances
+* subtle parallax
+* image/video scale transitions
+* smooth card hover transformations
+* cursor/interaction responses
+* animated gradients
+* flowing background elements
+* marquee/carousel movement where appropriate
+* number/count animations
+* progress animations
+* expanding panels
+* modal transitions
+* tab transitions
+* before/after reveals
+* video transitions
+* image-to-video transformations
+* smooth page transitions
+* sticky sections with changing visual content
+* horizontal scroll storytelling where appropriate
+
+Motion should generally be subtle and premium.
+
+Avoid excessive bouncing, spinning, or childish animations.
+
+2. HERO SECTIONS MUST FEEL ALIVE
+
+Do not make the hero:
+
+TITLE
+PARAGRAPH
+BUTTON
+EMPTY SPACE
+
+Instead, create a visual product experience.
+
+The hero should contain some combination of:
+
+* product demonstration
+* looping video
+* interactive preview
+* animated visual
+* floating media
+* layered interface
+* cinematic background
+* product UI mockup
+* live-looking generation result
+
+The visitor should immediately see what the product does.
+
+3. RICH UI DISPLAY ELEMENTS
+
+Use rich visual components instead of plain text blocks.
+
+Depending on the feature, use:
+
+* media cards
+* interactive previews
+* comparison cards
+* before/after sliders
+* animated timelines
+* visual workflows
+* floating panels
+* command interfaces
+* prompt → result displays
+* image grids
+* video galleries
+* carousels
+* stacked cards
+* expandable cards
+* interactive tabs
+* filterable galleries
+* progress indicators
+* generation states
+* tool panels
+* floating controls
+* visual statistics
+* feature showcases
+* browser/device mockups
+* layered screenshots
+* animated UI states
+
+The interface should communicate information visually.
+
+4. DON’T USE ICONS AS A SUBSTITUTE FOR UI
+
+A common low-effort pattern is:
+
+[icon]
+Feature title
+Lorem ipsum-style paragraph
+
+DO NOT DO THIS.
+
+If a feature is visual, demonstrate it.
+
+For example:
+
+BAD:
+
+[Magic Wand Icon]
+
+AI Generation
+
+Generate amazing content with AI.
+
+GOOD:
+
+┌─────────────────────────────────┐
+│                                 │
+│      ACTUAL GENERATION DEMO     │
+│                                 │
+│  prompt → processing → result   │
+│                                 │
+└─────────────────────────────────┘
+AI Generation
+Turn a concept into…
+Generate →
+
+5. USE LARGE VISUAL FEATURE SHOWCASES
+
+Important features should receive substantial screen real estate.
+
+Use layouts such as:
+
+MEDIA ─────────────── TEXT
+
+TEXT ─────────────── MEDIA
+
+or
+
+──────── FULL-WIDTH DEMO ────────
+Feature title
+Description
+Controls / CTA
+
+Alternate these layouts as the user scrolls.
+
+Do not make every section look identical.
+
+6. CREATE VISUAL RHYTHM
+
+The page should have changing visual compositions.
+
+For example:
+
+Hero
+↓
+Large cinematic demo
+↓
+Two feature cards
+↓
+Interactive showcase
+↓
+Full-width product demonstration
+↓
+Before/after section
+↓
+Feature grid
+↓
+Workflow visualization
+↓
+Testimonials/results
+↓
+CTA
+
+Do not repeat the same 3-column card grid ten times.
+
+7. MAKE CARDS LOOK EXPENSIVE
+
+Cards should have:
+
+* strong spacing
+* intentional typography
+* meaningful media
+* subtle borders
+* controlled shadows
+* layered depth
+* beautiful cropping
+* appropriate corner radius
+* hover states
+* smooth transitions
+* visual hierarchy
+
+Avoid:
+
+* excessive rounded rectangles
+* giant empty padding
+* generic gradients
+* random glowing borders
+* emoji as UI
+* oversized icons
+* cheap-looking glassmorphism
+* excessive drop shadows
+* default Tailwind-looking cards
+* identical cards repeated endlessly
+
+8. USE MEDIA AS THE DESIGN MATERIAL
+
+Images and videos should not feel like content inserted into a template.
+
+Compose them into the interface.
+
+Examples:
+
+* image partially extending outside a card
+* video inside a device frame
+* multiple screenshots layered together
+* floating media cards
+* cropped cinematic footage
+* image transitioning into video
+* result cards stacked behind the primary result
+* animated thumbnails
+* media responding to hover
+
+9. SHOW THE PRODUCT WORKING
+
+Whenever possible, demonstrate:
+
+INPUT
+↓
+PROCESS
+↓
+OUTPUT
+
+For an AI feature:
+
+Reference image
+↓
+Prompt / controls
+↓
+Generation
+↓
+Final result
+
+For editing:
+
+Original
+↓
+Controls
+↓
+Edited result
+
+For automation:
+
+Trigger
+↓
+Processing
+↓
+Output
+
+For video:
+
+Image
+↓
+Motion
+↓
+Finished clip
+
+The visitor should understand the workflow visually.
+
+10. MICROINTERACTIONS
+
+Buttons, cards, tabs and controls should respond.
+
+Examples:
+
+Button:
+hover → slight lift + visual feedback
+
+Card:
+hover → media subtly scales / shifts
+
+Tab:
+active → smooth indicator transition
+
+Gallery:
+hover → preview changes
+
+Video:
+hover → controlled playback behavior
+
+Before/after:
+drag → smooth reveal
+
+Do not make interactions feel sluggish.
+
+11. SCROLL STORYTELLING
+
+Use the scroll position to reveal the product progressively.
+
+For important sections, consider:
+
+sticky visual + changing text
+
+Example:
+
+LEFT:
+sticky animated product demonstration
+
+RIGHT:
+01 Upload
+02 Configure
+03 Generate
+04 Export
+
+As the user scrolls through the steps, the visual changes.
+
+This is MUCH better than four static paragraphs.
+
+12. RESPONSIVE MOTION
+
+All motion must work properly on mobile.
+
+Do not simply remove the entire visual experience on mobile.
+
+Adapt it.
+
+Desktop:
+large cinematic interaction
+
+Mobile:
+vertical media → feature → interaction
+
+Respect prefers-reduced-motion.
+
+13. PERFORMANCE
+
+Premium does NOT mean slow.
+
+Use:
+
+* lazy loading
+* poster frames
+* compressed video
+* optimized images
+* intersection observers
+* GPU-friendly transforms
+* transform/opacity animations
+* limited simultaneous animation
+* responsive media
+* reduced-motion support
+
+Avoid animating expensive layout properties unnecessarily.
+
+14. ANTI-LOW-EFFORT RULE
+
+Before considering a section finished, ask:
+
+“Could this have been generated by dropping generic Tailwind cards onto a page?”
+
+If YES, redesign it.
+
+Ask:
+
+“Does this section visually demonstrate the product?”
+
+If NO, add a demonstration.
+
+Ask:
+
+“Does this section have meaningful motion or interaction where appropriate?”
+
+If NO, determine whether motion would improve comprehension.
+
+Ask:
+
+“Is the media the dominant visual element?”
+
+If NO, reconsider the hierarchy.
+
+15. DO NOT OVERDESIGN
+
+Premium does not mean putting animation everywhere.
+
+Use stillness strategically.
+
+The visual hierarchy should feel deliberate:
+
+BIG
+→ important
+
+MEDIUM
+→ supporting
+
+SMALL
+→ details
+
+Motion should guide attention rather than compete for it.
+
+16. FINAL QUALITY BAR
+
+The finished website should feel closer to a premium creative-tech product than a template.
+
+Reference qualities:
+
+* cinematic
+* visual
+* editorial
+* interactive
+* polished
+* modern
+* confident
+* high-end
+* product-focused
+
+NOT:
+
+* generic SaaS
+* template-like
+* text-heavy
+* icon-heavy
+* empty
+* static
+* repetitive
+* low-effort
+
+Before finishing, inspect every page at desktop and mobile and redesign any section that looks generic, empty, repetitive, or text-heavy.
+
+
+
+Act as a brutally critical senior product designer.
+
+Review the current website visually, not just by inspecting whether the code works.
+
+Your job is to identify anything that looks cheap, generic, unfinished, repetitive, or AI-generated.
+
+For every section ask:
+
+1. Does it look premium?
+2. Does it visually communicate the product?
+3. Is the hierarchy obvious?
+4. Is there enough visual content?
+5. Is the typography intentional?
+6. Does the spacing feel designed?
+7. Does motion improve the experience?
+8. Does the section feel different from the previous section?
+9. Does it demonstrate the feature?
+10. Would a professional creative-tech company ship this?
+
+AUTOMATIC RED FLAGS
+
+Flag and redesign:
+
+* empty sections
+* excessive whitespace with no purpose
+* generic 3-column cards
+* icon + heading + paragraph repeated
+* giant paragraphs
+* random gradients
+* meaningless glow effects
+* excessive rounded rectangles
+* inconsistent spacing
+* weak typography
+* tiny media
+* low-quality images
+* static screenshots where an interactive demo would work better
+* buttons with no hierarchy
+* repetitive layouts
+* default-looking dashboards
+* components that look copied from a UI library without customization
+
+REDESIGN RULE
+
+Do not merely adjust colors or border radius.
+
+If the composition is weak, change the composition.
+
+If the card is weak, change the card.
+
+If the section needs a different layout, redesign the section.
+
+If the feature needs a demonstration, add one.
+
+If motion would improve comprehension, add purposeful motion.
+
+QUALITY STANDARD
+
+The website should look like a deliberately art-directed product.
+
+It should NOT look like:
+
+“an AI coding agent generated a website.”
+
+It should look like:
+
+“a professional product/design team created this interface.”
+
+Do a complete visual pass and make the necessary changes yourself.
+
+Do not ask me to identify every bad section individually.

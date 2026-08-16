@@ -119,6 +119,7 @@ import { Route as ApiDirectorsBoardChatRouteImport } from './routes/api/director
 import { Route as ApiDirectorsBoardGenerateImageRouteImport } from './routes/api/directors-board/generate-image'
 import { Route as ApiPublicAccountDeleteRouteImport } from './routes/api/public/account-delete'
 import { Route as ApiPublicCheckApiBalancesRouteImport } from './routes/api/public/check-api-balances'
+import { Route as ApiPublicDeletionSweepRouteImport } from './routes/api/public/deletion-sweep'
 import { Route as ApiPublicFaststartVideoRouteImport } from './routes/api/public/faststart-video'
 import { Route as ApiPublicFeatureVisibilityRouteImport } from './routes/api/public/feature-visibility'
 import { Route as ApiPublicFreeDailyGrantRouteImport } from './routes/api/public/free-daily-grant'
@@ -738,6 +739,11 @@ const ApiPublicCheckApiBalancesRoute =
     path: '/api/public/check-api-balances',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicDeletionSweepRoute = ApiPublicDeletionSweepRouteImport.update({
+  id: '/api/public/deletion-sweep',
+  path: '/api/public/deletion-sweep',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicFaststartVideoRoute = ApiPublicFaststartVideoRouteImport.update({
   id: '/api/public/faststart-video',
   path: '/api/public/faststart-video',
@@ -1073,6 +1079,7 @@ export interface FileRoutesByFullPath {
   '/api/directors-board/generate-image': typeof ApiDirectorsBoardGenerateImageRoute
   '/api/public/account-delete': typeof ApiPublicAccountDeleteRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
+  '/api/public/deletion-sweep': typeof ApiPublicDeletionSweepRoute
   '/api/public/faststart-video': typeof ApiPublicFaststartVideoRoute
   '/api/public/feature-visibility': typeof ApiPublicFeatureVisibilityRoute
   '/api/public/free-daily-grant': typeof ApiPublicFreeDailyGrantRoute
@@ -1226,6 +1233,7 @@ export interface FileRoutesByTo {
   '/api/directors-board/generate-image': typeof ApiDirectorsBoardGenerateImageRoute
   '/api/public/account-delete': typeof ApiPublicAccountDeleteRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
+  '/api/public/deletion-sweep': typeof ApiPublicDeletionSweepRoute
   '/api/public/faststart-video': typeof ApiPublicFaststartVideoRoute
   '/api/public/feature-visibility': typeof ApiPublicFeatureVisibilityRoute
   '/api/public/free-daily-grant': typeof ApiPublicFreeDailyGrantRoute
@@ -1380,6 +1388,7 @@ export interface FileRoutesById {
   '/api/directors-board/generate-image': typeof ApiDirectorsBoardGenerateImageRoute
   '/api/public/account-delete': typeof ApiPublicAccountDeleteRoute
   '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
+  '/api/public/deletion-sweep': typeof ApiPublicDeletionSweepRoute
   '/api/public/faststart-video': typeof ApiPublicFaststartVideoRoute
   '/api/public/feature-visibility': typeof ApiPublicFeatureVisibilityRoute
   '/api/public/free-daily-grant': typeof ApiPublicFreeDailyGrantRoute
@@ -1535,6 +1544,7 @@ export interface FileRouteTypes {
     | '/api/directors-board/generate-image'
     | '/api/public/account-delete'
     | '/api/public/check-api-balances'
+    | '/api/public/deletion-sweep'
     | '/api/public/faststart-video'
     | '/api/public/feature-visibility'
     | '/api/public/free-daily-grant'
@@ -1688,6 +1698,7 @@ export interface FileRouteTypes {
     | '/api/directors-board/generate-image'
     | '/api/public/account-delete'
     | '/api/public/check-api-balances'
+    | '/api/public/deletion-sweep'
     | '/api/public/faststart-video'
     | '/api/public/feature-visibility'
     | '/api/public/free-daily-grant'
@@ -1841,6 +1852,7 @@ export interface FileRouteTypes {
     | '/api/directors-board/generate-image'
     | '/api/public/account-delete'
     | '/api/public/check-api-balances'
+    | '/api/public/deletion-sweep'
     | '/api/public/faststart-video'
     | '/api/public/feature-visibility'
     | '/api/public/free-daily-grant'
@@ -1981,6 +1993,7 @@ export interface RootRouteChildren {
   ApiDirectorsBoardGenerateImageRoute: typeof ApiDirectorsBoardGenerateImageRoute
   ApiPublicAccountDeleteRoute: typeof ApiPublicAccountDeleteRoute
   ApiPublicCheckApiBalancesRoute: typeof ApiPublicCheckApiBalancesRoute
+  ApiPublicDeletionSweepRoute: typeof ApiPublicDeletionSweepRoute
   ApiPublicFaststartVideoRoute: typeof ApiPublicFaststartVideoRoute
   ApiPublicFeatureVisibilityRoute: typeof ApiPublicFeatureVisibilityRoute
   ApiPublicFreeDailyGrantRoute: typeof ApiPublicFreeDailyGrantRoute
@@ -2789,6 +2802,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCheckApiBalancesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/deletion-sweep': {
+      id: '/api/public/deletion-sweep'
+      path: '/api/public/deletion-sweep'
+      fullPath: '/api/public/deletion-sweep'
+      preLoaderRoute: typeof ApiPublicDeletionSweepRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/faststart-video': {
       id: '/api/public/faststart-video'
       path: '/api/public/faststart-video'
@@ -3230,6 +3250,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDirectorsBoardGenerateImageRoute: ApiDirectorsBoardGenerateImageRoute,
   ApiPublicAccountDeleteRoute: ApiPublicAccountDeleteRoute,
   ApiPublicCheckApiBalancesRoute: ApiPublicCheckApiBalancesRoute,
+  ApiPublicDeletionSweepRoute: ApiPublicDeletionSweepRoute,
   ApiPublicFaststartVideoRoute: ApiPublicFaststartVideoRoute,
   ApiPublicFeatureVisibilityRoute: ApiPublicFeatureVisibilityRoute,
   ApiPublicFreeDailyGrantRoute: ApiPublicFreeDailyGrantRoute,

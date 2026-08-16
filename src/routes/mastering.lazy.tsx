@@ -1,6 +1,7 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Music2, Upload, Loader2, CheckCircle2, Download,
   AlertCircle, Sliders, Zap,
@@ -75,8 +76,12 @@ function MasteringPage() {
       formData.append("file", file);
       formData.append("folder", "mastering");
 
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) throw new Error("Sign in to master audio");
       const uploadRes = await fetch("/api/audio/upload", {
         method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
         body: formData,
       });
 

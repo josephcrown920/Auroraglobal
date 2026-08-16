@@ -2738,13 +2738,11 @@ const hfVideo: ProviderAdapter = {
     });
     if (!res.ok) throw new Error(`HF ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const buf = Buffer.from(await res.arrayBuffer());
-    const storagePath = `hf-video/${Date.now()}.mp4`;
-    const { error } = await supabaseAdmin.storage
-      .from("studio")
-      .upload(storagePath, buf, { contentType: "video/mp4", upsert: true });
-    if (error) throw new Error(`HF video upload: ${error.message}`);
-    const { data } = supabaseAdmin.storage.from("studio").getPublicUrl(storagePath);
-    return { url: data.publicUrl, endpoint: `hf:${MODEL}` };
+    // uid-prefixed via the shared helper (system/ for userless internal calls)
+    // so account deletion can discover and purge the file — the old anonymous
+    // top-level hf-video/<ts>.mp4 paths were invisible to it.
+    const url = await uploadBytesToStudio(r.userId, "hf-video", buf, "video/mp4", "mp4");
+    return { url, endpoint: `hf:${MODEL}` };
   },
 };
 

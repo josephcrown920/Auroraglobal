@@ -308,7 +308,14 @@ function MasteringPanel() {
       // 1. Upload
       const fd = new FormData();
       fd.append("file", audioFile);
-      const up = await fetch("/api/audio/upload", { method: "POST", body: fd });
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) throw new Error("Sign in to upload audio");
+      const up = await fetch("/api/audio/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: fd,
+      });
       const { url, error: upErr } = await up.json() as { url?: string; error?: string };
       if (!up.ok || !url) throw new Error(upErr ?? "Upload failed");
 
