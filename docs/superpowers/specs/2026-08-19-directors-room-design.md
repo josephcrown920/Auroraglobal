@@ -12,6 +12,7 @@ Aurora has one Directors Room product surface:
 - `/directors-board` remains a compatibility entry point and redirects to `/director-room`.
 - Navigation, page copy, and visible labels use **Director Room** consistently.
 - Existing API paths containing `directors-board` remain internal implementation names in this release. They are not a second product surface.
+- Every image generation initiated from Director Room uses the Replit AI Integrations image provider, billed to the workspace's Replit credits. The normal Aurora Aura charge remains in place for the user.
 - No new web artifact or second mobile app is created for this work. “Builds” means the feature implementation plus development, production, and end-to-end verification.
 
 The existing Android AAB remains a separate release track.
@@ -62,6 +63,9 @@ The board remains the source of truth for this release and continues to persist 
 Inspector and character-sheet generation use one intentional Directors Room image contract:
 
 - Align callers with the supported Directors Room image endpoint rather than leaving Inspector and Characters on a potentially dead `/api/generate-image` path while the route-specific endpoint is `/api/directors-board/generate-image`.
+- Pin the image request to the existing Replit Gemini image adapter (`replit/gemini-2.5-flash-image`) so the provider cost is billed to Replit credits.
+- Continue reserving/charging the user's Aurora Aura through the normal app-level generation flow.
+- Do not fall through to Pollinations, fal, Runware, GPU workers, or another external image provider if the Replit image adapter is unavailable; return an explicit provider error instead.
 - Preserve `streamImage` support for either a JSON URL response or an SSE response.
 - Only save a URL after a valid final image result.
 - Keep partial previews local to the active panel until completion.
@@ -95,6 +99,7 @@ ZIP export remains a board-level action:
 - Polling timers and streaming readers are cleaned up when the active component changes or unmounts.
 - Chat, image generation, render queueing, and export prevent duplicate submissions while busy.
 - The canonical room must remain usable when one generation surface fails; an image failure must not disable the board, and a video-job failure must not hide existing stills.
+- Replit image-provider failure must not silently spend on or switch to another provider.
 - No silent fallback to a different product route or second studio is permitted.
 
 ## Verification plan
