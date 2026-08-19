@@ -1,29 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
-import type { RenderDeps } from "./generate-core.server";
+import { reserveOrchestrateRecord, type RenderDeps } from "./generate-core.server";
 import type { PlatformTemplate } from "./platform-templates";
-
-// ── Module stubs ──────────────────────────────────────────────────────────────
-// Same stubs (same shapes) as generate-core.server.test.ts — see
-// bun-mock-module-leakage.md: identical stubs across suites are safe; the point
-// is to never stub a module another suite needs REAL.
-//
-// result-store.server: reserveOrchestrateRecord calls persistResultUrl on every
-// happy path — without this stub success tests would attempt a live re-host.
-mock.module("./result-store.server", () => ({
-  persistResultUrl: async (args: { url: string }) => ({
-    url: args.url,
-    persisted: false,
-    compressed: false,
-  }),
-  resultMediaTypeForKind: (kind: string) => {
-    if (
-      ["video", "lipsync", "lyric_video", "assemble", "caption_burn"].includes(kind)
-    )
-      return "video";
-    if (kind === "audio") return "audio";
-    return "image";
-  },
-}));
 
 // hf.server: imported at module scope by platform-template.functions.ts (and
 // transitively via orchestrator.server) — stub so the import chain never needs
@@ -36,7 +13,6 @@ mock.module("./hf.server", () => ({
   hfTextToImage: async () => ({ bytes: new Uint8Array(), contentType: "image/png" }),
 }));
 
-const { reserveOrchestrateRecord } = await import("./generate-core.server");
 const {
   _generateFromPlatformTemplateCore,
   PLATFORM_PHOTO_COST,
@@ -114,6 +90,11 @@ function makeHarness(overrides: {
         costUsd: 0.3,
       };
     },
+    persistUrl: async ({ url }) => ({
+      url,
+      persisted: false,
+      compressed: false,
+    }),
   };
   let lastOrchestrateReq: Parameters<RenderDeps["orchestrate"]>[0] | undefined;
 
