@@ -1,0 +1,22 @@
+Understood—the scope is the current Aurora app and the work already done in this session, not Directors Room or Aurora Soul. I’ll audit the actual working tree, workflows, release artifacts, and GitHub state, then fix only the blockers to a production-ready handoff and give you a precise remaining-items list. I’m entering a short planning pass first so I don’t overwrite or rework the last six hours of changes.
+I’m in the planning pass now. I’ll inspect the current task queue and the actual uncommitted/recent changes, then I’ll propose one focused production-readiness task rather than creating unrelated work. No implementation files will be changed during this pass.
+The planning pass hit an existing Git index lock from the background sync, so I’m not touching or deleting it. I’m switching to lock-free/read-only Git inspection and the project-task registry to separate actual pending work from stale task entries.
+The working tree is clean at commit 9faf999 and the last session’s render/auth changes are already committed. I also found that GitHub syncing is already tracked by pending Task #434, so I won’t create a duplicate push task; the current production audit will stay focused on code, workflows, tests, and release readiness.
+You were right: there are no Directors Room or Aurora Soul implementation changes in the last six hours. The recent work is focused on:
+
+Auth hydration and reliable sign-in
+Route/page-render smoke tests
+E2E stability
+Android store documentation and the verified vc2 AAB
+Build/configuration cleanup
+NBA JOSH LTD certificate documentation
+I found these remaining blockers:
+
+Production audit: The latest prod-build workflow failed and needs investigation/rerun.
+Mobile workflow: The Expo workflow is failing, although the verified Android AAB already exists.
+Play Console: You still need to create/verify the Google Play account and upload the AAB manually.
+Organization setup: NBA JOSH LTD needs Google’s alternative verification path because Nigeria is unavailable in D&B’s D‑U‑N‑S flow.
+GitHub: Existing Task #434 covers the push, but GitHub is blocking the sync because an old attached text file contains a detected credential. I will not bypass or expose that secret; the history must be handled safely.
+New product work: Directors Room and Aurora Soul are not part of this readiness pass and have not been implemented.
+I created Task #761 — Audit Aurora for production readiness with the exact audit and verification scope, and surfaced the existing GitHub push task (#434). Assign Task #761 to me to switch back to Build mode and I’ll execute the audit and fixes.
+Pick up the tasks you just dropped racks there are no Directors Room or Aurora Soul implementation changes in the last six hours. The recent work is focused on finishing the Play Store release, or implementing the larger product work such as Directors Room/Aurora Soul
