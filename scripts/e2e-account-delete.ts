@@ -3,7 +3,7 @@
 //
 // Run: cd /home/runner/workspace && bun run scripts/e2e-account-delete.ts
 // Requires: the dev server on http://127.0.0.1:8080 and SUPABASE_URL /
-// SUPABASE_SERVICE_ROLE_KEY / SUPABASE_PUBLISHABLE_KEY in the env (falls back
+// SUPABASE_SERVICE_ROLE_KEY / SUPABASE_PUBLISHABLE_KEY / INTER_APP_API_KEY in the env (falls back
 // to .env). Creates two throwaway QA users against the LIVE dev database and
 // cleans them up at the end.
 //
@@ -31,8 +31,11 @@ if (!process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.SUPABASE_URL) {
 const URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ANON = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-if (!URL || !SERVICE || !ANON) {
-  console.error("FATAL: missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / SUPABASE_PUBLISHABLE_KEY");
+const INTERNAL = process.env.INTER_APP_API_KEY;
+if (!URL || !SERVICE || !ANON || !INTERNAL) {
+  console.error(
+    "FATAL: missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / SUPABASE_PUBLISHABLE_KEY / INTER_APP_API_KEY",
+  );
   process.exit(1);
 }
 const API = "http://127.0.0.1:8080/api/public/account-delete";
@@ -262,10 +265,14 @@ console.log("9b. deletion-sweep endpoint (durable retry drain)");
 {
   const r = await fetch("http://127.0.0.1:8080/api/public/deletion-sweep", {
     method: "POST",
-    headers: { apikey: ANON },
+    headers: { "x-aurora-internal-key": INTERNAL },
   });
   const j = (await r.json().catch(() => null)) as { ok?: boolean } | null;
-  ok(r.status === 200 && j?.ok === true, "deletion-sweep with apikey -> 200 ok", `${r.status} ${JSON.stringify(j)}`);
+  ok(
+    r.status === 200 && j?.ok === true,
+    "deletion-sweep with private internal key -> 200 ok",
+    `${r.status} ${JSON.stringify(j)}`,
+  );
 }
 
 // ---- cleanup ----

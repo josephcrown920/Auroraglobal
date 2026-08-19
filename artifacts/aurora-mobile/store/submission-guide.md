@@ -77,9 +77,9 @@ Use the **vc2** file in `artifacts/aurora-mobile/store/builds/` (named `...-vc2-
 
 Internal testing needs no screenshots and no full store listing — those come later, before production.
 
-### 3d. (Optional, later) Automated submissions
+### 3d. Future Android releases
 
-Future releases follow the same manual Play Console upload: build, download the AAB, bump `versionCode`, upload in the Console (see "Rebuilding for a new release" below).
+Future releases follow the same manual Play Console upload: build, download the AAB, bump `versionCode`, and upload in the Console (see "Rebuilding for a new release" below).
 
 ---
 
@@ -185,24 +185,19 @@ After internal testing passes:
 
 ## Step 8 — Build and Submit for iOS (optional, later)
 
-### 8a. Set up Apple Developer credentials
+### 8a. Deferred Apple setup
+
+Apple submission is intentionally deferred. Do not add an EAS submission
+profile, App Store credentials, or service-account files to this repository.
+When the iOS follow-up is approved, create the App Store record and update the
+release runbook as a separate change.
 
 1. Sign up at [developer.apple.com](https://developer.apple.com) ($99/yr)
 2. Create an app record in [App Store Connect](https://appstoreconnect.apple.com):
    - Bundle ID: `com.aurorastudio.app`
    - App name: `Aurora — AI Creative Studio`
-3. Copy the **App ID** (numeric) and **Team ID** (10-char string)
-4. Update `eas.json`:
-   ```json
-   "submit": {
-     "production": {
-       "ios": {
-         "ascAppId": "YOUR_NUMERIC_APP_ID",
-         "appleTeamId": "YOUR_TEAM_ID"
-       }
-     }
-   }
-   ```
+3. Copy the **App ID** (numeric) and **Team ID** (10-char string) when the
+   iOS follow-up begins.
 
 ### 8b. Run the iOS production build
 

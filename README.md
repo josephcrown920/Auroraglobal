@@ -54,7 +54,11 @@ Copy [`.env.example`](.env.example) to a local `.env.local` for reference — it
 - [`docs/KLING_SECRETS.md`](docs/KLING_SECRETS.md) — Kling credential handling, rotation, and code locations
 - [`docs/ENV.md`](docs/ENV.md) — environment variables and secrets
 - [`docs/DATABASE.md`](docs/DATABASE.md) — schema, RLS, functions, storage
+- [`docs/DB_MIGRATIONS.md`](docs/DB_MIGRATIONS.md) — migration, rollback, and scheduled-job runbook
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — orchestrator, fallback chain, workers
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — supported runtime and CI/release boundaries
+- [`docs/OBSERVABILITY.md`](docs/OBSERVABILITY.md) — logs, queue health, and optional Sentry reporting
+- [`docs/SECURITY_AND_SECRETS.md`](docs/SECURITY_AND_SECRETS.md) — secret ownership and rotation rules
 - [`ROADMAP.md`](ROADMAP.md) — what's shipped vs in-flight
 
 

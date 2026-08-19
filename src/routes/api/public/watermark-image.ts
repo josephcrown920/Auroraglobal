@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import sharp from "sharp";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { verifyWatermarkToken } from "@/lib/watermark-token.server";
 
@@ -51,6 +50,11 @@ export const Route = createFileRoute("/api/public/watermark-image")({
 
         let watermarked: Buffer;
         try {
+          // sharp is a Node-only runtime dependency. Keep it out of the
+          // Cloudflare Worker module graph; this route returns a clear 500 if
+          // deployed to a runtime without native image processing support.
+          const sharpModule = await import(/* @vite-ignore */ "sharp");
+          const sharp = sharpModule.default;
           const meta = await sharp(imgBuffer).metadata();
           const w = meta.width ?? 512;
           const h = meta.height ?? 512;

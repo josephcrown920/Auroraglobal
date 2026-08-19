@@ -16,7 +16,8 @@
 #                                                        deletion final sweeps
 #                                                        until the purge completes
 #
-# Auth: SUPABASE_PUBLISHABLE_KEY (already in env).
+# Auth: public Supabase key for ordinary maintenance endpoints, plus the
+# private INTER_APP_API_KEY for the account-deletion sweep.
 # App:  localhost:8080 (same container as this daemon).
 
 set -euo pipefail
@@ -34,6 +35,11 @@ GENHEALTH_INTERVAL=900     # seconds between generation health checks (15 min)
 APIKEY="${SUPABASE_PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-${CRON_SECRET:-}}}"
 if [ -z "$APIKEY" ]; then
   echo "[cron] ERROR: no auth key found. Set SUPABASE_PUBLISHABLE_KEY or CRON_SECRET." >&2
+  exit 1
+fi
+DELETION_SWEEP_KEY="${INTER_APP_API_KEY:-}"
+if [ -z "$DELETION_SWEEP_KEY" ]; then
+  echo "[cron] ERROR: INTER_APP_API_KEY is required for the deletion sweep." >&2
   exit 1
 fi
 
@@ -128,7 +134,7 @@ while true; do
   if [ $((now - last_delsweep)) -ge $DELSWEEP_INTERVAL ]; then
     resp=$(curl -sf "$APP/api/public/deletion-sweep" \
       -X POST \
-      -H "apikey: $APIKEY" \
+      -H "x-aurora-internal-key: $DELETION_SWEEP_KEY" \
       -H "content-type: application/json" \
       --max-time 55 2>&1) && rc=0 || rc=$?
     ts=$(date -u +"%H:%M:%S")

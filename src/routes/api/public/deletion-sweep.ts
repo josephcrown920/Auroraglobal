@@ -6,8 +6,9 @@
 // durably and THIS endpoint re-runs the storage+row purge until it succeeds.
 // Called hourly by scripts/aurora-cron-daemon.sh.
 //
-// Authed via the Supabase anon `apikey` header — same pattern as
-// /api/public/free-daily-grant and /api/public/workers/health.
+// This endpoint performs privileged storage and database deletion work. It is
+// intentionally not part of the public anon-key endpoint family: only the
+// internal cron daemon may call it with INTER_APP_API_KEY.
 import { createFileRoute } from "@tanstack/react-router";
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
@@ -17,12 +18,9 @@ export const Route = createFileRoute("/api/public/deletion-sweep")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const apikey =
-          request.headers.get("apikey") ||
-          request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
-        const expected =
-          process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;
-        if (!expected || apikey !== expected) {
+        const provided = request.headers.get("x-aurora-internal-key");
+        const expected = process.env.INTER_APP_API_KEY?.trim();
+        if (!expected || !provided || provided !== expected) {
           return new Response(JSON.stringify({ error: "Unauthorized" }), {
             status: 401,
             headers: JSON_HEADERS,

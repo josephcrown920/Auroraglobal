@@ -207,7 +207,8 @@ export default defineConfig({
           "./src/components/MobileNav.tsx",
           // Landing (highest traffic, already fast — keep it first)
           "./src/routes/index.tsx",
-          // Core app routes — all black-screen on first visit without warmup
+          // Keep navigation destinations interactive without making SSR
+          // compile every server-function module before the first response.
           "./src/routes/auth.lazy.tsx",
           "./src/routes/studio.lazy.tsx",
           "./src/routes/gallery.lazy.tsx",
@@ -228,29 +229,6 @@ export default defineConfig({
           // Root + landing
           "./src/routes/__root.tsx",
           "./src/routes/index.tsx",
-          // Heavy server libraries
-          "./src/lib/orchestrator.server.ts",
-          "./src/lib/jobs.server.ts",
-          "./src/lib/generate-core.server.ts",
-          "./src/lib/result-store.server.ts",
-          // Server functions — all lazily compiled on first RPC call without warmup
-          "./src/lib/studio.functions.ts",
-          "./src/lib/orchestration.functions.ts",
-          "./src/lib/billing.functions.ts",
-          "./src/lib/gallery.functions.ts",
-          "./src/lib/video-agent.functions.ts",
-          "./src/lib/agent.functions.ts",
-          "./src/lib/marketplace.functions.ts",
-          "./src/lib/comfy.functions.ts",
-          "./src/lib/aurora-templates.functions.ts",
-          "./src/lib/workflows.functions.ts",
-          "./src/lib/claude-hooks.functions.ts",
-          "./src/lib/lipsync.functions.ts",
-          "./src/lib/photo-edit.functions.ts",
-          "./src/lib/share.functions.ts",
-          "./src/lib/spin.functions.ts",
-          "./src/lib/hf.functions.ts",
-          "./src/lib/chatbot.functions.ts",
         ],
       },
     },

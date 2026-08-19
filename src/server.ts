@@ -2,6 +2,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { reportServerException } from "./lib/sentry.server";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -62,7 +63,9 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
     return response;
   }
 
-  console.error(consumeLastCapturedError() ?? new Error(`h3 swallowed SSR error: ${body}`));
+   const error = consumeLastCapturedError() ?? new Error(`h3 swallowed SSR error: ${body}`);
+   reportServerException(error, { source: "ssr", requestUrl: response.url });
+   console.error(error);
   return brandedErrorResponse();
 }
 
@@ -73,6 +76,7 @@ export default {
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
     } catch (error) {
+      reportServerException(error, { source: "server-fetch", requestUrl: request.url });
       console.error(error);
       return brandedErrorResponse();
     }

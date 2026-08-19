@@ -1,0 +1,11 @@
+Copyright (c) Aurora Studio
+
+All rights reserved.
+
+This repository and its contents are proprietary to Aurora Studio. No portion
+of this code, its assets, or its documentation may be copied, modified,
+redistributed, sublicensed, or used to create a competing product without
+explicit written permission from Aurora Studio.
+
+The `cli/` package may contain its own package-level license metadata; that
+metadata does not grant rights to the rest of this repository.

@@ -28,18 +28,5 @@
         "image": "latest"
       }
     }
-  },
-  "submit": {
-    "production": {
-      "ios": {
-        "ascAppId": "FILL_IN_FROM_APP_STORE_CONNECT",
-        "appleTeamId": "FILL_IN_FROM_DEVELOPER_PORTAL"
-      },
-      "android": {
-        "serviceAccountKeyPath": "./google-play-service-account.json",
-        "track": "internal",
-        "releaseStatus": "draft"
-      }
-    }
   }
 }
