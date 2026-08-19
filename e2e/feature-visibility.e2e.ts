@@ -29,14 +29,15 @@
  *
  * Known patterns from the project's existing e2e tests
  * (e2e/kids-preview.e2e.ts, e2e/playground-sandbox.e2e.ts):
- *   • waitForLoadState("networkidle") before clicking — SSR hydration guard.
- *   • Post-login redirect: waitForURL(/\/(home|studio)/).
+ *   • Wait for the auth form's explicit hydration marker before clicking.
+ *   • Post-login redirect: /studio (the canonical signed-in landing page).
  *   • webServer runs under /bin/sh → the bash command is in playwright.config.ts.
  *   • page.emulateMedia instead of newContext({ reducedMotion }).
  */
 
 import { test, expect, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { signInWithPassword, waitForAppHydration } from "./helpers/auth";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -61,33 +62,7 @@ let regularUserId: string;
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 async function signIn(page: Page, email: string) {
-  await page.goto("/auth");
-  await page.waitForLoadState("networkidle");
-
-  const emailInput = page.locator("#email");
-  const passwordInput = page.locator("#password");
-  await emailInput.waitFor({ state: "visible" });
-  await emailInput.fill(email);
-  await expect(emailInput).toHaveValue(email);
-  await passwordInput.fill(TEST_PASSWORD);
-  await expect(passwordInput).toHaveValue(TEST_PASSWORD);
-
-  const signInButton = page
-    .locator("form")
-    .getByRole("button", { name: "Sign in", exact: true });
-  await signInButton.click();
-
-  try {
-    await page.waitForURL(/\/(home|studio)/, { timeout: 15_000 });
-  } catch {
-    // Retry once on slow auth round-trips
-    if ((await emailInput.count()) > 0) {
-      await emailInput.fill(email);
-      await passwordInput.fill(TEST_PASSWORD);
-      await signInButton.click();
-    }
-    await page.waitForURL(/\/(home|studio)/, { timeout: 20_000 });
-  }
+  await signInWithPassword(page, email, TEST_PASSWORD);
 }
 
 async function signOut(page: Page) {
@@ -240,7 +215,7 @@ test.describe("Feature visibility — admin Features panel", () => {
 
   test("admin sees TikTok30 toggle OFF in the Features panel by default", async ({ page }) => {
     await page.goto("/admin");
-    await page.waitForLoadState("networkidle");
+    await waitForAppHydration(page);
 
     // Click the Features tab
     const featuresTab = page.getByRole("button", { name: "Features", exact: true });
@@ -257,7 +232,7 @@ test.describe("Feature visibility — admin Features panel", () => {
 
   test("admin flips TikTok30 visible → toast appears, toggle turns ON, refresh event fires", async ({ page }) => {
     await page.goto("/admin");
-    await page.waitForLoadState("networkidle");
+    await waitForAppHydration(page);
 
     const featuresTab = page.getByRole("button", { name: "Features", exact: true });
     await featuresTab.waitFor({ state: "visible", timeout: 15_000 });
@@ -318,7 +293,7 @@ test.describe("Feature visibility — admin Features panel", () => {
     await signOut(page);
 
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForAppHydration(page);
 
     // Spin is hidden (beforeEach reset) → ViralEngine must be absent.
     // NOTE: "Go viral on TikTok" is NOT unique — HeroContactForm (ungated)
@@ -385,7 +360,11 @@ test.describe("Feature visibility — admin Features panel", () => {
     await signOut(page);
     await signIn(page, regularEmail);
     await page.goto("/spin");
-    await page.waitForLoadState("networkidle");
+    await waitForAppHydration(page);
+    await page
+      .getByRole("main")
+      .getByText("TikTok30", { exact: true })
+      .waitFor({ state: "visible", timeout: 20_000 });
 
     // Should NOT redirect — we must still be on /spin after hydration settles
     await expect(page).toHaveURL(/\/spin/, { timeout: 15_000 });
@@ -408,7 +387,7 @@ test.describe("Feature visibility — admin Features panel", () => {
     await featureVisibilityPost(page, adminToken, { key: "spin", visible: true });
 
     await page.goto("/admin");
-    await page.waitForLoadState("networkidle");
+    await waitForAppHydration(page);
 
     const featuresTab = page.getByRole("button", { name: "Features", exact: true });
     await featuresTab.waitFor({ state: "visible", timeout: 15_000 });

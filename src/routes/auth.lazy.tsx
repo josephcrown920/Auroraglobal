@@ -42,6 +42,7 @@ function AuthPage() {
   const navigate = useNavigate();
   const { session, loading } = useAuth();
   const search = Route.useSearch();
+  const [hydrated, setHydrated] = useState(false);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   // New signups land in Studio (the product); returning sign-ins land on Home.
   const returnTo = search.next ?? "/studio";
@@ -71,6 +72,10 @@ function AuthPage() {
   // Passkeys only work in a real browser tab — in-app/embedded webviews deny
   // the Face ID prompt before we can authenticate.
   const canUsePasskeys = biometricSupported && !embeddedBrowser;
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   // Detect Supabase password-recovery links (#...type=recovery) so we show
   // the "set a new password" form instead of bouncing to the studio.
@@ -471,7 +476,12 @@ function AuthPage() {
           </Button>
         )}
 
-        <form onSubmit={submit} className="space-y-4">
+        <form
+          onSubmit={submit}
+          data-auth-form="password"
+          data-hydrated={hydrated ? "true" : "false"}
+          className="space-y-4"
+        >
           {mode === "signup" && (
             <div className="space-y-2">
               <Label>Which one are you?</Label>

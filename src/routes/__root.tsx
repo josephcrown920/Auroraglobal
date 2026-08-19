@@ -275,6 +275,12 @@ function RootComponent() {
   usePageViewTracking();
   useEffect(() => { captureRefFromUrl(); initCrashReporting(); }, []);
   useEffect(() => {
+    document.documentElement.dataset.auroraHydrated = "true";
+    return () => {
+      delete document.documentElement.dataset.auroraHydrated;
+    };
+  }, []);
+  useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
     if (import.meta.env.PROD) {
       navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});

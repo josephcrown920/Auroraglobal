@@ -13,6 +13,7 @@
  */
 import { test, expect, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { signInWithPassword } from "./helpers/auth";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -55,37 +56,7 @@ const EDITOR_SELECTOR = "#playground-editor .monaco-editor";
 const CONSOLE_SELECTOR = "#playground-console";
 
 async function signIn(page: Page) {
-  await page.goto("/auth");
-  // Wait for the SSR page to finish hydrating before interacting. Clicking too early
-  // hits a server-rendered button with no React submit handler attached yet, which
-  // falls through to a native HTML form GET submission (full page reload to "/auth?"
-  // with all fields wiped) instead of the SPA sign-in flow.
-  await page.waitForLoadState("networkidle");
-  const emailInput = page.locator("#email");
-  const passwordInput = page.locator("#password");
-  await emailInput.waitFor({ state: "visible" });
-  await emailInput.fill(testEmail);
-  await expect(emailInput).toHaveValue(testEmail);
-  await passwordInput.fill(TEST_PASSWORD);
-  await expect(passwordInput).toHaveValue(TEST_PASSWORD);
-
-  // Scope to the form's submit button — the auth page also has a "Sign in" tab
-  // toggle button at the top, which causes a strict-mode violation if we use
-  // page.getByRole() without narrowing to the form.
-  const signInButton = page.locator("form").getByRole("button", { name: "Sign in", exact: true });
-  await signInButton.click();
-  try {
-    // Post-login redirect goes to /home (or ?next= param); /studio is a sub-route.
-    await page.waitForURL(/\/(home|studio)/, { timeout: 15_000 });
-  } catch {
-    // Occasional slow auth round-trip — retry once rather than fail the whole test.
-    if (await emailInput.count() > 0) {
-      await emailInput.fill(testEmail);
-      await passwordInput.fill(TEST_PASSWORD);
-    }
-    await signInButton.click();
-    await page.waitForURL(/\/(home|studio)/, { timeout: 20_000 });
-  }
+  await signInWithPassword(page, testEmail, TEST_PASSWORD);
 }
 
 /**

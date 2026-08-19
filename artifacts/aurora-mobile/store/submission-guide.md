@@ -13,7 +13,7 @@
 | Terms of Service live | ✅ | https://auroraperformancestudio.com/terms |
 | Store listing copy | ✅ | `store-listing.md` |
 | `app.json` configured | ✅ | Bundle ID, permissions, EAS project ID |
-| `eas.json` production profiles | ✅ | Android AAB + iOS store distribution |
+| `eas.json` production build profiles | ✅ | Android AAB + iOS store build distribution; no submission profiles |
 | EAS project linked | ✅ | ID `9927fad2-c399-4ae3-8727-614a2c751184` (`@nbajoshs-organization/aurora-performance-studio`) |
 | EXPO_TOKEN authenticated | ✅ | Account: `nbajosh` / org: `nbajoshs-organization` |
 | **Android production AAB** | ✅ | Build `1c5efc61-5ec9-47d8-a26b-26a079732e63` finished 2026-07-21 |
@@ -27,7 +27,7 @@
 | Screenshots (device resolution) | ⬜ | NOT needed for internal testing; required before the store listing / production |
 | Pre-launch report checks | ⬜ | Review in Play Console after internal track upload |
 | iOS Apple Developer credentials | ⬜ | Needs Apple Developer account ($99/yr) |
-| `eas.json` Apple IDs filled in | ⬜ | Replace `FILL_IN_FROM_APP_STORE_CONNECT` placeholders |
+| Apple submission configuration | ⬜ | Deferred; do not add Apple credentials or submission profiles during Android v1 |
 | iOS production build | ⬜ | Run after Apple credentials are set up |
 | iOS App Store submission | ⬜ | Deferred to the Apple App Store follow-up task — not part of this Android release |
 
@@ -110,7 +110,7 @@ If the report shows issues, fix them in the app code and run:
 cd artifacts/aurora-mobile
 EXPO_TOKEN=$EXPO_TOKEN npx eas build --platform android --profile production
 ```
-Then submit the new build ID.
+Then download the new AAB and upload it manually in Play Console.
 
 ---
 

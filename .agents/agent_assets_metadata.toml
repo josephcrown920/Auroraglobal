@@ -432,3 +432,10 @@ uri = "file://generated/aurora-comfy-full.zip"
 type = "unspecified"
 title = "Aurora Comfy Full Bundle"
 description = "Full Core Engine app source, ComfyUI Manager, Kaggle/Colab/ComfyUI worker launchers and notebooks, plus the latest Aurora fixes: Studio backend client, comfy server functions, /comfy Studio panel, ComfyUI admin, the new Admin GPU launch page, and Supabase migrations."
+
+[[outputs]]
+id = "oRimn7h0oEfEHH_EQTDeE"
+uri = "file://artifacts/aurora-mobile/store/builds/aurora-studio-v1.0.0-vc2-70a20985.aab"
+type = "unspecified"
+title = "Aurora Studio Android vc2 AAB"
+description = "Verified versionCode 2 release bundle for manual upload to Google Play Console Internal testing. SHA-256: f60c0ec1f6fc5980809c31ae5a9cd64694cc3c9f442a9400e8b527387e2eeb0f."
