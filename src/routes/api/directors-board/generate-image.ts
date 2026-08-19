@@ -9,15 +9,15 @@ export const Route = createFileRoute("/api/directors-board/generate-image")({
     handlers: {
       POST: async ({ request }) => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        // Optional auth is retained for compatibility with the existing board.
-        // Authenticated requests charge that user's Aura; anonymous compatibility
-        // requests continue to use the existing system account.
-        let userId: string | null = null;
         const auth = request.headers.get("authorization") || request.headers.get("Authorization");
-        if (auth?.startsWith("Bearer ")) {
-          const { data } = await supabaseAdmin.auth.getUser(auth.slice(7));
-          userId = data.user?.id ?? null;
+        if (!auth?.startsWith("Bearer ")) {
+          return Response.json({ error: "Sign in to generate Director Room images." }, { status: 401 });
         }
+        const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(auth.slice(7));
+        if (authError || !authData.user) {
+          return Response.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        const userId = authData.user.id;
 
         const { prompt, references } = (await request.json().catch(() => ({}))) as {
           prompt?: string;
@@ -38,7 +38,7 @@ export const Route = createFileRoute("/api/directors-board/generate-image")({
             pinnedModelOnly: true,
             prompt: prompt.trim(),
             imageUrls,
-            userId: userId ?? "directors-board-system",
+            userId,
           });
           const url = result.url;
           if (!url) {

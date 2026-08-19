@@ -26,14 +26,18 @@ export async function streamImage(
     const { data } = await supabase.auth.getSession();
     accessToken = data.session?.access_token;
   } catch {
-    // Anonymous compatibility usage remains supported by the server route.
+    // The caller receives the same sign-in error below if session lookup fails.
+  }
+
+  if (!accessToken) {
+    throw new Error("Sign in to generate Director Room images.");
   }
 
   const res = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      Authorization: `Bearer ${accessToken}`,
     },
     body: JSON.stringify({ prompt, references, model }),
   });

@@ -118,6 +118,22 @@ export const Route = createFileRoute("/api/public/account-delete")({
             return fail();
           }
 
+          // Create the retry row before deleting auth. From this point onward
+          // the user cannot retry interactively, so queue creation itself must
+          // succeed before the irreversible auth deletion.
+          const { data: sweep, error: sweepInsertError } = await supabaseAdmin
+            .from("account_deletion_sweeps")
+            .insert({ user_id: userId })
+            .select("id")
+            .single();
+          if (sweepInsertError || !sweep) {
+            console.error(
+              `[account-delete] could not pre-create durable sweep for ${userId}:`,
+              sweepInsertError?.message ?? "no queue row returned",
+            );
+            return fail();
+          }
+
           // ── 3. Auth user last — removes the login itself ──
           const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(userId);
           if (delErr) {
@@ -141,24 +157,31 @@ export const Route = createFileRoute("/api/public/account-delete")({
           try {
             await purgeUserStorage(userId);
             await purgeUserRows(userId);
+            const { error: doneError } = await supabaseAdmin
+              .from("account_deletion_sweeps")
+              .update({ status: "done", updated_at: new Date().toISOString() })
+              .eq("id", sweep.id);
+            if (doneError) throw new Error(`queue completion failed: ${doneError.message}`);
           } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             console.error(
-              `[account-delete] final sweep failed for ${userId} — queueing durable retry:`,
+              `[account-delete] final sweep incomplete for ${userId} — durable retry remains pending:`,
               msg,
             );
             const { error: qErr } = await supabaseAdmin
               .from("account_deletion_sweeps")
-              .insert({ user_id: userId, last_error: msg.slice(0, 1000) });
+              .update({ last_error: msg.slice(0, 1000), updated_at: new Date().toISOString() })
+              .eq("id", sweep.id);
             if (qErr) {
-              // Last-resort path: queue insert itself failed. Loud, greppable
-              // marker for operators — this is the only state that needs a
-              // human (uptime alerting watches deployment logs).
               console.error(
-                `[account-delete] CRITICAL: could not queue deletion sweep for ${userId} — manual cleanup required:`,
+                `[account-delete] CRITICAL: could not update pending deletion sweep for ${userId}:`,
                 qErr.message,
               );
             }
+            return new Response(
+              JSON.stringify({ error: "Account deletion incomplete — cleanup is queued for retry." }),
+              { status: 500, headers: CORS },
+            );
           }
 
           console.log(`[account-delete] user ${userId} deleted`);
