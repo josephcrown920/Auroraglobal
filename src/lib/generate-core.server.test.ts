@@ -1,38 +1,5 @@
-import { describe, expect, it, mock } from "bun:test";
-import type { RenderDeps } from "./generate-core.server";
-
-// ── Module stubs ──────────────────────────────────────────────────────────────
-// Mock result-store.server BEFORE dynamically importing generate-core.server.
-// generate-core.server calls persistResultUrl() on EVERY happy-path render; without
-// this stub the happy-path tests fail with "connection refused" trying to re-host
-// the provider URL. Using mock.module + dynamic import is required because Bun
-// processes static `import` declarations before any code runs, so a mock placed
-// after a static import would be too late. (See bun-mock-module-leakage.md.)
-mock.module("./result-store.server", () => ({
-  persistResultUrl: async (args: { url: string }) => ({
-    url: args.url,
-    persisted: false,
-    compressed: false,
-  }),
-  resultMediaTypeForKind: (kind: string) => {
-    if (
-      ["video", "lipsync", "lyric_video", "assemble", "caption_burn"].includes(kind)
-    )
-      return "video";
-    if (kind === "audio") return "audio";
-    return "image";
-  },
-}));
-
-// orchestrator.server is imported at the top of generate-core.server.ts (for the
-// type import), which transitively pulls in hf.server. Stub hf.server so the
-// import chain doesn't fail in a test environment with no real HF credentials.
-mock.module("./hf.server", () => ({
-  hfTextToSpeech: async () => ({ bytes: new Uint8Array(), contentType: "audio/flac" }),
-  hfTextToImage: async () => ({ bytes: new Uint8Array(), contentType: "image/png" }),
-}));
-
-const { reserveOrchestrateRecord } = await import("./generate-core.server");
+import { describe, expect, it } from "bun:test";
+import { reserveOrchestrateRecord, type RenderDeps } from "./generate-core.server";
 
 // ── Test helpers ──────────────────────────────────────────────────────────────
 //
@@ -86,6 +53,11 @@ function makeDeps(overrides: {
         latencyMs: 100,
         costUsd: 0.01,
       })),
+    persistUrl: async ({ url }) => ({
+      url,
+      persisted: false,
+      compressed: false,
+    }),
   };
 
   return { deps, calls };

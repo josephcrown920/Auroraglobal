@@ -28,6 +28,8 @@ type RpcResult = { data: unknown; error: { message: string } | null };
 export type RenderDeps = {
   rpc: (name: string, args: Record<string, unknown>) => Promise<RpcResult>;
   orchestrate: typeof orchestrate;
+  /** Injectable result persistence (omit to use the real result-store implementation). */
+  persistUrl?: typeof persistResultUrl;
   /** Injectable daily-budget guard (omit to use live Supabase; inject in tests). */
   dailyBudget?: import("./cost-guardrails.server").DailyBudgetDeps;
 };
@@ -84,6 +86,7 @@ async function buildDefaultDeps(): Promise<RenderDeps> {
   return {
     rpc: (name, args) => client.rpc(name, args),
     orchestrate,
+    persistUrl: persistResultUrl,
   };
 }
 
@@ -132,7 +135,7 @@ export async function reserveOrchestrateRecord(
     const persistedUrl =
       mediaType && result.url
         ? (
-            await persistResultUrl({
+            await (d.persistUrl ?? persistResultUrl)({
               userId: input.userId,
               refId: reservationRef,
               mediaType,
