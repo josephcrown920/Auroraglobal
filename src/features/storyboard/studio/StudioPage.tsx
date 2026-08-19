@@ -19,6 +19,7 @@ export function StudioPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
   const isMobile = useIsMobile();
   const [inspectorOpen, setInspectorOpen] = useState(false);
 
@@ -63,8 +64,16 @@ export function StudioPage() {
   async function doExport() {
     if (!board) return;
     setExporting(true);
+    setExportNotice(null);
     try {
-      await exportBoardZip(board);
+      const result = await exportBoardZip(board);
+      setExportNotice(
+        result.missing.length
+          ? `Exported with ${result.missing.length} unavailable asset${
+              result.missing.length === 1 ? "" : "s"
+            }: ${result.missing.slice(0, 2).join(", ")}${result.missing.length > 2 ? "…" : ""}`
+          : "Export downloaded with all available media.",
+      );
     } finally {
       setExporting(false);
     }
@@ -75,7 +84,7 @@ export function StudioPage() {
       <header className="border-b border-border/60 px-4 py-2.5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <Link to="/" className="text-xs uppercase tracking-[0.2em] text-accent shrink-0">
-            Studio
+            Director Room
           </Link>
           <input
             value={board.title}
@@ -116,6 +125,11 @@ export function StudioPage() {
           </button>
         </div>
       </header>
+      {exportNotice && (
+        <div className="border-b border-border/60 bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+          {exportNotice}
+        </div>
+      )}
 
       <div
         className="flex-1 min-h-0 grid relative"

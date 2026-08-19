@@ -31,7 +31,7 @@ export function CharactersPanel({
     setPreview(null);
     try {
       let last = "";
-      await streamImage("/api/generate-image", sheetPrompt(c), (url, final) => {
+      await streamImage("/api/directors-board/generate-image", sheetPrompt(c), (url, final) => {
         last = url;
         setPreview({ id: c.id, url, final });
       });

@@ -1,16 +1,19 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/directors-board")({
   ssr: false,
+  beforeLoad: () => {
+    throw redirect({ to: "/director-room", replace: true });
+  },
   head: () => ({
     meta: [
-      { title: "Directors Board — Storyboard Canvas · Aurora" },
+      { title: "Director Room — Storyboard Canvas · Aurora" },
       {
         name: "description",
         content:
           "Chain shot nodes, generate AI frames, direct your music video storyboard, and export your board as a ZIP.",
       },
-      { property: "og:title", content: "Directors Board · Aurora" },
+      { property: "og:title", content: "Director Room · Aurora" },
       {
         property: "og:description",
         content:

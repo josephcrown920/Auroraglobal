@@ -3,17 +3,16 @@ import { createFileRoute } from "@tanstack/react-router";
 export const Route = createFileRoute("/director-room")({
   head: () => ({
     meta: [
-      { title: "Director's Chair — Shoot a $20,000 Music Video for a Fraction" },
+      { title: "Director Room — Storyboard and Render · Aurora" },
       {
         name: "description",
         content:
-          "Aurora Director's Chair: plan, cast, storyboard, and shoot cinematic music videos with AI. Get a $20,000-look shoot for a fraction of the cost.",
+          "Aurora Director Room: collaborate with an AI director, build a shot board, generate frames, and queue video renders.",
       },
-      { property: "og:title", content: "Aurora Director's Chair" },
+      { property: "og:title", content: "Aurora Director Room" },
       {
         property: "og:description",
-        content:
-          "Cinematic music-video pipeline: casting, storyboarding, camera moves, and finishing — all AI-assisted.",
+        content: "Storyboard, cast, generate, and render your cinematic music video in one room.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

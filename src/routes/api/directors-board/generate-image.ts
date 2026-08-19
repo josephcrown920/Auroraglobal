@@ -1,6 +1,6 @@
 // POST /api/directors-board/generate-image
-// Generates a single image for the Directors Board Inspector or Characters panel.
-// Uses Aurora's orchestrate() — charges the authenticated user's Aura credits.
+// Generates a single image for the Director Room Inspector or Characters panel.
+// Uses the Replit-billed Gemini image adapter while charging the user's Aura.
 // Returns JSON { url: string } so streamImage.ts can handle it via its JSON path.
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -9,8 +9,9 @@ export const Route = createFileRoute("/api/directors-board/generate-image")({
     handlers: {
       POST: async ({ request }) => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        // Optional auth — grab user if present; fall back to a fixed system call so
-        // unauthenticated board usage still works (costs are on a shared system account).
+        // Optional auth is retained for compatibility with the existing board.
+        // Authenticated requests charge that user's Aura; anonymous compatibility
+        // requests continue to use the existing system account.
         let userId: string | null = null;
         const auth = request.headers.get("authorization") || request.headers.get("Authorization");
         if (auth?.startsWith("Bearer ")) {
@@ -18,16 +19,25 @@ export const Route = createFileRoute("/api/directors-board/generate-image")({
           userId = data.user?.id ?? null;
         }
 
-        const { prompt } = (await request.json().catch(() => ({}))) as { prompt?: string };
+        const { prompt, references } = (await request.json().catch(() => ({}))) as {
+          prompt?: string;
+          references?: unknown;
+        };
         if (!prompt?.trim()) {
           return Response.json({ error: "prompt required" }, { status: 400 });
         }
+        const imageUrls = Array.isArray(references)
+          ? references.filter((value): value is string => typeof value === "string").slice(0, 4)
+          : [];
 
         try {
           const { orchestrate } = await import("@/lib/orchestrator.server");
           const result = await orchestrate({
             kind: "image",
+            model: "replit/gemini-2.5-flash-image",
+            pinnedModelOnly: true,
             prompt: prompt.trim(),
+            imageUrls,
             userId: userId ?? "directors-board-system",
           });
           const url = result.url;

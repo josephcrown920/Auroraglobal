@@ -1,6 +1,9 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
-import { StudioPage } from "@/features/storyboard/studio/StudioPage";
 
 export const Route = createLazyFileRoute("/directors-board")({
-  component: StudioPage,
+  component: () => (
+    <div className="min-h-screen grid place-items-center bg-background text-muted-foreground">
+      Opening Director Room…
+    </div>
+  ),
 });

@@ -1,5 +1,6 @@
 import { createParser } from "eventsource-parser";
 import { flushSync } from "react-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 type ImageEventPayload =
   | { type: "image_generation.partial_image"; b64_json: string; partial_image_index: number }
@@ -20,9 +21,20 @@ export async function streamImage(
   references: string[] = [],
   model?: string,
 ): Promise<void> {
+  let accessToken: string | undefined;
+  try {
+    const { data } = await supabase.auth.getSession();
+    accessToken = data.session?.access_token;
+  } catch {
+    // Anonymous compatibility usage remains supported by the server route.
+  }
+
   const res = await fetch(endpoint, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
     body: JSON.stringify({ prompt, references, model }),
   });
 

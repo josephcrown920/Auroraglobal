@@ -56,14 +56,13 @@ const CORE_FEATURES: Feature[] = [
   { to: "/motion",        label: "Perform Anywhere",   icon: Wand2,        previewImg: "/nav-previews/perform-anywhere.jpg", starred: true },
   { to: "/colors",        label: "Colors Studio",      icon: Palette,      previewImg: "/nav-previews/colors.jpg",          starred: true },
   { to: "/lipsync",       label: "Lip Sync",           icon: Mic,          previewImg: "/nav-previews/lipsync.jpg",         starred: true },
-  { to: "/director-room", label: "Director's Chair",   icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg",     starred: true, badge: "$20k Look" },
+  { to: "/director-room", label: "Director Room",       icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg",     starred: true, badge: "$20k Look" },
 ];
 
 // ── Studio — image & scene tools ──────────────────────────────────────────
 const STUDIO_FEATURES: Feature[] = [
   { to: "/studio",          label: "Image & Video Studio",  icon: Sparkles, previewImg: "/nav-previews/studio.jpg" },
   { to: "/likeness",        label: "Locked Likeness Shoot", icon: Camera,   previewImg: "/nav-previews/avatar.jpg",        badge: "New" },
-  { to: "/directors-board", label: "Directors Board",       icon: Layers,   previewImg: "/nav-previews/scene-builder.jpg", badge: "New" },
   { to: "/scene-builder",   label: "Scene Builder",         icon: Layers,   previewImg: "/nav-previews/scene-builder.jpg" },
   { to: "/agent",           label: "Video Agent",           icon: Film,     badge: "New" },
 ];

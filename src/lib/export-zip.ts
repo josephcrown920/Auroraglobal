@@ -7,7 +7,15 @@ async function toBytes(url: string): Promise<{ bytes: Uint8Array; ext: string } 
     if (!res.ok) return null;
     const buf = new Uint8Array(await res.arrayBuffer());
     const type = res.headers.get("content-type") ?? "";
-    const ext = type.includes("jpeg") ? "jpg" : type.includes("webp") ? "webp" : "png";
+    const ext = type.includes("mp4")
+      ? "mp4"
+      : type.includes("webm")
+        ? "webm"
+        : type.includes("jpeg")
+          ? "jpg"
+          : type.includes("webp")
+            ? "webp"
+            : "png";
     return { bytes: buf, ext };
   } catch {
     return null;
@@ -18,9 +26,10 @@ function pad(n: number) {
   return String(n).padStart(2, "0");
 }
 
-export async function exportBoardZip(board: Board) {
+export async function exportBoardZip(board: Board): Promise<{ missing: string[] }> {
   const order = chainOrder(board);
   const files: Record<string, Uint8Array> = {};
+  const missing: string[] = [];
 
   const lines: string[] = [
     `# ${board.title}`,
@@ -40,6 +49,18 @@ export async function exportBoardZip(board: Board) {
       if (asset) {
         framePath = `frames/${pad(i + 1)}-${s.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.${asset.ext}`;
         files[framePath] = asset.bytes;
+      } else missing.push(`${i + 1}. ${s.title} frame`);
+    } else {
+      missing.push(`${i + 1}. ${s.title} frame`);
+    }
+    let videoPath = "";
+    if (s.videoUrl) {
+      const asset = await toBytes(s.videoUrl);
+      if (asset) {
+        videoPath = `videos/${pad(i + 1)}-${s.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.${asset.ext}`;
+        files[videoPath] = asset.bytes;
+      } else {
+        missing.push(`${i + 1}. ${s.title} video`);
       }
     }
     lines.push(
@@ -56,6 +77,7 @@ export async function exportBoardZip(board: Board) {
         ? `- Video prompt (${s.videoModel ?? "seedance-2.5"}): ${s.videoPrompt || "—"}`
         : "",
       s.videoUrl ? `- Rendered video: ${s.videoUrl}` : "",
+      videoPath ? `- Video file: ${videoPath}` : s.videoUrl ? `- Video file: (unavailable)` : "",
       framePath ? `- Frame file: ${framePath}` : `- Frame file: (not generated)`,
       "",
     );
@@ -70,7 +92,9 @@ export async function exportBoardZip(board: Board) {
         if (asset) {
           sheetPath = `characters/${c.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.${asset.ext}`;
           files[sheetPath] = asset.bytes;
-        }
+        } else missing.push(`character ${c.name} sheet`);
+      } else {
+        missing.push(`character ${c.name} sheet`);
       }
       lines.push(
         `### ${c.name}`,
@@ -131,4 +155,5 @@ export async function exportBoardZip(board: Board) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(href), 2000);
+  return { missing };
 }

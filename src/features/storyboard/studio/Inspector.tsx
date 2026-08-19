@@ -52,7 +52,7 @@ export function Inspector({
     setPreview(null);
     try {
       let last = "";
-      await streamImage("/api/generate-image", prompt, (url, final) => {
+      await streamImage("/api/directors-board/generate-image", prompt, (url, final) => {
         last = url;
         setPreview(url);
         setIsFinal(final);
