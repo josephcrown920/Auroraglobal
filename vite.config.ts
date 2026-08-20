@@ -147,6 +147,16 @@ export default defineConfig({
     // Pre-bundle heavy client-side dependencies so Vite doesn't have to
     // transform them lazily on first request — shaves several seconds off
     // the first meaningful paint on cold start.
+    ssr: {
+      // Keep TanStack's server namespace as a native Node import. Bundling
+      // its export-star chain through Nitro can emit createRequestHandler as
+      // an unbound identifier in the production SSR chunk.
+      external: [
+        "@tanstack/react-start/server",
+        "@tanstack/react-start-server",
+        "@tanstack/start-server-core",
+      ],
+    },
     optimizeDeps: {
       // Commit the first optimization run as soon as the deps are bundled
       // instead of holding it until the static-import crawl ends. In this app

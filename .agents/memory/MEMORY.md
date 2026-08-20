@@ -1,4 +1,5 @@
 - [Vite double-plugin cartographer crash](vite-double-plugin-cartographer.md) — replitPlugins in BOTH top-level plugins: AND vite.plugins runs cartographer twice → duplicate attrs → SSR/client mismatch → "Invalid hook call" crash.
+- [TanStack Nitro namespace exports](tanstack-nitro-namespace-exports.md) — keep TanStack Start server packages external in SSR/Nitro or bundled export-star namespaces can leave createRequestHandler unbound.
 - [TanStack package version alignment](tanstack-package-versions.md) — router-plugin version cadence differs from react-start; verify each on npm before bumping; routeTree.gen.ts auto-regenerates on new route file addition during dev (no manual edit needed).
 - [Video Agent routes](video-agent-routes.md) — server-state projects on the prod job queue; -process plans EMPTY drafts only; project row is CAS-gated UI convenience; queue-distress alerts ride uptime-monitor row 'queue'.
 - [LANDR mastering integration](landr-mastering-routes.md) — lib at src/lib/landr-mastering.server.ts; API routes at /api/audio/upload, /api/audio/master, /api/audio/master/$id/status; UI at /mastering; needs LANDR_MASTERING_API_KEY secret (not yet set).
