@@ -34,6 +34,7 @@
 - [Worker endpoint normalization](worker-endpoint-normalization.md) — every path appending to a worker endpoint_url (dispatch + health) must normalizeWorkerBase() in lockstep, else `.../generate/generate`.
 - [Credit reservation flow](credit-reservation-flow.md) — all spend goes through reserveOrchestrateRecord; Supabase RPCs resolve {error} (don't throw); commit-fail must NOT release (would refund a delivered render).
 - [Job finalization fence](job-finalization-fence.md) — worker finalize + stale-sweeper must CAS on locked_by+status='processing'; gate ALL finalize writes (incl. success gen-write) on winning, or swept+reclaimed jobs double-finalize.
+- [Job reservation audit semantics](job-credits-reserved-audit-semantics.md) — jobs.credits_reserved is historical after finalize; profile reservation + commit ledger prove settlement.
 - [Re-enqueuing a failed job re-reserves credits](failed-job-reenqueue-credits.md) — `failed` jobs already released their reservation; recovery must re-reserve fresh (atomic RPC), unlike stale-`processing` jobs which still hold it.
 - [Landing video hydration warning](aurora-landing-video-hydration.md) — React "attributes didn't match" console.error is from muted/autoplay `<video>` across MANY landing components; pre-existing & benign, not a per-component regression.
 - [SSR curl checks](replit-ssr-curl-checks.md) — verify rendered HTML via curl localhost:8080; $REPLIT_DEV_DOMAIN returns 0 bytes (mTLS proxy) & shell curl -o file writes fail — capture into a shell var.
