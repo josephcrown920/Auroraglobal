@@ -11,6 +11,7 @@ import { DirectorChat } from "./DirectorChat";
 import { WorkersPanel } from "./WorkersPanel";
 import { DirectorRoomRail, type DirectorRoomPanel } from "./DirectorRoomRail";
 import { MoodboardPanel } from "./MoodboardPanel";
+import { DirectorRoomAtmosphere } from "./DirectorRoomAtmosphere";
 
 type Tab = "canvas" | "characters" | "gpu";
 
@@ -62,7 +63,7 @@ function ScenesPanel({ board, onSelect }: { board: Board; onSelect: (id: string)
   });
 
   return (
-    <section className="min-h-0 flex-1 overflow-auto bg-background">
+    <section className="min-h-0 flex-1 overflow-auto bg-transparent">
       <PanelHeader
         eyebrow="Scene builder"
         title="Block each moment"
@@ -136,7 +137,7 @@ function LayersPanel({
     : [];
 
   return (
-    <section className="min-h-0 flex-1 overflow-auto bg-background">
+    <section className="min-h-0 flex-1 overflow-auto bg-transparent">
       <PanelHeader
         eyebrow="Layers"
         title="Build the shot stack"
@@ -196,7 +197,7 @@ function FlowsPanel({ board, onSelect }: { board: Board; onSelect: (id: string) 
   });
 
   return (
-    <section className="min-h-0 flex-1 overflow-auto bg-background">
+    <section className="min-h-0 flex-1 overflow-auto bg-transparent">
       <PanelHeader
         eyebrow="Flows"
         title="Map the production flow"
@@ -287,7 +288,9 @@ export function StudioPage() {
             activePanel={activeRoomPanel}
             onPanelChange={handleRoomPanelChange}
           />
-          <MoodboardPanel />
+          <DirectorRoomAtmosphere panel="moodboard">
+            <MoodboardPanel />
+          </DirectorRoomAtmosphere>
         </div>
       );
     }
@@ -401,7 +404,7 @@ export function StudioPage() {
           className="min-h-0 min-w-0 grid relative"
           style={{ gridTemplateColumns: chatOpen && !isMobile ? "1fr 340px" : "1fr" }}
         >
-        <div className="flex flex-col min-h-0 min-w-0">
+        <DirectorRoomAtmosphere panel={tab === "gpu" ? "gpu" : activeRoomPanel}>
           {tab === "gpu" ? (
             <WorkersPanel board={board} />
           ) : activeRoomPanel === "moodboard" ? (
@@ -510,7 +513,7 @@ export function StudioPage() {
               onChange={(characters) => setBoard((b) => ({ ...b, characters }))}
             />
           ) : null}
-        </div>
+        </DirectorRoomAtmosphere>
 
         {chatOpen && (
           <>

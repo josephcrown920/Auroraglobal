@@ -9,7 +9,7 @@ const MOOD_FRAMES = [
 
 export function MoodboardPanel() {
   return (
-    <section className="min-h-0 overflow-auto bg-background p-4 sm:p-6">
+    <section className="min-h-0 flex-1 overflow-auto bg-transparent p-4 sm:p-6">
       <div className="mx-auto max-w-6xl">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Moodboard</p>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight text-foreground">The visual language of this shoot</h2>
