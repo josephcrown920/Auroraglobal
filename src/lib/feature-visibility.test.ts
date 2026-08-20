@@ -13,8 +13,10 @@ import {
 import { STUDIO_TEMPLATES } from "./template-studio";
 
 describe("artist-only defaults", () => {
-  test("every gateable feature is hidden by default (artist-only mode)", () => {
-    expect(defaultHiddenKeys().sort()).toEqual([...FEATURE_KEYS].sort());
+  test("TikTok30 stays visible while audience-specific features are hidden by default", () => {
+    expect(defaultHiddenKeys().sort()).toEqual(
+      FEATURE_KEYS.filter((key) => key !== "spin").sort(),
+    );
   });
 
   test("registry keys are unique", () => {

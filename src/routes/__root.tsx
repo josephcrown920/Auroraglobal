@@ -315,6 +315,7 @@ function RootComponent() {
   // (h-dvh stage + timeline + tool dock), so the tab bar and chat bubble
   // would overlap its dock — hide them there, like on the video agent.
   const isFullScreenEditor = pathname === "/edit";
+  const hasPersistentNavigation = !isVideoAgent && !isFullScreenEditor;
 
   if (isIsolated) {
     // NexusARB stays a self-contained, full-bleed page: no phone frame, no
@@ -338,7 +339,9 @@ function RootComponent() {
           <FeatureVisibilityProvider>
             <SiteImagesProvider>
               <SiteCopyProvider>
-                <div className="relative min-h-screen w-full overflow-x-hidden bg-background">
+                <div
+                  className={`relative min-h-screen w-full overflow-x-hidden bg-background${hasPersistentNavigation ? " aurora-with-sidebar" : ""}`}
+                >
                   <Outlet />
                 </div>
               </SiteCopyProvider>
@@ -348,7 +351,7 @@ function RootComponent() {
             {!isVideoAgent && !isPrimeAgent && !isFullScreenEditor && <AuroraChatbot />}
             <AdminHotkey />
             <ReferralAttacher />
-            {!isVideoAgent && !isFullScreenEditor && <MobileNav />}
+            {hasPersistentNavigation && <MobileNav />}
             <CookieConsentBanner />
           </FeatureVisibilityProvider>
         </QueryClientProvider>

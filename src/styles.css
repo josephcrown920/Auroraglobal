@@ -434,6 +434,27 @@ html[data-theme="light"] {
   min-height: 100vh;
 }
 
+/* Desktop navigation is intentionally explicit rather than tied to the
+ * disabled Tailwind lg breakpoint. Phones keep the compact menu + tab bar;
+ * wider screens get a persistent, keyboard-accessible sidebar. */
+.aurora-desktop-sidebar {
+  display: none;
+}
+
+@media (min-width: 960px) {
+  .aurora-desktop-sidebar {
+    display: flex;
+  }
+
+  .aurora-mobile-chrome {
+    display: none !important;
+  }
+
+  .aurora-with-sidebar {
+    padding-left: 17rem;
+  }
+}
+
 /* Video Agent workspace structure. The slot surfaces are intentionally empty:
  * the route owns the placement and rhythm while product-specific cards can be
  * added later without reworking the shell. */

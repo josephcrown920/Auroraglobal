@@ -24,6 +24,7 @@ import { featureKeyForRoute } from "@/lib/feature-visibility";
 type ToolPath =
   | "/studio"
   | "/colors"
+  | "/director-room"
   | "/scene-builder"
   | "/motion"
   | "/music-video"
@@ -54,7 +55,7 @@ const SECTIONS: { title: string; tools: Tool[] }[] = [
     tools: [
       { label: "Image & Video Studio", to: "/studio", icon: Sparkles, dot: true },
       { label: "Colors Studio", to: "/colors", icon: Palette },
-      { label: "Directors ROOM", to: "/scene-builder", icon: Layers, badge: "New", dot: true },
+      { label: "Director's Room", to: "/director-room", icon: Clapperboard, badge: "New", dot: true },
       { label: "Motion Control", to: "/motion", icon: Wand2, dot: true },
       { label: "Lyric Video", to: "/music-video", icon: Music },
     ],

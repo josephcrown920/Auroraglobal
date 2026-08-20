@@ -43,7 +43,7 @@ export const GATEABLE_FEATURES: readonly GateableFeature[] = [
   { key: "content-line",     label: "Content Line",      routes: ["/ugc-line"],          defaultHidden: true, description: "Batch UGC content pipeline." },
   { key: "content-machine",  label: "Content Machine",   routes: ["/content-machine"],   defaultHidden: true, description: "Multi-post content generator." },
   { key: "content-funnel",   label: "Content funnel",    routes: ["/content"],           defaultHidden: true, description: "The /content product funnel page." },
-  { key: "spin",             label: "TikTok30 (Spin)",   routes: ["/spin"],              defaultHidden: true, description: "30-piece UGC campaign engine." },
+  { key: "spin",             label: "TikTok30 (Spin)",   routes: ["/spin"],              defaultHidden: false, description: "30-piece UGC campaign engine." },
   { key: "creator-hub",      label: "Creator Hub",       routes: ["/creator/dashboard"], defaultHidden: true, description: "Creator analytics dashboard." },
   { key: "grwm",             label: "Get Ready With Me", routes: [],                     defaultHidden: true, description: "GRWM landing tile + template." },
   { key: "talking-avatars",  label: "Talking Avatars",   routes: ["/avatar"],            defaultHidden: true, description: "Photo avatar + script studio." },

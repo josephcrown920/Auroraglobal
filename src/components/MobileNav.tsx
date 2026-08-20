@@ -257,6 +257,83 @@ export function MobileNav() {
         }
       `}</style>
 
+      <aside
+        aria-label="Primary navigation"
+        className="aurora-desktop-sidebar fixed inset-y-0 left-0 z-[60] w-[17rem] flex-col overflow-hidden border-r border-border bg-[oklch(0.085_0.022_272/0.96)] shadow-[16px_0_50px_-28px_oklch(0.04_0.02_290/0.9)] backdrop-blur-2xl"
+      >
+        <span aria-hidden className="aurora-ambient opacity-50" />
+
+        <header className="relative shrink-0 border-b border-border p-4">
+          <Link to="/" className="flex items-center gap-3 no-underline">
+            <span className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-card ring-1 ring-white/10">
+              <img
+                src="/__l5e/assets-v1/d0d72e6b-2edd-4740-af3e-48e27934cef8/aurora-logo.png"
+                alt=""
+                className="size-full object-contain"
+              />
+            </span>
+            <span className="flex min-w-0 flex-col leading-tight">
+              <span className="truncate text-[13px] font-bold tracking-tight text-foreground">AURORA</span>
+              <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Creative Studio</span>
+            </span>
+          </Link>
+        </header>
+
+        <nav aria-label="All features" className="relative flex flex-1 flex-col gap-3 overflow-y-auto p-3">
+          <NavSection label="Start Here">
+            {CORE_FEATURES.map((f) => (
+              <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => {}} />
+            ))}
+          </NavSection>
+
+          <NavSection label="Quick Access">
+            {visibleTabs.map((f) => (
+              <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => {}} hiddenBadge={gatedBadge(f)} />
+            ))}
+          </NavSection>
+
+          <NavSection label="Studio">
+            {STUDIO_FEATURES.map((f) => (
+              <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => {}} />
+            ))}
+          </NavSection>
+
+          <NavSection label="Music & Audio">
+            {MUSIC_FEATURES.map((f) => (
+              <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => {}} />
+            ))}
+          </NavSection>
+
+          {visible(CONTENT_FEATURES).length > 0 && (
+            <NavSection label="Content">
+              {visible(CONTENT_FEATURES).map((f) => (
+                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => {}} hiddenBadge={gatedBadge(f)} />
+              ))}
+            </NavSection>
+          )}
+
+          <NavSection label="Account">
+            {visible(ACCOUNT_FEATURES).map((f) => (
+              <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => {}} hiddenBadge={gatedBadge(f)} />
+            ))}
+          </NavSection>
+        </nav>
+
+        <div className="relative shrink-0 border-t border-border p-3">
+          <button
+            type="button"
+            onClick={toggle}
+            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <span className="flex items-center gap-3">
+              {theme === "dark" ? <Moon className="size-4 shrink-0" /> : <Sun className="size-4 shrink-0" />}
+              <span className="font-medium">{theme === "dark" ? "Dark mode" : "Light mode"}</span>
+            </span>
+          </button>
+        </div>
+      </aside>
+
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -265,7 +342,7 @@ export function MobileNav() {
         aria-label="Open navigation menu"
         style={{ top: isCanvas ? "0.75rem" : "calc(env(safe-area-inset-top, 0px) + 4.25rem)" }}
         className={cn(
-          "phone-edge-left fixed z-[60] flex items-center gap-1.5 rounded-full aurora-glass-strong px-3.5 py-2 text-xs font-medium shadow-[var(--shadow-soft)] transition-[filter,color] hover:brightness-110",
+          "aurora-mobile-chrome phone-edge-left fixed z-[60] flex items-center gap-1.5 rounded-full aurora-glass-strong px-3.5 py-2 text-xs font-medium shadow-[var(--shadow-soft)] transition-[filter,color] hover:brightness-110",
           open ? "text-primary" : "text-foreground",
         )}
       >
@@ -275,10 +352,10 @@ export function MobileNav() {
 
       {!isCanvas && (
         <>
-          <div aria-hidden style={{ height: "calc(4rem + env(safe-area-inset-bottom))" }} />
+          <div aria-hidden className="aurora-mobile-chrome" style={{ height: "calc(4rem + env(safe-area-inset-bottom))" }} />
             <nav
             aria-label="Primary"
-              className="aurora-bottom-nav phone-fixed-x fixed bottom-0 z-50 border-t border-border"
+              className="aurora-mobile-chrome aurora-bottom-nav phone-fixed-x fixed bottom-0 z-50 border-t border-border"
             style={{
               paddingBottom: "env(safe-area-inset-bottom)",
               background: "oklch(0.085 0.022 272 / 0.92)",
