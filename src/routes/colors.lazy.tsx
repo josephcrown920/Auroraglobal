@@ -27,7 +27,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { getColorStudio } from "@/lib/colors.studios";
 import { computeCost } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Loader2, Palette, Wand2, ArrowLeft, Check, ImagePlus, X, ChevronDown, Music2, Mic2, Download } from "lucide-react";
+import { Sparkles, Loader2, Palette, Wand2, ArrowLeft, ArrowRight, Check, ImagePlus, X, ChevronDown, Music2, Mic2, Download, Film, Layers } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -494,6 +494,40 @@ function ColorsStudio() {
               12 real seamless-cyclorama studio sets, each lit in its own bold color. Pick a swatch — the
               studio switches live. Upload a selfie and Aurora places you inside it.
             </p>
+          </div>
+
+          {/* Quick launches for the guided Colors workflows. */}
+          <div className="grid grid-cols-2 gap-3">
+            <Link
+              to="/colors-show"
+              className="group aurora-glass rounded-2xl border border-white/10 p-4 transition-all hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <span className="flex size-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                  <Film className="size-5" />
+                </span>
+                <ArrowRight className="mt-1 size-4 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />
+              </div>
+              <h2 className="mt-4 text-sm font-semibold text-foreground">Colors Show Creator</h2>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                Turn your look into a cinematic performance show.
+              </p>
+            </Link>
+            <Link
+              to="/scene-builder"
+              className="group aurora-glass rounded-2xl border border-white/10 p-4 transition-all hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <span className="flex size-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                  <Layers className="size-5" />
+                </span>
+                <ArrowRight className="mt-1 size-4 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />
+              </div>
+              <h2 className="mt-4 text-sm font-semibold text-foreground">Scene Builder</h2>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                Compose your set, wardrobe, props, and camera angles.
+              </p>
+            </Link>
           </div>
 
           {/* Real output proof — 9 shots from one session */}
