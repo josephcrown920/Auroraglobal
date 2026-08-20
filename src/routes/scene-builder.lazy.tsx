@@ -807,19 +807,21 @@ function SceneBuilderPage() {
                 </div>
               )}
 
-              {angleJobs.length > 0 && remainingAngles.length > 0 && (
+              {remainingAngles.length > 0 && (
                 <section className="rounded-2xl border border-primary/20 bg-primary/5 p-4 space-y-3">
                   <div>
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-xs font-semibold uppercase tracking-wider text-primary/80">
-                        More angles
+                        {angleJobs.length > 0 ? "More angles" : "Generate all angles"}
                       </p>
                       <span className="text-[10px] text-white/35">
-                        {remainingAngles.length} remaining
+                        {angleJobs.length > 0 ? `${remainingAngles.length} remaining` : `${RE_ANGLE_CHIPS.length} presets`}
                       </span>
                     </div>
                     <p className="text-xs text-white/45 leading-relaxed mt-1">
-                      Keep the same scene and generate every camera angle you have not tried yet.
+                      {angleJobs.length > 0
+                        ? "Keep the same scene and generate every camera angle you have not tried yet."
+                        : "Your base scene is ready. Generate all six preset camera angles without rebuilding it."}
                     </p>
                   </div>
 
@@ -844,12 +846,13 @@ function SceneBuilderPage() {
                     {moreAnglesMut.isPending ? (
                       <>
                         <RefreshCw className="w-4 h-4 animate-spin mr-2" />
-                        Queuing remaining angles…
+                        {angleJobs.length > 0 ? "Queuing remaining angles…" : "Queuing all angles…"}
                       </>
                     ) : (
                       <>
                         <Sparkles className="w-4 h-4 mr-2" />
-                        Generate Remaining Angles — {remainingAngles.length * SCENE_BUILDER_COST_REANGLE} Aura
+                        {angleJobs.length > 0 ? "Generate Remaining Angles" : "Generate All Angles"}{" "}
+                        — {remainingAngles.length * SCENE_BUILDER_COST_REANGLE} Aura
                       </>
                     )}
                   </Button>
