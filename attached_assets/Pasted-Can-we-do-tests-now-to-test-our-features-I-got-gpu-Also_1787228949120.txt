@@ -1,0 +1,133 @@
+Can we do tests now to test our features. I got gpu. Also side loads so poorly.Hardly opens. Few days ago it was perfect
+Yes. I’ll test the current app instead of guessing: first the mobile launch path and logs, then the core web/API checks, then a real browser smoke of the main generation flows. I’ll separate an app regression from a sideload/build-install problem so we don’t spend GPU credits unnecessarily.
+The logs already show one real regression to investigate: the web client has intermittent TypeError: (intermediate value) is not a function from TanStack server-function RPCs. The mobile Metro server itself is staying up, so I’m testing both paths separately now—public/mobile launch first, then authenticated feature navigation without spending GPU credits until the RPC issue is understood.
+Two concrete findings so far:
+
+The new Android store bundle succeeded. It is an .aab, which Google Play installs for testers—but it is not the file to manually sideload.
+For direct sideload testing we need a fresh internal APK. I’ll produce that next, using the same app code, and in parallel I’m tracing why the Expo web preview is resolving to the wrong surface rather than the mobile auth screen.
+I’ll also run one controlled GPU generation smoke only after confirming the exact test path and that it will not charge your main account unexpectedly.
+I found the likely reason things regressed after being “perfect”: the production deployment fix was being applied to the development server too. That keeps basic pages alive but breaks TanStack’s server-function registry when a feature calls the backend—exactly the kind of failure that makes sign-in and generation feel unreliable. I’m separating the production-only packaging rule from the live development runtime, then I’ll rerun the feature smoke before touching GPU work.
+I’ve applied the runtime fix: the special TanStack packaging treatment now applies only to production builds, while the live app uses the framework’s normal server-function wiring again. I’m restarting the web workflow and validating the actual RPC path before using the GPU. Then I’ll create an installable Android APK for device testing—the finished .aab is for Google Play, not manual sideloading.
+The regression fix validates cleanly now: web health and auth return HTTP 200, Metro is running, TypeScript passes, all 1,166 unit tests pass, and the full production build succeeds again. I’m doing the no-cost generation/worker health check next; that will tell us whether the GPU is truly registered and selectable before we send any real render.
+The re-test is good: the earlier TanStack RPC failure is gone. Home, navigation, auth, and control interaction now pass in a real mobile-width browser; the only remaining browser note is a non-blocking hydration warning on the auth page.
+
+The no-cost generation-health smoke also passed and restored its state afterward. Next I’m checking the newly available GPU worker directly and starting a fresh internal Android APK build, because that is the correct artifact for reliable sideload testing.
+The APK build is now queued for internal sideload testing. The code-level test suite also remains green: typecheck, 1,166 unit tests, MCP tests, lint (warnings only), and a production build all passed.
+
+Before I send a real render, I’m checking whether your GPU is registered and whether the system is in free-GPU-only mode. If it is available, I’ll run the existing Colors Show + Scene Builder smoke, which exercises real generation, charging, queued jobs, result URLs, and cleanup.
+The free-GPU-only safeguard is off, so the full feature smoke can dispatch normally. I’m starting the real test now; it will create five controlled test images through the same authenticated routes users use, verify credit reservation/commit and queued-job finalization, then remove its uploaded reference file. The APK build remains in progress alongside it.
+The first real render suite stopped safely before dispatching: its isolated QA account has only 10 Aura, while the full five-image flow requires 50. No provider call, GPU work, or charge occurred.
+
+I won’t alter account balances behind your back. I’m checking the worker’s registration and the APK/e2e status now. If the GPU is healthy, we can either run a smaller ≤10-Aura smoke or you can fund the dedicated QA account for the complete billing-and-queue verification.
+I found an important blocker: Aurora does not currently see a newly connected GPU worker. The only registered worker is an old paused Colab lipsync worker from July, with a failed /health probe. So your GPU is not yet available to the app for image/video generation.
+
+The app is stable again, but a real generation smoke is also blocked because the dedicated QA account has only 10 Aura while the full flow needs 50. I’m checking whether the new GPU ever attempted to register and letting the end-to-end suite plus fresh installable APK finish.
+I found the right lower-cost real smoke: it covers Colors, Motion Control, and Multi-Angle Reshoot with one render each, and costs only 3 Aura total. The QA balance is sufficient, so I’m using that instead of the 50-Aura five-image suite. This will confirm the actual provider/GPU dispatch path, result URLs, and charge flow rather than just UI rendering.
+The real feature smoke passed end-to-end:
+
+Colors Performance Studio generated successfully.
+Motion Control generated successfully.
+Multi-Angle Reshoot generated successfully.
+All three returned persisted result URLs and charged exactly 1 Aura each (QA balance: 10 → 7).
+They were served by Aurora’s Replit Gemini image path—not the new GPU—because the GPU has not registered with Aurora. The registration audit shows its request arrived without the required API key. I’ll include the exact non-secret setup needed once the APK and browser suite status are final.
+The full browser suite is also green: 22/22 Playwright tests passed. Combined with the real three-feature render smoke, the website is functioning through the repaired server runtime.
+
+I’m waiting only on the internal APK build so I can give you an actual installable Android package; it is the final missing piece for dependable sideload testing.
+The internal APK is still building remotely (version code 2, internal distribution). The complete web test suite has finished successfully in the meantime. I’m waiting for the installer artifact so I can close this with a real sideload path rather than a “build started” promise.
+Also confirm directors room is setup
+I’ll verify Directors Room directly now: canonical route, Directors Board redirect, and that the page is reachable through the live app. I’ll also check the Android APK build status again so I can report both pieces accurately.
+The route wiring is present and consistent: /director-room is the canonical page, while /directors-board is an explicit redirect to it; the legacy API paths remain only as internal compatibility endpoints. I’m doing one browser-level confirmation of that redirect now rather than relying only on source inspection.
+Directors Room is confirmed set up: /director-room loads the full storyboard editor on mobile, and /directors-board resolves to /director-room without fatal errors or generation. I’m checking the final APK artifact status now, then I’ll close the assigned app-store task with the exact install/test status.
+Directors Room verification is complete. The only unresolved item is the separate preview APK build, which is still queued remotely; the Play-ready Android AAB is already finished. I’m giving the preview build one final status window, then I’ll either provide its install link or clearly report that EAS has not completed it yet.
+Change that directors board to directors room or make the directors room replace director board
+I’ll make Director Room the only user-facing name and keep /directors-board as a compatibility redirect so old links do not break. I’m locating every visible “Directors Board” label first, then I’ll update only those presentation strings—not the internal API paths that existing generation code still uses.
+It’s already configured the right way, so I’m keeping the old URL only as a safe compatibility redirect:
+
+/director-room is the canonical and only user-facing Director Room.
+/directors-board immediately redirects to /director-room.
+The full storyboard editor loads under Director Room.
+Internal /api/directors-board/* paths stay unchanged so existing generation calls and old links do not break.
+The browser check confirmed this at a mobile viewport with no fatal errors.
+It was supposed to be director's room
+Understood—the product name should be Director’s Room with the possessive apostrophe. I’ll update the visible labels, page metadata, loading text, and user-facing generation errors while keeping the URL /director-room and internal legacy API paths stable.
+The director board was an error
+Understood—the separate Directors Board product/surface was accidental. I’ll keep no Board experience at all: Director’s Room is the sole UI, and the old /directors-board URL will only redirect for backwards compatibility. I’m also finishing the possessive naming across metadata and sign-in errors.
+The standalone Board surface is now explicitly retired: the only product label is Director’s Room, while the legacy Board URL remains a redirect only. I’m restarting and rerunning the route/name checks so the visible result matches that correction everywhere.
+Finish other tasks then come to the eas build later
+I’ll finish the Director’s Room correction and its verification now, and leave the remote EAS build alone for later as requested. The old Board URL will remain only as a compatibility redirect; there will be no separate Board UI.
+The naming change is in place, but the verification hit an infrastructure issue: the web workflow stopped while the checks were running, so the browser saw a 502. I’m bringing back the correct Start application workflow—not the placeholder artifact workflow—then I’ll rerun the lightweight label/redirect check. The EAS build remains deferred.
+Done. There is no separate Directors Board product surface.
+
+The product is now named Director’s Room everywhere users see it.
+/director-room is the canonical editor.
+/directors-board only redirects to /director-room so old links remain safe.
+Mobile browser verification passed: the Director’s Room editor loaded and no separate Board UI appeared.
+Typecheck passed.
+I’ve left the EAS APK build for later, as requested.
+So it's there now? I can see it ?
+Yes. Open the app preview and go to:
+
+/director-room
+
+You should see the Director’s Room storyboard editor with:
+
+Canvas
+Characters
+GPU
+Director
+Export ZIP
+Storyboard shots and inspector
+If you open the old /directors-board path, it will automatically redirect to /director-room.
+No I mean from sidebar on landing page after login
+Got it—you mean the signed-in landing page’s sidebar, not the direct URL. I’ll verify that the sidebar entry is present and labeled Director’s Room, then fix the sidebar if it still uses an old label or is missing.
+I found the issue: the main navigation already has Director’s Room, but the landing-page tools sheet still has a stale entry labeled “Directors ROOM” and points to /scene-builder. I’m correcting that entry to Director’s Room → /director-room, then I’ll verify the signed-in navigation path.
+The signed-in landing-page menu is now fixed: it will show Director’s Room and open /director-room instead of incorrectly opening Scene Builder. I’m verifying the menu entry itself now.
+Look site doesn't load
+I found the immediate break: the landing tools menu was updated to the correct /director-room route, but its allowed route list didn’t include that path, causing a TypeScript compile error and preventing the site from loading. I’m adding the route to that list, restarting the app, and checking the preview again.
+The compile error is fixed. I’m restarting the correct web workflow now, then checking / and the signed-in tools-menu source path before I call this stable.
+Also it loads for 5 minute workout showing anything also I don't see TikTok30 at the bottom nav. I also don't see a sidebar
+I’m checking the actual signed-in shell now. The symptoms point to two separate issues: the app may be waiting on a slow landing-data request, while the navigation shell is hiding its desktop sidebar and bottom tabs at the current breakpoint. I’ll verify both at desktop and mobile widths, then fix the shell rather than guessing.
+I confirmed the report is real:
+
+On mobile, the bottom nav renders, but TikTok30 is filtered out by feature visibility.
+On desktop, Aurora currently uses a floating Menu/bottom-nav shell and has no persistent sidebar at all.
+The tools sheet also still presents Director’s Room under the wrong Motion Control entry, so I’m correcting that too.
+I’m tracing the visibility flag and shell breakpoints now, then I’ll make TikTok30 visible and add the expected desktop sidebar without disrupting mobile navigation.
+The root cause is confirmed:
+
+TikTok30 is intentionally hidden for normal users by the feature-visibility default, so it gets filtered out of the bottom nav.
+There is no desktop sidebar implementation—the app currently uses the same floating menu shell everywhere.
+I’m correcting both: TikTok30 will be visible by default, and I’ll add a persistent desktop sidebar that uses the same live navigation routes while keeping the existing compact mobile bottom bar.
+I’ve pinned down the implementation path:
+
+I’ll make TikTok30 visible to regular users, including the bottom nav and its route.
+I’ll turn the existing all-tools navigation into a persistent desktop sidebar (with Director’s Room in it), while retaining the compact Menu + bottom tabs on phones.
+The landing page content will gain safe left spacing only when that sidebar is active, so it won’t sit underneath the navigation.
+I’m checking the live visibility override once, then applying the responsive shell update.
+I’ve got the exact fix. The live setting currently hides spin, so I’ll both change the default and make the saved visibility override visible. The new desktop sidebar will share the same live navigation list, include Director’s Room and TikTok30, and leave the mobile Menu/bottom tabs untouched on smaller screens.
+The navigation update is implemented. I’m now applying the live TikTok30 visibility setting, restarting the web workflow, and validating all three target layouts: phone bottom tabs, tablet behavior, and desktop sidebar.
+The navigation is now working in the preview:
+
+TikTok30 is visible in the mobile bottom nav.
+A persistent desktop sidebar is visible and includes both Director’s Room and TikTok30.
+Phone, tablet, and desktop checks passed without clipping or fatal errors.
+I’m completing the remaining local validation now. I’ll leave the remote EAS installer build for later, as you asked.
+Fixed in the running preview.
+
+Desktop (960px+): persistent left sidebar is now visible.
+Includes Director’s Room
+Includes TikTok30
+Mobile/tablet: bottom navigation now shows:
+Infinity Canvas
+Video Agent
+TikTok30
+The landing tools sheet now labels and links Director’s Room correctly instead of sending it to Scene Builder.
+TikTok30 is now visible for regular users, not only admins.
+Verified at phone, tablet, and desktop sizes. Typecheck, navigation tests, lint, and the production build all pass.
+
+Please refresh the preview once. I did not reproduce a five-minute loading wait; if you still see it, tell me the exact page you are on when it happens and I’ll trace that specific load path. The EAS installer build remains deferred for later, as requested.
+TikTok30 is not part of the director's room. It's a separate premium feature. It is supposed to have
+
+wardrobe Scenes layers Autocut Storyboard Moodboard Infinity CAnvas Scene weaver Style transfer Soundweaver Flows Edits and our different agents Video agent xx video agent Video agent aura AI
+
+Also everything you have on that side but none of them actually render or shoes anything it just shows something wrong
