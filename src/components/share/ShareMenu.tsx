@@ -1,6 +1,6 @@
 import { useState, type ReactElement } from "react";
 import { toast } from "sonner";
-import { Share2, Link as LinkIcon, Download, Loader2, ChevronDown } from "lucide-react";
+import { Share2, Link as LinkIcon, Download, Loader2, ChevronDown, Megaphone } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +38,8 @@ export interface ShareMenuProps {
   label?: string;
   /** Icon-only trigger that just opens the platform dropdown (no split "quick share" button). */
   compact?: boolean;
+  /** Optional destination for turning this asset into an ad creative. */
+  adsHref?: string;
 }
 
 /**
@@ -47,7 +49,7 @@ export interface ShareMenuProps {
  * links (WhatsApp / Facebook / X), copy-link, and download for the platforms
  * that don't support external web posting (Instagram / TikTok / Snapchat).
  */
-export function ShareMenu({ getShareTarget, className, triggerClassName, label = "Share", compact = false }: ShareMenuProps) {
+export function ShareMenu({ getShareTarget, className, triggerClassName, label = "Share", compact = false, adsHref }: ShareMenuProps) {
   const [busy, setBusy] = useState<string | null>(null);
 
   const resolve = async () => {
@@ -178,6 +180,14 @@ export function ShareMenu({ getShareTarget, className, triggerClassName, label =
             );
           })}
           <DropdownMenuSeparator />
+          {adsHref ? (
+            <DropdownMenuItem asChild>
+              <a href={adsHref}>
+                <Megaphone />
+                Build an ad creative
+              </a>
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleCopyLink(); }}>
             {busy === "copy" ? <Loader2 className="animate-spin" /> : <LinkIcon />}
             Copy link

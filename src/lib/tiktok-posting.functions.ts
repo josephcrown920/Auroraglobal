@@ -3,6 +3,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { isAdmin } from "./admin.server";
 import {
   tiktokConfigured,
   initiateTiktokOAuth,
@@ -10,6 +11,7 @@ import {
   initiatePost,
   fetchPostStatus,
 } from "./tiktok-posting.server";
+import { createTiktokSparkAuthorizationCode, tiktokSparkConfigured } from "./tiktok-spark.server";
 
 function getOrigin(): string {
   const req = getRequest();
@@ -208,4 +210,76 @@ export const getTiktokPostForGeneration = createServerFn({ method: "POST" })
     if (!rows) return null;
     const r = rows as unknown as { id: string; status: string; error_msg: string | null; publish_id: string | null; posted_at: string | null };
     return { postId: r.id, status: r.status, errorMsg: r.error_msg, postedAt: r.posted_at };
+  });
+
+const SparkAuthorizationInput = z.object({
+  postUrl: z.string().url().max(2_000),
+});
+
+type SparkAuthorizationAvailability = {
+  connected: boolean;
+  available: boolean;
+  reason: string | null;
+};
+
+/**
+ * Spark authorization currently uses one Aurora-owned Marketing API advertiser
+ * credential. It may only be used by the advertiser owner until each creator
+ * can connect and authorize their own advertiser account.
+ */
+async function getSparkAuthorizationAvailabilityForUser(userId: string): Promise<SparkAuthorizationAvailability> {
+  if (!tiktokConfigured()) {
+    return {
+      connected: false,
+      available: false,
+      reason: "TikTok integration is not configured on this server.",
+    };
+  }
+  const { data: account } = await supabaseAdmin
+    .from("tiktok_accounts")
+    .select("open_id")
+    .eq("user_id", userId)
+    .neq("open_id", "pending")
+    .maybeSingle();
+  if (!account) {
+    return {
+      connected: false,
+      available: false,
+      reason: "Connect your TikTok account before requesting a Spark authorization code.",
+    };
+  }
+  if (!tiktokSparkConfigured()) {
+    return {
+      connected: true,
+      available: false,
+      reason: "TikTok Marketing API Spark authorization is not configured for this Aurora workspace.",
+    };
+  }
+  if (!(await isAdmin(userId))) {
+    return {
+      connected: true,
+      available: false,
+      reason: "Spark authorization is available to the advertiser account owner only until creator-owned Marketing API connections are available.",
+    };
+  }
+  return { connected: true, available: true, reason: null };
+}
+
+/** Returns an honest, non-secret readiness state for the Spark-code UI. */
+export const getSparkAuthorizationAvailability = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => getSparkAuthorizationAvailabilityForUser(context.userId));
+
+/**
+ * Requests a Spark authorization code for an existing public TikTok post.
+ * This is a Marketing API operation only; it never creates a generation or
+ * reserves Aura.
+ */
+export const createSparkAuthorizationCode = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => SparkAuthorizationInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const availability = await getSparkAuthorizationAvailabilityForUser(context.userId);
+    if (!availability.available) throw new Error(availability.reason ?? "Spark authorization is unavailable.");
+    return createTiktokSparkAuthorizationCode(context.userId, data.postUrl);
   });

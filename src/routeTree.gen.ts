@@ -14,6 +14,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AdsRouteImport } from './routes/ads'
 import { Route as AffiliateRouteImport } from './routes/affiliate'
 import { Route as AgentRouteImport } from './routes/agent'
 import { Route as AuroraAdultRouteImport } from './routes/aurora-adult'
@@ -180,6 +181,11 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/admin.lazy').then((d) => d.Route))
+const AdsRoute = AdsRouteImport.update({
+  id: '/ads',
+  path: '/ads',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/ads.lazy').then((d) => d.Route))
 const AffiliateRoute = AffiliateRouteImport.update({
   id: '/affiliate',
   path: '/affiliate',
@@ -973,6 +979,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/admin': typeof AdminRouteWithChildren
+  '/ads': typeof AdsRoute
   '/affiliate': typeof AffiliateRoute
   '/agent': typeof AgentRoute
   '/aurora-adult': typeof AuroraAdultRoute
@@ -1127,6 +1134,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/admin': typeof AdminRouteWithChildren
+  '/ads': typeof AdsRoute
   '/affiliate': typeof AffiliateRoute
   '/agent': typeof AgentRoute
   '/aurora-adult': typeof AuroraAdultRoute
@@ -1282,6 +1290,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/admin': typeof AdminRouteWithChildren
+  '/ads': typeof AdsRoute
   '/affiliate': typeof AffiliateRoute
   '/agent': typeof AgentRoute
   '/aurora-adult': typeof AuroraAdultRoute
@@ -1438,6 +1447,7 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/admin'
+    | '/ads'
     | '/affiliate'
     | '/agent'
     | '/aurora-adult'
@@ -1592,6 +1602,7 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/admin'
+    | '/ads'
     | '/affiliate'
     | '/agent'
     | '/aurora-adult'
@@ -1746,6 +1757,7 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/admin'
+    | '/ads'
     | '/affiliate'
     | '/agent'
     | '/aurora-adult'
@@ -1901,6 +1913,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountRoute: typeof AccountRoute
   AdminRoute: typeof AdminRouteWithChildren
+  AdsRoute: typeof AdsRoute
   AffiliateRoute: typeof AffiliateRoute
   AgentRoute: typeof AgentRoute
   AuroraAdultRoute: typeof AuroraAdultRoute
@@ -2058,6 +2071,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ads': {
+      id: '/ads'
+      path: '/ads'
+      fullPath: '/ads'
+      preLoaderRoute: typeof AdsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/affiliate': {
@@ -3158,6 +3178,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountRoute: AccountRoute,
   AdminRoute: AdminRouteWithChildren,
+  AdsRoute: AdsRoute,
   AffiliateRoute: AffiliateRoute,
   AgentRoute: AgentRoute,
   AuroraAdultRoute: AuroraAdultRoute,

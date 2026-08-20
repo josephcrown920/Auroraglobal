@@ -274,6 +274,7 @@ function GalleryPage() {
                   {!isWatermarked && rawUrl && (
                     <ShareMenu
                       compact
+                      adsHref={`/ads?generationId=${encodeURIComponent(g.id)}`}
                       triggerClassName="size-7 rounded-full bg-background/70 backdrop-blur-md border border-border hover:bg-primary/20 hover:border-primary/50 flex items-center justify-center"
                       getShareTarget={async () => {
                         const r = await publishFn({ data: { id: g.id } });

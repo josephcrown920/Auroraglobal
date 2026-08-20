@@ -105,9 +105,10 @@ const MORE_FEATURES: Feature[] = [
 const CONTENT_FEATURES: Feature[] = [
   { to: "/ugc",             label: "UGC Ads",        icon: Megaphone },
   { to: "/ugc-line",        label: "Content Line",   icon: Layers },
-  { to: "/tiktok",          label: "TikTok Studio",  icon: Music2 },
   { to: "/avatar",          label: "Talking Avatars",icon: UserCircle2 },
   { to: "/content-machine", label: "Content Machine",icon: LayoutGrid },
+  { to: "/ads",             label: "Ads Studio",     icon: Megaphone },
+  { to: "/tiktok",          label: "TikTok Studio",  icon: Music2 },
   { to: "/edit",            label: "AutoCut",        icon: Clapperboard },
 ];
 

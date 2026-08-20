@@ -67,6 +67,7 @@ const CONTENT_NAV_ROUTES = [
 
 const ACCOUNT_NAV_ROUTES = [
   "/gallery",
+  "/ads",
   "/jobs",
   "/billing",
   "/creator/dashboard",

@@ -30,6 +30,7 @@ type ToolPath =
   | "/music-video"
   | "/spin"
   | "/lipsync"
+  | "/ads"
   | "/gallery"
   | "/creator/dashboard"
   | "/billing"
@@ -65,6 +66,7 @@ const SECTIONS: { title: string; tools: Tool[] }[] = [
     tools: [
       { label: "TikTok30", to: "/spin", icon: Clapperboard, dot: true },
       { label: "Lip Sync", to: "/lipsync", icon: Mic },
+      { label: "Ads Studio", to: "/ads", icon: Layers, dot: true },
     ],
   },
   {
