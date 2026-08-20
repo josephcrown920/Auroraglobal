@@ -37,7 +37,7 @@ import {
   buildReAnglePrompt,
   RE_ANGLE_CHIPS,
 } from "../src/lib/scene-builder.templates";
-import { processOneJob } from "../src/lib/jobs.server";
+import { cancelJobForUser } from "../src/lib/jobs.functions";
 import { getTestSession, getCredits } from "./lib/get-test-session";
 
 const BASE = process.env.SMOKE_BASE_URL ?? "http://localhost:8080";
@@ -205,8 +205,10 @@ async function processExpectedJob(
   jobId: string,
   generationId: string,
 ): Promise<{ job: JobRow; generation: GenerationRow }> {
-  const workerId = `colors-scene-e2e-${randomUUID().slice(0, 8)}`;
-  for (let attempt = 0; attempt < 10; attempt++) {
+  // Never call processOneJob here: it claims the next arbitrary queue item.
+  // The normal worker owns execution; this smoke only observes its own IDs.
+  const deadline = Date.now() + 10 * 60_000;
+  while (Date.now() < deadline) {
     const before = await readJob(jobId);
     if (before.status === "succeeded") {
       const generation = await readGeneration(generationId);
@@ -216,22 +218,34 @@ async function processExpectedJob(
       fail(`job ${jobId} failed: ${before.error ?? "unknown error"}`);
     }
 
-    const result = await processOneJob(workerId);
-    if (result.processed && result.jobId !== jobId) {
-      log(`worker claimed another queued job (${result.jobId}); checking ours again`);
-    }
-    const after = await readJob(jobId);
-    if (after.status === "succeeded") {
+    await new Promise((resolve) => setTimeout(resolve, 5_000));
+    const current = await readJob(jobId);
+    if (current.status === "succeeded") {
       const generation = await readGeneration(generationId);
-      return { job: after, generation };
+      return { job: current, generation };
     }
-    if (after.status === "failed") {
-      fail(`job ${jobId} failed: ${after.error ?? result.error ?? "unknown error"}`);
+    if (current.status === "failed") {
+      fail(`job ${jobId} failed: ${current.error ?? "unknown error"}`);
     }
-    await new Promise((resolve) => setTimeout(resolve, 2_000));
   }
   const finalJob = await readJob(jobId);
-  fail(`job ${jobId} did not finish (status=${finalJob.status})`);
+  fail(`job ${jobId} did not finish within 10 minutes (status=${finalJob.status})`);
+}
+
+async function cancelQueuedSmokeJobs(userId: string, jobIds: readonly string[]) {
+  for (const jobId of jobIds) {
+    const job = await readJob(jobId).catch(() => null);
+    if (!job || job.status !== "queued") continue;
+    try {
+      await cancelJobForUser(userId, jobId);
+      log(`cancelled smoke-owned queued job ${jobId} and released its reservation`);
+    } catch (error) {
+      console.error(
+        `[colors-scene-e2e] cleanup could not cancel ${jobId}:`,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
 }
 
 async function assertSynchronousSuccess(
@@ -327,6 +341,7 @@ async function main() {
   );
   const startedAt = new Date().toISOString();
   const reference = await uploadReference(userId);
+  const createdJobIds: string[] = [];
   log(`QA session ready; reference uploaded to the user's studio folder`);
 
   try {
@@ -399,6 +414,7 @@ async function main() {
         queued.generationId,
         `Scene Builder ${angle.label} did not return a generationId`,
       );
+      createdJobIds.push(queued.jobId);
       const processed = await processExpectedJob(
         queued.jobId,
         queued.generationId,
@@ -460,6 +476,7 @@ async function main() {
       ].join(", ")}`,
     );
   } finally {
+    await cancelQueuedSmokeJobs(userId, createdJobIds);
     await supabaseAdmin.storage.from("studio").remove([reference.path]);
   }
 }
