@@ -96,7 +96,7 @@ export const listPipelineJobs = createServerFn({ method: "GET" })
       jobs.push({
         id: `lock:${r.id}`,
         stage: "likeness_lock",
-        label: `Locked likeness — ${r.name}`,
+        label: `Aurora Soul — ${r.name}`,
         status: "succeeded",
         createdAt: r.created_at,
       });

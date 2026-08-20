@@ -246,7 +246,7 @@ function JobsPage() {
         </div>
       ) : jobs.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
-          No pipeline activity yet — lock a likeness on <span className="text-primary">/likeness</span>{" "}
+          No pipeline activity yet — create an Aurora Soul profile on <span className="text-primary">/likeness</span>{" "}
           or run a workflow on <span className="text-primary">/orchestration-engine</span> to start.
         </div>
       ) : (

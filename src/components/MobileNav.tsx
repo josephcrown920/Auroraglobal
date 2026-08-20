@@ -62,7 +62,7 @@ const CORE_FEATURES: Feature[] = [
 // ── Studio — image & scene tools ──────────────────────────────────────────
 const STUDIO_FEATURES: Feature[] = [
   { to: "/studio",          label: "Image & Video Studio",  icon: Sparkles, previewImg: "/nav-previews/studio.jpg" },
-  { to: "/likeness",        label: "Locked Likeness Shoot", icon: Camera,   previewImg: "/nav-previews/avatar.jpg",        badge: "New" },
+  { to: "/likeness",        label: "Aurora Soul",          icon: Camera,   previewImg: "/nav-previews/avatar.jpg",        badge: "New" },
   { to: "/scene-builder",   label: "Scene Builder",         icon: Layers,   previewImg: "/nav-previews/scene-builder.jpg" },
   { to: "/agent",           label: "Video Agent",           icon: Film,     badge: "New" },
 ];

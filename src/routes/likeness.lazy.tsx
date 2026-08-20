@@ -98,7 +98,7 @@ function LikenessPage() {
         .upload(path, file, { contentType: file.type, upsert: true });
       if (error) throw new Error(error.message);
       await lockFn({ data: { name: name.trim(), primaryPath: path } });
-      toast.success("Likeness locked ✓");
+      toast.success("Aurora Soul profile ready");
       setFile(null);
       setPreview(null);
       setName("");
@@ -111,7 +111,7 @@ function LikenessPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this locked likeness?")) return;
+    if (!confirm("Delete this Aurora Soul profile?")) return;
     try {
       await delFn({ data: { id } });
       if (active?.id === id) setActive(null);
@@ -132,7 +132,7 @@ function LikenessPage() {
   };
 
   const runShoot = async () => {
-    if (!active) return toast.error("Pick a locked likeness first");
+    if (!active) return toast.error("Choose an Aurora Soul profile first");
     if (selectedShots.size === 0) return toast.error("Pick at least one shot");
     if (!wardrobe.trim() || !scene.trim())
       return toast.error("Wardrobe and scene are required");
@@ -173,19 +173,19 @@ function LikenessPage() {
     <div className="min-h-screen bg-background text-foreground pb-24">
       <header className="px-4 pt-6 pb-4 border-b border-border/40">
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <LockIcon className="size-5 text-primary" /> Locked Digital Likeness
+          <LockIcon className="size-5 text-primary" /> Aurora Soul
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Lock your face + fit once. Run music-synced studio shoots — identity, wardrobe and
-          environment stay identical; only camera and pose change per beat.
+          Create a visual identity profile once, then direct music-synced studio
+          shoots with your identity, wardrobe, and environment held consistent.
         </p>
       </header>
 
       <section className="px-4 py-5 space-y-6">
-        {/* ── 1. Lock a new likeness ─────────────────────────────────────── */}
+        {/* ── 1. Create an Aurora Soul profile ───────────────────────────── */}
         <div className="rounded-xl border border-border/50 bg-card/40 p-4">
           <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <Sparkles className="size-4 text-primary" /> Lock a new likeness
+            <Sparkles className="size-4 text-primary" /> Create an Aurora Soul profile
           </h2>
           <div className="grid gap-3 sm:grid-cols-[160px_1fr]">
             <button
@@ -219,7 +219,7 @@ function LikenessPage() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Likeness name (e.g. Josh — hero look)"
+                placeholder="Profile name (e.g. Josh — hero look)"
                 className="w-full text-sm bg-background border border-border/60 rounded-md px-3 py-2"
               />
               <p className="text-[11px] text-muted-foreground">
@@ -234,21 +234,21 @@ function LikenessPage() {
                 {uploading ? (
                   <><Loader2 className="size-3 animate-spin" /> Locking…</>
                 ) : (
-                  <><LockIcon className="size-3" /> Lock likeness</>
+                  <><LockIcon className="size-3" /> Save Aurora Soul</>
                 )}
               </button>
             </div>
           </div>
         </div>
 
-        {/* ── 2. Pick a locked likeness ──────────────────────────────────── */}
+        {/* ── 2. Pick an Aurora Soul profile ─────────────────────────────── */}
         <div>
-          <h2 className="text-sm font-semibold mb-2">Your locked likenesses</h2>
+          <h2 className="text-sm font-semibold mb-2">Your Aurora Soul profiles</h2>
           {locksLoading ? (
             <div className="text-xs text-muted-foreground">Loading…</div>
           ) : locks.length === 0 ? (
             <div className="text-xs text-muted-foreground">
-              No locks yet — upload a reference above to create your first.
+              No profiles yet — upload a reference above to create your first.
             </div>
           ) : (
             <div className="flex gap-3 overflow-x-auto pb-2">

@@ -1,18 +1,39 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AuroraEmbed,
   type AuroraEmbedKind,
 } from "@/components/embed/AuroraEmbed";
 import { StudioPage } from "@/features/storyboard/studio/StudioPage";
 
-type RoomSection = "storyboard" | AuroraEmbedKind;
+type RoomSection = "overview" | "storyboard" | AuroraEmbedKind;
+
+type DemoMedia =
+  | {
+      type: "image";
+      src: string;
+      alt: string;
+    }
+  | {
+      type: "video";
+      src: string;
+      poster: string;
+      alt: string;
+    };
 
 type ToolDefinition = {
   kind: AuroraEmbedKind;
   label: string;
   description: string;
   envKey: string;
+  media: DemoMedia;
   src?: string;
+};
+
+type RoomFeature = {
+  id: RoomSection;
+  label: string;
+  description: string;
+  media: DemoMedia;
 };
 
 const TOOLS: ToolDefinition[] = [
@@ -21,6 +42,11 @@ const TOOLS: ToolDefinition[] = [
     label: "Aurora Layers",
     description: "Build layered compositions and keep the visual system in sync.",
     envKey: "VITE_AURORA_LAYERS_EMBED_URL",
+    media: {
+      type: "image",
+      src: "/nav-previews/canvas.jpg",
+      alt: "Aurora's visual composition workspace",
+    },
     src: import.meta.env.VITE_AURORA_LAYERS_EMBED_URL?.trim() || undefined,
   },
   {
@@ -28,6 +54,11 @@ const TOOLS: ToolDefinition[] = [
     label: "Scene Weaver",
     description: "Shape scenes, transitions, and cinematic continuity in one editor.",
     envKey: "VITE_AURORA_SCENE_WEAVER_EMBED_URL",
+    media: {
+      type: "image",
+      src: "/nav-previews/scene-builder.jpg",
+      alt: "Aurora scene-building interface",
+    },
     src: import.meta.env.VITE_AURORA_SCENE_WEAVER_EMBED_URL?.trim() || undefined,
   },
   {
@@ -35,8 +66,35 @@ const TOOLS: ToolDefinition[] = [
     label: "Presets Engine",
     description: "Create and tune reusable looks for the rest of the production.",
     envKey: "VITE_AURORA_PRESETS_ENGINE_EMBED_URL",
+    media: {
+      type: "video",
+      src: "/viral-presets/preview-1.mp4",
+      poster: "/nav-previews/templates.jpg",
+      alt: "Aurora preset result preview",
+    },
     src: import.meta.env.VITE_AURORA_PRESETS_ENGINE_EMBED_URL?.trim() || undefined,
   },
+];
+
+const STORYBOARD_FEATURE: RoomFeature = {
+  id: "storyboard",
+  label: "Storyboard",
+  description: "Map scenes, develop the cast, direct the sequence, and send finished shots to render.",
+  media: {
+    type: "image",
+    src: "/screenshots/studio-screen.png",
+    alt: "Aurora's visual production studio showing a project workspace",
+  },
+};
+
+const OVERVIEW_FEATURES: RoomFeature[] = [
+  STORYBOARD_FEATURE,
+  ...TOOLS.map(({ kind, label, description, media }) => ({
+    id: kind,
+    label,
+    description,
+    media,
+  })),
 ];
 
 const SECTIONS: Array<{
@@ -45,21 +103,21 @@ const SECTIONS: Array<{
   description: string;
 }> = [
   {
-    id: "storyboard",
-    label: "Storyboard",
-    description: "Direct shots, characters, renders, and the production board.",
+    id: "overview",
+    label: "Overview",
+    description: "See the full Directors Room production workflow.",
   },
-  ...TOOLS.map(({ kind, label, description }) => ({
-    id: kind,
+  ...OVERVIEW_FEATURES.map(({ id, label, description }) => ({
+    id,
     label,
     description,
   })),
 ];
 
 export function DirectorsRoomPage() {
-  const [activeSection, setActiveSection] = useState<RoomSection>("storyboard");
+  const [activeSection, setActiveSection] = useState<RoomSection>("overview");
   const activeTool =
-    activeSection === "storyboard"
+    activeSection === "overview" || activeSection === "storyboard"
       ? undefined
       : TOOLS.find((tool) => tool.kind === activeSection);
 
@@ -76,7 +134,7 @@ export function DirectorsRoomPage() {
                 Directors Room
               </h1>
               <span className="hidden text-xs text-muted-foreground sm:inline">
-                Your creative production workspace
+                Your visual production workspace
               </span>
             </div>
           </div>
@@ -116,19 +174,112 @@ export function DirectorsRoomPage() {
         id={`directors-room-${activeSection}`}
         role="tabpanel"
         aria-label={
-          activeSection === "storyboard"
-            ? "Storyboard"
-            : activeTool?.label
+          activeSection === "overview"
+            ? "Directors Room overview"
+            : activeSection === "storyboard"
+              ? "Storyboard"
+              : activeTool?.label ?? "Directors Room tool"
         }
         className="min-h-0 flex-1"
       >
-        {activeSection === "storyboard" ? (
+        {activeSection === "overview" ? (
+          <DirectorsRoomOverview onOpen={setActiveSection} />
+        ) : activeSection === "storyboard" ? (
           <StudioPage embedded />
         ) : activeTool ? (
           <ToolPanel tool={activeTool} />
         ) : null}
       </div>
     </main>
+  );
+}
+
+function DirectorsRoomOverview({
+  onOpen,
+}: {
+  onOpen: (section: RoomSection) => void;
+}) {
+  return (
+    <section className="h-full overflow-auto bg-background">
+      <div className="mx-auto max-w-[1800px] px-4 py-5 md:px-6 md:py-8">
+        <div className="grid overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+          <div className="order-2 flex flex-col justify-center p-6 sm:p-8 lg:order-1 lg:p-10">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-accent">
+              A visual production system
+            </p>
+            <h2 className="mt-3 max-w-xl text-3xl font-semibold tracking-tight sm:text-4xl">
+              See the cut before you make it.
+            </h2>
+            <p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
+              Directors Room brings your shot plan, compositing, scene direction,
+              and visual presets into one production flow. Explore a working
+              surface, not a list of promises.
+            </p>
+            <button
+              type="button"
+              onClick={() => onOpen("storyboard")}
+              className="mt-6 inline-flex w-fit items-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Open Storyboard
+            </button>
+          </div>
+          <FeatureMedia
+            media={{
+              type: "video",
+              src: "/videos/landing-demo-reel.mp4",
+              poster: "/videos/landing-demo-reel-poster.jpg",
+              alt: "Aurora-generated cinematic video reel",
+            }}
+            priority
+            className="order-1 aspect-[4/3] min-h-[260px] lg:order-2 lg:aspect-auto lg:min-h-full"
+          />
+        </div>
+
+        <div className="mt-8 flex items-end justify-between gap-5">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-accent">
+              The room, in motion
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight">
+              Every production surface, visually explained
+            </h2>
+          </div>
+          <span className="hidden text-xs text-muted-foreground sm:block">
+            Select a card to open the tool
+          </span>
+        </div>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {OVERVIEW_FEATURES.map((feature, index) => (
+            <button
+              key={feature.id}
+              type="button"
+              onClick={() => onOpen(feature.id)}
+              className="group overflow-hidden rounded-xl border border-border/60 bg-card text-left shadow-sm transition duration-200 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <FeatureMedia
+                media={feature.media}
+                className="aspect-[16/10] w-full"
+              />
+              <span className="block p-4">
+                <span className="block text-[10px] font-semibold uppercase tracking-[0.22em] text-accent">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span className="mt-2 block text-base font-semibold tracking-tight">
+                  {feature.label}
+                </span>
+                <span className="mt-1.5 block text-sm leading-5 text-muted-foreground">
+                  {feature.description}
+                </span>
+                <span className="mt-4 block text-xs font-semibold text-foreground transition-transform group-hover:translate-x-1">
+                  Explore tool →
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -178,8 +329,9 @@ function ToolPanel({ tool }: { tool: ToolDefinition }) {
 
 function MissingToolConfig({ tool }: { tool: ToolDefinition }) {
   return (
-    <div className="mx-auto flex min-h-[min(520px,calc(100vh-220px))] max-w-2xl items-center justify-center rounded-xl border border-dashed border-border/80 bg-muted/20 p-6 text-center md:p-10">
-      <div>
+    <div className="mx-auto max-w-3xl overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
+      <FeatureMedia media={tool.media} className="aspect-[16/9] w-full" />
+      <div className="p-6 text-center md:p-8">
         <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-accent">
           Ready to connect
         </p>
@@ -187,8 +339,10 @@ function MissingToolConfig({ tool }: { tool: ToolDefinition }) {
           {tool.label} is not configured yet
         </h2>
         <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
-          Add the deployed tool&apos;s full <code>/embed</code> URL to Aurora
-          Global&apos;s environment, then rebuild the app to open it here.
+          The preview above shows the kind of visual work this tool adds to
+          Directors Room. Add the deployed tool&apos;s full <code>/embed</code>{" "}
+          URL to Aurora Global&apos;s environment, then rebuild the app to open
+          the editor here.
         </p>
         <code className="mt-5 inline-block max-w-full overflow-x-auto rounded-md bg-background px-3 py-2 text-left text-xs text-foreground shadow-sm">
           {tool.envKey}=https://your-tool-domain/embed
@@ -196,4 +350,56 @@ function MissingToolConfig({ tool }: { tool: ToolDefinition }) {
       </div>
     </div>
   );
+}
+
+function FeatureMedia({
+  media,
+  className,
+  priority = false,
+}: {
+  media: DemoMedia;
+  className?: string;
+  priority?: boolean;
+}) {
+  const reducedMotion = useReducedMotion();
+
+  return (
+    <div className={`relative overflow-hidden bg-muted ${className ?? ""}`}>
+      {media.type === "video" ? (
+        <video
+          className="h-full w-full object-cover"
+          autoPlay={!reducedMotion}
+          loop
+          muted
+          playsInline
+          preload={priority ? "metadata" : "none"}
+          poster={media.poster}
+          aria-label={media.alt}
+        >
+          <source src={media.src} type="video/mp4" />
+        </video>
+      ) : (
+        <img
+          src={media.src}
+          alt={media.alt}
+          loading={priority ? "eager" : "lazy"}
+          className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+        />
+      )}
+    </div>
+  );
+}
+
+function useReducedMotion() {
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const updatePreference = () => setReducedMotion(mediaQuery.matches);
+    updatePreference();
+    mediaQuery.addEventListener("change", updatePreference);
+    return () => mediaQuery.removeEventListener("change", updatePreference);
+  }, []);
+
+  return reducedMotion;
 }
