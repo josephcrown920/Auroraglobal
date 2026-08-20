@@ -12,7 +12,7 @@ import { WorkersPanel } from "./WorkersPanel";
 
 type Tab = "canvas" | "characters" | "gpu";
 
-export function StudioPage() {
+export function StudioPage({ embedded = false }: { embedded?: boolean }) {
   const { board, setBoard, updateShot, addShot, removeShot, connect, disconnect, reset } =
     useBoard();
   const [tab, setTab] = useState<Tab>("canvas");
@@ -80,11 +80,16 @@ export function StudioPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden">
+    <div
+      className={
+        (embedded ? "h-full min-h-0" : "h-screen") +
+        " flex flex-col overflow-hidden bg-background text-foreground"
+      }
+    >
       <header className="border-b border-border/60 px-4 py-2.5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <Link to="/" className="text-xs uppercase tracking-[0.2em] text-accent shrink-0">
-            Director's Room
+            {embedded ? "Storyboard" : "Director's Room"}
           </Link>
           <input
             value={board.title}

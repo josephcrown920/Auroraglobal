@@ -1,22 +1,26 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 
-const StudioPage = lazy(() =>
-  import("@/features/storyboard/studio/StudioPage").then(({ StudioPage }) => ({
-    default: StudioPage,
-  })),
+const DirectorsRoomPage = lazy(() =>
+  import("@/features/director-room/DirectorsRoomPage").then(
+    ({ DirectorsRoomPage }) => ({
+      default: DirectorsRoomPage,
+    }),
+  ),
 );
 
 export const Route = createLazyFileRoute("/director-room")({
   component: () => (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-background text-foreground grid place-items-center">
-          <p className="text-sm text-muted-foreground">Loading your studio…</p>
+        <div className="grid min-h-screen place-items-center bg-background text-foreground">
+          <p className="text-sm text-muted-foreground">
+            Loading Directors Room…
+          </p>
         </div>
       }
     >
-      <StudioPage />
+      <DirectorsRoomPage />
     </Suspense>
   ),
 });

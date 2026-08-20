@@ -28,3 +28,20 @@ import { AuroraEmbed } from "@/components/embed/AuroraEmbed";
 The component validates the source window and origin for every message, resizes only from a tool's own height events, and sends Layers SSO only after the trusted iframe announces it is ready.
 
 Do not add a `sandbox` attribute unless the target tool is changed and tested for it; the editors need normal browser behavior for uploads, clipboard actions, and authentication. Configure each deployed tool's `AURORA_EMBED_ALLOWED_ORIGINS` with Aurora Global's exact production origin.
+
+## Directors Room
+
+The Directors Room is the parent workspace. Storyboard is its first section;
+Layers, Scene Weaver, and Presets Engine appear as sibling sections inside that
+room. Set the following public build variables in Aurora Global before
+deploying:
+
+```text
+VITE_AURORA_LAYERS_EMBED_URL=https://your-layers-domain/embed
+VITE_AURORA_SCENE_WEAVER_EMBED_URL=https://your-scene-weaver-domain/embed
+VITE_AURORA_PRESETS_ENGINE_EMBED_URL=https://your-presets-engine-domain/embed
+```
+
+The URLs are intentionally not hardcoded. If a variable is unset, Directors
+Room shows a configuration notice instead of loading an untrusted or unknown
+origin.
