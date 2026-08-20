@@ -20,6 +20,8 @@ import { generateBaseScene } from "@/lib/scene-builder.functions";
 import { generatePerformanceShot, listGenerations } from "@/lib/studio.functions";
 import { Button } from "@/components/ui/button";
 import { HiggsHero, StepGuide, type GuideStep } from "@/components/studio/HiggsLayout";
+import { PhotoshootPresetLibrary } from "@/components/photoshoots/PhotoshootPresetLibrary";
+import type { PhotoShootPreset } from "@/lib/photoshoot-presets";
 
 export const Route = createLazyFileRoute("/scene-builder")({
   component: SceneBuilderPage,
@@ -72,6 +74,7 @@ async function uploadToStudio(userId: string, file: File, kind: "image" | "video
 
 function SceneBuilderPage() {
   const { user } = useAuth();
+  const [selectedPhotoShoot, setSelectedPhotoShoot] = useState<PhotoShootPreset | null>(null);
 
   // 5 labeled upload slots: Selfie, Outfit, Location, Pose, Prop/Car
   const [slots, setSlots] = useState<(string | null)[]>(Array(SLOT_COUNT).fill(null));
@@ -153,6 +156,7 @@ function SceneBuilderPage() {
   });
 
   const filledSlots = slots.filter(Boolean).length;
+  const presetNeedsSelfie = !!selectedPhotoShoot && !slots[0];
 
   const baseMut = useMutation({
     mutationFn: async () => {
@@ -308,6 +312,22 @@ function SceneBuilderPage() {
     }
   };
 
+  const applyPhotoShootPreset = (preset: PhotoShootPreset) => {
+    setSelectedPhotoShoot(preset);
+    setLocation(preset.location);
+    setOutfit(preset.outfit);
+    setProp(preset.prop);
+    setPromptOverride(preset.prompt);
+    setSlots((prev) => {
+      const next = [...prev];
+      // The Location slot is a real scene reference; keeping it separate from
+      // the Selfie slot lets an artist swap themselves into the chosen preset.
+      next[2] = `${window.location.origin}${preset.image}`;
+      return next;
+    });
+    toast.success(`${preset.title} loaded — add your photo to the Selfie slot`);
+  };
+
   const anglesOrFreeform = selectedChips.size > 0 || freeformAngle.trim().length > 0;
   const angleCount = selectedChips.size + (freeformAngle.trim() ? 1 : 0);
   const angleMutating = angleMut.isPending || moreAnglesMut.isPending;
@@ -381,6 +401,11 @@ function SceneBuilderPage() {
               ))}
             </div>
           </div>
+
+          <PhotoshootPresetLibrary
+            selectedId={selectedPhotoShoot?.id}
+            onSelect={applyPhotoShootPreset}
+          />
 
           {/* ── 5 Labeled upload slots ── */}
           <section>
@@ -521,6 +546,18 @@ function SceneBuilderPage() {
 
           {/* ── Generate Base Scene ── */}
           <section className="space-y-4">
+            {selectedPhotoShoot && (
+              <div className="rounded-2xl border border-primary/30 bg-primary/[0.07] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">
+                  Photoshoot loaded
+                </p>
+                <p className="mt-1 text-xs font-semibold text-white">{selectedPhotoShoot.title}</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-white/50">
+                  The scene is now in the Location slot. Add your own image in
+                  Selfie, then adjust the prompt or camera angles to make it yours.
+                </p>
+              </div>
+            )}
             {baseResult && (
               <div className="relative rounded-2xl overflow-hidden">
                 <img
@@ -547,7 +584,7 @@ function SceneBuilderPage() {
               variant={baseResult ? "glass" : "premium"}
               className="w-full"
               onClick={() => baseMut.mutate()}
-              disabled={baseMut.isPending || filledSlots === 0}
+              disabled={baseMut.isPending || filledSlots === 0 || presetNeedsSelfie}
             >
               {baseMut.isPending ? (
                 <>
@@ -567,10 +604,51 @@ function SceneBuilderPage() {
               )}
             </Button>
 
-            {filledSlots === 0 && (
+            {presetNeedsSelfie ? (
+              <p className="text-xs text-center text-primary/80">
+                Add your own image to the Selfie slot before generating this photoshoot.
+              </p>
+            ) : filledSlots === 0 && (
               <p className="text-xs text-center text-white/30">Upload at least one reference to generate</p>
             )}
           </section>
+
+          {baseResult && (
+            <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+              <a
+                href={baseResult.url}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-left no-underline transition hover:border-primary/50 hover:bg-primary/[0.06]"
+              >
+                <span className="block text-xs font-semibold text-white">Open or save this render</span>
+                <span className="mt-1 block text-[11px] leading-relaxed text-white/45">
+                  Save the completed still when you want to use it as the starting
+                  reference in another Aurora tool.
+                </span>
+              </a>
+              <Link
+                to="/scene-weaver"
+                className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-left no-underline transition hover:border-primary/50 hover:bg-primary/[0.06]"
+              >
+                <span className="block text-xs font-semibold text-white">Angles + HD finish</span>
+                <span className="mt-1 block text-[11px] leading-relaxed text-white/45">
+                  Upload this completed render in Scene Weaver to build alternate
+                  camera views and use 2× or 4× upscaling when the source supports it.
+                </span>
+              </Link>
+              <Link
+                to="/video-agent"
+                className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-left no-underline transition hover:border-primary/50 hover:bg-primary/[0.06]"
+              >
+                <span className="block text-xs font-semibold text-white">Build the music video</span>
+                <span className="mt-1 block text-[11px] leading-relaxed text-white/45">
+                  Start a Video Agent project when you are ready to turn this visual
+                  direction into storyboards, frames, and a finished video.
+                </span>
+              </Link>
+            </section>
+          )}
 
           {/* ── Phone Performance — optional motion control ── */}
           <section>

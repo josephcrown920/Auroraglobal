@@ -63,7 +63,7 @@ const CORE_FEATURES: Feature[] = [
 const STUDIO_FEATURES: Feature[] = [
   { to: "/studio",          label: "Image & Video Studio",  icon: Sparkles, previewImg: "/nav-previews/studio.jpg" },
   { to: "/likeness",        label: "Aurora Soul",          icon: Camera,   previewImg: "/nav-previews/avatar.jpg",        badge: "New" },
-  { to: "/scene-builder",   label: "Scene Builder",         icon: Layers,   previewImg: "/nav-previews/scene-builder.jpg" },
+  { to: "/scene-builder",   label: "Photoshoots",           icon: Camera,   previewImg: "/photoshoots/sun-portal.jpeg", badge: "New" },
   { to: "/agent",           label: "Video Agent",           icon: Film,     badge: "New" },
 ];
 
