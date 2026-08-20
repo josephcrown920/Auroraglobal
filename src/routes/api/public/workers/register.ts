@@ -201,7 +201,13 @@ export const Route = createFileRoute("/api/public/workers/register")({
           await logAttempt(supabaseAdmin, { name: data.name, endpoint_url: data.endpoint_url, protocol: data.protocol, ok: false, error: error.message });
           return json({ error: error.message }, 500);
         }
-        await logAttempt(supabaseAdmin, { name: data.name, endpoint_url: data.endpoint_url, protocol: data.protocol, ok: true, outcome: "pending_approval" });
+        await logAttempt(supabaseAdmin, {
+          name: data.name,
+          endpoint_url: data.endpoint_url,
+          protocol: data.protocol,
+          ok: true,
+          outcome: "created",
+        });
         return json({ ok: true, id: row?.id, created: true, registration_status: "pending_approval" });
       },
     },

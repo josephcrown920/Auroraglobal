@@ -7,7 +7,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, mock } from "bun
 //      full `.../generate` URL for the SAME worker must update one row, not
 //      spawn a second `gpu_workers` entry every restart.
 //   2. The auth gate is the private AURORA_REGISTER_SECRET (not the public
-//      Supabase anon key) — a missing/wrong apikey must 401 and write nothing.
+//      Supabase anon key) — a missing/wrong apikey must 401 and create no worker.
 
 type Row = Record<string, unknown>;
 
@@ -16,6 +16,7 @@ let nextId = 1;
 let insertCalls: Row[] = [];
 let updateCalls: { id: unknown; patch: Row }[] = [];
 let attemptInserts: Row[] = [];
+let attemptInsertError: Error | null = null;
 
 // A minimal, awaitable Supabase query builder scoped to `gpu_workers`. Each
 // call to `.from("gpu_workers")` gets its own builder instance so concurrent
@@ -69,9 +70,10 @@ function makeGpuWorkersBuilder() {
 const supabaseStub = {
   from: (table: string) => {
     if (table === "gpu_workers") return makeGpuWorkersBuilder();
-    // worker_register_attempts — best-effort audit log, always succeeds.
+    // worker_register_attempts — best-effort audit log; failure is configurable per test.
     return {
       insert: async (payload: Row) => {
+        if (attemptInsertError) throw attemptInsertError;
         attemptInserts.push(payload);
         return { data: null, error: null };
       },
@@ -109,6 +111,7 @@ describe("POST /api/public/workers/register", () => {
     insertCalls = [];
     updateCalls = [];
     attemptInserts = [];
+    attemptInsertError = null;
   });
 
   afterEach(() => {
@@ -116,23 +119,43 @@ describe("POST /api/public/workers/register", () => {
     else process.env.AURORA_REGISTER_SECRET = realSecret;
   });
 
+  function expectFailedAttempt(endpointUrl: string | null = null) {
+    expect(attemptInserts).toHaveLength(1);
+    expect(attemptInserts[0]).toMatchObject({
+      endpoint_url: endpointUrl,
+      ok: false,
+    });
+    expect(typeof attemptInserts[0].error).toBe("string");
+    expect((attemptInserts[0].error as string).length).toBeGreaterThan(0);
+  }
+
+  function expectSuccessfulAttempt(outcome: "created" | "updated", endpointUrl: string) {
+    expect(attemptInserts.at(-1)).toMatchObject({
+      endpoint_url: endpointUrl,
+      ok: true,
+      outcome,
+    });
+  }
+
   // ── Auth gate ────────────────────────────────────────────────────────────
 
-  it("returns 401 with no apikey at all and writes nothing", async () => {
+  it("returns 401 with no apikey at all and creates no worker", async () => {
     const res = await post({ name: "colab-1", endpoint_url: "https://colab.example.com" });
     expect(res.status).toBe(401);
     expect(gpuWorkers).toHaveLength(0);
     expect(insertCalls).toHaveLength(0);
     expect(updateCalls).toHaveLength(0);
+    expectFailedAttempt();
   });
 
-  it("returns 401 for a wrong apikey and writes nothing", async () => {
+  it("returns 401 for a wrong apikey and creates no worker", async () => {
     const res = await post(
       { name: "colab-1", endpoint_url: "https://colab.example.com" },
       { apikey: "wrong-secret" },
     );
     expect(res.status).toBe(401);
     expect(gpuWorkers).toHaveLength(0);
+    expectFailedAttempt();
   });
 
   it("rejects the public Supabase anon/publishable key — must never be accepted as a register credential", async () => {
@@ -153,6 +176,7 @@ describe("POST /api/public/workers/register", () => {
       expect(res.status).toBe(401);
       expect(gpuWorkers).toHaveLength(0);
       expect(insertCalls).toHaveLength(0);
+      expectFailedAttempt();
     } finally {
       if (prevPublishable === undefined) delete process.env.SUPABASE_PUBLISHABLE_KEY;
       else process.env.SUPABASE_PUBLISHABLE_KEY = prevPublishable;
@@ -169,6 +193,7 @@ describe("POST /api/public/workers/register", () => {
     );
     expect(res.status).toBe(503);
     expect(gpuWorkers).toHaveLength(0);
+    expectFailedAttempt();
   });
 
   it("also accepts the secret via Authorization: Bearer", async () => {
@@ -178,6 +203,17 @@ describe("POST /api/public/workers/register", () => {
     );
     expect(res.status).toBe(200);
     expect(gpuWorkers).toHaveLength(1);
+    expectSuccessfulAttempt("created", "https://colab.example.com");
+  });
+
+  it("keeps registration working when the audit-log insert fails", async () => {
+    attemptInsertError = new Error("worker_register_attempts unavailable");
+
+    const res = await post({ name: "colab-1", endpoint_url: "https://colab.example.com" }, AUTH);
+
+    expect(res.status).toBe(200);
+    expect(gpuWorkers).toHaveLength(1);
+    expect(attemptInserts).toHaveLength(0);
   });
 
   // ── Fresh registration ───────────────────────────────────────────────────
@@ -199,6 +235,7 @@ describe("POST /api/public/workers/register", () => {
     expect(row.status).toBe("pending_approval");
     expect(typeof row.last_heartbeat).toBe("string");
     expect(new Date(row.last_heartbeat as string).getTime()).toBeGreaterThanOrEqual(before);
+    expectSuccessfulAttempt("created", "https://colab.example.com");
   });
 
   it("a pending_approval worker that re-registers stays pending_approval (reconnect cannot self-approve)", async () => {
@@ -251,6 +288,9 @@ describe("POST /api/public/workers/register", () => {
     expect(insertCalls).toHaveLength(1);
     expect(updateCalls).toHaveLength(1);
     expect(body2.id).toBe(gpuWorkers[0].id);
+    expect(attemptInserts).toHaveLength(2);
+    expect(attemptInserts[0]).toMatchObject({ ok: true, outcome: "created" });
+    expectSuccessfulAttempt("updated", "https://colab.example.com/generate");
   });
 
   it("re-registering the identical bare-origin URL also updates in place (no duplicate)", async () => {
