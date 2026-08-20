@@ -143,6 +143,28 @@ describe("processPaymentSuccess", () => {
     expect(calls.rpc.find((c) => c.name === "grant_credits")).toBeUndefined();
   });
 
+  it("rejects a signed event whose amount or currency differs from Aurora's pending quote", async () => {
+    tables.payments = {
+      data: {
+        id: "p1",
+        user_id: "u1",
+        credits_granted: 500,
+        status: "pending",
+        amount_kobo: 1000,
+        currency: "USD",
+      },
+      error: null,
+    };
+
+    await expect(
+      processPaymentSuccess(ev({ reference: "ref1", status: "success", amount: 900, currency: "USD" })),
+    ).rejects.toThrow(/amount mismatch/);
+    await expect(
+      processPaymentSuccess(ev({ reference: "ref1", status: "success", amount: 1000, currency: "NGN" })),
+    ).rejects.toThrow(/currency mismatch/);
+    expect(calls.rpc.find((c) => c.name === "grant_credits")).toBeUndefined();
+  });
+
   it("throws when the payment reference is unknown and the webhook has no recovery metadata", async () => {
     tables.payments = { data: null, error: null };
     await expect(

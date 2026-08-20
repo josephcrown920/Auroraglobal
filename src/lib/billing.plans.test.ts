@@ -2,10 +2,58 @@ import { describe, expect, it } from "bun:test";
 import {
   DURATION_CAPS,
   classifyJobQueue,
+  computeLocalPrice,
+  computePaystackPrice,
   durationCapMessage,
+  getPppMultiplier,
   HEAVY_JOB_KINDS,
   tierFor,
 } from "./billing.plans";
+
+describe("geo-based PPP pricing", () => {
+  it("uses the configured PPP discount for eligible countries", () => {
+    expect(getPppMultiplier("IN")).toBe(0.4);
+    expect(getPppMultiplier("br")).toBe(0.55);
+    expect(getPppMultiplier("NG")).toBe(0.35);
+  });
+
+  it("leaves unknown, high-income, and missing countries at full price", () => {
+    expect(getPppMultiplier("US")).toBe(1);
+    expect(getPppMultiplier("XX")).toBe(1);
+    expect(getPppMultiplier(null)).toBe(1);
+  });
+
+  it("rounds JPY in zero-decimal minor units", () => {
+    const price = computeLocalPrice(10_00, "JP");
+    expect(price).toMatchObject({ currency: "JPY", amountMinor: 1500, pppMultiplier: 1 });
+  });
+
+  it("rounds INR and USD in two-decimal minor units", () => {
+    expect(computeLocalPrice(10_00, "IN")).toMatchObject({
+      currency: "INR",
+      amountMinor: 33_200,
+      pppMultiplier: 0.4,
+    });
+    expect(computeLocalPrice(10_00, "US")).toMatchObject({
+      currency: "USD",
+      amountMinor: 1_000,
+      pppMultiplier: 1,
+    });
+  });
+
+  it("always returns a chargeable NGN checkout quote while preserving PPP", () => {
+    expect(computePaystackPrice(10_00, "IN")).toMatchObject({
+      currency: "NGN",
+      amountMinor: 620_000,
+      pppMultiplier: 0.4,
+    });
+    expect(computePaystackPrice(10_00, "US")).toMatchObject({
+      currency: "NGN",
+      amountMinor: 1_550_000,
+      pppMultiplier: 1,
+    });
+  });
+});
 
 // ─── DURATION_CAPS ────────────────────────────────────────────────────────────
 

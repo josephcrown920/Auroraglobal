@@ -17,10 +17,14 @@ const PaymentEventSchema = z.object({
     reference: z.string(),
     status: z.string(),
     amount: z.number().optional(),
+    currency: z.string().optional(),
     metadata: z.object({
       user_id: z.string().optional(),
       credits: z.number().optional(),
       ref: z.string().optional(),
+        currency: z.string().optional(),
+        country: z.string().nullable().optional(),
+        pppMultiplier: z.number().min(0).max(1).optional(),
       /** Set for day1/day2 passes — auto-applied as daily_spend_limit on success. */
       daily_limit: z.number().optional(),
     }).optional(),
@@ -100,7 +104,7 @@ async function findOrRecoverPayment(
       user_id: meta.user_id,
       credits_granted: meta.credits,
       amount_kobo: event.data.amount ?? 0,
-      currency: "USD",
+      currency: meta.currency ?? "NGN",
       status: "pending",
     })
     .select(PAYMENT_COLUMNS)
@@ -130,6 +134,7 @@ type SubscriptionPlan = {
 
 export type PaystackSubscriptionCreateData = {
   amount?: number;
+  currency?: string;
   subscription_code?: string;
   customer?: SubscriptionCustomer;
   plan?: SubscriptionPlan;
@@ -212,7 +217,7 @@ export async function processSubscriptionCreate(data: PaystackSubscriptionCreate
     status: "active",
     next_payment_date: nextPaymentDate,
     amount_minor: data.amount ?? SUBSCRIPTION_TIERS.pro.price_amount_minor,
-    currency: "USD",
+    currency: data.currency ?? "USD",
   }, { onConflict: "paystack_subscription_code" });
 
   return { status: "success" as const, userId, subscriptionCode: subCode };
@@ -296,6 +301,24 @@ export async function processPaymentSuccess(
 
   if (payment.status === "succeeded") {
     return { status: "already_processed" };
+  }
+
+  // The signature proves Paystack emitted the event, while the payment row is
+  // Aurora's record of the exact quote we initialized. Both the amount and
+  // currency must match before any credits are granted.
+  if (event.data.amount != null && event.data.amount !== payment.amount_kobo) {
+    throw new Error(`Payment amount mismatch for ${event.data.reference}`);
+  }
+  const eventCurrency = event.data.currency ?? event.data.metadata?.currency;
+  if (eventCurrency && eventCurrency !== payment.currency) {
+    throw new Error(`Payment currency mismatch for ${event.data.reference}`);
+  }
+
+  // This is recorded in the signed Paystack event for auditability. Credits
+  // remain tied to the purchased plan, not to the discounted fiat amount.
+  const pppMultiplier = event.data.metadata?.pppMultiplier;
+  if (pppMultiplier != null && (pppMultiplier <= 0 || pppMultiplier > 1)) {
+    throw new Error(`Invalid PPP multiplier on signed payment event: ${pppMultiplier}`);
   }
 
   // Grant credits to user

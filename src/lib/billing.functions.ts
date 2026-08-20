@@ -4,8 +4,9 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getRequest } from "@tanstack/react-start/server";
 import { createHash } from "crypto";
 import { z } from "zod";
-import { PLANS, SUBSCRIPTION_TIERS, PRO_GEO_PRICES } from "./billing.plans";
+import { PLANS, SUBSCRIPTION_TIERS, computePaystackPrice } from "./billing.plans";
 import { applyPromoAtCheckout } from "./promo.functions";
+import { countryFromRequestHeaders } from "./geo.functions";
 // Stable MD5-based UUID matching the SQL expression in grant_free_monthly_aura_all().
 // Lives in a .server module: exporting it from here would keep the node "crypto"
 // import in the client bundle and break the production build.
@@ -188,7 +189,6 @@ export const createPaystackCheckout = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z.object({
       plan: z.enum(["day1", "day2", "starter", "creator", "studio"]),
-      currency: z.enum(["USD", "NGN", "GHS", "ZAR", "KES", "EGP"]).optional(),
       promoCode: z.string().min(1).max(40).optional(),
     }).parse(input),
   )
@@ -197,14 +197,12 @@ export const createPaystackCheckout = createServerFn({ method: "POST" })
     const key = process.env.PAYSTACK_SECRET_KEY;
     if (!key) throw new Error("Paystack not configured");
     const plan = PLANS[data.plan];
+    const request = getRequest();
+    const country = countryFromRequestHeaders(request.headers);
+    const localPrice = computePaystackPrice(Math.round(plan.usd * 100), country);
+    const currency = localPrice.currency;
 
-    // Default to NGN — Aurora's Paystack account is a Nigerian merchant account
-    // that only accepts NGN. USD will fail with "Currency not supported by merchant"
-    // unless the Paystack account has been approved for multi-currency.
-    const currency = (data.currency ?? "NGN") as import("./billing.plans").Currency;
-    const price = plan.prices[currency] ?? plan.prices["NGN"];
-
-    let amountMinor: number = price.amount_minor;
+    let amountMinor = localPrice.amountMinor;
     let appliedPromoCodeId: string | null = null;
     let appliedPercentOff: number | null = null;
     if (data.promoCode) {
@@ -221,8 +219,7 @@ export const createPaystackCheckout = createServerFn({ method: "POST" })
     let origin = process.env.SITE_URL;
     if (!origin) {
       try {
-        const req = getRequest();
-        origin = new URL(req.url).origin;
+        origin = new URL(request.url).origin;
       } catch {
         origin = "";
       }
@@ -242,6 +239,8 @@ export const createPaystackCheckout = createServerFn({ method: "POST" })
           plan: data.plan,
           credits: plan.credits,
           currency,
+          country,
+          pppMultiplier: localPrice.pppMultiplier,
           promo_code_id: appliedPromoCodeId,
           // day passes: auto-set daily_spend_limit in the webhook handler
           ...("daily_limit" in plan && typeof plan.daily_limit === "number"
@@ -312,27 +311,30 @@ export const getPaymentStatusByReference = createServerFn({ method: "GET" })
 
 // ── Pro subscription checkout ─────────────────────────────────────────────────
 
-/** Get or create the Aurora Pro Paystack plan, caching the plan_code. */
-async function getOrCreateProPlan(key: string): Promise<string> {
+/** Get or create the Aurora Pro Paystack plan for an exact local price. */
+async function getOrCreateProPlan(
+  key: string,
+  currency: import("./billing.plans").Currency,
+  amountMinor: number,
+): Promise<string> {
+  const planKey = `paystack_pro_plan_code_${currency.toLowerCase()}_${amountMinor}`;
   const { data: setting } = await supabaseAdmin
     .from("app_settings")
     .select("value")
-    .eq("key", "paystack_pro_plan_code")
+    .eq("key", planKey)
     .maybeSingle();
   if (setting?.value && typeof (setting.value as { code?: string }).code === "string") {
     return (setting.value as { code: string }).code;
   }
 
-  // NGN merchant account: amount must be in kobo at the NGN Pro price
-  // (PRO_GEO_PRICES.NGN), NOT the USD price_amount_minor — 15_00 kobo = ₦15!
   const res = await fetch("https://api.paystack.co/plan", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      name: "Aurora Pro",
+      name: `Aurora Pro (${currency})`,
       interval: "monthly",
-      amount: PRO_GEO_PRICES.NGN.amount_minor,
-      currency: "NGN",
+      amount: amountMinor,
+      currency,
       description: "Aurora Pro — no watermark, priority queue, 2,000 Aura/month",
     }),
   });
@@ -341,7 +343,7 @@ async function getOrCreateProPlan(key: string): Promise<string> {
   const planCode = json.data.plan_code;
   await supabaseAdmin
     .from("app_settings")
-    .upsert({ key: "paystack_pro_plan_code", value: { code: planCode } as never });
+    .upsert({ key: planKey, value: { code: planCode } as never });
   return planCode;
 }
 
@@ -351,8 +353,10 @@ export const createProSubscriptionCheckout = createServerFn({ method: "POST" })
     const { userId } = context;
     const key = process.env.PAYSTACK_SECRET_KEY;
     if (!key) throw new Error("Paystack not configured");
-
-    const planCode = await getOrCreateProPlan(key);
+    const request = getRequest();
+    const country = countryFromRequestHeaders(request.headers);
+    const localPrice = computePaystackPrice(SUBSCRIPTION_TIERS.pro.price_amount_minor, country);
+    const planCode = await getOrCreateProPlan(key, localPrice.currency, localPrice.amountMinor);
 
     const { data: profile } = await supabaseAdmin
       .from("profiles")
@@ -365,8 +369,7 @@ export const createProSubscriptionCheckout = createServerFn({ method: "POST" })
     let origin = process.env.SITE_URL;
     if (!origin) {
       try {
-        const req = getRequest();
-        origin = new URL(req.url).origin;
+        origin = new URL(request.url).origin;
       } catch {
         origin = "";
       }
@@ -379,12 +382,18 @@ export const createProSubscriptionCheckout = createServerFn({ method: "POST" })
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         email,
-        amount: PRO_GEO_PRICES.NGN.amount_minor,
-        currency: "NGN",
+        amount: localPrice.amountMinor,
+        currency: localPrice.currency,
         reference,
         plan: planCode,
         ...(callback_url ? { callback_url } : {}),
-        metadata: { user_id: userId, type: "pro_subscription" },
+        metadata: {
+          user_id: userId,
+          type: "pro_subscription",
+          country,
+          currency: localPrice.currency,
+          pppMultiplier: localPrice.pppMultiplier,
+        },
       }),
     });
     if (!res.ok) throw new Error(`Paystack init failed: ${(await res.text()).slice(0, 200)}`);

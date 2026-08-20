@@ -35,7 +35,7 @@ import { GenerationProgress } from "@/components/ui/GenerationProgress";
 import { BlurredPreview } from "@/components/ui/BlurredPreview";
 import { getMyProfile, createPaystackCheckout, getPaymentByReference, getPaymentStatusByReference } from "@/lib/billing.functions";
 import { trackPurchase, trackGenerationCompleted } from "@/lib/gtm";
-import { PLANS, evaluatePlanLimits } from "@/lib/billing.plans";
+import { PLANS, computePaystackPrice, evaluatePlanLimits, formatLocalPrice } from "@/lib/billing.plans";
 import { computeCost, type Resolution } from "@/lib/pricing";
 import { ResolutionPicker } from "@/components/ResolutionPicker";
 import { PlanLimitNotice } from "@/components/PlanLimitNotice";
@@ -352,7 +352,7 @@ function StudioPage() {
   const publishFn = useServerFn(publishGeneration);
   const detectCurrencyFn = useServerFn(detectCurrency);
   const { data: geo } = useQuery({ queryKey: ["geo-currency"], queryFn: () => detectCurrencyFn(), staleTime: 60 * 60 * 1000 });
-  const currency = geo?.currency ?? "NGN";
+  const localPrice = (amountUsdMinor: number) => computePaystackPrice(amountUsdMinor, geo?.country ?? null);
 
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -570,7 +570,7 @@ function StudioPage() {
   }, [user, demoUrl, recipeFired, genFn, model, qc]);
 
   const checkoutMut = useMutation({
-    mutationFn: async (plan: keyof typeof PLANS) => checkoutFn({ data: { plan, currency } }),
+    mutationFn: async (plan: keyof typeof PLANS) => checkoutFn({ data: { plan } }),
     onSuccess: (res) => {
       window.location.href = res.authorizationUrl;
     },
@@ -831,7 +831,9 @@ function StudioPage() {
                     className="flex flex-col gap-0.5 rounded-xl border border-white/10 bg-white/4 hover:border-[#8b5cf6]/30 hover:bg-[#8b5cf6]/8 active:scale-[0.98] transition-all p-3 text-left disabled:opacity-50">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-600">{k === "day1" ? "1-Day Pass" : "2-Day Pass"}</span>
                     <span className="text-lg font-black text-white leading-none">{p.credits} <span className="text-xs font-normal text-zinc-500">Aura</span></span>
-                    <span className="text-xs font-semibold text-zinc-400">{p.prices[currency].display}</span>
+                    <span className="text-xs font-semibold text-zinc-400">
+                      {formatLocalPrice(localPrice(Math.round(p.usd * 100)))}
+                    </span>
                   </button>
                 );
               })}
@@ -851,7 +853,9 @@ function StudioPage() {
                         {isPopular && <span className="text-[10px] font-bold text-[#8b5cf6] border border-[#8b5cf6]/40 rounded px-1.5 py-0.5 flex items-center gap-1"><Flame className="size-2.5" />Popular</span>}
                         {isBest && <span className="text-[10px] font-bold text-amber-400 border border-amber-400/30 rounded px-1.5 py-0.5">Best value</span>}
                       </div>
-                      <span className={`text-lg font-black ${isPopular ? "text-[#8b5cf6]" : isBest ? "text-amber-300" : "text-zinc-300"}`}>{p.prices[currency].display}</span>
+                      <span className={`text-lg font-black ${isPopular ? "text-[#8b5cf6]" : isBest ? "text-amber-300" : "text-zinc-300"}`}>
+                        {formatLocalPrice(localPrice(Math.round(p.usd * 100)))}
+                      </span>
                     </div>
                     <div className="flex items-baseline gap-1">
                       <span className={`text-3xl font-black tabular-nums ${isPopular ? "text-white" : isBest ? "text-amber-100" : "text-zinc-400"}`}>{p.credits}</span>

@@ -2,10 +2,12 @@ import { authNextSearch } from "@/lib/auth-return-path";
 import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { Check, Loader2, Sparkles, Zap, Crown } from "lucide-react";
 import { toast } from "sonner";
 import { createPaystackCheckout } from "@/lib/billing.functions";
-import { PLANS, perCreditDisplay, type PlanKey } from "@/lib/billing.plans";
+import { PLANS, computePaystackPrice, formatLocalPrice, type PlanKey } from "@/lib/billing.plans";
+import { detectCurrency } from "@/lib/geo.functions";
 import { useAuth } from "@/hooks/use-auth";
 import { track } from "@/lib/tracking";
 
@@ -30,8 +32,15 @@ export function PricingSection() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const checkout = useServerFn(createPaystackCheckout);
+  const detectCurrencyFn = useServerFn(detectCurrency);
   const [loadingPlan, setLoadingPlan] = useState<PlanKey | null>(null);
-  const currency = "USD" as const;
+  const { data: geo } = useQuery({
+    queryKey: ["geo-currency"],
+    queryFn: () => detectCurrencyFn(),
+    staleTime: 60 * 60 * 1000,
+  });
+  const currency = geo?.currency ?? "USD";
+  const hasLocalPricing = (geo?.pppMultiplier ?? 1) < 1;
 
   const onChoose = async (plan: PlanKey) => {
 
@@ -44,7 +53,7 @@ export function PricingSection() {
     }
     setLoadingPlan(plan);
     try {
-      const res = await checkout({ data: { plan, currency } });
+      const res = await checkout({ data: { plan } });
       window.location.href = res.authorizationUrl;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Checkout failed");
@@ -64,15 +73,12 @@ export function PricingSection() {
         </p>
       </div>
 
-      {/* USD-only billing */}
-
-
       <div className="grid md:grid-cols-3 gap-4 md:gap-6 max-w-5xl mx-auto">
         {ORDER.map((key) => {
           const p = PLANS[key];
           const meta = META[key];
           const Icon = meta.icon;
-          const price = p.prices[currency];
+          const price = computePaystackPrice(Math.round(p.usd * 100), geo?.country ?? null);
           return (
             <div
               key={key}
@@ -98,11 +104,18 @@ export function PricingSection() {
               </div>
               <div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-4xl md:text-5xl font-semibold tracking-tight">{price.display}</span>
+                  <span className="text-4xl md:text-5xl font-semibold tracking-tight">{formatLocalPrice(price)}</span>
                   <span className="text-xs text-white/50">one-time</span>
                 </div>
                 <p className="text-sm text-violet-200 mt-1">{p.credits} Aura</p>
-                <p className="text-[11px] text-white/40">{perCreditDisplay(key, currency)}</p>
+                <p className="text-[11px] text-white/40">
+                  {formatLocalPrice({ ...price, amountMinor: Math.round(price.amountMinor / p.credits) })} / Aura
+                </p>
+                {hasLocalPricing && (
+                  <span className="mt-2 inline-flex rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-200">
+                    Local pricing applied
+                  </span>
+                )}
               </div>
               <ul className="space-y-2 text-sm text-white/80">
                 {meta.features.map((f) => (
@@ -133,7 +146,7 @@ export function PricingSection() {
       </div>
 
       <p className="text-center text-xs text-white/40 mt-8">
-        Secure payments by Paystack · USD billing · 7-day refund on unused Aura ·{" "}
+        Secure payments by Paystack · 7-day refund on unused Aura ·{" "}
         <Link to="/gifts" className="underline hover:text-white/70">Gift cards available</Link>
       </p>
     </section>

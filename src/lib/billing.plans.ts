@@ -1,14 +1,143 @@
 // Multi-currency pricing with geo-based PPP adjustments.
-// Paystack-supported currencies: USD, NGN, GHS, ZAR, KES, EGP.
-// Credit (Aura) amounts are the same in every region — only the local price changes.
+// Aura quantities stay fixed; only the fiat amount changes by country.
 //
-// IMPORTANT: Never expose cross-region prices in any UI. Each user sees
-// only their own detected region's price. This is standard PPP practice.
-export type Currency = "USD" | "NGN" | "GHS" | "ZAR" | "KES" | "EGP";
+// Currency is intentionally broader than the currency currently enabled on
+// the Nigerian Paystack merchant. computeLocalPrice() remains useful for
+// regional display/rate calculations; checkout quotes are always NGN until
+// the merchant's multi-currency capability is explicitly verified.
+export type Currency =
+  | "USD" | "NGN" | "GHS" | "ZAR" | "KES" | "EGP"
+  | "EUR" | "GBP" | "INR" | "BRL" | "IDR" | "PKR" | "JPY"
+  | "AUD" | "CAD" | "AED" | "SAR" | "PHP" | "TRY" | "VND"
+  | "BDT" | "LKR" | "COP" | "CLP" | "MXN" | "NZD";
+
+export type PaystackCurrency = "USD" | "NGN" | "GHS" | "ZAR" | "KES" | "EGP";
+
+export const PAYSTACK_SUPPORTED_CURRENCIES: readonly PaystackCurrency[] = [
+  "NGN",
+];
 
 export const CURRENCY_SYMBOLS: Record<Currency, string> = {
   USD: "$", NGN: "₦", GHS: "₵", ZAR: "R", KES: "KES ", EGP: "EGP ",
+  EUR: "€", GBP: "£", INR: "₹", BRL: "R$", IDR: "Rp ", PKR: "₨", JPY: "¥",
+  AUD: "A$", CAD: "C$", AED: "د.إ ", SAR: "﷼", PHP: "₱", TRY: "₺",
+  VND: "₫", BDT: "৳", LKR: "Rs ", COP: "COL$", CLP: "CLP$", MXN: "MX$", NZD: "NZ$",
 };
+
+export type CountryCurrency = { currency: Currency; locale: string };
+
+/** Country routing is server-owned; this table is never selected by the browser. */
+export const COUNTRY_CURRENCY_MAP: Record<string, CountryCurrency> = {
+  NG: { currency: "NGN", locale: "en-NG" },
+  GH: { currency: "GHS", locale: "en-GH" },
+  KE: { currency: "KES", locale: "en-KE" },
+  ZA: { currency: "ZAR", locale: "en-ZA" },
+  EG: { currency: "EGP", locale: "ar-EG" },
+  JP: { currency: "JPY", locale: "ja-JP" },
+  IN: { currency: "INR", locale: "en-IN" },
+  BR: { currency: "BRL", locale: "pt-BR" },
+  ID: { currency: "IDR", locale: "id-ID" },
+  PK: { currency: "PKR", locale: "en-PK" },
+  PH: { currency: "PHP", locale: "en-PH" },
+  TR: { currency: "TRY", locale: "tr-TR" },
+  VN: { currency: "VND", locale: "vi-VN" },
+  BD: { currency: "BDT", locale: "bn-BD" },
+  LK: { currency: "LKR", locale: "en-LK" },
+  CO: { currency: "COP", locale: "es-CO" },
+  CL: { currency: "CLP", locale: "es-CL" },
+  MX: { currency: "MXN", locale: "es-MX" },
+  AE: { currency: "AED", locale: "en-AE" },
+  SA: { currency: "SAR", locale: "en-SA" },
+  // Keep high-income regions on Aurora's standard USD list price. This also
+  // avoids advertising a display currency Paystack cannot charge for this
+  // merchant before multi-currency approval is available.
+  AU: { currency: "USD", locale: "en-US" },
+  NZ: { currency: "USD", locale: "en-US" },
+  CA: { currency: "USD", locale: "en-US" },
+  GB: { currency: "USD", locale: "en-US" },
+  DE: { currency: "USD", locale: "en-US" },
+  FR: { currency: "USD", locale: "en-US" },
+  IT: { currency: "USD", locale: "en-US" },
+  ES: { currency: "USD", locale: "en-US" },
+  NL: { currency: "USD", locale: "en-US" },
+  US: { currency: "USD", locale: "en-US" },
+};
+
+export const PPP_MULTIPLIERS: Record<string, number> = {
+  NG: 0.35, GH: 0.5, KE: 0.5, ZA: 0.65, EG: 0.45,
+  IN: 0.4, BR: 0.55, ID: 0.4, PK: 0.35, PH: 0.45,
+  TR: 0.5, VN: 0.4, BD: 0.35, LK: 0.4, CO: 0.55,
+  CL: 0.65, MX: 0.6,
+};
+
+/** Approximate USD → local-currency rates, used only for deterministic pricing. */
+export const USD_TO_LOCAL_RATE: Record<Currency, number> = {
+  USD: 1, NGN: 1550, GHS: 15.5, ZAR: 18.5, KES: 130, EGP: 49,
+  EUR: 0.92, GBP: 0.78, INR: 83, BRL: 5.5, IDR: 16000, PKR: 280, JPY: 150,
+  AUD: 1.5, CAD: 1.36, AED: 3.67, SAR: 3.75, PHP: 58, TRY: 32, VND: 25000,
+  BDT: 117, LKR: 300, COP: 4200, CLP: 9500, MXN: 18, NZD: 1.65,
+};
+
+const ZERO_DECIMAL_CURRENCIES = new Set<Currency>(["JPY", "IDR", "VND"]);
+
+export function getPppMultiplier(country: string | null): number {
+  const code = country?.trim().toUpperCase() ?? "";
+  return PPP_MULTIPLIERS[code] ?? 1;
+}
+
+function minorUnitScale(currency: Currency): number {
+  return ZERO_DECIMAL_CURRENCIES.has(currency) ? 1 : 100;
+}
+
+export type LocalPrice = {
+  amountMinor: number;
+  currency: Currency;
+  pppMultiplier: number;
+  displayLocale: string;
+};
+
+export function computeLocalPrice(amountUsdMinor: number, country: string | null): LocalPrice {
+  const code = country?.trim().toUpperCase() ?? "";
+  const mapped = COUNTRY_CURRENCY_MAP[code] ?? { currency: "USD" as Currency, locale: "en-US" };
+  const scale = minorUnitScale(mapped.currency);
+  const amountUsd = Math.max(0, Number(amountUsdMinor) || 0) / 100;
+  const amountMinor = Math.round(amountUsd * USD_TO_LOCAL_RATE[mapped.currency] * getPppMultiplier(code) * scale);
+  return {
+    amountMinor,
+    currency: mapped.currency,
+    pppMultiplier: getPppMultiplier(code),
+    displayLocale: mapped.locale,
+  };
+}
+
+/**
+ * Paystack currently accepts NGN only for this merchant. Keep PPP discounts,
+ * but calculate the final quote and displayed amount in chargeable NGN rather
+ * than advertising a currency Paystack will reject.
+ */
+export function computePaystackPrice(amountUsdMinor: number, country: string | null): LocalPrice {
+  const code = country?.trim().toUpperCase() ?? "";
+  const scale = minorUnitScale("NGN");
+  return {
+    amountMinor: Math.round(
+      (Math.max(0, Number(amountUsdMinor) || 0) / 100)
+        * USD_TO_LOCAL_RATE.NGN
+        * getPppMultiplier(code)
+        * scale,
+    ),
+    currency: "NGN",
+    pppMultiplier: getPppMultiplier(code),
+    displayLocale: "en-NG",
+  };
+}
+
+export function formatLocalPrice(price: LocalPrice): string {
+  return new Intl.NumberFormat(price.displayLocale, {
+    style: "currency",
+    currency: price.currency,
+    maximumFractionDigits: minorUnitScale(price.currency) === 1 ? 0 : 2,
+  }).format(price.amountMinor / minorUnitScale(price.currency));
+}
 
 // USD prices: Starter $10 | Creator $30 | Studio $80
 // Africa prices: ~$6.50 / $20 / $53 USD equivalent (PPP-adjusted)
@@ -113,7 +242,7 @@ export type SubscriptionTier = "free" | "pro";
  * USD = $15/mo | Africa = ~$10/mo USD equivalent (PPP-adjusted).
  * Used by the billing page and subscription checkout.
  */
-export const PRO_GEO_PRICES: Record<Currency, { amount_minor: number; display: string }> = {
+export const PRO_GEO_PRICES: Record<PaystackCurrency, { amount_minor: number; display: string }> = {
   USD: { amount_minor: 15_00,       display: "$15/mo" },
   NGN: { amount_minor: 15_500_00,   display: "₦15,500/mo" },
   GHS: { amount_minor: 155_00,      display: "₵155/mo" },

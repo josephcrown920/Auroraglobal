@@ -9,9 +9,15 @@ import { createCryptoCheckout } from "@/lib/crypto-checkout.functions";
 import { amIAdmin } from "@/lib/admin.functions";
 import { markFirstPurchaseComplete } from "@/lib/first-run";
 import { redeemPromoCode } from "@/lib/promo.functions";
-import { PLANS, SUBSCRIPTION_TIERS, PRO_GEO_PRICES, perCreditDisplay, type Currency } from "@/lib/billing.plans";
+import {
+  PLANS,
+  SUBSCRIPTION_TIERS,
+  computePaystackPrice,
+  formatLocalPrice,
+  type PaystackCurrency,
+} from "@/lib/billing.plans";
 import { REGIONS } from "@/lib/geo-pricing";
-import { SubscriptionPlans } from "@/components/pricing/SubscriptionPlans";
+import { detectCurrency } from "@/lib/geo.functions";
 import { toast } from "sonner";
 import {
   ArrowLeft, Zap, Star, CheckCircle2, XCircle, CreditCard, Loader2,
@@ -41,6 +47,15 @@ const PLAN_CONTEXT: Record<"starter" | "creator" | "studio", { name: string; bes
   studio: { name: "Studio", bestFor: "Making a complete campaign" },
 };
 
+const PREVIEW_COUNTRY_BY_CURRENCY: Record<PaystackCurrency, string> = {
+  USD: "US",
+  NGN: "NG",
+  GHS: "GH",
+  ZAR: "ZA",
+  KES: "KE",
+  EGP: "EG",
+};
+
 function BillingPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -53,6 +68,7 @@ function BillingPage() {
   const redeemFn = useServerFn(redeemPromoCode);
   const setLimitFn = useServerFn(setDailySpendLimit);
   const getDailySpendFn = useServerFn(getDailySpend);
+  const detectCurrencyFn = useServerFn(detectCurrency);
 
   const [cancelConfirm, setCancelConfirm] = useState(false);
   const [promoCode, setPromoCode] = useState("");
@@ -62,11 +78,6 @@ function BillingPage() {
   const [confirmPack, setConfirmPack] = useState<"starter" | "creator" | "studio" | null>(null);
   const [autoReload, setAutoReload] = useState(() => getAutoReloadSettings());
 
-  // ── Owner-only region preview ─────────────────────────────────────────────
-  // Live billing is NGN-only for everyone today (the Paystack merchant account
-  // is Nigerian; detectCurrency is pinned to NGN). This lets the owner SEE
-  // each region's intended PPP price table without affecting what real users
-  // see or pay. Display-only: buy buttons lock while previewing.
   const cryptoEnabledFn = useServerFn(getCryptoEnabled);
   const cryptoEnabledQ = useQuery({
     queryKey: ["crypto-enabled"],
@@ -85,14 +96,20 @@ function BillingPage() {
     retry: false,
   });
   const isAdmin = adminQ.data?.isAdmin === true;
-  // Live billing runs in NGN — the Paystack merchant account is Nigerian and
-  // rejects USD ("Currency not supported by merchant"). Display must match the
-  // charged currency, so NGN is the real region; admins can preview others.
-  const [previewRegion, setPreviewRegion] = useState<Currency>("NGN");
-  const region: Currency = isAdmin ? previewRegion : "NGN";
-  const previewing = region !== "NGN";
-  const proPriceLabel =
-    region === "USD" ? "$15 / month" : `${PRO_GEO_PRICES[region].display.replace("/mo", "")} / month`;
+  const { data: geo } = useQuery({
+    queryKey: ["geo-currency"],
+    queryFn: () => detectCurrencyFn(),
+    staleTime: 60 * 60 * 1000,
+  });
+  // Keep the owner preview, but real visitors always see their server-detected
+  // country and checkout-safe currency.
+  const [previewRegion, setPreviewRegion] = useState<PaystackCurrency>("NGN");
+  const previewing = isAdmin && previewRegion !== geo?.currency;
+  const region: PaystackCurrency = previewing ? previewRegion : ((geo?.currency ?? "USD") as PaystackCurrency);
+  const pricingCountry = previewing ? PREVIEW_COUNTRY_BY_CURRENCY[previewRegion] : geo?.country ?? null;
+  const localPrice = (amountUsdMinor: number) => computePaystackPrice(amountUsdMinor, pricingCountry);
+  const proPriceLabel = `${formatLocalPrice(localPrice(SUBSCRIPTION_TIERS.pro.price_amount_minor))} / month`;
+  const hasLocalPricing = !previewing && (geo?.pppMultiplier ?? 1) < 1;
 
   const search = Route.useSearch() as Record<string, string>;
 
@@ -307,7 +324,7 @@ function BillingPage() {
                 <h3 className="text-sm font-semibold">Owner preview — view pricing as</h3>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {(Object.keys(REGIONS) as Currency[]).map((c) => (
+                {(Object.keys(REGIONS) as PaystackCurrency[]).map((c) => (
                   <button
                     key={c}
                     type="button"
@@ -324,8 +341,8 @@ function BillingPage() {
               </div>
               <p className="text-[11px] text-muted-foreground mt-2.5 leading-relaxed">
                 {previewing
-                  ? `Previewing the ${REGIONS[region].name} (${region}) price table. These regional prices are defined but NOT live — every real checkout charges NGN today. Buy buttons are disabled while previewing.`
-                  : "Only you can see this. Nigeria (NGN) is what every visitor sees today — the Paystack merchant account only accepts NGN, so other regional prices are display-only until multi-currency is approved."}
+                  ? `Previewing the ${REGIONS[region].name} (${region}) price table. Buy buttons are disabled while previewing. Real visitors receive server-detected local pricing.`
+                  : "Only you can see this. Real visitors receive server-detected currency and PPP pricing."}
               </p>
             </div>
           </section>
@@ -345,6 +362,11 @@ function BillingPage() {
                       <span className="text-xs px-2.5 py-0.5 rounded-full bg-primary/20 text-primary font-bold border border-primary/30">{proPriceLabel}</span>
                     </div>
                     <p className="text-sm text-muted-foreground">2,000 Aura every month + no watermarks + priority queue + Growth Tools.</p>
+                    {hasLocalPricing && (
+                      <span className="mt-2 inline-flex rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-300">
+                        Local pricing applied
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -374,13 +396,6 @@ function BillingPage() {
             </div>
           </section>
         )}
-
-        {/* ── All plans comparison ── */}
-        <SubscriptionPlans
-          currentPlanId={isPro ? "pro" : "free"}
-          onUpgrade={() => proMut.mutate()}
-          onUpgradePending={proMut.isPending || previewing}
-        />
 
         {/* ── Top up Aura ── */}
         <section>
@@ -440,11 +455,16 @@ function BillingPage() {
                       <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{PLAN_CONTEXT[key].bestFor}</span>
                     </div>
                     <div className="flex items-end gap-2">
-                      <div className="text-3xl font-black">{region === "USD" ? `$${p.usd}` : p.prices[region].display}</div>
+                      <div className="text-3xl font-black">
+                        {formatLocalPrice(localPrice(Math.round(p.usd * 100)))}
+                      </div>
                       <span className="pb-1 text-sm font-semibold text-primary">{p.credits.toLocaleString()} Aura</span>
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      {region === "USD" ? `$${(p.usd / p.credits).toFixed(4)} / Aura` : perCreditDisplay(key, region)}
+                      {formatLocalPrice({
+                        ...localPrice(Math.round(p.usd * 100)),
+                        amountMinor: Math.round(localPrice(Math.round(p.usd * 100)).amountMinor / p.credits),
+                      })} / Aura
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/8 bg-black/20 p-3 text-xs">
@@ -548,7 +568,9 @@ function BillingPage() {
                         {key === "day1" ? "1-Day Pass" : "2-Day Pass"}
                       </span>
                     </div>
-                    <div className="text-xl font-black">{region === "USD" ? `$${p.usd}` : p.prices[region].display}</div>
+                    <div className="text-xl font-black">
+                      {formatLocalPrice(localPrice(Math.round(p.usd * 100)))}
+                    </div>
                     <p className="text-[13px] font-semibold text-foreground/80 mt-0.5">{p.credits} Aura</p>
                     <p className="text-xs text-muted-foreground mt-1">
                       {(() => {

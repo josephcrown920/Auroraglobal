@@ -55,7 +55,15 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
             plan?: { plan_code?: string };
             next_payment_date?: string;
             email_token?: string;
-            metadata?: { user_id?: string; credits?: number; ref?: string; type?: string };
+            metadata?: {
+              user_id?: string;
+              credits?: number;
+              ref?: string;
+              type?: string;
+              currency?: string;
+              country?: string | null;
+              pppMultiplier?: number;
+            };
           };
         };
 
@@ -109,6 +117,7 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
                 reference: ref,
                 status: event.data.status ?? "",
                 amount: event.data.amount,
+                currency: event.data.currency,
                 metadata: event.data.metadata,
               },
             });
