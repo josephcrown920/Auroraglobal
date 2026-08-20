@@ -27,6 +27,23 @@ export const Route = createLazyFileRoute("/scene-builder")({
 
 const SLOT_COUNT = SLOT_LABELS.length;
 
+type SceneSnapshot = {
+  referenceUrls: string[];
+  compositorPrompt: string;
+};
+
+type AngleTask = {
+  label: string;
+  cameraPrompt: string;
+  chipId?: string;
+};
+
+type AngleJob = {
+  generationId: string;
+  label: string;
+  chipId?: string;
+};
+
 // Convert a relative URL (e.g. watermark proxy "/api/public/...") to an
 // absolute HTTPS URL so motion.tsx validateSearch (which requires ^https://)
 // accepts it when an angle card links to /motion.
@@ -78,12 +95,13 @@ function SceneBuilderPage() {
 
   // Base scene result
   const [baseResult, setBaseResult] = useState<{ url: string; generationId: string } | null>(null);
+  const [sceneSnapshot, setSceneSnapshot] = useState<SceneSnapshot | null>(null);
 
   // Re-angle state
   const [selectedChips, setSelectedChips] = useState<Set<string>>(new Set());
   const [freeformAngle, setFreeformAngle] = useState("");
   // Each enqueued angle is tracked by its generation ID so we can poll for results.
-  const [angleJobs, setAngleJobs] = useState<{ generationId: string; label: string }[]>([]);
+  const [angleJobs, setAngleJobs] = useState<AngleJob[]>([]);
 
   const baseFn = useServerFn(generateBaseScene);
   const enqueueFn = useServerFn(generatePerformanceShot);
@@ -137,72 +155,128 @@ function SceneBuilderPage() {
   const filledSlots = slots.filter(Boolean).length;
 
   const baseMut = useMutation({
-    mutationFn: () =>
-      baseFn({
-        data: {
-          referenceUrls: slots.filter((s): s is string => !!s),
-          compositorPrompt,
-        },
-      }),
-    onSuccess: (res) => {
+    mutationFn: async () => {
+      const snapshot: SceneSnapshot = {
+        referenceUrls: slots.filter((s): s is string => !!s),
+        compositorPrompt,
+      };
+      const result = await baseFn({ data: snapshot });
+      return { result, snapshot };
+    },
+    onSuccess: ({ result: res, snapshot }) => {
       if (!res.ok) { toast.error(res.error); return; }
       setBaseResult({ url: res.url, generationId: res.generationId });
+      setSceneSnapshot(snapshot);
+      setAngleJobs([]);
+      setSelectedChips(new Set());
+      setFreeformAngle("");
       toast.success("Base scene ready");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Generation failed"),
   });
 
+  const enqueueAngleTasks = async (tasks: AngleTask[]) => {
+    if (!baseResult || !sceneSnapshot) {
+      throw new Error("Generate a base scene before adding angles");
+    }
+
+    // Enqueue-only: one reserveGenerationJob call per angle (same path as
+    // /colors bulk modes). Jobs survive tab navigation; results appear in the
+    // Gallery once the tick worker renders them.
+    const results = await Promise.allSettled(
+      tasks.map((task) =>
+        enqueueFn({
+          data: {
+            // Use the prompt captured for the successful base scene, rather
+            // than any fields the user may have edited afterward.
+            prompt: `[Scene Builder / ${task.label}]\n\n${sceneSnapshot.compositorPrompt}\n\n${buildReAnglePrompt(task.cameraPrompt)}`,
+            imageUrls: [baseResult.url, ...sceneSnapshot.referenceUrls].slice(0, 6),
+            motionVideoUrl: null,
+            model: "google/gemini-3.1-flash-image-preview",
+          },
+        }),
+      ),
+    );
+
+    // Pair each settled result with its task label/chip so cards and the
+    // missing-angle list stay aligned even when one enqueue fails.
+    const enqueued: AngleJob[] = [];
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      if (result.status === "fulfilled") {
+        enqueued.push({
+          generationId: result.value.generationId,
+          label: tasks[i].label,
+          chipId: tasks[i].chipId,
+        });
+      }
+    }
+    if (enqueued.length === 0) {
+      const first = results.find((result) => result.status === "rejected") as PromiseRejectedResult;
+      throw first?.reason instanceof Error ? first.reason : new Error("Could not queue angles");
+    }
+    return { enqueued, total: tasks.length };
+  };
+
+  const addQueuedAngles = ({
+    enqueued,
+    total,
+  }: {
+    enqueued: AngleJob[];
+    total: number;
+  }) => {
+    setAngleJobs((prev) => [...prev, ...enqueued]);
+    if (enqueued.length < total) {
+      toast.warning(`${enqueued.length}/${total} angles queued — the rest failed`);
+    } else {
+      toast.success(
+        `${enqueued.length} angle${enqueued.length > 1 ? "s" : ""} queued — rendering in the background`,
+      );
+    }
+    setSelectedChips(new Set());
+    setFreeformAngle("");
+  };
+
   const angleMut = useMutation({
     mutationFn: async () => {
-      // Collect all angles to enqueue
-      const tasks = [
-        ...Array.from(selectedChips).map((chipId) => {
-          const chip = RE_ANGLE_CHIPS.find((c) => c.id === chipId)!;
-          return { label: chip.label, cameraPrompt: chip.cameraPrompt };
+      const tasks: AngleTask[] = [
+        ...Array.from(selectedChips).flatMap((chipId) => {
+          const chip = RE_ANGLE_CHIPS.find((candidate) => candidate.id === chipId);
+          return chip
+            ? [{ label: chip.label, cameraPrompt: chip.cameraPrompt, chipId: chip.id }]
+            : [];
         }),
         ...(freeformAngle.trim()
           ? [{ label: "Custom Angle", cameraPrompt: freeformAngle.trim() }]
           : []),
       ];
-
-      // Enqueue-only: one reserveGenerationJob call per angle (same path as
-      // /colors bulk modes). Jobs survive tab navigation; results appear in
-      // the Gallery once the tick worker renders them.
-      const results = await Promise.allSettled(
-        tasks.map((t) =>
-          enqueueFn({
-            data: {
-              prompt: `[Scene Builder / ${t.label}]\n\n${buildReAnglePrompt(t.cameraPrompt)}`,
-              imageUrls: [baseResult!.url],
-              motionVideoUrl: null,
-              model: "google/gemini-3.1-flash-image-preview",
-            },
-          }),
-        ),
-      );
-
-      // Pair each settled result with its task label to track gen IDs for polling.
-      const enqueued: { generationId: string; label: string }[] = [];
-      for (let i = 0; i < results.length; i++) {
-        const r = results[i];
-        if (r.status === "fulfilled") {
-          enqueued.push({ generationId: r.value.generationId, label: tasks[i].label });
-        }
-      }
-      if (enqueued.length === 0) {
-        const first = results.find((r) => r.status === "rejected") as PromiseRejectedResult;
-        throw first?.reason instanceof Error ? first.reason : new Error("Could not queue angles");
-      }
-      return { enqueued, total: tasks.length };
+      return enqueueAngleTasks(tasks);
     },
     onSuccess: ({ enqueued, total }) => {
-      setAngleJobs((prev) => [...prev, ...enqueued]);
-      if (enqueued.length < total) toast.warning(`${enqueued.length}/${total} angles queued — the rest failed`);
-      else toast.success(`${enqueued.length} angle${enqueued.length > 1 ? "s" : ""} queued — rendering in the background`);
-      setSelectedChips(new Set());
-      setFreeformAngle("");
+      addQueuedAngles({ enqueued, total });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Re-angle failed"),
+  });
+
+  const generatedChipIds = new Set(
+    angleJobs.flatMap((job) => (job.chipId ? [job.chipId] : [])),
+  );
+  const remainingAngles = RE_ANGLE_CHIPS.filter((chip) => !generatedChipIds.has(chip.id));
+
+  const moreAnglesMut = useMutation({
+    mutationFn: () =>
+      enqueueAngleTasks(
+        remainingAngles.map((chip) => ({
+          chipId: chip.id,
+          label: chip.label,
+          cameraPrompt: chip.cameraPrompt,
+        })),
+      ),
+    onSuccess: ({ enqueued, total }) => {
+      addQueuedAngles({ enqueued, total });
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Could not generate more angles"),
   });
 
   const handleFileUpload = async (file: File, slotIdx: number) => {
@@ -236,6 +310,7 @@ function SceneBuilderPage() {
 
   const anglesOrFreeform = selectedChips.size > 0 || freeformAngle.trim().length > 0;
   const angleCount = selectedChips.size + (freeformAngle.trim() ? 1 : 0);
+  const angleMutating = angleMut.isPending || moreAnglesMut.isPending;
 
   return (
     <div className="aurora-page-shell lg:flex lg:flex-row lg:h-[100dvh] lg:overflow-hidden">
@@ -614,6 +689,8 @@ function SceneBuilderPage() {
                 {RE_ANGLE_CHIPS.map((chip) => (
                   <button
                     key={chip.id}
+                    type="button"
+                    disabled={generatedChipIds.has(chip.id) || angleMutating}
                     onClick={() =>
                       setSelectedChips((prev) => {
                         const next = new Set(prev);
@@ -624,12 +701,14 @@ function SceneBuilderPage() {
                     }
                     className={cn(
                       "px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
-                      selectedChips.has(chip.id)
+                      generatedChipIds.has(chip.id)
+                        ? "border-white/10 bg-white/5 text-white/25 cursor-not-allowed"
+                        : selectedChips.has(chip.id)
                         ? "border-primary bg-primary/20 text-primary"
                         : "border-white/20 bg-white/5 text-white/60 hover:border-white/35 hover:text-white/80",
                     )}
                   >
-                    {selectedChips.has(chip.id) && "✓ "}
+                    {generatedChipIds.has(chip.id) ? "✓ " : selectedChips.has(chip.id) ? "✓ " : ""}
                     {chip.label}
                   </button>
                 ))}
@@ -642,6 +721,7 @@ function SceneBuilderPage() {
                 onChange={(e) => setFreeformAngle(e.target.value)}
                 placeholder="Or describe any angle… e.g. bird's-eye looking straight down"
                 maxLength={300}
+                disabled={angleMutating}
                 className="w-full bg-white/8 border border-white/15 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-primary/60 transition-colors"
               />
 
@@ -649,7 +729,7 @@ function SceneBuilderPage() {
                 variant="premium"
                 className="w-full"
                 onClick={() => angleMut.mutate()}
-                disabled={angleMut.isPending || !anglesOrFreeform}
+                disabled={angleMutating || !anglesOrFreeform}
               >
                 {angleMut.isPending ? (
                   <>
@@ -725,6 +805,55 @@ function SceneBuilderPage() {
                     ))}
                   </div>
                 </div>
+              )}
+
+              {angleJobs.length > 0 && remainingAngles.length > 0 && (
+                <section className="rounded-2xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+                  <div>
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-primary/80">
+                        More angles
+                      </p>
+                      <span className="text-[10px] text-white/35">
+                        {remainingAngles.length} remaining
+                      </span>
+                    </div>
+                    <p className="text-xs text-white/45 leading-relaxed mt-1">
+                      Keep the same scene and generate every camera angle you have not tried yet.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {remainingAngles.map((chip) => (
+                      <span
+                        key={chip.id}
+                        className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[10px] font-medium text-white/60"
+                      >
+                        {chip.label}
+                      </span>
+                    ))}
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="glass"
+                    className="w-full"
+                    onClick={() => moreAnglesMut.mutate()}
+                    disabled={angleMutating}
+                  >
+                    {moreAnglesMut.isPending ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                        Queuing remaining angles…
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Generate Remaining Angles — {remainingAngles.length * SCENE_BUILDER_COST_REANGLE} Aura
+                      </>
+                    )}
+                  </Button>
+                </section>
               )}
             </section>
           )}
