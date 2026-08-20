@@ -201,9 +201,15 @@ export default defineConfig({
       allowedHosts: true,
       // The bun install cache (~86k files) lives inside the workspace at
       // .cache/. Vite's chokidar watcher tries to watch it recursively and
-      // exhausts file descriptors (EMFILE), which can crash startup. Exclude it.
+      // exhausts file descriptors (EMFILE), which can crash startup. Artifact
+      // dependency/output trees are likewise independent apps and must not
+      // consume the web preview's shared watcher budget.
       watch: {
-        ignored: ["**/.cache/**"],
+        ignored: [
+          "**/.cache/**",
+          "**/artifacts/**/node_modules/**",
+          "**/artifacts/**/store-assets/**",
+        ],
       },
       // Pre-transform the hottest files during server startup instead of
       // waiting for the first request to trigger lazy compilation.
