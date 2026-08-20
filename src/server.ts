@@ -18,6 +18,20 @@ const serverEntry: ServerEntry = {
   fetch: (request) => serverFetch(request),
 };
 
+function startupHealthResponse(request: Request): Response | null {
+  if (request.method !== "GET" || new URL(request.url).pathname !== "/health") {
+    return null;
+  }
+
+  return new Response('{"ok":true}', {
+    status: 200,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+    },
+  });
+}
+
 function brandedErrorResponse(): Response {
   return new Response(renderErrorPage(), {
     status: 500,
@@ -70,6 +84,11 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    const healthResponse = startupHealthResponse(request);
+    if (healthResponse) {
+      return healthResponse;
+    }
+
     try {
       const response = await serverEntry.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
