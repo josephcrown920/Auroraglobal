@@ -3,13 +3,13 @@ import { createFileRoute } from "@tanstack/react-router";
 export const Route = createFileRoute("/director-room")({
   head: () => ({
     meta: [
-      { title: "Director Room — Storyboard and Render · Aurora" },
+      { title: "Director's Room — Storyboard and Render · Aurora" },
       {
         name: "description",
         content:
-          "Aurora Director Room: collaborate with an AI director, build a shot board, generate frames, and queue video renders.",
+          "Aurora Director's Room: collaborate with an AI director, build a shot board, generate frames, and queue video renders.",
       },
-      { property: "og:title", content: "Aurora Director Room" },
+      { property: "og:title", content: "Aurora Director's Room" },
       {
         property: "og:description",
         content: "Storyboard, cast, generate, and render your cinematic music video in one room.",

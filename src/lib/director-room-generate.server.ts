@@ -60,7 +60,7 @@ export async function handleDirectorRoomImageRequest(
   const d = deps ?? (await productionDeps());
   const auth = request.headers.get("authorization") || request.headers.get("Authorization");
   if (!auth?.startsWith("Bearer ")) {
-    return json({ error: "Sign in to generate Director Room images." }, 401);
+    return json({ error: "Sign in to generate Director's Room images." }, 401);
   }
 
   const userId = await d.getUserId(auth.slice(7));

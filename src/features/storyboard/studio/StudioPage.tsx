@@ -84,7 +84,7 @@ export function StudioPage() {
       <header className="border-b border-border/60 px-4 py-2.5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <Link to="/" className="text-xs uppercase tracking-[0.2em] text-accent shrink-0">
-            Director Room
+            Director's Room
           </Link>
           <input
             value={board.title}

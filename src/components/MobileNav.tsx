@@ -56,7 +56,7 @@ const CORE_FEATURES: Feature[] = [
   { to: "/motion",        label: "Perform Anywhere",   icon: Wand2,        previewImg: "/nav-previews/perform-anywhere.jpg", starred: true },
   { to: "/colors",        label: "Colors Studio",      icon: Palette,      previewImg: "/nav-previews/colors.jpg",          starred: true },
   { to: "/lipsync",       label: "Lip Sync",           icon: Mic,          previewImg: "/nav-previews/lipsync.jpg",         starred: true },
-  { to: "/director-room", label: "Director Room",       icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg",     starred: true, badge: "$20k Look" },
+  { to: "/director-room", label: "Director's Room",     icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg",     starred: true, badge: "$20k Look" },
 ];
 
 // ── Studio — image & scene tools ──────────────────────────────────────────

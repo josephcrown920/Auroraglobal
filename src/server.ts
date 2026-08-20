@@ -1,7 +1,6 @@
 import "./lib/error-capture";
 
-import { defaultStreamHandler } from "../node_modules/@tanstack/react-start-server/dist/esm/defaultStreamHandler.js";
-import { createStartHandler } from "../node_modules/@tanstack/start-server-core/dist/esm/createStartHandler.js";
+import { defaultStreamHandler, createStartHandler } from "@tanstack/react-start/server";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { reportServerException } from "./lib/sentry.server";

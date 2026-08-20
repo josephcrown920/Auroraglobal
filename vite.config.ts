@@ -10,6 +10,12 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { cartographer } from "@replit/vite-plugin-cartographer";
 
+// TanStack's server packages must be external only in the Nitro production
+// bundle. Applying that rule to `vite dev` makes Node resolve the package
+// directly, which bypasses Vite's virtual router-entry module and breaks
+// server-function RPCs at runtime.
+const isProductionBuild = process.argv.includes("build");
+
 // Replit's Visual Edits tool reads per-element source-location metadata that
 // @replit/vite-plugin-cartographer injects at transform time. It is passed
 // through the Lovable config's supported `plugins` escape hatch (NOT added as a
@@ -152,9 +158,13 @@ export default defineConfig({
       // its export-star chain through Nitro can emit createRequestHandler as
       // an unbound identifier in the production SSR chunk.
       external: [
-        "@tanstack/react-start/server",
-        "@tanstack/react-start-server",
-        "@tanstack/start-server-core",
+        ...(isProductionBuild
+          ? [
+              "@tanstack/react-start/server",
+              "@tanstack/react-start-server",
+              "@tanstack/start-server-core",
+            ]
+          : []),
       ],
     },
     optimizeDeps: {

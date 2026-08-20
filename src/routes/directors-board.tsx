@@ -7,13 +7,13 @@ export const Route = createFileRoute("/directors-board")({
   },
   head: () => ({
     meta: [
-      { title: "Director Room — Storyboard Canvas · Aurora" },
+      { title: "Director's Room — Storyboard Canvas · Aurora" },
       {
         name: "description",
         content:
           "Chain shot nodes, generate AI frames, direct your music video storyboard, and export your board as a ZIP.",
       },
-      { property: "og:title", content: "Director Room · Aurora" },
+      { property: "og:title", content: "Director's Room · Aurora" },
       {
         property: "og:description",
         content:

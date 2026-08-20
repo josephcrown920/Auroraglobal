@@ -30,7 +30,7 @@ export async function streamImage(
   }
 
   if (!accessToken) {
-    throw new Error("Sign in to generate Director Room images.");
+    throw new Error("Sign in to generate Director's Room images.");
   }
 
   const res = await fetch(endpoint, {
