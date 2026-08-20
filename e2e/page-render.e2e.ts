@@ -43,6 +43,15 @@ const STUDIO_NAV_ROUTES = [
   "/puremix",
 ];
 
+const DIRECTOR_ROOM_PANELS = [
+  { hash: "wardrobe", heading: "Keep your cast consistent across frames", rail: "Wardrobe" },
+  { hash: "scenes", heading: "Block each moment", rail: "Scenes" },
+  { hash: "layers", heading: "Build the shot stack", rail: "Layers" },
+  { hash: "storyboard", heading: "Turn the plan into a cut", rail: "Storyboard" },
+  { hash: "moodboard", heading: "The visual language of this shoot", rail: "Moodboard" },
+  { hash: "flows", heading: "Map the production flow", rail: "Flows" },
+] as const;
+
 const CONTENT_NAV_ROUTES = [
   "/ugc",
   "/ugc-line",
@@ -192,6 +201,48 @@ test.describe("Page rendering", () => {
     test.setTimeout(180_000);
     await signInWithPassword(page, testEmail, TEST_PASSWORD);
     await verifyRoutesRender(page, STUDIO_NAV_ROUTES, true);
+  });
+
+  test("Director’s Room deep links and rail selections stay in sync", async ({ page }) => {
+    test.setTimeout(120_000);
+    await signInWithPassword(page, testEmail, TEST_PASSWORD);
+
+    for (const panel of DIRECTOR_ROOM_PANELS) {
+      await page.goto(`/director-room#${panel.hash}`, { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { name: panel.heading, exact: true })).toBeVisible({
+        timeout: 20_000,
+      });
+      await expect(page.getByRole("button", { name: panel.rail, exact: true })).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+      await expect(page.getByText("Something went wrong")).toHaveCount(0);
+    }
+
+    for (const panel of DIRECTOR_ROOM_PANELS) {
+      await page.goto("/director-room#scenes", { waitUntil: "domcontentloaded" });
+      await page.getByRole("button", { name: panel.rail, exact: true }).click();
+      await expect(page).toHaveURL(new RegExp(`/director-room#${panel.hash}$`));
+      await expect(page.getByRole("heading", { name: panel.heading, exact: true })).toBeVisible();
+    }
+  });
+
+  test("Director’s Room GPU workspace stays reachable from each planning panel", async ({ page }) => {
+    test.setTimeout(120_000);
+    await signInWithPassword(page, testEmail, TEST_PASSWORD);
+
+    for (const route of ["/director-room", ...DIRECTOR_ROOM_PANELS.map((panel) => `/director-room#${panel.hash}`)]) {
+      await page.goto(route, { waitUntil: "domcontentloaded" });
+      await page.getByRole("button", { name: "GPU", exact: true }).click();
+      await expect(
+        page.getByRole("heading", { name: "Workers running Seedance 2.5 and LTX", exact: true }),
+      ).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByRole("button", { name: "GPU", exact: true })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      await expect(page.locator('[aria-label="Director’s Room tools"] [aria-current="page"]')).toHaveCount(0);
+    }
   });
 
   test("signed-in Content pages render end to end", async ({ page }) => {

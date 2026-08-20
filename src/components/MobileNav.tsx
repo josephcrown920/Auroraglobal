@@ -42,6 +42,7 @@ type Feature = {
   to: string;
   label: string;
   icon: LucideIcon;
+  href?: string;
   badge?: string;
   previewImg?: string;
   starred?: boolean;
@@ -57,6 +58,25 @@ const CORE_FEATURES: Feature[] = [
   { to: "/colors",        label: "Colors Studio",      icon: Palette,      previewImg: "/nav-previews/colors.jpg",          starred: true },
   { to: "/lipsync",       label: "Lip Sync",           icon: Mic,          previewImg: "/nav-previews/lipsync.jpg",         starred: true },
   { to: "/director-room", label: "Director's Room",     icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg",     starred: true, badge: "$20k Look" },
+];
+
+// Director's Room owns the planning rail. These entries also remain available
+// from the global directory so a creator can enter the exact stage they need.
+const DIRECTOR_ROOM_FEATURES: Feature[] = [
+  { to: "/director-room", href: "/director-room#wardrobe", label: "Wardrobe", icon: Camera },
+  { to: "/director-room", href: "/director-room#scenes", label: "Scenes", icon: Clapperboard },
+  { to: "/director-room", href: "/director-room#layers", label: "Layers", icon: Layers },
+  { to: "/edit", label: "AutoCut", icon: Clapperboard },
+  { to: "/director-room", href: "/director-room#storyboard", label: "Storyboard", icon: LayoutGrid },
+  { to: "/director-room", href: "/director-room#moodboard", label: "Moodboard", icon: Palette },
+  { to: "/canvas", label: "Infinity Canvas", icon: Workflow },
+  { to: "/scene-weaver", label: "Scene Weaver", icon: Sparkles },
+  { to: "/photo-edit", label: "Style Transfer", icon: Brush },
+  { to: "/puremix", label: "Soundweaver", icon: Music2 },
+  { to: "/director-room", href: "/director-room#flows", label: "Flows", icon: Workflow },
+  { to: "/edit", label: "Edits", icon: Brush },
+  { to: "/video-agent", label: "Video Agent Projects", icon: Film },
+  { to: "/agent", label: "Aurora AI Director", icon: Sparkles },
 ];
 
 // ── Studio — image & scene tools ──────────────────────────────────────────
@@ -151,18 +171,14 @@ function NavSection({ label, children }: { label: string; children: React.ReactN
 }
 
 function LiveNavItem({ f, active, onClick, hiddenBadge }: { f: Feature; active: boolean; onClick: () => void; hiddenBadge?: boolean }) {
-  return (
-    <Link
-      to={f.to}
-      onClick={onClick}
-      aria-current={active ? "page" : undefined}
-      className={cn(
-        "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm no-underline transition-all duration-150",
-        active
-          ? "bg-[image:var(--gradient-hero)] text-white shadow-[var(--shadow-glow-soft)]"
-          : "text-muted-foreground hover:bg-accent/40 hover:text-foreground",
-      )}
-    >
+  const className = cn(
+    "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm no-underline transition-all duration-150",
+    active
+      ? "bg-[image:var(--gradient-hero)] text-white shadow-[var(--shadow-glow-soft)]"
+      : "text-muted-foreground hover:bg-accent/40 hover:text-foreground",
+  );
+  const content = (
+    <>
       <span
         className={cn(
           "flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors",
@@ -188,7 +204,6 @@ function LiveNavItem({ f, active, onClick, hiddenBadge }: { f: Feature; active: 
         <HiddenBadge show={!!hiddenBadge} />
       </span>
 
-      {/* Preview thumbnail — only for features with a previewImg */}
       {f.previewImg && (
         <span
           className="shrink-0 overflow-hidden rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200"
@@ -202,6 +217,25 @@ function LiveNavItem({ f, active, onClick, hiddenBadge }: { f: Feature; active: 
           />
         </span>
       )}
+    </>
+  );
+
+  if (f.href) {
+    return (
+      <a href={f.href} onClick={onClick} aria-current={active ? "page" : undefined} className={className}>
+        {content}
+      </a>
+    );
+  }
+
+  return (
+    <Link
+      to={f.to}
+      onClick={onClick}
+      aria-current={active ? "page" : undefined}
+      className={className}
+    >
+      {content}
     </Link>
   );
 }
@@ -219,6 +253,8 @@ export function MobileNav() {
   const visible = (items: Feature[]) => items.filter((f) => showFeature(featureKeyForRoute(f.to)));
   const gatedBadge = (f: Feature) => isHiddenFromUsers(featureKeyForRoute(f.to));
   const visibleTabs = TAB_ITEMS.filter((t) => showFeature(featureKeyForRoute(t.to)));
+  const quickAccessTabs = visibleTabs.filter((t) => t.to !== "/spin");
+  const tiktokThirty = visibleTabs.find((t) => t.to === "/spin");
 
   const isCanvas  = isActive(pathname, "/canvas");
   const isLanding = pathname === "/";
@@ -286,11 +322,23 @@ export function MobileNav() {
             ))}
           </NavSection>
 
+          <NavSection label="Director’s Room">
+            {DIRECTOR_ROOM_FEATURES.map((f) => (
+              <LiveNavItem key={`${f.label}-${f.href ?? f.to}`} f={f} active={isActive(pathname, f.to)} onClick={() => {}} />
+            ))}
+          </NavSection>
+
           <NavSection label="Quick Access">
-            {visibleTabs.map((f) => (
+            {quickAccessTabs.map((f) => (
               <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => {}} hiddenBadge={gatedBadge(f)} />
             ))}
           </NavSection>
+
+          {tiktokThirty && (
+            <NavSection label="TikTok30 Premium">
+              <LiveNavItem f={tiktokThirty} active={isActive(pathname, tiktokThirty.to)} onClick={() => {}} hiddenBadge={gatedBadge(tiktokThirty)} />
+            </NavSection>
+          )}
 
           <NavSection label="Studio">
             {STUDIO_FEATURES.map((f) => (
@@ -475,6 +523,12 @@ export function MobileNav() {
             <NavSection label="Start Here">
               {CORE_FEATURES.map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
+              ))}
+            </NavSection>
+
+            <NavSection label="Director’s Room">
+              {DIRECTOR_ROOM_FEATURES.map((f) => (
+                <LiveNavItem key={`${f.label}-${f.href ?? f.to}`} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
             </NavSection>
 

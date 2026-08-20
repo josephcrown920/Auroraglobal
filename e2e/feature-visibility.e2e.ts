@@ -202,7 +202,7 @@ test.afterAll(async () => {
 test.describe("Feature visibility — admin Features panel", () => {
   test.beforeEach(async ({ page }) => {
     // Sign in as admin to get a bearer token, then reset feature state via API
-    // so every test starts from the artist-only defaults (spin = hidden).
+    // so every test starts from the current product defaults (spin = visible).
     await signIn(page, adminEmail);
     const token = await getAccessToken(page);
     if (!token) {
@@ -213,7 +213,7 @@ test.describe("Feature visibility — admin Features panel", () => {
     // Leave admin signed in for the actual test body.
   });
 
-  test("admin sees TikTok30 toggle OFF in the Features panel by default", async ({ page }) => {
+  test("admin sees TikTok30 toggle ON in the Features panel by default", async ({ page }) => {
     await page.goto("/admin");
     await waitForAppHydration(page);
 
@@ -222,15 +222,15 @@ test.describe("Feature visibility — admin Features panel", () => {
     await featuresTab.waitFor({ state: "visible", timeout: 15_000 });
     await featuresTab.click();
 
-    // The TikTok30 (Spin) row should be present with its toggle OFF
+    // The TikTok30 (Spin) row should be present with its toggle ON.
     const spinSwitch = page.getByRole("switch", {
-      name: /TikTok30.*hidden from regular users/i,
+      name: /TikTok30.*visible to regular users/i,
     });
     await spinSwitch.waitFor({ state: "visible", timeout: 10_000 });
-    await expect(spinSwitch).toHaveAttribute("aria-checked", "false");
+    await expect(spinSwitch).toHaveAttribute("aria-checked", "true");
   });
 
-  test("admin flips TikTok30 visible → toast appears, toggle turns ON, refresh event fires", async ({ page }) => {
+  test("admin hides TikTok30 → toast appears, toggle turns OFF, refresh event fires", async ({ page }) => {
     await page.goto("/admin");
     await waitForAppHydration(page);
 
@@ -240,10 +240,10 @@ test.describe("Feature visibility — admin Features panel", () => {
 
     // Wait for the spin row to load (query is async)
     const spinSwitch = page.getByRole("switch", {
-      name: /TikTok30.*hidden from regular users/i,
+      name: /TikTok30.*visible to regular users/i,
     });
     await spinSwitch.waitFor({ state: "visible", timeout: 10_000 });
-    await expect(spinSwitch).toHaveAttribute("aria-checked", "false");
+    await expect(spinSwitch).toHaveAttribute("aria-checked", "true");
 
     // Install a listener BEFORE the flip so we can prove the admin panel
     // dispatches the refresh event (the send side of the live-update contract).
@@ -255,19 +255,19 @@ test.describe("Feature visibility — admin Features panel", () => {
       });
     }, REFRESH_EVENT);
 
-    // Flip it visible
+    // Hide it from regular users.
     await spinSwitch.click();
 
     // Toast should confirm the change
-    await expect(page.getByText(/now visible to regular users/i)).toBeVisible({
+    await expect(page.getByText(/now hidden from regular users/i)).toBeVisible({
       timeout: 8_000,
     });
 
-    // Switch should now reflect aria-checked=true
+    // Switch should now reflect aria-checked=false.
     // The label text changes after the mutation succeeds — use a looser pattern
     await expect(
       page.getByRole("switch", { name: /TikTok30/i }),
-    ).toHaveAttribute("aria-checked", "true", { timeout: 8_000 });
+    ).toHaveAttribute("aria-checked", "false", { timeout: 8_000 });
 
     // The refresh event must have fired at least once (this is what lets an
     // already-mounted landing page update without a reload).
@@ -282,7 +282,7 @@ test.describe("Feature visibility — admin Features panel", () => {
       .toBeGreaterThan(0);
   });
 
-  test("already-mounted landing reveals the TikTok30 section via the refresh event with zero reloads", async ({
+  test("already-mounted landing hides the TikTok30 section via the refresh event with zero reloads", async ({
     page,
   }) => {
     // Capture the admin token first, then become an anonymous visitor —
@@ -295,20 +295,20 @@ test.describe("Feature visibility — admin Features panel", () => {
     await page.goto("/");
     await waitForAppHydration(page);
 
-    // Spin is hidden (beforeEach reset) → ViralEngine must be absent.
+    // Spin is visible by default → ViralEngine must be present.
     // NOTE: "Go viral on TikTok" is NOT unique — HeroContactForm (ungated)
     // renders it too. "See your 50 posts." exists only in ViralEngine.tsx.
     const viralHeading = page.getByText("See your 50 posts.");
-    await expect(viralHeading).toHaveCount(0);
+    await expect(viralHeading).toBeVisible({ timeout: 15_000 });
 
     // Marker proves no document reload happens from here on.
     await page.evaluate(() => {
       (window as unknown as Record<string, unknown>).__noReloadMarker = true;
     });
 
-    // Admin flips spin visible via the API (explicit bearer token, so the
+    // Admin hides spin via the API (explicit bearer token, so the
     // anonymous browser session is irrelevant).
-    await featureVisibilityPost(page, adminToken, { key: "spin", visible: true });
+    await featureVisibilityPost(page, adminToken, { key: "spin", visible: false });
 
     // Fire the same event the admin panel dispatches after a successful
     // mutation. FeatureVisibilityProvider listens for it and refetches.
@@ -316,9 +316,9 @@ test.describe("Feature visibility — admin Features panel", () => {
       window.dispatchEvent(new Event(evt));
     }, REFRESH_EVENT);
 
-    // The lazily-loaded ViralEngine section must appear — no navigation,
+    // The lazily-loaded ViralEngine section must disappear — no navigation,
     // no reload, purely the provider refetch + conditional render.
-    await expect(viralHeading).toBeVisible({ timeout: 15_000 });
+    await expect(viralHeading).toHaveCount(0);
 
     // And the marker must have survived (i.e. genuinely zero reloads).
     expect(
@@ -328,18 +328,17 @@ test.describe("Feature visibility — admin Features panel", () => {
     ).toBe(true);
   });
 
-  test("regular user visiting /spin while hidden is redirected to /studio", async ({ page }) => {
-    // spin is hidden (reset happened in beforeEach)
+  test("regular user can visit /spin by default", async ({ page }) => {
+    // spin is visible after the beforeEach reset.
     await signOut(page);
     await signIn(page, regularEmail);
 
-    // Attempt to load /spin — FeatureGuard should redirect to /studio
     await page.goto("/spin");
-    await page.waitForURL(/\/studio/, { timeout: 15_000 });
-    await expect(page).toHaveURL(/\/studio/);
+    await waitForAppHydration(page);
+    await expect(page).toHaveURL(/\/spin/);
   });
 
-  test("regular user can load /spin after admin makes it visible, then is redirected again after reset", async ({
+  test("admin can hide TikTok30 for regular users, then reset restores it", async ({
     page,
   }) => {
     // Multi-phase test (two sign-ins + three navigations) — needs more headroom
@@ -348,43 +347,36 @@ test.describe("Feature visibility — admin Features panel", () => {
     // would leak into the "regular" tab and /auth would redirect away).
     test.setTimeout(120_000);
 
-    // Step 1: capture the admin bearer token, then flip spin visible via the
+    // Step 1: capture the admin bearer token, then hide spin via the
     // admin API. page.request sends the token explicitly, so these calls keep
     // working even after the browser tab signs out of the admin account.
     // (The browser toggle flow itself is covered by the previous tests.)
     const adminToken = await getAccessToken(page);
     if (!adminToken) throw new Error("could not extract admin access token");
-    await featureVisibilityPost(page, adminToken, { key: "spin", visible: true });
+    await featureVisibilityPost(page, adminToken, { key: "spin", visible: false });
 
-    // Step 2: become the regular user in the same tab and verify /spin loads
+    // Step 2: become the regular user and verify /spin is guarded.
     await signOut(page);
     await signIn(page, regularEmail);
     await page.goto("/spin");
-    await waitForAppHydration(page);
-    await page
-      .getByRole("main")
-      .getByText("TikTok30", { exact: true })
-      .waitFor({ state: "visible", timeout: 20_000 });
+    await page.waitForURL(/\/studio/, { timeout: 15_000 });
 
-    // Should NOT redirect — we must still be on /spin after hydration settles
-    await expect(page).toHaveURL(/\/spin/, { timeout: 15_000 });
-
-    // Step 3: reset to defaults via API (admin token still valid) → hidden again
+    // Step 3: reset to defaults via API (admin token still valid) → visible again.
     await featureVisibilityPost(page, adminToken, { reset: true });
 
-    // Step 4: regular user navigates to /spin again → redirected to /studio
+    // Step 4: regular user can load /spin again.
     await page.goto("/spin");
-    await page.waitForURL(/\/studio/, { timeout: 15_000 });
-    await expect(page).toHaveURL(/\/studio/);
+    await waitForAppHydration(page);
+    await expect(page).toHaveURL(/\/spin/);
   });
 
-  test("admin Reset to defaults button hides TikTok30 again with a confirmation toast", async ({
+  test("admin Reset to defaults button restores TikTok30 with a confirmation toast", async ({
     page,
   }) => {
-    // Make spin visible first (via API) so the reset actually changes state.
+    // Hide spin first (via API) so the reset actually changes state.
     const adminToken = await getAccessToken(page);
     if (!adminToken) throw new Error("could not extract admin access token");
-    await featureVisibilityPost(page, adminToken, { key: "spin", visible: true });
+    await featureVisibilityPost(page, adminToken, { key: "spin", visible: false });
 
     await page.goto("/admin");
     await waitForAppHydration(page);
@@ -393,19 +385,19 @@ test.describe("Feature visibility — admin Features panel", () => {
     await featuresTab.waitFor({ state: "visible", timeout: 15_000 });
     await featuresTab.click();
 
-    // Switch should show ON (visible) after the API flip
+    // Switch should show OFF (hidden) after the API flip.
     const spinSwitch = page.getByRole("switch", { name: /TikTok30/i });
     await spinSwitch.waitFor({ state: "visible", timeout: 10_000 });
-    await expect(spinSwitch).toHaveAttribute("aria-checked", "true");
+    await expect(spinSwitch).toHaveAttribute("aria-checked", "false");
 
-    // Click "Reset to defaults" → toast + switch OFF
+    // Click "Reset to defaults" → toast + switch ON.
     const resetBtn = page.getByRole("button", { name: /reset to defaults/i });
     await resetBtn.waitFor({ state: "visible" });
     await resetBtn.click();
     await expect(
       page.getByText(/reset to artist-only defaults/i),
     ).toBeVisible({ timeout: 8_000 });
-    await expect(spinSwitch).toHaveAttribute("aria-checked", "false", {
+    await expect(spinSwitch).toHaveAttribute("aria-checked", "true", {
       timeout: 8_000,
     });
   });
