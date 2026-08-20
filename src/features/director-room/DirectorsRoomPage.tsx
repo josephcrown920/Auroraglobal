@@ -273,6 +273,42 @@ const EMBEDDED_TOOLS: EmbeddedToolDefinition[] = [
     },
     src: import.meta.env.VITE_AURORA_PRESETS_ENGINE_EMBED_URL?.trim() || undefined,
   },
+  {
+    id: "soul",
+    kind: "soul",
+    category: "Creator consistency",
+    label: "Soul Studio",
+    description:
+      "Train a creator likeness and carry a chosen visual treatment across every short-form clip.",
+    bestFor:
+      "keeping one recognizable face and grade consistent while producing a series of video variations.",
+    envKey: "VITE_AURORA_SOUL_EMBED_URL",
+    media: {
+      type: "image",
+      src: "/screenshots/soul-studio-hero.jpg",
+      alt: "Soul Studio creator consistency visual",
+    },
+    src: import.meta.env.VITE_AURORA_SOUL_EMBED_URL?.trim() || undefined,
+  },
+  {
+    id: "youtube-shorts",
+    kind: "youtube-shorts",
+    category: "Publishing automation",
+    label: "YouTube Shorts",
+    description:
+      "Queue, publish, and monitor short-form video automation from a dedicated production control room.",
+    bestFor:
+      "moving a completed run into a visible upload queue with live automation and publishing status.",
+    envKey: "VITE_AURORA_YOUTUBE_SHORTS_EMBED_URL",
+    media: {
+      type: "image",
+      src: "/screenshots/youtube-shorts-automation.png",
+      alt: "YouTube Shorts automation queue and publishing dashboard",
+    },
+    src:
+      import.meta.env.VITE_AURORA_YOUTUBE_SHORTS_EMBED_URL?.trim() ||
+      undefined,
+  },
 ];
 
 const OVERVIEW_FEATURES: RoomFeature[] = [

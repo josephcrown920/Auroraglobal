@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
-export type AuroraEmbedKind = "layers" | "scene-weaver" | "presets-engine";
+export type AuroraEmbedKind =
+  | "layers"
+  | "scene-weaver"
+  | "presets-engine"
+  | "soul"
+  | "youtube-shorts";
 
 type EmbedMessage = {
   source?: string;
@@ -13,6 +18,8 @@ const SOURCES: Record<AuroraEmbedKind, string> = {
   layers: "aurora-layers",
   "scene-weaver": "aurora-scene-weaver",
   "presets-engine": "aurora-presets-engine",
+  soul: "aurora-soul",
+  "youtube-shorts": "aurora-youtube-shorts",
 };
 
 export type AuroraEmbedProps = {
