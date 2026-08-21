@@ -188,7 +188,7 @@ export function TemplateDrawer({
         setStage("Rendering your ad…");
         await pollGeneration(res.generationId);
         toast.success("Done! Opening your gallery…");
-        navigate({ to: "/gallery" });
+        navigate({ to: "/gallery", search: { highlight: res.generationId } });
         return;
       }
 
@@ -213,6 +213,8 @@ export function TemplateDrawer({
           model: template.imageModel ?? TEMPLATE_DEFAULTS.imageModel,
         },
       });
+      // Highlight the LAST stage's generation in the gallery (lipsync > video > image).
+      let highlightId = img.id;
 
       if (template.kinds.includes("video")) {
         setStage("Bringing it to life…");
@@ -231,10 +233,12 @@ export function TemplateDrawer({
           },
         });
 
+        highlightId = vid.id;
+
         if (template.kinds.includes("lipsync")) {
           if (!audio) throw new Error("Add an audio clip to lip-sync.");
           setStage("Lip-syncing to your audio…");
-          await lipFn({
+          const lip = await lipFn({
             data: {
               videoUrl: vid.videoUrl,
               audioUrl: audio.url,
@@ -244,11 +248,12 @@ export function TemplateDrawer({
                 | "latentsync",
             },
           });
+          highlightId = lip.id;
         }
       }
 
       toast.success("Done! Opening your gallery…");
-      navigate({ to: "/gallery" });
+      navigate({ to: "/gallery", search: { highlight: highlightId } });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Something went wrong";
       setError(msg);

@@ -1,7 +1,7 @@
 import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -32,6 +32,9 @@ function GalleryPage() {
   const [filter, setFilter] = useState<"all" | "favorites" | "images" | "videos" | "hidden">("all");
   const [editing, setEditing] = useState<{ id: string; url: string } | null>(null);
   const [captioning, setCaptioning] = useState<{ id: string; url: string } | null>(null);
+  const { highlight } = Route.useSearch();
+  const [flashId, setFlashId] = useState<string | null>(null);
+  const highlightRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth", search: authNextSearch() });
@@ -43,6 +46,22 @@ function GalleryPage() {
     queryFn: () => listFn({ data: { showHidden } }),
     enabled: !!user,
   });
+
+  // When arriving with ?highlight=<generationId> (e.g. right after a template
+  // render), scroll the matching card into view and flash it briefly.
+  useEffect(() => {
+    if (!highlight || !data) return;
+    if (!data.items.some((g) => g.id === highlight)) return;
+    setFlashId(highlight);
+    const raf = requestAnimationFrame(() => {
+      highlightRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    const t = setTimeout(() => setFlashId(null), 4000);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t);
+    };
+  }, [highlight, data]);
 
   const favMut = useMutation({
     mutationFn: async (v: { id: string; favorite: boolean }) => favFn({ data: v }),
@@ -189,7 +208,8 @@ function GalleryPage() {
             return (
               <div
                 key={g.id}
-                className={`group relative rounded-xl overflow-hidden transition-all ${selectMode ? "cursor-pointer" : ""} ${selectedIds.has(g.id) ? "ring-2 ring-primary/60" : ""}`}
+                ref={g.id === highlight ? highlightRef : undefined}
+                className={`group relative rounded-xl overflow-hidden transition-all ${selectMode ? "cursor-pointer" : ""} ${selectedIds.has(g.id) ? "ring-2 ring-primary/60" : ""} ${flashId === g.id ? "ring-2 ring-primary shadow-[var(--shadow-glow-soft)] animate-pulse" : ""}`}
                 style={{ background: "oklch(0.10 0.012 272)", border: `1px solid ${selectedIds.has(g.id) ? "oklch(0.58 0.22 295)" : "oklch(1 0 0 / 0.06)"}` }}
                 onClick={selectMode ? () => toggleSelect(g.id) : undefined}
               >

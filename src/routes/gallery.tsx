@@ -1,6 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/gallery")({
+  // All-optional return annotation keeps plain <Link to="/gallery"> usages valid.
+  validateSearch: (search: Record<string, unknown>): { highlight?: string } => ({
+    highlight:
+      typeof search.highlight === "string" && search.highlight.length > 0
+        ? search.highlight
+        : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Gallery — Aurora" },
