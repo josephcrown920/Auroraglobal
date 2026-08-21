@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowUpRight } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { track } from "@/lib/tracking";
 
@@ -28,24 +28,14 @@ const CREATE_LABEL: Record<PhotoStripItem["createTo"], string> = {
   "/colors": "Create something like this in Colors",
 };
 
-function StripPhoto({
-  item,
-  onOpen,
-  decorative = false,
-}: {
-  item: PhotoStripItem;
-  onOpen: (item: PhotoStripItem) => void;
-  /** Marquee clone copy: still clickable, but hidden from AT and tab order. */
-  decorative?: boolean;
-}) {
+type OpenFn = (item: PhotoStripItem, opener: HTMLElement) => void;
+
+const CARD_CLASS =
+  "group relative h-52 shrink-0 cursor-pointer overflow-hidden rounded-xl ring-1 ring-white/5";
+
+function StripPhotoVisual({ item, decorative }: { item: PhotoStripItem; decorative?: boolean }) {
   return (
-    <button
-      type="button"
-      onClick={() => onOpen(item)}
-      tabIndex={decorative ? -1 : 0}
-      aria-label={decorative ? undefined : `View full image: ${item.alt}`}
-      className="group relative h-52 shrink-0 cursor-pointer overflow-hidden rounded-xl ring-1 ring-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b5cf6]"
-    >
+    <>
       <img
         src={item.src}
         alt={decorative ? "" : item.alt}
@@ -58,11 +48,37 @@ function StripPhoto({
           Tap to view <ArrowUpRight className="size-2.5" />
         </span>
       </div>
+    </>
+  );
+}
+
+function StripPhoto({ item, onOpen }: { item: PhotoStripItem; onOpen: OpenFn }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => onOpen(item, e.currentTarget)}
+      aria-label={`View full image: ${item.alt}`}
+      className={`${CARD_CLASS} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b5cf6]`}
+    >
+      <StripPhotoVisual item={item} />
     </button>
   );
 }
 
-function StripRow({ row, onOpen }: { row: PhotoStripRow; onOpen: (item: PhotoStripItem) => void }) {
+/**
+ * Marquee clone card: exists only so the CSS loop is seamless. It stays
+ * pointer-clickable but is a plain div — no focusable control may live
+ * inside the aria-hidden clone subtree.
+ */
+function StripPhotoClone({ item, onOpen }: { item: PhotoStripItem; onOpen: OpenFn }) {
+  return (
+    <div onClick={(e) => onOpen(item, e.currentTarget)} className={CARD_CLASS}>
+      <StripPhotoVisual item={item} decorative />
+    </div>
+  );
+}
+
+function StripRow({ row, onOpen }: { row: PhotoStripRow; onOpen: OpenFn }) {
   const animName = row.direction === "left" ? "gallery-scroll-left" : "gallery-scroll-right";
   const setPlayState = (e: React.SyntheticEvent<HTMLDivElement>, state: "paused" | "running") => {
     e.currentTarget.style.animationPlayState = state;
@@ -92,7 +108,7 @@ function StripRow({ row, onOpen }: { row: PhotoStripRow; onOpen: (item: PhotoStr
             screen readers and the tab order see each output exactly once. */}
         <div aria-hidden="true" className="contents">
           {row.items.map((item, i) => (
-            <StripPhoto key={`clone-${i}`} item={item} onOpen={onOpen} decorative />
+            <StripPhotoClone key={`clone-${i}`} item={item} onOpen={onOpen} />
           ))}
         </div>
       </div>
@@ -104,13 +120,16 @@ function StripRow({ row, onOpen }: { row: PhotoStripRow; onOpen: (item: PhotoStr
  * The landing "output gallery" strip: two auto-scrolling marquee rows of real
  * generations. Every card is tappable — it opens a lightbox with the full
  * image and a "Create something like this" deep link into the right tool.
- * The lightbox is a Radix dialog, so focus trapping, Esc-to-close, scroll
- * locking, and focus restoration to the tapped card all come built in.
+ * The lightbox is a Radix dialog (focus trap, Esc-to-close, scroll lock);
+ * because it is state-controlled with no Radix trigger, focus restoration to
+ * the tapped card is done explicitly via onCloseAutoFocus.
  */
 export function PhotoStrip({ rows }: { rows: PhotoStripRow[] }) {
   const [active, setActive] = useState<PhotoStripItem | null>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
 
-  const open = (item: PhotoStripItem) => {
+  const open: OpenFn = (item, opener) => {
+    openerRef.current = opener;
     setActive(item);
     void track("landing_photo_lightbox_open", { src: item.src });
   };
@@ -123,6 +142,13 @@ export function PhotoStrip({ rows }: { rows: PhotoStripRow[] }) {
       <Dialog open={active !== null} onOpenChange={(o) => { if (!o) setActive(null); }}>
         <DialogContent
           aria-describedby={undefined}
+          onCloseAutoFocus={(e) => {
+            // No Radix trigger exists (state-controlled dialog), so restore
+            // focus to the tapped card ourselves. Clone cards are plain divs;
+            // focus() is a harmless no-op there (pointer interaction anyway).
+            e.preventDefault();
+            openerRef.current?.focus();
+          }}
           className="w-[calc(100vw-2rem)] max-w-3xl border-white/10 bg-zinc-950/95 p-4 backdrop-blur-sm sm:rounded-2xl"
         >
           {active && (
