@@ -7,7 +7,7 @@ const DEMO_CLIPS = [
     id: "new-single-reel",
     label: "New Single Announcement Reel",
     src: "/videos/landing-demo-reel.mp4",
-    poster: "/videos/landing-demo-reel-poster.jpg",
+    poster: "/videos/landing-demo-reel-poster.w720.webp",
   },
 ];
 

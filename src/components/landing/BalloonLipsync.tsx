@@ -231,7 +231,7 @@ export function BalloonLipsync() {
           muted
           playsInline
           preload="metadata"
-          poster="/videos/landing-demo-reel-poster.jpg"
+          poster="/videos/landing-demo-reel-poster.w720.webp"
           className="absolute inset-0 w-full h-full object-cover"
         />
 

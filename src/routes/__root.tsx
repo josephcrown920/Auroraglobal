@@ -16,6 +16,7 @@ import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import { CANONICAL_ORIGIN } from "@/lib/seo";
 import { Toaster } from "@/components/ui/sonner";
 import { usePageViewTracking } from "@/hooks/use-tracking";
+import { useAuth, hasStoredSession } from "@/hooks/use-auth";
 import { AuroraChatbot } from "@/components/AuroraChatbot";
 import { AdminHotkey } from "@/components/AdminHotkey";
 import { SiteImagesProvider } from "@/components/landing/SiteImagesProvider";
@@ -23,7 +24,7 @@ import { SiteCopyProvider } from "@/components/landing/SiteCopyProvider";
 import { FeatureVisibilityProvider } from "@/components/FeatureVisibilityProvider";
 import { MobileNav } from "@/components/MobileNav";
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { captureRefFromUrl } from "@/lib/referral";
 import { ReferralAttacher } from "@/components/ReferralAttacher";
 import { DesignSkinApplier } from "@/components/DesignSkinApplier";
@@ -272,6 +273,17 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const { user, loading: authLoading } = useAuth();
+  // Optimistic chrome for returning users: a stored Supabase token means this
+  // is almost certainly a signed-in creator whose session is still being
+  // verified over the network. Starting at false keeps the first client paint
+  // identical to SSR (no hydration mismatch); the effect flips it one frame
+  // after hydration, so the sidebar appears immediately instead of after the
+  // getSession() round-trip.
+  const [hasStoredAuth, setHasStoredAuth] = useState(false);
+  useEffect(() => {
+    setHasStoredAuth(hasStoredSession());
+  }, []);
   usePageViewTracking();
   useEffect(() => { captureRefFromUrl(); initCrashReporting(); }, []);
   useEffect(() => {
@@ -315,7 +327,14 @@ function RootComponent() {
   // (h-dvh stage + timeline + tool dock), so the tab bar and chat bubble
   // would overlap its dock — hide them there, like on the video agent.
   const isFullScreenEditor = pathname === "/edit";
-  const hasPersistentNavigation = !isVideoAgent && !isFullScreenEditor;
+  // The persistent sidebar / tab-bar chrome is app navigation for signed-in
+  // creators only. Logged-out visitors (landing, public pages) get each page's
+  // own nav — never the studio sidebar. While the session is still resolving,
+  // a stored token renders the chrome optimistically so returning users never
+  // see the app shell pop in after a network round-trip; once loading settles,
+  // the verified user is authoritative (an invalid stored token drops it).
+  const hasPersistentNavigation =
+    !isVideoAgent && !isFullScreenEditor && (!!user || (authLoading && hasStoredAuth));
 
   if (isIsolated) {
     // NexusARB stays a self-contained, full-bleed page: no phone frame, no

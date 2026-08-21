@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import { ArrowRight, Flame, Sparkles } from "lucide-react";
 import { buildFallbackSpecs, type SpinSpec } from "@/lib/spin-engine";
+import { ResponsiveImage } from "@/components/ui/responsive-image";
 
 const HOOK_CHIPS = [
   { label: "New single out now", topic: "my new single just dropped" },
@@ -122,8 +123,9 @@ export function ViralEngine() {
 
           {/* Real output showcase */}
           <div className="mt-6 rounded-2xl overflow-hidden ring-1 ring-white/10 relative">
-            <img
+            <ResponsiveImage
               src="/spin-demo.jpg"
+              sizes="(min-width: 900px) 560px, 100vw"
               alt="9 campaign shots generated from one studio session"
               className="w-full object-cover"
               loading="lazy"

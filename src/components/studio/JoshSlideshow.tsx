@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ResponsiveImage } from "@/components/ui/responsive-image";
 import josh3 from "@/assets/josh/slideshow/josh-slide-03.jpeg.asset.json";
 import josh4 from "@/assets/josh/slideshow/josh-slide-04.jpeg.asset.json";
 import josh6 from "@/assets/josh/slideshow/josh-slide-06.png.asset.json";
@@ -35,9 +36,10 @@ export function JoshSlideshow() {
     <section className="relative rounded-3xl overflow-hidden aurora-hairline aurora-elevated bg-black/40">
       <div className="relative aspect-[16/9] md:aspect-[21/9] w-full overflow-hidden">
         {SHOTS.map((s, idx) => (
-          <img
+          <ResponsiveImage
             key={s.url}
             src={s.url}
+            sizes="100vw"
             alt={s.caption}
             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${idx === i ? "opacity-100" : "opacity-0"}`}
             loading={idx === 0 ? "eager" : "lazy"}

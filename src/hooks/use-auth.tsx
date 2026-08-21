@@ -9,8 +9,10 @@ const SUPABASE_STORAGE_KEY = "sb-tpzmvbczwahxajujvnrq-auth-token";
 
 /** Synchronously checks whether a Supabase session token is already stored in
  *  localStorage.  When true, getSession() is performing a background network
- *  token-refresh — we must wait for it, not time out after 8 s. */
-function hasStoredSession(): boolean {
+ *  token-refresh — we must wait for it, not time out after 8 s.
+ *  Exported so layout chrome can optimistically render for returning users
+ *  while the session is still being verified. */
+export function hasStoredSession(): boolean {
   if (typeof window === "undefined") return false;
   try {
     const raw = localStorage.getItem(SUPABASE_STORAGE_KEY);

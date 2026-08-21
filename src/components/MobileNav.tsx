@@ -302,11 +302,14 @@ export function MobileNav() {
 
         <header className="relative shrink-0 border-b border-border p-4">
           <Link to="/" className="flex items-center gap-3 no-underline">
-            <span className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-card ring-1 ring-white/10">
+            <span className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#0a0a0f] ring-1 ring-white/10 shadow-[0_0_18px_-6px_oklch(0.6_0.24_295/0.55)]">
+              {/* Cropped Aurora mark (public/brand/aurora-mark.webp) — the old
+                  full brand poster (logo + wordmark + icon strip) was illegible
+                  at 40px. */}
               <img
-                src="/__l5e/assets-v1/d0d72e6b-2edd-4740-af3e-48e27934cef8/aurora-logo.png"
+                src="/brand/aurora-mark.webp"
                 alt=""
-                className="size-full object-contain"
+                className="size-full scale-110 object-cover"
               />
             </span>
             <span className="flex min-w-0 flex-col leading-tight">

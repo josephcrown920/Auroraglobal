@@ -11,6 +11,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { computePaystackPrice, formatLocalPrice } from "@/lib/billing.plans";
 import { detectCurrency } from "@/lib/geo.functions";
+import { ResponsiveImage } from "@/components/ui/responsive-image";
+import { LANDING_IMAGE_SRCSET } from "@/lib/landing-image-manifest";
 
 // Below-fold sections — lazy-loaded so the landing page hero ships without
 // pulling in framer-motion, spin-engine, server-fn hooks, and media assets.
@@ -52,7 +54,21 @@ export const Route = createFileRoute("/")({
       { property: "og:description", content: "Create videos that look like a $50,000 production — for a fraction of the cost. Aurora is the AI studio built for music artists and creators. No crew, no studio, no waiting." },
       { property: "og:url", content: CANONICAL_ORIGIN },
     ],
-    links: [{ rel: "canonical", href: CANONICAL_ORIGIN }],
+    links: [
+      { rel: "canonical", href: CANONICAL_ORIGIN },
+      // Preload the first hero slide's WebP variants so the LCP image starts
+      // downloading before the component tree renders. href is required —
+      // TanStack's head serializer drops <link> entries without one — and
+      // doubles as the fallback for browsers that ignore imagesrcset.
+      {
+        rel: "preload",
+        as: "image",
+        href: "/hero/hero-direct-identity.w928.webp",
+        imageSrcSet: LANDING_IMAGE_SRCSET["/hero/hero-direct-identity.png"],
+        imageSizes: "100vw",
+        fetchPriority: "high",
+      },
+    ],
     scripts: [
       {
         type: "application/ld+json",
@@ -420,9 +436,10 @@ function LandingPage() {
         {/* Slideshow */}
         <div className="absolute inset-0 z-0">
           {heroSlides.map((slide, i) => (
-            <img
+            <ResponsiveImage
               key={slide.src}
               src={slide.src}
+              sizes="100vw"
               alt=""
               aria-hidden="true"
               width={1200}
@@ -823,15 +840,16 @@ function LandingPage() {
         </div>
         <div className="relative overflow-hidden rounded-2xl bg-zinc-900 ring-1 ring-white/5">
           {/* Poster image paints instantly while the video buffers */}
-          <img
+          <ResponsiveImage
             src="/videos/landing-demo-reel-poster.jpg"
+            sizes="100vw"
             alt="Cinematic Aurora-generated music video frame"
             className="absolute inset-0 w-full h-full object-cover"
             aria-hidden
           />
           <video
             src="/videos/landing-demo-reel.mp4"
-            poster="/videos/landing-demo-reel-poster.jpg"
+            poster="/videos/landing-demo-reel-poster.w720.webp"
             autoPlay
             muted
             loop
@@ -1262,8 +1280,9 @@ function ProcessCard({
     <div className="group">
       <div className="mb-3 flex aspect-[4/3] items-center justify-center overflow-hidden rounded-xl bg-zinc-900 ring-1 ring-white/5">
         {image ? (
-          <img
+          <ResponsiveImage
             src={image}
+            sizes="(min-width: 760px) 50vw, 100vw"
             alt={alt ?? ""}
             width={800}
             height={600}
