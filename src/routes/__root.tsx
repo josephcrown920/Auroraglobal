@@ -271,6 +271,41 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+// The most-visited lazy routes — their JS chunks get warmed during idle time
+// after the first page settles, so the very first navigation is instant even
+// without a hover (touch devices never hover). Hard-coded
+// <link rel="modulepreload"> tags can't do this job here: the prod build
+// hashes chunk filenames, so router.preloadRoute() (which resolves the real
+// chunk in both dev and prod) is the reliable equivalent.
+const IDLE_WARM_ROUTES = ["/studio", "/motion", "/lipsync", "/spin", "/agent"] as const;
+
+function useIdleRouteWarmup() {
+  const router = useRouter();
+  useEffect(() => {
+    // Respect constrained connections — warming 5 chunks is pure waste on
+    // data-saver or 2G, where the bandwidth is better spent on the visible page.
+    const conn = (navigator as { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+    if (conn?.saveData || /2g/.test(conn?.effectiveType ?? "")) return;
+
+    const warm = () => {
+      for (const to of IDLE_WARM_ROUTES) {
+        void router.preloadRoute({ to }).catch(() => {
+          // Best-effort: a failed warmup must never surface — the route will
+          // simply load on demand as before.
+        });
+      }
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      const handle = window.requestIdleCallback(warm, { timeout: 8000 });
+      return () => window.cancelIdleCallback(handle);
+    }
+    // Safari has no requestIdleCallback — a short delay past hydration is a
+    // fine approximation of "idle after initial load".
+    const t = window.setTimeout(warm, 3000);
+    return () => window.clearTimeout(t);
+  }, [router]);
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const { user, loading: authLoading } = useAuth();
@@ -285,6 +320,7 @@ function RootComponent() {
     setHasStoredAuth(hasStoredSession());
   }, []);
   usePageViewTracking();
+  useIdleRouteWarmup();
   useEffect(() => { captureRefFromUrl(); initCrashReporting(); }, []);
   useEffect(() => {
     document.documentElement.dataset.auroraHydrated = "true";

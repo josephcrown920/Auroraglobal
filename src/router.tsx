@@ -32,7 +32,14 @@ export const getRouter = () => {
     routeTree,
     context: { queryClient },
     scrollRestoration: true,
-    defaultPreloadStaleTime: 0,
+    // Start fetching a route's lazy chunk (+ its lightweight loader) the moment
+    // a link is hovered/focused, so the page is usually ready before the click.
+    defaultPreload: "intent",
+    // A preload stays fresh for 30s — hovering the same link twice in a row
+    // must not re-run the loader. Route loaders here are all cheap (feature
+    // visibility flags / static docs); heavy data stays in react-query, which
+    // owns its own cache and is unaffected by this value.
+    defaultPreloadStaleTime: 30_000,
     defaultErrorComponent: DefaultErrorComponent,
     defaultPendingComponent: PageSpinner,
     defaultPendingMs: 200,
