@@ -35,6 +35,10 @@ const UGCAdsSection = lazy(() =>
   import("@/components/landing/UGCAdsSection").then((m) => ({ default: m.UGCAdsSection })),
 );
 
+const PhotoStrip = lazy(() =>
+  import("@/components/landing/PhotoStrip").then((m) => ({ default: m.PhotoStrip })),
+);
+
 const ModelSpotlight = lazy(() =>
   import("@/components/landing/ModelSpotlight").then((m) => ({ default: m.ModelSpotlight })),
 );
@@ -132,6 +136,7 @@ const HERO_SLIDES = [
     sub: "The AI performance studio built by artists, for artists. Drop your references, direct the shoot in plain language, and ship studio-grade covers, promo, and cinematic performance reels — in seconds, not weeks.",
     cta: "Start creating →",
     ctaTo: "/studio",
+    refPrompt: "Studio-grade artist portrait, dramatic red and blue stage lighting, cinematic film grain",
   },
   {
     src: "/hero/hero-perform-anywhere.png",
@@ -141,6 +146,7 @@ const HERO_SLIDES = [
     sub: "Stop renting studios, hiring crews, and waiting weeks for edits. Record yourself for 30 seconds on your iPhone — Aurora transforms your performance into cinematic music videos and visuals that look like they were directed by a major production team.",
     cta: "Try Perform Anywhere →",
     ctaTo: "/motion",
+    refPrompt: "Cinematic performance scene, moody concert lighting, 35mm film still",
   },
   {
     src: "/hero/hero-2.png",
@@ -150,6 +156,7 @@ const HERO_SLIDES = [
     sub: "Turn one idea into an entire month of scroll-stopping content. Aurora creates 30 unique TikToks, lyric videos, teasers, cover reveals, reels, and promo posts ready to publish.",
     cta: "TikTok 30 →",
     ctaTo: "/spin",
+    refPrompt: "Scroll-stopping social promo visual, bold styling, high-contrast color pop",
   },
   {
     src: "/hero/hero-colors.png",
@@ -159,6 +166,7 @@ const HERO_SLIDES = [
     sub: "Record one 30-second performance. Aurora rebuilds it into endless cinematic stages, lighting styles, outfits, moods and color worlds ready for every release.",
     cta: "Explore Colors Studio →",
     ctaTo: "/colors",
+    refPrompt: "Colors show performance set, saturated monochrome backdrop, editorial styling",
   },
   {
     src: "/hero/hero-7.png",
@@ -168,6 +176,7 @@ const HERO_SLIDES = [
     sub: "Create magazine-quality press photos, tour posters, album covers, and promotional visuals in minutes—not weeks.",
     cta: "Create Press Photos →",
     ctaTo: "/music-video",
+    refPrompt: "Magazine-quality press photo, editorial lighting, tour poster energy",
   },
 ];
 
@@ -453,6 +462,17 @@ function LandingPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/25" />
           <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/25 to-transparent" />
         </div>
+
+        {/* The hero photo itself is tappable — recreate the current look in
+            Studio with a matching prompt prefilled. Sits above the image
+            (z-[1]) but below the text content, CTAs and dots (z-10). */}
+        <Link
+          to="/studio"
+          search={{ q: heroSlides[slideIdx]?.refPrompt }}
+          aria-label="Recreate this look in Studio"
+          onClick={() => void track("hero_photo_click", { slide: heroSlides[slideIdx]?.src })}
+          className="absolute inset-0 z-[1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8b5cf6]"
+        />
 
         {/* Text content — all slides absolutely stacked; active one fades in */}
         <div className="relative z-10 max-w-sm">
@@ -751,31 +771,37 @@ function LandingPage() {
             <EditableCopy copyKey="landing_gallery_sub" fallback="A curated feed of recent generations across covers, promo, and motion." />
           </p>
         </div>
-        {/* Row 1 — scrolls left */}
-        <GalleryRow
-          items={[
-            { src: "/josh-ref-1.png",         alt: "NBA Josh — artist promo",   tag: <EditableCopy copyKey="landing_marquee_r1_1_tag" fallback="Promo"     /> },
-            { src: "/landing-client-2.png",   alt: "Editorial shoot",           tag: <EditableCopy copyKey="landing_marquee_r1_2_tag" fallback="Editorial" /> },
-            { src: "/landing-client-4.png",   alt: "Backstage promo",           tag: <EditableCopy copyKey="landing_marquee_r1_3_tag" fallback="Promo"     /> },
-            { src: "/landing-photo-3.jpeg",   alt: "Album artwork",             tag: <EditableCopy copyKey="landing_marquee_r1_4_tag" fallback="Cover art" /> },
-            { src: "/spotlight/ski-selfie.jpeg", alt: "Ski day reference",      tag: <EditableCopy copyKey="landing_marquee_r1_5_tag" fallback="Ski day"   /> },
-          ]}
-          direction="left"
-          duration={38}
-          className="mb-3"
-        />
-        {/* Row 2 — scrolls right */}
-        <GalleryRow
-          items={[
-            { src: "/landing-client-5.png",   alt: "Concert energy",              tag: <EditableCopy copyKey="landing_marquee_r2_1_tag" fallback="Concert"   /> },
-            { src: "/josh-scene-still.jpeg",  alt: "NBA Josh — scene still",      tag: <EditableCopy copyKey="landing_marquee_r2_2_tag" fallback="Cinema"    /> },
-            { src: "/landing-client-7.png",   alt: "Editorial glam",              tag: <EditableCopy copyKey="landing_marquee_r2_3_tag" fallback="Glam"      /> },
-            { src: "/landing-photo-5.jpeg",   alt: "Cinematic scene",             tag: <EditableCopy copyKey="landing_marquee_r2_4_tag" fallback="Cinema"    /> },
-            { src: "/landing-photo-6.png",    alt: "Color grade",                 tag: <EditableCopy copyKey="landing_marquee_r2_5_tag" fallback="Color"     /> },
-          ]}
-          direction="right"
-          duration={30}
-        />
+        {/* Every card is tappable — lightbox with the full output + a
+            "Create something like this" deep link into the right tool. */}
+        <Suspense fallback={null}>
+          <PhotoStrip
+            rows={[
+              {
+                direction: "left",
+                duration: 38,
+                className: "mb-3",
+                items: [
+                  { src: "/josh-ref-1.png",         alt: "NBA Josh — artist promo",   tag: <EditableCopy copyKey="landing_marquee_r1_1_tag" fallback="Promo"     />, createTo: "/studio", prompt: "Artist promo shot, dramatic stage lighting, cinematic film grain" },
+                  { src: "/landing-client-2.png",   alt: "Editorial shoot",           tag: <EditableCopy copyKey="landing_marquee_r1_2_tag" fallback="Editorial" />, createTo: "/studio", prompt: "Editorial fashion shoot, deep shadows, magazine-quality styling" },
+                  { src: "/landing-client-4.png",   alt: "Backstage promo",           tag: <EditableCopy copyKey="landing_marquee_r1_3_tag" fallback="Promo"     />, createTo: "/studio", prompt: "Backstage promo photo, candid energy, warm tungsten light" },
+                  { src: "/landing-photo-3.jpeg",   alt: "Album artwork",             tag: <EditableCopy copyKey="landing_marquee_r1_4_tag" fallback="Cover art" />, createTo: "/studio", prompt: "Album cover artwork, bold graphic composition, moody color palette" },
+                  { src: "/spotlight/ski-selfie.jpeg", alt: "Ski day reference",      tag: <EditableCopy copyKey="landing_marquee_r1_5_tag" fallback="Ski day"   />, createTo: "/studio", prompt: "Ski day lifestyle shot, bright alpine light, candid selfie framing" },
+                ],
+              },
+              {
+                direction: "right",
+                duration: 30,
+                items: [
+                  { src: "/landing-client-5.png",   alt: "Concert energy",              tag: <EditableCopy copyKey="landing_marquee_r2_1_tag" fallback="Concert"   />, createTo: "/colors" },
+                  { src: "/josh-scene-still.jpeg",  alt: "NBA Josh — scene still",      tag: <EditableCopy copyKey="landing_marquee_r2_2_tag" fallback="Cinema"    />, createTo: "/music-video" },
+                  { src: "/landing-client-7.png",   alt: "Editorial glam",              tag: <EditableCopy copyKey="landing_marquee_r2_3_tag" fallback="Glam"      />, createTo: "/studio", prompt: "Editorial glam portrait, studio strobes, high-fashion retouch" },
+                  { src: "/landing-photo-5.jpeg",   alt: "Cinematic scene",             tag: <EditableCopy copyKey="landing_marquee_r2_4_tag" fallback="Cinema"    />, createTo: "/music-video" },
+                  { src: "/landing-photo-6.png",    alt: "Color grade",                 tag: <EditableCopy copyKey="landing_marquee_r2_5_tag" fallback="Color"     />, createTo: "/colors" },
+                ],
+              },
+            ]}
+          />
+        </Suspense>
       </section>
 
       {/* ── Tool Directory ───────────────────────────────────────────────── */}
@@ -1318,60 +1344,6 @@ function PromptMock() {
       </div>
       <div className="mt-2 rounded-lg bg-zinc-900 px-3 py-2 text-[10px] text-zinc-500 ring-1 ring-white/5">
         Aurora · v1.2 · 4K
-      </div>
-    </div>
-  );
-}
-
-type GalleryItem = { src: string; alt: string; tag: ReactNode };
-
-function MarqueePhoto({ src, alt, tag }: GalleryItem) {
-  return (
-    <div className="group relative h-52 shrink-0 overflow-hidden rounded-xl ring-1 ring-white/5">
-      <img
-        src={src}
-        alt={alt}
-        loading="lazy"
-        className="h-full w-auto max-w-none object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-      />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/75 to-transparent px-3 py-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-        <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-white">{tag}</span>
-        <span className="text-[9px] uppercase tracking-widest text-white/50">Aurora</span>
-      </div>
-    </div>
-  );
-}
-
-function GalleryRow({
-  items,
-  direction,
-  duration,
-  className = "",
-}: {
-  items: GalleryItem[];
-  direction: "left" | "right";
-  duration: number;
-  className?: string;
-}) {
-  const animName = direction === "left" ? "gallery-scroll-left" : "gallery-scroll-right";
-  const doubled = [...items, ...items];
-  return (
-    <div
-      className={`relative overflow-hidden ${className}`}
-      style={{
-        maskImage: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
-        WebkitMaskImage: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
-      }}
-    >
-      <div
-        className="flex gap-3"
-        style={{ width: "max-content", animation: `${animName} ${duration}s linear infinite` }}
-        onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.animationPlayState = "paused")}
-        onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.animationPlayState = "running")}
-      >
-        {doubled.map((item, i) => (
-          <MarqueePhoto key={`${direction}-${i}`} src={item.src} alt={item.alt} tag={item.tag} />
-        ))}
       </div>
     </div>
   );
