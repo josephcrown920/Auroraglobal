@@ -612,6 +612,101 @@ function MusicVideoPage() {
           editorOnly
         />
 
+        {/* Sample outputs — shown when no user results yet */}
+        {recentResults.length === 0 && (
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Sample outputs
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                "/sample-photos/staircase-mic.jpeg",
+                "/sample-photos/miami-car.jpeg",
+                "/sample-photos/fire-street.png",
+                "/sample-photos/balloon-josh.png",
+                "/sample-photos/supermarket.jpeg",
+                "/sample-photos/fire-warehouse.png",
+              ].map((src) => (
+                <div key={src} className="relative aspect-video rounded-xl overflow-hidden bg-card/60 border border-border">
+                  <img src={src} alt="Sample output" className="w-full h-full object-cover object-top" />
+                </div>
+              ))}
+            </div>
+            <p className="text-center text-xs text-muted-foreground">
+              Generate your first video to see your results here
+            </p>
+          </section>
+        )}
+
+        {/* Recent results */}
+        {recentResults.length > 0 && (
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Recent results
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              {recentResults.map((r) => {
+                const url = r.result_video_url ?? r.result_image_url;
+                if (!url) return null;
+                return (
+                  <div
+                    key={r.id}
+                    className="relative aspect-video rounded-xl overflow-hidden bg-card/60 border border-border group"
+                  >
+                    {r.result_video_url ? (
+                      <video
+                        src={url}
+                        className="w-full h-full object-cover"
+                        loop
+                        muted
+                        playsInline
+                        autoPlay
+                      />
+                    ) : (
+                      <img src={url} alt="Generated result" className="w-full h-full object-cover" />
+                    )}
+                    <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Cross-origin URLs (studio bucket, provider CDNs) silently
+                          // ignore the <a download> attribute — fetch + Blob + objectURL
+                          // forces a real Save dialog regardless of origin.
+                          const ext = r.result_video_url ? "mp4" : "png";
+                          fetch(url)
+                            .then((res) => res.blob())
+                            .then((blob) => {
+                              const objectUrl = URL.createObjectURL(blob);
+                              const a = document.createElement("a");
+                              a.href = objectUrl;
+                              a.download = `aurora-${r.id}.${ext}`;
+                              a.click();
+                              URL.revokeObjectURL(objectUrl);
+                            })
+                            .catch(() => window.open(url, "_blank"));
+                        }}
+                        className="size-7 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80"
+                        title="Download"
+                      >
+                        <Download className="size-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { if (confirm("Delete this generation permanently?")) delMut.mutate(r.id); }}
+                        disabled={delMut.isPending}
+                        className="size-7 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-red-600/80 disabled:opacity-50"
+                        title="Delete"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {/* Gallery redirect */}
         <Link
           to="/gallery"
