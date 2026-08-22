@@ -46,3 +46,21 @@ the job can't re-run). The fully-atomic fix is a single server-side finalize RPC
 is EXECUTE-able by `PUBLIC` by default in Postgres → any anon/authenticated client
 could trigger it via PostgREST. Always `REVOKE ALL ... FROM PUBLIC, anon,
 authenticated` and `GRANT EXECUTE ... TO service_role`.
+
+## Crash-loop give-up rule
+
+**The rule:** stale-lock recovery must also enforce the persistent retry attempt
+and age ceilings. A stale processing job beyond either limit must transition to
+terminal failure, settle its reservation once, and stamp its settlement marker
+atomically; only jobs below both limits may be re-queued.
+
+**Why:** a process death bypasses the worker's in-process error handler. Without
+the same ceiling in the stale sweep, a render can cycle claim → crash → stale
+requeue forever while its Aura reservation remains held.
+
+**How to apply:** derive the sweep limits from the canonical application policy,
+pass them explicitly to recovery RPCs, and make the give-up UPDATE own the
+stale processing row before it releases the reservation. Preserve default RPC
+arguments only for compatibility with already-running callers, and test both
+the attempt-based and age-based paths with rollback-safe database proofs.
+
