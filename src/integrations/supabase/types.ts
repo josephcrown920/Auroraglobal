@@ -3464,12 +3464,19 @@ export type Database = {
         Returns: boolean
       }
       reset_stale_processing_jobs: {
-        Args: { _backoff_seconds: number; _max_age_seconds: number }
+        Args: {
+          _backoff_seconds: number
+          _give_up_age_seconds?: number
+          _give_up_attempts?: number
+          _max_age_seconds: number
+        }
         Returns: number
       }
       reset_stale_processing_jobs_for_kinds: {
         Args: {
           _backoff_seconds: number
+          _give_up_age_seconds?: number
+          _give_up_attempts?: number
           _kinds: string[]
           _max_age_seconds: number
         }

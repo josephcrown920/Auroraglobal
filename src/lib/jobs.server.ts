@@ -1787,15 +1787,26 @@ export async function processBatch(
 // Recover jobs orphaned in `processing` because their worker instance was killed
 // mid-run (the common orphan source under request-driven autoscale). These jobs
 // still hold their reservation, so re-queuing them is credit-safe (the eventual
-// success commits it, or the persistent-retry ceiling/age release it). Failed
-// jobs are NOT handled here — they already released their reservation; recovering
-// those is sweepFailedJobs' job (it re-reserves fresh).
+// success commits it). Failed jobs are NOT handled here — they already released
+// their reservation; recovering those is sweepFailedJobs' job (it re-reserves
+// fresh).
+//
+// Give-up (task #345): a job whose worker crashes on EVERY attempt never goes
+// through the in-process error path, so retryDecision's attempt ceiling / age
+// deadline never fired for it — it would cycle sweep→claim forever with the
+// reservation stranded. The sweep RPC therefore terminally fails (and
+// releases, atomically, fenced on the row still being stale `processing`) any
+// stale job past the same PERSISTENT_RETRY_* bounds the worker loop enforces.
+// The bounds are passed from here so this file stays the single source of the
+// policy numbers.
 export async function sweepStaleProcessingJobs(
   maxAgeSeconds: number = STALE_PROCESSING_SECONDS,
 ): Promise<{ reset: number }> {
   const out = await rpc<number | null>("reset_stale_processing_jobs", {
     _max_age_seconds: maxAgeSeconds,
     _backoff_seconds: 15,
+    _give_up_attempts: PERSISTENT_RETRY_MAX_ATTEMPTS,
+    _give_up_age_seconds: Math.floor(PERSISTENT_RETRY_MAX_AGE_MS / 1000),
   });
   return { reset: typeof out === "number" ? out : 0 };
 }
@@ -1810,6 +1821,8 @@ export async function sweepHighValueStaleProcessingJobs(
     _kinds: [...HIGH_VALUE_STALE_KINDS],
     _max_age_seconds: maxAgeSeconds,
     _backoff_seconds: 15,
+    _give_up_attempts: PERSISTENT_RETRY_MAX_ATTEMPTS,
+    _give_up_age_seconds: Math.floor(PERSISTENT_RETRY_MAX_AGE_MS / 1000),
   });
   return { reset: typeof out === "number" ? out : 0 };
 }

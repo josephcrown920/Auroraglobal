@@ -192,6 +192,7 @@ const {
   nextRetryAt,
   retryDecision,
   sweepStaleProcessingJobs,
+  sweepHighValueStaleProcessingJobs,
   sweepFailedJobs,
   sweepStuckReservations,
   recordSchedulerHeartbeat,
@@ -979,6 +980,33 @@ describe("sweepStaleProcessingJobs", () => {
     await sweepStaleProcessingJobs(600);
     const call = calls.rpc.find((c) => c.name === "reset_stale_processing_jobs");
     expect(call?.args).toMatchObject({ _max_age_seconds: 600 });
+  });
+
+  // Task #345: the sweep enforces the SAME persistent-retry bounds as the
+  // worker's in-process error path, passed from the TS constants so the
+  // policy numbers never fork between the loop and the give-up sweep. A
+  // crash-looping worker (process death, never an in-process error) would
+  // otherwise cycle sweep→claim forever with the reservation stranded.
+  it("passes the persistent-retry give-up bounds to the sweep RPC", async () => {
+    await sweepStaleProcessingJobs();
+    const call = calls.rpc.find((c) => c.name === "reset_stale_processing_jobs");
+    expect(call?.args).toMatchObject({
+      _give_up_attempts: PERSISTENT_RETRY_MAX_ATTEMPTS,
+      _give_up_age_seconds: Math.floor(PERSISTENT_RETRY_MAX_AGE_MS / 1000),
+    });
+  });
+});
+
+describe("sweepHighValueStaleProcessingJobs", () => {
+  it("passes the kind filter AND the same give-up bounds as the global sweep", async () => {
+    await sweepHighValueStaleProcessingJobs(180);
+    const call = calls.rpc.find((c) => c.name === "reset_stale_processing_jobs_for_kinds");
+    expect(call?.args).toMatchObject({
+      _kinds: ["motion", "performance_reskin"],
+      _max_age_seconds: 180,
+      _give_up_attempts: PERSISTENT_RETRY_MAX_ATTEMPTS,
+      _give_up_age_seconds: Math.floor(PERSISTENT_RETRY_MAX_AGE_MS / 1000),
+    });
   });
 });
 
