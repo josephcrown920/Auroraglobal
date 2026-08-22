@@ -34,6 +34,8 @@ jobs:
         run: bun test src/
       - name: Worker boundary audit
         run: node scripts/ci/audit-worker-entry.mjs
+      - name: Production gate preflight
+        run: npm run production:gate
       - name: Production build
         run: NODE_OPTIONS=--max-old-space-size=4096 npm run build
 
