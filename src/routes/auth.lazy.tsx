@@ -22,6 +22,17 @@ function AppleIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+
+function GoogleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden>
+      <path fill="#4285F4" d="M21.8 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.5a4.7 4.7 0 0 1-2 3.1v2.5h3.2c1.9-1.8 3.1-4.4 3.1-7.4Z" />
+      <path fill="#34A853" d="M12 22c2.7 0 5-.9 6.7-2.4l-3.2-2.5c-.9.6-2 .9-3.5.9-2.7 0-5-1.8-5.8-4.3H2.9v2.6A10 10 0 0 0 12 22Z" />
+      <path fill="#FBBC05" d="M6.2 13.7A6 6 0 0 1 5.9 12c0-.6.1-1.2.3-1.7V7.7H2.9A10 10 0 0 0 2 12c0 1.6.4 3.1.9 4.3l3.3-2.6Z" />
+      <path fill="#EA4335" d="M12 6c1.7 0 3.2.6 4.4 1.8l3-3A10 10 0 0 0 2.9 7.7l3.3 2.6C7 7.8 9.3 6 12 6Z" />
+    </svg>
+  );
+}
 import {useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { trackSignUp } from "@/lib/gtm";
@@ -57,6 +68,7 @@ function AuthPage() {
   const [displayName, setDisplayName] = useState("");
   const [persona, setPersona] = useState<"artist" | "creator" | null>(null);
   const [busy, setBusy] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
   const [githubBusy, setGithubBusy] = useState(false);
   const [appleBusy, setAppleBusy] = useState(false);
   const [bioBusy, setBioBusy] = useState(false);
@@ -114,15 +126,30 @@ function AuthPage() {
   const OAUTH_SIGNUP_INTENT_KEY = "aurora.oauth_signup_intent";
   useEffect(() => {
     if (loading || !session || recoveryMode) return;
-    if (typeof window !== "undefined") {
-      const provider = sessionStorage.getItem(OAUTH_SIGNUP_INTENT_KEY);
-      if (provider) {
-        sessionStorage.removeItem(OAUTH_SIGNUP_INTENT_KEY);
-        trackSignUp(provider as "github" | "apple");
+    let cancelled = false;
+
+    void (async () => {
+      let isNewOAuthAccount = false;
+      if (typeof window !== "undefined") {
+        const provider = sessionStorage.getItem(OAUTH_SIGNUP_INTENT_KEY);
+        if (provider) {
+          sessionStorage.removeItem(OAUTH_SIGNUP_INTENT_KEY);
+          trackSignUp(provider as "google" | "github" | "apple");
+          isNewOAuthAccount = true;
+        }
       }
-    }
-    navigateToReturnPath();
-  }, [session, loading, recoveryMode, navigateToReturnPath]);
+
+      // A passkey enrollment must finish before navigating away. Previously we
+      // started the native Face ID prompt and immediately left /auth, which
+      // caused iOS to cancel the prompt without saving a credential.
+      if (isNewOAuthAccount && canUsePasskeys) {
+        await offerPasskeyRegistration();
+      }
+      if (!cancelled) navigateToReturnPath();
+    })();
+
+    return () => { cancelled = true; };
+  }, [session, loading, recoveryMode, canUsePasskeys, navigateToReturnPath]);
 
   const handleForgotPassword = async () => {
     if (!email) {
@@ -189,7 +216,7 @@ function AuthPage() {
           toast.success(`Welcome, ${name}!`);
           // After signup, offer to register a passkey
           if (canUsePasskeys) {
-            void offerPasskeyRegistration();
+            await offerPasskeyRegistration();
           }
           navigateToReturnPath();
         } else {
@@ -209,7 +236,7 @@ function AuthPage() {
 
   // Shared OAuth helper — handles frame detection, intent tracking, redirect.
   const handleOAuth = async (
-    provider: "github" | "apple",
+    provider: "google" | "github" | "apple",
     setBusy: (v: boolean) => void,
   ) => {
     setBusy(true);
@@ -234,13 +261,14 @@ function AuthPage() {
         toast.info("Complete sign-in in the new tab, then come back here.");
       }
     } catch (err) {
-      const label = provider === "apple" ? "Apple" : "GitHub";
+      const label = provider === "google" ? "Google" : provider === "apple" ? "Apple" : "GitHub";
       toast.error(err instanceof Error ? err.message : `${label} sign-in failed`);
     } finally {
       setBusy(false);
     }
   };
 
+  const handleGoogleSignIn  = () => handleOAuth("google", setGoogleBusy);
   const handleGithubSignIn = () => handleOAuth("github", setGithubBusy);
   const handleAppleSignIn  = () => handleOAuth("apple",  setAppleBusy);
 
@@ -265,8 +293,16 @@ function AuthPage() {
         },
       });
       toast.success("Face ID / fingerprint saved — use it next time you sign in.");
-    } catch {
-      // Non-blocking — user can always add it later from settings
+    } catch (err) {
+      const name = err instanceof Error ? err.name : "";
+      const message = err instanceof Error ? err.message : String(err);
+      // A dismissed native prompt is a normal choice, not an application
+      // failure. Other errors need to be visible so a broken passkey setup
+      // never looks like it succeeded.
+      if (name === "NotAllowedError" || name === "AbortError" || /cancel|abort/i.test(message)) {
+        return;
+      }
+      toast.error(message || "Couldn't enable Face ID / fingerprint. You can try again in Settings.");
     }
   }
 
@@ -608,9 +644,18 @@ function AuthPage() {
         <Button
           type="button"
           variant="outline"
+          disabled={googleBusy}
+          onClick={handleGoogleSignIn}
+          className="mt-3 w-full h-11"
+        >
+          {googleBusy ? "Signing in..." : <><GoogleIcon className="mr-2 size-4" /> Continue with Google</>}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
           disabled={githubBusy}
           onClick={handleGithubSignIn}
-          className="mt-3 w-full h-11"
+          className="mt-2 w-full h-11"
         >
           {githubBusy ? "Signing in..." : <><Github className="mr-2 size-4" /> Continue with GitHub</>}
         </Button>
