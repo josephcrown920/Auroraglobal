@@ -59,6 +59,26 @@ type PaymentRow = {
   amount_kobo: number;
 };
 
+export type StuckPaymentRecoveryRow = {
+  user_id: string | null;
+  credits_granted: number | null;
+};
+
+/**
+ * A stuck payment may only be replayed when the persisted row contains the
+ * complete credit-grant identity. Missing credits must remain an operator-
+ * visible STUCK_PAYMENT instead of risking an ambiguous grant.
+ */
+export function canRecoverStuckPayment(
+  row: StuckPaymentRecoveryRow,
+): boolean {
+  return (
+    !!row.user_id &&
+    row.credits_granted != null &&
+    row.credits_granted > 0
+  );
+}
+
 async function fetchPayment(reference: string): Promise<PaymentRow | null> {
   const { data } = await supabaseAdmin
     .from("payments")

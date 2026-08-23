@@ -67,7 +67,11 @@ const supabaseAdmin = {
 
 mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin }));
 
-const { verifyPaystackSignature, processPaymentSuccess } =
+const {
+  canRecoverStuckPayment,
+  verifyPaystackSignature,
+  processPaymentSuccess,
+} =
   await import("./paystack-webhook.server");
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -141,6 +145,57 @@ describe("processPaymentSuccess", () => {
     const r = await processPaymentSuccess(ev({ reference: "ref1", status: "success" }));
     expect(r).toEqual({ status: "already_processed" });
     expect(calls.rpc.find((c) => c.name === "grant_credits")).toBeUndefined();
+  });
+
+  it("recovers a payment twice without double-granting credits", async () => {
+    // The first sweep sees the pending row and grants it. The second sweep
+    // reads the same row after it was marked succeeded and takes the
+    // already_processed branch.
+    selectQueues.payments = [
+      {
+        data: {
+          id: "p-retry",
+          user_id: "u1",
+          credits_granted: 500,
+          status: "pending",
+          amount_kobo: 1000,
+        },
+        error: null,
+      },
+      {
+        data: {
+          id: "p-retry",
+          user_id: "u1",
+          credits_granted: 500,
+          status: "succeeded",
+          amount_kobo: 1000,
+        },
+        error: null,
+      },
+    ];
+    const event = ev({ reference: "ref-retry", status: "success", amount: 1000 });
+
+    const first = await processPaymentSuccess(event, { retryDelaysMs: [] });
+    const second = await processPaymentSuccess(event, { retryDelaysMs: [] });
+
+    expect(first).toMatchObject({ status: "success", paymentId: "p-retry" });
+    expect(second).toEqual({ status: "already_processed" });
+    expect(calls.rpc.filter((call) => call.name === "grant_credits")).toHaveLength(1);
+  });
+
+  it("does not recover a stuck payment when credits_granted is missing", () => {
+    expect(
+      canRecoverStuckPayment({ user_id: "u1", credits_granted: null as never }),
+    ).toBe(false);
+    expect(
+      canRecoverStuckPayment({ user_id: "u1", credits_granted: 0 }),
+    ).toBe(false);
+    expect(
+      canRecoverStuckPayment({ user_id: null as never, credits_granted: 500 }),
+    ).toBe(false);
+    expect(
+      canRecoverStuckPayment({ user_id: "u1", credits_granted: 500 }),
+    ).toBe(true);
   });
 
   it("rejects a signed event whose amount or currency differs from Aurora's pending quote", async () => {

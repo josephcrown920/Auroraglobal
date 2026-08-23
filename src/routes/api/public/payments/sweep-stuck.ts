@@ -30,7 +30,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { authorizeCron } from "@/lib/cron-auth";
-import { processPaymentSuccess } from "@/lib/paystack-webhook.server";
+import {
+  canRecoverStuckPayment,
+  processPaymentSuccess,
+} from "@/lib/paystack-webhook.server";
 
 const STUCK_THRESHOLD_HOURS = 73;
 
@@ -73,10 +76,7 @@ export const Route = createFileRoute("/api/public/payments/sweep-stuck")({
         let stuck_count = 0;
 
         for (const row of rows) {
-          const canRecover =
-            !!row.user_id &&
-            row.credits_granted != null &&
-            row.credits_granted > 0;
+          const canRecover = canRecoverStuckPayment(row);
 
           if (canRecover) {
             try {
