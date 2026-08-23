@@ -184,7 +184,7 @@ function TiktokRemixPage() {
           basePrompt: basePrompt || undefined,
           count,
           style,
-          outfitImageUrl: style === "grwm" && outfitUrl ? outfitUrl : undefined,
+          outfitImageUrl: (style === "grwm" || style === "urban_cut") && outfitUrl ? outfitUrl : undefined,
         },
       });
     },
@@ -347,15 +347,24 @@ function TiktokRemixPage() {
             <p className="mt-1 text-[11px] text-muted-foreground">{STYLE_OPTIONS.find((o) => o.value === style)?.hint}</p>
           </div>
 
-          {/* Virtual wardrobe — shown when GRWM style is active */}
-          {style === "grwm" && user && (
-            <div className="rounded-xl border border-orange-400/20 bg-orange-400/5 px-3 py-3 space-y-2">
+          {/* Virtual wardrobe — shown when GRWM or Urban Cut style is active */}
+          {(style === "grwm" || style === "urban_cut") && user && (
+            <div className={[
+              "rounded-xl border px-3 py-3 space-y-2",
+              style === "grwm"
+                ? "border-orange-400/20 bg-orange-400/5"
+                : "border-violet-400/20 bg-violet-400/5",
+            ].join(" ")}>
               <div className="flex items-center gap-1.5">
-                <Shirt className="size-3.5 text-orange-300" />
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-orange-200/80">Virtual Wardrobe</span>
+                <Shirt className={["size-3.5", style === "grwm" ? "text-orange-300" : "text-violet-300"].join(" ")} />
+                <span className={["text-[11px] font-semibold uppercase tracking-wider", style === "grwm" ? "text-orange-200/80" : "text-violet-200/80"].join(" ")}>
+                  Virtual Wardrobe
+                </span>
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Pick a saved look and Aurora will thread that outfit through every GRWM cut.
+                {style === "grwm"
+                  ? "Pick a saved look and Aurora will thread that outfit through every GRWM cut."
+                  : "Pick a saved look and Aurora will apply the outfit reference to every Urban Cut."}
               </p>
               <WardrobePicker userId={user.id} value={outfitUrl} onChange={setOutfitUrl} />
             </div>
