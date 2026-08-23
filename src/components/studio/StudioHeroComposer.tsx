@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { StudioToolRows } from "@/components/studio/StudioToolRows";
 
 /** Collage strips behind the composer — real Aurora renders, dimmed. */
 const COLLAGE: string[] = [
@@ -186,6 +187,8 @@ export function StudioHeroComposer(p: Props) {
             </button>
           </div>
         </div>
+
+        <StudioToolRows />
 
         <p className="mt-4 text-[11px] text-zinc-600">
           Every render lands in your Gallery · Aura never expires

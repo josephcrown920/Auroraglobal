@@ -13,6 +13,7 @@ import { computePaystackPrice, formatLocalPrice } from "@/lib/billing.plans";
 import { detectCurrency } from "@/lib/geo.functions";
 import { ResponsiveImage } from "@/components/ui/responsive-image";
 import { LANDING_IMAGE_SRCSET } from "@/lib/landing-image-manifest";
+import { TOOL_DIRECTORY } from "@/lib/tool-directory";
 
 // Below-fold sections — lazy-loaded so the landing page hero ships without
 // pulling in framer-motion, spin-engine, server-fn hooks, and media assets.
@@ -242,23 +243,6 @@ const FEATURED_TOOLS: ReadonlyArray<{
     feature: "talking-avatars",
   },
 ];
-
-const TOOL_DIRECTORY: ReadonlyArray<{
-  number: string;
-  name: string;
-  label?: string;
-  description: string;
-  price: string;
-  to: "/motion" | "/colors" | "/spin" | "/video-agent" | "/music-video" | "/lipsync" | "/canvas";
-}> = [
-  { number: "00", name: "Perform Anywhere", label: "Flagship", description: "Phone performance → cinematic scene", price: "From 300 Aura", to: "/motion" },
-  { number: "01", name: "Colors", description: "Performance photo generation", price: "From 10 Aura", to: "/colors" },
-  { number: "02", name: "TikTok30", description: "UGC campaign engine", price: "From 85 Aura", to: "/spin" },
-  { number: "03", name: "Aurora Video Agent", label: "Director", description: "Plan, storyboard, edit, then render", price: "From 24 Aura", to: "/video-agent" },
-  { number: "04", name: "Music Video", description: "Cinematic visual studio", price: "From 10 Aura", to: "/music-video" },
-  { number: "05", name: "Lip Sync", description: "Audio-synced video", price: "From 30 Aura", to: "/lipsync" },
-  { number: "06", name: "Canvas", label: "New", description: "Build connected creative workflows", price: "From 10 Aura", to: "/canvas" },
-] as const;
 
 // Silence unused-import warnings for icons kept for future use
 ((_: unknown) => _)([Mic, Music2, Brush, Megaphone, Workflow, Layers, Clapperboard]);
