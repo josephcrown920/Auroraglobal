@@ -2,7 +2,7 @@
 
 This is the single source of truth for production-readiness status. It
 replaces the older feature-shipping roadmap (Lovable/Paystack-era content),
-which is now stale — the user-facing "what's live/building/planned" page at
+which is stale — the user-facing "what's live/building/planned" page at
 `/roadmap` (`src/routes/roadmap.lazy.tsx`) is a separate, hand-maintained
 product page and does not read from this file.
 
@@ -12,7 +12,7 @@ remains. ⛔ **Blocked** — needs something outside this session's tool access
 (dashboard config, business decision, paid tier). ⬜ **Remaining** —
 identified, not yet started, no blocker.
 
-Last full audit: 2026-08-22.
+Last full audit: 2026-08-22. CI hardening evidence appended 2026-08-23.
 
 ---
 
@@ -239,7 +239,10 @@ side effects, both **ran successfully against the live DB**):
   rejects a second reservation that would jointly exceed the cap even though
   the raw balance alone could otherwise cover it.
 
-## 10. Final validation — ✅ Verified complete (this pass, as of last edit)
+## 10. Final validation — 🔶 In progress
+
+Historical validation is retained below. The current CI repair is tracked in
+§11 because hosted GitHub evidence remains externally blocked.
 
 - `npx tsc --noEmit` — clean, no errors.
 - `npx eslint` (touched files, and full-repo baseline previously) — 0 errors;
@@ -251,9 +254,36 @@ side effects, both **ran successfully against the live DB**):
   actual failures.
 - `Start application` workflow restarted clean after all route changes;
   `/api/health` and the new `/api/ready` both verified live via curl.
-- `test:e2e` — not re-run this pass; last known status was a pre-existing,
-  unrelated `webServer` boot-timeout issue, not a regression introduced by
-  this session's changes.
+- `test:e2e` — historical known status was a pre-existing, unrelated
+  `webServer` boot-timeout issue. The new configuration starts the web server,
+  but local Chromium cannot finish launching until the Replit runtime exposes
+  the remaining GBM library; hosted GitHub installs browser dependencies.
+
+## 11. CI quality gate — 🔶 Locally verified / ⛔ hosted run blocked
+
+- [x] Added the canonical `npm run production:gate` command and use it in the
+  GitHub quality workflow.
+- [x] Repaired test isolation without weakening secret validation or removing
+  test coverage.
+- [x] Made the Playwright web-server command portable to GitHub-hosted runners.
+- [x] Passed a clean npm 10.9.2 install, lint, typecheck, unit tests
+  (**1178 pass, 1 skip, 0 fail**), migration audit, worker-boundary audit,
+  production gate, E2E discovery, and `git diff --check`.
+- [x] Added one real landing-page browser smoke test; Playwright discovers it
+  and the local Vite web server starts.
+- ⛔ **Hosted GitHub quality and E2E jobs remain blocked by the GitHub account
+  billing lock.** They stop before executing workflow steps, so the repaired
+  configuration cannot yet receive hosted evidence.
+- ⛔ **Local Chromium execution remains environment-blocked.** Replit's
+  container initially lacked `libglib`; after the available runtime libraries
+  were added, Chromium advanced to the missing `libgbm.so.1` dependency.
+  This is not an application-test failure. GitHub's
+  `npx playwright install --with-deps chromium` step is retained for Ubuntu
+  runners.
+
+**Remaining:** after the GitHub billing lock and LFS budget are restored,
+rerun the hosted quality and Playwright jobs, then record their actual
+results here before declaring the release gate complete.
 
 ---
 
@@ -270,7 +300,8 @@ side effects, both **ran successfully against the live DB**):
 | 7. Error handling | 🔶 In progress |
 | 8. Performance | 🔶 In progress (deliberate) |
 | 9. Concurrency / idempotency tests | ✅ Verified complete |
-| 10. Final validation | ✅ Verified complete |
+| 10. Final validation | 🔶 In progress |
+| 11. CI quality gate | 🔶 Local gate complete / ⛔ hosted run blocked |
 
 ## Historical feature roadmap
 

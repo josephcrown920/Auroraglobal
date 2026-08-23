@@ -36,8 +36,8 @@ jobs:
         run: bash scripts/check-migrations.sh
       - name: Worker boundary audit
         run: node scripts/ci/audit-worker-entry.mjs
-      - name: Production build
-        run: NODE_OPTIONS=--max-old-space-size=4096 npm run build
+      - name: Production release gate
+        run: npm run production:gate
 
   e2e:
     name: Playwright end-to-end
@@ -50,6 +50,7 @@ jobs:
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
       VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
     steps:

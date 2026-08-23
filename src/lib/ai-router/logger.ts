@@ -25,6 +25,12 @@ async function getAdmin() {
   if (_adminClient) return _adminClient;
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // `supabaseAdmin` can be a lazy proxy that throws when a required runtime
+    // environment variable is missing. Probe it before caching so background
+    // telemetry remains best-effort in test and local environments.
+    if (typeof (supabaseAdmin as { from?: unknown }).from !== "function") {
+      throw new Error("Supabase admin client is unavailable");
+    }
     _adminClient = supabaseAdmin;
   } catch {
     // client.server is not available in all environments

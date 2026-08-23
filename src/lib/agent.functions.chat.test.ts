@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { z } from "zod";
-import { generateText } from "ai";
+import * as ai from "ai";
 import { routedGenerate } from "./ai-router";
 import { classifyRequest } from "./ai-router/classifier";
 import { resetHealthMap } from "./ai-router/health";
@@ -62,6 +62,9 @@ describe("Aurora chat router integration", () => {
 
   afterEach(() => {
     mock.restore();
+    // Bun module mocks are process-global and survive mock.restore(). Restore
+    // the real SDK so unrelated suites never inherit this chat-specific fake.
+    mock.module("ai", () => ai);
     resetProviderRegistry();
     resetHealthMap();
   });

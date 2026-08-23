@@ -197,6 +197,7 @@ type SceneRefInput = {
 type SceneRefDeps = {
   assertOwned: (url: string, userId: string) => Promise<void>;
   fetchImpl: typeof fetch;
+  apiKey?: string;
 };
 
 // Deps-injected core (same pattern as gifts.functions.ts): the createServerFn
@@ -216,7 +217,7 @@ export async function generateSceneImagesFromRefCore(
     await deps.assertOwned(referenceUrl, userId);
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = deps.apiKey ?? process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
 
   const CONCURRENCY = 4;

@@ -37,6 +37,7 @@ describe("generateSceneImagesFromRefCore — ownership guard", () => {
           assertOwned: async () => {
             throw new Error(OWNERSHIP_ERR);
           },
+          apiKey: "test-gemini-key",
           fetchImpl: (async () => {
             fetches++;
             return new Response("{}", { status: 200 });
@@ -57,6 +58,7 @@ describe("generateSceneImagesFromRefCore — ownership guard", () => {
         assertOwned: async (url) => {
           seen.push(url);
         },
+        apiKey: "test-gemini-key",
         fetchImpl: fakeGemini("IMG_DATA"),
       },
     );
@@ -75,6 +77,7 @@ describe("generateSceneImagesFromRefCore — ownership guard", () => {
       assertOwned: async (url) => {
         seen.push(url);
       },
+      apiKey: "test-gemini-key",
       fetchImpl: fakeGemini("IMG_DATA"),
     });
     expect(seen).toHaveLength(0);

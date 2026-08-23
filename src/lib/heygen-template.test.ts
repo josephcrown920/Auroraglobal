@@ -1,7 +1,7 @@
 // Task #275 — HeyGen Template API ("Aurora Template") unit tests.
 // Fetch is mocked via globalThis.fetch (NOT mock.module — heygen.server.ts is
 // imported real by sibling suites; see the SDK fetch-mocking convention).
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
   buildTemplateGeneratePayload,
   mergeCharacterVariable,
@@ -156,6 +156,18 @@ describe("HeyGenTemplateCharacterVariableSchema (per-run character swaps)", () =
 });
 
 describe("submitHeyGenTemplateVideo", () => {
+  let originalHeygenApiKey: string | undefined;
+
+  beforeEach(() => {
+    originalHeygenApiKey = process.env.HEYGEN_API_KEY;
+    process.env.HEYGEN_API_KEY = "test-key";
+  });
+
+  afterEach(() => {
+    if (originalHeygenApiKey === undefined) delete process.env.HEYGEN_API_KEY;
+    else process.env.HEYGEN_API_KEY = originalHeygenApiKey;
+  });
+
   test("POSTs to /v2/template/{id}/generate and returns the video_id", async () => {
     let captured: { url: string; body: Record<string, unknown> } | null = null;
     globalThis.fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {

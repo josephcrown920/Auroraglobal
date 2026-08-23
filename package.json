@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "NODE_OPTIONS=--max-old-space-size=4096 vite build",
+    "production:gate": "NODE_OPTIONS=--max-old-space-size=4608 bash scripts/replit-node.sh node_modules/vite/bin/vite.js build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "bash scripts/check-no-routes-tests.sh && eslint .",

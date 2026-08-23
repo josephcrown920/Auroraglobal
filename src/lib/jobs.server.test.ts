@@ -560,11 +560,14 @@ describe("processOneJob", () => {
     // the actual render died partway through. Same contract as the no-worker
     // preflight case: refund exactly once and flip /kids to failed, never stuck
     // "rendering".
-    gpuWorkers = [{ in_flight: 0, max_concurrency: 1, last_heartbeat: null }];
-    orchestrateImpl = async () => {
-      throw new Error("provider exploded mid-render");
-    };
-    claimQueue = [
+    const previousHfToken = process.env.HF_TOKEN;
+    process.env.HF_TOKEN = "test-token";
+    try {
+      gpuWorkers = [{ in_flight: 0, max_concurrency: 1, last_heartbeat: null }];
+      orchestrateImpl = async () => {
+        throw new Error("provider exploded mid-render");
+      };
+      claimQueue = [
       job({
         kind: "kids_story",
         credits_reserved: 12,
@@ -584,34 +587,38 @@ describe("processOneJob", () => {
           },
         },
       }),
-    ];
+      ];
 
-    const r = await processOneJob("w1");
-    expect(r.status).toBe("failed");
+      const r = await processOneJob("w1");
+      expect(r.status).toBe("failed");
 
     // The preflights passed and at least one paid generation stage was actually
     // attempted before the failure (proving this isn't just re-hitting the
     // no-worker/no-TTS preflight from the earlier tests).
-    expect(orchCalls).toBeGreaterThan(0);
+      expect(orchCalls).toBeGreaterThan(0);
 
     // Finalized exactly once (CAS + generation write + release all folded into
     // the one finalize_job transaction) — released exactly once, never twice.
-    const finalizeCalls = calls.rpc.filter((c) => c.name === "finalize_job");
-    expect(finalizeCalls).toHaveLength(1);
-    expect(finalizeCalls[0].args).toMatchObject({ _job: "j1", _outcome: "failed" });
-    expect(String(finalizeCalls[0].args._error)).toMatch(/provider exploded mid-render/i);
-    expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeUndefined();
-    expect(calls.updates.find((u) => u.table === "generations")).toBeUndefined();
+      const finalizeCalls = calls.rpc.filter((c) => c.name === "finalize_job");
+      expect(finalizeCalls).toHaveLength(1);
+      expect(finalizeCalls[0].args).toMatchObject({ _job: "j1", _outcome: "failed" });
+      expect(String(finalizeCalls[0].args._error)).toMatch(/provider exploded mid-render/i);
+      expect(calls.rpc.find((c) => c.name === "release_reservation")).toBeUndefined();
+      expect(calls.updates.find((u) => u.table === "generations")).toBeUndefined();
 
     // The kids-story row is marked failed and scoped to its owner so /kids stops
     // spinning and shows the refunded state instead of hanging on "rendering".
     // The render pipeline writes several progress updates first (scripting,
     // rendering, per-scene status) before the terminal failStory() write, so
     // check the LAST kids_stories update — the final state /kids will show.
-    const storyUpdates = calls.updates.filter((u) => u.table === "kids_stories");
-    const lastStoryUpdate = storyUpdates[storyUpdates.length - 1];
-    expect(lastStoryUpdate?.patch).toMatchObject({ status: "failed" });
-    expect(String(lastStoryUpdate?.patch.error)).toMatch(/provider exploded mid-render/i);
+      const storyUpdates = calls.updates.filter((u) => u.table === "kids_stories");
+      const lastStoryUpdate = storyUpdates[storyUpdates.length - 1];
+      expect(lastStoryUpdate?.patch).toMatchObject({ status: "failed" });
+      expect(String(lastStoryUpdate?.patch.error)).toMatch(/provider exploded mid-render/i);
+    } finally {
+      if (previousHfToken === undefined) delete process.env.HF_TOKEN;
+      else process.env.HF_TOKEN = previousHfToken;
+    }
   });
 
   it("does NOT touch the kids_stories row when it has lost the lock to a stale-sweep reclaim", async () => {

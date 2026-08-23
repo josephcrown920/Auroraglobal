@@ -1,6 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
 const PORT = process.env.PORT || "8080";
+const VITE_SERVER_COMMAND = `${JSON.stringify(process.execPath)} node_modules/vite/bin/vite.js dev --host 127.0.0.1 --port ${PORT}`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -20,16 +21,10 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    // Use the same node-path-aware command as the "Start application" workflow so
-    // that Playwright can boot the dev server itself when reuseExistingServer misses
-    // (e.g. the workflow hasn't started yet).  reuseExistingServer: true means this
-    // command is skipped entirely when port 8080 is already open.
-    // Wrapped in bash -c so available-pid2-node-paths (which uses set -o pipefail)
-    // runs under bash rather than /bin/sh which Playwright uses by default.
-    // NODE_OPTIONS caps the dev server's heap: this container has OOM-killed heavy
-    // node processes before, and a mid-suite server death shows up as
-    // ERR_CONNECTION_REFUSED in every remaining test.
-    command: `bash -c 'NODE_OPTIONS=--max-old-space-size=3072 "$(available-pid2-node-paths | head -1)" node_modules/vite/bin/vite.js dev --host 0.0.0.0 --port ${PORT}'`,
+    // Launch Vite through the same Node binary that loaded Playwright. This works
+    // on GitHub-hosted runners and Replit without relying on a shell-only helper.
+    // NODE_OPTIONS caps the dev server's heap so a heavy suite cannot OOM the host.
+    command: `NODE_OPTIONS=--max-old-space-size=3072 ${VITE_SERVER_COMMAND}`,
     // reuseExistingServer + url polling also makes the parallel "Project" workflow
     // safe: if the "Start application" workflow already owns port 8080, Playwright
     // reuses it; otherwise Playwright boots its own server and waits for readiness.

@@ -12,6 +12,12 @@ NODE_OPTIONS=--max-old-space-size=4608 \
   bash scripts/replit-node.sh node_modules/vite/bin/vite.js build
 ```
 
+Run the same command locally and in CI with:
+
+```sh
+npm run production:gate
+```
+
 Do not deploy the development server or the `node_modules/.nitro` working
 directory directly.
 

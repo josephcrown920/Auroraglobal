@@ -55,11 +55,14 @@ function fakeResponse(opts: { ok?: boolean; status?: number; json?: unknown }): 
 const realFetch = globalThis.fetch;
 function installFetch(handler: (url: string) => Response) {
   const calls: string[] = [];
-  const fetchImpl = mock((input: RequestInfo | URL) => {
+  // Keep this a plain function rather than a Bun mock. Other test files call
+  // mock.restore(), which is process-global and can reset a mocked fetch while
+  // this suite is still executing.
+  const fetchImpl = ((input: RequestInfo | URL) => {
     const url = typeof input === "string" ? input : input.toString();
     calls.push(url);
     return Promise.resolve(handler(url));
-  }) as unknown as typeof fetch;
+  }) as typeof fetch;
   globalThis.fetch = fetchImpl;
   return { calls, fetchImpl };
 }
